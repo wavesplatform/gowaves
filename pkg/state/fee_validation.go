@@ -268,7 +268,6 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 		treeEstimation, err = params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to get complexity by addr from store")
-
 		}
 		complexity = treeEstimation.Verifier
 	}

@@ -434,6 +434,13 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	if !se.isPresent() {
 		return nil, errors.New("script estimations must be set for SetScriptWithProofs tx")
 	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create addr from PK %q", tx.SenderPK.String())
+	}
+	if setErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID); setErr != nil {
+		return nil, errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
+	}
 
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetScriptTx(tx.SenderPK,
 		tx.Script, se.estimation.Verifier, balanceChanges)
@@ -444,6 +451,7 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
+// TODO used only in tests
 func storeScriptByAddress(
 	stor *blockchainEntitiesStorage,
 	scheme proto.Scheme,
@@ -459,14 +467,14 @@ func storeScriptByAddress(
 	if setErr := stor.scriptsStorage.setAccountScript(senderAddr, script, senderPK, blockID); setErr != nil {
 		return errors.Wrapf(setErr, "failed to set account script on addr %q", senderAddr.String())
 	}
-	// Save complexity to storage, so we won't have to calculate it every time the script is called.
 	if setErr := stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, se, blockID); setErr != nil {
 		return errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
 	}
 	return nil
 }
 
-func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction, info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
+func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction,
+	info *performerInfo, _ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.SetAssetScriptWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
@@ -476,20 +484,19 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if !se.isPresent() {
 		return nil, errors.New("script estimations must be set for SetAssetScriptWithProofs tx")
 	}
+	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create addr from PK %q", tx.SenderPK.String())
+	}
 
+	// Save complexity to storage, so we won't have to calculate it every time the script is called.
+	if setErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID); setErr != nil {
+		return nil, errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
+	}
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID,
 		tx.Script, se.estimation.Verifier, tx.SenderPK, balanceChanges)
 	if err != nil {
 		return nil, err
-	}
-
-	if !se.isPresent() {
-		return nil, errors.New("script estimations must be set for SetScriptWithProofs tx")
-	}
-	// script estimation is present and not nil
-	err = storeScriptByAddress(tp.stor, tp.settings.AddressSchemeCharacter, tx.SenderPK, tx.Script, *se, info.blockID)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to perform SetScriptWithProofs tx %q", tx.ID.String())
 	}
 
 	return snapshot, snapshot.Apply(tp.snapshotApplier)

@@ -161,13 +161,13 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot AssetVolumeSnapshot) e
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) error {
-	//estimation := ride.TreeEstimation{
+	// estimation := ride.TreeEstimation{
 	//	Estimation: int(snapshot.Complexity),
 	//	Verifier:   int(snapshot.Complexity),
 	//	Functions:  nil,
-	//}
+	// }
 	// TODO complexity is being saved in transaction_performer, we need to move to this place
-	//if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
+	// if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
 	//	snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
 	//	return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
 	//		snapshot.AssetID.String())
@@ -190,8 +190,8 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
 			a.info.Scheme(), snapshot.SenderPublicKey.String())
 	}
-	//var estimations treeEstimations
-	//if !snapshot.Script.IsEmpty() {
+	// var estimations treeEstimations
+	// if !snapshot.Script.IsEmpty() {
 	//	var tree *ast.Tree
 	//	tree, err = serialization.Parse(snapshot.Script)
 	//	if err != nil {
@@ -201,10 +201,10 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 	//	if err != nil {
 	//		return errors.Wrapf(err, "failed to make account script estimations for addr %q", addr.String())
 	//	}
-	//}
-	//if err = a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, a.info.BlockID()); err != nil {
+	// }
+	// if err = a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, a.info.BlockID()); err != nil {
 	//	return errors.Wrapf(err, "failed to store account script estimation for addr %q", addr.String())
-	//}
+	// }
 	return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 }
 

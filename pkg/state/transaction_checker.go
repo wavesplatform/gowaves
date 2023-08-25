@@ -183,9 +183,6 @@ func (tc *transactionChecker) checkDAppCallables(tree *ast.Tree, rideV6Activated
 	return nil
 }
 
-// TODO remove it
-//type treeEstimations map[int]ride.TreeEstimation
-
 func (tc *transactionChecker) checkScript(
 	script proto.Script,
 	estimatorVersion int,
