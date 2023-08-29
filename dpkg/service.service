@@ -19,6 +19,7 @@ ExecStartPre=/bin/chmod 755 /var/log/PACKAGE
 StandardOutput=syslog
 StandardError=syslog
 SyslogIdentifier=PACKAGE
+KillSignal=SIGINT
 
 [Install]
 WantedBy=multi-user.target
