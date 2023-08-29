@@ -18,6 +18,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -4031,6 +4032,14 @@ type fieldsHashesJS struct {
 	WavesBalanceHash  DigestWrapped `json:"wavesBalanceHash"`
 	AssetBalanceHash  DigestWrapped `json:"assetBalanceHash"`
 	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`
+}
+
+func (s *FieldsHashes) Equal(other FieldsHashes) bool {
+	return s.DataEntryHash == other.DataEntryHash && s.AccountScriptHash == other.AccountScriptHash &&
+		s.AssetScriptHash == other.AssetScriptHash && s.LeaseStatusHash == other.LeaseStatusHash &&
+		s.SponsorshipHash == other.SponsorshipHash && s.AliasesHash == other.AliasesHash &&
+		s.WavesBalanceHash == other.WavesBalanceHash && s.AssetBalanceHash == other.AssetBalanceHash &&
+		s.LeaseBalanceHash == other.LeaseBalanceHash
 }
 
 func (s FieldsHashes) MarshalJSON() ([]byte, error) {
