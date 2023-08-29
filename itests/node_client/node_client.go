@@ -99,11 +99,11 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		c.WaitForNewHeight(t)
 	}
 
-	if !equal && goStateHash.FieldsHashes.EqualWith(scalaStateHash.FieldsHashes) {
+	if !equal && goStateHash.FieldsHashes.Equal(scalaStateHash.FieldsHashes) {
 		var firstHeight int64 = -1
 		for height := h; height > 0; height-- {
 			goStateHash, scalaStateHash, equal = c.StateHashCmp(t, height)
-			if !goStateHash.FieldsHashes.EqualWith(scalaStateHash.FieldsHashes) {
+			if !goStateHash.FieldsHashes.Equal(scalaStateHash.FieldsHashes) {
 				firstHeight = int64(height)
 			}
 		}
