@@ -539,7 +539,8 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, err
 	}
 
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info, invocationRes, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info,
+		invocationRes, balanceChanges, tx.SenderPK)
 	if err != nil {
 		return nil, err
 	}
@@ -549,7 +550,8 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction,
 	info *performerInfo, invocationRes *invocationResult,
 	balanceChanges txDiff) (TransactionSnapshot, error) {
-	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
+	tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
+	if !ok {
 		return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
 
@@ -562,7 +564,8 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 		return nil, err
 	}
 
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, info, invocationRes, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, info, invocationRes,
+		balanceChanges, tx.SenderPK)
 	if err != nil {
 		return nil, err
 	}
@@ -575,12 +578,7 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	if !ok {
 		return nil, errors.New("failed to convert interface to EthereumTransaction transaction")
 	}
-	if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
-		// TODO remove?
-		if err := tp.stor.commitUncertain(info.blockID); err != nil {
-			return nil, errors.Wrap(err, "failed to commit invoke changes")
-		}
-	}
+
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Errorf("failed to get transaction ID: %v", err)
@@ -589,9 +587,19 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	if err != nil {
 		return nil, err
 	}
-
+	scriptAddr, err := ethTx.WavesAddressTo(tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, err
+	}
+	var si scriptBasicInfoRecord
+	si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
+	if err != nil {
+		return nil,
+			errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
+	}
+	scriptPK := si.PK
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForEthereumInvokeScriptTx(txID,
-		info, invocationRes, balanceChanges)
+		info, invocationRes, balanceChanges, scriptPK)
 	if err != nil {
 		return nil, err
 	}
