@@ -135,7 +135,9 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return nil, err
 	}
-
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
+		return nil, err
+	}
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil)
 }
 
