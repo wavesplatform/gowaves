@@ -7,9 +7,11 @@ import (
 	"net/netip"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type peerImplID struct {
@@ -78,10 +80,11 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 		zap.S().Errorf("Failed to send message %T: %v", m, err)
 		return
 	}
+	zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Sending to network: %s", a.id, proto.B64Bytes(b))
 	select {
 	case a.remote.ToCh <- b:
 	default:
-		a.remote.ErrCh <- errors.Errorf("remote, chan is full id %s, name %s", a.ID(), a.handshake.NodeName)
+		a.remote.ErrCh <- errors.Errorf("remote channel overflow on peer '%s'", a.id)
 	}
 }
 
@@ -100,4 +103,11 @@ func (a *PeerImpl) Handshake() proto.Handshake {
 func (a *PeerImpl) RemoteAddr() proto.TCPAddr {
 	addr := a.Connection().Conn().RemoteAddr().(*net.TCPAddr)
 	return proto.TCPAddr(*addr)
+}
+
+func (a *PeerImpl) Equal(other Peer) bool {
+	if other == nil {
+		return false
+	}
+	return a.ID() == other.ID()
 }

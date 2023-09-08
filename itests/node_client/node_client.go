@@ -98,10 +98,41 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		}
 		c.WaitForNewHeight(t)
 	}
+
+	if !equal && goStateHash.FieldsHashes.Equal(scalaStateHash.FieldsHashes) {
+		var firstHeight int64 = -1
+		for height := h; height > 0; height-- {
+			goStateHash, scalaStateHash, equal = c.StateHashCmp(t, height)
+			if !goStateHash.FieldsHashes.Equal(scalaStateHash.FieldsHashes) {
+				firstHeight = int64(height)
+			}
+		}
+		if firstHeight == -1 {
+			t.Errorf("couldn't find the height when state hashes diverged. should not happen")
+		}
+		goStateHashDiverged, scalaStateHashDiverged, _ := c.StateHashCmp(t, uint64(firstHeight))
+		goFieldHashesDiverged, err := goStateHashDiverged.FieldsHashes.MarshalJSON()
+		assert.NoError(t, err)
+		scalaFieldHashesDiverged, err := scalaStateHashDiverged.FieldsHashes.MarshalJSON()
+		assert.NoError(t, err)
+
+		t.Logf("First height when state hashes diverged: "+
+			"%d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
+			"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
+			firstHeight, goStateHashDiverged.BlockID.String(), goStateHashDiverged.SumHash.String(), goFieldHashesDiverged,
+			scalaStateHashDiverged.BlockID.String(), scalaStateHashDiverged.SumHash.String(), scalaFieldHashesDiverged)
+	}
+
+	goFieldHashes, err := goStateHash.FieldsHashes.MarshalJSON()
+	assert.NoError(t, err)
+	scalaFieldHashes, err := scalaStateHash.FieldsHashes.MarshalJSON()
+	assert.NoError(t, err)
+
 	assert.True(t, equal,
-		"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\nScala:\tBlockID=%s\tStateHash=%s",
-		h, goStateHash.BlockID.String(), goStateHash.SumHash.String(),
-		scalaStateHash.BlockID.String(), scalaStateHash.SumHash.String())
+		"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
+			"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
+		h, goStateHash.BlockID.String(), goStateHash.SumHash.String(), goFieldHashes,
+		scalaStateHash.BlockID.String(), scalaStateHash.SumHash.String(), scalaFieldHashes)
 }
 
 func Retry(timeout time.Duration, f func() error) error {

@@ -649,31 +649,57 @@ func (a *NodeApi) unconfirmedSize(w http.ResponseWriter, _ *http.Request) error 
 	return nil
 }
 
-type rollbackRequest struct {
-	Height uint64 `json:"height"`
+type rollbackResponse struct {
+	BlockID proto.BlockID `json:"blockId"`
 }
 
-type rollbackToHeight interface {
-	RollbackToHeight(string, proto.Height) error
-}
-
-func RollbackToHeight(app rollbackToHeight) HandlerFunc {
-	return func(w http.ResponseWriter, r *http.Request) error {
-		rollbackReq := &rollbackRequest{}
-		if err := tryParseJson(r.Body, rollbackReq); err != nil {
-			return errors.Wrap(err, "failed to parse RollbackToHeight body as JSON")
-		}
-		// TODO(nickeskov): remove this and use auth middleware
-		apiKey := r.Header.Get("X-API-Key")
-		if err := app.RollbackToHeight(apiKey, rollbackReq.Height); err != nil {
-			return errors.Wrapf(err, "failed to rollback to height %d", rollbackReq.Height)
-		}
-		// TODO(nickeskov): looks like bug...
-		if err := trySendJson(w, nil); err != nil {
-			return errors.Wrap(err, "RollbackToHeight")
-		}
-		return nil
+func (a *NodeApi) RollbackToHeight(w http.ResponseWriter, r *http.Request) error {
+	type rollbackRequest struct {
+		Height                  uint64 `json:"rollbackTo"`
+		ReturnTransactionsToUtx bool   `json:"returnTransactionsToUtx"`
 	}
+
+	rollbackReq := &rollbackRequest{}
+	if err := tryParseJson(r.Body, rollbackReq); err != nil {
+		return errors.Wrap(err, "failed to parse RollbackToHeight body as JSON")
+	}
+	err := a.state.RollbackToHeight(rollbackReq.Height)
+	if err != nil {
+		origErr := errors.Cause(err)
+		if state.IsNotFound(origErr) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err, "failed to rollback to height %d", rollbackReq.Height)
+	}
+	block, err := a.app.BlockByHeight(rollbackReq.Height)
+	if err != nil {
+		if errors.Is(err, notFound) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrap(err, "expected NotFound in state error, but received other error")
+	}
+	if err = trySendJson(w, rollbackResponse{block.BlockID()}); err != nil {
+		return errors.Wrap(err, "RollbackToHeight")
+	}
+	return nil
+}
+
+func (a *NodeApi) RollbackTo(w http.ResponseWriter, r *http.Request) error {
+	type rollbackResponse struct {
+		BlockID proto.BlockID `json:"blockId"`
+	}
+	idBase58 := chi.URLParam(r, "id")
+	id, err := proto.NewBlockIDFromBase58(idBase58)
+	if err != nil {
+		return err
+	}
+	if err = a.state.RollbackTo(id); err != nil {
+		return errors.Wrapf(err, "failed to rollback to block %s", id)
+	}
+	if err = trySendJson(w, rollbackResponse{id}); err != nil {
+		return errors.Wrap(err, "RollbackTo")
+	}
+	return nil
 }
 
 type walletLoadKeysRequest struct {

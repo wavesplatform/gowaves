@@ -10,10 +10,18 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/bytebufferpool"
-	"github.com/wavesplatform/gowaves/pkg/p2p/common"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
+
+type mockID struct {
+	id string
+}
+
+func (m *mockID) String() string {
+	return m.id
+}
 
 func TestHandleStopContext(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
@@ -24,7 +32,7 @@ func TestHandleStopContext(t *testing.T) {
 	parent := NewParent()
 	remote := NewRemote()
 	peer := &mockPeer{CloseFunc: func() error { return nil }}
-	err := Handle(ctx, peer, parent, remote, nil)
+	err := Handle(ctx, peer, parent, remote)
 	assert.NoError(t, err)
 	assert.Len(t, peer.CloseCalls(), 1)
 	require.Len(t, parent.InfoCh, 1)
@@ -40,8 +48,11 @@ func TestHandleReceive(t *testing.T) {
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
-		peer := &mockPeer{CloseFunc: func() error { return nil }}
-		_ = Handle(ctx, peer, parent, remote, common.NewDuplicateChecker())
+		peer := &mockPeer{
+			CloseFunc: func() error { return nil },
+			IDFunc:    func() ID { return &mockID{id: "test-peer-id"} },
+		}
+		_ = Handle(ctx, peer, parent, remote)
 		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()
@@ -63,7 +74,7 @@ func TestHandleError(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		peer := &mockPeer{CloseFunc: func() error { return nil }}
-		_ = Handle(ctx, peer, parent, remote, nil)
+		_ = Handle(ctx, peer, parent, remote)
 		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()

@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -89,14 +90,10 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return err
 	}
-	if se := info.checkerData.scriptEstimations; se.isPresent() {
+	if se := info.checkerData.scriptEstimation; se.isPresent() { // script estimation is present and not nil
 		// Save complexities to storage, so we won't have to calculate it every time the script is called.
-		complexity, ok := se.estimations[se.currentEstimatorVersion]
-		if !ok {
-			return errors.Errorf("failed to calculate asset script complexity by estimator version %d", se.currentEstimatorVersion)
-		}
-		if err := tp.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, complexity, info.blockID); err != nil {
-			return err
+		if scErr := tp.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, *se, info.blockID); scErr != nil {
+			return scErr
 		}
 	}
 	return tp.performIssue(&tx.Issue, assetID, info)
@@ -325,21 +322,36 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	if !ok {
 		return errors.New("failed to convert interface to SetScriptWithProofs transaction")
 	}
-	se := info.checkerData.scriptEstimations
+	se := info.checkerData.scriptEstimation
 	if !se.isPresent() {
 		return errors.New("script estimations must be set for SetScriptWithProofs tx")
 	}
-
-	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	// script estimation is present and not nil
+	err := storeScriptByAddress(tp.stor, tp.settings.AddressSchemeCharacter, tx.SenderPK, tx.Script, *se, info.blockID)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to perform SetScriptWithProofs tx %q", tx.ID.String())
 	}
-	if err := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, tx.SenderPK, info.blockID); err != nil {
-		return errors.Wrap(err, "failed to set account script")
+	return err
+}
+
+func storeScriptByAddress(
+	stor *blockchainEntitiesStorage,
+	scheme proto.Scheme,
+	senderPK crypto.PublicKey,
+	script proto.Script,
+	se scriptEstimation,
+	blockID proto.BlockID,
+) error {
+	senderAddr, err := proto.NewAddressFromPublicKey(scheme, senderPK)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create addr from PK %q", senderPK.String())
+	}
+	if setErr := stor.scriptsStorage.setAccountScript(senderAddr, script, senderPK, blockID); setErr != nil {
+		return errors.Wrapf(setErr, "failed to set account script on addr %q", senderAddr.String())
 	}
 	// Save complexity to storage, so we won't have to calculate it every time the script is called.
-	if err := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, se.estimations, info.blockID); err != nil {
-		return err
+	if setErr := stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, se, blockID); setErr != nil {
+		return errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
 	}
 	return nil
 }
@@ -349,31 +361,48 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if !ok {
 		return errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
 	}
-	se := info.checkerData.scriptEstimations
+	se := info.checkerData.scriptEstimation
 	if !se.isPresent() {
 		return errors.New("script estimations must be set for SetAssetScriptWithProofs tx")
 	}
+	// script estimation is present and not nil
 
 	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
 		return errors.Wrap(err, "failed to set asset script")
 	}
 	// Save complexity to storage, so we won't have to calculate it every time the script is called.
-	estimation, ok := se.estimations[se.currentEstimatorVersion]
-	if !ok {
-		return errors.Errorf("failed to calculate asset script complexity by estimator version %d", se.currentEstimatorVersion)
-	}
-	if err := tp.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, estimation, info.blockID); err != nil {
+	if err := tp.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, *se, info.blockID); err != nil {
 		return errors.Wrapf(err, "failed to save script complexity for asset %q", tx.AssetID.String())
 	}
 	return nil
 }
 
 func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction, info *performerInfo) error {
-	if _, ok := transaction.(*proto.InvokeScriptWithProofs); !ok {
+	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
+	if !ok {
 		return errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
 	if err := tp.stor.commitUncertain(info.blockID); err != nil {
-		return errors.Wrap(err, "failed to commit invoke changes")
+		return errors.Wrapf(err, "failed to commit invoke changes for tx %q", tx.ID.String())
+	}
+	se := info.checkerData.scriptEstimation
+	if !se.isPresent() { // nothing to do, no estimation to save
+		return nil
+	}
+	// script estimation is present an not nil
+
+	// we've pulled up an old script which estimation had been done by an old estimator
+	// in txChecker we've estimated script with a new estimator
+	// this is the place where we have to store new estimation
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
+	if err != nil {
+		return errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
+	}
+	// update callable and summary complexity, verifier complexity remains the same
+	if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
+		return errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
+			scriptAddr.String(), tx.ID.String(),
+		)
 	}
 	return nil
 }

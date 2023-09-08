@@ -12,6 +12,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -79,11 +80,17 @@ func (to *invokeApplierTestObjects) setAndCheckInitialWavesBalance(t *testing.T,
 }
 
 func (to *invokeApplierTestObjects) setScript(t *testing.T, addr proto.WavesAddress, pk crypto.PublicKey, script proto.Script) {
+	const currentEstimatorVersion = 1
 	tree, err := serialization.Parse(script)
 	require.NoError(t, err)
-	estimation, err := ride.EstimateTree(tree, 1)
+	estimation, err := ride.EstimateTree(tree, currentEstimatorVersion)
 	require.NoError(t, err)
-	err = to.state.stor.scriptsComplexity.saveComplexitiesForAddr(addr, map[int]ride.TreeEstimation{1: estimation}, blockID0)
+	se := scriptEstimation{
+		currentEstimatorVersion: currentEstimatorVersion,
+		scriptIsEmpty:           script.IsEmpty(),
+		estimation:              estimation,
+	}
+	err = to.state.stor.scriptsComplexity.saveComplexitiesForAddr(addr, se, blockID0)
 	assert.NoError(t, err, "failed to save complexity for address")
 	err = to.state.stor.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
 	assert.NoError(t, err, "failed to set account script")
