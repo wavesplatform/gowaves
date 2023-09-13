@@ -42,7 +42,7 @@ func getDiffBalance(suite *f.BaseSuite, addressType string, currentBalance utl.B
 	diffBalanceGo := currentBalance.BalanceInWavesGo - initBalance.BalanceInWavesGo
 	diffBalanceScala := currentBalance.BalanceInWavesScala - initBalance.BalanceInWavesScala
 	suite.T().Logf("Go: Diff %s balance: %d, Scala: Diff %s balance: %d, on height: %d",
-		addressType, diffBalanceGo, diffBalanceScala, utl.GetHeight(suite))
+		addressType, diffBalanceGo, addressType, diffBalanceScala, utl.GetHeight(suite))
 	return utl.NewBalanceInWaves(diffBalanceGo, diffBalanceScala)
 }
 
