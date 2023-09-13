@@ -6,9 +6,6 @@
   "block_reward_increment": 100000000,
   "desired_reward": 900000000,
   "dao_address": "3JuungCtDNEvFyHgx1Dcd937ztNTVpRNSWi",
-  "xtn_buyback_address": "3JdWGi733mWM2kPoUvHqg3uJzMQ5rPCoFWU",
-  "preactivated_features": [
-    {"feature": 19, "height": 1}
-  ],
-  "supported_features": [20]
+  "preactivated_features": [],
+  "supported_features": [19, 20]
 }

@@ -390,36 +390,6 @@ func GetActivationFeaturesStatusInfoScala(suite *f.BaseSuite, h uint64) *g.Activ
 	return suite.Clients.ScalaClients.GrpcClient.GetFeatureActivationStatusInfo(suite.T(), int32(h))
 }
 
-func GetFeatureInfoGo(suite *f.BaseSuite, featureId int, h uint64) (string, error) {
-	var featureInfo string
-	var err error
-	for _, feature := range GetActivationFeaturesStatusInfoGo(suite, h).GetFeatures() {
-		if feature.GetId() == int32(featureId) {
-			featureInfo = feature.String()
-			break
-		}
-	}
-	if featureInfo == "" {
-		err = errors.Errorf("Feature with Id %d not found", featureId)
-	}
-	return featureInfo, err
-}
-
-func GetFeatureInfoScala(suite *f.BaseSuite, featureId int, h uint64) (string, error) {
-	var featureInfo string
-	var err error
-	for _, feature := range GetActivationFeaturesStatusInfoScala(suite, h).GetFeatures() {
-		if feature.GetId() == int32(featureId) {
-			featureInfo = feature.String()
-			break
-		}
-	}
-	if featureInfo == "" {
-		err = errors.Errorf("Feature with Id %d not found", featureId)
-	}
-	return featureInfo, err
-}
-
 func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, featureId int) (string, error) {
 	var status string
 	var err error
@@ -530,6 +500,7 @@ func FeatureShouldBeActivated(suite *f.BaseSuite, featureId int, height uint64) 
 		err = errors.Errorf("Feature with Id %d not activated", featureId)
 	}
 	require.NoError(suite.T(), err)
+	suite.T().Logf("Feature %d is activated on height @%d\n", featureId, activationHeight)
 }
 
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
@@ -711,29 +682,12 @@ func NewRewardDiffBalances(diffBalanceGoMiners, diffBalanceScalaMiners, diffBala
 	}
 }
 
-func GetDesiredRewardGo(suite *f.BaseSuite, height uint64) int64 {
-	block := suite.Clients.GoClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
-	return block.GetHeader().RewardVote
-}
-
-func GetDesiredRewardScala(suite *f.BaseSuite, height uint64) int64 {
-	block := suite.Clients.ScalaClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
-	fmt.Printf("Scala Header @%d:\n%v\n", height, block.GetHeader())
-	return block.GetHeader().RewardVote
-}
-
 func GetInitReward(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.InitialBlockReward
 }
 
 func GetRewardIncrement(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardIncrement
-}
-
-// GetBlockRewardVotingPeriod returns voting interval (voting-interval)
-// the interval in which votes for increasing/decreasing the reward are taken into account
-func GetBlockRewardVotingPeriod(suite *f.BaseSuite) uint64 {
-	return suite.Cfg.BlockchainSettings.BlockRewardVotingPeriod
 }
 
 // GetRewardTerm is max period of voting (term)
@@ -746,6 +700,30 @@ func GetRewardTermAfter20(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
 
-func GetRewardAddresses(suite *f.BaseSuite) []proto.WavesAddress {
-	return suite.Cfg.BlockchainSettings.RewardAddresses
+func GetRewardTermAtHeightGo(suite *f.BaseSuite, height uint64) uint64 {
+	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height).Term
+}
+
+func GetRewardTermAtHeightScala(suite *f.BaseSuite, height uint64) uint64 {
+	return suite.Clients.ScalaClients.HttpClient.RewardsAtHeight(suite.T(), height).Term
+}
+
+func GetRewardTermAtHeight(suite *f.BaseSuite, height uint64) RewardTerm {
+	termGo := GetRewardTermAtHeightGo(suite, height)
+	termScala := GetRewardTermAtHeightScala(suite, height)
+	suite.T().Logf("Go: Reward Term: %d, Scala: Reward Term: %d, height: %d",
+		termGo, termScala, height)
+	return NewRewardTerm(termGo, termScala)
+}
+
+type RewardTerm struct {
+	TermGo    uint64
+	TermScala uint64
+}
+
+func NewRewardTerm(termGo, termScala uint64) RewardTerm {
+	return RewardTerm{
+		TermGo:    termGo,
+		TermScala: termScala,
+	}
 }

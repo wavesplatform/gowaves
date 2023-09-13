@@ -115,3 +115,21 @@ func (c *HttpClient) BlockHeader(t *testing.T, height proto.Height) *client.Head
 	require.NoError(t, err)
 	return header
 }
+
+func (c *HttpClient) Rewards(t *testing.T) *client.RewardInfo {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	rewardInfo, _, err := c.cli.Blockchain.Rewards(ctx)
+	require.NoError(t, err)
+	return rewardInfo
+}
+
+func (c *HttpClient) RewardsAtHeight(t *testing.T, height proto.Height) *client.RewardInfo {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	rewardInfo, _, err := c.cli.Blockchain.RewardsAtHeight(ctx, height)
+	require.NoError(t, err)
+	return rewardInfo
+}

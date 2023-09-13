@@ -94,3 +94,9 @@ func XtnBuyBackDiffBalanceInWavesCheck(t *testing.T, expected int64, actualGo, a
 	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }
+
+func TermCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
+	errMsg := makeErrorMessage("Terms are mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}

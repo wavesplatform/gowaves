@@ -6,72 +6,72 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
-func GetBlockRewardDistribution[T any](suite *f.BaseSuite, testdata testdata.RewardDistributionTestData[T]) utl.RewardDiffBalancesInWaves {
-	var initBalanceMiner1Go, initBalanceMiner1Scala, initBalanceMiner2Go, initBalanceMiner2Scala,
-		initBalanceDaoGo, initBalanceDaoScala, initBalanceXtnGo, initBalanceXtnScala int64
-	var currentBalanceMiner1Go, currentBalanceMiner1Scala, currentBalanceMiner2Go, currentBalanceMiner2Scala,
-		currentBalanceDaoGo, currentBalanceDaoScala, currentBalanceXtnGo, currentBalanceXtnScala int64
-	//get init balance in waves of miners accounts
+func getAddressesBalances[T any](suite *f.BaseSuite, testdata testdata.RewardDistributionTestData[T]) (utl.BalanceInWaves,
+	utl.BalanceInWaves, utl.BalanceInWaves) {
+	var balanceMiner1Go, balanceMiner1Scala, balanceMiner2Go, balanceMiner2Scala,
+		balanceDaoGo, balanceDaoScala, balanceXtnGo, balanceXtnScala int64
+	//get balance in waves of miners accounts
 	if testdata.Miner1Account != nil {
-		initBalanceMiner1Go, initBalanceMiner1Scala = utl.GetAvailableBalanceInWaves(suite, testdata.Miner1Account.Address)
+		balanceMiner1Go, balanceMiner1Scala = utl.GetAvailableBalanceInWaves(suite, testdata.Miner1Account.Address)
 	}
 	if testdata.Miner2Account != nil {
-		initBalanceMiner2Go, initBalanceMiner2Scala = utl.GetAvailableBalanceInWaves(suite, testdata.Miner2Account.Address)
+		balanceMiner2Go, balanceMiner2Scala = utl.GetAvailableBalanceInWaves(suite, testdata.Miner2Account.Address)
 	}
 	//we will be summing up balances of both miners accounts
-	initSumBalanceMinersGo := initBalanceMiner1Go + initBalanceMiner2Go
-	initSumBalanceMinersScala := initBalanceMiner1Scala + initBalanceMiner2Scala
-	suite.T().Logf("Go: Init miners sum balance: %d, Scala: Init miners sum balance Scala: %d, current height: %d",
-		initSumBalanceMinersGo, initSumBalanceMinersScala, utl.GetHeight(suite))
-	//get init balances of dao and xtn buy-back accounts
+	sumBalanceMinersGo := balanceMiner1Go + balanceMiner2Go
+	sumBalanceMinersScala := balanceMiner1Scala + balanceMiner2Scala
+	suite.T().Logf("Go: Sum Miners balance: %d, Scala: Sum Miners balance: %d, current height: %d",
+		sumBalanceMinersGo, sumBalanceMinersScala, utl.GetHeight(suite))
+	//get balances of dao and xtn buy-back accounts
 	if testdata.DaoAccount != nil {
-		initBalanceDaoGo, initBalanceDaoScala = utl.GetAvailableBalanceInWaves(suite, testdata.DaoAccount.Address)
+		balanceDaoGo, balanceDaoScala = utl.GetAvailableBalanceInWaves(suite, testdata.DaoAccount.Address)
 	}
-	suite.T().Logf("Go: Init DAO balance: %d, Scala: Init DAO balance: %d, current height: %d",
-		initBalanceDaoGo, initBalanceDaoScala, utl.GetHeight(suite))
+	suite.T().Logf("Go: DAO balance: %d, Scala: DAO balance: %d, current height: %d",
+		balanceDaoGo, balanceDaoScala, utl.GetHeight(suite))
 	if testdata.XtnBuyBackAccount != nil {
-		initBalanceXtnGo, initBalanceXtnScala = utl.GetAvailableBalanceInWaves(suite, testdata.XtnBuyBackAccount.Address)
+		balanceXtnGo, balanceXtnScala = utl.GetAvailableBalanceInWaves(suite, testdata.XtnBuyBackAccount.Address)
 	}
-	suite.T().Logf("Go: Init XTN balance: %d, Scala: Init XTN balance: %d, current height: %d",
-		initBalanceXtnGo, initBalanceXtnScala, utl.GetHeight(suite))
+	suite.T().Logf("Go: XTN balance: %d, Scala: XTN balance: %d, current height: %d",
+		balanceXtnGo, balanceXtnScala, utl.GetHeight(suite))
+	return utl.NewBalanceInWaves(sumBalanceMinersGo, sumBalanceMinersScala), utl.NewBalanceInWaves(balanceDaoGo, balanceDaoScala),
+		utl.NewBalanceInWaves(balanceXtnGo, balanceXtnScala)
+}
+
+func getDiffBalance(suite *f.BaseSuite, addressType string, currentBalance utl.BalanceInWaves,
+	initBalance utl.BalanceInWaves) utl.BalanceInWaves {
+	diffBalanceGo := currentBalance.BalanceInWavesGo - initBalance.BalanceInWavesGo
+	diffBalanceScala := currentBalance.BalanceInWavesScala - initBalance.BalanceInWavesScala
+	suite.T().Logf("Go: Diff %s balance: %d, Scala: Diff %s balance: %d, on height: %d",
+		addressType, diffBalanceGo, diffBalanceScala, utl.GetHeight(suite))
+	return utl.NewBalanceInWaves(diffBalanceGo, diffBalanceScala)
+}
+
+func getAddressesDiffBalances(suite *f.BaseSuite, currentSumMinersBalance, currentDaoBalance, currentXtnBalance,
+	initSumMinersBalance, initDaoBalance, initXtnBalance utl.BalanceInWaves) (utl.BalanceInWaves, utl.BalanceInWaves, utl.BalanceInWaves) {
+	//diff sum miners balances
+	diffMinersSumBalances := getDiffBalance(suite, "Miners", currentSumMinersBalance, initSumMinersBalance)
+	//diff dao balances
+	diffDao := getDiffBalance(suite, "DAO", currentDaoBalance, initDaoBalance)
+	//diff xtn
+	diffXtn := getDiffBalance(suite, "XTN", currentXtnBalance, initXtnBalance)
+	return diffMinersSumBalances, diffDao, diffXtn
+}
+
+func GetBlockRewardDistribution[T any](suite *f.BaseSuite, testdata testdata.RewardDistributionTestData[T]) (utl.RewardDiffBalancesInWaves, utl.RewardTerm) {
+	//get init balance in waves of miners accounts
+	suite.T().Log("Init Balances")
+	initSumMinersBalance, initDaoBalance, initXtnBalance := getAddressesBalances(suite, testdata)
 	//wait for 1 block
 	utl.WaitForNewHeight(suite)
+	h := utl.GetHeight(suite)
+	term := utl.GetRewardTermAtHeight(suite, h)
 	//get current balances of miners
-	if testdata.Miner1Account != nil {
-		currentBalanceMiner1Go, currentBalanceMiner1Scala = utl.GetAvailableBalanceInWaves(suite, testdata.Miner1Account.Address)
-	}
-	if testdata.Miner2Account != nil {
-		currentBalanceMiner2Go, currentBalanceMiner2Scala = utl.GetAvailableBalanceInWaves(suite, testdata.Miner2Account.Address)
-	}
-	currentSumBalanceMinersGo := currentBalanceMiner1Go + currentBalanceMiner2Go
-	currentSumBalanceMinersScala := currentBalanceMiner1Scala + currentBalanceMiner2Scala
-	suite.T().Logf("Go: Current miners sum balance: %d, Scala: Current miners sum balance: %d, current height: %d",
-		currentSumBalanceMinersGo, currentSumBalanceMinersScala, utl.GetHeight(suite))
-	//get current dao and xtn buy-back balance
-	if testdata.DaoAccount != nil {
-		currentBalanceDaoGo, currentBalanceDaoScala = utl.GetAvailableBalanceInWaves(suite, testdata.DaoAccount.Address)
-	}
-	suite.T().Logf("Go: Current Balance DAO: %d, Scala: Current Balance DAO: %d, current height: %d",
-		currentBalanceDaoGo, currentBalanceDaoScala, utl.GetHeight(suite))
-	if testdata.XtnBuyBackAccount != nil {
-		currentBalanceXtnGo, currentBalanceXtnScala = utl.GetAvailableBalanceInWaves(suite, testdata.XtnBuyBackAccount.Address)
-	}
-	suite.T().Logf("Go: Current Balance XTN: %d, Scala: Current Balance XTN: %d, current height: %d",
-		currentBalanceXtnGo, currentBalanceXtnScala, utl.GetHeight(suite))
-	//diff miners balance
-	diffMinersSumBalancesGo := currentSumBalanceMinersGo - initSumBalanceMinersGo
-	diffMinersSumBalancesScala := currentSumBalanceMinersScala - initSumBalanceMinersScala
-	suite.T().Logf("Go: Diff sum miners: %d, Scala: Diff sum miners: %d, on height: %d",
-		diffMinersSumBalancesGo, diffMinersSumBalancesScala, utl.GetHeight(suite))
-	//diff dao
-	diffDaoGo := currentBalanceDaoGo - initBalanceDaoGo
-	diffDaoScala := currentBalanceDaoScala - initBalanceDaoScala
-	suite.T().Logf("Go: Diff DAO: %d, Scala: Diff DAO: %d, on height: %d",
-		diffDaoGo, diffDaoScala, utl.GetHeight(suite))
-	//diff xtn
-	diffXtnGo := currentBalanceXtnGo - initBalanceXtnGo
-	diffXtnScala := currentBalanceXtnScala - initBalanceXtnScala
-	suite.T().Logf("Go: Diff XTN: %d, Scala: Diff XTN: %d, on height: %d",
-		diffXtnGo, diffXtnScala, utl.GetHeight(suite))
-	return utl.NewRewardDiffBalances(diffMinersSumBalancesGo, diffMinersSumBalancesScala, diffDaoGo, diffDaoScala, diffXtnGo, diffXtnScala)
+	suite.T().Log("Current Balances")
+	currentSumMinersBalance, currentDaoBalance, currentXtnBalance := getAddressesBalances(suite, testdata)
+	//get diff balances
+	diffMinersSumBalances, diffDaoBalance, diffXtnBalance := getAddressesDiffBalances(suite, currentSumMinersBalance,
+		currentDaoBalance, currentXtnBalance, initSumMinersBalance, initDaoBalance, initXtnBalance)
+	return utl.NewRewardDiffBalances(diffMinersSumBalances.BalanceInWavesGo, diffMinersSumBalances.BalanceInWavesScala,
+		diffDaoBalance.BalanceInWavesGo, diffDaoBalance.BalanceInWavesScala, diffXtnBalance.BalanceInWavesGo,
+		diffXtnBalance.BalanceInWavesScala), term
 }
