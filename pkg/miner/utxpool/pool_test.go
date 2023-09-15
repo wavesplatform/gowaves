@@ -4,9 +4,9 @@ import (
 	"bytes"
 	"math/rand"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -99,7 +99,7 @@ func (a transaction) GetSenderPK() crypto.PublicKey {
 	panic("not implemented")
 }
 
-func (a transaction) GetSender(scheme proto.Scheme) (proto.Address, error) {
+func (a transaction) GetSender(_ proto.Scheme) (proto.Address, error) {
 	panic("not implemented")
 }
 
@@ -132,7 +132,6 @@ func TestTransactionPool(t *testing.T) {
 
 func BenchmarkTransactionPool(b *testing.B) {
 	b.ReportAllocs()
-	rand.Seed(time.Now().Unix())
 	a := New(10000, NoOpValidator{}, settings.MainNetSettings)
 
 	b.ResetTimer()
