@@ -5,7 +5,7 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
-// preactivated features 14 and supported 19, 20, Features Voting Period = 1
+//----- preactivated features 14 and supported 19, 20, Features Voting Period = 1 -----
 
 func GetRewardDistributionAfter14Before19(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
@@ -38,7 +38,7 @@ func GetRewardIncreaseDaoXtnSupportedTestData(suite *f.BaseSuite) RewardDistribu
 		})
 }
 
-// 2 miners, dao, xtn, initR=600000000, increment = 1, desiredR = 600000000
+// 2 miners, dao, xtn, initR=600000000, increment = 100000000, desiredR = 600000000
 // ("preactivated_14_supported_19_20/6W_2miners_dao_xtn_not_changed.json")
 // NODE - 815
 func GetRewardUnchangedDaoXtnSupportedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValues] {
@@ -177,7 +177,7 @@ func GetRewardSupportedTestData(suite *f.BaseSuite) RewardDistributionTestData[R
 }
 
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
-// ("preactivated_14_supported_19_20/2miners_dao_xtn_without_f9.json")
+// ("preactivated_14_supported_19_20/2miners_dao_xtn_without_f19.json")
 // NODE - 821
 func GetRewardDaoXtnSupportedWithout19TestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
@@ -191,4 +191,36 @@ func GetRewardDaoXtnSupportedWithout19TestData(suite *f.BaseSuite) RewardDistrib
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20(suite),
 		})
+}
+
+//----- preactivated features 14, 19, 20 and supported 21 Features Voting Period = 1 -----
+
+// 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
+// ("preactivated_14_19_20_supported_21/7W_2miners_dao_xtn_increase.json")
+// NODE - 825
+func GetRewardIncreaseDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite) RewardDistributionCeaseXtnBuybackData {
+	return RewardDistributionCeaseXtnBuybackData{
+		BeforeXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - 2*MaxAddressReward,
+				DaoDiffBalance:       MaxAddressReward,
+				XtnDiffBalance:       MaxAddressReward,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetDesiredReward(suite, utl.GetHeight(suite))) - MaxAddressReward,
+				DaoDiffBalance:       MaxAddressReward,
+				XtnDiffBalance:       0,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+	}
 }

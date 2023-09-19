@@ -447,6 +447,21 @@ func GetFeatureActivationHeightScala(suite *f.BaseSuite, featureId int, height u
 	return activationHeight
 }
 
+func GetFeatureActivationHeight(suite *f.BaseSuite, featureId int, height uint64) int32 {
+	var err error
+	var activationHeight int32
+	activationHeight = -1
+	activationHeightGo := GetFeatureActivationHeightGo(suite, featureId, height)
+	activationHeightScala := GetFeatureActivationHeightScala(suite, featureId, height)
+	if activationHeightGo == activationHeightScala && activationHeightGo > -1 {
+		activationHeight = activationHeightGo
+	} else {
+		err = errors.New("Activation Height from Go and Scala is different")
+	}
+	require.NoError(suite.T(), err)
+	return activationHeight
+}
+
 func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureId int, height uint64) (string, error) {
 	var status string
 	var err error
@@ -690,6 +705,30 @@ func GetRewardIncrement(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardIncrement
 }
 
+func GetDesiredRewardGo(suite *f.BaseSuite, height uint64) int64 {
+	block := suite.Clients.GoClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+	return block.GetHeader().RewardVote
+}
+
+func GetDesiredRewardScala(suite *f.BaseSuite, height uint64) int64 {
+	block := suite.Clients.ScalaClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+	return block.GetHeader().RewardVote
+}
+
+func GetDesiredReward(suite *f.BaseSuite, height uint64) int64 {
+	var err error
+	var desiredR int64
+	desiredRGo := GetDesiredRewardGo(suite, height)
+	desiredRScala := GetDesiredRewardScala(suite, height)
+	if desiredRGo == desiredRScala {
+		desiredR = desiredRGo
+	} else {
+		err = errors.New("Desired Reward from Go and Scala is different")
+	}
+	require.NoError(suite.T(), err)
+	return desiredR
+}
+
 // GetRewardTerm is max period of voting (term)
 func GetRewardTerm(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTerm
@@ -726,4 +765,8 @@ func NewRewardTerm(termGo, termScala uint64) RewardTerm {
 		TermGo:    termGo,
 		TermScala: termScala,
 	}
+}
+
+func GetXtnBuybackPeriod(suite *f.BaseSuite) uint64 {
+	return suite.Cfg.BlockchainSettings.MinXTNBuyBackPeriod
 }

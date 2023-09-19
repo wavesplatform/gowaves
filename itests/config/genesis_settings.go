@@ -84,6 +84,7 @@ type RewardSettings struct {
 	DesiredBlockReward      uint64        `json:"desired_reward"`
 	DaoAddress              string        `json:"dao_address"`
 	XtnBuybackAddress       string        `json:"xtn_buyback_address"`
+	MinXTNBuyBackPeriod     uint64        `json:"min_xtn_buy_back_period"`
 	PreactivatedFeatures    []FeatureInfo `json:"preactivated_features"`
 	SupportedFeatures       []int16       `json:"supported_features"`
 }
@@ -183,6 +184,7 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 		InitialBlockReward:      600000000,
 		BlockRewardIncrement:    100000000,
 		DesiredBlockReward:      700000000,
+		MinXTNBuyBackPeriod:     3,
 	}
 	if len(additionalArgsPath) == 1 {
 		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
@@ -224,6 +226,7 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	cfg.BlockRewardVotingPeriod = rewardSettings.BlockRewardVotingPeriod
 	cfg.BlockRewardTermAfter20 = rewardSettings.BlockRewardTermAfter20
 	cfg.BlockRewardTerm = rewardSettings.BlockRewardTerm
+	cfg.MinXTNBuyBackPeriod = rewardSettings.MinXTNBuyBackPeriod
 
 	rewardsAddresses := getRewardAddresses(rewardSettings)
 	if rewardsAddresses != nil {

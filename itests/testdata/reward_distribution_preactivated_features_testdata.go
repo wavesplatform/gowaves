@@ -40,7 +40,7 @@ func NewRewardDistributionTestData[T any](miner1Account, miner2Account, daoAccou
 	}
 }
 
-// preactivated features 14, 19, 20, FeaturesVotingPeriod = 1
+//----- preactivated features 14, 19, 20, FeaturesVotingPeriod = 1 -----
 
 // 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
 // ("preactivated_14_19_20/7W_2miners_dao_xtn_increase.json")
@@ -59,7 +59,7 @@ func GetRewardIncreaseDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistr
 		})
 }
 
-// 2 miners, dao, xtn, initR=600000000, increment = 1, desiredR = 600000000
+// 2 miners, dao, xtn, initR=600000000, increment = 100000000, desiredR = 600000000
 // ("preactivated_14_19_20/6W_2miners_dao_xtn_not_changed.json")
 // NODE - 815
 func GetRewardUnchangedDaoXtnPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValues] {
@@ -196,7 +196,7 @@ func GetRewardPreactivatedTestData(suite *f.BaseSuite) RewardDistributionTestDat
 }
 
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
-// ("preactivated_14_19_20/2miners_dao_xtn_without_f9.json")
+// ("preactivated_14_19_20/2miners_dao_xtn_without_f19.json")
 // NODE - 821
 func GetRewardDaoXtnPreactivatedWithout19TestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
@@ -210,4 +210,131 @@ func GetRewardDaoXtnPreactivatedWithout19TestData(suite *f.BaseSuite) RewardDist
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20(suite),
 		})
+}
+
+//----- preactivated features 14, 19, 20, 21 FeaturesVotingPeriod = 1 -----
+
+type RewardDistributionCeaseXtnBuybackData struct {
+	BeforeXtnBuyBackPeriod RewardDistributionTestData[RewardDistributionExpectedValues]
+	AfterXtnBuyBackPeriod  RewardDistributionTestData[RewardDistributionExpectedValues]
+}
+
+// 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
+// ("preactivated_14_19_20_21/7W_2miners_dao_xtn_increase.json")
+// NODE - 825
+func GetRewardIncreaseDaoXtnCeaseXTNBuybackPreactivatedTestData(suite *f.BaseSuite) RewardDistributionCeaseXtnBuybackData {
+	return RewardDistributionCeaseXtnBuybackData{
+		BeforeXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - 2*MaxAddressReward,
+				DaoDiffBalance:       MaxAddressReward,
+				XtnDiffBalance:       MaxAddressReward,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitReward(suite)+utl.GetRewardIncrement(suite)) - MaxAddressReward,
+				DaoDiffBalance:       MaxAddressReward,
+				XtnDiffBalance:       0,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+	}
+}
+
+// 2 miners, dao, xtn, initR=600000000, increment = 100000000, desiredR = 600000000
+// ("preactivated_14_19_20_21/6W_2miners_dao_xtn_not_changed.json")
+// NODE - 825
+func GetRewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedTestData(suite *f.BaseSuite) RewardDistributionCeaseXtnBuybackData {
+	return RewardDistributionCeaseXtnBuybackData{
+		BeforeXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - 2*MaxAddressReward,
+				DaoDiffBalance:       MaxAddressReward,
+				XtnDiffBalance:       MaxAddressReward,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - MaxAddressReward,
+				DaoDiffBalance:       MaxAddressReward,
+				XtnDiffBalance:       0,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+	}
+}
+
+// 2 miners, dao, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
+// ("preactivated_14_19_20_21/5W_2miners_dao_xtn_decrease.json")
+// NODE - 826
+func GetRewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedTestData(suite *f.BaseSuite) RewardDistributionCeaseXtnBuybackData {
+	return RewardDistributionCeaseXtnBuybackData{
+		BeforeXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: MaxAddressReward,
+				DaoDiffBalance:       int64((utl.GetInitReward(suite) - MaxAddressReward) / 2),
+				XtnDiffBalance:       int64((utl.GetInitReward(suite) - MaxAddressReward) / 2),
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitReward(suite)-utl.GetRewardIncrement(suite)) - int64((utl.GetInitReward(suite)-utl.GetRewardIncrement(suite)-MaxAddressReward)/2),
+				DaoDiffBalance:       int64((utl.GetInitReward(suite) - utl.GetRewardIncrement(suite) - MaxAddressReward) / 2),
+				XtnDiffBalance:       0,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+	}
+}
+
+// 2 miners, dao, xtn, initR=200000000, increment = 100000000, desiredR = 200000000
+// ("preactivated_14_19_20_21/2W_2miners_dao_xtn_not_change.json")
+// NODE - 826
+func GetReward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedTestData(suite *f.BaseSuite) RewardDistributionCeaseXtnBuybackData {
+	return RewardDistributionCeaseXtnBuybackData{
+		BeforeXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
+				DaoDiffBalance:       0,
+				XtnDiffBalance:       0,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
+				DaoDiffBalance:       0,
+				XtnDiffBalance:       0,
+				Term:                 utl.GetRewardTermAfter20(suite),
+			}),
+	}
 }
