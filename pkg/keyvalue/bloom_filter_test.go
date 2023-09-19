@@ -1,12 +1,13 @@
 package keyvalue
 
 import (
-	"math/rand"
+	"crypto/rand"
 	"path"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -21,7 +22,7 @@ func TestBloomFilter(t *testing.T) {
 	for i := 0; i < n; i++ {
 		data := make([]byte, 100)
 		_, err := rand.Read(data)
-		assert.NoError(t, err, "rand.Read() failed")
+		require.NoError(t, err, "rand.Read() failed")
 		err = filter.add(data)
 		assert.NoError(t, err)
 		notInTheSet, err := filter.notInTheSet(data)
