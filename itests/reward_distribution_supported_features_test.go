@@ -22,10 +22,10 @@ func (suite *RewardDistributionIncreaseDaoXtnSupportedSuite) Test_NODE815() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardIncreaseDaoXtnSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardIncreaseDaoXtnSupportedTestData(&suite.BaseSuite))
 	})
 }
 
@@ -44,10 +44,10 @@ func (suite *RewardDistributionUnchangedDaoXtnSupportedSuite) Test_NODE815_2() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardUnchangedDaoXtnSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardUnchangedDaoXtnSupportedTestData(&suite.BaseSuite))
 	})
 }
 
@@ -69,10 +69,10 @@ func (suite *RewardDistributionDecreaseDaoXtnSupportedSuite) Test_NODE816() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDecreaseDaoXtnSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDecreaseDaoXtnSupportedTestData(&suite.BaseSuite))
 	})
 
 }
@@ -95,10 +95,10 @@ func (suite *RewardDistributionIncreaseDaoSupportedSuite) Test_NODE817() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardIncreaseDaoSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardIncreaseDaoSupportedTestData(&suite.BaseSuite))
 	})
 }
 
@@ -117,10 +117,10 @@ func (suite *RewardDistributionUnchangedXtnSupportedSuite) Test_NODE817_2() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardUnchangedXtnSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardUnchangedXtnSupportedTestData(&suite.BaseSuite))
 	})
 }
 
@@ -142,10 +142,10 @@ func (suite *RewardDistributionDecreaseXtnSupportedSuite) Test_NODE818() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDecreaseXtnSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDecreaseXtnSupportedTestData(&suite.BaseSuite))
 	})
 }
 
@@ -167,10 +167,10 @@ func (suite *RewardDistributionDecreaseDaoSupportedSuite) Test_NODE818_2() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDecreaseDaoSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDecreaseDaoSupportedTestData(&suite.BaseSuite))
 	})
 }
 
@@ -191,10 +191,10 @@ func (suite *RewardDistribution2WUnchangedDaoXtnSupportedSuite) Test_NODE818_3()
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetReward2WUnchangedDaoXtnSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetReward2WUnchangedDaoXtnSupportedTestData(&suite.BaseSuite))
 	})
 }
 
@@ -216,10 +216,10 @@ func (suite *RewardDistributionIncreaseSupportedSuite) Test_NODE820() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		//check rewards and terms after activation 19 and 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardSupportedTestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardSupportedTestData(&suite.BaseSuite))
 	})
 }
 
@@ -242,10 +242,10 @@ func (suite *RewardDistributionDaoXtnSupportedWithout19Suite) Test_NODE821() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
 		//check rewards and terms before activation 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDistributionAfter14Before19(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 20)
 		//check rewards and terms after activation 20
-		getRewardDistribution(&suite.BaseSuite, testdata.GetRewardDaoXtnSupportedWithout19TestData(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, testdata.GetRewardDaoXtnSupportedWithout19TestData(&suite.BaseSuite))
 	})
 }
 
@@ -256,21 +256,22 @@ func TestRewardDistributionDaoXtnSupportedWithout19Suite(t *testing.T) {
 
 // "NODE-825. XTN buyback reward should be cancelled when CeaseXtnBuyback activated after xtnBuybackRewardPeriod blocks
 // starting from BlockRewardDistribution activation height (full reward >= 6 WAVES)"
+// "NODE-841. Reward Distribution changed after f21 activation (h21 >= h19 + xtnBuybackRewardPeriod)
 type RewardDistributionIncreaseDaoXtnCeaseXTNBuybackSupportedSuite struct {
 	f.RewardIncreaseDaoXtnCeaseXTNBuybackSupportedSuite
 }
 
 func (suite *RewardDistributionIncreaseDaoXtnCeaseXTNBuybackSupportedSuite) Test_NODE825() {
-	name := "NODE-825. XTN buyback reward should be cancelled when CeaseXtnBuyback activated after f19 activation height" +
+	name := "NODE-825, NODE-841. XTN buyback reward should be cancelled when CeaseXtnBuyback activated after f19 activation height" +
 		" + xtnBuybackRewardPeriod (full reward >= 6 WAVES)"
 	td := testdata.GetRewardIncreaseDaoXtnCeaseXTNBuybackSupportedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
-		getRewardDistribution(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		getActivationOfFeatures(&suite.BaseSuite, 21)
 		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
-		getRewardDistribution(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
 	})
 
 }

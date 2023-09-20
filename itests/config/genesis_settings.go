@@ -132,17 +132,19 @@ func parseRewardSettings(rewardArgsPath string) (*RewardSettings, error) {
 	return s, nil
 }
 
-func getRewardAddresses(rewardSettings *RewardSettings) []proto.WavesAddress {
+func getRewardAddresses(rewardSettings *RewardSettings) ([]proto.WavesAddress, []proto.WavesAddress) {
 	var rewardAddresses []proto.WavesAddress
+	var rewardAddressesAfter21 []proto.WavesAddress
 
 	if rewardSettings.DaoAddress != "" {
 		rewardAddresses = append(rewardAddresses, proto.MustAddressFromString(rewardSettings.DaoAddress))
+		rewardAddressesAfter21 = append(rewardAddressesAfter21, proto.MustAddressFromString(rewardSettings.DaoAddress))
 	}
 
 	if rewardSettings.XtnBuybackAddress != "" {
 		rewardAddresses = append(rewardAddresses, proto.MustAddressFromString(rewardSettings.XtnBuybackAddress))
 	}
-	return rewardAddresses
+	return rewardAddresses, rewardAddressesAfter21
 }
 
 func getPreactivatedFeatures(genSettings *GenesisSettings, rewardSettings *RewardSettings) ([]FeatureInfo, error) {
@@ -191,6 +193,8 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 		if err != nil {
 			return nil, nil, err
 		}
+	} else {
+		err = errors.New("additionalArgsPath should be equal 0 or 1")
 	}
 
 	ts := time.Now().UnixMilli()
@@ -228,9 +232,12 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	cfg.BlockRewardTerm = rewardSettings.BlockRewardTerm
 	cfg.MinXTNBuyBackPeriod = rewardSettings.MinXTNBuyBackPeriod
 
-	rewardsAddresses := getRewardAddresses(rewardSettings)
+	rewardsAddresses, rewardsAddressesAfter21 := getRewardAddresses(rewardSettings)
 	if rewardsAddresses != nil {
 		cfg.RewardAddresses = rewardsAddresses
+	}
+	if rewardsAddressesAfter21 != nil {
+		cfg.RewardAddressesAfter21 = rewardsAddressesAfter21
 	}
 
 	//preactivated features
