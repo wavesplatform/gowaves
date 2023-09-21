@@ -451,7 +451,7 @@ func GetRewardDaoXtnPreactivatedWithout20TestData(suite *f.BaseSuite) RewardDist
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) / 3,
+				MinersSumDiffBalance: 2 * int64(utl.GetInitReward(suite)) / 3,
 				DaoDiffBalance:       int64(utl.GetInitReward(suite)) / 3,
 				XtnDiffBalance:       0,
 				Term:                 utl.GetRewardTerm(suite),

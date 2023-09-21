@@ -168,3 +168,115 @@ func (suite *RewardIncreaseDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
 	suite.BaseSetup(suiteName, enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "7W_2miners_dao_xtn_increase.json"))
 }
+
+// 2 miners, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
+// ("preactivated_14_19_20_supported_21/7W_2miners_xtn_increase.json")
+// NODE - 825
+type RewardIncreaseXtnCeaseXTNBuybackSupportedSuite struct {
+	BaseSuite
+}
+
+func (suite *RewardIncreaseXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "7W_2miners_xtn_increase.json"))
+}
+
+// 2 miners, dao, xtn, initR=600000000, increment = 100000000, desiredR = 600000000
+// ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_not_changed.json")
+// NODE - 825
+type RewardUnchangedDaoXtnCeaseXTNBuybackSupportedSuite struct {
+	BaseSuite
+}
+
+func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_not_changed.json"))
+}
+
+// 2 miners, dao, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
+// ("preactivated_14_19_20_supported_21/5W_2miners_dao_xtn_decrease.json")
+// NODE - 826
+type RewardDecreaseDaoXtnCeaseXTNBuybackSupportedSuite struct {
+	BaseSuite
+}
+
+func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "5W_2miners_xtn_dao_decrease.json"))
+}
+
+// 2 miners, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
+// ("preactivated_14_19_20_supported_21/5W_2miners_xtn_decrease.json")
+// NODE - 826
+type RewardDecreaseXtnCeaseXTNBuybackSupportedSuite struct {
+	BaseSuite
+}
+
+func (suite *RewardDecreaseXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "5W_2miners_xtn_decrease.json"))
+}
+
+// 2 miners, dao, xtn, initR=200000000, increment = 100000000, desiredR = 200000000
+// ("preactivated_14_19_20_supported_21/2W_2miners_dao_xtn_not_change.json")
+// NODE - 826
+type Reward2WUnchangedDaoXtnCeaseXTNBuybackSupportedSuite struct {
+	BaseSuite
+}
+
+func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "2W_2miners_dao_xtn_not_changed.json"))
+}
+
+// 2 miners, initR=500000000, increment = 100000000, desiredR = 700000000
+// ("preactivated_14_19_20_supported_21/5W_2miners_increase.json")
+// NODE - 829
+type Reward5W2MinersIncreaseCeaseXTNBuybackSupportedSuite struct {
+	BaseSuite
+}
+
+func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackSupportedSuite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "5W_2miners_increase.json"))
+}
+
+// 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
+// ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_increase_without_20.json")
+// NODE - 830
+type RewardDaoXtnSupportedWithout20Suite struct {
+	BaseSuite
+}
+
+func (suite *RewardDaoXtnSupportedWithout20Suite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase_without_20.json"))
+}
+
+// 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
+// ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_increase_without_20.json")
+// NODE - 830
+type RewardDaoXtnSupportedWithout19And20Suite struct {
+	BaseSuite
+}
+
+func (suite *RewardDaoXtnSupportedWithout19And20Suite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase_without_19_20.json"))
+}
