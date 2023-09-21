@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/node/snapshot_applier"
 	"time"
 
 	"github.com/pkg/errors"
@@ -41,10 +42,11 @@ type BaseInfo struct {
 	// ntp time
 	tm types.Time
 
-	scheme        proto.Scheme
-	invRequester  InvRequester
-	blocksApplier BlocksApplier
-	obsolescence  time.Duration
+	scheme          proto.Scheme
+	invRequester    InvRequester
+	blocksApplier   BlocksApplier
+	snapshotApplier *snapshot_applier.SnapshotApplier
+	obsolescence    time.Duration
 
 	// scheduler
 	scheduler types.Scheduler
@@ -63,6 +65,8 @@ type BaseInfo struct {
 	skipMessageList *messages.SkipMessageList
 
 	syncPeer *network.SyncPeer
+
+	enableLightMode bool
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -81,6 +85,7 @@ func (a *BaseInfo) CleanUtx() {
 const (
 	IdleStateName    = "Idle"
 	NGStateName      = "NG"
+	NGLightStateName = "NGLight"
 	PersistStateName = "Persist"
 	SyncStateName    = "Sync"
 	HaltStateName    = "Halt"
@@ -127,6 +132,7 @@ func NewFSM(
 	services services.Services,
 	microblockInterval, obsolescence time.Duration,
 	syncPeer *network.SyncPeer,
+	enableLightMode bool,
 ) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
@@ -139,8 +145,9 @@ func NewFSM(
 		obsolescence: obsolescence,
 
 		//
-		invRequester:  ng.NewInvRequester(),
-		blocksApplier: services.BlocksApplier,
+		invRequester:    ng.NewInvRequester(),
+		blocksApplier:   services.BlocksApplier,
+		snapshotApplier: snapshot_applier.NewSnapshotApplier(),
 
 		scheduler: services.Scheduler,
 
@@ -158,6 +165,7 @@ func NewFSM(
 
 		skipMessageList: services.SkipMessageList,
 		syncPeer:        syncPeer,
+		enableLightMode: enableLightMode,
 	}
 
 	info.scheduler.Reschedule()

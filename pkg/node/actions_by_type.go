@@ -255,23 +255,48 @@ func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 	return fsm.Transaction(mess.ID, t)
 }
 
+func MicroSnapshotRequestAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+	metricMicroSnapshotRequestMessage.Inc()
+}
+
+func GetSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+	metricGetSnapshotMessage.Inc()
+	block, err := services.State.Block(mess.Message.(*proto.GetBlockMessage).BlockID)
+	if err != nil {
+		return nil, nil
+	}
+	bm, err := proto.MessageByBlock(block, services.Scheme)
+	if err != nil {
+		return nil, nil
+	}
+	mess.ID.SendMessage(bm)
+	return nil, nil
+}
+
+func SnapshotAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+	metricSnapshotMessage.Inc() // TODO(anton): maybe remove some metrics for snapshot
+}
+
 func createActions() map[reflect.Type]Action {
 	return map[reflect.Type]Action{
-		reflect.TypeOf(&proto.ScoreMessage{}):             ScoreAction,
-		reflect.TypeOf(&proto.GetPeersMessage{}):          GetPeersAction,
-		reflect.TypeOf(&proto.PeersMessage{}):             PeersAction,
-		reflect.TypeOf(&proto.BlockMessage{}):             BlockAction,
-		reflect.TypeOf(&proto.GetBlockMessage{}):          GetBlockAction,
-		reflect.TypeOf(&proto.SignaturesMessage{}):        SignaturesAction,
-		reflect.TypeOf(&proto.GetSignaturesMessage{}):     GetSignaturesAction,
-		reflect.TypeOf(&proto.MicroBlockInvMessage{}):     MicroBlockInvAction,
-		reflect.TypeOf(&proto.MicroBlockRequestMessage{}): MicroBlockRequestAction,
-		reflect.TypeOf(&proto.MicroBlockMessage{}):        MicroBlockAction,
-		reflect.TypeOf(&proto.PBBlockMessage{}):           PBBlockAction,
-		reflect.TypeOf(&proto.PBMicroBlockMessage{}):      PBMicroBlockAction,
-		reflect.TypeOf(&proto.GetBlockIdsMessage{}):       GetBlockIdsAction,
-		reflect.TypeOf(&proto.BlockIdsMessage{}):          BlockIdsAction,
-		reflect.TypeOf(&proto.TransactionMessage{}):       TransactionAction,
-		reflect.TypeOf(&proto.PBTransactionMessage{}):     PBTransactionAction,
+		reflect.TypeOf(&proto.ScoreMessage{}):                     ScoreAction,
+		reflect.TypeOf(&proto.GetPeersMessage{}):                  GetPeersAction,
+		reflect.TypeOf(&proto.PeersMessage{}):                     PeersAction,
+		reflect.TypeOf(&proto.BlockMessage{}):                     BlockAction,
+		reflect.TypeOf(&proto.GetBlockMessage{}):                  GetBlockAction,
+		reflect.TypeOf(&proto.SignaturesMessage{}):                SignaturesAction,
+		reflect.TypeOf(&proto.GetSignaturesMessage{}):             GetSignaturesAction,
+		reflect.TypeOf(&proto.MicroBlockInvMessage{}):             MicroBlockInvAction,
+		reflect.TypeOf(&proto.MicroBlockRequestMessage{}):         MicroBlockRequestAction,
+		reflect.TypeOf(&proto.MicroBlockMessage{}):                MicroBlockAction,
+		reflect.TypeOf(&proto.PBBlockMessage{}):                   PBBlockAction,
+		reflect.TypeOf(&proto.PBMicroBlockMessage{}):              PBMicroBlockAction,
+		reflect.TypeOf(&proto.GetBlockIdsMessage{}):               GetBlockIdsAction,
+		reflect.TypeOf(&proto.BlockIdsMessage{}):                  BlockIdsAction,
+		reflect.TypeOf(&proto.TransactionMessage{}):               TransactionAction,
+		reflect.TypeOf(&proto.PBTransactionMessage{}):             PBTransactionAction,
+		reflect.TypeOf(&proto.GetBlockSnapshotMessage{}):          GetSnapshotAction,
+		reflect.TypeOf(&proto.MicroBlockSnapshotRequestMessage{}): MicroSnapshotRequestAction,
+		reflect.TypeOf(&proto.BlockSnapshotMessage{}):             SnapshotAction,
 	}
 }

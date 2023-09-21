@@ -108,6 +108,7 @@ type config struct {
 	newConnectionsLimit        int
 	disableNTP                 bool
 	microblockInterval         time.Duration
+	enableLightMode            bool
 }
 
 func (c *config) logParameters() {
@@ -143,6 +144,7 @@ func (c *config) logParameters() {
 	zap.S().Debugf("enable-metamask: %t", c.enableMetaMaskAPI)
 	zap.S().Debugf("disable-ntp: %t", c.disableNTP)
 	zap.S().Debugf("microblock-interval: %s", c.microblockInterval)
+	zap.S().Debugf("enable-light-mode: %t", c.enableLightMode)
 }
 
 func (c *config) parse() {
@@ -232,6 +234,8 @@ func (c *config) parse() {
 		"Disable NTP synchronization. Useful when running the node in a docker container.")
 	flag.DurationVar(&c.microblockInterval, "microblock-interval", defaultMicroblockInterval,
 		"Interval between microblocks.")
+	flag.BoolVar(&c.enableLightMode, "enable-light-mode", false,
+		"Start node in light mode (disable mining and store only snapshots)")
 	flag.Parse()
 	c.logLevel = *l
 }
@@ -491,7 +495,7 @@ func main() {
 	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
 	go ntw.Run(ctx)
 
-	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval)
+	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode)
 	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer())
 
 	go minerScheduler.Reschedule()
