@@ -122,8 +122,8 @@ func TestFeatures19And21RewardCalculation(t *testing.T) {
 		{2999, 2999, 6_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
 		{3000, 3000, 6_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
 		{3999, 3999, 6_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
-		{4000, 4000, 6_0000_0000, makeTestNetRewards(t, gen, 3_0000_0000, 3_0000_0000)},
-		{5000, 5000, 6_0000_0000, makeTestNetRewards(t, gen, 3_0000_0000, 3_0000_0000)},
+		{4000, 4000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
+		{5000, 5000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
 	} {
 		setCurrentHeight(test.currentHeight)
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
