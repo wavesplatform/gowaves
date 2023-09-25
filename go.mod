@@ -10,7 +10,7 @@ require (
 	github.com/cespare/xxhash/v2 v2.2.0
 	github.com/consensys/gnark v0.8.1
 	github.com/consensys/gnark-crypto v0.9.2
-	github.com/coocood/freecache v1.2.3
+	github.com/coocood/freecache v1.2.4
 	github.com/elliotchance/orderedmap/v2 v2.2.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.5.0
@@ -29,7 +29,7 @@ require (
 	github.com/qmuntal/stateless v1.6.7
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
-	github.com/spf13/afero v1.9.5
+	github.com/spf13/afero v1.10.0
 	github.com/spf13/pflag v1.0.5
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
