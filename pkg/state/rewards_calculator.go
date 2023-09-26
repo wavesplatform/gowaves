@@ -1,9 +1,14 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
+
+// XTNByuBack and WavesDAO addresses count.
+const additionalAddressesCount = 2
 
 type rewardCalculator struct {
 	settings *settings.BlockchainSettings
@@ -77,8 +82,15 @@ func (c *rewardCalculator) performCalculation(
 	if feature21ActivatedAtHeight {
 		rewardAddresses = c.handleFeature21(height, rewardAddresses)
 	}
+	// sanity check
+	if cnt := len(rewardAddresses); cnt > additionalAddressesCount {
+		panic(fmt.Sprintf("reward addresses count=%d is greater than additional addreses count which is %d",
+			cnt, additionalAddressesCount,
+		))
+	}
 
-	addressReward := reward / uint64(len(rewardAddresses)+1) // reward / (len(rewardAddresses) + minerAddr)
+	// reward / 3, where 3 is a fixed number according to the protocol
+	addressReward := reward / (additionalAddressesCount + 1)
 	feature20ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.CappedRewards), height)
 	if feature20ActivatedAtHeight {
 		addressReward = c.handleFeature20(reward)
@@ -123,9 +135,8 @@ func (c *rewardCalculator) handleFeature21(height proto.Height, rewardAddresses 
 
 func (c *rewardCalculator) handleFeature20(reward uint64) uint64 {
 	const (
-		sixWaves                 = 6 * proto.PriceConstant
-		twoWaves                 = 2 * proto.PriceConstant
-		additionalAddressesCount = 2
+		sixWaves = 6 * proto.PriceConstant
+		twoWaves = 2 * proto.PriceConstant
 	)
 	switch {
 	case reward < twoWaves: // give all reward to the miner if reward value is lower than 2 WAVES

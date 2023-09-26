@@ -276,8 +276,18 @@ func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
 	require.NoError(t, err)
 
 	fee := defaultFee - defaultFee/5*2
-	correctMinerWavesBalanceDiff := newBalanceDiff(int64(fee+(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/2)), 0, 0, false)
-	correctRewardAddressBalanceDiff := newBalanceDiff(int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/2), 0, 0, false)
+	correctMinerWavesBalanceDiff := newBalanceDiff(
+		int64(fee+(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/3*2)),
+		0,
+		0,
+		false,
+	)
+	correctRewardAddressBalanceDiff := newBalanceDiff(
+		int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/3),
+		0,
+		0,
+		false,
+	)
 	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
 	correctRewardAddressBalanceDiff.blockID = block2.BlockID()
 	correctDiff := txDiff{
