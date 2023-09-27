@@ -192,7 +192,7 @@ Send the transaction to the network:
 
 ### Building from sources
 
-Go version 1.19 or later is required to build the `node`, `importer`, `wallet` and other tools.
+Go version 1.20 or later is required to build the `node`, `importer`, `wallet` and other tools.
 
 To build a node, importer or other tools run a `make` command:
 
