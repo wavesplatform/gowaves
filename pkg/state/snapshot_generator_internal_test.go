@@ -169,6 +169,12 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 			AssetID: *tx.ID,
 			Balance: 1000,
 		},
+		&AssetScriptSnapshot{
+			AssetID:            *tx.ID,
+			Script:             proto.Script{},
+			SenderPK:           crypto.PublicKey{},
+			VerifierComplexity: 0,
+		},
 	}
 
 	var snapshotI []byte

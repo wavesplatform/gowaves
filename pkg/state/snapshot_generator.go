@@ -156,6 +156,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		assetScriptSnapshot := &AssetScriptSnapshot{
 			AssetID:            assetID,
 			Script:             scriptInformation.script,
+			SenderPK:           senderPK,
 			VerifierComplexity: uint64(scriptInformation.complexity),
 		}
 		snapshot = append(snapshot, assetScriptSnapshot)
@@ -529,6 +530,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 		assetScriptSnapshot := &AssetScriptSnapshot{
 			AssetID:            action.ID,
 			Script:             scriptInfo.script,
+			SenderPK:           senderPK,
 			VerifierComplexity: uint64(scriptInfo.complexity),
 		}
 		atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
