@@ -115,7 +115,6 @@ func BenchmarkGraphPath2M(b *testing.B) {
 func TestHugeRandomGraph(t *testing.T) {
 	start := time.Now()
 	PrintMemUsage()
-	rand.Seed(time.Now().Unix())
 	g := newGraph()
 	previous := make([]uint32, 0)
 	nodesCount := 0
@@ -126,7 +125,7 @@ func TestHugeRandomGraph(t *testing.T) {
 			for j := 0; j < count; j++ {
 				nodesCount++
 				n := uint32(nodesCount)
-				current[j] = uint32(n)
+				current[j] = n
 				p := previous[rand.Intn(len(previous))]
 				g.edge(n, p)
 			}
@@ -170,7 +169,6 @@ func buildGraph() *graph {
 }
 
 func buildRandomGraph(size, width int) *graph {
-	rand.Seed(time.Now().Unix())
 	g := newGraph()
 	previous := make([]uint32, 0)
 	nodesCount := 0
@@ -181,7 +179,7 @@ func buildRandomGraph(size, width int) *graph {
 			for j := 0; j < count; j++ {
 				nodesCount++
 				n := uint32(nodesCount)
-				current[j] = uint32(n)
+				current[j] = n
 				p := previous[rand.Intn(len(previous))]
 				g.edge(n, p)
 			}
