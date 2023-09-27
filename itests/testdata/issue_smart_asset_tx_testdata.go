@@ -61,7 +61,7 @@ func GetPositiveAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 
 func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[ExpectedValuesNegative] {
 	return map[string]IssueTestData[ExpectedValuesNegative]{
-		"Complexity more than 4000": NewIssueTestData(
+		"VerifierComplexity more than 4000": NewIssueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandStringBytes(5, utl.CommonSymbolSet),
 			utl.RandStringBytes(20, utl.CommonSymbolSet),

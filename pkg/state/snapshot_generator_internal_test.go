@@ -925,10 +925,10 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 			Balance: 299900000,
 		},
 		&AssetScriptSnapshot{
-			AssetID:    testGlobal.asset0.assetID,
-			Script:     testGlobal.scriptBytes,
-			Complexity: 340,
-			SenderPK:   tx.SenderPK,
+			AssetID:            testGlobal.asset0.assetID,
+			Script:             testGlobal.scriptBytes,
+			VerifierComplexity: 340,
+			SenderPK:           tx.SenderPK,
 		},
 	}
 

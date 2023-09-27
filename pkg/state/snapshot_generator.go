@@ -145,11 +145,18 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 
 	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
 
-	if scriptInformation != nil {
+	if scriptInformation == nil {
 		assetScriptSnapshot := &AssetScriptSnapshot{
-			AssetID:    assetID,
-			Script:     scriptInformation.script,
-			Complexity: uint64(scriptInformation.complexity),
+			AssetID:            assetID,
+			Script:             proto.Script{},
+			VerifierComplexity: 0,
+		}
+		snapshot = append(snapshot, assetScriptSnapshot)
+	} else {
+		assetScriptSnapshot := &AssetScriptSnapshot{
+			AssetID:            assetID,
+			Script:             scriptInformation.script,
+			VerifierComplexity: uint64(scriptInformation.complexity),
 		}
 		snapshot = append(snapshot, assetScriptSnapshot)
 	}
@@ -357,10 +364,10 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	}
 
 	sponsorshipSnapshot := &AssetScriptSnapshot{
-		AssetID:    assetID,
-		Script:     script,
-		Complexity: uint64(complexity),
-		SenderPK:   senderPK,
+		AssetID:            assetID,
+		Script:             script,
+		VerifierComplexity: uint64(complexity),
+		SenderPK:           senderPK,
 	}
 	snapshot = append(snapshot, sponsorshipSnapshot)
 	return snapshot, nil
@@ -510,11 +517,19 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 			complexity: complexity,
 		}
 	}
-	if scriptInfo != nil {
+
+	if scriptInfo == nil {
 		assetScriptSnapshot := &AssetScriptSnapshot{
-			AssetID:    action.ID,
-			Script:     scriptInfo.script,
-			Complexity: uint64(scriptInfo.complexity),
+			AssetID:            action.ID,
+			Script:             proto.Script{},
+			VerifierComplexity: 0,
+		}
+		atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
+	} else {
+		assetScriptSnapshot := &AssetScriptSnapshot{
+			AssetID:            action.ID,
+			Script:             scriptInfo.script,
+			VerifierComplexity: uint64(scriptInfo.complexity),
 		}
 		atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
 	}

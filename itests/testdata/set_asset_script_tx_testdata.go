@@ -115,7 +115,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Can't parse empty script bytes",
 			}),
-		"Complexity more than 4000": NewSetAssetScriptTestData(
+		"VerifierComplexity more than 4000": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			readScript(suite, "invalid_script_complexity_more_4000.base64"),
