@@ -285,7 +285,7 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64, blockID proto.BlockI
 					a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
 				)
 			}
-			zap.S().Warnf("VerifierComplexity of scripts (%d) in block '%s' exceeds limit of %d",
+			zap.S().Warnf("Complexity of scripts (%d) in block '%s' exceeds limit of %d",
 				a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
 			)
 		}

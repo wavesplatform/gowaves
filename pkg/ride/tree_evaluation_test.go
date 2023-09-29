@@ -5540,7 +5540,7 @@ func TestThrowComplexity(t *testing.T) {
 
 	@Callable(i)
 	func foo() = {
-		strict r = invoke(this, "baz", [], []) # VerifierComplexity 77 = 75 (invoke) + 2 (throw())
+		strict r = invoke(this, "baz", [], []) # Complexity 77 = 75 (invoke) + 2 (throw())
 		[]
 	}
 
@@ -5549,12 +5549,12 @@ func TestThrowComplexity(t *testing.T) {
 
 	@Callable(i)
 	func bar() = {
-		strict r = invoke(this, "qux", [], []) # VerifierComplexity 76 = 75 (invoke) + 1 (throw("fail"))
+		strict r = invoke(this, "qux", [], []) # Complexity 76 = 75 (invoke) + 1 (throw("fail"))
 		[]
 	}
 
 	@Callable(i)
-	func qux() = throw("fail") # VerifierComplexity 1
+	func qux() = throw("fail") # Complexity 1
 	*/
 	_, tree1 := parseBase64Script(t, "BgIKCAISABIAEgASAAAEAWkBA2ZvbwAEAXIJAPwHBAUEdGhpcwIDYmF6BQNuaWwFA25pbAMJAAACBQFyBQFyBQNuaWwJAAIBAiRTdHJpY3QgdmFsdWUgaXMgbm90IGVxdWFsIHRvIGl0c2VsZi4BaQEDYmF6AAkBBXRocm93AAFpAQNiYXIABAFyCQD8BwQFBHRoaXMCA3F1eAUDbmlsBQNuaWwDCQAAAgUBcgUBcgUDbmlsCQACAQIkU3RyaWN0IHZhbHVlIGlzIG5vdCBlcXVhbCB0byBpdHNlbGYuAWkBA3F1eAAJAAIBAgRmYWlsAHvPuF0=")
 
