@@ -5545,7 +5545,7 @@ func TestThrowComplexity(t *testing.T) {
 	}
 
 	@Callable(i)
-	func baz() = throw() # VerifierComplexity 2
+	func baz() = throw() # Complexity 2
 
 	@Callable(i)
 	func bar() = {
