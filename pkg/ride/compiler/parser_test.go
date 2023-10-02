@@ -733,3 +733,20 @@ func TestBasicExpressions(t *testing.T) {
 		}
 	}
 }
+
+func TestScope(t *testing.T) {
+	for _, test := range []struct {
+		src  string
+		fail bool
+	}{
+		{`let a = {func bar(i: Int) = i; bar(1)};let b = {func bar(i: Int) = i;bar(a)}`, false},
+	} {
+		ast, _, err := buildAST(t, test.src, false)
+		if test.fail {
+			assert.Error(t, err, test.src)
+		} else {
+			require.Nil(t, err)
+			require.NotNil(t, ast)
+		}
+	}
+}
