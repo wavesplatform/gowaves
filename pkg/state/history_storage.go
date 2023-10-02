@@ -41,6 +41,7 @@ const (
 	stateHash
 	hitSource
 	feeDistr
+	snapshots
 )
 
 type blockchainEntityProperties struct {
