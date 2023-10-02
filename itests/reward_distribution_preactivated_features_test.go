@@ -234,7 +234,7 @@ func (suite *RewardDistributionIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) T
 	td := testdata.GetRewardIncreaseDaoXtnCeaseXTNBuybackPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
@@ -260,7 +260,7 @@ func (suite *RewardDistributionIncreaseXtnCeaseXTNBuybackPreactivatedSuite) Test
 	td := testdata.GetRewardIncreaseXtnCeaseXTNBuybackPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
@@ -286,7 +286,7 @@ func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE825
 	td := testdata.GetRewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
@@ -311,7 +311,7 @@ func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE826(
 	td := testdata.GetRewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
@@ -336,7 +336,7 @@ func (suite *RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE826_2()
 	td := testdata.GetRewardDecreaseXtnCeaseXTNBuybackPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
@@ -361,7 +361,7 @@ func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE8
 	td := testdata.GetReward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
@@ -386,7 +386,7 @@ func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite) Test_NODE8
 	td := testdata.GetReward5W2MinersIncreaseCeaseXTNBuybackPreactivatedTestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
@@ -409,7 +409,7 @@ func (suite *RewardDaoXtnPreactivatedWithout20Suite) Test_NODE830() {
 	td := testdata.GetRewardDaoXtnPreactivatedWithout20TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)
@@ -432,7 +432,7 @@ func (suite *RewardDaoXtnPreactivatedWithout19And20Suite) Test_NODE830_2() {
 	td := testdata.GetRewardDaoXtnPreactivatedWithout19And20TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 21)
-		ceaseXtnBuybackHeight := utl.GetXtnBuybackPeriod(&suite.BaseSuite)
+		ceaseXtnBuybackHeight := utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterXtnBuyBackPeriod)

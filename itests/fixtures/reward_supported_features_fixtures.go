@@ -8,6 +8,7 @@ import (
 
 const (
 	supportedFeaturesConfigFolder       = "preactivated_14_supported_19_20"
+	supportedFeature20ConfigFolder      = "preactivated_14_19_supported_20"
 	supportedFeaturesWith21ConfigFolder = "preactivated_14_19_20_supported_21"
 )
 
@@ -279,4 +280,20 @@ func (suite *RewardDaoXtnSupportedWithout19And20Suite) SetupSuite() {
 	suiteName := strcase.KebabCase(suite.T().Name())
 	suite.BaseSetup(suiteName, enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase_without_19_20.json"))
+}
+
+// preactivated features 14, 19, feature 20 is supported
+
+// 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
+// ("preactivated_14_19_supported_20/7W_2miners_dao_xtn_increase.json")
+// NODE - 855
+type RewardIncreaseDaoXtnSupported20Suite struct {
+	BaseSuite
+}
+
+func (suite *RewardIncreaseDaoXtnSupported20Suite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeature20ConfigFolder, "7W_2miners_dao_xtn_increase.json"))
 }

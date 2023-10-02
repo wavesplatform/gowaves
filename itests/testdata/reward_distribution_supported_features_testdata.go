@@ -14,10 +14,10 @@ func GetRewardDistributionAfter14Before19(suite *f.BaseSuite) RewardDistribution
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
-			Term:                 utl.GetRewardTerm(suite),
+			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
 
@@ -31,10 +31,10 @@ func GetRewardIncreaseDaoXtnSupportedTestData(suite *f.BaseSuite) RewardDistribu
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite)+utl.GetRewardIncrement(suite)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
-			Term:                 utl.GetRewardTermAfter20(suite),
+			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -48,10 +48,10 @@ func GetRewardUnchangedDaoXtnSupportedTestData(suite *f.BaseSuite) RewardDistrib
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
-			Term:                 utl.GetRewardTermAfter20(suite),
+			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -66,9 +66,9 @@ func GetRewardDecreaseDaoXtnSupportedTestData(suite *f.BaseSuite) RewardDistribu
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValues{
 			MinersSumDiffBalance: MaxAddressReward,
-			DaoDiffBalance:       int64((utl.GetInitReward(suite) - utl.GetRewardIncrement(suite) - MaxAddressReward) / 2),
-			XtnDiffBalance:       int64((utl.GetInitReward(suite) - utl.GetRewardIncrement(suite) - MaxAddressReward) / 2),
-			Term:                 utl.GetRewardTermAfter20(suite),
+			DaoDiffBalance:       int64((utl.GetInitRewardCfg(suite) - utl.GetRewardIncrementCfg(suite) - MaxAddressReward) / 2),
+			XtnDiffBalance:       int64((utl.GetInitRewardCfg(suite) - utl.GetRewardIncrementCfg(suite) - MaxAddressReward) / 2),
+			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -82,10 +82,10 @@ func GetRewardIncreaseDaoSupportedTestData(suite *f.BaseSuite) RewardDistributio
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		nil,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite)+utl.GetRewardIncrement(suite)) - MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) - MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       0,
-			Term:                 utl.GetRewardTermAfter20(suite),
+			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -99,10 +99,10 @@ func GetRewardUnchangedXtnSupportedTestData(suite *f.BaseSuite) RewardDistributi
 		nil,
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) - MaxAddressReward,
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       MaxAddressReward,
-			Term:                 utl.GetRewardTermAfter20(suite),
+			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -116,11 +116,11 @@ func GetRewardDecreaseXtnSupportedTestData(suite *f.BaseSuite) RewardDistributio
 		nil,
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite)-utl.GetRewardIncrement(suite)) -
-				int64((utl.GetInitReward(suite)-utl.GetRewardIncrement(suite)-MaxAddressReward)/2),
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)-utl.GetRewardIncrementCfg(suite)) -
+				int64((utl.GetInitRewardCfg(suite)-utl.GetRewardIncrementCfg(suite)-MaxAddressReward)/2),
 			DaoDiffBalance: 0,
-			XtnDiffBalance: int64((utl.GetInitReward(suite) - utl.GetRewardIncrement(suite) - MaxAddressReward) / 2),
-			Term:           utl.GetRewardTermAfter20(suite),
+			XtnDiffBalance: int64((utl.GetInitRewardCfg(suite) - utl.GetRewardIncrementCfg(suite) - MaxAddressReward) / 2),
+			Term:           utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -134,11 +134,11 @@ func GetRewardDecreaseDaoSupportedTestData(suite *f.BaseSuite) RewardDistributio
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		nil,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite)-utl.GetRewardIncrement(suite)) -
-				int64((utl.GetInitReward(suite)-utl.GetRewardIncrement(suite)-MaxAddressReward)/2),
-			DaoDiffBalance: int64((utl.GetInitReward(suite) - utl.GetRewardIncrement(suite) - MaxAddressReward) / 2),
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)-utl.GetRewardIncrementCfg(suite)) -
+				int64((utl.GetInitRewardCfg(suite)-utl.GetRewardIncrementCfg(suite)-MaxAddressReward)/2),
+			DaoDiffBalance: int64((utl.GetInitRewardCfg(suite) - utl.GetRewardIncrementCfg(suite) - MaxAddressReward) / 2),
 			XtnDiffBalance: 0,
-			Term:           utl.GetRewardTermAfter20(suite),
+			Term:           utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -152,10 +152,10 @@ func GetReward2WUnchangedDaoXtnSupportedTestData(suite *f.BaseSuite) RewardDistr
 		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
-			Term:                 utl.GetRewardTermAfter20(suite),
+			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -169,10 +169,10 @@ func GetRewardSupportedTestData(suite *f.BaseSuite) RewardDistributionTestData[R
 		nil,
 		nil,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite) + utl.GetRewardIncrement(suite)),
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite) + utl.GetRewardIncrementCfg(suite)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
-			Term:                 utl.GetRewardTermAfter20(suite),
+			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -186,10 +186,10 @@ func GetRewardDaoXtnSupportedWithout19TestData(suite *f.BaseSuite) RewardDistrib
 		nil,
 		nil,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetInitReward(suite) + utl.GetRewardIncrement(suite)),
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite) + utl.GetRewardIncrementCfg(suite)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
-			Term:                 utl.GetRewardTermAfter20(suite),
+			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
@@ -206,10 +206,10 @@ func GetRewardIncreaseDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite)
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - 2*MaxAddressReward,
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) - 2*MaxAddressReward,
 				DaoDiffBalance:       MaxAddressReward,
 				XtnDiffBalance:       MaxAddressReward,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -220,7 +220,7 @@ func GetRewardIncreaseDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite)
 				MinersSumDiffBalance: int64(utl.GetDesiredReward(suite, utl.GetHeight(suite))) - MaxAddressReward,
 				DaoDiffBalance:       MaxAddressReward,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 	}
 }
@@ -236,10 +236,10 @@ func GetRewardIncreaseXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite) Re
 			nil,
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - MaxAddressReward,
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) - MaxAddressReward,
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       MaxAddressReward,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -250,7 +250,7 @@ func GetRewardIncreaseXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite) Re
 				MinersSumDiffBalance: utl.GetDesiredReward(suite, utl.GetHeight(suite)),
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 	}
 }
@@ -266,10 +266,10 @@ func GetRewardUnchangedDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - 2*MaxAddressReward,
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) - 2*MaxAddressReward,
 				DaoDiffBalance:       MaxAddressReward,
 				XtnDiffBalance:       MaxAddressReward,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -280,7 +280,7 @@ func GetRewardUnchangedDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite
 				MinersSumDiffBalance: int64(utl.GetDesiredReward(suite, utl.GetHeight(suite))) - MaxAddressReward,
 				DaoDiffBalance:       MaxAddressReward,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 	}
 }
@@ -297,9 +297,9 @@ func GetRewardDecreaseDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite)
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
 				MinersSumDiffBalance: MaxAddressReward,
-				DaoDiffBalance:       int64((utl.GetInitReward(suite) - MaxAddressReward) / 2),
-				XtnDiffBalance:       int64((utl.GetInitReward(suite) - MaxAddressReward) / 2),
-				Term:                 utl.GetRewardTermAfter20(suite),
+				DaoDiffBalance:       int64((utl.GetInitRewardCfg(suite) - MaxAddressReward) / 2),
+				XtnDiffBalance:       int64((utl.GetInitRewardCfg(suite) - MaxAddressReward) / 2),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -310,7 +310,7 @@ func GetRewardDecreaseDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite)
 				MinersSumDiffBalance: utl.GetDesiredReward(suite, utl.GetHeight(suite)) - (utl.GetDesiredReward(suite, utl.GetHeight(suite))-int64(MaxAddressReward))/2,
 				DaoDiffBalance:       (utl.GetDesiredReward(suite, utl.GetHeight(suite)) - int64(MaxAddressReward)) / 2,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 	}
 }
@@ -326,10 +326,10 @@ func GetRewardDecreaseXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite) Re
 			nil,
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) - int64((utl.GetInitReward(suite)-MaxAddressReward)/2),
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) - int64((utl.GetInitRewardCfg(suite)-MaxAddressReward)/2),
 				DaoDiffBalance:       0,
-				XtnDiffBalance:       int64((utl.GetInitReward(suite) - MaxAddressReward) / 2),
-				Term:                 utl.GetRewardTermAfter20(suite),
+				XtnDiffBalance:       int64((utl.GetInitRewardCfg(suite) - MaxAddressReward) / 2),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -340,7 +340,7 @@ func GetRewardDecreaseXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSuite) Re
 				MinersSumDiffBalance: utl.GetDesiredReward(suite, utl.GetHeight(suite)),
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 	}
 }
@@ -356,10 +356,10 @@ func GetReward2WUnchangedDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSui
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)),
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -367,10 +367,10 @@ func GetReward2WUnchangedDaoXtnCeaseXTNBuybackSupportedTestData(suite *f.BaseSui
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)),
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 	}
 }
@@ -386,10 +386,10 @@ func GetReward5W2MinersIncreaseCeaseXTNBuybackSupportedTestData(suite *f.BaseSui
 			nil,
 			nil,
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)),
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -400,7 +400,7 @@ func GetReward5W2MinersIncreaseCeaseXTNBuybackSupportedTestData(suite *f.BaseSui
 				MinersSumDiffBalance: utl.GetDesiredReward(suite, utl.GetHeight(suite)),
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTermAfter20(suite),
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
 	}
 }
@@ -416,10 +416,10 @@ func GetRewardDaoXtnSupportedWithout20TestData(suite *f.BaseSuite) RewardDistrib
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)) / 3,
-				DaoDiffBalance:       int64(utl.GetInitReward(suite)) / 3,
-				XtnDiffBalance:       int64(utl.GetInitReward(suite)) / 3,
-				Term:                 utl.GetRewardTerm(suite),
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) / 3,
+				DaoDiffBalance:       int64(utl.GetInitRewardCfg(suite)) / 3,
+				XtnDiffBalance:       int64(utl.GetInitRewardCfg(suite)) / 3,
+				Term:                 utl.GetRewardTermCfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -427,10 +427,10 @@ func GetRewardDaoXtnSupportedWithout20TestData(suite *f.BaseSuite) RewardDistrib
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: 2 * int64(utl.GetInitReward(suite)+utl.GetRewardIncrement(suite)) / 3,
-				DaoDiffBalance:       int64(utl.GetInitReward(suite)+utl.GetRewardIncrement(suite)) / 3,
+				MinersSumDiffBalance: 2 * int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) / 3,
+				DaoDiffBalance:       int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) / 3,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTerm(suite),
+				Term:                 utl.GetRewardTermCfg(suite),
 			}),
 	}
 }
@@ -446,10 +446,10 @@ func GetRewardDaoXtnSupportedWithout19And20TestData(suite *f.BaseSuite) RewardDi
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite)),
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)),
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTerm(suite),
+				Term:                 utl.GetRewardTermCfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -457,10 +457,10 @@ func GetRewardDaoXtnSupportedWithout19And20TestData(suite *f.BaseSuite) RewardDi
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitReward(suite) + utl.GetRewardIncrement(suite)),
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite) + utl.GetRewardIncrementCfg(suite)),
 				DaoDiffBalance:       0,
 				XtnDiffBalance:       0,
-				Term:                 utl.GetRewardTerm(suite),
+				Term:                 utl.GetRewardTermCfg(suite),
 			}),
 	}
 }

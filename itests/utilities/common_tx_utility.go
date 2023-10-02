@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
@@ -697,21 +698,29 @@ func NewRewardDiffBalances(diffBalanceGoMiners, diffBalanceScalaMiners, diffBala
 	}
 }
 
-func GetInitReward(suite *f.BaseSuite) uint64 {
+func GetInitRewardCfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.InitialBlockReward
 }
 
-func GetRewardIncrement(suite *f.BaseSuite) uint64 {
+func GetRewardIncrementCfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardIncrement
 }
 
+func GetBlockGo(suite *f.BaseSuite, height uint64) *waves.Block {
+	return suite.Clients.GoClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+}
+
+func GetBlockScala(suite *f.BaseSuite, height uint64) *waves.Block {
+	return suite.Clients.ScalaClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+}
+
 func GetDesiredRewardGo(suite *f.BaseSuite, height uint64) int64 {
-	block := suite.Clients.GoClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+	block := GetBlockGo(suite, height)
 	return block.GetHeader().RewardVote
 }
 
 func GetDesiredRewardScala(suite *f.BaseSuite, height uint64) int64 {
-	block := suite.Clients.ScalaClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+	block := GetBlockScala(suite, height)
 	return block.GetHeader().RewardVote
 }
 
@@ -729,22 +738,48 @@ func GetDesiredReward(suite *f.BaseSuite, height uint64) int64 {
 	return desiredR
 }
 
-// GetRewardTerm is max period of voting (term)
-func GetRewardTerm(suite *f.BaseSuite) uint64 {
+// GetRewardTermCfg is max period of voting (term)
+func GetRewardTermCfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTerm
 }
 
-// GetRewardTermAfter20 returns term after feature 20 activation (term-after-capped-reward-feature), =1/2 term
-func GetRewardTermAfter20(suite *f.BaseSuite) uint64 {
+// GetRewardTermAfter20Cfg returns term after feature 20 activation (term-after-capped-reward-feature), =1/2 term
+func GetRewardTermAfter20Cfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
 
+// GetRewards get response from /blockchain/rewards
+func GetRewardsGo(suite *f.BaseSuite) *client.RewardInfo {
+	return suite.Clients.GoClients.HttpClient.Rewards(suite.T())
+}
+
+func GetRewardsScala(suite *f.BaseSuite) *client.RewardInfo {
+	return suite.Clients.ScalaClients.HttpClient.Rewards(suite.T())
+}
+
+func GetRewards(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo) {
+	return GetRewardsGo(suite), GetRewardsScala(suite)
+}
+
+// GetRewards get response from /blockchain/rewards/{height}
+func GetRewardsAtHeightGo(suite *f.BaseSuite, height uint64) *client.RewardInfo {
+	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height)
+}
+
+func GetRewardsAtHeightScala(suite *f.BaseSuite, height uint64) *client.RewardInfo {
+	return suite.Clients.ScalaClients.HttpClient.RewardsAtHeight(suite.T(), height)
+}
+
+func GetRewardsAtHeight(suite *f.BaseSuite, height uint64) (*client.RewardInfo, *client.RewardInfo) {
+	return GetRewardsAtHeightGo(suite, height), GetRewardsAtHeightScala(suite, height)
+}
+
 func GetRewardTermAtHeightGo(suite *f.BaseSuite, height uint64) uint64 {
-	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height).Term
+	return GetRewardsAtHeightGo(suite, height).Term
 }
 
 func GetRewardTermAtHeightScala(suite *f.BaseSuite, height uint64) uint64 {
-	return suite.Clients.ScalaClients.HttpClient.RewardsAtHeight(suite.T(), height).Term
+	return GetRewardsAtHeightScala(suite, height).Term
 }
 
 func GetRewardTermAtHeight(suite *f.BaseSuite, height uint64) RewardTerm {
@@ -767,6 +802,6 @@ func NewRewardTerm(termGo, termScala uint64) RewardTerm {
 	}
 }
 
-func GetXtnBuybackPeriod(suite *f.BaseSuite) uint64 {
+func GetXtnBuybackPeriodCfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.MinXTNBuyBackPeriod
 }

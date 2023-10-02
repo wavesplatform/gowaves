@@ -100,3 +100,15 @@ func TermCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args
 	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }
+
+func VotingIntervalStartCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
+	errMsg := makeErrorMessage("VotingIntervalStart parameters are mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
+func NextCkeckParameterCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
+	errMsg := makeErrorMessage("NextChecks are mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
