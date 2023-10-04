@@ -15,7 +15,7 @@ func SplitSnapshots(atomicSnapshots []AtomicSnapshot) ([]AtomicSnapshot, []Atomi
 	var snapshots []AtomicSnapshot
 	var internalSnapshots []AtomicSnapshot
 	for _, snapshot := range atomicSnapshots {
-		if snapshot.IsInternal() {
+		if !snapshot.IsInternal() {
 			snapshots = append(snapshots, snapshot)
 		} else {
 			internalSnapshots = append(internalSnapshots, snapshot)
