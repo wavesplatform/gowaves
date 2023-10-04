@@ -57,7 +57,8 @@ func createDifferTestObjects(t *testing.T, checkerInfo *checkerInfo) *differTest
 			leases:            stor.entities.leases,
 		},
 	)
-	snapshotGen := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter, IsFullNodeMode: true}
+	snapshotGen := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter,
+		IsFullNodeMode: true}
 	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	tp.snapshotApplier = &snapshotApplier
 	tp.snapshotGenerator = &snapshotGen

@@ -860,6 +860,11 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 			Script:             testGlobal.scriptBytes,
 			VerifierComplexity: 340,
 		},
+		&internalDAppComplexitySnapshot{
+			scriptAddress: testGlobal.senderInfo.addr,
+			estimation:    ride.TreeEstimation{Estimation: 340, Verifier: 340},
+			update:        false,
+		},
 	}
 
 	var snapshotI []byte
