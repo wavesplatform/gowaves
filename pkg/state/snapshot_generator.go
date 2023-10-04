@@ -346,17 +346,31 @@ func (sg *snapshotGenerator) generateSnapshotForSponsorshipTx(assetID crypto.Dig
 }
 
 func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.PublicKey, script proto.Script,
-	complexity int, balanceChanges txDiff) (TransactionSnapshot, error) {
+	scriptEstimation scriptEstimation, balanceChanges txDiff) (TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
-	sponsorshipSnapshot := &AccountScriptSnapshot{
+	if scriptEstimation.scriptIsEmpty {
+		return snapshot, nil
+	}
+	accountScriptSnapshot := &AccountScriptSnapshot{
 		SenderPublicKey:    senderPK,
 		Script:             script,
-		VerifierComplexity: uint64(complexity),
+		VerifierComplexity: uint64(scriptEstimation.estimation.Verifier),
 	}
-	snapshot = append(snapshot, sponsorshipSnapshot)
+	snapshot = append(snapshot, accountScriptSnapshot)
+
+	if sg.IsFullNodeMode {
+		scriptAddr, cnvrtErr := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
+		if cnvrtErr != nil {
+			return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
+		}
+		internalComplexitySnapshot := internalDAppComplexitySnapshot{
+			estimation: scriptEstimation.estimation, scriptAddress: scriptAddr, update: false}
+		snapshot = append(snapshot, &internalComplexitySnapshot)
+	}
+
 	return snapshot, nil
 }
 
@@ -821,7 +835,7 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 				return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
 			}
 			internalComplexitySnapshot := internalDAppComplexitySnapshot{
-				estimation: scriptEstimation.estimation, scriptAddress: scriptAddr}
+				estimation: scriptEstimation.estimation, scriptAddress: scriptAddr, update: true}
 			snapshot = append(snapshot, &internalComplexitySnapshot)
 		}
 	}

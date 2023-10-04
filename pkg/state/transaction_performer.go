@@ -429,7 +429,7 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	}
 
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetScriptTx(tx.SenderPK,
-		tx.Script, se.estimation.Verifier, balanceChanges)
+		tx.Script, *se, balanceChanges)
 
 	if err != nil {
 		return nil, err
