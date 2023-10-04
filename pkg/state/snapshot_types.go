@@ -4,9 +4,9 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 type TransactionSnapshot []AtomicSnapshot
@@ -197,6 +197,23 @@ func (s AssetDescriptionSnapshot) IsGeneratedByTxDiff() bool {
 
 func (s AssetDescriptionSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetDescription(s) }
 
+/*
+Below are internal snapshots only.
+They are not necessary and used for optimization, initialized in the full node mode only.
+*/
+type internalDAppComplexitySnapshot struct {
+	scriptAddress proto.WavesAddress
+	estimation    ride.TreeEstimation
+}
+
+func (s internalDAppComplexitySnapshot) IsGeneratedByTxDiff() bool {
+	return false
+}
+
+func (s internalDAppComplexitySnapshot) Apply(a SnapshotApplier) error {
+	return a.applyInternalDAppComplexitySnapshot(s)
+}
+
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
@@ -211,4 +228,7 @@ type SnapshotApplier interface {
 	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
 	ApplyDataEntries(snapshot DataEntriesSnapshot) error
 	ApplyLeaseState(snapshot LeaseStateSnapshot) error
+
+	/* Internal snapshots. Applied only in the full node mode */
+	applyInternalDAppComplexitySnapshot(internalSnapshot internalDAppComplexitySnapshot) error
 }

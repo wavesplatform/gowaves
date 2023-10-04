@@ -11,6 +11,9 @@ import (
 type snapshotGenerator struct {
 	stor   *blockchainEntitiesStorage
 	scheme proto.Scheme
+
+	/* Is IsFullNodeMode is true, then some additional internal fields will be generated */
+	IsFullNodeMode bool
 }
 
 type addressWavesBalanceDiff map[proto.WavesAddress]balanceDiff
@@ -374,22 +377,26 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) generateSnapshotForInvokeScriptTx(txID crypto.Digest, info *performerInfo,
+func (sg *snapshotGenerator) generateSnapshotForInvokeScriptTx(txID crypto.Digest,
+	info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff,
-	txPublicKey crypto.PublicKey) (TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey)
+	txPublicKey crypto.PublicKey,
+	scriptEstimation *scriptEstimation,
+	scriptRecipient *proto.Recipient) (TransactionSnapshot, error) {
+	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges,
+		txPublicKey, scriptEstimation, scriptRecipient)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForInvokeExpressionTx(txID crypto.Digest, info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff,
 	txPublicKey crypto.PublicKey) (TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey)
+	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey, nil, nil)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest, info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff,
 	txPublicKey crypto.PublicKey) (TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey)
+	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey, nil, nil)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string,
@@ -772,7 +779,9 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	txID crypto.Digest,
 	info *performerInfo,
 	invocationRes *invocationResult,
-	balanceChanges txDiff, txPublicKey crypto.PublicKey) (TransactionSnapshot, error) {
+	balanceChanges txDiff, txPublicKey crypto.PublicKey,
+	scriptEstimation *scriptEstimation,
+	scriptRecipient *proto.Recipient) (TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
@@ -803,6 +812,18 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	}
 	for i := range assetBalancesSnapshot {
 		snapshot = append(snapshot, &assetBalancesSnapshot[i])
+	}
+
+	if sg.IsFullNodeMode && scriptEstimation != nil && scriptRecipient != nil {
+		if !scriptEstimation.scriptIsEmpty {
+			scriptAddr, cnvrtErr := recipientToAddress(*scriptRecipient, sg.stor.aliases)
+			if cnvrtErr != nil {
+				return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
+			}
+			internalComplexitySnapshot := internalDAppComplexitySnapshot{
+				estimation: scriptEstimation.estimation, scriptAddress: scriptAddr}
+			snapshot = append(snapshot, &internalComplexitySnapshot)
+		}
 	}
 
 	return snapshot, nil

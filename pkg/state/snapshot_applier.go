@@ -239,3 +239,24 @@ func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot LeaseStateSnapshot) err
 	}
 	return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
+
+func (a *blockSnapshotsApplier) applyInternalDAppComplexitySnapshot(
+	internalSnapshot internalDAppComplexitySnapshot) error {
+	// we've pulled up an old script which estimation had been done by an old estimator
+	// in txChecker we've estimated script with a new estimator
+	// this is the place where we have to store new estimation
+
+	// update callable and summary complexity, verifier complexity remains the same
+	// TODO this might a problem in the future with importing snapshots,
+	// TODO because snapshots don't contain the information about the callables
+	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+		scriptIsEmpty: false, estimation: internalSnapshot.estimation}
+	if scErr := a.stor.scriptsComplexity.updateCallableComplexitiesForAddr(
+		internalSnapshot.scriptAddress,
+		scriptEstimation, a.info.BlockID()); scErr != nil {
+		return errors.Wrapf(scErr, "failed to save complexity for addr %q",
+			internalSnapshot.scriptAddress,
+		)
+	}
+	return nil
+}

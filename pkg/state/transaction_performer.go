@@ -415,6 +415,7 @@ func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.T
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
+// TODO should we generate an internal snapshot for dapp estimation here?
 func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Transaction, info *performerInfo,
 	_ *invocationResult, balanceChanges txDiff) (TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.SetScriptWithProofs)
@@ -496,7 +497,7 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	}
 
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info,
-		invocationRes, balanceChanges, tx.SenderPK)
+		invocationRes, balanceChanges, tx.SenderPK, se, &tx.ScriptRecipient)
 	if err != nil {
 		return nil, err
 	}

@@ -660,7 +660,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			leases:            a.stor.leases,
 		},
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter}
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter, IsFullNodeMode: true}
 
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -985,7 +985,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 			leases:            a.stor.leases,
 		},
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter}
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter, IsFullNodeMode: true}
 
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true
