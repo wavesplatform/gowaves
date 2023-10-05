@@ -503,9 +503,6 @@ func (a *txAppender) handleTxAndScripts(
 	accountHasVerifierScript bool,
 	senderAddr proto.Address,
 ) (*applicationResult, *invocationResult, bool, error) {
-	var applicationRes *applicationResult
-	var invocationRes *invocationResult
-	needToValidateBalanceDiff := false
 	switch tx.GetTypeInfo().Type {
 	case proto.InvokeScriptTransaction, proto.InvokeExpressionTransaction, proto.ExchangeTransaction:
 		// Invoke and Exchange transactions should be handled differently.
@@ -515,19 +512,19 @@ func (a *txAppender) handleTxAndScripts(
 			senderScripted: accountHasVerifierScript,
 			senderAddress:  senderAddr,
 		}
-		var err error
-		invocationRes, applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
+
+		invocationRes, applicationRes, err := a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
 		if err != nil {
 			return nil, nil, false, errors.Wrap(err, "failed to handle invoke or exchange transaction")
 		}
 		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
 		// When acceptFailed is true, balances are validated inside handleFallible().
-		needToValidateBalanceDiff = params.validatingUtx && !params.acceptFailed
+		needToValidateBalanceDiff := params.validatingUtx && !params.acceptFailed
+		return applicationRes, invocationRes, needToValidateBalanceDiff, nil
 	case proto.EthereumMetamaskTransaction:
 		return a.handleEthTx(tx, params, accountHasVerifierScript, senderAddr)
 	default:
-		var err error
-		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
+		applicationRes, err := a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
 			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 			if idErr != nil {
@@ -536,9 +533,8 @@ func (a *txAppender) handleTxAndScripts(
 			return nil, nil, false, errors.Wrapf(err, "failed to handle transaction '%s'", base58.Encode(id))
 		}
 		// In UTX balances are always validated.
-		needToValidateBalanceDiff = params.validatingUtx
+		return applicationRes, nil, params.validatingUtx, nil
 	}
-	return applicationRes, invocationRes, needToValidateBalanceDiff, nil
 }
 
 func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (proto.TransactionSnapshot, error) {
