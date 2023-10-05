@@ -444,6 +444,10 @@ func GetReward5W2MinersIncreaseCeaseXTNBuybackSupportedTestData(suite *f.BaseSui
 // ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_increase_without_20.json")
 // NODE - 830
 func GetRewardDaoXtnSupportedWithout20TestData(suite *f.BaseSuite) RewardDistributionCeaseXtnBuybackData {
+	var (
+		beforeXTNBuyBackPeriodBlockReward = int64(utl.GetInitRewardCfg(suite))
+		afterXTNBuyBackPeriodBlockReward  = beforeXTNBuyBackPeriodBlockReward + int64(utl.GetRewardIncrementCfg(suite))
+	)
 	return RewardDistributionCeaseXtnBuybackData{
 		BeforeXtnBuyBackPeriod: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -451,9 +455,9 @@ func GetRewardDaoXtnSupportedWithout20TestData(suite *f.BaseSuite) RewardDistrib
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) / 3,
-				DaoDiffBalance:       int64(utl.GetInitRewardCfg(suite)) / 3,
-				XtnDiffBalance:       int64(utl.GetInitRewardCfg(suite)) / 3,
+				MinersSumDiffBalance: beforeXTNBuyBackPeriodBlockReward / 3,
+				DaoDiffBalance:       beforeXTNBuyBackPeriodBlockReward / 3,
+				XtnDiffBalance:       beforeXTNBuyBackPeriodBlockReward / 3,
 				Term:                 utl.GetRewardTermCfg(suite),
 			}),
 		AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
@@ -462,8 +466,8 @@ func GetRewardDaoXtnSupportedWithout20TestData(suite *f.BaseSuite) RewardDistrib
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
 			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 			RewardDistributionExpectedValues{
-				MinersSumDiffBalance: 2 * int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) / 3,
-				DaoDiffBalance:       int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) / 3,
+				MinersSumDiffBalance: afterXTNBuyBackPeriodBlockReward - afterXTNBuyBackPeriodBlockReward/3,
+				DaoDiffBalance:       afterXTNBuyBackPeriodBlockReward / 3,
 				XtnDiffBalance:       0,
 				Term:                 utl.GetRewardTermCfg(suite),
 			}),
