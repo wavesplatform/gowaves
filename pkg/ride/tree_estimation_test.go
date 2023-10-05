@@ -8,6 +8,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
@@ -384,4 +386,32 @@ func TestFailOnInvocationInVerifier(t *testing.T) {
 	assert.Error(t, err)
 	_, err = EstimateTree(tree, 4)
 	assert.Error(t, err)
+}
+
+func TestScope(t *testing.T) {
+	src := `
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		let a = {
+  			func bar(i: Int) = i
+  			bar(1)
+		}
+		let b = {
+  			func bar(i: Int) = i
+  			bar(a)
+		}
+		@Verifier(tx)
+		func verify() = a == b
+`
+	tree, errs := ridec.CompileToTree(src)
+	require.Empty(t, errs)
+
+	est, err := EstimateTree(tree, 3)
+	assert.NoError(t, err)
+	assert.Equal(t, 7, est.Estimation)
+	est, err = EstimateTree(tree, 4)
+	assert.NoError(t, err)
+	assert.Equal(t, 3, est.Estimation)
 }

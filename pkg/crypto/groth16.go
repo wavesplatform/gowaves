@@ -27,14 +27,21 @@ func init() {
 func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve ecc.ID) (bool, error) {
 
 	var vk gnark.VerifyingKey
+	var proof gnark.Proof
 
 	switch curve {
 	case ecc.BLS12_381:
-		bls12381vk, err := bls12_381.FromBytesToVerifyingKey(vkBytes)
+		bls12381vk, err := bls12381.FromBytesToVerifyingKey(vkBytes)
 		if err != nil {
 			return false, err
 		}
 		vk = bls12381vk
+
+		bls12381proof, err := bls12381.FromBytesToProof(proofBytes)
+		if err != nil {
+			return false, err
+		}
+		proof = bls12381proof
 	case ecc.BN254:
 		bn256vk, err := bn256.FromBytesToVerifyingKey(vkBytes)
 		if err != nil {
@@ -42,19 +49,13 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 		}
 		vk = bn256vk
 
-		// fix proof
-		proofBytes, err = bn256.ChangeFlagsInProofToGnarkType(proofBytes)
+		bn256proof, err := bn256.FromBytesToProof(proofBytes)
 		if err != nil {
 			return false, err
 		}
+		proof = bn256proof
 	default:
 		return false, errors.Errorf("unknown eliptic curve")
-	}
-
-	proof := gnark.NewProof(curve)
-	_, err := proof.ReadFrom(bytes.NewReader(proofBytes))
-	if err != nil {
-		return false, err
 	}
 
 	var buf bytes.Buffer
@@ -63,7 +64,7 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 	// Gnark witness has two addition number in the start
 	// These numbers aren't used for verification
 	buf.Write(make([]byte, 8))
-	err = binary.Write(&buf, binary.BigEndian, uint32(len(inputsBytes)/(fr.Limbs*sizeUint64)))
+	err := binary.Write(&buf, binary.BigEndian, uint32(len(inputsBytes)/(fr.Limbs*sizeUint64)))
 	if err != nil {
 		return false, err
 	}
