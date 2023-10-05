@@ -167,7 +167,6 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) e
 		Verifier:   int(snapshot.VerifierComplexity),
 		Functions:  nil,
 	}
-	// TODO the empty script should not be in snapshots, so it needs to be removed in the future
 	if snapshot.Script.IsEmpty() {
 		if err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
 			snapshot.SenderPK, a.info.BlockID()); err != nil {
