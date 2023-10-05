@@ -6,6 +6,7 @@ import (
 
 	"github.com/consensys/gnark-crypto/ecc"
 	curveBn254 "github.com/consensys/gnark-crypto/ecc/bn254"
+	"github.com/consensys/gnark-crypto/ecc/bn254/fr/pedersen"
 	gnark "github.com/consensys/gnark/backend/groth16"
 )
 
@@ -42,7 +43,7 @@ func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (n int64, err error) {
 		dec := curveBn254.NewDecoder(r)
 		var p curveBn254.G1Affine
 		for {
-			err := dec.Decode(&p)
+			err = dec.Decode(&p)
 			if err == io.EOF {
 				break
 			}
@@ -53,37 +54,47 @@ func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (n int64, err error) {
 		}
 		n += dec.BytesRead()
 	}
-	return
+	return n, nil
 }
 
 func (vk *BellmanVerifyingKeyBn256) WriteTo(w io.Writer) (n int64, err error) {
 	enc := curveBn254.NewEncoder(w)
 	var emptyG1Field curveBn254.G1Affine
 	// [α]1,[β]1,[β]2,[γ]2,[δ]1,[δ]2
-	if err := enc.Encode(&vk.G1.Alpha); err != nil {
+	if err = enc.Encode(&vk.G1.Alpha); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err := enc.Encode(&emptyG1Field); err != nil {
+	if err = enc.Encode(&emptyG1Field); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err := enc.Encode(&vk.G2.Beta); err != nil {
+	if err = enc.Encode(&vk.G2.Beta); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err := enc.Encode(&vk.G2.Gamma); err != nil {
+	if err = enc.Encode(&vk.G2.Gamma); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err := enc.Encode(&emptyG1Field); err != nil {
+	if err = enc.Encode(&emptyG1Field); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err := enc.Encode(&vk.G2.Delta); err != nil {
+	if err = enc.Encode(&vk.G2.Delta); err != nil {
 		return enc.BytesWritten(), err
 	}
 
 	// uint32(len(Kvk)),[Kvk]1
-	if err := enc.Encode(vk.G1.Ic); err != nil {
+	if err = enc.Encode(vk.G1.Ic); err != nil {
 		return enc.BytesWritten(), err
 	}
-	return enc.BytesWritten(), nil
+
+	// only matters in tests in Gnark
+	if err = enc.Encode([][]uint64{}); err != nil {
+		return enc.BytesWritten(), err
+	}
+	commitmentKey := pedersen.VerifyingKey{}
+	m, err := commitmentKey.WriteTo(w)
+	if err != nil {
+		return enc.BytesWritten() + m, err
+	}
+	return enc.BytesWritten() + m, nil
 }
 
 func FromBytesToVerifyingKey(vkBytes []byte) (gnark.VerifyingKey, error) {
