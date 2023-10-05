@@ -44,7 +44,7 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplier
 	}
 }
 
-var _ = SnapshotApplier((*blockSnapshotsApplier)(nil))
+var _ = proto.SnapshotApplier((*blockSnapshotsApplier)(nil))
 
 type blockSnapshotsApplierInfo struct {
 	ci                  *checkerInfo
@@ -83,7 +83,7 @@ func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCoun
 	return s.stateActionsCounter
 }
 
-func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot WavesBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	profile, err := a.stor.balances.wavesBalance(addrID)
 	if err != nil {
@@ -98,7 +98,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot WavesBalanceSnapshot)
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	var err error
 	profile, err := a.stor.balances.wavesBalance(addrID)
@@ -115,17 +115,17 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot LeaseBalanceSnapshot)
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot AssetBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot proto.AssetBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	return a.stor.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAlias(snapshot AliasSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
 	return a.stor.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot StaticAssetInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetInfoSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -140,7 +140,7 @@ func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot StaticAssetInfoSna
 	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot AssetDescriptionSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot proto.AssetDescriptionSnapshot) error {
 	change := &assetInfoChange{
 		newName:        snapshot.AssetName,
 		newDescription: snapshot.AssetDescription,
@@ -149,7 +149,7 @@ func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot AssetDescriptionS
 	return a.stor.assets.updateAssetInfo(snapshot.AssetID, change, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot AssetVolumeSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	assetFullInfo, err := a.stor.assets.newestAssetInfo(assetID)
 	if err != nil {
@@ -160,7 +160,7 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot AssetVolumeSnapshot) e
 	return a.stor.assets.storeAssetInfo(assetID, assetFullInfo, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
 	// estimation := ride.TreeEstimation{
 	//	Estimation: int(snapshot.Complexity),
 	//	Verifier:   int(snapshot.Complexity),
@@ -180,11 +180,11 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) e
 	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplySponsorship(snapshot SponsorshipSnapshot) error {
+func (a *blockSnapshotsApplier) ApplySponsorship(snapshot proto.SponsorshipSnapshot) error {
 	return a.stor.sponsoredAssets.sponsorAsset(snapshot.AssetID, snapshot.MinSponsoredFee, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptSnapshot) error {
 	addr, err := proto.NewAddressFromPublicKey(a.info.Scheme(), snapshot.SenderPublicKey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
@@ -208,12 +208,12 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 	return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot proto.FilledVolumeFeeSnapshot) error {
 	return a.stor.ordersVolumes.storeFilled(snapshot.OrderID.Bytes(),
 		snapshot.FilledVolume, snapshot.FilledFee, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot DataEntriesSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot proto.DataEntriesSnapshot) error {
 	blockID := a.info.BlockID()
 	for _, entry := range snapshot.DataEntries {
 		if err := a.stor.accountsDataStor.appendEntry(snapshot.Address, entry, blockID); err != nil {
@@ -223,7 +223,7 @@ func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot DataEntriesSnapshot) e
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot LeaseStateSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot proto.LeaseStateSnapshot) error {
 	l := &leasing{
 		Sender:              snapshot.Sender,
 		Recipient:           snapshot.Recipient,

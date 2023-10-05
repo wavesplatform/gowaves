@@ -1,4 +1,4 @@
-package state
+package proto
 
 import (
 	"math/big"
@@ -6,7 +6,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type TransactionSnapshot []AtomicSnapshot
@@ -31,7 +30,7 @@ type AtomicSnapshot interface {
 }
 
 type WavesBalanceSnapshot struct {
-	Address proto.WavesAddress
+	Address WavesAddress
 	Balance uint64
 }
 
@@ -42,7 +41,7 @@ func (s WavesBalanceSnapshot) IsGeneratedByTxDiff() bool {
 func (s WavesBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyWavesBalance(s) }
 
 type AssetBalanceSnapshot struct {
-	Address proto.WavesAddress
+	Address WavesAddress
 	AssetID crypto.Digest
 	Balance uint64
 }
@@ -54,8 +53,8 @@ func (s AssetBalanceSnapshot) IsGeneratedByTxDiff() bool {
 func (s AssetBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetBalance(s) }
 
 type DataEntriesSnapshot struct { // AccountData in pb
-	Address     proto.WavesAddress
-	DataEntries []proto.DataEntry
+	Address     WavesAddress
+	DataEntries []DataEntry
 }
 
 func (s DataEntriesSnapshot) IsGeneratedByTxDiff() bool {
@@ -66,7 +65,7 @@ func (s DataEntriesSnapshot) Apply(a SnapshotApplier) error { return a.ApplyData
 
 type AccountScriptSnapshot struct {
 	SenderPublicKey    crypto.PublicKey
-	Script             proto.Script
+	Script             Script
 	VerifierComplexity uint64
 }
 
@@ -78,7 +77,7 @@ func (s AccountScriptSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAc
 
 type AssetScriptSnapshot struct {
 	AssetID    crypto.Digest
-	Script     proto.Script
+	Script     Script
 	SenderPK   crypto.PublicKey // should be removed later
 	Complexity uint64
 }
@@ -90,7 +89,7 @@ func (s AssetScriptSnapshot) IsGeneratedByTxDiff() bool {
 func (s AssetScriptSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetScript(s) }
 
 type LeaseBalanceSnapshot struct {
-	Address  proto.WavesAddress
+	Address  WavesAddress
 	LeaseIn  uint64
 	LeaseOut uint64
 }
@@ -103,7 +102,7 @@ func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLea
 
 type LeaseStateStatus struct {
 	Value               LeaseStatus // can be only LeaseActive or LeaseCanceled
-	CancelHeight        proto.Height
+	CancelHeight        Height
 	CancelTransactionID *crypto.Digest
 }
 
@@ -111,10 +110,10 @@ type LeaseStateSnapshot struct {
 	LeaseID             crypto.Digest
 	Status              LeaseStateStatus
 	Amount              uint64
-	Sender              proto.WavesAddress
-	Recipient           proto.WavesAddress
+	Sender              WavesAddress
+	Recipient           WavesAddress
 	OriginTransactionID *crypto.Digest
-	Height              proto.Height
+	Height              Height
 }
 
 func (s LeaseStateSnapshot) IsGeneratedByTxDiff() bool {
@@ -135,8 +134,8 @@ func (s SponsorshipSnapshot) IsGeneratedByTxDiff() bool {
 func (s SponsorshipSnapshot) Apply(a SnapshotApplier) error { return a.ApplySponsorship(s) }
 
 type AliasSnapshot struct {
-	Address proto.WavesAddress
-	Alias   proto.Alias
+	Address WavesAddress
+	Alias   Alias
 }
 
 func (s AliasSnapshot) IsGeneratedByTxDiff() bool {
@@ -188,7 +187,7 @@ type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
 	AssetID          crypto.Digest
 	AssetName        string
 	AssetDescription string
-	ChangeHeight     proto.Height // last_updated in pb
+	ChangeHeight     Height // last_updated in pb
 }
 
 func (s AssetDescriptionSnapshot) IsGeneratedByTxDiff() bool {

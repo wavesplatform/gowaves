@@ -327,7 +327,7 @@ func (a *txAppender) commitTxApplication(
 	tx proto.Transaction,
 	params *appendTxParams,
 	invocationRes *invocationResult,
-	applicationRes *applicationResult) (TransactionSnapshot, error) {
+	applicationRes *applicationResult) (proto.TransactionSnapshot, error) {
 	// Add transaction ID to recent IDs.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
@@ -344,7 +344,7 @@ func (a *txAppender) commitTxApplication(
 	}
 	currentMinerAddress := proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK)
 
-	var snapshot TransactionSnapshot
+	var snapshot proto.TransactionSnapshot
 	if applicationRes.status {
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
@@ -421,7 +421,7 @@ type appendTxParams struct {
 	currentMinerPK                   crypto.PublicKey
 
 	snapshotGenerator *snapshotGenerator
-	snapshotApplier   SnapshotApplier
+	snapshotApplier   proto.SnapshotApplier
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(
@@ -586,20 +586,20 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 }
 
 // rewards and 60% of the fee to the previous miner.
-func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (TransactionSnapshot, error) {
+func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (proto.TransactionSnapshot, error) {
 	addrWavesBalanceDiff, _, err := balanceDiffFromTxDiff(minerAndRewardDiff, a.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
 	// add miner address to the diff
-	var snapshot TransactionSnapshot
+	var snapshot proto.TransactionSnapshot
 	for wavesAddress, diffAmount := range addrWavesBalanceDiff {
 		var fullBalance balanceProfile
 		fullBalance, err = a.stor.balances.wavesBalance(wavesAddress.ID())
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
-		newBalance := &WavesBalanceSnapshot{
+		newBalance := &proto.WavesBalanceSnapshot{
 			Address: wavesAddress,
 			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
 		}
