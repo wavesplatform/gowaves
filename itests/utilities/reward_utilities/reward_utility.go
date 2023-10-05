@@ -20,19 +20,19 @@ func getAddressesBalances[T any](suite *f.BaseSuite, testdata testdata.RewardDis
 	//we will be summing up balances of both miners accounts
 	sumBalanceMinersGo := balanceMiner1Go + balanceMiner2Go
 	sumBalanceMinersScala := balanceMiner1Scala + balanceMiner2Scala
-	suite.T().Logf("Go: Sum Miners balance: %d, Scala: Sum Miners balance: %d, current height: %d",
-		sumBalanceMinersGo, sumBalanceMinersScala, utl.GetHeight(suite))
+	suite.T().Logf("Go: Sum Miners balance: %d, Go current height:%d, Scala: Sum Miners balance: %d, Scala current height: %d",
+		sumBalanceMinersGo, utl.GetHeightGo(suite), sumBalanceMinersScala, utl.GetHeightScala(suite))
 	//get balances of dao and xtn buy-back accounts
 	if testdata.DaoAccount != nil {
 		balanceDaoGo, balanceDaoScala = utl.GetAvailableBalanceInWaves(suite, testdata.DaoAccount.Address)
 	}
-	suite.T().Logf("Go: DAO balance: %d, Scala: DAO balance: %d, current height: %d",
-		balanceDaoGo, balanceDaoScala, utl.GetHeight(suite))
+	suite.T().Logf("Go: DAO balance: %d, Go current height:%d, Scala: DAO balance: %d, Scala current height: %d",
+		balanceDaoGo, utl.GetHeightGo(suite), balanceDaoScala, utl.GetHeightScala(suite))
 	if testdata.XtnBuyBackAccount != nil {
 		balanceXtnGo, balanceXtnScala = utl.GetAvailableBalanceInWaves(suite, testdata.XtnBuyBackAccount.Address)
 	}
-	suite.T().Logf("Go: XTN balance: %d, Scala: XTN balance: %d, current height: %d",
-		balanceXtnGo, balanceXtnScala, utl.GetHeight(suite))
+	suite.T().Logf("Go: XTN balance: %d, Go current height:%d, Scala: XTN balance: %d, Scala current height: %d",
+		balanceXtnGo, utl.GetHeightGo(suite), balanceXtnScala, utl.GetHeight(suite))
 	return utl.NewBalanceInWaves(sumBalanceMinersGo, sumBalanceMinersScala), utl.NewBalanceInWaves(balanceDaoGo, balanceDaoScala),
 		utl.NewBalanceInWaves(balanceXtnGo, balanceXtnScala)
 }
@@ -41,8 +41,8 @@ func getDiffBalance(suite *f.BaseSuite, addressType string, currentBalance utl.B
 	initBalance utl.BalanceInWaves) utl.BalanceInWaves {
 	diffBalanceGo := currentBalance.BalanceInWavesGo - initBalance.BalanceInWavesGo
 	diffBalanceScala := currentBalance.BalanceInWavesScala - initBalance.BalanceInWavesScala
-	suite.T().Logf("Go: Diff %s balance: %d, Scala: Diff %s balance: %d, on height: %d",
-		addressType, diffBalanceGo, addressType, diffBalanceScala, utl.GetHeight(suite))
+	suite.T().Logf("Go: Diff %s balance: %d on height: %d, Scala: Diff %s balance: %d, on height: %d",
+		addressType, diffBalanceGo, utl.GetHeightGo(suite), addressType, diffBalanceScala, utl.GetHeightScala(suite))
 	return utl.NewBalanceInWaves(diffBalanceGo, diffBalanceScala)
 }
 

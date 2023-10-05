@@ -24,6 +24,7 @@ func GetRewardDistributionAfter14Before19(suite *f.BaseSuite) RewardDistribution
 // 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
 // ("preactivated_14_supported_19_20/7W_2miners_dao_xtn_increase.json")
 // NODE - 815
+// NODE - 860
 func GetRewardIncreaseDaoXtnSupportedTestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
@@ -183,13 +184,47 @@ func GetRewardDaoXtnSupportedWithout19TestData(suite *f.BaseSuite) RewardDistrib
 	return NewRewardDistributionTestData(
 		getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
 		getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
-		nil,
-		nil,
+		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
 		RewardDistributionExpectedValues{
 			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite) + utl.GetRewardIncrementCfg(suite)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
+		})
+}
+
+// 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
+// ("preactivated_14_supported_19_20/2miners_dao_xtn_without_f20.json")
+// NODE - 858.
+func GetRewardDaoXtnSupported19TestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValues] {
+	return NewRewardDistributionTestData(
+		getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+		getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+		RewardDistributionExpectedValues{
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) - 2*int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite))/3,
+			DaoDiffBalance:       int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) / 3,
+			XtnDiffBalance:       int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) / 3,
+			Term:                 utl.GetRewardTermCfg(suite),
+		})
+}
+
+// 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
+// ("preactivated_14_19_20/2miners_dao_xtn_without_f20.json")
+// NODE - 859.
+func GetRewardDaoXtnPreactivated19TestData(suite *f.BaseSuite) RewardDistributionTestData[RewardDistributionExpectedValues] {
+	return NewRewardDistributionTestData(
+		getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+		getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+		getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+		getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+		RewardDistributionExpectedValues{
+			MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) / 3,
+			DaoDiffBalance:       int64(utl.GetInitRewardCfg(suite)) / 3,
+			XtnDiffBalance:       int64(utl.GetInitRewardCfg(suite)) / 3,
+			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
 

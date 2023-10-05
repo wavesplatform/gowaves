@@ -133,3 +133,12 @@ func (c *HttpClient) RewardsAtHeight(t *testing.T, height proto.Height) *client.
 	require.NoError(t, err)
 	return rewardInfo
 }
+
+func (c *HttpClient) RollbackToHeight(t *testing.T, height uint64, returnTxToUtx bool) *proto.BlockID {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	blockID, _, err := c.cli.Debug.RollbackToHeight(ctx, height, returnTxToUtx)
+	require.NoError(t, err)
+	return blockID
+}

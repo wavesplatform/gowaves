@@ -805,3 +805,16 @@ func NewRewardTerm(termGo, termScala uint64) RewardTerm {
 func GetXtnBuybackPeriodCfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.MinXTNBuyBackPeriod
 }
+
+func GetRollbackToHeightGo(suite *f.BaseSuite, height uint64, returnTxToUtx bool) *proto.BlockID {
+	return suite.Clients.GoClients.HttpClient.RollbackToHeight(suite.T(), height, returnTxToUtx)
+}
+
+func GetRollbackToHeightScala(suite *f.BaseSuite, height uint64, returnTxToUtx bool) *proto.BlockID {
+	return suite.Clients.ScalaClients.HttpClient.RollbackToHeight(suite.T(), height, returnTxToUtx)
+}
+
+func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) (*proto.BlockID, *proto.BlockID) {
+	suite.T().Logf("Rollback to height: %d from height: %d", height, GetHeight(suite))
+	return GetRollbackToHeightGo(suite, height, returnTxToUtx), GetRollbackToHeightScala(suite, height, returnTxToUtx)
+}
