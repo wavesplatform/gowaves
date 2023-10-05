@@ -351,14 +351,14 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 	if err != nil {
 		return nil, err
 	}
-	if scriptEstimation.scriptIsEmpty {
-		return snapshot, nil
-	}
+
+	// If the script is empty, it will still be stored in the storage.
 	accountScriptSnapshot := &AccountScriptSnapshot{
 		SenderPublicKey:    senderPK,
 		Script:             script,
 		VerifierComplexity: uint64(scriptEstimation.estimation.Verifier),
 	}
+
 	snapshot = append(snapshot, accountScriptSnapshot)
 
 	if sg.IsFullNodeMode {

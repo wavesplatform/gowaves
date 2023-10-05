@@ -888,6 +888,76 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 	to.stor.flush(t)
 }
 
+func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
+	checkerInfo := customCheckerInfo()
+	to := createDifferTestObjects(t, checkerInfo)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(),
+		wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedSetScriptWithProofs(1, testGlobal.senderInfo.pk,
+		nil, uint64(1*FeeUnit), defaultTimestamp)
+
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "failed to sign set script tx")
+
+	co := createCheckerCustomTestObjects(t, to)
+	co.stor = to.stor
+	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	assert.NoError(t, err, "failed to check set script tx")
+
+	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffBurnWithSig() failed")
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
+	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx,
+		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
+	assert.NoError(t, err, "failed to perform burn tx")
+
+	expectedSnapshot := TransactionSnapshot{
+		&WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
+		},
+		&WavesBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
+		},
+		&AccountScriptSnapshot{
+			SenderPublicKey:    testGlobal.senderInfo.pk,
+			Script:             nil,
+			VerifierComplexity: 0,
+		},
+		&internalDAppComplexitySnapshot{
+			scriptAddress: testGlobal.senderInfo.addr,
+			estimation:    ride.TreeEstimation{Estimation: 0, Verifier: 0},
+			update:        false,
+		},
+	}
+
+	var snapshotI []byte
+	var snapshotJ []byte
+	sort.Slice(expectedSnapshot, func(i, j int) bool {
+		snapshotI, err = json.Marshal(expectedSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err = json.Marshal(expectedSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+	sort.Slice(transactionSnapshot, func(i, j int) bool {
+		snapshotI, err = json.Marshal(transactionSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err = json.Marshal(transactionSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
 func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 	checkerInfo := customCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
