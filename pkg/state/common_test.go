@@ -1,10 +1,10 @@
 package state
 
 import (
+	"crypto/rand"
 	"encoding/base64"
 	"log"
 	"math/big"
-	"math/rand"
 	"os"
 	"testing"
 

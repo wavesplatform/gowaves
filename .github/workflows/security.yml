@@ -18,7 +18,7 @@ jobs:
       GO111MODULE: on
     steps:
       - name: Checkout Source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Run gosec security scanner
         uses: securego/gosec@v2.17.0
         with:
@@ -38,7 +38,7 @@ jobs:
       image: returntocorp/semgrep:latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
         # we let the report trigger content trigger a failure using the GitHub Security features.
         # see https://semgrep.dev/docs/cli-usage/#exit-codes for more details.
       - name: Run semgrep security scanner
@@ -63,11 +63,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Set up Go
         uses: actions/setup-go@v4.1.0
         with:
-          go-version: 1.19.x
+          go-version: 1.20.x
           check-latest: true
           cache: true
       - name: Run go list
