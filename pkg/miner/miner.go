@@ -17,42 +17,35 @@ import (
 )
 
 type MicroblockMiner struct {
-	utx                             types.UtxPool
-	state                           state.State
-	peer                            peers.PeerManager
-	constraints                     Constraints
-	services                        services.Services
-	features                        Features
-	reward                          int64
-	maxTransactionTimeForwardOffset proto.Timestamp
+	utx         types.UtxPool
+	state       state.State
+	peer        peers.PeerManager
+	constraints Constraints
+	services    services.Services
+	features    Features
+	reward      int64
 }
 
-func NewMicroblockMiner(services services.Services, features Features, reward int64, maxTransactionTimeForwardOffset proto.Timestamp) *MicroblockMiner {
+func NewMicroblockMiner(services services.Services, features Features, reward int64) *MicroblockMiner {
 	return &MicroblockMiner{
-		utx:                             services.UtxPool,
-		state:                           services.State,
-		peer:                            services.Peers,
-		constraints:                     DefaultConstraints(),
-		services:                        services,
-		features:                        features,
-		reward:                          reward,
-		maxTransactionTimeForwardOffset: maxTransactionTimeForwardOffset,
+		utx:         services.UtxPool,
+		state:       services.State,
+		peer:        services.Peers,
+		constraints: DefaultConstraints(),
+		services:    services,
+		features:    features,
+		reward:      reward,
 	}
 }
 
-func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget types.BaseTarget, gs []byte, vrf []byte) (*proto.Block, proto.MiningLimits, error) {
+func (a *MicroblockMiner) MineKeyBlock(
+	_ context.Context, t proto.Timestamp, k proto.KeyPair, parent proto.BlockID, baseTarget types.BaseTarget,
+	gs []byte, _ []byte,
+) (*proto.Block, proto.MiningLimits, error) {
 	nxt := proto.NxtConsensus{
 		BaseTarget:   baseTarget,
 		GenSignature: gs,
 	}
-	// This prevents miner of creating excessive quantity of blocks.
-	// If time is too outdate, that just create 1 block with minimal sensible time.
-	ts := t
-	now := a.services.Time.Now()
-	if t < proto.NewTimestampFromTime(now)-a.maxTransactionTimeForwardOffset {
-		ts = proto.NewTimestampFromTime(now) - a.maxTransactionTimeForwardOffset
-	}
-
 	bi, err := a.state.MapR(func(info state.StateInfo) (interface{}, error) {
 		v, err := blockVersion(info)
 		if err != nil {
@@ -62,7 +55,7 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 		if err != nil {
 			return nil, err
 		}
-		b, err := MineBlock(v, nxt, k, validatedFeatured, ts, parent, a.reward, a.services.Scheme)
+		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.services.Scheme)
 		if err != nil {
 			return nil, err
 		}
@@ -75,7 +68,8 @@ func (a *MicroblockMiner) MineKeyBlock(ctx context.Context, t proto.Timestamp, k
 
 	activated, err := a.state.IsActivated(int16(settings.RideV5))
 	if err != nil {
-		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated", settings.RideV5)
+		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated",
+			settings.RideV5)
 	}
 
 	rest := proto.MiningLimits{
@@ -120,7 +114,8 @@ func Run(ctx context.Context, a types.Miner, s Mine, internalCh chan<- messages.
 		case <-ctx.Done():
 			return
 		case v := <-s.Mine():
-			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature, v.VRF)
+			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature,
+				v.VRF)
 			if err != nil {
 				zap.S().Errorf("Failed to mine key block: %v", err)
 				continue
