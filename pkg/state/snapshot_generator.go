@@ -829,7 +829,7 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	}
 
 	if sg.IsFullNodeMode && scriptEstimation != nil && scriptRecipient != nil {
-		if !scriptEstimation.scriptIsEmpty {
+		if scriptEstimation.isPresent() {
 			scriptAddr, cnvrtErr := recipientToAddress(*scriptRecipient, sg.stor.aliases)
 			if cnvrtErr != nil {
 				return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")

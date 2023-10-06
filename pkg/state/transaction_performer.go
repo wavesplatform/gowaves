@@ -465,27 +465,6 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
 
-	se := info.checkerData.scriptEstimation
-	if se.isPresent() {
-		// script estimation is present an not nil
-
-		// we've pulled up an old script which estimation had been done by an old estimator
-		// in txChecker we've estimated script with a new estimator
-		// this is the place where we have to store new estimation
-		scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
-		}
-		// update callable and summary complexity, verifier complexity remains the same
-		// TODO this might a problem in the future with importing snapshots,
-		// TODO because snapshots don't contain the information about the callables
-		if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
-			return nil, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
-				scriptAddr.String(), tx.ID.String(),
-			)
-		}
-	}
-
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Errorf("failed to get transaction ID: %v", err)
@@ -496,7 +475,7 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	}
 
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info,
-		invocationRes, balanceChanges, tx.SenderPK, se, &tx.ScriptRecipient)
+		invocationRes, balanceChanges, tx.SenderPK, info.checkerData.scriptEstimation, &tx.ScriptRecipient)
 	if err != nil {
 		return nil, err
 	}
