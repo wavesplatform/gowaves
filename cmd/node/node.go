@@ -51,10 +51,9 @@ import (
 )
 
 const (
-	maxTransactionTimeForwardOffset = 300 // seconds
-	mb                              = 1 << (10 * 2)
-	defaultTimeout                  = 30 * time.Second
-	reserve                         = 10
+	mb             = 1 << 20
+	defaultTimeout = 30 * time.Second
+	reserve        = 10
 )
 
 var defaultPeers = map[string]string{
@@ -268,10 +267,10 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("Initialization failure: %v", err)
 	}
-	if max := int(maxFDs) - int(nc.limitAllConnections) - reserve; nc.dbFileDescriptors > max {
+	if m := int(maxFDs) - int(nc.limitAllConnections) - reserve; nc.dbFileDescriptors > m {
 		zap.S().Fatalf(
 			"Invalid 'db-file-descriptors' flag value (%d). Value shall be less or equal to %d.",
-			nc.dbFileDescriptors, max)
+			nc.dbFileDescriptors, m)
 	}
 
 	if nc.profiler {
@@ -485,7 +484,7 @@ func main() {
 		SkipMessageList: parent.SkipMessageList,
 	}
 
-	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
+	mine := miner.NewMicroblockMiner(svs, features, reward)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
 	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
