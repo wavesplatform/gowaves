@@ -1075,7 +1075,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
 	to.stor.activateFeature(t, int16(settings.Ride4DApps))
-	to.stor.activateFeature(t, int16(settings.RideV5))
+	//to.stor.activateFeature(t, int16(settings.RideV5))
 
 	setScript(t, to, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptsBytes)
 
@@ -1136,6 +1136,15 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 				&proto.IntegerDataEntry{Key: "int", Value: 1},
 				&proto.StringDataEntry{Key: "int", Value: ""},
 			},
+		},
+		&internalDAppComplexitySnapshot{
+			scriptAddress: testGlobal.recipientInfo.addr,
+			estimation: ride.TreeEstimation{
+				Estimation: 16,
+				Verifier:   0,
+				Functions:  map[string]int{"call": 16},
+			},
+			update: true,
 		},
 	}
 

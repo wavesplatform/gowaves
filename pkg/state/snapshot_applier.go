@@ -173,6 +173,10 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) e
 			return err
 		}
 	}
+	setErr := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
+	if setErr != nil {
+		return setErr
+	}
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
 		scriptIsEmpty: !snapshot.Script.IsEmpty(),
 		estimation:    treeEstimation}
@@ -181,7 +185,7 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) e
 		return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
 			snapshot.AssetID.String())
 	}
-	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplySponsorship(snapshot SponsorshipSnapshot) error {
@@ -199,6 +203,10 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 		Verifier:   int(snapshot.VerifierComplexity),
 		Functions:  nil,
 	}
+	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
+	if err != nil {
+		return setErr
+	}
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
 		scriptIsEmpty: !snapshot.Script.IsEmpty(),
 		estimation:    treeEstimation}
@@ -207,7 +215,7 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 		return errors.Wrapf(cmplErr, "failed to store account script estimation for addr %q",
 			addr.String())
 	}
-	return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error {
