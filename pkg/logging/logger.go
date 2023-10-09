@@ -81,14 +81,7 @@ func DevelopmentFlag(flag bool) Option {
 }
 
 func SetupSimpleLogger(level zapcore.Level) *zap.Logger {
-	core := zapcore.NewCore(
-		zapcore.NewConsoleEncoder(zap.NewProductionEncoderConfig()), // Console encoder with production config
-		zapcore.Lock(os.Stdout),
-		zap.NewAtomicLevelAt(level),
-	)
-	logger := zap.New(core)
-	zap.ReplaceGlobals(logger)
-	return logger
+	return SetupLogger(level)
 }
 
 func SetupLogger(level zapcore.Level, opts ...Option) *zap.Logger {

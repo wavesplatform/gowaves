@@ -4,14 +4,14 @@ import (
 	"math/big"
 	"runtime"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -137,6 +137,9 @@ type StateInfo interface {
 	RewardAtHeight(height proto.Height) (uint64, error)
 	RewardVotes(height proto.Height) (proto.RewardVotes, error)
 	TotalWavesAmount(height proto.Height) (uint64, error)
+
+	// Snapshots
+	SnapshotsAtHeight(height proto.Height) (*g.TransactionStateSnapshot, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

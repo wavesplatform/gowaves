@@ -241,7 +241,7 @@ func TestPerformLeaseWithSig(t *testing.T) {
 	to.stor.flush(t)
 	leasingInfo := &leasing{
 		OriginTransactionID: tx.ID,
-		Status:              LeaseActive,
+		Status:              proto.LeaseActive,
 		Amount:              tx.Amount,
 		Recipient:           *tx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
@@ -263,7 +263,7 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	leasingInfo := &leasing{
 		OriginTransactionID: tx.ID,
-		Status:              LeaseActive,
+		Status:              proto.LeaseActive,
 		Amount:              tx.Amount,
 		Recipient:           *tx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
@@ -286,7 +286,7 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
 	leasingInfo := &leasing{
 		OriginTransactionID: leaseTx.ID,
-		Status:              LeaseCanceled,
+		Status:              proto.LeaseCanceled,
 		Amount:              leaseTx.Amount,
 		Recipient:           *leaseTx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
@@ -312,7 +312,7 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
 	leasingInfo := &leasing{
 		OriginTransactionID: leaseTx.ID,
-		Status:              LeaseCanceled,
+		Status:              proto.LeaseCanceled,
 		Amount:              leaseTx.Amount,
 		Recipient:           *leaseTx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,

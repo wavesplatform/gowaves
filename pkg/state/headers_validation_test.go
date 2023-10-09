@@ -141,3 +141,20 @@ func TestHeadersValidation(t *testing.T) {
 	err = st.RollbackToHeight(1)
 	assert.NoError(t, err, "failed to rollback state")
 }
+
+func TestSnapshots(t *testing.T) {
+	blocks, err := readBlocksFromTestPath(blocksNumber)
+	if err != nil {
+		t.Fatalf("Can not read blocks from blockchain file: %v\n", err)
+	}
+	var (
+		sets   = settings.MainNetSettings
+		scheme = sets.AddressSchemeCharacter
+		st     = newTestState(t, true, stateParams(), sets)
+	)
+
+	err = applyBlocks(t, blocks, st, scheme)
+	assert.NoError(t, err, "failed to apply correct blocks")
+	err = st.RollbackToHeight(1)
+	assert.NoError(t, err, "failed to rollback state")
+}

@@ -100,7 +100,13 @@ func run() error {
 		blockchainType string
 	)
 
-	logging.SetupSimpleLogger(zapcore.InfoLevel)
+	logger := logging.SetupSimpleLogger(zapcore.InfoLevel)
+	defer func() {
+		err := logger.Sync()
+		if err != nil && errors.Is(err, os.ErrInvalid) {
+			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
+		}
+	}()
 
 	flag.StringVar(&nodes, "nodes", "", "Nodes gRPC API URLs separated by comma")
 	flag.IntVar(&height, "height", 0, "Height to compare blocks at")

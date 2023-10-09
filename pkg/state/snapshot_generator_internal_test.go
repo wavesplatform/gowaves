@@ -79,16 +79,16 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 	transactionSnapshot, err := to.tp.performTransferWithSig(tx,
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform transfer tx")
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.issuerInfo.addr,
 			Balance: 299700000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.recipientInfo.addr,
 			Balance: 200000,
 		},
@@ -138,33 +138,33 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform issue tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&StaticAssetInfoSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.StaticAssetInfoSnapshot{
 			AssetID:             *tx.ID,
 			SourceTransactionID: *tx.ID,
 			IssuerPublicKey:     testGlobal.issuerInfo.pk,
 			Decimals:            defaultDecimals,
 			IsNFT:               false},
-		&AssetDescriptionSnapshot{
+		&proto.AssetDescriptionSnapshot{
 			AssetID:          *tx.ID,
 			AssetName:        "asset0",
 			AssetDescription: "description",
 			ChangeHeight:     1,
 		},
-		&AssetVolumeSnapshot{
+		&proto.AssetVolumeSnapshot{
 			AssetID:       *tx.ID,
 			TotalQuantity: *big.NewInt(int64(defaultQuantity)),
 			IsReissuable:  true,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.issuerInfo.addr,
 			Balance: 299900000,
 		},
-		&AssetBalanceSnapshot{
+		&proto.AssetBalanceSnapshot{
 			Address: testGlobal.issuerInfo.addr,
 			AssetID: *tx.ID,
 			Balance: 1000,
@@ -222,21 +222,21 @@ func TestDefaultReissueSnapshot(t *testing.T) {
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform reissue tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.issuerInfo.addr,
 			Balance: 299900000,
 		},
-		&AssetBalanceSnapshot{
+		&proto.AssetBalanceSnapshot{
 			Address: testGlobal.issuerInfo.addr,
 			AssetID: testGlobal.asset0.assetID,
 			Balance: 1050,
 		},
-		&AssetVolumeSnapshot{
+		&proto.AssetVolumeSnapshot{
 			AssetID:       testGlobal.asset0.assetID,
 			TotalQuantity: *big.NewInt(int64(defaultQuantity + 50)),
 			IsReissuable:  false,
@@ -293,21 +293,21 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.issuerInfo.addr,
 			Balance: 299900000,
 		},
-		&AssetBalanceSnapshot{
+		&proto.AssetBalanceSnapshot{
 			Address: testGlobal.issuerInfo.addr,
 			AssetID: testGlobal.asset0.assetID,
 			Balance: 950,
 		},
-		&AssetVolumeSnapshot{
+		&proto.AssetVolumeSnapshot{
 			AssetID:       testGlobal.asset0.assetID,
 			TotalQuantity: *big.NewInt(int64(defaultQuantity - 100)),
 			IsReissuable:  false,
@@ -393,49 +393,49 @@ func TestDefaultExchangeTransaction(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299999999,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.recipientInfo.addr,
 			Balance: 599999998,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.matcherInfo.addr,
 			Balance: 899900003,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&AssetBalanceSnapshot{
+		&proto.AssetBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			AssetID: testGlobal.asset0.assetID,
 			Balance: 10,
 		},
-		&AssetBalanceSnapshot{
+		&proto.AssetBalanceSnapshot{
 			Address: testGlobal.recipientInfo.addr,
 			AssetID: testGlobal.asset0.assetID,
 			Balance: 590,
 		},
-		&AssetBalanceSnapshot{
+		&proto.AssetBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			AssetID: testGlobal.asset1.assetID,
 			Balance: 400,
 		},
-		&AssetBalanceSnapshot{
+		&proto.AssetBalanceSnapshot{
 			Address: testGlobal.recipientInfo.addr,
 			AssetID: testGlobal.asset1.assetID,
 			Balance: 100,
 		},
-		&FilledVolumeFeeSnapshot{
+		&proto.FilledVolumeFeeSnapshot{
 			OrderID:      *bo.ID,
 			FilledVolume: 10,
 			FilledFee:    1,
 		},
-		&FilledVolumeFeeSnapshot{
+		&proto.FilledVolumeFeeSnapshot{
 			OrderID:      *so.ID,
 			FilledVolume: 10,
 			FilledFee:    2,
@@ -485,19 +485,19 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
-		&LeaseStateSnapshot{
+		&proto.LeaseStateSnapshot{
 			LeaseID: *tx.ID,
-			Status: LeaseStateStatus{
-				Value: LeaseActive,
+			Status: proto.LeaseStateStatus{
+				Value: proto.LeaseActive,
 			},
 			Amount:              50,
 			Sender:              testGlobal.senderInfo.addr,
@@ -505,12 +505,12 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 			OriginTransactionID: tx.ID,
 			Height:              0,
 		},
-		&LeaseBalanceSnapshot{
+		&proto.LeaseBalanceSnapshot{
 			Address:  testGlobal.senderInfo.addr,
 			LeaseIn:  0,
 			LeaseOut: 50,
 		},
-		&LeaseBalanceSnapshot{
+		&proto.LeaseBalanceSnapshot{
 			Address:  testGlobal.recipientInfo.addr,
 			LeaseIn:  50,
 			LeaseOut: 0,
@@ -551,7 +551,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 		Recipient:           testGlobal.recipientInfo.addr,
 		Amount:              50,
 		Height:              1,
-		Status:              LeaseActive,
+		Status:              proto.LeaseActive,
 		OriginTransactionID: &leaseID,
 	}
 	err := to.stor.entities.leases.addLeasing(leaseID, leasing, blockID0)
@@ -576,19 +576,19 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
-		&LeaseStateSnapshot{
+		&proto.LeaseStateSnapshot{
 			LeaseID: leaseID,
-			Status: LeaseStateStatus{
-				Value:               LeaseCanceled,
+			Status: proto.LeaseStateStatus{
+				Value:               proto.LeaseCanceled,
 				CancelHeight:        0,
 				CancelTransactionID: tx.ID,
 			},
@@ -598,12 +598,12 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 			OriginTransactionID: &leaseID,
 			Height:              1,
 		},
-		&LeaseBalanceSnapshot{
+		&proto.LeaseBalanceSnapshot{
 			Address:  testGlobal.senderInfo.addr,
 			LeaseIn:  0,
 			LeaseOut: 0,
 		},
-		&LeaseBalanceSnapshot{
+		&proto.LeaseBalanceSnapshot{
 			Address:  testGlobal.recipientInfo.addr,
 			LeaseIn:  0,
 			LeaseOut: 0,
@@ -651,16 +651,16 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
-		&AliasSnapshot{
+		&proto.AliasSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Alias:   *proto.NewAlias(proto.TestNetScheme, "aliasForSender"),
 		},
@@ -716,16 +716,16 @@ func TestDefaultDataSnapshot(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
-		&DataEntriesSnapshot{
+		&proto.DataEntriesSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			DataEntries: []proto.DataEntry{&proto.StringDataEntry{Key: "key_str", Value: "value_str"},
 				&proto.IntegerDataEntry{Key: "key_int", Value: 2}},
@@ -775,16 +775,16 @@ func TestDefaultSponsorshipSnapshot(t *testing.T) {
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
-		&SponsorshipSnapshot{
+		&proto.SponsorshipSnapshot{
 			AssetID:         testGlobal.asset0.assetID,
 			MinSponsoredFee: 500000,
 		},
@@ -840,16 +840,16 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
-		&AccountScriptSnapshot{
+		&proto.AccountScriptSnapshot{
 			SenderPublicKey:    testGlobal.senderInfo.pk,
 			Script:             testGlobal.scriptBytes,
 			VerifierComplexity: 340,
@@ -915,16 +915,16 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 40000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
-		&AssetScriptSnapshot{
+		&proto.AssetScriptSnapshot{
 			AssetID:    testGlobal.asset0.assetID,
 			Script:     testGlobal.scriptBytes,
 			Complexity: 340,
@@ -1039,16 +1039,16 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 		invocationResult, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform invoke script tx")
 
-	expectedSnapshot := TransactionSnapshot{
-		&WavesBalanceSnapshot{
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.minerInfo.addr,
 			Balance: 200000,
 		},
-		&WavesBalanceSnapshot{
+		&proto.WavesBalanceSnapshot{
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299500000,
 		},
-		&DataEntriesSnapshot{
+		&proto.DataEntriesSnapshot{
 			Address: testGlobal.recipientInfo.addr,
 			DataEntries: []proto.DataEntry{
 				&proto.BooleanDataEntry{Key: "bool", Value: true},

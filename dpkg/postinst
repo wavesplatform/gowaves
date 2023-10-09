@@ -3,13 +3,15 @@ set -e
 
 # create user
 if [ "$1" = "configure" ] ; then
-	if [ `sed -n "/^NAME/p" /etc/passwd` ]; then
+	if [ "$(sed -n "/^NAME/p" /etc/passwd)" ]; then
 		echo "User NAME already exists"
 	else
 		useradd NAME -s /sbin/nologin -M
 	fi
-	chown NAME:NAME /usr/share/PACKAGE
-	chown NAME:NAME /var/lib/PACKAGE
+	chown NAME:NAME -R /usr/share/PACKAGE
+	chown NAME:NAME -R /var/lib/PACKAGE
+	_unit_file_path="$(dpkg -L 'PACKAGE' | grep -E 'PACKAGE\.service$')"
+	chown root:root "$_unit_file_path"
 fi
 
 # Automatically added by dh_systemd_enable/12.10ubuntu1

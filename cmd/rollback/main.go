@@ -1,7 +1,9 @@
 package main
 
 import (
+	"errors"
 	"flag"
+	"fmt"
 	"os"
 
 	"go.uber.org/zap"
@@ -31,7 +33,13 @@ func main() {
 
 	flag.Parse()
 
-	logging.SetupSimpleLogger(*logLevel)
+	logger := logging.SetupSimpleLogger(*logLevel)
+	defer func() {
+		err := logger.Sync()
+		if err != nil && errors.Is(err, os.ErrInvalid) {
+			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
+		}
+	}()
 	zap.S().Infof("Gowaves Rollback version: %s", versioning.Version)
 
 	maxFDs, err := fdlimit.MaxFDs()

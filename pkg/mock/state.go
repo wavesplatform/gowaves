@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/wavesplatform/gowaves/pkg/crypto"
+	waves "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
 	ast "github.com/wavesplatform/gowaves/pkg/ride/ast"
 	settings "github.com/wavesplatform/gowaves/pkg/settings"
@@ -866,6 +867,21 @@ func (m *MockStateInfo) ShouldPersistAddressTransactions() (bool, error) {
 func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersistAddressTransactions))
+}
+
+// SnapshotsAtHeight mocks base method.
+func (m *MockStateInfo) SnapshotsAtHeight(height proto.Height) (*waves.TransactionStateSnapshot, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotsAtHeight", height)
+	ret0, _ := ret[0].(*waves.TransactionStateSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SnapshotsAtHeight indicates an expected call of SnapshotsAtHeight.
+func (mr *MockStateInfoMockRecorder) SnapshotsAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotsAtHeight", reflect.TypeOf((*MockStateInfo)(nil).SnapshotsAtHeight), height)
 }
 
 // StateHashAtHeight mocks base method.
@@ -2173,6 +2189,21 @@ func (m *MockState) ShouldPersistAddressTransactions() (bool, error) {
 func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
+}
+
+// SnapshotsAtHeight mocks base method.
+func (m *MockState) SnapshotsAtHeight(height proto.Height) (*waves.TransactionStateSnapshot, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotsAtHeight", height)
+	ret0, _ := ret[0].(*waves.TransactionStateSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SnapshotsAtHeight indicates an expected call of SnapshotsAtHeight.
+func (mr *MockStateMockRecorder) SnapshotsAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotsAtHeight", reflect.TypeOf((*MockState)(nil).SnapshotsAtHeight), height)
 }
 
 // StartProvidingExtendedApi mocks base method.
