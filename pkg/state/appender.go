@@ -523,7 +523,10 @@ func (a *txAppender) handleTxAndScripts(
 		return applicationRes, invocationRes, needToValidateBalanceDiff, nil
 	case proto.EthereumMetamaskTransaction:
 		return a.handleEthTx(tx, params, accountHasVerifierScript, senderAddr)
-	default:
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction:
 		applicationRes, err := a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
 			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
@@ -534,6 +537,8 @@ func (a *txAppender) handleTxAndScripts(
 		}
 		// In UTX balances are always validated.
 		return applicationRes, nil, params.validatingUtx, nil
+	default:
+		return nil, nil, false, errors.Errorf("Undefined transaction type %d", tx.GetTypeInfo())
 	}
 }
 
