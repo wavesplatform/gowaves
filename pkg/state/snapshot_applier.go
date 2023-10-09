@@ -45,7 +45,7 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplier
 	}
 }
 
-var _ = SnapshotApplier((*blockSnapshotsApplier)(nil))
+var _ = proto.SnapshotApplier((*blockSnapshotsApplier)(nil))
 
 type blockSnapshotsApplierInfo struct {
 	ci                  *checkerInfo
@@ -84,7 +84,7 @@ func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCoun
 	return s.stateActionsCounter
 }
 
-func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot WavesBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	profile, err := a.stor.balances.wavesBalance(addrID)
 	if err != nil {
@@ -99,7 +99,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot WavesBalanceSnapshot)
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	var err error
 	profile, err := a.stor.balances.wavesBalance(addrID)
@@ -116,17 +116,17 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot LeaseBalanceSnapshot)
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot AssetBalanceSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot proto.AssetBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	return a.stor.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAlias(snapshot AliasSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
 	return a.stor.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot StaticAssetInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetInfoSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -141,7 +141,7 @@ func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot StaticAssetInfoSna
 	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot AssetDescriptionSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot proto.AssetDescriptionSnapshot) error {
 	change := &assetInfoChange{
 		newName:        snapshot.AssetName,
 		newDescription: snapshot.AssetDescription,
@@ -150,7 +150,7 @@ func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot AssetDescriptionS
 	return a.stor.assets.updateAssetInfo(snapshot.AssetID, change, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot AssetVolumeSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	assetFullInfo, err := a.stor.assets.newestAssetInfo(assetID)
 	if err != nil {
@@ -161,7 +161,7 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot AssetVolumeSnapshot) e
 	return a.stor.assets.storeAssetInfo(assetID, assetFullInfo, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
 	treeEstimation := ride.TreeEstimation{
 		Estimation: int(snapshot.VerifierComplexity),
 		Verifier:   int(snapshot.VerifierComplexity),
@@ -188,11 +188,11 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot AssetScriptSnapshot) e
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplySponsorship(snapshot SponsorshipSnapshot) error {
+func (a *blockSnapshotsApplier) ApplySponsorship(snapshot proto.SponsorshipSnapshot) error {
 	return a.stor.sponsoredAssets.sponsorAsset(snapshot.AssetID, snapshot.MinSponsoredFee, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptSnapshot) error {
 	addr, err := proto.NewAddressFromPublicKey(a.info.Scheme(), snapshot.SenderPublicKey)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
@@ -204,7 +204,7 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 		Functions:  nil,
 	}
 	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
-	if err != nil {
+	if setErr != nil {
 		return setErr
 	}
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
@@ -218,12 +218,12 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot AccountScriptSnapsho
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot proto.FilledVolumeFeeSnapshot) error {
 	return a.stor.ordersVolumes.storeFilled(snapshot.OrderID.Bytes(),
 		snapshot.FilledVolume, snapshot.FilledFee, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot DataEntriesSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot proto.DataEntriesSnapshot) error {
 	blockID := a.info.BlockID()
 	for _, entry := range snapshot.DataEntries {
 		if err := a.stor.accountsDataStor.appendEntry(snapshot.Address, entry, blockID); err != nil {
@@ -233,7 +233,7 @@ func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot DataEntriesSnapshot) e
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot LeaseStateSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot proto.LeaseStateSnapshot) error {
 	l := &leasing{
 		Sender:              snapshot.Sender,
 		Recipient:           snapshot.Recipient,
@@ -247,16 +247,22 @@ func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot LeaseStateSnapshot) err
 	return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) applyInternalDAppComplexitySnapshot(
-	internalSnapshot internalDAppComplexitySnapshot) error {
+func (a *blockSnapshotsApplier) ApplyInternalSnapshot(
+	internalSnapshot proto.InternalSnapshot) error {
+	/* If you want to add more internal snapshots,
+	you should add a switch here iterating through all possible internal snapshots. */
+	internalDappComplexitySnapshot, ok := internalSnapshot.(*InternalDAppComplexitySnapshot)
+	if !ok {
+		return errors.New("failed to convert interface to internal dapp complexity snapshot")
+	}
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-		scriptIsEmpty: false, estimation: internalSnapshot.estimation}
-	if !internalSnapshot.update {
+		scriptIsEmpty: false, estimation: internalDappComplexitySnapshot.Estimation}
+	if !internalDappComplexitySnapshot.Update {
 		// Save full complexity of both callable and verifier when the script is set first time
-		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(internalSnapshot.scriptAddress,
+		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(internalDappComplexitySnapshot.ScriptAddress,
 			scriptEstimation, a.info.BlockID()); setErr != nil {
 			return errors.Wrapf(setErr, "failed to save script complexities for addr %q",
-				internalSnapshot.scriptAddress.String())
+				internalDappComplexitySnapshot.ScriptAddress.String())
 		}
 		return nil
 	}
@@ -267,10 +273,10 @@ func (a *blockSnapshotsApplier) applyInternalDAppComplexitySnapshot(
 
 	// update callable and summary complexity, verifier complexity remains the same
 	if scErr := a.stor.scriptsComplexity.updateCallableComplexitiesForAddr(
-		internalSnapshot.scriptAddress,
+		internalDappComplexitySnapshot.ScriptAddress,
 		scriptEstimation, a.info.BlockID()); scErr != nil {
 		return errors.Wrapf(scErr, "failed to save complexity for addr %q",
-			internalSnapshot.scriptAddress,
+			internalDappComplexitySnapshot.ScriptAddress,
 		)
 	}
 	return nil

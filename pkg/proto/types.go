@@ -4295,3 +4295,11 @@ func (s StateHashDebug) GetStateHash() *StateHash {
 	}
 	return sh
 }
+
+type LeaseStatus byte
+
+const (
+	LeaseActive LeaseStatus = iota
+	LeaseCanceled
+	//TODO: LeaseExpired (for future use)
+)

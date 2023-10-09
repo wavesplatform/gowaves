@@ -664,7 +664,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				Recipient:           recipientAddress,
 				Amount:              uint64(a.Amount),
 				Height:              info.blockInfo.Height,
-				Status:              LeaseActive,
+				Status:              proto.LeaseActive,
 			}
 			ia.stor.leases.addLeasingUncertain(a.ID, l)
 

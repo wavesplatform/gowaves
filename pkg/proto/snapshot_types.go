@@ -1,12 +1,10 @@
-package state
+package proto
 
 import (
 	"math/big"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 type TransactionSnapshot []AtomicSnapshot
@@ -56,7 +54,7 @@ type AtomicSnapshot interface {
 }
 
 type WavesBalanceSnapshot struct {
-	Address proto.WavesAddress
+	Address WavesAddress
 	Balance uint64
 }
 
@@ -67,7 +65,7 @@ func (s WavesBalanceSnapshot) IsGeneratedByTxDiff() bool {
 func (s WavesBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyWavesBalance(s) }
 
 type AssetBalanceSnapshot struct {
-	Address proto.WavesAddress
+	Address WavesAddress
 	AssetID crypto.Digest
 	Balance uint64
 }
@@ -87,8 +85,8 @@ func (s AssetBalanceSnapshot) IsInternal() bool {
 }
 
 type DataEntriesSnapshot struct { // AccountData in pb
-	Address     proto.WavesAddress
-	DataEntries []proto.DataEntry
+	Address     WavesAddress
+	DataEntries []DataEntry
 }
 
 func (s DataEntriesSnapshot) IsGeneratedByTxDiff() bool {
@@ -103,7 +101,7 @@ func (s DataEntriesSnapshot) IsInternal() bool {
 
 type AccountScriptSnapshot struct {
 	SenderPublicKey    crypto.PublicKey
-	Script             proto.Script
+	Script             Script
 	VerifierComplexity uint64
 }
 
@@ -119,7 +117,7 @@ func (s AccountScriptSnapshot) IsInternal() bool {
 
 type AssetScriptSnapshot struct {
 	AssetID            crypto.Digest
-	Script             proto.Script
+	Script             Script
 	SenderPK           crypto.PublicKey // should be removed later
 	VerifierComplexity uint64
 }
@@ -135,7 +133,7 @@ func (s AssetScriptSnapshot) IsInternal() bool {
 }
 
 type LeaseBalanceSnapshot struct {
-	Address  proto.WavesAddress
+	Address  WavesAddress
 	LeaseIn  uint64
 	LeaseOut uint64
 }
@@ -152,7 +150,7 @@ func (s LeaseBalanceSnapshot) IsInternal() bool {
 
 type LeaseStateStatus struct {
 	Value               LeaseStatus // can be only LeaseActive or LeaseCanceled
-	CancelHeight        proto.Height
+	CancelHeight        Height
 	CancelTransactionID *crypto.Digest
 }
 
@@ -160,10 +158,10 @@ type LeaseStateSnapshot struct {
 	LeaseID             crypto.Digest
 	Status              LeaseStateStatus
 	Amount              uint64
-	Sender              proto.WavesAddress
-	Recipient           proto.WavesAddress
+	Sender              WavesAddress
+	Recipient           WavesAddress
 	OriginTransactionID *crypto.Digest
-	Height              proto.Height
+	Height              Height
 }
 
 func (s LeaseStateSnapshot) IsGeneratedByTxDiff() bool {
@@ -192,8 +190,8 @@ func (s SponsorshipSnapshot) IsInternal() bool {
 }
 
 type AliasSnapshot struct {
-	Address proto.WavesAddress
-	Alias   proto.Alias
+	Address WavesAddress
+	Alias   Alias
 }
 
 func (s AliasSnapshot) IsGeneratedByTxDiff() bool {
@@ -261,7 +259,7 @@ type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
 	AssetID          crypto.Digest
 	AssetName        string
 	AssetDescription string
-	ChangeHeight     proto.Height // last_updated in pb
+	ChangeHeight     Height // last_updated in pb
 }
 
 func (s AssetDescriptionSnapshot) IsGeneratedByTxDiff() bool {
@@ -274,26 +272,8 @@ func (s AssetDescriptionSnapshot) IsInternal() bool {
 	return false
 }
 
-/*
-Below are internal snapshots only.
-They are not necessary and used for optimization, initialized in the full node mode only.
-*/
-type internalDAppComplexitySnapshot struct {
-	scriptAddress proto.WavesAddress
-	estimation    ride.TreeEstimation
-	update        bool
-}
-
-func (s internalDAppComplexitySnapshot) IsGeneratedByTxDiff() bool {
-	return false
-}
-
-func (s internalDAppComplexitySnapshot) Apply(a SnapshotApplier) error {
-	return a.applyInternalDAppComplexitySnapshot(s)
-}
-
-func (s internalDAppComplexitySnapshot) IsInternal() bool {
-	return true
+type InternalSnapshot interface {
+	InternalSnapshotMarker()
 }
 
 type SnapshotApplier interface {
@@ -312,5 +292,5 @@ type SnapshotApplier interface {
 	ApplyLeaseState(snapshot LeaseStateSnapshot) error
 
 	/* Internal snapshots. Applied only in the full node mode */
-	applyInternalDAppComplexitySnapshot(internalSnapshot internalDAppComplexitySnapshot) error
+	ApplyInternalSnapshot(internalSnapshot InternalSnapshot) error
 }

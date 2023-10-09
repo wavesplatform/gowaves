@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 type snapshotGenerator struct {
@@ -84,15 +85,39 @@ func (assetDiff addressAssetBalanceDiff) appendOnlySender(
 	}
 }
 
-func (sg *snapshotGenerator) generateSnapshotForGenesisTx(balanceChanges txDiff) (TransactionSnapshot, error) {
+/*
+Below are internal snapshots only.
+They are not necessary and used for optimization, initialized in the full node mode only.
+*/
+type InternalDAppComplexitySnapshot struct {
+	ScriptAddress proto.WavesAddress
+	Estimation    ride.TreeEstimation
+	Update        bool
+}
+
+func (s InternalDAppComplexitySnapshot) IsGeneratedByTxDiff() bool {
+	return false
+}
+
+func (s InternalDAppComplexitySnapshot) Apply(a proto.SnapshotApplier) error {
+	return a.ApplyInternalSnapshot(&s)
+}
+
+func (s InternalDAppComplexitySnapshot) IsInternal() bool {
+	return true
+}
+
+func (s InternalDAppComplexitySnapshot) InternalSnapshotMarker() {}
+
+func (sg *snapshotGenerator) generateSnapshotForGenesisTx(balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	return sg.generateBalancesSnapshot(balanceChanges)
 }
 
-func (sg *snapshotGenerator) generateSnapshotForPaymentTx(balanceChanges txDiff) (TransactionSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForPaymentTx(balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	return sg.generateBalancesSnapshot(balanceChanges)
 }
 
-func (sg *snapshotGenerator) generateSnapshotForTransferTx(balanceChanges txDiff) (TransactionSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForTransferTx(balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	return sg.generateBalancesSnapshot(balanceChanges)
 }
 
@@ -103,21 +128,21 @@ type scriptInformation struct {
 
 func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest,
 	senderPK crypto.PublicKey, assetInfo assetInfo, balanceChanges txDiff,
-	scriptInformation *scriptInformation) (TransactionSnapshot, error) {
-	var snapshot TransactionSnapshot
+	scriptInformation *scriptInformation) (proto.TransactionSnapshot, error) {
+	var snapshot proto.TransactionSnapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
 	// Remove the just issues snapshot from the diff, because it's not in the storage yet,
 	// so can't be processed with generateBalancesAtomicSnapshots.
-	var specialAssetSnapshot *AssetBalanceSnapshot
+	var specialAssetSnapshot *proto.AssetBalanceSnapshot
 	for key, diffAmount := range addrAssetBalanceDiff {
 		if key.asset == proto.AssetIDFromDigest(assetID) {
 			// remove the element from the array
 
 			delete(addrAssetBalanceDiff, key)
-			specialAssetSnapshot = &AssetBalanceSnapshot{
+			specialAssetSnapshot = &proto.AssetBalanceSnapshot{
 				Address: key.address,
 				AssetID: assetID,
 				Balance: uint64(diffAmount),
@@ -125,7 +150,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		}
 	}
 
-	issueStaticInfoSnapshot := &StaticAssetInfoSnapshot{
+	issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
 		AssetID:             assetID,
 		IssuerPublicKey:     senderPK,
 		SourceTransactionID: txID,
@@ -133,14 +158,14 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		IsNFT:               assetInfo.isNFT(),
 	}
 
-	assetDescription := &AssetDescriptionSnapshot{
+	assetDescription := &proto.AssetDescriptionSnapshot{
 		AssetID:          assetID,
 		AssetName:        assetInfo.name,
 		AssetDescription: assetInfo.description,
 		ChangeHeight:     assetInfo.lastNameDescChangeHeight,
 	}
 
-	assetReissuability := &AssetVolumeSnapshot{
+	assetReissuability := &proto.AssetVolumeSnapshot{
 		AssetID:       assetID,
 		IsReissuable:  assetInfo.reissuable,
 		TotalQuantity: assetInfo.quantity,
@@ -149,14 +174,14 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
 
 	if scriptInformation == nil {
-		assetScriptSnapshot := &AssetScriptSnapshot{
+		assetScriptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID:            assetID,
 			Script:             proto.Script{},
 			VerifierComplexity: 0,
 		}
 		snapshot = append(snapshot, assetScriptSnapshot)
 	} else {
-		assetScriptSnapshot := &AssetScriptSnapshot{
+		assetScriptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID:            assetID,
 			Script:             scriptInformation.script,
 			SenderPK:           senderPK,
@@ -164,7 +189,6 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		}
 		snapshot = append(snapshot, assetScriptSnapshot)
 	}
-
 	wavesBalancesSnapshot, assetBalancesSnapshot, err :=
 		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
 	if err != nil {
@@ -185,7 +209,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 }
 
 func (sg *snapshotGenerator) generateSnapshotForReissueTx(assetID crypto.Digest,
-	change assetReissueChange, balanceChanges txDiff) (TransactionSnapshot, error) {
+	change assetReissueChange, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	quantityDiff := big.NewInt(change.diff)
 	assetInfo, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(assetID))
 	if err != nil {
@@ -197,7 +221,7 @@ func (sg *snapshotGenerator) generateSnapshotForReissueTx(assetID crypto.Digest,
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
-	assetReissuability := &AssetVolumeSnapshot{
+	assetReissuability := &proto.AssetVolumeSnapshot{
 		AssetID:       assetID,
 		TotalQuantity: *resQuantity,
 		IsReissuable:  change.reissuable,
@@ -207,7 +231,7 @@ func (sg *snapshotGenerator) generateSnapshotForReissueTx(assetID crypto.Digest,
 }
 
 func (sg *snapshotGenerator) generateSnapshotForBurnTx(assetID crypto.Digest, change assetBurnChange,
-	balanceChanges txDiff) (TransactionSnapshot, error) {
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	quantityDiff := big.NewInt(change.diff)
 	assetInfo, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(assetID))
 	if err != nil {
@@ -219,7 +243,7 @@ func (sg *snapshotGenerator) generateSnapshotForBurnTx(assetID crypto.Digest, ch
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
-	assetReissuability := &AssetVolumeSnapshot{
+	assetReissuability := &proto.AssetVolumeSnapshot{
 		AssetID:       assetID,
 		TotalQuantity: *resQuantity,
 		IsReissuable:  assetInfo.reissuable,
@@ -230,7 +254,7 @@ func (sg *snapshotGenerator) generateSnapshotForBurnTx(assetID crypto.Digest, ch
 
 func (sg *snapshotGenerator) generateSnapshotForExchangeTx(sellOrder proto.Order, sellFee uint64,
 	buyOrder proto.Order, buyFee uint64, volume uint64,
-	balanceChanges txDiff) (TransactionSnapshot, error) {
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
@@ -258,7 +282,7 @@ func (sg *snapshotGenerator) generateSnapshotForExchangeTx(sellOrder proto.Order
 }
 
 func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease leasing, leaseID crypto.Digest,
-	originalTxID crypto.Digest, balanceChanges txDiff) (TransactionSnapshot, error) {
+	originalTxID crypto.Digest, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	var err error
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
@@ -277,7 +301,7 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease leasing, leaseID c
 
 func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(txID *crypto.Digest, oldLease leasing,
 	leaseID crypto.Digest, originalTxID crypto.Digest,
-	cancelHeight uint64, balanceChanges txDiff) (TransactionSnapshot, error) {
+	cancelHeight uint64, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	var err error
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
@@ -289,8 +313,8 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(txID *crypto.Diges
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate snapshots for a lease transaction")
 	}
-	leaseStatusSnapshot.Status = LeaseStateStatus{
-		Value:               LeaseCanceled,
+	leaseStatusSnapshot.Status = proto.LeaseStateStatus{
+		Value:               proto.LeaseCanceled,
 		CancelHeight:        cancelHeight,
 		CancelTransactionID: txID,
 	}
@@ -300,12 +324,12 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(txID *crypto.Diges
 }
 
 func (sg *snapshotGenerator) generateSnapshotForCreateAliasTx(senderAddress proto.WavesAddress, alias proto.Alias,
-	balanceChanges txDiff) (TransactionSnapshot, error) {
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
-	aliasSnapshot := &AliasSnapshot{
+	aliasSnapshot := &proto.AliasSnapshot{
 		Address: senderAddress,
 		Alias:   alias,
 	}
@@ -313,17 +337,19 @@ func (sg *snapshotGenerator) generateSnapshotForCreateAliasTx(senderAddress prot
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) generateSnapshotForMassTransferTx(balanceChanges txDiff) (TransactionSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForMassTransferTx(
+	balanceChanges txDiff,
+) (proto.TransactionSnapshot, error) {
 	return sg.generateBalancesSnapshot(balanceChanges)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForDataTx(senderAddress proto.WavesAddress, entries []proto.DataEntry,
-	balanceChanges txDiff) (TransactionSnapshot, error) {
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
-	dataEntriesSnapshot := &DataEntriesSnapshot{
+	dataEntriesSnapshot := &proto.DataEntriesSnapshot{
 		Address:     senderAddress,
 		DataEntries: entries,
 	}
@@ -332,12 +358,12 @@ func (sg *snapshotGenerator) generateSnapshotForDataTx(senderAddress proto.Waves
 }
 
 func (sg *snapshotGenerator) generateSnapshotForSponsorshipTx(assetID crypto.Digest,
-	minAssetFee uint64, balanceChanges txDiff) (TransactionSnapshot, error) {
+	minAssetFee uint64, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
-	sponsorshipSnapshot := &SponsorshipSnapshot{
+	sponsorshipSnapshot := &proto.SponsorshipSnapshot{
 		AssetID:         assetID,
 		MinSponsoredFee: minAssetFee,
 	}
@@ -346,14 +372,14 @@ func (sg *snapshotGenerator) generateSnapshotForSponsorshipTx(assetID crypto.Dig
 }
 
 func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.PublicKey, script proto.Script,
-	scriptEstimation scriptEstimation, balanceChanges txDiff) (TransactionSnapshot, error) {
+	scriptEstimation scriptEstimation, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
 
 	// If the script is empty, it will still be stored in the storage.
-	accountScriptSnapshot := &AccountScriptSnapshot{
+	accountScriptSnapshot := &proto.AccountScriptSnapshot{
 		SenderPublicKey:    senderPK,
 		Script:             script,
 		VerifierComplexity: uint64(scriptEstimation.estimation.Verifier),
@@ -366,8 +392,8 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 		if cnvrtErr != nil {
 			return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
 		}
-		internalComplexitySnapshot := internalDAppComplexitySnapshot{
-			estimation: scriptEstimation.estimation, scriptAddress: scriptAddr, update: false}
+		internalComplexitySnapshot := InternalDAppComplexitySnapshot{
+			Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, Update: false}
 		snapshot = append(snapshot, &internalComplexitySnapshot)
 	}
 
@@ -375,19 +401,19 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 }
 
 func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script,
-	complexity int, senderPK crypto.PublicKey, balanceChanges txDiff) (TransactionSnapshot, error) {
+	complexity int, senderPK crypto.PublicKey, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
 
-	sponsorshipSnapshot := &AssetScriptSnapshot{
+	assetScrptSnapshot := &proto.AssetScriptSnapshot{
 		AssetID:            assetID,
 		Script:             script,
 		VerifierComplexity: uint64(complexity),
 		SenderPK:           senderPK,
 	}
-	snapshot = append(snapshot, sponsorshipSnapshot)
+	snapshot = append(snapshot, assetScrptSnapshot)
 	return snapshot, nil
 }
 
@@ -396,30 +422,30 @@ func (sg *snapshotGenerator) generateSnapshotForInvokeScriptTx(txID crypto.Diges
 	invocationRes *invocationResult, balanceChanges txDiff,
 	txPublicKey crypto.PublicKey,
 	scriptEstimation *scriptEstimation,
-	scriptRecipient *proto.Recipient) (TransactionSnapshot, error) {
+	scriptRecipient *proto.Recipient) (proto.TransactionSnapshot, error) {
 	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges,
 		txPublicKey, scriptEstimation, scriptRecipient)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForInvokeExpressionTx(txID crypto.Digest, info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff,
-	txPublicKey crypto.PublicKey) (TransactionSnapshot, error) {
+	txPublicKey crypto.PublicKey) (proto.TransactionSnapshot, error) {
 	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey, nil, nil)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest, info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff,
-	txPublicKey crypto.PublicKey) (TransactionSnapshot, error) {
+	txPublicKey crypto.PublicKey) (proto.TransactionSnapshot, error) {
 	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey, nil, nil)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string,
-	assetDescription string, changeHeight proto.Height, balanceChanges txDiff) (TransactionSnapshot, error) {
+	assetDescription string, changeHeight proto.Height, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
-	sponsorshipSnapshot := &AssetDescriptionSnapshot{
+	sponsorshipSnapshot := &proto.AssetDescriptionSnapshot{
 		AssetID:          assetID,
 		AssetName:        assetName,
 		AssetDescription: assetDescription,
@@ -491,8 +517,8 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 	info *performerInfo,
 	txID crypto.Digest,
 	assetBalanceDiff addressAssetBalanceDiff,
-	senderPK crypto.PublicKey) ([]AtomicSnapshot, error) {
-	var atomicSnapshots []AtomicSnapshot
+	senderPK crypto.PublicKey) ([]proto.AtomicSnapshot, error) {
+	var atomicSnapshots []proto.AtomicSnapshot
 	assetInf := assetInfo{
 		assetConstInfo: assetConstInfo{
 			tail:        proto.DigestTail(action.ID),
@@ -509,7 +535,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 		},
 	}
 
-	issueStaticInfoSnapshot := &StaticAssetInfoSnapshot{
+	issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
 		AssetID:             action.ID,
 		IssuerPublicKey:     senderPK,
 		SourceTransactionID: txID,
@@ -517,14 +543,14 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 		IsNFT:               assetInf.isNFT(),
 	}
 
-	assetDescription := &AssetDescriptionSnapshot{
+	assetDescription := &proto.AssetDescriptionSnapshot{
 		AssetID:          action.ID,
 		AssetName:        assetInf.name,
 		AssetDescription: assetInf.description,
 		ChangeHeight:     assetInf.lastNameDescChangeHeight,
 	}
 
-	assetReissuability := &AssetVolumeSnapshot{
+	assetReissuability := &proto.AssetVolumeSnapshot{
 		AssetID:       action.ID,
 		IsReissuable:  assetInf.reissuable,
 		TotalQuantity: assetInf.quantity,
@@ -539,16 +565,15 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 			complexity: complexity,
 		}
 	}
-
 	if scriptInfo == nil {
-		assetScriptSnapshot := &AssetScriptSnapshot{
+		assetScriptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID:            action.ID,
 			Script:             proto.Script{},
 			VerifierComplexity: 0,
 		}
 		atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
 	} else {
-		assetScriptSnapshot := &AssetScriptSnapshot{
+		assetScriptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID:            action.ID,
 			Script:             scriptInfo.script,
 			SenderPK:           senderPK,
@@ -569,15 +594,15 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 func (sg *snapshotGenerator) atomicActionsFromReissueAction(
 	action proto.ReissueScriptAction,
 	assetBalanceDiff addressAssetBalanceDiff,
-	issuer proto.WavesAddress) ([]AtomicSnapshot, error) {
-	var atomicSnapshots []AtomicSnapshot
+	issuer proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
+	var atomicSnapshots []proto.AtomicSnapshot
 	assetInf, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(action.AssetID))
 	if err != nil {
 		return nil, err
 	}
 	quantityDiff := big.NewInt(action.Quantity)
 	resQuantity := assetInf.quantity.Add(&assetInf.quantity, quantityDiff)
-	assetReissuability := &AssetVolumeSnapshot{
+	assetReissuability := &proto.AssetVolumeSnapshot{
 		AssetID:       action.AssetID,
 		TotalQuantity: *resQuantity,
 		IsReissuable:  action.Reissuable,
@@ -590,8 +615,8 @@ func (sg *snapshotGenerator) atomicActionsFromReissueAction(
 func (sg *snapshotGenerator) atomicActionsFromBurnAction(
 	action proto.BurnScriptAction,
 	assetBalanceDiff addressAssetBalanceDiff,
-	issuer proto.WavesAddress) ([]AtomicSnapshot, error) {
-	var atomicSnapshots []AtomicSnapshot
+	issuer proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
+	var atomicSnapshots []proto.AtomicSnapshot
 	var assetInf *assetInfo
 	assetInf, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(action.AssetID))
 	if err != nil {
@@ -599,7 +624,7 @@ func (sg *snapshotGenerator) atomicActionsFromBurnAction(
 	}
 	quantityDiff := big.NewInt(action.Quantity)
 	resQuantity := assetInf.quantity.Sub(&assetInf.quantity, quantityDiff)
-	assetReissuability := &AssetVolumeSnapshot{
+	assetReissuability := &proto.AssetVolumeSnapshot{
 		AssetID:       action.AssetID,
 		TotalQuantity: *resQuantity,
 		IsReissuable:  assetInf.reissuable,
@@ -613,8 +638,8 @@ func (sg *snapshotGenerator) atomicActionsFromLeaseAction(
 	action proto.LeaseScriptAction,
 	info *performerInfo,
 	txID crypto.Digest,
-	sender proto.WavesAddress) ([]AtomicSnapshot, error) {
-	var atomicSnapshots []AtomicSnapshot
+	sender proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
+	var atomicSnapshots []proto.AtomicSnapshot
 
 	var err error
 	var recipientAddr proto.WavesAddress
@@ -631,7 +656,7 @@ func (sg *snapshotGenerator) atomicActionsFromLeaseAction(
 		Recipient: recipientAddr,
 		Amount:    uint64(action.Amount),
 		Height:    info.height,
-		Status:    LeaseActive,
+		Status:    proto.LeaseActive,
 	}
 	var amount = int64(l.Amount)
 	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err :=
@@ -648,8 +673,8 @@ func (sg *snapshotGenerator) atomicActionsFromLeaseAction(
 
 func (sg *snapshotGenerator) atomicSnapshotsFromLeaseCancelAction(
 	action proto.LeaseCancelScriptAction,
-	txID crypto.Digest) ([]AtomicSnapshot, error) {
-	var atomicSnapshots []AtomicSnapshot
+	txID crypto.Digest) ([]proto.AtomicSnapshot, error) {
+	var atomicSnapshots []proto.AtomicSnapshot
 	// TODO what if the leasing is not in the stor yet? lease and leaseCancel in the same contract?
 	leasingInfo, err := sg.stor.leases.leasingInfo(action.LeaseID)
 	if err != nil {
@@ -679,8 +704,8 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 	txID crypto.Digest,
 	senderAddress proto.WavesAddress,
 	senderPK crypto.PublicKey,
-) ([]AtomicSnapshot, error) {
-	var atomicSnapshots []AtomicSnapshot
+) ([]proto.AtomicSnapshot, error) {
+	var atomicSnapshots []proto.AtomicSnapshot
 	switch a := action.(type) {
 	case *proto.DataEntryScriptAction:
 		// snapshots store data entries in a different format, so we convert the actions to this format
@@ -699,7 +724,7 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 			return nil, err
 		}
 	case *proto.SponsorshipScriptAction:
-		sponsorshipSnapshot := &SponsorshipSnapshot{
+		sponsorshipSnapshot := &proto.SponsorshipSnapshot{
 			AssetID:         a.AssetID,
 			MinSponsoredFee: uint64(a.MinFee),
 		}
@@ -765,9 +790,9 @@ func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
 	blockHeight uint64,
 	info *performerInfo,
 	txID crypto.Digest,
-	txPublicKey crypto.PublicKey) ([]AtomicSnapshot, error) {
+	txPublicKey crypto.PublicKey) ([]proto.AtomicSnapshot, error) {
 	var dataEntries = make(SenderDataEntries)
-	var atomicSnapshots []AtomicSnapshot
+	var atomicSnapshots []proto.AtomicSnapshot
 	for _, action := range actions {
 		senderAddress, senderPK, err := senderFromScriptAction(action, txPublicKey, sg.scheme)
 		if err != nil {
@@ -783,7 +808,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
 	}
 
 	for address, entries := range dataEntries {
-		dataEntrySnapshot := &DataEntriesSnapshot{Address: address, DataEntries: entries}
+		dataEntrySnapshot := &proto.DataEntriesSnapshot{Address: address, DataEntries: entries}
 		atomicSnapshots = append(atomicSnapshots, dataEntrySnapshot)
 	}
 	return atomicSnapshots, nil
@@ -795,16 +820,16 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	invocationRes *invocationResult,
 	balanceChanges txDiff, txPublicKey crypto.PublicKey,
 	scriptEstimation *scriptEstimation,
-	scriptRecipient *proto.Recipient) (TransactionSnapshot, error) {
+	scriptRecipient *proto.Recipient) (proto.TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
-	var snapshot TransactionSnapshot
+	var snapshot proto.TransactionSnapshot
 	if invocationRes != nil {
-		var atomicSnapshots []AtomicSnapshot
+		var atomicSnapshots []proto.AtomicSnapshot
 		atomicSnapshots, err = sg.atomicSnapshotsFromScriptActions(
 			invocationRes.actions, addrWavesBalanceDiff,
 			addrAssetBalanceDiff, blockHeight, info, txID,
@@ -834,8 +859,8 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 			if cnvrtErr != nil {
 				return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
 			}
-			internalComplexitySnapshot := internalDAppComplexitySnapshot{
-				estimation: scriptEstimation.estimation, scriptAddress: scriptAddr, update: true}
+			internalComplexitySnapshot := InternalDAppComplexitySnapshot{
+				Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, Update: true}
 			snapshot = append(snapshot, &internalComplexitySnapshot)
 		}
 	}
@@ -847,10 +872,10 @@ func (sg *snapshotGenerator) generateLeaseAtomicSnapshots(leaseID crypto.Digest,
 	l leasing, originalTxID crypto.Digest,
 	senderAddress proto.WavesAddress,
 	receiverAddress proto.WavesAddress,
-	amount int64) (*LeaseStateSnapshot, *LeaseBalanceSnapshot, *LeaseBalanceSnapshot, error) {
-	leaseStatusSnapshot := &LeaseStateSnapshot{
+	amount int64) (*proto.LeaseStateSnapshot, *proto.LeaseBalanceSnapshot, *proto.LeaseBalanceSnapshot, error) {
+	leaseStatusSnapshot := &proto.LeaseStateSnapshot{
 		LeaseID: leaseID,
-		Status: LeaseStateStatus{
+		Status: proto.LeaseStateStatus{
 			Value: l.Status,
 		},
 		Amount:              l.Amount,
@@ -864,7 +889,7 @@ func (sg *snapshotGenerator) generateLeaseAtomicSnapshots(leaseID crypto.Digest,
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 	}
-	senderLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
+	senderLeaseBalanceSnapshot := &proto.LeaseBalanceSnapshot{
 		Address:  senderAddress,
 		LeaseIn:  uint64(senderBalanceProfile.leaseIn),
 		LeaseOut: uint64(senderBalanceProfile.leaseOut + amount),
@@ -874,7 +899,7 @@ func (sg *snapshotGenerator) generateLeaseAtomicSnapshots(leaseID crypto.Digest,
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "failed to receive recipient's waves balance")
 	}
-	recipientLeaseBalanceSnapshot := &LeaseBalanceSnapshot{
+	recipientLeaseBalanceSnapshot := &proto.LeaseBalanceSnapshot{
 		Address:  receiverAddress,
 		LeaseIn:  uint64(receiverBalanceProfile.leaseIn + amount),
 		LeaseOut: uint64(receiverBalanceProfile.leaseOut),
@@ -884,7 +909,7 @@ func (sg *snapshotGenerator) generateLeaseAtomicSnapshots(leaseID crypto.Digest,
 }
 
 func (sg *snapshotGenerator) generateOrderAtomicSnapshot(orderID []byte,
-	volume uint64, fee uint64) (*FilledVolumeFeeSnapshot, error) {
+	volume uint64, fee uint64) (*proto.FilledVolumeFeeSnapshot, error) {
 	newestFilledAmount, newestFilledFee, err := sg.stor.ordersVolumes.newestFilled(orderID)
 	if err != nil {
 		return nil, err
@@ -894,7 +919,7 @@ func (sg *snapshotGenerator) generateOrderAtomicSnapshot(orderID []byte,
 		return nil, errors.Wrap(err, "failed to construct digest from order id bytes")
 	}
 	// TODO must be added to newest filled amounts and fee
-	orderSnapshot := &FilledVolumeFeeSnapshot{
+	orderSnapshot := &proto.FilledVolumeFeeSnapshot{
 		OrderID:      orderIDDigset,
 		FilledFee:    newestFilledFee + fee,
 		FilledVolume: newestFilledAmount + volume,
@@ -902,8 +927,8 @@ func (sg *snapshotGenerator) generateOrderAtomicSnapshot(orderID []byte,
 	return orderSnapshot, nil
 }
 
-func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges txDiff) (TransactionSnapshot, error) {
-	var transactionSnapshot TransactionSnapshot
+func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	var transactionSnapshot proto.TransactionSnapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
@@ -923,7 +948,7 @@ func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges txDiff) (Tr
 }
 
 func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(addrWavesBalanceDiff addressWavesBalanceDiff,
-	addrAssetBalanceDiff addressAssetBalanceDiff) ([]WavesBalanceSnapshot, []AssetBalanceSnapshot, error) {
+	addrAssetBalanceDiff addressAssetBalanceDiff) ([]proto.WavesBalanceSnapshot, []proto.AssetBalanceSnapshot, error) {
 	wavesBalanceSnapshot, err := sg.wavesBalanceSnapshotFromBalanceDiff(addrWavesBalanceDiff)
 	if err != nil {
 		return nil, nil, errors.Wrap(err, "failed to construct waves balance snapshot")
@@ -979,8 +1004,8 @@ func balanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWavesBalanc
 
 // from txDiff and fees. no validation needed at this point.
 func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
-	diff addressWavesBalanceDiff) ([]WavesBalanceSnapshot, error) {
-	var wavesBalances []WavesBalanceSnapshot
+	diff addressWavesBalanceDiff) ([]proto.WavesBalanceSnapshot, error) {
+	var wavesBalances []proto.WavesBalanceSnapshot
 	// add miner address to the diff
 
 	for wavesAddress, diffAmount := range diff {
@@ -988,7 +1013,7 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
-		newBalance := WavesBalanceSnapshot{
+		newBalance := proto.WavesBalanceSnapshot{
 			Address: wavesAddress,
 			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
 		}
@@ -998,8 +1023,8 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 }
 
 func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
-	diff addressAssetBalanceDiff) ([]AssetBalanceSnapshot, error) {
-	var assetBalances []AssetBalanceSnapshot
+	diff addressAssetBalanceDiff) ([]proto.AssetBalanceSnapshot, error) {
+	var assetBalances []proto.AssetBalanceSnapshot
 	// add miner address to the diff
 
 	for key, diffAmount := range diff {
@@ -1012,7 +1037,7 @@ func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
 			return nil, errors.Wrap(err, "failed to get newest asset info")
 		}
 
-		newBalance := AssetBalanceSnapshot{
+		newBalance := proto.AssetBalanceSnapshot{
 			Address: key.address,
 			AssetID: key.asset.Digest(assetInfo.tail),
 			Balance: uint64(int64(balance) + diffAmount),
