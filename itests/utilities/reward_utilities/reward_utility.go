@@ -32,7 +32,7 @@ func getAddressesBalances[T any](suite *f.BaseSuite, testdata testdata.RewardDis
 		balanceXtnGo, balanceXtnScala = utl.GetAvailableBalanceInWaves(suite, testdata.XtnBuyBackAccount.Address)
 	}
 	suite.T().Logf("Go: XTN balance: %d, Go current height:%d, Scala: XTN balance: %d, Scala current height: %d",
-		balanceXtnGo, utl.GetHeightGo(suite), balanceXtnScala, utl.GetHeight(suite))
+		balanceXtnGo, utl.GetHeightGo(suite), balanceXtnScala, utl.GetHeightScala(suite))
 	return utl.NewBalanceInWaves(sumBalanceMinersGo, sumBalanceMinersScala), utl.NewBalanceInWaves(balanceDaoGo, balanceDaoScala),
 		utl.NewBalanceInWaves(balanceXtnGo, balanceXtnScala)
 }

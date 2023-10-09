@@ -10,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/reward_utilities"
 )
 
-// Test steps
 func getActivationOfFeatures(suite *f.BaseSuite, featureIds ...int) {
 	h := utl.GetHeight(suite)
 	//features that should be activated
@@ -20,7 +19,6 @@ func getActivationOfFeatures(suite *f.BaseSuite, featureIds ...int) {
 }
 
 func getRewardDistributionAndChecks(suite *f.BaseSuite, td testdata.RewardDistributionTestData[testdata.RewardDistributionExpectedValues]) {
-	//td := testdata(suite)
 	//get reward for 1 block
 	rewardDistributions, term := reward_utilities.GetBlockRewardDistribution(suite, td)
 	//check results

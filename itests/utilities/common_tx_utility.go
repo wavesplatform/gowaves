@@ -484,7 +484,6 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureId int) uint64 {
 	switch status {
 	case "ACTIVATED":
 		waitingBlocks = 0
-		break
 	case "APPROVED":
 		waitingBlocks = votingPeriod - (height - (height/votingPeriod)*votingPeriod)
 	case "UNDEFINED":

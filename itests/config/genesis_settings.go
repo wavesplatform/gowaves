@@ -188,13 +188,13 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 		DesiredBlockReward:      700000000,
 		MinXTNBuyBackPeriod:     3,
 	}
-	if len(additionalArgsPath) == 1 {
+	if len(additionalArgsPath) <= 1 {
 		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
 		if err != nil {
 			return nil, nil, err
 		}
 	} else {
-		err = errors.New("additionalArgsPath should be equal 0 or 1")
+		return nil, nil, errors.New("additionalArgsPath should be equal 0 or 1")
 	}
 
 	ts := time.Now().UnixMilli()
