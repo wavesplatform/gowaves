@@ -541,8 +541,17 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, err
 	}
 
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
+
+	var si scriptBasicInfoRecord
+	si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", tx.ScriptRecipient.Address().String())
+	}
+	scriptPK := si.PK
+
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info,
-		invocationRes, balanceChanges, tx.SenderPK)
+		invocationRes, balanceChanges, scriptPK, scriptAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -566,8 +575,12 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 		return nil, err
 	}
 
+	senderAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, "recipientToAddress() failed")
+	}
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, info, invocationRes,
-		balanceChanges, tx.SenderPK)
+		balanceChanges, tx.SenderPK, senderAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +614,7 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	}
 	scriptPK := si.PK
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForEthereumInvokeScriptTx(txID,
-		info, invocationRes, balanceChanges, scriptPK)
+		info, invocationRes, balanceChanges, scriptPK, scriptAddr)
 	if err != nil {
 		return nil, err
 	}
