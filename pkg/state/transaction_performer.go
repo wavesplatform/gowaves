@@ -541,12 +541,16 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, err
 	}
 
-	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
-
+	scriptAddr, cnvrtErr := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
+	if cnvrtErr != nil {
+		return nil, err
+	}
 	var si scriptBasicInfoRecord
 	si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get script's public key on address '%s'", tx.ScriptRecipient.Address().String())
+		return nil, errors.Wrapf(err,
+			"failed to get script's public key on address '%s'",
+			tx.ScriptRecipient.Address().String())
 	}
 	scriptPK := si.PK
 

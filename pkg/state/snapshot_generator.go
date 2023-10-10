@@ -706,7 +706,8 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 }
 
 func senderFromScriptAction(a proto.ScriptAction,
-	scheme proto.Scheme, scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.WavesAddress, crypto.PublicKey, error) {
+	scheme proto.Scheme, scriptPK crypto.PublicKey,
+	scriptAddress proto.WavesAddress) (proto.WavesAddress, crypto.PublicKey, error) {
 	senderPK := scriptPK
 	senderAddress := scriptAddress
 	if a.SenderPK() != nil {
@@ -755,7 +756,9 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	txID crypto.Digest,
 	info *performerInfo,
 	invocationRes *invocationResult,
-	balanceChanges txDiff, scriptPublicKey crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
+	balanceChanges txDiff,
+	scriptPublicKey crypto.PublicKey,
+	scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
