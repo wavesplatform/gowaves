@@ -311,3 +311,17 @@ func (suite *RewardDaoXtnSupported19Suite) SetupSuite() {
 	suite.BaseSetup(suiteName, enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "2miners_dao_xtn_without_f20.json"))
 }
+
+// 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
+// ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_increase.json")
+// NODE - 862.
+type RewardDistributionRollbackBefore21Suite struct {
+	BaseSuite
+}
+
+func (suite *RewardDistributionRollbackBefore21Suite) SetupSuite() {
+	const enableScalaMining = true
+	suiteName := strcase.KebabCase(suite.T().Name())
+	suite.BaseSetup(suiteName, enableScalaMining,
+		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase.json"))
+}

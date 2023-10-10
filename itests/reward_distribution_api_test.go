@@ -1,6 +1,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -117,14 +118,14 @@ func (suite *RewardDistributionApiRollbackBeforeF19Suite) Test_NODE858() {
 	td := testdata.GetRollbackBeforeF19TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
 		getActivationOfFeatures(&suite.BaseSuite, 19)
 		activationH19 := utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
 		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH19-3), true)
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
 		getActivationOfFeatures(&suite.BaseSuite, 19)
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
 	})
 }
 
@@ -144,11 +145,11 @@ func (suite *RewardDistributionApiRollbackAfterF19Suite) Test_NODE859() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19)
 		activationH19 := utl.GetFeatureActivationHeight(&suite.BaseSuite, 19, utl.GetHeight(&suite.BaseSuite))
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
 		utl.WaitForHeight(&suite.BaseSuite, uint64(activationH19+4))
 		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH19+1), true)
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19)
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
 	})
 }
 
@@ -167,14 +168,14 @@ func (suite *RewardDistributionApiRollbackBeforeF20Suite) Test_NODE860() {
 	td := testdata.GetRollbackBeforeF20TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		activationH20 := utl.GetFeatureActivationHeight(&suite.BaseSuite, 20, utl.GetHeight(&suite.BaseSuite))
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterRollback)
-		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH20-4), true)
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
+		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH20)-utl.GetRewardTermAfter20Cfg(&suite.BaseSuite)-1, true)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
 	})
 }
 
@@ -194,11 +195,11 @@ func (suite *RewardDistributionApiRollbackAfterF20Suite) Test_NODE861() {
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
 		activationH20 := utl.GetFeatureActivationHeight(&suite.BaseSuite, 20, utl.GetHeight(&suite.BaseSuite))
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
 		utl.WaitForHeight(&suite.BaseSuite, uint64(activationH20+4))
 		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH20+1), true)
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
-		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterRollback)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
 	})
 }
 
@@ -207,28 +208,43 @@ func TestRewardDistributionApiRollbackAfterF20Suite(t *testing.T) {
 	suite.Run(t, new(RewardDistributionApiRollbackAfterF20Suite))
 }
 
-/*type RewardDistributionApiRollbackBeforeF21Suite struct {
-	f.RewardIncreaseDaoXtnPreactivatedSuite
+// NODE - 862. Rollback on height before CeaseXTNBuyback feature activation should be correct
+type RewardDistributionApiRollbackBeforeF21Suite struct {
+	f.RewardDistributionRollbackBefore21Suite
 }
 
-func (suite *RewardDistributionApiRollbackBeforeF21Suite) Test_Simple_Rollback() {
-	name := "Test simple rollback"
-	td := testdata.GetRollbackAfterF20TestData(&suite.BaseSuite)
+func (suite *RewardDistributionApiRollbackBeforeF21Suite) Test_NODE862() {
+	name := "NODE - 862. Rollback on height before CeaseXTNBuyback feature activation should be correct"
+	td := testdata.GetRollbackBeforeF21TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
-		reward_utilities.GetBlockRewardDistribution(&suite.BaseSuite, td.AfterRollback)
-		utl.WaitForNewHeight(&suite.BaseSuite)
-		activationH20 := utl.GetFeatureActivationHeight(&suite.BaseSuite, 20, utl.GetHeight(&suite.BaseSuite))
-		//getRewardDistributionAndChecks(&suite.BaseSuite, tdAfter20)
-		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH20-4), true)
-		for i := 0;
-		reward_utilities.GetBlockRewardDistribution(&suite.BaseSuite, td.AfterRollback)
-		utl.WaitForNewHeight(&suite.BaseSuite)
-
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
+		fmt.Println("cease period: ", ceaseXtnBuybackHeight)
+		getActivationOfFeatures(&suite.BaseSuite, 21)
+		activationH21 := utl.GetFeatureActivationHeight(&suite.BaseSuite, 21, utl.GetHeight(&suite.BaseSuite))
+		fmt.Println("Reward distribution before cease period", utl.GetHeight(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature.BeforeXtnBuyBackPeriod)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		fmt.Println("Reward distribution after cease period", utl.GetHeight(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature.AfterXtnBuyBackPeriod)
+		utl.GetRollbackToHeight(&suite.BaseSuite,
+			uint64(activationH21)-utl.GetRewardTermAfter20Cfg(&suite.BaseSuite)-1, true)
+		fmt.Println("Height after rollback ", utl.GetHeight(&suite.BaseSuite))
+		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+		fmt.Println("Reward distribution after rollback before f21", utl.GetHeight(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
+		fmt.Println("Reward distribution after rollback before cease period", utl.GetHeight(&suite.BaseSuite))
+		getActivationOfFeatures(&suite.BaseSuite, 21)
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature.BeforeXtnBuyBackPeriod)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		fmt.Println("Reward distribution after rollback after cease period", utl.GetHeight(&suite.BaseSuite))
+		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature.AfterXtnBuyBackPeriod)
 	})
 }
 
 func TestRewardDistributionApiRollbackBeforeF21Suite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(RewardDistributionApiRollbackBeforeF21Suite))
-}*/
+}

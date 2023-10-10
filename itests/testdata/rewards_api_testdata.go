@@ -53,8 +53,8 @@ func GetRewardInfoApiBefore20TestData(suite *f.BaseSuite) RewardDistributionApiT
 }
 
 type RewardDistributionRollbackData struct {
-	BeforeRollback RewardDistributionTestData[RewardDistributionExpectedValues]
-	AfterRollback  RewardDistributionTestData[RewardDistributionExpectedValues]
+	BeforeFeature RewardDistributionTestData[RewardDistributionExpectedValues]
+	AfterFeature  RewardDistributionTestData[RewardDistributionExpectedValues]
 }
 
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
@@ -62,7 +62,7 @@ type RewardDistributionRollbackData struct {
 // NODE - 858.
 func GetRollbackBeforeF19TestData(suite *f.BaseSuite) RewardDistributionRollbackData {
 	return RewardDistributionRollbackData{
-		BeforeRollback: NewRewardDistributionTestData(
+		BeforeFeature: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
@@ -73,7 +73,7 @@ func GetRollbackBeforeF19TestData(suite *f.BaseSuite) RewardDistributionRollback
 				XtnDiffBalance:       0,
 				Term:                 utl.GetRewardTermCfg(suite),
 			}),
-		AfterRollback: NewRewardDistributionTestData(
+		AfterFeature: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
@@ -92,7 +92,7 @@ func GetRollbackBeforeF19TestData(suite *f.BaseSuite) RewardDistributionRollback
 // NODE - 859.
 func GetRollbackAfterF19TestData(suite *f.BaseSuite) RewardDistributionRollbackData {
 	return RewardDistributionRollbackData{
-		AfterRollback: NewRewardDistributionTestData(
+		AfterFeature: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
@@ -111,7 +111,7 @@ func GetRollbackAfterF19TestData(suite *f.BaseSuite) RewardDistributionRollbackD
 // NODE - 860
 func GetRollbackBeforeF20TestData(suite *f.BaseSuite) RewardDistributionRollbackData {
 	return RewardDistributionRollbackData{
-		BeforeRollback: NewRewardDistributionTestData(
+		BeforeFeature: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
@@ -122,7 +122,7 @@ func GetRollbackBeforeF20TestData(suite *f.BaseSuite) RewardDistributionRollback
 				XtnDiffBalance:       0,
 				Term:                 utl.GetRewardTermCfg(suite),
 			}),
-		AfterRollback: NewRewardDistributionTestData(
+		AfterFeature: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
@@ -140,7 +140,7 @@ func GetRollbackBeforeF20TestData(suite *f.BaseSuite) RewardDistributionRollback
 // ("preactivated_14_19_20/7W_2miners_dao_xtn_increase.json")
 func GetRollbackAfterF20TestData(suite *f.BaseSuite) RewardDistributionRollbackData {
 	return RewardDistributionRollbackData{
-		AfterRollback: NewRewardDistributionTestData(
+		AfterFeature: NewRewardDistributionTestData(
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
 			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
 			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
@@ -151,5 +151,50 @@ func GetRollbackAfterF20TestData(suite *f.BaseSuite) RewardDistributionRollbackD
 				XtnDiffBalance:       MaxAddressReward,
 				Term:                 utl.GetRewardTermAfter20Cfg(suite),
 			}),
+	}
+}
+
+type RewardDistributionRollbackCeaseXtnBuyBackData struct {
+	BeforeFeature RewardDistributionTestData[RewardDistributionExpectedValues]
+	AfterFeature  RewardDistributionCeaseXtnBuybackData
+}
+
+func GetRollbackBeforeF21TestData(suite *f.BaseSuite) RewardDistributionRollbackCeaseXtnBuyBackData {
+	return RewardDistributionRollbackCeaseXtnBuyBackData{
+		BeforeFeature: NewRewardDistributionTestData(
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+			getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+			getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+			getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+			RewardDistributionExpectedValues{
+				MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)) - 2*MaxAddressReward,
+				DaoDiffBalance:       MaxAddressReward,
+				XtnDiffBalance:       MaxAddressReward,
+				Term:                 utl.GetRewardTermAfter20Cfg(suite),
+			}),
+		AfterFeature: RewardDistributionCeaseXtnBuybackData{
+			BeforeXtnBuyBackPeriod: NewRewardDistributionTestData(
+				getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+				getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+				getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+				getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+				RewardDistributionExpectedValues{
+					MinersSumDiffBalance: int64(utl.GetInitRewardCfg(suite)+utl.GetRewardIncrementCfg(suite)) - 2*MaxAddressReward,
+					DaoDiffBalance:       MaxAddressReward,
+					XtnDiffBalance:       MaxAddressReward,
+					Term:                 utl.GetRewardTermAfter20Cfg(suite),
+				}),
+			AfterXtnBuyBackPeriod: NewRewardDistributionTestData(
+				getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerGo)),
+				getAccountPtr(utl.GetAccount(suite, utl.DefaultMinerScala)),
+				getAccountPtr(utl.GetAccount(suite, utl.DAOAccount)),
+				getAccountPtr(utl.GetAccount(suite, utl.XTNBuyBackAccount)),
+				RewardDistributionExpectedValues{
+					MinersSumDiffBalance: int64(utl.GetDesiredReward(suite, utl.GetHeight(suite))) - MaxAddressReward,
+					DaoDiffBalance:       MaxAddressReward,
+					XtnDiffBalance:       0,
+					Term:                 utl.GetRewardTermAfter20Cfg(suite),
+				}),
+		},
 	}
 }
