@@ -420,23 +420,23 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 func (sg *snapshotGenerator) generateSnapshotForInvokeScriptTx(txID crypto.Digest,
 	info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff,
-	txPublicKey crypto.PublicKey,
+	scriptRecipient *proto.Recipient,
 	scriptEstimation *scriptEstimation,
-	scriptRecipient *proto.Recipient) (proto.TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges,
-		txPublicKey, scriptEstimation, scriptRecipient)
+	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
+	return sg.generateInvokeSnapshot(txID, info, invocationRes,
+		balanceChanges, scriptEstimation, scriptRecipient, scriptPK, scriptAddress)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForInvokeExpressionTx(txID crypto.Digest, info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff,
-	txPublicKey crypto.PublicKey) (proto.TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey, nil, nil)
+	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
+	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, nil, nil, scriptPK, scriptAddress)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest, info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff,
-	txPublicKey crypto.PublicKey) (proto.TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, txPublicKey, nil, nil)
+	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
+	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, nil, nil, scriptPK, scriptAddress)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string,
@@ -766,15 +766,14 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 	return atomicSnapshots, nil
 }
 
-func senderFromScriptAction(a proto.ScriptAction, txPublicKey crypto.PublicKey,
-	scheme proto.Scheme) (proto.WavesAddress, crypto.PublicKey, error) {
-	senderPK := txPublicKey
-	senderAddress, err := proto.NewAddressFromPublicKey(scheme, senderPK)
-	if err != nil {
-		return proto.WavesAddress{}, crypto.PublicKey{}, err
-	}
+func senderFromScriptAction(a proto.ScriptAction,
+	scheme proto.Scheme, scriptPK crypto.PublicKey,
+	scriptAddress proto.WavesAddress) (proto.WavesAddress, crypto.PublicKey, error) {
+	senderPK := scriptPK
+	senderAddress := scriptAddress
 	if a.SenderPK() != nil {
 		senderPK = *a.SenderPK()
+		var err error
 		senderAddress, err = proto.NewAddressFromPublicKey(scheme, senderPK)
 		if err != nil {
 			return proto.WavesAddress{}, crypto.PublicKey{}, err
@@ -790,11 +789,11 @@ func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
 	blockHeight uint64,
 	info *performerInfo,
 	txID crypto.Digest,
-	txPublicKey crypto.PublicKey) ([]proto.AtomicSnapshot, error) {
+	scriptPublicKey crypto.PublicKey, scriptAddress proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
 	var dataEntries = make(SenderDataEntries)
 	var atomicSnapshots []proto.AtomicSnapshot
 	for _, action := range actions {
-		senderAddress, senderPK, err := senderFromScriptAction(action, txPublicKey, sg.scheme)
+		senderAddress, senderPK, err := senderFromScriptAction(action, sg.scheme, scriptPublicKey, scriptAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -818,9 +817,11 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	txID crypto.Digest,
 	info *performerInfo,
 	invocationRes *invocationResult,
-	balanceChanges txDiff, txPublicKey crypto.PublicKey,
+	balanceChanges txDiff,
 	scriptEstimation *scriptEstimation,
-	scriptRecipient *proto.Recipient) (proto.TransactionSnapshot, error) {
+	scriptRecipient *proto.Recipient,
+	scriptPublicKey crypto.PublicKey,
+	scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
@@ -833,7 +834,7 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 		atomicSnapshots, err = sg.atomicSnapshotsFromScriptActions(
 			invocationRes.actions, addrWavesBalanceDiff,
 			addrAssetBalanceDiff, blockHeight, info, txID,
-			txPublicKey)
+			scriptPublicKey, scriptAddress)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to generate atomic snapshots from script actions")
 		}
