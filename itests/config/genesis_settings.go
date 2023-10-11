@@ -173,28 +173,28 @@ func getSupportedFeaturesAsString(rewardSettings *RewardSettings) string {
 }
 
 func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, error) {
+	var rewardSettings *RewardSettings
 	genSettings, err := parseGenesisSettings()
 	if err != nil {
 		return nil, nil, err
 	}
 
-	//default values for some reward parameters
-	rewardSettings := &RewardSettings{
-		BlockRewardVotingPeriod: 5,
-		BlockRewardTerm:         20,
-		BlockRewardTermAfter20:  10,
-		InitialBlockReward:      600000000,
-		BlockRewardIncrement:    100000000,
-		DesiredBlockReward:      700000000,
-		MinXTNBuyBackPeriod:     3,
-	}
 	if len(additionalArgsPath) <= 1 {
 		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
 		if err != nil {
 			return nil, nil, err
 		}
 	} else {
-		return nil, nil, errors.New("additionalArgsPath should be equal 0 or 1")
+		//default values for some reward parameters
+		rewardSettings = &RewardSettings{
+			BlockRewardVotingPeriod: 3,
+			BlockRewardTerm:         10,
+			BlockRewardTermAfter20:  5,
+			InitialBlockReward:      600000000,
+			BlockRewardIncrement:    100000000,
+			DesiredBlockReward:      600000000,
+			MinXTNBuyBackPeriod:     3,
+		}
 	}
 
 	ts := time.Now().UnixMilli()
