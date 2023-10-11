@@ -1,7 +1,6 @@
 package itests
 
 import (
-	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -221,25 +220,18 @@ func (suite *RewardDistributionApiRollbackBeforeF21Suite) Test_NODE862() {
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
 		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			19, utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		fmt.Println("cease period: ", ceaseXtnBuybackHeight)
 		getActivationOfFeatures(&suite.BaseSuite, 21)
 		activationH21 := utl.GetFeatureActivationHeight(&suite.BaseSuite, 21, utl.GetHeight(&suite.BaseSuite))
-		fmt.Println("Reward distribution before cease period", utl.GetHeight(&suite.BaseSuite))
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
-		fmt.Println("Reward distribution after cease period", utl.GetHeight(&suite.BaseSuite))
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature.AfterXtnBuyBackPeriod)
 		utl.GetRollbackToHeight(&suite.BaseSuite,
 			uint64(activationH21)-utl.GetRewardTermAfter20Cfg(&suite.BaseSuite)-1, true)
-		fmt.Println("Height after rollback ", utl.GetHeight(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
-		fmt.Println("Reward distribution after rollback before f21", utl.GetHeight(&suite.BaseSuite))
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
-		fmt.Println("Reward distribution after rollback before cease period", utl.GetHeight(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, 21)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature.BeforeXtnBuyBackPeriod)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
-		fmt.Println("Reward distribution after rollback after cease period", utl.GetHeight(&suite.BaseSuite))
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature.AfterXtnBuyBackPeriod)
 	})
 }
