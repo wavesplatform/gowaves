@@ -198,6 +198,8 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptS
 		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
 			a.info.Scheme(), snapshot.SenderPublicKey.String())
 	}
+	// In case of verifier, there are no functions. If it is a full DApp,
+	// the complexity 'functions' will be stored through the internal snapshot InternalDAppComplexitySnapshot.
 	treeEstimation := ride.TreeEstimation{
 		Estimation: int(snapshot.VerifierComplexity),
 		Verifier:   int(snapshot.VerifierComplexity),

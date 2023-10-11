@@ -455,21 +455,21 @@ func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto
 	return snapshot, nil
 }
 
-type SenderDataEntries map[proto.WavesAddress]proto.DataEntries
+type DataEntry struct {
+	addr      proto.WavesAddress
+	dataEntry proto.DataEntry
+}
 
-func (senderDataEntries SenderDataEntries) collectEntryFromAction(
-	action proto.DataEntryScriptAction,
-	sender proto.WavesAddress) error {
-	if senderDataEntries == nil {
+type dataEntries map[entryId]DataEntry
+
+func (dataEntries dataEntries) collectEntryFromAction(
+	entry proto.DataEntry,
+	address proto.WavesAddress) error {
+	if dataEntries == nil {
 		return errors.New("senderDataEntries map is not initialized")
 	}
-	if _, ok := senderDataEntries[sender]; ok {
-		entries := senderDataEntries[sender]
-		entries = append(entries, action.Entry)
-		senderDataEntries[sender] = entries
-	} else {
-		senderDataEntries[sender] = proto.DataEntries{action.Entry}
-	}
+	id := entryId{address.ID(), entry.GetKey()}
+	dataEntries[id] = DataEntry{address, entry}
 	return nil
 }
 
@@ -696,7 +696,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromLeaseCancelAction(
 
 func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 	action proto.ScriptAction,
-	dataEntries SenderDataEntries,
+	dataEntries dataEntries,
 	wavesBalanceDiff addressWavesBalanceDiff,
 	assetBalanceDiff addressAssetBalanceDiff,
 	blockHeight uint64,
@@ -709,7 +709,7 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 	switch a := action.(type) {
 	case *proto.DataEntryScriptAction:
 		// snapshots store data entries in a different format, so we convert the actions to this format
-		err := dataEntries.collectEntryFromAction(*a, senderAddress)
+		err := dataEntries.collectEntryFromAction(a.Entry, senderAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -782,6 +782,8 @@ func senderFromScriptAction(a proto.ScriptAction,
 	return senderAddress, senderPK, nil
 }
 
+type SenderDataEntries map[proto.WavesAddress]proto.DataEntries
+
 func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
 	actions []proto.ScriptAction,
 	wavesBalanceDiff addressWavesBalanceDiff,
@@ -790,14 +792,14 @@ func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
 	info *performerInfo,
 	txID crypto.Digest,
 	scriptPublicKey crypto.PublicKey, scriptAddress proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
-	var dataEntries = make(SenderDataEntries)
+	var dataEntriesMap = make(map[entryId]DataEntry)
 	var atomicSnapshots []proto.AtomicSnapshot
 	for _, action := range actions {
 		senderAddress, senderPK, err := senderFromScriptAction(action, sg.scheme, scriptPublicKey, scriptAddress)
 		if err != nil {
 			return nil, err
 		}
-		snapshotsFromAction, err := sg.collectBalanceAndSnapshotFromAction(action, dataEntries,
+		snapshotsFromAction, err := sg.collectBalanceAndSnapshotFromAction(action, dataEntriesMap,
 			wavesBalanceDiff, assetBalanceDiff, blockHeight,
 			info, txID, senderAddress, senderPK)
 		if err != nil {
@@ -806,8 +808,19 @@ func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
 		atomicSnapshots = append(atomicSnapshots, snapshotsFromAction...)
 	}
 
-	for address, entries := range dataEntries {
-		dataEntrySnapshot := &proto.DataEntriesSnapshot{Address: address, DataEntries: entries}
+	senderDataEntries := make(map[proto.WavesAddress]proto.DataEntries)
+	for _, entry := range dataEntriesMap {
+		if _, ok := senderDataEntries[entry.addr]; ok {
+			entries := senderDataEntries[entry.addr]
+			entries = append(entries, entry.dataEntry)
+			senderDataEntries[entry.addr] = entries
+		} else {
+			senderDataEntries[entry.addr] = proto.DataEntries{entry.dataEntry}
+		}
+	}
+
+	for address, formattedDataEntries := range senderDataEntries {
+		dataEntrySnapshot := &proto.DataEntriesSnapshot{Address: address, DataEntries: formattedDataEntries}
 		atomicSnapshots = append(atomicSnapshots, dataEntrySnapshot)
 	}
 	return atomicSnapshots, nil
