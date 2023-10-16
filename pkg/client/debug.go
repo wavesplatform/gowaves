@@ -229,7 +229,7 @@ func (a *Debug) PrintMsg(ctx context.Context, msg string) (*Response, error) {
 }
 
 type rollbackResponse struct {
-	BlockId proto.BlockID `json:"blockId"`
+	BlockID proto.BlockID `json:"blockId"`
 }
 
 func (a *Debug) RollbackToHeight(
@@ -263,7 +263,7 @@ func (a *Debug) RollbackToHeight(
 	if err != nil {
 		return nil, response, err
 	}
-	return &out.BlockId, response, nil
+	return &out.BlockID, response, nil
 }
 
 func (a *Debug) RollbackTo(ctx context.Context, blockID proto.BlockID) (*proto.BlockID, *Response, error) {
@@ -286,5 +286,5 @@ func (a *Debug) RollbackTo(ctx context.Context, blockID proto.BlockID) (*proto.B
 		return nil, response, err
 	}
 
-	return &out.BlockId, response, nil
+	return &out.BlockID, response, nil
 }

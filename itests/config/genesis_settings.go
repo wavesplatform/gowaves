@@ -28,6 +28,14 @@ const (
 	rewardConfigFolder      = "reward_settings_testdata"
 
 	maxBaseTarget = 1000000
+
+	defaultBlockRewardVotingPeriod = 3
+	defaultBlockRewardTerm         = 10
+	defaultBlockRewardTermAfter20  = 5
+	defaultInitialBlockReward      = 600000000
+	defaultBlockRewardIncrement    = 100000000
+	defaultDesiredBlockReward      = 600000000
+	defaultMinXTNBuyBackPeriod     = 3
 )
 
 var (
@@ -155,9 +163,8 @@ func getPreactivatedFeatures(genSettings *GenesisSettings, rewardSettings *Rewar
 		if pf.Feature <= 0 {
 			err := errors.Errorf("Feature with id %d not exist", pf.Feature)
 			return nil, err
-		} else {
-			result = append(result, pf)
 		}
+		result = append(result, pf)
 	}
 	return result, nil
 }
@@ -179,21 +186,21 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 		return nil, nil, err
 	}
 
-	if len(additionalArgsPath) <= 1 {
+	if len(additionalArgsPath) == 1 {
 		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
 		if err != nil {
 			return nil, nil, err
 		}
 	} else {
-		//default values for some reward parameters
+		// default values for some reward parameters
 		rewardSettings = &RewardSettings{
-			BlockRewardVotingPeriod: 3,
-			BlockRewardTerm:         10,
-			BlockRewardTermAfter20:  5,
-			InitialBlockReward:      600000000,
-			BlockRewardIncrement:    100000000,
-			DesiredBlockReward:      600000000,
-			MinXTNBuyBackPeriod:     3,
+			BlockRewardVotingPeriod: defaultBlockRewardVotingPeriod,
+			BlockRewardTerm:         defaultBlockRewardTerm,
+			BlockRewardTermAfter20:  defaultBlockRewardTermAfter20,
+			InitialBlockReward:      defaultInitialBlockReward,
+			BlockRewardIncrement:    defaultBlockRewardIncrement,
+			DesiredBlockReward:      defaultDesiredBlockReward,
+			MinXTNBuyBackPeriod:     defaultMinXTNBuyBackPeriod,
 		}
 	}
 
@@ -224,7 +231,7 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	cfg.FeaturesVotingPeriod = 1
 	cfg.VotesForFeatureActivation = 1
 
-	//reward settings
+	// reward settings
 	cfg.InitialBlockReward = rewardSettings.InitialBlockReward
 	cfg.BlockRewardIncrement = rewardSettings.BlockRewardIncrement
 	cfg.BlockRewardVotingPeriod = rewardSettings.BlockRewardVotingPeriod
@@ -240,7 +247,7 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 		cfg.RewardAddressesAfter21 = rewardsAddressesAfter21
 	}
 
-	//preactivated features
+	// preactivated features
 	preactivatedFeatures, err := getPreactivatedFeatures(genSettings, rewardSettings)
 	if err != nil {
 		return nil, nil, err

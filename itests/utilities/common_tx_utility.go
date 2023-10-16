@@ -391,69 +391,69 @@ func GetActivationFeaturesStatusInfoScala(suite *f.BaseSuite, h uint64) *g.Activ
 	return suite.Clients.ScalaClients.GrpcClient.GetFeatureActivationStatusInfo(suite.T(), int32(h))
 }
 
-func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, featureId int) (string, error) {
+func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, featureID int) (string, error) {
 	var status string
 	var err error
 	for _, feature := range statusResponse.GetFeatures() {
-		if feature.GetId() == int32(featureId) {
+		if feature.GetId() == int32(featureID) {
 			status = feature.GetBlockchainStatus().String()
 			break
 		}
 	}
 	if status == "" {
-		err = errors.Errorf("Feature with Id %d not found", featureId)
+		err = errors.Errorf("Feature with Id %d not found", featureID)
 	}
 	return status, err
 }
 
-func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, featureId int) (int32, error) {
+func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, featureID int) (int32, error) {
 	var err error
 	var activationHeight int32
 	activationHeight = -1
 	for _, feature := range statusResponse.GetFeatures() {
-		if feature.GetId() == int32(featureId) && feature.GetBlockchainStatus().String() == "ACTIVATED" {
+		if feature.GetId() == int32(featureID) && feature.GetBlockchainStatus().String() == "ACTIVATED" {
 			activationHeight = feature.GetActivationHeight()
 			break
 		}
 	}
 	if activationHeight == -1 {
-		err = errors.Errorf("Feature with Id %d not found", featureId)
+		err = errors.Errorf("Feature with Id %d not found", featureID)
 	}
 	return activationHeight, err
 }
 
-func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureId int, h uint64) string {
-	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoGo(suite, h), featureId)
+func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureID int, h uint64) string {
+	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoGo(suite, h), featureID)
 	require.NoError(suite.T(), err, "Couldn't get feature status info")
-	suite.T().Logf("Go: Status of feature %d on height @%d: %s\n", featureId, h, status)
+	suite.T().Logf("Go: Status of feature %d on height @%d: %s\n", featureID, h, status)
 	return status
 }
 
-func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureId int, h uint64) string {
-	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoScala(suite, h), featureId)
+func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureID int, h uint64) string {
+	status, err := getFeatureBlockchainStatus(GetActivationFeaturesStatusInfoScala(suite, h), featureID)
 	require.NoError(suite.T(), err, "Couldn't get feature status info")
-	suite.T().Logf("Scala: Status of feature %d on height @%d: %s\n", featureId, h, status)
+	suite.T().Logf("Scala: Status of feature %d on height @%d: %s\n", featureID, h, status)
 	return status
 }
 
-func GetFeatureActivationHeightGo(suite *f.BaseSuite, featureId int, height uint64) int32 {
-	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureId)
+func GetFeatureActivationHeightGo(suite *f.BaseSuite, featureID int, height uint64) int32 {
+	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureID)
 	require.NoError(suite.T(), err)
 	return activationHeight
 }
 
-func GetFeatureActivationHeightScala(suite *f.BaseSuite, featureId int, height uint64) int32 {
-	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureId)
+func GetFeatureActivationHeightScala(suite *f.BaseSuite, featureID int, height uint64) int32 {
+	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureID)
 	require.NoError(suite.T(), err)
 	return activationHeight
 }
 
-func GetFeatureActivationHeight(suite *f.BaseSuite, featureId int, height uint64) int32 {
+func GetFeatureActivationHeight(suite *f.BaseSuite, featureID int, height uint64) int32 {
 	var err error
 	var activationHeight int32
 	activationHeight = -1
-	activationHeightGo := GetFeatureActivationHeightGo(suite, featureId, height)
-	activationHeightScala := GetFeatureActivationHeightScala(suite, featureId, height)
+	activationHeightGo := GetFeatureActivationHeightGo(suite, featureID, height)
+	activationHeightScala := GetFeatureActivationHeightScala(suite, featureID, height)
 	if activationHeightGo == activationHeightScala && activationHeightGo > -1 {
 		activationHeight = activationHeightGo
 	} else {
@@ -463,23 +463,23 @@ func GetFeatureActivationHeight(suite *f.BaseSuite, featureId int, height uint64
 	return activationHeight
 }
 
-func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureId int, height uint64) (string, error) {
+func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureID int, height uint64) (string, error) {
 	var status string
 	var err error
-	statusGo := GetFeatureBlockchainStatusGo(suite, featureId, height)
-	statusScala := GetFeatureBlockchainStatusScala(suite, featureId, height)
+	statusGo := GetFeatureBlockchainStatusGo(suite, featureID, height)
+	statusScala := GetFeatureBlockchainStatusScala(suite, featureID, height)
 	if statusGo == statusScala {
 		status = statusGo
 	} else {
-		err = errors.Errorf("Feature with Id %d has different statuses", featureId)
+		err = errors.Errorf("Feature with Id %d has different statuses", featureID)
 	}
 	return status, err
 }
 
-func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureId int) uint64 {
+func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID int) uint64 {
 	var waitingBlocks uint64
 	votingPeriod := suite.Cfg.BlockchainSettings.ActivationWindowSize(height)
-	status, err := GetFeatureBlockchainStatus(suite, featureId, height)
+	status, err := GetFeatureBlockchainStatus(suite, featureID, height)
 	require.NoError(suite.T(), err)
 	switch status {
 	case "ACTIVATED":
@@ -492,30 +492,30 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureId int) uint64 {
 	return waitingBlocks
 }
 
-func WaitForFeatureActivation(suite *f.BaseSuite, featureId int, height uint64) int32 {
+func WaitForFeatureActivation(suite *f.BaseSuite, featureID int, height uint64) int32 {
 	var activationHeight int32
 	var err error
-	waitingBlocks := GetWaitingBlocks(suite, height, featureId)
+	waitingBlocks := GetWaitingBlocks(suite, height, featureID)
 	h := WaitForHeight(suite, height+waitingBlocks)
-	activationHeightGo := GetFeatureActivationHeightGo(suite, featureId, h)
-	activationHeightScala := GetFeatureActivationHeightScala(suite, featureId, h)
+	activationHeightGo := GetFeatureActivationHeightGo(suite, featureID, h)
+	activationHeightScala := GetFeatureActivationHeightScala(suite, featureID, h)
 	if activationHeightScala == activationHeightGo {
 		activationHeight = activationHeightGo
 	} else {
-		err = errors.Errorf("Feature with Id %d has different activation heights", featureId)
+		err = errors.Errorf("Feature with Id %d has different activation heights", featureID)
 	}
 	require.NoError(suite.T(), err)
 	return activationHeight
 }
 
-func FeatureShouldBeActivated(suite *f.BaseSuite, featureId int, height uint64) {
+func FeatureShouldBeActivated(suite *f.BaseSuite, featureID int, height uint64) {
 	var err error
-	activationHeight := WaitForFeatureActivation(suite, featureId, height)
+	activationHeight := WaitForFeatureActivation(suite, featureID, height)
 	if activationHeight == -1 {
-		err = errors.Errorf("Feature with Id %d not activated", featureId)
+		err = errors.Errorf("Feature with Id %d not activated", featureID)
 	}
 	require.NoError(suite.T(), err)
-	suite.T().Logf("Feature %d is activated on height @%d\n", featureId, activationHeight)
+	suite.T().Logf("Feature %d is activated on height @%d\n", featureID, activationHeight)
 }
 
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
@@ -737,17 +737,17 @@ func GetDesiredReward(suite *f.BaseSuite, height uint64) int64 {
 	return desiredR
 }
 
-// GetRewardTermCfg is max period of voting (term)
+// GetRewardTermCfg is max period of voting (term).
 func GetRewardTermCfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTerm
 }
 
-// GetRewardTermAfter20Cfg returns term after feature 20 activation (term-after-capped-reward-feature), =1/2 term
+// GetRewardTermAfter20Cfg returns term after feature 20 activation (term-after-capped-reward-feature), =1/2 term.
 func GetRewardTermAfter20Cfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
 
-// GetRewards get response from /blockchain/rewards
+// GetRewards get response from /blockchain/rewards.
 func GetRewardsGo(suite *f.BaseSuite) *client.RewardInfo {
 	return suite.Clients.GoClients.HttpClient.Rewards(suite.T())
 }
@@ -760,7 +760,7 @@ func GetRewards(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo) {
 	return GetRewardsGo(suite), GetRewardsScala(suite)
 }
 
-// GetRewards get response from /blockchain/rewards/{height}
+// GetRewards get response from /blockchain/rewards/{height}.
 func GetRewardsAtHeightGo(suite *f.BaseSuite, height uint64) *client.RewardInfo {
 	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height)
 }

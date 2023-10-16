@@ -92,7 +92,8 @@ type ConfigPaths struct {
 	ScalaConfigPath string
 }
 
-func CreateFileConfigs(suiteName string, enableScalaMining bool, additionalArgsPath ...string) (ConfigPaths, TestConfig, error) {
+func CreateFileConfigs(suiteName string, enableScalaMining bool,
+	additionalArgsPath ...string) (ConfigPaths, TestConfig, error) {
 	cfg, acc, err := newBlockchainConfig(additionalArgsPath...)
 	if err != nil {
 		return ConfigPaths{}, TestConfig{}, errors.Wrap(err, "failed to create blockchain config")
@@ -110,5 +111,6 @@ func CreateFileConfigs(suiteName string, enableScalaMining bool, additionalArgsP
 	}
 	return ConfigPaths{ScalaConfigPath: configDir, GoConfigPath: configDir},
 		TestConfig{Accounts: acc, BlockchainSettings: cfg.BlockchainSettings,
-			Env: &goEnvOptions{DesiredBlockReward: cfg.GoOpts.DesiredBlockReward, SupportedFeatures: cfg.GoOpts.SupportedFeatures}}, nil
+			Env: &goEnvOptions{DesiredBlockReward: cfg.GoOpts.DesiredBlockReward,
+				SupportedFeatures: cfg.GoOpts.SupportedFeatures}}, nil
 }

@@ -9,26 +9,31 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
-func getRewardInfoAndChecks(suite *f.BaseSuite, td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]) {
+func getRewardInfoAndChecks(suite *f.BaseSuite,
+	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]) {
 	rewardInfoGo, rewardInfoScala := utl.GetRewards(suite)
 	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
 	utl.NextCkeckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
-	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart, rewardInfoScala.VotingIntervalStart)
+	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart,
+		rewardInfoScala.VotingIntervalStart)
 }
 
-func getRewardInfoAtHeightAndChecks(suite *f.BaseSuite, td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues], height uint64) {
+func getRewardInfoAtHeightAndChecks(suite *f.BaseSuite,
+	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues], height uint64) {
 	rewardInfoGo, rewardInfoScala := utl.GetRewardsAtHeight(suite, height)
 	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
 	utl.NextCkeckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
-	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart, rewardInfoScala.VotingIntervalStart)
+	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart,
+		rewardInfoScala.VotingIntervalStart)
 }
 
-// "NODE-855. /blockchain/rewards returns correct values for term, nextCheck and votingIntervalStart after CappedReward activation"
-type RewardDistributionApiRewardInfoPreactivatedSuite struct {
+// "NODE-855. /blockchain/rewards returns correct values for term,
+// nextCheck and votingIntervalStart after CappedReward activation".
+type RewardDistributionAPIRewardInfoPreactivatedSuite struct {
 	f.RewardIncreaseDaoXtnPreactivatedSuite
 }
 
-func (suite *RewardDistributionApiRewardInfoPreactivatedSuite) Test_NODE855() {
+func (suite *RewardDistributionAPIRewardInfoPreactivatedSuite) Test_NODE855() {
 	name := "NODE-855. /blockchain/rewards returns correct values for term, nextCheck and votingIntervalStart " +
 		"after CappedReward activation"
 	td := testdata.GetRewardInfoApiAfterPreactivated20TestData(&suite.BaseSuite)
@@ -38,16 +43,16 @@ func (suite *RewardDistributionApiRewardInfoPreactivatedSuite) Test_NODE855() {
 	})
 }
 
-func TestRewardDistributionApiRewardInfoPreactivatedSuite(t *testing.T) {
+func TestRewardDistributionAPIRewardInfoPreactivatedSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRewardInfoPreactivatedSuite))
+	suite.Run(t, new(RewardDistributionAPIRewardInfoPreactivatedSuite))
 }
 
-type RewardDistributionApiRewardInfoSupportedSuite struct {
+type RewardDistributionAPIRewardInfoSupportedSuite struct {
 	f.RewardIncreaseDaoXtnSupported20Suite
 }
 
-func (suite *RewardDistributionApiRewardInfoSupportedSuite) Test_NODE855_2() {
+func (suite *RewardDistributionAPIRewardInfoSupportedSuite) Test_NODE855_2() {
 	name := "NODE-855. /blockchain/rewards returns correct values for term, nextCheck and votingIntervalStart " +
 		"after CappedReward activation"
 	tdBefore20 := testdata.GetRewardInfoApiBefore20TestData(&suite.BaseSuite)
@@ -60,19 +65,20 @@ func (suite *RewardDistributionApiRewardInfoSupportedSuite) Test_NODE855_2() {
 	})
 }
 
-func TestRewardDistributionApiRewardInfoSupportedSuite(t *testing.T) {
+func TestRewardDistributionAPIRewardInfoSupportedSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRewardInfoSupportedSuite))
+	suite.Run(t, new(RewardDistributionAPIRewardInfoSupportedSuite))
 }
 
-// "NODE-856. /blockchain/rewards/{height} returns correct values for term, nextCheck and votingIntervalStart after CappedReward activation"
-type RewardDistributionApiRewardInfoAtHeightPreactivatedSuite struct {
+// "NODE-856. /blockchain/rewards/{height} returns correct values for term,
+// nextCheck and votingIntervalStart after CappedReward activation".
+type RewardDistributionAPIRewardInfoAtHeightPreactivatedSuite struct {
 	f.RewardIncreaseDaoXtnPreactivatedSuite
 }
 
-func (suite *RewardDistributionApiRewardInfoAtHeightPreactivatedSuite) Test_NODE856() {
-	name := "NODE-856. /blockchain/rewards/{height} returns correct values for term, nextCheck and votingIntervalStart " +
-		"after CappedReward activation"
+func (suite *RewardDistributionAPIRewardInfoAtHeightPreactivatedSuite) Test_NODE856() {
+	name := "NODE-856. /blockchain/rewards/{height} returns correct values for term," +
+		" nextCheck and votingIntervalStart after CappedReward activation"
 	td := testdata.GetRewardInfoApiAfterPreactivated20TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
@@ -80,18 +86,18 @@ func (suite *RewardDistributionApiRewardInfoAtHeightPreactivatedSuite) Test_NODE
 	})
 }
 
-func TestRewardDistributionApiRewardInfoAtHeightPreactivatedSuite(t *testing.T) {
+func TestRewardDistributionAPIRewardInfoAtHeightPreactivatedSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRewardInfoAtHeightPreactivatedSuite))
+	suite.Run(t, new(RewardDistributionAPIRewardInfoAtHeightPreactivatedSuite))
 }
 
-type RewardDistributionApiRewardInfoAtHeightSupportedSuite struct {
+type RewardDistributionAPIRewardInfoAtHeightSupportedSuite struct {
 	f.RewardIncreaseDaoXtnSupported20Suite
 }
 
-func (suite *RewardDistributionApiRewardInfoAtHeightSupportedSuite) Test_NODE856_2() {
-	name := "NODE-856. /blockchain/rewards/{height} returns correct values for term, nextCheck and votingIntervalStart " +
-		"after CappedReward activation"
+func (suite *RewardDistributionAPIRewardInfoAtHeightSupportedSuite) Test_NODE856_2() {
+	name := "NODE-856. /blockchain/rewards/{height} returns correct values for term, " +
+		"nextCheck and votingIntervalStart after CappedReward activation"
 	tdBefore20 := testdata.GetRewardInfoApiBefore20TestData(&suite.BaseSuite)
 	tdAfter20 := testdata.GetRewardInfoApiAfterSupported20TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
@@ -102,17 +108,17 @@ func (suite *RewardDistributionApiRewardInfoAtHeightSupportedSuite) Test_NODE856
 	})
 }
 
-func TestRewardDistributionApiRewardInfoAtHeightSupportedSuite(t *testing.T) {
+func TestRewardDistributionAPIRewardInfoAtHeightSupportedSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRewardInfoAtHeightSupportedSuite))
+	suite.Run(t, new(RewardDistributionAPIRewardInfoAtHeightSupportedSuite))
 }
 
-// NODE - 858. Rollback (/debug/rollback) on height before BlockRewardDistribution feature activation should be correct
-type RewardDistributionApiRollbackBeforeF19Suite struct {
+// NODE - 858. Rollback (/debug/rollback) on height before BlockRewardDistribution feature activation should be correct.
+type RewardDistributionAPIRollbackBeforeF19Suite struct {
 	f.RewardDaoXtnSupported19Suite
 }
 
-func (suite *RewardDistributionApiRollbackBeforeF19Suite) Test_NODE858() {
+func (suite *RewardDistributionAPIRollbackBeforeF19Suite) Test_NODE858() {
 	name := "NODE-858. Rollback on height before BlockRewardDistribution feature activation should be correct"
 	td := testdata.GetRollbackBeforeF19TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
@@ -128,17 +134,17 @@ func (suite *RewardDistributionApiRollbackBeforeF19Suite) Test_NODE858() {
 	})
 }
 
-func TestRewardDistributionApiRollbackBeforeF19Suite(t *testing.T) {
+func TestRewardDistributionAPIRollbackBeforeF19Suite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRollbackBeforeF19Suite))
+	suite.Run(t, new(RewardDistributionAPIRollbackBeforeF19Suite))
 }
 
-// NODE - 859. Rollback (/debug/rollback) on height after BlockRewardDistribution feature activation should be correct
-type RewardDistributionApiRollbackAfterF19Suite struct {
+// NODE - 859. Rollback (/debug/rollback) on height after BlockRewardDistribution feature activation should be correct.
+type RewardDistributionAPIRollbackAfterF19Suite struct {
 	f.RewardDaoXtnPreactivatedWithout20Suite
 }
 
-func (suite *RewardDistributionApiRollbackAfterF19Suite) Test_NODE859() {
+func (suite *RewardDistributionAPIRollbackAfterF19Suite) Test_NODE859() {
 	name := "NODE-859. Rollback on height after BlockRewardDistribution feature activation should be correct"
 	td := testdata.GetRollbackAfterF19TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
@@ -152,17 +158,17 @@ func (suite *RewardDistributionApiRollbackAfterF19Suite) Test_NODE859() {
 	})
 }
 
-func TestRewardDistributionApiRollbackAfterF19Suite(t *testing.T) {
+func TestRewardDistributionAPIRollbackAfterF19Suite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRollbackAfterF19Suite))
+	suite.Run(t, new(RewardDistributionAPIRollbackAfterF19Suite))
 }
 
-// NODE - 860. Rollback (/debug/rollback) on height before CappedReward feature activation should be correct
-type RewardDistributionApiRollbackBeforeF20Suite struct {
+// NODE - 860. Rollback (/debug/rollback) on height before CappedReward feature activation should be correct.
+type RewardDistributionAPIRollbackBeforeF20Suite struct {
 	f.RewardIncreaseDaoXtnSupportedSuite
 }
 
-func (suite *RewardDistributionApiRollbackBeforeF20Suite) Test_NODE860() {
+func (suite *RewardDistributionAPIRollbackBeforeF20Suite) Test_NODE860() {
 	name := " NODE - 860. Rollback on height before CappedReward feature activation should be correct"
 	td := testdata.GetRollbackBeforeF20TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
@@ -171,24 +177,25 @@ func (suite *RewardDistributionApiRollbackBeforeF20Suite) Test_NODE860() {
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		activationH20 := utl.GetFeatureActivationHeight(&suite.BaseSuite, 20, utl.GetHeight(&suite.BaseSuite))
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
-		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH20)-utl.GetRewardTermAfter20Cfg(&suite.BaseSuite)-1, true)
+		utl.GetRollbackToHeight(&suite.BaseSuite,
+			uint64(activationH20)-utl.GetRewardTermAfter20Cfg(&suite.BaseSuite)-1, true)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.BeforeFeature)
 		getActivationOfFeatures(&suite.BaseSuite, 19, 20)
 		getRewardDistributionAndChecks(&suite.BaseSuite, td.AfterFeature)
 	})
 }
 
-func TestRewardDistributionApiRollbackBeforeF20Suite(t *testing.T) {
+func TestRewardDistributionAPIRollbackBeforeF20Suite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRollbackBeforeF20Suite))
+	suite.Run(t, new(RewardDistributionAPIRollbackBeforeF20Suite))
 }
 
-// NODE - 861. Rollback (/debug/rollback) on height after CappedReward feature activation should be correct
-type RewardDistributionApiRollbackAfterF20Suite struct {
+// NODE - 861. Rollback (/debug/rollback) on height after CappedReward feature activation should be correct.
+type RewardDistributionAPIRollbackAfterF20Suite struct {
 	f.RewardIncreaseDaoXtnPreactivatedSuite
 }
 
-func (suite *RewardDistributionApiRollbackAfterF20Suite) Test_NODE861() {
+func (suite *RewardDistributionAPIRollbackAfterF20Suite) Test_NODE861() {
 	name := "NODE - 861. Rollback on height after CappedReward feature activation should be correct"
 	td := testdata.GetRollbackAfterF20TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
@@ -202,17 +209,17 @@ func (suite *RewardDistributionApiRollbackAfterF20Suite) Test_NODE861() {
 	})
 }
 
-func TestRewardDistributionApiRollbackAfterF20Suite(t *testing.T) {
+func TestRewardDistributionAPIRollbackAfterF20Suite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRollbackAfterF20Suite))
+	suite.Run(t, new(RewardDistributionAPIRollbackAfterF20Suite))
 }
 
-// NODE - 862. Rollback on height before CeaseXTNBuyback feature activation should be correct
-type RewardDistributionApiRollbackBeforeF21Suite struct {
+// NODE - 862. Rollback on height before CeaseXTNBuyback feature activation should be correct.
+type RewardDistributionAPIRollbackBeforeF21Suite struct {
 	f.RewardDistributionRollbackBefore21Suite
 }
 
-func (suite *RewardDistributionApiRollbackBeforeF21Suite) Test_NODE862() {
+func (suite *RewardDistributionAPIRollbackBeforeF21Suite) Test_NODE862() {
 	name := "NODE - 862. Rollback on height before CeaseXTNBuyback feature activation should be correct"
 	td := testdata.GetRollbackBeforeF21TestData(&suite.BaseSuite)
 	suite.Run(name, func() {
@@ -236,7 +243,7 @@ func (suite *RewardDistributionApiRollbackBeforeF21Suite) Test_NODE862() {
 	})
 }
 
-func TestRewardDistributionApiRollbackBeforeF21Suite(t *testing.T) {
+func TestRewardDistributionAPIRollbackBeforeF21Suite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(RewardDistributionApiRollbackBeforeF21Suite))
+	suite.Run(t, new(RewardDistributionAPIRollbackBeforeF21Suite))
 }
