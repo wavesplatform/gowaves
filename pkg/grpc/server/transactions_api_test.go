@@ -36,8 +36,7 @@ func TestGetTransactions(t *testing.T) {
 	wlt := createTestNetWallet(t)
 	validator, err := utxpool.NewValidator(st, ntptime.Stub{}, 24*time.Hour)
 	require.NoError(t, err)
-	err = server.initServer(st, utxpool.New(utxSize, validator, sets), wlt, proto.MainNetScheme)
-	require.NoError(t, err)
+	server.initServer(st, utxpool.New(utxSize, validator, sets), wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 
@@ -115,8 +114,7 @@ func TestGetStatuses(t *testing.T) {
 	ctx := withAutoCancel(t, context.Background())
 	wlt := createTestNetWallet(t)
 	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
-	err := server.initServer(st, utx, wlt, proto.MainNetScheme)
-	require.NoError(t, err)
+	server.initServer(st, utx, wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 
@@ -167,8 +165,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	ctx := withAutoCancel(t, context.Background())
 	wlt := createTestNetWallet(t)
 	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
-	err := server.initServer(st, utx, wlt, proto.MainNetScheme)
-	require.NoError(t, err)
+	server.initServer(st, utx, wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 
@@ -254,8 +251,7 @@ func TestSign(t *testing.T) {
 	ctx := withAutoCancel(t, context.Background())
 	wlt := createTestNetWallet(t)
 
-	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
-	require.NoError(t, err)
+	server.initServer(st, nil, wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 

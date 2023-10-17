@@ -8,9 +8,8 @@ type blocksCache struct {
 	blocks map[proto.BlockID]proto.Block
 }
 
-func (c *blocksCache) put(block *proto.Block) int {
+func (c *blocksCache) put(block *proto.Block) {
 	c.blocks[block.ID] = *block
-	return len(c.blocks)
 }
 
 func (c *blocksCache) clear() {

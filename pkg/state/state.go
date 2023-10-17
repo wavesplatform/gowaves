@@ -2485,7 +2485,7 @@ func (s *stateManager) IsNotFound(err error) bool {
 	return IsNotFound(err)
 }
 
-func (s *stateManager) StartProvidingExtendedApi() error {
+func (s *stateManager) StartProvidingExtendedAPI() error {
 	if err := s.atx.startProvidingData(); err != nil {
 		return wrapErr(ModificationError, err)
 	}

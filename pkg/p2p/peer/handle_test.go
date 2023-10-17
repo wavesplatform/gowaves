@@ -57,7 +57,8 @@ func TestHandleReceive(t *testing.T) {
 		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()
-	_ = (<-parent.NotificationsCh).(ConnectedNotification).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
+	// fist message should be notification about connection
+	_ = (<-parent.NotificationsCh).(ConnectedNotification).Peer.(*peerOnceCloser).Peer
 	bb := bytebufferpool.Get()
 	_, err := bb.Write(byte_helpers.TransferWithSig.MessageBytes)
 	require.NoError(t, err)
@@ -79,7 +80,8 @@ func TestHandleError(t *testing.T) {
 		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()
-	_ = (<-parent.NotificationsCh).(ConnectedNotification).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
+	// fist message should be notification about connection
+	_ = (<-parent.NotificationsCh).(ConnectedNotification).Peer.(*peerOnceCloser).Peer
 	err := errors.New("error")
 	remote.ErrCh <- err
 	actualErr := (<-parent.NotificationsCh).(DisconnectedNotification).Err

@@ -20,8 +20,7 @@ func TestGetInfo(t *testing.T) {
 	assert.NoError(t, err)
 	ctx := withAutoCancel(t, context.Background())
 	wlt := createTestNetWallet(t)
-	err = server.initServer(st, nil, wlt, proto.MainNetScheme)
-	assert.NoError(t, err)
+	server.initServer(st, nil, wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 

@@ -69,7 +69,7 @@ func run() error {
 	logger := logging.SetupSimpleLogger(*logLevel)
 	defer func() {
 		err := logger.Sync()
-		if err != nil && err == os.ErrInvalid {
+		if err != nil && errors.Is(err, os.ErrInvalid) {
 			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
 		}
 	}()

@@ -110,8 +110,7 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 		t.Error("no message arrived in 100ms")
 		return
 	case m := <-parent.NotificationsCh:
-		switch tm := m.(type) {
-		case peer.ConnectedNotification:
+		if tm, ok := m.(peer.ConnectedNotification); ok {
 			tm.Peer.SendMessage(&proto.GetPeersMessage{})
 		}
 	}

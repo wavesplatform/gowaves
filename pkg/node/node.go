@@ -128,159 +128,16 @@ func (n *Node) handleEvents() error {
 			zap.S().Named(logging.FSMNamespace).Infof("[%s] Node termination started", n.sm.MustState())
 			return nil
 		case m, ok := <-n.networkCh:
-			if !ok {
-				zap.S().Named(logging.FSMNamespace).
-					Warnf("[%s] Network messages channel was closed by producer", n.sm.MustState())
-				return errors.New("network messages channel was closed")
-			}
-			switch msg := m.Message.(type) {
-			case *proto.TransactionMessage:
-				if err := n.sm.Fire(eventTransaction, msg.Transaction); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle Transaction message: %v", n.sm.MustState(), err)
-				}
-			case *proto.PBTransactionMessage:
-				if err := n.sm.Fire(eventTransaction, msg.Transaction); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle Transaction message: %v", n.sm.MustState(), err)
-				}
-			case *proto.GetBlockMessage:
-				metricGetBlockMessage.Inc()
-				if err := n.sm.Fire(eventGetBlock, m.ID, msg.BlockID); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle GetBlock message: %v", n.sm.MustState(), err)
-				}
-			case *proto.BlockMessage:
-				metricBlockMessage.Inc()
-				b := &proto.Block{}
-				if err := b.UnmarshalBinary(msg.BlockBytes, n.scheme); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle Block message: %v", n.sm.MustState(), err)
-				}
-				if err := n.sm.Fire(eventBlock, m.ID, b); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle Block message: %v", n.sm.MustState(), err)
-				}
-			case *proto.PBBlockMessage:
-				metricBlockMessage.Inc()
-				b := &proto.Block{}
-				if err := b.UnmarshalFromProtobuf(msg.PBBlockBytes); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle PBBlock message: %v", n.sm.MustState(), err)
-				}
-				if err := n.sm.Fire(eventBlock, m.ID, b); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle PBBlock message: %v", n.sm.MustState(), err)
-				}
-			case *proto.GetSignaturesMessage:
-				blockIDs := make([]proto.BlockID, len(msg.Signatures))
-				for i, sig := range msg.Signatures {
-					blockIDs[i] = proto.NewBlockIDFromSignature(sig)
-				}
-				if err := n.sm.Fire(eventGetBlockIDs, m.ID, blockIDs, true); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle GetSignatures message: %v", n.sm.MustState(), err)
-				}
-			case *proto.GetBlockIdsMessage:
-				if err := n.sm.Fire(eventGetBlockIDs, msg.Blocks, false); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle GetBlockIDs message: %v", n.sm.MustState(), err)
-				}
-			case *proto.SignaturesMessage:
-				blockIDs := make([]proto.BlockID, len(msg.Signatures))
-				for i, sig := range msg.Signatures {
-					blockIDs[i] = proto.NewBlockIDFromSignature(sig)
-				}
-				if err := n.sm.Fire(eventBlockIDs, m.ID, blockIDs); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle Signatures message: %v", n.sm.MustState(), err)
-				}
-			case *proto.BlockIdsMessage:
-				if err := n.sm.Fire(eventBlockIDs, m.ID, msg.Blocks); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle BlockIDs message: %v", n.sm.MustState(), err)
-				}
-			case *proto.MicroBlockInvMessage:
-				inv := &proto.MicroBlockInv{}
-				if err := inv.UnmarshalBinary(msg.Body); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle MicroBlockInv message: %v", n.sm.MustState(), err)
-				}
-				if err := n.sm.Fire(eventMicroBlockInv, m.ID, inv); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle MicroBlockInv message: %v", n.sm.MustState(), err)
-				}
-			case *proto.MicroBlockRequestMessage:
-				blockID, err := proto.NewBlockIDFromBytes(msg.TotalBlockSig)
-				if err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle MicroBlockRequest message: %v", n.sm.MustState(), err)
-				}
-				if err := n.sm.Fire(eventGetMicroBlock, m.ID, blockID); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle MicroBlockRequest message: %v", n.sm.MustState(), err)
-				}
-			case *proto.MicroBlockMessage:
-				mb := &proto.MicroBlock{}
-				if err := mb.UnmarshalBinary(msg.Body, n.scheme); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle MicroBlock message: %v", n.sm.MustState(), err)
-				}
-				if err := n.sm.Fire(eventMicroBlock, m.ID, mb); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle MicroBlock message: %v", n.sm.MustState(), err)
-				}
-			case *proto.PBMicroBlockMessage:
-				mb := &proto.MicroBlock{}
-				if err := mb.UnmarshalFromProtobuf(msg.MicroBlockBytes); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle PBMicroBlock message: %v", n.sm.MustState(), err)
-				}
-				if err := n.sm.Fire(eventMicroBlock, m.ID, mb); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle PBMicroBlock message: %v", n.sm.MustState(), err)
-				}
-			default:
-				zap.S().Named(logging.FSMNamespace).
-					Errorf("[%s] Unexpected network message '%T'", n.sm.MustState(), m)
-				return errors.Errorf("unexpected network message type '%T'", m)
+			if err := n.handleNetworkMessages(m, ok); err != nil {
+				return err
 			}
 		case m, ok := <-n.notificationsCh:
-			if !ok {
-				zap.S().Named(logging.FSMNamespace).
-					Warnf("[%s] Notifications channel was closed by producer", n.sm.MustState())
-				return errors.New("notifications channel was closed")
-			}
-			switch ntf := m.(type) {
-			case network.QuorumMetNotification:
-				if err := n.sm.Fire(eventResume); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle QuorumMet notification: %v", n.sm.MustState(), err)
-				}
-			case network.QuorumLostNotification:
-				if err := n.sm.Fire(eventSuspend); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle QuorumLost notification: %v", n.sm.MustState(), err)
-				}
-			case network.SyncPeerSelectedNotification:
-				if err := n.sm.Fire(eventChangeSyncPeer, ntf.Peer); err != nil {
-					zap.S().Named(logging.FSMNamespace).
-						Warnf("[%s] Failed to handle ChangeSyncPeer notification: %v", n.sm.MustState(), err)
-				}
-			default:
-				zap.S().Named(logging.FSMNamespace).
-					Errorf("[%s] Unexpected notification '%T'", n.sm.MustState(), m)
-				return errors.Errorf("unexpected notification type '%T'", m)
+			if err := n.handleNotifications(m, ok); err != nil {
+				return err
 			}
 		case m, ok := <-n.broadcastCh:
-			if !ok {
-				zap.S().Named(logging.FSMNamespace).
-					Warnf("[%s] Broadcast channel was closed by producer", n.sm.MustState())
-				return errors.New("broadcast channel was closed")
-			}
-			if err := n.sm.Fire(eventBroadcastTransaction, m.Transaction, m.Response); err != nil {
-				zap.S().Named(logging.FSMNamespace).
-					Warnf("[%s] Failed to handle transaction broadcast: %v", n.sm.MustState(), err)
+			if err := n.handleBroadcast(m, ok); err != nil {
+				return err
 			}
 		case <-n.syncTimer.C:
 			if err := n.sm.Fire(eventSyncTimeout); err != nil {
@@ -289,6 +146,206 @@ func (n *Node) handleEvents() error {
 			}
 		}
 	}
+}
+
+func (n *Node) handleBroadcast(m *messages.BroadcastTransaction, ok bool) error {
+	if !ok {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Broadcast channel was closed by producer", n.sm.MustState())
+		return errors.New("broadcast channel was closed")
+	}
+	if err := n.sm.Fire(eventBroadcastTransaction, m.Transaction, m.Response); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle transaction broadcast: %v", n.sm.MustState(), err)
+	}
+	return nil
+}
+
+func (n *Node) handleNetworkMessages(m peer.ProtoMessage, ok bool) error {
+	if !ok {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Network messages channel was closed by producer", n.sm.MustState())
+		return errors.New("network messages channel was closed")
+	}
+	switch msg := m.Message.(type) {
+	case *proto.TransactionMessage:
+		if err := n.sm.Fire(eventTransaction, msg.Transaction); err != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle Transaction message: %v", n.sm.MustState(), err)
+		}
+	case *proto.PBTransactionMessage:
+		if err := n.sm.Fire(eventTransaction, msg.Transaction); err != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle Transaction message: %v", n.sm.MustState(), err)
+		}
+	case *proto.GetBlockMessage:
+		n.handleGetBlockMessage(m.ID, msg)
+	case *proto.BlockMessage:
+		n.handleBlockMessage(m.ID, msg)
+	case *proto.PBBlockMessage:
+		n.handlePBBlockMessage(m.ID, msg)
+	case *proto.GetSignaturesMessage:
+		n.handleGetSignaturesMessage(m.ID, msg)
+	case *proto.GetBlockIdsMessage:
+		if err := n.sm.Fire(eventGetBlockIDs, msg.Blocks, false); err != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle GetBlockIDs message: %v", n.sm.MustState(), err)
+		}
+	case *proto.SignaturesMessage:
+		n.handleSignaturesMessage(m.ID, msg)
+	case *proto.BlockIdsMessage:
+		if err := n.sm.Fire(eventBlockIDs, m.ID, msg.Blocks); err != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle BlockIDs message: %v", n.sm.MustState(), err)
+		}
+	case *proto.MicroBlockInvMessage:
+		n.handleMicroBlockInvMessage(m.ID, msg)
+	case *proto.MicroBlockRequestMessage:
+		n.handleMicroBlockRequestMessage(m.ID, msg)
+	case *proto.MicroBlockMessage:
+		n.handleMicroBlockMessage(m.ID, msg)
+	case *proto.PBMicroBlockMessage:
+		n.handlePBMicroBlockMessage(m.ID, msg)
+	default:
+		zap.S().Named(logging.FSMNamespace).
+			Errorf("[%s] Unexpected network message '%T'", n.sm.MustState(), m)
+		return errors.Errorf("unexpected network message type '%T'", m)
+	}
+	return nil
+}
+
+func (n *Node) handleGetBlockMessage(p peer.Peer, msg *proto.GetBlockMessage) {
+	metricGetBlockMessage.Inc()
+	if err := n.sm.Fire(eventGetBlock, p, msg.BlockID); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle GetBlock message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handleBlockMessage(p peer.Peer, msg *proto.BlockMessage) {
+	metricBlockMessage.Inc()
+	b := &proto.Block{}
+	if err := b.UnmarshalBinary(msg.BlockBytes, n.scheme); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle Block message: %v", n.sm.MustState(), err)
+	}
+	if err := n.sm.Fire(eventBlock, p, b); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle Block message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handlePBBlockMessage(p peer.Peer, msg *proto.PBBlockMessage) {
+	metricBlockMessage.Inc()
+	b := &proto.Block{}
+	if err := b.UnmarshalFromProtobuf(msg.PBBlockBytes); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle PBBlock message: %v", n.sm.MustState(), err)
+	}
+	if err := n.sm.Fire(eventBlock, p, b); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle PBBlock message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handleGetSignaturesMessage(p peer.Peer, msg *proto.GetSignaturesMessage) {
+	blockIDs := make([]proto.BlockID, len(msg.Signatures))
+	for i, sig := range msg.Signatures {
+		blockIDs[i] = proto.NewBlockIDFromSignature(sig)
+	}
+	if err := n.sm.Fire(eventGetBlockIDs, p, blockIDs, true); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle GetSignatures message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handleSignaturesMessage(p peer.Peer, msg *proto.SignaturesMessage) {
+	blockIDs := make([]proto.BlockID, len(msg.Signatures))
+	for i, sig := range msg.Signatures {
+		blockIDs[i] = proto.NewBlockIDFromSignature(sig)
+	}
+	if err := n.sm.Fire(eventBlockIDs, p, blockIDs); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle Signatures message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handleMicroBlockInvMessage(p peer.Peer, msg *proto.MicroBlockInvMessage) {
+	inv := &proto.MicroBlockInv{}
+	if err := inv.UnmarshalBinary(msg.Body); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle MicroBlockInv message: %v", n.sm.MustState(), err)
+	}
+	if err := n.sm.Fire(eventMicroBlockInv, p, inv); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle MicroBlockInv message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handleMicroBlockRequestMessage(p peer.Peer, msg *proto.MicroBlockRequestMessage) {
+	blockID, err := proto.NewBlockIDFromBytes(msg.TotalBlockSig)
+	if err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle MicroBlockRequest message: %v", n.sm.MustState(), err)
+	}
+	if err = n.sm.Fire(eventGetMicroBlock, p, blockID); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle MicroBlockRequest message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handleMicroBlockMessage(p peer.Peer, msg *proto.MicroBlockMessage) {
+	mb := &proto.MicroBlock{}
+	if err := mb.UnmarshalBinary(msg.Body, n.scheme); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle MicroBlock message: %v", n.sm.MustState(), err)
+	}
+	if err := n.sm.Fire(eventMicroBlock, p, mb); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle MicroBlock message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handlePBMicroBlockMessage(p peer.Peer, msg *proto.PBMicroBlockMessage) {
+	mb := &proto.MicroBlock{}
+	if err := mb.UnmarshalFromProtobuf(msg.MicroBlockBytes); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle PBMicroBlock message: %v", n.sm.MustState(), err)
+	}
+	if err := n.sm.Fire(eventMicroBlock, p, mb); err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Failed to handle PBMicroBlock message: %v", n.sm.MustState(), err)
+	}
+}
+
+func (n *Node) handleNotifications(m network.Notification, ok bool) error {
+	if !ok {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Notifications channel was closed by producer", n.sm.MustState())
+		return errors.New("notifications channel was closed")
+	}
+	switch ntf := m.(type) {
+	case network.QuorumMetNotification:
+		if err := n.sm.Fire(eventResume); err != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle QuorumMet notification: %v", n.sm.MustState(), err)
+		}
+	case network.QuorumLostNotification:
+		if err := n.sm.Fire(eventSuspend); err != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle QuorumLost notification: %v", n.sm.MustState(), err)
+		}
+	case network.SyncPeerSelectedNotification:
+		if err := n.sm.Fire(eventChangeSyncPeer, ntf.Peer); err != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle ChangeSyncPeer notification: %v", n.sm.MustState(), err)
+		}
+	default:
+		zap.S().Named(logging.FSMNamespace).
+			Errorf("[%s] Unexpected notification '%T'", n.sm.MustState(), m)
+		return errors.Errorf("unexpected notification type '%T'", m)
+	}
+	return nil
 }
 
 func (n *Node) configureTriggers() {
@@ -481,11 +538,11 @@ func (n *Node) onGetBlockIDs(_ context.Context, args ...any) error {
 	if !ok {
 		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
 	}
-	ids := args[1].([]proto.BlockID)
+	ids, ok := args[1].([]proto.BlockID)
 	if !ok {
 		return errors.Errorf("invalid type '%T' of second argument, expected '[]proto.BlockID'", args[1])
 	}
-	asSignatures := args[2].(bool)
+	asSignatures, ok := args[2].(bool)
 	if !ok {
 		return errors.Errorf("invalid type '%T' of third argument, expected 'bool'", args[2])
 	}
@@ -557,10 +614,19 @@ func (n *Node) onGetBlock(_ context.Context, args ...any) error {
 }
 
 func (n *Node) onBlock(_ context.Context, args ...any) error {
-	p := args[0].(peer.Peer)
-	b := args[1].(*proto.Block)
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	b, ok := args[1].(*proto.Block)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected '*proto.Block'", args[1])
+	}
+	st, ok := n.sm.MustState().(state)
+	if !ok {
+		return errors.Errorf("invlid type of FSM state '%T'", n.sm.MustState())
+	}
 
-	st := n.sm.MustState().(state)
 	ok, err := n.applier.BlockExists(n.storage, b)
 	if err != nil { // Not a retrieval error, real storage problem, actually no such error at this time can occur.
 		return err
@@ -671,17 +737,26 @@ func (n *Node) onGetMicroblock(_ context.Context, args ...any) error {
 	if !ok {
 		return errors.Errorf("invalid type '%T' of secod argument, expected '*proto.BlockID'", args[1])
 	}
-
-	if mb, ok := n.microBlockCache.get(*id); ok {
+	var mb *proto.MicroBlock
+	if mb, ok = n.microBlockCache.get(*id); ok {
 		_ = extension.NewPeerExtension(p, n.scheme).SendMicroBlock(mb)
 	}
 	return nil
 }
 
 func (n *Node) onMicroblock(_ context.Context, args ...any) error {
-	p := args[0].(peer.Peer)
-	mb := args[1].(*proto.MicroBlock)
-	st := n.sm.MustState().(state)
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	mb, ok := args[1].(*proto.MicroBlock)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected '*proto.MicroBlock'", args[1])
+	}
+	st, ok := n.sm.MustState().(state)
+	if !ok {
+		return errors.Errorf("invlid type of FSM state '%T'", n.sm.MustState())
+	}
 	metrics.FSMMicroBlockReceived(st.String(), mb, p.Handshake().NodeName)
 
 	b, err := n.checkAndAppendMicroBlock(mb)
@@ -699,15 +774,22 @@ func (n *Node) onMicroblock(_ context.Context, args ...any) error {
 	n.blocksCache.put(b)
 
 	// Notify all connected peers about new microblock, send them microblock inv network message
-	if inv, ok := n.microBlockInvCache.get(b.BlockID()); ok {
+	var inv *proto.MicroBlockInv
+	if inv, ok = n.microBlockInvCache.get(b.BlockID()); ok {
 		n.commandsCh <- network.BroadcastMicroBlockInvCommand{MicroBlockInv: inv, Origin: p}
 	}
 	return nil
 }
 
 func (n *Node) onBroadcastTransaction(_ context.Context, args ...any) error {
-	tx := args[0].(proto.Transaction)
-	replyTo := args[1].(chan error)
+	tx, ok := args[0].(proto.Transaction)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'proto.Transaction'", args[0])
+	}
+	replyTo, ok := args[1].(chan error)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected 'chan error'", args[1])
+	}
 
 	if _, err := tx.Validate(n.scheme); err != nil {
 		zap.S().Named(logging.FSMNamespace).

@@ -5,6 +5,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/fifo_cache"
 )
 
+const defaultCacheSize = 24
+
 type microBlockCache interface {
 	put(blockID proto.BlockID, micro *proto.MicroBlock)
 	get(proto.BlockID) (*proto.MicroBlock, bool)
@@ -22,7 +24,7 @@ type defaultMicroBlockCache struct {
 
 func newDefaultMicroblockCache() *defaultMicroBlockCache {
 	return &defaultMicroBlockCache{
-		cache: fifo_cache.New(24),
+		cache: fifo_cache.New(defaultCacheSize),
 	}
 }
 
@@ -44,7 +46,7 @@ type defaultMicroBlockInvCache struct {
 
 func newDefaultMicroblockInvCache() *defaultMicroBlockInvCache {
 	return &defaultMicroBlockInvCache{
-		cache: fifo_cache.New(24),
+		cache: fifo_cache.New(defaultCacheSize),
 	}
 }
 

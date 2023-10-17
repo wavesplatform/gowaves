@@ -5,14 +5,14 @@ const (
 	WrongJsonErrorID ErrorID = 1
 )
 
-// API Auth
+// API Auth.
 const (
 	APIKeyNotValidErrorID        APIAuthErrorID = 2
 	APIKeyDisabledErrorID        APIAuthErrorID = 3
 	TooBigArrayAllocationErrorID APIAuthErrorID = 10
 )
 
-// VALIDATION
+// VALIDATION.
 const (
 	InvalidSignatureErrorID                     ValidationErrorID = 101
 	InvalidAddressErrorID                       ValidationErrorID = 102
@@ -35,7 +35,7 @@ const (
 	TransactionNotAllowedByAssetScriptErrorID   ValidationErrorID = 308
 )
 
-// TRANSACTIONS
+// TRANSACTIONS.
 const (
 	TransactionDoesNotExistErrorID    TransactionErrorID = 311
 	UnsupportedTransactionTypeErrorID TransactionErrorID = 312
@@ -57,13 +57,13 @@ const (
 	BadTransactionErrorID             TransactionErrorID = 4010
 )
 
-// PEERS
+// PEERS.
 const (
 	InvalidIPAddressErrorID      ErrorID = 5001
 	PeerConnectionFailureErrorID ErrorID = 5002
 )
 
-// BLOCKS
+// BLOCKS.
 const (
 	InvalidHeightErrorID   ErrorID = 6001
 	NoBlockAtHeightErrorID ErrorID = 6002

@@ -15,7 +15,7 @@ type (
 )
 
 var (
-	InvalidHeight = &InvalidHeightError{
+	ErrInvalidHeight = &InvalidHeightError{
 		genericError: genericError{
 			ID:       InvalidHeightErrorID,
 			HttpCode: http.StatusBadRequest,

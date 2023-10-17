@@ -15,7 +15,7 @@ type (
 )
 
 var (
-	InvalidIPAddress = &InvalidIPAddressError{
+	ErrInvalidIPAddress = &InvalidIPAddressError{
 		genericError: genericError{
 			ID:       InvalidIPAddressErrorID,
 			HttpCode: http.StatusBadRequest,

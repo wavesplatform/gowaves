@@ -17,14 +17,14 @@ type (
 )
 
 var (
-	APIKeyNotValid = &APIKeyNotValidError{
+	ErrAPIKeyNotValid = &APIKeyNotValidError{
 		genericError: genericError{
 			ID:       APIKeyNotValidErrorID,
 			HttpCode: http.StatusForbidden,
 			Message:  "Provided API key is not correct",
 		},
 	}
-	APIKeyDisabled = &APIKeyDisabledError{
+	ErrAPIKeyDisabled = &APIKeyDisabledError{
 		genericError: genericError{
 			ID:       APIKeyDisabledErrorID,
 			HttpCode: http.StatusForbidden,

@@ -19,8 +19,7 @@ func TestGetBaseTarget(t *testing.T) {
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
 	wlt := createTestNetWallet(t)
-	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
-	assert.NoError(t, err)
+	server.initServer(st, nil, wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 
@@ -48,8 +47,7 @@ func TestGetCumulativeScore(t *testing.T) {
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
 	wlt := createTestNetWallet(t)
-	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
-	assert.NoError(t, err)
+	server.initServer(st, nil, wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 

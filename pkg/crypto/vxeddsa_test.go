@@ -1,11 +1,11 @@
 package crypto
 
 import (
+	"crypto/rand"
 	"encoding/hex"
 	"fmt"
-	"math/rand"
+	mrand "math/rand"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -178,12 +178,13 @@ func TestVRFVerificationFailureBySignature(t *testing.T) {
 
 func TestVRFMultipleRoundTrips(t *testing.T) {
 	for i := 0; i < 100; i++ {
-		rand.Seed(time.Now().UnixNano())
-		ml := rand.Intn(2048)
+		ml := mrand.Intn(2048)
 		msg := make([]byte, ml)
 		seed := make([]byte, 256)
-		rand.Read(msg)
-		rand.Read(seed)
+		_, err := rand.Read(msg)
+		require.NoError(t, err)
+		_, err = rand.Read(seed)
+		require.NoError(t, err)
 		sk, pk, err := GenerateKeyPair(seed)
 		require.NoError(t, err)
 		sig1, err := SignVRF(sk, msg)

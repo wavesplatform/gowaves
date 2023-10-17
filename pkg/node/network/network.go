@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/prometheus/client_golang/prometheus"
 	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
@@ -26,7 +27,7 @@ const (
 	askPeersInterval           = 5 * time.Minute
 )
 
-// Network represent service
+// Network represent service.
 type Network struct {
 	sm *stateless.StateMachine
 
@@ -45,6 +46,9 @@ type Network struct {
 
 	peers   peers.PeerManager
 	storage storage.State
+
+	metricGetPeersMessage prometheus.Counter
+	metricPeersMessage    prometheus.Counter
 }
 
 func NewNetwork(
@@ -67,6 +71,8 @@ func NewNetwork(
 		quorumThreshold: quorumThreshold,
 	}
 
+	n.registerMetrics()
+
 	n.sm.SetTriggerParameters(eventPeerConnected, reflect.TypeOf((peer.Peer)(nil)))
 	n.sm.SetTriggerParameters(eventPeerDisconnected, reflect.TypeOf((peer.Peer)(nil)), reflect.TypeOf((error)(nil)))
 	n.sm.SetTriggerParameters(eventScore, reflect.TypeOf((peer.Peer)(nil)), reflect.TypeOf((*proto.Score)(nil)))
@@ -78,6 +84,34 @@ func NewNetwork(
 	n.sm.SetTriggerParameters(eventBroadcastMicroBlockInv, reflect.TypeOf((*proto.MicroBlockInv)(nil)),
 		reflect.TypeOf((peer.Peer)(nil)))
 
+	n.configureDisconnectedState()
+	n.configureGroupState()
+	n.configureLeaderState()
+	n.configureHaltState()
+
+	return n, nch
+}
+
+func (n *Network) registerMetrics() {
+	n.metricGetPeersMessage = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "messages",
+			Name:      "get_peers_total",
+			Help:      "Counter of GetPeers message.",
+		},
+	)
+	n.metricPeersMessage = prometheus.NewCounter(
+		prometheus.CounterOpts{
+			Namespace: "messages",
+			Name:      "peers_total",
+			Help:      "Counter of Peers message.",
+		},
+	)
+	prometheus.MustRegister(n.metricPeersMessage)
+	prometheus.MustRegister(n.metricGetPeersMessage)
+}
+
+func (n *Network) configureDisconnectedState() {
 	n.sm.Configure(stateDisconnected).
 		InternalTransition(eventScore, n.onScore).
 		InternalTransition(eventGetPeers, n.onGetPeers).
@@ -98,7 +132,9 @@ func NewNetwork(
 		Ignore(eventAnnounceScore).
 		Ignore(eventBroadcastMicroBlockInv).
 		Permit(eventHalt, stateHalt)
+}
 
+func (n *Network) configureGroupState() {
 	n.sm.Configure(stateGroup).
 		InternalTransition(eventScore, n.onScore). // Emits eventScoreUpdated.
 		InternalTransition(eventGetPeers, n.onGetPeers).
@@ -121,7 +157,9 @@ func NewNetwork(
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
 		InternalTransition(eventBroadcastMicroBlockInv, n.onBroadcastMicroBlockInv).
 		Permit(eventHalt, stateHalt)
+}
 
+func (n *Network) configureLeaderState() {
 	n.sm.Configure(stateLeader).
 		InternalTransition(eventScore, n.onScore).
 		InternalTransition(eventGetPeers, n.onGetPeers).
@@ -144,7 +182,9 @@ func NewNetwork(
 		OnEntryFrom(eventFollowingModeChanged, n.selectLeader).
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
 		Permit(eventHalt, stateHalt)
+}
 
+func (n *Network) configureHaltState() {
 	n.sm.Configure(stateHalt).
 		OnEntry(n.onEnterHalt).
 		Ignore(eventScore).
@@ -168,8 +208,6 @@ func NewNetwork(
 		Ignore(eventFollowingModeChanged).
 		Ignore(eventAnnounceScore).
 		Ignore(eventHalt)
-
-	return n, nch
 }
 
 func (n *Network) Run(ctx context.Context) {
@@ -225,101 +263,121 @@ func (n *Network) handleEvents() error {
 				Debugf("[%s] Network termination started", n.sm.MustState())
 			return nil
 		case m, ok := <-n.peersCh:
-			if !ok {
-				zap.S().Named(logging.NetworkNamespace).
-					Warnf("[%s] Peers notifications channel was closed by producer", n.sm.MustState())
-				return errors.New("peers notifications channel was closed")
-			}
-			switch v := m.(type) {
-			case peer.ConnectedNotification:
-				if err := n.sm.Fire(eventPeerConnected, v.Peer); err != nil {
-					zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle new peer: %v",
-						n.sm.MustState(), err)
-				}
-			case peer.DisconnectedNotification:
-				if err := n.sm.Fire(eventPeerDisconnected, v.Peer, v.Err); err != nil {
-					zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle peer error: %v",
-						n.sm.MustState(), err)
-				}
-			default:
-				zap.S().Named(logging.NetworkNamespace).Errorf("[%s] Unknown peer info message '%T'",
-					n.sm.MustState(), m)
-				return errors.Errorf("unexpected peers info message '%T'", m)
+			if err := n.handlePeerNotifications(m, ok); err != nil {
+				return err
 			}
 		case m, ok := <-n.networkCh:
-			if !ok {
-				zap.S().Named(logging.NetworkNamespace).
-					Warnf("[%s] Network channel was closed by producer", n.sm.MustState())
-				return errors.New("network channel was closed")
+			if err := n.handleNetworkMessages(m, ok); err != nil {
+				return err
 			}
-			switch msg := m.Message.(type) {
-			case *proto.ScoreMessage:
-				if err := n.sm.Fire(eventScore, m.ID, new(big.Int).SetBytes(msg.Score)); err != nil {
-					zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle Score message: %v",
-						n.sm.MustState(), err)
-				}
-			case *proto.GetPeersMessage:
-				if err := n.sm.Fire(eventGetPeers, m.ID); err != nil {
-					zap.S().Named(logging.NetworkDataNamespace).
-						Warnf("[%s] Failed to handle GetPeers message: %v", n.sm.MustState(), err)
-				}
-
-			case *proto.PeersMessage:
-				if err := n.sm.Fire(eventPeers, msg.Peers); err != nil {
-					zap.S().Named(logging.NetworkDataNamespace).
-						Warnf("[%s] Failed to handle Peers message: %v", n.sm.MustState(), err)
-				}
-			default:
-				zap.S().Named(logging.NetworkNamespace).
-					Errorf("[%s] Unexpected network message '%T' from %s peer '%s'",
-						n.sm.MustState(), msg, m.ID.Direction(), m.ID.ID().String())
-				return errors.Errorf("unexpected network message '%T'", m)
-			}
-
 		case c, ok := <-n.commandsCh:
-			if !ok {
-				zap.S().Named(logging.NetworkNamespace).
-					Warnf("[%s] Network service command channel was closed", n.sm.MustState())
-				return errors.New("network commands channel was closed")
-			}
-			switch cmd := c.(type) {
-			case FollowGroupCommand:
-				if err := n.sm.Fire(eventFollowGroup); err != nil {
-					zap.S().Named(logging.NetworkNamespace).
-						Warnf("[%s] Failed to handle FollowGroup command: %v", n.sm.MustState(), err)
-				}
-			case FollowLeaderCommand:
-				if err := n.sm.Fire(eventFollowLeader); err != nil {
-					zap.S().Named(logging.NetworkNamespace).
-						Warnf("[%s] Failed to handle FollowLeader command: %v", n.sm.MustState(), err)
-				}
-			case BlacklistPeerCommand:
-				if err := n.sm.Fire(eventBlacklistPeer, cmd.Peer, cmd.Message); err != nil {
-					zap.S().Named(logging.NetworkNamespace).
-						Warnf("[%s] Failed to handle BlacklistPeer command: %v", n.sm.MustState(), err)
-				}
-			case BroadcastTransactionCommand:
-				if err := n.sm.Fire(eventBroadcastTransaction, cmd.Transaction, cmd.Origin); err != nil {
-					zap.S().Named(logging.NetworkNamespace).
-						Warnf("[%s] Failed to handle BroadcastTransaction command: %v", n.sm.MustState(), err)
-				}
-			case AnnounceScoreCommand:
-				if err := n.sm.Fire(eventAnnounceScore); err != nil {
-					zap.S().Named(logging.NetworkNamespace).
-						Warnf("[%s] Failed to handle AnnounceScore command: %v", n.sm.MustState(), err)
-				}
-			case BroadcastMicroBlockInvCommand:
-				if err := n.sm.Fire(eventBroadcastMicroBlockInv, cmd.MicroBlockInv, cmd.Origin); err != nil {
-					zap.S().Named(logging.NetworkNamespace).
-						Warnf("[%s] Failed to handle BroadcastMicroBlockInv command: %v", n.sm.MustState(), err)
-				}
-			default:
-				zap.S().Named(logging.NetworkNamespace).Errorf("[%s] Unexpected network command type %T",
-					n.sm.MustState(), c)
-				return errors.Errorf("unexpected network command '%T'", c)
+			if err := n.handleCommands(c, ok); err != nil {
+				return err
 			}
 		}
 	}
+}
+
+func (n *Network) handlePeerNotifications(m peer.Notification, ok bool) error {
+	if !ok {
+		zap.S().Named(logging.NetworkNamespace).
+			Warnf("[%s] Peers notifications channel was closed by producer", n.sm.MustState())
+		return errors.New("peers notifications channel was closed")
+	}
+	switch v := m.(type) {
+	case peer.ConnectedNotification:
+		if err := n.sm.Fire(eventPeerConnected, v.Peer); err != nil {
+			zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle new peer: %v",
+				n.sm.MustState(), err)
+		}
+	case peer.DisconnectedNotification:
+		if err := n.sm.Fire(eventPeerDisconnected, v.Peer, v.Err); err != nil {
+			zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle peer error: %v",
+				n.sm.MustState(), err)
+		}
+	default:
+		zap.S().Named(logging.NetworkNamespace).Errorf("[%s] Unknown peer info message '%T'",
+			n.sm.MustState(), m)
+		return errors.Errorf("unexpected peers info message '%T'", m)
+	}
+	return nil
+}
+
+func (n *Network) handleNetworkMessages(m peer.ProtoMessage, ok bool) error {
+	if !ok {
+		zap.S().Named(logging.NetworkNamespace).
+			Warnf("[%s] Network channel was closed by producer", n.sm.MustState())
+		return errors.New("network channel was closed")
+	}
+	switch msg := m.Message.(type) {
+	case *proto.ScoreMessage:
+		if err := n.sm.Fire(eventScore, m.ID, new(big.Int).SetBytes(msg.Score)); err != nil {
+			zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle Score message: %v",
+				n.sm.MustState(), err)
+		}
+	case *proto.GetPeersMessage:
+		if err := n.sm.Fire(eventGetPeers, m.ID); err != nil {
+			zap.S().Named(logging.NetworkDataNamespace).
+				Warnf("[%s] Failed to handle GetPeers message: %v", n.sm.MustState(), err)
+		}
+
+	case *proto.PeersMessage:
+		if err := n.sm.Fire(eventPeers, msg.Peers); err != nil {
+			zap.S().Named(logging.NetworkDataNamespace).
+				Warnf("[%s] Failed to handle Peers message: %v", n.sm.MustState(), err)
+		}
+	default:
+		zap.S().Named(logging.NetworkNamespace).
+			Errorf("[%s] Unexpected network message '%T' from %s peer '%s'",
+				n.sm.MustState(), msg, m.ID.Direction(), m.ID.ID().String())
+		return errors.Errorf("unexpected network message '%T'", m)
+	}
+	return nil
+}
+
+func (n *Network) handleCommands(c Command, ok bool) error {
+	if !ok {
+		zap.S().Named(logging.NetworkNamespace).
+			Warnf("[%s] Network service command channel was closed", n.sm.MustState())
+		return errors.New("network commands channel was closed")
+	}
+	switch cmd := c.(type) {
+	case FollowGroupCommand:
+		if err := n.sm.Fire(eventFollowGroup); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle FollowGroup command: %v", n.sm.MustState(), err)
+		}
+	case FollowLeaderCommand:
+		if err := n.sm.Fire(eventFollowLeader); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle FollowLeader command: %v", n.sm.MustState(), err)
+		}
+	case BlacklistPeerCommand:
+		if err := n.sm.Fire(eventBlacklistPeer, cmd.Peer, cmd.Message); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle BlacklistPeer command: %v", n.sm.MustState(), err)
+		}
+	case BroadcastTransactionCommand:
+		if err := n.sm.Fire(eventBroadcastTransaction, cmd.Transaction, cmd.Origin); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle BroadcastTransaction command: %v", n.sm.MustState(), err)
+		}
+	case AnnounceScoreCommand:
+		if err := n.sm.Fire(eventAnnounceScore); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle AnnounceScore command: %v", n.sm.MustState(), err)
+		}
+	case BroadcastMicroBlockInvCommand:
+		if err := n.sm.Fire(eventBroadcastMicroBlockInv, cmd.MicroBlockInv, cmd.Origin); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle BroadcastMicroBlockInv command: %v", n.sm.MustState(), err)
+		}
+	default:
+		zap.S().Named(logging.NetworkNamespace).Errorf("[%s] Unexpected network command type %T",
+			n.sm.MustState(), c)
+		return errors.Errorf("unexpected network command '%T'", c)
+	}
+	return nil
 }
 
 func (n *Network) sendScore(p peer.Peer) {
@@ -348,7 +406,7 @@ func (n *Network) onScore(_ context.Context, args ...any) error {
 }
 
 func (n *Network) onGetPeers(_ context.Context, args ...any) error {
-	metricGetPeersMessage.Inc()
+	n.metricGetPeersMessage.Inc()
 	p, ok := args[0].(peer.Peer)
 	if !ok {
 		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
@@ -367,7 +425,7 @@ func (n *Network) onGetPeers(_ context.Context, args ...any) error {
 }
 
 func (n *Network) onPeers(_ context.Context, args ...any) error {
-	metricPeersMessage.Inc()
+	n.metricPeersMessage.Inc()
 	msg, ok := args[0].([]proto.PeerInfo)
 	if !ok {
 		return errors.Errorf("invalid type '%T' of first argument, expected '[]proto.PeerInfo'", args[0])
@@ -445,20 +503,32 @@ func (n *Network) onAskPeers(_ context.Context, _ ...any) error {
 }
 
 func (n *Network) onBlacklist(_ context.Context, args ...any) error {
-	p := args[0].(peer.Peer)
-	m := args[1].(string)
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	m, ok := args[1].(string)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected 'string'", args[1])
+	}
 	n.peers.AddToBlackList(p, time.Now(), m)
 	return nil
 }
 
 func (n *Network) onBroadcast(_ context.Context, args ...any) error {
-	tx := args[0].(proto.Transaction)
-	op := args[1].(peer.Peer)
+	tx, ok := args[0].(proto.Transaction)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'proto.Transaction'", args[0])
+	}
+	op, ok := args[1].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected 'peer.Peer'", args[1])
+	}
 	// TODO: Consider this:
-	//var err error
-	//for _, cp := range n.peers.Connected() {
-	//	var bts []byte
-	//	if cp.ProtobufSupported() {
+	// var err error
+	// for _, cp := range n.peers.Connected() {
+	// 	var bts []byte
+	// 	if cp.ProtobufSupported() {
 	//		bts, err = tx.MarshalSignedToProtobuf(n.scheme)
 	//		if err != nil {
 	//			break
@@ -471,11 +541,11 @@ func (n *Network) onBroadcast(_ context.Context, args ...any) error {
 	//		}
 	//		cp.SendMessage(&proto.TransactionMessage{Transaction: bts})
 	//	}
-	//}
-	//if err != nil {
+	// }
+	// if err != nil {
 	//	zap.S().Named(logging.FSMNamespace).
 	//		Warnf("[%s] Failed to broadcast transaction '%s' to %s: %v", n.sm.MustState(), tx.)
-	//}
+	// }
 	n.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
 		if p != op {
 			_ = extension.NewPeerExtension(p, n.scheme).SendTransaction(tx)
@@ -519,8 +589,14 @@ func (n *Network) onAnnounceScore(_ context.Context, _ ...any) error {
 }
 
 func (n *Network) onBroadcastMicroBlockInv(_ context.Context, args ...any) error {
-	inv := args[0].(*proto.MicroBlockInv)
-	op := args[1].(peer.Peer)
+	inv, ok := args[0].(*proto.MicroBlockInv)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected '*proto.MicroBlockInv'", args[0])
+	}
+	op, ok := args[1].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected 'peer.Peer'", args[1])
+	}
 
 	bts, err := inv.MarshalBinary()
 	if err != nil {
@@ -553,7 +629,7 @@ func (n *Network) quorumReached(_ context.Context, _ ...any) bool {
 }
 
 func (n *Network) quorumNotReached(ctx context.Context, args ...any) bool {
-	return !n.quorumReached(ctx, args)
+	return !n.quorumReached(ctx, args...)
 }
 
 func (n *Network) followLeader(_ context.Context, _ ...any) bool {

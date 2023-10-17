@@ -1183,9 +1183,9 @@ func (mr *MockStateModifierMockRecorder) RollbackToHeight(height interface{}) *g
 }
 
 // StartProvidingExtendedApi mocks base method.
-func (m *MockStateModifier) StartProvidingExtendedApi() error {
+func (m *MockStateModifier) StartProvidingExtendedAPI() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartProvidingExtendedApi")
+	ret := m.ctrl.Call(m, "StartProvidingExtendedAPI")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -1193,7 +1193,7 @@ func (m *MockStateModifier) StartProvidingExtendedApi() error {
 // StartProvidingExtendedApi indicates an expected call of StartProvidingExtendedApi.
 func (mr *MockStateModifierMockRecorder) StartProvidingExtendedApi() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedApi", reflect.TypeOf((*MockStateModifier)(nil).StartProvidingExtendedApi))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedAPI", reflect.TypeOf((*MockStateModifier)(nil).StartProvidingExtendedAPI))
 }
 
 // TxValidation mocks base method.
@@ -2176,9 +2176,9 @@ func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call
 }
 
 // StartProvidingExtendedApi mocks base method.
-func (m *MockState) StartProvidingExtendedApi() error {
+func (m *MockState) StartProvidingExtendedAPI() error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StartProvidingExtendedApi")
+	ret := m.ctrl.Call(m, "StartProvidingExtendedAPI")
 	ret0, _ := ret[0].(error)
 	return ret0
 }
@@ -2186,7 +2186,7 @@ func (m *MockState) StartProvidingExtendedApi() error {
 // StartProvidingExtendedApi indicates an expected call of StartProvidingExtendedApi.
 func (mr *MockStateMockRecorder) StartProvidingExtendedApi() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedApi", reflect.TypeOf((*MockState)(nil).StartProvidingExtendedApi))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedAPI", reflect.TypeOf((*MockState)(nil).StartProvidingExtendedAPI))
 }
 
 // StateHashAtHeight mocks base method.

@@ -330,7 +330,7 @@ func (a *MockStateManager) AllFeatures() ([]int16, error) {
 	panic("implement me")
 }
 
-func (a *MockStateManager) StartProvidingExtendedApi() error {
+func (a *MockStateManager) StartProvidingExtendedAPI() error {
 	panic("implement me")
 }
 

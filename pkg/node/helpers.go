@@ -10,16 +10,16 @@ const (
 	maxShiftFromNow = 600000 // 10 minutes.
 )
 
-func MaybeEnableExtendedApi(state storage.State, time types.Time) error {
+func MaybeEnableExtendedAPI(state storage.State, time types.Time) error {
 	lastBlock := state.TopBlock()
-	return maybeEnableExtendedApi(state, lastBlock, proto.NewTimestampFromTime(time.Now()))
+	return maybeEnableExtendedAPI(state, lastBlock, proto.NewTimestampFromTime(time.Now()))
 }
 
-type startProvidingExtendedApi interface {
-	StartProvidingExtendedApi() error
+type startProvidingExtendedAPI interface {
+	StartProvidingExtendedAPI() error
 }
 
-func maybeEnableExtendedApi(state startProvidingExtendedApi, lastBlock *proto.Block, now proto.Timestamp) error {
+func maybeEnableExtendedAPI(state startProvidingExtendedAPI, lastBlock *proto.Block, now proto.Timestamp) error {
 	provideExtended := false
 	if lastBlock.Timestamp > now {
 		provideExtended = true
@@ -27,7 +27,7 @@ func maybeEnableExtendedApi(state startProvidingExtendedApi, lastBlock *proto.Bl
 		provideExtended = true
 	}
 	if provideExtended {
-		if err := state.StartProvidingExtendedApi(); err != nil {
+		if err := state.StartProvidingExtendedAPI(); err != nil {
 			return err
 		}
 	}

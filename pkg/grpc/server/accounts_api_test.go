@@ -19,8 +19,7 @@ func TestGetBalances(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	err := server.initServer(st, nil, nil, proto.MainNetScheme)
-	require.NoError(t, err)
+	server.initServer(st, nil, nil, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 
@@ -57,8 +56,7 @@ func TestGetActiveLeases(t *testing.T) {
 	require.NoError(t, err)
 	ctx := withAutoCancel(t, context.Background())
 	wlt := createTestNetWallet(t)
-	err = server.initServer(st, nil, wlt, proto.MainNetScheme)
-	require.NoError(t, err)
+	server.initServer(st, nil, wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 
@@ -100,8 +98,7 @@ func TestResolveAlias(t *testing.T) {
 	st := stateWithCustomGenesis(t, genesisPath)
 	ctx := withAutoCancel(t, context.Background())
 	wlt := createTestNetWallet(t)
-	err = server.initServer(st, nil, wlt, proto.MainNetScheme)
-	require.NoError(t, err)
+	server.initServer(st, nil, wlt, proto.MainNetScheme)
 
 	conn := connectAutoClose(t, grpcTestAddr)
 

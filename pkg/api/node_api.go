@@ -34,7 +34,7 @@ type NodeApi struct {
 	app   *App
 }
 
-func NewNodeApi(app *App, state state.State) *NodeApi {
+func NewNodeAPI(app *App, state state.State) *NodeApi {
 	return &NodeApi{
 		state: state,
 		app:   app,
@@ -362,7 +362,7 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		return apiErrs.InvalidHeight
+		return apiErrs.ErrInvalidHeight
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
@@ -764,7 +764,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return apiErrs.InvalidHeight
+		return apiErrs.ErrInvalidHeight
 	}
 	stateHashDebug, err := a.stateHashDebug(height)
 	if err != nil {

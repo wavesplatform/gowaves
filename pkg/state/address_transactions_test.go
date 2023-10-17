@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -28,7 +29,7 @@ func testIterImpl(t *testing.T, params StateParams) {
 	require.NoError(t, err)
 	err = st.RollbackToHeight(8000)
 	require.NoError(t, err)
-	err = st.StartProvidingExtendedApi()
+	err = st.StartProvidingExtendedAPI()
 	require.NoError(t, err)
 
 	addr, err := proto.NewAddressFromString("3P2CVwf4MxPBkYZKTgaNMfcTt5SwbNXQWz6")

@@ -32,9 +32,9 @@ func TestErrorHandler_Handle(t *testing.T) {
 	}{
 		{
 			name:         "AuthErrorCase",
-			err:          apiErrs.APIKeyDisabled,
+			err:          apiErrs.ErrAPIKeyDisabled,
 			expectedCode: http.StatusForbidden,
-			expectedBody: "API key disabled\n",
+			expectedBody: mustJSON(apiErrs.ErrAPIKeyDisabled) + "\n",
 		},
 		{
 			name:         "ApiErrorCase",

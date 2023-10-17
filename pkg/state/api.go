@@ -173,7 +173,7 @@ type StateModifier interface {
 	Map(func(state NonThreadSafeState) error) error
 
 	// State will provide extended API data after returning.
-	StartProvidingExtendedApi() error
+	StartProvidingExtendedAPI() error
 
 	// PersisAddressTransactions sorts and saves transactions to storage.
 	PersistAddressTransactions() error

@@ -208,14 +208,14 @@ func (a *App) Accounts() ([]account, error) {
 
 func (a *App) checkAuth(key string) error {
 	if !a.apiKeyEnabled {
-		return apiErrors.APIKeyDisabled
+		return apiErrors.ErrAPIKeyDisabled
 	}
 	d, err := crypto.SecureHash([]byte(key))
 	if err != nil {
 		return errors.Wrap(err, "failed to calculate secure hash for API key")
 	}
 	if d != a.hashedApiKey {
-		return apiErrors.APIKeyNotValid
+		return apiErrors.ErrAPIKeyNotValid
 	}
 	return nil
 }

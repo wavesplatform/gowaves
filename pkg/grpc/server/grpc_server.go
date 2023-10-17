@@ -54,9 +54,7 @@ func NewServer(app *api.App) (*Server, error) {
 	}
 	s.grpcServer = createGRPCServerWithHandlers(s)
 	s.broadcastCh = app.BroadcastChannel()
-	if err := s.initServer(app.State(), app.UtxPool(), app.Wallet(), app.Scheme()); err != nil {
-		return nil, err
-	}
+	s.initServer(app.State(), app.UtxPool(), app.Wallet(), app.Scheme())
 	return s, nil
 }
 
@@ -78,12 +76,11 @@ func createGRPCServerWithHandlers(handlers GrpcHandlers) *grpc.Server {
 
 func (s *Server) initServer(
 	state state.StateInfo, utx types.UtxPool, wallet types.EmbeddedWallet, scheme proto.Scheme,
-) error {
+) {
 	s.state = state
 	s.scheme = scheme
 	s.utx = utx
 	s.wallet = wallet
-	return nil
 }
 
 func (s *Server) Run(ctx context.Context, address string, opts *RunOptions) error {

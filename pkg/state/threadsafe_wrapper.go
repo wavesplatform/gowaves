@@ -444,10 +444,10 @@ func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) er
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) StartProvidingExtendedApi() error {
+func (a *ThreadSafeWriteWrapper) StartProvidingExtendedAPI() error {
 	a.lock()
 	defer a.unlock()
-	return a.s.StartProvidingExtendedApi()
+	return a.s.StartProvidingExtendedAPI()
 }
 
 func (a *ThreadSafeWriteWrapper) PersistAddressTransactions() error {

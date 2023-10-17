@@ -46,7 +46,7 @@ import (
 )
 
 const (
-	mb             = 1 << (10 * 2)
+	mb             = 1 << 20
 	defaultTimeout = 30 * time.Second
 	reserve        = 10
 )
@@ -396,7 +396,7 @@ func main() {
 	_ = features
 
 	// Check if we need to start serving extended API right now.
-	if err := node.MaybeEnableExtendedApi(st, ntpTime); err != nil {
+	if err = node.MaybeEnableExtendedAPI(st, ntpTime); err != nil {
 		zap.S().Errorf("Failed to enable extended API: %v", err)
 		return
 	}
@@ -463,7 +463,8 @@ func main() {
 
 	// TODO: blockApplier := blocks_applier.NewBlocksApplier()
 
-	app, broadcastCh, err := api.NewApp(nc.apiKey, minerScheduler, st, ntpTime, utx, wal, peerManager, cfg.AddressSchemeCharacter)
+	app, broadcastCh, err := api.NewApp(nc.apiKey, minerScheduler, st, ntpTime, utx, wal, peerManager,
+		cfg.AddressSchemeCharacter)
 	if err != nil {
 		zap.S().Errorf("Failed to initialize application: %v", err)
 		return
@@ -471,8 +472,8 @@ func main() {
 
 	ntw, notificationsCh := network.NewNetwork(parent.NotificationsCh, parent.NetworkMessagesCh,
 		peerManager, st, cfg.AddressSchemeCharacter, nc.minPeersMining)
-	n, cmdCh := node.NewNode(parent.NodeMessagesCh, notificationsCh, broadcastCh, cfg.AddressSchemeCharacter, bindAddr, declAddr,
-		nc.microblockInterval, nc.obsolescencePeriod, utx, ntpTime, reward)
+	n, cmdCh := node.NewNode(parent.NodeMessagesCh, notificationsCh, broadcastCh, cfg.AddressSchemeCharacter,
+		bindAddr, declAddr, nc.microblockInterval, nc.obsolescencePeriod, utx, ntpTime, reward)
 	ntw.SetCommandChannel(cmdCh)
 
 	ntw.Run(ctx)
@@ -495,10 +496,10 @@ func main() {
 		}
 	}
 
-	webApi := api.NewNodeApi(app, st)
+	webAPI := api.NewNodeAPI(app, st)
 	go func() {
 		zap.S().Infof("Starting node HTTP API on '%v'", conf.HttpAddr)
-		if err = api.Run(ctx, conf.HttpAddr, webApi, apiRunOptsFromCLIFlags(nc)); err != nil {
+		if err = api.Run(ctx, conf.HttpAddr, webAPI, apiRunOptsFromCLIFlags(nc)); err != nil {
 			zap.S().Errorf("Failed to start API: %v", err)
 		}
 	}()

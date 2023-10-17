@@ -80,7 +80,7 @@ func (a *App) PeersConnect(ctx context.Context, apiKey string, addr string) (*Pe
 	d := proto.NewTCPAddrFromString(addr)
 	if d.Empty() {
 		zap.S().Errorf("Invalid peer's address to connect '%s'", addr)
-		return nil, apiErrs.InvalidIPAddress
+		return nil, apiErrs.ErrInvalidIPAddress
 	}
 
 	err = a.peers.Connect(ctx, d)

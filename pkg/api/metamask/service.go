@@ -188,7 +188,8 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		fee := proto.MinFee
 		assetID := (*proto.AssetID)(req.To)
 
-		asset, err := s.nodeRPCApp.state.AssetInfo(*assetID)
+		var asset *proto.AssetInfo
+		asset, err = s.nodeRPCApp.state.AssetInfo(*assetID)
 		if err != nil {
 			return "", errors.Errorf("failed to get asset info, %v", err)
 		}
@@ -317,7 +318,7 @@ func (s RPCService) Eth_GetCode(ethAddr proto.EthereumAddress, blockOrTag string
 	case state.IsNotFound(err):
 		// account has no script, trying fetch data as asset
 		assetID := proto.AssetID(ethAddr)
-		_, err := s.nodeRPCApp.state.AssetInfo(assetID)
+		_, err = s.nodeRPCApp.state.AssetInfo(assetID)
 		switch {
 		case errors.Is(err, errs.UnknownAsset{}):
 			// address has no script and it's not an asset
