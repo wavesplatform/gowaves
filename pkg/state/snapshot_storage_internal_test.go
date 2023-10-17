@@ -1,4 +1,4 @@
-package state //nolint:testpackage //TODO: check this
+package state
 
 import (
 	"testing"

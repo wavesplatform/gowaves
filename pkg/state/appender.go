@@ -493,6 +493,8 @@ func (a *txAppender) handleEthTx(
 				"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d",
 				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
 		}
+	default:
+		return nil, nil, false, errors.Errorf("Undefined ethereum transaction kind %T", ethTx.TxKind)
 	}
 	return applicationRes, invocationRes, needToValidateBalanceDiff, nil
 }
