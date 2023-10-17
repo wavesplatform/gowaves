@@ -135,6 +135,7 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return nil, err
 	}
+
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil)
 }
 
@@ -160,7 +161,12 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 			complexity: se.estimation.Verifier,
 		}
 	}
-
+	if se := info.checkerData.scriptEstimation; se.isPresent() { // script estimation is present and not nil
+		// Save complexities to storage, so we won't have to calculate it every time the script is called.
+		if scErr := tp.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, *se, info.blockID); scErr != nil {
+			return nil, scErr
+		}
+	}
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, scriptInfo)
 }
 
@@ -430,6 +436,15 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetScriptTx(tx.SenderPK,
 		tx.Script, *se, balanceChanges)
 
+	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to create addr from PK %q", tx.SenderPK.String())
+	}
+
+	// Save complexity to storage, so we won't have to calculate it every time the script is called.
+	if setErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID); setErr != nil {
+		return nil, errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
+	}
 	if err != nil {
 		return nil, err
 	}
@@ -451,6 +466,10 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 		tx.Script, se.estimation.Verifier, tx.SenderPK, balanceChanges)
 	if err != nil {
 		return nil, err
+	}
+
+	if err := tp.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, *se, info.blockID); err != nil {
+		return nil, errors.Wrapf(err, "failed to save script complexity for asset %q", tx.AssetID.String())
 	}
 
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
@@ -492,6 +511,26 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	if err != nil {
 		return nil, err
 	}
+
+	se := info.checkerData.scriptEstimation
+	if se.isPresent() { // nothing to do, no estimation to save
+		scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
+		}
+		// update callable and summary complexity, verifier complexity remains the same
+		if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
+			return nil, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
+				scriptAddr.String(), tx.ID.String(),
+			)
+		}
+	}
+	// script estimation is present an not nil
+
+	// we've pulled up an old script which estimation had been done by an old estimator
+	// in txChecker we've estimated script with a new estimator
+	// this is the place where we have to store new estimation
+
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
