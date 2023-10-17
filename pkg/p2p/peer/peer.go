@@ -8,6 +8,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	defaultChannelSize = 100
+	errorChannelSize   = 10
+)
+
 type Remote struct {
 	ToCh   chan []byte
 	FromCh chan *bytebufferpool.ByteBuffer
@@ -16,23 +21,25 @@ type Remote struct {
 
 func NewRemote() Remote {
 	return Remote{
-		ToCh:   make(chan []byte, 100),
-		FromCh: make(chan *bytebufferpool.ByteBuffer, 100),
-		ErrCh:  make(chan error, 10),
+		ToCh:   make(chan []byte, defaultChannelSize),
+		FromCh: make(chan *bytebufferpool.ByteBuffer, defaultChannelSize),
+		ErrCh:  make(chan error, errorChannelSize),
 	}
 }
 
 type Parent struct {
-	MessageCh       chan ProtoMessage
-	InfoCh          chan InfoMessage
-	SkipMessageList *messages.SkipMessageList
+	NetworkMessagesCh chan ProtoMessage
+	NodeMessagesCh    chan ProtoMessage
+	NotificationsCh   chan Notification
+	SkipMessageList   *messages.SkipMessageList
 }
 
 func NewParent() Parent {
 	return Parent{
-		MessageCh:       make(chan ProtoMessage, 100),
-		InfoCh:          make(chan InfoMessage, 100),
-		SkipMessageList: &messages.SkipMessageList{},
+		NetworkMessagesCh: make(chan ProtoMessage, defaultChannelSize),
+		NodeMessagesCh:    make(chan ProtoMessage, defaultChannelSize),
+		NotificationsCh:   make(chan Notification, defaultChannelSize),
+		SkipMessageList:   &messages.SkipMessageList{},
 	}
 }
 

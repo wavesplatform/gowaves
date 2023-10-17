@@ -7,18 +7,19 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func TestGetBalances(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	err := server.initServer(st, nil, nil)
+	err := server.initServer(st, nil, nil, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)
@@ -55,8 +56,8 @@ func TestGetActiveLeases(t *testing.T) {
 	sets, err := st.BlockchainSettings()
 	require.NoError(t, err)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
-	err = server.initServer(st, nil, sch)
+	wlt := createTestNetWallet(t)
+	err = server.initServer(st, nil, wlt, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)
@@ -98,8 +99,8 @@ func TestResolveAlias(t *testing.T) {
 	require.NoError(t, err)
 	st := stateWithCustomGenesis(t, genesisPath)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
-	err = server.initServer(st, nil, sch)
+	wlt := createTestNetWallet(t)
+	err = server.initServer(st, nil, wlt, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)

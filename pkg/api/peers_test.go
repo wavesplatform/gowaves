@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/mock"
-	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
 func TestApp_PeersKnown(t *testing.T) {
@@ -25,7 +24,7 @@ func TestApp_PeersKnown(t *testing.T) {
 	addr := proto.NewTCPAddr(net.ParseIP("127.0.0.1"), 6868).ToIpPort()
 	peerManager.EXPECT().KnownPeers().Return([]storage.KnownPeer{storage.KnownPeer(addr)})
 
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
+	app, _, err := NewApp("key", nil, nil, nil, nil, nil, peerManager, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	rs2, err := app.PeersKnown()
@@ -59,7 +58,7 @@ func TestApp_PeersSuspended(t *testing.T) {
 
 	peerManager.EXPECT().Suspended().Return(testData)
 
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
+	app, _, err := NewApp("key", nil, nil, nil, nil, nil, peerManager, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	suspended := app.PeersSuspended()
@@ -101,7 +100,7 @@ func TestApp_PeersBlackList(t *testing.T) {
 
 	peerManager.EXPECT().BlackList().Return(testData)
 
-	app, err := NewApp("key", nil, services.Services{Peers: peerManager})
+	app, _, err := NewApp("key", nil, nil, nil, nil, nil, peerManager, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	blackList := app.PeersBlackListed()

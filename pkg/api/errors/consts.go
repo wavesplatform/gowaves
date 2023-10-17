@@ -7,8 +7,9 @@ const (
 
 // API Auth
 const (
-	ApiKeyNotValidErrorID        ApiAuthErrorID = 2
-	TooBigArrayAllocationErrorID ApiAuthErrorID = 10
+	APIKeyNotValidErrorID        APIAuthErrorID = 2
+	APIKeyDisabledErrorID        APIAuthErrorID = 3
+	TooBigArrayAllocationErrorID APIAuthErrorID = 10
 )
 
 // VALIDATION
@@ -53,13 +54,26 @@ const (
 	InvalidBlockIdErrorID             TransactionErrorID = 4002
 	InvalidAssetIdErrorID             TransactionErrorID = 4007
 	AssetIdNotSpecifiedErrorID        TransactionErrorID = 4009
+	BadTransactionErrorID             TransactionErrorID = 4010
+)
+
+// PEERS
+const (
+	InvalidIPAddressErrorID      ErrorID = 5001
+	PeerConnectionFailureErrorID ErrorID = 5002
+)
+
+// BLOCKS
+const (
+	InvalidHeightErrorID   ErrorID = 6001
+	NoBlockAtHeightErrorID ErrorID = 6002
 )
 
 var errorNames = map[Identifier]string{
 	UnknownErrorID:   "UnknownError",
 	WrongJsonErrorID: "WrongJsonError",
 
-	ApiKeyNotValidErrorID:                       "ApiKeyNotValidError",
+	APIKeyNotValidErrorID:                       "APIKeyNotValidError",
 	TooBigArrayAllocationErrorID:                "TooBigArrayAllocationError",
 	InvalidSignatureErrorID:                     "InvalidSignatureError",
 	InvalidAddressErrorID:                       "InvalidAddressError",

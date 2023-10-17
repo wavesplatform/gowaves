@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -13,8 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/iterators"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type getTransactionsHandler struct {
@@ -219,7 +220,7 @@ func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *
 	if err != nil {
 		return nil, apiError(err)
 	}
-	err = broadcast(ctx, s.services.InternalChannel, t)
+	err = broadcast(ctx, s.broadcastCh, t)
 	if err != nil {
 		return nil, apiError(err)
 	}
@@ -269,7 +270,7 @@ func apiError(err error) error {
 	}
 }
 
-func broadcast(ctx context.Context, ch chan messages.InternalMessage, tx proto.Transaction) error {
+func broadcast(ctx context.Context, ch chan<- *messages.BroadcastTransaction, tx proto.Transaction) error {
 	respCh := make(chan error, 1)
 	select {
 	case ch <- messages.NewBroadcastTransaction(respCh, tx):

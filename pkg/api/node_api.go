@@ -18,7 +18,6 @@ import (
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
@@ -32,14 +31,12 @@ const (
 
 type NodeApi struct {
 	state state.State
-	node  *node.Node
 	app   *App
 }
 
-func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
+func NewNodeApi(app *App, state state.State) *NodeApi {
 	return &NodeApi{
 		state: state,
-		node:  node,
 		app:   app,
 	}
 }
@@ -256,7 +253,7 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "BlockAt: expected NotFound in state error, but received other error")
 	}
 
-	apiBlock, err := newAPIBlock(block, a.app.services.Scheme, height)
+	apiBlock, err := newAPIBlock(block, a.app.Scheme(), height)
 	if err != nil {
 		return errors.Wrap(err, "failed to create API block")
 	}
@@ -302,7 +299,7 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrapf(err,
 			"BlockIDAt: failed to execute state.BlockIDToHeight for blockID=%s", s)
 	}
-	apiBlock, err := newAPIBlock(block, a.app.services.Scheme, height)
+	apiBlock, err := newAPIBlock(block, a.app.Scheme(), height)
 	if err != nil {
 		return errors.Wrap(err, "failed to create API block")
 	}
@@ -365,13 +362,11 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	s := chi.URLParam(r, "id")
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		// TODO(nickeskov): which error it should send?
-		return &BadRequestError{err}
+		return apiErrs.InvalidHeight
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
-		// TODO(nickeskov): which error it should send?
-		return errors.Wrapf(err, "failed get blocks score at for id %d", id)
+		return apiErrs.NewNoBlockAtHeightError(err)
 	}
 	if err := trySendJson(w, rs); err != nil {
 		return errors.Wrap(err, "BlockScoreAt")
@@ -417,7 +412,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 		err = apiServer.ListenAndServe()
 	}
 
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
@@ -484,8 +479,8 @@ func (a *NodeApi) AddrByAlias(w http.ResponseWriter, r *http.Request) error {
 
 	aliasShort := chi.URLParam(r, "alias")
 
-	alias := proto.NewAlias(a.app.scheme(), aliasShort)
-	if _, err := alias.Valid(a.app.scheme()); err != nil {
+	alias := proto.NewAlias(a.app.Scheme(), aliasShort)
+	if _, err := alias.Valid(a.app.Scheme()); err != nil {
 		msg := err.Error()
 		return apiErrs.NewCustomValidationError(msg)
 	}
@@ -532,7 +527,7 @@ func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
+func (a *NodeApi) NodeStatus(w http.ResponseWriter, _ *http.Request) error {
 	type resp struct {
 		BlockchainHeight uint64 `json:"blockchainHeight"`
 		StateHeight      uint64 `json:"stateHeight"`
@@ -755,14 +750,6 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
-func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
-	rs := a.app.NodeProcesses()
-	if err := trySendJson(w, rs); err != nil {
-		return errors.Wrap(err, "nodeProcesses")
-	}
-	return nil
-}
-
 func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
 	stateHash, err := a.state.StateHashAtHeight(height)
 	if err != nil {
@@ -777,7 +764,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return &BadRequestError{err}
+		return apiErrs.InvalidHeight
 	}
 	stateHashDebug, err := a.stateHashDebug(height)
 	if err != nil {

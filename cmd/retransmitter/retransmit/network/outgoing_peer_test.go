@@ -11,8 +11,9 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type server struct {
@@ -93,8 +94,8 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	ctx := context.Background()
 
 	parent := peer.Parent{
-		MessageCh: make(chan peer.ProtoMessage, 10),
-		InfoCh:    make(chan peer.InfoMessage, 10),
+		NodeMessagesCh:  make(chan peer.ProtoMessage, 10),
+		NotificationsCh: make(chan peer.Notification, 10),
 	}
 
 	params := OutgoingPeerParams{
@@ -108,13 +109,15 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	case <-time.After(100 * time.Millisecond):
 		t.Error("no message arrived in 100ms")
 		return
-	case m := <-parent.InfoCh:
-		connected := m.Value.(*peer.Connected)
-		connected.Peer.SendMessage(&proto.GetPeersMessage{})
+	case m := <-parent.NotificationsCh:
+		switch tm := m.(type) {
+		case peer.ConnectedNotification:
+			tm.Peer.SendMessage(&proto.GetPeersMessage{})
+		}
 	}
 	// waiting 10ms for error messages, no errors should arrive
 	select {
-	case m := <-parent.InfoCh:
+	case m := <-parent.NotificationsCh:
 		t.Fatalf("got unexpected message %+v", m)
 	case <-time.After(10 * time.Millisecond):
 	}

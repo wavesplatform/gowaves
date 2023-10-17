@@ -20,6 +20,3 @@ func NewMinedBlockInternalMessage(block *proto.Block, limits proto.MiningLimits,
 		Vrf:     common.Dup(vrf),
 	}
 }
-
-func (a *MinedBlockInternalMessage) Internal() {
-}

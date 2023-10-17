@@ -5,10 +5,11 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 func TestGetInfo(t *testing.T) {
@@ -18,8 +19,8 @@ func TestGetInfo(t *testing.T) {
 	sets, err := st.BlockchainSettings()
 	assert.NoError(t, err)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
-	err = server.initServer(st, nil, sch)
+	wlt := createTestNetWallet(t)
+	err = server.initServer(st, nil, wlt, proto.MainNetScheme)
 	assert.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)

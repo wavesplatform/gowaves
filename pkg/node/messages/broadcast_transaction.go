@@ -7,9 +7,6 @@ type BroadcastTransaction struct {
 	Transaction proto.Transaction
 }
 
-func (*BroadcastTransaction) Internal() {
-}
-
 func NewBroadcastTransaction(response chan error, transaction proto.Transaction) *BroadcastTransaction {
 	return &BroadcastTransaction{Response: response, Transaction: transaction}
 }

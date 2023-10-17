@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/p2p/mock"
@@ -29,19 +30,8 @@ func TestClientRecvTransaction(t *testing.T) {
 		RemoteAddress: proto.NewTCPAddr(net.IPv4(8, 8, 8, 8), 90),
 	}
 
-	peer1Connected := peer.InfoMessage{
-		Peer: peer1,
-		Value: &peer.Connected{
-			Peer: peer1,
-		},
-	}
-
-	peer2Connected := peer.InfoMessage{
-		Peer: peer2,
-		Value: &peer.Connected{
-			Peer: peer2,
-		},
-	}
+	peer1Connected := peer.ConnectedNotification{Peer: peer1}
+	peer2Connected := peer.ConnectedNotification{Peer: peer2}
 
 	behaviour.InfoMessage(peer1Connected)
 	behaviour.InfoMessage(peer2Connected)

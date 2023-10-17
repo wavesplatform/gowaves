@@ -15,13 +15,16 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
-	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type nodeRPCApp struct {
-	*services.Services
+	scheme      proto.Scheme
+	state       state.State
+	time        types.Time
+	broadcastCh chan<- *messages.BroadcastTransaction
 }
 
 //go:generate zenrpc
@@ -33,16 +36,18 @@ type RPCService struct {
 
 // TODO(nickeskov): create error type
 
-func NewRPCService(nodeServices *services.Services) RPCService {
+func NewRPCService(
+	scheme proto.Scheme, st state.State, tm types.Time, broadcastCh chan<- *messages.BroadcastTransaction,
+) RPCService {
 	return RPCService{
-		nodeRPCApp: nodeRPCApp{nodeServices},
+		nodeRPCApp: nodeRPCApp{scheme: scheme, state: st, time: tm, broadcastCh: broadcastCh},
 	}
 }
 
 // Eth_BlockNumber returns the number of most recent block
 func (s RPCService) Eth_BlockNumber() (string, error) {
 	// returns integer of the current block number the client is on
-	height, err := s.nodeRPCApp.State.Height()
+	height, err := s.nodeRPCApp.state.Height()
 	if err != nil {
 		// todo(nickeskov): convert to RPC API error with corresponding code
 		return "", err
@@ -57,7 +62,7 @@ func (s RPCService) Net_Version() string {
 
 // Eth_ChainId returns the chain id
 func (s RPCService) Eth_ChainId() string {
-	return uint64ToHexString(uint64(s.nodeRPCApp.Scheme))
+	return uint64ToHexString(uint64(s.nodeRPCApp.scheme))
 }
 
 // Eth_GetBalance returns the balance in wei of the account of given address. 1 ether is equivalent to 1 x 10^18 wei
@@ -65,12 +70,12 @@ func (s RPCService) Eth_ChainId() string {
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
 func (s RPCService) Eth_GetBalance(ethAddr proto.EthereumAddress, blockOrTag string) (string, error) {
 	zap.S().Debugf("Eth_GetBalance was called: ethAddr %q, blockOrTag %q", ethAddr, blockOrTag)
-	wavesAddr, err := ethAddr.ToWavesAddress(s.nodeRPCApp.Scheme)
+	wavesAddr, err := ethAddr.ToWavesAddress(s.nodeRPCApp.scheme)
 	if err != nil {
 		// todo log err
 		return "", errors.Wrapf(err, "failed to convert ethereum address %q to waves address", ethAddr)
 	}
-	amount, err := s.nodeRPCApp.State.WavesBalance(proto.NewRecipientFromAddress(wavesAddr))
+	amount, err := s.nodeRPCApp.state.WavesBalance(proto.NewRecipientFromAddress(wavesAddr))
 	if err != nil {
 		// todo log err
 		return "", errors.Wrapf(err, "failed to get waves balance for address %q", wavesAddr)
@@ -92,7 +97,7 @@ func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filterTxObj bool) (G
 	case "earliest":
 		n = 1
 	case "latest":
-		h, err := s.nodeRPCApp.State.Height()
+		h, err := s.nodeRPCApp.state.Height()
 		if err != nil {
 			return GetBlockByNumberResponse{}, err
 		}
@@ -125,7 +130,7 @@ func (s RPCService) Eth_GetBlockByHash(blockIDBytes proto.HexBytes, filterTxObj 
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to parse blockID from blockIDBytes %q", blockIDBytes.String())
 	}
-	_, err = s.nodeRPCApp.State.BlockIDToHeight(blockID)
+	_, err = s.nodeRPCApp.state.BlockIDToHeight(blockID)
 	switch {
 	case state.IsNotFound(err):
 		return nil, nil // according to the scala node implementation
@@ -183,7 +188,7 @@ func (s RPCService) Eth_EstimateGas(req estimateGasRequest) (string, error) {
 		fee := proto.MinFee
 		assetID := (*proto.AssetID)(req.To)
 
-		asset, err := s.nodeRPCApp.State.AssetInfo(*assetID)
+		asset, err := s.nodeRPCApp.state.AssetInfo(*assetID)
 		if err != nil {
 			return "", errors.Errorf("failed to get asset info, %v", err)
 		}
@@ -219,7 +224,7 @@ var (
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
 func (s RPCService) Eth_Call(params ethCallParams, blockOrTag string) (string, error) {
 	zap.S().Debugf("Eth_Call was called: params %q, blockOrTag %q", params, blockOrTag)
-	abiVal, err := ethCall(s.nodeRPCApp.State, s.nodeRPCApp.Scheme, params)
+	abiVal, err := ethCall(s.nodeRPCApp.state, s.nodeRPCApp.scheme, params)
 	if err != nil {
 		zap.S().Debugf("Eth_Call: %v", err)
 		return "0x", err
@@ -302,17 +307,17 @@ func (s RPCService) Eth_GetCode(ethAddr proto.EthereumAddress, blockOrTag string
 	// TODO(nickeskov): what this method should send in case of error?
 	zap.S().Debugf("Eth_GetCode was called: ethAddr %q, blockOrTag %q", ethAddr, blockOrTag)
 
-	wavesAddr, err := ethAddr.ToWavesAddress(s.nodeRPCApp.Scheme)
+	wavesAddr, err := ethAddr.ToWavesAddress(s.nodeRPCApp.scheme)
 	if err != nil {
 		return "", errors.Wrapf(err, "failed to convert ethereum address %q to waves address", ethAddr)
 	}
 
-	si, err := s.nodeRPCApp.State.ScriptBasicInfoByAccount(proto.NewRecipientFromAddress(wavesAddr))
+	si, err := s.nodeRPCApp.state.ScriptBasicInfoByAccount(proto.NewRecipientFromAddress(wavesAddr))
 	switch {
 	case state.IsNotFound(err):
 		// account has no script, trying fetch data as asset
 		assetID := proto.AssetID(ethAddr)
-		_, err := s.nodeRPCApp.State.AssetInfo(assetID)
+		_, err := s.nodeRPCApp.state.AssetInfo(assetID)
 		switch {
 		case errors.Is(err, errs.UnknownAsset{}):
 			// address has no script and it's not an asset
@@ -341,7 +346,7 @@ func (s RPCService) Eth_GetCode(ethAddr proto.EthereumAddress, blockOrTag string
 //   - block: QUANTITY|TAG - integer block number, or the string "latest", "earliest" or "pending"
 func (s RPCService) Eth_GetTransactionCount(address, blockOrTag string) string {
 	zap.S().Debugf("Eth_GetTransactionCount was called: address %q, blockOrTag %q", address, blockOrTag)
-	return uint64ToHexString(uint64(common.UnixMillisFromTime(s.nodeRPCApp.Time.Now())))
+	return uint64ToHexString(uint64(common.UnixMillisFromTime(s.nodeRPCApp.time.Now())))
 }
 
 // Eth_SendRawTransaction creates new message call transaction or a contract creation for signed transactions.
@@ -365,7 +370,7 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 		return proto.EthereumHash{}, err
 	}
 
-	txID, err := tx.GetID(s.nodeRPCApp.Scheme)
+	txID, err := tx.GetID(s.nodeRPCApp.scheme)
 	if err != nil {
 		zap.S().Errorf("Eth_SendRawTransaction: failed to get ID of ethereum transaction: %v", err)
 		return proto.EthereumHash{}, err
@@ -383,7 +388,7 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 
 	respCh := make(chan error, 1)
 	// TODO(nickeskov): add context?
-	s.nodeRPCApp.InternalChannel <- messages.NewBroadcastTransaction(respCh, &tx)
+	s.nodeRPCApp.broadcastCh <- messages.NewBroadcastTransaction(respCh, &tx)
 
 	timer := time.NewTimer(broadcastTimeout)
 	select {
@@ -424,7 +429,7 @@ type GetTransactionReceiptResponse struct {
 
 func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetTransactionReceiptResponse, error) {
 	txID := crypto.Digest(ethTxID)
-	tx, txIsFailed, err := s.nodeRPCApp.State.TransactionByIDWithStatus(txID.Bytes())
+	tx, txIsFailed, err := s.nodeRPCApp.state.TransactionByIDWithStatus(txID.Bytes())
 	if state.IsNotFound(err) {
 		zap.S().Debugf("Eth_GetTransactionReceipt: transaction with ID=%q or ethID=%q cannot be found",
 			txID, ethTxID,
@@ -451,7 +456,7 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 		return nil, errors.New("failed to get sender from tx")
 	}
 
-	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
+	blockHeight, err := s.nodeRPCApp.state.TransactionHeightByID(txID.Bytes())
 	if err != nil {
 		zap.S().Errorf(
 			"Eth_GetTransactionReceipt: failed to get block height for tx with ID=%q or ethID=%q: %v",
@@ -460,7 +465,7 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 		return nil, errors.New("failed to get blockNumber for transaction")
 	}
 
-	lastBlockHeader := s.nodeRPCApp.State.TopBlock()
+	lastBlockHeader := s.nodeRPCApp.state.TopBlock()
 	txStatus := "0x1"
 	if txIsFailed {
 		txStatus = "0x0"
@@ -505,7 +510,7 @@ type GetTransactionByHashResponse struct {
 
 func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTransactionByHashResponse, error) {
 	txID := crypto.Digest(ethTxID)
-	tx, err := s.nodeRPCApp.State.TransactionByID(txID.Bytes())
+	tx, err := s.nodeRPCApp.state.TransactionByID(txID.Bytes())
 	if state.IsNotFound(err) {
 		zap.S().Debugf("Eth_GetTransactionByHash: transaction with ID=%q or ethID=%q cannot be found",
 			txID, ethTxID,
@@ -532,7 +537,7 @@ func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTr
 		return nil, errors.New("failed to get sender from tx")
 	}
 
-	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
+	blockHeight, err := s.nodeRPCApp.state.TransactionHeightByID(txID.Bytes())
 	if err != nil {
 		zap.S().Errorf(
 			"Eth_GetTransactionByHash: failed to get block height for tx with ID=%q or ethID=%q: %v",
@@ -541,7 +546,7 @@ func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTr
 		return nil, errors.New("failed to get blockNumber for transaction")
 	}
 
-	lastBlockHeader := s.nodeRPCApp.State.TopBlock()
+	lastBlockHeader := s.nodeRPCApp.state.TopBlock()
 
 	gasLimit := uint64ToHexString(tx.GetFee())
 

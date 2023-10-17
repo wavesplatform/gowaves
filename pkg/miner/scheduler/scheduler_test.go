@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -16,7 +17,7 @@ func (a mockInternal) schedule(state state.StateInfo, keyPairs []proto.KeyPair, 
 }
 
 func TestSchedulerImpl_Emits(t *testing.T) {
-	sch := newScheduler(mockInternal{}, nil, nil, nil, nil, nil, 0)
+	sch := newScheduler(mockInternal{}, nil, nil, nil, nil, 0)
 	sch.Reschedule()
 	rs := sch.Emits()
 

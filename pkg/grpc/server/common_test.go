@@ -19,10 +19,10 @@ import (
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 
+	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -129,8 +129,11 @@ func newTestState(t *testing.T, amend bool, params state.StateParams, settings *
 }
 
 func TestMain(m *testing.M) {
-	var err error
-	server, err = NewServer(services.Services{Scheme: proto.MainNetScheme})
+	app, _, err := api.NewApp("", nil, nil, nil, nil, nil, nil, proto.MainNetScheme)
+	if err != nil {
+		log.Fatalf("Failed to create new application: %v", err)
+	}
+	server, err = NewServer(app)
 	if err != nil {
 		log.Fatalf("Failed to create new gRPC server: %v", err)
 	}

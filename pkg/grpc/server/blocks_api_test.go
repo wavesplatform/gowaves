@@ -7,13 +7,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	protobuf "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	protobuf "google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
@@ -36,8 +37,8 @@ func TestGetBlock(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
-	err := server.initServer(st, nil, sch)
+	wlt := createTestNetWallet(t)
+	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
 	assert.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)
@@ -83,8 +84,8 @@ func TestGetBlockRange(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
-	err := server.initServer(st, nil, sch)
+	wlt := createTestNetWallet(t)
+	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
 	assert.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)
@@ -153,8 +154,8 @@ func TestGetCurrentHeight(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
-	err := server.initServer(st, nil, sch)
+	wlt := createTestNetWallet(t)
+	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
 	assert.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)

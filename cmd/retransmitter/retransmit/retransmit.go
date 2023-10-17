@@ -7,9 +7,10 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 var invalidTransaction = errors.New("invalid transaction")
@@ -43,8 +44,8 @@ func (a *Retransmitter) Run(ctx context.Context) {
 				case <-ctx.Done():
 					a.behaviour.Stop()
 					return
-				case incomeMessage := <-a.parent.MessageCh:
-					a.behaviour.ProtoMessage(incomeMessage)
+				case msg := <-a.parent.NodeMessagesCh:
+					a.behaviour.ProtoMessage(msg)
 				}
 			}
 		}()
@@ -57,7 +58,7 @@ func (a *Retransmitter) Run(ctx context.Context) {
 				select {
 				case <-ctx.Done():
 					return
-				case info := <-a.parent.InfoCh:
+				case info := <-a.parent.NotificationsCh:
 					a.behaviour.InfoMessage(info)
 				}
 			}

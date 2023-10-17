@@ -35,8 +35,9 @@ func TestHandleStopContext(t *testing.T) {
 	err := Handle(ctx, peer, parent, remote)
 	assert.NoError(t, err)
 	assert.Len(t, peer.CloseCalls(), 1)
-	require.Len(t, parent.InfoCh, 1)
-	connected := (<-parent.InfoCh).Value.(*Connected)
+	require.Len(t, parent.NotificationsCh, 1)
+	connected, ok := (<-parent.NotificationsCh).(ConnectedNotification)
+	require.True(t, ok)
 	connectedPeer := connected.Peer.(*peerOnceCloser).Peer
 	assert.Equal(t, peer, connectedPeer)
 }
@@ -56,12 +57,12 @@ func TestHandleReceive(t *testing.T) {
 		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()
-	_ = (<-parent.InfoCh).Value.(*Connected).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
+	_ = (<-parent.NotificationsCh).(ConnectedNotification).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
 	bb := bytebufferpool.Get()
 	_, err := bb.Write(byte_helpers.TransferWithSig.MessageBytes)
 	require.NoError(t, err)
 	remote.FromCh <- bb
-	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.MessageCh).Message)
+	assert.IsType(t, &proto.TransactionMessage{}, (<-parent.NodeMessagesCh).Message)
 	cancel()
 	wg.Wait()
 }
@@ -78,10 +79,10 @@ func TestHandleError(t *testing.T) {
 		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()
-	_ = (<-parent.InfoCh).Value.(*Connected).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
+	_ = (<-parent.NotificationsCh).(ConnectedNotification).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
 	err := errors.New("error")
 	remote.ErrCh <- err
-	actualErr := (<-parent.InfoCh).Value.(*InternalErr).Err
+	actualErr := (<-parent.NotificationsCh).(DisconnectedNotification).Err
 	assert.Equal(t, err, actualErr)
 	cancel()
 	wg.Wait()

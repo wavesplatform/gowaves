@@ -13,11 +13,6 @@ type Scheduler interface {
 	Reschedule()
 }
 
-// Handler is an abstract function that called when an event happens.
-type Handler interface {
-	Handle()
-}
-
 // UtxPool storage interface
 type UtxPool interface {
 	Add(t proto.Transaction) error
@@ -86,28 +81,8 @@ type SmartState interface {
 	//TODO: The last 2 functions intended to be used only in wrapped state. Extract separate interface for such functions.
 }
 
-type ID interface {
-	ID() string
-}
-
-type Subscribe interface {
-	Subscribe(p ID, responseMessage proto.Message) (chan proto.Message, func(), error)
-	Receive(p ID, responseMessage proto.Message) bool
-}
-
-type StateSync interface {
-	Sync()
-	SetEnabled(enabled bool)
-	Close()
-	Run(ctx context.Context)
-}
-
 type MessageSender interface {
 	SendMessage(proto.Message)
-}
-
-type InvRequester interface {
-	Request(MessageSender, []byte)
 }
 
 type BaseTarget = uint64
@@ -118,15 +93,6 @@ type Miner interface {
 
 type Time interface {
 	Now() time.Time
-}
-
-type ScoreSender interface {
-	Priority()
-	NonPriority()
-}
-
-type MinerConsensus interface {
-	IsMiningAllowed() bool
 }
 
 type EmbeddedWallet interface {

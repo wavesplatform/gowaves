@@ -44,6 +44,7 @@ type (
 	InvalidBlockIdError       transactionError
 	InvalidAssetIdError       transactionError
 	AssetIdNotSpecifiedError  transactionError
+	BadTransactionError       transactionError
 )
 
 var (
@@ -117,5 +118,15 @@ func NewAssetsDoesNotExistError(ids []string) *AssetsDoesNotExistError {
 			},
 		},
 		IDs: ids,
+	}
+}
+
+func NewBadTransactionError(inner error) *BadTransactionError {
+	return &BadTransactionError{
+		genericError: genericError{
+			ID:       BadTransactionErrorID,
+			HttpCode: http.StatusBadRequest,
+			Message:  fmt.Sprintf("Bad transaction: %v", inner),
+		},
 	}
 }

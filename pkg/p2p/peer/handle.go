@@ -12,7 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func bytesToMessage(data []byte, resendTo chan ProtoMessage, p Peer) error {
+func bytesToMessage(data []byte, networkCh, nodeCh chan ProtoMessage, p Peer) error {
 	m, err := proto.UnmarshalMessage(data)
 	if err != nil {
 		return err
@@ -23,11 +23,21 @@ func bytesToMessage(data []byte, resendTo chan ProtoMessage, p Peer) error {
 		Message: m,
 	}
 
-	select {
-	case resendTo <- mess:
+	switch m.(type) {
+	case *proto.ScoreMessage, *proto.GetPeersMessage, *proto.PeersMessage:
+		select {
+		case networkCh <- mess:
+		default:
+			zap.S().Named(logging.NetworkDataNamespace).
+				Debugf("[%s] Failed to resend message '%T' to network channel because it's full", p.ID(), m)
+		}
 	default:
-		zap.S().Named(logging.NetworkNamespace).Debugf(
-			"[%s] Failed to resend message of type '%T' because upstream channel is full", p.ID(), m)
+		select {
+		case nodeCh <- mess:
+		default:
+			zap.S().Named(logging.NetworkDataNamespace).
+				Debugf("[%s] Failed to resend message '%T' to node channel because it's full", p.ID(), m)
+		}
 	}
 	return nil
 }
@@ -58,8 +68,7 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error 
 			zap.S().Errorf("Failed to close '%s' peer '%s': %v", p.Direction(), p.ID(), err)
 		}
 	}(peer)
-	connectedMsg := InfoMessage{Peer: peer, Value: &Connected{Peer: peer}}
-	parent.InfoCh <- connectedMsg // notify parent about new connection
+	parent.NotificationsCh <- ConnectedNotification{Peer: peer} // notify parent about new connection
 
 	var errSentToParent bool // if errSentToParent is true then we need to wait ctx cancellation
 	for {
@@ -78,10 +87,9 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error 
 				zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Receiving from network: %s",
 					peer.ID(), proto.B64Bytes(bb.Bytes()),
 				)
-				err := bytesToMessage(bb.Bytes(), parent.MessageCh, peer)
+				err := bytesToMessage(bb.Bytes(), parent.NetworkMessagesCh, parent.NodeMessagesCh, peer)
 				if err != nil {
-					out := InfoMessage{Peer: peer, Value: &InternalErr{Err: err}}
-					parent.InfoCh <- out
+					parent.NotificationsCh <- DisconnectedNotification{Peer: peer, Err: err}
 					errSentToParent = true
 				}
 			}
@@ -89,8 +97,7 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error 
 
 		case err := <-remote.ErrCh:
 			if !errSentToParent {
-				out := InfoMessage{Peer: peer, Value: &InternalErr{Err: err}}
-				parent.InfoCh <- out
+				parent.NotificationsCh <- DisconnectedNotification{Peer: peer, Err: err}
 				errSentToParent = true
 			}
 		}

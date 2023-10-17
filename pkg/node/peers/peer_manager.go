@@ -95,7 +95,7 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections i
 	}
 }
 
-func (a *PeerManagerImpl) NewConnection(p peer.Peer) (err error) {
+func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	_, connected := a.connected(p)
 	if connected {
 		_ = p.Close()
@@ -121,21 +121,21 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) (err error) {
 		)
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
-		return proto.NewInfoMsg(err)
+		return err
 	}
 	if p.Handshake().AppName != a.networkName {
 		err := errors.Errorf("peer '%s' has the invalid network name '%s', required '%s'",
 			p.ID(), p.Handshake().AppName, a.networkName)
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
-		return proto.NewInfoMsg(err)
+		return err
 	}
 	in, out := a.countDirections()
 	switch p.Direction() {
 	case peer.Incoming:
 		if in >= a.limitConnections {
 			_ = p.Close()
-			return proto.NewInfoMsg(errors.Errorf("exceed incoming connections limit, incoming peer '%s'", p.ID()))
+			return errors.Errorf("exceed incoming connections limit, incoming peer '%s'", p.ID())
 		}
 	case peer.Outgoing:
 		if !p.Handshake().DeclaredAddr.Empty() {
@@ -145,7 +145,7 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) (err error) {
 		}
 		if out >= a.limitConnections {
 			_ = p.Close()
-			return proto.NewInfoMsg(errors.Errorf("exceed outgoing connections limit, outgoing peer '%s'", p.ID()))
+			return errors.Errorf("exceed outgoing connections limit, outgoing peer '%s'", p.ID())
 		}
 	default:
 		_ = p.Close()

@@ -2,7 +2,6 @@ package api
 
 import (
 	"encoding/json"
-	"fmt"
 	"net/http"
 
 	"github.com/go-chi/chi/middleware"
@@ -16,26 +15,6 @@ import (
 var (
 	notFound = errors.New("not found")
 )
-
-// BadRequestError represents a bad request error.
-// Deprecated: don't use this error type in new code. Create a new error type or value in 'pkg/api/errors' package.
-type BadRequestError struct {
-	inner error
-}
-
-func (e *BadRequestError) Error() string {
-	return e.inner.Error()
-}
-
-// AuthError represents an authentication error or problem.
-// Deprecated: don't use this error type in new code. Create a new error type or value in 'pkg/api/errors' package.
-type AuthError struct {
-	inner error
-}
-
-func (e *AuthError) Error() string {
-	return e.inner.Error()
-}
 
 type ErrorHandler struct {
 	logger *zap.Logger
@@ -53,20 +32,12 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	}
 	// target errors
 	var (
-		badRequestError = &BadRequestError{}
-		authError       = &AuthError{}
-		unknownError    = &apiErrs.UnknownError{}
-		apiError        = apiErrs.ApiError(nil)
+		unknownError = &apiErrs.UnknownError{}
+		apiError     = apiErrs.ApiError(nil)
 		// check that all targets implement the error interface
-		_, _, _, _ = error(badRequestError), error(authError), error(unknownError), error(apiError)
+		_, _ = error(unknownError), error(apiError)
 	)
 	switch {
-	case errors.As(err, &badRequestError):
-		// nickeskov: this error type will be removed in future
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", badRequestError.Error()), http.StatusBadRequest)
-	case errors.As(err, &authError):
-		// nickeskov: this error type will be removed in future
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", authError.Error()), http.StatusForbidden)
 	case errors.As(err, &unknownError):
 		eh.logger.Error("UnknownError",
 			zap.String("proto", r.Proto),

@@ -11,6 +11,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
@@ -19,10 +24,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 )
 
 func TestGetTransactions(t *testing.T) {
@@ -32,10 +33,10 @@ func TestGetTransactions(t *testing.T) {
 	sets, err := st.BlockchainSettings()
 	require.NoError(t, err)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
+	wlt := createTestNetWallet(t)
 	validator, err := utxpool.NewValidator(st, ntptime.Stub{}, 24*time.Hour)
 	require.NoError(t, err)
-	err = server.initServer(st, utxpool.New(utxSize, validator, sets), sch)
+	err = server.initServer(st, utxpool.New(utxSize, validator, sets), wlt, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)
@@ -112,9 +113,9 @@ func TestGetStatuses(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
+	wlt := createTestNetWallet(t)
 	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
-	err := server.initServer(st, utx, sch)
+	err := server.initServer(st, utx, wlt, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)
@@ -164,9 +165,9 @@ func TestGetUnconfirmed(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
+	wlt := createTestNetWallet(t)
 	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
-	err := server.initServer(st, utx, sch)
+	err := server.initServer(st, utx, wlt, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)
@@ -251,9 +252,9 @@ func TestSign(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
+	wlt := createTestNetWallet(t)
 
-	err := server.initServer(st, nil, sch)
+	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
 	require.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)

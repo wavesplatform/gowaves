@@ -2,173 +2,564 @@ package network
 
 import (
 	"context"
-	"sync"
+	"math/big"
+	"reflect"
+	"slices"
 	"time"
 
+	"github.com/pkg/errors"
+	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
+	ps "github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
-	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/types"
+	storage "github.com/wavesplatform/gowaves/pkg/state"
 )
 
-const defaultChannelSize = 100
+const (
+	networkChannelsDefaultSize = 100
+	askPeersInterval           = 5 * time.Minute
+)
 
-type InfoMessage interface{}
-
-type StopSync struct{}
-
-type StopMining struct{}
-
-type StartMining struct{}
-
-type ChangeSyncPeer struct {
-	Peer peer.Peer
-}
-
-type SyncPeer struct {
-	m    sync.Mutex
-	peer peer.Peer
-}
-
-func (s *SyncPeer) SetPeer(peer peer.Peer) {
-	s.m.Lock()
-	defer s.m.Unlock()
-	s.peer = peer
-}
-
-func (s *SyncPeer) GetPeer() peer.Peer {
-	s.m.Lock()
-	defer s.m.Unlock()
-	return s.peer
-}
-
-func (s *SyncPeer) Clear() {
-	s.m.Lock()
-	defer s.m.Unlock()
-	s.peer = nil
-}
-
+// Network represent service
 type Network struct {
-	infoCh        <-chan peer.InfoMessage
-	networkInfoCh chan<- InfoMessage
-	syncPeer      *SyncPeer
+	sm *stateless.StateMachine
 
-	peers         peers.PeerManager
-	storage       state.State
-	tm            types.Time
-	minPeerMining int
-	obsolescence  time.Duration
+	ctx  context.Context
+	wait func() error
+
+	peersCh         <-chan peer.Notification
+	networkCh       <-chan peer.ProtoMessage
+	commandsCh      <-chan Command
+	notificationsCh chan<- Notification
+
+	scheme          proto.Scheme
+	quorumThreshold int
+	syncPeer        peer.Peer
+	leaderMode      bool
+
+	peers   peers.PeerManager
+	storage storage.State
 }
 
 func NewNetwork(
-	services services.Services,
-	p peer.Parent,
-	obsolescence time.Duration,
-) (Network, <-chan InfoMessage) {
-	nch := make(chan InfoMessage, defaultChannelSize)
-	return Network{
-		infoCh:        p.InfoCh,
-		networkInfoCh: nch,
-		syncPeer:      new(SyncPeer),
-		peers:         services.Peers,
-		storage:       services.State,
-		tm:            services.Time,
-		minPeerMining: services.MinPeersMining,
-		obsolescence:  obsolescence,
-	}, nch
-}
+	peersCh <-chan peer.Notification,
+	networkCh <-chan peer.ProtoMessage,
+	peers peers.PeerManager,
+	storage storage.State,
+	scheme proto.Scheme,
+	quorumThreshold int,
+) (*Network, <-chan Notification) {
+	nch := make(chan Notification, networkChannelsDefaultSize)
+	n := &Network{
+		sm:              stateless.NewStateMachine(stateDisconnected),
+		peersCh:         peersCh,
+		networkCh:       networkCh,
+		notificationsCh: nch,
+		peers:           peers,
+		storage:         storage,
+		scheme:          scheme,
+		quorumThreshold: quorumThreshold,
+	}
 
-func (n *Network) SyncPeer() *SyncPeer {
-	return n.syncPeer
+	n.sm.SetTriggerParameters(eventPeerConnected, reflect.TypeOf((peer.Peer)(nil)))
+	n.sm.SetTriggerParameters(eventPeerDisconnected, reflect.TypeOf((peer.Peer)(nil)), reflect.TypeOf((error)(nil)))
+	n.sm.SetTriggerParameters(eventScore, reflect.TypeOf((peer.Peer)(nil)), reflect.TypeOf((*proto.Score)(nil)))
+	n.sm.SetTriggerParameters(eventGetPeers, reflect.TypeOf((peer.Peer)(nil)))
+	n.sm.SetTriggerParameters(eventPeers, reflect.TypeOf([]proto.PeerInfo{}))
+	n.sm.SetTriggerParameters(eventBlacklistPeer, reflect.TypeOf((peer.Peer)(nil)), reflect.TypeOf(""))
+	n.sm.SetTriggerParameters(eventBroadcastTransaction, reflect.TypeOf((proto.Transaction)(nil)),
+		reflect.TypeOf((peer.Peer)(nil)))
+	n.sm.SetTriggerParameters(eventBroadcastMicroBlockInv, reflect.TypeOf((*proto.MicroBlockInv)(nil)),
+		reflect.TypeOf((peer.Peer)(nil)))
+
+	n.sm.Configure(stateDisconnected).
+		InternalTransition(eventScore, n.onScore).
+		InternalTransition(eventGetPeers, n.onGetPeers).
+		InternalTransition(eventPeers, n.onPeers).
+		InternalTransition(eventAskPeers, n.onAskPeers).
+		Ignore(eventScoreUpdated).
+		InternalTransition(eventPeerConnected, n.onPeerConnected).
+		InternalTransition(eventPeerDisconnected, n.onPeerDisconnected).
+		InternalTransition(eventFollowGroup, n.onFollowGroup).
+		InternalTransition(eventFollowLeader, n.onFollowLeader).
+		Ignore(eventBlacklistPeer).
+		Ignore(eventBroadcastTransaction).
+		Ignore(eventQuorumChanged, n.quorumNotReached).
+		Permit(eventQuorumChanged, stateLeader, n.quorumReached, n.followLeader).
+		Permit(eventQuorumChanged, stateGroup, n.quorumReached, n.followGroup).
+		OnEntryFrom(eventQuorumChanged, n.onDisconnected).
+		Ignore(eventFollowingModeChanged).
+		Ignore(eventAnnounceScore).
+		Ignore(eventBroadcastMicroBlockInv).
+		Permit(eventHalt, stateHalt)
+
+	n.sm.Configure(stateGroup).
+		InternalTransition(eventScore, n.onScore). // Emits eventScoreUpdated.
+		InternalTransition(eventGetPeers, n.onGetPeers).
+		InternalTransition(eventPeers, n.onPeers).
+		InternalTransition(eventAskPeers, n.onAskPeers).
+		PermitReentry(eventScoreUpdated).                                // Reenter to handle the eventScoreUpdated event.
+		OnEntryFrom(eventScoreUpdated, n.selectGroup).                   // On re-enter from this state.
+		InternalTransition(eventPeerConnected, n.onPeerConnected).       // Emits eventQuorumChanged.
+		InternalTransition(eventPeerDisconnected, n.onPeerDisconnected). // Emits eventQuorumChanged.
+		InternalTransition(eventFollowGroup, n.onFollowGroup).           // Emits eventFollowingModeChanged.
+		InternalTransition(eventFollowLeader, n.onFollowLeader).         // Emits eventFollowingModeChanged.
+		InternalTransition(eventBlacklistPeer, n.onBlacklist).
+		InternalTransition(eventBroadcastTransaction, n.onBroadcast).
+		Ignore(eventQuorumChanged, n.quorumReached).
+		Permit(eventQuorumChanged, stateDisconnected, n.quorumNotReached).
+		OnEntryFrom(eventQuorumChanged, n.onQuorum). // Entry from Disconnected state, emits eventFollowingModeChanged.
+		Ignore(eventFollowingModeChanged, n.followGroup).
+		Permit(eventFollowingModeChanged, stateLeader, n.followLeader).
+		OnEntryFrom(eventFollowingModeChanged, n.selectGroup).
+		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
+		InternalTransition(eventBroadcastMicroBlockInv, n.onBroadcastMicroBlockInv).
+		Permit(eventHalt, stateHalt)
+
+	n.sm.Configure(stateLeader).
+		InternalTransition(eventScore, n.onScore).
+		InternalTransition(eventGetPeers, n.onGetPeers).
+		InternalTransition(eventPeers, n.onPeers).
+		InternalTransition(eventAskPeers, n.onAskPeers).
+		PermitReentry(eventScoreUpdated).
+		OnEntryFrom(eventScoreUpdated, n.selectLeader).
+		InternalTransition(eventScore, n.onScore).
+		InternalTransition(eventPeerConnected, n.onPeerConnected).
+		InternalTransition(eventPeerDisconnected, n.onPeerDisconnected).
+		InternalTransition(eventFollowGroup, n.onFollowGroup).
+		InternalTransition(eventFollowLeader, n.onFollowLeader).
+		InternalTransition(eventBlacklistPeer, n.onBlacklist).
+		InternalTransition(eventBroadcastTransaction, n.onBroadcast).
+		Ignore(eventQuorumChanged, n.quorumReached).
+		Permit(eventQuorumChanged, stateDisconnected, n.quorumNotReached).
+		OnEntryFrom(eventQuorumChanged, n.onQuorum).
+		Ignore(eventFollowingModeChanged, n.followLeader).
+		Permit(eventFollowingModeChanged, stateLeader, n.followGroup).
+		OnEntryFrom(eventFollowingModeChanged, n.selectLeader).
+		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
+		Permit(eventHalt, stateHalt)
+
+	n.sm.Configure(stateHalt).
+		OnEntry(n.onEnterHalt).
+		Ignore(eventScore).
+		Ignore(eventGetPeers).
+		Ignore(eventPeers).
+		Ignore(eventAskPeers).
+		Ignore(eventScoreUpdated).
+		Ignore(eventScoreUpdated).
+		Ignore(eventScore).
+		Ignore(eventPeerConnected).
+		Ignore(eventPeerDisconnected).
+		Ignore(eventFollowGroup).
+		Ignore(eventFollowLeader).
+		Ignore(eventBlacklistPeer).
+		Ignore(eventBroadcastTransaction).
+		Ignore(eventQuorumChanged).
+		Ignore(eventQuorumChanged).
+		Ignore(eventQuorumChanged).
+		Ignore(eventFollowingModeChanged).
+		Ignore(eventFollowingModeChanged).
+		Ignore(eventFollowingModeChanged).
+		Ignore(eventAnnounceScore).
+		Ignore(eventHalt)
+
+	return n, nch
 }
 
 func (n *Network) Run(ctx context.Context) {
+	g, gc := errgroup.WithContext(ctx)
+	n.ctx = gc
+	n.wait = g.Wait
+
+	g.Go(n.runPeersExchange)
+	g.Go(n.handleEvents)
+}
+
+func (n *Network) Shutdown() {
+	if err := n.wait(); err != nil {
+		zap.S().Named(logging.NetworkNamespace).
+			Warnf("[%s] Failed to shutdown network service: %v", n.sm.MustState(), err)
+	}
+	zap.S().Named(logging.NetworkNamespace).Infof("[%s] Network shutdown successfully", n.sm.MustState())
+}
+
+func (n *Network) SetCommandChannel(commandCh <-chan Command) {
+	if commandCh == nil {
+		panic("commandCh must not be nil")
+	}
+	n.commandsCh = commandCh
+}
+
+func (n *Network) runPeersExchange() error {
+	ticker := time.NewTicker(askPeersInterval)
+	defer ticker.Stop()
 	for {
 		select {
-		case <-ctx.Done():
-			zap.S().Named(logging.NetworkNamespace).Info("Network terminated")
-			return
-		case m, ok := <-n.infoCh:
+		case <-n.ctx.Done():
+			zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Peers exchange stopped", n.sm.MustState())
+			return nil
+		case <-ticker.C:
+			if err := n.sm.Fire(eventAskPeers); err != nil {
+				zap.S().Named(logging.NetworkNamespace).
+					Warnf("[%s] Failed to ask for peers: %v", n.sm.MustState(), err)
+			}
+		}
+	}
+}
+
+func (n *Network) handleEvents() error {
+	for {
+		select {
+		case <-n.ctx.Done():
+			if err := n.sm.Fire(eventHalt); err != nil {
+				zap.S().Named(logging.NetworkNamespace).
+					Warnf("[%s] Failed to handle halt event: %v", n.sm.MustState(), err)
+			}
+			zap.S().Named(logging.NetworkNamespace).
+				Debugf("[%s] Network termination started", n.sm.MustState())
+			return nil
+		case m, ok := <-n.peersCh:
 			if !ok {
-				zap.S().Named(logging.NetworkNamespace).Warn("Incoming message channel was closed by producer")
-				return
+				zap.S().Named(logging.NetworkNamespace).
+					Warnf("[%s] Peers notifications channel was closed by producer", n.sm.MustState())
+				return errors.New("peers notifications channel was closed")
 			}
-			switch t := m.Value.(type) {
-			case *peer.Connected:
-				n.handleConnected(t)
-			case *peer.InternalErr:
-				n.handleInternalErr(m)
+			switch v := m.(type) {
+			case peer.ConnectedNotification:
+				if err := n.sm.Fire(eventPeerConnected, v.Peer); err != nil {
+					zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle new peer: %v",
+						n.sm.MustState(), err)
+				}
+			case peer.DisconnectedNotification:
+				if err := n.sm.Fire(eventPeerDisconnected, v.Peer, v.Err); err != nil {
+					zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle peer error: %v",
+						n.sm.MustState(), err)
+				}
 			default:
-				zap.S().Warnf("Unknown peer info message '%T'", m)
+				zap.S().Named(logging.NetworkNamespace).Errorf("[%s] Unknown peer info message '%T'",
+					n.sm.MustState(), m)
+				return errors.Errorf("unexpected peers info message '%T'", m)
+			}
+		case m, ok := <-n.networkCh:
+			if !ok {
+				zap.S().Named(logging.NetworkNamespace).
+					Warnf("[%s] Network channel was closed by producer", n.sm.MustState())
+				return errors.New("network channel was closed")
+			}
+			switch msg := m.Message.(type) {
+			case *proto.ScoreMessage:
+				if err := n.sm.Fire(eventScore, m.ID, new(big.Int).SetBytes(msg.Score)); err != nil {
+					zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle Score message: %v",
+						n.sm.MustState(), err)
+				}
+			case *proto.GetPeersMessage:
+				if err := n.sm.Fire(eventGetPeers, m.ID); err != nil {
+					zap.S().Named(logging.NetworkDataNamespace).
+						Warnf("[%s] Failed to handle GetPeers message: %v", n.sm.MustState(), err)
+				}
+
+			case *proto.PeersMessage:
+				if err := n.sm.Fire(eventPeers, msg.Peers); err != nil {
+					zap.S().Named(logging.NetworkDataNamespace).
+						Warnf("[%s] Failed to handle Peers message: %v", n.sm.MustState(), err)
+				}
+			default:
+				zap.S().Named(logging.NetworkNamespace).
+					Errorf("[%s] Unexpected network message '%T' from %s peer '%s'",
+						n.sm.MustState(), msg, m.ID.Direction(), m.ID.ID().String())
+				return errors.Errorf("unexpected network message '%T'", m)
+			}
+
+		case c, ok := <-n.commandsCh:
+			if !ok {
+				zap.S().Named(logging.NetworkNamespace).
+					Warnf("[%s] Network service command channel was closed", n.sm.MustState())
+				return errors.New("network commands channel was closed")
+			}
+			switch cmd := c.(type) {
+			case FollowGroupCommand:
+				if err := n.sm.Fire(eventFollowGroup); err != nil {
+					zap.S().Named(logging.NetworkNamespace).
+						Warnf("[%s] Failed to handle FollowGroup command: %v", n.sm.MustState(), err)
+				}
+			case FollowLeaderCommand:
+				if err := n.sm.Fire(eventFollowLeader); err != nil {
+					zap.S().Named(logging.NetworkNamespace).
+						Warnf("[%s] Failed to handle FollowLeader command: %v", n.sm.MustState(), err)
+				}
+			case BlacklistPeerCommand:
+				if err := n.sm.Fire(eventBlacklistPeer, cmd.Peer, cmd.Message); err != nil {
+					zap.S().Named(logging.NetworkNamespace).
+						Warnf("[%s] Failed to handle BlacklistPeer command: %v", n.sm.MustState(), err)
+				}
+			case BroadcastTransactionCommand:
+				if err := n.sm.Fire(eventBroadcastTransaction, cmd.Transaction, cmd.Origin); err != nil {
+					zap.S().Named(logging.NetworkNamespace).
+						Warnf("[%s] Failed to handle BroadcastTransaction command: %v", n.sm.MustState(), err)
+				}
+			case AnnounceScoreCommand:
+				if err := n.sm.Fire(eventAnnounceScore); err != nil {
+					zap.S().Named(logging.NetworkNamespace).
+						Warnf("[%s] Failed to handle AnnounceScore command: %v", n.sm.MustState(), err)
+				}
+			case BroadcastMicroBlockInvCommand:
+				if err := n.sm.Fire(eventBroadcastMicroBlockInv, cmd.MicroBlockInv, cmd.Origin); err != nil {
+					zap.S().Named(logging.NetworkNamespace).
+						Warnf("[%s] Failed to handle BroadcastMicroBlockInv command: %v", n.sm.MustState(), err)
+				}
+			default:
+				zap.S().Named(logging.NetworkNamespace).Errorf("[%s] Unexpected network command type %T",
+					n.sm.MustState(), c)
+				return errors.Errorf("unexpected network command '%T'", c)
 			}
 		}
 	}
 }
 
-func (n *Network) handleConnected(msg *peer.Connected) {
-	err := n.peers.NewConnection(msg.Peer)
+func (n *Network) sendScore(p peer.Peer) {
+	s, err := n.storage.CurrentScore()
 	if err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Established connection with %s peer '%s': %s",
-			msg.Peer.Direction(), msg.Peer.ID(), err)
+		zap.S().Errorf("[%s] Failed to send local score to peer %q: %v",
+			n.sm.MustState(), p.RemoteAddr().String(), err)
 		return
 	}
-	if n.peers.ConnectedCount() == n.minPeerMining { // TODO: Consider producing duplicate events here
-		n.networkInfoCh <- StartMining{}
-	}
-	sendScore(msg.Peer, n.storage)
-
-	//TODO: Do we need to check it here after async operation of sending score to the peer. Possibly we don't
-	// know peer's score yet, because we haven't received it yet.
-	n.switchToNewPeerIfRequired()
+	p.SendMessage(&proto.ScoreMessage{Score: s.Bytes()})
 }
 
-func (n *Network) handleInternalErr(msg peer.InfoMessage) {
-	n.peers.Disconnect(msg.Peer)
-	if n.peers.ConnectedCount() < n.minPeerMining {
-		// TODO: Consider handling of duplicate events in consumer
-		n.networkInfoCh <- StopMining{}
+func (n *Network) onScore(_ context.Context, args ...any) error {
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first, expected 'peer.Peer'", args[0])
 	}
-	if msg.Peer.Equal(n.syncPeer.GetPeer()) {
-		n.networkInfoCh <- StopSync{}
+	s, ok := args[1].(*proto.Score)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected '*proto.Score'", args[1])
 	}
+	if err := n.peers.UpdateScore(p, s); err != nil {
+		return err
+	}
+	return n.sm.Fire(eventScoreUpdated)
 }
 
-func (n *Network) isTimeToSwitchPeerWithMaxScore() bool {
-	now := n.tm.Now()
-	obsolescenceTime := now.Add(-n.obsolescence)
-	lastBlock := n.storage.TopBlock()
-	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
-	return !obsolescenceTime.After(lastBlockTime)
+func (n *Network) onGetPeers(_ context.Context, args ...any) error {
+	metricGetPeersMessage.Inc()
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	rs := n.peers.KnownPeers()
+	out := make([]proto.PeerInfo, 0, len(rs))
+	for _, r := range rs {
+		ipPort := proto.IpPort(r)
+		out = append(out, proto.PeerInfo{
+			Addr: ipPort.Addr(),
+			Port: uint16(ipPort.Port()),
+		})
+	}
+	p.SendMessage(&proto.PeersMessage{Peers: out})
+	return nil
 }
 
-func (n *Network) switchToNewPeerIfRequired() {
-	if n.isTimeToSwitchPeerWithMaxScore() {
-		// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
-		// score every time it updated.
-		if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer.peer); ok {
-			n.networkInfoCh <- ChangeSyncPeer{Peer: np}
+func (n *Network) onPeers(_ context.Context, args ...any) error {
+	metricPeersMessage.Inc()
+	msg, ok := args[0].([]proto.PeerInfo)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected '[]proto.PeerInfo'", args[0])
+	}
+	if len(msg) == 0 {
+		return nil
+	}
+	alreadyKnown := n.peers.KnownPeers()
+	r := make([]ps.KnownPeer, 0, len(msg))
+	for _, mp := range msg {
+		p := ps.KnownPeer(proto.NewTCPAddr(mp.Addr, int(mp.Port)).ToIpPort())
+		if slices.Contains(alreadyKnown, p) {
+			continue
 		}
-	} else {
-		// Node better continue synchronization with one node, switching to new node happens only if the larger
-		// group of nodes with the highest score appears.
-		if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer.peer); ok {
-			n.networkInfoCh <- ChangeSyncPeer{Peer: np}
-		}
+		r = append(r, p)
 	}
+	return n.peers.UpdateKnownPeers(r)
 }
 
-func sendScore(p peer.Peer, storage state.State) {
-	curScore, err := storage.CurrentScore()
+func (n *Network) onPeerConnected(_ context.Context, args ...any) error {
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	if err := n.peers.NewConnection(p); err != nil {
+		zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to register new %s peer '%s': %v",
+			n.sm.MustState(), p.Direction(), p.ID(), err)
+		return nil // Do not interrupt state machine execution with an error.
+	}
+	n.sendScore(p) // Always send our score to newly connected peer.
+	return n.sm.Fire(eventQuorumChanged)
+}
+
+func (n *Network) onPeerDisconnected(_ context.Context, args ...any) error {
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	e, ok := args[1].(error)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected 'error'", args[1])
+	}
+
+	n.peers.Disconnect(p)
+	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Lost connection with %s peer '%s': %v",
+		n.sm.MustState(), p.Direction(), p.ID(), e)
+
+	return n.sm.Fire(eventQuorumChanged)
+}
+
+func (n *Network) onFollowGroup(_ context.Context, _ ...any) error {
+	n.leaderMode = false
+	return n.sm.Fire(eventFollowingModeChanged)
+}
+
+func (n *Network) onFollowLeader(_ context.Context, _ ...any) error {
+	n.leaderMode = true
+	return n.sm.Fire(eventFollowingModeChanged)
+}
+
+func (n *Network) onDisconnected(_ context.Context, _ ...any) error {
+	n.notificationsCh <- QuorumLostNotification{}
+	return nil
+}
+
+func (n *Network) onQuorum(_ context.Context, _ ...any) error {
+	n.notificationsCh <- QuorumMetNotification{}
+	return n.sm.Fire(eventFollowingModeChanged)
+}
+
+func (n *Network) onAskPeers(_ context.Context, _ ...any) error {
+	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Requesting peers", n.sm.MustState())
+	n.peers.AskPeers()
+	return nil
+}
+
+func (n *Network) onBlacklist(_ context.Context, args ...any) error {
+	p := args[0].(peer.Peer)
+	m := args[1].(string)
+	n.peers.AddToBlackList(p, time.Now(), m)
+	return nil
+}
+
+func (n *Network) onBroadcast(_ context.Context, args ...any) error {
+	tx := args[0].(proto.Transaction)
+	op := args[1].(peer.Peer)
+	// TODO: Consider this:
+	//var err error
+	//for _, cp := range n.peers.Connected() {
+	//	var bts []byte
+	//	if cp.ProtobufSupported() {
+	//		bts, err = tx.MarshalSignedToProtobuf(n.scheme)
+	//		if err != nil {
+	//			break
+	//		}
+	//		cp.SendMessage(&proto.PBTransactionMessage{Transaction: bts})
+	//	} else {
+	//		bts, err = tx.MarshalBinary(n.scheme)
+	//		if err != nil {
+	//			break
+	//		}
+	//		cp.SendMessage(&proto.TransactionMessage{Transaction: bts})
+	//	}
+	//}
+	//if err != nil {
+	//	zap.S().Named(logging.FSMNamespace).
+	//		Warnf("[%s] Failed to broadcast transaction '%s' to %s: %v", n.sm.MustState(), tx.)
+	//}
+	n.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+		if p != op {
+			_ = extension.NewPeerExtension(p, n.scheme).SendTransaction(tx)
+		}
+	})
+	return nil
+}
+
+func (n *Network) selectGroup(_ context.Context, _ ...any) error {
+	if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer); ok {
+		n.notificationsCh <- SyncPeerSelectedNotification{Peer: np}
+	}
+	return nil
+}
+
+func (n *Network) selectLeader(_ context.Context, _ ...any) error {
+	if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer); ok {
+		n.notificationsCh <- SyncPeerSelectedNotification{Peer: np}
+	}
+	return nil
+}
+
+func (n *Network) onAnnounceScore(_ context.Context, _ ...any) error {
+	score, err := n.storage.CurrentScore()
 	if err != nil {
-		zap.S().Errorf("Failed to send current score to peer %q: %v", p.RemoteAddr().String(), err)
-		return
+		zap.S().Named(logging.NetworkNamespace).
+			Errorf("[%s] Failed to get current score: %v", n.sm.MustState(), err)
+		return nil
 	}
+	var (
+		msg = &proto.ScoreMessage{Score: score.Bytes()}
+		cnt int
+	)
+	n.peers.EachConnected(func(peer peer.Peer, score *proto.Score) {
+		peer.SendMessage(msg)
+		cnt++
+	})
+	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Score '%s' announced to %d peers",
+		n.sm.MustState(), score.String(), cnt)
+	return nil
+}
 
-	bts := curScore.Bytes()
-	p.SendMessage(&proto.ScoreMessage{Score: bts})
+func (n *Network) onBroadcastMicroBlockInv(_ context.Context, args ...any) error {
+	inv := args[0].(*proto.MicroBlockInv)
+	op := args[1].(peer.Peer)
+
+	bts, err := inv.MarshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal binary MicroBlockInv message")
+	}
+	msg := &proto.MicroBlockInvMessage{Body: bts}
+	var (
+		cnt int
+	)
+	n.peers.EachConnected(func(p peer.Peer, _ *proto.Score) {
+		if p != op {
+			p.SendMessage(msg)
+			cnt++
+		}
+	})
+	zap.S().Named(logging.FSMNamespace).
+		Debugf("[%s] MicroBlockInv message (%s <- %s) sent to %d peers",
+			n.sm.MustState(), inv.Reference.String(), inv.TotalBlockID.String(), cnt)
+	return nil
+}
+
+func (n *Network) onEnterHalt(_ context.Context, _ ...any) error {
+	n.peers.Close()
+	close(n.notificationsCh)
+	return nil
+}
+
+func (n *Network) quorumReached(_ context.Context, _ ...any) bool {
+	return n.peers.ConnectedCount() >= n.quorumThreshold
+}
+
+func (n *Network) quorumNotReached(ctx context.Context, args ...any) bool {
+	return !n.quorumReached(ctx, args)
+}
+
+func (n *Network) followLeader(_ context.Context, _ ...any) bool {
+	return n.leaderMode
+}
+
+func (n *Network) followGroup(_ context.Context, _ ...any) bool {
+	return !n.leaderMode
 }

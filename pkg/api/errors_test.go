@@ -9,8 +9,9 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"go.uber.org/zap"
+
+	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 )
 
 func TestErrorHandler_Handle(t *testing.T) {
@@ -20,7 +21,6 @@ func TestErrorHandler_Handle(t *testing.T) {
 			require.NoError(t, err)
 			return string(data)
 		}
-		badReqErr  = &BadRequestError{errors.New("bad-request")}
 		unknownErr = apiErrs.NewUnknownError(errors.New("unknown"))
 		defaultErr = errors.New("default")
 	)
@@ -31,22 +31,10 @@ func TestErrorHandler_Handle(t *testing.T) {
 		expectedBody string
 	}{
 		{
-			name:         "BadRequestErrorCase",
-			err:          errors.WithStack(errors.WithStack(badReqErr)),
-			expectedCode: http.StatusBadRequest,
-			expectedBody: "Failed to complete request: bad-request\n",
-		},
-		{
-			name:         "ErrorWithMultipleWraps",
-			err:          errors.Wrap(errors.Wrap(badReqErr, "wrap1"), "wrap2"),
-			expectedCode: http.StatusBadRequest,
-			expectedBody: "Failed to complete request: bad-request\n",
-		},
-		{
 			name:         "AuthErrorCase",
-			err:          &AuthError{errors.New("auth")},
+			err:          apiErrs.APIKeyDisabled,
 			expectedCode: http.StatusForbidden,
-			expectedBody: "Failed to complete request: auth\n",
+			expectedBody: "API key disabled\n",
 		},
 		{
 			name:         "ApiErrorCase",

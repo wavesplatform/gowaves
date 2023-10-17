@@ -2,12 +2,9 @@ package api
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-func (a *App) scheme() proto.Scheme {
-	return a.services.Scheme
-}
 
 func (a *App) AddrByAlias(alias proto.Alias) (proto.Address, error) {
 	addr, err := a.state.AddrByAlias(alias)
@@ -27,7 +24,7 @@ func (a *App) AliasesByAddr(addr proto.WavesAddress) ([]proto.Alias, error) {
 	}
 	out := make([]proto.Alias, len(aliases))
 	for i := range aliases {
-		out[i] = *proto.NewAlias(a.scheme(), aliases[i])
+		out[i] = *proto.NewAlias(a.Scheme(), aliases[i])
 	}
 	return out, err
 }

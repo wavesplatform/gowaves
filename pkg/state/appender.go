@@ -115,11 +115,11 @@ func newTxAppender(
 func (a *txAppender) checkDuplicateTxIdsImpl(id []byte, recentIds map[string]struct{}) error {
 	// Check recent.
 	if _, ok := recentIds[string(id)]; ok {
-		return proto.NewInfoMsg(errors.Errorf("transaction with ID %s already in state", base58.Encode(id)))
+		return errors.Errorf("transaction with ID %s already in state", base58.Encode(id))
 	}
 	// Check DB.
 	if _, _, err := a.rw.readTransaction(id); err == nil {
-		return proto.NewInfoMsg(errors.Errorf("transaction with ID %s already in state", base58.Encode(id)))
+		return errors.Errorf("transaction with ID %s already in state", base58.Encode(id))
 	}
 	return nil
 }
@@ -892,11 +892,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
 		stateActionsCounterInBlock: new(proto.StateActionsCounter),
 	}
-	err = a.appendTx(tx, appendTxArgs)
-	if err != nil {
-		return proto.NewInfoMsg(err)
-	}
-	return nil
+	return a.appendTx(tx, appendTxArgs)
 }
 
 func (a *txAppender) reset() {

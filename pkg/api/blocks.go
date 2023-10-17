@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/pkg/errors"
+
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -55,7 +56,7 @@ func (a *App) BlocksLast() (*Block, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get %d block from state", h)
 	}
-	return newAPIBlock(block, a.services.Scheme, h)
+	return newAPIBlock(block, a.Scheme(), h)
 }
 
 func (a *App) BlocksHeadersLast() (*Block, error) {
@@ -71,7 +72,7 @@ func (a *App) BlocksHeadersAt(h proto.Height) (*Block, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get %d block header from state", h)
 	}
-	return newAPIBlockFromHeader(*blockHeader, a.services.Scheme, h)
+	return newAPIBlockFromHeader(*blockHeader, a.Scheme(), h)
 }
 
 func (a *App) BlocksHeadersByID(id proto.BlockID) (*Block, error) {
@@ -117,7 +118,7 @@ func (a *App) BlocksFirst() (*Block, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get first block from state")
 	}
-	return newAPIBlock(block, a.services.Scheme, genesisHeight)
+	return newAPIBlock(block, a.Scheme(), genesisHeight)
 }
 
 type Generators []Generator

@@ -114,7 +114,7 @@ type Mine interface {
 	Mine() chan scheduler.Emit
 }
 
-func Run(ctx context.Context, a types.Miner, s Mine, internalCh chan<- messages.InternalMessage) {
+func Run(ctx context.Context, a types.Miner, s Mine, internalCh chan<- *messages.MinedBlockInternalMessage) {
 	for {
 		select {
 		case <-ctx.Done():

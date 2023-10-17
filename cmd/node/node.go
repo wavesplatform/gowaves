@@ -24,23 +24,18 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
-	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
-	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node"
-	"github.com/wavesplatform/gowaves/pkg/node/blocks_applier"
-	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/network"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	peersPersistentStorage "github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -51,10 +46,9 @@ import (
 )
 
 const (
-	maxTransactionTimeForwardOffset = 300 // seconds
-	mb                              = 1 << (10 * 2)
-	defaultTimeout                  = 30 * time.Second
-	reserve                         = 10
+	mb             = 1 << (10 * 2)
+	defaultTimeout = 30 * time.Second
+	reserve        = 10
 )
 
 var defaultPeers = map[string]string{
@@ -268,10 +262,10 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("Initialization failure: %v", err)
 	}
-	if max := int(maxFDs) - int(nc.limitAllConnections) - reserve; nc.dbFileDescriptors > max {
+	if m := int(maxFDs) - int(nc.limitAllConnections) - reserve; nc.dbFileDescriptors > m {
 		zap.S().Fatalf(
 			"Invalid 'db-file-descriptors' flag value (%d). Value shall be less or equal to %d.",
-			nc.dbFileDescriptors, max)
+			nc.dbFileDescriptors, m)
 	}
 
 	if nc.profiler {
@@ -398,14 +392,14 @@ func main() {
 		return
 	}
 
+	//TODO: Use features somehow
+	_ = features
+
 	// Check if we need to start serving extended API right now.
 	if err := node.MaybeEnableExtendedApi(st, ntpTime); err != nil {
 		zap.S().Errorf("Failed to enable extended API: %v", err)
 		return
 	}
-
-	async := runner.NewAsync()
-	logRunner := runner.NewLogRunner(async)
 
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 	bindAddr := proto.NewTCPAddrFromString(nc.bindAddress)
@@ -459,7 +453,6 @@ func main() {
 			wal,
 			cfg,
 			ntpTime,
-			scheduler.NewMinerConsensus(peerManager, nc.minPeersMining),
 			nc.obsolescencePeriod,
 		)
 		if err != nil {
@@ -467,34 +460,23 @@ func main() {
 			return
 		}
 	}
-	blockApplier := blocks_applier.NewBlocksApplier()
 
-	svs := services.Services{
-		State:           st,
-		Peers:           peerManager,
-		Scheduler:       minerScheduler,
-		BlocksApplier:   blockApplier,
-		UtxPool:         utx,
-		Scheme:          cfg.AddressSchemeCharacter,
-		LoggableRunner:  logRunner,
-		Time:            ntpTime,
-		Wallet:          wal,
-		MicroBlockCache: microblock_cache.NewMicroblockCache(),
-		InternalChannel: messages.NewInternalChannel(),
-		MinPeersMining:  nc.minPeersMining,
-		SkipMessageList: parent.SkipMessageList,
+	// TODO: blockApplier := blocks_applier.NewBlocksApplier()
+
+	app, broadcastCh, err := api.NewApp(nc.apiKey, minerScheduler, st, ntpTime, utx, wal, peerManager, cfg.AddressSchemeCharacter)
+	if err != nil {
+		zap.S().Errorf("Failed to initialize application: %v", err)
+		return
 	}
 
-	mine := miner.NewMicroblockMiner(svs, features, reward, maxTransactionTimeForwardOffset)
-	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
+	ntw, notificationsCh := network.NewNetwork(parent.NotificationsCh, parent.NetworkMessagesCh,
+		peerManager, st, cfg.AddressSchemeCharacter, nc.minPeersMining)
+	n, cmdCh := node.NewNode(parent.NodeMessagesCh, notificationsCh, broadcastCh, cfg.AddressSchemeCharacter, bindAddr, declAddr,
+		nc.microblockInterval, nc.obsolescencePeriod, utx, ntpTime, reward)
+	ntw.SetCommandChannel(cmdCh)
 
-	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
-	go ntw.Run(ctx)
-
-	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval)
-	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer())
-
-	go minerScheduler.Reschedule()
+	ntw.Run(ctx)
+	n.Run(ctx)
 
 	if len(conf.Addresses) > 0 {
 		addresses := strings.Split(conf.Addresses, ",")
@@ -513,13 +495,7 @@ func main() {
 		}
 	}
 
-	app, err := api.NewApp(nc.apiKey, minerScheduler, svs)
-	if err != nil {
-		zap.S().Errorf("Failed to initialize application: %v", err)
-		return
-	}
-
-	webApi := api.NewNodeApi(app, st, n)
+	webApi := api.NewNodeApi(app, st)
 	go func() {
 		zap.S().Infof("Starting node HTTP API on '%v'", conf.HttpAddr)
 		if err = api.Run(ctx, conf.HttpAddr, webApi, apiRunOptsFromCLIFlags(nc)); err != nil {
@@ -544,7 +520,7 @@ func main() {
 
 	if nc.enableGrpcAPI {
 		var srv *server.Server
-		srv, err = server.NewServer(svs)
+		srv, err = server.NewServer(app)
 		if err != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", err)
 		}
@@ -558,8 +534,9 @@ func main() {
 
 	<-ctx.Done()
 	zap.S().Info("User termination in progress...")
-	n.Close()
-	<-time.After(1 * time.Second)
+	ntw.Shutdown()
+	n.Shutdown()
+	zap.S().Infof("Done")
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {

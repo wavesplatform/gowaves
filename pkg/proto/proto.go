@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
 )

@@ -4,11 +4,12 @@ import (
 	"context"
 	"net"
 
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type BehaviourImpl struct {
@@ -73,18 +74,18 @@ func (a *BehaviourImpl) Stop() {
 	a.counter.Stop()
 }
 
-func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
-	switch t := info.Value.(type) {
-	case error:
-		zap.S().Infof("got error message %s from %s", t, info.Peer)
-		a.errorHandler(info.Peer, t)
-	case *peer.Connected:
+func (a *BehaviourImpl) InfoMessage(info peer.Notification) {
+	switch t := info.(type) {
+	case peer.ConnectedNotification:
 		a.activeConnections.Add(t.Peer.RemoteAddr().String(), t.Peer)
 		if !t.Peer.Handshake().DeclaredAddr.Empty() {
 			a.knownPeers.Add(proto.TCPAddr(t.Peer.Handshake().DeclaredAddr), t.Peer.Handshake().Version)
 		}
+	case peer.DisconnectedNotification:
+		zap.S().Infof("got error message %s from %s", t.Err.Error(), t.Peer)
+		a.errorHandler(t.Peer)
 	default:
-		zap.S().Warnf("got unknown info message of type %T\n", info.Value)
+		zap.S().Warnf("got unknown info message of type %T\n", info)
 	}
 }
 
@@ -96,9 +97,9 @@ func (a *BehaviourImpl) AskAboutKnownPeers() {
 }
 
 func (a *BehaviourImpl) sendToPeerMyKnownHosts(p peer.Peer) {
-	addrs := a.knownPeers.Addresses()
+	addresses := a.knownPeers.Addresses()
 	pm := proto.PeersMessage{
-		Peers: addrs,
+		Peers: addresses,
 	}
 	p.SendMessage(&pm)
 }
@@ -126,7 +127,7 @@ func (a *BehaviourImpl) SpawnKnownPeers(ctx context.Context) {
 	}
 }
 
-func (a *BehaviourImpl) errorHandler(p peer.Peer, e error) {
+func (a *BehaviourImpl) errorHandler(p peer.Peer) {
 	_ = p.Close()
 	if p != nil {
 		a.activeConnections.Delete(p)

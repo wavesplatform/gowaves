@@ -6,10 +6,10 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
 func TestApp_BlocksFirst(t *testing.T) {
@@ -25,7 +25,7 @@ func TestApp_BlocksFirst(t *testing.T) {
 	s := mock.NewMockState(ctrl)
 	s.EXPECT().BlockByHeight(proto.Height(1)).Return(g, nil)
 
-	app, err := NewApp("api-key", nil, services.Services{State: s})
+	app, _, err := NewApp("api-key", nil, s, nil, nil, nil, nil, proto.MainNetScheme)
 	require.NoError(t, err)
 	first, err := app.BlocksFirst()
 	require.NoError(t, err)
@@ -41,7 +41,7 @@ func TestApp_BlocksLast(t *testing.T) {
 	s.EXPECT().Height().Return(proto.Height(1), nil)
 	s.EXPECT().BlockByHeight(proto.Height(1)).Return(g, nil)
 
-	app, err := NewApp("api-key", nil, services.Services{State: s})
+	app, _, err := NewApp("api-key", nil, s, nil, nil, nil, nil, proto.MainNetScheme)
 	require.NoError(t, err)
 	first, err := app.BlocksLast()
 	require.NoError(t, err)

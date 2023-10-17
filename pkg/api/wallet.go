@@ -4,7 +4,7 @@ import "github.com/mr-tron/base58"
 
 // WalletSeeds returns wallet seeds in base58 encoding.
 func (a *App) WalletSeeds() []string {
-	seeds := a.services.Wallet.AccountSeeds()
+	seeds := a.Wallet().AccountSeeds()
 
 	seeds58 := make([]string, 0, len(seeds))
 	for _, seed := range seeds {

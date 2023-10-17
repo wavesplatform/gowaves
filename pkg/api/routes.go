@@ -7,8 +7,9 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
-	"github.com/wavesplatform/gowaves/pkg/api/metamask"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/api/metamask"
 )
 
 type HandleErrorFunc func(w http.ResponseWriter, r *http.Request, err error)
@@ -90,7 +91,6 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		})
 
 		r.Get("/miner/info", wrapper(a.GoMinerInfo))
-		r.Get("/node/processes", wrapper(a.nodeProcesses))
 		r.Get("/pool/transactions", wrapper(a.poolTransactions))
 	})
 
@@ -168,7 +168,8 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		r.Route("/eth", func(r chi.Router) {
 			r.Get("/abi/{address}", wrapper(a.EthereumDAppABI))
 			if opts.EnableMetaMaskAPI {
-				service := metamask.NewRPCService(&a.app.services)
+				service := metamask.NewRPCService(a.app.Scheme(), a.app.State(), a.app.Time(),
+					a.app.broadcastCh)
 				rpc := zenrpc.NewServer(zenrpc.Options{ExposeSMD: true, AllowCORS: true})
 				if opts.EnableMetaMaskAPILog {
 					rpc.Use(metamask.APILogMiddleware)

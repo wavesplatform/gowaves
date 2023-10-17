@@ -27,6 +27,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/prometheus/client_golang v1.16.0
 	github.com/qmuntal/stateless v1.6.6
+	github.com/rhansen/go-kairos v0.0.0-20230622235007-87f08a46d19b
 	github.com/seiflotfy/cuckoofilter v0.0.0-20201222105146-bc6005554a0c
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/afero v1.9.5

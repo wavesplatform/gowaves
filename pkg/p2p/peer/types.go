@@ -6,31 +6,27 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type Connected struct {
-	Peer Peer
-}
-
-func (*Connected) infoMsgValueMark() {}
-
-type InternalErr struct {
-	Err error
-}
-
-func (*InternalErr) infoMsgValueMark() {}
-
 type ProtoMessage struct {
 	ID      Peer
 	Message proto.Message
 }
 
-type InfoMessage struct {
-	Peer  Peer
-	Value InfoMessageValue
+type Notification interface {
+	peerNotificationTypeMaker()
 }
 
-type InfoMessageValue interface {
-	infoMsgValueMark()
+type ConnectedNotification struct {
+	Peer Peer
 }
+
+func (n ConnectedNotification) peerNotificationTypeMaker() {}
+
+type DisconnectedNotification struct {
+	Peer Peer
+	Err  error
+}
+
+func (n DisconnectedNotification) peerNotificationTypeMaker() {}
 
 type Direction int
 

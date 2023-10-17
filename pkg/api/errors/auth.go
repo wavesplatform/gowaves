@@ -11,16 +11,24 @@ type authError struct {
 }
 
 type (
-	ApiKeyNotValidError        authError
+	APIKeyNotValidError        authError
+	APIKeyDisabledError        authError
 	TooBigArrayAllocationError authError
 )
 
 var (
-	ApiKeyNotValid = &ApiKeyNotValidError{
+	APIKeyNotValid = &APIKeyNotValidError{
 		genericError: genericError{
-			ID:       ApiKeyNotValidErrorID,
-			HttpCode: http.StatusBadRequest,
+			ID:       APIKeyNotValidErrorID,
+			HttpCode: http.StatusForbidden,
 			Message:  "Provided API key is not correct",
+		},
+	}
+	APIKeyDisabled = &APIKeyDisabledError{
+		genericError: genericError{
+			ID:       APIKeyDisabledErrorID,
+			HttpCode: http.StatusForbidden,
+			Message:  "API key disabled",
 		},
 	}
 	TooBigArrayAllocation = &TooBigArrayAllocationError{

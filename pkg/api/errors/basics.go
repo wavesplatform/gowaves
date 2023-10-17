@@ -20,14 +20,14 @@ type ApiError interface {
 }
 
 type ErrorID int
-type ApiAuthErrorID ErrorID
+type APIAuthErrorID ErrorID
 type ValidationErrorID ErrorID
 type TransactionErrorID ErrorID
 
 func (e ErrorID) IntCode() int {
 	return int(e)
 }
-func (e ApiAuthErrorID) IntCode() int {
+func (e APIAuthErrorID) IntCode() int {
 	return int(e)
 }
 func (e ValidationErrorID) IntCode() int {

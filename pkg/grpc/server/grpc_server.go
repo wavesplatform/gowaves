@@ -6,16 +6,18 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
-	"github.com/wavesplatform/gowaves/pkg/state"
-	"github.com/wavesplatform/gowaves/pkg/types"
-	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
+
+	"github.com/wavesplatform/gowaves/pkg/api"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/node/messages"
+	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 )
 
 const (
@@ -23,12 +25,12 @@ const (
 )
 
 type Server struct {
-	state      state.StateInfo
-	scheme     proto.Scheme
-	utx        types.UtxPool
-	wallet     types.EmbeddedWallet
-	services   services.Services
-	grpcServer *grpc.Server
+	state       state.StateInfo
+	scheme      proto.Scheme
+	utx         types.UtxPool
+	wallet      types.EmbeddedWallet
+	grpcServer  *grpc.Server
+	broadcastCh chan<- *messages.BroadcastTransaction
 }
 
 type RunOptions struct {
@@ -41,11 +43,18 @@ func DefaultRunOptions() *RunOptions {
 	}
 }
 
-func NewServer(services services.Services) (*Server, error) {
-	s := &Server{}
+func NewServer(app *api.App) (*Server, error) {
+	s := &Server{
+		state:       nil,
+		scheme:      0,
+		utx:         nil,
+		wallet:      nil,
+		grpcServer:  nil,
+		broadcastCh: nil,
+	}
 	s.grpcServer = createGRPCServerWithHandlers(s)
-	s.services = services
-	if err := s.initServer(services.State, services.UtxPool, services.Wallet); err != nil {
+	s.broadcastCh = app.BroadcastChannel()
+	if err := s.initServer(app.State(), app.UtxPool(), app.Wallet(), app.Scheme()); err != nil {
 		return nil, err
 	}
 	return s, nil
@@ -67,11 +76,13 @@ func createGRPCServerWithHandlers(handlers GrpcHandlers) *grpc.Server {
 	return grpcServer
 }
 
-func (s *Server) initServer(state state.StateInfo, utx types.UtxPool, sch types.EmbeddedWallet) error {
+func (s *Server) initServer(
+	state state.StateInfo, utx types.UtxPool, wallet types.EmbeddedWallet, scheme proto.Scheme,
+) error {
 	s.state = state
-	s.scheme = s.services.Scheme
+	s.scheme = scheme
 	s.utx = utx
-	s.wallet = sch
+	s.wallet = wallet
 	return nil
 }
 

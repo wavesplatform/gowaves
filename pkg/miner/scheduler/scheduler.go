@@ -6,6 +6,8 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -14,7 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
-	"go.uber.org/zap"
 )
 
 type Emit struct {
@@ -36,7 +37,6 @@ type Default struct {
 	emits        []Emit
 	storage      state.State
 	tm           types.Time
-	consensus    types.MinerConsensus
 	obsolescence time.Duration
 }
 
@@ -306,16 +306,15 @@ func NewScheduler(
 	seeder seeder,
 	settings *settings.BlockchainSettings,
 	tm types.Time,
-	consensus types.MinerConsensus,
 	minerDelay time.Duration) (*Default, error) {
 	if minerDelay <= 0 {
 		return nil, errors.New("minerDelay must be positive")
 	}
-	return newScheduler(internalImpl{}, state, seeder, settings, tm, consensus, minerDelay), nil
+	return newScheduler(internalImpl{}, state, seeder, settings, tm, minerDelay), nil
 }
 
 func newScheduler(internal internal, state state.State, seeder seeder, settings *settings.BlockchainSettings,
-	tm types.Time, consensus types.MinerConsensus, minerDelay time.Duration) *Default {
+	tm types.Time, minerDelay time.Duration) *Default {
 	if seeder == nil {
 		seeder = wallet.NewWallet()
 	}
@@ -327,7 +326,6 @@ func newScheduler(internal internal, state state.State, seeder seeder, settings 
 		storage:      state,
 		mu:           sync.Mutex{},
 		tm:           tm,
-		consensus:    consensus,
 		obsolescence: minerDelay,
 	}
 }
@@ -343,11 +341,6 @@ func (a *Default) Reschedule() {
 	}
 
 	zap.S().Debugf("Scheduler: Trying to mine with %d seeds", len(a.seeder.AccountSeeds()))
-
-	if !a.consensus.IsMiningAllowed() {
-		zap.S().Debug("Scheduler: Mining is not allowed because of lack of connected nodes")
-		return
-	}
 
 	now := a.tm.Now()
 	obsolescenceTime := now.Add(-a.obsolescence)

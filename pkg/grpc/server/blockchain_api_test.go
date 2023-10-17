@@ -5,11 +5,12 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func TestGetBaseTarget(t *testing.T) {
@@ -17,8 +18,8 @@ func TestGetBaseTarget(t *testing.T) {
 	params.StoreExtendedApiData = true
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
-	err := server.initServer(st, nil, sch)
+	wlt := createTestNetWallet(t)
+	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
 	assert.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)
@@ -46,8 +47,8 @@ func TestGetCumulativeScore(t *testing.T) {
 	params := defaultStateParams()
 	st := newTestState(t, true, params, settings.MainNetSettings)
 	ctx := withAutoCancel(t, context.Background())
-	sch := createTestNetWallet(t)
-	err := server.initServer(st, nil, sch)
+	wlt := createTestNetWallet(t)
+	err := server.initServer(st, nil, wlt, proto.MainNetScheme)
 	assert.NoError(t, err)
 
 	conn := connectAutoClose(t, grpcTestAddr)

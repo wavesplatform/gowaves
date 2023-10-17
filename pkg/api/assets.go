@@ -2,6 +2,7 @@ package api
 
 import (
 	"github.com/pkg/errors"
+
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -50,7 +51,7 @@ func (a *App) assetsDetailsByID(fullAssetID crypto.Digest, full bool) (AssetDeta
 		ts   uint64
 	)
 	if tx := assetInfo.IssueTransaction; tx != nil {
-		txID, err = tx.GetID(a.services.Scheme)
+		txID, err = tx.GetID(a.Scheme())
 		if err != nil {
 			return AssetDetails{}, errors.Wrap(err, "failed to get txID for asset")
 		}
