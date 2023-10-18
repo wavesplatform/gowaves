@@ -62,7 +62,7 @@ func (db *diffBalance) addLeaseOut(amount int64) error {
 }
 
 func (db *diffBalance) spendableBalance() (int64, error) {
-	b, err := common.AddInt(db.balance, -db.leaseOut)
+	b, err := common.SubInt(db.balance, db.leaseOut)
 	if err != nil {
 		return 0, err
 	}
@@ -77,7 +77,7 @@ func (db *diffBalance) checkedRegularBalance() (uint64, error) {
 }
 
 func (db *diffBalance) checkedSpendableBalance() (uint64, error) {
-	b, err := common.AddInt(db.balance, -db.leaseOut)
+	b, err := common.SubInt(db.balance, db.leaseOut)
 	if err != nil {
 		return 0, err
 	}
@@ -92,7 +92,7 @@ func (db *diffBalance) effectiveBalance() (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	v2, err := common.AddInt(v1, -db.leaseOut)
+	v2, err := common.SubInt(v1, db.leaseOut)
 	if err != nil {
 		return 0, err
 	}
