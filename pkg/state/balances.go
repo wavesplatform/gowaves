@@ -7,11 +7,12 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"go.uber.org/zap"
 )
 
 const (
@@ -32,7 +33,7 @@ type balanceProfile struct {
 }
 
 func (bp *balanceProfile) effectiveBalance() (uint64, error) {
-	val, err := common.AddInt64(int64(bp.balance), bp.leaseIn)
+	val, err := common.AddInt(int64(bp.balance), bp.leaseIn)
 	if err != nil {
 		return 0, err
 	}

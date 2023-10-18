@@ -25,15 +25,6 @@ func AddInt[T constraints.Integer](a, b T) (T, error) {
 	return 0, errors.New("add: integer overflow/underflow")
 }
 
-func AddInt64(a, b int64) (int64, error) {
-	return AddInt(a, b)
-}
-
-// AddUint64 makes safe sum for uint64.
-func AddUint64(a, b uint64) (uint64, error) {
-	return AddInt(a, b)
-}
-
 // SubInt makes safe sub for arbitrary integer type.
 func SubInt[T constraints.Integer](a, b T) (T, error) {
 	c := a - b
