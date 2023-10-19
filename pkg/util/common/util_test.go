@@ -30,9 +30,9 @@ func TestAddInt64(t *testing.T) {
 		{one, -one, false, zero},
 		{-one, -one, false, int64(-2)},
 	} {
-		r, err := AddInt64(test.x, test.y)
+		r, err := AddInt(test.x, test.y)
 		if test.err {
-			assert.Error(t, err, "AddInt64 did not fail with arguments causing an overflow")
+			assert.Error(t, err, "AddInt did not fail with arguments causing an overflow")
 		} else {
 			require.NoError(t, err)
 			assert.Equal(t, test.r, r)
@@ -43,11 +43,11 @@ func TestAddInt64(t *testing.T) {
 func TestAddUint64(t *testing.T) {
 	a0 := uint64(math.MaxUint64)
 	a1 := uint64(0)
-	_, err := AddUint64(a0, a1)
-	assert.NoError(t, err, "AddUint64 failed with arguments not causing an overflow")
+	_, err := AddInt(a0, a1)
+	assert.NoError(t, err, "AddInt failed with arguments not causing an overflow")
 	a1 = 1
-	_, err = AddUint64(a1, a0)
-	assert.Error(t, err, "AddUint64 did not fail with arguments causing an overflow")
+	_, err = AddInt(a1, a0)
+	assert.Error(t, err, "AddInt did not fail with arguments causing an overflow")
 }
 
 func TestDup(t *testing.T) {
