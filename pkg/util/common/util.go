@@ -13,33 +13,39 @@ import (
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"golang.org/x/exp/constraints"
 )
 
-// AddInt64 makes safe sum for int64.
-func AddInt64(a, b int64) (int64, error) {
+// AddInt makes safe sum for arbitrary integer type.
+func AddInt[T constraints.Integer](a, b T) (T, error) {
 	c := a + b
 	if (c > a) == (b > 0) {
 		return c, nil
 	}
-	return 0, errors.New("64-bit signed integer overflow")
+	return 0, errors.New("add: integer overflow/underflow")
 }
 
-// AddInt makes safe sum for int.
-func AddInt(a, b int) (int, error) {
-	c := a + b
-	if (c > a) == (b > 0) {
+// SubInt makes safe sub for arbitrary integer type.
+func SubInt[T constraints.Integer](a, b T) (T, error) {
+	c := a - b
+	if (c < a) == (b > 0) {
 		return c, nil
 	}
-	return 0, errors.New("signed integer overflow")
+	return 0, errors.New("sub: integer overflow/underflow")
 }
 
-// AddUint64 makes safe sum for uint64.
-func AddUint64(a, b uint64) (uint64, error) {
-	c := a + b
-	if (c > a) == (b > 0) {
-		return c, nil
+// MulInt makes safe mul for arbitrary integer type.
+func MulInt[T constraints.Integer](a, b T) (T, error) {
+	if a == 0 || b == 0 {
+		return 0, nil
 	}
-	return 0, errors.New("64-bit unsigned integer overflow")
+	c := a * b
+	if (c < 0) == ((a < 0) != (b < 0)) {
+		if c/b == a {
+			return c, nil
+		}
+	}
+	return 0, errors.New("mul: integer overflow/underflow")
 }
 
 // Dup duplicate (copy) bytes.
