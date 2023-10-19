@@ -107,6 +107,7 @@ func (n *Node) Run(ctx context.Context) {
 	g, gc := errgroup.WithContext(ctx)
 	n.ctx = gc
 	n.wait = g.Wait
+	n.syncTimer = kairos.NewStoppedTimer()
 	g.Go(n.handleEvents)
 }
 

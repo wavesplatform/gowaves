@@ -430,7 +430,7 @@ func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr proto.TCPAddr) er
 			if removeErr := a.peerStorage.DeleteKnown([]storage.KnownPeer{known}); removeErr != nil {
 				zap.S().Errorf("Failed to remove peer %q from known peers storage", known.String())
 			}
-			zap.S().Named(logging.NetworkNamespace).Debug("Error: %v", err)
+			zap.S().Named(logging.NetworkNamespace).Debugf("Failed to connect to address '%s': %v", addr, err)
 		}
 	}()
 	return nil

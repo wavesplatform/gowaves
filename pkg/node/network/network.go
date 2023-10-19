@@ -73,16 +73,16 @@ func NewNetwork(
 
 	n.registerMetrics()
 
-	n.sm.SetTriggerParameters(eventPeerConnected, reflect.TypeOf((peer.Peer)(nil)))
-	n.sm.SetTriggerParameters(eventPeerDisconnected, reflect.TypeOf((peer.Peer)(nil)), reflect.TypeOf((error)(nil)))
-	n.sm.SetTriggerParameters(eventScore, reflect.TypeOf((peer.Peer)(nil)), reflect.TypeOf((*proto.Score)(nil)))
-	n.sm.SetTriggerParameters(eventGetPeers, reflect.TypeOf((peer.Peer)(nil)))
+	n.sm.SetTriggerParameters(eventPeerConnected, reflect.TypeOf((*peer.Peer)(nil)).Elem())
+	n.sm.SetTriggerParameters(eventPeerDisconnected, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((error)(nil)))
+	n.sm.SetTriggerParameters(eventScore, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Score)(nil)))
+	n.sm.SetTriggerParameters(eventGetPeers, reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventPeers, reflect.TypeOf([]proto.PeerInfo{}))
-	n.sm.SetTriggerParameters(eventBlacklistPeer, reflect.TypeOf((peer.Peer)(nil)), reflect.TypeOf(""))
+	n.sm.SetTriggerParameters(eventBlacklistPeer, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(""))
 	n.sm.SetTriggerParameters(eventBroadcastTransaction, reflect.TypeOf((proto.Transaction)(nil)),
-		reflect.TypeOf((peer.Peer)(nil)))
+		reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventBroadcastMicroBlockInv, reflect.TypeOf((*proto.MicroBlockInv)(nil)),
-		reflect.TypeOf((peer.Peer)(nil)))
+		reflect.TypeOf((*peer.Peer)(nil)).Elem())
 
 	n.configureDisconnectedState()
 	n.configureGroupState()
@@ -177,8 +177,8 @@ func (n *Network) configureLeaderState() {
 		Ignore(eventQuorumChanged, n.quorumReached).
 		Permit(eventQuorumChanged, stateDisconnected, n.quorumNotReached).
 		OnEntryFrom(eventQuorumChanged, n.onQuorum).
+		Permit(eventFollowingModeChanged, stateGroup, n.followGroup).
 		Ignore(eventFollowingModeChanged, n.followLeader).
-		Permit(eventFollowingModeChanged, stateLeader, n.followGroup).
 		OnEntryFrom(eventFollowingModeChanged, n.selectLeader).
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
 		Permit(eventHalt, stateHalt)
@@ -286,6 +286,14 @@ func (n *Network) handlePeerNotifications(m peer.Notification, ok bool) error {
 	}
 	switch v := m.(type) {
 	case peer.ConnectedNotification:
+		if v.Peer == nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Debugf("[%s] Connected notification with empty peer", n.sm.MustState())
+			return nil
+		}
+		zap.S().Named(logging.NetworkNamespace).
+			Debugf("[%s] Notification about connection with peer %s (%s)",
+				n.sm.MustState(), v.Peer.RemoteAddr(), v.Peer.ID())
 		if err := n.sm.Fire(eventPeerConnected, v.Peer); err != nil {
 			zap.S().Named(logging.NetworkNamespace).Warnf("[%s] Failed to handle new peer: %v",
 				n.sm.MustState(), err)
