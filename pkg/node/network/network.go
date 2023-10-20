@@ -19,7 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	storage "github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const (
@@ -44,8 +44,8 @@ type Network struct {
 	syncPeer        peer.Peer
 	leaderMode      bool
 
-	peers   peers.PeerManager
-	storage storage.State
+	peers peers.PeerManager
+	st    state.State
 
 	metricGetPeersMessage prometheus.Counter
 	metricPeersMessage    prometheus.Counter
@@ -55,18 +55,18 @@ func NewNetwork(
 	peersCh <-chan peer.Notification,
 	networkCh <-chan peer.ProtoMessage,
 	peers peers.PeerManager,
-	storage storage.State,
+	st state.State,
 	scheme proto.Scheme,
 	quorumThreshold int,
 ) (*Network, <-chan Notification) {
 	nch := make(chan Notification, networkChannelsDefaultSize)
 	n := &Network{
-		sm:              stateless.NewStateMachine(stateDisconnected),
+		sm:              stateless.NewStateMachine(stageDisconnected),
 		peersCh:         peersCh,
 		networkCh:       networkCh,
 		notificationsCh: nch,
 		peers:           peers,
-		storage:         storage,
+		st:              st,
 		scheme:          scheme,
 		quorumThreshold: quorumThreshold,
 	}
@@ -74,7 +74,8 @@ func NewNetwork(
 	n.registerMetrics()
 
 	n.sm.SetTriggerParameters(eventPeerConnected, reflect.TypeOf((*peer.Peer)(nil)).Elem())
-	n.sm.SetTriggerParameters(eventPeerDisconnected, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((error)(nil)))
+	n.sm.SetTriggerParameters(eventPeerDisconnected, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
+		reflect.TypeOf((error)(nil)))
 	n.sm.SetTriggerParameters(eventScore, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Score)(nil)))
 	n.sm.SetTriggerParameters(eventGetPeers, reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventPeers, reflect.TypeOf([]proto.PeerInfo{}))
@@ -112,7 +113,7 @@ func (n *Network) registerMetrics() {
 }
 
 func (n *Network) configureDisconnectedState() {
-	n.sm.Configure(stateDisconnected).
+	n.sm.Configure(stageDisconnected).
 		InternalTransition(eventScore, n.onScore).
 		InternalTransition(eventGetPeers, n.onGetPeers).
 		InternalTransition(eventPeers, n.onPeers).
@@ -125,17 +126,17 @@ func (n *Network) configureDisconnectedState() {
 		Ignore(eventBlacklistPeer).
 		Ignore(eventBroadcastTransaction).
 		Ignore(eventQuorumChanged, n.quorumNotReached).
-		Permit(eventQuorumChanged, stateLeader, n.quorumReached, n.followLeader).
-		Permit(eventQuorumChanged, stateGroup, n.quorumReached, n.followGroup).
+		Permit(eventQuorumChanged, stageLeader, n.quorumReached, n.followLeader).
+		Permit(eventQuorumChanged, stageGroup, n.quorumReached, n.followGroup).
 		OnEntryFrom(eventQuorumChanged, n.onDisconnected).
 		Ignore(eventFollowingModeChanged).
 		Ignore(eventAnnounceScore).
 		Ignore(eventBroadcastMicroBlockInv).
-		Permit(eventHalt, stateHalt)
+		Permit(eventHalt, stageHalt)
 }
 
 func (n *Network) configureGroupState() {
-	n.sm.Configure(stateGroup).
+	n.sm.Configure(stageGroup).
 		InternalTransition(eventScore, n.onScore). // Emits eventScoreUpdated.
 		InternalTransition(eventGetPeers, n.onGetPeers).
 		InternalTransition(eventPeers, n.onPeers).
@@ -149,18 +150,18 @@ func (n *Network) configureGroupState() {
 		InternalTransition(eventBlacklistPeer, n.onBlacklist).
 		InternalTransition(eventBroadcastTransaction, n.onBroadcast).
 		Ignore(eventQuorumChanged, n.quorumReached).
-		Permit(eventQuorumChanged, stateDisconnected, n.quorumNotReached).
+		Permit(eventQuorumChanged, stageDisconnected, n.quorumNotReached).
 		OnEntryFrom(eventQuorumChanged, n.onQuorum). // Entry from Disconnected state, emits eventFollowingModeChanged.
 		Ignore(eventFollowingModeChanged, n.followGroup).
-		Permit(eventFollowingModeChanged, stateLeader, n.followLeader).
+		Permit(eventFollowingModeChanged, stageLeader, n.followLeader).
 		OnEntryFrom(eventFollowingModeChanged, n.selectGroup).
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
 		InternalTransition(eventBroadcastMicroBlockInv, n.onBroadcastMicroBlockInv).
-		Permit(eventHalt, stateHalt)
+		Permit(eventHalt, stageHalt)
 }
 
 func (n *Network) configureLeaderState() {
-	n.sm.Configure(stateLeader).
+	n.sm.Configure(stageLeader).
 		InternalTransition(eventScore, n.onScore).
 		InternalTransition(eventGetPeers, n.onGetPeers).
 		InternalTransition(eventPeers, n.onPeers).
@@ -175,17 +176,17 @@ func (n *Network) configureLeaderState() {
 		InternalTransition(eventBlacklistPeer, n.onBlacklist).
 		InternalTransition(eventBroadcastTransaction, n.onBroadcast).
 		Ignore(eventQuorumChanged, n.quorumReached).
-		Permit(eventQuorumChanged, stateDisconnected, n.quorumNotReached).
+		Permit(eventQuorumChanged, stageDisconnected, n.quorumNotReached).
 		OnEntryFrom(eventQuorumChanged, n.onQuorum).
-		Permit(eventFollowingModeChanged, stateGroup, n.followGroup).
+		Permit(eventFollowingModeChanged, stageGroup, n.followGroup).
 		Ignore(eventFollowingModeChanged, n.followLeader).
 		OnEntryFrom(eventFollowingModeChanged, n.selectLeader).
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
-		Permit(eventHalt, stateHalt)
+		Permit(eventHalt, stageHalt)
 }
 
 func (n *Network) configureHaltState() {
-	n.sm.Configure(stateHalt).
+	n.sm.Configure(stageHalt).
 		OnEntry(n.onEnterHalt).
 		Ignore(eventScore).
 		Ignore(eventGetPeers).
@@ -389,7 +390,7 @@ func (n *Network) handleCommands(c Command, ok bool) error {
 }
 
 func (n *Network) sendScore(p peer.Peer) {
-	s, err := n.storage.CurrentScore()
+	s, err := n.st.CurrentScore()
 	if err != nil {
 		zap.S().Errorf("[%s] Failed to send local score to peer %q: %v",
 			n.sm.MustState(), p.RemoteAddr().String(), err)
@@ -577,7 +578,7 @@ func (n *Network) selectLeader(_ context.Context, _ ...any) error {
 }
 
 func (n *Network) onAnnounceScore(_ context.Context, _ ...any) error {
-	score, err := n.storage.CurrentScore()
+	score, err := n.st.CurrentScore()
 	if err != nil {
 		zap.S().Named(logging.NetworkNamespace).
 			Errorf("[%s] Failed to get current score: %v", n.sm.MustState(), err)

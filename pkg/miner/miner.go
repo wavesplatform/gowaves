@@ -10,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -21,20 +20,22 @@ type MicroblockMiner struct {
 	state       state.State
 	peer        peers.PeerManager
 	constraints Constraints
-	services    services.Services
 	features    Features
 	reward      int64
+	scheme      proto.Scheme
 }
 
-func NewMicroblockMiner(services services.Services, features Features, reward int64) *MicroblockMiner {
+func NewMicroblockMiner(
+	utx types.UtxPool, state state.State, peers peers.PeerManager, features Features, reward int64, scheme proto.Scheme,
+) *MicroblockMiner {
 	return &MicroblockMiner{
-		utx:         services.UtxPool,
-		state:       services.State,
-		peer:        services.Peers,
+		utx:         utx,
+		state:       state,
+		peer:        peers,
 		constraints: DefaultConstraints(),
-		services:    services,
 		features:    features,
 		reward:      reward,
+		scheme:      scheme,
 	}
 }
 
@@ -55,7 +56,7 @@ func (a *MicroblockMiner) MineKeyBlock(
 		if err != nil {
 			return nil, err
 		}
-		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.services.Scheme)
+		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.scheme)
 		if err != nil {
 			return nil, err
 		}

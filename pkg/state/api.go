@@ -187,6 +187,8 @@ type TxValidation interface {
 	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
 }
 
+//go:generate moq -out ../node/state_moq_test.go -pkg node . State:MockState
+
 type State interface {
 	StateInfo
 	StateModifier

@@ -3,11 +3,11 @@ package miner
 import (
 	"errors"
 
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 const (
@@ -23,11 +23,11 @@ type MicroMiner struct {
 	scheme proto.Scheme
 }
 
-func NewMicroMiner(services services.Services) *MicroMiner {
+func NewMicroMiner(state state.State, utx types.UtxPool, scheme proto.Scheme) *MicroMiner {
 	return &MicroMiner{
-		state:  services.State,
-		utx:    services.UtxPool,
-		scheme: services.Scheme,
+		state:  state,
+		utx:    utx,
+		scheme: scheme,
 	}
 }
 

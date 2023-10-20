@@ -27,10 +27,7 @@ const (
 	headerChecksumLen        = 4
 )
 
-type (
-	PeerMessageID  byte
-	PeerMessageIDs []PeerMessageID
-)
+type PeerMessageID byte
 
 // Constants for message IDs
 const (

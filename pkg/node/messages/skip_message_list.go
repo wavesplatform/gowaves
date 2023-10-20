@@ -10,12 +10,12 @@ type SkipMessageList struct {
 	list atomic.Value
 }
 
-func (l *SkipMessageList) List() proto.PeerMessageIDs {
+func (l *SkipMessageList) List() []proto.PeerMessageID {
 	list := l.list.Load()
 	if list == nil {
 		return nil
 	}
-	return list.(proto.PeerMessageIDs)
+	return list.([]proto.PeerMessageID)
 }
 
 func (l *SkipMessageList) ignore(ids ...proto.PeerMessageID) {

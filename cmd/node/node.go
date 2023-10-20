@@ -473,7 +473,8 @@ func main() {
 	ntw, notificationsCh := network.NewNetwork(parent.NotificationsCh, parent.NetworkMessagesCh,
 		peerManager, st, cfg.AddressSchemeCharacter, nc.minPeersMining)
 	n, cmdCh := node.NewNode(parent.NodeMessagesCh, notificationsCh, broadcastCh, cfg.AddressSchemeCharacter,
-		bindAddr, declAddr, nc.microblockInterval, nc.obsolescencePeriod, utx, ntpTime, reward)
+		bindAddr, declAddr, nc.microblockInterval, nc.obsolescencePeriod, utx, parent.SkipMessageList, ntpTime, st,
+		reward)
 	ntw.SetCommandChannel(cmdCh)
 
 	ntw.Run(ctx)
