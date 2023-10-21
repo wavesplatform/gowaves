@@ -150,45 +150,45 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		}
 	}
 
-	issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
-		AssetID:             assetID,
-		IssuerPublicKey:     senderPK,
-		SourceTransactionID: txID,
-		Decimals:            assetInfo.decimals,
-		IsNFT:               assetInfo.isNFT(),
-	}
+	//issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
+	//	AssetID:             assetID,
+	//	IssuerPublicKey:     senderPK,
+	//	SourceTransactionID: txID,
+	//	Decimals:            assetInfo.decimals,
+	//	IsNFT:               assetInfo.isNFT(),
+	//}
 
-	assetDescription := &proto.AssetDescriptionSnapshot{
-		AssetID:          assetID,
-		AssetName:        assetInfo.name,
-		AssetDescription: assetInfo.description,
-		ChangeHeight:     assetInfo.lastNameDescChangeHeight,
-	}
-
-	assetReissuability := &proto.AssetVolumeSnapshot{
-		AssetID:       assetID,
-		IsReissuable:  assetInfo.reissuable,
-		TotalQuantity: assetInfo.quantity,
-	}
-
-	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
-
-	if scriptInformation == nil {
-		assetScriptSnapshot := &proto.AssetScriptSnapshot{
-			AssetID:            assetID,
-			Script:             proto.Script{},
-			VerifierComplexity: 0,
-		}
-		snapshot = append(snapshot, assetScriptSnapshot)
-	} else {
-		assetScriptSnapshot := &proto.AssetScriptSnapshot{
-			AssetID:            assetID,
-			Script:             scriptInformation.script,
-			SenderPK:           senderPK,
-			VerifierComplexity: uint64(scriptInformation.complexity),
-		}
-		snapshot = append(snapshot, assetScriptSnapshot)
-	}
+	//assetDescription := &proto.AssetDescriptionSnapshot{
+	//	AssetID:          assetID,
+	//	AssetName:        assetInfo.name,
+	//	AssetDescription: assetInfo.description,
+	//	ChangeHeight:     assetInfo.lastNameDescChangeHeight,
+	//}
+	//
+	//assetReissuability := &proto.AssetVolumeSnapshot{
+	//	AssetID:       assetID,
+	//	IsReissuable:  assetInfo.reissuable,
+	//	TotalQuantity: assetInfo.quantity,
+	//}
+	//
+	//snapshot = append(snapshot, assetDescription, assetReissuability)
+	//
+	//if scriptInformation == nil {
+	//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
+	//		AssetID:            assetID,
+	//		Script:             proto.Script{},
+	//		VerifierComplexity: 0,
+	//	}
+	//	snapshot = append(snapshot, assetScriptSnapshot)
+	//} else {
+	//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
+	//		AssetID:            assetID,
+	//		Script:             scriptInformation.script,
+	//		SenderPK:           senderPK,
+	//		VerifierComplexity: uint64(scriptInformation.complexity),
+	//	}
+	//	snapshot = append(snapshot, assetScriptSnapshot)
+	//}
 	wavesBalancesSnapshot, assetBalancesSnapshot, err :=
 		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
 	if err != nil {
@@ -835,7 +835,7 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	scriptRecipient *proto.Recipient,
 	scriptPublicKey crypto.PublicKey,
 	scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
-	blockHeight := info.height + 1
+	//blockHeight := info.height + 1
 
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
@@ -843,15 +843,15 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	}
 	var snapshot proto.TransactionSnapshot
 	if invocationRes != nil {
-		var atomicSnapshots []proto.AtomicSnapshot
-		atomicSnapshots, err = sg.atomicSnapshotsFromScriptActions(
-			invocationRes.actions, addrWavesBalanceDiff,
-			addrAssetBalanceDiff, blockHeight, info, txID,
-			scriptPublicKey, scriptAddress)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to generate atomic snapshots from script actions")
-		}
-		snapshot = append(snapshot, atomicSnapshots...)
+		//var atomicSnapshots []proto.AtomicSnapshot
+		//atomicSnapshots, err = sg.atomicSnapshotsFromScriptActions(
+		//	invocationRes.actions, addrWavesBalanceDiff,
+		//	addrAssetBalanceDiff, blockHeight, info, txID,
+		//	scriptPublicKey, scriptAddress)
+		//if err != nil {
+		//	return nil, errors.Wrap(err, "failed to generate atomic snapshots from script actions")
+		//}
+		//snapshot = append(snapshot, atomicSnapshots...)
 	}
 
 	wavesBalancesSnapshot, assetBalancesSnapshot, err :=

@@ -98,10 +98,11 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:        proto.DigestTail(assetID),
-			issuer:      tx.SenderPK,
-			decimals:    tx.Decimals,
-			issueHeight: blockHeight,
+			tail:                 proto.DigestTail(assetID),
+			issuer:               tx.SenderPK,
+			decimals:             tx.Decimals,
+			issueHeight:          blockHeight,
+			issueSequenceInBlock: info.stateActionsCounter.NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -112,6 +113,9 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 		},
 	}
 
+	if err := tp.stor.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, info.blockID); err != nil {
+		return nil, errors.Wrap(err, "failed to issue asset")
+	}
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(assetID, txID, tx.SenderPK,
 		*assetInfo, balanceChanges, scriptInformation)
 
@@ -133,6 +137,9 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	}
 	assetID, err := crypto.NewDigestFromBytes(txID)
 	if err != nil {
+		return nil, err
+	}
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
 		return nil, err
 	}
 
@@ -160,6 +167,9 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 			script:     tx.Script,
 			complexity: se.estimation.Verifier,
 		}
+	}
+	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
+		return nil, err
 	}
 	if se := info.checkerData.scriptEstimation; se.isPresent() { // script estimation is present and not nil
 		// Save complexities to storage, so we won't have to calculate it every time the script is called.
@@ -441,6 +451,9 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 		return nil, errors.Wrapf(err, "failed to create addr from PK %q", tx.SenderPK.String())
 	}
 
+	if setErr := tp.stor.scriptsStorage.setAccountScript(senderAddr, tx.Script, tx.SenderPK, info.blockID); setErr != nil {
+		return nil, errors.Wrapf(setErr, "failed to set account script on addr %q", senderAddr.String())
+	}
 	// Save complexity to storage, so we won't have to calculate it every time the script is called.
 	if setErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID); setErr != nil {
 		return nil, errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
@@ -467,7 +480,9 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if err != nil {
 		return nil, err
 	}
-
+	if err := tp.stor.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
+		return nil, errors.Wrap(err, "failed to set asset script")
+	}
 	if err := tp.stor.scriptsComplexity.saveComplexitiesForAsset(tx.AssetID, *se, info.blockID); err != nil {
 		return nil, errors.Wrapf(err, "failed to save script complexity for asset %q", tx.AssetID.String())
 	}
@@ -482,6 +497,10 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
+	}
+
+	if err := tp.stor.commitUncertain(info.blockID); err != nil {
+		return nil, errors.Wrapf(err, "failed to commit invoke changes for tx %q", tx.ID.String())
 	}
 
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
@@ -541,6 +560,9 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 	if !ok {
 		return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
+	if err := tp.stor.commitUncertain(info.blockID); err != nil {
+		return nil, errors.Wrap(err, "failed to commit invoke changes")
+	}
 
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
@@ -570,6 +592,9 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 		return nil, errors.New("failed to convert interface to EthereumTransaction transaction")
 	}
 
+	if err := tp.stor.commitUncertain(info.blockID); err != nil {
+		return nil, errors.Wrap(err, "failed to commit invoke changes")
+	}
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Errorf("failed to get transaction ID: %v", err)

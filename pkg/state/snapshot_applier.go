@@ -126,18 +126,19 @@ func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
 }
 
 func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetInfoSnapshot) error {
-	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
-	assetFullInfo := &assetInfo{
-		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(snapshot.AssetID),
-			issuer:               snapshot.IssuerPublicKey,
-			decimals:             snapshot.Decimals,
-			issueHeight:          a.info.Height(),
-			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
-		},
-		assetChangeableInfo: assetChangeableInfo{},
-	}
-	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
+	//assetID := proto.AssetIDFromDigest(snapshot.AssetID)
+	//assetFullInfo := &assetInfo{
+	//	assetConstInfo: assetConstInfo{
+	//		tail:                 proto.DigestTail(snapshot.AssetID),
+	//		issuer:               snapshot.IssuerPublicKey,
+	//		decimals:             snapshot.Decimals,
+	//		issueHeight:          a.info.Height(),
+	//		issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
+	//	},
+	//	assetChangeableInfo: assetChangeableInfo{},
+	//}
+	//return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot proto.AssetDescriptionSnapshot) error {
@@ -166,16 +167,16 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnaps
 	//	Verifier:   int(snapshot.VerifierComplexity),
 	//	Functions:  nil,
 	//}
-	if snapshot.Script.IsEmpty() {
-		if err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
-			snapshot.SenderPK, a.info.BlockID()); err != nil {
-			return err
-		}
-	}
-	setErr := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
-	if setErr != nil {
-		return setErr
-	}
+	//if snapshot.Script.IsEmpty() {
+	//	if err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
+	//		snapshot.SenderPK, a.info.BlockID()); err != nil {
+	//		return err
+	//	}
+	//}
+	//setErr := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
+	//if setErr != nil {
+	//	return setErr
+	//}
 	//scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
 	//	scriptIsEmpty: !snapshot.Script.IsEmpty(),
 	//	estimation:    treeEstimation}
@@ -192,11 +193,11 @@ func (a *blockSnapshotsApplier) ApplySponsorship(snapshot proto.SponsorshipSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptSnapshot) error {
-	addr, err := proto.NewAddressFromPublicKey(a.info.Scheme(), snapshot.SenderPublicKey)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
-			a.info.Scheme(), snapshot.SenderPublicKey.String())
-	}
+	//addr, err := proto.NewAddressFromPublicKey(a.info.Scheme(), snapshot.SenderPublicKey)
+	//if err != nil {
+	//	return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
+	//		a.info.Scheme(), snapshot.SenderPublicKey.String())
+	//}
 	// In case of verifier, there are no functions. If it is a full DApp,
 	// the complexity 'functions' will be stored through the internal snapshot InternalDAppComplexitySnapshot.
 	//treeEstimation := ride.TreeEstimation{
@@ -204,10 +205,10 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptS
 	//	Verifier:   int(snapshot.VerifierComplexity),
 	//	Functions:  nil,
 	//}
-	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
-	if setErr != nil {
-		return setErr
-	}
+	//setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
+	//if setErr != nil {
+	//	return setErr
+	//}
 	//scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
 	//	scriptIsEmpty: !snapshot.Script.IsEmpty(),
 	//	estimation:    treeEstimation}
