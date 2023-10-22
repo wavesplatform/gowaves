@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 type blockSnapshotsApplier struct {
@@ -162,29 +163,30 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
-	//treeEstimation := ride.TreeEstimation{
-	//	Estimation: int(snapshot.VerifierComplexity),
-	//	Verifier:   int(snapshot.VerifierComplexity),
-	//	Functions:  nil,
-	//}
-	//if snapshot.Script.IsEmpty() {
-	//	if err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
-	//		snapshot.SenderPK, a.info.BlockID()); err != nil {
-	//		return err
-	//	}
-	//}
-	//setErr := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
-	//if setErr != nil {
-	//	return setErr
-	//}
-	//scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-	//	scriptIsEmpty: !snapshot.Script.IsEmpty(),
-	//	estimation:    treeEstimation}
-	//if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
-	//	snapshot.AssetID, scriptEstimation, a.info.BlockID()); err != nil {
-	//	return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
-	//		snapshot.AssetID.String())
-	//}
+	treeEstimation := ride.TreeEstimation{
+		Estimation: int(snapshot.VerifierComplexity),
+		Verifier:   int(snapshot.VerifierComplexity),
+		Functions:  nil,
+	}
+	if snapshot.Script.IsEmpty() {
+		if err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
+			snapshot.SenderPK, a.info.BlockID()); err != nil {
+			return err
+		}
+		return nil
+	}
+	setErr := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
+	if setErr != nil {
+		return setErr
+	}
+	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+		scriptIsEmpty: snapshot.Script.IsEmpty(),
+		estimation:    treeEstimation}
+	if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
+		snapshot.AssetID, scriptEstimation, a.info.BlockID()); err != nil {
+		return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
+			snapshot.AssetID.String())
+	}
 	return nil
 }
 
@@ -193,30 +195,36 @@ func (a *blockSnapshotsApplier) ApplySponsorship(snapshot proto.SponsorshipSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptSnapshot) error {
-	//addr, err := proto.NewAddressFromPublicKey(a.info.Scheme(), snapshot.SenderPublicKey)
-	//if err != nil {
-	//	return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
-	//		a.info.Scheme(), snapshot.SenderPublicKey.String())
-	//}
+	addr, err := proto.NewAddressFromPublicKey(a.info.Scheme(), snapshot.SenderPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
+			a.info.Scheme(), snapshot.SenderPublicKey.String())
+	}
 	// In case of verifier, there are no functions. If it is a full DApp,
 	// the complexity 'functions' will be stored through the internal snapshot InternalDAppComplexitySnapshot.
-	//treeEstimation := ride.TreeEstimation{
-	//	Estimation: int(snapshot.VerifierComplexity),
-	//	Verifier:   int(snapshot.VerifierComplexity),
-	//	Functions:  nil,
-	//}
-	//setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
-	//if setErr != nil {
-	//	return setErr
-	//}
-	//scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-	//	scriptIsEmpty: !snapshot.Script.IsEmpty(),
-	//	estimation:    treeEstimation}
-	//if cmplErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(
-	//	addr, scriptEstimation, a.info.BlockID()); cmplErr != nil {
-	//	return errors.Wrapf(cmplErr, "failed to store account script estimation for addr %q",
-	//		addr.String())
-	//}
+	treeEstimation := ride.TreeEstimation{
+		Estimation: int(snapshot.VerifierComplexity),
+		Verifier:   int(snapshot.VerifierComplexity),
+		Functions:  nil,
+	}
+	if snapshot.Script.IsEmpty() {
+		if err := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID()); err != nil {
+			return err
+		}
+		return nil
+	}
+	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
+	if setErr != nil {
+		return setErr
+	}
+	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+		scriptIsEmpty: snapshot.Script.IsEmpty(),
+		estimation:    treeEstimation}
+	if cmplErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(
+		addr, scriptEstimation, a.info.BlockID()); cmplErr != nil {
+		return errors.Wrapf(cmplErr, "failed to store account script estimation for addr %q",
+			addr.String())
+	}
 	return nil
 }
 

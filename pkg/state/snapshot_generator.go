@@ -413,6 +413,7 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 		VerifierComplexity: uint64(complexity),
 		SenderPK:           senderPK,
 	}
+
 	snapshot = append(snapshot, assetScrptSnapshot)
 	return snapshot, nil
 }
