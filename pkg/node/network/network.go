@@ -3,6 +3,7 @@ package network
 import (
 	"context"
 	"math/big"
+	"net"
 	"reflect"
 	"slices"
 	"time"
@@ -23,8 +24,9 @@ import (
 )
 
 const (
-	networkChannelsDefaultSize = 100
-	askPeersInterval           = 5 * time.Minute
+	networkChannelsDefaultSize       = 100
+	askPeersInterval                 = 5 * time.Minute
+	spawnOutgoingConnectionsInterval = time.Minute
 )
 
 // Network represent service.
@@ -41,6 +43,8 @@ type Network struct {
 
 	scheme          proto.Scheme
 	quorumThreshold int
+	bindAddr        proto.TCPAddr
+	declAddr        proto.TCPAddr
 	syncPeer        peer.Peer
 	leaderMode      bool
 
@@ -58,6 +62,7 @@ func NewNetwork(
 	st state.State,
 	scheme proto.Scheme,
 	quorumThreshold int,
+	bindAddr, declAddr proto.TCPAddr,
 ) (*Network, <-chan Notification) {
 	nch := make(chan Notification, networkChannelsDefaultSize)
 	n := &Network{
@@ -69,18 +74,20 @@ func NewNetwork(
 		st:              st,
 		scheme:          scheme,
 		quorumThreshold: quorumThreshold,
+		bindAddr:        bindAddr,
+		declAddr:        declAddr,
 	}
 
 	n.registerMetrics()
 
 	n.sm.SetTriggerParameters(eventPeerConnected, reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventPeerDisconnected, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
-		reflect.TypeOf((error)(nil)))
+		reflect.TypeOf((*error)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventScore, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Score)(nil)))
 	n.sm.SetTriggerParameters(eventGetPeers, reflect.TypeOf((*peer.Peer)(nil)).Elem())
-	n.sm.SetTriggerParameters(eventPeers, reflect.TypeOf([]proto.PeerInfo{}))
+	n.sm.SetTriggerParameters(eventPeers, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.PeerInfo{}))
 	n.sm.SetTriggerParameters(eventBlacklistPeer, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(""))
-	n.sm.SetTriggerParameters(eventBroadcastTransaction, reflect.TypeOf((proto.Transaction)(nil)),
+	n.sm.SetTriggerParameters(eventBroadcastTransaction, reflect.TypeOf((*proto.Transaction)(nil)).Elem(),
 		reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventBroadcastMicroBlockInv, reflect.TypeOf((*proto.MicroBlockInv)(nil)),
 		reflect.TypeOf((*peer.Peer)(nil)).Elem())
@@ -217,6 +224,8 @@ func (n *Network) Run(ctx context.Context) {
 	n.wait = g.Wait
 
 	g.Go(n.runPeersExchange)
+	g.Go(n.runOutgoingConnections)
+	g.Go(n.runIncomingConnections)
 	g.Go(n.handleEvents)
 }
 
@@ -249,6 +258,70 @@ func (n *Network) runPeersExchange() error {
 					Warnf("[%s] Failed to ask for peers: %v", n.sm.MustState(), err)
 			}
 		}
+	}
+}
+
+func (n *Network) runOutgoingConnections() error {
+	ticker := time.NewTicker(spawnOutgoingConnectionsInterval)
+	defer ticker.Stop()
+	for {
+		select {
+		case <-n.ctx.Done():
+			zap.S().Named(logging.NetworkNamespace).
+				Debugf("[%s] Outgoing connections creation stopped", n.sm.MustState())
+			return nil
+		case <-ticker.C:
+			n.peers.SpawnOutgoingConnections(n.ctx)
+		}
+	}
+}
+
+func (n *Network) runIncomingConnections() error {
+	// if empty declared address, listen on port doesn't make sense
+	if n.declAddr.Empty() {
+		zap.S().Named(logging.NetworkNamespace).Warn("Declared address is empty")
+		return nil
+	}
+
+	if n.bindAddr.Empty() {
+		zap.S().Named(logging.NetworkNamespace).Warn("Bind address is empty")
+		return nil
+	}
+
+	zap.S().Named(logging.NetworkNamespace).Infof("Start listening on %s", n.bindAddr.String())
+	var lc net.ListenConfig
+	l, err := lc.Listen(n.ctx, "tcp", n.bindAddr.String())
+	if err != nil {
+		if errors.Is(err, context.Canceled) {
+			return nil
+		}
+		return err
+	}
+	defer func() {
+		if clErr := l.Close(); clErr != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Errorf("Failed to close %T on addr %q: %v", l, l.Addr().String(), clErr)
+		}
+	}()
+
+	// TODO: implement good graceful shutdown
+	for {
+		conn, acErr := l.Accept()
+		if acErr != nil {
+			if errors.Is(acErr, context.Canceled) {
+				return nil
+			}
+			zap.S().Named(logging.NetworkNamespace).Errorf("Failed to accept new peer: %v", err)
+			continue
+		}
+
+		go func() {
+			if spErr := n.peers.SpawnIncomingConnection(n.ctx, conn); spErr != nil {
+				zap.S().Named(logging.NetworkNamespace).Debugf("Incoming connection failure from '%s': %v",
+					conn.RemoteAddr().String(), err)
+				return
+			}
+		}()
 	}
 }
 
@@ -331,7 +404,7 @@ func (n *Network) handleNetworkMessages(m peer.ProtoMessage, ok bool) error {
 		}
 
 	case *proto.PeersMessage:
-		if err := n.sm.Fire(eventPeers, msg.Peers); err != nil {
+		if err := n.sm.Fire(eventPeers, m.ID, msg.Peers); err != nil {
 			zap.S().Named(logging.NetworkDataNamespace).
 				Warnf("[%s] Failed to handle Peers message: %v", n.sm.MustState(), err)
 		}
@@ -420,7 +493,7 @@ func (n *Network) onGetPeers(_ context.Context, args ...any) error {
 	if !ok {
 		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
 	}
-	rs := n.peers.KnownPeers()
+	rs := n.peers.AllKnownPeers()
 	out := make([]proto.PeerInfo, 0, len(rs))
 	for _, r := range rs {
 		ipPort := proto.IpPort(r)
@@ -435,21 +508,29 @@ func (n *Network) onGetPeers(_ context.Context, args ...any) error {
 
 func (n *Network) onPeers(_ context.Context, args ...any) error {
 	n.metricPeersMessage.Inc()
-	msg, ok := args[0].([]proto.PeerInfo)
+	p, ok := args[0].(peer.Peer)
 	if !ok {
-		return errors.Errorf("invalid type '%T' of first argument, expected '[]proto.PeerInfo'", args[0])
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	msg, ok := args[1].([]proto.PeerInfo)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected '[]proto.PeerInfo'", args[1])
 	}
 	if len(msg) == 0 {
 		return nil
 	}
-	alreadyKnown := n.peers.KnownPeers()
+	alreadyKnown := n.peers.AllKnownPeers()
 	r := make([]ps.KnownPeer, 0, len(msg))
 	for _, mp := range msg {
-		p := ps.KnownPeer(proto.NewTCPAddr(mp.Addr, int(mp.Port)).ToIpPort())
-		if slices.Contains(alreadyKnown, p) {
+		kp := ps.KnownPeer(proto.NewTCPAddr(mp.Addr, int(mp.Port)).ToIpPort())
+		if slices.Contains(alreadyKnown, kp) {
 			continue
 		}
-		r = append(r, p)
+		r = append(r, kp)
+	}
+	if len(r) > 0 {
+		zap.S().Named(logging.NetworkNamespace).
+			Debugf("[%s] %d unknown peers received from '%s'", n.sm.MustState(), len(r), p.ID().String())
 	}
 	return n.peers.UpdateKnownPeers(r)
 }
@@ -565,6 +646,7 @@ func (n *Network) onBroadcast(_ context.Context, args ...any) error {
 
 func (n *Network) selectGroup(_ context.Context, _ ...any) error {
 	if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer); ok {
+		n.syncPeer = np
 		n.notificationsCh <- SyncPeerSelectedNotification{Peer: np}
 	}
 	return nil
@@ -572,6 +654,7 @@ func (n *Network) selectGroup(_ context.Context, _ ...any) error {
 
 func (n *Network) selectLeader(_ context.Context, _ ...any) error {
 	if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer); ok {
+		n.syncPeer = np
 		n.notificationsCh <- SyncPeerSelectedNotification{Peer: np}
 	}
 	return nil

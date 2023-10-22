@@ -51,6 +51,20 @@ func (mr *MockPeerManagerMockRecorder) AddToBlackList(peer, blockTime, reason in
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddToBlackList", reflect.TypeOf((*MockPeerManager)(nil).AddToBlackList), peer, blockTime, reason)
 }
 
+// AllKnownPeers mocks base method.
+func (m *MockPeerManager) AllKnownPeers() []storage.KnownPeer {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AllKnownPeers")
+	ret0, _ := ret[0].([]storage.KnownPeer)
+	return ret0
+}
+
+// AllKnownPeers indicates an expected call of AllKnownPeers.
+func (mr *MockPeerManagerMockRecorder) AllKnownPeers() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AllKnownPeers", reflect.TypeOf((*MockPeerManager)(nil).AllKnownPeers))
+}
+
 // AskPeers mocks base method.
 func (m *MockPeerManager) AskPeers() {
 	m.ctrl.T.Helper()
@@ -185,18 +199,18 @@ func (mr *MockPeerManagerMockRecorder) EachConnected(arg0 interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EachConnected", reflect.TypeOf((*MockPeerManager)(nil).EachConnected), arg0)
 }
 
-// KnownPeers mocks base method.
-func (m *MockPeerManager) KnownPeers() []storage.KnownPeer {
+// KnownPeersLimited mocks base method.
+func (m *MockPeerManager) KnownPeersLimited() []storage.KnownPeer {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "KnownPeers")
+	ret := m.ctrl.Call(m, "KnownPeersLimited")
 	ret0, _ := ret[0].([]storage.KnownPeer)
 	return ret0
 }
 
-// KnownPeers indicates an expected call of KnownPeers.
-func (mr *MockPeerManagerMockRecorder) KnownPeers() *gomock.Call {
+// KnownPeersLimited indicates an expected call of KnownPeersLimited.
+func (mr *MockPeerManagerMockRecorder) KnownPeersLimited() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KnownPeers", reflect.TypeOf((*MockPeerManager)(nil).KnownPeers))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "KnownPeersLimited", reflect.TypeOf((*MockPeerManager)(nil).KnownPeersLimited))
 }
 
 // NewConnection mocks base method.

@@ -45,7 +45,8 @@ type PeerManager interface {
 	BlackList() []storage.BlackListedPeer
 	ClearBlackList() error
 	UpdateScore(p peer.Peer, score *proto.Score) error
-	KnownPeers() []storage.KnownPeer
+	KnownPeersLimited() []storage.KnownPeer
+	AllKnownPeers() []storage.KnownPeer
 	UpdateKnownPeers([]storage.KnownPeer) error
 	Close()
 	SpawnOutgoingConnections(context.Context)
@@ -232,8 +233,12 @@ func (a *PeerManagerImpl) UpdateScore(p peer.Peer, score *big.Int) error {
 	return nil
 }
 
-func (a *PeerManagerImpl) KnownPeers() []storage.KnownPeer {
+func (a *PeerManagerImpl) KnownPeersLimited() []storage.KnownPeer {
 	return a.peerStorage.Known(a.newConnectionsLimit)
+}
+
+func (a *PeerManagerImpl) AllKnownPeers() []storage.KnownPeer {
+	return a.peerStorage.Known(0)
 }
 
 func (a *PeerManagerImpl) UpdateKnownPeers(known []storage.KnownPeer) error {
@@ -281,7 +286,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 		return
 	}
 
-	known := a.KnownPeers()
+	known := a.KnownPeersLimited()
 
 	active := map[proto.IpPort]struct{}{}
 	a.active.forEach(func(_ peer.ID, info peerInfo) {
@@ -388,9 +393,12 @@ func (a *PeerManagerImpl) AskPeers() {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
+	cnt := 0
 	a.active.forEach(func(_ peer.ID, info peerInfo) {
+		cnt++
 		info.peer.SendMessage(&proto.GetPeersMessage{})
 	})
+	zap.S().Named(logging.NetworkNamespace).Debugf("Peers requested from %d active peers", cnt)
 }
 
 func (a *PeerManagerImpl) Disconnect(p peer.Peer) {

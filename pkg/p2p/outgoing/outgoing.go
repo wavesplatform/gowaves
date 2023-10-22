@@ -35,26 +35,26 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		params: params,
 		remote: remote,
 	}
-	addr := params.Address.String()
 
-	connection, handshake, err := p.connect(ctx, addr, outgoingPeerDialTimeout, v)
+	connection, handshake, err := p.connect(ctx, outgoingPeerDialTimeout, v)
 	if err != nil {
 		zap.S().Named(logging.NetworkNamespace).Debugf("Outgoing connection to address '%s' failed with error: %v",
-			addr, err)
-		return errors.Wrapf(err, "%q", addr)
+			params.Address.String(), err)
+		return err
 	}
 
 	peerImpl, err := peer.NewPeerImpl(handshake, connection, peer.Outgoing, remote, cancel)
 	if err != nil {
-		if err := connection.Close(); err != nil {
-			zap.S().Errorf("Failed to close outgoing connection to '%s': %v", addr, err)
+		if clErr := connection.Close(); clErr != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Errorf("Failed to close outgoing connection to '%s': %v", params.Address.String(), clErr)
 		}
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to create new peer impl for outgoing conn to %s: %v",
-			addr, err)
-		return errors.Wrapf(err, "failed to establish connection to %s", addr)
+		zap.S().Named(logging.NetworkNamespace).
+			Debugf("Failed to create new peer impl for outgoing conn to %s: %v", params.Address.String(), err)
+		return errors.Wrapf(err, "failed to establish connection to %s", params.Address.String())
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("Connected outgoing peer with addr '%s', id '%s'",
-		addr, peerImpl.ID())
+	zap.S().Named(logging.NetworkNamespace).
+		Debugf("Connected outgoing peer with addr '%s', id '%s'", params.Address.String(), peerImpl.ID())
 	return peer.Handle(ctx, peerImpl, params.Parent, remote)
 }
 
@@ -63,16 +63,19 @@ type connector struct {
 	remote peer.Remote
 }
 
-func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.Duration, v proto.Version) (_ conn.Connection, _ proto.Handshake, err error) {
+func (a *connector) connect(
+	ctx context.Context, dialTimeout time.Duration, v proto.Version,
+) (conn.Connection, proto.Handshake, error) {
 	dialer := net.Dialer{Timeout: dialTimeout}
-	c, err := dialer.DialContext(ctx, "tcp", addr)
+	c, err := dialer.DialContext(ctx, "tcp", a.params.Address.String())
 	if err != nil {
-		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to dial with addr %q", addr)
+		return nil, proto.Handshake{}, err
 	}
 	defer func() {
 		if err != nil { // close connection on error
-			if err := c.Close(); err != nil {
-				zap.S().Errorf("Failed to close outgoing connection to '%s': %v", addr, err)
+			if clErr := c.Close(); clErr != nil {
+				zap.S().Named(logging.NetworkNamespace).
+					Errorf("Failed to close outgoing connection with '%s': %v", a.params.Address.String(), clErr)
 			}
 		}
 	}()
@@ -86,10 +89,11 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 		Timestamp:    proto.NewTimestampFromTime(time.Now()),
 	}
 
-	if _, err := handshake.WriteTo(c); err != nil {
-		addr := a.params.Address.String()
-		zap.S().Infof("Failed to send handshake with addr %q: %v", addr, err)
-		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to send handshake with addr %q", addr)
+	if _, wErr := handshake.WriteTo(c); wErr != nil {
+		zap.S().Named(logging.NetworkNamespace).
+			Debugf("Failed to send handshake to '%s': %v", a.params.Address.String(), wErr)
+		return nil, proto.Handshake{}, errors.Wrapf(wErr, "failed to send handshake to '%s'",
+			a.params.Address.String())
 	}
 	select {
 	case <-ctx.Done():
@@ -97,10 +101,11 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 	default:
 	}
 
-	if _, err := handshake.ReadFrom(c); err != nil {
-		addr := a.params.Address.String()
-		zap.S().Infof("Failed to read handshake with addr %q: %v", a.params.Address.String(), err)
-		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to read handshake with addr %q", addr)
+	if _, rErr := handshake.ReadFrom(c); rErr != nil {
+		zap.S().Named(logging.NetworkNamespace).
+			Debugf("Failed to read handshake from '%s': %v", a.params.Address.String(), rErr)
+		return nil, proto.Handshake{}, errors.Wrapf(rErr, "failed to read handshake from addr %q",
+			a.params.Address.String())
 	}
 	select {
 	case <-ctx.Done():

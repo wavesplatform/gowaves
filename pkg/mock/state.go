@@ -1182,7 +1182,7 @@ func (mr *MockStateModifierMockRecorder) RollbackToHeight(height interface{}) *g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackToHeight", reflect.TypeOf((*MockStateModifier)(nil).RollbackToHeight), height)
 }
 
-// StartProvidingExtendedApi mocks base method.
+// StartProvidingExtendedAPI mocks base method.
 func (m *MockStateModifier) StartProvidingExtendedAPI() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StartProvidingExtendedAPI")
@@ -1190,8 +1190,8 @@ func (m *MockStateModifier) StartProvidingExtendedAPI() error {
 	return ret0
 }
 
-// StartProvidingExtendedApi indicates an expected call of StartProvidingExtendedApi.
-func (mr *MockStateModifierMockRecorder) StartProvidingExtendedApi() *gomock.Call {
+// StartProvidingExtendedAPI indicates an expected call of StartProvidingExtendedAPI.
+func (mr *MockStateModifierMockRecorder) StartProvidingExtendedAPI() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedAPI", reflect.TypeOf((*MockStateModifier)(nil).StartProvidingExtendedAPI))
 }
@@ -2175,7 +2175,7 @@ func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
 }
 
-// StartProvidingExtendedApi mocks base method.
+// StartProvidingExtendedAPI mocks base method.
 func (m *MockState) StartProvidingExtendedAPI() error {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "StartProvidingExtendedAPI")
@@ -2183,8 +2183,8 @@ func (m *MockState) StartProvidingExtendedAPI() error {
 	return ret0
 }
 
-// StartProvidingExtendedApi indicates an expected call of StartProvidingExtendedApi.
-func (mr *MockStateMockRecorder) StartProvidingExtendedApi() *gomock.Call {
+// StartProvidingExtendedAPI indicates an expected call of StartProvidingExtendedAPI.
+func (mr *MockStateMockRecorder) StartProvidingExtendedAPI() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedAPI", reflect.TypeOf((*MockState)(nil).StartProvidingExtendedAPI))
 }

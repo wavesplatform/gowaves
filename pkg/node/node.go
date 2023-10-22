@@ -44,8 +44,6 @@ type Node struct {
 	commandsCh      chan<- network.Command
 
 	scheme             proto.Scheme
-	bindAddr           proto.TCPAddr
-	declAddr           proto.TCPAddr
 	microblockInterval time.Duration
 	obsolescence       time.Duration
 	reward             int64
@@ -68,7 +66,7 @@ func NewNode(
 	networkCh <-chan peer.ProtoMessage,
 	notificationsCh <-chan network.Notification,
 	broadcastCh <-chan *messages.BroadcastTransaction,
-	scheme proto.Scheme, bindAddr, declAddr proto.TCPAddr, microblockInterval, obsolescence time.Duration,
+	scheme proto.Scheme, microblockInterval, obsolescence time.Duration,
 	utx types.UtxPool, skipList *messages.SkipMessageList, tm types.Time, st state.State, reward int64,
 ) (*Node, <-chan network.Command) {
 	commandsCh := make(chan network.Command, defaultChannelSize)
@@ -79,8 +77,6 @@ func NewNode(
 		commandsCh:         commandsCh,
 		broadcastCh:        broadcastCh,
 		scheme:             scheme,
-		bindAddr:           bindAddr,
-		declAddr:           declAddr,
 		microblockInterval: microblockInterval,
 		obsolescence:       obsolescence,
 		reward:             reward,
@@ -353,7 +349,7 @@ func (n *Node) handleNotifications(m network.Notification, ok bool) error {
 
 func (n *Node) configureTriggers() {
 	n.sm.SetTriggerParameters(eventTransaction, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
-		reflect.TypeOf((proto.Transaction)(nil)))
+		reflect.TypeOf((*proto.Transaction)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventGetBlock, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(proto.BlockID{}))
 	n.sm.SetTriggerParameters(eventBlock, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Block)(nil)))
 	n.sm.SetTriggerParameters(eventBlockIDs, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
@@ -371,7 +367,7 @@ func (n *Node) configureTriggers() {
 	n.sm.SetTriggerParameters(eventBlockGenerated, reflect.TypeOf((*proto.Block)(nil)),
 		reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{}))
 	n.sm.SetTriggerParameters(eventBroadcastTransaction,
-		reflect.TypeOf((proto.Transaction)(nil)), reflect.TypeOf((error)(nil)))
+		reflect.TypeOf((*proto.Transaction)(nil)).Elem(), reflect.TypeOf((*error)(nil)).Elem())
 }
 
 func (n *Node) configureIdleState() {
@@ -649,7 +645,7 @@ func (n *Node) onBlock(_ context.Context, args ...any) error {
 	top := n.st.TopBlock()
 	if top.BlockID() != b.Parent { // Received block doesn't refer to the last block.
 		zap.S().Named(logging.FSMNamespace).
-			Debugf("[%s] Key-block '%s' has parent '%s' which is not the top block '%s'",
+			Debugf("[%s] Inapplicable block '%s' has parent '%s' which is not the top block '%s'",
 				n.sm.MustState(), b.ID.String(), b.Parent.String(), top.ID.String(),
 			)
 		var blockFromCache *proto.Block
@@ -663,6 +659,7 @@ func (n *Node) onBlock(_ context.Context, args ...any) error {
 				return nil
 			}
 		}
+		return nil // No need to try to apply the block, we already know it is inapplicable.
 	}
 
 	_, err = n.applier.applyBlocks([]*proto.Block{b})

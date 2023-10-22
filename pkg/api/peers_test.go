@@ -22,7 +22,7 @@ func TestApp_PeersKnown(t *testing.T) {
 
 	peerManager := mock.NewMockPeerManager(ctrl)
 	addr := proto.NewTCPAddr(net.ParseIP("127.0.0.1"), 6868).ToIpPort()
-	peerManager.EXPECT().KnownPeers().Return([]storage.KnownPeer{storage.KnownPeer(addr)})
+	peerManager.EXPECT().AllKnownPeers().Return([]storage.KnownPeer{storage.KnownPeer(addr)})
 
 	app, _, err := NewApp("key", nil, nil, nil, nil, nil, peerManager, proto.MainNetScheme)
 	require.NoError(t, err)

@@ -34,7 +34,7 @@ func (a *App) PeersAll() (PeersKnown, error) {
 		restrictedIPsMap[blackListedPeer.IP.String()] = struct{}{}
 	}
 
-	knownPeers := a.peers.KnownPeers()
+	knownPeers := a.peers.AllKnownPeers()
 
 	nowMillis := common.UnixMillisFromTime(time.Now())
 
@@ -55,7 +55,7 @@ func (a *App) PeersAll() (PeersKnown, error) {
 }
 
 func (a *App) PeersKnown() (PeersKnown, error) {
-	knownPeers := a.peers.KnownPeers()
+	knownPeers := a.peers.AllKnownPeers()
 
 	out := make([]Peer, 0, len(knownPeers))
 	for _, knownPeer := range knownPeers {

@@ -461,8 +461,6 @@ func main() {
 		}
 	}
 
-	// TODO: blockApplier := blocks_applier.NewBlocksApplier()
-
 	app, broadcastCh, err := api.NewApp(nc.apiKey, minerScheduler, st, ntpTime, utx, wal, peerManager,
 		cfg.AddressSchemeCharacter)
 	if err != nil {
@@ -471,10 +469,9 @@ func main() {
 	}
 
 	ntw, notificationsCh := network.NewNetwork(parent.NotificationsCh, parent.NetworkMessagesCh,
-		peerManager, st, cfg.AddressSchemeCharacter, nc.minPeersMining)
+		peerManager, st, cfg.AddressSchemeCharacter, nc.minPeersMining, bindAddr, declAddr)
 	n, cmdCh := node.NewNode(parent.NodeMessagesCh, notificationsCh, broadcastCh, cfg.AddressSchemeCharacter,
-		bindAddr, declAddr, nc.microblockInterval, nc.obsolescencePeriod, utx, parent.SkipMessageList, ntpTime, st,
-		reward)
+		nc.microblockInterval, nc.obsolescencePeriod, utx, parent.SkipMessageList, ntpTime, st, reward)
 	ntw.SetCommandChannel(cmdCh)
 
 	ntw.Run(ctx)
