@@ -92,6 +92,7 @@ They are not necessary and used for optimization, initialized in the full node m
 type InternalDAppComplexitySnapshot struct {
 	ScriptAddress proto.WavesAddress
 	Estimation    ride.TreeEstimation
+	ScriptIsEmpty bool
 	Update        bool
 }
 
@@ -393,7 +394,7 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 			return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
 		}
 		internalComplexitySnapshot := InternalDAppComplexitySnapshot{
-			Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, Update: false}
+			Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, Update: false, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
 		snapshot = append(snapshot, &internalComplexitySnapshot)
 	}
 
@@ -875,7 +876,7 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 				return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
 			}
 			internalComplexitySnapshot := InternalDAppComplexitySnapshot{
-				Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, Update: true}
+				Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, Update: true, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
 			snapshot = append(snapshot, &internalComplexitySnapshot)
 		}
 	}
