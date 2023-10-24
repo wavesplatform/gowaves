@@ -203,7 +203,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message",
+				ErrBrdCstScalaMsg: "json data validation error",
 			}),
 		"Invalid fee (0 < fee < min)": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),

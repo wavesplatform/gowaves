@@ -361,7 +361,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message",
+				ErrBrdCstScalaMsg: "json data validation error",
 			},
 		),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewTransferTestData(
