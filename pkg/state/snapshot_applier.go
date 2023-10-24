@@ -2,6 +2,7 @@ package state
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -235,4 +236,8 @@ func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot proto.LeaseStateSnapsho
 		CancelTransactionID: snapshot.Status.CancelTransactionID,
 	}
 	return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
+}
+
+func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatusSnapshot) error {
+	return nil // no-op
 }

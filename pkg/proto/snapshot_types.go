@@ -196,6 +196,11 @@ func (s AssetDescriptionSnapshot) IsGeneratedByTxDiff() bool {
 
 func (s AssetDescriptionSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetDescription(s) }
 
+type TransactionStatusSnapshot struct {
+	TransactionID crypto.Digest
+	Status        TransactionStatus
+}
+
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
@@ -210,4 +215,5 @@ type SnapshotApplier interface {
 	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
 	ApplyDataEntries(snapshot DataEntriesSnapshot) error
 	ApplyLeaseState(snapshot LeaseStateSnapshot) error
+	ApplyTransactionsStatus(snapshot TransactionStatusSnapshot) error
 }

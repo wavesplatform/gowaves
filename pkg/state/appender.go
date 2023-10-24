@@ -374,6 +374,7 @@ func (a *txAppender) commitTxApplication(
 			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to storage: %v", err))
 		}
 	}
+	// TODO: transaction status snapshot has to be appended here
 	return snapshot, nil
 }
 
