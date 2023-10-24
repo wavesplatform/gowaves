@@ -8,8 +8,8 @@ require (
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/cespare/xxhash/v2 v2.2.0
-	github.com/consensys/gnark v0.9.0
-	github.com/consensys/gnark-crypto v0.11.2
+	github.com/consensys/gnark v0.9.1
+	github.com/consensys/gnark-crypto v0.12.2-0.20231013160410-1f65e75b6dfb
 	github.com/coocood/freecache v1.2.4
 	github.com/elliotchance/orderedmap/v2 v2.2.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
@@ -48,7 +48,7 @@ require (
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/sync v0.4.0
 	golang.org/x/sys v0.13.0
-	google.golang.org/grpc v1.58.3
+	google.golang.org/grpc v1.59.0
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	moul.io/zapfilter v1.7.0
@@ -109,7 +109,7 @@ require (
 	golang.org/x/term v0.13.0 // indirect
 	golang.org/x/text v0.13.0 // indirect
 	golang.org/x/tools v0.12.1-0.20230815132531-74c255bcf846 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20230711160842-782d3b101e98 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20230822172742-b8732ec3820d // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect
