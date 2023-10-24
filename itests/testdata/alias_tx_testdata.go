@@ -216,7 +216,7 @@ func GetAliasNegativeDataMatrix(suite *f.BaseSuite) map[string]AliasTestData[Ali
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message",
+				ErrBrdCstScalaMsg: "json data validation error",
 				WavesDiffBalance:  0,
 			}),
 		"Custom chainID": NewAliasTestData(
