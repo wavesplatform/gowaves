@@ -4303,3 +4303,11 @@ const (
 	LeaseCanceled
 	//TODO: LeaseExpired (for future use)
 )
+
+type TransactionStatus byte
+
+const (
+	TransactionSucceeded TransactionStatus = iota
+	TransactionFailed
+	TransactionElided
+)

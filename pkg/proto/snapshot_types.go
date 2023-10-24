@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -272,6 +273,23 @@ func (s AssetDescriptionSnapshot) IsInternal() bool {
 	return false
 }
 
+type TransactionStatusSnapshot struct {
+	TransactionID crypto.Digest
+	Status        TransactionStatus
+}
+
+func (s TransactionStatusSnapshot) Apply(a SnapshotApplier) error {
+	return a.ApplyTransactionsStatus(s)
+}
+
+func (s TransactionStatusSnapshot) IsGeneratedByTxDiff() bool {
+	return false
+}
+
+func (s TransactionStatusSnapshot) IsInternal() bool {
+	return false
+}
+
 type InternalSnapshot interface {
 	InternalSnapshotMarker()
 }
@@ -290,6 +308,7 @@ type SnapshotApplier interface {
 	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
 	ApplyDataEntries(snapshot DataEntriesSnapshot) error
 	ApplyLeaseState(snapshot LeaseStateSnapshot) error
+	ApplyTransactionsStatus(snapshot TransactionStatusSnapshot) error
 
 	/* Internal snapshots. Applied only in the full node mode */
 	ApplyInternalSnapshot(internalSnapshot InternalSnapshot) error
