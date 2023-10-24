@@ -201,6 +201,14 @@ type TransactionStatusSnapshot struct {
 	Status        TransactionStatus
 }
 
+func (s TransactionStatusSnapshot) Apply(a SnapshotApplier) error {
+	return a.ApplyTransactionsStatus(s)
+}
+
+func (s TransactionStatusSnapshot) IsGeneratedByTxDiff() bool {
+	return false
+}
+
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
