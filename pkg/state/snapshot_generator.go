@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -147,10 +148,10 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 
 	if scriptInformation != nil {
 		assetScriptSnapshot := &proto.AssetScriptSnapshot{
-			AssetID:    assetID,
-			Script:     scriptInformation.script,
-			Complexity: uint64(scriptInformation.complexity),
+			AssetID: assetID,
+			Script:  scriptInformation.script,
 		}
+		// TODO: special snapshot for complexity should be generated here
 		snapshot = append(snapshot, assetScriptSnapshot)
 	}
 
@@ -352,17 +353,15 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 }
 
 func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script,
-	complexity int, senderPK crypto.PublicKey, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
 
 	sponsorshipSnapshot := &proto.AssetScriptSnapshot{
-		AssetID:    assetID,
-		Script:     script,
-		Complexity: uint64(complexity),
-		SenderPK:   senderPK,
+		AssetID: assetID,
+		Script:  script,
 	}
 	snapshot = append(snapshot, sponsorshipSnapshot)
 	return snapshot, nil
@@ -514,10 +513,10 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 	}
 	if scriptInfo != nil {
 		assetScriptSnapshot := &proto.AssetScriptSnapshot{
-			AssetID:    action.ID,
-			Script:     scriptInfo.script,
-			Complexity: uint64(scriptInfo.complexity),
+			AssetID: action.ID,
+			Script:  scriptInfo.script,
 		}
+		// TODO: special snapshot for complexity should be generated here
 		atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
 	}
 	atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)

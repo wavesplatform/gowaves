@@ -178,7 +178,7 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnaps
 	// if err != nil {
 	//	return errors.Wrapf(err, "failed to get const asset info for asset %q", snapshot.AssetID.String())
 	// }
-	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
+	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplySponsorship(snapshot proto.SponsorshipSnapshot) error {

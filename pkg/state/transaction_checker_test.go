@@ -1395,7 +1395,7 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkSetAssetScriptWithProofs did not fail with non-smart asset")
 
 	// Make it smart.
-	err = to.stor.entities.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, tx.SenderPK, blockID0)
+	err = to.stor.entities.scriptsStorage.setAssetScript(tx.AssetID, tx.Script, blockID0)
 	assert.NoError(t, err, "setAssetScript failed")
 
 	// Now should pass.

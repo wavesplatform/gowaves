@@ -76,10 +76,8 @@ func (s AccountScriptSnapshot) IsGeneratedByTxDiff() bool {
 func (s AccountScriptSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAccountScript(s) }
 
 type AssetScriptSnapshot struct {
-	AssetID    crypto.Digest
-	Script     Script
-	SenderPK   crypto.PublicKey // should be removed later
-	Complexity uint64
+	AssetID crypto.Digest
+	Script  Script
 }
 
 func (s AssetScriptSnapshot) IsGeneratedByTxDiff() bool {

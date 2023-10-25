@@ -135,8 +135,8 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return nil, err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
-		return nil, err
+	if setErr := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, info.blockID); setErr != nil {
+		return nil, setErr
 	}
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil)
 }
@@ -155,8 +155,8 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return nil, err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
-		return nil, err
+	if setErr := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, info.blockID); setErr != nil {
+		return nil, setErr
 	}
 	var se *scriptEstimation
 	var scriptInfo *scriptInformation
@@ -495,11 +495,11 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if setErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID); setErr != nil {
 		return nil, errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID,
-		tx.Script, se.estimation.Verifier, tx.SenderPK, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, balanceChanges)
 	if err != nil {
 		return nil, err
 	}
+	// TODO: generate special complexities snapshot for asset
 
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
