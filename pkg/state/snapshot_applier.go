@@ -53,17 +53,6 @@ type blockSnapshotsApplierInfo struct {
 	stateActionsCounter *proto.StateActionsCounter
 }
 
-var _ = newBlockSnapshotsApplierInfo
-
-func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
-	cnt *proto.StateActionsCounter) blockSnapshotsApplierInfo {
-	return blockSnapshotsApplierInfo{
-		ci:                  ci,
-		scheme:              scheme,
-		stateActionsCounter: cnt,
-	}
-}
-
 func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
 	return s.ci.blockID
 }
@@ -127,19 +116,24 @@ func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
 }
 
 func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetInfoSnapshot) error {
-	//assetID := proto.AssetIDFromDigest(snapshot.AssetID)
-	//assetFullInfo := &assetInfo{
-	//	assetConstInfo: assetConstInfo{
-	//		tail:                 proto.DigestTail(snapshot.AssetID),
-	//		issuer:               snapshot.IssuerPublicKey,
-	//		decimals:             snapshot.Decimals,
-	//		issueHeight:          a.info.Height(),
-	//		issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
-	//	},
-	//	assetChangeableInfo: assetChangeableInfo{},
-	//}
-	//return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
-	return nil
+	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
+	height := a.info.Height() + 1
+
+	changeableInfo, err := a.stor.assets.newestChangeableInfo(snapshot.AssetID)
+	if err != nil {
+		changeableInfo = &assetChangeableInfo{}
+	}
+	assetFullInfo := &assetInfo{
+		assetConstInfo: assetConstInfo{
+			tail:                 proto.DigestTail(snapshot.AssetID),
+			issuer:               snapshot.IssuerPublicKey,
+			decimals:             snapshot.Decimals,
+			issueHeight:          height,
+			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
+		},
+		assetChangeableInfo: *changeableInfo,
+	}
+	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot proto.AssetDescriptionSnapshot) error {
@@ -169,11 +163,8 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnaps
 		Functions:  nil,
 	}
 	if snapshot.Script.IsEmpty() {
-		if err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
-			snapshot.SenderPK, a.info.BlockID()); err != nil {
-			return err
-		}
-		return nil
+		return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
+			snapshot.SenderPK, a.info.BlockID())
 	}
 	setErr := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
 	if setErr != nil {
@@ -208,10 +199,8 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptS
 		Functions:  nil,
 	}
 	if snapshot.Script.IsEmpty() {
-		if err := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID()); err != nil {
-			return err
-		}
-		return nil
+		return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script,
+			snapshot.SenderPublicKey, a.info.BlockID())
 	}
 	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 	if setErr != nil {

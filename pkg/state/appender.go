@@ -640,11 +640,13 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
 	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
+	stateActionsCounterInSnapshots := new(proto.StateActionsCounter)
 
 	snapshotApplier := newBlockSnapshotsApplier(
 		blockSnapshotsApplierInfo{
-			ci:     checkerInfo,
-			scheme: a.settings.AddressSchemeCharacter,
+			ci:                  checkerInfo,
+			scheme:              a.settings.AddressSchemeCharacter,
+			stateActionsCounter: stateActionsCounterInSnapshots,
 		},
 		snapshotApplierStorages{
 			balances:          a.stor.balances,
@@ -966,8 +968,9 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	snapshotApplier := newBlockSnapshotsApplier(
 		blockSnapshotsApplierInfo{
-			ci:     checkerInfo,
-			scheme: a.settings.AddressSchemeCharacter,
+			ci:                  checkerInfo,
+			scheme:              a.settings.AddressSchemeCharacter,
+			stateActionsCounter: new(proto.StateActionsCounter),
 		},
 		snapshotApplierStorages{
 			balances:          a.stor.balances,

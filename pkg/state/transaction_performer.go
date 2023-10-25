@@ -98,11 +98,10 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(assetID),
-			issuer:               tx.SenderPK,
-			decimals:             tx.Decimals,
-			issueHeight:          blockHeight,
-			issueSequenceInBlock: info.stateActionsCounter.NextIssueActionNumber(),
+			tail:        proto.DigestTail(assetID),
+			issuer:      tx.SenderPK,
+			decimals:    tx.Decimals,
+			issueHeight: blockHeight,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -113,12 +112,8 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 		},
 	}
 
-	if err := tp.stor.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, info.blockID); err != nil {
-		return nil, errors.Wrap(err, "failed to issue asset")
-	}
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(assetID, txID, tx.SenderPK,
 		*assetInfo, balanceChanges, scriptInformation)
-
 	if err != nil {
 		return nil, err
 	}
@@ -481,10 +476,6 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
 
-	if err := tp.stor.commitUncertain(info.blockID); err != nil {
-		return nil, errors.Wrapf(err, "failed to commit invoke changes for tx %q", tx.ID.String())
-	}
-
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return nil, errors.Errorf("failed to get transaction ID: %v", err)
@@ -512,25 +503,6 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	if err != nil {
 		return nil, err
 	}
-
-	se := info.checkerData.scriptEstimation
-	if se.isPresent() { // nothing to do, no estimation to save
-		scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
-		}
-		// update callable and summary complexity, verifier complexity remains the same
-		if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
-			return nil, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
-				scriptAddr.String(), tx.ID.String(),
-			)
-		}
-	}
-	// script estimation is present an not nil
-
-	// we've pulled up an old script which estimation had been done by an old estimator
-	// in txChecker we've estimated script with a new estimator
-	// this is the place where we have to store new estimation
 
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
