@@ -320,6 +320,24 @@ func (tc *transactionChecker) smartAssets(assets []proto.OptionalAsset) ([]crypt
 	return smartAssets, nil
 }
 
+func (tc *transactionChecker) smartAssetsFromMap(assets map[proto.OptionalAsset]struct{}) ([]crypto.Digest, error) {
+	var smartAssets []crypto.Digest
+	for a := range assets {
+		if !a.Present {
+			// Waves can not be scripted.
+			continue
+		}
+		scripted, err := tc.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.ID))
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to check newestIsSmartAsset for asset %q", a.String())
+		}
+		if scripted {
+			smartAssets = append(smartAssets, a.ID)
+		}
+	}
+	return smartAssets, nil
+}
+
 func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *checkerInfo) (out txCheckerData, err error) {
 	if info.blockID != tc.genesis {
 		return out, errors.New("genesis transaction inside of non-genesis block")
@@ -825,45 +843,49 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	if err := checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
+	if errO1 := checkOrderWithMetamaskFeature(o1, metamaskActivated); errO1 != nil {
 		return nil, errors.Wrap(err, "order1 metamask feature checks failed")
 	}
-	if err := checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
+	if errO2 := checkOrderWithMetamaskFeature(o2, metamaskActivated); errO2 != nil {
 		return nil, errors.Wrap(err, "order2 metamask feature checks failed")
 	}
 
 	// Check assets.
-	m := map[proto.OptionalAsset]struct{}{
+	allAssets := map[proto.OptionalAsset]struct{}{
+		so.GetAssetPair().AmountAsset: {},
+		so.GetAssetPair().PriceAsset:  {},
+	}
+	ordersAssets := map[proto.OptionalAsset]struct{}{
 		so.GetAssetPair().AmountAsset: {},
 		so.GetAssetPair().PriceAsset:  {},
 	}
 	// Add matcher fee assets to map to checkAsset() them later.
 	switch o := o1.(type) {
 	case *proto.OrderV3, *proto.OrderV4, *proto.EthereumOrderV4:
-		m[o.GetMatcherFeeAsset()] = struct{}{}
+		allAssets[o.GetMatcherFeeAsset()] = struct{}{}
 	}
 	switch o := o2.(type) {
 	case *proto.OrderV3, *proto.OrderV4, *proto.EthereumOrderV4:
-		m[o.GetMatcherFeeAsset()] = struct{}{}
+		allAssets[o.GetMatcherFeeAsset()] = struct{}{}
 	}
-	for a := range m {
+	for a := range allAssets {
 		if err := tc.checkAsset(&a); err != nil {
 			return nil, errs.Extend(err, "Assets should be issued before they can be traded")
 		}
 	}
-	allAssets := make([]proto.OptionalAsset, 0, len(m))
-	for a := range m {
-		allAssets = append(allAssets, a)
-	}
-	smartAssets, err := tc.smartAssets(allAssets)
+	ordersSmartAssets, err := tc.smartAssetsFromMap(ordersAssets)
 	if err != nil {
 		return nil, err
 	}
-	assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: smartAssets}
-	if err := tc.checkFee(transaction, assets, info); err != nil {
+	txa := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: ordersSmartAssets}
+	if errCF := tc.checkFee(transaction, txa, info); errCF != nil {
 		return nil, err
 	}
 	smartAssetsActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAssets))
+	if err != nil {
+		return nil, err
+	}
+	smartAssets, err := tc.smartAssetsFromMap(allAssets)
 	if err != nil {
 		return nil, err
 	}
