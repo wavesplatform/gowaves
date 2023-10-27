@@ -660,7 +660,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			leases:            a.stor.leases,
 		},
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter, IsFullNodeMode: true}
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter, IsFullNodeMode: true,
+		issueCounterInBlock: stateActionsCounterInSnapshots}
 
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -966,11 +967,12 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
+	issueCounterInBlockSnapshots := new(proto.StateActionsCounter)
 	snapshotApplier := newBlockSnapshotsApplier(
 		blockSnapshotsApplierInfo{
 			ci:                  checkerInfo,
 			scheme:              a.settings.AddressSchemeCharacter,
-			stateActionsCounter: new(proto.StateActionsCounter),
+			stateActionsCounter: issueCounterInBlockSnapshots,
 		},
 		snapshotApplierStorages{
 			balances:          a.stor.balances,
@@ -984,7 +986,8 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 			leases:            a.stor.leases,
 		},
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter, IsFullNodeMode: true}
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter,
+		IsFullNodeMode: true, issueCounterInBlock: issueCounterInBlockSnapshots}
 
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true

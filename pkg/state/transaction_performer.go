@@ -134,10 +134,6 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return nil, err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
-		return nil, err
-	}
-
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil)
 }
 
@@ -161,15 +157,6 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 		scriptInfo = &scriptInformation{
 			script:     tx.Script,
 			complexity: se.estimation.Verifier,
-		}
-	}
-	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
-		return nil, err
-	}
-	if se := info.checkerData.scriptEstimation; se.isPresent() { // script estimation is present and not nil
-		// Save complexities to storage, so we won't have to calculate it every time the script is called.
-		if scErr := tp.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, *se, info.blockID); scErr != nil {
-			return nil, scErr
 		}
 	}
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, scriptInfo)
