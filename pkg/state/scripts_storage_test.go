@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -129,7 +130,7 @@ func TestSetAssetScript(t *testing.T) {
 	fullAssetID := testGlobal.asset0.asset.ID
 	shortAssetID := proto.AssetIDFromDigest(fullAssetID)
 
-	err := to.scriptsStorage.setAssetScript(fullAssetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err := to.scriptsStorage.setAssetScript(fullAssetID, testGlobal.scriptBytes, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
@@ -166,7 +167,7 @@ func TestSetAssetScript(t *testing.T) {
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test discarding script.
-	err = to.scriptsStorage.setAssetScript(fullAssetID, proto.Script{}, testGlobal.senderInfo.pk, blockID0)
+	err = to.scriptsStorage.setAssetScript(fullAssetID, proto.Script{}, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.

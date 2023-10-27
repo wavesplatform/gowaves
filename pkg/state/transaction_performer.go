@@ -135,8 +135,8 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return nil, err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, tx.SenderPK, info.blockID); err != nil {
-		return nil, err
+	if setErr := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, info.blockID); setErr != nil {
+		return nil, setErr
 	}
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil)
 }
@@ -155,8 +155,8 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return nil, err
 	}
-	if err := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, tx.SenderPK, info.blockID); err != nil {
-		return nil, err
+	if setErr := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, info.blockID); setErr != nil {
+		return nil, setErr
 	}
 	var se *scriptEstimation
 	var scriptInfo *scriptInformation
@@ -495,11 +495,11 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if setErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID); setErr != nil {
 		return nil, errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID,
-		tx.Script, se.estimation.Verifier, tx.SenderPK, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, balanceChanges)
 	if err != nil {
 		return nil, err
 	}
+	// TODO: generate special complexities snapshot for asset
 
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
@@ -541,8 +541,21 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, err
 	}
 
+	scriptAddr, cnvrtErr := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
+	if cnvrtErr != nil {
+		return nil, err
+	}
+	var si scriptBasicInfoRecord
+	si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
+	if err != nil {
+		return nil, errors.Wrapf(err,
+			"failed to get script's public key on address '%s'",
+			tx.ScriptRecipient.Address().String())
+	}
+	scriptPK := si.PK
+
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info,
-		invocationRes, balanceChanges, tx.SenderPK)
+		invocationRes, balanceChanges, scriptPK, scriptAddr)
 	if err != nil {
 		return nil, err
 	}
@@ -566,8 +579,12 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 		return nil, err
 	}
 
+	senderAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, "recipientToAddress() failed")
+	}
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, info, invocationRes,
-		balanceChanges, tx.SenderPK)
+		balanceChanges, tx.SenderPK, senderAddress)
 	if err != nil {
 		return nil, err
 	}
@@ -601,7 +618,7 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	}
 	scriptPK := si.PK
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForEthereumInvokeScriptTx(txID,
-		info, invocationRes, balanceChanges, scriptPK)
+		info, invocationRes, balanceChanges, scriptPK, scriptAddr)
 	if err != nil {
 		return nil, err
 	}

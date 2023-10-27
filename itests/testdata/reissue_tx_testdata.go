@@ -188,7 +188,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message",
+				ErrBrdCstScalaMsg: "json data validation error",
 			}),
 		"Invalid token quantity (quantity < min)": NewReissueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -222,7 +222,7 @@ func GetReissueNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest) map
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message",
+				ErrBrdCstScalaMsg: "json data validation error",
 			}),
 		"Invalid fee (0 < fee < min)": NewReissueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),

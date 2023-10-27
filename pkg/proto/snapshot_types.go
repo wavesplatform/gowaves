@@ -163,10 +163,8 @@ func (s AccountScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateS
 }
 
 type AssetScriptSnapshot struct {
-	AssetID    crypto.Digest
-	Script     Script
-	SenderPK   crypto.PublicKey // should be removed later
-	Complexity uint64
+	AssetID crypto.Digest
+	Script  Script
 }
 
 func (s AssetScriptSnapshot) IsGeneratedByTxDiff() bool {
@@ -452,6 +450,19 @@ func (s AssetDescriptionSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSta
 	return nil
 }
 
+type TransactionStatusSnapshot struct {
+	TransactionID crypto.Digest
+	Status        TransactionStatus
+}
+
+func (s TransactionStatusSnapshot) Apply(a SnapshotApplier) error {
+	return a.ApplyTransactionsStatus(s)
+}
+
+func (s TransactionStatusSnapshot) IsGeneratedByTxDiff() bool {
+	return false
+}
+
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
@@ -466,4 +477,5 @@ type SnapshotApplier interface {
 	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
 	ApplyDataEntries(snapshot DataEntriesSnapshot) error
 	ApplyLeaseState(snapshot LeaseStateSnapshot) error
+	ApplyTransactionsStatus(snapshot TransactionStatusSnapshot) error
 }
