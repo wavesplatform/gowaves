@@ -13,7 +13,6 @@ type snapshotGenerator struct {
 	stor   *blockchainEntitiesStorage
 	scheme proto.Scheme
 
-	issueCounterInBlock *proto.StateActionsCounter
 	/* Is IsFullNodeMode is true, then some additional internal fields will be generated */
 	IsFullNodeMode bool
 }
@@ -584,7 +583,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 	//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
 	//}
 	// atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
-	sg.issueCounterInBlock.NextIssueActionNumber()
+	//sg.issueCounterInBlock.NextIssueActionNumber()
 	issuerAddress, err := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
 	if err != nil {
 		return errors.Wrap(err, "failed to get an address from a public key")
@@ -649,7 +648,7 @@ func (sg *snapshotGenerator) atomicActionsFromBurnAction(
 
 func (sg *snapshotGenerator) atomicActionsFromLeaseAction(
 	action proto.LeaseScriptAction,
-	info *performerInfo,
+	blockHeight uint64,
 	txID crypto.Digest,
 	sender proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
 	var atomicSnapshots []proto.AtomicSnapshot
@@ -668,7 +667,7 @@ func (sg *snapshotGenerator) atomicActionsFromLeaseAction(
 		Sender:    sender,
 		Recipient: recipientAddr,
 		Amount:    uint64(action.Amount),
-		Height:    info.height,
+		Height:    blockHeight,
 		Status:    proto.LeaseActive,
 	}
 	var amount = int64(l.Amount)
@@ -695,6 +694,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromLeaseCancelAction(
 	}
 
 	var amount = -int64(leasingInfo.Amount)
+	// TODO add other fields into this transaction
 	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err :=
 		sg.generateLeaseAtomicSnapshots(action.LeaseID, *leasingInfo, txID, leasingInfo.Sender, leasingInfo.Recipient, amount)
 	if err != nil {
@@ -712,6 +712,7 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 	dataEntries dataEntries,
 	wavesBalanceDiff addressWavesBalanceDiff,
 	assetBalanceDiff addressAssetBalanceDiff,
+	blockHeight uint64,
 	info *performerInfo,
 	txID crypto.Digest,
 	senderAddress proto.WavesAddress,
@@ -761,7 +762,7 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 		}
 		atomicSnapshots = append(atomicSnapshots, burnSnapshots...)
 	case *proto.LeaseScriptAction:
-		leaseSnapshots, err := sg.atomicActionsFromLeaseAction(*a, info, txID, senderAddress)
+		leaseSnapshots, err := sg.atomicActionsFromLeaseAction(*a, blockHeight, txID, senderAddress)
 		if err != nil {
 			return nil, err
 		}
@@ -800,7 +801,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
 	actions []proto.ScriptAction,
 	wavesBalanceDiff addressWavesBalanceDiff,
 	assetBalanceDiff addressAssetBalanceDiff,
-	//blockHeight uint64,
+	blockHeight uint64,
 	info *performerInfo,
 	txID crypto.Digest,
 	scriptPublicKey crypto.PublicKey, scriptAddress proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
@@ -812,7 +813,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
 			return nil, err
 		}
 		snapshotsFromAction, err := sg.collectBalanceAndSnapshotFromAction(action, dataEntriesMap,
-			wavesBalanceDiff, assetBalanceDiff,
+			wavesBalanceDiff, assetBalanceDiff, blockHeight,
 			info, txID, senderAddress, senderPK)
 		if err != nil {
 			return nil, err
@@ -847,7 +848,7 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 	scriptRecipient *proto.Recipient,
 	scriptPublicKey crypto.PublicKey,
 	scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
-	//blockHeight := info.height + 1
+	blockHeight := info.height + 1
 
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
@@ -858,7 +859,7 @@ func (sg *snapshotGenerator) generateInvokeSnapshot(
 		var atomicSnapshots []proto.AtomicSnapshot
 		atomicSnapshots, err = sg.atomicSnapshotsFromScriptActions(
 			invocationRes.actions, addrWavesBalanceDiff,
-			addrAssetBalanceDiff, info, txID,
+			addrAssetBalanceDiff, blockHeight, info, txID,
 			scriptPublicKey, scriptAddress)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to generate atomic snapshots from script actions")
