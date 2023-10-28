@@ -377,8 +377,6 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		return proto.DAppError, info.failedChanges, errs.NewTxValidationError(fmt.Sprintf("Empty keys aren't allowed in tx version >= %d", tx.GetVersion()))
 	}
 
-	fmt.Println("block id ", info.block.ID.String())
-	fmt.Println("invoke applier height ", info.blockInfo.Height)
 	// Perform actions.
 	for _, action := range info.actions {
 		senderPK, senderAddress, err := ia.senderCredentialsFromScriptAction(action, info)

@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -111,7 +112,17 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 			reissuable:               tx.Reissuable,
 		},
 	}
-
+	if blockHeight > 2261195 {
+		fmt.Println("=====")
+		fmt.Println("From Issue TX")
+		fmt.Println("issuer ", assetInfo.issuer.String())
+		fmt.Println("asset name ", assetInfo.name)
+		fmt.Println("asset id ", assetID.String())
+		fmt.Println("issue height ", assetInfo.issueHeight)
+		fmt.Println("issue seq in block ", assetInfo.issueSequenceInBlock)
+		fmt.Println("lastNameDescChangeHeight ", assetInfo.lastNameDescChangeHeight)
+		fmt.Println("*****")
+	}
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(assetID, txID, tx.SenderPK,
 		*assetInfo, balanceChanges, scriptInformation)
 	if err != nil {
