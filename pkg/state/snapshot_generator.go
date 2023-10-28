@@ -584,7 +584,7 @@ func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 	//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
 	//}
 	// atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
-
+	sg.issueCounterInBlock.NextIssueActionNumber()
 	issuerAddress, err := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
 	if err != nil {
 		return errors.Wrap(err, "failed to get an address from a public key")
