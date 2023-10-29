@@ -7,7 +7,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 type snapshotGenerator struct {
@@ -25,31 +24,6 @@ type assetBalanceDiffKey struct {
 	asset   proto.AssetID
 }
 type addressAssetBalanceDiff map[assetBalanceDiffKey]int64
-
-/*
-Below are internal snapshots only.
-They are not necessary and used for optimization, initialized in the full node mode only.
-*/
-type InternalDAppComplexitySnapshot struct {
-	ScriptAddress proto.WavesAddress
-	Estimation    ride.TreeEstimation
-	ScriptIsEmpty bool
-	Update        bool
-}
-
-func (s InternalDAppComplexitySnapshot) IsGeneratedByTxDiff() bool {
-	return false
-}
-
-func (s InternalDAppComplexitySnapshot) Apply(a proto.SnapshotApplier) error {
-	return a.ApplyInternalSnapshot(&s)
-}
-
-func (s InternalDAppComplexitySnapshot) IsInternal() bool {
-	return true
-}
-
-func (s InternalDAppComplexitySnapshot) InternalSnapshotMarker() {}
 
 func (sg *snapshotGenerator) generateSnapshotForGenesisTx(balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	return sg.generateBalancesSnapshot(balanceChanges)
@@ -333,8 +307,7 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 			return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
 		}
 		internalComplexitySnapshot := InternalDAppComplexitySnapshot{
-			Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr,
-			Update: false, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
+			Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
 		snapshot = append(snapshot, &internalComplexitySnapshot)
 	}
 
@@ -342,7 +315,7 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 }
 
 func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script,
-	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	balanceChanges txDiff, scriptEstimation scriptEstimation) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
@@ -352,8 +325,13 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 		AssetID: assetID,
 		Script:  script,
 	}
-	// TODO generate a special snapshot complexity here
 	snapshot = append(snapshot, assetScrptSnapshot)
+	if sg.IsFullNodeMode {
+		internalComplexitySnapshot := InternalAssetScriptComplexitySnapshot{
+			Estimation: scriptEstimation.estimation, AssetID: assetID,
+			ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
+		snapshot = append(snapshot, &internalComplexitySnapshot)
+	}
 	return snapshot, nil
 }
 

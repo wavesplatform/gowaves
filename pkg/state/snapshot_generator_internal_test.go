@@ -892,7 +892,6 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 			ScriptAddress: testGlobal.senderInfo.addr,
 			Estimation:    ride.TreeEstimation{Estimation: 36, Verifier: 0, Functions: map[string]int{"call": 36}},
 			ScriptIsEmpty: false,
-			Update:        false,
 		},
 	}
 
@@ -962,7 +961,6 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 		&InternalDAppComplexitySnapshot{
 			ScriptAddress: testGlobal.senderInfo.addr,
 			Estimation:    ride.TreeEstimation{Estimation: 340, Verifier: 340},
-			Update:        false,
 		},
 	}
 
@@ -1032,7 +1030,6 @@ func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
 		&InternalDAppComplexitySnapshot{
 			ScriptAddress: testGlobal.senderInfo.addr,
 			Estimation:    ride.TreeEstimation{Estimation: 0, Verifier: 0},
-			Update:        false,
 			ScriptIsEmpty: true,
 		},
 	}
@@ -1109,6 +1106,15 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 		&proto.AssetScriptSnapshot{
 			AssetID: testGlobal.asset0.assetID,
 			Script:  testGlobal.scriptBytes,
+		},
+		&InternalAssetScriptComplexitySnapshot{
+			AssetID: testGlobal.asset0.assetID,
+			Estimation: ride.TreeEstimation{
+				Estimation: 340,
+				Verifier:   340,
+				Functions:  nil,
+			},
+			ScriptIsEmpty: false,
 		},
 	}
 

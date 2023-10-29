@@ -240,35 +240,45 @@ func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatu
 
 func (a *blockSnapshotsApplier) ApplyInternalSnapshot(
 	internalSnapshot proto.InternalSnapshot) error {
-	/* If you want to add more internal snapshots,
-	//you should add a switch here iterating through all possible internal snapshots. */
-	internalDappComplexitySnapshot, ok := internalSnapshot.(*InternalDAppComplexitySnapshot)
-	if !ok {
-		return errors.New("failed to convert interface to internal dapp complexity snapshot")
-	}
-	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-		scriptIsEmpty: internalDappComplexitySnapshot.ScriptIsEmpty, estimation: internalDappComplexitySnapshot.Estimation}
-	if !internalDappComplexitySnapshot.Update {
+	switch snapshot := internalSnapshot.(type) {
+	case *InternalDAppComplexitySnapshot:
+		scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+			scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
 		// Save full complexity of both callable and verifier when the script is set first time
-		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(internalDappComplexitySnapshot.ScriptAddress,
+		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(snapshot.ScriptAddress,
 			scriptEstimation, a.info.BlockID()); setErr != nil {
 			return errors.Wrapf(setErr, "failed to save script complexities for addr %q",
-				internalDappComplexitySnapshot.ScriptAddress.String())
+				snapshot.ScriptAddress.String())
 		}
 		return nil
+
+	case InternalDAppUpdateComplexitySnapshot:
+		scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+			scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
+		// we've pulled up an old script which estimation had been done by an old estimator
+		// in txChecker we've estimated script with a new estimator
+		// this is the place where we have to store new estimation
+		// update callable and summary complexity, verifier complexity remains the same
+		if scErr := a.stor.scriptsComplexity.updateCallableComplexitiesForAddr(
+			snapshot.ScriptAddress,
+			scriptEstimation, a.info.BlockID()); scErr != nil {
+			return errors.Wrapf(scErr, "failed to save complexity for addr %q",
+				snapshot.ScriptAddress,
+			)
+		}
+	case *InternalAssetScriptComplexitySnapshot:
+		scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+			scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
+		// Save full complexity of both callable and verifier when the script is set first time
+		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID,
+			scriptEstimation, a.info.BlockID()); setErr != nil {
+			return errors.Wrapf(setErr, "failed to save script complexities for asset ID %q",
+				snapshot.AssetID.String())
+		}
+		return nil
+	default:
+		return errors.New("failed to apply internal snapshot, unknown type")
 	}
 
-	// we've pulled up an old script which estimation had been done by an old estimator
-	// in txChecker we've estimated script with a new estimator
-	// this is the place where we have to store new estimation
-
-	// update callable and summary complexity, verifier complexity remains the same
-	if scErr := a.stor.scriptsComplexity.updateCallableComplexitiesForAddr(
-		internalDappComplexitySnapshot.ScriptAddress,
-		scriptEstimation, a.info.BlockID()); scErr != nil {
-		return errors.Wrapf(scErr, "failed to save complexity for addr %q",
-			internalDappComplexitySnapshot.ScriptAddress,
-		)
-	}
 	return nil
 }
