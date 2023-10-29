@@ -54,17 +54,6 @@ type blockSnapshotsApplierInfo struct {
 	stateActionsCounter *proto.StateActionsCounter
 }
 
-var _ = newBlockSnapshotsApplierInfo
-
-func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
-	cnt *proto.StateActionsCounter) blockSnapshotsApplierInfo {
-	return blockSnapshotsApplierInfo{
-		ci:                  ci,
-		scheme:              scheme,
-		stateActionsCounter: cnt,
-	}
-}
-
 func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
 	return s.ci.blockID
 }
@@ -129,15 +118,21 @@ func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
 
 func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetInfoSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
+	height := a.info.Height() + 1
+
+	changeableInfo, err := a.stor.assets.newestChangeableInfo(snapshot.AssetID)
+	if err != nil {
+		changeableInfo = &assetChangeableInfo{}
+	}
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
 			tail:                 proto.DigestTail(snapshot.AssetID),
 			issuer:               snapshot.IssuerPublicKey,
 			decimals:             snapshot.Decimals,
-			issueHeight:          a.info.Height(),
+			issueHeight:          height,
 			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
 		},
-		assetChangeableInfo: assetChangeableInfo{},
+		assetChangeableInfo: *changeableInfo,
 	}
 	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 }
@@ -169,17 +164,15 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnaps
 		Functions:  nil,
 	}
 	if snapshot.Script.IsEmpty() {
-		if err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
-			snapshot.SenderPK, a.info.BlockID()); err != nil {
-			return err
-		}
+		return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
+			snapshot.SenderPK, a.info.BlockID())
 	}
 	setErr := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
 	if setErr != nil {
 		return setErr
 	}
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-		scriptIsEmpty: !snapshot.Script.IsEmpty(),
+		scriptIsEmpty: snapshot.Script.IsEmpty(),
 		estimation:    treeEstimation}
 	if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
 		snapshot.AssetID, scriptEstimation, a.info.BlockID()); err != nil {
@@ -206,12 +199,16 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptS
 		Verifier:   int(snapshot.VerifierComplexity),
 		Functions:  nil,
 	}
+	if snapshot.Script.IsEmpty() {
+		return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script,
+			snapshot.SenderPublicKey, a.info.BlockID())
+	}
 	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 	if setErr != nil {
 		return setErr
 	}
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-		scriptIsEmpty: !snapshot.Script.IsEmpty(),
+		scriptIsEmpty: snapshot.Script.IsEmpty(),
 		estimation:    treeEstimation}
 	if cmplErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(
 		addr, scriptEstimation, a.info.BlockID()); cmplErr != nil {
@@ -257,13 +254,13 @@ func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatu
 func (a *blockSnapshotsApplier) ApplyInternalSnapshot(
 	internalSnapshot proto.InternalSnapshot) error {
 	/* If you want to add more internal snapshots,
-	you should add a switch here iterating through all possible internal snapshots. */
+	//you should add a switch here iterating through all possible internal snapshots. */
 	internalDappComplexitySnapshot, ok := internalSnapshot.(*InternalDAppComplexitySnapshot)
 	if !ok {
 		return errors.New("failed to convert interface to internal dapp complexity snapshot")
 	}
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-		scriptIsEmpty: false, estimation: internalDappComplexitySnapshot.Estimation}
+		scriptIsEmpty: internalDappComplexitySnapshot.ScriptIsEmpty, estimation: internalDappComplexitySnapshot.Estimation}
 	if !internalDappComplexitySnapshot.Update {
 		// Save full complexity of both callable and verifier when the script is set first time
 		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(internalDappComplexitySnapshot.ScriptAddress,

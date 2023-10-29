@@ -56,10 +56,19 @@ func defaultPerformerInfo(stateActionsCounter *proto.StateActionsCounter) *perfo
 	return newPerformerInfo(0, stateActionsCounter, blockID0, proto.WavesAddress{}, txCheckerData{})
 }
 
+func defaultCheckerInfoHeight0() *checkerInfo {
+	return &checkerInfo{
+		currentTimestamp: defaultTimestamp,
+		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
+		blockID:          blockID0,
+		blockVersion:     1,
+		height:           0,
+	}
+}
+
 func TestPerformIssueWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
+	checkerInfo := defaultCheckerInfoHeight0()
 	to := createPerformerTestObjects(t, checkerInfo)
-	checkerInfo.height = 1
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithSig(t, 1000)
 	_, err := to.tp.performIssueWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
@@ -89,9 +98,8 @@ func TestPerformIssueWithSig(t *testing.T) {
 }
 
 func TestPerformIssueWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
+	checkerInfo := defaultCheckerInfoHeight0()
 	to := createPerformerTestObjects(t, checkerInfo)
-	checkerInfo.height = 1
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithProofs(t, 1000)
 
