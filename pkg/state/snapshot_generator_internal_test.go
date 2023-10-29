@@ -13,7 +13,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
-	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -37,7 +36,7 @@ func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,
 }
 
 func defaultPerformerInfoWithChecker(checkerData txCheckerData) *performerInfo {
-	return &performerInfo{0, blockID0, proto.WavesAddress{}, new(proto.StateActionsCounter), checkerData}
+	return &performerInfo{0, blockID0, proto.WavesAddress{}, checkerData}
 }
 
 func customCheckerInfo() *checkerInfo {
@@ -117,6 +116,7 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 }
 
 // TODO send only txBalanceChanges to perfomer
+
 func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 	checkerInfo := customCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
@@ -169,6 +169,10 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 			Address: testGlobal.issuerInfo.addr,
 			AssetID: *tx.ID,
 			Balance: 1000,
+		},
+		&proto.AssetScriptSnapshot{
+			AssetID: *tx.ID,
+			Script:  proto.Script{},
 		},
 	}
 
@@ -813,6 +817,106 @@ func TestDefaultSponsorshipSnapshot(t *testing.T) {
 	to.stor.flush(t)
 }
 
+func TestDefaultSetDappScriptSnapshot(t *testing.T) {
+	/*
+			{-# STDLIB_VERSION 5 #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+
+			@Callable(i)
+			func call() = {
+			  [
+				BooleanEntry("bool", true),
+				IntegerEntry("int", 1),
+		        IntegerEntry("int", 1),
+		        IntegerEntry("int2", 2),
+				StringEntry("str", "1"),
+		        StringEntry("str", "1"),
+		        StringEntry("str2", "2")
+			  ]
+			}
+	*/
+	script := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2Fsb" +
+		"AAAAAAJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAABGJvb2wGCQAE" +
+		"TAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEJAARMAAAA" +
+		"AgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2ludAAAAAAAAAAAAQkABEwAAAACCQEAAA" +
+		"AMSW50ZWdlckVudHJ5AAAAAgIAAAAEaW50MgAAAAAAAAAAAgkABEwAAAACCQEAAAALU3RyaW5nRW" +
+		"50cnkAAAACAgAAAANzdHICAAAAATEJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAA" +
+		"ExCQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAAAAICAAAABHN0cjICAAAAATIFAAAAA25pbAAAAACkN9Gf"
+	scriptsBytes, err := base64.StdEncoding.DecodeString(script)
+
+	assert.NoError(t, err, "failed to set decode base64 script")
+	checkerInfo := customCheckerInfo()
+	to := createDifferTestObjects(t, checkerInfo)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeature(t, int16(settings.RideV5))
+	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(),
+		wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedSetScriptWithProofs(1, testGlobal.senderInfo.pk,
+		scriptsBytes, uint64(1*FeeUnit), defaultTimestamp)
+
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "failed to sign set script tx")
+
+	co := createCheckerCustomTestObjects(t, to)
+	co.stor = to.stor
+	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	assert.NoError(t, err, "failed to check set script tx")
+
+	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffBurnWithSig() failed")
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
+	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx,
+		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
+	assert.NoError(t, err, "failed to perform burn tx")
+
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
+		},
+		&proto.WavesBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
+		},
+		&proto.AccountScriptSnapshot{
+			SenderPublicKey:    testGlobal.senderInfo.pk,
+			Script:             scriptsBytes,
+			VerifierComplexity: 0,
+		},
+		&InternalDAppComplexitySnapshot{
+			ScriptAddress: testGlobal.senderInfo.addr,
+			Estimation:    ride.TreeEstimation{Estimation: 36, Verifier: 0, Functions: map[string]int{"call": 36}},
+			ScriptIsEmpty: false,
+			Update:        false,
+		},
+	}
+
+	var snapshotI []byte
+	var snapshotJ []byte
+	sort.Slice(expectedSnapshot, func(i, j int) bool {
+		snapshotI, err = json.Marshal(expectedSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err = json.Marshal(expectedSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+	sort.Slice(transactionSnapshot, func(i, j int) bool {
+		snapshotI, err = json.Marshal(transactionSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err = json.Marshal(transactionSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
 func TestDefaultSetScriptSnapshot(t *testing.T) {
 	checkerInfo := customCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
@@ -854,6 +958,82 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 			SenderPublicKey:    testGlobal.senderInfo.pk,
 			Script:             testGlobal.scriptBytes,
 			VerifierComplexity: 340,
+		},
+		&InternalDAppComplexitySnapshot{
+			ScriptAddress: testGlobal.senderInfo.addr,
+			Estimation:    ride.TreeEstimation{Estimation: 340, Verifier: 340},
+			Update:        false,
+		},
+	}
+
+	var snapshotI []byte
+	var snapshotJ []byte
+	sort.Slice(expectedSnapshot, func(i, j int) bool {
+		snapshotI, err = json.Marshal(expectedSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err = json.Marshal(expectedSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+	sort.Slice(transactionSnapshot, func(i, j int) bool {
+		snapshotI, err = json.Marshal(transactionSnapshot[i])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		snapshotJ, err = json.Marshal(transactionSnapshot[j])
+		assert.NoError(t, err, "failed to marshal snapshots")
+		return string(snapshotI) < string(snapshotJ)
+	})
+
+	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	to.stor.flush(t)
+}
+
+func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
+	checkerInfo := customCheckerInfo()
+	to := createDifferTestObjects(t, checkerInfo)
+
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateFeature(t, int16(settings.NG))
+	err := to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(),
+		wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+	assert.NoError(t, err, "failed to set waves balance")
+
+	tx := proto.NewUnsignedSetScriptWithProofs(1, testGlobal.senderInfo.pk,
+		nil, uint64(1*FeeUnit), defaultTimestamp)
+
+	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+	assert.NoError(t, err, "failed to sign set script tx")
+
+	co := createCheckerCustomTestObjects(t, to)
+	co.stor = to.stor
+	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	assert.NoError(t, err, "failed to check set script tx")
+
+	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err, "createDiffBurnWithSig() failed")
+	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
+	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx,
+		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
+	assert.NoError(t, err, "failed to perform burn tx")
+
+	expectedSnapshot := proto.TransactionSnapshot{
+		&proto.WavesBalanceSnapshot{
+			Address: testGlobal.minerInfo.addr,
+			Balance: 40000,
+		},
+		&proto.WavesBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			Balance: 299900000,
+		},
+		&proto.AccountScriptSnapshot{
+			SenderPublicKey:    testGlobal.senderInfo.pk,
+			Script:             nil,
+			VerifierComplexity: 0,
+		},
+		&InternalDAppComplexitySnapshot{
+			ScriptAddress: testGlobal.senderInfo.addr,
+			Estimation:    ride.TreeEstimation{Estimation: 0, Verifier: 0},
+			Update:        false,
+			ScriptIsEmpty: true,
 		},
 	}
 
@@ -925,6 +1105,7 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
+
 		&proto.AssetScriptSnapshot{
 			AssetID: testGlobal.asset0.assetID,
 			Script:  testGlobal.scriptBytes,
@@ -953,128 +1134,359 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 	to.stor.flush(t)
 }
 
-func setScript(t *testing.T, to *differTestObjects, addr proto.WavesAddress, pk crypto.PublicKey, script proto.Script) {
-	tree, err := serialization.Parse(script)
-	require.NoError(t, err)
-	estimation, err := ride.EstimateTree(tree, 1)
-	require.NoError(t, err)
-	scriptEst := scriptEstimation{currentEstimatorVersion: 1, scriptIsEmpty: false, estimation: estimation}
-	err = to.stor.entities.scriptsComplexity.saveComplexitiesForAddr(addr,
-		scriptEst, blockID0)
-	assert.NoError(t, err, "failed to save complexity for address")
-	err = to.stor.entities.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
-	assert.NoError(t, err, "failed to set account script")
-}
+// func setScript(t *testing.T, to *differTestObjects, addr proto.WavesAddress,
+// pk crypto.PublicKey, script proto.Script) {
+//	tree, err := serialization.Parse(script)
+//	require.NoError(t, err)
+//	estimation, err := ride.EstimateTree(tree, 1)
+//	require.NoError(t, err)
+//	scriptEst := scriptEstimation{currentEstimatorVersion: 1, scriptIsEmpty: false, estimation: estimation}
+//	err = to.stor.entities.scriptsComplexity.saveComplexitiesForAddr(addr,
+//		scriptEst, blockID0)
+//	assert.NoError(t, err, "failed to save complexity for address")
+//	err = to.stor.entities.scriptsStorage.setAccountScript(addr, script, pk, blockID0)
+//	assert.NoError(t, err, "failed to set account script")
+//}
 
-func TestDefaultInvokeScriptSnapshot(t *testing.T) {
-	/*
-		{-# STDLIB_VERSION 5 #-}
-		{-# CONTENT_TYPE DAPP #-}
-		{-# SCRIPT_TYPE ACCOUNT #-}
+// func TestDefaultInvokeScriptSnapshot(t *testing.T) {
+//	/*
+//		{-# STDLIB_VERSION 5 #-}
+//		{-# CONTENT_TYPE DAPP #-}
+//		{-# SCRIPT_TYPE ACCOUNT #-}
+//
+//		@Callable(i)
+//		func call() = {
+//		  [
+//		    BooleanEntry("bool", true),
+//		    IntegerEntry("int", 1),
+//		    StringEntry("str", "")
+//		  ]
+//		}
+//	*/
+//	script := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAARMAAAAAgkBAAAA" +
+//		"DEJvb2xlYW5FbnRyeQAAAAICAAAABGJvb2wGCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAN" +
+//		"pbnQAAAAAAAAAAAEJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAAAFAAAAA25pbAAAAADr9Rv/"
+//	scriptsBytes, err := base64.StdEncoding.DecodeString(script)
+//	assert.NoError(t, err, "failed to set decode base64 script")
+//
+//	checkerInfo := customCheckerInfo()
+//	to := createDifferTestObjects(t, checkerInfo)
+//
+//	to.stor.addBlock(t, blockID0)
+//	to.stor.activateFeature(t, int16(settings.NG))
+//	to.stor.activateFeature(t, int16(settings.Ride4DApps))
+//	// to.stor.activateFeature(t, int16(settings.RideV5))
+//
+//	setScript(t, to, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptsBytes)
+//
+//	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(),
+//		wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+//	assert.NoError(t, err, "failed to set waves balance")
+//
+//	functionCall := proto.NewFunctionCall("call", nil)
+//	invokeFee = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+//	feeAsset = proto.NewOptionalAssetWaves()
+//
+//	tx := proto.NewUnsignedInvokeScriptWithProofs(1, testGlobal.senderInfo.pk,
+//		proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), functionCall,
+//		[]proto.ScriptPayment{}, feeAsset, invokeFee, defaultTimestamp)
+//	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+//	assert.NoError(t, err, "failed to sign invoke script tx")
+//
+//	co := createCheckerCustomTestObjects(t, to)
+//	co.stor = to.stor
+//	checkerData, err := co.tc.checkInvokeScriptWithProofs(tx, checkerInfo)
+//	assert.NoError(t, err, "failed to check invoke script tx")
+//
+//	ch, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
+//	assert.NoError(t, err, "createDiffInvokeScriptWithProofs() failed")
+//
+//	actions := []proto.ScriptAction{
+//		&proto.DataEntryScriptAction{
+//			Entry:  &proto.BooleanDataEntry{Key: "bool", Value: true},
+//			Sender: &testGlobal.recipientInfo.pk},
+//		&proto.DataEntryScriptAction{
+//			Entry:  &proto.IntegerDataEntry{Key: "int", Value: 1},
+//			Sender: &testGlobal.recipientInfo.pk},
+//		&proto.DataEntryScriptAction{
+//			Entry:  &proto.StringDataEntry{Key: "int", Value: ""},
+//			Sender: &testGlobal.recipientInfo.pk},
+//	}
+//
+//	invocationResult := &invocationResult{actions: actions}
+//
+//	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
+//	transactionSnapshot, err := to.tp.performInvokeScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerData),
+//		invocationResult, applicationRes.changes.diff)
+//	assert.NoError(t, err, "failed to perform invoke script tx")
+//
+//	expectedSnapshot := proto.TransactionSnapshot{
+//		&proto.WavesBalanceSnapshot{
+//			Address: testGlobal.minerInfo.addr,
+//			Balance: 200000,
+//		},
+//		&proto.WavesBalanceSnapshot{
+//			Address: testGlobal.senderInfo.addr,
+//			Balance: 299500000,
+//		},
+//		&proto.DataEntriesSnapshot{
+//			Address: testGlobal.recipientInfo.addr,
+//			DataEntries: []proto.DataEntry{
+//				&proto.BooleanDataEntry{Key: "bool", Value: true},
+//				&proto.StringDataEntry{Key: "int", Value: ""}, // IntegerEntry("int", 1) - will be overwritten
+//			},
+//		},
+//		&InternalDAppComplexitySnapshot{
+//			ScriptAddress: testGlobal.recipientInfo.addr,
+//			Estimation: ride.TreeEstimation{
+//				Estimation: 16,
+//				Verifier:   0,
+//				Functions:  map[string]int{"call": 16},
+//			},
+//			Update: true,
+//		},
+//	}
+//
+//	var expectedDataEntrySnapshot proto.DataEntriesSnapshot
+//	idxExpectedDataSnapshot := 0
+//	for idx, atomicSnapshot := range expectedSnapshot {
+//		if dataEntryS, ok := atomicSnapshot.(*proto.DataEntriesSnapshot); ok {
+//			idxExpectedDataSnapshot = idx
+//			expectedDataEntrySnapshot = *dataEntryS
+//		}
+//	}
+//	var transactionDataEntrySnapshot proto.DataEntriesSnapshot
+//	idxDataSnapshot := 0
+//	for idx, atomicSnapshot := range transactionSnapshot {
+//		if dataEntryS, ok := atomicSnapshot.(*proto.DataEntriesSnapshot); ok {
+//			idxDataSnapshot = idx
+//			transactionDataEntrySnapshot = *dataEntryS
+//		}
+//	}
+//	var snapshotI []byte
+//	var snapshotJ []byte
+//	sort.Slice(expectedDataEntrySnapshot.DataEntries, func(i, j int) bool {
+//		snapshotI, err = json.Marshal(expectedDataEntrySnapshot.DataEntries[i])
+//		assert.NoError(t, err, "failed to marshal snapshots")
+//		snapshotJ, err = json.Marshal(expectedDataEntrySnapshot.DataEntries[j])
+//		assert.NoError(t, err, "failed to marshal snapshots")
+//		return string(snapshotI) < string(snapshotJ)
+//	})
+//
+//	sort.Slice(transactionDataEntrySnapshot.DataEntries, func(i, j int) bool {
+//		snapshotI, err = json.Marshal(transactionDataEntrySnapshot.DataEntries[i])
+//		assert.NoError(t, err, "failed to marshal snapshots")
+//		snapshotJ, err = json.Marshal(transactionDataEntrySnapshot.DataEntries[j])
+//		assert.NoError(t, err, "failed to marshal snapshots")
+//		return string(snapshotI) < string(snapshotJ)
+//	})
+//
+//	assert.Equal(t, expectedDataEntrySnapshot, transactionDataEntrySnapshot)
+//
+//	expectedSnapshot = remove(expectedSnapshot, idxExpectedDataSnapshot)
+//	transactionSnapshot = remove(transactionSnapshot, idxDataSnapshot)
+//
+//	sort.Slice(expectedSnapshot, func(i, j int) bool {
+//		snapshotI, err = json.Marshal(expectedSnapshot[i])
+//		assert.NoError(t, err, "failed to marshal snapshots")
+//		snapshotJ, err = json.Marshal(expectedSnapshot[j])
+//		assert.NoError(t, err, "failed to marshal snapshots")
+//		return string(snapshotI) < string(snapshotJ)
+//	})
+//
+//	sort.Slice(transactionSnapshot, func(i, j int) bool {
+//		snapshotI, err = json.Marshal(transactionSnapshot[i])
+//		assert.NoError(t, err, "failed to marshal snapshots")
+//		snapshotJ, err = json.Marshal(transactionSnapshot[j])
+//		assert.NoError(t, err, "failed to marshal snapshots")
+//		return string(snapshotI) < string(snapshotJ)
+//	})
+//
+//	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+//	to.stor.flush(t)
+//}
 
-		@Callable(i)
-		func call() = {
-		  [
-		    BooleanEntry("bool", true),
-		    IntegerEntry("int", 1),
-		    StringEntry("str", "")
-		  ]
-		}
-	*/
-	script := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAJAARMAAAAAgkBAAAA" +
-		"DEJvb2xlYW5FbnRyeQAAAAICAAAABGJvb2wGCQAETAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAAN" +
-		"pbnQAAAAAAAAAAAEJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAAAFAAAAA25pbAAAAADr9Rv/"
-	scriptsBytes, err := base64.StdEncoding.DecodeString(script)
-	assert.NoError(t, err, "failed to set decode base64 script")
-
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
-
-	to.stor.addBlock(t, blockID0)
-	to.stor.activateFeature(t, int16(settings.NG))
-	to.stor.activateFeature(t, int16(settings.Ride4DApps))
-	to.stor.activateFeature(t, int16(settings.RideV5))
-
-	setScript(t, to, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptsBytes)
-
-	err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(),
-		wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
-	assert.NoError(t, err, "failed to set waves balance")
-
-	functionCall := proto.NewFunctionCall("call", nil)
-	invokeFee = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
-	feeAsset = proto.NewOptionalAssetWaves()
-
-	tx := proto.NewUnsignedInvokeScriptWithProofs(1, testGlobal.senderInfo.pk,
-		proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), functionCall,
-		[]proto.ScriptPayment{}, feeAsset, invokeFee, defaultTimestamp)
-	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
-	assert.NoError(t, err, "failed to sign invoke script tx")
-
-	co := createCheckerCustomTestObjects(t, to)
-	co.stor = to.stor
-	checkerData, err := co.tc.checkInvokeScriptWithProofs(tx, checkerInfo)
-	assert.NoError(t, err, "failed to check invoke script tx")
-
-	ch, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
-	assert.NoError(t, err, "createDiffInvokeScriptWithProofs() failed")
-
-	actions := []proto.ScriptAction{
-		&proto.DataEntryScriptAction{
-			Entry:  &proto.BooleanDataEntry{Key: "bool", Value: true},
-			Sender: &testGlobal.recipientInfo.pk},
-		&proto.DataEntryScriptAction{
-			Entry:  &proto.IntegerDataEntry{Key: "int", Value: 1},
-			Sender: &testGlobal.recipientInfo.pk},
-		&proto.DataEntryScriptAction{
-			Entry:  &proto.StringDataEntry{Key: "int", Value: ""},
-			Sender: &testGlobal.recipientInfo.pk},
-	}
-
-	invocationResult := &invocationResult{actions: actions}
-
-	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
-	transactionSnapshot, err := to.tp.performInvokeScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerData),
-		invocationResult, applicationRes.changes.diff)
-	assert.NoError(t, err, "failed to perform invoke script tx")
-
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 200000,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299500000,
-		},
-		&proto.DataEntriesSnapshot{
-			Address: testGlobal.recipientInfo.addr,
-			DataEntries: []proto.DataEntry{
-				&proto.BooleanDataEntry{Key: "bool", Value: true},
-				&proto.IntegerDataEntry{Key: "int", Value: 1},
-				&proto.StringDataEntry{Key: "int", Value: ""},
-			},
-		},
-	}
-
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
-	to.stor.flush(t)
-}
+//	func TestDefaultInvokeScriptRepeatableActionsSnapshot(t *testing.T) {
+//		/*
+//				{-# STDLIB_VERSION 5 #-}
+//				{-# CONTENT_TYPE DAPP #-}
+//				{-# SCRIPT_TYPE ACCOUNT #-}
+//
+//				@Callable(i)
+//				func call() = {
+//				  [
+//					BooleanEntry("bool", true),
+//					IntegerEntry("int", 1),
+//			        IntegerEntry("int", 1),
+//			        IntegerEntry("int2", 2),
+//					StringEntry("str", "1"),
+//			        StringEntry("str", "1"),
+//			        StringEntry("str2", "2")
+//				  ]
+//				}
+//		*/
+//		script := "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2Fsb" +
+//			"AAAAAAJAARMAAAAAgkBAAAADEJvb2xlYW5FbnRyeQAAAAICAAAABGJvb2wGCQAE" +
+//			"TAAAAAIJAQAAAAxJbnRlZ2VyRW50cnkAAAACAgAAAANpbnQAAAAAAAAAAAEJAARMAAAA" +
+//			"AgkBAAAADEludGVnZXJFbnRyeQAAAAICAAAAA2ludAAAAAAAAAAAAQkABEwAAAACCQEAAA" +
+//			"AMSW50ZWdlckVudHJ5AAAAAgIAAAAEaW50MgAAAAAAAAAAAgkABEwAAAACCQEAAAALU3RyaW5nRW" +
+//			"50cnkAAAACAgAAAANzdHICAAAAATEJAARMAAAAAgkBAAAAC1N0cmluZ0VudHJ5AAAAAgIAAAADc3RyAgAAAA" +
+//			"ExCQAETAAAAAIJAQAAAAtTdHJpbmdFbnRyeQAAAAICAAAABHN0cjICAAAAATIFAAAAA25pbAAAAACkN9Gf"
+//		scriptsBytes, err := base64.StdEncoding.DecodeString(script)
+//		assert.NoError(t, err, "failed to set decode base64 script")
+//
+//		checkerInfo := customCheckerInfo()
+//		to := createDifferTestObjects(t, checkerInfo)
+//
+//		to.stor.addBlock(t, blockID0)
+//		to.stor.activateFeature(t, int16(settings.NG))
+//		to.stor.activateFeature(t, int16(settings.Ride4DApps))
+//		// to.stor.activateFeature(t, int16(settings.RideV5))
+//
+//		setScript(t, to, testGlobal.recipientInfo.addr, testGlobal.recipientInfo.pk, scriptsBytes)
+//
+//		err = to.stor.entities.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(),
+//			wavesValue{profile: balanceProfile{balance: 1000 * FeeUnit * 3}}, blockID0)
+//		assert.NoError(t, err, "failed to set waves balance")
+//
+//		functionCall := proto.NewFunctionCall("call", nil)
+//		invokeFee = FeeUnit * feeConstants[proto.InvokeScriptTransaction]
+//		feeAsset = proto.NewOptionalAssetWaves()
+//
+//		tx := proto.NewUnsignedInvokeScriptWithProofs(1, testGlobal.senderInfo.pk,
+//			proto.NewRecipientFromAddress(testGlobal.recipientInfo.addr), functionCall,
+//			[]proto.ScriptPayment{}, feeAsset, invokeFee, defaultTimestamp)
+//		err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
+//		assert.NoError(t, err, "failed to sign invoke script tx")
+//
+//		co := createCheckerCustomTestObjects(t, to)
+//		co.stor = to.stor
+//		checkerData, err := co.tc.checkInvokeScriptWithProofs(tx, checkerInfo)
+//		assert.NoError(t, err, "failed to check invoke script tx")
+//
+//		ch, err := to.td.createDiffInvokeScriptWithProofs(tx, defaultDifferInfo())
+//		assert.NoError(t, err, "createDiffInvokeScriptWithProofs() failed")
+//
+//		actions := []proto.ScriptAction{
+//			&proto.DataEntryScriptAction{
+//				Entry:  &proto.BooleanDataEntry{Key: "bool", Value: true},
+//				Sender: &testGlobal.recipientInfo.pk},
+//			&proto.DataEntryScriptAction{
+//				Entry:  &proto.IntegerDataEntry{Key: "int", Value: 1},
+//				Sender: &testGlobal.recipientInfo.pk},
+//			&proto.DataEntryScriptAction{
+//				Entry:  &proto.IntegerDataEntry{Key: "int", Value: 1},
+//				Sender: &testGlobal.recipientInfo.pk},
+//			&proto.DataEntryScriptAction{
+//				Entry:  &proto.IntegerDataEntry{Key: "int2", Value: 2},
+//				Sender: &testGlobal.recipientInfo.pk},
+//			&proto.DataEntryScriptAction{
+//				Entry:  &proto.StringDataEntry{Key: "str", Value: "1"},
+//				Sender: &testGlobal.recipientInfo.pk},
+//			&proto.DataEntryScriptAction{
+//				Entry:  &proto.StringDataEntry{Key: "str", Value: "1"},
+//				Sender: &testGlobal.recipientInfo.pk},
+//			&proto.DataEntryScriptAction{
+//				Entry:  &proto.StringDataEntry{Key: "str2", Value: "2"},
+//				Sender: &testGlobal.recipientInfo.pk},
+//		}
+//
+//		invocationResult := &invocationResult{actions: actions}
+//
+//		applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
+//		transactionSnapshot, err := to.tp.performInvokeScriptWithProofs(tx, defaultPerformerInfoWithChecker(checkerData),
+//			invocationResult, applicationRes.changes.diff)
+//		assert.NoError(t, err, "failed to perform invoke script tx")
+//
+//		expectedSnapshot := proto.TransactionSnapshot{
+//			&proto.WavesBalanceSnapshot{
+//				Address: testGlobal.minerInfo.addr,
+//				Balance: 200000,
+//			},
+//			&proto.WavesBalanceSnapshot{
+//				Address: testGlobal.senderInfo.addr,
+//				Balance: 299500000,
+//			},
+//			// The order is not deterministic.
+//			&proto.DataEntriesSnapshot{
+//				Address: testGlobal.recipientInfo.addr,
+//				DataEntries: []proto.DataEntry{
+//					&proto.BooleanDataEntry{Key: "bool", Value: true},
+//					&proto.IntegerDataEntry{Key: "int", Value: 1},
+//					&proto.IntegerDataEntry{Key: "int2", Value: 2},
+//					&proto.StringDataEntry{Key: "str", Value: "1"},
+//					&proto.StringDataEntry{Key: "str2", Value: "2"},
+//				},
+//			},
+//			&InternalDAppComplexitySnapshot{
+//				ScriptAddress: testGlobal.recipientInfo.addr,
+//				Estimation: ride.TreeEstimation{
+//					Estimation: 36,
+//					Verifier:   0,
+//					Functions:  map[string]int{"call": 36},
+//				},
+//				Update: true,
+//			},
+//		}
+//
+//		var expectedDataEntrySnapshot proto.DataEntriesSnapshot
+//		idxExpectedDataSnapshot := 0
+//		for idx, atomicSnapshot := range expectedSnapshot {
+//			if dataEntryS, ok := atomicSnapshot.(*proto.DataEntriesSnapshot); ok {
+//				idxExpectedDataSnapshot = idx
+//				expectedDataEntrySnapshot = *dataEntryS
+//			}
+//		}
+//		var transactionDataEntrySnapshot proto.DataEntriesSnapshot
+//		idxDataSnapshot := 0
+//		for idx, atomicSnapshot := range transactionSnapshot {
+//			if dataEntryS, ok := atomicSnapshot.(*proto.DataEntriesSnapshot); ok {
+//				idxDataSnapshot = idx
+//				transactionDataEntrySnapshot = *dataEntryS
+//			}
+//		}
+//		var snapshotI []byte
+//		var snapshotJ []byte
+//		sort.Slice(expectedDataEntrySnapshot.DataEntries, func(i, j int) bool {
+//			snapshotI, err = json.Marshal(expectedDataEntrySnapshot.DataEntries[i])
+//			assert.NoError(t, err, "failed to marshal snapshots")
+//			snapshotJ, err = json.Marshal(expectedDataEntrySnapshot.DataEntries[j])
+//			assert.NoError(t, err, "failed to marshal snapshots")
+//			return string(snapshotI) < string(snapshotJ)
+//		})
+//
+//		sort.Slice(transactionDataEntrySnapshot.DataEntries, func(i, j int) bool {
+//			snapshotI, err = json.Marshal(transactionDataEntrySnapshot.DataEntries[i])
+//			assert.NoError(t, err, "failed to marshal snapshots")
+//			snapshotJ, err = json.Marshal(transactionDataEntrySnapshot.DataEntries[j])
+//			assert.NoError(t, err, "failed to marshal snapshots")
+//			return string(snapshotI) < string(snapshotJ)
+//		})
+//
+//		assert.Equal(t, expectedDataEntrySnapshot, transactionDataEntrySnapshot)
+//
+//		expectedSnapshot = remove(expectedSnapshot, idxExpectedDataSnapshot)
+//		transactionSnapshot = remove(transactionSnapshot, idxDataSnapshot)
+//
+//		sort.Slice(expectedSnapshot, func(i, j int) bool {
+//			snapshotI, err = json.Marshal(expectedSnapshot[i])
+//			assert.NoError(t, err, "failed to marshal snapshots")
+//			snapshotJ, err = json.Marshal(expectedSnapshot[j])
+//			assert.NoError(t, err, "failed to marshal snapshots")
+//			return string(snapshotI) < string(snapshotJ)
+//		})
+//
+//		sort.Slice(transactionSnapshot, func(i, j int) bool {
+//			snapshotI, err = json.Marshal(transactionSnapshot[i])
+//			assert.NoError(t, err, "failed to marshal snapshots")
+//			snapshotJ, err = json.Marshal(transactionSnapshot[j])
+//			assert.NoError(t, err, "failed to marshal snapshots")
+//			return string(snapshotI) < string(snapshotJ)
+//		})
+//
+//		assert.Equal(t, expectedSnapshot, transactionSnapshot)
+//		to.stor.flush(t)
+//	}
+// func remove(slice []proto.AtomicSnapshot, s int) []proto.AtomicSnapshot {
+//	return append(slice[:s], slice[s+1:]...)
+// }

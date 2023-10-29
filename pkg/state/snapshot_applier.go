@@ -4,6 +4,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
 type blockSnapshotsApplier struct {
@@ -51,17 +52,6 @@ type blockSnapshotsApplierInfo struct {
 	ci                  *checkerInfo
 	scheme              proto.Scheme
 	stateActionsCounter *proto.StateActionsCounter
-}
-
-var _ = newBlockSnapshotsApplierInfo
-
-func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
-	cnt *proto.StateActionsCounter) blockSnapshotsApplierInfo {
-	return blockSnapshotsApplierInfo{
-		ci:                  ci,
-		scheme:              scheme,
-		stateActionsCounter: cnt,
-	}
 }
 
 func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
@@ -128,15 +118,21 @@ func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
 
 func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetInfoSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
+	height := a.info.Height() + 1
+
+	changeableInfo, err := a.stor.assets.newestChangeableInfo(snapshot.AssetID)
+	if err != nil {
+		changeableInfo = &assetChangeableInfo{}
+	}
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
 			tail:                 proto.DigestTail(snapshot.AssetID),
 			issuer:               snapshot.IssuerPublicKey,
 			decimals:             snapshot.Decimals,
-			issueHeight:          a.info.Height(),
+			issueHeight:          height,
 			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
 		},
-		assetChangeableInfo: assetChangeableInfo{},
+		assetChangeableInfo: *changeableInfo,
 	}
 	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 }
@@ -162,22 +158,10 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
-	// estimation := ride.TreeEstimation{
-	//	Estimation: int(snapshot.Complexity),
-	//	Verifier:   int(snapshot.Complexity),
-	//	Functions:  nil,
-	// }
-	// TODO complexity is being saved in transaction_performer, we need to move to this place
-	// if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
-	//	snapshot.AssetID, estimation, a.info.BlockID()); err != nil {
-	//	return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
-	//		snapshot.AssetID.String())
-	//}
-	// only issuer can set new asset script
-	// constInfo, err := a.stor.assets.newestConstInfo(proto.AssetIDFromDigest(snapshot.AssetID))
-	// if err != nil {
-	//	return errors.Wrapf(err, "failed to get const asset info for asset %q", snapshot.AssetID.String())
-	// }
+	if snapshot.Script.IsEmpty() {
+		return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
+			a.info.BlockID())
+	}
 	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
 }
 
@@ -191,22 +175,34 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptS
 		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
 			a.info.Scheme(), snapshot.SenderPublicKey.String())
 	}
-	// var estimations treeEstimations
-	// if !snapshot.Script.IsEmpty() {
-	//	var tree *ast.Tree
-	//	tree, err = serialization.Parse(snapshot.Script)
-	//	if err != nil {
-	//		return errors.Wrapf(err, "failed to parse script from account script snapshot for addr %q", addr.String())
-	//	}
-	//	estimations, err = makeRideEstimations(tree, a.info.EstimatorVersion(), true)
-	//	if err != nil {
-	//		return errors.Wrapf(err, "failed to make account script estimations for addr %q", addr.String())
-	//	}
-	// }
-	// if err = a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, estimations, a.info.BlockID()); err != nil {
-	//	return errors.Wrapf(err, "failed to store account script estimation for addr %q", addr.String())
-	// }
-	return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
+	// In case of verifier, there are no functions. If it is a full DApp,
+	// the complexity 'functions' will be stored through the internal snapshot InternalDAppComplexitySnapshot.
+	if snapshot.Script.IsEmpty() {
+		return a.stor.scriptsStorage.setAccountScript(addr, proto.Script{},
+			snapshot.SenderPublicKey, a.info.BlockID())
+	}
+	treeEstimation := ride.TreeEstimation{
+		Estimation: int(snapshot.VerifierComplexity),
+		Verifier:   int(snapshot.VerifierComplexity),
+		Functions:  nil,
+	}
+	if snapshot.Script.IsEmpty() {
+		return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script,
+			snapshot.SenderPublicKey, a.info.BlockID())
+	}
+	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
+	if setErr != nil {
+		return setErr
+	}
+	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+		scriptIsEmpty: snapshot.Script.IsEmpty(),
+		estimation:    treeEstimation}
+	if cmplErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(
+		addr, scriptEstimation, a.info.BlockID()); cmplErr != nil {
+		return errors.Wrapf(cmplErr, "failed to store account script estimation for addr %q",
+			addr.String())
+	}
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyFilledVolumeAndFee(snapshot proto.FilledVolumeFeeSnapshot) error {
@@ -240,4 +236,39 @@ func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot proto.LeaseStateSnapsho
 
 func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatusSnapshot) error {
 	return nil // no-op
+}
+
+func (a *blockSnapshotsApplier) ApplyInternalSnapshot(
+	internalSnapshot proto.InternalSnapshot) error {
+	/* If you want to add more internal snapshots,
+	//you should add a switch here iterating through all possible internal snapshots. */
+	internalDappComplexitySnapshot, ok := internalSnapshot.(*InternalDAppComplexitySnapshot)
+	if !ok {
+		return errors.New("failed to convert interface to internal dapp complexity snapshot")
+	}
+	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+		scriptIsEmpty: internalDappComplexitySnapshot.ScriptIsEmpty, estimation: internalDappComplexitySnapshot.Estimation}
+	if !internalDappComplexitySnapshot.Update {
+		// Save full complexity of both callable and verifier when the script is set first time
+		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(internalDappComplexitySnapshot.ScriptAddress,
+			scriptEstimation, a.info.BlockID()); setErr != nil {
+			return errors.Wrapf(setErr, "failed to save script complexities for addr %q",
+				internalDappComplexitySnapshot.ScriptAddress.String())
+		}
+		return nil
+	}
+
+	// we've pulled up an old script which estimation had been done by an old estimator
+	// in txChecker we've estimated script with a new estimator
+	// this is the place where we have to store new estimation
+
+	// update callable and summary complexity, verifier complexity remains the same
+	if scErr := a.stor.scriptsComplexity.updateCallableComplexitiesForAddr(
+		internalDappComplexitySnapshot.ScriptAddress,
+		scriptEstimation, a.info.BlockID()); scErr != nil {
+		return errors.Wrapf(scErr, "failed to save complexity for addr %q",
+			internalDappComplexitySnapshot.ScriptAddress,
+		)
+	}
+	return nil
 }

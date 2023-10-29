@@ -14,15 +14,14 @@ type performerInfo struct {
 	height              uint64
 	blockID             proto.BlockID
 	currentMinerAddress proto.WavesAddress
-	stateActionsCounter *proto.StateActionsCounter
 	checkerData         txCheckerData
 }
 
-func newPerformerInfo(height proto.Height, stateActionsCounter *proto.StateActionsCounter,
+func newPerformerInfo(height proto.Height,
 	blockID proto.BlockID, currentMinerAddress proto.WavesAddress,
 	checkerData txCheckerData) *performerInfo {
 	return &performerInfo{height, blockID,
-		currentMinerAddress, stateActionsCounter,
+		currentMinerAddress,
 		checkerData} // all fields must be initialized
 }
 
@@ -111,10 +110,8 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 			reissuable:               tx.Reissuable,
 		},
 	}
-
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(assetID, txID, tx.SenderPK,
 		*assetInfo, balanceChanges, scriptInformation)
-
 	if err != nil {
 		return nil, err
 	}
@@ -135,9 +132,6 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return nil, err
 	}
-	if setErr := tp.stor.scriptsStorage.setAssetScript(assetID, proto.Script{}, info.blockID); setErr != nil {
-		return nil, setErr
-	}
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil)
 }
 
@@ -155,22 +149,14 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return nil, err
 	}
-	if setErr := tp.stor.scriptsStorage.setAssetScript(assetID, tx.Script, info.blockID); setErr != nil {
-		return nil, setErr
-	}
 	var se *scriptEstimation
 	var scriptInfo *scriptInformation
 	if se = info.checkerData.scriptEstimation; se.isPresent() { // script estimation is present and not nil
-		// Save complexities to storage, so we won't have to calculate it every time the script is called.
-		if scErr := tp.stor.scriptsComplexity.saveComplexitiesForAsset(assetID, *se, info.blockID); scErr != nil {
-			return nil, scErr
-		}
 		scriptInfo = &scriptInformation{
 			script:     tx.Script,
 			complexity: se.estimation.Verifier,
 		}
 	}
-
 	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, scriptInfo)
 }
 
@@ -436,43 +422,14 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	if !se.isPresent() {
 		return nil, errors.New("script estimations must be set for SetScriptWithProofs tx")
 	}
-	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create addr from PK %q", tx.SenderPK.String())
-	}
-	if setErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID); setErr != nil {
-		return nil, errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
-	}
 
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetScriptTx(tx.SenderPK,
-		tx.Script, se.estimation.Verifier, balanceChanges)
-
+		tx.Script, *se, balanceChanges)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to generate snapshot for set script tx")
 	}
+
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
-}
-
-// TODO used only in tests
-func storeScriptByAddress(
-	stor *blockchainEntitiesStorage,
-	scheme proto.Scheme,
-	senderPK crypto.PublicKey,
-	script proto.Script,
-	se scriptEstimation,
-	blockID proto.BlockID,
-) error {
-	senderAddr, err := proto.NewAddressFromPublicKey(scheme, senderPK)
-	if err != nil {
-		return errors.Wrapf(err, "failed to create addr from PK %q", senderPK.String())
-	}
-	if setErr := stor.scriptsStorage.setAccountScript(senderAddr, script, senderPK, blockID); setErr != nil {
-		return errors.Wrapf(setErr, "failed to set account script on addr %q", senderAddr.String())
-	}
-	if setErr := stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, se, blockID); setErr != nil {
-		return errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
-	}
-	return nil
 }
 
 func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction,
@@ -486,15 +443,7 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if !se.isPresent() {
 		return nil, errors.New("script estimations must be set for SetAssetScriptWithProofs tx")
 	}
-	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to create addr from PK %q", tx.SenderPK.String())
-	}
 
-	// Save complexity to storage, so we won't have to calculate it every time the script is called.
-	if setErr := tp.stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, *se, info.blockID); setErr != nil {
-		return nil, errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
-	}
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, balanceChanges)
 	if err != nil {
 		return nil, err
@@ -513,116 +462,151 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
 
+	// txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	// if err != nil {
+	//	return nil, errors.Errorf("failed to get transaction ID: %v", err)
+	//}
+	// txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	// if err != nil {
+	//	return nil, err
+	// }
+	//
+	// scriptAddr, cnvrtErr := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
+	// if cnvrtErr != nil {
+	//	return nil, err
+	// }
+	// var si scriptBasicInfoRecord
+	// si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
+	// if err != nil {
+	//	return nil, errors.Wrapf(err,
+	//		"failed to get script's public key on address '%s'",
+	//		tx.ScriptRecipient.Address().String())
+	//}
+	// scriptPK := si.PK
+	//
+	// snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info,
+	//	invocationRes, balanceChanges, &tx.ScriptRecipient, info.checkerData.scriptEstimation, scriptPK, scriptAddr)
+	// if err != nil {
+	//	return nil, err
+	// }
+	//
+	// return snapshot, snapshot.Apply(tp.snapshotApplier)
+	if err := tp.stor.commitUncertain(info.blockID); err != nil {
+		return nil, errors.Wrapf(err, "failed to commit invoke changes for tx %q", tx.ID.String())
+	}
 	se := info.checkerData.scriptEstimation
-	if se.isPresent() {
-		// script estimation is present an not nil
+	if !se.isPresent() { // nothing to do, no estimation to save
+		return nil, nil
+	}
+	// script estimation is present an not nil
 
-		// we've pulled up an old script which estimation had been done by an old estimator
-		// in txChecker we've estimated script with a new estimator
-		// this is the place where we have to store new estimation
-		scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
-		}
-		// update callable and summary complexity, verifier complexity remains the same
-		if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
-			return nil, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
-				scriptAddr.String(), tx.ID.String(),
-			)
-		}
-	}
-
-	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	// we've pulled up an old script which estimation had been done by an old estimator
+	// in txChecker we've estimated script with a new estimator
+	// this is the place where we have to store new estimation
+	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
 	if err != nil {
-		return nil, errors.Errorf("failed to get transaction ID: %v", err)
+		return nil, errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
 	}
-	txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	if err != nil {
-		return nil, err
+	// update callable and summary complexity, verifier complexity remains the same
+	if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
+		return nil, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
+			scriptAddr.String(), tx.ID.String(),
+		)
 	}
-
-	scriptAddr, cnvrtErr := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
-	if cnvrtErr != nil {
-		return nil, err
-	}
-	var si scriptBasicInfoRecord
-	si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
-	if err != nil {
-		return nil, errors.Wrapf(err,
-			"failed to get script's public key on address '%s'",
-			tx.ScriptRecipient.Address().String())
-	}
-	scriptPK := si.PK
-
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info,
-		invocationRes, balanceChanges, scriptPK, scriptAddr)
-	if err != nil {
-		return nil, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	_ = invocationRes
+	_ = balanceChanges
+	return nil, nil
 }
 
 func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction,
 	info *performerInfo, invocationRes *invocationResult,
 	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
-	tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
-	if !ok {
+	// tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
+	// if !ok {
+	//	return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
+	// }
+	// if err := tp.stor.commitUncertain(info.blockID); err != nil {
+	//	return nil, errors.Wrap(err, "failed to commit invoke changes")
+	//}
+	//
+	// txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	// if err != nil {
+	//	return nil, errors.Errorf("failed to get transaction ID: %v", err)
+	// }
+	// txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	// if err != nil {
+	//	return nil, err
+	//}
+	//
+	// senderAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
+	// if err != nil {
+	//	return nil, errors.Wrap(err, "recipientToAddress() failed")
+	// }
+	// snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, info, invocationRes,
+	//	balanceChanges, tx.SenderPK, senderAddress)
+	// if err != nil {
+	//	return nil, err
+	// }
+	// return snapshot, snapshot.Apply(tp.snapshotApplier)
+	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
 		return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
-
-	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
-	if err != nil {
-		return nil, errors.Errorf("failed to get transaction ID: %v", err)
+	if err := tp.stor.commitUncertain(info.blockID); err != nil {
+		return nil, errors.Wrap(err, "failed to commit invoke changes")
 	}
-	txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	if err != nil {
-		return nil, err
-	}
-
-	senderAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return nil, errors.Wrap(err, "recipientToAddress() failed")
-	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, info, invocationRes,
-		balanceChanges, tx.SenderPK, senderAddress)
-	if err != nil {
-		return nil, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	_ = invocationRes
+	_ = balanceChanges
+	return nil, nil
 }
 
 func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	// ethTx, ok := transaction.(*proto.EthereumTransaction)
+	// if !ok {
+	//	return nil, errors.New("failed to convert interface to EthereumTransaction transaction")
+	// }
+	//
+	// if err := tp.stor.commitUncertain(info.blockID); err != nil {
+	//	return nil, errors.Wrap(err, "failed to commit invoke changes")
+	// }
+	// txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	// if err != nil {
+	//	return nil, errors.Errorf("failed to get transaction ID: %v", err)
+	// }
+	// txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	// if err != nil {
+	//	return nil, err
+	// }
+	// scriptAddr, err := ethTx.WavesAddressTo(tp.settings.AddressSchemeCharacter)
+	// if err != nil {
+	//	return nil, err
+	// }
+	// var si scriptBasicInfoRecord
+	// si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
+	// if err != nil {
+	//	return nil,
+	//		errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
+	//}
+	// scriptPK := si.PK
+	// snapshot, err := tp.snapshotGenerator.generateSnapshotForEthereumInvokeScriptTx(txID,
+	//	info, invocationRes, balanceChanges, scriptPK, scriptAddr)
+	// if err != nil {
+	//	return nil, err
+	//}
+	// return snapshot, snapshot.Apply(tp.snapshotApplier)
 	ethTx, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
 		return nil, errors.New("failed to convert interface to EthereumTransaction transaction")
 	}
-
-	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
-	if err != nil {
-		return nil, errors.Errorf("failed to get transaction ID: %v", err)
+	if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
+		if err := tp.stor.commitUncertain(info.blockID); err != nil {
+			return nil, errors.Wrap(err, "failed to commit invoke changes")
+		}
 	}
-	txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	if err != nil {
-		return nil, err
-	}
-	scriptAddr, err := ethTx.WavesAddressTo(tp.settings.AddressSchemeCharacter)
-	if err != nil {
-		return nil, err
-	}
-	var si scriptBasicInfoRecord
-	si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
-	if err != nil {
-		return nil,
-			errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
-	}
-	scriptPK := si.PK
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForEthereumInvokeScriptTx(txID,
-		info, invocationRes, balanceChanges, scriptPK, scriptAddr)
-	if err != nil {
-		return nil, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	_ = invocationRes
+	_ = balanceChanges
+	// nothing to do for proto.EthereumTransferWavesTxKind and proto.EthereumTransferAssetsErc20TxKind
+	return nil, nil
 }
 
 func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction,
