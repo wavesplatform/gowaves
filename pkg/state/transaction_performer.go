@@ -462,35 +462,6 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
 
-	// txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
-	// if err != nil {
-	//	return nil, errors.Errorf("failed to get transaction ID: %v", err)
-	//}
-	// txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	// if err != nil {
-	//	return nil, err
-	// }
-	//
-	// scriptAddr, cnvrtErr := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
-	// if cnvrtErr != nil {
-	//	return nil, err
-	// }
-	// var si scriptBasicInfoRecord
-	// si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
-	// if err != nil {
-	//	return nil, errors.Wrapf(err,
-	//		"failed to get script's public key on address '%s'",
-	//		tx.ScriptRecipient.Address().String())
-	//}
-	// scriptPK := si.PK
-	//
-	// snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScriptTx(txID, info,
-	//	invocationRes, balanceChanges, &tx.ScriptRecipient, info.checkerData.scriptEstimation, scriptPK, scriptAddr)
-	// if err != nil {
-	//	return nil, err
-	// }
-	//
-	// return snapshot, snapshot.Apply(tp.snapshotApplier)
 	if err := tp.stor.commitUncertain(info.blockID); err != nil {
 		return nil, errors.Wrapf(err, "failed to commit invoke changes for tx %q", tx.ID.String())
 	}
@@ -521,33 +492,6 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction,
 	info *performerInfo, invocationRes *invocationResult,
 	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
-	// tx, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs)
-	// if !ok {
-	//	return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
-	// }
-	// if err := tp.stor.commitUncertain(info.blockID); err != nil {
-	//	return nil, errors.Wrap(err, "failed to commit invoke changes")
-	//}
-	//
-	// txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
-	// if err != nil {
-	//	return nil, errors.Errorf("failed to get transaction ID: %v", err)
-	// }
-	// txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	// if err != nil {
-	//	return nil, err
-	//}
-	//
-	// senderAddress, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
-	// if err != nil {
-	//	return nil, errors.Wrap(err, "recipientToAddress() failed")
-	// }
-	// snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, info, invocationRes,
-	//	balanceChanges, tx.SenderPK, senderAddress)
-	// if err != nil {
-	//	return nil, err
-	// }
-	// return snapshot, snapshot.Apply(tp.snapshotApplier)
 	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
 		return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
@@ -561,43 +505,11 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 
 func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo,
 	invocationRes *invocationResult, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
-	// ethTx, ok := transaction.(*proto.EthereumTransaction)
-	// if !ok {
-	//	return nil, errors.New("failed to convert interface to EthereumTransaction transaction")
-	// }
-	//
-	// if err := tp.stor.commitUncertain(info.blockID); err != nil {
-	//	return nil, errors.Wrap(err, "failed to commit invoke changes")
-	// }
-	// txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
-	// if err != nil {
-	//	return nil, errors.Errorf("failed to get transaction ID: %v", err)
-	// }
-	// txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	// if err != nil {
-	//	return nil, err
-	// }
-	// scriptAddr, err := ethTx.WavesAddressTo(tp.settings.AddressSchemeCharacter)
-	// if err != nil {
-	//	return nil, err
-	// }
-	// var si scriptBasicInfoRecord
-	// si, err = tp.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptAddr.ID())
-	// if err != nil {
-	//	return nil,
-	//		errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptAddr.String())
-	//}
-	// scriptPK := si.PK
-	// snapshot, err := tp.snapshotGenerator.generateSnapshotForEthereumInvokeScriptTx(txID,
-	//	info, invocationRes, balanceChanges, scriptPK, scriptAddr)
-	// if err != nil {
-	//	return nil, err
-	//}
-	// return snapshot, snapshot.Apply(tp.snapshotApplier)
 	ethTx, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
 		return nil, errors.New("failed to convert interface to EthereumTransaction transaction")
 	}
+
 	if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
 		if err := tp.stor.commitUncertain(info.blockID); err != nil {
 			return nil, errors.Wrap(err, "failed to commit invoke changes")
