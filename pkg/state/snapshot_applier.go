@@ -158,28 +158,11 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
-	treeEstimation := ride.TreeEstimation{
-		Estimation: int(snapshot.VerifierComplexity),
-		Verifier:   int(snapshot.VerifierComplexity),
-		Functions:  nil,
-	}
 	if snapshot.Script.IsEmpty() {
 		return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
-			snapshot.SenderPK, a.info.BlockID())
+			a.info.BlockID())
 	}
-	setErr := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, snapshot.SenderPK, a.info.BlockID())
-	if setErr != nil {
-		return setErr
-	}
-	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-		scriptIsEmpty: snapshot.Script.IsEmpty(),
-		estimation:    treeEstimation}
-	if err := a.stor.scriptsComplexity.saveComplexitiesForAsset(
-		snapshot.AssetID, scriptEstimation, a.info.BlockID()); err != nil {
-		return errors.Wrapf(err, "failed to store asset script estimation for asset %q",
-			snapshot.AssetID.String())
-	}
-	return nil
+	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplySponsorship(snapshot proto.SponsorshipSnapshot) error {

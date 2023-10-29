@@ -117,10 +117,8 @@ func (s AccountScriptSnapshot) IsInternal() bool {
 }
 
 type AssetScriptSnapshot struct {
-	AssetID            crypto.Digest
-	Script             Script
-	SenderPK           crypto.PublicKey // should be removed later
-	VerifierComplexity uint64
+	AssetID crypto.Digest
+	Script  Script
 }
 
 func (s AssetScriptSnapshot) IsGeneratedByTxDiff() bool {

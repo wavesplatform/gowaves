@@ -443,11 +443,12 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if !se.isPresent() {
 		return nil, errors.New("script estimations must be set for SetAssetScriptWithProofs tx")
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID,
-		tx.Script, se.estimation.Verifier, tx.SenderPK, balanceChanges)
+
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, balanceChanges)
 	if err != nil {
 		return nil, err
 	}
+	// TODO: generate special complexities snapshot for asset
 
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }

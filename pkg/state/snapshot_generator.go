@@ -4,6 +4,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -176,19 +177,16 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 
 	if scriptInformation == nil {
 		assetScriptSnapshot := &proto.AssetScriptSnapshot{
-			AssetID:            assetID,
-			Script:             proto.Script{},
-			SenderPK:           senderPK,
-			VerifierComplexity: 0,
+			AssetID: assetID,
+			Script:  proto.Script{},
 		}
 		snapshot = append(snapshot, assetScriptSnapshot)
 	} else {
 		assetScriptSnapshot := &proto.AssetScriptSnapshot{
-			AssetID:            assetID,
-			Script:             scriptInformation.script,
-			SenderPK:           senderPK,
-			VerifierComplexity: uint64(scriptInformation.complexity),
+			AssetID: assetID,
+			Script:  scriptInformation.script,
 		}
+		// TODO: special snapshot for complexity should be generated here
 		snapshot = append(snapshot, assetScriptSnapshot)
 	}
 	wavesBalancesSnapshot, assetBalancesSnapshot, err :=
@@ -404,19 +402,17 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 }
 
 func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script,
-	complexity int, senderPK crypto.PublicKey, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
 
 	assetScrptSnapshot := &proto.AssetScriptSnapshot{
-		AssetID:            assetID,
-		Script:             script,
-		VerifierComplexity: uint64(complexity),
-		SenderPK:           senderPK,
+		AssetID: assetID,
+		Script:  script,
 	}
-
+	// TODO generate a special snapshot complexity here
 	snapshot = append(snapshot, assetScrptSnapshot)
 	return snapshot, nil
 }
@@ -520,79 +516,95 @@ func (sg *snapshotGenerator) updateBalanceDiffFromTransferAction(
 
 func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
 
-		action proto.IssueScriptAction,
-		info *performerInfo,
-		assetBalanceDiff addressAssetBalanceDiff,
-		senderPK crypto.PublicKey) error {
-		// var atomicSnapshots []proto.AtomicSnapshot
-		// assetInf := assetInfo{
-		//	assetConstInfo: assetConstInfo{
-		//		tail:        proto.DigestTail(action.ID),
-		//		issuer:      senderPK,
-		//		decimals:    uint8(action.Decimals),
-		//		issueHeight: blockHeight,
-		//	},
-		//	assetChangeableInfo: assetChangeableInfo{
-		//		quantity:    *big.NewInt(action.Quantity),
-		//		name:        action.Name,
-		//		description: action.Description,
-		//		reissuable:  action.Reissuable,
-		//	},
-		//}
-		//
-		// issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
-		//	AssetID:             action.ID,
-		//	IssuerPublicKey:     senderPK,
-		//	SourceTransactionID: txID,
-		//	Decimals:            assetInf.decimals,
-		//	IsNFT:               assetInf.isNFT(),
-		//}
-		//
-		// assetDescription := &proto.AssetDescriptionSnapshot{
-		// // Change height has to be 0, because it is 0 for issue action.
-		//	AssetID:          action.ID,
-		//	AssetName:        assetInf.name,
-		//	AssetDescription: assetInf.description,
-		//}
-		//
-		// assetReissuability := &proto.AssetVolumeSnapshot{
-		//	AssetID:       action.ID,
-		//	IsReissuable:  assetInf.reissuable,
-		//	TotalQuantity: assetInf.quantity,
-		//}
-		//
-		// var scriptInfo *scriptInformation
-		// if se := info.checkerData.scriptEstimation; se.isPresent() {
-		//	// Save complexities to storage, so we won't have to calculate it every time the script is called.
-		//	complexity := se.estimation.Verifier
-		//	scriptInfo = &scriptInformation{
-		//		script:     action.Script,
-		//		complexity: complexity,
-		//	}
-		//}
-		// if scriptInfo == nil {
-		//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
-		//		AssetID:            action.ID,
-		//		Script:             proto.Script{},
-		//		SenderPK:           senderPK,
-		//		VerifierComplexity: 0,
-		//	}
-		//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
-		// } else {
-		//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
-		//		AssetID:            action.ID,
-		//		Script:             scriptInfo.script,
-		//		SenderPK:           senderPK,
-		//		VerifierComplexity: uint64(scriptInfo.complexity),
-		//	}
-		//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
-		//}
-		// atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
-		//sg.issueCounterInBlock.NextIssueActionNumber()
-		issuerAddress, err := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
-		if err != nil {
-			return errors.Wrap(err, "failed to get an address from a public key")
+	action proto.IssueScriptAction,
+	info *performerInfo,
+	assetBalanceDiff addressAssetBalanceDiff,
+	senderPK crypto.PublicKey) error {
+	// var atomicSnapshots []proto.AtomicSnapshot
+	// assetInf := assetInfo{
+	//	assetConstInfo: assetConstInfo{
+	//		tail:        proto.DigestTail(action.ID),
+	//		issuer:      senderPK,
+	//		decimals:    uint8(action.Decimals),
+	//		issueHeight: blockHeight,
+	//	},
+	//	assetChangeableInfo: assetChangeableInfo{
+	//		quantity:    *big.NewInt(action.Quantity),
+	//		name:        action.Name,
+	//		description: action.Description,
+	//		reissuable:  action.Reissuable,
+	//	},
+	//}
+	//
+	// issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
+	//	AssetID:             action.ID,
+	//	IssuerPublicKey:     senderPK,
+	//	SourceTransactionID: txID,
+	//	Decimals:            assetInf.decimals,
+	//	IsNFT:               assetInf.isNFT(),
+	//}
+	//
+	// assetDescription := &proto.AssetDescriptionSnapshot{
+	// // Change height has to be 0, because it is 0 for issue action.
+	//	AssetID:          action.ID,
+	//	AssetName:        assetInf.name,
+	//	AssetDescription: assetInf.description,
+	//}
+	//
+	// assetReissuability := &proto.AssetVolumeSnapshot{
+	//	AssetID:       action.ID,
+	//	IsReissuable:  assetInf.reissuable,
+	//	TotalQuantity: assetInf.quantity,
+	//}
+	//
+	// var scriptInfo *scriptInformation
+	// if se := info.checkerData.scriptEstimation; se.isPresent() {
+	//	// Save complexities to storage, so we won't have to calculate it every time the script is called.
+	//	complexity := se.estimation.Verifier
+	//	scriptInfo = &scriptInformation{
+	//		script:     action.Script,
+	//		complexity: complexity,
+	//	}
+	//}
+	// if scriptInfo == nil {
+	//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
+	//		AssetID:            action.ID,
+	//		Script:             proto.Script{},
+	//		SenderPK:           senderPK,
+	//		VerifierComplexity: 0,
+	//	}
+	//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
+	// } else {
+	//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
+	//		AssetID:            action.ID,
+	//		Script:             scriptInfo.script,
+	//		SenderPK:           senderPK,
+	//		VerifierComplexity: uint64(scriptInfo.complexity),
+	//	}
+	//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
+	//}
+	// atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+	//sg.issueCounterInBlock.NextIssueActionNumber()
+	issuerAddress, err := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
+	if err != nil {
+		return errors.Wrap(err, "failed to get an address from a public key")
+	}
+
+<<<<<<< HEAD
+=======
+
+	}
+	if scriptInfo != nil {
+		assetScriptSnapshot := &proto.AssetScriptSnapshot{
+			AssetID: action.ID,
+			Script:  scriptInfo.script,
 		}
+		// TODO: special snapshot for complexity should be generated here
+		atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
+	}
+	atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+
+>>>>>>> replace-to-snapshot-applier
 
 		assetInf := sg.stor.assets.uncertainAssetInfo[proto.AssetIDFromDigest(action.ID)]
 		issueErr := sg.stor.assets.issueAsset(proto.AssetIDFromDigest(action.ID), &assetInf, info.blockID)

@@ -9,6 +9,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -170,10 +171,8 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 			Balance: 1000,
 		},
 		&proto.AssetScriptSnapshot{
-			AssetID:            *tx.ID,
-			Script:             proto.Script{},
-			SenderPK:           testGlobal.issuerInfo.pk,
-			VerifierComplexity: 0,
+			AssetID: *tx.ID,
+			Script:  proto.Script{},
 		},
 	}
 
@@ -1076,7 +1075,7 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 	assert.NoError(t, err, "failed to issue asset")
 
 	err = to.stor.entities.scriptsStorage.setAssetScript(testGlobal.asset0.assetID,
-		testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+		testGlobal.scriptBytes, blockID0)
 	assert.NoError(t, err, "failed to issue asset")
 
 	tx := proto.NewUnsignedSetAssetScriptWithProofs(1, testGlobal.senderInfo.pk,
@@ -1108,10 +1107,8 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 		},
 
 		&proto.AssetScriptSnapshot{
-			AssetID:            testGlobal.asset0.assetID,
-			Script:             testGlobal.scriptBytes,
-			VerifierComplexity: 340,
-			SenderPK:           tx.SenderPK,
+			AssetID: testGlobal.asset0.assetID,
+			Script:  testGlobal.scriptBytes,
 		},
 	}
 
