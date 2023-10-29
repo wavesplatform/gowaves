@@ -640,7 +640,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
 	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
-	//stateActionsCounterInSnapshots := new(proto.StateActionsCounter)
+	// stateActionsCounterInSnapshots := new(proto.StateActionsCounter)
 
 	snapshotApplier := newBlockSnapshotsApplier(
 		blockSnapshotsApplierInfo{

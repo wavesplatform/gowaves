@@ -498,16 +498,6 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 					reissuable:  a.Reissuable,
 				},
 			}
-			if info.blockInfo.Height > 2261195 {
-				fmt.Println("=====")
-				fmt.Println("issuer ", assetInfo.issuer.String())
-				fmt.Println("asset name ", assetInfo.name)
-				fmt.Println("asset id ", a.ID.String())
-				fmt.Println("issue height ", assetInfo.issueHeight)
-				fmt.Println("issue seq in block ", assetInfo.issueSequenceInBlock)
-				fmt.Println("lastNameDescChangeHeight ", assetInfo.lastNameDescChangeHeight)
-				fmt.Println("*****")
-			}
 			id := proto.AssetIDFromDigest(a.ID)
 			ia.stor.assets.issueAssetUncertain(id, assetInfo)
 			// Currently asset script is always empty.

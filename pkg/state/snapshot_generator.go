@@ -19,26 +19,26 @@ type snapshotGenerator struct {
 
 type addressWavesBalanceDiff map[proto.WavesAddress]balanceDiff
 
-func (wavesDiff addressWavesBalanceDiff) append(
-	senderAddress proto.WavesAddress,
-	recipientAddress proto.WavesAddress,
-	amount int64) {
-	if _, ok := wavesDiff[senderAddress]; ok {
-		prevBalance := wavesDiff[senderAddress]
-		prevBalance.balance -= amount
-		wavesDiff[senderAddress] = prevBalance
-	} else {
-		wavesDiff[senderAddress] = balanceDiff{balance: amount}
-	}
-
-	if _, ok := wavesDiff[recipientAddress]; ok {
-		prevRecipientBalance := wavesDiff[recipientAddress]
-		prevRecipientBalance.balance += amount
-		wavesDiff[recipientAddress] = prevRecipientBalance
-	} else {
-		wavesDiff[recipientAddress] = balanceDiff{balance: amount}
-	}
-}
+// func (wavesDiff addressWavesBalanceDiff) append(
+//	senderAddress proto.WavesAddress,
+//	recipientAddress proto.WavesAddress,
+//	amount int64) {
+//	if _, ok := wavesDiff[senderAddress]; ok {
+//		prevBalance := wavesDiff[senderAddress]
+//		prevBalance.balance -= amount
+//		wavesDiff[senderAddress] = prevBalance
+//	} else {
+//		wavesDiff[senderAddress] = balanceDiff{balance: amount}
+//	}
+//
+//	if _, ok := wavesDiff[recipientAddress]; ok {
+//		prevRecipientBalance := wavesDiff[recipientAddress]
+//		prevRecipientBalance.balance += amount
+//		wavesDiff[recipientAddress] = prevRecipientBalance
+//	} else {
+//		wavesDiff[recipientAddress] = balanceDiff{balance: amount}
+//	}
+// }
 
 type assetBalanceDiffKey struct {
 	address proto.WavesAddress
@@ -46,44 +46,44 @@ type assetBalanceDiffKey struct {
 }
 type addressAssetBalanceDiff map[assetBalanceDiffKey]int64
 
-func (assetDiff addressAssetBalanceDiff) append(
-	senderAddress proto.WavesAddress,
-	recipientAddress proto.WavesAddress,
-	asset proto.AssetID,
-	amount int64) {
-	keySender := assetBalanceDiffKey{address: senderAddress, asset: asset}
-	keyRecipient := assetBalanceDiffKey{address: recipientAddress, asset: asset}
+// func (assetDiff addressAssetBalanceDiff) append(
+//	senderAddress proto.WavesAddress,
+//	recipientAddress proto.WavesAddress,
+//	asset proto.AssetID,
+//	amount int64) {
+//	keySender := assetBalanceDiffKey{address: senderAddress, asset: asset}
+//	keyRecipient := assetBalanceDiffKey{address: recipientAddress, asset: asset}
+//
+//	if _, ok := assetDiff[keySender]; ok {
+//		prevSenderBalance := assetDiff[keySender]
+//		prevSenderBalance -= amount
+//		assetDiff[keySender] = prevSenderBalance
+//	} else {
+//		assetDiff[keySender] = amount
+//	}
+//
+//	if _, ok := assetDiff[keyRecipient]; ok {
+//		prevRecipientBalance := assetDiff[keyRecipient]
+//		prevRecipientBalance += amount
+//		assetDiff[keyRecipient] = prevRecipientBalance
+//	} else {
+//		assetDiff[keyRecipient] = amount
+//	}
+// }
 
-	if _, ok := assetDiff[keySender]; ok {
-		prevSenderBalance := assetDiff[keySender]
-		prevSenderBalance -= amount
-		assetDiff[keySender] = prevSenderBalance
-	} else {
-		assetDiff[keySender] = amount
-	}
-
-	if _, ok := assetDiff[keyRecipient]; ok {
-		prevRecipientBalance := assetDiff[keyRecipient]
-		prevRecipientBalance += amount
-		assetDiff[keyRecipient] = prevRecipientBalance
-	} else {
-		assetDiff[keyRecipient] = amount
-	}
-}
-
-func (assetDiff addressAssetBalanceDiff) appendOnlySender(
-	senderAddress proto.WavesAddress,
-	asset proto.AssetID,
-	amount int64) {
-	keySender := assetBalanceDiffKey{address: senderAddress, asset: asset}
-	if _, ok := assetDiff[keySender]; ok {
-		prevSenderBalance := assetDiff[keySender]
-		prevSenderBalance += amount
-		assetDiff[keySender] = prevSenderBalance
-	} else {
-		assetDiff[keySender] = amount
-	}
-}
+// func (assetDiff addressAssetBalanceDiff) appendOnlySender(
+//	senderAddress proto.WavesAddress,
+//	asset proto.AssetID,
+//	amount int64) {
+//	keySender := assetBalanceDiffKey{address: senderAddress, asset: asset}
+//	if _, ok := assetDiff[keySender]; ok {
+//		prevSenderBalance := assetDiff[keySender]
+//		prevSenderBalance += amount
+//		assetDiff[keySender] = prevSenderBalance
+//	} else {
+//		assetDiff[keySender] = amount
+//	}
+// }
 
 /*
 Below are internal snapshots only.
@@ -421,27 +421,27 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) generateSnapshotForInvokeScriptTx(txID crypto.Digest,
-	info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff,
-	scriptRecipient *proto.Recipient,
-	scriptEstimation *scriptEstimation,
-	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes,
-		balanceChanges, scriptEstimation, scriptRecipient, scriptPK, scriptAddress)
-}
-
-func (sg *snapshotGenerator) generateSnapshotForInvokeExpressionTx(txID crypto.Digest, info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff,
-	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, nil, nil, scriptPK, scriptAddress)
-}
-
-func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest, info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff,
-	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
-	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, nil, nil, scriptPK, scriptAddress)
-}
+// func (sg *snapshotGenerator) generateSnapshotForInvokeScriptTx(txID crypto.Digest,
+//	info *performerInfo,
+//	invocationRes *invocationResult, balanceChanges txDiff,
+//	scriptRecipient *proto.Recipient,
+//	scriptEstimation *scriptEstimation,
+//	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
+//	return sg.generateInvokeSnapshot(txID, info, invocationRes,
+//		balanceChanges, scriptEstimation, scriptRecipient, scriptPK, scriptAddress)
+// }
+//
+// func (sg *snapshotGenerator) generateSnapshotForInvokeExpressionTx(txID crypto.Digest, info *performerInfo,
+//	invocationRes *invocationResult, balanceChanges txDiff,
+//	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
+//	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, nil, nil, scriptPK, scriptAddress)
+//}
+//
+// func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest, info *performerInfo,
+//	invocationRes *invocationResult, balanceChanges txDiff,
+//	scriptPK crypto.PublicKey, scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
+//	return sg.generateInvokeSnapshot(txID, info, invocationRes, balanceChanges, nil, nil, scriptPK, scriptAddress)
+//}
 
 func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string,
 	assetDescription string, changeHeight proto.Height, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
@@ -459,255 +459,266 @@ func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto
 	return snapshot, nil
 }
 
-type DataEntry struct {
-	addr      proto.WavesAddress
-	dataEntry proto.DataEntry
-}
+// type DataEntry struct {
+//	addr      proto.WavesAddress
+//	dataEntry proto.DataEntry
+// }
 
-type dataEntries map[entryId]DataEntry
+// type dataEntries map[entryId]DataEntry
+//
+// func (dataEntries dataEntries) collectEntryFromAction(
+//	entry proto.DataEntry,
+//	address proto.WavesAddress) error {
+//	if dataEntries == nil {
+//		return errors.New("senderDataEntries map is not initialized")
+//	}
+//	id := entryId{address.ID(), entry.GetKey()}
+//	dataEntries[id] = DataEntry{address, entry}
+//	return nil
+//}
 
-func (dataEntries dataEntries) collectEntryFromAction(
-	entry proto.DataEntry,
-	address proto.WavesAddress) error {
-	if dataEntries == nil {
-		return errors.New("senderDataEntries map is not initialized")
-	}
-	id := entryId{address.ID(), entry.GetKey()}
-	dataEntries[id] = DataEntry{address, entry}
-	return nil
-}
+// func (sg *snapshotGenerator) updateBalanceDiffFromPaymentAction(
+//	action proto.AttachedPaymentScriptAction,
+//	wavesBalanceDiff addressWavesBalanceDiff,
+//	assetBalanceDiff addressAssetBalanceDiff,
+//	sender proto.WavesAddress,
+// ) error {
+//	recipientAddress, err := recipientToAddress(action.Recipient, sg.stor.aliases)
+//	if err != nil {
+//		return errors.Wrap(err, "failed to apply attached payment")
+//	}
+//	// No balance validation done below
+//	if action.Asset.Present { // Update asset balance
+//		assetBalanceDiff.append(sender, recipientAddress, proto.AssetIDFromDigest(action.Asset.ID), action.Amount)
+//	} else { // Update Waves balance
+//		wavesBalanceDiff.append(sender, recipientAddress, action.Amount)
+//	}
+//	return nil
+//}
 
-func (sg *snapshotGenerator) updateBalanceDiffFromPaymentAction(
-	action proto.AttachedPaymentScriptAction,
-	wavesBalanceDiff addressWavesBalanceDiff,
-	assetBalanceDiff addressAssetBalanceDiff,
-	sender proto.WavesAddress,
-) error {
-	recipientAddress, err := recipientToAddress(action.Recipient, sg.stor.aliases)
-	if err != nil {
-		return errors.Wrap(err, "failed to apply attached payment")
-	}
-	// No balance validation done below
-	if action.Asset.Present { // Update asset balance
-		assetBalanceDiff.append(sender, recipientAddress, proto.AssetIDFromDigest(action.Asset.ID), action.Amount)
-	} else { // Update Waves balance
-		wavesBalanceDiff.append(sender, recipientAddress, action.Amount)
-	}
-	return nil
-}
-
+/*
 func (sg *snapshotGenerator) updateBalanceDiffFromTransferAction(
+
 	action proto.TransferScriptAction,
 	wavesBalanceDiff addressWavesBalanceDiff,
 	assetBalanceDiff addressAssetBalanceDiff,
 	sender proto.WavesAddress,
-) error {
-	recipientAddress, err := recipientToAddress(action.Recipient, sg.stor.aliases)
-	if err != nil {
-		return errors.Wrap(err, "failed to apply attached payment")
+
+	) error {
+		recipientAddress, err := recipientToAddress(action.Recipient, sg.stor.aliases)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply attached payment")
+		}
+		// No balance validation done below
+		if action.Asset.Present { // Update asset balance
+			assetBalanceDiff.append(sender, recipientAddress, proto.AssetIDFromDigest(action.Asset.ID), action.Amount)
+		} else { // Update Waves balance
+			wavesBalanceDiff.append(sender, recipientAddress, action.Amount)
+		}
+		return nil
 	}
-	// No balance validation done below
-	if action.Asset.Present { // Update asset balance
-		assetBalanceDiff.append(sender, recipientAddress, proto.AssetIDFromDigest(action.Asset.ID), action.Amount)
-	} else { // Update Waves balance
-		wavesBalanceDiff.append(sender, recipientAddress, action.Amount)
-	}
-	return nil
-}
 
 func (sg *snapshotGenerator) atomicSnapshotsFromIssueAction(
-	action proto.IssueScriptAction,
-	info *performerInfo,
-	assetBalanceDiff addressAssetBalanceDiff,
-	senderPK crypto.PublicKey) error {
-	// var atomicSnapshots []proto.AtomicSnapshot
-	// assetInf := assetInfo{
-	//	assetConstInfo: assetConstInfo{
-	//		tail:        proto.DigestTail(action.ID),
-	//		issuer:      senderPK,
-	//		decimals:    uint8(action.Decimals),
-	//		issueHeight: blockHeight,
-	//	},
-	//	assetChangeableInfo: assetChangeableInfo{
-	//		quantity:    *big.NewInt(action.Quantity),
-	//		name:        action.Name,
-	//		description: action.Description,
-	//		reissuable:  action.Reissuable,
-	//	},
-	//}
-	//
-	// issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
-	//	AssetID:             action.ID,
-	//	IssuerPublicKey:     senderPK,
-	//	SourceTransactionID: txID,
-	//	Decimals:            assetInf.decimals,
-	//	IsNFT:               assetInf.isNFT(),
-	//}
-	//
-	// assetDescription := &proto.AssetDescriptionSnapshot{ // Change height has to be 0, because it is 0 for issue action.
-	//	AssetID:          action.ID,
-	//	AssetName:        assetInf.name,
-	//	AssetDescription: assetInf.description,
-	//}
-	//
-	// assetReissuability := &proto.AssetVolumeSnapshot{
-	//	AssetID:       action.ID,
-	//	IsReissuable:  assetInf.reissuable,
-	//	TotalQuantity: assetInf.quantity,
-	//}
-	//
-	// var scriptInfo *scriptInformation
-	// if se := info.checkerData.scriptEstimation; se.isPresent() {
-	//	// Save complexities to storage, so we won't have to calculate it every time the script is called.
-	//	complexity := se.estimation.Verifier
-	//	scriptInfo = &scriptInformation{
-	//		script:     action.Script,
-	//		complexity: complexity,
-	//	}
-	//}
-	// if scriptInfo == nil {
-	//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
-	//		AssetID:            action.ID,
-	//		Script:             proto.Script{},
-	//		SenderPK:           senderPK,
-	//		VerifierComplexity: 0,
-	//	}
-	//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
-	// } else {
-	//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
-	//		AssetID:            action.ID,
-	//		Script:             scriptInfo.script,
-	//		SenderPK:           senderPK,
-	//		VerifierComplexity: uint64(scriptInfo.complexity),
-	//	}
-	//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
-	//}
-	// atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
-	//sg.issueCounterInBlock.NextIssueActionNumber()
-	issuerAddress, err := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
-	if err != nil {
-		return errors.Wrap(err, "failed to get an address from a public key")
-	}
 
-	assetInf := sg.stor.assets.uncertainAssetInfo[proto.AssetIDFromDigest(action.ID)]
-	issueErr := sg.stor.assets.issueAsset(proto.AssetIDFromDigest(action.ID), &assetInf, info.blockID)
-	if issueErr != nil {
-		return issueErr
-	}
+		action proto.IssueScriptAction,
+		info *performerInfo,
+		assetBalanceDiff addressAssetBalanceDiff,
+		senderPK crypto.PublicKey) error {
+		// var atomicSnapshots []proto.AtomicSnapshot
+		// assetInf := assetInfo{
+		//	assetConstInfo: assetConstInfo{
+		//		tail:        proto.DigestTail(action.ID),
+		//		issuer:      senderPK,
+		//		decimals:    uint8(action.Decimals),
+		//		issueHeight: blockHeight,
+		//	},
+		//	assetChangeableInfo: assetChangeableInfo{
+		//		quantity:    *big.NewInt(action.Quantity),
+		//		name:        action.Name,
+		//		description: action.Description,
+		//		reissuable:  action.Reissuable,
+		//	},
+		//}
+		//
+		// issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
+		//	AssetID:             action.ID,
+		//	IssuerPublicKey:     senderPK,
+		//	SourceTransactionID: txID,
+		//	Decimals:            assetInf.decimals,
+		//	IsNFT:               assetInf.isNFT(),
+		//}
+		//
+		// assetDescription := &proto.AssetDescriptionSnapshot{
+		// // Change height has to be 0, because it is 0 for issue action.
+		//	AssetID:          action.ID,
+		//	AssetName:        assetInf.name,
+		//	AssetDescription: assetInf.description,
+		//}
+		//
+		// assetReissuability := &proto.AssetVolumeSnapshot{
+		//	AssetID:       action.ID,
+		//	IsReissuable:  assetInf.reissuable,
+		//	TotalQuantity: assetInf.quantity,
+		//}
+		//
+		// var scriptInfo *scriptInformation
+		// if se := info.checkerData.scriptEstimation; se.isPresent() {
+		//	// Save complexities to storage, so we won't have to calculate it every time the script is called.
+		//	complexity := se.estimation.Verifier
+		//	scriptInfo = &scriptInformation{
+		//		script:     action.Script,
+		//		complexity: complexity,
+		//	}
+		//}
+		// if scriptInfo == nil {
+		//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
+		//		AssetID:            action.ID,
+		//		Script:             proto.Script{},
+		//		SenderPK:           senderPK,
+		//		VerifierComplexity: 0,
+		//	}
+		//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
+		// } else {
+		//	assetScriptSnapshot := &proto.AssetScriptSnapshot{
+		//		AssetID:            action.ID,
+		//		Script:             scriptInfo.script,
+		//		SenderPK:           senderPK,
+		//		VerifierComplexity: uint64(scriptInfo.complexity),
+		//	}
+		//	atomicSnapshots = append(atomicSnapshots, assetScriptSnapshot)
+		//}
+		// atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+		//sg.issueCounterInBlock.NextIssueActionNumber()
+		issuerAddress, err := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
+		if err != nil {
+			return errors.Wrap(err, "failed to get an address from a public key")
+		}
 
-	if setErr := sg.stor.scriptsStorage.setAssetScript(action.ID, proto.Script{}, senderPK, info.blockID); setErr != nil {
-		return setErr
+		assetInf := sg.stor.assets.uncertainAssetInfo[proto.AssetIDFromDigest(action.ID)]
+		issueErr := sg.stor.assets.issueAsset(proto.AssetIDFromDigest(action.ID), &assetInf, info.blockID)
+		if issueErr != nil {
+			return issueErr
+		}
+
+		if setErr := sg.stor.scriptsStorage.setAssetScript(action.ID, proto.Script{}, senderPK, info.blockID); setErr != nil {
+			return setErr
+		}
+		assetBalanceDiff.appendOnlySender(issuerAddress, proto.AssetIDFromDigest(action.ID), action.Quantity)
+		// return atomicSnapshots, nil
+		return nil
 	}
-	assetBalanceDiff.appendOnlySender(issuerAddress, proto.AssetIDFromDigest(action.ID), action.Quantity)
-	// return atomicSnapshots, nil
-	return nil
-}
 
 func (sg *snapshotGenerator) atomicActionsFromReissueAction(
-	action proto.ReissueScriptAction,
-	assetBalanceDiff addressAssetBalanceDiff,
-	issuer proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
-	var atomicSnapshots []proto.AtomicSnapshot
-	assetInf, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(action.AssetID))
-	if err != nil {
-		return nil, err
+
+		action proto.ReissueScriptAction,
+		assetBalanceDiff addressAssetBalanceDiff,
+		issuer proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
+		var atomicSnapshots []proto.AtomicSnapshot
+		assetInf, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(action.AssetID))
+		if err != nil {
+			return nil, err
+		}
+		quantityDiff := big.NewInt(action.Quantity)
+		resQuantity := assetInf.quantity.Add(&assetInf.quantity, quantityDiff)
+		assetReissuability := &proto.AssetVolumeSnapshot{
+			AssetID:       action.AssetID,
+			TotalQuantity: *resQuantity,
+			IsReissuable:  action.Reissuable,
+		}
+		assetBalanceDiff.appendOnlySender(issuer, proto.AssetIDFromDigest(action.AssetID), action.Quantity)
+		atomicSnapshots = append(atomicSnapshots, assetReissuability)
+		return atomicSnapshots, nil
 	}
-	quantityDiff := big.NewInt(action.Quantity)
-	resQuantity := assetInf.quantity.Add(&assetInf.quantity, quantityDiff)
-	assetReissuability := &proto.AssetVolumeSnapshot{
-		AssetID:       action.AssetID,
-		TotalQuantity: *resQuantity,
-		IsReissuable:  action.Reissuable,
-	}
-	assetBalanceDiff.appendOnlySender(issuer, proto.AssetIDFromDigest(action.AssetID), action.Quantity)
-	atomicSnapshots = append(atomicSnapshots, assetReissuability)
-	return atomicSnapshots, nil
-}
 
 func (sg *snapshotGenerator) atomicActionsFromBurnAction(
-	action proto.BurnScriptAction,
-	assetBalanceDiff addressAssetBalanceDiff,
-	issuer proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
-	var atomicSnapshots []proto.AtomicSnapshot
-	var assetInf *assetInfo
-	assetInf, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(action.AssetID))
-	if err != nil {
-		return nil, err
+
+		action proto.BurnScriptAction,
+		assetBalanceDiff addressAssetBalanceDiff,
+		issuer proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
+		var atomicSnapshots []proto.AtomicSnapshot
+		var assetInf *assetInfo
+		assetInf, err := sg.stor.assets.newestAssetInfo(proto.AssetIDFromDigest(action.AssetID))
+		if err != nil {
+			return nil, err
+		}
+		quantityDiff := big.NewInt(action.Quantity)
+		resQuantity := assetInf.quantity.Sub(&assetInf.quantity, quantityDiff)
+		assetReissuability := &proto.AssetVolumeSnapshot{
+			AssetID:       action.AssetID,
+			TotalQuantity: *resQuantity,
+			IsReissuable:  assetInf.reissuable,
+		}
+		atomicSnapshots = append(atomicSnapshots, assetReissuability)
+		assetBalanceDiff.appendOnlySender(issuer, proto.AssetIDFromDigest(action.AssetID), -action.Quantity)
+		return atomicSnapshots, nil
 	}
-	quantityDiff := big.NewInt(action.Quantity)
-	resQuantity := assetInf.quantity.Sub(&assetInf.quantity, quantityDiff)
-	assetReissuability := &proto.AssetVolumeSnapshot{
-		AssetID:       action.AssetID,
-		TotalQuantity: *resQuantity,
-		IsReissuable:  assetInf.reissuable,
-	}
-	atomicSnapshots = append(atomicSnapshots, assetReissuability)
-	assetBalanceDiff.appendOnlySender(issuer, proto.AssetIDFromDigest(action.AssetID), -action.Quantity)
-	return atomicSnapshots, nil
-}
 
 func (sg *snapshotGenerator) atomicActionsFromLeaseAction(
-	action proto.LeaseScriptAction,
-	blockHeight uint64,
-	txID crypto.Digest,
-	sender proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
-	var atomicSnapshots []proto.AtomicSnapshot
 
-	var err error
-	var recipientAddr proto.WavesAddress
-	if addr := action.Recipient.Address(); addr == nil {
-		recipientAddr, err = sg.stor.aliases.newestAddrByAlias(action.Recipient.Alias().Alias)
-		if err != nil {
-			return nil, errors.Errorf("invalid alias: %v", err)
+		action proto.LeaseScriptAction,
+		blockHeight uint64,
+		txID crypto.Digest,
+		sender proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
+		var atomicSnapshots []proto.AtomicSnapshot
+
+		var err error
+		var recipientAddr proto.WavesAddress
+		if addr := action.Recipient.Address(); addr == nil {
+			recipientAddr, err = sg.stor.aliases.newestAddrByAlias(action.Recipient.Alias().Alias)
+			if err != nil {
+				return nil, errors.Errorf("invalid alias: %v", err)
+			}
+		} else {
+			recipientAddr = *addr
 		}
-	} else {
-		recipientAddr = *addr
+		l := &leasing{
+			Sender:    sender,
+			Recipient: recipientAddr,
+			Amount:    uint64(action.Amount),
+			Height:    blockHeight,
+			Status:    proto.LeaseActive,
+		}
+		var amount = int64(l.Amount)
+		leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err :=
+			sg.generateLeaseAtomicSnapshots(action.ID, *l, txID, sender, recipientAddr, amount)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to generate snapshots for a lease action")
+		}
+		atomicSnapshots = append(atomicSnapshots,
+			leaseStatusSnapshot,
+			senderLeaseBalanceSnapshot,
+			recipientLeaseBalanceSnapshot)
+		return atomicSnapshots, nil
 	}
-	l := &leasing{
-		Sender:    sender,
-		Recipient: recipientAddr,
-		Amount:    uint64(action.Amount),
-		Height:    blockHeight,
-		Status:    proto.LeaseActive,
-	}
-	var amount = int64(l.Amount)
-	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err :=
-		sg.generateLeaseAtomicSnapshots(action.ID, *l, txID, sender, recipientAddr, amount)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate snapshots for a lease action")
-	}
-	atomicSnapshots = append(atomicSnapshots,
-		leaseStatusSnapshot,
-		senderLeaseBalanceSnapshot,
-		recipientLeaseBalanceSnapshot)
-	return atomicSnapshots, nil
-}
 
 func (sg *snapshotGenerator) atomicSnapshotsFromLeaseCancelAction(
-	action proto.LeaseCancelScriptAction,
-	txID crypto.Digest) ([]proto.AtomicSnapshot, error) {
-	var atomicSnapshots []proto.AtomicSnapshot
-	// TODO what if the leasing is not in the stor yet? lease and leaseCancel in the same contract?
-	leasingInfo, err := sg.stor.leases.leasingInfo(action.LeaseID)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to receiver leasing info")
-	}
 
-	var amount = -int64(leasingInfo.Amount)
-	// TODO add other fields into this transaction
-	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err :=
-		sg.generateLeaseAtomicSnapshots(action.LeaseID, *leasingInfo, txID, leasingInfo.Sender, leasingInfo.Recipient, amount)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate snapshots for a lease cancel action")
+		action proto.LeaseCancelScriptAction,
+		txID crypto.Digest) ([]proto.AtomicSnapshot, error) {
+		var atomicSnapshots []proto.AtomicSnapshot
+		// TODO what if the leasing is not in the stor yet? lease and leaseCancel in the same contract?
+		leasingInfo, err := sg.stor.leases.leasingInfo(action.LeaseID)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to receiver leasing info")
+		}
+
+		var amount = -int64(leasingInfo.Amount)
+		// TODO add other fields into this transaction
+		leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err :=
+			sg.generateLeaseAtomicSnapshots(action.LeaseID, *leasingInfo, txID,
+				leasingInfo.Sender, leasingInfo.Recipient, amount)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to generate snapshots for a lease cancel action")
+		}
+		atomicSnapshots = append(atomicSnapshots,
+			leaseStatusSnapshot,
+			senderLeaseBalanceSnapshot,
+			recipientLeaseBalanceSnapshot)
+		return atomicSnapshots, nil
 	}
-	atomicSnapshots = append(atomicSnapshots,
-		leaseStatusSnapshot,
-		senderLeaseBalanceSnapshot,
-		recipientLeaseBalanceSnapshot)
-	return atomicSnapshots, nil
-}
 
 func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
+
 	action proto.ScriptAction,
 	dataEntries dataEntries,
 	wavesBalanceDiff addressWavesBalanceDiff,
@@ -717,185 +728,189 @@ func (sg *snapshotGenerator) collectBalanceAndSnapshotFromAction(
 	txID crypto.Digest,
 	senderAddress proto.WavesAddress,
 	senderPK crypto.PublicKey,
-) ([]proto.AtomicSnapshot, error) {
-	var atomicSnapshots []proto.AtomicSnapshot
-	switch a := action.(type) {
-	case *proto.DataEntryScriptAction:
-		// snapshots store data entries in a different format, so we convert the actions to this format
-		err := dataEntries.collectEntryFromAction(a.Entry, senderAddress)
-		if err != nil {
-			return nil, err
-		}
-	case *proto.AttachedPaymentScriptAction:
-		err := sg.updateBalanceDiffFromPaymentAction(*a, wavesBalanceDiff, assetBalanceDiff, senderAddress)
-		if err != nil {
-			return nil, err
-		}
-	case *proto.TransferScriptAction:
-		err := sg.updateBalanceDiffFromTransferAction(*a, wavesBalanceDiff, assetBalanceDiff, senderAddress)
-		if err != nil {
-			return nil, err
-		}
-	case *proto.SponsorshipScriptAction:
-		sponsorshipSnapshot := &proto.SponsorshipSnapshot{
-			AssetID:         a.AssetID,
-			MinSponsoredFee: uint64(a.MinFee),
-		}
-		atomicSnapshots = append(atomicSnapshots, sponsorshipSnapshot)
-	case *proto.IssueScriptAction:
-		err := sg.atomicSnapshotsFromIssueAction(*a, info, assetBalanceDiff, senderPK)
-		if err != nil {
-			return nil, err
-		}
-		// atomicSnapshots = append(atomicSnapshots, issueSnapshots...)
 
-	case *proto.ReissueScriptAction:
-		reissueSnapshots, err := sg.atomicActionsFromReissueAction(*a, assetBalanceDiff, senderAddress)
-		if err != nil {
-			return nil, err
+	) ([]proto.AtomicSnapshot, error) {
+		var atomicSnapshots []proto.AtomicSnapshot
+		switch a := action.(type) {
+		case *proto.DataEntryScriptAction:
+			// snapshots store data entries in a different format, so we convert the actions to this format
+			err := dataEntries.collectEntryFromAction(a.Entry, senderAddress)
+			if err != nil {
+				return nil, err
+			}
+		case *proto.AttachedPaymentScriptAction:
+			err := sg.updateBalanceDiffFromPaymentAction(*a, wavesBalanceDiff, assetBalanceDiff, senderAddress)
+			if err != nil {
+				return nil, err
+			}
+		case *proto.TransferScriptAction:
+			err := sg.updateBalanceDiffFromTransferAction(*a, wavesBalanceDiff, assetBalanceDiff, senderAddress)
+			if err != nil {
+				return nil, err
+			}
+		case *proto.SponsorshipScriptAction:
+			sponsorshipSnapshot := &proto.SponsorshipSnapshot{
+				AssetID:         a.AssetID,
+				MinSponsoredFee: uint64(a.MinFee),
+			}
+			atomicSnapshots = append(atomicSnapshots, sponsorshipSnapshot)
+		case *proto.IssueScriptAction:
+			err := sg.atomicSnapshotsFromIssueAction(*a, info, assetBalanceDiff, senderPK)
+			if err != nil {
+				return nil, err
+			}
+			// atomicSnapshots = append(atomicSnapshots, issueSnapshots...)
+
+		case *proto.ReissueScriptAction:
+			reissueSnapshots, err := sg.atomicActionsFromReissueAction(*a, assetBalanceDiff, senderAddress)
+			if err != nil {
+				return nil, err
+			}
+			atomicSnapshots = append(atomicSnapshots, reissueSnapshots...)
+		case *proto.BurnScriptAction:
+			burnSnapshots, err := sg.atomicActionsFromBurnAction(*a, assetBalanceDiff, senderAddress)
+			if err != nil {
+				return nil, err
+			}
+			atomicSnapshots = append(atomicSnapshots, burnSnapshots...)
+		case *proto.LeaseScriptAction:
+			leaseSnapshots, err := sg.atomicActionsFromLeaseAction(*a, blockHeight, txID, senderAddress)
+			if err != nil {
+				return nil, err
+			}
+			atomicSnapshots = append(atomicSnapshots, leaseSnapshots...)
+		case *proto.LeaseCancelScriptAction:
+			leaseSnapshots, err := sg.atomicSnapshotsFromLeaseCancelAction(*a, txID)
+			if err != nil {
+				return nil, err
+			}
+			atomicSnapshots = append(atomicSnapshots, leaseSnapshots...)
+		default:
+			return nil, errors.Errorf("unknown script action type %T", a)
 		}
-		atomicSnapshots = append(atomicSnapshots, reissueSnapshots...)
-	case *proto.BurnScriptAction:
-		burnSnapshots, err := sg.atomicActionsFromBurnAction(*a, assetBalanceDiff, senderAddress)
-		if err != nil {
-			return nil, err
-		}
-		atomicSnapshots = append(atomicSnapshots, burnSnapshots...)
-	case *proto.LeaseScriptAction:
-		leaseSnapshots, err := sg.atomicActionsFromLeaseAction(*a, blockHeight, txID, senderAddress)
-		if err != nil {
-			return nil, err
-		}
-		atomicSnapshots = append(atomicSnapshots, leaseSnapshots...)
-	case *proto.LeaseCancelScriptAction:
-		leaseSnapshots, err := sg.atomicSnapshotsFromLeaseCancelAction(*a, txID)
-		if err != nil {
-			return nil, err
-		}
-		atomicSnapshots = append(atomicSnapshots, leaseSnapshots...)
-	default:
-		return nil, errors.Errorf("unknown script action type %T", a)
+		return atomicSnapshots, nil
 	}
-	return atomicSnapshots, nil
-}
 
 func senderFromScriptAction(a proto.ScriptAction,
-	scheme proto.Scheme, scriptPK crypto.PublicKey,
-	scriptAddress proto.WavesAddress) (proto.WavesAddress, crypto.PublicKey, error) {
-	senderPK := scriptPK
-	senderAddress := scriptAddress
-	if a.SenderPK() != nil {
-		senderPK = *a.SenderPK()
-		var err error
-		senderAddress, err = proto.NewAddressFromPublicKey(scheme, senderPK)
-		if err != nil {
-			return proto.WavesAddress{}, crypto.PublicKey{}, err
+
+		scheme proto.Scheme, scriptPK crypto.PublicKey,
+		scriptAddress proto.WavesAddress) (proto.WavesAddress, crypto.PublicKey, error) {
+		senderPK := scriptPK
+		senderAddress := scriptAddress
+		if a.SenderPK() != nil {
+			senderPK = *a.SenderPK()
+			var err error
+			senderAddress, err = proto.NewAddressFromPublicKey(scheme, senderPK)
+			if err != nil {
+				return proto.WavesAddress{}, crypto.PublicKey{}, err
+			}
 		}
+		return senderAddress, senderPK, nil
 	}
-	return senderAddress, senderPK, nil
-}
 
 type SenderDataEntries map[proto.WavesAddress]proto.DataEntries
 
 func (sg *snapshotGenerator) atomicSnapshotsFromScriptActions(
-	actions []proto.ScriptAction,
-	wavesBalanceDiff addressWavesBalanceDiff,
-	assetBalanceDiff addressAssetBalanceDiff,
-	blockHeight uint64,
-	info *performerInfo,
-	txID crypto.Digest,
-	scriptPublicKey crypto.PublicKey, scriptAddress proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
-	var dataEntriesMap = make(map[entryId]DataEntry)
-	var atomicSnapshots []proto.AtomicSnapshot
-	for _, action := range actions {
-		senderAddress, senderPK, err := senderFromScriptAction(action, sg.scheme, scriptPublicKey, scriptAddress)
-		if err != nil {
-			return nil, err
-		}
-		snapshotsFromAction, err := sg.collectBalanceAndSnapshotFromAction(action, dataEntriesMap,
-			wavesBalanceDiff, assetBalanceDiff, blockHeight,
-			info, txID, senderAddress, senderPK)
-		if err != nil {
-			return nil, err
-		}
-		atomicSnapshots = append(atomicSnapshots, snapshotsFromAction...)
-	}
 
-	senderDataEntries := make(map[proto.WavesAddress]proto.DataEntries)
-	for _, entry := range dataEntriesMap {
-		if _, ok := senderDataEntries[entry.addr]; ok {
-			entries := senderDataEntries[entry.addr]
-			entries = append(entries, entry.dataEntry)
-			senderDataEntries[entry.addr] = entries
-		} else {
-			senderDataEntries[entry.addr] = proto.DataEntries{entry.dataEntry}
+		actions []proto.ScriptAction,
+		wavesBalanceDiff addressWavesBalanceDiff,
+		assetBalanceDiff addressAssetBalanceDiff,
+		blockHeight uint64,
+		info *performerInfo,
+		txID crypto.Digest,
+		scriptPublicKey crypto.PublicKey, scriptAddress proto.WavesAddress) ([]proto.AtomicSnapshot, error) {
+		var dataEntriesMap = make(map[entryId]DataEntry)
+		var atomicSnapshots []proto.AtomicSnapshot
+		for _, action := range actions {
+			senderAddress, senderPK, err := senderFromScriptAction(action, sg.scheme, scriptPublicKey, scriptAddress)
+			if err != nil {
+				return nil, err
+			}
+			snapshotsFromAction, err := sg.collectBalanceAndSnapshotFromAction(action, dataEntriesMap,
+				wavesBalanceDiff, assetBalanceDiff, blockHeight,
+				info, txID, senderAddress, senderPK)
+			if err != nil {
+				return nil, err
+			}
+			atomicSnapshots = append(atomicSnapshots, snapshotsFromAction...)
 		}
-	}
 
-	for address, formattedDataEntries := range senderDataEntries {
-		dataEntrySnapshot := &proto.DataEntriesSnapshot{Address: address, DataEntries: formattedDataEntries}
-		atomicSnapshots = append(atomicSnapshots, dataEntrySnapshot)
+		senderDataEntries := make(map[proto.WavesAddress]proto.DataEntries)
+		for _, entry := range dataEntriesMap {
+			if _, ok := senderDataEntries[entry.addr]; ok {
+				entries := senderDataEntries[entry.addr]
+				entries = append(entries, entry.dataEntry)
+				senderDataEntries[entry.addr] = entries
+			} else {
+				senderDataEntries[entry.addr] = proto.DataEntries{entry.dataEntry}
+			}
+		}
+
+		for address, formattedDataEntries := range senderDataEntries {
+			dataEntrySnapshot := &proto.DataEntriesSnapshot{Address: address, DataEntries: formattedDataEntries}
+			atomicSnapshots = append(atomicSnapshots, dataEntrySnapshot)
+		}
+		return atomicSnapshots, nil
 	}
-	return atomicSnapshots, nil
-}
 
 func (sg *snapshotGenerator) generateInvokeSnapshot(
-	txID crypto.Digest,
-	info *performerInfo,
-	invocationRes *invocationResult,
-	balanceChanges txDiff,
-	scriptEstimation *scriptEstimation,
-	scriptRecipient *proto.Recipient,
-	scriptPublicKey crypto.PublicKey,
-	scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
-	blockHeight := info.height + 1
 
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
-	}
-	var snapshot proto.TransactionSnapshot
-	if invocationRes != nil {
-		var atomicSnapshots []proto.AtomicSnapshot
-		atomicSnapshots, err = sg.atomicSnapshotsFromScriptActions(
-			invocationRes.actions, addrWavesBalanceDiff,
-			addrAssetBalanceDiff, blockHeight, info, txID,
-			scriptPublicKey, scriptAddress)
+		txID crypto.Digest,
+		info *performerInfo,
+		invocationRes *invocationResult,
+		balanceChanges txDiff,
+		scriptEstimation *scriptEstimation,
+		scriptRecipient *proto.Recipient,
+		scriptPublicKey crypto.PublicKey,
+		scriptAddress proto.WavesAddress) (proto.TransactionSnapshot, error) {
+		blockHeight := info.height + 1
+
+		addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to generate atomic snapshots from script actions")
+			return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 		}
-		snapshot = append(snapshot, atomicSnapshots...)
-	}
-
-	wavesBalancesSnapshot, assetBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
-	}
-
-	for i := range wavesBalancesSnapshot {
-		snapshot = append(snapshot, &wavesBalancesSnapshot[i])
-	}
-	for i := range assetBalancesSnapshot {
-		snapshot = append(snapshot, &assetBalancesSnapshot[i])
-	}
-
-	if sg.IsFullNodeMode && scriptEstimation != nil && scriptRecipient != nil {
-		if scriptEstimation.isPresent() {
-			scriptAddr, cnvrtErr := recipientToAddress(*scriptRecipient, sg.stor.aliases)
-			if cnvrtErr != nil {
-				return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
+		var snapshot proto.TransactionSnapshot
+		if invocationRes != nil {
+			var atomicSnapshots []proto.AtomicSnapshot
+			atomicSnapshots, err = sg.atomicSnapshotsFromScriptActions(
+				invocationRes.actions, addrWavesBalanceDiff,
+				addrAssetBalanceDiff, blockHeight, info, txID,
+				scriptPublicKey, scriptAddress)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to generate atomic snapshots from script actions")
 			}
-			internalComplexitySnapshot := InternalDAppComplexitySnapshot{
-				Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr,
-				Update: true, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
-			snapshot = append(snapshot, &internalComplexitySnapshot)
+			snapshot = append(snapshot, atomicSnapshots...)
 		}
+
+		wavesBalancesSnapshot, assetBalancesSnapshot, err :=
+			sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+		}
+
+		for i := range wavesBalancesSnapshot {
+			snapshot = append(snapshot, &wavesBalancesSnapshot[i])
+		}
+		for i := range assetBalancesSnapshot {
+			snapshot = append(snapshot, &assetBalancesSnapshot[i])
+		}
+
+		if sg.IsFullNodeMode && scriptEstimation != nil && scriptRecipient != nil {
+			if scriptEstimation.isPresent() {
+				scriptAddr, cnvrtErr := recipientToAddress(*scriptRecipient, sg.stor.aliases)
+				if cnvrtErr != nil {
+					return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
+				}
+				internalComplexitySnapshot := InternalDAppComplexitySnapshot{
+					Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr,
+					Update: true, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
+				snapshot = append(snapshot, &internalComplexitySnapshot)
+			}
+		}
+
+		return snapshot, nil
 	}
-
-	return snapshot, nil
-}
-
+*/
 func (sg *snapshotGenerator) generateLeaseAtomicSnapshots(leaseID crypto.Digest,
 	l leasing, originalTxID crypto.Digest,
 	senderAddress proto.WavesAddress,
