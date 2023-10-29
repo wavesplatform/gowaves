@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/ride"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -259,14 +260,14 @@ func scriptsCost(tx proto.Transaction, params *feeValidationParams) (*txCosts, e
 	if err != nil {
 		return nil, err
 	}
-
 	// check complexity of script for free verifier if complexity <= 200
 	complexity := 0
 	if accountScripted && params.rideV5Activated {
 		// For account script we use original estimation
-		treeEstimation, scErr := params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
-		if scErr != nil {
-			return nil, errors.Wrap(scErr, "failed to get complexity by addr from store")
+		var treeEstimation *ride.TreeEstimation
+		treeEstimation, err = params.stor.scriptsComplexity.newestScriptComplexityByAddr(senderWavesAddr)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get complexity by addr from store")
 		}
 		complexity = treeEstimation.Verifier
 	}

@@ -183,9 +183,6 @@ func (tc *transactionChecker) checkDAppCallables(tree *ast.Tree, rideV6Activated
 	return nil
 }
 
-// TODO remove it
-//type treeEstimations map[int]ride.TreeEstimation
-
 func (tc *transactionChecker) checkScript(
 	script proto.Script,
 	estimatorVersion int,
@@ -218,6 +215,7 @@ func (tc *transactionChecker) checkScript(
 	if err != nil {
 		return ride.TreeEstimation{}, errs.Extend(err, "failed to estimate script complexity")
 	}
+
 	if scErr := tc.checkScriptComplexity(tree.LibVersion, est, tree.IsDApp(), reducedVerifierComplexity); scErr != nil {
 		return ride.TreeEstimation{}, errors.Wrap(scErr, "failed to check script complexity")
 	}
