@@ -35,7 +35,7 @@ func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,
 }
 
 func defaultPerformerInfoWithChecker(checkerData txCheckerData) *performerInfo {
-	return &performerInfo{0, blockID0, proto.WavesAddress{}, new(proto.StateActionsCounter), checkerData}
+	return &performerInfo{0, blockID0, proto.WavesAddress{}, checkerData}
 }
 
 func customCheckerInfo() *checkerInfo {

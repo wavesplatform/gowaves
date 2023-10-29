@@ -14,15 +14,14 @@ type performerInfo struct {
 	height              uint64
 	blockID             proto.BlockID
 	currentMinerAddress proto.WavesAddress
-	stateActionsCounter *proto.StateActionsCounter
 	checkerData         txCheckerData
 }
 
-func newPerformerInfo(height proto.Height, stateActionsCounter *proto.StateActionsCounter,
+func newPerformerInfo(height proto.Height,
 	blockID proto.BlockID, currentMinerAddress proto.WavesAddress,
 	checkerData txCheckerData) *performerInfo {
 	return &performerInfo{height, blockID,
-		currentMinerAddress, stateActionsCounter,
+		currentMinerAddress,
 		checkerData} // all fields must be initialized
 }
 

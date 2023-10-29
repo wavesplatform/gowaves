@@ -351,7 +351,6 @@ func (a *txAppender) commitTxApplication(
 			height:              params.checkerInfo.height,
 			blockID:             params.checkerInfo.blockID,
 			currentMinerAddress: currentMinerAddress,
-			stateActionsCounter: params.stateActionsCounterInBlock,
 			checkerData:         applicationRes.checkerData,
 		}
 		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)

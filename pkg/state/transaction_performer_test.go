@@ -53,7 +53,8 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 }
 
 func defaultPerformerInfo(stateActionsCounter *proto.StateActionsCounter) *performerInfo {
-	return newPerformerInfo(0, stateActionsCounter, blockID0, proto.WavesAddress{}, txCheckerData{})
+	_ = stateActionsCounter
+	return newPerformerInfo(0, blockID0, proto.WavesAddress{}, txCheckerData{})
 }
 
 func defaultCheckerInfoHeight0() *checkerInfo {
