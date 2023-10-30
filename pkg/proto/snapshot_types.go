@@ -463,6 +463,20 @@ func (s TransactionStatusSnapshot) IsGeneratedByTxDiff() bool {
 	return false
 }
 
+func (s TransactionStatusSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
+	switch s.Status {
+	case TransactionSucceeded:
+		txSnapshots.TransactionStatus = g.TransactionStatus_SUCCEEDED
+	case TransactionElided:
+		txSnapshots.TransactionStatus = g.TransactionStatus_ELIDED
+	case TransactionFailed:
+		txSnapshots.TransactionStatus = g.TransactionStatus_FAILED
+	default:
+		return errors.Errorf("Undefined tx status %d", s.Status)
+	}
+	return nil
+}
+
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
