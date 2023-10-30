@@ -351,7 +351,6 @@ func (a *txAppender) commitTxApplication(
 			height:              params.checkerInfo.height,
 			blockID:             params.checkerInfo.blockID,
 			currentMinerAddress: currentMinerAddress,
-			stateActionsCounter: params.stateActionsCounterInBlock,
 			checkerData:         applicationRes.checkerData,
 		}
 		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
@@ -679,13 +678,13 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
 	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
-	stateActionsCounterInBlockSnapshots := new(proto.StateActionsCounter)
+	// stateActionsCounterInSnapshots := new(proto.StateActionsCounter)
 
 	snapshotApplier := newBlockSnapshotsApplier(
 		blockSnapshotsApplierInfo{
 			ci:                  checkerInfo,
 			scheme:              a.settings.AddressSchemeCharacter,
-			stateActionsCounter: stateActionsCounterInBlockSnapshots,
+			stateActionsCounter: stateActionsCounterInBlockValidation,
 		},
 		snapshotApplierStorages{
 			balances:          a.stor.balances,
@@ -699,7 +698,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			leases:            a.stor.leases,
 		},
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter}
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter, IsFullNodeMode: true}
 
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -743,6 +742,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	// Check and append transactions.
 	var blockSnapshots proto.TransactionSnapshot
+
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
 			chans:                            params.chans,
@@ -1007,12 +1007,12 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
-	actionsCounter := new(proto.StateActionsCounter)
+	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplier := newBlockSnapshotsApplier(
 		blockSnapshotsApplierInfo{
 			ci:                  checkerInfo,
 			scheme:              a.settings.AddressSchemeCharacter,
-			stateActionsCounter: actionsCounter,
+			stateActionsCounter: issueCounterInBlock,
 		},
 		snapshotApplierStorages{
 			balances:          a.stor.balances,
@@ -1026,7 +1026,8 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 			leases:            a.stor.leases,
 		},
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter}
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter,
+		IsFullNodeMode: true}
 
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true
@@ -1042,7 +1043,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		invokeExpressionActivated:        invokeExpressionActivated,
 		validatingUtx:                    true,
 		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
-		stateActionsCounterInBlock: actionsCounter,
+		stateActionsCounterInBlock: issueCounterInBlock,
 		snapshotGenerator:          &snapshotGenerator,
 		snapshotApplier:            &snapshotApplier,
 	}

@@ -11,12 +11,36 @@ import (
 
 type TransactionSnapshot []AtomicSnapshot
 
+func SplitSnapshots(atomicSnapshots []AtomicSnapshot) ([]AtomicSnapshot, []AtomicSnapshot) {
+	var snapshots []AtomicSnapshot
+	var internalSnapshots []AtomicSnapshot
+	for _, snapshot := range atomicSnapshots {
+		if !snapshot.IsInternal() {
+			snapshots = append(snapshots, snapshot)
+		} else {
+			internalSnapshots = append(internalSnapshots, snapshot)
+		}
+	}
+	return snapshots, internalSnapshots
+}
+
 func (ts TransactionSnapshot) Apply(a SnapshotApplier) error {
-	for _, atomicSnapshot := range ts {
-		if !atomicSnapshot.IsGeneratedByTxDiff() {
-			err := atomicSnapshot.Apply(a)
+	mainSnapshots, internalSnapshots := SplitSnapshots(ts)
+	// internal snapshots must be applied at the end
+	for _, mainSnapshot := range mainSnapshots {
+		if !mainSnapshot.IsGeneratedByTxDiff() {
+			err := mainSnapshot.Apply(a)
 			if err != nil {
-				return errors.Wrap(err, "failed to apply transaction snapshot")
+				return errors.Wrap(err, "failed to apply main transaction snapshot")
+			}
+		}
+	}
+
+	for _, internalSnapshot := range internalSnapshots {
+		if !internalSnapshot.IsGeneratedByTxDiff() {
+			err := internalSnapshot.Apply(a)
+			if err != nil {
+				return errors.Wrap(err, "failed to apply internal transaction snapshot")
 			}
 		}
 	}
@@ -39,6 +63,7 @@ type AtomicSnapshot interface {
 	because balances diffs are applied later in the block. */
 	IsGeneratedByTxDiff() bool
 	AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error
+	IsInternal() bool
 }
 
 type WavesBalanceSnapshot struct {
@@ -77,6 +102,10 @@ type AssetBalanceSnapshot struct {
 	Balance uint64
 }
 
+func (s WavesBalanceSnapshot) IsInternal() bool {
+	return false
+}
+
 func (s AssetBalanceSnapshot) IsGeneratedByTxDiff() bool {
 	return true
 }
@@ -100,6 +129,10 @@ func (s AssetBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 	}
 	txSnapshots.Balances = append(txSnapshots.Balances, snapshotInProto)
 	return nil
+}
+
+func (s AssetBalanceSnapshot) IsInternal() bool {
+	return false
 }
 
 type DataEntriesSnapshot struct { // AccountData in pb
@@ -133,6 +166,10 @@ func (s DataEntriesSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	return nil
 }
 
+func (s DataEntriesSnapshot) IsInternal() bool {
+	return false
+}
+
 type AccountScriptSnapshot struct {
 	SenderPublicKey    crypto.PublicKey
 	Script             Script
@@ -162,6 +199,10 @@ func (s AccountScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateS
 	return nil
 }
 
+func (s AccountScriptSnapshot) IsInternal() bool {
+	return false
+}
+
 type AssetScriptSnapshot struct {
 	AssetID crypto.Digest
 	Script  Script
@@ -187,6 +228,10 @@ func (s AssetScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	}
 	txSnapshots.AssetScripts = append(txSnapshots.AssetScripts, snapshotInProto)
 	return nil
+}
+
+func (s AssetScriptSnapshot) IsInternal() bool {
+	return false
 }
 
 type LeaseBalanceSnapshot struct {
@@ -216,6 +261,10 @@ func (s LeaseBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 	}
 	txSnapshots.LeaseBalances = append(txSnapshots.LeaseBalances, snapshotInProto)
 	return nil
+}
+
+func (s LeaseBalanceSnapshot) IsInternal() bool {
+	return false
 }
 
 type LeaseStateStatus struct {
@@ -273,6 +322,10 @@ func (s LeaseStateSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnap
 	return nil
 }
 
+func (s LeaseStateSnapshot) IsInternal() bool {
+	return false
+}
+
 type SponsorshipSnapshot struct {
 	AssetID         crypto.Digest
 	MinSponsoredFee uint64
@@ -300,6 +353,10 @@ func (s SponsorshipSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	return nil
 }
 
+func (s SponsorshipSnapshot) IsInternal() bool {
+	return false
+}
+
 type AliasSnapshot struct {
 	Address WavesAddress
 	Alias   Alias
@@ -325,6 +382,10 @@ func (s AliasSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot)
 	}
 	txSnapshots.Aliases = append(txSnapshots.Aliases, snapshotInProto)
 	return nil
+}
+
+func (s AliasSnapshot) IsInternal() bool {
+	return false
 }
 
 // FilledVolumeFeeSnapshot Filled Volume and Fee.
@@ -355,6 +416,10 @@ func (s FilledVolumeFeeSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStat
 	}
 	txSnapshots.OrderFills = append(txSnapshots.OrderFills, snapshotInProto)
 	return nil
+}
+
+func (s FilledVolumeFeeSnapshot) IsInternal() bool {
+	return false
 }
 
 type StaticAssetInfoSnapshot struct {
@@ -390,6 +455,10 @@ func (s StaticAssetInfoSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStat
 	return nil
 }
 
+func (s StaticAssetInfoSnapshot) IsInternal() bool {
+	return false
+}
+
 type AssetVolumeSnapshot struct { // AssetVolume in pb
 	AssetID       crypto.Digest
 	TotalQuantity big.Int // volume in protobuf
@@ -417,6 +486,10 @@ func (s AssetVolumeSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	}
 	txSnapshots.AssetVolumes = append(txSnapshots.AssetVolumes, snapshotInProto)
 	return nil
+}
+
+func (s AssetVolumeSnapshot) IsInternal() bool {
+	return false
 }
 
 type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
@@ -450,6 +523,10 @@ func (s AssetDescriptionSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSta
 	return nil
 }
 
+func (s AssetDescriptionSnapshot) IsInternal() bool {
+	return false
+}
+
 type TransactionStatusSnapshot struct {
 	TransactionID crypto.Digest
 	Status        TransactionStatus
@@ -477,6 +554,14 @@ func (s TransactionStatusSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSt
 	return nil
 }
 
+func (s TransactionStatusSnapshot) IsInternal() bool {
+	return false
+}
+
+type InternalSnapshot interface {
+	InternalSnapshotMarker()
+}
+
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
@@ -492,4 +577,6 @@ type SnapshotApplier interface {
 	ApplyDataEntries(snapshot DataEntriesSnapshot) error
 	ApplyLeaseState(snapshot LeaseStateSnapshot) error
 	ApplyTransactionsStatus(snapshot TransactionStatusSnapshot) error
+	/* Internal snapshots. Applied only in the full node mode */
+	ApplyInternalSnapshot(internalSnapshot InternalSnapshot) error
 }
