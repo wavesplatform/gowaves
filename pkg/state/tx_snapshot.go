@@ -27,11 +27,9 @@ func (ts txSnapshot) Apply(a extendedSnapshotApplier) error {
 		}
 	}
 	for _, is := range ts.internal {
-		if !is.IsGeneratedByTxDiff() {
-			err := is.ApplyInternal(a)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply internal transaction snapshot")
-			}
+		err := is.ApplyInternal(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply internal transaction snapshot")
 		}
 	}
 	return nil

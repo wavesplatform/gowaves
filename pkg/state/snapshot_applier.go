@@ -238,19 +238,6 @@ func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatu
 	return nil // no-op
 }
 
-func (a *blockSnapshotsApplier) ApplyInternalSnapshot(internalSnapshot proto.InternalSnapshot) error {
-	switch snapshot := internalSnapshot.(type) {
-	case *InternalDAppComplexitySnapshot:
-		return a.ApplyDAppComplexity(*snapshot)
-	case *InternalDAppUpdateComplexitySnapshot:
-		return a.ApplyDAppUpdateComplexity(*snapshot)
-	case *InternalAssetScriptComplexitySnapshot:
-		return a.ApplyAssetScriptComplexity(*snapshot)
-	default:
-		return errors.Errorf("failed to apply internal snapshot, unknown type (%T)", snapshot)
-	}
-}
-
 func (a *blockSnapshotsApplier) ApplyDAppComplexity(snapshot InternalDAppComplexitySnapshot) error {
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
 		scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
