@@ -37,14 +37,9 @@ func (sg *snapshotGenerator) generateSnapshotForTransferTx(balanceChanges txDiff
 	return sg.generateBalancesSnapshot(balanceChanges)
 }
 
-type scriptInformation struct {
-	script     proto.Script
-	complexity int
-}
-
 func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest,
 	senderPK crypto.PublicKey, assetInfo assetInfo, balanceChanges txDiff,
-	scriptInformation *scriptInformation) (proto.TransactionSnapshot, error) {
+	scriptEstimation *scriptEstimation, script *proto.Script) (proto.TransactionSnapshot, error) {
 	var snapshot proto.TransactionSnapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
@@ -89,7 +84,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 
 	snapshot = append(snapshot, issueStaticInfoSnapshot, assetDescription, assetReissuability)
 
-	if scriptInformation == nil {
+	if script == nil {
 		assetScriptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID: assetID,
 			Script:  proto.Script{},
@@ -98,9 +93,14 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 	} else {
 		assetScriptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID: assetID,
-			Script:  scriptInformation.script,
+			Script:  *script,
 		}
-		// TODO: special snapshot for complexity should be generated here
+		if sg.IsFullNodeMode && scriptEstimation.isPresent() {
+			internalComplexitySnapshot := InternalAssetScriptComplexitySnapshot{
+				Estimation: scriptEstimation.estimation, AssetID: assetID,
+				ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
+			snapshot = append(snapshot, &internalComplexitySnapshot)
+		}
 		snapshot = append(snapshot, assetScriptSnapshot)
 	}
 	wavesBalancesSnapshot, assetBalancesSnapshot, err :=

@@ -92,7 +92,7 @@ func (tp *transactionPerformer) performTransferWithProofs(transaction proto.Tran
 
 func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest,
 	assetID crypto.Digest, info *performerInfo,
-	balanceChanges txDiff, scriptInformation *scriptInformation) (proto.TransactionSnapshot, error) {
+	balanceChanges txDiff, scriptEstimation *scriptEstimation, script *proto.Script) (proto.TransactionSnapshot, error) {
 	blockHeight := info.height + 1
 	// Create new asset.
 	assetInfo := &assetInfo{
@@ -111,7 +111,7 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 		},
 	}
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(assetID, txID, tx.SenderPK,
-		*assetInfo, balanceChanges, scriptInformation)
+		*assetInfo, balanceChanges, scriptEstimation, script)
 	if err != nil {
 		return nil, err
 	}
@@ -132,7 +132,7 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return nil, err
 	}
-	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil)
+	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil, nil)
 }
 
 func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transaction, info *performerInfo,
@@ -149,15 +149,8 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return nil, err
 	}
-	var se *scriptEstimation
-	var scriptInfo *scriptInformation
-	if se = info.checkerData.scriptEstimation; se.isPresent() { // script estimation is present and not nil
-		scriptInfo = &scriptInformation{
-			script:     tx.Script,
-			complexity: se.estimation.Verifier,
-		}
-	}
-	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, scriptInfo)
+	return tp.performIssue(&tx.Issue, assetID, assetID, info,
+		balanceChanges, info.checkerData.scriptEstimation, &tx.Script)
 }
 
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, _ *performerInfo,
