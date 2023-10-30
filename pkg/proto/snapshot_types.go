@@ -3,48 +3,8 @@ package proto
 import (
 	"math/big"
 
-	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
-
-type TransactionSnapshot []AtomicSnapshot
-
-func SplitSnapshots(atomicSnapshots []AtomicSnapshot) ([]AtomicSnapshot, []AtomicSnapshot) {
-	var snapshots []AtomicSnapshot
-	var internalSnapshots []AtomicSnapshot
-	for _, snapshot := range atomicSnapshots {
-		if !snapshot.IsInternal() {
-			snapshots = append(snapshots, snapshot)
-		} else {
-			internalSnapshots = append(internalSnapshots, snapshot)
-		}
-	}
-	return snapshots, internalSnapshots
-}
-
-func (ts TransactionSnapshot) Apply(a SnapshotApplier) error {
-	mainSnapshots, internalSnapshots := SplitSnapshots(ts)
-	// internal snapshots must be applied at the end
-	for _, mainSnapshot := range mainSnapshots {
-		if !mainSnapshot.IsGeneratedByTxDiff() {
-			err := mainSnapshot.Apply(a)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply main transaction snapshot")
-			}
-		}
-	}
-
-	for _, internalSnapshot := range internalSnapshots {
-		if !internalSnapshot.IsGeneratedByTxDiff() {
-			err := internalSnapshot.Apply(a)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply internal transaction snapshot")
-			}
-		}
-	}
-	return nil
-}
 
 type AtomicSnapshot interface {
 	Apply(SnapshotApplier) error

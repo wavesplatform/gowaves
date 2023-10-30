@@ -6,6 +6,17 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
+type internalSnapshot interface {
+	IsGeneratedByTxDiff() bool
+	ApplyInternal(internalSnapshotApplier) error
+}
+
+type internalSnapshotApplier interface {
+	ApplyDAppComplexity(snapshot InternalDAppComplexitySnapshot) error
+	ApplyDAppUpdateComplexity(snapshot InternalDAppUpdateComplexitySnapshot) error
+	ApplyAssetScriptComplexity(snapshot InternalAssetScriptComplexitySnapshot) error
+}
+
 /*
 Below are internal snapshots only.
 They are not necessary and used for optimization, initialized in the full node mode only.
@@ -24,11 +35,15 @@ func (s InternalDAppComplexitySnapshot) Apply(a proto.SnapshotApplier) error {
 	return a.ApplyInternalSnapshot(&s)
 }
 
+func (s InternalDAppComplexitySnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyDAppComplexity(s)
+}
+
 func (s InternalDAppComplexitySnapshot) IsInternal() bool {
 	return true
 }
 
-func (s InternalDAppComplexitySnapshot) InternalSnapshotMarker() {}
+func (s *InternalDAppComplexitySnapshot) InternalSnapshotMarker() {}
 
 type InternalDAppUpdateComplexitySnapshot struct {
 	ScriptAddress proto.WavesAddress
@@ -44,11 +59,15 @@ func (s InternalDAppUpdateComplexitySnapshot) Apply(a proto.SnapshotApplier) err
 	return a.ApplyInternalSnapshot(&s)
 }
 
+func (s InternalDAppUpdateComplexitySnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyDAppUpdateComplexity(s)
+}
+
 func (s InternalDAppUpdateComplexitySnapshot) IsInternal() bool {
 	return true
 }
 
-func (s InternalDAppUpdateComplexitySnapshot) InternalSnapshotMarker() {}
+func (s *InternalDAppUpdateComplexitySnapshot) InternalSnapshotMarker() {}
 
 type InternalAssetScriptComplexitySnapshot struct {
 	AssetID       crypto.Digest
@@ -64,8 +83,12 @@ func (s InternalAssetScriptComplexitySnapshot) Apply(a proto.SnapshotApplier) er
 	return a.ApplyInternalSnapshot(&s)
 }
 
+func (s InternalAssetScriptComplexitySnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyAssetScriptComplexity(s)
+}
+
 func (s InternalAssetScriptComplexitySnapshot) IsInternal() bool {
 	return true
 }
 
-func (s InternalAssetScriptComplexitySnapshot) InternalSnapshotMarker() {}
+func (s *InternalAssetScriptComplexitySnapshot) InternalSnapshotMarker() {}
