@@ -415,11 +415,13 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 	if !se.isPresent() {
 		return nil, errors.New("script estimations must be set for SetScriptWithProofs tx")
 	}
+
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetScriptTx(tx.SenderPK,
 		tx.Script, *se, balanceChanges)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate snapshot for set script tx")
 	}
+
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 

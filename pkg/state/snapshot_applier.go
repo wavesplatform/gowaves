@@ -4,7 +4,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
-
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
@@ -163,7 +162,6 @@ func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnaps
 		return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
 			a.info.BlockID())
 	}
-
 	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
 }
 

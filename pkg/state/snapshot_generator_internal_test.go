@@ -116,6 +116,7 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 }
 
 // TODO send only txBalanceChanges to perfomer
+
 func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 	checkerInfo := customCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
@@ -1101,6 +1102,7 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 			Address: testGlobal.senderInfo.addr,
 			Balance: 299900000,
 		},
+
 		&proto.AssetScriptSnapshot{
 			AssetID: testGlobal.asset0.assetID,
 			Script:  testGlobal.scriptBytes,
