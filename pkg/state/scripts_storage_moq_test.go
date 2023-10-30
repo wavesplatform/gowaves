@@ -104,6 +104,9 @@ var _ scriptStorageState = &mockScriptStorageState{}
 //			setAssetScriptUncertainFunc: func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error {
 //				panic("mock out the setAssetScriptUncertain method")
 //			},
+//			uncertainAssetScriptsCopyFunc: func() map[proto.AssetID]assetScriptRecordWithAssetIDTail {
+//				panic("mock out the uncertainAssetScriptsCopy method")
+//			},
 //		}
 //
 //		// use mockedscriptStorageState in code that requires scriptStorageState
@@ -194,6 +197,9 @@ type mockScriptStorageState struct {
 
 	// setAssetScriptUncertainFunc mocks the setAssetScriptUncertain method.
 	setAssetScriptUncertainFunc func(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error
+
+	// uncertainAssetScriptsCopyFunc mocks the uncertainAssetScriptsCopy method.
+	uncertainAssetScriptsCopyFunc func() map[proto.AssetID]assetScriptRecordWithAssetIDTail
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -339,6 +345,9 @@ type mockScriptStorageState struct {
 			// Pk is the pk argument value.
 			Pk crypto.PublicKey
 		}
+		// uncertainAssetScriptsCopy holds details about calls to the uncertainAssetScriptsCopy method.
+		uncertainAssetScriptsCopy []struct {
+		}
 	}
 	lockaccountHasScript                 sync.RWMutex
 	lockaccountHasVerifier               sync.RWMutex
@@ -368,6 +377,7 @@ type mockScriptStorageState struct {
 	locksetAccountScript                 sync.RWMutex
 	locksetAssetScript                   sync.RWMutex
 	locksetAssetScriptUncertain          sync.RWMutex
+	lockuncertainAssetScriptsCopy        sync.RWMutex
 }
 
 // accountHasScript calls accountHasScriptFunc.
@@ -1261,5 +1271,32 @@ func (mock *mockScriptStorageState) setAssetScriptUncertainCalls() []struct {
 	mock.locksetAssetScriptUncertain.RLock()
 	calls = mock.calls.setAssetScriptUncertain
 	mock.locksetAssetScriptUncertain.RUnlock()
+	return calls
+}
+
+// uncertainAssetScriptsCopy calls uncertainAssetScriptsCopyFunc.
+func (mock *mockScriptStorageState) uncertainAssetScriptsCopy() map[proto.AssetID]assetScriptRecordWithAssetIDTail {
+	if mock.uncertainAssetScriptsCopyFunc == nil {
+		panic("mockScriptStorageState.uncertainAssetScriptsCopyFunc: method is nil but scriptStorageState.uncertainAssetScriptsCopy was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockuncertainAssetScriptsCopy.Lock()
+	mock.calls.uncertainAssetScriptsCopy = append(mock.calls.uncertainAssetScriptsCopy, callInfo)
+	mock.lockuncertainAssetScriptsCopy.Unlock()
+	return mock.uncertainAssetScriptsCopyFunc()
+}
+
+// uncertainAssetScriptsCopyCalls gets all the calls that were made to uncertainAssetScriptsCopy.
+// Check the length with:
+//
+//	len(mockedscriptStorageState.uncertainAssetScriptsCopyCalls())
+func (mock *mockScriptStorageState) uncertainAssetScriptsCopyCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockuncertainAssetScriptsCopy.RLock()
+	calls = mock.calls.uncertainAssetScriptsCopy
+	mock.lockuncertainAssetScriptsCopy.RUnlock()
 	return calls
 }

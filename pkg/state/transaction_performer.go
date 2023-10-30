@@ -14,14 +14,15 @@ type performerInfo struct {
 	height              uint64
 	blockID             proto.BlockID
 	currentMinerAddress proto.WavesAddress
+	stateActionsCounter *proto.StateActionsCounter
 	checkerData         txCheckerData
 }
 
-func newPerformerInfo(height proto.Height,
+func newPerformerInfo(height proto.Height, stateActionsCounter *proto.StateActionsCounter,
 	blockID proto.BlockID, currentMinerAddress proto.WavesAddress,
 	checkerData txCheckerData) *performerInfo {
 	return &performerInfo{height, blockID,
-		currentMinerAddress,
+		currentMinerAddress, stateActionsCounter,
 		checkerData} // all fields must be initialized
 }
 
@@ -97,10 +98,11 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:        proto.DigestTail(assetID),
-			issuer:      tx.SenderPK,
-			decimals:    tx.Decimals,
-			issueHeight: blockHeight,
+			tail:                 proto.DigestTail(assetID),
+			issuer:               tx.SenderPK,
+			decimals:             tx.Decimals,
+			issueHeight:          blockHeight,
+			issueSequenceInBlock: info.stateActionsCounter.NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -301,7 +303,7 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 	}
 
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseCancelTx(txID,
-		*oldLease, tx.LeaseID, *oldLease.OriginTransactionID,
+		*oldLease, tx.LeaseID,
 		info.height, balanceChanges)
 	if err != nil {
 		return nil, err
@@ -446,70 +448,88 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 
 func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction,
 	info *performerInfo,
-	invocationRes *invocationResult,
+	_ *invocationResult,
 	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {
 		return nil, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
-
-	if err := tp.stor.commitUncertain(info.blockID); err != nil {
-		return nil, errors.Wrapf(err, "failed to commit invoke changes for tx %q", tx.ID.String())
+	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Errorf("failed to get transaction ID: %v", err)
+	}
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvoke(txID, balanceChanges)
+	if err != nil {
+		return nil, err
 	}
 	se := info.checkerData.scriptEstimation
-	if !se.isPresent() { // nothing to do, no estimation to save
-		return nil, nil
-	}
-	// script estimation is present an not nil
+	if se.isPresent() { // nothing to do, no estimation to save
+		// script estimation is present an not nil
 
-	// we've pulled up an old script which estimation had been done by an old estimator
-	// in txChecker we've estimated script with a new estimator
-	// this is the place where we have to store new estimation
-	scriptAddr, err := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get sender for InvokeScriptWithProofs")
+		// we've pulled up an old script which estimation had been done by an old estimator
+		// in txChecker we've estimated script with a new estimator
+		// this is the place where we have to store new estimation
+		scriptAddr, cnvrtErr := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
+		if cnvrtErr != nil {
+			return nil, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
+		}
+		// update callable and summary complexity, verifier complexity remains the same
+		if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
+			return nil, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
+				scriptAddr.String(), tx.ID.String(),
+			)
+		}
 	}
-	// update callable and summary complexity, verifier complexity remains the same
-	if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
-		return nil, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
-			scriptAddr.String(), tx.ID.String(),
-		)
-	}
-	_ = invocationRes
-	_ = balanceChanges
-	return nil, nil
+	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
 func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction,
-	info *performerInfo, invocationRes *invocationResult,
+	_ *performerInfo, _ *invocationResult,
 	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
 		return nil, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
-	if err := tp.stor.commitUncertain(info.blockID); err != nil {
-		return nil, errors.Wrap(err, "failed to commit invoke changes")
+
+	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Errorf("failed to get transaction ID: %v", err)
 	}
-	_ = invocationRes
-	_ = balanceChanges
-	return nil, nil
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, balanceChanges)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
-func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
-	ethTx, ok := transaction.(*proto.EthereumTransaction)
+func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction,
+	_ *performerInfo, _ *invocationResult,
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	_, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
 		return nil, errors.New("failed to convert interface to EthereumTransaction transaction")
 	}
 
-	if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
-		if err := tp.stor.commitUncertain(info.blockID); err != nil {
-			return nil, errors.Wrap(err, "failed to commit invoke changes")
-		}
+	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Errorf("failed to get transaction ID: %v", err)
 	}
-	_ = invocationRes
-	_ = balanceChanges
-	// nothing to do for proto.EthereumTransferWavesTxKind and proto.EthereumTransferAssetsErc20TxKind
-	return nil, nil
+	txID, err := crypto.NewDigestFromBytes(txIDBytes)
+	if err != nil {
+		return nil, err
+	}
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForEthereumInvokeScriptTx(txID, balanceChanges)
+	if err != nil {
+		return nil, err
+	}
+	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
 func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction,

@@ -352,6 +352,7 @@ func (a *txAppender) commitTxApplication(
 			blockID:             params.checkerInfo.blockID,
 			currentMinerAddress: currentMinerAddress,
 			checkerData:         applicationRes.checkerData,
+			stateActionsCounter: params.stateActionsCounterInBlock,
 		}
 		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
 		if err != nil {

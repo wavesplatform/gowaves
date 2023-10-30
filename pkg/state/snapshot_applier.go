@@ -46,8 +46,6 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplier
 	}
 }
 
-var _ = proto.SnapshotApplier((*blockSnapshotsApplier)(nil))
-
 type blockSnapshotsApplierInfo struct {
 	ci                  *checkerInfo
 	scheme              proto.Scheme
@@ -120,19 +118,15 @@ func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetI
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	height := a.info.Height() + 1
 
-	changeableInfo, err := a.stor.assets.newestChangeableInfo(snapshot.AssetID)
-	if err != nil {
-		changeableInfo = &assetChangeableInfo{}
-	}
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
 			tail:                 proto.DigestTail(snapshot.AssetID),
 			issuer:               snapshot.IssuerPublicKey,
 			decimals:             snapshot.Decimals,
 			issueHeight:          height,
-			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
+			issueSequenceInBlock: a.info.stateActionsCounter.CurrentIssueActionNumber(),
 		},
-		assetChangeableInfo: *changeableInfo,
+		assetChangeableInfo: assetChangeableInfo{},
 	}
 	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 }

@@ -51,7 +51,6 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 	for key, diffAmount := range addrAssetBalanceDiff {
 		if key.asset == proto.AssetIDFromDigest(assetID) {
 			// remove the element from the array
-
 			delete(addrAssetBalanceDiff, key)
 			specialAssetSnapshot = &proto.AssetBalanceSnapshot{
 				Address: key.address,
@@ -103,14 +102,16 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		}
 		snapshot = append(snapshot, assetScriptSnapshot)
 	}
-	wavesBalancesSnapshot, assetBalancesSnapshot, err :=
+	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
 		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
-
 	for i := range wavesBalancesSnapshot {
 		snapshot = append(snapshot, &wavesBalancesSnapshot[i])
+	}
+	for i := range leaseBalancesSnapshot {
+		snapshot = append(snapshot, &leaseBalancesSnapshot[i])
 	}
 	for i := range assetBalancesSnapshot {
 		snapshot = append(snapshot, &assetBalancesSnapshot[i])
@@ -202,38 +203,44 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease leasing, leaseID c
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
-	amount := int64(lease.Amount)
-	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err :=
-		sg.generateLeaseAtomicSnapshots(leaseID, lease, originalTxID, lease.Sender, lease.Recipient, amount)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate snapshots for a lease transaction")
+	leaseStatusSnapshot := &proto.LeaseStateSnapshot{
+		LeaseID: leaseID,
+		Status: proto.LeaseStateStatus{
+			Value: lease.Status,
+		},
+		Amount:              lease.Amount,
+		Sender:              lease.Sender,
+		Recipient:           lease.Recipient,
+		OriginTransactionID: &originalTxID,
+		Height:              lease.Height,
 	}
-
-	snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
+	snapshot = append(snapshot, leaseStatusSnapshot)
 	return snapshot, nil
 }
 
 func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(txID *crypto.Digest, oldLease leasing,
-	leaseID crypto.Digest, originalTxID crypto.Digest,
+	leaseID crypto.Digest,
 	cancelHeight uint64, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	var err error
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
-	negativeAmount := -int64(oldLease.Amount)
-	leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, err :=
-		sg.generateLeaseAtomicSnapshots(leaseID, oldLease, originalTxID, oldLease.Sender, oldLease.Recipient, negativeAmount)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate snapshots for a lease transaction")
-	}
-	leaseStatusSnapshot.Status = proto.LeaseStateStatus{
-		Value:               proto.LeaseCanceled,
-		CancelHeight:        cancelHeight,
-		CancelTransactionID: txID,
+	leaseStatusSnapshot := &proto.LeaseStateSnapshot{
+		LeaseID: leaseID,
+		Status: proto.LeaseStateStatus{
+			Value:               proto.LeaseCanceled,
+			CancelHeight:        cancelHeight,
+			CancelTransactionID: txID,
+		},
+		Amount:              oldLease.Amount,
+		Sender:              oldLease.Sender,
+		Recipient:           oldLease.Recipient,
+		OriginTransactionID: oldLease.OriginTransactionID,
+		Height:              oldLease.Height,
 	}
 
-	snapshot = append(snapshot, leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot)
+	snapshot = append(snapshot, leaseStatusSnapshot)
 	return snapshot, nil
 }
 
@@ -335,60 +342,215 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	return snapshot, nil
 }
 
+func assetFoundInMap(id proto.AssetID, assetsMap map[proto.AssetID]assetInfo) bool {
+	for assetIDinMap := range assetsMap {
+		if id == assetIDinMap {
+			return true
+		}
+	}
+	return false
+}
+
+func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]assetInfo,
+	txID crypto.Digest) []proto.AtomicSnapshot {
+	var atomicSnapshots []proto.AtomicSnapshot
+	for assetID, info := range assetsUncertain {
+		infoCpy := info // prevent implicit memory aliasing in for loop
+		fullAssetID := proto.ReconstructDigest(assetID, infoCpy.tail)
+		issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
+			AssetID:             fullAssetID,
+			IssuerPublicKey:     infoCpy.issuer,
+			SourceTransactionID: txID,
+			Decimals:            infoCpy.decimals,
+			IsNFT:               infoCpy.isNFT(),
+		}
+
+		assetDescription := &proto.AssetDescriptionSnapshot{
+			AssetID:          fullAssetID,
+			AssetName:        infoCpy.name,
+			AssetDescription: infoCpy.description,
+			ChangeHeight:     infoCpy.lastNameDescChangeHeight,
+		}
+
+		assetReissuability := &proto.AssetVolumeSnapshot{
+			AssetID:       fullAssetID,
+			IsReissuable:  infoCpy.reissuable,
+			TotalQuantity: infoCpy.quantity,
+		}
+
+		atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+	}
+	return atomicSnapshots
+}
+
+func generateSnapshotsFromDataEntryUncertain(dataEntriesUncertain map[entryId]uncertainAccountsDataStorageEntry,
+	scheme proto.Scheme) ([]proto.AtomicSnapshot, error) {
+	var atomicSnapshots []proto.AtomicSnapshot
+	dataEntries := make(map[proto.WavesAddress]proto.DataEntries)
+	for entryID, entry := range dataEntriesUncertain {
+		address, errCnvrt := entryID.addrID.ToWavesAddress(scheme)
+		if errCnvrt != nil {
+			return nil, errors.Wrap(errCnvrt, "failed to convert address id to waves address")
+		}
+		if _, ok := dataEntries[address]; ok {
+			entries := dataEntries[address]
+			entries = append(entries, entry.dataEntry)
+			dataEntries[address] = entries
+		} else {
+			dataEntries[address] = proto.DataEntries{entry.dataEntry}
+		}
+	}
+	for address, entries := range dataEntries {
+		dataEntrySnapshot := &proto.DataEntriesSnapshot{Address: address, DataEntries: entries}
+		atomicSnapshots = append(atomicSnapshots, dataEntrySnapshot)
+	}
+	return atomicSnapshots, nil
+}
+
+func generateSnapshotsFromAssetsScriptsUncertain(
+	assetScriptsUncertain map[proto.AssetID]assetScriptRecordWithAssetIDTail) []proto.AtomicSnapshot {
+	var atomicSnapshots []proto.AtomicSnapshot
+	for assetID, r := range assetScriptsUncertain {
+		digest := proto.ReconstructDigest(assetID, r.assetIDTail)
+		assetScrptSnapshot := &proto.AssetScriptSnapshot{
+			AssetID: digest,
+			Script:  proto.Script{},
+		}
+		atomicSnapshots = append(atomicSnapshots, assetScrptSnapshot)
+	}
+	return atomicSnapshots
+}
+
+func generateSnapshotsFromLeasingsUncertain(
+	leasesUncertain map[crypto.Digest]*leasing) []proto.AtomicSnapshot {
+	var atomicSnapshots []proto.AtomicSnapshot
+	for id, leasing := range leasesUncertain {
+		leaseStatusSnapshot := &proto.LeaseStateSnapshot{
+			LeaseID: id,
+			Status: proto.LeaseStateStatus{
+				Value: leasing.Status,
+			},
+			Amount:              leasing.Amount,
+			Sender:              leasing.Sender,
+			Recipient:           leasing.Recipient,
+			OriginTransactionID: leasing.OriginTransactionID,
+			Height:              leasing.Height,
+		}
+		if leasing.Status == proto.LeaseCanceled {
+			leaseStatusSnapshot.Status.Value = proto.LeaseCanceled
+			leaseStatusSnapshot.Status.CancelTransactionID = leasing.CancelTransactionID
+			leaseStatusSnapshot.Status.CancelHeight = leasing.CancelHeight
+		}
+		atomicSnapshots = append(atomicSnapshots, leaseStatusSnapshot)
+	}
+	return atomicSnapshots
+}
+
+func generateSnapshotsFromSponsoredAssetsUncertain(
+	sponsoredAssetsUncertain map[proto.AssetID]uncertainSponsoredAsset) []proto.AtomicSnapshot {
+	var atomicSnapshots []proto.AtomicSnapshot
+	for _, sponsored := range sponsoredAssetsUncertain {
+		sponsorshipSnapshot := proto.SponsorshipSnapshot{
+			AssetID:         sponsored.assetID,
+			MinSponsoredFee: sponsored.assetCost,
+		}
+		atomicSnapshots = append(atomicSnapshots, sponsorshipSnapshot)
+	}
+	return atomicSnapshots
+}
+
+func (sg *snapshotGenerator) generateSnapshotForInvoke(txID crypto.Digest,
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	var snapshot proto.TransactionSnapshot
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
+	}
+	// Remove the just issues snapshot from the diff, because it's not in the storage yet,
+	// so can't be processed with generateBalancesAtomicSnapshots.
+	var specialAssetsSnapshots []proto.AssetBalanceSnapshot
+	for key, diffAmount := range addrAssetBalanceDiff {
+		if assetFoundInMap(key.asset, sg.stor.assets.uncertainAssetInfo) {
+			// remove the element from the array
+			delete(addrAssetBalanceDiff, key)
+			fullAssetID := proto.ReconstructDigest(key.asset, sg.stor.assets.uncertainAssetInfo[key.asset].tail)
+			specialAssetSnapshot := proto.AssetBalanceSnapshot{
+				Address: key.address,
+				AssetID: fullAssetID,
+				Balance: uint64(diffAmount),
+			}
+			specialAssetsSnapshots = append(specialAssetsSnapshots, specialAssetSnapshot)
+		}
+	}
+
+	assetsUncertain := sg.stor.assets.uncertainAssetInfo
+	dataEntriesUncertain := sg.stor.accountsDataStor.uncertainEntries
+	assetScriptsUncertain := sg.stor.scriptsStorage.uncertainAssetScriptsCopy()
+	leasesUncertain := sg.stor.leases.uncertainLeases
+	sponsoredAssetsUncertain := sg.stor.sponsoredAssets.uncertainSponsoredAssets
+
+	assetsSnapshots := generateSnapshotsFromAssetsUncertain(assetsUncertain, txID)
+	snapshot = append(snapshot, assetsSnapshots...)
+
+	dataEntriesSnapshots, err := generateSnapshotsFromDataEntryUncertain(dataEntriesUncertain, sg.scheme)
+	if err != nil {
+		return nil, err
+	}
+	snapshot = append(snapshot, dataEntriesSnapshots...)
+
+	assetsScriptsSnapshots := generateSnapshotsFromAssetsScriptsUncertain(assetScriptsUncertain)
+	snapshot = append(snapshot, assetsScriptsSnapshots...)
+
+	leasingSnapshots := generateSnapshotsFromLeasingsUncertain(leasesUncertain)
+	snapshot = append(snapshot, leasingSnapshots...)
+
+	sponsoredAssetsSnapshots := generateSnapshotsFromSponsoredAssetsUncertain(sponsoredAssetsUncertain)
+	snapshot = append(snapshot, sponsoredAssetsSnapshots...)
+
+	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
+		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
+	}
+	for i := range wavesBalancesSnapshot {
+		snapshot = append(snapshot, &wavesBalancesSnapshot[i])
+	}
+	for i := range leaseBalancesSnapshot {
+		snapshot = append(snapshot, &leaseBalancesSnapshot[i])
+	}
+	for i := range assetBalancesSnapshot {
+		snapshot = append(snapshot, &assetBalancesSnapshot[i])
+	}
+	for i := range specialAssetsSnapshots {
+		snapshot = append(snapshot, &specialAssetsSnapshots[i])
+	}
+	return snapshot, nil
+}
+
+func (sg *snapshotGenerator) generateSnapshotForInvokeExpressionTx(txID crypto.Digest,
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	return sg.generateSnapshotForInvoke(txID, balanceChanges)
+}
+
+func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest,
+	balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	return sg.generateSnapshotForInvoke(txID, balanceChanges)
+}
+
 func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string,
 	assetDescription string, changeHeight proto.Height, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return nil, err
 	}
-	sponsorshipSnapshot := &proto.AssetDescriptionSnapshot{
+	assetDescriptionSnapshot := &proto.AssetDescriptionSnapshot{
 		AssetID:          assetID,
 		AssetName:        assetName,
 		AssetDescription: assetDescription,
 		ChangeHeight:     changeHeight,
 	}
-	snapshot = append(snapshot, sponsorshipSnapshot)
+	snapshot = append(snapshot, assetDescriptionSnapshot)
 	return snapshot, nil
-}
-
-func (sg *snapshotGenerator) generateLeaseAtomicSnapshots(leaseID crypto.Digest,
-	l leasing, originalTxID crypto.Digest,
-	senderAddress proto.WavesAddress,
-	receiverAddress proto.WavesAddress,
-	amount int64) (*proto.LeaseStateSnapshot, *proto.LeaseBalanceSnapshot, *proto.LeaseBalanceSnapshot, error) {
-	leaseStatusSnapshot := &proto.LeaseStateSnapshot{
-		LeaseID: leaseID,
-		Status: proto.LeaseStateStatus{
-			Value: l.Status,
-		},
-		Amount:              l.Amount,
-		Sender:              l.Sender,
-		Recipient:           l.Recipient,
-		OriginTransactionID: &originalTxID,
-		Height:              l.Height,
-	}
-
-	senderBalanceProfile, err := sg.stor.balances.newestWavesBalance(senderAddress.ID())
-	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
-	}
-	senderLeaseBalanceSnapshot := &proto.LeaseBalanceSnapshot{
-		Address:  senderAddress,
-		LeaseIn:  uint64(senderBalanceProfile.leaseIn),
-		LeaseOut: uint64(senderBalanceProfile.leaseOut + amount),
-	}
-
-	receiverBalanceProfile, err := sg.stor.balances.newestWavesBalance(receiverAddress.ID())
-	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to receive recipient's waves balance")
-	}
-	recipientLeaseBalanceSnapshot := &proto.LeaseBalanceSnapshot{
-		Address:  receiverAddress,
-		LeaseIn:  uint64(receiverBalanceProfile.leaseIn + amount),
-		LeaseOut: uint64(receiverBalanceProfile.leaseOut),
-	}
-
-	return leaseStatusSnapshot, senderLeaseBalanceSnapshot, recipientLeaseBalanceSnapshot, nil
 }
 
 func (sg *snapshotGenerator) generateOrderAtomicSnapshot(orderID []byte,
@@ -416,7 +578,7 @@ func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges txDiff) (pr
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
-	wavesBalancesSnapshot, assetBalancesSnapshot, err :=
+	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
 		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
@@ -424,27 +586,34 @@ func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges txDiff) (pr
 	for i := range wavesBalancesSnapshot {
 		transactionSnapshot = append(transactionSnapshot, &wavesBalancesSnapshot[i])
 	}
+	for i := range leaseBalancesSnapshot {
+		transactionSnapshot = append(transactionSnapshot, &leaseBalancesSnapshot[i])
+	}
 	for i := range assetBalancesSnapshot {
 		transactionSnapshot = append(transactionSnapshot, &assetBalancesSnapshot[i])
 	}
 	return transactionSnapshot, nil
 }
 
-func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(addrWavesBalanceDiff addressWavesBalanceDiff,
-	addrAssetBalanceDiff addressAssetBalanceDiff) ([]proto.WavesBalanceSnapshot, []proto.AssetBalanceSnapshot, error) {
-	wavesBalanceSnapshot, err := sg.wavesBalanceSnapshotFromBalanceDiff(addrWavesBalanceDiff)
+func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
+	addrWavesBalanceDiff addressWavesBalanceDiff,
+	addrAssetBalanceDiff addressAssetBalanceDiff) (
+	[]proto.WavesBalanceSnapshot,
+	[]proto.AssetBalanceSnapshot,
+	[]proto.LeaseBalanceSnapshot, error) {
+	wavesBalanceSnapshot, leaseBalanceSnapshot, err := sg.wavesBalanceSnapshotFromBalanceDiff(addrWavesBalanceDiff)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to construct waves balance snapshot")
+		return nil, nil, nil, errors.Wrap(err, "failed to construct waves balance snapshot")
 	}
 	if len(addrAssetBalanceDiff) == 0 {
-		return wavesBalanceSnapshot, nil, nil
+		return wavesBalanceSnapshot, nil, leaseBalanceSnapshot, nil
 	}
 
 	assetBalanceSnapshot, err := sg.assetBalanceSnapshotFromBalanceDiff(addrAssetBalanceDiff)
 	if err != nil {
-		return nil, nil, errors.Wrap(err, "failed to construct asset balance snapshot")
+		return nil, nil, nil, errors.Wrap(err, "failed to construct asset balance snapshot")
 	}
-	return wavesBalanceSnapshot, assetBalanceSnapshot, nil
+	return wavesBalanceSnapshot, assetBalanceSnapshot, leaseBalanceSnapshot, nil
 }
 
 func balanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWavesBalanceDiff, addressAssetBalanceDiff, error) {
@@ -477,9 +646,6 @@ func balanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWavesBalanc
 		}
 		// if the waves balance diff is 0, it means it did not change.
 		// The reason for the 0 diff to exist is because of how LeaseIn and LeaseOut are handled in transaction differ.
-		if diffAmount.balance == 0 {
-			continue
-		}
 		addrWavesBalanceDiff[address] = diffAmount
 	}
 	return addrWavesBalanceDiff, addrAssetBalanceDiff, nil
@@ -487,22 +653,33 @@ func balanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWavesBalanc
 
 // from txDiff and fees. no validation needed at this point.
 func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
-	diff addressWavesBalanceDiff) ([]proto.WavesBalanceSnapshot, error) {
+	diff addressWavesBalanceDiff) ([]proto.WavesBalanceSnapshot, []proto.LeaseBalanceSnapshot, error) {
 	var wavesBalances []proto.WavesBalanceSnapshot
+	var leaseBalances []proto.LeaseBalanceSnapshot
 	// add miner address to the diff
 
 	for wavesAddress, diffAmount := range diff {
 		fullBalance, err := sg.stor.balances.newestWavesBalance(wavesAddress.ID())
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
+			return nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
-		newBalance := proto.WavesBalanceSnapshot{
-			Address: wavesAddress,
-			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
+		if diffAmount.balance != 0 {
+			newBalance := proto.WavesBalanceSnapshot{
+				Address: wavesAddress,
+				Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
+			}
+			wavesBalances = append(wavesBalances, newBalance)
 		}
-		wavesBalances = append(wavesBalances, newBalance)
+		if diffAmount.leaseIn != 0 || diffAmount.leaseOut != 0 {
+			newLeaseBalance := proto.LeaseBalanceSnapshot{
+				Address:  wavesAddress,
+				LeaseIn:  uint64(fullBalance.leaseIn + diffAmount.leaseIn),
+				LeaseOut: uint64(fullBalance.leaseOut + diffAmount.leaseOut),
+			}
+			leaseBalances = append(leaseBalances, newLeaseBalance)
+		}
 	}
-	return wavesBalances, nil
+	return wavesBalances, leaseBalances, nil
 }
 
 func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(

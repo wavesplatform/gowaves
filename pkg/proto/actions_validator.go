@@ -14,6 +14,10 @@ func (c *StateActionsCounter) NextIssueActionNumber() uint32 {
 	return c.issueActionsCount
 }
 
+func (c *StateActionsCounter) CurrentIssueActionNumber() uint32 {
+	return c.issueActionsCount
+}
+
 type ActionsValidationRestrictions struct {
 	DisableSelfTransfers  bool
 	ScriptAddress         WavesAddress
