@@ -16,7 +16,7 @@ func newSnapshotsAtHeight(hs *historyStorage) *snapshotsAtHeight {
 func (s *snapshotsAtHeight) saveSnapshots(
 	blockID proto.BlockID,
 	blockHeight uint64,
-	txSnapshots proto.TransactionSnapshot,
+	txSnapshots txSnapshot,
 ) error {
 	key := snapshotsKey{height: blockHeight}
 	txSnapshotsProto, err := txSnapshots.ToProtobuf()

@@ -46,7 +46,7 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplier
 	}
 }
 
-var _ = proto.SnapshotApplier((*blockSnapshotsApplier)(nil))
+var _ = extendedSnapshotApplier((*blockSnapshotsApplier)(nil))
 
 type blockSnapshotsApplierInfo struct {
 	ci                  *checkerInfo
@@ -238,47 +238,43 @@ func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatu
 	return nil // no-op
 }
 
-func (a *blockSnapshotsApplier) ApplyInternalSnapshot(
-	internalSnapshot proto.InternalSnapshot) error {
-	switch snapshot := internalSnapshot.(type) {
-	case *InternalDAppComplexitySnapshot:
-		scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-			scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
-		// Save full complexity of both callable and verifier when the script is set first time
-		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(snapshot.ScriptAddress,
-			scriptEstimation, a.info.BlockID()); setErr != nil {
-			return errors.Wrapf(setErr, "failed to save script complexities for addr %q",
-				snapshot.ScriptAddress.String())
-		}
-		return nil
-
-	case InternalDAppUpdateComplexitySnapshot:
-		scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-			scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
-		// we've pulled up an old script which estimation had been done by an old estimator
-		// in txChecker we've estimated script with a new estimator
-		// this is the place where we have to store new estimation
-		// update callable and summary complexity, verifier complexity remains the same
-		if scErr := a.stor.scriptsComplexity.updateCallableComplexitiesForAddr(
-			snapshot.ScriptAddress,
-			scriptEstimation, a.info.BlockID()); scErr != nil {
-			return errors.Wrapf(scErr, "failed to save complexity for addr %q",
-				snapshot.ScriptAddress,
-			)
-		}
-	case *InternalAssetScriptComplexitySnapshot:
-		scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-			scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
-		// Save full complexity of both callable and verifier when the script is set first time
-		if setErr := a.stor.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID,
-			scriptEstimation, a.info.BlockID()); setErr != nil {
-			return errors.Wrapf(setErr, "failed to save script complexities for asset ID %q",
-				snapshot.AssetID.String())
-		}
-		return nil
-	default:
-		return errors.New("failed to apply internal snapshot, unknown type")
+func (a *blockSnapshotsApplier) ApplyDAppComplexity(snapshot InternalDAppComplexitySnapshot) error {
+	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+		scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
+	// Save full complexity of both callable and verifier when the script is set first time
+	if setErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(snapshot.ScriptAddress,
+		scriptEstimation, a.info.BlockID()); setErr != nil {
+		return errors.Wrapf(setErr, "failed to save script complexities for addr %q",
+			snapshot.ScriptAddress.String())
 	}
+	return nil
+}
 
+func (a *blockSnapshotsApplier) ApplyDAppUpdateComplexity(snapshot InternalDAppUpdateComplexitySnapshot) error {
+	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+		scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
+	// we've pulled up an old script which estimation had been done by an old estimator
+	// in txChecker we've estimated script with a new estimator
+	// this is the place where we have to store new estimation
+	// update callable and summary complexity, verifier complexity remains the same
+	if scErr := a.stor.scriptsComplexity.updateCallableComplexitiesForAddr(
+		snapshot.ScriptAddress,
+		scriptEstimation, a.info.BlockID()); scErr != nil {
+		return errors.Wrapf(scErr, "failed to save complexity for addr %q",
+			snapshot.ScriptAddress,
+		)
+	}
+	return nil
+}
+
+func (a *blockSnapshotsApplier) ApplyAssetScriptComplexity(snapshot InternalAssetScriptComplexitySnapshot) error {
+	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
+		scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
+	// Save full complexity of both callable and verifier when the script is set first time
+	if setErr := a.stor.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID,
+		scriptEstimation, a.info.BlockID()); setErr != nil {
+		return errors.Wrapf(setErr, "failed to save script complexities for asset ID %q",
+			snapshot.AssetID.String())
+	}
 	return nil
 }

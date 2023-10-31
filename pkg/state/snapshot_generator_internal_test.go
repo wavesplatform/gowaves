@@ -2,9 +2,7 @@ package state
 
 import (
 	"encoding/base64"
-	"encoding/json"
 	"math/big"
-	"sort"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -56,6 +54,11 @@ func createCheckerCustomTestObjects(t *testing.T, differ *differTestObjects) *ch
 	return &checkerTestObjects{differ.stor, tc, differ.tp, differ.stateActionsCounter}
 }
 
+func txSnapshotsEqual(t *testing.T, expected, actual txSnapshot) {
+	_ = assert.ElementsMatch(t, expected.regular, actual.regular)
+	_ = assert.ElementsMatch(t, expected.internal, actual.internal)
+}
+
 func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 	checkerInfo := customCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
@@ -79,39 +82,25 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 	transactionSnapshot, err := to.tp.performTransferWithSig(tx,
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform transfer tx")
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.issuerInfo.addr,
+				Balance: 299700000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.recipientInfo.addr,
+				Balance: 200000,
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.issuerInfo.addr,
-			Balance: 299700000,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.recipientInfo.addr,
-			Balance: 200000,
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -139,61 +128,47 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform issue tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.StaticAssetInfoSnapshot{
-			AssetID:             *tx.ID,
-			SourceTransactionID: *tx.ID,
-			IssuerPublicKey:     testGlobal.issuerInfo.pk,
-			Decimals:            defaultDecimals,
-			IsNFT:               false},
-		&proto.AssetDescriptionSnapshot{
-			AssetID:          *tx.ID,
-			AssetName:        "asset0",
-			AssetDescription: "description",
-			ChangeHeight:     1,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.StaticAssetInfoSnapshot{
+				AssetID:             *tx.ID,
+				SourceTransactionID: *tx.ID,
+				IssuerPublicKey:     testGlobal.issuerInfo.pk,
+				Decimals:            defaultDecimals,
+				IsNFT:               false},
+			&proto.AssetDescriptionSnapshot{
+				AssetID:          *tx.ID,
+				AssetName:        "asset0",
+				AssetDescription: "description",
+				ChangeHeight:     1,
+			},
+			&proto.AssetVolumeSnapshot{
+				AssetID:       *tx.ID,
+				TotalQuantity: *big.NewInt(int64(defaultQuantity)),
+				IsReissuable:  true,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.issuerInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.issuerInfo.addr,
+				AssetID: *tx.ID,
+				Balance: 1000,
+			},
+			&proto.AssetScriptSnapshot{
+				AssetID: *tx.ID,
+				Script:  proto.Script{},
+			},
 		},
-		&proto.AssetVolumeSnapshot{
-			AssetID:       *tx.ID,
-			TotalQuantity: *big.NewInt(int64(defaultQuantity)),
-			IsReissuable:  true,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.issuerInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.issuerInfo.addr,
-			AssetID: *tx.ID,
-			Balance: 1000,
-		},
-		&proto.AssetScriptSnapshot{
-			AssetID: *tx.ID,
-			Script:  proto.Script{},
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -227,45 +202,31 @@ func TestDefaultReissueSnapshot(t *testing.T) {
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform reissue tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.issuerInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.issuerInfo.addr,
+				AssetID: testGlobal.asset0.assetID,
+				Balance: 1050,
+			},
+			&proto.AssetVolumeSnapshot{
+				AssetID:       testGlobal.asset0.assetID,
+				TotalQuantity: *big.NewInt(int64(defaultQuantity + 50)),
+				IsReissuable:  false,
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.issuerInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.issuerInfo.addr,
-			AssetID: testGlobal.asset0.assetID,
-			Balance: 1050,
-		},
-		&proto.AssetVolumeSnapshot{
-			AssetID:       testGlobal.asset0.assetID,
-			TotalQuantity: *big.NewInt(int64(defaultQuantity + 50)),
-			IsReissuable:  false,
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -298,45 +259,31 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.issuerInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.issuerInfo.addr,
+				AssetID: testGlobal.asset0.assetID,
+				Balance: 950,
+			},
+			&proto.AssetVolumeSnapshot{
+				AssetID:       testGlobal.asset0.assetID,
+				TotalQuantity: *big.NewInt(int64(defaultQuantity - 100)),
+				IsReissuable:  false,
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.issuerInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.issuerInfo.addr,
-			AssetID: testGlobal.asset0.assetID,
-			Balance: 950,
-		},
-		&proto.AssetVolumeSnapshot{
-			AssetID:       testGlobal.asset0.assetID,
-			TotalQuantity: *big.NewInt(int64(defaultQuantity - 100)),
-			IsReissuable:  false,
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -398,73 +345,59 @@ func TestDefaultExchangeTransaction(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299999999,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299999999,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.recipientInfo.addr,
+				Balance: 599999998,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.matcherInfo.addr,
+				Balance: 899900003,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				AssetID: testGlobal.asset0.assetID,
+				Balance: 10,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.recipientInfo.addr,
+				AssetID: testGlobal.asset0.assetID,
+				Balance: 590,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				AssetID: testGlobal.asset1.assetID,
+				Balance: 400,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.recipientInfo.addr,
+				AssetID: testGlobal.asset1.assetID,
+				Balance: 100,
+			},
+			&proto.FilledVolumeFeeSnapshot{
+				OrderID:      *bo.ID,
+				FilledVolume: 10,
+				FilledFee:    1,
+			},
+			&proto.FilledVolumeFeeSnapshot{
+				OrderID:      *so.ID,
+				FilledVolume: 10,
+				FilledFee:    2,
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.recipientInfo.addr,
-			Balance: 599999998,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.matcherInfo.addr,
-			Balance: 899900003,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
-		},
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			AssetID: testGlobal.asset0.assetID,
-			Balance: 10,
-		},
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.recipientInfo.addr,
-			AssetID: testGlobal.asset0.assetID,
-			Balance: 590,
-		},
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			AssetID: testGlobal.asset1.assetID,
-			Balance: 400,
-		},
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.recipientInfo.addr,
-			AssetID: testGlobal.asset1.assetID,
-			Balance: 100,
-		},
-		&proto.FilledVolumeFeeSnapshot{
-			OrderID:      *bo.ID,
-			FilledVolume: 10,
-			FilledFee:    1,
-		},
-		&proto.FilledVolumeFeeSnapshot{
-			OrderID:      *so.ID,
-			FilledVolume: 10,
-			FilledFee:    2,
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -490,56 +423,42 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.LeaseStateSnapshot{
-			LeaseID: *tx.ID,
-			Status: proto.LeaseStateStatus{
-				Value: proto.LeaseActive,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
 			},
-			Amount:              50,
-			Sender:              testGlobal.senderInfo.addr,
-			Recipient:           testGlobal.recipientInfo.addr,
-			OriginTransactionID: tx.ID,
-			Height:              0,
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.LeaseStateSnapshot{
+				LeaseID: *tx.ID,
+				Status: proto.LeaseStateStatus{
+					Value: proto.LeaseActive,
+				},
+				Amount:              50,
+				Sender:              testGlobal.senderInfo.addr,
+				Recipient:           testGlobal.recipientInfo.addr,
+				OriginTransactionID: tx.ID,
+				Height:              0,
+			},
+			&proto.LeaseBalanceSnapshot{
+				Address:  testGlobal.senderInfo.addr,
+				LeaseIn:  0,
+				LeaseOut: 50,
+			},
+			&proto.LeaseBalanceSnapshot{
+				Address:  testGlobal.recipientInfo.addr,
+				LeaseIn:  50,
+				LeaseOut: 0,
+			},
 		},
-		&proto.LeaseBalanceSnapshot{
-			Address:  testGlobal.senderInfo.addr,
-			LeaseIn:  0,
-			LeaseOut: 50,
-		},
-		&proto.LeaseBalanceSnapshot{
-			Address:  testGlobal.recipientInfo.addr,
-			LeaseIn:  50,
-			LeaseOut: 0,
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -581,57 +500,44 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.LeaseStateSnapshot{
-			LeaseID: leaseID,
-			Status: proto.LeaseStateStatus{
-				Value:               proto.LeaseCanceled,
-				CancelHeight:        0,
-				CancelTransactionID: tx.ID,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
 			},
-			Amount:              50,
-			Sender:              testGlobal.senderInfo.addr,
-			Recipient:           testGlobal.recipientInfo.addr,
-			OriginTransactionID: &leaseID,
-			Height:              1,
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.LeaseStateSnapshot{
+				LeaseID: leaseID,
+				Status: proto.LeaseStateStatus{
+					Value:               proto.LeaseCanceled,
+					CancelHeight:        0,
+					CancelTransactionID: tx.ID,
+				},
+				Amount:              50,
+				Sender:              testGlobal.senderInfo.addr,
+				Recipient:           testGlobal.recipientInfo.addr,
+				OriginTransactionID: &leaseID,
+				Height:              1,
+			},
+			&proto.LeaseBalanceSnapshot{
+				Address:  testGlobal.senderInfo.addr,
+				LeaseIn:  0,
+				LeaseOut: 0,
+			},
+			&proto.LeaseBalanceSnapshot{
+				Address:  testGlobal.recipientInfo.addr,
+				LeaseIn:  0,
+				LeaseOut: 0,
+			},
 		},
-		&proto.LeaseBalanceSnapshot{
-			Address:  testGlobal.senderInfo.addr,
-			LeaseIn:  0,
-			LeaseOut: 0,
-		},
-		&proto.LeaseBalanceSnapshot{
-			Address:  testGlobal.recipientInfo.addr,
-			LeaseIn:  0,
-			LeaseOut: 0,
-		},
+		internal: nil,
 	}
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
 
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -656,39 +562,25 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.AliasSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Alias:   *proto.NewAlias(proto.TestNetScheme, "aliasForSender"),
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.AliasSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Alias:   *proto.NewAlias(proto.TestNetScheme, "aliasForSender"),
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -721,40 +613,26 @@ func TestDefaultDataSnapshot(t *testing.T) {
 		nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.DataEntriesSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				DataEntries: []proto.DataEntry{&proto.StringDataEntry{Key: "key_str", Value: "value_str"},
+					&proto.IntegerDataEntry{Key: "key_int", Value: 2}},
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.DataEntriesSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			DataEntries: []proto.DataEntry{&proto.StringDataEntry{Key: "key_str", Value: "value_str"},
-				&proto.IntegerDataEntry{Key: "key_int", Value: 2}},
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -780,40 +658,25 @@ func TestDefaultSponsorshipSnapshot(t *testing.T) {
 		defaultPerformerInfo(to.stateActionsCounter), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.SponsorshipSnapshot{
+				AssetID:         testGlobal.asset0.assetID,
+				MinSponsoredFee: 500000,
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.SponsorshipSnapshot{
-			AssetID:         testGlobal.asset0.assetID,
-			MinSponsoredFee: 500000,
-		},
+		internal: nil,
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -874,45 +737,32 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.AccountScriptSnapshot{
+				SenderPublicKey:    testGlobal.senderInfo.pk,
+				Script:             scriptsBytes,
+				VerifierComplexity: 0,
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.AccountScriptSnapshot{
-			SenderPublicKey:    testGlobal.senderInfo.pk,
-			Script:             scriptsBytes,
-			VerifierComplexity: 0,
-		},
-		&InternalDAppComplexitySnapshot{
-			ScriptAddress: testGlobal.senderInfo.addr,
-			Estimation:    ride.TreeEstimation{Estimation: 36, Verifier: 0, Functions: map[string]int{"call": 36}},
-			ScriptIsEmpty: false,
+		internal: []internalSnapshot{
+			&InternalDAppComplexitySnapshot{
+				ScriptAddress: testGlobal.senderInfo.addr,
+				Estimation:    ride.TreeEstimation{Estimation: 36, Verifier: 0, Functions: map[string]int{"call": 36}},
+				ScriptIsEmpty: false,
+			},
 		},
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -944,44 +794,31 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.AccountScriptSnapshot{
+				SenderPublicKey:    testGlobal.senderInfo.pk,
+				Script:             testGlobal.scriptBytes,
+				VerifierComplexity: 340,
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.AccountScriptSnapshot{
-			SenderPublicKey:    testGlobal.senderInfo.pk,
-			Script:             testGlobal.scriptBytes,
-			VerifierComplexity: 340,
-		},
-		&InternalDAppComplexitySnapshot{
-			ScriptAddress: testGlobal.senderInfo.addr,
-			Estimation:    ride.TreeEstimation{Estimation: 340, Verifier: 340},
+		internal: []internalSnapshot{
+			&InternalDAppComplexitySnapshot{
+				ScriptAddress: testGlobal.senderInfo.addr,
+				Estimation:    ride.TreeEstimation{Estimation: 340, Verifier: 340},
+			},
 		},
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -1013,45 +850,32 @@ func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
 		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.AccountScriptSnapshot{
+				SenderPublicKey:    testGlobal.senderInfo.pk,
+				Script:             nil,
+				VerifierComplexity: 0,
+			},
 		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-		&proto.AccountScriptSnapshot{
-			SenderPublicKey:    testGlobal.senderInfo.pk,
-			Script:             nil,
-			VerifierComplexity: 0,
-		},
-		&InternalDAppComplexitySnapshot{
-			ScriptAddress: testGlobal.senderInfo.addr,
-			Estimation:    ride.TreeEstimation{Estimation: 0, Verifier: 0},
-			ScriptIsEmpty: true,
+		internal: []internalSnapshot{
+			&InternalDAppComplexitySnapshot{
+				ScriptAddress: testGlobal.senderInfo.addr,
+				Estimation:    ride.TreeEstimation{Estimation: 0, Verifier: 0},
+				ScriptIsEmpty: true,
+			},
 		},
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 
@@ -1093,50 +917,35 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
-	expectedSnapshot := proto.TransactionSnapshot{
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.minerInfo.addr,
-			Balance: 40000,
-		},
-		&proto.WavesBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			Balance: 299900000,
-		},
-
-		&proto.AssetScriptSnapshot{
-			AssetID: testGlobal.asset0.assetID,
-			Script:  testGlobal.scriptBytes,
-		},
-		&InternalAssetScriptComplexitySnapshot{
-			AssetID: testGlobal.asset0.assetID,
-			Estimation: ride.TreeEstimation{
-				Estimation: 340,
-				Verifier:   340,
-				Functions:  nil,
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 40000,
 			},
-			ScriptIsEmpty: false,
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 299900000,
+			},
+			&proto.AssetScriptSnapshot{
+				AssetID: testGlobal.asset0.assetID,
+				Script:  testGlobal.scriptBytes,
+			},
+		},
+		internal: []internalSnapshot{
+			&InternalAssetScriptComplexitySnapshot{
+				AssetID: testGlobal.asset0.assetID,
+				Estimation: ride.TreeEstimation{
+					Estimation: 340,
+					Verifier:   340,
+					Functions:  nil,
+				},
+				ScriptIsEmpty: false,
+			},
 		},
 	}
 
-	var snapshotI []byte
-	var snapshotJ []byte
-	sort.Slice(expectedSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(expectedSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(expectedSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	sort.Slice(transactionSnapshot, func(i, j int) bool {
-		snapshotI, err = json.Marshal(transactionSnapshot[i])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		snapshotJ, err = json.Marshal(transactionSnapshot[j])
-		assert.NoError(t, err, "failed to marshal snapshots")
-		return string(snapshotI) < string(snapshotJ)
-	})
-
-	assert.Equal(t, expectedSnapshot, transactionSnapshot)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
 

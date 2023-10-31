@@ -2,10 +2,19 @@ package state
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
+
+type internalSnapshot interface {
+	ApplyInternal(internalSnapshotApplier) error
+}
+
+type internalSnapshotApplier interface {
+	ApplyDAppComplexity(snapshot InternalDAppComplexitySnapshot) error
+	ApplyDAppUpdateComplexity(snapshot InternalDAppUpdateComplexitySnapshot) error
+	ApplyAssetScriptComplexity(snapshot InternalAssetScriptComplexitySnapshot) error
+}
 
 /*
 Below are internal snapshots only.
@@ -17,23 +26,9 @@ type InternalDAppComplexitySnapshot struct {
 	ScriptIsEmpty bool
 }
 
-func (s InternalDAppComplexitySnapshot) IsGeneratedByTxDiff() bool {
-	return false
+func (s InternalDAppComplexitySnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyDAppComplexity(s)
 }
-
-func (s InternalDAppComplexitySnapshot) Apply(a proto.SnapshotApplier) error {
-	return a.ApplyInternalSnapshot(&s)
-}
-
-func (s InternalDAppComplexitySnapshot) IsInternal() bool {
-	return true
-}
-
-func (s InternalDAppComplexitySnapshot) AppendToProtobuf(_ *g.TransactionStateSnapshot) error {
-	return nil
-}
-
-func (s InternalDAppComplexitySnapshot) InternalSnapshotMarker() {}
 
 type InternalDAppUpdateComplexitySnapshot struct {
 	ScriptAddress proto.WavesAddress
@@ -41,22 +36,8 @@ type InternalDAppUpdateComplexitySnapshot struct {
 	ScriptIsEmpty bool
 }
 
-func (s InternalDAppUpdateComplexitySnapshot) IsGeneratedByTxDiff() bool {
-	return false
-}
-
-func (s InternalDAppUpdateComplexitySnapshot) Apply(a proto.SnapshotApplier) error {
-	return a.ApplyInternalSnapshot(&s)
-}
-
-func (s InternalDAppUpdateComplexitySnapshot) IsInternal() bool {
-	return true
-}
-
-func (s InternalDAppUpdateComplexitySnapshot) InternalSnapshotMarker() {}
-
-func (s InternalDAppUpdateComplexitySnapshot) AppendToProtobuf(_ *g.TransactionStateSnapshot) error {
-	return nil
+func (s InternalDAppUpdateComplexitySnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyDAppUpdateComplexity(s)
 }
 
 type InternalAssetScriptComplexitySnapshot struct {
@@ -65,20 +46,6 @@ type InternalAssetScriptComplexitySnapshot struct {
 	ScriptIsEmpty bool
 }
 
-func (s InternalAssetScriptComplexitySnapshot) IsGeneratedByTxDiff() bool {
-	return false
-}
-
-func (s InternalAssetScriptComplexitySnapshot) Apply(a proto.SnapshotApplier) error {
-	return a.ApplyInternalSnapshot(&s)
-}
-
-func (s InternalAssetScriptComplexitySnapshot) IsInternal() bool {
-	return true
-}
-
-func (s InternalAssetScriptComplexitySnapshot) InternalSnapshotMarker() {}
-
-func (s InternalAssetScriptComplexitySnapshot) AppendToProtobuf(_ *g.TransactionStateSnapshot) error {
-	return nil
+func (s InternalAssetScriptComplexitySnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyAssetScriptComplexity(s)
 }
