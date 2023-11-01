@@ -560,6 +560,7 @@ func (s *balances) newestWavesRecord(key []byte) (wavesBalanceRecord, error) {
 	return record, nil
 }
 
+// newestWavesBalance returns newest waves balanceProfile.
 func (s *balances) newestWavesBalance(addr proto.AddressID) (balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
 	r, err := s.newestWavesRecord(key.bytes())
@@ -584,6 +585,8 @@ func (s *balances) wavesRecord(key []byte) (wavesBalanceRecord, error) {
 	return record, nil
 }
 
+// wavesBalance returns stored waves balanceProfile.
+// IMPORTANT NOTE: this method returns saved on disk data, for the newest data use newestWavesBalance.
 func (s *balances) wavesBalance(addr proto.AddressID) (balanceProfile, error) {
 	key := wavesBalanceKey{address: addr}
 	r, err := s.wavesRecord(key.bytes())

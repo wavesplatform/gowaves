@@ -24,7 +24,7 @@ type scriptEstimation struct {
 func (e *scriptEstimation) isPresent() bool { return e != nil }
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) (txCheckerData, error)
-type txPerformFunc func(proto.Transaction, *performerInfo, *invocationResult, txDiff) (proto.TransactionSnapshot, error)
+type txPerformFunc func(proto.Transaction, *performerInfo, *invocationResult, txDiff) (txSnapshot, error)
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
 
@@ -199,17 +199,16 @@ func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) (t
 }
 
 func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff) (proto.TransactionSnapshot, error) {
+	invocationRes *invocationResult, balanceChanges txDiff) (txSnapshot, error) {
 	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
-		return nil, errors.Errorf("no function handler implemented for tx struct type %T", tx)
+		return txSnapshot{}, errors.Errorf("no function handler implemented for tx struct type %T", tx)
 	}
 	if funcs.perform == nil {
-		// No perform func for this combination of transaction type and version.
-		return nil, nil
+		// performer function must not be nil
+		return txSnapshot{}, errors.Errorf("performer function handler is nil for tx struct type %T", tx)
 	}
-
 	return funcs.perform(tx, info, invocationRes, balanceChanges)
 }
 

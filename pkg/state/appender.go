@@ -14,8 +14,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-const snapshotLimit = 1000
-
 type blockInfoProvider interface {
 	NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error)
 }
@@ -327,11 +325,11 @@ func (a *txAppender) commitTxApplication(
 	tx proto.Transaction,
 	params *appendTxParams,
 	invocationRes *invocationResult,
-	applicationRes *applicationResult) (proto.TransactionSnapshot, error) {
+	applicationRes *applicationResult) (txSnapshot, error) {
 	// Add transaction ID to recent IDs.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to get tx id: %v", err))
+		return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to get tx id: %v", err))
 	}
 	a.recentTxIds[string(txID)] = empty
 	// Update script runs.
@@ -340,11 +338,11 @@ func (a *txAppender) commitTxApplication(
 	a.sc.addRecentTxComplexity()
 	// Save balance diff.
 	if err = a.diffStor.saveTxDiff(applicationRes.changes.diff); err != nil {
-		return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
+		return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
 	}
 	currentMinerAddress := proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK)
 
-	var snapshot proto.TransactionSnapshot
+	var snapshot txSnapshot
 	if applicationRes.status {
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
@@ -356,22 +354,26 @@ func (a *txAppender) commitTxApplication(
 		}
 		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
 		if err != nil {
-			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
+			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
 	}
 	if params.validatingUtx {
 		// Save transaction to in-mem storage.
 		if err = a.rw.writeTransactionToMem(tx, !applicationRes.status); err != nil {
-			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to in mem stor: %v", err))
+			return txSnapshot{}, wrapErr(TxCommitmentError,
+				errors.Errorf("failed to write transaction to in mem stor: %v", err),
+			)
 		}
 	} else {
 		// Count tx fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
-			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
+			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
 		}
 		// Save transaction to storage.
 		if err = a.rw.writeTransaction(tx, !applicationRes.status); err != nil {
-			return nil, wrapErr(TxCommitmentError, errors.Errorf("failed to write transaction to storage: %v", err))
+			return txSnapshot{}, wrapErr(TxCommitmentError,
+				errors.Errorf("failed to write transaction to storage: %v", err),
+			)
 		}
 	}
 	// TODO: transaction status snapshot has to be appended here
@@ -422,7 +424,7 @@ type appendTxParams struct {
 	currentMinerPK                   crypto.PublicKey
 
 	snapshotGenerator *snapshotGenerator
-	snapshotApplier   proto.SnapshotApplier
+	snapshotApplier   extendedSnapshotApplier
 }
 
 func (a *txAppender) handleInvokeOrExchangeTransaction(
@@ -573,10 +575,8 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
 		return err
 	}
-	// a temporary dummy for linters
-	if len(snapshot) > snapshotLimit {
-		zap.S().Debug(snapshot)
-	}
+	// TODO: a temporary dummy for linters
+	_ = snapshot
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
 		if err := a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID); err != nil {
@@ -587,24 +587,24 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 }
 
 // rewards and 60% of the fee to the previous miner.
-func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (proto.TransactionSnapshot, error) {
+func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (txSnapshot, error) {
 	addrWavesBalanceDiff, _, err := balanceDiffFromTxDiff(minerAndRewardDiff, a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to create balance diff from tx diff")
+		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
 	// add miner address to the diff
-	var snapshot proto.TransactionSnapshot
+	var snapshot txSnapshot
 	for wavesAddress, diffAmount := range addrWavesBalanceDiff {
 		var fullBalance balanceProfile
-		fullBalance, err = a.stor.balances.wavesBalance(wavesAddress.ID())
+		fullBalance, err = a.stor.balances.newestWavesBalance(wavesAddress.ID())
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
+			return txSnapshot{}, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
 		newBalance := &proto.WavesBalanceSnapshot{
 			Address: wavesAddress,
 			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
 		}
-		snapshot = append(snapshot, newBalance)
+		snapshot.regular = append(snapshot.regular, newBalance)
 	}
 	return snapshot, nil
 }
