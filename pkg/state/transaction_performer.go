@@ -456,27 +456,10 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	if err != nil {
 		return txSnapshot{}, err
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvoke(txID, balanceChanges)
+	se := info.checkerData.scriptEstimation
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScript(txID, tx.ScriptRecipient, balanceChanges, se)
 	if err != nil {
 		return txSnapshot{}, err
-	}
-	se := info.checkerData.scriptEstimation
-	if se.isPresent() { // nothing to do, no estimation to save
-		// script estimation is present an not nil
-
-		// we've pulled up an old script which estimation had been done by an old estimator
-		// in txChecker we've estimated script with a new estimator
-		// this is the place where we have to store new estimation
-		scriptAddr, cnvrtErr := recipientToAddress(tx.ScriptRecipient, tp.stor.aliases)
-		if cnvrtErr != nil {
-			return txSnapshot{}, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
-		}
-		// update callable and summary complexity, verifier complexity remains the same
-		if scErr := tp.stor.scriptsComplexity.updateCallableComplexitiesForAddr(scriptAddr, *se, info.blockID); scErr != nil {
-			return txSnapshot{}, errors.Wrapf(scErr, "failed to save complexity for addr %q in tx %q",
-				scriptAddr.String(), tx.ID.String(),
-			)
-		}
 	}
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
@@ -487,7 +470,6 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
-
 	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
 	if err != nil {
 		return txSnapshot{}, errors.Errorf("failed to get transaction ID: %v", err)

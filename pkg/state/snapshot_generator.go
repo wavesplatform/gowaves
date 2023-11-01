@@ -472,7 +472,33 @@ func generateSnapshotsFromSponsoredAssetsUncertain(
 	return atomicSnapshots
 }
 
-func (sg *snapshotGenerator) generateSnapshotForInvoke(txID crypto.Digest,
+func (sg *snapshotGenerator) generateSnapshotForInvokeScript(txID crypto.Digest,
+	scriptRecipient proto.Recipient,
+	balanceChanges txDiff, scriptEstimation *scriptEstimation) (txSnapshot, error) {
+	snapshot, err := sg.snapshotForInvoke(txID, balanceChanges)
+	if err != nil {
+		return txSnapshot{}, err
+	}
+	if scriptEstimation.isPresent() {
+		// script estimation is present an not nil
+		// we've pulled up an old script which estimation had been done by an old estimator
+		// in txChecker we've estimated script with a new estimator
+		// this is the place where we have to store new estimation
+		scriptAddr, cnvrtErr := recipientToAddress(scriptRecipient, sg.stor.aliases)
+		if cnvrtErr != nil {
+			return txSnapshot{}, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
+		}
+		internalSnapshotDAppUpdateCmplx := &InternalDAppUpdateComplexitySnapshot{
+			ScriptAddress: scriptAddr,
+			Estimation:    scriptEstimation.estimation,
+			ScriptIsEmpty: scriptEstimation.scriptIsEmpty,
+		}
+		snapshot.internal = append(snapshot.internal, internalSnapshotDAppUpdateCmplx)
+	}
+	return snapshot, nil
+}
+
+func (sg *snapshotGenerator) snapshotForInvoke(txID crypto.Digest,
 	balanceChanges txDiff) (txSnapshot, error) {
 	var snapshot txSnapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
@@ -547,12 +573,12 @@ func (sg *snapshotGenerator) generateSnapshotForInvoke(txID crypto.Digest,
 
 func (sg *snapshotGenerator) generateSnapshotForInvokeExpressionTx(txID crypto.Digest,
 	balanceChanges txDiff) (txSnapshot, error) {
-	return sg.generateSnapshotForInvoke(txID, balanceChanges)
+	return sg.snapshotForInvoke(txID, balanceChanges)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(txID crypto.Digest,
 	balanceChanges txDiff) (txSnapshot, error) {
-	return sg.generateSnapshotForInvoke(txID, balanceChanges)
+	return sg.snapshotForInvoke(txID, balanceChanges)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string,
