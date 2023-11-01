@@ -434,14 +434,11 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 			},
 			&proto.LeaseStateSnapshot{
 				LeaseID: *tx.ID,
-				Status: proto.LeaseStateStatus{
-					Value: proto.LeaseActive,
+				Status: &proto.LeaseStateStatusActive{
+					Amount:    50,
+					Sender:    testGlobal.senderInfo.addr,
+					Recipient: testGlobal.recipientInfo.addr,
 				},
-				Amount:              50,
-				Sender:              testGlobal.senderInfo.addr,
-				Recipient:           testGlobal.recipientInfo.addr,
-				OriginTransactionID: tx.ID,
-				Height:              0,
 			},
 			&proto.LeaseBalanceSnapshot{
 				Address:  testGlobal.senderInfo.addr,
@@ -454,7 +451,13 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 				LeaseOut: 0,
 			},
 		},
-		internal: nil,
+		internal: []internalSnapshot{
+			&InternalLeaseStateActiveInfoSnapshot{
+				LeaseID:             *tx.ID,
+				OriginHeight:        0,
+				OriginTransactionID: tx.ID,
+			},
+		},
 	}
 
 	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
@@ -473,8 +476,8 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 		Sender:              testGlobal.senderInfo.addr,
 		Recipient:           testGlobal.recipientInfo.addr,
 		Amount:              50,
-		Height:              1,
-		Status:              proto.LeaseActive,
+		OriginHeight:        1,
+		Status:              LeaseActive,
 		OriginTransactionID: &leaseID,
 	}
 	err := to.stor.entities.leases.addLeasing(leaseID, leasing, blockID0)
@@ -511,16 +514,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 			},
 			&proto.LeaseStateSnapshot{
 				LeaseID: leaseID,
-				Status: proto.LeaseStateStatus{
-					Value:               proto.LeaseCanceled,
-					CancelHeight:        0,
-					CancelTransactionID: tx.ID,
-				},
-				Amount:              50,
-				Sender:              testGlobal.senderInfo.addr,
-				Recipient:           testGlobal.recipientInfo.addr,
-				OriginTransactionID: &leaseID,
-				Height:              1,
+				Status:  &proto.LeaseStatusCancelled{},
 			},
 			&proto.LeaseBalanceSnapshot{
 				Address:  testGlobal.senderInfo.addr,
@@ -533,7 +527,13 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 				LeaseOut: 0,
 			},
 		},
-		internal: nil,
+		internal: []internalSnapshot{
+			&InternalLeaseStateCancelInfoSnapshot{
+				LeaseID:             leaseID,
+				CancelHeight:        0,
+				CancelTransactionID: tx.ID,
+			},
+		},
 	}
 
 	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)

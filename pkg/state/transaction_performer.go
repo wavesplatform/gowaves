@@ -247,7 +247,7 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, _
 	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
-func (tp *transactionPerformer) performLease(tx *proto.Lease, txID crypto.Digest, info *performerInfo,
+func (tp *transactionPerformer) performLease(tx *proto.Lease, txID *crypto.Digest, info *performerInfo,
 	balanceChanges txDiff) (txSnapshot, error) {
 	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -264,13 +264,14 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, txID crypto.Digest
 	}
 	// Add leasing to lease state.
 	l := &leasing{
-		Sender:    senderAddr,
-		Recipient: recipientAddr,
-		Amount:    tx.Amount,
-		Height:    info.height,
-		Status:    proto.LeaseActive,
+		Sender:       senderAddr,
+		Recipient:    recipientAddr,
+		Amount:       tx.Amount,
+		OriginHeight: info.height,
+		Status:       LeaseActive,
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseTx(*l, txID, txID, balanceChanges)
+	leaseID := *txID
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseTx(l, leaseID, txID, balanceChanges)
 	if err != nil {
 		return txSnapshot{}, err
 	}
@@ -283,7 +284,7 @@ func (tp *transactionPerformer) performLeaseWithSig(transaction proto.Transactio
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to LeaseWithSig transaction")
 	}
-	return tp.performLease(&tx.Lease, *tx.ID, info, balanceChanges)
+	return tp.performLease(&tx.Lease, tx.ID, info, balanceChanges)
 }
 
 func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transaction, info *performerInfo,
@@ -292,19 +293,12 @@ func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transac
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to LeaseWithProofs transaction")
 	}
-	return tp.performLease(&tx.Lease, *tx.ID, info, balanceChanges)
+	return tp.performLease(&tx.Lease, tx.ID, info, balanceChanges)
 }
 
 func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo,
 	balanceChanges txDiff) (txSnapshot, error) {
-	oldLease, err := tp.stor.leases.newestLeasingInfo(tx.LeaseID)
-	if err != nil {
-		return txSnapshot{}, errors.Wrap(err, "failed to receiver leasing info")
-	}
-
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseCancelTx(txID,
-		*oldLease, tx.LeaseID,
-		info.height, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseCancelTx(txID, tx.LeaseID, info.height, balanceChanges)
 	if err != nil {
 		return txSnapshot{}, err
 	}

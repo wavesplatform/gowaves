@@ -215,17 +215,25 @@ func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot proto.DataEntriesSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot proto.LeaseStateSnapshot) error {
-	l := &leasing{
-		Sender:              snapshot.Sender,
-		Recipient:           snapshot.Recipient,
-		Amount:              snapshot.Amount,
-		Height:              snapshot.Height,
-		Status:              snapshot.Status.Value,
-		OriginTransactionID: snapshot.OriginTransactionID,
-		CancelHeight:        snapshot.Status.CancelHeight,
-		CancelTransactionID: snapshot.Status.CancelTransactionID,
+	switch status := snapshot.Status.(type) {
+	case *proto.LeaseStateStatusActive:
+		l := &leasing{
+			Sender:    status.Sender,
+			Recipient: status.Recipient,
+			Amount:    status.Amount,
+			Status:    LeaseActive,
+		}
+		return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
+	case *proto.LeaseStatusCancelled:
+		l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get leasing info by id '%s' for cancelling", snapshot.LeaseID)
+		}
+		l.Status = LeaseCancelled
+		return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
+	default:
+		return errors.Errorf("invalid lease state snapshot status (%T)", status)
 	}
-	return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatusSnapshot) error {
@@ -271,4 +279,24 @@ func (a *blockSnapshotsApplier) ApplyAssetScriptComplexity(snapshot InternalAsse
 			snapshot.AssetID.String())
 	}
 	return nil
+}
+
+func (a *blockSnapshotsApplier) ApplyLeaseStateActiveInfo(snapshot InternalLeaseStateActiveInfoSnapshot) error {
+	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding active info", snapshot.LeaseID)
+	}
+	l.OriginHeight = snapshot.OriginHeight
+	l.OriginTransactionID = snapshot.OriginTransactionID
+	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
+}
+
+func (a *blockSnapshotsApplier) ApplyLeaseStateCancelInfo(snapshot InternalLeaseStateCancelInfoSnapshot) error {
+	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding cancel info", snapshot.LeaseID)
+	}
+	l.CancelHeight = snapshot.CancelHeight
+	l.CancelTransactionID = snapshot.CancelTransactionID
+	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }

@@ -198,32 +198,38 @@ func (sg *snapshotGenerator) generateSnapshotForExchangeTx(sellOrder proto.Order
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease leasing, leaseID crypto.Digest,
-	originalTxID crypto.Digest, balanceChanges txDiff) (txSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease *leasing, leaseID crypto.Digest,
+	originalTxID *crypto.Digest, balanceChanges txDiff) (txSnapshot, error) {
 	var err error
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
+
 	leaseStatusSnapshot := &proto.LeaseStateSnapshot{
 		LeaseID: leaseID,
-		Status: proto.LeaseStateStatus{
-			Value: lease.Status,
+		Status: &proto.LeaseStateStatusActive{
+			Amount:    lease.Amount,
+			Sender:    lease.Sender,
+			Recipient: lease.Recipient,
 		},
-		Amount:              lease.Amount,
-		Sender:              lease.Sender,
-		Recipient:           lease.Recipient,
-		OriginTransactionID: &originalTxID,
-		Height:              lease.Height,
+	}
+	leaseStatusActiveSnapshot := &InternalLeaseStateActiveInfoSnapshot{
+		LeaseID:             leaseID,
+		OriginHeight:        lease.OriginHeight,
+		OriginTransactionID: originalTxID,
 	}
 	snapshot.regular = append(snapshot.regular, leaseStatusSnapshot)
-
+	snapshot.internal = append(snapshot.internal, leaseStatusActiveSnapshot)
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(txID *crypto.Digest,
-	oldLease leasing, leaseID crypto.Digest,
-	cancelHeight uint64, balanceChanges txDiff) (txSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(
+	txID *crypto.Digest,
+	leaseID crypto.Digest,
+	cancelHeight uint64,
+	balanceChanges txDiff,
+) (txSnapshot, error) {
 	var err error
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
@@ -231,19 +237,15 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(txID *crypto.Diges
 	}
 	leaseStatusSnapshot := &proto.LeaseStateSnapshot{
 		LeaseID: leaseID,
-		Status: proto.LeaseStateStatus{
-			Value:               proto.LeaseCanceled,
-			CancelHeight:        cancelHeight,
-			CancelTransactionID: txID,
-		},
-		Amount:              oldLease.Amount,
-		Sender:              oldLease.Sender,
-		Recipient:           oldLease.Recipient,
-		OriginTransactionID: oldLease.OriginTransactionID,
-		Height:              oldLease.Height,
+		Status:  &proto.LeaseStatusCancelled{},
 	}
-
+	leaseStatusCancelledSnapshot := &InternalLeaseStateCancelInfoSnapshot{
+		LeaseID:             leaseID,
+		CancelHeight:        cancelHeight,
+		CancelTransactionID: txID,
+	}
 	snapshot.regular = append(snapshot.regular, leaseStatusSnapshot)
+	snapshot.internal = append(snapshot.internal, leaseStatusCancelledSnapshot)
 	return snapshot, nil
 }
 
@@ -414,28 +416,47 @@ func generateSnapshotsFromAssetsScriptsUncertain(
 }
 
 func generateSnapshotsFromLeasingsUncertain(
-	leasesUncertain map[crypto.Digest]*leasing) []proto.AtomicSnapshot {
-	var atomicSnapshots []proto.AtomicSnapshot
-	for id, leasing := range leasesUncertain {
-		leaseStatusSnapshot := &proto.LeaseStateSnapshot{
-			LeaseID: id,
-			Status: proto.LeaseStateStatus{
-				Value: leasing.Status,
-			},
-			Amount:              leasing.Amount,
-			Sender:              leasing.Sender,
-			Recipient:           leasing.Recipient,
-			OriginTransactionID: leasing.OriginTransactionID,
-			Height:              leasing.Height,
+	leasesUncertain map[crypto.Digest]*leasing,
+) ([]proto.AtomicSnapshot, []internalSnapshot, error) {
+	var (
+		atomicSnapshots   []proto.AtomicSnapshot
+		internalSnapshots []internalSnapshot
+	)
+	for lID, l := range leasesUncertain {
+		switch status := l.Status; status {
+		case LeaseActive:
+			leaseStatusSnapshot := &proto.LeaseStateSnapshot{
+				LeaseID: lID,
+				Status: &proto.LeaseStateStatusActive{
+					Amount:    l.Amount,
+					Sender:    l.Sender,
+					Recipient: l.Recipient,
+				},
+			}
+			leaseStatusActiveSnapshot := &InternalLeaseStateActiveInfoSnapshot{
+				LeaseID:             lID,
+				OriginHeight:        l.OriginHeight,
+				OriginTransactionID: l.OriginTransactionID,
+			}
+			atomicSnapshots = append(atomicSnapshots, leaseStatusSnapshot)
+			internalSnapshots = append(internalSnapshots, leaseStatusActiveSnapshot)
+		case LeaseCancelled:
+			leaseStatusSnapshot := &proto.LeaseStateSnapshot{
+				LeaseID: lID,
+				Status:  &proto.LeaseStatusCancelled{},
+			}
+			leaseStatusCancelledSnapshot := &InternalLeaseStateCancelInfoSnapshot{
+				LeaseID:             lID,
+				CancelHeight:        l.CancelHeight,
+				CancelTransactionID: l.CancelTransactionID,
+			}
+			atomicSnapshots = append(atomicSnapshots, leaseStatusSnapshot)
+			internalSnapshots = append(internalSnapshots, leaseStatusCancelledSnapshot)
+		default:
+			return nil, nil, errors.Errorf("invalid lease status value (%d)", status)
 		}
-		if leasing.Status == proto.LeaseCanceled {
-			leaseStatusSnapshot.Status.Value = proto.LeaseCanceled
-			leaseStatusSnapshot.Status.CancelTransactionID = leasing.CancelTransactionID
-			leaseStatusSnapshot.Status.CancelHeight = leasing.CancelHeight
-		}
-		atomicSnapshots = append(atomicSnapshots, leaseStatusSnapshot)
 	}
-	return atomicSnapshots
+	return atomicSnapshots, internalSnapshots, nil
 }
 
 func generateSnapshotsFromSponsoredAssetsUncertain(
@@ -494,8 +515,12 @@ func (sg *snapshotGenerator) generateSnapshotForInvoke(txID crypto.Digest,
 	assetsScriptsSnapshots := generateSnapshotsFromAssetsScriptsUncertain(assetScriptsUncertain)
 	snapshot.regular = append(snapshot.regular, assetsScriptsSnapshots...)
 
-	leasingSnapshots := generateSnapshotsFromLeasingsUncertain(leasesUncertain)
+	leasingSnapshots, leasingInternalSnapshots, err := generateSnapshotsFromLeasingsUncertain(leasesUncertain)
+	if err != nil {
+		return txSnapshot{}, errors.Wrap(err, "failed to generate leasing snapshots")
+	}
 	snapshot.regular = append(snapshot.regular, leasingSnapshots...)
+	snapshot.internal = append(snapshot.internal, leasingInternalSnapshots...)
 
 	sponsoredAssetsSnapshots := generateSnapshotsFromSponsoredAssetsUncertain(sponsoredAssetsUncertain)
 	snapshot.regular = append(snapshot.regular, sponsoredAssetsSnapshots...)

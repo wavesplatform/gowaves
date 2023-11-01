@@ -82,20 +82,23 @@ func (s LeaseBalanceSnapshot) IsGeneratedByTxDiff() bool {
 
 func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLeaseBalance(s) }
 
-type LeaseStateStatus struct {
-	Value               LeaseStatus // can be only LeaseActive or LeaseCanceled
-	CancelHeight        Height
-	CancelTransactionID *crypto.Digest
+type LeaseStateStatus interface{ leaseStateStatusMarker() }
+
+type LeaseStateStatusActive struct {
+	Amount    uint64
+	Sender    WavesAddress
+	Recipient WavesAddress
 }
 
+func (*LeaseStateStatusActive) leaseStateStatusMarker() {}
+
+type LeaseStatusCancelled struct{}
+
+func (*LeaseStatusCancelled) leaseStateStatusMarker() {}
+
 type LeaseStateSnapshot struct {
-	LeaseID             crypto.Digest
-	Status              LeaseStateStatus
-	Amount              uint64
-	Sender              WavesAddress
-	Recipient           WavesAddress
-	OriginTransactionID *crypto.Digest
-	Height              Height
+	LeaseID crypto.Digest
+	Status  LeaseStateStatus
 }
 
 func (s LeaseStateSnapshot) IsGeneratedByTxDiff() bool {
