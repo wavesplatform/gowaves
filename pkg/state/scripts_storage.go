@@ -202,6 +202,14 @@ func newScriptsStorage(hs *historyStorage, scheme proto.Scheme, calcHashes bool)
 	}, nil
 }
 
+func (ss *scriptsStorage) uncertainAssetScriptsCopy() map[proto.AssetID]assetScriptRecordWithAssetIDTail {
+	copyAssetScripts := make(map[proto.AssetID]assetScriptRecordWithAssetIDTail)
+	for key, elem := range ss.uncertainAssetScripts {
+		copyAssetScripts[key] = elem
+	}
+	return copyAssetScripts
+}
+
 func (ss *scriptsStorage) setScript(scriptType blockchainEntity, key scriptKey, dbItem scriptDBItem, blockID proto.BlockID) error {
 	scriptBasicInfoRecordBytes, err := dbItem.info.marshalBinary()
 	if err != nil {
