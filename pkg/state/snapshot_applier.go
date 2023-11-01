@@ -76,9 +76,9 @@ func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCoun
 
 func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
-	profile, err := a.stor.balances.wavesBalance(addrID)
+	profile, err := a.stor.balances.newestWavesBalance(addrID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get waves balance profile for address %q", snapshot.Address.String())
+		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
 	newProfile.balance = snapshot.Balance
@@ -92,9 +92,9 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	var err error
-	profile, err := a.stor.balances.wavesBalance(addrID)
+	profile, err := a.stor.balances.newestWavesBalance(addrID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get waves balance profile for address %q", snapshot.Address.String())
+		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
 	newProfile.leaseIn = int64(snapshot.LeaseIn)

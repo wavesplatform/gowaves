@@ -595,7 +595,7 @@ func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (txSn
 	var snapshot txSnapshot
 	for wavesAddress, diffAmount := range addrWavesBalanceDiff {
 		var fullBalance balanceProfile
-		fullBalance, err = a.stor.balances.wavesBalance(wavesAddress.ID())
+		fullBalance, err = a.stor.balances.newestWavesBalance(wavesAddress.ID())
 		if err != nil {
 			return txSnapshot{}, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
