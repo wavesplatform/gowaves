@@ -408,7 +408,7 @@ func generateSnapshotsFromAssetsScriptsUncertain(
 		digest := proto.ReconstructDigest(assetID, r.assetIDTail)
 		assetScrptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID: digest,
-			Script:  proto.Script{},
+			Script:  r.scriptDBItem.script,
 		}
 		atomicSnapshots = append(atomicSnapshots, assetScrptSnapshot)
 	}
