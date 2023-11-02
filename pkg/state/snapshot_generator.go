@@ -343,15 +343,6 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	return snapshot, nil
 }
 
-func assetFoundInMap(id proto.AssetID, assetsMap map[proto.AssetID]assetInfo) bool {
-	for assetIDinMap := range assetsMap {
-		if id == assetIDinMap {
-			return true
-		}
-	}
-	return false
-}
-
 func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]assetInfo,
 	txID crypto.Digest) []proto.AtomicSnapshot {
 	var atomicSnapshots []proto.AtomicSnapshot
@@ -471,10 +462,11 @@ func (sg *snapshotGenerator) generateSnapshotForInvoke(txID crypto.Digest,
 	// so can't be processed with generateBalancesAtomicSnapshots.
 	var specialAssetsSnapshots []proto.AssetBalanceSnapshot
 	for key, diffAmount := range addrAssetBalanceDiff {
-		if assetFoundInMap(key.asset, sg.stor.assets.uncertainAssetInfo) {
-			// remove the element from the array
+		uncertainAssets := sg.stor.assets.uncertainAssetInfo
+		if _, ok := uncertainAssets[key.asset]; ok {
+			// remove the element from the map
 			delete(addrAssetBalanceDiff, key)
-			fullAssetID := proto.ReconstructDigest(key.asset, sg.stor.assets.uncertainAssetInfo[key.asset].tail)
+			fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].tail)
 			specialAssetSnapshot := proto.AssetBalanceSnapshot{
 				Address: key.address,
 				AssetID: fullAssetID,
