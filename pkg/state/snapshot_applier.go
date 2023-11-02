@@ -176,11 +176,12 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptS
 	if setErr != nil {
 		return setErr
 	}
-	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-		scriptIsEmpty: snapshot.Script.IsEmpty(),
-		estimation:    treeEstimation}
-	if cmplErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(
-		addr, scriptEstimation, a.info.BlockID()); cmplErr != nil {
+	se := scriptEstimation{
+		currentEstimatorVersion: 0, // 0 means unknown estimator version, script will be re-estimated in full node mode
+		scriptIsEmpty:           snapshot.Script.IsEmpty(),
+		estimation:              treeEstimation,
+	}
+	if cmplErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, se, a.info.BlockID()); cmplErr != nil {
 		return errors.Wrapf(cmplErr, "failed to store account script estimation for addr %q",
 			addr.String())
 	}
