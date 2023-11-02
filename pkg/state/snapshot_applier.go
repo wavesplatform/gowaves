@@ -152,10 +152,6 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
-	if snapshot.Script.IsEmpty() {
-		return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
-			a.info.BlockID())
-	}
 	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
 }
 
