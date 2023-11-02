@@ -167,18 +167,10 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptS
 	}
 	// In case of verifier, there are no functions. If it is a full DApp,
 	// the complexity 'functions' will be stored through the internal snapshot InternalDAppComplexitySnapshot.
-	if snapshot.Script.IsEmpty() {
-		return a.stor.scriptsStorage.setAccountScript(addr, proto.Script{},
-			snapshot.SenderPublicKey, a.info.BlockID())
-	}
 	treeEstimation := ride.TreeEstimation{
 		Estimation: int(snapshot.VerifierComplexity),
 		Verifier:   int(snapshot.VerifierComplexity),
 		Functions:  nil,
-	}
-	if snapshot.Script.IsEmpty() {
-		return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script,
-			snapshot.SenderPublicKey, a.info.BlockID())
 	}
 	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 	if setErr != nil {
