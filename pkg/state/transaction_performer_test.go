@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
@@ -53,13 +52,23 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 }
 
 func defaultPerformerInfo(stateActionsCounter *proto.StateActionsCounter) *performerInfo {
-	return newPerformerInfo(0, stateActionsCounter, blockID0, proto.WavesAddress{}, txCheckerData{})
+	_ = stateActionsCounter
+	return newPerformerInfo(0, blockID0, proto.WavesAddress{}, txCheckerData{})
+}
+
+func defaultCheckerInfoHeight0() *checkerInfo {
+	return &checkerInfo{
+		currentTimestamp: defaultTimestamp,
+		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
+		blockID:          blockID0,
+		blockVersion:     1,
+		height:           0,
+	}
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
+	checkerInfo := defaultCheckerInfoHeight0()
 	to := createPerformerTestObjects(t, checkerInfo)
-	checkerInfo.height = 1
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithSig(t, 1000)
 	_, err := to.tp.performIssueWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
@@ -89,9 +98,8 @@ func TestPerformIssueWithSig(t *testing.T) {
 }
 
 func TestPerformIssueWithProofs(t *testing.T) {
-	checkerInfo := defaultCheckerInfo()
+	checkerInfo := defaultCheckerInfoHeight0()
 	to := createPerformerTestObjects(t, checkerInfo)
-	checkerInfo.height = 1
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithProofs(t, 1000)
 
@@ -588,7 +596,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test discarding script.
-	err = to.stor.entities.scriptsStorage.setAssetScript(fullAssetID, proto.Script{}, crypto.PublicKey{}, blockID0)
+	err = to.stor.entities.scriptsStorage.setAssetScript(fullAssetID, proto.Script{}, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.

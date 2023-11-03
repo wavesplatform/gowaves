@@ -189,6 +189,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToCut:    true,
 		fixedSize:    false,
 	},
+	snapshots: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
 }
 
 type historyEntry struct {

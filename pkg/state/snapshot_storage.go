@@ -1,8 +1,6 @@
 package state
 
 import (
-	protobuf "google.golang.org/protobuf/proto"
-
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -18,10 +16,14 @@ func newSnapshotsAtHeight(hs *historyStorage) *snapshotsAtHeight {
 func (s *snapshotsAtHeight) saveSnapshots(
 	blockID proto.BlockID,
 	blockHeight uint64,
-	txSnapshots proto.TransactionSnapshot,
+	txSnapshots txSnapshot,
 ) error {
 	key := snapshotsKey{height: blockHeight}
-	recordBytes, err := protobuf.Marshal(txSnapshots.ToProtobuf())
+	txSnapshotsProto, err := txSnapshots.ToProtobuf()
+	if err != nil {
+		return err
+	}
+	recordBytes, err := txSnapshotsProto.MarshalVTStrict()
 	if err != nil {
 		return err
 	}
@@ -35,7 +37,7 @@ func (s *snapshotsAtHeight) shapshots(height uint64) (*g.TransactionStateSnapsho
 		return nil, err
 	}
 	var res g.TransactionStateSnapshot
-	if err = protobuf.Unmarshal(snapshotsBytes, &res); err != nil {
+	if err = res.UnmarshalVT(snapshotsBytes); err != nil {
 		return nil, err
 	}
 	return &res, nil

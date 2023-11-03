@@ -162,7 +162,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message",
+				ErrBrdCstScalaMsg: "json data validation error",
 			}),
 		"Invalid fee (0 < fee < min)": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -207,7 +207,7 @@ func GetSponsorshipNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Digest)
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message",
+				ErrBrdCstScalaMsg: "json data validation error",
 			}),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewSponsorshipTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),

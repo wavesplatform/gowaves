@@ -35,7 +35,7 @@ type diffBalance struct {
 }
 
 func (db *diffBalance) addBalance(amount int64) error {
-	b, err := common.AddInt64(db.balance, amount)
+	b, err := common.AddInt(db.balance, amount)
 	if err != nil {
 		return err
 	}
@@ -44,7 +44,7 @@ func (db *diffBalance) addBalance(amount int64) error {
 }
 
 func (db *diffBalance) addLeaseIn(amount int64) error {
-	b, err := common.AddInt64(db.leaseIn, amount)
+	b, err := common.AddInt(db.leaseIn, amount)
 	if err != nil {
 		return err
 	}
@@ -53,7 +53,7 @@ func (db *diffBalance) addLeaseIn(amount int64) error {
 }
 
 func (db *diffBalance) addLeaseOut(amount int64) error {
-	b, err := common.AddInt64(db.leaseOut, amount)
+	b, err := common.AddInt(db.leaseOut, amount)
 	if err != nil {
 		return err
 	}
@@ -62,7 +62,7 @@ func (db *diffBalance) addLeaseOut(amount int64) error {
 }
 
 func (db *diffBalance) spendableBalance() (int64, error) {
-	b, err := common.AddInt64(db.balance, -db.leaseOut)
+	b, err := common.SubInt(db.balance, db.leaseOut)
 	if err != nil {
 		return 0, err
 	}
@@ -77,7 +77,7 @@ func (db *diffBalance) checkedRegularBalance() (uint64, error) {
 }
 
 func (db *diffBalance) checkedSpendableBalance() (uint64, error) {
-	b, err := common.AddInt64(db.balance, -db.leaseOut)
+	b, err := common.SubInt(db.balance, db.leaseOut)
 	if err != nil {
 		return 0, err
 	}
@@ -88,11 +88,11 @@ func (db *diffBalance) checkedSpendableBalance() (uint64, error) {
 }
 
 func (db *diffBalance) effectiveBalance() (int64, error) {
-	v1, err := common.AddInt64(db.balance, db.leaseIn)
+	v1, err := common.AddInt(db.balance, db.leaseIn)
 	if err != nil {
 		return 0, err
 	}
-	v2, err := common.AddInt64(v1, -db.leaseOut)
+	v2, err := common.SubInt(v1, db.leaseOut)
 	if err != nil {
 		return 0, err
 	}
@@ -156,7 +156,7 @@ type assetBalanceKey struct {
 type assetBalance int64
 
 func (b assetBalance) add(amount int64) (assetBalance, error) {
-	r, err := common.AddInt64(int64(b), amount)
+	r, err := common.AddInt(int64(b), amount)
 	if err != nil {
 		return 0, err
 	}
