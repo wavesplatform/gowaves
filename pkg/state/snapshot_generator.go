@@ -12,9 +12,13 @@ import (
 type snapshotGenerator struct {
 	stor   *blockchainEntitiesStorage
 	scheme proto.Scheme
+}
 
-	/* Is IsFullNodeMode is true, then some additional internal fields will be generated */
-	IsFullNodeMode bool
+func newSnapshotGenerator(stor *blockchainEntitiesStorage, scheme proto.Scheme) snapshotGenerator {
+	return snapshotGenerator{
+		stor:   stor,
+		scheme: scheme,
+	}
 }
 
 type addressWavesBalanceDiff map[proto.WavesAddress]balanceDiff
@@ -96,7 +100,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 			AssetID: assetID,
 			Script:  *script,
 		}
-		if sg.IsFullNodeMode && scriptEstimation.isPresent() {
+		if scriptEstimation.isPresent() {
 			internalComplexitySnapshot := InternalAssetScriptComplexitySnapshot{
 				Estimation: scriptEstimation.estimation, AssetID: assetID,
 				ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
@@ -311,16 +315,13 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 
 	snapshot.regular = append(snapshot.regular, accountScriptSnapshot)
 
-	if sg.IsFullNodeMode {
-		scriptAddr, cnvrtErr := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
-		if cnvrtErr != nil {
-			return txSnapshot{}, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
-		}
-		internalComplexitySnapshot := InternalDAppComplexitySnapshot{
-			Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
-		snapshot.internal = append(snapshot.internal, &internalComplexitySnapshot)
+	scriptAddr, cnvrtErr := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
+	if cnvrtErr != nil {
+		return txSnapshot{}, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
 	}
-
+	internalComplexitySnapshot := InternalDAppComplexitySnapshot{
+		Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
+	snapshot.internal = append(snapshot.internal, &internalComplexitySnapshot)
 	return snapshot, nil
 }
 
@@ -336,12 +337,10 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 		Script:  script,
 	}
 	snapshot.regular = append(snapshot.regular, assetScrptSnapshot)
-	if sg.IsFullNodeMode {
-		internalComplexitySnapshot := InternalAssetScriptComplexitySnapshot{
-			Estimation: scriptEstimation.estimation, AssetID: assetID,
-			ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
-		snapshot.internal = append(snapshot.internal, &internalComplexitySnapshot)
-	}
+	internalComplexitySnapshot := InternalAssetScriptComplexitySnapshot{
+		Estimation: scriptEstimation.estimation, AssetID: assetID,
+		ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
+	snapshot.internal = append(snapshot.internal, &internalComplexitySnapshot)
 	return snapshot, nil
 }
 
@@ -379,7 +378,6 @@ func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]asse
 
 func generateSnapshotsFromDataEntryUncertain(dataEntriesUncertain map[entryId]uncertainAccountsDataStorageEntry,
 	scheme proto.Scheme) ([]proto.AtomicSnapshot, error) {
-	var atomicSnapshots []proto.AtomicSnapshot
 	dataEntries := make(map[proto.WavesAddress]proto.DataEntries)
 	for entryID, entry := range dataEntriesUncertain {
 		address, errCnvrt := entryID.addrID.ToWavesAddress(scheme)
@@ -394,6 +392,7 @@ func generateSnapshotsFromDataEntryUncertain(dataEntriesUncertain map[entryId]un
 			dataEntries[address] = proto.DataEntries{entry.dataEntry}
 		}
 	}
+	var atomicSnapshots []proto.AtomicSnapshot
 	for address, entries := range dataEntries {
 		dataEntrySnapshot := &proto.DataEntriesSnapshot{Address: address, DataEntries: entries}
 		atomicSnapshots = append(atomicSnapshots, dataEntrySnapshot)
@@ -667,26 +666,25 @@ func balanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWavesBalanc
 		// construct address from key
 		wavesBalanceKey := &wavesBalanceKey{}
 		err := wavesBalanceKey.unmarshal([]byte(balanceKeyString))
-		var address proto.WavesAddress
 		if err != nil {
 			// if the waves balance unmarshal failed, try to marshal into asset balance, and if it fails, then return the error
 			assetBalanceKey := &assetBalanceKey{}
-			err = assetBalanceKey.unmarshal([]byte(balanceKeyString))
-			if err != nil {
-				return nil, nil, errors.Wrap(err, "failed to convert balance key to asset balance key")
+			mrshlErr := assetBalanceKey.unmarshal([]byte(balanceKeyString))
+			if mrshlErr != nil {
+				return nil, nil, errors.Wrap(mrshlErr, "failed to convert balance key to asset balance key")
 			}
 			asset := assetBalanceKey.asset
-			address, err = assetBalanceKey.address.ToWavesAddress(scheme)
-			if err != nil {
-				return nil, nil, errors.Wrap(err, "failed to convert address id to waves address")
+			address, cnvrtErr := assetBalanceKey.address.ToWavesAddress(scheme)
+			if cnvrtErr != nil {
+				return nil, nil, errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
 			}
 			assetBalKey := assetBalanceDiffKey{address: address, asset: asset}
 			addrAssetBalanceDiff[assetBalKey] = diffAmount.balance
 			continue
 		}
-		address, err = wavesBalanceKey.address.ToWavesAddress(scheme)
-		if err != nil {
-			return nil, nil, errors.Wrap(err, "failed to convert address id to waves address")
+		address, cnvrtErr := wavesBalanceKey.address.ToWavesAddress(scheme)
+		if cnvrtErr != nil {
+			return nil, nil, errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
 		}
 		// if the waves balance diff is 0, it means it did not change.
 		// The reason for the 0 diff to exist is because of how LeaseIn and LeaseOut are handled in transaction differ.

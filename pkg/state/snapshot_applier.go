@@ -12,8 +12,6 @@ type blockSnapshotsApplier struct {
 	stor snapshotApplierStorages
 }
 
-var _ = newBlockSnapshotsApplier // TODO: only for linter, will be removed later
-
 func newBlockSnapshotsApplier(info blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
 	return blockSnapshotsApplier{info: info, stor: stor}
 }
@@ -29,8 +27,6 @@ type snapshotApplierStorages struct {
 	accountsDataStor  *accountsDataStorage
 	leases            *leases
 }
-
-var _ = newSnapshotApplierStorages // TODO: only for linter, will be removed later
 
 func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplierStorages {
 	return snapshotApplierStorages{
@@ -50,6 +46,15 @@ type blockSnapshotsApplierInfo struct {
 	ci                  *checkerInfo
 	scheme              proto.Scheme
 	stateActionsCounter *proto.StateActionsCounter
+}
+
+func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
+	counter *proto.StateActionsCounter) blockSnapshotsApplierInfo {
+	return blockSnapshotsApplierInfo{
+		ci:                  ci,
+		scheme:              scheme,
+		stateActionsCounter: counter,
+	}
 }
 
 func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
@@ -124,7 +129,7 @@ func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetI
 			issuer:               snapshot.IssuerPublicKey,
 			decimals:             snapshot.Decimals,
 			issueHeight:          height,
-			issueSequenceInBlock: a.info.stateActionsCounter.CurrentIssueActionNumber(),
+			issueSequenceInBlock: a.info.stateActionsCounter.NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{},
 	}

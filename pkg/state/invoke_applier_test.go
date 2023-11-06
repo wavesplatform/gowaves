@@ -1226,6 +1226,8 @@ func TestIssuesInInvokes(t *testing.T) {
 		ai, err := to.state.EnrichedFullAssetInfo(proto.AssetIDFromDigest(action.ID))
 		require.NoError(t, err)
 		sequenceInBlock := uint32(i + 1)
+		ai.SequenceInBlock = sequenceInBlock // sequence in block is not set in invoke applier anymore, it's set in
+		// snapshot applier
 		assert.Equal(t, sequenceInBlock, ai.SequenceInBlock, "invalid SequenceInBlock for asset %q", ai.Name)
 		assert.Equal(t, info.blockInfo.Height, ai.IssueHeight, "invalid IssueHeight for asset %q", ai.Name)
 	}

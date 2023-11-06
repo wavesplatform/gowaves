@@ -461,8 +461,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		a.stor.dropUncertain()
 	}()
 
-	a.txHandler.tp.snapshotGenerator = params.snapshotGenerator
-	a.txHandler.tp.snapshotApplier = params.snapshotApplier
+	a.txHandler.tp.setSnapshotGeneratorApplier(params.snapshotGenerator, params.snapshotApplier)
 
 	blockID := params.checkerInfo.blockID
 	// Check that Protobuf transactions are accepted.
@@ -575,7 +574,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
 		return err
 	}
-	// TODO: a temporary dummy for linters
 	_ = snapshot
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
@@ -641,28 +639,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
 	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
-	// stateActionsCounterInSnapshots := new(proto.StateActionsCounter)
 
 	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              a.settings.AddressSchemeCharacter,
-			stateActionsCounter: stateActionsCounterInBlockValidation,
-		},
-		snapshotApplierStorages{
-			balances:          a.stor.balances,
-			aliases:           a.stor.aliases,
-			assets:            a.stor.assets,
-			scriptsStorage:    a.stor.scriptsStorage,
-			scriptsComplexity: a.stor.scriptsComplexity,
-			sponsoredAssets:   a.stor.sponsoredAssets,
-			ordersVolumes:     a.stor.ordersVolumes,
-			accountsDataStor:  a.stor.accountsDataStor,
-			leases:            a.stor.leases,
-		},
+		newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter, stateActionsCounterInBlockValidation),
+		newSnapshotApplierStorages(a.stor),
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter, IsFullNodeMode: true}
-
+	snapshotGenerator := newSnapshotGenerator(a.stor, a.settings.AddressSchemeCharacter)
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
@@ -969,25 +951,11 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              a.settings.AddressSchemeCharacter,
-			stateActionsCounter: issueCounterInBlock,
-		},
-		snapshotApplierStorages{
-			balances:          a.stor.balances,
-			aliases:           a.stor.aliases,
-			assets:            a.stor.assets,
-			scriptsStorage:    a.stor.scriptsStorage,
-			scriptsComplexity: a.stor.scriptsComplexity,
-			sponsoredAssets:   a.stor.sponsoredAssets,
-			ordersVolumes:     a.stor.ordersVolumes,
-			accountsDataStor:  a.stor.accountsDataStor,
-			leases:            a.stor.leases,
-		},
+		newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter, issueCounterInBlock),
+		newSnapshotApplierStorages(a.stor),
 	)
-	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter,
-		IsFullNodeMode: true}
+
+	snapshotGenerator := newSnapshotGenerator(a.stor, a.settings.AddressSchemeCharacter)
 
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true

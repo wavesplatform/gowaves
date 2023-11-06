@@ -37,6 +37,13 @@ func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings
 	return &transactionPerformer{stor: stor, settings: settings}, nil
 }
 
+func (tp *transactionPerformer) setSnapshotGeneratorApplier(
+	snapshotGenerator *snapshotGenerator,
+	snapshotApplier extendedSnapshotApplier) {
+	tp.snapshotGenerator = snapshotGenerator
+	tp.snapshotApplier = snapshotApplier
+}
+
 func (tp *transactionPerformer) performGenesis(
 	transaction proto.Transaction,
 	_ *performerInfo, _ *invocationResult,
@@ -98,11 +105,10 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(assetID),
-			issuer:               tx.SenderPK,
-			decimals:             tx.Decimals,
-			issueHeight:          blockHeight,
-			issueSequenceInBlock: info.stateActionsCounter.NextIssueActionNumber(),
+			tail:        proto.DigestTail(assetID),
+			issuer:      tx.SenderPK,
+			decimals:    tx.Decimals,
+			issueHeight: blockHeight,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
