@@ -773,6 +773,26 @@ func GetRewardsAtHeight(suite *f.BaseSuite, height uint64) (*client.RewardInfo, 
 	return GetRewardsAtHeightGo(suite, height), GetRewardsAtHeightScala(suite, height)
 }
 
+func GetCurrentRewardGo(suite *f.BaseSuite, height uint64) uint64 {
+	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height).CurrentReward
+}
+
+func GetCurrentRewardScala(suite *f.BaseSuite, height uint64) uint64 {
+	return suite.Clients.ScalaClients.HttpClient.RewardsAtHeight(suite.T(), height).CurrentReward
+}
+
+func GetCurrentReward(suite *f.BaseSuite, height uint64) uint64 {
+	var err error
+	var currentReward uint64
+	currentRewardGo := GetCurrentRewardGo(suite, height)
+	currentRewardScala := GetCurrentRewardScala(suite, height)
+	if currentRewardGo == currentRewardScala {
+		currentReward = currentRewardGo
+	}
+	require.NoError(suite.T(), err)
+	return currentReward
+}
+
 func GetRewardTermAtHeightGo(suite *f.BaseSuite, height uint64) uint64 {
 	return GetRewardsAtHeightGo(suite, height).Term
 }
