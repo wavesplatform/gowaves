@@ -478,7 +478,7 @@ func GetTransferChainIDChangedNegativeData(suite *f.BaseSuite, assetId crypto.Di
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "invalid address",
+				ErrBrdCstScalaMsg: "Address or alias from other network",
 			}),
 		"Custom chainID": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -497,7 +497,7 @@ func GetTransferChainIDChangedNegativeData(suite *f.BaseSuite, assetId crypto.Di
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "invalid address",
+				ErrBrdCstScalaMsg: "Address or alias from other network",
 			}),
 	}
 	return t
