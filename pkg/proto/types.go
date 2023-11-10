@@ -4022,14 +4022,6 @@ type FieldsHashes struct {
 	LeaseBalanceHash  crypto.Digest
 }
 
-func (s FieldsHashes) EqualWith(other FieldsHashes) bool {
-	return s.DataEntryHash == other.DataEntryHash && s.AccountScriptHash == other.AccountScriptHash &&
-		s.AssetScriptHash == other.AssetScriptHash && s.LeaseStatusHash == other.LeaseStatusHash &&
-		s.SponsorshipHash == other.SponsorshipHash && s.AliasesHash == other.AliasesHash &&
-		s.WavesBalanceHash == other.WavesBalanceHash && s.AssetBalanceHash == other.AssetBalanceHash &&
-		s.LeaseBalanceHash == other.LeaseBalanceHash
-}
-
 type fieldsHashesJS struct {
 	DataEntryHash     DigestWrapped `json:"dataEntryHash"`
 	AccountScriptHash DigestWrapped `json:"accountScriptHash"`

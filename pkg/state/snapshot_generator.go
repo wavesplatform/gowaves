@@ -101,10 +101,10 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 			Script:  *script,
 		}
 		if scriptEstimation.isPresent() {
-			internalComplexitySnapshot := InternalAssetScriptComplexitySnapshot{
+			internalComplexitySnapshot := &InternalAssetScriptComplexitySnapshot{
 				Estimation: scriptEstimation.estimation, AssetID: assetID,
 				ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
-			snapshot.internal = append(snapshot.internal, &internalComplexitySnapshot)
+			snapshot.internal = append(snapshot.internal, internalComplexitySnapshot)
 		}
 		snapshot.regular = append(snapshot.regular, assetScriptSnapshot)
 	}
@@ -317,11 +317,11 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 
 	scriptAddr, cnvrtErr := proto.NewAddressFromPublicKey(sg.scheme, senderPK)
 	if cnvrtErr != nil {
-		return txSnapshot{}, errors.Wrap(cnvrtErr, "failed to get sender for InvokeScriptWithProofs")
+		return txSnapshot{}, errors.Wrap(cnvrtErr, "failed to get sender for SetScriptTX")
 	}
-	internalComplexitySnapshot := InternalDAppComplexitySnapshot{
+	internalComplexitySnapshot := &InternalDAppComplexitySnapshot{
 		Estimation: scriptEstimation.estimation, ScriptAddress: scriptAddr, ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
-	snapshot.internal = append(snapshot.internal, &internalComplexitySnapshot)
+	snapshot.internal = append(snapshot.internal, internalComplexitySnapshot)
 	return snapshot, nil
 }
 
@@ -337,10 +337,10 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 		Script:  script,
 	}
 	snapshot.regular = append(snapshot.regular, assetScrptSnapshot)
-	internalComplexitySnapshot := InternalAssetScriptComplexitySnapshot{
+	internalComplexitySnapshot := &InternalAssetScriptComplexitySnapshot{
 		Estimation: scriptEstimation.estimation, AssetID: assetID,
 		ScriptIsEmpty: scriptEstimation.scriptIsEmpty}
-	snapshot.internal = append(snapshot.internal, &internalComplexitySnapshot)
+	snapshot.internal = append(snapshot.internal, internalComplexitySnapshot)
 	return snapshot, nil
 }
 

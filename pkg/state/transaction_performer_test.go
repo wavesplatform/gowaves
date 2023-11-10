@@ -22,8 +22,6 @@ type performerTestObjects struct {
 
 func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *performerTestObjects {
 	stor := createStorageObjects(t, true)
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-
 	actionsCounter := new(proto.StateActionsCounter)
 
 	snapshotApplier := newBlockSnapshotsApplier(
@@ -35,9 +33,9 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 		newSnapshotApplierStorages(stor.entities),
 	)
 	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
-	tp.snapshotApplier = &snapshotApplier
-	tp.snapshotGenerator = &snapshotGen
-	require.NoError(t, err, "newTransactionPerformer() failed")
+
+	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
+
 	return &performerTestObjects{stor, tp, actionsCounter}
 }
 

@@ -33,15 +33,10 @@ type transactionPerformer struct {
 	snapshotApplier   extendedSnapshotApplier // initialized in appendTx
 }
 
-func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings) (*transactionPerformer, error) {
-	return &transactionPerformer{stor: stor, settings: settings}, nil
-}
-
-func (tp *transactionPerformer) setSnapshotGeneratorApplier(
-	snapshotGenerator *snapshotGenerator,
-	snapshotApplier extendedSnapshotApplier) {
-	tp.snapshotGenerator = snapshotGenerator
-	tp.snapshotApplier = snapshotApplier
+func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings,
+	snapshotGenerator *snapshotGenerator, snapshotApplier extendedSnapshotApplier) *transactionPerformer {
+	return &transactionPerformer{stor: stor, settings: settings,
+		snapshotGenerator: snapshotGenerator, snapshotApplier: snapshotApplier}
 }
 
 func (tp *transactionPerformer) performGenesis(

@@ -7,6 +7,7 @@ import (
 )
 
 type extendedSnapshotApplier interface {
+	SetApplierInfo(info *blockSnapshotsApplierInfo)
 	proto.SnapshotApplier
 	internalSnapshotApplier
 }

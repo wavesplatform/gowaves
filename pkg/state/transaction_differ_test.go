@@ -48,9 +48,7 @@ func createDifferTestObjects(t *testing.T, checkerInfo *checkerInfo) *differTest
 		newSnapshotApplierStorages(stor.entities),
 	)
 	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	tp.snapshotApplier = &snapshotApplier
-	tp.snapshotGenerator = &snapshotGen
+	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
 	require.NoError(t, err, "newTransactionPerformer() failed")
 	return &differTestObjects{stor, td, tp, actionsCounter}
 }

@@ -461,7 +461,12 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx)
+	snapshotApplier := newBlockSnapshotsApplier(
+		nil,
+		newSnapshotApplierStorages(stor),
+	)
+	snapshotGen := newSnapshotGenerator(stor, settings.AddressSchemeCharacter)
+	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier, &snapshotGen)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}

@@ -8,11 +8,11 @@ import (
 )
 
 type blockSnapshotsApplier struct {
-	info blockSnapshotsApplierInfo
+	info *blockSnapshotsApplierInfo
 	stor snapshotApplierStorages
 }
 
-func newBlockSnapshotsApplier(info blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
+func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
 	return blockSnapshotsApplier{info: info, stor: stor}
 }
 
@@ -49,8 +49,8 @@ type blockSnapshotsApplierInfo struct {
 }
 
 func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
-	counter *proto.StateActionsCounter) blockSnapshotsApplierInfo {
-	return blockSnapshotsApplierInfo{
+	counter *proto.StateActionsCounter) *blockSnapshotsApplierInfo {
+	return &blockSnapshotsApplierInfo{
 		ci:                  ci,
 		scheme:              scheme,
 		stateActionsCounter: counter,
@@ -75,6 +75,10 @@ func (s blockSnapshotsApplierInfo) Scheme() proto.Scheme {
 
 func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCounter {
 	return s.stateActionsCounter
+}
+
+func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) {
+	a.info = info
 }
 
 func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {

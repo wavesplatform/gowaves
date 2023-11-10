@@ -165,15 +165,14 @@ func newTransactionHandler(
 	genesis proto.BlockID,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
+	snapshotGenerator *snapshotGenerator,
+	snapshotApplier extendedSnapshotApplier,
 ) (*transactionHandler, error) {
 	tc, err := newTransactionChecker(genesis, stor, settings)
 	if err != nil {
 		return nil, err
 	}
-	tp, err := newTransactionPerformer(stor, settings)
-	if err != nil {
-		return nil, err
-	}
+	tp := newTransactionPerformer(stor, settings, snapshotGenerator, snapshotApplier)
 	td, err := newTransactionDiffer(stor, settings)
 	if err != nil {
 		return nil, err
