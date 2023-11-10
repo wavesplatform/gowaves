@@ -114,6 +114,11 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 }
 
 func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State, Async, error) {
+	if len(signatures) == 0 {
+		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Empty IDs received from peer '%s'",
+			peer.ID().String())
+		return a, nil, nil
+	}
 	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Block IDs [%s...%s] received from peer %s",
 		signatures[0].ShortString(), signatures[len(signatures)-1].ShortString(), peer.ID().String())
 	if !peer.Equal(a.conf.peerSyncWith) {
