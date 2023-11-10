@@ -21,7 +21,8 @@ func getActivationOfFeatures(suite *f.BaseSuite, featureIds ...int) {
 	}
 }
 
-func getRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.AddressesForDistribution, testdata TestData) {
+func getRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
+	testdata TestData) {
 	// Get reward for 1 block.
 	rewardDistributions, term := reward.GetBlockRewardDistribution(suite, addresses)
 	// Get expected results on current height

@@ -697,14 +697,6 @@ func NewRewardDiffBalances(diffBalanceGoMiners, diffBalanceScalaMiners, diffBala
 	}
 }
 
-func GetInitRewardCfg(suite *f.BaseSuite) uint64 {
-	return suite.Cfg.BlockchainSettings.InitialBlockReward
-}
-
-func GetRewardIncrementCfg(suite *f.BaseSuite) uint64 {
-	return suite.Cfg.BlockchainSettings.BlockRewardIncrement
-}
-
 func GetBlockGo(suite *f.BaseSuite, height uint64) *waves.Block {
 	return suite.Clients.GoClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
 }
