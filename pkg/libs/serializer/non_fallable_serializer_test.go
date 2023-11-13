@@ -10,7 +10,7 @@ import (
 func TestNonFallableSerializer_Write(t *testing.T) {
 	buf := &bytes.Buffer{}
 	o := bytes.NewBuffer([]byte{1, 2, 3, 4, 5})
-	s := NewNonFallable(buf)
+	s := NewInfallibleSerializer(buf)
 	_, _ = o.WriteTo(s)
 
 	require.EqualValues(t, 5, s.N())

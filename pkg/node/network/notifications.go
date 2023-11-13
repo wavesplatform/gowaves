@@ -6,23 +6,25 @@ import "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 // The Network service issues notifications for the following events:
 //   - QuorumMet: Triggered when the required number of peers connect.
 //   - QuorumLost: Triggered when the count of connected peers falls below the required threshold.
-//   - SyncPeerSelected: Activated when the Network selects a new peer for synchronization.
+//   - SyncPeerChanged: Activated when the Network selects a new peer for synchronization.
 //   - NoSyncPeer: Triggered when the Network loses a peer used for synchronization and unable to select another one.
-type Notification interface{ networkNotificationTypeMaker() }
+type Notification interface{ networkNotificationTypeMarker() }
 
 // QuorumMetNotification signals when the required threshold of connected peers is reached.
-type QuorumMetNotification struct{}
+type QuorumMetNotification struct {
+	Peer peer.Peer
+}
 
-func (n QuorumMetNotification) networkNotificationTypeMaker() {}
+func (n QuorumMetNotification) networkNotificationTypeMarker() {}
 
 // QuorumLostNotification signals when the count of connected peers drops below the required threshold.
 type QuorumLostNotification struct{}
 
-func (n QuorumLostNotification) networkNotificationTypeMaker() {}
+func (n QuorumLostNotification) networkNotificationTypeMarker() {}
 
-// SyncPeerSelectedNotification signals the selection of a new peer for synchronization.
-type SyncPeerSelectedNotification struct {
+// SyncPeerChangedNotification signals the selection of a new peer for synchronization.
+type SyncPeerChangedNotification struct {
 	Peer peer.Peer
 }
 
-func (n SyncPeerSelectedNotification) networkNotificationTypeMaker() {}
+func (n SyncPeerChangedNotification) networkNotificationTypeMarker() {}

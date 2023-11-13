@@ -8,19 +8,19 @@ import (
 	"github.com/pkg/errors"
 )
 
-type NonFallableSerializer struct {
+type InfallibleSerializer struct {
 	w io.Writer
 	n int
 }
 
-func NewNonFallable(w io.Writer) *NonFallableSerializer {
-	return &NonFallableSerializer{
+func NewInfallibleSerializer(w io.Writer) *InfallibleSerializer {
+	return &InfallibleSerializer{
 		w: w,
 		n: 0,
 	}
 }
 
-func (a *NonFallableSerializer) Write(b []byte) (int, error) {
+func (a *InfallibleSerializer) Write(b []byte) (int, error) {
 	n, err := a.w.Write(b)
 	if err != nil {
 		return 0, err
@@ -29,7 +29,7 @@ func (a *NonFallableSerializer) Write(b []byte) (int, error) {
 	return n, nil
 }
 
-func (a *NonFallableSerializer) StringWithUInt16Len(s string) error {
+func (a *InfallibleSerializer) StringWithUInt16Len(s string) error {
 	if len(s) > math.MaxUint16 {
 		return errors.Errorf("too long string, expected max %d, found %d", math.MaxUint16, len(s))
 	}
@@ -38,49 +38,49 @@ func (a *NonFallableSerializer) StringWithUInt16Len(s string) error {
 	return nil
 }
 
-func (a *NonFallableSerializer) Uint16(v uint16) {
+func (a *InfallibleSerializer) Uint16(v uint16) {
 	buf := make([]byte, 2)
 	binary.BigEndian.PutUint16(buf, v)
 	n, _ := a.w.Write(buf)
 	a.n += n
 }
 
-func (a *NonFallableSerializer) Uint32(v uint32) {
+func (a *InfallibleSerializer) Uint32(v uint32) {
 	buf := make([]byte, 4)
 	binary.BigEndian.PutUint32(buf, v)
 	n, _ := a.w.Write(buf)
 	a.n += n
 }
 
-func (a *NonFallableSerializer) Uint64(v uint64) {
+func (a *InfallibleSerializer) Uint64(v uint64) {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, v)
 	n, _ := a.w.Write(buf)
 	a.n += n
 }
 
-func (a *NonFallableSerializer) Int64(v int64) {
+func (a *InfallibleSerializer) Int64(v int64) {
 	buf := make([]byte, 8)
 	binary.BigEndian.PutUint64(buf, uint64(v))
 	n, _ := a.w.Write(buf)
 	a.n += n
 }
 
-func (a *NonFallableSerializer) String(s string) {
+func (a *InfallibleSerializer) String(s string) {
 	n, _ := a.w.Write([]byte(s))
 	a.n += n
 }
 
-func (a *NonFallableSerializer) Byte(b byte) {
+func (a *InfallibleSerializer) Byte(b byte) {
 	n, _ := a.w.Write([]byte{b})
 	a.n += n
 }
 
-func (a *NonFallableSerializer) N() int64 {
+func (a *InfallibleSerializer) N() int64 {
 	return int64(a.n)
 }
 
-func (a *NonFallableSerializer) Bool(b bool) {
+func (a *InfallibleSerializer) Bool(b bool) {
 	var v byte = 0
 	if b {
 		v = 1
@@ -89,7 +89,7 @@ func (a *NonFallableSerializer) Bool(b bool) {
 	a.n += n
 }
 
-func (a *NonFallableSerializer) Bytes(b []byte) {
+func (a *InfallibleSerializer) Bytes(b []byte) {
 	n, _ := a.w.Write(b)
 	a.n += n
 }

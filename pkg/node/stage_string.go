@@ -11,14 +11,17 @@ func _() {
 	_ = x[stageIdle-0]
 	_ = x[stageOperation-1]
 	_ = x[stageOperationNG-2]
-	_ = x[stageSync-3]
-	_ = x[stagePersistence-4]
-	_ = x[stageHalt-5]
+	_ = x[stageTilling-3]
+	_ = x[stageSowing-4]
+	_ = x[stageHarvesting-5]
+	_ = x[stageGleaning-6]
+	_ = x[stagePersistence-7]
+	_ = x[stageHalt-8]
 }
 
-const _stage_name = "IdleOperationOperationNGSyncPersistenceHalt"
+const _stage_name = "IdleOperationOperationNGTillingSowingHarvestingGleaningPersistenceHalt"
 
-var _stage_index = [...]uint8{0, 4, 13, 24, 28, 39, 43}
+var _stage_index = [...]uint8{0, 4, 13, 24, 31, 37, 47, 55, 66, 70}
 
 func (i stage) String() string {
 	if i < 0 || i >= stage(len(_stage_index)-1) {

@@ -449,10 +449,8 @@ func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
 	defer a.mu.RUnlock()
 
 	var pid peer.ID
-	pIDStr := "n/a"
 	if p != nil {
 		pid = p.ID()
-		pIDStr = p.ID().String()
 	}
 	cpi, ok := a.active.get(pid)
 	if !ok {
@@ -460,16 +458,11 @@ func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
 	}
 	npi, ok := a.active.getPeerWithMaxScore()
 	if !ok { // No need to change peer
-		zap.S().Named(logging.NetworkNamespace).Debugf("No need to change peer with max score '%s'", pIDStr)
 		return p, false
 	}
-
 	if cpi.score.Cmp(npi.score) < 0 { // npi has a bigger score - switch to it
-		zap.S().Named(logging.NetworkNamespace).Debugf("Changing peer with max score from '%s' to '%s'",
-			pIDStr, npi.peer.ID().String())
 		return npi.peer, true
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("No need to change peer with max score '%s'", pIDStr)
 	return p, false // Otherwise stick to currently used peer
 }
 
@@ -477,18 +470,10 @@ func (a *PeerManagerImpl) CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, 
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	pid := "n/a"
-	if p != nil {
-		pid = p.ID().String()
-	}
-
 	np, ok := a.active.getPeerFromLargestPeerGroup(p)
 	if !ok { // No need to change peer
-		zap.S().Named(logging.NetworkNamespace).Debugf("No need to change peer '%s'", pid)
 		return p, false
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("Changing best peer from '%s' to '%s'",
-		pid, np.peer.ID().String())
 	return np.peer, true
 }
 
@@ -508,10 +493,10 @@ func (a *PeerManagerImpl) clearRestrictedPeers(now time.Time) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if err := a.peerStorage.RefreshSuspended(now); err != nil {
-		zap.S().Errorf("failed to clear suspended peers: %v", err)
+		zap.S().Errorf("Failed to clear suspended peers: %v", err)
 	}
 	if err := a.peerStorage.RefreshBlackList(now); err != nil {
-		zap.S().Errorf("failed to clear black listed peers: %v", err)
+		zap.S().Errorf("Failed to clear black listed peers: %v", err)
 	}
 }
 

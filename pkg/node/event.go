@@ -18,6 +18,8 @@ const (
 	eventBlockGenerated
 	eventPersistenceRequired
 	eventPersistenceComplete
+	eventAbortSync
+	eventBlockSequenceComplete
 	eventSyncTimeout
 	eventBroadcastTransaction
 	eventHalt

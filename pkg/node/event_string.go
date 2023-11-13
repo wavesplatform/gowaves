@@ -22,14 +22,16 @@ func _() {
 	_ = x[eventBlockGenerated-11]
 	_ = x[eventPersistenceRequired-12]
 	_ = x[eventPersistenceComplete-13]
-	_ = x[eventSyncTimeout-14]
-	_ = x[eventBroadcastTransaction-15]
-	_ = x[eventHalt-16]
+	_ = x[eventAbortSync-14]
+	_ = x[eventBlockSequenceComplete-15]
+	_ = x[eventSyncTimeout-16]
+	_ = x[eventBroadcastTransaction-17]
+	_ = x[eventHalt-18]
 }
 
-const _event_name = "TransactionGetBlockBlockGetBlockIDsBlockIDsMicroBlockInvGetMicroBlockMicroBlockChangeSyncPeerResumeSuspendBlockGeneratedPersistenceRequiredPersistenceCompleteSyncTimeoutBroadcastTransactionHalt"
+const _event_name = "TransactionGetBlockBlockGetBlockIDsBlockIDsMicroBlockInvGetMicroBlockMicroBlockChangeSyncPeerResumeSuspendBlockGeneratedPersistenceRequiredPersistenceCompleteAbortSyncBlockSequenceCompleteSyncTimeoutBroadcastTransactionHalt"
 
-var _event_index = [...]uint8{0, 11, 19, 24, 35, 43, 56, 69, 79, 93, 99, 106, 120, 139, 158, 169, 189, 193}
+var _event_index = [...]uint8{0, 11, 19, 24, 35, 43, 56, 69, 79, 93, 99, 106, 120, 139, 158, 167, 188, 199, 219, 223}
 
 func (i event) String() string {
 	if i < 0 || i >= event(len(_event_index)-1) {

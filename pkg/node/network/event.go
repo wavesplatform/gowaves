@@ -12,8 +12,10 @@ const (
 	eventFollowGroup
 	eventFollowLeader
 	eventBlacklistPeer
+	eventSuspendPeer
 	eventBroadcastTransaction
 	eventQuorumChanged
+	eventCheckQuorum
 	eventFollowingModeChanged
 	eventScoreUpdated
 	eventAskPeers

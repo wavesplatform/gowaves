@@ -87,6 +87,7 @@ func NewNetwork(
 	n.sm.SetTriggerParameters(eventGetPeers, reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventPeers, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.PeerInfo{}))
 	n.sm.SetTriggerParameters(eventBlacklistPeer, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(""))
+	n.sm.SetTriggerParameters(eventSuspendPeer, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(""))
 	n.sm.SetTriggerParameters(eventBroadcastTransaction, reflect.TypeOf((*proto.Transaction)(nil)).Elem(),
 		reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventBroadcastMicroBlockInv, reflect.TypeOf((*proto.MicroBlockInv)(nil)),
@@ -121,22 +122,24 @@ func (n *Network) registerMetrics() {
 
 func (n *Network) configureDisconnectedState() {
 	n.sm.Configure(stageDisconnected).
+		OnEntry(n.onEnterDisconnected).
 		InternalTransition(eventScore, n.onScore).
 		InternalTransition(eventGetPeers, n.onGetPeers).
 		InternalTransition(eventPeers, n.onPeers).
 		InternalTransition(eventAskPeers, n.onAskPeers).
-		Ignore(eventScoreUpdated).
+		InternalTransition(eventScoreUpdated, n.onScoreUpdated).
 		InternalTransition(eventPeerConnected, n.onPeerConnected).
 		InternalTransition(eventPeerDisconnected, n.onPeerDisconnected).
 		InternalTransition(eventFollowGroup, n.onFollowGroup).
 		InternalTransition(eventFollowLeader, n.onFollowLeader).
-		Ignore(eventBlacklistPeer).
-		Ignore(eventBroadcastTransaction).
-		Ignore(eventQuorumChanged, n.quorumNotReached).
+		Ignore(eventBlacklistPeer).                     // Impossible in Disconnected state.
+		Ignore(eventSuspendPeer).                       // Impossible in Disconnected state.
+		Ignore(eventBroadcastTransaction).              // Impossible in Disconnected state.
+		Ignore(eventQuorumChanged, n.quorumNotReached). // No transition if quorum is not reached.
 		Permit(eventQuorumChanged, stageLeader, n.quorumReached, n.followLeader).
 		Permit(eventQuorumChanged, stageGroup, n.quorumReached, n.followGroup).
-		OnEntryFrom(eventQuorumChanged, n.onDisconnected).
-		Ignore(eventFollowingModeChanged).
+		InternalTransition(eventCheckQuorum, n.updateQuorum, n.quorumReached).
+		Ignore(eventFollowingModeChanged). // Do nothing.
 		Ignore(eventAnnounceScore).
 		Ignore(eventBroadcastMicroBlockInv).
 		Permit(eventHalt, stageHalt)
@@ -144,24 +147,26 @@ func (n *Network) configureDisconnectedState() {
 
 func (n *Network) configureGroupState() {
 	n.sm.Configure(stageGroup).
+		// Entry from Disconnected state, emits eventFollowingModeChanged.
+		OnEntryFrom(eventQuorumChanged, n.onEnterGroupFromDisconnected).
+		OnEntryFrom(eventFollowingModeChanged, n.selectGroup).
 		InternalTransition(eventScore, n.onScore). // Emits eventScoreUpdated.
 		InternalTransition(eventGetPeers, n.onGetPeers).
 		InternalTransition(eventPeers, n.onPeers).
 		InternalTransition(eventAskPeers, n.onAskPeers).
-		PermitReentry(eventScoreUpdated).                                // Reenter to handle the eventScoreUpdated event.
-		OnEntryFrom(eventScoreUpdated, n.selectGroup).                   // On re-enter from this state.
+		InternalTransition(eventScoreUpdated, n.selectGroup).            // On re-enter from this state.
 		InternalTransition(eventPeerConnected, n.onPeerConnected).       // Emits eventQuorumChanged.
 		InternalTransition(eventPeerDisconnected, n.onPeerDisconnected). // Emits eventQuorumChanged.
 		InternalTransition(eventFollowGroup, n.onFollowGroup).           // Emits eventFollowingModeChanged.
 		InternalTransition(eventFollowLeader, n.onFollowLeader).         // Emits eventFollowingModeChanged.
 		InternalTransition(eventBlacklistPeer, n.onBlacklist).
+		InternalTransition(eventSuspendPeer, n.onSuspend).
 		InternalTransition(eventBroadcastTransaction, n.onBroadcast).
 		Ignore(eventQuorumChanged, n.quorumReached).
 		Permit(eventQuorumChanged, stageDisconnected, n.quorumNotReached).
-		OnEntryFrom(eventQuorumChanged, n.onQuorum). // Entry from Disconnected state, emits eventFollowingModeChanged.
+		InternalTransition(eventCheckQuorum, n.updateQuorum, n.quorumReached).
 		Ignore(eventFollowingModeChanged, n.followGroup).
 		Permit(eventFollowingModeChanged, stageLeader, n.followLeader).
-		OnEntryFrom(eventFollowingModeChanged, n.selectGroup).
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
 		InternalTransition(eventBroadcastMicroBlockInv, n.onBroadcastMicroBlockInv).
 		Permit(eventHalt, stageHalt)
@@ -169,25 +174,25 @@ func (n *Network) configureGroupState() {
 
 func (n *Network) configureLeaderState() {
 	n.sm.Configure(stageLeader).
+		OnEntryFrom(eventQuorumChanged, n.onEnterLeaderFromDisconnected).
+		OnEntryFrom(eventFollowingModeChanged, n.selectLeader).
 		InternalTransition(eventScore, n.onScore).
 		InternalTransition(eventGetPeers, n.onGetPeers).
 		InternalTransition(eventPeers, n.onPeers).
 		InternalTransition(eventAskPeers, n.onAskPeers).
-		PermitReentry(eventScoreUpdated).
-		OnEntryFrom(eventScoreUpdated, n.selectLeader).
-		InternalTransition(eventScore, n.onScore).
+		InternalTransition(eventScoreUpdated, n.selectLeader).
 		InternalTransition(eventPeerConnected, n.onPeerConnected).
 		InternalTransition(eventPeerDisconnected, n.onPeerDisconnected).
 		InternalTransition(eventFollowGroup, n.onFollowGroup).
 		InternalTransition(eventFollowLeader, n.onFollowLeader).
 		InternalTransition(eventBlacklistPeer, n.onBlacklist).
+		InternalTransition(eventSuspendPeer, n.onSuspend).
 		InternalTransition(eventBroadcastTransaction, n.onBroadcast).
 		Ignore(eventQuorumChanged, n.quorumReached).
 		Permit(eventQuorumChanged, stageDisconnected, n.quorumNotReached).
-		OnEntryFrom(eventQuorumChanged, n.onQuorum).
+		InternalTransition(eventCheckQuorum, n.updateQuorum, n.quorumReached).
 		Permit(eventFollowingModeChanged, stageGroup, n.followGroup).
 		Ignore(eventFollowingModeChanged, n.followLeader).
-		OnEntryFrom(eventFollowingModeChanged, n.selectLeader).
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
 		Permit(eventHalt, stageHalt)
 }
@@ -200,19 +205,15 @@ func (n *Network) configureHaltState() {
 		Ignore(eventPeers).
 		Ignore(eventAskPeers).
 		Ignore(eventScoreUpdated).
-		Ignore(eventScoreUpdated).
-		Ignore(eventScore).
 		Ignore(eventPeerConnected).
 		Ignore(eventPeerDisconnected).
 		Ignore(eventFollowGroup).
 		Ignore(eventFollowLeader).
 		Ignore(eventBlacklistPeer).
+		Ignore(eventSuspendPeer).
 		Ignore(eventBroadcastTransaction).
 		Ignore(eventQuorumChanged).
-		Ignore(eventQuorumChanged).
-		Ignore(eventQuorumChanged).
-		Ignore(eventFollowingModeChanged).
-		Ignore(eventFollowingModeChanged).
+		Ignore(eventCheckQuorum).
 		Ignore(eventFollowingModeChanged).
 		Ignore(eventAnnounceScore).
 		Ignore(eventHalt)
@@ -439,6 +440,11 @@ func (n *Network) handleCommands(c Command, ok bool) error {
 			zap.S().Named(logging.NetworkNamespace).
 				Warnf("[%s] Failed to handle BlacklistPeer command: %v", n.sm.MustState(), err)
 		}
+	case SuspendPeerCommand:
+		if err := n.sm.Fire(eventSuspendPeer, cmd.Peer, cmd.Message); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle SuspendPeer command: %v", n.sm.MustState(), err)
+		}
 	case BroadcastTransactionCommand:
 		if err := n.sm.Fire(eventBroadcastTransaction, cmd.Transaction, cmd.Origin); err != nil {
 			zap.S().Named(logging.NetworkNamespace).
@@ -454,11 +460,22 @@ func (n *Network) handleCommands(c Command, ok bool) error {
 			zap.S().Named(logging.NetworkNamespace).
 				Warnf("[%s] Failed to handle BroadcastMicroBlockInv command: %v", n.sm.MustState(), err)
 		}
+	case RequestQuorumUpdate:
+		if err := n.sm.Fire(eventCheckQuorum); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle RequestQuorumUpdate command: %v", n.sm.MustState(), err)
+		}
 	default:
 		zap.S().Named(logging.NetworkNamespace).Errorf("[%s] Unexpected network command type %T",
 			n.sm.MustState(), c)
 		return errors.Errorf("unexpected network command '%T'", c)
 	}
+	return nil
+}
+
+// onEnterDisconnected notifies about the loss of quorum. This function is not called on creation of the state.
+func (n *Network) onEnterDisconnected(_ context.Context, _ ...any) error {
+	n.notificationsCh <- QuorumLostNotification{}
 	return nil
 }
 
@@ -472,6 +489,7 @@ func (n *Network) sendScore(p peer.Peer) {
 	p.SendMessage(&proto.ScoreMessage{Score: s.Bytes()})
 }
 
+// onScore updates peer's score in the score manager and fires `eventScoreUpdated`.
 func (n *Network) onScore(_ context.Context, args ...any) error {
 	p, ok := args[0].(peer.Peer)
 	if !ok {
@@ -487,6 +505,12 @@ func (n *Network) onScore(_ context.Context, args ...any) error {
 	return n.sm.Fire(eventScoreUpdated)
 }
 
+// onScoreUpdated fires eventQuorumChanged to initiate quorum check after receiving score from recently connected peer.
+func (n *Network) onScoreUpdated(_ context.Context, _ ...any) error {
+	return n.sm.Fire(eventQuorumChanged)
+}
+
+// onGetPeers replies to the requester peer with all known peers.
 func (n *Network) onGetPeers(_ context.Context, args ...any) error {
 	n.metricGetPeersMessage.Inc()
 	p, ok := args[0].(peer.Peer)
@@ -506,6 +530,7 @@ func (n *Network) onGetPeers(_ context.Context, args ...any) error {
 	return nil
 }
 
+// onPeers updates known peers in the peer manager by adding an unknown peers from received message.
 func (n *Network) onPeers(_ context.Context, args ...any) error {
 	n.metricPeersMessage.Inc()
 	p, ok := args[0].(peer.Peer)
@@ -535,6 +560,7 @@ func (n *Network) onPeers(_ context.Context, args ...any) error {
 	return n.peers.UpdateKnownPeers(r)
 }
 
+// onPeerConnected registers new connection in the peer manager, sends current score to the newly connected peer.
 func (n *Network) onPeerConnected(_ context.Context, args ...any) error {
 	p, ok := args[0].(peer.Peer)
 	if !ok {
@@ -546,9 +572,11 @@ func (n *Network) onPeerConnected(_ context.Context, args ...any) error {
 		return nil // Do not interrupt state machine execution with an error.
 	}
 	n.sendScore(p) // Always send our score to newly connected peer.
-	return n.sm.Fire(eventQuorumChanged)
+	return nil
 }
 
+// onPeerDisconnected registers the peer as disconnected in the peer manager and fires `eventQuorumChanged`
+// event to initiate quorum check.
 func (n *Network) onPeerDisconnected(_ context.Context, args ...any) error {
 	p, ok := args[0].(peer.Peer)
 	if !ok {
@@ -566,32 +594,61 @@ func (n *Network) onPeerDisconnected(_ context.Context, args ...any) error {
 	return n.sm.Fire(eventQuorumChanged)
 }
 
+// onFollowGroup updates following mode flag in the Network's internal state and fires `eventFollowingModeChanged`
+// event to initiate transition if required.
 func (n *Network) onFollowGroup(_ context.Context, _ ...any) error {
 	n.leaderMode = false
 	return n.sm.Fire(eventFollowingModeChanged)
 }
 
+// onFollowLeader updates following mode flag in the Network's internal state and fires `eventFollowingModeChanged`
+// event to initiate transition if required.
 func (n *Network) onFollowLeader(_ context.Context, _ ...any) error {
 	n.leaderMode = true
 	return n.sm.Fire(eventFollowingModeChanged)
 }
 
-func (n *Network) onDisconnected(_ context.Context, _ ...any) error {
-	n.notificationsCh <- QuorumLostNotification{}
+// onEnterGroupFromDisconnected selects the peer from the largest group and sends
+// the QuorumMetNotification with this peer.
+func (n *Network) onEnterGroupFromDisconnected(_ context.Context, _ ...any) error {
+	if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer); ok {
+		pid := "n/a"
+		if n.syncPeer != nil {
+			pid = n.syncPeer.ID().String()
+		}
+		n.syncPeer = np
+		zap.S().Named(logging.NetworkNamespace).Debugf("Changing best peer from '%s' to '%s'",
+			pid, np.ID().String())
+		n.notificationsCh <- QuorumMetNotification{Peer: np}
+	}
 	return nil
 }
 
-func (n *Network) onQuorum(_ context.Context, _ ...any) error {
-	n.notificationsCh <- QuorumMetNotification{}
-	return n.sm.Fire(eventFollowingModeChanged)
+// onEnterLeaderFromDisconnected selects the peer with the largest score and sends
+// the QuorumMetNotification with this peer.
+func (n *Network) onEnterLeaderFromDisconnected(_ context.Context, _ ...any) error {
+	if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer); ok {
+		pid := "n/a"
+		if n.syncPeer != nil {
+			pid = n.syncPeer.ID().String()
+		}
+		n.syncPeer = np
+		zap.S().Named(logging.NetworkNamespace).Debugf("Changing peer with max score from '%s' to '%s'",
+			pid, np.ID().String())
+		n.notificationsCh <- QuorumMetNotification{Peer: np}
+	}
+	return nil
 }
 
+// onAskPeers fans out a request for known peers to all connected nodes.
+// Initiated by the Network itself every `askPeersInterval` (5 minutes by default).
 func (n *Network) onAskPeers(_ context.Context, _ ...any) error {
 	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Requesting peers", n.sm.MustState())
 	n.peers.AskPeers()
 	return nil
 }
 
+// onBlacklist adds peer to the blacklist of the peer manager.
 func (n *Network) onBlacklist(_ context.Context, args ...any) error {
 	p, ok := args[0].(peer.Peer)
 	if !ok {
@@ -602,6 +659,20 @@ func (n *Network) onBlacklist(_ context.Context, args ...any) error {
 		return errors.Errorf("invalid type '%T' of second argument, expected 'string'", args[1])
 	}
 	n.peers.AddToBlackList(p, time.Now(), m)
+	return nil
+}
+
+// onSuspend suspends peer in the peer manager.
+func (n *Network) onSuspend(_ context.Context, args ...any) error {
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	m, ok := args[1].(string)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected 'string'", args[1])
+	}
+	n.peers.Suspend(p, time.Now(), m)
 	return nil
 }
 
@@ -647,7 +718,7 @@ func (n *Network) onBroadcast(_ context.Context, args ...any) error {
 func (n *Network) selectGroup(_ context.Context, _ ...any) error {
 	if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer); ok {
 		n.syncPeer = np
-		n.notificationsCh <- SyncPeerSelectedNotification{Peer: np}
+		n.notificationsCh <- SyncPeerChangedNotification{Peer: np}
 	}
 	return nil
 }
@@ -655,7 +726,7 @@ func (n *Network) selectGroup(_ context.Context, _ ...any) error {
 func (n *Network) selectLeader(_ context.Context, _ ...any) error {
 	if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer); ok {
 		n.syncPeer = np
-		n.notificationsCh <- SyncPeerSelectedNotification{Peer: np}
+		n.notificationsCh <- SyncPeerChangedNotification{Peer: np}
 	}
 	return nil
 }
@@ -704,7 +775,7 @@ func (n *Network) onBroadcastMicroBlockInv(_ context.Context, args ...any) error
 			cnt++
 		}
 	})
-	zap.S().Named(logging.FSMNamespace).
+	zap.S().Named(logging.NetworkNamespace).
 		Debugf("[%s] MicroBlockInv message (%s <- %s) sent to %d peers",
 			n.sm.MustState(), inv.Reference.String(), inv.TotalBlockID.String(), cnt)
 	return nil
@@ -730,4 +801,11 @@ func (n *Network) followLeader(_ context.Context, _ ...any) bool {
 
 func (n *Network) followGroup(_ context.Context, _ ...any) bool {
 	return !n.leaderMode
+}
+
+func (n *Network) updateQuorum(_ context.Context, _ ...any) error {
+	if n.syncPeer != nil {
+		n.notificationsCh <- QuorumMetNotification{Peer: n.syncPeer}
+	}
+	return nil
 }

@@ -7,7 +7,10 @@ const (
 	stageIdle stage = iota
 	stageOperation
 	stageOperationNG
-	stageSync
+	stageTilling
+	stageSowing
+	stageHarvesting
+	stageGleaning
 	stagePersistence
 	stageHalt
 )

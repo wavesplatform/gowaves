@@ -16,19 +16,21 @@ func _() {
 	_ = x[eventFollowGroup-5]
 	_ = x[eventFollowLeader-6]
 	_ = x[eventBlacklistPeer-7]
-	_ = x[eventBroadcastTransaction-8]
-	_ = x[eventQuorumChanged-9]
-	_ = x[eventFollowingModeChanged-10]
-	_ = x[eventScoreUpdated-11]
-	_ = x[eventAskPeers-12]
-	_ = x[eventAnnounceScore-13]
-	_ = x[eventBroadcastMicroBlockInv-14]
-	_ = x[eventHalt-15]
+	_ = x[eventSuspendPeer-8]
+	_ = x[eventBroadcastTransaction-9]
+	_ = x[eventQuorumChanged-10]
+	_ = x[eventCheckQuorum-11]
+	_ = x[eventFollowingModeChanged-12]
+	_ = x[eventScoreUpdated-13]
+	_ = x[eventAskPeers-14]
+	_ = x[eventAnnounceScore-15]
+	_ = x[eventBroadcastMicroBlockInv-16]
+	_ = x[eventHalt-17]
 }
 
-const _event_name = "PeerConnectedPeerDisconnectedScoreGetPeersPeersFollowGroupFollowLeaderBlacklistPeerBroadcastTransactionQuorumChangedFollowingModeChangedScoreUpdatedAskPeersAnnounceScoreBroadcastMicroBlockInvHalt"
+const _event_name = "PeerConnectedPeerDisconnectedScoreGetPeersPeersFollowGroupFollowLeaderBlacklistPeerSuspendPeerBroadcastTransactionQuorumChangedCheckQuorumFollowingModeChangedScoreUpdatedAskPeersAnnounceScoreBroadcastMicroBlockInvHalt"
 
-var _event_index = [...]uint8{0, 13, 29, 34, 42, 47, 58, 70, 83, 103, 116, 136, 148, 156, 169, 191, 195}
+var _event_index = [...]uint8{0, 13, 29, 34, 42, 47, 58, 70, 83, 94, 114, 127, 138, 158, 170, 178, 191, 213, 217}
 
 func (i event) String() string {
 	if i < 0 || i >= event(len(_event_index)-1) {

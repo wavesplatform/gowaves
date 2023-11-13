@@ -825,10 +825,10 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	if err != nil {
 		return nil, err
 	}
-	if err := checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
+	if err = checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
 		return nil, errors.Wrap(err, "order1 metamask feature checks failed")
 	}
-	if err := checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
+	if err = checkOrderWithMetamaskFeature(o1, metamaskActivated); err != nil {
 		return nil, errors.Wrap(err, "order2 metamask feature checks failed")
 	}
 
@@ -860,7 +860,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		return nil, err
 	}
 	assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: smartAssets}
-	if err := tc.checkFee(transaction, assets, info); err != nil {
+	if err = tc.checkFee(transaction, assets, info); err != nil {
 		return nil, err
 	}
 	smartAssetsActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAssets))

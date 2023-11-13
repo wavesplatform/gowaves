@@ -119,9 +119,8 @@ func TestApply_ValidBlockWithRollback(t *testing.T) {
 	}
 
 	a := newApplier(ms)
-	height, err := a.applyBlocks([]*proto.Block{block2})
+	err := a.applyBlocks([]*proto.Block{block2})
 	require.NoError(t, err)
-	assert.EqualValues(t, 2, height)
 	newBlock, err := ms.BlockByHeight(2)
 	require.NoError(t, err)
 	assert.Equal(t, "sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW",
@@ -176,7 +175,7 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 		},
 	}
 	a := newApplier(ms)
-	_, err := a.applyBlocks([]*proto.Block{block2})
+	err := a.applyBlocks([]*proto.Block{block2})
 	require.NotNil(t, err)
 	require.Equal(t, "failed add deserialized blocks, first block id "+
 		"sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW: error message",

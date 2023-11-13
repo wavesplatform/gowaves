@@ -6,11 +6,12 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -184,13 +185,13 @@ func (a *MicroBlock) WriteTo(scheme Scheme, w io.Writer) (int64, error) {
 }
 
 func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, error) {
-	s := serializer.NewNonFallable(w)
+	s := serializer.NewInfallibleSerializer(w)
 	s.Byte(a.VersionField)
 	s.Bytes(a.Reference.Bytes())
 	s.Bytes(a.TotalResBlockSigField.Bytes())
 	// Serialize transactions in separate buffer to get the size
 	txsBuf := new(bytes.Buffer)
-	txsSerializer := serializer.NewNonFallable(txsBuf)
+	txsSerializer := serializer.NewInfallibleSerializer(txsBuf)
 	proto := a.VersionField >= byte(ProtobufBlockVersion)
 	if _, err := a.Transactions.WriteTo(proto, scheme, txsSerializer); err != nil {
 		return 0, err
@@ -436,7 +437,7 @@ func (a *MicroBlockInv) UnmarshalBinary(data []byte) error {
 }
 
 func (a *MicroBlockInv) WriteTo(w io.Writer) (int64, error) {
-	s := serializer.NewNonFallable(w)
+	s := serializer.NewInfallibleSerializer(w)
 	s.Bytes(a.PublicKey.Bytes())
 	s.Bytes(a.TotalBlockID.Bytes())
 	s.Bytes(a.Reference.Bytes())
@@ -460,7 +461,7 @@ func (a *MicroBlockInv) bodyBytes(w io.Writer, schema Scheme) error {
 	if err != nil {
 		return err
 	}
-	s := serializer.NewNonFallable(w)
+	s := serializer.NewInfallibleSerializer(w)
 	s.Bytes(addr.Bytes())
 	s.Bytes(a.TotalBlockID.Bytes())
 	s.Bytes(a.Reference.Bytes())

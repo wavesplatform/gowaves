@@ -10,12 +10,13 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 type BlockVersion byte
@@ -604,7 +605,7 @@ func (b *Block) WriteToWithoutSignature(w io.Writer, scheme Scheme) (int64, erro
 	if b.Version >= ProtobufBlockVersion {
 		return 0, errors.New("binary format is not defined for Block versions > 4")
 	}
-	s := serializer.NewNonFallable(w)
+	s := serializer.NewInfallibleSerializer(w)
 	s.Byte(byte(b.Version))
 	s.Uint64(b.Timestamp)
 	parentBytes := b.Parent.Bytes()

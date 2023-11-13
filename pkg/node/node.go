@@ -15,6 +15,7 @@ import (
 	"github.com/rhansen/go-kairos/kairos"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
@@ -23,6 +24,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -30,6 +32,7 @@ import (
 const (
 	defaultChannelSize     = 100
 	blockIDsSequenceLength = 101
+	defaultSyncTimeout     = 30 * time.Second
 )
 
 type Node struct {
@@ -57,9 +60,13 @@ type Node struct {
 	syncPeer  peer.Peer
 	syncTimer *kairos.Timer
 
-	blocksCache        blocksCache
+	blocksCache        blockCache
 	microBlockCache    microBlockCache
 	microBlockInvCache microBlockInvCache
+
+	sequence *blockSequence
+	lastIDs  blockIDs // Put IDs in reverse order here.
+	lastPeer peer.Peer
 }
 
 func NewNode(
@@ -85,16 +92,20 @@ func NewNode(
 		tm:                 tm,
 		st:                 st,
 		applier:            newApplier(st),
-		blocksCache:        blocksCache{blocks: map[proto.BlockID]proto.Block{}},
+		blocksCache:        blockCache{blocks: map[proto.BlockID]proto.Block{}},
 		microBlockCache:    newDefaultMicroblockCache(),
 		microBlockInvCache: newDefaultMicroblockInvCache(),
+		sequence:           newBlockSequence(blockIDsSequenceLength),
 	}
 
 	n.configureTriggers()
 	n.configureIdleState()
+	n.configureTillingState()
+	n.configureSowingState()
+	n.configureHarvestingState()
+	n.configureGleaningState()
 	n.configureOperationState()
 	n.configureOperationNGState()
-	n.configureSyncState()
 	n.configurePersistState()
 	n.configureHaltState()
 
@@ -139,6 +150,7 @@ func (n *Node) handleEvents() error {
 				return err
 			}
 		case <-n.syncTimer.C:
+			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Synchronization timeout", n.sm.MustState())
 			if err := n.sm.Fire(eventSyncTimeout); err != nil {
 				zap.S().Named(logging.FSMNamespace).
 					Warnf("[%s] Failed to handle sync timeout: %v", n.sm.MustState(), err)
@@ -168,14 +180,30 @@ func (n *Node) handleNetworkMessages(m peer.ProtoMessage, ok bool) error {
 	}
 	switch msg := m.Message.(type) {
 	case *proto.TransactionMessage:
-		if err := n.sm.Fire(eventTransaction, msg.Transaction); err != nil {
+		tx, err := proto.BytesToTransaction(msg.Transaction, n.scheme)
+		if err != nil {
 			zap.S().Named(logging.FSMNamespace).
-				Warnf("[%s] Failed to handle Transaction message: %v", n.sm.MustState(), err)
+				Errorf("[%s] Failed to deserialize transaction from '%s': %v",
+					n.sm.MustState(), m.ID.ID().String(), err)
+			// TODO: Consider black listing of the peer on transaction deserialization error
+			return nil // Don't fail on deserialization error.
+		}
+		if fireErr := n.sm.Fire(eventTransaction, m.ID, tx); fireErr != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle Transaction message: %v", n.sm.MustState(), fireErr)
 		}
 	case *proto.PBTransactionMessage:
-		if err := n.sm.Fire(eventTransaction, msg.Transaction); err != nil {
+		tx, err := proto.SignedTxFromProtobuf(msg.Transaction)
+		if err != nil {
 			zap.S().Named(logging.FSMNamespace).
-				Warnf("[%s] Failed to handle Transaction message: %v", n.sm.MustState(), err)
+				Errorf("[%s] Failed to deserialize transaction from '%s': %v",
+					n.sm.MustState(), m.ID.ID().String(), err)
+			// TODO: Consider black listing of the peer on transaction deserialization error
+			return nil // Don't fail on deserialization error.
+		}
+		if fireErr := n.sm.Fire(eventTransaction, m.ID, tx); fireErr != nil {
+			zap.S().Named(logging.FSMNamespace).
+				Warnf("[%s] Failed to handle Transaction message: %v", n.sm.MustState(), fireErr)
 		}
 	case *proto.GetBlockMessage:
 		n.handleGetBlockMessage(m.ID, msg)
@@ -325,7 +353,7 @@ func (n *Node) handleNotifications(m network.Notification, ok bool) error {
 	}
 	switch ntf := m.(type) {
 	case network.QuorumMetNotification:
-		if err := n.sm.Fire(eventResume); err != nil {
+		if err := n.sm.Fire(eventResume, ntf.Peer); err != nil {
 			zap.S().Named(logging.FSMNamespace).
 				Warnf("[%s] Failed to handle QuorumMet notification: %v", n.sm.MustState(), err)
 		}
@@ -334,7 +362,7 @@ func (n *Node) handleNotifications(m network.Notification, ok bool) error {
 			zap.S().Named(logging.FSMNamespace).
 				Warnf("[%s] Failed to handle QuorumLost notification: %v", n.sm.MustState(), err)
 		}
-	case network.SyncPeerSelectedNotification:
+	case network.SyncPeerChangedNotification:
 		if err := n.sm.Fire(eventChangeSyncPeer, ntf.Peer); err != nil {
 			zap.S().Named(logging.FSMNamespace).
 				Warnf("[%s] Failed to handle ChangeSyncPeer notification: %v", n.sm.MustState(), err)
@@ -353,7 +381,7 @@ func (n *Node) configureTriggers() {
 	n.sm.SetTriggerParameters(eventGetBlock, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(proto.BlockID{}))
 	n.sm.SetTriggerParameters(eventBlock, reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf((*proto.Block)(nil)))
 	n.sm.SetTriggerParameters(eventBlockIDs, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
-		reflect.TypeOf([]crypto.Signature{}))
+		reflect.TypeOf([]proto.BlockID{}))
 	n.sm.SetTriggerParameters(eventGetBlockIDs, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
 		reflect.TypeOf([]proto.BlockID{}),
 		reflect.TypeOf(false))
@@ -364,6 +392,7 @@ func (n *Node) configureTriggers() {
 	n.sm.SetTriggerParameters(eventMicroBlock, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
 		reflect.TypeOf((*proto.MicroBlock)(nil)))
 	n.sm.SetTriggerParameters(eventChangeSyncPeer, reflect.TypeOf((*peer.Peer)(nil)).Elem())
+	n.sm.SetTriggerParameters(eventResume, reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventBlockGenerated, reflect.TypeOf((*proto.Block)(nil)),
 		reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{}))
 	n.sm.SetTriggerParameters(eventBroadcastTransaction,
@@ -381,13 +410,119 @@ func (n *Node) configureIdleState() {
 		Ignore(eventMicroBlockInv).
 		Ignore(eventGetMicroBlock).
 		Ignore(eventMicroBlock).
-		Ignore(eventSuspend).
 		Ignore(eventChangeSyncPeer).
-		Permit(eventResume, stageSync).
-		Permit(eventHalt, stageHalt).
+		Permit(eventResume, stageTilling).
+		Ignore(eventSuspend).
+		Ignore(eventBlockGenerated).
 		Permit(eventPersistenceRequired, stagePersistence).
 		Ignore(eventPersistenceComplete).
-		Ignore(eventBroadcastTransaction)
+		Ignore(eventAbortSync).
+		Ignore(eventBlockSequenceComplete).
+		Ignore(eventSyncTimeout).
+		Ignore(eventBroadcastTransaction).
+		Permit(eventHalt, stageHalt)
+}
+
+func (n *Node) configureTillingState() {
+	n.sm.Configure(stageTilling).
+		OnEntryFrom(eventResume, n.onEnterTillingFromIdle).
+		OnEntryFrom(eventBlockSequenceComplete, n.onEnterTillingFromHarvesting).
+		Ignore(eventTransaction).
+		InternalTransition(eventGetBlock, n.onGetBlock).
+		Ignore(eventBlock).
+		InternalTransition(eventGetBlockIDs, n.onGetBlockIDs).
+		Permit(eventBlockIDs, stageSowing, n.completeIDsBatch).
+		Permit(eventBlockIDs, stageGleaning, n.incompleteIDsBatch).
+		Ignore(eventMicroBlockInv).
+		Ignore(eventGetMicroBlock).
+		Ignore(eventMicroBlock).
+		InternalTransition(eventChangeSyncPeer, n.onChangeSyncPeer).
+		Ignore(eventResume).
+		Permit(eventSuspend, stageIdle).
+		Ignore(eventBlockGenerated).
+		Permit(eventPersistenceRequired, stagePersistence).
+		Ignore(eventPersistenceComplete).
+		Permit(eventAbortSync, stageIdle).
+		Ignore(eventBlockSequenceComplete).
+		Permit(eventSyncTimeout, stageIdle).
+		Ignore(eventBroadcastTransaction).
+		Permit(eventHalt, stageHalt)
+}
+
+func (n *Node) configureSowingState() {
+	n.sm.Configure(stageSowing).
+		OnEntry(n.onEnterSowing).
+		Ignore(eventTransaction).
+		InternalTransition(eventGetBlock, n.onGetBlock).
+		Permit(eventBlock, stageHarvesting, n.anticipatedBlock).
+		Ignore(eventBlock, n.unanticipatedBlock).
+		InternalTransition(eventGetBlockIDs, n.onGetBlockIDs).
+		Ignore(eventBlockIDs).
+		Ignore(eventMicroBlockInv).
+		Ignore(eventGetMicroBlock).
+		Ignore(eventMicroBlock).
+		InternalTransition(eventChangeSyncPeer, n.onChangeSyncPeer).
+		Ignore(eventResume).
+		Permit(eventSuspend, stageIdle).
+		Ignore(eventBlockGenerated).
+		Permit(eventPersistenceRequired, stagePersistence).
+		Ignore(eventPersistenceComplete).
+		Permit(eventAbortSync, stageIdle).
+		Ignore(eventBlockSequenceComplete).
+		Permit(eventSyncTimeout, stageIdle).
+		Ignore(eventBroadcastTransaction).
+		Permit(eventHalt, stageHalt)
+}
+
+func (n *Node) configureHarvestingState() {
+	n.sm.Configure(stageHarvesting).
+		OnEntry(n.onEnterHarvesting).
+		OnExit(n.applyBlockSequence).
+		Ignore(eventTransaction).
+		InternalTransition(eventGetBlock, n.onGetBlock).
+		InternalTransition(eventBlock, n.onBlockSync).
+		InternalTransition(eventGetBlockIDs, n.onGetBlockIDs).
+		Ignore(eventBlockIDs).
+		Ignore(eventMicroBlockInv).
+		Ignore(eventGetMicroBlock).
+		Ignore(eventMicroBlock).
+		InternalTransition(eventChangeSyncPeer, n.onChangeSyncPeer).
+		Ignore(eventResume).
+		Permit(eventSuspend, stageIdle).
+		Ignore(eventBlockGenerated).
+		Permit(eventPersistenceRequired, stagePersistence).
+		Ignore(eventPersistenceComplete).
+		Permit(eventAbortSync, stageIdle).
+		Permit(eventBlockSequenceComplete, stageTilling).
+		Permit(eventSyncTimeout, stageIdle).
+		Ignore(eventBroadcastTransaction).
+		Permit(eventHalt, stageHalt)
+}
+
+func (n *Node) configureGleaningState() {
+	n.sm.Configure(stageGleaning).
+		OnEntry(n.onEnterGleaning).
+		OnExit(n.applyBlockSequence).
+		Ignore(eventTransaction).
+		InternalTransition(eventGetBlock, n.onGetBlock).
+		InternalTransition(eventBlock, n.onBlockSync).
+		InternalTransition(eventGetBlockIDs, n.onGetBlockIDs).
+		Ignore(eventBlockIDs).
+		Ignore(eventMicroBlockInv).
+		Ignore(eventGetMicroBlock).
+		Ignore(eventMicroBlock).
+		InternalTransition(eventChangeSyncPeer, n.onChangeSyncPeer).
+		Ignore(eventResume).
+		Permit(eventSuspend, stageIdle).
+		Ignore(eventBlockGenerated).
+		Permit(eventPersistenceRequired, stagePersistence).
+		Ignore(eventPersistenceComplete).
+		Permit(eventAbortSync, stageIdle).
+		Permit(eventBlockSequenceComplete, stageOperation, n.inactiveNG).
+		Permit(eventBlockSequenceComplete, stageOperationNG, n.activeNG).
+		Permit(eventSyncTimeout, stageIdle).
+		Ignore(eventBroadcastTransaction).
+		Permit(eventHalt, stageHalt)
 }
 
 func (n *Node) configureOperationState() {
@@ -395,7 +530,7 @@ func (n *Node) configureOperationState() {
 		OnEntry(n.onEnterOperation).
 		InternalTransition(eventTransaction, n.onTransaction).
 		InternalTransition(eventGetBlock, n.onGetBlock).
-		InternalTransition(eventBlock, n.onBlock).
+		InternalTransition(eventBlock, n.onKeyBlock).
 		InternalTransition(eventGetBlockIDs, n.onGetBlockIDs).
 		Ignore(eventBlockIDs).
 		Ignore(eventMicroBlockInv).
@@ -405,18 +540,21 @@ func (n *Node) configureOperationState() {
 		Ignore(eventResume).
 		Permit(eventSuspend, stageIdle).
 		InternalTransition(eventBlockGenerated, n.onBlockGenerated).
-		Permit(eventHalt, stageHalt).
 		Permit(eventPersistenceRequired, stagePersistence).
 		Ignore(eventPersistenceComplete).
-		InternalTransition(eventBroadcastTransaction, n.onBroadcastTransaction)
+		Ignore(eventAbortSync).
+		Ignore(eventBlockSequenceComplete).
+		Ignore(eventSyncTimeout).
+		InternalTransition(eventBroadcastTransaction, n.onBroadcastTransaction).
+		Permit(eventHalt, stageHalt)
 }
 
 func (n *Node) configureOperationNGState() {
-	n.sm.Configure(stageOperation).
-		OnEntry(n.onEnterOperation).
+	n.sm.Configure(stageOperationNG).
+		OnEntry(n.onEnterOperationNG).
 		InternalTransition(eventTransaction, n.onTransaction).
 		InternalTransition(eventGetBlock, n.onGetBlock).
-		InternalTransition(eventBlock, n.onBlock).
+		InternalTransition(eventBlock, n.onKeyBlock).
 		InternalTransition(eventGetBlockIDs, n.onGetBlockIDs).
 		Ignore(eventBlockIDs).
 		InternalTransition(eventMicroBlockInv, n.onMicroblockInv).
@@ -426,30 +564,13 @@ func (n *Node) configureOperationNGState() {
 		Ignore(eventResume).
 		Permit(eventSuspend, stageIdle).
 		InternalTransition(eventBlockGenerated, n.onBlockGenerated).
-		Permit(eventHalt, stageHalt).
 		Permit(eventPersistenceRequired, stagePersistence).
 		Ignore(eventPersistenceComplete).
-		InternalTransition(eventBroadcastTransaction, n.onBroadcastTransaction)
-}
-
-func (n *Node) configureSyncState() {
-	n.sm.Configure(stageSync).
-		OnEntry(n.onEnterSync).
-		InternalTransition(eventTransaction, n.onTransaction).
-		InternalTransition(eventGetBlock, n.onGetBlock).
-		InternalTransition(eventBlock, n.onBlock).
-		InternalTransition(eventGetBlockIDs, n.onGetBlockIDs).
-		Ignore(eventMicroBlockInv).
-		Ignore(eventGetMicroBlock).
-		Ignore(eventMicroBlock).
-		InternalTransition(eventChangeSyncPeer, n.onChangeSyncPeer).
-		Ignore(eventResume).
-		Permit(eventSuspend, stageIdle).
-		InternalTransition(eventBlockGenerated, n.onBlockGenerated).
-		Permit(eventHalt, stageHalt).
-		Permit(eventPersistenceRequired, stagePersistence).
-		Ignore(eventPersistenceComplete).
-		Ignore(eventBroadcastTransaction)
+		Ignore(eventAbortSync).
+		Ignore(eventBlockSequenceComplete).
+		Ignore(eventSyncTimeout).
+		InternalTransition(eventBroadcastTransaction, n.onBroadcastTransaction).
+		Permit(eventHalt, stageHalt)
 }
 
 func (n *Node) configurePersistState() {
@@ -467,10 +588,13 @@ func (n *Node) configurePersistState() {
 		Ignore(eventResume).
 		Ignore(eventSuspend).
 		Ignore(eventBlockGenerated).
-		Permit(eventHalt, stageHalt).
 		Ignore(eventPersistenceRequired).
 		Permit(eventPersistenceComplete, stageIdle).
-		Ignore(eventBroadcastTransaction)
+		Ignore(eventAbortSync).
+		Ignore(eventBlockSequenceComplete).
+		Ignore(eventSyncTimeout).
+		Ignore(eventBroadcastTransaction).
+		Permit(eventHalt, stageHalt)
 }
 
 func (n *Node) configureHaltState() {
@@ -488,31 +612,163 @@ func (n *Node) configureHaltState() {
 		Ignore(eventResume).
 		Ignore(eventSuspend).
 		Ignore(eventBlockGenerated).
-		Ignore(eventHalt).
 		Ignore(eventPersistenceRequired).
 		Ignore(eventPersistenceComplete).
-		Ignore(eventBroadcastTransaction)
+		Ignore(eventAbortSync).
+		Ignore(eventBlockSequenceComplete).
+		Ignore(eventSyncTimeout).
+		Ignore(eventBroadcastTransaction).
+		Ignore(eventHalt)
 }
 
 func (n *Node) onEnterIdle(_ context.Context, _ ...any) error {
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entered Idle state", n.sm.MustState())
 	n.skipList.DisableForIdle()
+	// Check if we need to persist transactions.
+	required, err := n.st.ShouldPersistAddressTransactions()
+	if err != nil {
+		return errors.Wrap(err, "failed to check necessity for persistence in Idle state")
+	}
+	if required {
+		return n.sm.Fire(eventPersistenceRequired)
+	}
+	// Requesting current state of the quorum.
+	n.commandsCh <- network.RequestQuorumUpdate{}
 	return nil
 }
 
 func (n *Node) onEnterOperation(_ context.Context, _ ...any) error {
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entered Operation state", n.sm.MustState())
 	n.skipList.DisableForOperation()
 	// TODO: Start mining
 	// TODO: n.scheduler.Reschedule()
 	return nil
 }
 
-func (n *Node) onEnterSync(_ context.Context, _ ...any) error {
-	n.skipList.DisableForSync()
+func (n *Node) onEnterOperationNG(_ context.Context, _ ...any) error {
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entered OperationNG state", n.sm.MustState())
+	n.skipList.DisableForOperation()
+	// TODO: Start mining
 	// TODO: n.scheduler.Reschedule()
 	return nil
 }
 
+func (n *Node) onEnterTillingFromIdle(_ context.Context, args ...any) error {
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	if p == nil {
+		return errors.New("failed to start synchronization with an empty peer")
+	}
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entered Tilling state", n.sm.MustState())
+	n.skipList.DisableForSync()
+	n.sequence.reset()
+	n.syncPeer = p
+	// Ask first batch of block IDs by providing the last blocks from state.
+	ids, err := n.lastBlockIDsFromState()
+	if err != nil {
+		return errors.Wrap(err, "on enter Tilling state")
+	}
+	n.lastPeer = n.syncPeer
+	n.lastIDs = ids // From state IDs comes in reverse order.
+	n.askIDs()
+	n.startSyncTimer()
+	return nil
+}
+
+func (n *Node) onEnterTillingFromHarvesting(_ context.Context, _ ...any) error {
+	n.sequence.reset()
+	n.lastPeer = n.syncPeer
+	n.askIDs()
+	n.startSyncTimer()
+	return nil
+}
+
+func (n *Node) onEnterSowing(_ context.Context, args ...any) error {
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entering Sowing state form Tilling state", n.sm.MustState())
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	if !n.lastPeer.Equal(p) {
+		zap.S().Named(logging.FSMNamespace).
+			Debugf("[%s] Block IDs received from unexpected peer '%s', expecting from '%s'",
+				n.sm.MustState(), p.ID().String(), n.lastPeer.ID().String())
+		return n.sm.Fire(eventAbortSync)
+	}
+	ids, ok := args[1].([]proto.BlockID) // From other nodes IDs comes in natural order.
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected '[]proto.BlockID'", args[1])
+	}
+	// Extract unknown sequential IDs from received sequence.
+	unknownIDs, intersects := relativeCompliment(n.lastIDs.reverse(), ids)
+	if !intersects {
+		return n.sm.Fire(eventAbortSync) // We received IDs that has no intersection with our IDs sent in request.
+	}
+	// Store unknown IDs in `last` field in reverse order, to ask for next IDs using them.
+	n.lastIDs = blockIDs(unknownIDs).reverse()
+	// Ask for Blocks of unknown IDs.
+	zap.S().Named(logging.FSMNamespace).
+		Debugf("[%s] Requesting blocks [%s..%s](%d) from peer '%s'", n.sm.MustState(),
+			unknownIDs[0].ShortString(), unknownIDs[len(unknownIDs)-1].ShortString(), len(unknownIDs), p.ID().String())
+	for _, id := range unknownIDs {
+		if pushed := n.sequence.pushID(id); !pushed {
+			zap.S().Named(logging.FSMNamespace).
+				Debugf("[%s] Malformed sequence of block IDs received from peer '%s'", n.sm.MustState(), p.ID().String())
+			return n.sm.Fire(eventAbortSync)
+		}
+		n.askBlock(id)
+	}
+	n.startSyncTimer()
+	return nil
+}
+
+func (n *Node) onEnterHarvesting(ctx context.Context, args ...any) error {
+	n.startSyncTimer()
+	return n.onBlockSync(ctx, args...)
+}
+
+func (n *Node) onEnterGleaning(_ context.Context, args ...any) error {
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	if !p.Equal(n.syncPeer) {
+		zap.S().Named(logging.FSMNamespace).
+			Debugf("[%s] Block IDs received from unexpected peer '%s', expecting from '%s'",
+				n.sm.MustState(), p.ID().String(), n.syncPeer.ID().String())
+		return nil
+	}
+	ids, ok := args[1].([]proto.BlockID)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected '[]proto.BlockID'", args[1])
+	}
+	// Extract unknown sequential IDs from received sequence.
+	unknownIDs, intersects := relativeCompliment(n.lastIDs.reverse(), ids)
+	if !intersects {
+		return n.sm.Fire(eventAbortSync) // We received IDs that has no intersection with our IDs sent in request.
+	}
+	// This is the last batch of block IDs, no need to store them, reset the field.
+	n.lastIDs = nil
+	// Ask for Blocks of unknown IDs.
+	zap.S().Named(logging.FSMNamespace).
+		Debugf("[%s] Requesting blocks [%s..%s](%d) from peer '%s'", n.sm.MustState(),
+			unknownIDs[0].ShortString(), unknownIDs[len(unknownIDs)-1].ShortString(), len(unknownIDs), p.ID().String())
+	for _, id := range unknownIDs {
+		if pushed := n.sequence.pushID(id); !pushed {
+			zap.S().Named(logging.FSMNamespace).
+				Debugf("[%s] Malformed sequence of block IDs received from peer '%s'", n.sm.MustState(), p.ID().String())
+			return n.sm.Fire(eventAbortSync)
+		}
+		n.askBlock(id)
+	}
+	n.startSyncTimer()
+	return nil
+}
+
 func (n *Node) onEnterPersistence(_ context.Context, _ ...any) error {
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entered Persistence state", n.sm.MustState())
 	n.skipList.DisableEverything()
 	n.syncPeer = nil
 	if err := n.st.PersistAddressTransactions(); err != nil {
@@ -524,6 +780,7 @@ func (n *Node) onEnterPersistence(_ context.Context, _ ...any) error {
 }
 
 func (n *Node) onEnterHalt(_ context.Context, _ ...any) error {
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entered Halt state", n.sm.MustState())
 	n.skipList.DisableEverything()
 	n.syncPeer = nil
 	close(n.commandsCh)
@@ -601,7 +858,7 @@ func (n *Node) onGetBlock(_ context.Context, args ...any) error {
 	block, err := n.st.Block(id)
 	if err != nil {
 		zap.S().Named(logging.FSMNamespace).
-			Errorf("[%s] Failed to retriev a block by ID '%s': %v", n.sm.MustState(), id.String(), err)
+			Warnf("[%s] Failed to retriev a block by ID '%s': %v", n.sm.MustState(), id.String(), err)
 		return nil
 	}
 	bm, err := proto.MessageByBlock(block, n.scheme)
@@ -614,7 +871,89 @@ func (n *Node) onGetBlock(_ context.Context, args ...any) error {
 	return nil
 }
 
-func (n *Node) onBlock(_ context.Context, args ...any) error {
+func (n *Node) onBlockSync(_ context.Context, args ...any) error {
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
+	}
+	b, ok := args[1].(*proto.Block)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected '*proto.Block'", args[1])
+	}
+	st, ok := n.sm.MustState().(stage)
+	if !ok {
+		return errors.Errorf("invlid type of FSM state '%T'", n.sm.MustState())
+	}
+
+	if !n.lastPeer.Equal(p) { // Block received from unexpected peer, ignore it.
+		zap.S().Named(logging.FSMNamespace).
+			Debugf("[%s] Block '%s' received from unexpected peer '%s', expecting from '%s'",
+				st, b.BlockID().String(), p.ID().String(), n.lastPeer.ID().String())
+		return nil
+	}
+
+	metrics.FSMKeyBlockReceived(st.String(), b, p.Handshake().NodeName)
+	zap.S().Named(logging.FSMNamespace).
+		Debugf("[%s] Block '%s' received from '%s'", st, b.BlockID().String(), p.ID().String())
+	if !n.sequence.putBlock(b) {
+		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Unexpected block '%s'", st, b.BlockID().String())
+		return nil
+	}
+	if n.sequence.full() {
+		return n.sm.Fire(eventBlockSequenceComplete)
+	}
+	return nil
+}
+
+func (n *Node) applyBlockSequence(_ context.Context, _ ...any) error {
+	n.stopSyncTimer()
+	st, ok := n.sm.MustState().(stage)
+	if !ok {
+		return errors.Errorf("invlid type of FSM state '%T'", n.sm.MustState())
+	}
+	blocks := n.sequence.blocks()
+	if len(blocks) == 0 {
+		zap.S().Named(logging.FSMNamespace).Debugf("[%s] No blocks to apply", n.sm.MustState())
+		return nil
+	}
+	zap.S().Named(logging.FSMNamespace).
+		Debugf("[%s] Applying blocks [%s...%s](%d)",
+			n.sm.MustState(), blocks[0].BlockID().ShortString(), blocks[len(blocks)-1].BlockID().ShortString(),
+			len(blocks))
+	err := n.applier.applyBlocks(blocks)
+	if err != nil {
+		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
+			zap.S().Named(logging.FSMNamespace).
+				Debugf("[%s] Suspending peer '%s' because of blocks application error: %v",
+					st, n.syncPeer.ID().String(), err)
+			msg := fmt.Sprintf("[%s] Failed to apply blocks: %s", st, err.Error())
+			n.commandsCh <- network.SuspendPeerCommand{Peer: n.syncPeer, Message: msg}
+			return n.sm.Fire(eventAbortSync) // Aborting synchronization in case of error.
+		}
+		// TODO: Not all blocks can be rejected, consider returning number of applied blocks from applyBlocks.
+		for _, rjb := range blocks {
+			metrics.FSMKeyBlockDeclined(st.String(), rjb, err)
+		}
+	}
+	for _, apb := range blocks {
+		metrics.FSMKeyBlockApplied(st.String(), apb)
+	}
+	// TODO: Reschedule, eg: a.baseInfo.scheduler.Reschedule()
+
+	// Announce new score to all connected peers.
+	n.commandsCh <- network.AnnounceScoreCommand{}
+
+	should, err := n.st.ShouldPersistAddressTransactions()
+	if err != nil {
+		return errors.Wrapf(err, "failed to check necessity to persist transactions in state '%s'", st.String())
+	}
+	if should {
+		return n.sm.Fire(eventPersistenceRequired)
+	}
+	return nil
+}
+
+func (n *Node) onKeyBlock(_ context.Context, args ...any) error {
 	p, ok := args[0].(peer.Peer)
 	if !ok {
 		return errors.Errorf("invalid type '%T' of first argument, expected 'peer.Peer'", args[0])
@@ -662,7 +1001,7 @@ func (n *Node) onBlock(_ context.Context, args ...any) error {
 		return nil // No need to try to apply the block, we already know it is inapplicable.
 	}
 
-	_, err = n.applier.applyBlocks([]*proto.Block{b})
+	err = n.applier.applyBlocks([]*proto.Block{b})
 	if err != nil {
 		metrics.FSMKeyBlockDeclined(st.String(), b, err)
 		zap.S().Named(logging.FSMNamespace).Errorf("[%s] Failed to apply block '%s' from '%s': %v",
@@ -813,6 +1152,54 @@ func (n *Node) onBroadcastTransaction(_ context.Context, args ...any) error {
 	return nil
 }
 
+func (n *Node) activeNG(_ context.Context, _ ...any) bool {
+	activated, err := n.st.IsActivated(int16(settings.NG))
+	if err != nil {
+		zap.S().Named(logging.FSMNamespace).
+			Errorf("[%s] Unable to check NG feature activation: %v", n.sm.MustState(), err)
+		return false
+	}
+	return activated
+}
+
+func (n *Node) inactiveNG(ctx context.Context, args ...any) bool {
+	return !n.activeNG(ctx, args...)
+}
+
+func (n *Node) completeIDsBatch(_ context.Context, args ...any) bool {
+	ids, ok := args[1].([]proto.BlockID)
+	if !ok {
+		zap.S().Named(logging.FSMNamespace).
+			Fatalf("[%s] Invalid type '%T' of second argument, expected '[]proto.BlockID'",
+				n.sm.MustState(), args[1])
+		return false
+	}
+	return len(ids) == blockIDsSequenceLength
+}
+
+func (n *Node) incompleteIDsBatch(ctx context.Context, args ...any) bool {
+	return !n.completeIDsBatch(ctx, args...)
+}
+
+func (n *Node) anticipatedBlock(_ context.Context, args ...any) bool {
+	p, ok := args[0].(peer.Peer)
+	if !ok {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Invalid type '%T' of first argument, expected 'peer.Peer'", n.sm.MustState(), args[0])
+		return false
+	}
+	b, ok := args[1].(*proto.Block)
+	if !ok {
+		zap.S().Named(logging.FSMNamespace).
+			Warnf("[%s] Invalid type '%T' of second argument, expected '*proto.Block'", n.sm.MustState(), args[1])
+	}
+	return n.lastPeer.Equal(p) && n.sequence.requested(b.BlockID())
+}
+
+func (n *Node) unanticipatedBlock(ctx context.Context, args ...any) bool {
+	return !n.anticipatedBlock(ctx, args...)
+}
+
 func (n *Node) sendNextBlockIDs(p peer.Peer, height proto.Height, id proto.BlockID, asSignatures bool) {
 	ids := make([]proto.BlockID, 1, blockIDsSequenceLength)
 	ids[0] = id                                   // Put the common block ID as first in result
@@ -856,7 +1243,7 @@ func (n *Node) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 		return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
 			previousBlockID.String(), blockFromCache.ID.String())
 	}
-	_, err = n.applier.applyBlocks([]*proto.Block{blockFromCache})
+	err = n.applier.applyBlocks([]*proto.Block{blockFromCache})
 	if err != nil {
 		return errors.Wrapf(err, "failed to apply cached block %q", blockFromCache.ID.String())
 	}
@@ -907,6 +1294,61 @@ func (n *Node) checkAndAppendMicroBlock(mb *proto.MicroBlock) (*proto.Block, err
 			mb.TotalBlockID.String())
 	}
 	return newBlock, nil
+}
+
+// lastBlockIDsFromState returns blockIDs sequence built in reverse order (from newer to older blocks).
+func (n *Node) lastBlockIDsFromState() (blockIDs, error) {
+	ids := make([]proto.BlockID, 0, blockIDsSequenceLength)
+
+	h, err := n.st.Height()
+	if err != nil {
+		zap.S().Named(logging.FSMNamespace).Errorf("Failed to get height from state: %v", err)
+		return nil, err
+	}
+
+	for i := 0; i < blockIDsSequenceLength && h > 0; i++ {
+		id, heightErr := n.st.HeightToBlockID(h)
+		if heightErr != nil {
+			zap.S().Named(logging.FSMNamespace).Errorf("Failed to get blockID for height %d: %v", h, heightErr)
+			return nil, heightErr
+		}
+		ids = append(ids, id)
+		h--
+	}
+	return ids, nil
+}
+
+// askIDs sends the lastIDs wrapped into the GetSignaturesMessage to the lastPeer.
+// IDs in the message must be presented in the reverse order.
+func (n *Node) askIDs() {
+	if n.lastPeer == nil || len(n.lastIDs) == 0 {
+		return
+	}
+	zap.S().Named(logging.FSMNamespace).
+		Debugf("[%s] Requesting blocks IDs for IDs range [%s...%s](%d) from '%s'",
+			n.sm.MustState(), n.lastIDs[0].ShortString(), n.lastIDs[len(n.lastIDs)-1].ShortString(), len(n.lastIDs),
+			n.lastPeer.ID().String())
+	n.lastPeer.SendMessage(&proto.GetBlockIdsMessage{Blocks: n.lastIDs})
+}
+
+func (n *Node) askBlock(id proto.BlockID) {
+	if n.lastPeer == nil {
+		return
+	}
+	zap.S().Named(logging.FSMNamespace).
+		Debugf("[%s] Requesting block '%s' from '%s'", n.sm.MustState(), id.ShortString(),
+			n.lastPeer.ID().String())
+	n.lastPeer.SendMessage(&proto.GetBlockMessage{BlockID: id})
+}
+
+func (n *Node) startSyncTimer() {
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Restarting synchronization timeout timer", n.sm.MustState())
+	n.syncTimer.Reset(defaultSyncTimeout)
+}
+
+func (n *Node) stopSyncTimer() {
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Stopping synchronization timeout timer", n.sm.MustState())
+	n.syncTimer.Stop()
 }
 
 func convertToSignatures(ids []proto.BlockID) []crypto.Signature {

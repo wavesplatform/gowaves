@@ -12,21 +12,21 @@ type ProtoMessage struct {
 }
 
 type Notification interface {
-	peerNotificationTypeMaker()
+	peerNotificationTypeMarker()
 }
 
 type ConnectedNotification struct {
 	Peer Peer
 }
 
-func (n ConnectedNotification) peerNotificationTypeMaker() {}
+func (n ConnectedNotification) peerNotificationTypeMarker() {}
 
 type DisconnectedNotification struct {
 	Peer Peer
 	Err  error
 }
 
-func (n DisconnectedNotification) peerNotificationTypeMaker() {}
+func (n DisconnectedNotification) peerNotificationTypeMarker() {}
 
 type Direction int
 
