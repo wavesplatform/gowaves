@@ -361,7 +361,7 @@ func GetTransferNegativeData(suite *f.BaseSuite, assetId crypto.Digest) map[stri
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "failed to parse json message",
+				ErrBrdCstScalaMsg: "json data validation error",
 			},
 		),
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewTransferTestData(
@@ -478,7 +478,7 @@ func GetTransferChainIDChangedNegativeData(suite *f.BaseSuite, assetId crypto.Di
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "invalid address",
+				ErrBrdCstScalaMsg: "Address or alias from other network",
 			}),
 		"Custom chainID": NewTransferTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -497,7 +497,7 @@ func GetTransferChainIDChangedNegativeData(suite *f.BaseSuite, assetId crypto.Di
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "invalid address",
+				ErrBrdCstScalaMsg: "Address or alias from other network",
 			}),
 	}
 	return t

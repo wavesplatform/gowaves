@@ -492,10 +492,11 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 					issueSequenceInBlock: info.stateActionsCounterInBlock.NextIssueActionNumber(),
 				},
 				assetChangeableInfo: assetChangeableInfo{
-					quantity:    *big.NewInt(a.Quantity),
-					name:        a.Name,
-					description: a.Description,
-					reissuable:  a.Reissuable,
+					quantity:                 *big.NewInt(a.Quantity),
+					name:                     a.Name,
+					description:              a.Description,
+					lastNameDescChangeHeight: info.blockInfo.Height,
+					reissuable:               a.Reissuable,
 				},
 			}
 			id := proto.AssetIDFromDigest(a.ID)
