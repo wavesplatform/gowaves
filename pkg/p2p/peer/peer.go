@@ -30,6 +30,7 @@ func NewRemote() Remote {
 type Parent struct {
 	NetworkMessagesCh chan ProtoMessage
 	NodeMessagesCh    chan ProtoMessage
+	HistoryMessagesCh chan ProtoMessage
 	NotificationsCh   chan Notification
 	SkipMessageList   *messages.SkipMessageList
 }
@@ -38,6 +39,7 @@ func NewParent() Parent {
 	return Parent{
 		NetworkMessagesCh: make(chan ProtoMessage, defaultChannelSize),
 		NodeMessagesCh:    make(chan ProtoMessage, defaultChannelSize),
+		HistoryMessagesCh: make(chan ProtoMessage, defaultChannelSize),
 		NotificationsCh:   make(chan Notification, defaultChannelSize),
 		SkipMessageList:   &messages.SkipMessageList{},
 	}

@@ -12,7 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func bytesToMessage(data []byte, networkCh, nodeCh chan ProtoMessage, p Peer) error {
+func bytesToMessage(data []byte, networkCh, nodeCh, historyCh chan ProtoMessage, p Peer) error {
 	m, err := proto.UnmarshalMessage(data)
 	if err != nil {
 		return err
@@ -30,6 +30,13 @@ func bytesToMessage(data []byte, networkCh, nodeCh chan ProtoMessage, p Peer) er
 		default:
 			zap.S().Named(logging.NetworkDataNamespace).
 				Debugf("[%s] Failed to resend message '%T' to network channel because it's full", p.ID(), m)
+		}
+	case *proto.GetBlockMessage, *proto.GetBlockIdsMessage:
+		select {
+		case historyCh <- mess:
+		default:
+			zap.S().Named(logging.NetworkNamespace).
+				Debugf("[%s] Failed to resend message '%T' to history channel because it's full", p.ID(), m)
 		}
 	default:
 		select {
@@ -87,7 +94,8 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error 
 				zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Receiving from network: %s",
 					peer.ID(), proto.B64Bytes(bb.Bytes()),
 				)
-				err := bytesToMessage(bb.Bytes(), parent.NetworkMessagesCh, parent.NodeMessagesCh, peer)
+				err := bytesToMessage(bb.Bytes(), parent.NetworkMessagesCh, parent.NodeMessagesCh,
+					parent.HistoryMessagesCh, peer)
 				if err != nil {
 					parent.NotificationsCh <- DisconnectedNotification{Peer: peer, Err: err}
 					errSentToParent = true

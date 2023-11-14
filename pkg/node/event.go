@@ -5,9 +5,7 @@ type event int
 
 const (
 	eventTransaction event = iota
-	eventGetBlock
 	eventBlock
-	eventGetBlockIDs
 	eventBlockIDs
 	eventMicroBlockInv
 	eventGetMicroBlock
@@ -20,7 +18,6 @@ const (
 	eventPersistenceComplete
 	eventAbortSync
 	eventBlockSequenceComplete
-	eventSyncTimeout
 	eventBroadcastTransaction
 	eventHalt
 )

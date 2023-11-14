@@ -9,29 +9,26 @@ func _() {
 	// Re-run the stringer command to generate them again.
 	var x [1]struct{}
 	_ = x[eventTransaction-0]
-	_ = x[eventGetBlock-1]
-	_ = x[eventBlock-2]
-	_ = x[eventGetBlockIDs-3]
-	_ = x[eventBlockIDs-4]
-	_ = x[eventMicroBlockInv-5]
-	_ = x[eventGetMicroBlock-6]
-	_ = x[eventMicroBlock-7]
-	_ = x[eventChangeSyncPeer-8]
-	_ = x[eventResume-9]
-	_ = x[eventSuspend-10]
-	_ = x[eventBlockGenerated-11]
-	_ = x[eventPersistenceRequired-12]
-	_ = x[eventPersistenceComplete-13]
-	_ = x[eventAbortSync-14]
-	_ = x[eventBlockSequenceComplete-15]
-	_ = x[eventSyncTimeout-16]
-	_ = x[eventBroadcastTransaction-17]
-	_ = x[eventHalt-18]
+	_ = x[eventBlock-1]
+	_ = x[eventBlockIDs-2]
+	_ = x[eventMicroBlockInv-3]
+	_ = x[eventGetMicroBlock-4]
+	_ = x[eventMicroBlock-5]
+	_ = x[eventChangeSyncPeer-6]
+	_ = x[eventResume-7]
+	_ = x[eventSuspend-8]
+	_ = x[eventBlockGenerated-9]
+	_ = x[eventPersistenceRequired-10]
+	_ = x[eventPersistenceComplete-11]
+	_ = x[eventAbortSync-12]
+	_ = x[eventBlockSequenceComplete-13]
+	_ = x[eventBroadcastTransaction-14]
+	_ = x[eventHalt-15]
 }
 
-const _event_name = "TransactionGetBlockBlockGetBlockIDsBlockIDsMicroBlockInvGetMicroBlockMicroBlockChangeSyncPeerResumeSuspendBlockGeneratedPersistenceRequiredPersistenceCompleteAbortSyncBlockSequenceCompleteSyncTimeoutBroadcastTransactionHalt"
+const _event_name = "TransactionBlockBlockIDsMicroBlockInvGetMicroBlockMicroBlockChangeSyncPeerResumeSuspendBlockGeneratedPersistenceRequiredPersistenceCompleteAbortSyncBlockSequenceCompleteBroadcastTransactionHalt"
 
-var _event_index = [...]uint8{0, 11, 19, 24, 35, 43, 56, 69, 79, 93, 99, 106, 120, 139, 158, 167, 188, 199, 219, 223}
+var _event_index = [...]uint8{0, 11, 16, 24, 37, 50, 60, 74, 80, 87, 101, 120, 139, 148, 169, 189, 193}
 
 func (i event) String() string {
 	if i < 0 || i >= event(len(_event_index)-1) {

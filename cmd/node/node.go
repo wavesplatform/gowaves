@@ -470,11 +470,13 @@ func main() {
 
 	ntw, notificationsCh := network.NewNetwork(parent.NotificationsCh, parent.NetworkMessagesCh,
 		peerManager, st, cfg.AddressSchemeCharacter, nc.minPeersMining, bindAddr, declAddr)
+	hst := node.NewHistory(parent.HistoryMessagesCh, cfg.AddressSchemeCharacter, st)
 	n, cmdCh := node.NewNode(parent.NodeMessagesCh, notificationsCh, broadcastCh, cfg.AddressSchemeCharacter,
 		nc.microblockInterval, nc.obsolescencePeriod, utx, parent.SkipMessageList, ntpTime, st, reward)
 	ntw.SetCommandChannel(cmdCh)
 
 	ntw.Run(ctx)
+	hst.Run(ctx)
 	n.Run(ctx)
 
 	if len(conf.Addresses) > 0 {
@@ -534,6 +536,7 @@ func main() {
 	<-ctx.Done()
 	zap.S().Info("User termination in progress...")
 	ntw.Shutdown()
+	hst.Shutdown()
 	n.Shutdown()
 	zap.S().Infof("Done")
 }
