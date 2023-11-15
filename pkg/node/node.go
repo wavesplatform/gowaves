@@ -819,6 +819,7 @@ func (n *Node) applyBlockSequence(_ context.Context, _ ...any) error {
 		zap.S().Named(logging.FSMNamespace).
 			Warnf("[%s] Blocks [%s...%s](%d) application error: %v", n.sm.MustState(),
 				blocks[0].BlockID().ShortString(), blocks[len(blocks)-1].BlockID().ShortString(), len(blocks), err)
+		// TODO: Consider suspending the peer regardless the type of error.
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
 			zap.S().Named(logging.FSMNamespace).
 				Debugf("[%s] Suspending peer '%s' because of blocks application error: %v",

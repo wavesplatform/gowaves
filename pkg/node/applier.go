@@ -31,16 +31,16 @@ func (a *applier) exists(block *proto.Block) (bool, error) {
 
 func (a *applier) applyBlocks(blocks []*proto.Block) error {
 	if len(blocks) == 0 {
-		return errors.New("empty blocks")
+		return errors.New("no blocks to apply")
 	}
 	firstBlock := blocks[0]
 	// check first block if exists
 	_, err := a.st.Block(firstBlock.BlockID())
 	if err == nil {
-		return errors.Errorf("first block %s exists", firstBlock.BlockID().String())
+		return errors.Errorf("first block '%s' alredy exists", firstBlock.BlockID().String())
 	}
 	if !state.IsNotFound(err) {
-		return errors.Wrap(err, "unknown error")
+		return err
 	}
 	currentHeight, err := a.st.Height()
 	if err != nil {
@@ -55,7 +55,7 @@ func (a *applier) applyBlocks(blocks []*proto.Block) error {
 	// try to find parent. If not - we can't add blocks, skip it
 	parentHeight, err := a.st.BlockIDToHeight(firstBlock.Parent)
 	if err != nil {
-		return errors.Wrapf(err, "failed get parent height, firstBlock id %s, for firstBlock %s",
+		return errors.Wrapf(err, "failed to get height of parent ID '%s' of block '%s'",
 			firstBlock.Parent.String(), firstBlock.BlockID().String())
 	}
 	// calculate score of all passed blocks
