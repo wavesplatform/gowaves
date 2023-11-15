@@ -72,6 +72,14 @@ func FSMFilter(flag bool) Option {
 	})
 }
 
+func HistoryFilter(flag bool) Option {
+	return optionFunc(func(c *config) {
+		if !flag {
+			c.filter = zapfilter.All(c.filter, zapfilter.Reverse(zapfilter.ByNamespaces(HistoryNamespace)))
+		}
+	})
+}
+
 func DevelopmentFlag(flag bool) Option {
 	return optionFunc(func(c *config) {
 		if flag {

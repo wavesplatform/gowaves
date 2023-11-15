@@ -606,6 +606,8 @@ func (n *Node) onEnterTillingFromIdle(_ context.Context, args ...any) error {
 	n.sequence.reset()
 	n.syncPeer = p
 	// Ask first batch of block IDs by providing the last blocks from state.
+	b := n.st.TopBlock()
+	n.chooseFollowingMode(b)
 	ids, err := n.lastBlockIDsFromState()
 	if err != nil {
 		return errors.Wrap(err, "on enter Tilling state")
@@ -841,11 +843,7 @@ func (n *Node) applyBlockSequence(_ context.Context, _ ...any) error {
 	n.commandsCh <- network.AnnounceScoreCommand{}
 
 	// Update following mode regarding top block time.
-	if !n.obsolete(topBlock) { // Top block is quite fresh, we near the tip of blockchain.
-		n.commandsCh <- network.FollowLeaderCommand{}
-	} else {
-		n.commandsCh <- network.FollowGroupCommand{}
-	}
+	n.chooseFollowingMode(topBlock)
 
 	should, err := n.st.ShouldPersistAddressTransactions()
 	if err != nil {
@@ -1236,4 +1234,15 @@ func (n *Node) obsolete(block *proto.Block) bool {
 	obsolescenceTime := now.Add(-n.obsolescence)
 	blockTime := time.UnixMilli(int64(block.Timestamp))
 	return blockTime.Before(obsolescenceTime)
+}
+
+func (n *Node) chooseFollowingMode(block *proto.Block) {
+	if block == nil {
+		return
+	}
+	if n.obsolete(block) {
+		n.commandsCh <- network.FollowGroupCommand{}
+		return
+	}
+	n.commandsCh <- network.FollowLeaderCommand{}
 }

@@ -63,6 +63,7 @@ type config struct {
 	logNetwork                 bool
 	logNetworkData             bool
 	logFSM                     bool
+	logHistory                 bool
 	statePath                  string
 	blockchainType             string
 	peerAddresses              string
@@ -157,6 +158,8 @@ func (c *config) parse() {
 		"Log network messages as Base64 strings. Turned off by default.")
 	flag.BoolVar(&c.logFSM, "log-fsm", false,
 		"Log the operation of FSM. Turned off by default.")
+	flag.BoolVar(&c.logHistory, "log-history", false,
+		"Log the operation of history. Turned off by default.")
 	flag.StringVar(&c.statePath, "state-path", "", "Path to node's state directory.")
 	flag.StringVar(&c.blockchainType, "blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet.")
 	flag.StringVar(&c.peerAddresses, "peers", "", "Addresses of peers to connect to.")
@@ -244,6 +247,7 @@ func main() {
 		logging.NetworkFilter(nc.logNetwork),
 		logging.NetworkDataFilter(nc.logNetworkData),
 		logging.FSMFilter(nc.logFSM),
+		logging.HistoryFilter(nc.logHistory),
 	)
 	defer func() {
 		err := logger.Sync()
