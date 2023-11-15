@@ -49,11 +49,11 @@ The account script is set on blockID2, then rollback returns storage to the bloc
 The account must not have a verifier anymore. However, the filter is false, so invalid data (verifier) will be returned\
 */
 func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
-	to := createCheckerTestObjects(t)
+	info := defaultCheckerInfo()
+	to := createCheckerTestObjects(t, info)
 	to.stor.hs.amend = false
 
 	tx := createSetScriptWithProofs(t)
-	info := defaultCheckerInfo()
 
 	to.stor.activateFeature(t, int16(settings.SmartAccounts))
 
@@ -65,11 +65,13 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := defaultPerformerInfo()
+	txPerformerInfo := defaultPerformerInfo(to.stateActionsCounter)
 	txPerformerInfo.blockID = blockID2
+	info.blockID = blockID2 // the block from checker info is used by snapshot applier to apply a tx
 	txPerformerInfo.checkerData = checkerData
 
-	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
+	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
+
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
@@ -87,7 +89,8 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 // the account script is set on blockID2, then blockID3 is added, then rollback returns storage to the blockID1.
 // The account must not have a verifier anymore. Filter is true, so everything must be valid
 func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
-	to := createCheckerTestObjects(t)
+	info := defaultCheckerInfo()
+	to := createCheckerTestObjects(t, info)
 	to.stor.hs.amend = true
 
 	tx := createSetScriptWithProofs(t)
@@ -100,11 +103,12 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := defaultPerformerInfo()
+	txPerformerInfo := defaultPerformerInfo(to.stateActionsCounter)
 	txPerformerInfo.blockID = blockID2
+	info.blockID = blockID2 // the block from checker info is used by snapshot applier to apply a tx
 	txPerformerInfo.checkerData.scriptEstimation = &scriptEstimation{}
+	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
 
-	err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo)
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
 	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)

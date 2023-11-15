@@ -215,6 +215,7 @@ func (tc *transactionChecker) checkScript(
 	if err != nil {
 		return ride.TreeEstimation{}, errs.Extend(err, "failed to estimate script complexity")
 	}
+
 	if scErr := tc.checkScriptComplexity(tree.LibVersion, est, tree.IsDApp(), reducedVerifierComplexity); scErr != nil {
 		return ride.TreeEstimation{}, errors.Wrap(scErr, "failed to check script complexity")
 	}
@@ -763,7 +764,8 @@ func (tc *transactionChecker) orderScriptedAccount(order proto.Order) (bool, err
 }
 
 func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAmount uint64) error {
-	orderId, err := order.GetID()
+	orderID, err := order.GetID()
+
 	if err != nil {
 		return err
 	}
@@ -775,16 +777,12 @@ func (tc *transactionChecker) checkEnoughVolume(order proto.Order, newFee, newAm
 	if newFee > fullFee {
 		return errors.New("current fee exceeds total order fee")
 	}
-	filledAmount, err := tc.stor.ordersVolumes.newestFilledAmount(orderId)
+	filledAmount, filledFee, err := tc.stor.ordersVolumes.newestFilled(orderID)
 	if err != nil {
 		return err
 	}
 	if fullAmount-newAmount < filledAmount {
 		return errors.New("order amount volume is overflowed")
-	}
-	filledFee, err := tc.stor.ordersVolumes.newestFilledFee(orderId)
-	if err != nil {
-		return err
 	}
 	if fullFee-newFee < filledFee {
 		return errors.New("order fee volume is overflowed")

@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/mr-tron/base58/base58"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -490,9 +491,30 @@ func (s *testStorageObjects) createAsset(t *testing.T, assetID crypto.Digest) *a
 
 func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Digest) {
 	s.addBlock(t, blockID0)
-	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, testGlobal.senderInfo.pk, blockID0)
+	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, blockID0)
 	assert.NoError(t, err, "setAssetScript failed")
 	s.flush(t)
+}
+
+func storeScriptByAddress(
+	stor *blockchainEntitiesStorage,
+	scheme proto.Scheme,
+	senderPK crypto.PublicKey,
+	script proto.Script,
+	se scriptEstimation,
+	blockID proto.BlockID,
+) error {
+	senderAddr, err := proto.NewAddressFromPublicKey(scheme, senderPK)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create addr from PK %q", senderPK.String())
+	}
+	if setErr := stor.scriptsStorage.setAccountScript(senderAddr, script, senderPK, blockID); setErr != nil {
+		return errors.Wrapf(setErr, "failed to set account script on addr %q", senderAddr.String())
+	}
+	if setErr := stor.scriptsComplexity.saveComplexitiesForAddr(senderAddr, se, blockID); setErr != nil {
+		return errors.Wrapf(setErr, "failed to save script complexities for addr %q", senderAddr.String())
+	}
+	return nil
 }
 
 func (s *testStorageObjects) setScript(t *testing.T, pk crypto.PublicKey, script proto.Script, blockID proto.BlockID) {

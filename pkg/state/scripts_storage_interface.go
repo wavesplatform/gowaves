@@ -10,8 +10,9 @@ import (
 type scriptStorageState interface {
 	commitUncertain(blockID proto.BlockID) error
 	dropUncertain()
+	uncertainAssetScriptsCopy() map[proto.AssetID]assetScriptRecordWithAssetIDTail
 	setAssetScriptUncertain(fullAssetID crypto.Digest, script proto.Script, pk crypto.PublicKey) error
-	setAssetScript(assetID crypto.Digest, script proto.Script, pk crypto.PublicKey, blockID proto.BlockID) error
+	setAssetScript(assetID crypto.Digest, script proto.Script, blockID proto.BlockID) error
 	newestIsSmartAsset(assetID proto.AssetID) (bool, error)
 	isSmartAsset(assetID proto.AssetID) (bool, error)
 	newestScriptByAsset(assetID proto.AssetID) (*ast.Tree, error)

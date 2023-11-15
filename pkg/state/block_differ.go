@@ -170,7 +170,7 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	return nil
 }
 
-func (d *blockDiffer) createMinerDiff(block *proto.BlockHeader, hasParent bool) (txDiff, error) {
+func (d *blockDiffer) createMinerAndRewardDiff(block *proto.BlockHeader, hasParent bool) (txDiff, error) {
 	var err error
 	var minerDiff txDiff
 	var minerAddr proto.WavesAddress
