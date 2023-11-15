@@ -7,6 +7,7 @@ import (
 	"go.uber.org/zap"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -133,4 +134,15 @@ func (h *History) sendNextBlockIDs(p peer.Peer, height proto.Height, id proto.Bl
 		}
 		p.SendMessage(&proto.BlockIdsMessage{Blocks: ids})
 	}
+}
+
+func convertToSignatures(ids []proto.BlockID) []crypto.Signature {
+	sigs := make([]crypto.Signature, len(ids))
+	for i, id := range ids {
+		if !id.IsSignature() {
+			break
+		}
+		sigs[i] = id.Signature()
+	}
+	return sigs
 }

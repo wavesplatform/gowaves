@@ -14,7 +14,6 @@ import (
 
 	"github.com/rhansen/go-kairos/kairos"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
@@ -814,7 +813,7 @@ func (n *Node) applyBlockSequence(_ context.Context, _ ...any) error {
 		Debugf("[%s] Applying blocks [%s...%s](%d)",
 			n.sm.MustState(), blocks[0].BlockID().ShortString(), blocks[len(blocks)-1].BlockID().ShortString(),
 			len(blocks))
-	err := n.applier.applyBlocks(blocks)
+	topBlock, err := n.applier.applyBlocks(blocks)
 	if err != nil {
 		zap.S().Named(logging.FSMNamespace).
 			Warnf("[%s] Blocks [%s...%s](%d) application error: %v", n.sm.MustState(),
@@ -840,6 +839,13 @@ func (n *Node) applyBlockSequence(_ context.Context, _ ...any) error {
 
 	// Announce new score to all connected peers.
 	n.commandsCh <- network.AnnounceScoreCommand{}
+
+	// Update following mode regarding top block time.
+	if !n.obsolete(topBlock) { // Top block is quite fresh, we near the tip of blockchain.
+		n.commandsCh <- network.FollowLeaderCommand{}
+	} else {
+		n.commandsCh <- network.FollowGroupCommand{}
+	}
 
 	should, err := n.st.ShouldPersistAddressTransactions()
 	if err != nil {
@@ -899,7 +905,7 @@ func (n *Node) onKeyBlock(_ context.Context, args ...any) error {
 		return nil // No need to try to apply the block, we already know it is inapplicable.
 	}
 
-	err = n.applier.applyBlocks([]*proto.Block{b})
+	_, err = n.applier.applyBlocks([]*proto.Block{b})
 	if err != nil {
 		metrics.FSMKeyBlockDeclined(st.String(), b, err)
 		zap.S().Named(logging.FSMNamespace).Errorf("[%s] Failed to apply block '%s' from '%s': %v",
@@ -1117,7 +1123,7 @@ func (n *Node) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 		return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
 			previousBlockID.String(), blockFromCache.ID.String())
 	}
-	err = n.applier.applyBlocks([]*proto.Block{blockFromCache})
+	_, err = n.applier.applyBlocks([]*proto.Block{blockFromCache})
 	if err != nil {
 		return errors.Wrapf(err, "failed to apply cached block %q", blockFromCache.ID.String())
 	}
@@ -1225,13 +1231,9 @@ func (n *Node) stopSyncTimer() {
 	n.syncTimer.Stop()
 }
 
-func convertToSignatures(ids []proto.BlockID) []crypto.Signature {
-	sigs := make([]crypto.Signature, len(ids))
-	for i, id := range ids {
-		if !id.IsSignature() {
-			break
-		}
-		sigs[i] = id.Signature()
-	}
-	return sigs
+func (n *Node) obsolete(block *proto.Block) bool {
+	now := n.tm.Now()
+	obsolescenceTime := now.Add(-n.obsolescence)
+	blockTime := time.UnixMilli(int64(block.Timestamp))
+	return blockTime.Before(obsolescenceTime)
 }

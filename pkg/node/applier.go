@@ -29,48 +29,48 @@ func (a *applier) exists(block *proto.Block) (bool, error) {
 	return false, err
 }
 
-func (a *applier) applyBlocks(blocks []*proto.Block) error {
+func (a *applier) applyBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	if len(blocks) == 0 {
-		return errors.New("no blocks to apply")
+		return nil, errors.New("no blocks to apply")
 	}
 	firstBlock := blocks[0]
 	// check first block if exists
 	_, err := a.st.Block(firstBlock.BlockID())
 	if err == nil {
-		return errors.Errorf("first block '%s' alredy exists", firstBlock.BlockID().String())
+		return nil, errors.Errorf("first block '%s' alredy exists", firstBlock.BlockID().String())
 	}
 	if !state.IsNotFound(err) {
-		return err
+		return nil, err
 	}
 	currentHeight, err := a.st.Height()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// current score. Main idea is to find parent block, and check if score
 	// of all passed blocks higher than currentScore. If yes, we can add blocks
 	currentScore, err := a.st.ScoreAtHeight(currentHeight)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	// try to find parent. If not - we can't add blocks, skip it
 	parentHeight, err := a.st.BlockIDToHeight(firstBlock.Parent)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get height of parent ID '%s' of block '%s'",
+		return nil, errors.Wrapf(err, "failed to get height of parent ID '%s' of block '%s'",
 			firstBlock.Parent.String(), firstBlock.BlockID().String())
 	}
 	// calculate score of all passed blocks
 	forkScore, err := calcMultipleScore(blocks)
 	if err != nil {
-		return errors.Wrap(err, "failed calculate score of passed blocks")
+		return nil, errors.Wrap(err, "failed calculate score of passed blocks")
 	}
 	parentScore, err := a.st.ScoreAtHeight(parentHeight)
 	if err != nil {
-		return errors.Wrapf(err, "failed get score at %d", parentHeight)
+		return nil, errors.Wrapf(err, "failed get score at %d", parentHeight)
 	}
 	cumulativeScore := forkScore.Add(forkScore, parentScore)
 	if currentScore.Cmp(cumulativeScore) >= 0 {
 		// current score is higher or the same as fork score - do not apply blocks
-		return errors.Errorf(
+		return nil, errors.Errorf(
 			"low fork score: current blockchain score (%s) is higher than or equal to fork's score (%s)",
 			currentScore.String(), cumulativeScore.String())
 	}
@@ -79,28 +79,24 @@ func (a *applier) applyBlocks(blocks []*proto.Block) error {
 	// Do we need rollback?
 	if parentHeight == currentHeight {
 		// no, don't rollback, just add blocks
-		_, err = a.st.AddDeserializedBlocks(blocks)
-		if err != nil {
-			return err
-		}
-		return nil
+		return a.st.AddDeserializedBlocks(blocks)
 	}
 	rollbackBlocks, err := a.rollback(parentHeight, currentHeight)
 	if err != nil {
-		return errors.Wrapf(err, "failed to rollback")
+		return nil, errors.Wrapf(err, "failed to rollback")
 	}
 	// applying new blocks
-	_, err = a.st.AddDeserializedBlocks(blocks)
+	b, err := a.st.AddDeserializedBlocks(blocks)
 	if err != nil {
 		// return back saved blocks
 		_, err2 := a.st.AddDeserializedBlocks(rollbackBlocks)
 		if err2 != nil {
-			return errors.Wrap(err2, "failed rollback deserialized blocks")
+			return nil, errors.Wrap(err2, "failed rollback deserialized blocks")
 		}
-		return errors.Wrapf(err, "failed add deserialized blocks, first block id %s",
+		return nil, errors.Wrapf(err, "failed add deserialized blocks, first block id %s",
 			firstBlock.BlockID().String())
 	}
-	return nil
+	return b, nil
 }
 
 func (a *applier) rollback(parentHeight, currentHeight uint64) ([]*proto.Block, error) {
