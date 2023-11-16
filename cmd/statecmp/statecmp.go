@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
+	"fmt"
 	"net/http"
 	"net/url"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -189,7 +191,13 @@ func main() {
 
 	flag.Parse()
 
-	logging.SetupSimpleLogger(*logLevel)
+	logger := logging.SetupSimpleLogger(*logLevel)
+	defer func() {
+		err := logger.Sync()
+		if err != nil && errors.Is(err, os.ErrInvalid) {
+			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
+		}
+	}()
 	if *endHeight <= *startHeight {
 		zap.S().Fatal("End height must be greater than start height.")
 	}

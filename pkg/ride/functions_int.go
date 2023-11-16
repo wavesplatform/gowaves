@@ -7,7 +7,9 @@ import (
 
 	"github.com/ericlagergren/decimal"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/math"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func intArg(args []rideType) (rideInt, error) {
@@ -100,7 +102,7 @@ func sum(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "sum")
 	}
-	return l1 + l2, nil
+	return common.AddInt(l1, l2)
 }
 
 func sub(_ environment, args ...rideType) (rideType, error) {
@@ -108,7 +110,7 @@ func sub(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "sub")
 	}
-	return l1 - l2, nil
+	return common.SubInt(l1, l2)
 }
 
 func mul(_ environment, args ...rideType) (rideType, error) {
@@ -116,7 +118,7 @@ func mul(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "mul")
 	}
-	return l1 * l2, nil
+	return common.MulInt(l1, l2)
 }
 
 func div(_ environment, args ...rideType) (rideType, error) {

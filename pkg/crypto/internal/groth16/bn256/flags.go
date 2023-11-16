@@ -80,7 +80,7 @@ func changeFlagsInVKToGnarkType(buf []byte) ([]byte, error) {
 	return fixBuffer, nil
 }
 
-func ChangeFlagsInProofToGnarkType(buf []byte) ([]byte, error) {
+func changeFlagsInProofToGnarkType(buf []byte) ([]byte, error) {
 	fixBuffer := make([]byte, 0, len(buf))
 	var tmpBuf [bn254.SizeOfG2AffineCompressed]byte
 	r := bytes.NewReader(buf)

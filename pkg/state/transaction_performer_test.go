@@ -8,7 +8,6 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
@@ -16,27 +15,51 @@ import (
 )
 
 type performerTestObjects struct {
-	stor *testStorageObjects
-	tp   *transactionPerformer
+	stor                *testStorageObjects
+	tp                  *transactionPerformer
+	stateActionsCounter *proto.StateActionsCounter
 }
 
-func createPerformerTestObjects(t *testing.T) *performerTestObjects {
+func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *performerTestObjects {
 	stor := createStorageObjects(t, true)
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	require.NoError(t, err, "newTransactionPerformer() failed")
-	return &performerTestObjects{stor, tp}
+	actionsCounter := new(proto.StateActionsCounter)
+
+	snapshotApplier := newBlockSnapshotsApplier(
+		newBlockSnapshotsApplierInfo(
+			checkerInfo,
+			settings.MainNetSettings.AddressSchemeCharacter,
+			actionsCounter,
+		),
+		newSnapshotApplierStorages(stor.entities),
+	)
+	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
+
+	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
+
+	return &performerTestObjects{stor, tp, actionsCounter}
 }
 
-func defaultPerformerInfo() *performerInfo {
-	return newPerformerInfo(0, new(proto.StateActionsCounter), blockID0, txCheckerData{})
+func defaultPerformerInfo(stateActionsCounter *proto.StateActionsCounter) *performerInfo {
+	_ = stateActionsCounter
+	return newPerformerInfo(0, stateActionsCounter, blockID0, proto.WavesAddress{}, txCheckerData{})
+}
+
+func defaultCheckerInfoHeight0() *checkerInfo {
+	return &checkerInfo{
+		currentTimestamp: defaultTimestamp,
+		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
+		blockID:          blockID0,
+		blockVersion:     1,
+		height:           0,
+	}
 }
 
 func TestPerformIssueWithSig(t *testing.T) {
-	to := createPerformerTestObjects(t)
-
+	checkerInfo := defaultCheckerInfoHeight0()
+	to := createPerformerTestObjects(t, checkerInfo)
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithSig(t, 1000)
-	err := to.tp.performIssueWithSig(tx, defaultPerformerInfo())
+	_, err := to.tp.performIssueWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performIssueWithSig() failed")
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
@@ -63,12 +86,12 @@ func TestPerformIssueWithSig(t *testing.T) {
 }
 
 func TestPerformIssueWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
-
+	checkerInfo := defaultCheckerInfoHeight0()
+	to := createPerformerTestObjects(t, checkerInfo)
 	to.stor.addBlock(t, blockID0)
 	tx := createIssueWithProofs(t, 1000)
 
-	err := to.tp.performIssueWithProofs(tx, defaultPerformerInfo())
+	_, err := to.tp.performIssueWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performIssueWithProofs() failed")
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
@@ -95,11 +118,13 @@ func TestPerformIssueWithProofs(t *testing.T) {
 }
 
 func TestPerformReissueWithSig(t *testing.T) {
-	to := createPerformerTestObjects(t)
+
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createReissueWithSig(t, 1000)
-	err := to.tp.performReissueWithSig(tx, defaultPerformerInfo())
+	_, err := to.tp.performReissueWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performReissueWithSig() failed")
 	to.stor.flush(t)
 	assetInfo.reissuable = tx.Reissuable
@@ -112,11 +137,12 @@ func TestPerformReissueWithSig(t *testing.T) {
 }
 
 func TestPerformReissueWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createReissueWithProofs(t, 1000)
-	err := to.tp.performReissueWithProofs(tx, defaultPerformerInfo())
+	_, err := to.tp.performReissueWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performReissueWithProofs() failed")
 	to.stor.flush(t)
 	assetInfo.reissuable = tx.Reissuable
@@ -129,11 +155,12 @@ func TestPerformReissueWithProofs(t *testing.T) {
 }
 
 func TestPerformBurnWithSig(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithSig(t)
-	err := to.tp.performBurnWithSig(tx, defaultPerformerInfo())
+	_, err := to.tp.performBurnWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performBurnWithSig() failed")
 	to.stor.flush(t)
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
@@ -145,11 +172,12 @@ func TestPerformBurnWithSig(t *testing.T) {
 }
 
 func TestPerformBurnWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithProofs(t)
-	err := to.tp.performBurnWithProofs(tx, defaultPerformerInfo())
+	_, err := to.tp.performBurnWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performBurnWithProofs() failed")
 	to.stor.flush(t)
 	assetInfo.quantity.Sub(&assetInfo.quantity, big.NewInt(int64(tx.Amount)))
@@ -161,60 +189,50 @@ func TestPerformBurnWithProofs(t *testing.T) {
 }
 
 func TestPerformExchange(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createExchangeWithSig(t)
-	err := to.tp.performExchange(tx, defaultPerformerInfo())
+	_, err := to.tp.performExchange(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performExchange() failed")
 
-	sellOrderId, err := tx.GetOrder2().GetID()
+	sellOrderID, err := tx.GetOrder2().GetID()
 	assert.NoError(t, err)
 
-	filledFee, err := to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId)
+	filledAmount, filledFee, err := to.stor.entities.ordersVolumes.newestFilled(sellOrderID)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetSellMatcherFee(), filledFee)
-
-	filledAmount, err := to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId)
-	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
-	buyOrderId, err := tx.GetOrder1().GetID()
+	buyOrderID, err := tx.GetOrder1().GetID()
 	assert.NoError(t, err)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId)
+	filledAmount, filledFee, err = to.stor.entities.ordersVolumes.newestFilled(buyOrderID)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetBuyMatcherFee(), filledFee)
-
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId)
-	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
 	to.stor.flush(t)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(sellOrderId)
+	filledAmount, filledFee, err = to.stor.entities.ordersVolumes.newestFilled(sellOrderID)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetSellMatcherFee(), filledFee)
-
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(sellOrderId)
-	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 
-	filledFee, err = to.stor.entities.ordersVolumes.newestFilledFee(buyOrderId)
+	filledAmount, filledFee, err = to.stor.entities.ordersVolumes.newestFilled(buyOrderID)
 	assert.NoError(t, err)
 	assert.Equal(t, tx.GetBuyMatcherFee(), filledFee)
-
-	filledAmount, err = to.stor.entities.ordersVolumes.newestFilledAmount(buyOrderId)
-	assert.NoError(t, err)
 	assert.Equal(t, tx.GetAmount(), filledAmount)
 }
 
 func TestPerformLeaseWithSig(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createLeaseWithSig(t)
-	err := to.tp.performLeaseWithSig(tx, defaultPerformerInfo())
+	_, err := to.tp.performLeaseWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performLeaseWithSig() failed")
 	to.stor.flush(t)
 	leasingInfo := &leasing{
@@ -231,11 +249,12 @@ func TestPerformLeaseWithSig(t *testing.T) {
 }
 
 func TestPerformLeaseWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createLeaseWithProofs(t)
-	err := to.tp.performLeaseWithProofs(tx, defaultPerformerInfo())
+	_, err := to.tp.performLeaseWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performLeaseWithProofs() failed")
 	to.stor.flush(t)
 	leasingInfo := &leasing{
@@ -252,23 +271,24 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 }
 
 func TestPerformLeaseCancelWithSig(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 	leaseTx := createLeaseWithSig(t)
-	err := to.tp.performLeaseWithSig(leaseTx, defaultPerformerInfo())
+	_, err := to.tp.performLeaseWithSig(leaseTx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performLeaseWithSig() failed")
 	to.stor.flush(t)
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
 	leasingInfo := &leasing{
 		OriginTransactionID: leaseTx.ID,
-		Status:              LeaseCanceled,
+		Status:              LeaseCancelled,
 		Amount:              leaseTx.Amount,
 		Recipient:           *leaseTx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
 		CancelTransactionID: tx.ID,
 	}
-	err = to.tp.performLeaseCancelWithSig(tx, defaultPerformerInfo())
+	_, err = to.tp.performLeaseCancelWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performLeaseCancelWithSig() failed")
 	to.stor.flush(t)
 	info, err := to.stor.entities.leases.leasingInfo(*leaseTx.ID)
@@ -277,23 +297,24 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 }
 
 func TestPerformLeaseCancelWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 	leaseTx := createLeaseWithProofs(t)
-	err := to.tp.performLeaseWithProofs(leaseTx, defaultPerformerInfo())
+	_, err := to.tp.performLeaseWithProofs(leaseTx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performLeaseWithProofs() failed")
 	to.stor.flush(t)
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
 	leasingInfo := &leasing{
 		OriginTransactionID: leaseTx.ID,
-		Status:              LeaseCanceled,
+		Status:              LeaseCancelled,
 		Amount:              leaseTx.Amount,
 		Recipient:           *leaseTx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
 		CancelTransactionID: tx.ID,
 	}
-	err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo())
+	_, err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performLeaseCancelWithProofs() failed")
 	to.stor.flush(t)
 	info, err := to.stor.entities.leases.leasingInfo(*leaseTx.ID)
@@ -302,11 +323,12 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 }
 
 func TestPerformCreateAliasWithSig(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createCreateAliasWithSig(t)
-	err := to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo())
+	_, err := to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performCreateAliasWithSig() failed")
 	to.stor.flush(t)
 	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
@@ -314,7 +336,7 @@ func TestPerformCreateAliasWithSig(t *testing.T) {
 	assert.Equal(t, testGlobal.senderInfo.addr, addr, "invalid address by alias after performing CreateAliasWithSig transaction")
 
 	// Test stealing aliases.
-	err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo())
+	_, err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performCreateAliasWithSig() failed")
 	to.stor.flush(t)
 	err = to.stor.entities.aliases.disableStolenAliases(blockID0)
@@ -325,11 +347,12 @@ func TestPerformCreateAliasWithSig(t *testing.T) {
 }
 
 func TestPerformCreateAliasWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 	tx := createCreateAliasWithProofs(t)
-	err := to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo())
+	_, err := to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performCreateAliasWithProofs() failed")
 	to.stor.flush(t)
 	addr, err := to.stor.entities.aliases.addrByAlias(tx.Alias.Alias)
@@ -337,7 +360,7 @@ func TestPerformCreateAliasWithProofs(t *testing.T) {
 	assert.Equal(t, testGlobal.senderInfo.addr, addr, "invalid address by alias after performing CreateAliasWithProofs transaction")
 
 	// Test stealing aliases.
-	err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo())
+	_, err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performCreateAliasWithProofs() failed")
 	to.stor.flush(t)
 	err = to.stor.entities.aliases.disableStolenAliases(blockID0)
@@ -348,7 +371,8 @@ func TestPerformCreateAliasWithProofs(t *testing.T) {
 }
 
 func TestPerformDataWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -356,7 +380,7 @@ func TestPerformDataWithProofs(t *testing.T) {
 	entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
 	tx.Entries = []proto.DataEntry{entry}
 
-	err := to.tp.performDataWithProofs(tx, defaultPerformerInfo())
+	_, err := to.tp.performDataWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performDataWithProofs() failed")
 	to.stor.flush(t)
 
@@ -366,12 +390,13 @@ func TestPerformDataWithProofs(t *testing.T) {
 }
 
 func TestPerformSponsorshipWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 
 	tx := createSponsorshipWithProofs(t, 1000)
-	err := to.tp.performSponsorshipWithProofs(tx, defaultPerformerInfo())
+	_, err := to.tp.performSponsorshipWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performSponsorshipWithProofs() failed")
 
 	assetID := proto.AssetIDFromDigest(tx.AssetID)
@@ -409,7 +434,8 @@ func TestPerformSponsorshipWithProofs(t *testing.T) {
 }
 
 func TestPerformSetScriptWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 
@@ -431,9 +457,10 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 	require.NoError(t, err)
 
 	tx := createSetScriptWithProofs(t, scriptBytes)
-	pi := *defaultPerformerInfo()
+	pi := *defaultPerformerInfo(to.stateActionsCounter)
 	pi.checkerData.scriptEstimation = &scriptEstimation{}
-	err = to.tp.performSetScriptWithProofs(tx, &pi)
+	_, err = to.tp.performSetScriptWithProofs(tx, &pi, nil, nil)
+
 	assert.NoError(t, err, "performSetScriptWithProofs() failed")
 
 	addr := testGlobal.senderInfo.addr
@@ -497,12 +524,13 @@ func TestPerformSetScriptWithProofs(t *testing.T) {
 }
 
 func TestPerformSetAssetScriptWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	to.stor.addBlock(t, blockID0)
 
 	tx := createSetAssetScriptWithProofs(t)
-	pi := *defaultPerformerInfo()
+	pi := *defaultPerformerInfo(to.stateActionsCounter)
 
 	currentEstimatorVersion := 4
 	tree, err := serialization.Parse(tx.Script)
@@ -515,7 +543,8 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 		scriptIsEmpty:           false,
 		estimation:              estimation,
 	}
-	err = to.tp.performSetAssetScriptWithProofs(tx, &pi)
+	checkerInfo.blockID = blockID0
+	_, err = to.tp.performSetAssetScriptWithProofs(tx, &pi, nil, nil)
 	assert.NoError(t, err, "performSetAssetScriptWithProofs() failed")
 
 	fullAssetID := tx.AssetID
@@ -555,7 +584,7 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 	assert.Equal(t, testGlobal.scriptAst, scriptAst)
 
 	// Test discarding script.
-	err = to.stor.entities.scriptsStorage.setAssetScript(fullAssetID, proto.Script{}, crypto.PublicKey{}, blockID0)
+	err = to.stor.entities.scriptsStorage.setAssetScript(fullAssetID, proto.Script{}, blockID0)
 	assert.NoError(t, err, "setAssetScript() failed")
 
 	// Test newest before flushing.
@@ -591,11 +620,12 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 }
 
 func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
-	to := createPerformerTestObjects(t)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createUpdateAssetInfoWithProofs(t)
-	err := to.tp.performUpdateAssetInfoWithProofs(tx, defaultPerformerInfo())
+	_, err := to.tp.performUpdateAssetInfoWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
 	assert.NoError(t, err, "performUpdateAssetInfoWithProofs() failed")
 	to.stor.flush(t)
 	assetInfo.name = tx.Name

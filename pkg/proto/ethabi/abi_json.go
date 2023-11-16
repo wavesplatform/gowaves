@@ -35,7 +35,8 @@ func getArgumentABI(argType *Type) (argABI, error) {
 		// this case is used only for payments
 		a.Type = "tuple"
 		a.Components = make([]argABI, 0, len(argType.TupleFields))
-		for _, tupleElem := range argType.TupleFields {
+		for i := range argType.TupleFields {
+			tupleElem := &argType.TupleFields[i]
 			internalElem, err := getArgumentABI(&tupleElem.Type)
 			if err != nil {
 				return a, errors.Errorf("failed to parse slice type, %v", err)
@@ -96,7 +97,8 @@ func getArgumentABI(argType *Type) (argABI, error) {
 
 func makeJSONABIForMethod(method Method) (abi, error) {
 	arguments := make([]argABI, 0)
-	for _, arg := range method.Inputs {
+	for i := range method.Inputs {
+		arg := &method.Inputs[i]
 		a, err := getArgumentABI(&arg.Type)
 		if err != nil {
 			return abi{}, errors.Errorf("failed to get json abi, %v", err)

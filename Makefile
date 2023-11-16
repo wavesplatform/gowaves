@@ -65,11 +65,11 @@ strict-vet-check:
 	golangci-lint run -c .golangci-strict.yml
 
 build-chaincmp-linux:
-	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
 build-chaincmp-darwin:
-	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
 build-chaincmp-windows:
-	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/chaincmp.exe -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/chaincmp.exe -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
 
 release-chaincmp: ver build-chaincmp-linux build-chaincmp-darwin build-chaincmp-windows
 
@@ -80,11 +80,11 @@ dist-chaincmp: release-chaincmp
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_macOS-amd64.tar.gz ./chaincmp*
 
 build-blockcmp-linux:
-	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
 build-blockcmp-darwin:
-	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
 build-blockcmp-windows:
-	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/blockcmp.exe -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/blockcmp.exe -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
 
 release-blockcmp: ver build-blockcmp-linux build-blockcmp-darwin build-blockcmp-windows
 
@@ -95,19 +95,19 @@ dist-blockcmp: release-blockcmp
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/blockcmp_$(VERSION)_macOS-amd64.tar.gz ./blockcmp*
 
 build-node-native:
-	@CGO_ENABLE=0 go build -o build/bin/native/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+	@go build -o build/bin/native/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-amd64:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-i386:
-	@GOOS=linux GOARCH=386 go build -o build/bin/linux-i386/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+	@CGO_ENABLED=0 GOOS=linux GOARCH=386 go build -o build/bin/linux-i386/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-arm:
-	@GOOS=linux GOARCH=arm go build -o build/bin/linux-arm/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+	@CGO_ENABLED=0 GOOS=linux GOARCH=arm go build -o build/bin/linux-arm/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-arm64:
-	@GOOS=linux GOARCH=arm64 go build -o build/bin/linux-arm64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+	@CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o build/bin/linux-arm64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-darwin-amd64:
-	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-windows-amd64:
-	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 
 release-node: ver build-node-linux-amd64 build-node-linux-i386 build-node-linux-arm64 build-node-linux-arm build-node-darwin-amd64 build-node-windows-amd64
 
@@ -119,13 +119,13 @@ dist-node: release-node build-node-mainnet-amd64-deb-package build-node-testnet-
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/node_$(VERSION)_macOS-amd64.tar.gz ./node*
 
 build-importer-native:
-	@CGO_ENABLE=0 go build -o build/bin/native/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+	@go build -o build/bin/native/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-linux:
-	@CGO_ENABLE=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-darwin:
-	@CGO_ENABLE=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-windows:
-	@CGO_ENABLE=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/importer.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/importer.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 
 release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
 
@@ -136,11 +136,11 @@ dist-importer: release-importer
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-amd64.tar.gz ./importer*
 
 build-wallet-linux:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/wallet ./cmd/wallet
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/wallet ./cmd/wallet
 build-wallet-darwin:
-	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/wallet ./cmd/wallet
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/wallet ./cmd/wallet
 build-wallet-windows:
-	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/wallet.exe ./cmd/wallet
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/wallet.exe ./cmd/wallet
 
 release-wallet: ver build-wallet-linux build-wallet-darwin build-wallet-windows
 
@@ -151,29 +151,29 @@ dist-wallet: release-wallet
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_macOS-amd64.tar.gz ./wallet*
 
 build-rollback-linux:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
 build-rollback-darwin:
-	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
 build-rollback-windows:
-	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/rollback.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/rollback.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
 
 release-rollback: ver build-rollback-linux build-rollback-darwin build-rollback-windows
 
 build-compiler-linux:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/compiler ./cmd/compiler
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/compiler ./cmd/compiler
 build-compiler-darwin:
-	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/compiler ./cmd/compiler
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/compiler ./cmd/compiler
 build-compiler-windows:
-	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/compiler.exe ./cmd/compiler
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/compiler.exe ./cmd/compiler
 
 release-compiler: ver build-compiler-linux build-compiler-darwin build-compiler-windows
 
 build-statehash-linux:
-	@GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/statehash ./cmd/statehash
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/statehash ./cmd/statehash
 build-statehash-darwin:
-	@GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/statehash ./cmd/statehash
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/statehash ./cmd/statehash
 build-statehash-windows:
-	@GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/statehash.exe ./cmd/statehash
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/statehash.exe ./cmd/statehash
 
 release-statehash: ver build-statehash-linux build-statehash-darwin build-statehash-windows
 
@@ -253,28 +253,28 @@ build-node-mainnet-arm64-deb-package: release-node
 build-node-testnet-amd64-deb-package: release-node
 	@mkdir -p build/dist
 
-	@mkdir -p ./build/gowaves-testnet/DEBIAN
-	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g; s/ARCH/amd64/g" ./dpkg/control > ./build/gowaves-testnet/DEBIAN/control
-	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-testnet/DEBIAN/postinst
-	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/postrm > ./build/gowaves-testnet/DEBIAN/postrm
-	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/prerm > ./build/gowaves-testnet/DEBIAN/prerm
-	@chmod 0644 ./build/gowaves-testnet/DEBIAN/control
-	@chmod 0775 ./build/gowaves-testnet/DEBIAN/postinst
-	@chmod 0775 ./build/gowaves-testnet/DEBIAN/postrm
-	@chmod 0775 ./build/gowaves-testnet/DEBIAN/prerm
+	@mkdir -p ./build/gowaves-testnet-amd64/DEBIAN
+	@sed "s/DEB_VER/$(DEB_VER)/g; s/VERSION/$(VERSION)/g; s/DESCRIPTION/Gowaves Node for TestNet System Service/g; s/PACKAGE/gowaves-testnet/g; s/ARCH/amd64/g" ./dpkg/control > ./build/gowaves-testnet-amd64/DEBIAN/control
+	@sed "s/PACKAGE/gowaves-testnet/g; s/NAME/gowaves/g;" ./dpkg/postinst > ./build/gowaves-testnet-amd64/DEBIAN/postinst
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/postrm > ./build/gowaves-testnet-amd64/DEBIAN/postrm
+	@sed "s/PACKAGE/gowaves-testnet/g" ./dpkg/prerm > ./build/gowaves-testnet-amd64/DEBIAN/prerm
+	@chmod 0644 ./build/gowaves-testnet-amd64/DEBIAN/control
+	@chmod 0775 ./build/gowaves-testnet-amd64/DEBIAN/postinst
+	@chmod 0775 ./build/gowaves-testnet-amd64/DEBIAN/postrm
+	@chmod 0775 ./build/gowaves-testnet-amd64/DEBIAN/prerm
 
-	@mkdir -p ./build/gowaves-testnet/lib/systemd/system
-	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for TestNet System Service|g; s|PACKAGE|gowaves-testnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -blockchain-type testnet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-testnet/lib/systemd/system/gowaves-testnet.service
+	@mkdir -p ./build/gowaves-testnet-amd64/lib/systemd/system
+	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for TestNet System Service|g; s|PACKAGE|gowaves-testnet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-testnet/ -api-address 0.0.0.0:8090 -blockchain-type testnet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-testnet-amd64/lib/systemd/system/gowaves-testnet.service
 
-	@mkdir -p ./build/gowaves-testnet/usr/share/gowaves-testnet
-	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet/usr/share/gowaves-testnet
+	@mkdir -p ./build/gowaves-testnet-amd64/usr/share/gowaves-testnet
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-testnet-amd64/usr/share/gowaves-testnet
 
-	@mkdir -p ./build/gowaves-testnet/var/lib/gowaves-testnet/
-	@mkdir -p ./build/gowaves-testnet/var/log/gowaves-testnet/
+	@mkdir -p ./build/gowaves-testnet-amd64/var/lib/gowaves-testnet/
+	@mkdir -p ./build/gowaves-testnet-amd64/var/log/gowaves-testnet/
 
-	@dpkg-deb --build ./build/gowaves-testnet
-	@mv ./build/gowaves-testnet.deb ./build/dist/gowaves-testnet_${VERSION}.deb
-	@rm -rf ./build/gowaves-testnet
+	@dpkg-deb --build ./build/gowaves-testnet-amd64
+	@mv ./build/gowaves-testnet-amd64.deb ./build/dist/gowaves-testnet-amd64_${VERSION}.deb
+	@rm -rf ./build/gowaves-testnet-amd64
 
 build-node-testnet-arm64-deb-package: release-node
 	@mkdir -p build/dist
@@ -317,7 +317,7 @@ build-node-stagenet-amd64-deb-package: release-node
 	@sed "s|VERSION|$(VERSION)|g; s|DESCRIPTION|Gowaves Node for StageNet System Service|g; s|PACKAGE|gowaves-stagenet|g; s|EXECUTABLE|node|g; s|PARAMS|-state-path /var/lib/gowaves-stagenet/ -api-address 0.0.0.0:8100 -blockchain-type stagenet|g; s|NAME|gowaves|g" ./dpkg/service.service > ./build/gowaves-stagenet-amd64/lib/systemd/system/gowaves-stagenet.service
 
 	@mkdir -p ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet
-	@cp ./build/bin/linux-amd64/node ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet-amd64
+	@cp ./build/bin/linux-amd64/node ./build/gowaves-stagenet-amd64/usr/share/gowaves-stagenet
 
 	@mkdir -p ./build/gowaves-stagenet-amd64/var/lib/gowaves-stagenet/
 	@mkdir -p ./build/gowaves-stagenet-amd64/var/log/gowaves-stagenet/
