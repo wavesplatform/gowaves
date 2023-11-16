@@ -7,7 +7,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -139,7 +138,7 @@ type StateInfo interface {
 	TotalWavesAmount(height proto.Height) (uint64, error)
 
 	// Snapshots
-	SnapshotsAtHeight(height proto.Height) (*g.TransactionStateSnapshot, error)
+	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -375,7 +374,7 @@ func (a *ThreadSafeReadWrapper) TotalWavesAmount(height proto.Height) (uint64, e
 	return a.s.TotalWavesAmount(height)
 }
 
-func (a *ThreadSafeReadWrapper) SnapshotsAtHeight(height proto.Height) (*g.TransactionStateSnapshot, error) {
+func (a *ThreadSafeReadWrapper) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.SnapshotsAtHeight(height)

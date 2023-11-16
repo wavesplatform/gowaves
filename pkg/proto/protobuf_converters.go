@@ -60,6 +60,217 @@ func SignedTxFromProtobuf(data []byte) (Transaction, error) {
 	return res, nil
 }
 
+func balancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, balance := range txSnapshotProto.Balances {
+		if balance.Amount.AssetId == nil {
+			var sn WavesBalanceSnapshot
+			err := sn.FromProtobuf(scheme, balance)
+			if err != nil {
+				return err
+			}
+			*res = append(*res, sn)
+		} else {
+			var sn AssetBalanceSnapshot
+			err := sn.FromProtobuf(scheme, balance)
+			if err != nil {
+				return err
+			}
+			*res = append(*res, sn)
+		}
+	}
+	return nil
+}
+func leaseBalancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, lBalance := range txSnapshotProto.LeaseBalances {
+		var sn LeaseBalanceSnapshot
+		err := sn.FromProtobuf(scheme, lBalance)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func staticAssetFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, assetStatic := range txSnapshotProto.AssetStatics {
+		var sn StaticAssetInfoSnapshot
+		err := sn.FromProtobuf(scheme, assetStatic)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func assetVolumeFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, assetVolume := range txSnapshotProto.AssetVolumes {
+		var sn AssetVolumeSnapshot
+		err := sn.FromProtobuf(scheme, assetVolume)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func assetDescrFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, assetNameAndDescr := range txSnapshotProto.AssetNamesAndDescriptions {
+		var sn AssetDescriptionSnapshot
+		err := sn.FromProtobuf(scheme, assetNameAndDescr)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func assetScriptFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, assetScript := range txSnapshotProto.AssetScripts {
+		var sn AssetScriptSnapshot
+		err := sn.FromProtobuf(scheme, assetScript)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func aliasFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, alias := range txSnapshotProto.Aliases {
+		var sn AliasSnapshot
+		err := sn.FromProtobuf(scheme, alias)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func filledVolumeFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, orderFill := range txSnapshotProto.OrderFills {
+		var sn FilledVolumeFeeSnapshot
+		err := sn.FromProtobuf(scheme, orderFill)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func leaseStateFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, leaseState := range txSnapshotProto.LeaseStates {
+		var sn LeaseStateSnapshot
+		err := sn.FromProtobuf(scheme, leaseState)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func accountScriptFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, accountScript := range txSnapshotProto.AccountScripts {
+		var sn AccountScriptSnapshot
+		err := sn.FromProtobuf(scheme, accountScript)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func dataEntryFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, accountData := range txSnapshotProto.AccountData {
+		var sn DataEntriesSnapshot
+		err := sn.FromProtobuf(scheme, accountData)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func sponsorshipFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, sponsorship := range txSnapshotProto.Sponsorships {
+		var sn SponsorshipSnapshot
+		err := sn.FromProtobuf(scheme, sponsorship)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+	var txSnapshots []AtomicSnapshot
+	err := balancesFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = leaseBalancesFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = staticAssetFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = assetVolumeFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = assetDescrFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = assetScriptFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = aliasFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = filledVolumeFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = leaseStateFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = accountScriptFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = dataEntryFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = sponsorshipFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	var sn TransactionStatusSnapshot
+	err = sn.FromProtobuf(scheme, txSnapshotProto.TransactionStatus)
+	if err != nil {
+		return nil, err
+	}
+	txSnapshots = append(txSnapshots, sn)
+	return txSnapshots, nil
+}
+
 type ProtobufConverter struct {
 	FallbackChainID byte
 	err             error

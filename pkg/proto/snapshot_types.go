@@ -47,6 +47,21 @@ func (s WavesBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 	return nil
 }
 
+func (s *WavesBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Balance) error {
+	var c ProtobufConverter
+	addr, err := c.Address(scheme, p.Address)
+	if err != nil {
+		return err
+	}
+	amount := c.amount(p.Amount)
+	if c.err != nil {
+		return err
+	}
+	s.Address = addr
+	s.Balance = amount
+	return nil
+}
+
 type AssetBalanceSnapshot struct {
 	Address WavesAddress
 	AssetID crypto.Digest
@@ -67,6 +82,27 @@ func (s AssetBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Balance,
 			Amount:  int64(s.Balance),
 		},
 	}, nil
+}
+
+func (s *AssetBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Balance) error {
+	var c ProtobufConverter
+	addr, err := c.Address(scheme, p.Address)
+	if err != nil {
+		return err
+	}
+	amount := c.amount(p.Amount)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+	asset := c.extractOptionalAsset(p.Amount)
+	if c.err != nil {
+		return c.err
+	}
+	s.Address = addr
+	s.Balance = amount
+	s.AssetID = asset.ID
+	return nil
 }
 
 func (s AssetBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
@@ -109,6 +145,25 @@ func (s DataEntriesSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	return nil
 }
 
+func (s *DataEntriesSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_AccountData) error {
+	var c ProtobufConverter
+	addr, err := c.Address(scheme, p.Address)
+	if err != nil {
+		return err
+	}
+	var dataEntries []DataEntry
+	for _, e := range p.Entries {
+		dataEntries = append(dataEntries, c.entry(e))
+		if c.err != nil {
+			return c.err
+		}
+		c.reset()
+	}
+	s.Address = addr
+	s.DataEntries = dataEntries
+	return nil
+}
+
 type AccountScriptSnapshot struct {
 	SenderPublicKey    crypto.PublicKey
 	Script             Script
@@ -138,6 +193,23 @@ func (s AccountScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateS
 	return nil
 }
 
+func (s *AccountScriptSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AccountScript) error {
+	var c ProtobufConverter
+	publicKey := c.publicKey(p.SenderPublicKey)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+	script := c.script(p.Script)
+	if c.err != nil {
+		return c.err
+	}
+	s.SenderPublicKey = publicKey
+	s.Script = script
+	s.VerifierComplexity = uint64(p.VerifierComplexity)
+	return nil
+}
+
 type AssetScriptSnapshot struct {
 	AssetID crypto.Digest
 	Script  Script
@@ -162,6 +234,22 @@ func (s AssetScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 		return err
 	}
 	txSnapshots.AssetScripts = append(txSnapshots.AssetScripts, snapshotInProto)
+	return nil
+}
+
+func (s *AssetScriptSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AssetScript) error {
+	var c ProtobufConverter
+	asset := c.optionalAsset(p.AssetId)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+	script := c.script(p.Script)
+	if c.err != nil {
+		return c.err
+	}
+	s.AssetID = asset.ID
+	s.Script = script
 	return nil
 }
 
@@ -194,8 +282,18 @@ func (s LeaseBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 	return nil
 }
 
-func (s LeaseBalanceSnapshot) IsInternal() bool {
-	return false
+func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_LeaseBalance) error {
+	var c ProtobufConverter
+	addr, err := c.Address(scheme, p.Address)
+	if err != nil {
+		return err
+	}
+	c.reset()
+
+	s.Address = addr
+	s.LeaseIn = uint64(p.In)
+	s.LeaseOut = uint64(p.Out)
+	return nil
 }
 
 type LeaseStateStatus struct {
@@ -232,11 +330,15 @@ func (s LeaseStateSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_LeaseState
 	}
 	switch s.Status.Value {
 	case LeaseActive:
-		res.Status = &g.TransactionStateSnapshot_LeaseState_Active{}
+		res.Status = &g.TransactionStateSnapshot_LeaseState_Active_{
+			Active: &g.TransactionStateSnapshot_LeaseState_Active{},
+		}
 	case LeaseCanceled:
-		res.Status = &g.TransactionStateSnapshot_LeaseState_Cancelled{
-			Height:        int32(s.Status.CancelHeight),
-			TransactionId: s.Status.CancelTransactionID.Bytes(),
+		res.Status = &g.TransactionStateSnapshot_LeaseState_Cancelled_{
+			Cancelled: &g.TransactionStateSnapshot_LeaseState_Cancelled{
+				Height:        int32(s.Status.CancelHeight),
+				TransactionId: s.Status.CancelTransactionID.Bytes(),
+			},
 		}
 	default:
 		return nil, errors.Errorf("Failed to serialize LeaseStateSnapshot to Proto: invalid Lease status")
@@ -250,6 +352,51 @@ func (s LeaseStateSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnap
 		return err
 	}
 	txSnapshots.LeaseStates = append(txSnapshots.LeaseStates, snapshotInProto)
+	return nil
+}
+
+func (s *LeaseStateSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_LeaseState) error {
+	var c ProtobufConverter
+	leaseID := c.digest(p.LeaseId)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+	sender, err := c.Address(scheme, p.Sender)
+	if err != nil {
+		return err
+	}
+	c.reset()
+	recipientAddr, err := c.Address(scheme, p.Sender)
+	if err != nil {
+		return err
+	}
+	c.reset()
+	txID := c.digest(p.OriginTransactionId)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+	var status LeaseStateStatus
+	if p.GetActive() != nil {
+		status.Value = LeaseActive
+	} else if cancel := p.GetCancelled(); cancel != nil {
+		status.Value = LeaseCanceled
+		status.CancelHeight = uint64(cancel.Height)
+		cancelTxID := c.digest(p.OriginTransactionId)
+		if c.err != nil {
+			return c.err
+		}
+		c.reset()
+		status.CancelTransactionID = &cancelTxID
+	}
+	s.LeaseID = leaseID
+	s.Amount = uint64(p.Amount)
+	s.Sender = sender
+	s.Recipient = recipientAddr
+	s.OriginTransactionID = &txID
+	s.Height = uint64(p.Height)
+	s.Status = status
 	return nil
 }
 
@@ -280,6 +427,17 @@ func (s SponsorshipSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	return nil
 }
 
+func (s *SponsorshipSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_Sponsorship) error {
+	var c ProtobufConverter
+	asset := c.optionalAsset(p.AssetId)
+	if c.err != nil {
+		return c.err
+	}
+	s.AssetID = asset.ID
+	s.MinSponsoredFee = uint64(p.MinFee)
+	return nil
+}
+
 type AliasSnapshot struct {
 	Address WavesAddress
 	Alias   Alias
@@ -304,6 +462,17 @@ func (s AliasSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot)
 		return err
 	}
 	txSnapshots.Aliases = append(txSnapshots.Aliases, snapshotInProto)
+	return nil
+}
+
+func (s *AliasSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Alias) error {
+	var c ProtobufConverter
+	addr, err := c.Address(scheme, p.Address)
+	if err != nil {
+		return err
+	}
+	s.Address = addr
+	s.Alias.Alias = p.Alias
 	return nil
 }
 
@@ -334,6 +503,20 @@ func (s FilledVolumeFeeSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStat
 		return err
 	}
 	txSnapshots.OrderFills = append(txSnapshots.OrderFills, snapshotInProto)
+	return nil
+}
+
+func (s *FilledVolumeFeeSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_OrderFill) error {
+	var c ProtobufConverter
+	orderID := c.digest(p.OrderId)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+
+	s.OrderID = orderID
+	s.FilledVolume = uint64(p.Volume)
+	s.FilledFee = uint64(p.Fee)
 	return nil
 }
 
@@ -370,6 +553,31 @@ func (s StaticAssetInfoSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStat
 	return nil
 }
 
+func (s *StaticAssetInfoSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AssetStatic) error {
+	var c ProtobufConverter
+	assetID := c.digest(p.AssetId)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+	txID := c.digest(p.SourceTransactionId)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+	publicKey := c.publicKey(p.IssuerPublicKey)
+	if c.err != nil {
+		return c.err
+	}
+	c.reset()
+	s.AssetID = assetID
+	s.SourceTransactionID = txID
+	s.IssuerPublicKey = publicKey
+	s.Decimals = uint8(p.Decimals)
+	s.IsNFT = p.Nft
+	return nil
+}
+
 type AssetVolumeSnapshot struct { // AssetVolume in pb
 	AssetID       crypto.Digest
 	TotalQuantity big.Int // volume in protobuf
@@ -396,6 +604,19 @@ func (s AssetVolumeSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 		return err
 	}
 	txSnapshots.AssetVolumes = append(txSnapshots.AssetVolumes, snapshotInProto)
+	return nil
+}
+
+func (s *AssetVolumeSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AssetVolume) error {
+	var c ProtobufConverter
+	assetID := c.digest(p.AssetId)
+	if c.err != nil {
+		return c.err
+	}
+
+	s.AssetID = assetID
+	s.TotalQuantity.SetBytes(p.Volume)
+	s.IsReissuable = p.Reissuable
 	return nil
 }
 
@@ -430,6 +651,20 @@ func (s AssetDescriptionSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSta
 	return nil
 }
 
+func (s *AssetDescriptionSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AssetNameAndDescription) error {
+	var c ProtobufConverter
+	assetID := c.digest(p.AssetId)
+	if c.err != nil {
+		return c.err
+	}
+
+	s.AssetID = assetID
+	s.AssetName = p.Name
+	s.AssetDescription = p.Description
+	s.ChangeHeight = uint64(p.LastUpdated)
+	return nil
+}
+
 type TransactionStatusSnapshot struct {
 	TransactionID crypto.Digest
 	Status        TransactionStatus
@@ -441,6 +676,20 @@ func (s TransactionStatusSnapshot) Apply(a SnapshotApplier) error {
 
 func (s TransactionStatusSnapshot) IsGeneratedByTxDiff() bool {
 	return false
+}
+
+func (s *TransactionStatusSnapshot) FromProtobuf(_ Scheme, p g.TransactionStatus) error {
+	switch p {
+	case g.TransactionStatus_SUCCEEDED:
+		s.Status = TransactionSucceeded
+	case g.TransactionStatus_FAILED:
+		s.Status = TransactionFailed
+	case g.TransactionStatus_ELIDED:
+		s.Status = TransactionElided
+	default:
+		return errors.Errorf("Undefinded tx status %d", p)
+	}
+	return nil
 }
 
 func (s TransactionStatusSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {

@@ -741,7 +741,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// Check and append transactions.
-	var blockSnapshots txSnapshot
+	var blockSnapshots proto.BlockSnapshot
 
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -766,7 +766,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if errAppendTx != nil {
 			return errAppendTx
 		}
-		blockSnapshots.regular = append(blockSnapshots.regular, txSnapshots.regular...)
+		blockSnapshots.TxSnapshots = append(blockSnapshots.TxSnapshots, txSnapshots.regular)
 	}
 	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
 		return err

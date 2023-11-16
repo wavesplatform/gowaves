@@ -18,7 +18,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -2565,7 +2564,7 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 	return amount, nil
 }
 
-func (s *stateManager) SnapshotsAtHeight(height proto.Height) (*g.TransactionStateSnapshot, error) {
+func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
 	return s.stor.snapshots.shapshots(height)
 }
 
