@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -30,7 +31,7 @@ func createLease(t *testing.T, sender string, id crypto.Digest) *leasing {
 		Recipient:           recipientAddr,
 		Sender:              senderAddr,
 		Amount:              10,
-		Status:              proto.LeaseActive,
+		Status:              LeaseActive,
 	}
 }
 
@@ -155,7 +156,7 @@ func TestCancelLeasing(t *testing.T) {
 	assert.NoError(t, err, "failed to add leasing")
 	err = to.leases.cancelLeasing(leaseID, blockID0, to.stor.rw.height, &txID)
 	assert.NoError(t, err, "failed to cancel leasing")
-	r.Status = proto.LeaseCanceled
+	r.Status = LeaseCancelled
 	r.CancelHeight = 1
 	r.CancelTransactionID = &txID
 	to.stor.flush(t)

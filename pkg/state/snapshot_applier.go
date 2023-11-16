@@ -8,13 +8,11 @@ import (
 )
 
 type blockSnapshotsApplier struct {
-	info blockSnapshotsApplierInfo
+	info *blockSnapshotsApplierInfo
 	stor snapshotApplierStorages
 }
 
-var _ = newBlockSnapshotsApplier // TODO: only for linter, will be removed later
-
-func newBlockSnapshotsApplier(info blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
+func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
 	return blockSnapshotsApplier{info: info, stor: stor}
 }
 
@@ -30,8 +28,6 @@ type snapshotApplierStorages struct {
 	leases            *leases
 }
 
-var _ = newSnapshotApplierStorages // TODO: only for linter, will be removed later
-
 func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplierStorages {
 	return snapshotApplierStorages{
 		balances:          stor.balances,
@@ -46,12 +42,19 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplier
 	}
 }
 
-var _ = extendedSnapshotApplier((*blockSnapshotsApplier)(nil))
-
 type blockSnapshotsApplierInfo struct {
 	ci                  *checkerInfo
 	scheme              proto.Scheme
 	stateActionsCounter *proto.StateActionsCounter
+}
+
+func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
+	counter *proto.StateActionsCounter) *blockSnapshotsApplierInfo {
+	return &blockSnapshotsApplierInfo{
+		ci:                  ci,
+		scheme:              scheme,
+		stateActionsCounter: counter,
+	}
 }
 
 func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
@@ -74,11 +77,15 @@ func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCoun
 	return s.stateActionsCounter
 }
 
+func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) {
+	a.info = info
+}
+
 func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
-	profile, err := a.stor.balances.wavesBalance(addrID)
+	profile, err := a.stor.balances.newestWavesBalance(addrID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get waves balance profile for address %q", snapshot.Address.String())
+		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
 	newProfile.balance = snapshot.Balance
@@ -92,9 +99,9 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	var err error
-	profile, err := a.stor.balances.wavesBalance(addrID)
+	profile, err := a.stor.balances.newestWavesBalance(addrID)
 	if err != nil {
-		return errors.Wrapf(err, "failed to get waves balance profile for address %q", snapshot.Address.String())
+		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
 	newProfile.leaseIn = int64(snapshot.LeaseIn)
@@ -120,19 +127,15 @@ func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetI
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	height := a.info.Height() + 1
 
-	changeableInfo, err := a.stor.assets.newestChangeableInfo(snapshot.AssetID)
-	if err != nil {
-		changeableInfo = &assetChangeableInfo{}
-	}
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
 			tail:                 proto.DigestTail(snapshot.AssetID),
 			issuer:               snapshot.IssuerPublicKey,
 			decimals:             snapshot.Decimals,
 			issueHeight:          height,
-			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
+			issueSequenceInBlock: a.info.stateActionsCounter.NextIssueActionNumber(),
 		},
-		assetChangeableInfo: *changeableInfo,
+		assetChangeableInfo: assetChangeableInfo{},
 	}
 	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
 }
@@ -158,10 +161,6 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
-	if snapshot.Script.IsEmpty() {
-		return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, proto.Script{},
-			a.info.BlockID())
-	}
 	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
 }
 
@@ -177,28 +176,21 @@ func (a *blockSnapshotsApplier) ApplyAccountScript(snapshot proto.AccountScriptS
 	}
 	// In case of verifier, there are no functions. If it is a full DApp,
 	// the complexity 'functions' will be stored through the internal snapshot InternalDAppComplexitySnapshot.
-	if snapshot.Script.IsEmpty() {
-		return a.stor.scriptsStorage.setAccountScript(addr, proto.Script{},
-			snapshot.SenderPublicKey, a.info.BlockID())
-	}
 	treeEstimation := ride.TreeEstimation{
 		Estimation: int(snapshot.VerifierComplexity),
 		Verifier:   int(snapshot.VerifierComplexity),
 		Functions:  nil,
 	}
-	if snapshot.Script.IsEmpty() {
-		return a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script,
-			snapshot.SenderPublicKey, a.info.BlockID())
-	}
 	setErr := a.stor.scriptsStorage.setAccountScript(addr, snapshot.Script, snapshot.SenderPublicKey, a.info.BlockID())
 	if setErr != nil {
 		return setErr
 	}
-	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
-		scriptIsEmpty: snapshot.Script.IsEmpty(),
-		estimation:    treeEstimation}
-	if cmplErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(
-		addr, scriptEstimation, a.info.BlockID()); cmplErr != nil {
+	se := scriptEstimation{
+		currentEstimatorVersion: 0, // 0 means unknown estimator version, script will be re-estimated in full node mode
+		scriptIsEmpty:           snapshot.Script.IsEmpty(),
+		estimation:              treeEstimation,
+	}
+	if cmplErr := a.stor.scriptsComplexity.saveComplexitiesForAddr(addr, se, a.info.BlockID()); cmplErr != nil {
 		return errors.Wrapf(cmplErr, "failed to store account script estimation for addr %q",
 			addr.String())
 	}
@@ -221,17 +213,25 @@ func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot proto.DataEntriesSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot proto.LeaseStateSnapshot) error {
-	l := &leasing{
-		Sender:              snapshot.Sender,
-		Recipient:           snapshot.Recipient,
-		Amount:              snapshot.Amount,
-		Height:              snapshot.Height,
-		Status:              snapshot.Status.Value,
-		OriginTransactionID: snapshot.OriginTransactionID,
-		CancelHeight:        snapshot.Status.CancelHeight,
-		CancelTransactionID: snapshot.Status.CancelTransactionID,
+	switch status := snapshot.Status.(type) {
+	case *proto.LeaseStateStatusActive:
+		l := &leasing{
+			Sender:    status.Sender,
+			Recipient: status.Recipient,
+			Amount:    status.Amount,
+			Status:    LeaseActive,
+		}
+		return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
+	case *proto.LeaseStatusCancelled:
+		l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to get leasing info by id '%s' for cancelling", snapshot.LeaseID)
+		}
+		l.Status = LeaseCancelled
+		return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
+	default:
+		return errors.Errorf("invalid lease state snapshot status (%T)", status)
 	}
-	return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatusSnapshot) error {
@@ -253,10 +253,7 @@ func (a *blockSnapshotsApplier) ApplyDAppComplexity(snapshot InternalDAppComplex
 func (a *blockSnapshotsApplier) ApplyDAppUpdateComplexity(snapshot InternalDAppUpdateComplexitySnapshot) error {
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
 		scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
-	// we've pulled up an old script which estimation had been done by an old estimator
-	// in txChecker we've estimated script with a new estimator
-	// this is the place where we have to store new estimation
-	// update callable and summary complexity, verifier complexity remains the same
+	// Update full complexity of both callable and verifier when the script is set first time
 	if scErr := a.stor.scriptsComplexity.updateCallableComplexitiesForAddr(
 		snapshot.ScriptAddress,
 		scriptEstimation, a.info.BlockID()); scErr != nil {
@@ -270,11 +267,31 @@ func (a *blockSnapshotsApplier) ApplyDAppUpdateComplexity(snapshot InternalDAppU
 func (a *blockSnapshotsApplier) ApplyAssetScriptComplexity(snapshot InternalAssetScriptComplexitySnapshot) error {
 	scriptEstimation := scriptEstimation{currentEstimatorVersion: a.info.EstimatorVersion(),
 		scriptIsEmpty: snapshot.ScriptIsEmpty, estimation: snapshot.Estimation}
-	// Save full complexity of both callable and verifier when the script is set first time
+	// Save complexity of verifier when the script is set first time
 	if setErr := a.stor.scriptsComplexity.saveComplexitiesForAsset(snapshot.AssetID,
 		scriptEstimation, a.info.BlockID()); setErr != nil {
 		return errors.Wrapf(setErr, "failed to save script complexities for asset ID %q",
 			snapshot.AssetID.String())
 	}
 	return nil
+}
+
+func (a *blockSnapshotsApplier) ApplyLeaseStateActiveInfo(snapshot InternalLeaseStateActiveInfoSnapshot) error {
+	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding active info", snapshot.LeaseID)
+	}
+	l.OriginHeight = snapshot.OriginHeight
+	l.OriginTransactionID = snapshot.OriginTransactionID
+	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
+}
+
+func (a *blockSnapshotsApplier) ApplyLeaseStateCancelInfo(snapshot InternalLeaseStateCancelInfoSnapshot) error {
+	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding cancel info", snapshot.LeaseID)
+	}
+	l.CancelHeight = snapshot.CancelHeight
+	l.CancelTransactionID = snapshot.CancelTransactionID
+	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }

@@ -57,7 +57,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 	return nil
 }
 
-func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptData, error) {
+func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptResponse, error) {
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
@@ -65,7 +65,7 @@ func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptD
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
 	scriptInfo, _ := s.state.ScriptInfoByAccount(rcp)
-	return scriptInfo.ToProtobuf(), nil
+	return scriptInfo.ToScriptResponseProtobuf(), nil
 }
 
 func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetActiveLeasesServer) error {
