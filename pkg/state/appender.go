@@ -750,11 +750,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
-	if err := a.blockDiffer.saveCurFeeDistr(params.block); err != nil {
-		return err
-	}
-	// Save fee distribution of this block.
-	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	return a.blockDiffer.saveCurFeeDistr(params.block)
 }
 
@@ -783,11 +778,7 @@ type applicationResult struct {
 	checkerData      txCheckerData
 }
 
-func newApplicationResult(
-	status bool,
-	totalScriptsRuns uint64,
-	changes txBalanceChanges,
-	checkerData txCheckerData) *applicationResult {
+func newApplicationResult(status bool, totalScriptsRuns uint64, changes txBalanceChanges, checkerData txCheckerData) *applicationResult {
 	return &applicationResult{status, totalScriptsRuns, changes, checkerData} // all fields must be initialized
 }
 
