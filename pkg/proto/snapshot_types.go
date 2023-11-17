@@ -93,7 +93,6 @@ func (s *AssetBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	if c.err != nil {
 		return c.err
 	}
-	c.reset()
 	asset := c.extractOptionalAsset(p.Amount)
 	if c.err != nil {
 		return c.err
@@ -150,13 +149,12 @@ func (s *DataEntriesSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateS
 	if err != nil {
 		return err
 	}
-	var dataEntries []DataEntry
+	dataEntries := make([]DataEntry, 0, len(p.Entries))
 	for _, e := range p.Entries {
 		dataEntries = append(dataEntries, c.entry(e))
 		if c.err != nil {
 			return c.err
 		}
-		c.reset()
 	}
 	s.Address = addr
 	s.DataEntries = dataEntries
@@ -192,13 +190,12 @@ func (s AccountScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateS
 	return nil
 }
 
-func (s *AccountScriptSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AccountScript) error {
+func (s *AccountScriptSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AccountScript) error {
 	var c ProtobufConverter
 	publicKey := c.publicKey(p.SenderPublicKey)
 	if c.err != nil {
 		return c.err
 	}
-	c.reset()
 	script := c.script(p.Script)
 	if c.err != nil {
 		return c.err
@@ -236,13 +233,12 @@ func (s AssetScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	return nil
 }
 
-func (s *AssetScriptSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AssetScript) error {
+func (s *AssetScriptSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetScript) error {
 	var c ProtobufConverter
 	asset := c.optionalAsset(p.AssetId)
 	if c.err != nil {
 		return c.err
 	}
-	c.reset()
 	script := c.script(p.Script)
 	if c.err != nil {
 		return c.err
@@ -287,8 +283,6 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	if err != nil {
 		return err
 	}
-	c.reset()
-
 	s.Address = addr
 	s.LeaseIn = uint64(p.In)
 	s.LeaseOut = uint64(p.Out)
@@ -339,7 +333,7 @@ func (s LeaseStateSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_LeaseState
 			Cancelled: &g.TransactionStateSnapshot_LeaseState_Cancelled{},
 		}
 	default:
-		return nil, errors.Errorf("Failed to serialize LeaseStateSnapshot to Proto: invalid Lease status")
+		return nil, errors.Errorf("failed to serialize LeaseStateSnapshot to Proto: invalid Lease status")
 	}
 	return res, nil
 }
@@ -359,7 +353,6 @@ func (s *LeaseStateSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSn
 	if c.err != nil {
 		return c.err
 	}
-	c.reset()
 	var status LeaseStateStatus
 	if active := p.GetActive(); active != nil {
 		sender, errAddressFromBytes := c.Address(scheme, active.Sender)
@@ -370,7 +363,6 @@ func (s *LeaseStateSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSn
 		if errAddressFromBytes != nil {
 			return errAddressFromBytes
 		}
-		c.reset()
 		res := LeaseStateStatusActive{
 			Amount:    uint64(active.Amount),
 			Sender:    sender,
@@ -412,7 +404,7 @@ func (s SponsorshipSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	return nil
 }
 
-func (s *SponsorshipSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_Sponsorship) error {
+func (s *SponsorshipSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Sponsorship) error {
 	var c ProtobufConverter
 	asset := c.optionalAsset(p.AssetId)
 	if c.err != nil {
@@ -491,14 +483,12 @@ func (s FilledVolumeFeeSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStat
 	return nil
 }
 
-func (s *FilledVolumeFeeSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_OrderFill) error {
+func (s *FilledVolumeFeeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_OrderFill) error {
 	var c ProtobufConverter
 	orderID := c.digest(p.OrderId)
 	if c.err != nil {
 		return c.err
 	}
-	c.reset()
-
 	s.OrderID = orderID
 	s.FilledVolume = uint64(p.Volume)
 	s.FilledFee = uint64(p.Fee)
@@ -538,23 +528,20 @@ func (s StaticAssetInfoSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStat
 	return nil
 }
 
-func (s *StaticAssetInfoSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AssetStatic) error {
+func (s *StaticAssetInfoSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetStatic) error {
 	var c ProtobufConverter
 	assetID := c.digest(p.AssetId)
 	if c.err != nil {
 		return c.err
 	}
-	c.reset()
 	txID := c.digest(p.SourceTransactionId)
 	if c.err != nil {
 		return c.err
 	}
-	c.reset()
 	publicKey := c.publicKey(p.IssuerPublicKey)
 	if c.err != nil {
 		return c.err
 	}
-	c.reset()
 	s.AssetID = assetID
 	s.SourceTransactionID = txID
 	s.IssuerPublicKey = publicKey
@@ -592,7 +579,7 @@ func (s AssetVolumeSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 	return nil
 }
 
-func (s *AssetVolumeSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AssetVolume) error {
+func (s *AssetVolumeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetVolume) error {
 	var c ProtobufConverter
 	assetID := c.digest(p.AssetId)
 	if c.err != nil {
@@ -636,7 +623,7 @@ func (s AssetDescriptionSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSta
 	return nil
 }
 
-func (s *AssetDescriptionSnapshot) FromProtobuf(_ Scheme, p *g.TransactionStateSnapshot_AssetNameAndDescription) error {
+func (s *AssetDescriptionSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetNameAndDescription) error {
 	var c ProtobufConverter
 	assetID := c.digest(p.AssetId)
 	if c.err != nil {
@@ -663,7 +650,7 @@ func (s TransactionStatusSnapshot) IsGeneratedByTxDiff() bool {
 	return false
 }
 
-func (s *TransactionStatusSnapshot) FromProtobuf(_ Scheme, p g.TransactionStatus) error {
+func (s *TransactionStatusSnapshot) FromProtobuf(p g.TransactionStatus) error {
 	switch p {
 	case g.TransactionStatus_SUCCEEDED:
 		s.Status = TransactionSucceeded
@@ -672,7 +659,7 @@ func (s *TransactionStatusSnapshot) FromProtobuf(_ Scheme, p g.TransactionStatus
 	case g.TransactionStatus_ELIDED:
 		s.Status = TransactionElided
 	default:
-		return errors.Errorf("Undefinded tx status %d", p)
+		return errors.Errorf("undefinded tx status %d", p)
 	}
 	return nil
 }
@@ -686,7 +673,7 @@ func (s TransactionStatusSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSt
 	case TransactionFailed:
 		txSnapshots.TransactionStatus = g.TransactionStatus_FAILED
 	default:
-		return errors.Errorf("Undefined tx status %d", s.Status)
+		return errors.Errorf("undefined tx status %d", s.Status)
 	}
 	return nil
 }

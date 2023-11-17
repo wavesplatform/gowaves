@@ -9,8 +9,8 @@ type snapshotsAtHeight struct {
 	scheme proto.Scheme
 }
 
-func newSnapshotsAtHeight(hs *historyStorage) *snapshotsAtHeight {
-	return &snapshotsAtHeight{hs: hs}
+func newSnapshotsAtHeight(hs *historyStorage, scheme proto.Scheme) *snapshotsAtHeight {
+	return &snapshotsAtHeight{hs: hs, scheme: scheme}
 }
 
 func (s *snapshotsAtHeight) saveSnapshots(
@@ -26,7 +26,7 @@ func (s *snapshotsAtHeight) saveSnapshots(
 	return s.hs.addNewEntry(snapshots, key.bytes(), blockSnapshotsBytes, blockID)
 }
 
-func (s *snapshotsAtHeight) shapshots(height uint64) (proto.BlockSnapshot, error) {
+func (s *snapshotsAtHeight) getSnapshots(height uint64) (proto.BlockSnapshot, error) {
 	key := snapshotsKey{height: height}
 	snapshotsBytes, err := s.hs.newestTopEntryData(key.bytes())
 	if err != nil {

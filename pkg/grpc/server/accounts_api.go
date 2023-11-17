@@ -64,7 +64,10 @@ func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptR
 		return nil, status.Errorf(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
-	scriptInfo, _ := s.state.ScriptInfoByAccount(rcp)
+	scriptInfo, err := s.state.ScriptInfoByAccount(rcp)
+	if err != nil {
+		return nil, err
+	}
 	return scriptInfo.ToScriptResponseProtobuf(), nil
 }
 

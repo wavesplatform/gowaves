@@ -743,7 +743,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if errAppendTx != nil {
 			return errAppendTx
 		}
-		blockSnapshots.TxSnapshots = append(blockSnapshots.TxSnapshots, txSnapshots.regular)
+		blockSnapshots.AppendTxSnapshot(txSnapshots.regular)
 	}
 	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
 		return err

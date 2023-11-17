@@ -63,6 +63,7 @@ const (
 	MaxAssetScriptActionsV3                  = 30
 	base64EncodingSizeLimit                  = 1024
 	base64EncodingPrefix                     = "base64:"
+	uint32Size                               = 4
 )
 
 type Timestamp = uint64

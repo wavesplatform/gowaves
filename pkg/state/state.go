@@ -94,7 +94,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newInvokeResults(hs),
 		newStateHashes(hs),
 		newHitSources(hs),
-		newSnapshotsAtHeight(hs),
+		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		calcHashes,
 	}, nil
 }
@@ -2570,7 +2570,7 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 }
 
 func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
-	return s.stor.snapshots.shapshots(height)
+	return s.stor.snapshots.getSnapshots(height)
 }
 
 func (s *stateManager) Close() error {

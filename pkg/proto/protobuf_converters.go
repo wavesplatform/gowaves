@@ -62,7 +62,7 @@ func SignedTxFromProtobuf(data []byte) (Transaction, error) {
 
 func balancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, balance := range txSnapshotProto.Balances {
-		if balance.Amount.AssetId == nil {
+		if len(balance.Amount.AssetId) == 0 {
 			var sn WavesBalanceSnapshot
 			err := sn.FromProtobuf(scheme, balance)
 			if err != nil {
@@ -92,10 +92,10 @@ func leaseBalancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSn
 	return nil
 }
 
-func staticAssetFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func staticAssetFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, assetStatic := range txSnapshotProto.AssetStatics {
 		var sn StaticAssetInfoSnapshot
-		err := sn.FromProtobuf(scheme, assetStatic)
+		err := sn.FromProtobuf(assetStatic)
 		if err != nil {
 			return err
 		}
@@ -104,10 +104,10 @@ func staticAssetFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnap
 	return nil
 }
 
-func assetVolumeFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func assetVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, assetVolume := range txSnapshotProto.AssetVolumes {
 		var sn AssetVolumeSnapshot
-		err := sn.FromProtobuf(scheme, assetVolume)
+		err := sn.FromProtobuf(assetVolume)
 		if err != nil {
 			return err
 		}
@@ -116,10 +116,10 @@ func assetVolumeFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnap
 	return nil
 }
 
-func assetDescrFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func assetDescrFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, assetNameAndDescr := range txSnapshotProto.AssetNamesAndDescriptions {
 		var sn AssetDescriptionSnapshot
-		err := sn.FromProtobuf(scheme, assetNameAndDescr)
+		err := sn.FromProtobuf(assetNameAndDescr)
 		if err != nil {
 			return err
 		}
@@ -128,10 +128,10 @@ func assetDescrFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnaps
 	return nil
 }
 
-func assetScriptFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func assetScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, assetScript := range txSnapshotProto.AssetScripts {
 		var sn AssetScriptSnapshot
-		err := sn.FromProtobuf(scheme, assetScript)
+		err := sn.FromProtobuf(assetScript)
 		if err != nil {
 			return err
 		}
@@ -152,10 +152,10 @@ func aliasFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, 
 	return nil
 }
 
-func filledVolumeFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func filledVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, orderFill := range txSnapshotProto.OrderFills {
 		var sn FilledVolumeFeeSnapshot
-		err := sn.FromProtobuf(scheme, orderFill)
+		err := sn.FromProtobuf(orderFill)
 		if err != nil {
 			return err
 		}
@@ -176,10 +176,10 @@ func leaseStateFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnaps
 	return nil
 }
 
-func accountScriptFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func accountScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, accountScript := range txSnapshotProto.AccountScripts {
 		var sn AccountScriptSnapshot
-		err := sn.FromProtobuf(scheme, accountScript)
+		err := sn.FromProtobuf(accountScript)
 		if err != nil {
 			return err
 		}
@@ -200,10 +200,10 @@ func dataEntryFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapsh
 	return nil
 }
 
-func sponsorshipFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, sponsorship := range txSnapshotProto.Sponsorships {
 		var sn SponsorshipSnapshot
-		err := sn.FromProtobuf(scheme, sponsorship)
+		err := sn.FromProtobuf(sponsorship)
 		if err != nil {
 			return err
 		}
@@ -212,6 +212,20 @@ func sponsorshipFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnap
 	return nil
 }
 
+// TxSnapshotsFromProtobuf Unmarshalling order (how in proto schemas):
+// WavesBalances and AssetBalances
+// LeaseBalances
+// StaticAsset
+// AssetVolume
+// AssetDescription
+// AssetScripts
+// Aliases
+// FilledVolumes
+// LeaseStates
+// AccountScripts
+// DataEntries
+// Sponsorships
+// TxStatus.
 func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
 	var txSnapshots []AtomicSnapshot
 	err := balancesFromProto(scheme, txSnapshotProto, &txSnapshots)
@@ -222,19 +236,19 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = staticAssetFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = staticAssetFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
-	err = assetVolumeFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = assetVolumeFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
-	err = assetDescrFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = assetDescrFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
-	err = assetScriptFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = assetScriptFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -242,7 +256,7 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = filledVolumeFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = filledVolumeFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -250,7 +264,7 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = accountScriptFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = accountScriptFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -258,12 +272,12 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = sponsorshipFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = sponsorshipFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
 	var sn TransactionStatusSnapshot
-	err = sn.FromProtobuf(scheme, txSnapshotProto.TransactionStatus)
+	err = sn.FromProtobuf(txSnapshotProto.TransactionStatus)
 	if err != nil {
 		return nil, err
 	}

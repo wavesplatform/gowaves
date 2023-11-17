@@ -10,7 +10,7 @@ import (
 
 func TestSaveSnapshots(t *testing.T) {
 	storage := createStorageObjects(t, true)
-	snapshotStor := newSnapshotsAtHeight(storage.hs)
+	snapshotStor := newSnapshotsAtHeight(storage.hs, storage.settings.AddressSchemeCharacter)
 	ids := genRandBlockIds(t, 1)
 	snapshots := proto.BlockSnapshot{
 		TxSnapshots: [][]proto.AtomicSnapshot{{
@@ -25,7 +25,7 @@ func TestSaveSnapshots(t *testing.T) {
 	err := snapshotStor.saveSnapshots(ids[0], 10, snapshots)
 	assert.NoError(t, err)
 
-	fromStorage, err := snapshotStor.shapshots(10)
+	fromStorage, err := snapshotStor.getSnapshots(10)
 	assert.NoError(t, err)
 
 	assert.Equal(t, len(fromStorage.TxSnapshots[0]), len(snapshots.TxSnapshots[0]))
