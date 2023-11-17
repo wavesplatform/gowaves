@@ -29,7 +29,7 @@ func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		result = append(result, binary.BigEndian.AppendUint32([]byte{}, uint32(len(tsBytes)))...)
+		result = binary.BigEndian.AppendUint32(result, uint32(len(tsBytes)))
 		result = append(result, tsBytes...)
 	}
 	return result, nil
