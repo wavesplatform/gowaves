@@ -29,27 +29,27 @@ func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		result = binary.BigEndian.AppendUint32([]byte{}, uint32(len(tsBytes)))
+		result = append(result, binary.BigEndian.AppendUint32([]byte{}, uint32(len(tsBytes)))...)
 		result = append(result, tsBytes...)
 	}
 	return result, nil
 }
 
 func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
-	if len(data) <= uint32Size {
+	if len(data) < uint32Size {
 		return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
 	}
 	txSnCnt := binary.BigEndian.Uint32(data[0:uint32Size])
-	data = data[4:]
+	data = data[uint32Size:]
 	var txSnapshots [][]AtomicSnapshot
 	for i := uint32(0); i < txSnCnt; i++ {
-		if len(data) <= uint32Size {
+		if len(data) < uint32Size {
 			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
 		}
 		tsBytesLen := binary.BigEndian.Uint32(data[0:uint32Size])
 		var tsProto g.TransactionStateSnapshot
-		data = data[4:]
-		if uint32(len(data)) <= tsBytesLen {
+		data = data[uint32Size:]
+		if uint32(len(data)) < tsBytesLen {
 			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid snapshot size")
 		}
 		err := tsProto.UnmarshalVT(data[0:tsBytesLen])
