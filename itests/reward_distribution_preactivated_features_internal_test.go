@@ -8,6 +8,26 @@ import (
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/reward"
+	"github.com/wavesplatform/gowaves/pkg/settings"
+)
+
+const (
+	NODE815 = "XTN buyback and dao addresses should get 2 WAVES when full block reward >= 6 WAVES"
+	NODE816 = "XTN buyback and dao addresses should get (R-2)/2 WAVES when full block reward < 6 WAVES"
+	NODE817 = "Single dao address should get 2 WAVES when full block reward >= 6 WAVES"
+	NODE818 = "Single DAO or XTN buyback address should get max((R - 2)/2, 0) WAVES when full block " +
+		"reward < 6 WAVES, mainer gets all reward If reward R <= 2 WAVES"
+	NODE820 = "Miner should get full block reward when daoAddress and xtnBuybackAddress are not defined"
+	NODE821 = "Miner should get full block reward after CappedReward feature (20) activation " +
+		"if BlockRewardDistribution feature (19) is not activated"
+	NODE825 = "XTN buyback reward should be cancelled when CeaseXtnBuyback activated " +
+		"after f19 activation height + xtnBuybackRewardPeriod (full reward > 6 WAVES)"
+	NODE826 = "XTN buyback reward should be cancelled when CeaseXtnBuyback activated after f19 " +
+		"activation height + xtnBuybackRewardPeriod (full reward < 6 WAVES)"
+	NODE829 = "Miner should get full block reward if daoAddress and xtnBuybackAddress are not " +
+		"defined after f19 activation height + xtnBuybackRewardPeriod"
+	NODE830 = "Block reward distribution should not change after CeaseXtnBuyback activation " +
+		"if CappedReward not activated"
 )
 
 type TestData func(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
@@ -47,10 +67,10 @@ type RewardDistributionIncreaseDaoXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionIncreaseDaoXtnPreactivatedSuite) Test_NODE815() {
-	name := "NODE-815. XTN buyback and dao addresses should get 2 WAVES when full block reward >= 6 WAVES"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE815, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite,
 			addresses, testdata.GetRewardIncreaseDaoXtnTestData)
 	})
@@ -66,10 +86,10 @@ type RewardDistributionUnchangedDaoXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionUnchangedDaoXtnPreactivatedSuite) Test_NODE815_2() {
-	name := "NODE-815. XTN buyback and dao addresses should get 2 WAVES when full block reward >= 6 WAVES"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE815, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardUnchangedDaoXtnTestData)
 	})
@@ -87,10 +107,10 @@ type RewardDistributionDecreaseDaoXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionDecreaseDaoXtnPreactivatedSuite) Test_NODE816() {
-	name := "NODE-816. XTN buyback and dao addresses should get (R-2)/2 WAVES when full block reward < 6 WAVES"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE816, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseDaoXtnTestData)
 	})
@@ -108,10 +128,10 @@ type RewardDistributionIncreaseDaoPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionIncreaseDaoPreactivatedSuite) Test_NODE817() {
-	name := "NODE-817. Single dao address should get 2 WAVES when full block reward >= 6 WAVES"
 	addresses := testdata.GetAddressesMinersDao(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE817, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardIncreaseDaoTestData)
 	})
@@ -127,10 +147,10 @@ type RewardDistributionUnchangedXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionUnchangedXtnPreactivatedSuite) Test_NODE817_2() {
-	name := "NODE-817. Single XTN buyback address should get 2 WAVES when full block reward >= 6 WAVES"
 	addresses := testdata.GetAddressesMinersXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE817, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardUnchangedXtnTestData)
 	})
@@ -148,10 +168,10 @@ type RewardDistributionDecreaseXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionDecreaseXtnPreactivatedSuite) Test_NODE818() {
-	name := "NODE-818. Single XTN buyback address should get max((R - 2)/2, 0) WAVES when full block reward < 6 WAVES"
 	addresses := testdata.GetAddressesMinersXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE818, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseXtnTestData)
 	})
@@ -167,10 +187,10 @@ type RewardDistributionDecreaseDaoPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionDecreaseDaoPreactivatedSuite) Test_NODE818_2() {
-	name := "NODE-818. Single DAO address should get max((R - 2)/2, 0) WAVES when full block reward < 6 WAVES"
 	addresses := testdata.GetAddressesMinersDao(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE818, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseDaoTestData)
 	})
@@ -186,10 +206,10 @@ type RewardDistribution2WUnchangedDaoXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardDistribution2WUnchangedDaoXtnPreactivatedSuite) Test_NODE818_3() {
-	name := "NODE-818. mainer gets all reward If reward R <= 2 WAVES"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE818, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetReward2WUnchangedDaoXtnTestData)
 	})
@@ -207,10 +227,10 @@ type RewardDistributionIncreasePreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionIncreasePreactivatedSuite) Test_NODE820() {
-	name := "NODE-820. Miner should get full block reward when daoAddress and xtnBuybackAddress are not defined"
 	addresses := testdata.GetAddressesMiners(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
+	suite.Run(NODE820, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardMinersTestData)
 	})
@@ -228,11 +248,9 @@ type RewardDistributionDaoXtnPreactivatedWithout19Suite struct {
 }
 
 func (suite *RewardDistributionDaoXtnPreactivatedWithout19Suite) Test_NODE821() {
-	name := "NODE-821. Miner should get full block reward after CappedReward feature (20) activation " +
-		"if BlockRewardDistribution feature (19) is not activated"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 20)
+	suite.Run(NODE821, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.CappedRewards))
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDaoXtnWithout19TestData)
 	})
@@ -251,12 +269,12 @@ type RewardDistributionIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE825() {
-	name := "NODE-825, NODE-828. XTN buyback reward should be cancelled when CeaseXtnBuyback " +
-		"activated after f19 activation height + xtnBuybackRewardPeriod (full reward > 6 WAVES)"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19,
+	suite.Run(NODE825, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards), int(settings.XTNBuyBackCessation))
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			int(settings.BlockRewardDistribution),
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardIncreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData)
@@ -279,12 +297,12 @@ type RewardDistributionIncreaseXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionIncreaseXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE825_2() {
-	name := "NODE-825, NODE-828. XTN buyback reward should be cancelled when CeaseXtnBuyback activated after f19 " +
-		"activation height + xtnBuybackRewardPeriod (full reward > 6 WAVES)"
 	addresses := testdata.GetAddressesMinersXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19,
+	suite.Run(NODE825, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards), int(settings.XTNBuyBackCessation))
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			int(settings.BlockRewardDistribution),
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardIncreaseXtnCeaseXTNBuybackBeforePeriodTestData)
@@ -307,12 +325,12 @@ type RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE825_3() {
-	name := "NODE-825, NODE-828. XTN buyback reward should be cancelled when CeaseXtnBuyback activated after f19 " +
-		"activation height + xtnBuybackRewardPeriod (full reward = 6 WAVES)"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19,
+	suite.Run(NODE825, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards), int(settings.XTNBuyBackCessation))
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			int(settings.BlockRewardDistribution),
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardUnchangedDaoXtnCeaseXTNBuybackBeforePeriodTestData)
@@ -335,12 +353,12 @@ type RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE826() {
-	name := "NODE - 826, NODE-828. XTN buyback reward should be cancelled when CeaseXtnBuyback activated after f19 " +
-		"activation height + xtnBuybackRewardPeriod (full reward < 6 WAVES)"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19,
+	suite.Run(NODE826, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards), int(settings.XTNBuyBackCessation))
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			int(settings.BlockRewardDistribution),
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData)
@@ -363,12 +381,12 @@ type RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE826_2() {
-	name := "NODE - 826, NODE-828. XTN buyback reward should be cancelled when CeaseXtnBuyback activated after f19 " +
-		"activation height + xtnBuybackRewardPeriod (full reward < 6 WAVES)"
 	addresses := testdata.GetAddressesMinersXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19,
+	suite.Run(NODE826, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards), int(settings.XTNBuyBackCessation))
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			int(settings.BlockRewardDistribution),
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseXtnCeaseXTNBuybackBeforePeriodTestData)
@@ -391,12 +409,12 @@ type Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE826_3() {
-	name := "NODE - 826, NODE-828. XTN buyback reward should be cancelled when CeaseXtnBuyback activated after f19 " +
-		"activation height + xtnBuybackRewardPeriod (full reward = 2 WAVES)"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19,
+	suite.Run(NODE826, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards), int(settings.XTNBuyBackCessation))
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			int(settings.BlockRewardDistribution),
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetReward2WUnchangedDaoXtnCeaseXTNBuybackTestData)
@@ -419,12 +437,12 @@ type Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite) Test_NODE829() {
-	name := "NODE - 829, NODE-828. Miner should get full block reward if daoAddress and xtnBuybackAddress are not " +
-		"defined after f19 activation height + xtnBuybackRewardPeriod"
 	addresses := testdata.GetAddressesMiners(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19,
+	suite.Run(NODE829, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.CappedRewards), int(settings.XTNBuyBackCessation))
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			int(settings.BlockRewardDistribution),
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetReward5W2MinersIncreaseCeaseXTNBuybackTestData)
@@ -446,12 +464,12 @@ type RewardDaoXtnPreactivatedWithout20Suite struct {
 }
 
 func (suite *RewardDaoXtnPreactivatedWithout20Suite) Test_NODE830() {
-	name := "NODE - 830, NODE-828. Block reward distribution should not change after CeaseXtnBuyback " +
-		"activation if CappedReward not activated"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 21)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, 19,
+	suite.Run(NODE830, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
+			int(settings.XTNBuyBackCessation))
+		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+			int(settings.BlockRewardDistribution),
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDaoXtnBeforePeriodWithout20TestData)
@@ -473,11 +491,9 @@ type RewardDaoXtnPreactivatedWithout19And20Suite struct {
 }
 
 func (suite *RewardDaoXtnPreactivatedWithout19And20Suite) Test_NODE830_2() {
-	name := "NODE - 830, NODE-828. Block reward distribution should not change after CeaseXtnBuyback activation " +
-		"if CappedReward not activated"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
-	suite.Run(name, func() {
-		getActivationOfFeatures(&suite.BaseSuite, 14, 21)
+	suite.Run(NODE830, func() {
+		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.XTNBuyBackCessation))
 		ceaseXtnBuybackHeight := utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRewardDaoXtnWithout19And20TestData)
 		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)

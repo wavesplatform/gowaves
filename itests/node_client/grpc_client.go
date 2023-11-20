@@ -33,7 +33,7 @@ func NewGrpcClient(t *testing.T, port string) *GrpcClient {
 func (c *GrpcClient) GetFeatureActivationStatusInfo(t *testing.T, h int32) *g.ActivationStatusResponse {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
-	response, err := g.NewBlockchainApiClient(c.conn).GetActivationStatus(ctx, &g.ActivationStatusRequest{Height: (h)})
+	response, err := g.NewBlockchainApiClient(c.conn).GetActivationStatus(ctx, &g.ActivationStatusRequest{Height: h})
 	require.NoError(t, err, "failed to get feature activation status")
 	return response
 }

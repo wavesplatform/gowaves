@@ -13,6 +13,10 @@ import (
 	"github.com/wavesplatform/gowaves/itests/node_client"
 )
 
+const (
+	EnableScalaMining = true
+)
+
 type BaseSuite struct {
 	suite.Suite
 
@@ -24,8 +28,9 @@ type BaseSuite struct {
 	Ports   *d.Ports
 }
 
-func (suite *BaseSuite) BaseSetup(suiteName string, enableScalaMining bool, additionalArgsPath ...string) {
+func (suite *BaseSuite) BaseSetup(enableScalaMining bool, additionalArgsPath ...string) {
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
+	suiteName := strcase.KebabCase(suite.T().Name())
 	paths, cfg, err := config.CreateFileConfigs(suiteName, enableScalaMining, additionalArgsPath...)
 	suite.Require().NoError(err, "couldn't create config")
 	suite.Cfg = cfg
@@ -45,10 +50,7 @@ func (suite *BaseSuite) BaseSetup(suiteName string, enableScalaMining bool, addi
 }
 
 func (suite *BaseSuite) SetupSuite() {
-	const enableScalaMining = true
-	suiteName := strcase.KebabCase(suite.T().Name())
-
-	suite.BaseSetup(suiteName, enableScalaMining)
+	suite.BaseSetup(EnableScalaMining)
 }
 
 func (suite *BaseSuite) TearDownSuite() {

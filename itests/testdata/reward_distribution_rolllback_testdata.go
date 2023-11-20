@@ -21,12 +21,13 @@ func GetRewardDistributionAfterF14Before19TestData(suite *f.BaseSuite, addresses
 // NODE - 858.
 func GetRollbackBeforeF19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*int64(utl.GetCurrentReward(suite, height))/3,
-			DaoDiffBalance:       int64(utl.GetCurrentReward(suite, height)) / 3,
-			XtnDiffBalance:       int64(utl.GetCurrentReward(suite, height)) / 3,
+			MinersSumDiffBalance: currentReward - 2*currentReward/3,
+			DaoDiffBalance:       currentReward / 3,
+			XtnDiffBalance:       currentReward / 3,
 			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
@@ -36,12 +37,13 @@ func GetRollbackBeforeF19TestData(suite *f.BaseSuite, addresses AddressesForDist
 // NODE - 859.
 func GetRollbackAfterF19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) / 3,
-			DaoDiffBalance:       int64(utl.GetCurrentReward(suite, height)) / 3,
-			XtnDiffBalance:       int64(utl.GetCurrentReward(suite, height)) / 3,
+			MinersSumDiffBalance: currentReward / 3,
+			DaoDiffBalance:       currentReward / 3,
+			XtnDiffBalance:       currentReward / 3,
 			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }

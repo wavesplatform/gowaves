@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -113,6 +112,15 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open file")
 	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			if err != nil {
+				err = errors.Wrapf(err, "failed to close file: %v", closeErr)
+			} else {
+				err = closeErr
+			}
+		}
+	}()
 	jsonParser := json.NewDecoder(f)
 	s := &GenesisSettings{}
 	if err = jsonParser.Decode(s); err != nil {
@@ -132,6 +140,15 @@ func parseRewardSettings(rewardArgsPath string) (*RewardSettings, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open file")
 	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			if err != nil {
+				err = errors.Wrapf(err, "failed to close file: %v", closeErr)
+			} else {
+				err = closeErr
+			}
+		}
+	}()
 	jsonParser := json.NewDecoder(f)
 	s := &RewardSettings{}
 	if err = jsonParser.Decode(s); err != nil {
@@ -240,12 +257,8 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	cfg.MinXTNBuyBackPeriod = rewardSettings.MinXTNBuyBackPeriod
 
 	rewardsAddresses, rewardsAddressesAfter21 := getRewardAddresses(rewardSettings)
-	if rewardsAddresses != nil {
-		cfg.RewardAddresses = rewardsAddresses
-	}
-	if rewardsAddressesAfter21 != nil {
-		cfg.RewardAddressesAfter21 = rewardsAddressesAfter21
-	}
+	cfg.RewardAddresses = rewardsAddresses
+	cfg.RewardAddressesAfter21 = rewardsAddressesAfter21
 
 	// preactivated features
 	preactivatedFeatures, err := getPreactivatedFeatures(genSettings, rewardSettings)

@@ -47,6 +47,9 @@ const (
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
+	Activated                  = "ACTIVATED"
+	Approved                   = "APPROVED"
+	Undefined                  = "UNDEFINED"
 )
 
 var (
@@ -482,11 +485,11 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID int) uint64 {
 	status, err := GetFeatureBlockchainStatus(suite, featureID, height)
 	require.NoError(suite.T(), err)
 	switch status {
-	case "ACTIVATED":
+	case Activated:
 		waitingBlocks = 0
-	case "APPROVED":
+	case Approved:
 		waitingBlocks = votingPeriod - (height - (height/votingPeriod)*votingPeriod)
-	case "UNDEFINED":
+	case Undefined:
 		waitingBlocks = 2*votingPeriod - (height - (height/votingPeriod)*votingPeriod)
 	}
 	return waitingBlocks
@@ -494,7 +497,6 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID int) uint64 {
 
 func WaitForFeatureActivation(suite *f.BaseSuite, featureID int, height uint64) int32 {
 	var activationHeight int32
-	var err error
 	waitingBlocks := GetWaitingBlocks(suite, height, featureID)
 	h := WaitForHeight(suite, height+waitingBlocks)
 	activationHeightGo := GetFeatureActivationHeightGo(suite, featureID, h)
@@ -502,19 +504,16 @@ func WaitForFeatureActivation(suite *f.BaseSuite, featureID int, height uint64) 
 	if activationHeightScala == activationHeightGo {
 		activationHeight = activationHeightGo
 	} else {
-		err = errors.Errorf("Feature with Id %d has different activation heights", featureID)
+		suite.FailNowf("Feature has different activation heights", "Feature ID is %d", featureID)
 	}
-	require.NoError(suite.T(), err)
 	return activationHeight
 }
 
 func FeatureShouldBeActivated(suite *f.BaseSuite, featureID int, height uint64) {
-	var err error
 	activationHeight := WaitForFeatureActivation(suite, featureID, height)
 	if activationHeight == -1 {
-		err = errors.Errorf("Feature with Id %d not activated", featureID)
+		suite.FailNowf("Feature is not activated", "Feature with Id %d", featureID)
 	}
-	require.NoError(suite.T(), err)
 	suite.T().Logf("Feature %d is activated on height @%d\n", featureID, activationHeight)
 }
 
@@ -716,16 +715,14 @@ func GetDesiredRewardScala(suite *f.BaseSuite, height uint64) int64 {
 }
 
 func GetDesiredReward(suite *f.BaseSuite, height uint64) int64 {
-	var err error
 	var desiredR int64
 	desiredRGo := GetDesiredRewardGo(suite, height)
 	desiredRScala := GetDesiredRewardScala(suite, height)
 	if desiredRGo == desiredRScala {
 		desiredR = desiredRGo
 	} else {
-		err = errors.New("Desired Reward from Go and Scala is different")
+		suite.FailNow("Desired Reward from Go and Scala is different")
 	}
-	require.NoError(suite.T(), err)
 	return desiredR
 }
 
@@ -774,14 +771,14 @@ func GetCurrentRewardScala(suite *f.BaseSuite, height uint64) uint64 {
 }
 
 func GetCurrentReward(suite *f.BaseSuite, height uint64) uint64 {
-	var err error
 	var currentReward uint64
 	currentRewardGo := GetCurrentRewardGo(suite, height)
 	currentRewardScala := GetCurrentRewardScala(suite, height)
 	if currentRewardGo == currentRewardScala {
 		currentReward = currentRewardGo
+	} else {
+		suite.FailNow("Current reward is different")
 	}
-	require.NoError(suite.T(), err)
 	return currentReward
 }
 

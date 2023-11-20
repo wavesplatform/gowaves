@@ -11,11 +11,11 @@ func getAddressesBalances(suite *f.BaseSuite,
 	var balanceMiner1Go, balanceMiner1Scala, balanceMiner2Go, balanceMiner2Scala,
 		balanceDaoGo, balanceDaoScala, balanceXtnGo, balanceXtnScala int64
 	// Get balance in waves of miners accounts.
-	if addresses.Miner1Account != nil {
-		balanceMiner1Go, balanceMiner1Scala = utl.GetAvailableBalanceInWaves(suite, addresses.Miner1Account.Address)
+	if addresses.MinerGoAccount != nil {
+		balanceMiner1Go, balanceMiner1Scala = utl.GetAvailableBalanceInWaves(suite, addresses.MinerGoAccount.Address)
 	}
-	if addresses.Miner2Account != nil {
-		balanceMiner2Go, balanceMiner2Scala = utl.GetAvailableBalanceInWaves(suite, addresses.Miner2Account.Address)
+	if addresses.MinerScalaAccount != nil {
+		balanceMiner2Go, balanceMiner2Scala = utl.GetAvailableBalanceInWaves(suite, addresses.MinerScalaAccount.Address)
 	}
 	// We will be summing up balances of both miners accounts.
 	sumBalanceMinersGo := balanceMiner1Go + balanceMiner2Go
