@@ -20,19 +20,8 @@ func newDiffApplier(balances *balances, scheme proto.Scheme) (*diffApplier, erro
 	return &diffApplier{balances, scheme}, nil
 }
 
-func newWavesValueFromProfile(p balanceProfile) *wavesValue {
-	val := &wavesValue{profile: p}
-	if p.leaseIn != 0 || p.leaseOut != 0 {
-		val.leaseChange = true
-	}
-	if p.balance != 0 {
-		val.balanceChange = true
-	}
-	return val
-}
-
-func newWavesValue(prevProf, newProf balanceProfile) *wavesValue {
-	val := &wavesValue{profile: newProf}
+func newWavesValue(prevProf, newProf balanceProfile) wavesValue {
+	val := wavesValue{profile: newProf}
 	if prevProf.balance != newProf.balance {
 		val.balanceChange = true
 	}
@@ -51,7 +40,7 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, validateO
 	if err != nil {
 		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
 	}
-	prevProfile := *profile
+	prevProfile := profile
 	for _, diff := range change.balanceDiffs {
 		// Check for negative balance.
 		newProfile, err := diff.applyTo(profile)
@@ -69,11 +58,11 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, validateO
 		if validateOnly {
 			continue
 		}
-		val := newWavesValue(prevProfile, *newProfile)
+		val := newWavesValue(prevProfile, newProfile)
 		if err := a.balances.setWavesBalance(k.address, val, diff.blockID); err != nil {
 			return errors.Errorf("failed to set account balance: %v\n", err)
 		}
-		prevProfile = *newProfile
+		prevProfile = newProfile
 	}
 	return nil
 }

@@ -17,7 +17,7 @@ type LeaseStatus byte
 
 const (
 	LeaseActive LeaseStatus = iota
-	LeaseCanceled
+	LeaseCancelled
 	//TODO: LeaseExpired (for future use)
 )
 
@@ -45,15 +45,23 @@ type leasing struct {
 	Sender              proto.WavesAddress `cbor:"0,keyasint"`
 	Recipient           proto.WavesAddress `cbor:"1,keyasint"`
 	Amount              uint64             `cbor:"2,keyasint"`
-	Height              uint64             `cbor:"3,keyasint"`
+	OriginHeight        uint64             `cbor:"3,keyasint,omitempty"`
 	Status              LeaseStatus        `cbor:"4,keyasint"`
 	OriginTransactionID *crypto.Digest     `cbor:"5,keyasint,omitempty"`
 	CancelHeight        uint64             `cbor:"7,keyasint,omitempty"`
 	CancelTransactionID *crypto.Digest     `cbor:"8,keyasint,omitempty"`
 }
 
-func (l leasing) isActive() bool {
+func (l *leasing) isActive() bool {
 	return l.Status == LeaseActive
+}
+
+func (l *leasing) marshalBinary() ([]byte, error) {
+	return cbor.Marshal(l)
+}
+
+func (l *leasing) unmarshalBinary(data []byte) error {
+	return cbor.Unmarshal(data, l)
 }
 
 type leases struct {
@@ -92,7 +100,7 @@ func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID
 		key := keyvalue.SafeKey(leaseIter)
 		leaseBytes := keyvalue.SafeValue(leaseIter)
 		record := new(leasing)
-		if err := cbor.Unmarshal(leaseBytes, record); err != nil {
+		if err = record.unmarshalBinary(leaseBytes); err != nil {
 			return errors.Wrap(err, "failed to unmarshal lease")
 		}
 		toCancel := true
@@ -106,7 +114,7 @@ func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID
 				return errors.Wrap(err, "failed to unmarshal lease key")
 			}
 			zap.S().Infof("State: cancelling lease %s", k.leaseID.String())
-			record.Status = LeaseCanceled
+			record.Status = LeaseCancelled
 			if err := l.addLeasing(k.leaseID, record, blockID); err != nil {
 				return errors.Wrap(err, "failed to save lease to storage")
 			}
@@ -129,7 +137,7 @@ func (l *leases) cancelLeasesToDisabledAliases(scheme proto.Scheme, height proto
 			return nil, errors.Wrapf(err, "failed to get newest leasing info by id %q", leaseID.String())
 		}
 		zap.S().Infof("State: canceling lease %s", leaseID)
-		record.Status = LeaseCanceled
+		record.Status = LeaseCancelled
 		record.CancelHeight = height
 		if err := l.addLeasing(leaseID, record, blockID); err != nil {
 			return nil, errors.Wrapf(err, "failed to save leasing %q to storage", leaseID)
@@ -169,7 +177,7 @@ func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 	for leaseIter.Next() {
 		leaseBytes := keyvalue.SafeValue(leaseIter)
 		record := new(leasing)
-		if err := cbor.Unmarshal(leaseBytes, record); err != nil {
+		if err = record.unmarshalBinary(leaseBytes); err != nil {
 			return nil, errors.Wrap(err, "failed to unmarshal lease")
 		}
 		if record.isActive() {
@@ -192,7 +200,7 @@ func (l *leases) newestLeasingInfo(id crypto.Digest) (*leasing, error) {
 		return nil, err
 	}
 	record := new(leasing)
-	if err := cbor.Unmarshal(recordBytes, record); err != nil {
+	if err = record.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal record")
 	}
 	if record.OriginTransactionID == nil {
@@ -209,7 +217,7 @@ func (l *leases) leasingInfo(id crypto.Digest) (*leasing, error) {
 		return nil, err
 	}
 	record := new(leasing)
-	if err := cbor.Unmarshal(recordBytes, record); err != nil {
+	if err = record.unmarshalBinary(recordBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to unmarshal record")
 	}
 	if record.OriginTransactionID == nil {
@@ -230,7 +238,7 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.Bl
 	key := leaseKey{leaseID: id}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
-	recordBytes, err := cbor.Marshal(leasing)
+	recordBytes, err := leasing.marshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal record")
 	}
@@ -253,6 +261,16 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.Bl
 	return nil
 }
 
+func (l *leases) rawWriteLeasing(id crypto.Digest, leasing *leasing, blockID proto.BlockID) error {
+	key := leaseKey{leaseID: id}
+	keyBytes := key.bytes()
+	recordBytes, err := leasing.marshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal record")
+	}
+	return l.hs.addNewEntry(lease, keyBytes, recordBytes, blockID)
+}
+
 func (l *leases) addLeasingUncertain(id crypto.Digest, leasing *leasing) {
 	l.uncertainLeases[id] = leasing
 }
@@ -262,7 +280,7 @@ func (l *leases) cancelLeasing(id crypto.Digest, blockID proto.BlockID, height u
 	if err != nil {
 		return errors.Errorf("failed to get leasing info: %v", err)
 	}
-	leasing.Status = LeaseCanceled
+	leasing.Status = LeaseCancelled
 	leasing.CancelHeight = height
 	leasing.CancelTransactionID = txID
 	return l.addLeasing(id, leasing, blockID)
@@ -273,7 +291,7 @@ func (l *leases) cancelLeasingUncertain(id crypto.Digest, height uint64, txID *c
 	if err != nil {
 		return errors.Errorf("failed to get leasing info: %v", err)
 	}
-	leasing.Status = LeaseCanceled
+	leasing.Status = LeaseCancelled
 	leasing.CancelTransactionID = txID
 	leasing.CancelHeight = height
 	l.addLeasingUncertain(id, leasing)

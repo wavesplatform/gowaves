@@ -471,13 +471,13 @@ func (k *votesFeaturesKey) unmarshal(data []byte) error {
 }
 
 type ordersVolumeKey struct {
-	orderId []byte
+	orderID []byte
 }
 
 func (k *ordersVolumeKey) bytes() []byte {
-	buf := make([]byte, 1+len(k.orderId))
+	buf := make([]byte, 1+len(k.orderID))
 	buf[0] = ordersVolumeKeyPrefix
-	copy(buf[1:], k.orderId)
+	copy(buf[1:], k.orderID)
 	return buf
 }
 

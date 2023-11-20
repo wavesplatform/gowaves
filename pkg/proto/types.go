@@ -4287,3 +4287,11 @@ func (s StateHashDebug) GetStateHash() *StateHash {
 	}
 	return sh
 }
+
+type TransactionStatus byte
+
+const (
+	TransactionSucceeded TransactionStatus = iota
+	TransactionFailed
+	TransactionElided
+)

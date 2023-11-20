@@ -3,6 +3,7 @@ package state
 import (
 	"encoding/binary"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -40,8 +41,8 @@ func newOrdersVolumes(hs *historyStorage) *ordersVolumes {
 	return &ordersVolumes{hs: hs}
 }
 
-func (ov *ordersVolumes) newestVolumeById(orderId []byte) (*orderVolumeRecord, error) {
-	key := ordersVolumeKey{orderId}
+func (ov *ordersVolumes) newestVolumeByID(orderID []byte) (*orderVolumeRecord, error) {
+	key := ordersVolumeKey{orderID}
 	recordBytes, err := ov.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		return nil, err
@@ -53,49 +54,41 @@ func (ov *ordersVolumes) newestVolumeById(orderId []byte) (*orderVolumeRecord, e
 	return &record, nil
 }
 
-func (ov *ordersVolumes) addNewRecord(orderId []byte, record *orderVolumeRecord, blockID proto.BlockID) error {
+func (ov *ordersVolumes) addNewRecord(orderID []byte, record *orderVolumeRecord, blockID proto.BlockID) error {
 	recordBytes, err := record.marshalBinary()
 	if err != nil {
 		return err
 	}
-	key := ordersVolumeKey{orderId}
+	key := ordersVolumeKey{orderID}
 	return ov.hs.addNewEntry(ordersVolume, key.bytes(), recordBytes, blockID)
 }
 
-func (ov *ordersVolumes) increaseFilledFee(orderId []byte, feeChange uint64, blockID proto.BlockID) error {
-	prevVolume, err := ov.newestVolumeById(orderId)
+// TODO remove it
+func (ov *ordersVolumes) increaseFilled(orderID []byte, amountChange, feeChange uint64, blockID proto.BlockID) error {
+	prevVolume, err := ov.newestVolumeByID(orderID)
 	if err != nil {
-		// New record.
-		return ov.addNewRecord(orderId, &orderVolumeRecord{feeFilled: feeChange}, blockID)
-	}
-	prevVolume.feeFilled += feeChange
-	return ov.addNewRecord(orderId, prevVolume, blockID)
-}
-
-func (ov *ordersVolumes) increaseFilledAmount(orderId []byte, amountChange uint64, blockID proto.BlockID) error {
-	prevVolume, err := ov.newestVolumeById(orderId)
-	if err != nil {
-		// New record.
-		return ov.addNewRecord(orderId, &orderVolumeRecord{amountFilled: amountChange}, blockID)
+		if isNotFoundInHistoryOrDBErr(err) { // New record.
+			return ov.addNewRecord(orderID, &orderVolumeRecord{amountFilled: amountChange, feeFilled: feeChange}, blockID)
+		}
+		return errors.Wrapf(err, "failed to increase filled for order %q", base58.Encode(orderID))
 	}
 	prevVolume.amountFilled += amountChange
-	return ov.addNewRecord(orderId, prevVolume, blockID)
+	prevVolume.feeFilled += feeChange
+	return ov.addNewRecord(orderID, prevVolume, blockID)
 }
 
-func (ov *ordersVolumes) newestFilledFee(orderId []byte) (uint64, error) {
-	volume, err := ov.newestVolumeById(orderId)
-	if err != nil {
-		// No fee volume filled yet.
-		return 0, nil
-	}
-	return volume.feeFilled, nil
+func (ov *ordersVolumes) storeFilled(orderID []byte, amountFilled, feeFilled uint64, blockID proto.BlockID) error {
+	newVolume := &orderVolumeRecord{amountFilled: amountFilled, feeFilled: feeFilled}
+	return ov.addNewRecord(orderID, newVolume, blockID)
 }
 
-func (ov *ordersVolumes) newestFilledAmount(orderId []byte) (uint64, error) {
-	volume, err := ov.newestVolumeById(orderId)
+func (ov *ordersVolumes) newestFilled(orderID []byte) (uint64, uint64, error) {
+	volume, err := ov.newestVolumeByID(orderID)
 	if err != nil {
-		// No amount volume filled yet.
-		return 0, nil
+		if isNotFoundInHistoryOrDBErr(err) { // No fee volume filled yet.
+			return 0, 0, nil
+		}
+		return 0, 0, errors.Wrapf(err, "failed to get filled for order %q", base58.Encode(orderID))
 	}
-	return volume.amountFilled, nil
+	return volume.amountFilled, volume.feeFilled, nil
 }

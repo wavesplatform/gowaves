@@ -136,15 +136,15 @@ func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.I
 		to.state.appender.ia.sc.resetComplexity()
 	}()
 
-	res, err := to.state.appender.ia.applyInvokeScript(tx, info)
+	_, applicationRes, err := to.state.appender.ia.applyInvokeScript(tx, info)
 	require.NoError(t, err)
-	err = to.state.appender.diffStor.saveTxDiff(res.changes.diff)
+	err = to.state.appender.diffStor.saveTxDiff(applicationRes.changes.diff)
 	assert.NoError(t, err)
-	if res.status {
+	if applicationRes.status {
 		err = to.state.stor.commitUncertain(info.checkerInfo.blockID)
 		assert.NoError(t, err)
 	}
-	return res
+	return applicationRes
 }
 
 func createGeneratedAsset(t *testing.T) (crypto.Digest, string) {
@@ -202,7 +202,7 @@ func (id *invokeApplierTestData) applyTestWithCleanup(t *testing.T, to *invokeAp
 func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestObjects) {
 	tx := createInvokeScriptWithProofs(t, id.payments, id.fc, feeAsset, invokeFee)
 	if id.errorRes {
-		_, err := to.state.appender.ia.applyInvokeScript(tx, id.info)
+		_, _, err := to.state.appender.ia.applyInvokeScript(tx, id.info)
 		assert.Error(t, err)
 		return
 	}
@@ -1226,6 +1226,8 @@ func TestIssuesInInvokes(t *testing.T) {
 		ai, err := to.state.EnrichedFullAssetInfo(proto.AssetIDFromDigest(action.ID))
 		require.NoError(t, err)
 		sequenceInBlock := uint32(i + 1)
+		ai.SequenceInBlock = sequenceInBlock // sequence in block is not set in invoke applier anymore, it's set in
+		// snapshot applier
 		assert.Equal(t, sequenceInBlock, ai.SequenceInBlock, "invalid SequenceInBlock for asset %q", ai.Name)
 		assert.Equal(t, info.blockInfo.Height, ai.IssueHeight, "invalid IssueHeight for asset %q", ai.Name)
 	}

@@ -461,7 +461,12 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx)
+	snapshotApplier := newBlockSnapshotsApplier(
+		nil,
+		newSnapshotApplierStorages(stor),
+	)
+	snapshotGen := newSnapshotGenerator(stor, settings.AddressSchemeCharacter)
+	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier, &snapshotGen)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -819,11 +824,11 @@ func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.Asse
 	return balance, nil
 }
 
-func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (*balanceProfile, error) {
+func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (balanceProfile, error) {
 	// Retrieve the latest balance from historyStorage.
 	profile, err := s.stor.balances.newestWavesBalance(addr)
 	if err != nil {
-		return nil, err
+		return balanceProfile{}, err
 	}
 	// Retrieve the latest balance diff as for the moment of this function call.
 	key := wavesBalanceKey{address: addr}
@@ -833,11 +838,11 @@ func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (*balance
 		return profile, nil
 	} else if err != nil {
 		// Something weird happened.
-		return nil, err
+		return balanceProfile{}, err
 	}
 	newProfile, err := diff.applyTo(profile)
 	if err != nil {
-		return nil, errors.Errorf("given account has negative balance at this point: %v", err)
+		return balanceProfile{}, errors.Errorf("given account has negative balance at this point: %v", err)
 	}
 	return newProfile, nil
 }
@@ -1280,6 +1285,7 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
+// TODO what to do with stolen aliases in snapshots?
 func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
 	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
@@ -1529,6 +1535,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	if err := s.appender.applyAllDiffs(); err != nil {
 		return nil, err
 	}
+
 	// Retrieve and store state hashes for each of new blocks.
 	if err := s.stor.handleStateHashes(height, ids); err != nil {
 		return nil, wrapErr(ModificationError, err)
