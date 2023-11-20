@@ -38,6 +38,17 @@ func genAsset(fillWith byte) crypto.Digest {
 	return asset
 }
 
+func newWavesValueFromProfile(p balanceProfile) wavesValue {
+	val := wavesValue{profile: p}
+	if p.leaseIn != 0 || p.leaseOut != 0 {
+		val.leaseChange = true
+	}
+	if p.balance != 0 {
+		val.balanceChange = true
+	}
+	return val
+}
+
 func TestCancelAllLeases(t *testing.T) {
 	to := createBalances(t)
 
@@ -219,7 +230,7 @@ func TestBalances(t *testing.T) {
 		if err != nil {
 			t.Fatalf("Failed to retrieve waves balance: %v\n", err)
 		}
-		if *profile != tc.profile {
+		if profile != tc.profile {
 			t.Errorf("Waves balance profiles are not equal: %v and %v\n", profile, tc.profile)
 		}
 	}

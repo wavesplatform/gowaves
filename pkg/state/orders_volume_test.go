@@ -19,52 +19,36 @@ func createOrdersVolumeStorageObjects(t *testing.T) *ordersVolumesStorageObjects
 	return &ordersVolumesStorageObjects{stor, ordersVolumes}
 }
 
-func TestIncreaseFilledFee(t *testing.T) {
+func TestIncreaseFilled(t *testing.T) {
 	to := createOrdersVolumeStorageObjects(t)
 
 	to.stor.addBlock(t, blockID0)
-	orderId := bytes.Repeat([]byte{0xff}, crypto.DigestSize)
-	firstFee := uint64(1)
-	secondFee := uint64(100500)
-	err := to.ordersVolumes.increaseFilledFee(orderId, firstFee, blockID0)
+	orderID := bytes.Repeat([]byte{0xff}, crypto.DigestSize)
+
+	const (
+		firstFee     = uint64(1)
+		secondFee    = uint64(100500)
+		firstAmount  = uint64(111)
+		secondAmount = uint64(500100)
+	)
+
+	err := to.ordersVolumes.increaseFilled(orderID, firstAmount, firstFee, blockID0)
 	assert.NoError(t, err)
-	filledFee, err := to.ordersVolumes.newestFilledFee(orderId)
+	filledAmount, filledFee, err := to.ordersVolumes.newestFilled(orderID)
 	assert.NoError(t, err)
 	assert.Equal(t, firstFee, filledFee)
-
-	err = to.ordersVolumes.increaseFilledFee(orderId, secondFee, blockID0)
-	assert.NoError(t, err)
-	filledFee, err = to.ordersVolumes.newestFilledFee(orderId)
-	assert.NoError(t, err)
-	assert.Equal(t, firstFee+secondFee, filledFee)
-
-	to.stor.flush(t)
-	filledFee, err = to.ordersVolumes.newestFilledFee(orderId)
-	assert.NoError(t, err)
-	assert.Equal(t, firstFee+secondFee, filledFee)
-}
-
-func TestIncreaseFilledAmount(t *testing.T) {
-	to := createOrdersVolumeStorageObjects(t)
-
-	to.stor.addBlock(t, blockID0)
-	orderId := bytes.Repeat([]byte{0xff}, crypto.DigestSize)
-	firstAmount := uint64(1)
-	secondAmount := uint64(100500)
-	err := to.ordersVolumes.increaseFilledAmount(orderId, firstAmount, blockID0)
-	assert.NoError(t, err)
-	filledAmount, err := to.ordersVolumes.newestFilledAmount(orderId)
-	assert.NoError(t, err)
 	assert.Equal(t, firstAmount, filledAmount)
 
-	err = to.ordersVolumes.increaseFilledAmount(orderId, secondAmount, blockID0)
+	err = to.ordersVolumes.increaseFilled(orderID, secondAmount, secondFee, blockID0)
 	assert.NoError(t, err)
-	filledAmount, err = to.ordersVolumes.newestFilledAmount(orderId)
+	filledAmount, filledFee, err = to.ordersVolumes.newestFilled(orderID)
 	assert.NoError(t, err)
+	assert.Equal(t, firstFee+secondFee, filledFee)
 	assert.Equal(t, firstAmount+secondAmount, filledAmount)
 
 	to.stor.flush(t)
-	filledAmount, err = to.ordersVolumes.newestFilledAmount(orderId)
+	filledAmount, filledFee, err = to.ordersVolumes.newestFilled(orderID)
 	assert.NoError(t, err)
+	assert.Equal(t, firstFee+secondFee, filledFee)
 	assert.Equal(t, firstAmount+secondAmount, filledAmount)
 }
