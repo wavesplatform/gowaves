@@ -123,8 +123,8 @@ func GetRewardDecreaseDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForD
 		addresses,
 		RewardDistributionExpectedValues{
 			MinersSumDiffBalance: MaxAddressReward,
-			DaoDiffBalance:       currentReward - MaxAddressReward/2,
-			XtnDiffBalance:       currentReward - MaxAddressReward/2,
+			DaoDiffBalance:       (currentReward - MaxAddressReward) / 2,
+			XtnDiffBalance:       (currentReward - MaxAddressReward) / 2,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
@@ -173,7 +173,7 @@ func GetRewardDecreaseXtnTestData(suite *f.BaseSuite, addresses AddressesForDist
 		RewardDistributionExpectedValues{
 			MinersSumDiffBalance: currentReward - (currentReward-MaxAddressReward)/2,
 			DaoDiffBalance:       0,
-			XtnDiffBalance:       currentReward - MaxAddressReward/2,
+			XtnDiffBalance:       (currentReward - MaxAddressReward) / 2,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
