@@ -35,10 +35,10 @@ type RewardDistributionAPIRewardInfoPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionAPIRewardInfoPreactivatedSuite) Test_NODE855() {
-	const NODE855 = "/blockchain/rewards returns correct values for term," +
+	const node855 = "/blockchain/rewards returns correct values for term," +
 		" nextCheck and votingIntervalStart after CappedReward activation"
 	td := testdata.GetRewardInfoApiAfterPreactivated20TestData(&suite.BaseSuite)
-	suite.Run(NODE855, func() {
+	suite.Run(node855, func() {
 		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
 			int(settings.CappedRewards))
 		getRewardInfoAndChecks(&suite.BaseSuite, td)
@@ -55,11 +55,11 @@ type RewardDistributionAPIRewardInfoSupportedSuite struct {
 }
 
 func (suite *RewardDistributionAPIRewardInfoSupportedSuite) Test_NODE855_2() {
-	const NODE855 = "/blockchain/rewards returns correct values for term," +
+	const node855 = "/blockchain/rewards returns correct values for term," +
 		" nextCheck and votingIntervalStart after CappedReward activation"
 	tdBefore20 := testdata.GetRewardInfoApiBefore20TestData(&suite.BaseSuite)
 	tdAfter20 := testdata.GetRewardInfoApiAfterSupported20TestData(&suite.BaseSuite)
-	suite.Run(NODE855, func() {
+	suite.Run(node855, func() {
 		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution))
 		getRewardInfoAndChecks(&suite.BaseSuite, tdBefore20)
 		getActivationOfFeatures(&suite.BaseSuite, int(settings.CappedRewards))
@@ -79,10 +79,10 @@ type RewardDistributionAPIRewardInfoAtHeightPreactivatedSuite struct {
 }
 
 func (suite *RewardDistributionAPIRewardInfoAtHeightPreactivatedSuite) Test_NODE856() {
-	const NODE856 = "/blockchain/rewards/{height} returns correct values for term," +
+	const node856 = "/blockchain/rewards/{height} returns correct values for term," +
 		" nextCheck and votingIntervalStart after CappedReward activation"
 	td := testdata.GetRewardInfoApiAfterPreactivated20TestData(&suite.BaseSuite)
-	suite.Run(NODE856, func() {
+	suite.Run(node856, func() {
 		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
 			int(settings.CappedRewards))
 		getRewardInfoAtHeightAndChecks(&suite.BaseSuite, td, utl.GetHeight(&suite.BaseSuite))
@@ -99,11 +99,11 @@ type RewardDistributionAPIRewardInfoAtHeightSupportedSuite struct {
 }
 
 func (suite *RewardDistributionAPIRewardInfoAtHeightSupportedSuite) Test_NODE856_2() {
-	const NODE856 = "/blockchain/rewards/{height} returns correct values for term," +
+	const node856 = "/blockchain/rewards/{height} returns correct values for term," +
 		" nextCheck and votingIntervalStart after CappedReward activation"
 	tdBefore20 := testdata.GetRewardInfoApiBefore20TestData(&suite.BaseSuite)
 	tdAfter20 := testdata.GetRewardInfoApiAfterSupported20TestData(&suite.BaseSuite)
-	suite.Run(NODE856, func() {
+	suite.Run(node856, func() {
 		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution))
 		getRewardInfoAtHeightAndChecks(&suite.BaseSuite, tdBefore20, utl.GetHeight(&suite.BaseSuite))
 		getActivationOfFeatures(&suite.BaseSuite, int(settings.CappedRewards))
