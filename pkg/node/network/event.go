@@ -21,5 +21,6 @@ const (
 	eventAskPeers
 	eventAnnounceScore
 	eventBroadcastMicroBlockInv
+	eventBroadcastBlock
 	eventHalt
 )

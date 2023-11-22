@@ -47,6 +47,13 @@ type BroadcastMicroBlockInvCommand struct {
 
 func (c BroadcastMicroBlockInvCommand) networkCommandTypeMarker() {}
 
+type BroadcastBlockCommand struct {
+	Block  *proto.Block
+	Origin peer.Peer
+}
+
+func (c BroadcastBlockCommand) networkCommandTypeMarker() {}
+
 // RequestQuorumUpdate issued by the Node's FSM in order to receive QuorumMetNotification if there is a quorum.
 type RequestQuorumUpdate struct{}
 

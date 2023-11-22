@@ -8,6 +8,7 @@ import (
 	"slices"
 	"time"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/qmuntal/stateless"
@@ -18,7 +19,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	ps "github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -92,6 +92,8 @@ func NewNetwork(
 		reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventBroadcastMicroBlockInv, reflect.TypeOf((*proto.MicroBlockInv)(nil)),
 		reflect.TypeOf((*peer.Peer)(nil)).Elem())
+	n.sm.SetTriggerParameters(eventBroadcastBlock, reflect.TypeOf((*proto.Block)(nil)),
+		reflect.TypeOf((*peer.Peer)(nil)).Elem())
 
 	n.configureDisconnectedState()
 	n.configureGroupState()
@@ -139,9 +141,11 @@ func (n *Network) configureDisconnectedState() {
 		Permit(eventQuorumChanged, stageLeader, n.quorumReached, n.followLeader).
 		Permit(eventQuorumChanged, stageGroup, n.quorumReached, n.followGroup).
 		InternalTransition(eventCheckQuorum, n.updateQuorum, n.quorumReached).
+		Ignore(eventCheckQuorum, n.quorumNotReached).
 		Ignore(eventFollowingModeChanged). // Do nothing.
 		Ignore(eventAnnounceScore).
 		Ignore(eventBroadcastMicroBlockInv).
+		Ignore(eventBroadcastBlock).
 		Permit(eventHalt, stageHalt)
 }
 
@@ -165,10 +169,12 @@ func (n *Network) configureGroupState() {
 		Ignore(eventQuorumChanged, n.quorumReached).
 		Permit(eventQuorumChanged, stageDisconnected, n.quorumNotReached).
 		InternalTransition(eventCheckQuorum, n.updateQuorum, n.quorumReached).
+		Ignore(eventCheckQuorum, n.quorumNotReached).
 		Ignore(eventFollowingModeChanged, n.followGroup).
 		Permit(eventFollowingModeChanged, stageLeader, n.followLeader).
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
 		InternalTransition(eventBroadcastMicroBlockInv, n.onBroadcastMicroBlockInv).
+		InternalTransition(eventBroadcastBlock, n.onBroadcastBlock).
 		Permit(eventHalt, stageHalt)
 }
 
@@ -191,9 +197,12 @@ func (n *Network) configureLeaderState() {
 		Ignore(eventQuorumChanged, n.quorumReached).
 		Permit(eventQuorumChanged, stageDisconnected, n.quorumNotReached).
 		InternalTransition(eventCheckQuorum, n.updateQuorum, n.quorumReached).
+		Ignore(eventCheckQuorum, n.quorumNotReached).
 		Permit(eventFollowingModeChanged, stageGroup, n.followGroup).
 		Ignore(eventFollowingModeChanged, n.followLeader).
 		InternalTransition(eventAnnounceScore, n.onAnnounceScore).
+		InternalTransition(eventBroadcastMicroBlockInv, n.onBroadcastMicroBlockInv).
+		InternalTransition(eventBroadcastBlock, n.onBroadcastBlock).
 		Permit(eventHalt, stageHalt)
 }
 
@@ -216,6 +225,8 @@ func (n *Network) configureHaltState() {
 		Ignore(eventCheckQuorum).
 		Ignore(eventFollowingModeChanged).
 		Ignore(eventAnnounceScore).
+		Ignore(eventBroadcastMicroBlockInv).
+		Ignore(eventBroadcastBlock).
 		Ignore(eventHalt)
 }
 
@@ -460,6 +471,11 @@ func (n *Network) handleCommands(c Command, ok bool) error {
 			zap.S().Named(logging.NetworkNamespace).
 				Warnf("[%s] Failed to handle BroadcastMicroBlockInv command: %v", n.sm.MustState(), err)
 		}
+	case BroadcastBlockCommand:
+		if err := n.sm.Fire(eventBroadcastBlock, cmd.Block, cmd.Origin); err != nil {
+			zap.S().Named(logging.NetworkNamespace).
+				Warnf("[%s] Failed to handle BroadcastBlock command: %v", n.sm.MustState(), err)
+		}
 	case RequestQuorumUpdate:
 		if err := n.sm.Fire(eventCheckQuorum); err != nil {
 			zap.S().Named(logging.NetworkNamespace).
@@ -611,7 +627,7 @@ func (n *Network) onFollowLeader(_ context.Context, _ ...any) error {
 // onEnterGroupFromDisconnected selects the peer from the largest group and sends
 // the QuorumMetNotification with this peer.
 func (n *Network) onEnterGroupFromDisconnected(_ context.Context, _ ...any) error {
-	if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer); ok {
+	if np, _, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer); ok {
 		pid := "n/a"
 		if n.syncPeer != nil {
 			pid = n.syncPeer.ID().String()
@@ -627,7 +643,7 @@ func (n *Network) onEnterGroupFromDisconnected(_ context.Context, _ ...any) erro
 // onEnterLeaderFromDisconnected selects the peer with the largest score and sends
 // the QuorumMetNotification with this peer.
 func (n *Network) onEnterLeaderFromDisconnected(_ context.Context, _ ...any) error {
-	if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer); ok {
+	if np, _, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer); ok {
 		pid := "n/a"
 		if n.syncPeer != nil {
 			pid = n.syncPeer.ID().String()
@@ -681,52 +697,44 @@ func (n *Network) onBroadcast(_ context.Context, args ...any) error {
 	if !ok {
 		return errors.Errorf("invalid type '%T' of first argument, expected 'proto.Transaction'", args[0])
 	}
+	id, err := tx.GetID(n.scheme)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get transaction ID in state '%s'", n.sm.MustState())
+	}
+	txID := base58.Encode(id)
 	op, ok := args[1].(peer.Peer)
 	if !ok {
 		return errors.Errorf("invalid type '%T' of second argument, expected 'peer.Peer'", args[1])
 	}
-	// TODO: Consider this:
-	// var err error
-	// for _, cp := range n.peers.Connected() {
-	// 	var bts []byte
-	// 	if cp.ProtobufSupported() {
-	//		bts, err = tx.MarshalSignedToProtobuf(n.scheme)
-	//		if err != nil {
-	//			break
-	//		}
-	//		cp.SendMessage(&proto.PBTransactionMessage{Transaction: bts})
-	//	} else {
-	//		bts, err = tx.MarshalBinary(n.scheme)
-	//		if err != nil {
-	//			break
-	//		}
-	//		cp.SendMessage(&proto.TransactionMessage{Transaction: bts})
-	//	}
-	// }
-	// if err != nil {
-	//	zap.S().Named(logging.FSMNamespace).
-	//		Warnf("[%s] Failed to broadcast transaction '%s' to %s: %v", n.sm.MustState(), tx.)
-	// }
-	n.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+	bts, err := tx.MarshalToProtobuf(n.scheme)
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal transactoin '%s' in state '%s'", n.sm.MustState(), txID)
+	}
+	msg := &proto.PBTransactionMessage{Transaction: bts}
+	cnt := 0
+	n.peers.EachConnected(func(p peer.Peer, _ *proto.Score) {
 		if p != op {
-			_ = extension.NewPeerExtension(p, n.scheme).SendTransaction(tx)
+			p.SendMessage(msg)
+			cnt++
 		}
 	})
+	zap.S().Named(logging.NetworkNamespace).
+		Debugf("[%s] Transaction message '%s'' sent to %d peers", n.sm.MustState(), txID, cnt)
 	return nil
 }
 
 func (n *Network) selectGroup(_ context.Context, _ ...any) error {
-	if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer); ok {
+	if np, s, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer); ok {
 		n.syncPeer = np
-		n.notificationsCh <- SyncPeerChangedNotification{Peer: np}
+		n.notificationsCh <- SyncPeerChangedNotification{Peer: np, Score: s}
 	}
 	return nil
 }
 
 func (n *Network) selectLeader(_ context.Context, _ ...any) error {
-	if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer); ok {
+	if np, s, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer); ok {
 		n.syncPeer = np
-		n.notificationsCh <- SyncPeerChangedNotification{Peer: np}
+		n.notificationsCh <- SyncPeerChangedNotification{Peer: np, Score: s}
 	}
 	return nil
 }
@@ -766,6 +774,34 @@ func (n *Network) onBroadcastMicroBlockInv(_ context.Context, args ...any) error
 		return errors.Wrap(err, "failed to marshal binary MicroBlockInv message")
 	}
 	msg := &proto.MicroBlockInvMessage{Body: bts}
+	cnt := 0
+	n.peers.EachConnected(func(p peer.Peer, _ *proto.Score) {
+		if p != op {
+			p.SendMessage(msg)
+			cnt++
+		}
+	})
+	zap.S().Named(logging.NetworkNamespace).
+		Debugf("[%s] MicroBlockInv message (%s <- %s) sent to %d peers",
+			n.sm.MustState(), inv.Reference.String(), inv.TotalBlockID.String(), cnt)
+	return nil
+}
+
+func (n *Network) onBroadcastBlock(_ context.Context, args ...any) error {
+	b, ok := args[0].(*proto.Block)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of first argument, expected '*proto.Block'", args[0])
+	}
+	op, ok := args[1].(peer.Peer)
+	if !ok {
+		return errors.Errorf("invalid type '%T' of second argument, expected 'peer.Peer'", args[1])
+	}
+
+	bts, err := b.Marshal(n.scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal Block message")
+	}
+	msg := &proto.BlockMessage{BlockBytes: bts}
 	var (
 		cnt int
 	)
@@ -776,8 +812,7 @@ func (n *Network) onBroadcastMicroBlockInv(_ context.Context, args ...any) error
 		}
 	})
 	zap.S().Named(logging.NetworkNamespace).
-		Debugf("[%s] MicroBlockInv message (%s <- %s) sent to %d peers",
-			n.sm.MustState(), inv.Reference.String(), inv.TotalBlockID.String(), cnt)
+		Debugf("[%s] Block message '%s' sent to %d peers", n.sm.MustState(), b.BlockID().String(), cnt)
 	return nil
 }
 

@@ -1,6 +1,10 @@
 package network
 
-import "github.com/wavesplatform/gowaves/pkg/p2p/peer"
+import (
+	"math/big"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
+)
 
 // Notification represents messages produced by the Network service.
 // The Network service issues notifications for the following events:
@@ -24,7 +28,8 @@ func (n QuorumLostNotification) networkNotificationTypeMarker() {}
 
 // SyncPeerChangedNotification signals the selection of a new peer for synchronization.
 type SyncPeerChangedNotification struct {
-	Peer peer.Peer
+	Peer  peer.Peer
+	Score *big.Int
 }
 
 func (n SyncPeerChangedNotification) networkNotificationTypeMarker() {}

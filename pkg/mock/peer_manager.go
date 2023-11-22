@@ -6,6 +6,7 @@ package mock
 
 import (
 	context "context"
+	big "math/big"
 	net "net"
 	reflect "reflect"
 	time "time"
@@ -92,12 +93,13 @@ func (mr *MockPeerManagerMockRecorder) BlackList() *gomock.Call {
 }
 
 // CheckPeerInLargestScoreGroup mocks base method.
-func (m *MockPeerManager) CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, bool) {
+func (m *MockPeerManager) CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, *big.Int, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckPeerInLargestScoreGroup", p)
 	ret0, _ := ret[0].(peer.Peer)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
+	ret1, _ := ret[1].(*big.Int)
+	ret2, _ := ret[2].(bool)
+	return ret0, ret1, ret2
 }
 
 // CheckPeerInLargestScoreGroup indicates an expected call of CheckPeerInLargestScoreGroup.
@@ -107,12 +109,13 @@ func (mr *MockPeerManagerMockRecorder) CheckPeerInLargestScoreGroup(p interface{
 }
 
 // CheckPeerWithMaxScore mocks base method.
-func (m *MockPeerManager) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
+func (m *MockPeerManager) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, *big.Int, bool) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CheckPeerWithMaxScore", p)
 	ret0, _ := ret[0].(peer.Peer)
-	ret1, _ := ret[1].(bool)
-	return ret0, ret1
+	ret1, _ := ret[1].(*big.Int)
+	ret2, _ := ret[2].(bool)
+	return ret0, ret1, ret2
 }
 
 // CheckPeerWithMaxScore indicates an expected call of CheckPeerWithMaxScore.

@@ -25,12 +25,13 @@ func _() {
 	_ = x[eventAskPeers-14]
 	_ = x[eventAnnounceScore-15]
 	_ = x[eventBroadcastMicroBlockInv-16]
-	_ = x[eventHalt-17]
+	_ = x[eventBroadcastBlock-17]
+	_ = x[eventHalt-18]
 }
 
-const _event_name = "PeerConnectedPeerDisconnectedScoreGetPeersPeersFollowGroupFollowLeaderBlacklistPeerSuspendPeerBroadcastTransactionQuorumChangedCheckQuorumFollowingModeChangedScoreUpdatedAskPeersAnnounceScoreBroadcastMicroBlockInvHalt"
+const _event_name = "PeerConnectedPeerDisconnectedScoreGetPeersPeersFollowGroupFollowLeaderBlacklistPeerSuspendPeerBroadcastTransactionQuorumChangedCheckQuorumFollowingModeChangedScoreUpdatedAskPeersAnnounceScoreBroadcastMicroBlockInvBroadcastBlockHalt"
 
-var _event_index = [...]uint8{0, 13, 29, 34, 42, 47, 58, 70, 83, 94, 114, 127, 138, 158, 170, 178, 191, 213, 217}
+var _event_index = [...]uint8{0, 13, 29, 34, 42, 47, 58, 70, 83, 94, 114, 127, 138, 158, 170, 178, 191, 213, 227, 231}
 
 func (i event) String() string {
 	if i < 0 || i >= event(len(_event_index)-1) {

@@ -58,8 +58,8 @@ type PeerManager interface {
 	// AskPeers sends GetPeersMessage message to all connected nodes.
 	AskPeers()
 
-	CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool)
-	CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, bool)
+	CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, *big.Int, bool)
+	CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, *big.Int, bool)
 
 	Disconnect(peer.Peer)
 }
@@ -444,7 +444,7 @@ func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr proto.TCPAddr) er
 	return nil
 }
 
-func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
+func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, *big.Int, bool) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 
@@ -454,27 +454,35 @@ func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
 	}
 	cpi, ok := a.active.get(pid)
 	if !ok {
-		return nil, false
+		return nil, nil, false
 	}
 	npi, ok := a.active.getPeerWithMaxScore()
 	if !ok { // No need to change peer
-		return p, false
+		return cpi.peer, cpi.score, false
 	}
 	if cpi.score.Cmp(npi.score) < 0 { // npi has a bigger score - switch to it
-		return npi.peer, true
+		return npi.peer, npi.score, true
 	}
-	return p, false // Otherwise stick to currently used peer
+	return cpi.peer, cpi.score, false // Otherwise stick to currently used peer
 }
 
-func (a *PeerManagerImpl) CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, bool) {
+func (a *PeerManagerImpl) CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, *big.Int, bool) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
-	np, ok := a.active.getPeerFromLargestPeerGroup(p)
-	if !ok { // No need to change peer
-		return p, false
+	var cpi peerInfo
+	if p != nil {
+		var ok bool
+		cpi, ok = a.active.get(p.ID())
+		if !ok {
+			return nil, nil, false
+		}
 	}
-	return np.peer, true
+	np, ok := a.active.getPeerFromLargestPeerGroup(p)
+	if !ok { // No need to change peer. Also, we won't get here if the p is nil.
+		return cpi.peer, cpi.score, false
+	}
+	return np.peer, np.score, true
 }
 
 func (a *PeerManagerImpl) connected(p peer.Peer) (peer.Peer, bool) {

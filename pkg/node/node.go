@@ -3,6 +3,7 @@ package node
 import (
 	"context"
 	"fmt"
+	"math/big"
 	"reflect"
 	"time"
 
@@ -21,7 +22,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/network"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -334,7 +334,7 @@ func (n *Node) handleNotifications(m network.Notification, ok bool) error {
 				Warnf("[%s] Failed to handle QuorumLost notification: %v", n.sm.MustState(), err)
 		}
 	case network.SyncPeerChangedNotification:
-		if err := n.sm.Fire(eventChangeSyncPeer, ntf.Peer); err != nil {
+		if err := n.sm.Fire(eventChangeSyncPeer, ntf.Peer, ntf.Score); err != nil {
 			zap.S().Named(logging.FSMNamespace).
 				Warnf("[%s] Failed to handle ChangeSyncPeer notification: %v", n.sm.MustState(), err)
 		}
@@ -358,7 +358,8 @@ func (n *Node) configureTriggers() {
 		reflect.TypeOf((*proto.BlockID)(nil)))
 	n.sm.SetTriggerParameters(eventMicroBlock, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
 		reflect.TypeOf((*proto.MicroBlock)(nil)))
-	n.sm.SetTriggerParameters(eventChangeSyncPeer, reflect.TypeOf((*peer.Peer)(nil)).Elem())
+	n.sm.SetTriggerParameters(eventChangeSyncPeer, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
+		reflect.TypeOf((*big.Int)(nil)))
 	n.sm.SetTriggerParameters(eventResume, reflect.TypeOf((*peer.Peer)(nil)).Elem())
 	n.sm.SetTriggerParameters(eventBlockGenerated, reflect.TypeOf((*proto.Block)(nil)),
 		reflect.TypeOf(proto.MiningLimits{}), reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{}))
@@ -391,6 +392,7 @@ func (n *Node) configureTillingState() {
 	n.sm.Configure(stageTilling).
 		OnEntryFrom(eventResume, n.onEnterTillingFromIdle).
 		OnEntryFrom(eventBlockSequenceComplete, n.onEnterTillingFromHarvesting).
+		OnEntryFrom(eventChangeSyncPeer, n.onEnterTillingFromIdle).
 		Ignore(eventTransaction).
 		Ignore(eventBlock).
 		Permit(eventBlockIDs, stageSowing, n.completeIDsBatch).
@@ -486,7 +488,8 @@ func (n *Node) configureOperationState() {
 		Ignore(eventMicroBlockInv).
 		Ignore(eventGetMicroBlock).
 		Ignore(eventMicroBlock).
-		Ignore(eventChangeSyncPeer).
+		Permit(eventChangeSyncPeer, stageTilling, n.higherScore).
+		Ignore(eventChangeSyncPeer, n.lowerOrEqualScore).
 		Ignore(eventResume).
 		Permit(eventSuspend, stageIdle).
 		InternalTransition(eventBlockGenerated, n.onBlockGenerated).
@@ -501,13 +504,15 @@ func (n *Node) configureOperationState() {
 func (n *Node) configureOperationNGState() {
 	n.sm.Configure(stageOperationNG).
 		OnEntry(n.onEnterOperationNG).
-		InternalTransition(eventTransaction, n.onTransaction).
+		//InternalTransition(eventTransaction, n.onTransaction).
+		Ignore(eventTransaction). // TODO: Remove this line and uncomment the line above.
 		InternalTransition(eventBlock, n.onKeyBlock).
 		Ignore(eventBlockIDs).
 		InternalTransition(eventMicroBlockInv, n.onMicroblockInv).
 		InternalTransition(eventGetMicroBlock, n.onGetMicroblock).
 		InternalTransition(eventMicroBlock, n.onMicroblock).
-		Ignore(eventChangeSyncPeer).
+		Permit(eventChangeSyncPeer, stageTilling, n.higherScore).
+		Ignore(eventChangeSyncPeer, n.lowerOrEqualScore).
 		Ignore(eventResume).
 		Permit(eventSuspend, stageIdle).
 		InternalTransition(eventBlockGenerated, n.onBlockGenerated).
@@ -580,6 +585,7 @@ func (n *Node) onEnterIdle(_ context.Context, _ ...any) error {
 func (n *Node) onEnterOperation(_ context.Context, _ ...any) error {
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entered Operation state", n.sm.MustState())
 	n.skipList.DisableForOperation()
+	n.commandsCh <- network.FollowLeaderCommand{}
 	// TODO: Start mining
 	// TODO: n.scheduler.Reschedule()
 	return nil
@@ -587,7 +593,8 @@ func (n *Node) onEnterOperation(_ context.Context, _ ...any) error {
 
 func (n *Node) onEnterOperationNG(_ context.Context, _ ...any) error {
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Entered OperationNG state", n.sm.MustState())
-	n.skipList.DisableForOperation()
+	n.skipList.DisableForOperationNG()
+	n.commandsCh <- network.FollowLeaderCommand{}
 	// TODO: Start mining
 	// TODO: n.scheduler.Reschedule()
 	return nil
@@ -891,16 +898,16 @@ func (n *Node) onKeyBlock(_ context.Context, args ...any) error {
 			)
 		var blockFromCache *proto.Block
 		if blockFromCache, ok = n.blocksCache.get(b.Parent); ok {
+			// Restore parent block from cache if any.
 			zap.S().Named(logging.FSMNamespace).
 				Debugf("[%s] Re-applying block '%s' from cache", n.sm.MustState(), blockFromCache.ID.String())
 			if err = n.rollbackToStateFromCache(blockFromCache); err != nil {
 				zap.S().Named(logging.FSMNamespace).
 					Errorf("[%s] Failed to rollback state to block '%s': %v", n.sm.MustState(),
 						blockFromCache.BlockID().String(), err)
-				return nil
+				// TODO: Failed to apply block from cache, what should we do?
 			}
 		}
-		return nil // No need to try to apply the block, we already know it is inapplicable.
 	}
 
 	_, err = n.applier.applyBlocks([]*proto.Block{b})
@@ -918,6 +925,7 @@ func (n *Node) onKeyBlock(_ context.Context, args ...any) error {
 	n.blocksCache.put(b)
 
 	// TODO: n.scheduler.Reschedule()
+	n.commandsCh <- network.BroadcastBlockCommand{Block: b, Origin: p}
 	n.commandsCh <- network.AnnounceScoreCommand{}
 	n.cleanUTX()
 	return nil
@@ -941,6 +949,25 @@ func (n *Node) onChangeSyncPeer(_ context.Context, args ...any) error {
 	return nil
 }
 
+func (n *Node) higherScore(_ context.Context, args ...any) bool {
+	s, ok := args[1].(*big.Int)
+	if !ok {
+		zap.S().Named(logging.FSMNamespace).
+			Errorf("[%s] Invalid type '%T' of second argument, expected '*big.Int'", n.sm.MustState(), args[1])
+		return false
+	}
+	ls, err := n.st.CurrentScore()
+	if err != nil {
+		zap.S().Named(logging.FSMNamespace).Errorf("[%s] Failed to get current score: %v", n.sm.MustState(), err)
+		return false
+	}
+	return s.Cmp(ls) == 1 // Remote score is higher than local score.
+}
+
+func (n *Node) lowerOrEqualScore(ctx context.Context, args ...any) bool {
+	return !n.higherScore(ctx, args...)
+}
+
 func (n *Node) onMicroblockInv(_ context.Context, args ...any) error {
 	p, ok := args[0].(peer.Peer)
 	if !ok {
@@ -961,12 +988,11 @@ func (n *Node) onMicroblockInv(_ context.Context, args ...any) error {
 	}
 
 	zap.S().Named(logging.FSMNamespace).
-		Debugf("[%s] MicroBlockInv received: peer '%s' proposed a new block '%s'",
-			n.sm.MustState(), p.ID().String(), inv.TotalBlockID.String())
+		Debugf("[%s] Micro-block Inv with block ID '%s' received from peer '%s'",
+			n.sm.MustState(), inv.TotalBlockID.String(), p.ID().String())
 	n.microBlockInvCache.put(inv.TotalBlockID, inv)
 
-	msg := &proto.MicroBlockRequestMessage{TotalBlockSig: inv.TotalBlockID.Bytes()}
-	p.SendMessage(msg)
+	p.SendMessage(&proto.MicroBlockRequestMessage{TotalBlockSig: inv.TotalBlockID.Bytes()})
 
 	return nil
 }
@@ -982,7 +1008,11 @@ func (n *Node) onGetMicroblock(_ context.Context, args ...any) error {
 	}
 	var mb *proto.MicroBlock
 	if mb, ok = n.microBlockCache.get(*id); ok {
-		_ = extension.NewPeerExtension(p, n.scheme).SendMicroBlock(mb)
+		bts, err := mb.MarshalToProtobuf(n.scheme)
+		if err != nil {
+			return errors.Wrapf(err, "failed to marshal micro-block in state '%s'", n.sm.MustState())
+		}
+		p.SendMessage(&proto.PBMicroBlockMessage{MicroBlockBytes: bts})
 	}
 	return nil
 }
@@ -1002,11 +1032,14 @@ func (n *Node) onMicroblock(_ context.Context, args ...any) error {
 	}
 	metrics.FSMMicroBlockReceived(st.String(), mb, p.Handshake().NodeName)
 
+	zap.S().Named(logging.FSMNamespace).
+		Debugf("[%s] Micro-block '%s' received from peer '%s'", n.sm.MustState(), mb.TotalBlockID.String(),
+			p.ID().String())
 	b, err := n.checkAndAppendMicroBlock(mb)
 	if err != nil {
 		metrics.FSMMicroBlockDeclined(st.String(), mb, err)
 		zap.S().Named(logging.FSMNamespace).
-			Errorf("[%s]", n.sm.MustState())
+			Errorf("[%s] Failed to apply micro-block '%s': %v", n.sm.MustState(), mb.TotalBlockID.String(), err)
 		return nil
 	}
 	metrics.FSMMicroBlockApplied(st.String(), mb)
@@ -1163,11 +1196,7 @@ func (n *Node) checkAndAppendMicroBlock(mb *proto.MicroBlock) (*proto.Block, err
 		return nil, errors.Wrapf(err, "failed to generate block ID for micro-block '%s'",
 			mb.TotalBlockID.String())
 	}
-	err = n.st.Map(func(state state.State) error {
-		_, aplErr := n.applier.applyMicroBlock(newBlock)
-		return aplErr
-	})
-	if err != nil {
+	if _, aplErr := n.applier.applyMicroBlock(newBlock); aplErr != nil {
 		return nil, errors.Wrapf(err, "failed to apply block created from micro-block '%s'",
 			mb.TotalBlockID.String())
 	}
