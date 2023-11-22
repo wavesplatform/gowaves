@@ -25,6 +25,7 @@ const (
 	approvedFeaturesKeySize = 1 + 2
 	votesFeaturesKeySize    = 1 + 2
 	invokeResultKeySize     = 1 + crypto.DigestSize
+	snapshotKeySize         = 1 + 8
 )
 
 // Primary prefixes for storage keys
@@ -123,6 +124,8 @@ const (
 
 	// Hit source data.
 	hitSourceKeyPrefix
+
+	snapshotsKeyPrefix
 )
 
 var (
@@ -180,6 +183,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{blocksInfoKeyPrefix}, nil
 	case rewardChanges:
 		return []byte{rewardChangesKeyPrefix}, nil
+	case snapshots:
+		return []byte{snapshotsKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -682,6 +687,17 @@ type hitSourceKey struct {
 func (k *hitSourceKey) bytes() []byte {
 	buf := make([]byte, 9)
 	buf[0] = hitSourceKeyPrefix
+	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type snapshotsKey struct {
+	height uint64
+}
+
+func (k *snapshotsKey) bytes() []byte {
+	buf := make([]byte, snapshotKeySize)
+	buf[0] = snapshotsKeyPrefix
 	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
