@@ -20,7 +20,7 @@ type RewardIncreaseDaoXtnSupportedSuite struct {
 }
 
 func (suite *RewardIncreaseDaoXtnSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "7W_2miners_dao_xtn_increase.json"))
 }
 
@@ -32,7 +32,7 @@ type RewardUnchangedDaoXtnSupportedSuite struct {
 }
 
 func (suite *RewardUnchangedDaoXtnSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "6W_2miners_dao_xtn_not_changed.json"))
 }
 
@@ -44,7 +44,7 @@ type RewardDecreaseDaoXtnSupportedSuite struct {
 }
 
 func (suite *RewardDecreaseDaoXtnSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "5W_2miners_dao_xtn_decrease.json"))
 }
 
@@ -56,7 +56,7 @@ type RewardIncreaseDaoSupportedSuite struct {
 }
 
 func (suite *RewardIncreaseDaoSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "7W_2miners_dao_increase.json"))
 }
 
@@ -68,7 +68,7 @@ type RewardUnchangedXtnSupportedSuite struct {
 }
 
 func (suite *RewardUnchangedXtnSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "6W_2miners_xtn_not_changed.json"))
 }
 
@@ -80,7 +80,7 @@ type Reward2WUnchangedDaoXtnSupportedSuite struct {
 }
 
 func (suite *Reward2WUnchangedDaoXtnSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "2W_2miners_dao_xtn_not_changed.json"))
 }
 
@@ -92,7 +92,7 @@ type RewardDecreaseDaoSupportedSuite struct {
 }
 
 func (suite *RewardDecreaseDaoSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "5W_2miners_dao_decrease.json"))
 }
 
@@ -104,7 +104,7 @@ type RewardDecreaseXtnSupportedSuite struct {
 }
 
 func (suite *RewardDecreaseXtnSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "5W_2miners_xtn_decrease.json"))
 }
 
@@ -116,7 +116,7 @@ type RewardIncreaseSupportedSuite struct {
 }
 
 func (suite *RewardIncreaseSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "2miners_increase.json"))
 }
 
@@ -128,7 +128,7 @@ type RewardDaoXtnSupportedWithout19Suite struct {
 }
 
 func (suite *RewardDaoXtnSupportedWithout19Suite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "2miners_dao_xtn_without_f19.json"))
 }
 
@@ -142,7 +142,7 @@ type RewardIncreaseDaoXtnCeaseXTNBuybackSupportedSuite struct {
 }
 
 func (suite *RewardIncreaseDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "7W_2miners_dao_xtn_increase.json"))
 }
 
@@ -154,7 +154,7 @@ type RewardIncreaseXtnCeaseXTNBuybackSupportedSuite struct {
 }
 
 func (suite *RewardIncreaseXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "7W_2miners_xtn_increase.json"))
 }
 
@@ -166,7 +166,7 @@ type RewardUnchangedDaoXtnCeaseXTNBuybackSupportedSuite struct {
 }
 
 func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_not_changed.json"))
 }
 
@@ -178,7 +178,7 @@ type RewardDecreaseDaoXtnCeaseXTNBuybackSupportedSuite struct {
 }
 
 func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "5W_2miners_xtn_dao_decrease.json"))
 }
 
@@ -190,7 +190,7 @@ type RewardDecreaseXtnCeaseXTNBuybackSupportedSuite struct {
 }
 
 func (suite *RewardDecreaseXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "5W_2miners_xtn_decrease.json"))
 }
 
@@ -202,7 +202,7 @@ type Reward2WUnchangedDaoXtnCeaseXTNBuybackSupportedSuite struct {
 }
 
 func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "2W_2miners_dao_xtn_not_changed.json"))
 }
 
@@ -214,7 +214,7 @@ type Reward5W2MinersIncreaseCeaseXTNBuybackSupportedSuite struct {
 }
 
 func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackSupportedSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "5W_2miners_increase.json"))
 }
 
@@ -226,7 +226,7 @@ type RewardDaoXtnSupportedWithout20Suite struct {
 }
 
 func (suite *RewardDaoXtnSupportedWithout20Suite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase_without_20.json"))
 }
 
@@ -238,7 +238,7 @@ type RewardDaoXtnSupportedWithout19And20Suite struct {
 }
 
 func (suite *RewardDaoXtnSupportedWithout19And20Suite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase_without_19_20.json"))
 }
 
@@ -252,7 +252,7 @@ type RewardIncreaseDaoXtnSupported20Suite struct {
 }
 
 func (suite *RewardIncreaseDaoXtnSupported20Suite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeature20ConfigFolder, "7W_2miners_dao_xtn_increase.json"))
 }
 
@@ -264,7 +264,7 @@ type RewardDaoXtnSupported19Suite struct {
 }
 
 func (suite *RewardDaoXtnSupported19Suite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesConfigFolder, "2miners_dao_xtn_without_f20.json"))
 }
 
@@ -276,6 +276,6 @@ type RewardDistributionRollbackBefore21Suite struct {
 }
 
 func (suite *RewardDistributionRollbackBefore21Suite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining,
+	suite.BaseSetup(enableScalaMining,
 		filepath.Join(supportedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase.json"))
 }

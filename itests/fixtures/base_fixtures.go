@@ -14,7 +14,7 @@ import (
 )
 
 const (
-	EnableScalaMining = true
+	enableScalaMining = true
 )
 
 type BaseSuite struct {
@@ -50,7 +50,7 @@ func (suite *BaseSuite) BaseSetup(enableScalaMining bool, additionalArgsPath ...
 }
 
 func (suite *BaseSuite) SetupSuite() {
-	suite.BaseSetup(EnableScalaMining)
+	suite.BaseSetup(enableScalaMining)
 }
 
 func (suite *BaseSuite) TearDownSuite() {

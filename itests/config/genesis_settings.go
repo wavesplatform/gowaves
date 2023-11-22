@@ -3,6 +3,7 @@ package config
 import (
 	"encoding/binary"
 	"encoding/json"
+	slerr "errors"
 	"math"
 	"math/big"
 	"os"
@@ -114,11 +115,7 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	}
 	defer func() {
 		if closeErr := f.Close(); closeErr != nil {
-			if err != nil {
-				err = errors.Wrapf(err, "failed to close file: %v", closeErr)
-			} else {
-				err = closeErr
-			}
+			err = slerr.Join(err, closeErr)
 		}
 	}()
 	jsonParser := json.NewDecoder(f)
@@ -142,11 +139,7 @@ func parseRewardSettings(rewardArgsPath string) (*RewardSettings, error) {
 	}
 	defer func() {
 		if closeErr := f.Close(); closeErr != nil {
-			if err != nil {
-				err = errors.Wrapf(err, "failed to close file: %v", closeErr)
-			} else {
-				err = closeErr
-			}
+			err = slerr.Join(err, closeErr)
 		}
 	}()
 	jsonParser := json.NewDecoder(f)

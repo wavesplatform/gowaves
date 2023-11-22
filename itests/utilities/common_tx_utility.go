@@ -491,6 +491,8 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID int) uint64 {
 		waitingBlocks = votingPeriod - (height - (height/votingPeriod)*votingPeriod)
 	case Undefined:
 		waitingBlocks = 2*votingPeriod - (height - (height/votingPeriod)*votingPeriod)
+	default:
+		suite.FailNow("Status is unknown")
 	}
 	return waitingBlocks
 }

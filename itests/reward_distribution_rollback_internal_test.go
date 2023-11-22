@@ -9,20 +9,13 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
-const (
-	NODE858 = "Rollback on height before BlockRewardDistribution feature activation should be correct"
-	NODE859 = "Rollback on height after BlockRewardDistribution feature activation should be correct"
-	NODE860 = "Rollback on height before CappedReward feature activation should be correct"
-	NODE861 = "Rollback on height after CappedReward feature activation should be correct"
-	NODE862 = "Rollback on height before CeaseXTNBuyback feature activation should be correct"
-)
-
 // NODE - 858. Rollback (/debug/rollback) on height before BlockRewardDistribution feature activation should be correct.
 type RewardDistributionAPIRollbackBeforeF19Suite struct {
 	f.RewardDaoXtnSupported19Suite
 }
 
 func (suite *RewardDistributionAPIRollbackBeforeF19Suite) Test_NODE858() {
+	const NODE858 = "Rollback on height before BlockRewardDistribution feature activation should be correct"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(NODE858, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
@@ -47,6 +40,7 @@ type RewardDistributionAPIRollbackAfterF19Suite struct {
 }
 
 func (suite *RewardDistributionAPIRollbackAfterF19Suite) Test_NODE859() {
+	const NODE859 = "Rollback on height after BlockRewardDistribution feature activation should be correct"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(NODE859, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19)
@@ -70,6 +64,7 @@ type RewardDistributionAPIRollbackBeforeF20Suite struct {
 }
 
 func (suite *RewardDistributionAPIRollbackBeforeF20Suite) Test_NODE860() {
+	const NODE860 = "Rollback on height before CappedReward feature activation should be correct"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(NODE860, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14)
@@ -95,6 +90,7 @@ type RewardDistributionAPIRollbackAfterF20Suite struct {
 }
 
 func (suite *RewardDistributionAPIRollbackAfterF20Suite) Test_NODE861() {
+	const NODE861 = "Rollback on height after CappedReward feature activation should be correct"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(NODE861, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
@@ -118,6 +114,7 @@ type RewardDistributionAPIRollbackBeforeF21Suite struct {
 }
 
 func (suite *RewardDistributionAPIRollbackBeforeF21Suite) Test_NODE862() {
+	const NODE862 = "Rollback on height before CeaseXTNBuyback feature activation should be correct"
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(NODE862, func() {
 		getActivationOfFeatures(&suite.BaseSuite, 14, 19, 20)
