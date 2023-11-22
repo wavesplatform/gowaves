@@ -949,14 +949,12 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 }
 
 func TestDefaultInvokeScriptSnapshot(t *testing.T) {
-
 	to := createInvokeApplierTestObjects(t)
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "default_dapp_snapshots.base64", testGlobal.recipientInfo)
 	amount := uint64(1000)
 	startBalance := amount + invokeFee + 1
 
-	//to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
 	wavesBalSender := wavesValue{
 		profile: balanceProfile{
 			balance: startBalance,
@@ -980,26 +978,15 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
 		issueCounterInBlock)
 	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
-
-	sender, _ := invokeSenderRecipientAddresses()
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
 
 		payments: []proto.ScriptPayment{},
 		fc:       fc,
-		errorRes: false,
-		failRes:  false,
-		correctBalances: map[rcpAsset]uint64{
-			{sender, nil}: 0,
-		},
-		correctAddrs: []proto.WavesAddress{
-			testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
-		},
-		info: info,
+		info:     info,
 	}
 
 	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
-	//err = tx.Sign(to.state.settings.AddressSchemeCharacter, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign invoke script tx")
 
 	invocationRes, applicationRes := to.applyAndSaveInvoke(t, tx, testData.info, false)
@@ -1066,7 +1053,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 			&proto.BinaryDataEntry{Key: "bin", Value: []byte{}},
 			&proto.BooleanDataEntry{Key: "bool", Value: true},
 			&proto.IntegerDataEntry{Key: "int", Value: 1},
-			//&proto.StringDataEntry{Key: "int", Value: ""}, // This entry will be overwritten by delete data entry
+			// &proto.StringDataEntry{Key: "int", Value: ""}, // This entry will be overwritten by delete data entry
 			&proto.DeleteDataEntry{Key: "str"},
 		},
 	}
@@ -1076,16 +1063,15 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	to.state.stor.flush()
 }
 
-// Check if the snapshot generator doesn't generate extra asset description and static asset info snapshots after reissue and burn
+// Check if the snapshot generator doesn't generate
+// extra asset description and static asset info snapshots after reissue and burn.
 func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
-
 	to := createInvokeApplierTestObjects(t)
 	info := to.fallibleValidationParams(t)
 	to.setDApp(t, "issue_reissue_dapp_snapshots.base64", testGlobal.recipientInfo)
 	amount := uint64(1000)
 	startBalance := amount + invokeFee + 1
 
-	//to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, startBalance)
 	wavesBalSender := wavesValue{
 		profile: balanceProfile{
 			balance: startBalance,
@@ -1106,7 +1092,8 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 	assert.NoError(t, err)
 
 	var asset crypto.Digest
-	asset.UnmarshalBinary([]byte("GAzAEjApmjMYZKPzri2g2VUXNvTiQGF7"))
+	err = asset.UnmarshalBinary([]byte("GAzAEjApmjMYZKPzri2g2VUXNvTiQGF7"))
+	assert.NoError(t, err)
 	assetID := proto.AssetIDFromDigest(asset)
 	err = to.state.stor.assets.issueAsset(assetID, &assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -1131,25 +1118,15 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 		issueCounterInBlock)
 	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
 
-	sender, _ := invokeSenderRecipientAddresses()
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
 
 		payments: []proto.ScriptPayment{},
 		fc:       fc,
-		errorRes: false,
-		failRes:  false,
-		correctBalances: map[rcpAsset]uint64{
-			{sender, nil}: 0,
-		},
-		correctAddrs: []proto.WavesAddress{
-			testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr,
-		},
-		info: info,
+		info:     info,
 	}
 
 	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
-	//err = tx.Sign(to.state.settings.AddressSchemeCharacter, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign invoke script tx")
 
 	invocationRes, applicationRes := to.applyAndSaveInvoke(t, tx, testData.info, false)
@@ -1172,26 +1149,12 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 			&proto.AssetBalanceSnapshot{
 				Address: testGlobal.recipientInfo.addr,
 				AssetID: asset,
-				Balance: 1,
-			},
-			&proto.AssetScriptSnapshot{AssetID: asset, Script: proto.Script{}},
-			&proto.AssetDescriptionSnapshot{
-				AssetID:          asset,
-				AssetName:        "Asset",
-				AssetDescription: "",
-				ChangeHeight:     400000,
+				Balance: 4,
 			},
 			&proto.AssetVolumeSnapshot{
 				AssetID:       asset,
-				TotalQuantity: *big.NewInt(1),
+				TotalQuantity: *big.NewInt(14),
 				IsReissuable:  false,
-			},
-			&proto.StaticAssetInfoSnapshot{
-				AssetID:             asset,
-				SourceTransactionID: *tx.ID,
-				IssuerPublicKey:     testGlobal.recipientInfo.pk,
-				Decimals:            0,
-				IsNFT:               true,
 			},
 		},
 		internal: nil,

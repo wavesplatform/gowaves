@@ -128,7 +128,8 @@ func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16)
 	to.state.reset()
 }
 
-func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams,
+func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs,
+	info *fallibleValidationParams,
 	shouldCommitUncertain bool) (*invocationResult, *applicationResult) {
 	// TODO: consider rewriting using txAppender.
 	// This should simplify tests because we actually reimplement part of appendTx() here.

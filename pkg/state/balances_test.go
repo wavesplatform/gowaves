@@ -201,7 +201,11 @@ func addTailInfoToAssetsState(a *assets, fullAssetID crypto.Digest) {
 	// see to.balances.setAssetBalance function details for more info
 	shortAssetID := proto.AssetIDFromDigest(fullAssetID)
 	// add digest tail info for correct state hash calculation
-	a.uncertainAssetInfo[shortAssetID] = assetInfo{assetConstInfo: assetConstInfo{tail: proto.DigestTail(fullAssetID)}}
+	wrappedAssetInfo := wrappedUncertainInfo{
+		assetInfo:     assetInfo{assetConstInfo: assetConstInfo{tail: proto.DigestTail(fullAssetID)}},
+		wasJustIssued: false,
+	}
+	a.uncertainAssetInfo[shortAssetID] = wrappedAssetInfo
 }
 
 func TestBalances(t *testing.T) {
