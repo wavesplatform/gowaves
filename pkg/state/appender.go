@@ -454,7 +454,99 @@ func (a *txAppender) handleDefaultTransaction(tx proto.Transaction, params *appe
 	return newApplicationResult(true, txScriptsRuns, txChanges, checkerData), nil
 }
 
-func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) error {
+func (a *txAppender) handleEthTx(
+	tx proto.Transaction,
+	params *appendTxParams,
+	accountHasVerifierScript bool,
+	senderAddr proto.Address,
+) (*applicationResult, *invocationResult, bool, error) {
+	var applicationRes *applicationResult
+	var invocationRes *invocationResult
+	needToValidateBalanceDiff := false
+	ethTx, ok := tx.(*proto.EthereumTransaction)
+	if !ok {
+		return nil, nil, false, errors.New("failed to cast interface transaction to ethereum transaction structure")
+	}
+	kind, errResolveTx := a.ethTxKindResolver.ResolveTxKind(ethTx, params.blockRewardDistributionActivated)
+	if errResolveTx != nil {
+		return nil, nil, false, errors.Wrap(errResolveTx, "failed to guess ethereum transaction kind")
+	}
+	ethTx.TxKind = kind
+	var err error
+	switch ethTx.TxKind.(type) {
+	case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
+		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
+		if err != nil {
+			return nil, nil, false, errors.Wrapf(err,
+				"failed to handle ethereum transaction (type %s) with id %s, on height %d",
+				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
+		}
+		// In UTX balances are always validated.
+		needToValidateBalanceDiff = params.validatingUtx
+	case *proto.EthereumInvokeScriptTxKind:
+		fallibleInfo := &fallibleValidationParams{
+			appendTxParams: params,
+			senderScripted: accountHasVerifierScript,
+			senderAddress:  senderAddr,
+		}
+		invocationRes, applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
+		if err != nil {
+			return nil, nil, false, errors.Wrapf(err,
+				"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d",
+				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
+		}
+	default:
+		return nil, nil, false, errors.Errorf("Undefined ethereum transaction kind %T", ethTx.TxKind)
+	}
+	return applicationRes, invocationRes, needToValidateBalanceDiff, nil
+}
+
+func (a *txAppender) handleTxAndScripts(
+	tx proto.Transaction,
+	params *appendTxParams,
+	accountHasVerifierScript bool,
+	senderAddr proto.Address,
+) (*applicationResult, *invocationResult, bool, error) {
+	switch tx.GetTypeInfo().Type {
+	case proto.InvokeScriptTransaction, proto.InvokeExpressionTransaction, proto.ExchangeTransaction:
+		// Invoke and Exchange transactions should be handled differently.
+		// They may fail, and will be saved to blockchain anyway.
+		fallibleInfo := &fallibleValidationParams{
+			appendTxParams: params,
+			senderScripted: accountHasVerifierScript,
+			senderAddress:  senderAddr,
+		}
+
+		invocationRes, applicationRes, err := a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
+		if err != nil {
+			return nil, nil, false, errors.Wrap(err, "failed to handle invoke or exchange transaction")
+		}
+		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
+		// When acceptFailed is true, balances are validated inside handleFallible().
+		needToValidateBalanceDiff := params.validatingUtx && !params.acceptFailed
+		return applicationRes, invocationRes, needToValidateBalanceDiff, nil
+	case proto.EthereumMetamaskTransaction:
+		return a.handleEthTx(tx, params, accountHasVerifierScript, senderAddr)
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction:
+		applicationRes, err := a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
+		if err != nil {
+			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
+			if idErr != nil {
+				return nil, nil, false, errors.Wrap(err, "failed to generate transaction ID")
+			}
+			return nil, nil, false, errors.Wrapf(err, "failed to handle transaction '%s'", base58.Encode(id))
+		}
+		// In UTX balances are always validated.
+		return applicationRes, nil, params.validatingUtx, nil
+	default:
+		return nil, nil, false, errors.Errorf("Undefined transaction type %d", tx.GetTypeInfo())
+	}
+}
+
+func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txSnapshot, error) {
 	defer func() {
 		a.sc.resetRecentTxComplexity()
 		a.stor.dropUncertain()
@@ -463,121 +555,69 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) erro
 	blockID := params.checkerInfo.blockID
 	// Check that Protobuf transactions are accepted.
 	if err := a.checkProtobufVersion(tx, params.blockV5Activated); err != nil {
-		return err
+		return txSnapshot{}, err
 	}
 	// Check transaction for duplication of its ID.
 	if err := a.checkDuplicateTxIds(tx, a.recentTxIds, params.block.Timestamp); err != nil {
-		return errs.Extend(err, "check duplicate tx ids")
+		return txSnapshot{}, errs.Extend(err, "check duplicate tx ids")
 	}
 	// Verify tx signature and internal data correctness.
 	senderAddr, err := tx.GetSender(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return errs.Extend(err, "failed to get sender addr by pk")
+		return txSnapshot{}, errs.Extend(err, "failed to get sender addr by pk")
 	}
 
 	// senderWavesAddr needs only for newestAccountHasVerifier check
 	senderWavesAddr, err := senderAddr.ToWavesAddress(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+		return txSnapshot{}, errors.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
 	accountHasVerifierScript, err := a.stor.scriptsStorage.newestAccountHasVerifier(senderWavesAddr)
 	if err != nil {
-		return errs.Extend(err, "account has verifier")
+		return txSnapshot{}, errs.Extend(err, "account has verifier")
 	}
 
-	if err := a.verifyWavesTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
-		return errs.Extend(err, "tx signature or data verification failed")
+	if err = a.verifyWavesTxSigAndData(tx, params, accountHasVerifierScript); err != nil {
+		return txSnapshot{}, errs.Extend(err, "tx signature or data verification failed")
 	}
 
 	// Check tx against state, check tx scripts, calculate balance changes.
-	var applicationRes *applicationResult
-	var invocationResult *invocationResult
-	needToValidateBalanceDiff := false
-	switch tx.GetTypeInfo().Type {
-	case proto.InvokeScriptTransaction, proto.InvokeExpressionTransaction, proto.ExchangeTransaction:
-		// Invoke and Exchange transactions should be handled differently.
-		// They may fail, and will be saved to blockchain anyway.
-		fallibleInfo := &fallibleValidationParams{appendTxParams: params, senderScripted: accountHasVerifierScript, senderAddress: senderAddr}
-		invocationResult, applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
-		if err != nil {
-			return errors.Wrap(err, "failed to handle invoke or exchange transaction")
-		}
-		// Exchange and Invoke balances are validated in UTX when acceptFailed is false.
-		// When acceptFailed is true, balances are validated inside handleFallible().
-		needToValidateBalanceDiff = params.validatingUtx && !params.acceptFailed
-	case proto.EthereumMetamaskTransaction:
-		ethTx, ok := tx.(*proto.EthereumTransaction)
-		if !ok {
-			return errors.New("failed to cast interface transaction to ethereum transaction structure")
-		}
-		kind, err := a.ethTxKindResolver.ResolveTxKind(ethTx, params.blockRewardDistributionActivated)
-		if err != nil {
-			return errors.Wrap(err, "failed to guess ethereum transaction kind")
-		}
-		ethTx.TxKind = kind
-
-		switch ethTx.TxKind.(type) {
-		case *proto.EthereumTransferWavesTxKind, *proto.EthereumTransferAssetsErc20TxKind:
-			applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
-			if err != nil {
-				return errors.Wrapf(err, "failed to handle ethereum transaction (type %s) with id %s, on height %d",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
-			}
-			// In UTX balances are always validated.
-			needToValidateBalanceDiff = params.validatingUtx
-		case *proto.EthereumInvokeScriptTxKind:
-			fallibleInfo := &fallibleValidationParams{
-				appendTxParams: params,
-				senderScripted: accountHasVerifierScript,
-				senderAddress:  senderAddr,
-			}
-			invocationResult, applicationRes, err = a.handleInvokeOrExchangeTransaction(tx, fallibleInfo)
-			if err != nil {
-				return errors.Wrapf(err, "failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d",
-					ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
-			}
-		}
-	default:
-		applicationRes, err = a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
-		if err != nil {
-			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
-			if idErr != nil {
-				return errors.Wrap(err, "failed to generate transaction ID")
-			}
-			return errors.Wrapf(err, "failed to handle transaction '%s'", base58.Encode(id))
-		}
-		// In UTX balances are always validated.
-		needToValidateBalanceDiff = params.validatingUtx
+	applicationRes, invocationResult, needToValidateBalanceDiff, err :=
+		a.handleTxAndScripts(tx, params, accountHasVerifierScript, senderAddr)
+	if err != nil {
+		return txSnapshot{}, err
 	}
 	if needToValidateBalanceDiff {
 		// Validate balance diff for negative balances.
-		if err := a.diffApplier.validateTxDiff(applicationRes.changes.diff, a.diffStor); err != nil {
-			return errs.Extend(err, "validate transaction diff")
+		if err = a.diffApplier.validateTxDiff(applicationRes.changes.diff, a.diffStor); err != nil {
+			return txSnapshot{}, errs.Extend(err, "validate transaction diff")
 		}
 	}
 	// Check complexity limits and scripts runs limits.
 	if err := a.checkScriptsLimits(a.totalScriptsRuns+applicationRes.totalScriptsRuns, blockID); err != nil {
-		return errs.Extend(errors.Errorf("%s: %v", blockID.String(), err), "check scripts limits")
+		return txSnapshot{}, errs.Extend(errors.Errorf("%s: %v", blockID.String(), err), "check scripts limits")
 	}
 	// Perform state changes, save balance changes, write tx to storage.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return errs.Extend(err, "get transaction id")
+		return txSnapshot{}, errs.Extend(err, "get transaction id")
 	}
 
 	// invocationResult may be empty if it was not an Invoke Transaction
-	_, err = a.commitTxApplication(tx, params, invocationResult, applicationRes)
+
+	snapshot, err := a.commitTxApplication(tx, params, invocationResult, applicationRes)
+
 	if err != nil {
 		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
-		return err
+		return txSnapshot{}, err
 	}
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
-		if err := a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID); err != nil {
-			return errs.Extend(err, "save transaction id by addresses")
+		if err = a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID); err != nil {
+			return txSnapshot{}, errs.Extend(err, "save transaction id by addresses")
 		}
 	}
-	return nil
+	return snapshot, nil
 }
 
 // rewards and 60% of the fee to the previous miner.
@@ -680,6 +720,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// Check and append transactions.
+	var blockSnapshots proto.BlockSnapshot
 
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -698,16 +739,18 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			stateActionsCounterInBlock:       stateActionsCounterInBlockValidation,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
-		if err := a.appendTx(tx, appendTxArgs); err != nil {
-			return err
+		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
+		if errAppendTx != nil {
+			return errAppendTx
 		}
+		blockSnapshots.AppendTxSnapshot(txSnapshots.regular)
+	}
+	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
+		return err
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
-	if err := a.blockDiffer.saveCurFeeDistr(params.block); err != nil {
-		return err
-	}
-	return nil
+	return a.blockDiffer.saveCurFeeDistr(params.block)
 }
 
 // used only in tests now. All diffs are applied in snapshotApplier.
@@ -962,7 +1005,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
 		stateActionsCounterInBlock: issueCounterInBlock,
 	}
-	err = a.appendTx(tx, appendTxArgs)
+	_, err = a.appendTx(tx, appendTxArgs)
 	if err != nil {
 		return proto.NewInfoMsg(err)
 	}

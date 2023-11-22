@@ -214,10 +214,10 @@ func (mr *MockGrpcHandlersMockRecorder) GetNFTList(arg0, arg1 interface{}) *gomo
 }
 
 // GetScript mocks base method.
-func (m *MockGrpcHandlers) GetScript(arg0 context.Context, arg1 *grpc.AccountRequest) (*grpc.ScriptData, error) {
+func (m *MockGrpcHandlers) GetScript(arg0 context.Context, arg1 *grpc.AccountRequest) (*grpc.ScriptResponse, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetScript", arg0, arg1)
-	ret0, _ := ret[0].(*grpc.ScriptData)
+	ret0, _ := ret[0].(*grpc.ScriptResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
