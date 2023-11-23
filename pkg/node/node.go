@@ -55,7 +55,7 @@ type Node struct {
 	utx       types.UtxPool
 	skipList  *messages.SkipMessageList
 	st        state.State
-	applier   *applier
+	applier   *Applier
 	syncPeer  peer.Peer
 	syncTimer *kairos.Timer
 
@@ -73,7 +73,8 @@ func NewNode(
 	notificationsCh <-chan network.Notification,
 	broadcastCh <-chan *messages.BroadcastTransaction,
 	scheme proto.Scheme, microblockInterval, obsolescence time.Duration,
-	utx types.UtxPool, skipList *messages.SkipMessageList, tm types.Time, st state.State, reward int64,
+	utx types.UtxPool, skipList *messages.SkipMessageList, tm types.Time, st state.State, applier *Applier,
+	reward int64,
 ) (*Node, <-chan network.Command) {
 	commandsCh := make(chan network.Command, defaultChannelSize)
 	n := &Node{
@@ -90,7 +91,7 @@ func NewNode(
 		skipList:           skipList,
 		tm:                 tm,
 		st:                 st,
-		applier:            newApplier(st),
+		applier:            applier,
 		blocksCache:        blockCache{blocks: map[proto.BlockID]proto.Block{}},
 		microBlockCache:    newDefaultMicroblockCache(),
 		microBlockInvCache: newDefaultMicroblockInvCache(),
@@ -1040,7 +1041,7 @@ func (n *Node) onMicroblock(_ context.Context, args ...any) error {
 		metrics.FSMMicroBlockDeclined(st.String(), mb, err)
 		zap.S().Named(logging.FSMNamespace).
 			Errorf("[%s] Failed to apply micro-block '%s': %v", n.sm.MustState(), mb.TotalBlockID.String(), err)
-		return nil
+		return n.sm.Fire(eventSuspend)
 	}
 	metrics.FSMMicroBlockApplied(st.String(), mb)
 	zap.S().Named(logging.FSMNamespace).

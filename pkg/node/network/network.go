@@ -801,7 +801,7 @@ func (n *Network) onBroadcastBlock(_ context.Context, args ...any) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal Block message")
 	}
-	msg := &proto.BlockMessage{BlockBytes: bts}
+	msg := &proto.PBBlockMessage{PBBlockBytes: bts}
 	var (
 		cnt int
 	)

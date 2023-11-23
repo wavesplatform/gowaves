@@ -194,7 +194,7 @@ type State interface {
 	StateModifier
 }
 
-// NewState() creates State.
+// NewState creates State wrapped into the ThreadSafeState.
 // dataDir is path to directory to store all data, it's also possible to provide folder with existing data,
 // and state will try to sync and use it in this case.
 // params are state parameters (see below).
@@ -205,6 +205,11 @@ func NewState(dataDir string, amend bool, params StateParams, settings *settings
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}
 	return NewThreadSafeState(s), nil
+}
+
+// NewUnsafeState creates stateManager without wrapping into ThreadSafeState. USE WITH CAUTION!
+func NewUnsafeState(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
+	return newStateManager(dataDir, amend, params, settings)
 }
 
 type StorageParams struct {

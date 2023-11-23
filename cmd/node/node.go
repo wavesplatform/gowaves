@@ -378,11 +378,12 @@ func main() {
 	params.Time = ntpTime
 	params.DbParams.BloomFilterParams.Disable = nc.disableBloomFilter
 
-	st, err := state.NewState(path, true, params, cfg)
+	unsafeState, err := state.NewUnsafeState(path, true, params, cfg)
 	if err != nil {
 		zap.S().Error("Failed to initialize node's state: %v", err)
 		return
 	}
+	st := state.NewThreadSafeState(unsafeState)
 
 	features, err := miner.ParseVoteFeatures(nc.minerVoteFeatures)
 	if err != nil {
@@ -472,11 +473,12 @@ func main() {
 		return
 	}
 
+	applier := node.NewApplier(unsafeState)
 	ntw, notificationsCh := network.NewNetwork(parent.NotificationsCh, parent.NetworkMessagesCh,
 		peerManager, st, cfg.AddressSchemeCharacter, nc.minPeersMining, bindAddr, declAddr)
 	hst := node.NewHistory(parent.HistoryMessagesCh, cfg.AddressSchemeCharacter, st)
 	n, cmdCh := node.NewNode(parent.NodeMessagesCh, notificationsCh, broadcastCh, cfg.AddressSchemeCharacter,
-		nc.microblockInterval, nc.obsolescencePeriod, utx, parent.SkipMessageList, ntpTime, st, reward)
+		nc.microblockInterval, nc.obsolescencePeriod, utx, parent.SkipMessageList, ntpTime, st, applier, reward)
 	ntw.SetCommandChannel(cmdCh)
 
 	ntw.Run(ctx)

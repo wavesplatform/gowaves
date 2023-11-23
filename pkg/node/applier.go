@@ -11,14 +11,15 @@ import (
 
 const maxRollbackLength = 100
 
-type applier struct {
+type Applier struct {
 	st state.State
 }
 
-func newApplier(st state.State) *applier {
-	return &applier{st: st}
+func NewApplier(st state.State) *Applier {
+	return &Applier{st: st}
 }
-func (a *applier) exists(block *proto.Block) (bool, error) {
+
+func (a *Applier) exists(block *proto.Block) (bool, error) {
 	_, err := a.st.Block(block.BlockID())
 	if err == nil {
 		return true, nil
@@ -29,7 +30,7 @@ func (a *applier) exists(block *proto.Block) (bool, error) {
 	return false, err
 }
 
-func (a *applier) applyBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (a *Applier) applyBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	if len(blocks) == 0 {
 		return nil, errors.New("no blocks to apply")
 	}
@@ -99,7 +100,7 @@ func (a *applier) applyBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	return b, nil
 }
 
-func (a *applier) rollback(parentHeight, currentHeight uint64) ([]*proto.Block, error) {
+func (a *Applier) rollback(parentHeight, currentHeight uint64) ([]*proto.Block, error) {
 	count := currentHeight - parentHeight
 	if count > maxRollbackLength {
 		return nil, errors.Errorf("attempt to rollback on %d blocks, while only up to %d is allowed",
@@ -121,7 +122,7 @@ func (a *applier) rollback(parentHeight, currentHeight uint64) ([]*proto.Block, 
 	return backup, nil
 }
 
-func (a *applier) applyMicroBlock(block *proto.Block) (proto.Height, error) {
+func (a *Applier) applyMicroBlock(block *proto.Block) (proto.Height, error) {
 	_, err := a.st.Block(block.BlockID())
 	if err == nil {
 		return 0, errors.Errorf("block '%s' already exist", block.BlockID().String())
