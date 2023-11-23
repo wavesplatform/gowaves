@@ -17,6 +17,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 
 	"github.com/wavesplatform/gowaves/itests/config"
@@ -47,9 +48,12 @@ const (
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
-	Activated                  = "ACTIVATED"
-	Approved                   = "APPROVED"
-	Undefined                  = "UNDEFINED"
+)
+
+const (
+	FeatureStatusActivated = "ACTIVATED"
+	FeatureStatusApproved  = "APPROVED"
+	FeatureStatusUndefined = "UNDEFINED"
 )
 
 var (
@@ -414,7 +418,7 @@ func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, feat
 	var activationHeight int32
 	activationHeight = -1
 	for _, feature := range statusResponse.GetFeatures() {
-		if feature.GetId() == int32(featureID) && feature.GetBlockchainStatus().String() == "ACTIVATED" {
+		if feature.GetId() == int32(featureID) && feature.GetBlockchainStatus().String() == FeatureStatusActivated {
 			activationHeight = feature.GetActivationHeight()
 			break
 		}
@@ -485,11 +489,11 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID int) uint64 {
 	status, err := GetFeatureBlockchainStatus(suite, featureID, height)
 	require.NoError(suite.T(), err)
 	switch status {
-	case Activated:
+	case FeatureStatusActivated:
 		waitingBlocks = 0
-	case Approved:
+	case FeatureStatusApproved:
 		waitingBlocks = votingPeriod - (height - (height/votingPeriod)*votingPeriod)
-	case Undefined:
+	case FeatureStatusUndefined:
 		waitingBlocks = 2*votingPeriod - (height - (height/votingPeriod)*votingPeriod)
 	default:
 		suite.FailNow("Status is unknown")
