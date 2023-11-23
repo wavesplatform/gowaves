@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -181,7 +182,7 @@ func getPreactivatedFeatures(genSettings *GenesisSettings, rewardSettings *Rewar
 
 func getSupportedFeaturesAsString(rewardSettings *RewardSettings) string {
 	values := rewardSettings.SupportedFeatures
-	valuesStr := []string{}
+	valuesStr := make([]string, 0, len(values))
 	for i := range values {
 		valuesStr = append(valuesStr, strconv.FormatInt(int64(values[i]), 10))
 	}
@@ -196,12 +197,8 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 		return nil, nil, err
 	}
 
-	if len(additionalArgsPath) == 1 {
-		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
-		if err != nil {
-			return nil, nil, err
-		}
-	} else {
+	switch l := len(additionalArgsPath); l {
+	case 0:
 		// default values for some reward parameters
 		rewardSettings = &RewardSettings{
 			BlockRewardVotingPeriod: defaultBlockRewardVotingPeriod,
@@ -212,6 +209,14 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 			DesiredBlockReward:      defaultDesiredBlockReward,
 			MinXTNBuyBackPeriod:     defaultMinXTNBuyBackPeriod,
 		}
+	case 1:
+		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
+		if err != nil {
+			return nil, nil, err
+		}
+	default:
+		return nil, nil, errors.Errorf("unexpected additional arguments count: want 0 or 1, got %d, args=%+v",
+			l, additionalArgsPath)
 	}
 
 	ts := time.Now().UnixMilli()
