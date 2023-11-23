@@ -126,7 +126,7 @@ func (suite *RewardDistributionAPIRollbackBeforeF21Suite) Test_NODE862() {
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(node862, func() {
 		getActivationOfFeatures(&suite.BaseSuite,
-			settings.XTNBuyBackCessation, settings.BlockRewardDistribution, settings.CappedRewards)
+			settings.BlockReward, settings.BlockRewardDistribution, settings.CappedRewards)
 		getRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRollbackBeforeF21TestData)
 		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite, settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
