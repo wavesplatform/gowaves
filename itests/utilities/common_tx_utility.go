@@ -409,7 +409,7 @@ func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, fID 
 		}
 	}
 	if status == "" {
-		err = errors.Errorf("Feature with Id %d not found", fID)
+		err = errors.Errorf("Feature with ID %d not found", fID)
 	}
 	return status, err
 }
