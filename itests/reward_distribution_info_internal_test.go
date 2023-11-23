@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -39,8 +40,8 @@ func (suite *RewardDistributionAPIRewardInfoPreactivatedSuite) Test_NODE855() {
 		" nextCheck and votingIntervalStart after CappedReward activation"
 	td := testdata.GetRewardInfoApiAfterPreactivated20TestData(&suite.BaseSuite)
 	suite.Run(node855, func() {
-		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
-			int(settings.CappedRewards))
+		getActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution,
+			settings.CappedRewards)
 		getRewardInfoAndChecks(&suite.BaseSuite, td)
 	})
 }
@@ -60,9 +61,9 @@ func (suite *RewardDistributionAPIRewardInfoSupportedSuite) Test_NODE855_2() {
 	tdBefore20 := testdata.GetRewardInfoApiBefore20TestData(&suite.BaseSuite)
 	tdAfter20 := testdata.GetRewardInfoApiAfterSupported20TestData(&suite.BaseSuite)
 	suite.Run(node855, func() {
-		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution))
+		getActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution)
 		getRewardInfoAndChecks(&suite.BaseSuite, tdBefore20)
-		getActivationOfFeatures(&suite.BaseSuite, int(settings.CappedRewards))
+		getActivationOfFeatures(&suite.BaseSuite, settings.CappedRewards)
 		getRewardInfoAndChecks(&suite.BaseSuite, tdAfter20)
 	})
 }
@@ -83,8 +84,8 @@ func (suite *RewardDistributionAPIRewardInfoAtHeightPreactivatedSuite) Test_NODE
 		" nextCheck and votingIntervalStart after CappedReward activation"
 	td := testdata.GetRewardInfoApiAfterPreactivated20TestData(&suite.BaseSuite)
 	suite.Run(node856, func() {
-		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution),
-			int(settings.CappedRewards))
+		getActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution,
+			settings.CappedRewards)
 		getRewardInfoAtHeightAndChecks(&suite.BaseSuite, td, utl.GetHeight(&suite.BaseSuite))
 	})
 }
@@ -104,9 +105,9 @@ func (suite *RewardDistributionAPIRewardInfoAtHeightSupportedSuite) Test_NODE856
 	tdBefore20 := testdata.GetRewardInfoApiBefore20TestData(&suite.BaseSuite)
 	tdAfter20 := testdata.GetRewardInfoApiAfterSupported20TestData(&suite.BaseSuite)
 	suite.Run(node856, func() {
-		getActivationOfFeatures(&suite.BaseSuite, int(settings.BlockReward), int(settings.BlockRewardDistribution))
+		getActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution)
 		getRewardInfoAtHeightAndChecks(&suite.BaseSuite, tdBefore20, utl.GetHeight(&suite.BaseSuite))
-		getActivationOfFeatures(&suite.BaseSuite, int(settings.CappedRewards))
+		getActivationOfFeatures(&suite.BaseSuite, settings.CappedRewards)
 		getRewardInfoAtHeightAndChecks(&suite.BaseSuite, tdAfter20, utl.GetHeight(&suite.BaseSuite))
 	})
 }
