@@ -61,6 +61,7 @@ type blockchainEntitiesStorage struct {
 	invokeResults     *invokeResults
 	stateHashes       *stateHashes
 	hitSources        *hitSources
+	snapshots         *snapshotsAtHeight
 	calculateHashes   bool
 }
 
@@ -93,6 +94,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newInvokeResults(hs),
 		newStateHashes(hs),
 		newHitSources(hs),
+		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		calcHashes,
 	}, nil
 }
@@ -2565,6 +2567,10 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return amount, nil
+}
+
+func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
+	return s.stor.snapshots.getSnapshots(height)
 }
 
 func (s *stateManager) Close() error {

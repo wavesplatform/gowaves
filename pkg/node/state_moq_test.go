@@ -203,6 +203,9 @@ var _ state.State = &MockState{}
 //			ShouldPersistAddressTransactionsFunc: func() (bool, error) {
 //				panic("mock out the ShouldPersistAddressTransactions method")
 //			},
+//			SnapshotsAtHeightFunc: func(height uint64) (proto.BlockSnapshot, error) {
+//				panic("mock out the SnapshotsAtHeight method")
+//			},
 //			StartProvidingExtendedAPIFunc: func() error {
 //				panic("mock out the StartProvidingExtendedAPI method")
 //			},
@@ -428,6 +431,9 @@ type MockState struct {
 
 	// ShouldPersistAddressTransactionsFunc mocks the ShouldPersistAddressTransactions method.
 	ShouldPersistAddressTransactionsFunc func() (bool, error)
+
+	// SnapshotsAtHeightFunc mocks the SnapshotsAtHeight method.
+	SnapshotsAtHeightFunc func(height uint64) (proto.BlockSnapshot, error)
 
 	// StartProvidingExtendedAPIFunc mocks the StartProvidingExtendedAPI method.
 	StartProvidingExtendedAPIFunc func() error
@@ -772,6 +778,11 @@ type MockState struct {
 		// ShouldPersistAddressTransactions holds details about calls to the ShouldPersistAddressTransactions method.
 		ShouldPersistAddressTransactions []struct {
 		}
+		// SnapshotsAtHeight holds details about calls to the SnapshotsAtHeight method.
+		SnapshotsAtHeight []struct {
+			// Height is the height argument value.
+			Height uint64
+		}
 		// StartProvidingExtendedAPI holds details about calls to the StartProvidingExtendedAPI method.
 		StartProvidingExtendedAPI []struct {
 		}
@@ -902,6 +913,7 @@ type MockState struct {
 	lockScriptInfoByAccount              sync.RWMutex
 	lockScriptInfoByAsset                sync.RWMutex
 	lockShouldPersistAddressTransactions sync.RWMutex
+	lockSnapshotsAtHeight                sync.RWMutex
 	lockStartProvidingExtendedAPI        sync.RWMutex
 	lockStateHashAtHeight                sync.RWMutex
 	lockTopBlock                         sync.RWMutex
@@ -2827,6 +2839,38 @@ func (mock *MockState) ShouldPersistAddressTransactionsCalls() []struct {
 	mock.lockShouldPersistAddressTransactions.RLock()
 	calls = mock.calls.ShouldPersistAddressTransactions
 	mock.lockShouldPersistAddressTransactions.RUnlock()
+	return calls
+}
+
+// SnapshotsAtHeight calls SnapshotsAtHeightFunc.
+func (mock *MockState) SnapshotsAtHeight(height uint64) (proto.BlockSnapshot, error) {
+	if mock.SnapshotsAtHeightFunc == nil {
+		panic("MockState.SnapshotsAtHeightFunc: method is nil but State.SnapshotsAtHeight was just called")
+	}
+	callInfo := struct {
+		Height uint64
+	}{
+		Height: height,
+	}
+	mock.lockSnapshotsAtHeight.Lock()
+	mock.calls.SnapshotsAtHeight = append(mock.calls.SnapshotsAtHeight, callInfo)
+	mock.lockSnapshotsAtHeight.Unlock()
+	return mock.SnapshotsAtHeightFunc(height)
+}
+
+// SnapshotsAtHeightCalls gets all the calls that were made to SnapshotsAtHeight.
+// Check the length with:
+//
+//	len(mockedState.SnapshotsAtHeightCalls())
+func (mock *MockState) SnapshotsAtHeightCalls() []struct {
+	Height uint64
+} {
+	var calls []struct {
+		Height uint64
+	}
+	mock.lockSnapshotsAtHeight.RLock()
+	calls = mock.calls.SnapshotsAtHeight
+	mock.lockSnapshotsAtHeight.RUnlock()
 	return calls
 }
 

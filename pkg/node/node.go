@@ -505,7 +505,7 @@ func (n *Node) configureOperationState() {
 func (n *Node) configureOperationNGState() {
 	n.sm.Configure(stageOperationNG).
 		OnEntry(n.onEnterOperationNG).
-		//InternalTransition(eventTransaction, n.onTransaction).
+		// InternalTransition(eventTransaction, n.onTransaction).
 		Ignore(eventTransaction). // TODO: Remove this line and uncomment the line above.
 		InternalTransition(eventBlock, n.onKeyBlock).
 		Ignore(eventBlockIDs).
