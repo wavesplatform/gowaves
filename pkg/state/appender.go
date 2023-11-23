@@ -153,6 +153,7 @@ type appendBlockParams struct {
 	chans         *verifierChans
 	block, parent *proto.BlockHeader
 	height        uint64
+	snapshot      proto.BlockSnapshot
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -769,6 +770,96 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		blockSnapshots.regular = append(blockSnapshots.regular, txSnapshots.regular...)
 	}
 	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
+		return err
+	}
+	// Save fee distribution of this block.
+	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
+	return a.blockDiffer.saveCurFeeDistr(params.block)
+}
+
+func (a *txAppender) appendBlockWithSnapshot(params *appendBlockParams) error {
+	// Reset block complexity counter.
+	defer func() {
+		a.sc.resetComplexity()
+		a.totalScriptsRuns = 0
+	}()
+	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return err
+	}
+	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return err
+	}
+	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return err
+	}
+	checkerInfo := &checkerInfo{
+		currentTimestamp:        params.block.Timestamp,
+		blockID:                 params.block.BlockID(),
+		blockVersion:            params.block.Version,
+		height:                  params.height,
+		rideV5Activated:         rideV5Activated,
+		rideV6Activated:         rideV6Activated,
+		blockRewardDistribution: blockRewardDistribution,
+	}
+	hasParent := params.parent != nil
+	if hasParent {
+		checkerInfo.parentTimestamp = params.parent.Timestamp
+	}
+	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
+	// stateActionsCounterInSnapshots := new(proto.StateActionsCounter)
+
+	snapshotApplier := newBlockSnapshotsApplier(
+		blockSnapshotsApplierInfo{
+			ci:                  checkerInfo,
+			scheme:              a.settings.AddressSchemeCharacter,
+			stateActionsCounter: stateActionsCounterInBlockValidation,
+		},
+		snapshotApplierStorages{
+			balances:          a.stor.balances,
+			aliases:           a.stor.aliases,
+			assets:            a.stor.assets,
+			scriptsStorage:    a.stor.scriptsStorage,
+			scriptsComplexity: a.stor.scriptsComplexity,
+			sponsoredAssets:   a.stor.sponsoredAssets,
+			ordersVolumes:     a.stor.ordersVolumes,
+			accountsDataStor:  a.stor.accountsDataStor,
+			leases:            a.stor.leases,
+		},
+	)
+	snapshotGenerator := snapshotGenerator{stor: a.stor, scheme: a.settings.AddressSchemeCharacter, IsFullNodeMode: true}
+
+	// Create miner balance diff.
+	// This adds 60% of prev block fees as very first balance diff of the current block
+	// in case NG is activated, or empty diff otherwise.
+	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent)
+	if err != nil {
+		return err
+	}
+	// create the initial snapshot
+	_, err = a.createInitialBlockSnapshot(minerAndRewardDiff)
+	if err != nil {
+		return errors.Wrap(err, "failed to create initial snapshot")
+	}
+
+	// TODO apply this snapshot when balances are refatored
+	// err = initialSnapshot.Apply(&snapshotApplier)
+
+	// Save miner diff first (for validation)
+	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
+		return err
+	}
+
+	for _, txs := range params.snapshot.TxSnapshots {
+		for _, snapshot := range txs {
+			if errApply := snapshot.Apply(&snapshotApplier); errApply != nil {
+				return errors.Wrap(errApply, "failed to apply tx snapshot")
+			}
+		}
+	}
+	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, params.snapshot); err != nil {
 		return err
 	}
 	// Save fee distribution of this block.

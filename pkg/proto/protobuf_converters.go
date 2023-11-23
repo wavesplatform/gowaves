@@ -60,6 +60,135 @@ func SignedTxFromProtobuf(data []byte) (Transaction, error) {
 	return res, nil
 }
 
+func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshot *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+	var txSnapshots []AtomicSnapshot
+	for _, balance := range txSnapshot.Balances {
+		if balance.Amount.AssetId == nil {
+			var sn WavesBalanceSnapshot
+			err := sn.FromProtobuf(scheme, balance)
+			if err != nil {
+				return nil, err
+			}
+			txSnapshots = append(txSnapshots, sn)
+		} else {
+			var sn AssetBalanceSnapshot
+			err := sn.FromProtobuf(scheme, balance)
+			if err != nil {
+				return nil, err
+			}
+			txSnapshots = append(txSnapshots, sn)
+		}
+	}
+	for _, lBalance := range txSnapshot.LeaseBalances {
+		var sn LeaseBalanceSnapshot
+		err := sn.FromProtobuf(scheme, lBalance)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, assetStatic := range txSnapshot.AssetStatics {
+		var sn StaticAssetInfoSnapshot
+		err := sn.FromProtobuf(scheme, assetStatic)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, assetVolume := range txSnapshot.AssetVolumes {
+		var sn AssetVolumeSnapshot
+		err := sn.FromProtobuf(scheme, assetVolume)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, assetNameAndDescr := range txSnapshot.AssetNamesAndDescriptions {
+		var sn AssetDescriptionSnapshot
+		err := sn.FromProtobuf(scheme, assetNameAndDescr)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, assetScript := range txSnapshot.AssetScripts {
+		var sn AssetScriptSnapshot
+		err := sn.FromProtobuf(scheme, assetScript)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, alias := range txSnapshot.Aliases {
+		var sn AliasSnapshot
+		err := sn.FromProtobuf(scheme, alias)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, orderFill := range txSnapshot.OrderFills {
+		var sn FilledVolumeFeeSnapshot
+		err := sn.FromProtobuf(scheme, orderFill)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, leaseState := range txSnapshot.LeaseStates {
+		var sn LeaseStateSnapshot
+		err := sn.FromProtobuf(scheme, leaseState)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, accountScript := range txSnapshot.AccountScripts {
+		var sn AccountScriptSnapshot
+		err := sn.FromProtobuf(scheme, accountScript)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, accountData := range txSnapshot.AccountData {
+		var sn DataEntriesSnapshot
+		err := sn.FromProtobuf(scheme, accountData)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	for _, sponsorship := range txSnapshot.Sponsorships {
+		var sn SponsorshipSnapshot
+		err := sn.FromProtobuf(scheme, sponsorship)
+		if err != nil {
+			return nil, err
+		}
+		txSnapshots = append(txSnapshots, sn)
+	}
+	var sn TransactionStatusSnapshot
+	err := sn.FromProtobuf(scheme, txSnapshot.TransactionStatus)
+	if err != nil {
+		return nil, err
+	}
+	txSnapshots = append(txSnapshots, sn)
+	return txSnapshots, nil
+}
+
+func BlockSnapshotFromProtobuf(scheme Scheme, blockSnapshot []*g.TransactionStateSnapshot) (BlockSnapshot, error) {
+	res := BlockSnapshot{TxSnapshots: make([][]AtomicSnapshot, 0, len(blockSnapshot))}
+	for _, ts := range blockSnapshot {
+		var txSnapshots []AtomicSnapshot
+		txSnapshots, err := TxSnapshotsFromProtobuf(scheme, ts)
+		if err != nil {
+			return BlockSnapshot{}, err
+		}
+		res.TxSnapshots = append(res.TxSnapshots, txSnapshots)
+	}
+	return res, nil
+}
+
 type ProtobufConverter struct {
 	FallbackChainID byte
 	err             error

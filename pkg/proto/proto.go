@@ -2113,24 +2113,67 @@ func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 }
 
 type BlockSnapshotMessage struct {
-	BlockID   BlockID
-	Snapshots state.TransactionSnapshot
+	Bytes []byte
 }
 
-func (m *BlockSnapshotMessage) ReadFrom(_ io.Reader) (n int64, err error) {
-	panic("implement me")
+func (m *BlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
 }
 
-func (m *BlockSnapshotMessage) WriteTo(_ io.Writer) (n int64, err error) {
-	panic("implement me")
+func (m *BlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
 }
 
-func (m *BlockSnapshotMessage) UnmarshalBinary(_ []byte) error {
-	panic("implement me")
+func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < 17 {
+		return errors.New("BlockSnapshotMessage UnmarshalBinary: invalid data size")
+	}
+	var h Header
+
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	}
+	if h.ContentID != ContentIDBlockSnapshot {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	m.Bytes = data[17:]
+	return nil
 }
 
 func (m *BlockSnapshotMessage) MarshalBinary() (data []byte, err error) {
-	panic("ads")
+	body := m.Bytes
+
+	var h Header
+	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Magic = headerMagic
+	h.ContentID = ContentIDBlockSnapshot
+	h.PayloadLength = uint32(len(body))
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadChecksum[:], dig[:4])
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	body = append(hdr, body...)
+	return body, nil
 }
 
 type MicroBlockSnapshotMessage struct {

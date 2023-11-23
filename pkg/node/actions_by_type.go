@@ -1,11 +1,14 @@
 package node
 
 import (
+	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"math/big"
 	"reflect"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
+
+	protobuf "google.golang.org/protobuf/proto"
 
 	"go.uber.org/zap"
 
@@ -273,8 +276,19 @@ func GetSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm *
 	return nil, nil
 }
 
-func SnapshotAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
-	metricSnapshotMessage.Inc() // TODO(anton): maybe remove some metrics for snapshot
+func SnapshotAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+	metricSnapshotMessage.Inc()
+	m := mess.Message.(*proto.BlockSnapshotMessage)
+	protoMess := &g.BlockSnapshot{}
+	if err := protobuf.Unmarshal(m.Bytes, protoMess); err != nil {
+		return nil, err
+	}
+	blockId, err := proto.NewBlockIDFromBytes(protoMess.BlockId)
+	if err != nil {
+		return nil, err
+	}
+	blockSnapshot, err := proto.BlockSnapshotFromProtobuf(services.Scheme, protoMess.Snapshots)
+	return fsm.BlockSnapshot(mess.ID, blockId, blockSnapshot)
 }
 
 func createActions() map[reflect.Type]Action {

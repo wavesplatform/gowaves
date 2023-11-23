@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
 	"go.uber.org/zap"
 )
 
@@ -60,13 +59,13 @@ func (a *WaitSnapshotState) Block(peer peer.Peer, block *proto.Block) (State, As
 	a.blockCache.AddBlockState(block)
 }
 
-func (a *WaitSnapshotState) BlockSnapshot(peer peer.Peer, blockID proto.BlockID, snapshots state.TransactionSnapshot) (State, Async, error) {
+func (a *WaitSnapshotState) BlockSnapshot(peer peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (State, Async, error) {
 	// check if this snapshot for our block
 	if _, ok := a.blockCache.Get(blockID); !ok {
 		return newNGLightState(a.baseInfo), nil, a.Errorf(errors.Errorf("Snapshot for the block '%s' doestn match", blockID))
 	}
 
-	_, err := a.baseInfo.snapshotApplier.Apply(a.baseInfo.storage, []state.TransactionSnapshot{snapshots}, []proto.BlockID{blockID})
+	_, err := a.baseInfo.snapshotApplier.Apply(a.baseInfo.storage, []proto.BlockSnapshot{snapshots}, []proto.BlockID{blockID})
 	if err != nil {
 		//metrics.FSMKeyBlockDeclined("ng", block, err)
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))

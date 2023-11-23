@@ -298,3 +298,9 @@ func (f *FSM) ChangeSyncPeer(p peer.Peer) (Async, error) {
 	err := f.fsm.Fire(ChangeSyncPeerEvent, asyncRes, p)
 	return *asyncRes, err
 }
+
+func (f *FSM) BlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(BlockSnapshotEvent, asyncRes, p, blockID, snapshots)
+	return *asyncRes, err
+}

@@ -331,27 +331,36 @@ func (a *NGState) Halt() (State, Async, error) {
 	return newHaltState(a.baseInfo)
 }
 
+type blockWithSnapshot struct {
+	Block    proto.Block
+	Snapshot proto.BlockSnapshot
+}
+
 type blockStatesCache struct {
-	blockStates map[proto.BlockID]proto.Block
+	blockStates map[proto.BlockID]blockWithSnapshot
 }
 
 func (c *blockStatesCache) AddBlockState(block *proto.Block) {
-	c.blockStates[block.ID] = *block
+	c.blockStates[block.ID] = blockWithSnapshot{Block: *block}
 	zap.S().Named(logging.FSMNamespace).Debugf("[NG] Block '%s' added to cache, total blocks in cache: %d",
 		block.ID.String(), len(c.blockStates))
 }
 
+func (c *blockStatesCache) AddSnapshot(blockID proto.BlockID, snapshot proto.BlockSnapshot) {
+	c.blockStates[blockID].Snapshot = snapshot
+}
+
 func (c *blockStatesCache) Clear() {
-	c.blockStates = map[proto.BlockID]proto.Block{}
+	c.blockStates = map[proto.BlockID]blockWithSnapshot{}
 	zap.S().Named(logging.FSMNamespace).Debug("[NG] Block cache is empty")
 }
 
 func (c *blockStatesCache) Get(blockID proto.BlockID) (*proto.Block, bool) {
-	block, ok := c.blockStates[blockID]
+	bs, ok := c.blockStates[blockID]
 	if !ok {
 		return nil, false
 	}
-	return &block, true
+	return &bs.Block, true
 }
 
 func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseInfo) {
