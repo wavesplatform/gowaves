@@ -16,10 +16,10 @@ func (a *SnapshotApplier) BlockSnapshotExists(state state.State, blockID proto.B
 	return true, nil
 }
 
-func (a *SnapshotApplier) Apply(state state.State, snapshots []state.TransactionSnapshot, block []proto.BlockID) (proto.Height, error) {
+func (a *SnapshotApplier) Apply(state state.State, snapshots []proto.BlockSnapshot, block []proto.BlockID) (proto.Height, error) {
 	return 0, nil
 }
 
-func (a *SnapshotApplier) ApplyMicro(state state.State, snapshots []state.TransactionSnapshot, block []proto.BlockID) (proto.Height, error) {
+func (a *SnapshotApplier) ApplyMicro(state state.State, snapshots []proto.BlockSnapshot, block []proto.BlockID) (proto.Height, error) {
 	return 0, nil
 }

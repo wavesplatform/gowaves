@@ -10,7 +10,6 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/wavesplatform/gowaves/pkg/crypto"
-	waves "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
 	ast "github.com/wavesplatform/gowaves/pkg/ride/ast"
 	settings "github.com/wavesplatform/gowaves/pkg/settings"
@@ -870,10 +869,10 @@ func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.
 }
 
 // SnapshotsAtHeight mocks base method.
-func (m *MockStateInfo) SnapshotsAtHeight(height proto.Height) (*waves.TransactionStateSnapshot, error) {
+func (m *MockStateInfo) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SnapshotsAtHeight", height)
-	ret0, _ := ret[0].(*waves.TransactionStateSnapshot)
+	ret0, _ := ret[0].(proto.BlockSnapshot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -2192,10 +2191,10 @@ func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call
 }
 
 // SnapshotsAtHeight mocks base method.
-func (m *MockState) SnapshotsAtHeight(height proto.Height) (*waves.TransactionStateSnapshot, error) {
+func (m *MockState) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SnapshotsAtHeight", height)
-	ret0, _ := ret[0].(*waves.TransactionStateSnapshot)
+	ret0, _ := ret[0].(proto.BlockSnapshot)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

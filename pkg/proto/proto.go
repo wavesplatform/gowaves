@@ -5,7 +5,6 @@ import (
 	"encoding"
 	"encoding/binary"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/state"
 	"io"
 	"net"
 	"strconv"
@@ -2178,7 +2177,7 @@ func (m *BlockSnapshotMessage) MarshalBinary() (data []byte, err error) {
 
 type MicroBlockSnapshotMessage struct {
 	BlockID   BlockID
-	Snapshots state.TransactionSnapshot
+	Snapshots BlockSnapshot
 }
 
 func (m *MicroBlockSnapshotMessage) ReadFrom(_ io.Reader) (n int64, err error) {

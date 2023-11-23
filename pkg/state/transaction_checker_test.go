@@ -35,29 +35,16 @@ func createCheckerTestObjects(t *testing.T, checkerInfo *checkerInfo) *checkerTe
 
 	actionsCounter := new(proto.StateActionsCounter)
 	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              settings.MainNetSettings.AddressSchemeCharacter,
-			stateActionsCounter: actionsCounter,
-		},
-		snapshotApplierStorages{
-			balances:          stor.entities.balances,
-			aliases:           stor.entities.aliases,
-			assets:            stor.entities.assets,
-			scriptsStorage:    stor.entities.scriptsStorage,
-			scriptsComplexity: stor.entities.scriptsComplexity,
-			sponsoredAssets:   stor.entities.sponsoredAssets,
-			ordersVolumes:     stor.entities.ordersVolumes,
-			accountsDataStor:  stor.entities.accountsDataStor,
-			leases:            stor.entities.leases,
-		},
+		newBlockSnapshotsApplierInfo(
+			checkerInfo,
+			settings.MainNetSettings.AddressSchemeCharacter,
+			actionsCounter,
+		),
+		newSnapshotApplierStorages(stor.entities),
 	)
-	snapshotGen := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter}
+	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
 
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	tp.snapshotApplier = &snapshotApplier
-	tp.snapshotGenerator = &snapshotGen
-	require.NoError(t, err, "newTransactionPerformer() failed")
+	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
 	return &checkerTestObjects{stor, tc, tp, actionsCounter}
 }
 

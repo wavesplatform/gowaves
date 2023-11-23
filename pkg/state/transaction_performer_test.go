@@ -22,38 +22,26 @@ type performerTestObjects struct {
 
 func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *performerTestObjects {
 	stor := createStorageObjects(t, true)
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-
 	actionsCounter := new(proto.StateActionsCounter)
 
 	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              settings.MainNetSettings.AddressSchemeCharacter,
-			stateActionsCounter: actionsCounter,
-		},
-		snapshotApplierStorages{
-			balances:          stor.entities.balances,
-			aliases:           stor.entities.aliases,
-			assets:            stor.entities.assets,
-			scriptsStorage:    stor.entities.scriptsStorage,
-			scriptsComplexity: stor.entities.scriptsComplexity,
-			sponsoredAssets:   stor.entities.sponsoredAssets,
-			ordersVolumes:     stor.entities.ordersVolumes,
-			accountsDataStor:  stor.entities.accountsDataStor,
-			leases:            stor.entities.leases,
-		},
+		newBlockSnapshotsApplierInfo(
+			checkerInfo,
+			settings.MainNetSettings.AddressSchemeCharacter,
+			actionsCounter,
+		),
+		newSnapshotApplierStorages(stor.entities),
 	)
-	snapshotGen := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter}
-	tp.snapshotApplier = &snapshotApplier
-	tp.snapshotGenerator = &snapshotGen
-	require.NoError(t, err, "newTransactionPerformer() failed")
+	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
+
+	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
+
 	return &performerTestObjects{stor, tp, actionsCounter}
 }
 
 func defaultPerformerInfo(stateActionsCounter *proto.StateActionsCounter) *performerInfo {
 	_ = stateActionsCounter
-	return newPerformerInfo(0, blockID0, proto.WavesAddress{}, txCheckerData{})
+	return newPerformerInfo(0, stateActionsCounter, blockID0, proto.WavesAddress{}, txCheckerData{})
 }
 
 func defaultCheckerInfoHeight0() *checkerInfo {
@@ -249,7 +237,7 @@ func TestPerformLeaseWithSig(t *testing.T) {
 	to.stor.flush(t)
 	leasingInfo := &leasing{
 		OriginTransactionID: tx.ID,
-		Status:              proto.LeaseActive,
+		Status:              LeaseActive,
 		Amount:              tx.Amount,
 		Recipient:           *tx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
@@ -271,7 +259,7 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	leasingInfo := &leasing{
 		OriginTransactionID: tx.ID,
-		Status:              proto.LeaseActive,
+		Status:              LeaseActive,
 		Amount:              tx.Amount,
 		Recipient:           *tx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
@@ -294,7 +282,7 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
 	leasingInfo := &leasing{
 		OriginTransactionID: leaseTx.ID,
-		Status:              proto.LeaseCanceled,
+		Status:              LeaseCancelled,
 		Amount:              leaseTx.Amount,
 		Recipient:           *leaseTx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,
@@ -320,7 +308,7 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
 	leasingInfo := &leasing{
 		OriginTransactionID: leaseTx.ID,
-		Status:              proto.LeaseCanceled,
+		Status:              LeaseCancelled,
 		Amount:              leaseTx.Amount,
 		Recipient:           *leaseTx.Recipient.Address(),
 		Sender:              testGlobal.senderInfo.addr,

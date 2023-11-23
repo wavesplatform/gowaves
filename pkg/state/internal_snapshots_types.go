@@ -14,6 +14,8 @@ type internalSnapshotApplier interface {
 	ApplyDAppComplexity(snapshot InternalDAppComplexitySnapshot) error
 	ApplyDAppUpdateComplexity(snapshot InternalDAppUpdateComplexitySnapshot) error
 	ApplyAssetScriptComplexity(snapshot InternalAssetScriptComplexitySnapshot) error
+	ApplyLeaseStateActiveInfo(snapshot InternalLeaseStateActiveInfoSnapshot) error
+	ApplyLeaseStateCancelInfo(snapshot InternalLeaseStateCancelInfoSnapshot) error
 }
 
 /*
@@ -48,4 +50,24 @@ type InternalAssetScriptComplexitySnapshot struct {
 
 func (s InternalAssetScriptComplexitySnapshot) ApplyInternal(a internalSnapshotApplier) error {
 	return a.ApplyAssetScriptComplexity(s)
+}
+
+type InternalLeaseStateActiveInfoSnapshot struct {
+	LeaseID             crypto.Digest
+	OriginHeight        proto.Height
+	OriginTransactionID *crypto.Digest
+}
+
+func (s InternalLeaseStateActiveInfoSnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyLeaseStateActiveInfo(s)
+}
+
+type InternalLeaseStateCancelInfoSnapshot struct {
+	LeaseID             crypto.Digest
+	CancelHeight        proto.Height
+	CancelTransactionID *crypto.Digest
+}
+
+func (s InternalLeaseStateCancelInfoSnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyLeaseStateCancelInfo(s)
 }

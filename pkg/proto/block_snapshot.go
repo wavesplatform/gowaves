@@ -2,7 +2,9 @@ package proto
 
 import (
 	"encoding/binary"
+
 	"github.com/pkg/errors"
+
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -10,11 +12,12 @@ type BlockSnapshot struct {
 	TxSnapshots [][]AtomicSnapshot
 }
 
+func (bs *BlockSnapshot) AppendTxSnapshot(txSnapshot []AtomicSnapshot) {
+	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshot)
+}
+
 func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
-	result := []byte{}
-	var txSnCnt [4]byte
-	binary.BigEndian.PutUint32(txSnCnt[0:4], uint32(len(bs.TxSnapshots)))
-	result = append(result, txSnCnt[:]...)
+	result := binary.BigEndian.AppendUint32([]byte{}, uint32(len(bs.TxSnapshots)))
 	for _, ts := range bs.TxSnapshots {
 		var res g.TransactionStateSnapshot
 		for _, atomicSnapshot := range ts {
@@ -26,30 +29,40 @@ func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
 		if err != nil {
 			return nil, err
 		}
-		var bytesLen [4]byte
-		binary.BigEndian.PutUint32(bytesLen[0:4], uint32(len(tsBytes)))
-		result = append(result, bytesLen[:]...)
+		result = binary.BigEndian.AppendUint32(result, uint32(len(tsBytes)))
 		result = append(result, tsBytes...)
 	}
 	return result, nil
 }
 
 func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
-	txSnCnt := binary.BigEndian.Uint32(data[0:4])
-	data = data[4:]
-	for i := uint32(0); i <= txSnCnt; i++ {
-		tsBytesLen := binary.BigEndian.Uint32(data[0:4])
-		var tsProto *g.TransactionStateSnapshot
+	if len(data) < uint32Size {
+		return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
+	}
+	txSnCnt := binary.BigEndian.Uint32(data[0:uint32Size])
+	data = data[uint32Size:]
+	var txSnapshots [][]AtomicSnapshot
+	for i := uint32(0); i < txSnCnt; i++ {
+		if len(data) < uint32Size {
+			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
+		}
+		tsBytesLen := binary.BigEndian.Uint32(data[0:uint32Size])
+		var tsProto g.TransactionStateSnapshot
+		data = data[uint32Size:]
+		if uint32(len(data)) < tsBytesLen {
+			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid snapshot size")
+		}
 		err := tsProto.UnmarshalVT(data[0:tsBytesLen])
 		if err != nil {
 			return err
 		}
-		atomicTs, err := TxSnapshotsFromProtobuf(scheme, tsProto)
+		atomicTS, err := TxSnapshotsFromProtobuf(scheme, &tsProto)
 		if err != nil {
 			return err
 		}
-		bs.TxSnapshots = append(bs.TxSnapshots, atomicTs)
+		txSnapshots = append(txSnapshots, atomicTS)
 		data = data[tsBytesLen:]
 	}
+	bs.TxSnapshots = txSnapshots
 	return nil
 }

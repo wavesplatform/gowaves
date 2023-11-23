@@ -19,6 +19,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+const maxPaymentsLengthBeforeLibV4 = 2
+
 type invokeApplier struct {
 	state types.SmartState
 	sc    *scriptCaller
@@ -485,17 +487,17 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			// Create asset's info.
 			assetInfo := &assetInfo{
 				assetConstInfo: assetConstInfo{
-					tail:                 proto.DigestTail(a.ID),
-					issuer:               senderPK,
-					decimals:             uint8(a.Decimals),
-					issueHeight:          info.blockInfo.Height,
-					issueSequenceInBlock: info.stateActionsCounterInBlock.NextIssueActionNumber(),
+					tail:        proto.DigestTail(a.ID),
+					issuer:      senderPK,
+					decimals:    uint8(a.Decimals),
+					issueHeight: info.blockInfo.Height,
 				},
 				assetChangeableInfo: assetChangeableInfo{
-					quantity:    *big.NewInt(a.Quantity),
-					name:        a.Name,
-					description: a.Description,
-					reissuable:  a.Reissuable,
+					quantity:                 *big.NewInt(a.Quantity),
+					name:                     a.Name,
+					description:              a.Description,
+					lastNameDescChangeHeight: info.blockInfo.Height,
+					reissuable:               a.Reissuable,
 				},
 			}
 			id := proto.AssetIDFromDigest(a.ID)
@@ -663,8 +665,8 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				Sender:              senderAddress,
 				Recipient:           recipientAddress,
 				Amount:              uint64(a.Amount),
-				Height:              info.blockInfo.Height,
-				Status:              proto.LeaseActive,
+				OriginHeight:        info.blockInfo.Height,
+				Status:              LeaseActive,
 			}
 			ia.stor.leases.addLeasingUncertain(a.ID, l)
 
@@ -820,11 +822,10 @@ func (ia *invokeApplier) scriptParametersFromInvokeScript(
 		return scriptParameters{},
 			errors.Wrapf(err, "failed to instantiate script on address '%s'", scriptParams.scriptAddr.String())
 	}
-	var si scriptBasicInfoRecord
-	si, err = ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
-	if err != nil {
+	si, storErr := ia.stor.scriptsStorage.newestScriptBasicInfoByAddressID(scriptParams.scriptAddr.ID())
+	if storErr != nil {
 		return scriptParameters{},
-			errors.Wrapf(err, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
+			errors.Wrapf(storErr, "failed to get script's public key on address '%s'", scriptParams.scriptAddr.String())
 	}
 	scriptParams.scriptPK = si.PK
 	return scriptParams, nil
@@ -967,10 +968,8 @@ func (ia *invokeApplier) countScriptRuns(info *fallibleValidationParams,
 }
 
 func (ia *invokeApplier) refusePayments(scriptParams scriptParameters, disableSelfTransfers bool) bool {
-	if disableSelfTransfers && scriptParams.paymentsLength > 0 {
-		if scriptParams.sender == scriptParams.scriptAddr {
-			return true
-		}
+	if disableSelfTransfers && scriptParams.paymentsLength > 0 && scriptParams.sender == scriptParams.scriptAddr {
+		return true
 	}
 	return false
 }
@@ -1014,7 +1013,7 @@ func (ia *invokeApplier) applyInvokeScript(
 
 	// Check that the script's library supports multiple payments.
 	// We don't have to check feature activation because we've done it before.
-	if scriptParams.paymentsLength >= 2 && scriptParams.tree.LibVersion < ast.LibV4 {
+	if scriptParams.paymentsLength >= maxPaymentsLengthBeforeLibV4 && scriptParams.tree.LibVersion < ast.LibV4 {
 		return nil, nil,
 			errors.Errorf("multiple payments is not allowed for RIDE library version %d", scriptParams.tree.LibVersion)
 	}

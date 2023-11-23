@@ -40,28 +40,15 @@ func createDifferTestObjects(t *testing.T, checkerInfo *checkerInfo) *differTest
 	actionsCounter := new(proto.StateActionsCounter)
 
 	snapshotApplier := newBlockSnapshotsApplier(
-		blockSnapshotsApplierInfo{
-			ci:                  checkerInfo,
-			scheme:              settings.MainNetSettings.AddressSchemeCharacter,
-			stateActionsCounter: actionsCounter,
-		},
-		snapshotApplierStorages{
-			balances:          stor.entities.balances,
-			aliases:           stor.entities.aliases,
-			assets:            stor.entities.assets,
-			scriptsStorage:    stor.entities.scriptsStorage,
-			scriptsComplexity: stor.entities.scriptsComplexity,
-			sponsoredAssets:   stor.entities.sponsoredAssets,
-			ordersVolumes:     stor.entities.ordersVolumes,
-			accountsDataStor:  stor.entities.accountsDataStor,
-			leases:            stor.entities.leases,
-		},
+		newBlockSnapshotsApplierInfo(
+			checkerInfo,
+			settings.MainNetSettings.AddressSchemeCharacter,
+			actionsCounter,
+		),
+		newSnapshotApplierStorages(stor.entities),
 	)
-	snapshotGen := snapshotGenerator{stor: stor.entities, scheme: settings.MainNetSettings.AddressSchemeCharacter,
-		IsFullNodeMode: true}
-	tp, err := newTransactionPerformer(stor.entities, settings.MainNetSettings)
-	tp.snapshotApplier = &snapshotApplier
-	tp.snapshotGenerator = &snapshotGen
+	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
+	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
 	require.NoError(t, err, "newTransactionPerformer() failed")
 	return &differTestObjects{stor, td, tp, actionsCounter}
 }
@@ -739,7 +726,7 @@ func TestCreateDiffExchangeV3WithProofsWithMixedOrders(t *testing.T) {
 // and produces an incorrect or unexpected diff, should be fixes some how
 //
 //	func TestCreateDiffExchangeWithSignature(t *testing.T) {
-//		to, path := createDifferTestObjects(t, checkerInfo
+//		to, path := createDifferTestObjects(t, checkerInfo)
 //
 //		to.stor.createAssetWithDecimals(t, testGlobal.asset0.asset.ID, 8)
 //		to.stor.createAssetWithDecimals(t, testGlobal.asset1.asset.ID, 8)

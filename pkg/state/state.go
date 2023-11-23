@@ -18,7 +18,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -95,7 +94,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newInvokeResults(hs),
 		newStateHashes(hs),
 		newHitSources(hs),
-		newSnapshotsAtHeight(hs),
+		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		calcHashes,
 	}, nil
 }
@@ -464,7 +463,12 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx)
+	snapshotApplier := newBlockSnapshotsApplier(
+		nil,
+		newSnapshotApplierStorages(stor),
+	)
+	snapshotGen := newSnapshotGenerator(stor, settings.AddressSchemeCharacter)
+	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier, &snapshotGen)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2752,8 +2756,8 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 	return amount, nil
 }
 
-func (s *stateManager) SnapshotsAtHeight(height proto.Height) (*g.TransactionStateSnapshot, error) {
-	return s.stor.snapshots.shapshots(height)
+func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
+	return s.stor.snapshots.getSnapshots(height)
 }
 
 func (s *stateManager) Close() error {
