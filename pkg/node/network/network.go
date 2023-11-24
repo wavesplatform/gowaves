@@ -796,15 +796,11 @@ func (n *Network) onBroadcastBlock(_ context.Context, args ...any) error {
 	if !ok {
 		return errors.Errorf("invalid type '%T' of second argument, expected 'peer.Peer'", args[1])
 	}
-
-	bts, err := b.Marshal(n.scheme)
+	msg, err := proto.MessageByBlock(b, n.scheme)
 	if err != nil {
-		return errors.Wrap(err, "failed to marshal Block message")
+		return errors.Wrapf(err, "failed to build block message in state '%s'", n.sm.MustState())
 	}
-	msg := &proto.PBBlockMessage{PBBlockBytes: bts}
-	var (
-		cnt int
-	)
+	cnt := 0
 	n.peers.EachConnected(func(p peer.Peer, _ *proto.Score) {
 		if p != op {
 			p.SendMessage(msg)
