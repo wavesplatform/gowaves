@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -211,6 +212,19 @@ type wrappedUncertainInfo struct {
 	wasJustIssued bool
 }
 
+func (a *assets) updateAssetUncertainInfo(assetID proto.AssetID, info *assetInfo) {
+	var wasJustIssued bool
+	// if the issue action happened in this tx, wasJustIssued will be true
+	if wrappedInfo, ok := a.uncertainAssetInfo[assetID]; ok {
+		wasJustIssued = wrappedInfo.wasJustIssued
+	}
+	wrappedUncertain := wrappedUncertainInfo{
+		assetInfo:     *info,
+		wasJustIssued: wasJustIssued,
+	}
+	a.uncertainAssetInfo[assetID] = wrappedUncertain
+}
+
 // issueAssetUncertain() is similar to issueAsset() but the changes can be
 // dropped later using dropUncertain() or committed using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
@@ -254,16 +268,7 @@ func (a *assets) reissueAssetUncertain(assetID proto.AssetID, ch *assetReissueCh
 	if err != nil {
 		return err
 	}
-	var wasJustIssued bool
-	// if the issue action happened in this tx, wasJustIssued will be true
-	if wrappedInfo, ok := a.uncertainAssetInfo[assetID]; ok {
-		wasJustIssued = wrappedInfo.wasJustIssued
-	}
-	wrappedUncertain := wrappedUncertainInfo{
-		assetInfo:     *info,
-		wasJustIssued: wasJustIssued,
-	}
-	a.uncertainAssetInfo[assetID] = wrappedUncertain
+	a.updateAssetUncertainInfo(assetID, info)
 	return nil
 }
 
@@ -297,17 +302,7 @@ func (a *assets) burnAssetUncertain(assetID proto.AssetID, ch *assetBurnChange) 
 	if err != nil {
 		return err
 	}
-
-	var wasJustIssued bool
-	// if the issue action happened in this tx, wasJustIssued will be true
-	if wrappedInfo, ok := a.uncertainAssetInfo[assetID]; ok {
-		wasJustIssued = wrappedInfo.wasJustIssued
-	}
-	wrappedUncertain := wrappedUncertainInfo{
-		assetInfo:     *info,
-		wasJustIssued: wasJustIssued,
-	}
-	a.uncertainAssetInfo[assetID] = wrappedUncertain
+	a.updateAssetUncertainInfo(assetID, info)
 	return nil
 }
 
