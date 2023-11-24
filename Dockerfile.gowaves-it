@@ -30,6 +30,7 @@ ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
     STATE_PATH=/home/gowaves/  \
     WALLET_PATH=/home/gowaves/wallet/go.wallet
 
+
 USER $APP_USER
 
 COPY --from=builder /app/build/bin/linux-amd64/node /app/node
@@ -54,7 +55,8 @@ CMD /app/node \
     -serve-extended-api \
     -log-level=debug \
     -obsolescence=1h \
-    -reward=600000000 \
+    -reward=$DESIRED_REWARD \
+    -vote=$SUPPORTED_FEATURES \
     -disable-ntp \
     -microblock-interval 2s \
     -blacklist-residence-time 0 \

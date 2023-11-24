@@ -95,7 +95,7 @@ func (tp *transactionPerformer) performTransferWithProofs(transaction proto.Tran
 
 func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest,
 	assetID crypto.Digest, info *performerInfo,
-	balanceChanges txDiff, scriptEstimation *scriptEstimation, script *proto.Script) (txSnapshot, error) {
+	balanceChanges txDiff, scriptEstimation *scriptEstimation, script proto.Script) (txSnapshot, error) {
 	blockHeight := info.height + 1
 	// Create new asset.
 	assetInfo := &assetInfo{
@@ -153,7 +153,7 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 		return txSnapshot{}, err
 	}
 	return tp.performIssue(&tx.Issue, assetID, assetID, info,
-		balanceChanges, info.checkerData.scriptEstimation, &tx.Script)
+		balanceChanges, info.checkerData.scriptEstimation, tx.Script)
 }
 
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, _ *performerInfo,

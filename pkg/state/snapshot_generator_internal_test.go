@@ -160,10 +160,6 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 				AssetID: *tx.ID,
 				Balance: 1000,
 			},
-			&proto.AssetScriptSnapshot{
-				AssetID: *tx.ID,
-				Script:  proto.Script{},
-			},
 		},
 		internal: nil,
 	}
