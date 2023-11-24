@@ -3,10 +3,13 @@ package config
 import (
 	"encoding/binary"
 	"encoding/json"
+	slerr "errors"
 	"math"
 	"math/big"
 	"os"
 	"path/filepath"
+	"strconv"
+	"strings"
 	"time"
 
 	"github.com/pkg/errors"
@@ -22,8 +25,18 @@ import (
 const (
 	genesisSettingsFileName = "genesis.json"
 	configFolder            = "config"
+	testdataFolder          = "testdata"
+	rewardConfigFolder      = "reward_settings_testdata"
 
 	maxBaseTarget = 1000000
+
+	defaultBlockRewardVotingPeriod = 3
+	defaultBlockRewardTerm         = 10
+	defaultBlockRewardTermAfter20  = 5
+	defaultInitialBlockReward      = 600000000
+	defaultBlockRewardIncrement    = 100000000
+	defaultDesiredBlockReward      = 600000000
+	defaultMinXTNBuyBackPeriod     = 3
 )
 
 var (
@@ -60,13 +73,35 @@ type GenesisSettings struct {
 }
 
 type scalaCustomOptions struct {
-	Features     []FeatureInfo
-	EnableMining bool
+	Features          []FeatureInfo
+	EnableMining      bool
+	DaoAddress        string `json:"dao_address"`
+	XtnBuybackAddress string `json:"xtn_buyback_address"`
+}
+
+type goEnvOptions struct {
+	DesiredBlockReward string `json:"desired_reward"`
+	SupportedFeatures  string `json:"supported_features"`
+}
+
+type RewardSettings struct {
+	BlockRewardVotingPeriod uint64        `json:"voting_interval"`
+	BlockRewardTerm         uint64        `json:"term"`
+	BlockRewardTermAfter20  uint64        `json:"term_after_capped_reward_feature"`
+	InitialBlockReward      uint64        `json:"initial_block_reward"`
+	BlockRewardIncrement    uint64        `json:"block_reward_increment"`
+	DesiredBlockReward      uint64        `json:"desired_reward"`
+	DaoAddress              string        `json:"dao_address"`
+	XtnBuybackAddress       string        `json:"xtn_buyback_address"`
+	MinXTNBuyBackPeriod     uint64        `json:"min_xtn_buy_back_period"`
+	PreactivatedFeatures    []FeatureInfo `json:"preactivated_features"`
+	SupportedFeatures       []int16       `json:"supported_features"`
 }
 
 type config struct {
 	BlockchainSettings *settings.BlockchainSettings
 	ScalaOpts          *scalaCustomOptions
+	GoOpts             *goEnvOptions
 }
 
 func parseGenesisSettings() (*GenesisSettings, error) {
@@ -79,6 +114,11 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to open file")
 	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			err = slerr.Join(err, closeErr)
+		}
+	}()
 	jsonParser := json.NewDecoder(f)
 	s := &GenesisSettings{}
 	if err = jsonParser.Decode(s); err != nil {
@@ -88,11 +128,97 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 	return s, nil
 }
 
-func newBlockchainConfig() (*config, []AccountInfo, error) {
+func parseRewardSettings(rewardArgsPath string) (*RewardSettings, error) {
+	pwd, err := os.Getwd()
+	if err != nil {
+		return nil, err
+	}
+	rewardSettingsPath := filepath.Clean(filepath.Join(pwd, testdataFolder, rewardConfigFolder, rewardArgsPath))
+	f, err := os.Open(rewardSettingsPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to open file")
+	}
+	defer func() {
+		if closeErr := f.Close(); closeErr != nil {
+			err = slerr.Join(err, closeErr)
+		}
+	}()
+	jsonParser := json.NewDecoder(f)
+	s := &RewardSettings{}
+	if err = jsonParser.Decode(s); err != nil {
+		return nil, errors.Wrap(err, "failed to decode reward settings")
+	}
+	return s, nil
+}
+
+func getRewardAddresses(rewardSettings *RewardSettings) ([]proto.WavesAddress, []proto.WavesAddress) {
+	var rewardAddresses []proto.WavesAddress
+	var rewardAddressesAfter21 []proto.WavesAddress
+
+	if rewardSettings.DaoAddress != "" {
+		rewardAddresses = append(rewardAddresses, proto.MustAddressFromString(rewardSettings.DaoAddress))
+		rewardAddressesAfter21 = append(rewardAddressesAfter21, proto.MustAddressFromString(rewardSettings.DaoAddress))
+	}
+
+	if rewardSettings.XtnBuybackAddress != "" {
+		rewardAddresses = append(rewardAddresses, proto.MustAddressFromString(rewardSettings.XtnBuybackAddress))
+	}
+	return rewardAddresses, rewardAddressesAfter21
+}
+
+func getPreactivatedFeatures(genSettings *GenesisSettings, rewardSettings *RewardSettings) ([]FeatureInfo, error) {
+	var initPF, result []FeatureInfo
+	initPF = append(initPF, genSettings.PreactivatedFeatures...)
+	initPF = append(initPF, rewardSettings.PreactivatedFeatures...)
+	for _, pf := range initPF {
+		if pf.Feature <= 0 {
+			err := errors.Errorf("Feature with id %d not exist", pf.Feature)
+			return nil, err
+		}
+		result = append(result, pf)
+	}
+	return result, nil
+}
+
+func getSupportedFeaturesAsString(rewardSettings *RewardSettings) string {
+	values := rewardSettings.SupportedFeatures
+	valuesStr := make([]string, 0, len(values))
+	for i := range values {
+		valuesStr = append(valuesStr, strconv.FormatInt(int64(values[i]), 10))
+	}
+	result := strings.Join(valuesStr, ",")
+	return result
+}
+
+func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, error) {
+	var rewardSettings *RewardSettings
 	genSettings, err := parseGenesisSettings()
 	if err != nil {
 		return nil, nil, err
 	}
+
+	switch l := len(additionalArgsPath); l {
+	case 0:
+		// default values for some reward parameters
+		rewardSettings = &RewardSettings{
+			BlockRewardVotingPeriod: defaultBlockRewardVotingPeriod,
+			BlockRewardTerm:         defaultBlockRewardTerm,
+			BlockRewardTermAfter20:  defaultBlockRewardTermAfter20,
+			InitialBlockReward:      defaultInitialBlockReward,
+			BlockRewardIncrement:    defaultBlockRewardIncrement,
+			DesiredBlockReward:      defaultDesiredBlockReward,
+			MinXTNBuyBackPeriod:     defaultMinXTNBuyBackPeriod,
+		}
+	case 1:
+		rewardSettings, err = parseRewardSettings(additionalArgsPath[0])
+		if err != nil {
+			return nil, nil, err
+		}
+	default:
+		return nil, nil, errors.Errorf("unexpected additional arguments count: want 0 or 1, got %d, args=%+v",
+			l, additionalArgsPath)
+	}
+
 	ts := time.Now().UnixMilli()
 	txs, acc, err := makeTransactionAndKeyPairs(genSettings, uint64(ts))
 	if err != nil {
@@ -113,21 +239,41 @@ func newBlockchainConfig() (*config, []AccountInfo, error) {
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
 	cfg.MinBlockTime = genSettings.MinBlockTime
 	cfg.DelayDelta = genSettings.DelayDelta
-	cfg.BlockRewardIncrement = 100000
-	cfg.BlockRewardVotingPeriod = 1000
-	cfg.InitialBlockReward = 600000000
-	cfg.DoubleFeaturesPeriodsAfterHeight = 1000000
+	cfg.DoubleFeaturesPeriodsAfterHeight = 0
 	cfg.SponsorshipSingleActivationPeriod = true
+	cfg.MinUpdateAssetInfoInterval = 2
+
 	cfg.FeaturesVotingPeriod = 1
 	cfg.VotesForFeatureActivation = 1
-	cfg.MinUpdateAssetInfoInterval = 2
-	cfg.PreactivatedFeatures = make([]int16, len(genSettings.PreactivatedFeatures))
-	for i, f := range genSettings.PreactivatedFeatures {
+
+	// reward settings
+	cfg.InitialBlockReward = rewardSettings.InitialBlockReward
+	cfg.BlockRewardIncrement = rewardSettings.BlockRewardIncrement
+	cfg.BlockRewardVotingPeriod = rewardSettings.BlockRewardVotingPeriod
+	cfg.BlockRewardTermAfter20 = rewardSettings.BlockRewardTermAfter20
+	cfg.BlockRewardTerm = rewardSettings.BlockRewardTerm
+	cfg.MinXTNBuyBackPeriod = rewardSettings.MinXTNBuyBackPeriod
+
+	rewardsAddresses, rewardsAddressesAfter21 := getRewardAddresses(rewardSettings)
+	cfg.RewardAddresses = rewardsAddresses
+	cfg.RewardAddressesAfter21 = rewardsAddressesAfter21
+
+	// preactivated features
+	preactivatedFeatures, err := getPreactivatedFeatures(genSettings, rewardSettings)
+	if err != nil {
+		return nil, nil, err
+	}
+	cfg.PreactivatedFeatures = make([]int16, len(preactivatedFeatures))
+	for i, f := range preactivatedFeatures {
 		cfg.PreactivatedFeatures[i] = f.Feature
 	}
+
 	return &config{
 		BlockchainSettings: &cfg,
-		ScalaOpts:          &scalaCustomOptions{Features: genSettings.PreactivatedFeatures, EnableMining: false},
+		ScalaOpts: &scalaCustomOptions{Features: preactivatedFeatures, EnableMining: false,
+			DaoAddress: rewardSettings.DaoAddress, XtnBuybackAddress: rewardSettings.XtnBuybackAddress},
+		GoOpts: &goEnvOptions{DesiredBlockReward: strconv.FormatUint(rewardSettings.DesiredBlockReward, 10),
+			SupportedFeatures: getSupportedFeaturesAsString(rewardSettings)},
 	}, acc, nil
 }
 

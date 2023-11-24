@@ -228,6 +228,10 @@ func (a *Debug) PrintMsg(ctx context.Context, msg string) (*Response, error) {
 	return doHttp(ctx, a.options, req, nil)
 }
 
+type rollbackResponse struct {
+	BlockID proto.BlockID `json:"blockId"`
+}
+
 func (a *Debug) RollbackToHeight(
 	ctx context.Context,
 	height uint64,
@@ -254,12 +258,12 @@ func (a *Debug) RollbackToHeight(
 	req.Header.Add(ApiKeyHeader, a.options.ApiKey)
 	req.Header.Add("Accept", "*/*")
 
-	out := new(proto.BlockID)
+	out := new(rollbackResponse)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
-	return out, response, nil
+	return &out.BlockID, response, nil
 }
 
 func (a *Debug) RollbackTo(ctx context.Context, blockID proto.BlockID) (*proto.BlockID, *Response, error) {
@@ -276,11 +280,11 @@ func (a *Debug) RollbackTo(ctx context.Context, blockID proto.BlockID) (*proto.B
 	req.Header.Add(ApiKeyHeader, a.options.ApiKey)
 	req.Header.Add("Accept", "*/*")
 
-	out := new(proto.BlockID)
+	out := new(rollbackResponse)
 	response, err := doHttp(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
 
-	return out, response, nil
+	return &out.BlockID, response, nil
 }

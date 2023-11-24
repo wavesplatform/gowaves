@@ -30,12 +30,29 @@ func NewGrpcClient(t *testing.T, port string) *GrpcClient {
 	return &GrpcClient{conn: conn, timeout: 30 * time.Second}
 }
 
+func (c *GrpcClient) GetFeatureActivationStatusInfo(t *testing.T, h int32) *g.ActivationStatusResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	response, err := g.NewBlockchainApiClient(c.conn).GetActivationStatus(ctx, &g.ActivationStatusRequest{Height: h})
+	require.NoError(t, err, "failed to get feature activation status")
+	return response
+}
+
 func (c *GrpcClient) GetHeight(t *testing.T) *client.BlocksHeight {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	h, err := g.NewBlocksApiClient(c.conn).GetCurrentHeight(ctx, &emptypb.Empty{}, grpc.EmptyCallOption{})
 	assert.NoError(t, err, "(grpc) failed to get height from node")
 	return &client.BlocksHeight{Height: uint64(h.Value)}
+}
+
+func (c *GrpcClient) GetBlock(t *testing.T, height uint64) *g.BlockWithHeight {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	block, err := g.NewBlocksApiClient(c.conn).GetBlock(ctx,
+		&g.BlockRequest{Request: &g.BlockRequest_Height{Height: int32(height)}, IncludeTransactions: true})
+	assert.NoError(t, err, "(grpc) failed to get block from node")
+	return block
 }
 
 func (c *GrpcClient) GetWavesBalance(t *testing.T, address proto.WavesAddress) *g.BalanceResponse_WavesBalances {
