@@ -17,8 +17,12 @@ type blockSnapshotsApplier struct {
 }
 
 func (a *blockSnapshotsApplier) BeforeTxSnapshotApply() error {
-	a.issuedAssets = make(map[crypto.Digest]struct{})
-	a.scriptedAssets = make(map[crypto.Digest]struct{})
+	if len(a.issuedAssets) != 0 {
+		a.issuedAssets = make(map[crypto.Digest]struct{})
+	}
+	if len(a.scriptedAssets) != 0 {
+		a.scriptedAssets = make(map[crypto.Digest]struct{})
+	}
 	return nil
 }
 
