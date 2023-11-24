@@ -106,3 +106,39 @@ func (c *HttpClient) ConnectedPeers() ([]*client.PeersConnectedRow, *client.Resp
 	connectedPeers, resp, err := c.cli.Peers.Connected(ctx)
 	return connectedPeers, resp, err
 }
+
+func (c *HttpClient) BlockHeader(t *testing.T, height proto.Height) *client.Headers {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	header, _, err := c.cli.Blocks.HeadersAt(ctx, height)
+	require.NoError(t, err)
+	return header
+}
+
+func (c *HttpClient) Rewards(t *testing.T) *client.RewardInfo {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	rewardInfo, _, err := c.cli.Blockchain.Rewards(ctx)
+	require.NoError(t, err)
+	return rewardInfo
+}
+
+func (c *HttpClient) RewardsAtHeight(t *testing.T, height proto.Height) *client.RewardInfo {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	rewardInfo, _, err := c.cli.Blockchain.RewardsAtHeight(ctx, height)
+	require.NoError(t, err)
+	return rewardInfo
+}
+
+func (c *HttpClient) RollbackToHeight(t *testing.T, height uint64, returnTxToUtx bool) *proto.BlockID {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	blockID, _, err := c.cli.Debug.RollbackToHeight(ctx, height, returnTxToUtx)
+	require.NoError(t, err)
+	return blockID
+}

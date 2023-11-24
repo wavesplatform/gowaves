@@ -43,7 +43,7 @@ func (sg *snapshotGenerator) generateSnapshotForTransferTx(balanceChanges txDiff
 
 func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest,
 	senderPK crypto.PublicKey, assetInfo assetInfo, balanceChanges txDiff,
-	scriptEstimation *scriptEstimation, script *proto.Script) (txSnapshot, error) {
+	scriptEstimation *scriptEstimation, script proto.Script) (txSnapshot, error) {
 	var snapshot txSnapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
@@ -89,16 +89,10 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		issueStaticInfoSnapshot, assetDescription, assetReissuability,
 	)
 
-	if script == nil {
+	if !script.IsEmpty() { // generate asset script snapshot only for non-empty script
 		assetScriptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID: assetID,
-			Script:  proto.Script{},
-		}
-		snapshot.regular = append(snapshot.regular, assetScriptSnapshot)
-	} else {
-		assetScriptSnapshot := &proto.AssetScriptSnapshot{
-			AssetID: assetID,
-			Script:  *script,
+			Script:  script,
 		}
 		if scriptEstimation.isPresent() {
 			internalComplexitySnapshot := &InternalAssetScriptComplexitySnapshot{
@@ -331,7 +325,7 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	if err != nil {
 		return txSnapshot{}, err
 	}
-
+	// script here must not be empty, see transaction checker for set asset script transaction
 	assetScrptSnapshot := &proto.AssetScriptSnapshot{
 		AssetID: assetID,
 		Script:  script,
@@ -404,6 +398,9 @@ func generateSnapshotsFromAssetsScriptsUncertain(
 	assetScriptsUncertain map[proto.AssetID]assetScriptRecordWithAssetIDTail) []proto.AtomicSnapshot {
 	var atomicSnapshots []proto.AtomicSnapshot
 	for assetID, r := range assetScriptsUncertain {
+		if r.scriptDBItem.script.IsEmpty() { // don't generate asset script snapshot for empty script
+			continue
+		}
 		digest := proto.ReconstructDigest(assetID, r.assetIDTail)
 		assetScrptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID: digest,

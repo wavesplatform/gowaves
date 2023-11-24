@@ -13,6 +13,10 @@ import (
 	"github.com/wavesplatform/gowaves/itests/node_client"
 )
 
+const (
+	enableScalaMining = true
+)
+
 type BaseSuite struct {
 	suite.Suite
 
@@ -24,13 +28,10 @@ type BaseSuite struct {
 	Ports   *d.Ports
 }
 
-func (suite *BaseSuite) SetupSuite() {
-	const enableScalaMining = true
-
-	suiteName := strcase.KebabCase(suite.T().Name())
-
+func (suite *BaseSuite) BaseSetup(enableScalaMining bool, additionalArgsPath ...string) {
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
-	paths, cfg, err := config.CreateFileConfigs(suiteName, enableScalaMining)
+	suiteName := strcase.KebabCase(suite.T().Name())
+	paths, cfg, err := config.CreateFileConfigs(suiteName, enableScalaMining, additionalArgsPath...)
 	suite.Require().NoError(err, "couldn't create config")
 	suite.Cfg = cfg
 
@@ -38,13 +39,18 @@ func (suite *BaseSuite) SetupSuite() {
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
 
-	ports, err := docker.RunContainers(suite.MainCtx, paths, suiteName)
+	ports, err := docker.RunContainers(suite.MainCtx, paths, suiteName, cfg.Env.DesiredBlockReward,
+		cfg.Env.SupportedFeatures)
 	if err != nil {
 		docker.Finish(suite.Cancel)
 		suite.Require().NoError(err, "couldn't run Docker containers")
 	}
 	suite.Ports = ports
 	suite.Clients = node_client.NewNodesClients(suite.T(), ports)
+}
+
+func (suite *BaseSuite) SetupSuite() {
+	suite.BaseSetup(enableScalaMining)
 }
 
 func (suite *BaseSuite) TearDownSuite() {

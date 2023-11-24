@@ -1,0 +1,12 @@
+{
+  "term": 6,
+  "term_after_capped_reward_feature": 3,
+  "voting_interval": 1,
+  "initial_block_reward": 500000000,
+  "block_reward_increment": 100000000,
+  "desired_reward": 300000000,
+  "dao_address": "3JuungCtDNEvFyHgx1Dcd937ztNTVpRNSWi",
+  "xtn_buyback_address": "3JdWGi733mWM2kPoUvHqg3uJzMQ5rPCoFWU",
+  "preactivated_features": [],
+  "supported_features": [19, 20]
+}

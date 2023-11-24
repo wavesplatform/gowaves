@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
@@ -10,10 +11,47 @@ import (
 type blockSnapshotsApplier struct {
 	info *blockSnapshotsApplierInfo
 	stor snapshotApplierStorages
+
+	issuedAssets   map[crypto.Digest]struct{}
+	scriptedAssets map[crypto.Digest]struct{}
+}
+
+func (a *blockSnapshotsApplier) BeforeTxSnapshotApply() error {
+	if len(a.issuedAssets) != 0 {
+		a.issuedAssets = make(map[crypto.Digest]struct{})
+	}
+	if len(a.scriptedAssets) != 0 {
+		a.scriptedAssets = make(map[crypto.Digest]struct{})
+	}
+	return nil
+}
+
+func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
+	for assetID := range a.issuedAssets {
+		if _, ok := a.scriptedAssets[assetID]; ok { // don't set an empty script for scripted assets or script updates
+			continue
+		}
+		emptyAssetScriptSnapshot := proto.AssetScriptSnapshot{
+			AssetID: assetID,
+			Script:  proto.Script{},
+		}
+		// need for compatibility with old state hashes
+		// for issued asset without script we have to apply empty asset script snapshot
+		err := emptyAssetScriptSnapshot.Apply(a)
+		if err != nil {
+			return errors.Wrapf(err, "failed to apply empty asset scipt snapshot for asset %q", assetID)
+		}
+	}
+	return nil
 }
 
 func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
-	return blockSnapshotsApplier{info: info, stor: stor}
+	return blockSnapshotsApplier{
+		info:           info,
+		stor:           stor,
+		issuedAssets:   make(map[crypto.Digest]struct{}),
+		scriptedAssets: make(map[crypto.Digest]struct{}),
+	}
 }
 
 type snapshotApplierStorages struct {
@@ -137,7 +175,12 @@ func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetI
 		},
 		assetChangeableInfo: assetChangeableInfo{},
 	}
-	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
+	err := a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to issue asset %q", snapshot.AssetID.String())
+	}
+	a.issuedAssets[snapshot.AssetID] = struct{}{}
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot proto.AssetDescriptionSnapshot) error {
@@ -161,7 +204,14 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
-	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
+	err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to apply asset script for asset %q", snapshot.AssetID)
+	}
+	if !snapshot.Script.IsEmpty() {
+		a.scriptedAssets[snapshot.AssetID] = struct{}{}
+	}
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplySponsorship(snapshot proto.SponsorshipSnapshot) error {
