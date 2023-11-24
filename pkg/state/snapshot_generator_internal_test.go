@@ -1061,7 +1061,8 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	assert.Equal(t, expectedDataEntry.Address, dataEntrySnapshot.Address)
 	assert.ElementsMatch(t, expectedDataEntry.DataEntries, dataEntrySnapshot.DataEntries)
 	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
-	to.state.stor.flush()
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
 }
 
 // Check if the snapshot generator doesn't generate
@@ -1161,7 +1162,8 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 		internal: nil,
 	}
 	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
-	to.state.stor.flush()
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
 }
 
 func remove(slice []proto.AtomicSnapshot, s int) []proto.AtomicSnapshot {
