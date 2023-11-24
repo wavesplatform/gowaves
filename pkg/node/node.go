@@ -356,7 +356,7 @@ func (n *Node) configureTriggers() {
 	n.sm.SetTriggerParameters(eventMicroBlockInv, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
 		reflect.TypeOf((*proto.MicroBlockInv)(nil)))
 	n.sm.SetTriggerParameters(eventGetMicroBlock, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
-		reflect.TypeOf((*proto.BlockID)(nil)))
+		reflect.TypeOf(proto.BlockID{}))
 	n.sm.SetTriggerParameters(eventMicroBlock, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
 		reflect.TypeOf((*proto.MicroBlock)(nil)))
 	n.sm.SetTriggerParameters(eventChangeSyncPeer, reflect.TypeOf((*peer.Peer)(nil)).Elem(),
