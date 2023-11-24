@@ -348,23 +348,22 @@ func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]wrap
 	txID crypto.Digest) []proto.AtomicSnapshot {
 	var atomicSnapshots []proto.AtomicSnapshot
 	for assetID, infoAsset := range assetsUncertain {
-		infoAssetCpy := infoAsset // prevent implicit memory aliasing in for loop
-		fullAssetID := proto.ReconstructDigest(assetID, infoAssetCpy.assetInfo.tail)
-
-		if infoAssetCpy.wasJustIssued {
+		fullAssetID := proto.ReconstructDigest(assetID, infoAsset.assetInfo.tail)
+		// order of snapshots here is important: static info snapshot should be first
+		if infoAsset.wasJustIssued {
 			issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
 				AssetID:             fullAssetID,
-				IssuerPublicKey:     infoAssetCpy.assetInfo.issuer,
+				IssuerPublicKey:     infoAsset.assetInfo.issuer,
 				SourceTransactionID: txID,
-				Decimals:            infoAssetCpy.assetInfo.decimals,
-				IsNFT:               infoAssetCpy.assetInfo.isNFT(),
+				Decimals:            infoAsset.assetInfo.decimals,
+				IsNFT:               infoAsset.assetInfo.isNFT(),
 			}
 
 			assetDescription := &proto.AssetDescriptionSnapshot{
 				AssetID:          fullAssetID,
-				AssetName:        infoAssetCpy.assetInfo.name,
-				AssetDescription: infoAssetCpy.assetInfo.description,
-				ChangeHeight:     infoAssetCpy.assetInfo.lastNameDescChangeHeight,
+				AssetName:        infoAsset.assetInfo.name,
+				AssetDescription: infoAsset.assetInfo.description,
+				ChangeHeight:     infoAsset.assetInfo.lastNameDescChangeHeight,
 			}
 
 			atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription)
@@ -372,8 +371,8 @@ func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]wrap
 
 		assetReissuability := &proto.AssetVolumeSnapshot{
 			AssetID:       fullAssetID,
-			IsReissuable:  infoAssetCpy.assetInfo.reissuable,
-			TotalQuantity: infoAssetCpy.assetInfo.quantity,
+			IsReissuable:  infoAsset.assetInfo.reissuable,
+			TotalQuantity: infoAsset.assetInfo.quantity,
 		}
 
 		atomicSnapshots = append(atomicSnapshots, assetReissuability)
