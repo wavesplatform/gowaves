@@ -699,6 +699,9 @@ func (n *Node) onEnterGleaning(_ context.Context, args ...any) error {
 	if !intersects {
 		return n.sm.Fire(eventAbortSync) // We received IDs that has no intersection with our IDs sent in request.
 	}
+	if len(unknownIDs) == 0 { // No unknown blocks, go to Operation state.
+		return n.sm.Fire(eventBlockSequenceComplete)
+	}
 	// This is the last batch of block IDs, no need to store them, reset the field.
 	n.lastIDs = nil
 	// Ask for Blocks of unknown IDs.
