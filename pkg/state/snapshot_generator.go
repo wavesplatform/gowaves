@@ -338,34 +338,38 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	return snapshot, nil
 }
 
-func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]assetInfo,
+func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]wrappedUncertainInfo,
 	txID crypto.Digest) []proto.AtomicSnapshot {
 	var atomicSnapshots []proto.AtomicSnapshot
-	for assetID, info := range assetsUncertain {
-		infoCpy := info // prevent implicit memory aliasing in for loop
-		fullAssetID := proto.ReconstructDigest(assetID, infoCpy.tail)
-		issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
-			AssetID:             fullAssetID,
-			IssuerPublicKey:     infoCpy.issuer,
-			SourceTransactionID: txID,
-			Decimals:            infoCpy.decimals,
-			IsNFT:               infoCpy.isNFT(),
-		}
+	for assetID, infoAsset := range assetsUncertain {
+		fullAssetID := proto.ReconstructDigest(assetID, infoAsset.assetInfo.tail)
+		// order of snapshots here is important: static info snapshot should be first
+		if infoAsset.wasJustIssued {
+			issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
+				AssetID:             fullAssetID,
+				IssuerPublicKey:     infoAsset.assetInfo.issuer,
+				SourceTransactionID: txID,
+				Decimals:            infoAsset.assetInfo.decimals,
+				IsNFT:               infoAsset.assetInfo.isNFT(),
+			}
 
-		assetDescription := &proto.AssetDescriptionSnapshot{
-			AssetID:          fullAssetID,
-			AssetName:        infoCpy.name,
-			AssetDescription: infoCpy.description,
-			ChangeHeight:     infoCpy.lastNameDescChangeHeight,
+			assetDescription := &proto.AssetDescriptionSnapshot{
+				AssetID:          fullAssetID,
+				AssetName:        infoAsset.assetInfo.name,
+				AssetDescription: infoAsset.assetInfo.description,
+				ChangeHeight:     infoAsset.assetInfo.lastNameDescChangeHeight,
+			}
+
+			atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription)
 		}
 
 		assetReissuability := &proto.AssetVolumeSnapshot{
 			AssetID:       fullAssetID,
-			IsReissuable:  infoCpy.reissuable,
-			TotalQuantity: infoCpy.quantity,
+			IsReissuable:  infoAsset.assetInfo.reissuable,
+			TotalQuantity: infoAsset.assetInfo.quantity,
 		}
 
-		atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+		atomicSnapshots = append(atomicSnapshots, assetReissuability)
 	}
 	return atomicSnapshots
 }
@@ -509,7 +513,7 @@ func (sg *snapshotGenerator) snapshotForInvoke(txID crypto.Digest,
 		if _, ok := uncertainAssets[key.asset]; ok {
 			// remove the element from the map
 			delete(addrAssetBalanceDiff, key)
-			fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].tail)
+			fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].assetInfo.tail)
 			specialAssetSnapshot := proto.AssetBalanceSnapshot{
 				Address: key.address,
 				AssetID: fullAssetID,

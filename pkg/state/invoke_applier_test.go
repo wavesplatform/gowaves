@@ -128,23 +128,27 @@ func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16)
 	to.state.reset()
 }
 
-func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs, info *fallibleValidationParams) *applicationResult {
+func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs,
+	info *fallibleValidationParams,
+	shouldCommitUncertain bool) (*invocationResult, *applicationResult) {
 	// TODO: consider rewriting using txAppender.
 	// This should simplify tests because we actually reimplement part of appendTx() here.
-	defer func() {
-		to.state.stor.dropUncertain()
-		to.state.appender.ia.sc.resetComplexity()
-	}()
+	if shouldCommitUncertain {
+		defer func() {
+			to.state.stor.dropUncertain()
+			to.state.appender.ia.sc.resetComplexity()
+		}()
+	}
 
-	_, applicationRes, err := to.state.appender.ia.applyInvokeScript(tx, info)
+	invocationRes, applicationRes, err := to.state.appender.ia.applyInvokeScript(tx, info)
 	require.NoError(t, err)
 	err = to.state.appender.diffStor.saveTxDiff(applicationRes.changes.diff)
 	assert.NoError(t, err)
-	if applicationRes.status {
+	if applicationRes.status && shouldCommitUncertain {
 		err = to.state.stor.commitUncertain(info.checkerInfo.blockID)
 		assert.NoError(t, err)
 	}
-	return applicationRes
+	return invocationRes, applicationRes
 }
 
 func createGeneratedAsset(t *testing.T) (crypto.Digest, string) {
@@ -210,9 +214,9 @@ func (id *invokeApplierTestData) applyTest(t *testing.T, to *invokeApplierTestOb
 		id.invokeTimes = 1
 	}
 	for i := 0; i < id.invokeTimes; i++ {
-		res := to.applyAndSaveInvoke(t, tx, id.info)
-		assert.Equal(t, !id.failRes, res.status)
-		assert.ElementsMatch(t, id.correctAddrs, res.changes.addresses())
+		_, applicationRes := to.applyAndSaveInvoke(t, tx, id.info, true)
+		assert.Equal(t, !id.failRes, applicationRes.status)
+		assert.ElementsMatch(t, id.correctAddrs, applicationRes.changes.addresses())
 	}
 
 	// Check newest result state here.
