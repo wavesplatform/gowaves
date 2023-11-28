@@ -997,7 +997,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	var dataEntrySnapshoIdx int
 	var assetID crypto.Digest
 	for i, snap := range transactionSnapshot.regular {
-		if assetScriptSnapshot, ok := snap.(*proto.AssetScriptSnapshot); ok {
+		if assetScriptSnapshot, ok := snap.(*proto.StaticAssetInfoSnapshot); ok {
 			assetID = assetScriptSnapshot.AssetID
 		}
 		if dataEntrySnap, ok := snap.(*proto.DataEntriesSnapshot); ok {
@@ -1022,7 +1022,6 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 				AssetID: assetID,
 				Balance: 1,
 			},
-			&proto.AssetScriptSnapshot{AssetID: assetID, Script: proto.Script{}},
 			&proto.AssetDescriptionSnapshot{
 				AssetID:          assetID,
 				AssetName:        "Asset",
