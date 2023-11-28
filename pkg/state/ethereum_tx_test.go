@@ -20,7 +20,7 @@ import (
 )
 
 func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.SmartState,
-	assetsUncertain map[proto.AssetID]assetInfo,
+	assetsUncertain map[proto.AssetID]wrappedUncertainInfo,
 	params *appendTxParams) txAppender {
 	scheme := proto.TestNetScheme
 	activatedFeatures := map[settings.Feature]struct{}{
@@ -55,8 +55,9 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 	})
 	newAssets := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if assetsUncertain == nil {
-		assetsUncertain = make(map[proto.AssetID]assetInfo)
+		assetsUncertain = make(map[proto.AssetID]wrappedUncertainInfo)
 	}
+
 	newAssets.uncertainAssetInfo = assetsUncertain
 
 	store := blockchainEntitiesStorage{
@@ -176,7 +177,8 @@ func TestEthereumTransferAssets(t *testing.T) {
 	recipientBytes, err := base58.Decode("a783d1CBABe28d25E64aDf84477C4687c1411f94") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-	assetsUncertain := map[proto.AssetID]assetInfo{
+
+	assetsUncertain := map[proto.AssetID]wrappedUncertainInfo{
 		proto.AssetID(recipientEth): {},
 	}
 	txAppend := defaultTxAppender(t, storage, &AnotherMockSmartState{},
@@ -299,7 +301,7 @@ func TestEthereumInvoke(t *testing.T) {
 	recipientBytes, err := base58.Decode("3PFpqr7wTCBu68sSqU7vVv9pttYRjQjGFbv") // 0x241Cf7eaf669E0d2FDe4Ba3a534c20B433F4c43d
 	assert.NoError(t, err)
 	recipientEth := proto.BytesToEthereumAddress(recipientBytes)
-	assetsUncertain := map[proto.AssetID]assetInfo{
+	assetsUncertain := map[proto.AssetID]wrappedUncertainInfo{
 		proto.AssetID(recipientEth): {},
 	}
 	txAppend := defaultTxAppender(t, storage, state, assetsUncertain, appendTxParams)

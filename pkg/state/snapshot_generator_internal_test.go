@@ -944,3 +944,223 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
 }
+
+func TestDefaultInvokeScriptSnapshot(t *testing.T) {
+	to := createInvokeApplierTestObjects(t)
+	info := to.fallibleValidationParams(t)
+	to.setDApp(t, "default_dapp_snapshots.base64", testGlobal.recipientInfo)
+	amount := uint64(1000)
+	startBalance := amount + invokeFee + 1
+
+	wavesBalSender := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	wavesBalMiner := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	err := to.state.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesBalSender, blockID0)
+	assert.NoError(t, err)
+	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
+	assert.NoError(t, err)
+
+	issueCounterInBlock := new(proto.StateActionsCounter)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
+		issueCounterInBlock)
+	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	fc := proto.NewFunctionCall("call", []proto.Argument{})
+	testData := invokeApplierTestData{
+
+		payments: []proto.ScriptPayment{},
+		fc:       fc,
+		info:     info,
+	}
+
+	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
+	assert.NoError(t, err, "failed to sign invoke script tx")
+
+	invocationRes, applicationRes := to.applyAndSaveInvoke(t, tx, testData.info, false)
+
+	transactionSnapshot, err := to.state.appender.txHandler.tp.performInvokeScriptWithProofs(tx,
+		defaultPerformerInfoWithChecker(applicationRes.checkerData),
+		invocationRes, applicationRes.changes.diff)
+	assert.NoError(t, err, "failed to perform invoke script tx")
+
+	var dataEntrySnapshot *proto.DataEntriesSnapshot
+	var dataEntrySnapshoIdx int
+	var assetID crypto.Digest
+	for i, snap := range transactionSnapshot.regular {
+		if assetScriptSnapshot, ok := snap.(*proto.StaticAssetInfoSnapshot); ok {
+			assetID = assetScriptSnapshot.AssetID
+		}
+		if dataEntrySnap, ok := snap.(*proto.DataEntriesSnapshot); ok {
+			dataEntrySnapshot = dataEntrySnap
+			dataEntrySnapshoIdx = i
+		}
+	}
+	transactionSnapshot.regular = remove(transactionSnapshot.regular, dataEntrySnapshoIdx)
+
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 1001001,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 1001,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.recipientInfo.addr,
+				AssetID: assetID,
+				Balance: 1,
+			},
+			&proto.AssetDescriptionSnapshot{
+				AssetID:          assetID,
+				AssetName:        "Asset",
+				AssetDescription: "",
+				ChangeHeight:     400000,
+			},
+			&proto.AssetVolumeSnapshot{
+				AssetID:       assetID,
+				TotalQuantity: *big.NewInt(1),
+				IsReissuable:  false,
+			},
+			&proto.StaticAssetInfoSnapshot{
+				AssetID:             assetID,
+				SourceTransactionID: *tx.ID,
+				IssuerPublicKey:     testGlobal.recipientInfo.pk,
+				Decimals:            0,
+				IsNFT:               true,
+			},
+		},
+		internal: nil,
+	}
+	expectedDataEntry := &proto.DataEntriesSnapshot{
+		Address: testGlobal.recipientInfo.addr,
+		DataEntries: []proto.DataEntry{
+			&proto.BinaryDataEntry{Key: "bin", Value: []byte{}},
+			&proto.BooleanDataEntry{Key: "bool", Value: true},
+			&proto.IntegerDataEntry{Key: "int", Value: 1},
+			// &proto.StringDataEntry{Key: "int", Value: ""}, // This entry will be overwritten by delete data entry
+			&proto.DeleteDataEntry{Key: "str"},
+		},
+	}
+	assert.Equal(t, expectedDataEntry.Address, dataEntrySnapshot.Address)
+	assert.ElementsMatch(t, expectedDataEntry.DataEntries, dataEntrySnapshot.DataEntries)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
+}
+
+// Check if the snapshot generator doesn't generate
+// extra asset description and static asset info snapshots after reissue and burn.
+func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
+	to := createInvokeApplierTestObjects(t)
+	info := to.fallibleValidationParams(t)
+	to.setDApp(t, "issue_reissue_dapp_snapshots.base64", testGlobal.recipientInfo)
+	amount := uint64(1000)
+	startBalance := amount + invokeFee + 1
+
+	wavesBalSender := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	wavesBalMiner := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	err := to.state.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesBalSender, blockID0)
+	assert.NoError(t, err)
+	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
+	assert.NoError(t, err)
+
+	var asset crypto.Digest
+	err = asset.UnmarshalBinary([]byte("GAzAEjApmjMYZKPzri2g2VUXNvTiQGF7"))
+	assert.NoError(t, err)
+	assetID := proto.AssetIDFromDigest(asset)
+	err = to.state.stor.assets.issueAsset(assetID, &assetInfo{
+		assetConstInfo: assetConstInfo{
+			tail:                 proto.DigestTail(asset),
+			issuer:               testGlobal.recipientInfo.pk,
+			decimals:             0,
+			issueHeight:          0,
+			issueSequenceInBlock: 1,
+		},
+		assetChangeableInfo: assetChangeableInfo{
+			quantity:                 *big.NewInt(10),
+			name:                     "asset",
+			description:              "",
+			lastNameDescChangeHeight: 0,
+			reissuable:               true,
+		},
+	}, blockID0)
+	assert.NoError(t, err)
+
+	issueCounterInBlock := new(proto.StateActionsCounter)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
+		issueCounterInBlock)
+	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+
+	fc := proto.NewFunctionCall("call", []proto.Argument{})
+	testData := invokeApplierTestData{
+
+		payments: []proto.ScriptPayment{},
+		fc:       fc,
+		info:     info,
+	}
+
+	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
+	assert.NoError(t, err, "failed to sign invoke script tx")
+
+	invocationRes, applicationRes := to.applyAndSaveInvoke(t, tx, testData.info, false)
+
+	transactionSnapshot, err := to.state.appender.txHandler.tp.performInvokeScriptWithProofs(tx,
+		defaultPerformerInfoWithChecker(applicationRes.checkerData),
+		invocationRes, applicationRes.changes.diff)
+	assert.NoError(t, err, "failed to perform invoke script tx")
+
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 1001001,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 1001,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.recipientInfo.addr,
+				AssetID: asset,
+				Balance: 4,
+			},
+			&proto.AssetVolumeSnapshot{
+				AssetID:       asset,
+				TotalQuantity: *big.NewInt(14),
+				IsReissuable:  false,
+			},
+		},
+		internal: nil,
+	}
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
+}
+
+func remove(slice []proto.AtomicSnapshot, s int) []proto.AtomicSnapshot {
+	return append(slice[:s], slice[s+1:]...)
+}
