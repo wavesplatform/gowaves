@@ -23,7 +23,7 @@ gotest:
 	go test -cover $$(go list ./... | grep -v "/itests")
 
 gotest-race-coverage:
-	go test -race -coverprofile=coverage.txt -covermode=atomic $$(go list ./... | grep -v "/itests")
+	go test -timeout 20m -race -coverprofile=coverage.txt -covermode=atomic $$(go list ./... | grep -v "/itests")
 
 gotest-real-node:
 	@REAL_NODE=true go test -cover $$(go list ./... | grep -v "/itests")
