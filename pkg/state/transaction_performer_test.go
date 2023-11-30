@@ -630,6 +630,7 @@ func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo.name = tx.Name
 	assetInfo.description = tx.Description
+	assetInfo.lastNameDescChangeHeight = checkerInfo.height + 1
 
 	// Check asset info.
 	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(tx.AssetID))
