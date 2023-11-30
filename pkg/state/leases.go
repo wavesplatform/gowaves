@@ -22,18 +22,20 @@ const (
 )
 
 type leaseRecordForStateHashes struct {
-	id     *crypto.Digest
-	active byte
+	id       crypto.Digest
+	isActive bool
 }
 
 func (lr *leaseRecordForStateHashes) writeTo(w io.Writer) error {
 	if _, err := w.Write(lr.id[:]); err != nil {
 		return err
 	}
-	if _, err := w.Write([]byte{lr.active}); err != nil {
-		return err
+	active := byte(0)
+	if lr.isActive {
+		active = byte(1)
 	}
-	return nil
+	_, err := w.Write([]byte{active})
+	return err
 }
 
 func (lr *leaseRecordForStateHashes) less(other stateComponent) bool {
@@ -243,13 +245,9 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.Bl
 		return errors.Wrap(err, "failed to marshal record")
 	}
 	if l.calculateHashes {
-		active := byte(0)
-		if leasing.isActive() {
-			active = byte(1)
-		}
 		lr := &leaseRecordForStateHashes{
-			id:     &id,
-			active: active,
+			id:       id,
+			isActive: leasing.isActive(),
 		}
 		if err := l.hasher.push(keyStr, lr, blockID); err != nil {
 			return err
@@ -259,6 +257,18 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.Bl
 		return err
 	}
 	return nil
+}
+
+func (l *leases) pushStateHash(leaseID crypto.Digest, isActive bool, blockID proto.BlockID) error {
+	if !l.calculateHashes {
+		return nil
+	}
+	key := leaseKey{leaseID: leaseID}
+	lr := &leaseRecordForStateHashes{
+		id:       leaseID,
+		isActive: isActive,
+	}
+	return l.hasher.push(string(key.bytes()), lr, blockID)
 }
 
 func (l *leases) rawWriteLeasing(id crypto.Digest, leasing *leasing, blockID proto.BlockID) error {

@@ -124,7 +124,7 @@ func (s DataEntriesSnapshot) IsGeneratedByTxDiff() bool {
 func (s DataEntriesSnapshot) Apply(a SnapshotApplier) error { return a.ApplyDataEntries(s) }
 
 func (s DataEntriesSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AccountData, error) {
-	entries := make([]*g.DataTransactionData_DataEntry, 0, len(s.DataEntries))
+	entries := make([]*g.DataEntry, 0, len(s.DataEntries))
 	for _, e := range s.DataEntries {
 		entries = append(entries, e.ToProtobuf())
 	}
@@ -182,11 +182,14 @@ func (s AccountScriptSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Account
 }
 
 func (s AccountScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
+	if txSnapshots.AccountScripts != nil { // sanity check
+		return errors.New("protobuf account script field is already set")
+	}
 	snapshotInProto, err := s.ToProtobuf()
 	if err != nil {
 		return err
 	}
-	txSnapshots.AccountScripts = append(txSnapshots.AccountScripts, snapshotInProto)
+	txSnapshots.AccountScripts = snapshotInProto
 	return nil
 }
 
@@ -225,11 +228,14 @@ func (s AssetScriptSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AssetScri
 }
 
 func (s AssetScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
+	if txSnapshots.AssetScripts != nil { // sanity check
+		return errors.New("protobuf asset script field is already set")
+	}
 	snapshotInProto, err := s.ToProtobuf()
 	if err != nil {
 		return err
 	}
-	txSnapshots.AssetScripts = append(txSnapshots.AssetScripts, snapshotInProto)
+	txSnapshots.AssetScripts = snapshotInProto
 	return nil
 }
 
@@ -303,77 +309,94 @@ type LeaseStatusCancelled struct{}
 
 func (*LeaseStatusCancelled) leaseStateStatusMarker() {}
 
-type LeaseStateSnapshot struct {
-	LeaseID crypto.Digest
-	Status  LeaseStateStatus
+type NewLeaseSnapshot struct {
+	LeaseID       crypto.Digest
+	Amount        uint64
+	SenderPK      WavesAddress // TODO: change to public key
+	RecipientAddr WavesAddress
 }
 
-func (s LeaseStateSnapshot) IsGeneratedByTxDiff() bool {
+func (s NewLeaseSnapshot) IsGeneratedByTxDiff() bool {
 	return false
 }
 
-func (s LeaseStateSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLeaseState(s) }
+func (s NewLeaseSnapshot) Apply(a SnapshotApplier) error { return a.ApplyNewLease(s) }
 
-func (s LeaseStateSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_LeaseState, error) {
-	res := &g.TransactionStateSnapshot_LeaseState{
-		LeaseId: s.LeaseID.Bytes(),
-		Status:  nil,
-	}
-	switch status := s.Status.(type) {
-	case *LeaseStateStatusActive:
-		res.Status = &g.TransactionStateSnapshot_LeaseState_Active_{
-			Active: &g.TransactionStateSnapshot_LeaseState_Active{
-				Amount:    int64(status.Amount),
-				Sender:    status.Sender.Body(),
-				Recipient: status.Recipient.Body(),
-			},
-		}
-	case *LeaseStatusCancelled:
-		res.Status = &g.TransactionStateSnapshot_LeaseState_Cancelled_{
-			Cancelled: &g.TransactionStateSnapshot_LeaseState_Cancelled{},
-		}
-	default:
-		return nil, errors.Errorf("failed to serialize LeaseStateSnapshot to Proto: invalid Lease status")
-	}
-	return res, nil
+func (s NewLeaseSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_NewLease, error) {
+	return &g.TransactionStateSnapshot_NewLease{
+		LeaseId:          s.LeaseID.Bytes(),
+		SenderPublicKey:  s.SenderPK.Bytes(),
+		RecipientAddress: s.RecipientAddr.Bytes(),
+		Amount:           int64(s.Amount),
+	}, nil
 }
 
-func (s LeaseStateSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
+func (s NewLeaseSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
 	snapshotInProto, err := s.ToProtobuf()
 	if err != nil {
 		return err
 	}
-	txSnapshots.LeaseStates = append(txSnapshots.LeaseStates, snapshotInProto)
+	txSnapshots.NewLeases = append(txSnapshots.NewLeases, snapshotInProto)
 	return nil
 }
 
-func (s *LeaseStateSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_LeaseState) error {
+func (s *NewLeaseSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_NewLease) error {
 	var c ProtobufConverter
 	leaseID := c.digest(p.LeaseId)
 	if c.err != nil {
 		return c.err
 	}
-	var status LeaseStateStatus
-	if active := p.GetActive(); active != nil {
-		sender, errAddressFromBytes := c.Address(scheme, active.Sender)
-		if errAddressFromBytes != nil {
-			return errAddressFromBytes
-		}
-		recipientAddr, errAddressFromBytes := c.Address(scheme, active.Recipient)
-		if errAddressFromBytes != nil {
-			return errAddressFromBytes
-		}
-		res := LeaseStateStatusActive{
-			Amount:    uint64(active.Amount),
-			Sender:    sender,
-			Recipient: recipientAddr,
-		}
-		status = &res
-	} else if cancel := p.GetCancelled(); cancel != nil {
-		status = &LeaseStatusCancelled{}
+	senderPK := c.publicKey(p.SenderPublicKey)
+	if c.err != nil {
+		return c.err
+	}
+	amount := c.uint64(p.Amount)
+	if c.err != nil {
+		return c.err
+	}
+	recipientAddr, err := c.Address(scheme, p.RecipientAddress)
+	if err != nil {
+		return err
 	}
 	s.LeaseID = leaseID
-	s.Status = status
+	s.Amount = amount
+	s.SenderPK = MustAddressFromPublicKey(scheme, senderPK) // "TODO: SenderPK must be an PK, not an address"
+	s.RecipientAddr = recipientAddr
+	return nil
+}
+
+type CancelledLeaseSnapshot struct {
+	LeaseID crypto.Digest
+}
+
+func (s CancelledLeaseSnapshot) Apply(a SnapshotApplier) error { return a.ApplyCancelledLease(s) }
+
+func (s CancelledLeaseSnapshot) IsGeneratedByTxDiff() bool {
+	return false
+}
+
+func (s CancelledLeaseSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_CancelledLease, error) {
+	return &g.TransactionStateSnapshot_CancelledLease{
+		LeaseId: s.LeaseID.Bytes(),
+	}, nil
+}
+
+func (s CancelledLeaseSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
+	snapshotInProto, err := s.ToProtobuf()
+	if err != nil {
+		return err
+	}
+	txSnapshots.CancelledLeases = append(txSnapshots.CancelledLeases, snapshotInProto)
+	return nil
+}
+
+func (s *CancelledLeaseSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_CancelledLease) error {
+	var c ProtobufConverter
+	leaseID := c.digest(p.LeaseId)
+	if c.err != nil {
+		return c.err
+	}
+	s.LeaseID = leaseID
 	return nil
 }
 
@@ -434,11 +457,14 @@ func (s AliasSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Alias, error) {
 }
 
 func (s AliasSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
+	if txSnapshots.Aliases != nil { // sanity check
+		return errors.New("protobuf alias field is already set")
+	}
 	snapshotInProto, err := s.ToProtobuf()
 	if err != nil {
 		return err
 	}
-	txSnapshots.Aliases = append(txSnapshots.Aliases, snapshotInProto)
+	txSnapshots.Aliases = snapshotInProto
 	return nil
 }
 
@@ -495,31 +521,29 @@ func (s *FilledVolumeFeeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Ord
 	return nil
 }
 
-type StaticAssetInfoSnapshot struct {
-	AssetID             crypto.Digest
-	SourceTransactionID crypto.Digest
-	IssuerPublicKey     crypto.PublicKey
-	Decimals            uint8
-	IsNFT               bool
+type NewAssetSnapshot struct {
+	AssetID         crypto.Digest
+	IssuerPublicKey crypto.PublicKey
+	Decimals        uint8
+	IsNFT           bool
 }
 
-func (s StaticAssetInfoSnapshot) IsGeneratedByTxDiff() bool {
+func (s NewAssetSnapshot) IsGeneratedByTxDiff() bool {
 	return false
 }
 
-func (s StaticAssetInfoSnapshot) Apply(a SnapshotApplier) error { return a.ApplyStaticAssetInfo(s) }
+func (s NewAssetSnapshot) Apply(a SnapshotApplier) error { return a.ApplyNewAssetInfo(s) }
 
-func (s StaticAssetInfoSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AssetStatic, error) {
-	return &g.TransactionStateSnapshot_AssetStatic{
-		AssetId:             s.AssetID.Bytes(),
-		SourceTransactionId: s.SourceTransactionID.Bytes(),
-		IssuerPublicKey:     s.IssuerPublicKey.Bytes(),
-		Decimals:            int32(s.Decimals),
-		Nft:                 s.IsNFT,
+func (s NewAssetSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_NewAsset, error) {
+	return &g.TransactionStateSnapshot_NewAsset{
+		AssetId:         s.AssetID.Bytes(),
+		IssuerPublicKey: s.IssuerPublicKey.Bytes(),
+		Decimals:        int32(s.Decimals),
+		Nft:             s.IsNFT,
 	}, nil
 }
 
-func (s StaticAssetInfoSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
+func (s NewAssetSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
 	snapshotInProto, err := s.ToProtobuf()
 	if err != nil {
 		return err
@@ -528,13 +552,9 @@ func (s StaticAssetInfoSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStat
 	return nil
 }
 
-func (s *StaticAssetInfoSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetStatic) error {
+func (s *NewAssetSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_NewAsset) error {
 	var c ProtobufConverter
 	assetID := c.digest(p.AssetId)
-	if c.err != nil {
-		return c.err
-	}
-	txID := c.digest(p.SourceTransactionId)
 	if c.err != nil {
 		return c.err
 	}
@@ -543,7 +563,6 @@ func (s *StaticAssetInfoSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Ass
 		return c.err
 	}
 	s.AssetID = assetID
-	s.SourceTransactionID = txID
 	s.IssuerPublicKey = publicKey
 	s.Decimals = uint8(p.Decimals)
 	s.IsNFT = p.Nft
@@ -596,7 +615,6 @@ type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
 	AssetID          crypto.Digest
 	AssetName        string
 	AssetDescription string
-	ChangeHeight     Height // last_updated in pb
 }
 
 func (s AssetDescriptionSnapshot) IsGeneratedByTxDiff() bool {
@@ -610,7 +628,6 @@ func (s AssetDescriptionSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Asse
 		AssetId:     s.AssetID.Bytes(),
 		Name:        s.AssetName,
 		Description: s.AssetDescription,
-		LastUpdated: int32(s.ChangeHeight),
 	}, nil
 }
 
@@ -633,7 +650,6 @@ func (s *AssetDescriptionSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_As
 	s.AssetID = assetID
 	s.AssetName = p.Name
 	s.AssetDescription = p.Description
-	s.ChangeHeight = uint64(p.LastUpdated)
 	return nil
 }
 
@@ -683,7 +699,7 @@ type SnapshotApplier interface {
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
 	ApplyAssetBalance(snapshot AssetBalanceSnapshot) error
 	ApplyAlias(snapshot AliasSnapshot) error
-	ApplyStaticAssetInfo(snapshot StaticAssetInfoSnapshot) error
+	ApplyNewAssetInfo(snapshot NewAssetSnapshot) error
 	ApplyAssetDescription(snapshot AssetDescriptionSnapshot) error
 	ApplyAssetVolume(snapshot AssetVolumeSnapshot) error
 	ApplyAssetScript(snapshot AssetScriptSnapshot) error
@@ -691,6 +707,7 @@ type SnapshotApplier interface {
 	ApplyAccountScript(snapshot AccountScriptSnapshot) error
 	ApplyFilledVolumeAndFee(snapshot FilledVolumeFeeSnapshot) error
 	ApplyDataEntries(snapshot DataEntriesSnapshot) error
-	ApplyLeaseState(snapshot LeaseStateSnapshot) error
+	ApplyNewLease(snapshot NewLeaseSnapshot) error
+	ApplyCancelledLease(snapshot CancelledLeaseSnapshot) error
 	ApplyTransactionsStatus(snapshot TransactionStatusSnapshot) error
 }

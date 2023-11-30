@@ -130,17 +130,15 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 
 	expectedSnapshot := txSnapshot{
 		regular: []proto.AtomicSnapshot{
-			&proto.StaticAssetInfoSnapshot{
-				AssetID:             *tx.ID,
-				SourceTransactionID: *tx.ID,
-				IssuerPublicKey:     testGlobal.issuerInfo.pk,
-				Decimals:            defaultDecimals,
-				IsNFT:               false},
+			&proto.NewAssetSnapshot{
+				AssetID:         *tx.ID,
+				IssuerPublicKey: testGlobal.issuerInfo.pk,
+				Decimals:        defaultDecimals,
+				IsNFT:           false},
 			&proto.AssetDescriptionSnapshot{
 				AssetID:          *tx.ID,
 				AssetName:        "asset0",
 				AssetDescription: "description",
-				ChangeHeight:     1,
 			},
 			&proto.AssetVolumeSnapshot{
 				AssetID:       *tx.ID,
@@ -429,13 +427,11 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 				Address: testGlobal.senderInfo.addr,
 				Balance: 299900000,
 			},
-			&proto.LeaseStateSnapshot{
-				LeaseID: *tx.ID,
-				Status: &proto.LeaseStateStatusActive{
-					Amount:    50,
-					Sender:    testGlobal.senderInfo.addr,
-					Recipient: testGlobal.recipientInfo.addr,
-				},
+			&proto.NewLeaseSnapshot{
+				LeaseID:       *tx.ID,
+				Amount:        50,
+				SenderPK:      testGlobal.senderInfo.addr,
+				RecipientAddr: testGlobal.recipientInfo.addr,
 			},
 			&proto.LeaseBalanceSnapshot{
 				Address:  testGlobal.senderInfo.addr,
@@ -509,9 +505,8 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 				Address: testGlobal.senderInfo.addr,
 				Balance: 299900000,
 			},
-			&proto.LeaseStateSnapshot{
+			&proto.CancelledLeaseSnapshot{
 				LeaseID: leaseID,
-				Status:  &proto.LeaseStatusCancelled{},
 			},
 			&proto.LeaseBalanceSnapshot{
 				Address:  testGlobal.senderInfo.addr,
@@ -997,7 +992,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	var dataEntrySnapshoIdx int
 	var assetID crypto.Digest
 	for i, snap := range transactionSnapshot.regular {
-		if assetScriptSnapshot, ok := snap.(*proto.StaticAssetInfoSnapshot); ok {
+		if assetScriptSnapshot, ok := snap.(*proto.NewAssetSnapshot); ok {
 			assetID = assetScriptSnapshot.AssetID
 		}
 		if dataEntrySnap, ok := snap.(*proto.DataEntriesSnapshot); ok {
@@ -1026,19 +1021,17 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 				AssetID:          assetID,
 				AssetName:        "Asset",
 				AssetDescription: "",
-				ChangeHeight:     400000,
 			},
 			&proto.AssetVolumeSnapshot{
 				AssetID:       assetID,
 				TotalQuantity: *big.NewInt(1),
 				IsReissuable:  false,
 			},
-			&proto.StaticAssetInfoSnapshot{
-				AssetID:             assetID,
-				SourceTransactionID: *tx.ID,
-				IssuerPublicKey:     testGlobal.recipientInfo.pk,
-				Decimals:            0,
-				IsNFT:               true,
+			&proto.NewAssetSnapshot{
+				AssetID:         assetID,
+				IssuerPublicKey: testGlobal.recipientInfo.pk,
+				Decimals:        0,
+				IsNFT:           true,
 			},
 		},
 		internal: nil,

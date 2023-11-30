@@ -2,9 +2,10 @@ package proto
 
 import (
 	"github.com/pkg/errors"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
@@ -92,10 +93,10 @@ func leaseBalancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSn
 	return nil
 }
 
-func staticAssetFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, assetStatic := range txSnapshotProto.AssetStatics {
-		var sn StaticAssetInfoSnapshot
-		err := sn.FromProtobuf(assetStatic)
+func newAssetFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, newAsset := range txSnapshotProto.AssetStatics {
+		var sn NewAssetSnapshot
+		err := sn.FromProtobuf(newAsset)
 		if err != nil {
 			return err
 		}
@@ -116,7 +117,7 @@ func assetVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 	return nil
 }
 
-func assetDescrFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func assetDescriptionFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, assetNameAndDescr := range txSnapshotProto.AssetNamesAndDescriptions {
 		var sn AssetDescriptionSnapshot
 		err := sn.FromProtobuf(assetNameAndDescr)
@@ -129,7 +130,7 @@ func assetDescrFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]Ato
 }
 
 func assetScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, assetScript := range txSnapshotProto.AssetScripts {
+	if assetScript := txSnapshotProto.AssetScripts; assetScript != nil {
 		var sn AssetScriptSnapshot
 		err := sn.FromProtobuf(assetScript)
 		if err != nil {
@@ -141,7 +142,7 @@ func assetScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 }
 
 func aliasFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, alias := range txSnapshotProto.Aliases {
+	if alias := txSnapshotProto.Aliases; alias != nil {
 		var sn AliasSnapshot
 		err := sn.FromProtobuf(scheme, alias)
 		if err != nil {
@@ -164,10 +165,22 @@ func filledVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]A
 	return nil
 }
 
-func leaseStateFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, leaseState := range txSnapshotProto.LeaseStates {
-		var sn LeaseStateSnapshot
-		err := sn.FromProtobuf(scheme, leaseState)
+func newLeaseFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, newLease := range txSnapshotProto.NewLeases {
+		var sn NewLeaseSnapshot
+		err := sn.FromProtobuf(scheme, newLease)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func cancelledLeaseFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, cancelledLease := range txSnapshotProto.CancelledLeases {
+		var sn CancelledLeaseSnapshot
+		err := sn.FromProtobuf(cancelledLease)
 		if err != nil {
 			return err
 		}
@@ -177,7 +190,7 @@ func leaseStateFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnaps
 }
 
 func accountScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, accountScript := range txSnapshotProto.AccountScripts {
+	if accountScript := txSnapshotProto.AccountScripts; accountScript != nil {
 		var sn AccountScriptSnapshot
 		err := sn.FromProtobuf(accountScript)
 		if err != nil {
@@ -215,14 +228,15 @@ func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 // TxSnapshotsFromProtobuf Unmarshalling order (how in proto schemas):
 // WavesBalances and AssetBalances
 // LeaseBalances
-// StaticAsset
+// NewAsset
 // AssetVolume
 // AssetDescription
-// AssetScripts
-// Aliases
+// AssetScript
+// Alias
 // FilledVolumes
-// LeaseStates
-// AccountScripts
+// NewLeases
+// CancelledLeases
+// AccountScript
 // DataEntries
 // Sponsorships
 // TxStatus.
@@ -236,7 +250,7 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = staticAssetFromProto(txSnapshotProto, &txSnapshots)
+	err = newAssetFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +258,7 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = assetDescrFromProto(txSnapshotProto, &txSnapshots)
+	err = assetDescriptionFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +274,11 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = leaseStateFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = newLeaseFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = cancelledLeaseFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +725,7 @@ func (c *ProtobufConverter) attachment(att []byte) Attachment {
 	return att
 }
 
-func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEntry {
+func (c *ProtobufConverter) entry(entry *g.DataEntry) DataEntry {
 	if c.err != nil {
 		return nil
 	}
@@ -716,14 +734,14 @@ func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEn
 		return nil
 	}
 	var e DataEntry
-	switch t := entry.Value.(type) {
-	case *g.DataTransactionData_DataEntry_IntValue:
+	switch t := entry.Value.(type) { // TODO: change delete data entry to "case nil" and return an error in default
+	case *g.DataEntry_IntValue:
 		e = &IntegerDataEntry{Key: entry.Key, Value: t.IntValue}
-	case *g.DataTransactionData_DataEntry_BoolValue:
+	case *g.DataEntry_BoolValue:
 		e = &BooleanDataEntry{Key: entry.Key, Value: t.BoolValue}
-	case *g.DataTransactionData_DataEntry_BinaryValue:
+	case *g.DataEntry_BinaryValue:
 		e = &BinaryDataEntry{Key: entry.Key, Value: t.BinaryValue}
-	case *g.DataTransactionData_DataEntry_StringValue:
+	case *g.DataEntry_StringValue:
 		e = &StringDataEntry{Key: entry.Key, Value: t.StringValue}
 	default: // No value means DeleteDataEntry
 		e = &DeleteDataEntry{Key: entry.Key}
@@ -731,7 +749,7 @@ func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEn
 	return e
 }
 
-func (c *ProtobufConverter) Entry(entry *g.DataTransactionData_DataEntry) (DataEntry, error) {
+func (c *ProtobufConverter) Entry(entry *g.DataEntry) (DataEntry, error) {
 	e := c.entry(entry)
 	if c.err != nil {
 		err := c.err
@@ -752,7 +770,7 @@ func (c *ProtobufConverter) script(script []byte) Script {
 	return res
 }
 
-func (c *ProtobufConverter) entries(entries []*g.DataTransactionData_DataEntry) DataEntries {
+func (c *ProtobufConverter) entries(entries []*g.DataEntry) DataEntries {
 	if c.err != nil {
 		return nil
 	}
