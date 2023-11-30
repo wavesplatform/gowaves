@@ -24,6 +24,7 @@ const (
 	BlockRewardDistribution // 19
 	CappedRewards           // 20
 	XTNBuyBackCessation     // 21
+	LightNode               // 22
 	InvokeExpression        // 22
 )
 
@@ -53,6 +54,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	ConsensusImprovements:           {true, "Consensus and MetaMask Updates"},
 	BlockRewardDistribution:         {true, "Block Reward Distribution"},
 	CappedRewards:                   {true, "Capped XTN Buy-back and DAO Amounts"},
-	XTNBuyBackCessation:             {true, "XTN Buy-back cessation"},
+	XTNBuyBackCessation:             {true, "XTN Buy-back Cessation"},
+	LightNode:                       {true, "Light Node"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
