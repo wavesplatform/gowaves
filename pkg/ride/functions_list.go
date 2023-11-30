@@ -4,10 +4,14 @@ import (
 	"sort"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/math"
 )
 
-const maxListSize = 1000
+const (
+	maxListSize = 1000
+	threeArgs   = 3
+)
 
 func listAndStringArgs(args []rideType) (rideList, rideString, error) {
 	if len(args) != 2 {
@@ -49,8 +53,11 @@ func listAndIntArgs(args []rideType) (rideList, int, error) {
 		return nil, 0, errors.Errorf("unexpected type of argument 2 '%s'", args[1].instanceOf())
 	}
 	i := int(ri)
-	if i < 0 || i >= len(l) {
-		return nil, 0, errors.Errorf("invalid index %d", i)
+	if i < 0 {
+		return nil, 0, errors.Errorf("negative index value %d", i)
+	}
+	if i >= len(l) {
+		return nil, 0, errors.New("index out of bounds")
 	}
 	return l, i, nil
 }
@@ -84,6 +91,37 @@ func listAndElementArgs(args []rideType) (rideList, rideType, error) {
 		return nil, nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
 	}
 	return l, args[1], nil
+}
+
+func listAndIntAndElementArgs(args []rideType) (rideList, int, rideType, error) {
+	if len(args) != threeArgs {
+		return nil, 0, nil, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
+	}
+	if args[0] == nil {
+		return nil, 0, nil, errors.Errorf("argument 1 is empty")
+	}
+	if args[1] == nil {
+		return nil, 0, nil, errors.Errorf("argument 2 is empty")
+	}
+	if args[2] == nil {
+		return nil, 0, nil, errors.Errorf("argument 3 is empty")
+	}
+	l, ok := args[0].(rideList)
+	if !ok {
+		return nil, 0, nil, errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	ri, ok := args[1].(rideInt)
+	if !ok {
+		return nil, 0, nil, errors.Errorf("unexpected type of argument 2 '%s'", args[1].instanceOf())
+	}
+	i := int(ri)
+	if i < 0 {
+		return nil, 0, nil, errors.Errorf("negative index value %d", i)
+	}
+	if i >= len(l) {
+		return nil, 0, nil, errors.New("index out of bounds")
+	}
+	return l, i, args[2], nil
 }
 
 func intFromArray(_ environment, args ...rideType) (rideType, error) {
@@ -451,15 +489,24 @@ func listRemoveByIndex(_ environment, args ...rideType) (rideType, error) {
 	if l == 0 {
 		return nil, errors.New("listRemoveByIndex: can't remove an element from empty list")
 	}
-	if i < 0 {
-		return nil, errors.Errorf("listRemoveByIndex: negative index value %d", i)
-	}
-	if i >= l {
-		return nil, errors.Errorf("listRemoveByIndex: index out of bounds")
-	}
 	r := make(rideList, l-1)
 	copy(r, list[:i])
 	copy(r[i:], list[i+1:])
+	return r, nil
+}
+
+func listReplaceByIndex(_ environment, args ...rideType) (rideType, error) {
+	list, i, el, err := listAndIntAndElementArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "listReplaceByIndex")
+	}
+	l := len(list)
+	if l == 0 {
+		return nil, errors.New("listReplaceByIndex: can't replace an element in the empty list")
+	}
+	r := make(rideList, l)
+	copy(r, list)
+	r[i] = el
 	return r, nil
 }
 
