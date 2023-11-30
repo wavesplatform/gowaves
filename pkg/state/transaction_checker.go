@@ -88,6 +88,10 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
+	lightNodeActivated, err := tc.stor.features.newestIsActivated(int16(settings.LightNode))
+	if err != nil {
+		return scriptFeaturesActivations{}, err
+	}
 	if libVersion == ast.LibV3 && !rideForDAppsActivated {
 		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
@@ -105,6 +109,9 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	}
 	if libVersion == ast.LibV7 && !blockRewardDistributionActivated {
 		return scriptFeaturesActivations{}, errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
+	}
+	if libVersion == ast.LibV8 && !lightNodeActivated {
+		return scriptFeaturesActivations{}, errors.New("LightNode feature must be activated for scripts version 8")
 	}
 	return scriptFeaturesActivations{
 		rideForDAppsActivated: rideForDAppsActivated,
@@ -138,7 +145,7 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion ast.LibraryVersio
 	case ast.LibV5:
 		maxCallableComplexity = MaxCallableScriptComplexityV5
 		maxVerifierComplexity = MaxVerifierScriptComplexity
-	case ast.LibV6, ast.LibV7:
+	case ast.LibV6, ast.LibV7, ast.LibV8:
 		maxCallableComplexity = MaxCallableScriptComplexityV6
 		maxVerifierComplexity = MaxVerifierScriptComplexity
 	default:

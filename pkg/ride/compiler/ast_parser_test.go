@@ -14,6 +14,7 @@ import (
 	"github.com/go-test/deep"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
@@ -73,9 +74,10 @@ func TestDirectivesCompileFail(t *testing.T) {
 		errorMsg []string
 	}{
 		{`
-{-# STDLIB_VERSION 8 #-}
+{-# STDLIB_VERSION 9 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '8'"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`,
+			[]string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '9'"}},
 		{`
 {-# STDLIB_VERSION 0 #-}
 {-# CONTENT_TYPE DAPP #-}
