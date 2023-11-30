@@ -869,6 +869,23 @@ func catalogueV7() map[string]int {
 
 func catalogueV8() map[string]int {
 	m := catalogueV7()
+	m["311"] = 1
+	m["312"] = 1
+	m["313"] = 1
+	m["314"] = 1
+	m["315"] = 1
+	m["318"] = 1
+	m["319"] = 1
+	m["320"] = 1
+	m["408"] = 6
+	m["409"] = 6
+	m["413"] = 1
+	m["414"] = 1
+	m["415"] = 1
+	m["423"] = 1
+	m["424"] = 1
+	m["425"] = 35
+	m["1105"] = 4
 	constructorsCatalogue(ast.LibV8, m)
 	return m
 }
