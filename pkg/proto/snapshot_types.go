@@ -52,9 +52,12 @@ func (s *WavesBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	if err != nil {
 		return err
 	}
-	amount := c.amount(p.Amount)
+	asset, amount := c.convertAmount(p.Amount)
 	if c.err != nil {
 		return err
+	}
+	if asset.Present {
+		return errors.New("failed to unmarshal waves balance snapshot: asset is present")
 	}
 	s.Address = addr
 	s.Balance = amount
@@ -89,13 +92,12 @@ func (s *AssetBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	if err != nil {
 		return err
 	}
-	amount := c.amount(p.Amount)
+	asset, amount := c.convertAmount(p.Amount)
 	if c.err != nil {
 		return c.err
 	}
-	asset := c.extractOptionalAsset(p.Amount)
-	if c.err != nil {
-		return c.err
+	if !asset.Present {
+		return errors.New("failed to unmarshal asset balance snapshot: asset is not present")
 	}
 	s.Address = addr
 	s.Balance = amount
@@ -241,7 +243,7 @@ func (s AssetScriptSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 
 func (s *AssetScriptSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetScript) error {
 	var c ProtobufConverter
-	asset := c.optionalAsset(p.AssetId)
+	assetID := c.digest(p.AssetId)
 	if c.err != nil {
 		return c.err
 	}
@@ -249,7 +251,7 @@ func (s *AssetScriptSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetSc
 	if c.err != nil {
 		return c.err
 	}
-	s.AssetID = asset.ID
+	s.AssetID = assetID
 	s.Script = script
 	return nil
 }
@@ -429,11 +431,11 @@ func (s SponsorshipSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 
 func (s *SponsorshipSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Sponsorship) error {
 	var c ProtobufConverter
-	asset := c.optionalAsset(p.AssetId)
+	assetID := c.digest(p.AssetId)
 	if c.err != nil {
 		return c.err
 	}
-	s.AssetID = asset.ID
+	s.AssetID = assetID
 	s.MinSponsoredFee = uint64(p.MinFee)
 	return nil
 }
