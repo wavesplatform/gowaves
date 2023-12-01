@@ -260,26 +260,23 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, _
 
 func (tp *transactionPerformer) performLease(tx *proto.Lease, txID *crypto.Digest, info *performerInfo,
 	balanceChanges txDiff) (txSnapshot, error) {
-	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return txSnapshot{}, err
-	}
 	var recipientAddr proto.WavesAddress
 	if addr := tx.Recipient.Address(); addr == nil {
-		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
+		rcpAddr, err := tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
 		if err != nil {
-			return txSnapshot{}, errors.Errorf("invalid alias: %v", err)
+			return txSnapshot{}, errors.Wrap(err, "invalid alias")
 		}
+		recipientAddr = rcpAddr
 	} else {
 		recipientAddr = *addr
 	}
 	// Add leasing to lease state.
 	l := &leasing{
-		Sender:       senderAddr,
-		Recipient:    recipientAddr,
-		Amount:       tx.Amount,
-		OriginHeight: info.height,
-		Status:       LeaseActive,
+		SenderPK:      tx.SenderPK,
+		RecipientAddr: recipientAddr,
+		Amount:        tx.Amount,
+		OriginHeight:  info.height,
+		Status:        LeaseActive,
 	}
 	leaseID := *txID
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseTx(l, leaseID, txID, balanceChanges)

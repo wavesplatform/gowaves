@@ -288,10 +288,10 @@ func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot proto.DataEntriesSnaps
 
 func (a *blockSnapshotsApplier) ApplyNewLease(snapshot proto.NewLeaseSnapshot) error {
 	l := &leasing{
-		Sender:    snapshot.SenderPK,
-		Recipient: snapshot.RecipientAddr,
-		Amount:    snapshot.Amount,
-		Status:    LeaseActive,
+		SenderPK:      snapshot.SenderPK,
+		RecipientAddr: snapshot.RecipientAddr,
+		Amount:        snapshot.Amount,
+		Status:        LeaseActive,
 	}
 	err := a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
 	if err != nil {

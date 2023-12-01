@@ -312,7 +312,7 @@ func (*LeaseStatusCancelled) leaseStateStatusMarker() {}
 type NewLeaseSnapshot struct {
 	LeaseID       crypto.Digest
 	Amount        uint64
-	SenderPK      WavesAddress // TODO: change to public key
+	SenderPK      crypto.PublicKey
 	RecipientAddr WavesAddress
 }
 
@@ -360,7 +360,7 @@ func (s *NewLeaseSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnap
 	}
 	s.LeaseID = leaseID
 	s.Amount = amount
-	s.SenderPK = MustAddressFromPublicKey(scheme, senderPK) // "TODO: SenderPK must be an PK, not an address"
+	s.SenderPK = senderPK
 	s.RecipientAddr = recipientAddr
 	return nil
 }

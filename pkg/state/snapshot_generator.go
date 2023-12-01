@@ -211,8 +211,8 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease *leasing, leaseID 
 	leaseStatusSnapshot := &proto.NewLeaseSnapshot{
 		LeaseID:       leaseID,
 		Amount:        lease.Amount,
-		SenderPK:      lease.Sender,
-		RecipientAddr: lease.Recipient,
+		SenderPK:      lease.SenderPK,
+		RecipientAddr: lease.RecipientAddr,
 	}
 	leaseStatusActiveSnapshot := &InternalLeaseStateActiveInfoSnapshot{
 		LeaseID:             leaseID,
@@ -428,8 +428,8 @@ func generateSnapshotsFromLeasingsUncertain(
 			newLeaseSnapshot := &proto.NewLeaseSnapshot{
 				LeaseID:       lID,
 				Amount:        l.Amount,
-				SenderPK:      l.Sender,
-				RecipientAddr: l.Recipient,
+				SenderPK:      l.SenderPK,
+				RecipientAddr: l.RecipientAddr,
 			}
 			leaseStatusActiveSnapshot := &InternalLeaseStateActiveInfoSnapshot{
 				LeaseID:             lID,
@@ -446,8 +446,8 @@ func generateSnapshotsFromLeasingsUncertain(
 					newLeaseSnapshot := &proto.NewLeaseSnapshot{
 						LeaseID:       lID,
 						Amount:        l.Amount,
-						SenderPK:      l.Sender,
-						RecipientAddr: l.Recipient,
+						SenderPK:      l.SenderPK,
+						RecipientAddr: l.RecipientAddr,
 					}
 					leaseStatusActiveSnapshot := &InternalNewLeaseInfoSnapshot{
 						LeaseID:             lID,

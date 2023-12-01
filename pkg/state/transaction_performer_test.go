@@ -239,8 +239,8 @@ func TestPerformLeaseWithSig(t *testing.T) {
 		OriginTransactionID: tx.ID,
 		Status:              LeaseActive,
 		Amount:              tx.Amount,
-		Recipient:           *tx.Recipient.Address(),
-		Sender:              testGlobal.senderInfo.addr,
+		RecipientAddr:       *tx.Recipient.Address(),
+		SenderPK:            testGlobal.senderInfo.pk,
 	}
 
 	info, err := to.stor.entities.leases.leasingInfo(*tx.ID)
@@ -261,8 +261,8 @@ func TestPerformLeaseWithProofs(t *testing.T) {
 		OriginTransactionID: tx.ID,
 		Status:              LeaseActive,
 		Amount:              tx.Amount,
-		Recipient:           *tx.Recipient.Address(),
-		Sender:              testGlobal.senderInfo.addr,
+		RecipientAddr:       *tx.Recipient.Address(),
+		SenderPK:            testGlobal.senderInfo.pk,
 	}
 
 	info, err := to.stor.entities.leases.leasingInfo(*tx.ID)
@@ -284,8 +284,8 @@ func TestPerformLeaseCancelWithSig(t *testing.T) {
 		OriginTransactionID: leaseTx.ID,
 		Status:              LeaseCancelled,
 		Amount:              leaseTx.Amount,
-		Recipient:           *leaseTx.Recipient.Address(),
-		Sender:              testGlobal.senderInfo.addr,
+		RecipientAddr:       *leaseTx.Recipient.Address(),
+		SenderPK:            testGlobal.senderInfo.pk,
 		CancelTransactionID: tx.ID,
 	}
 	_, err = to.tp.performLeaseCancelWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
@@ -310,8 +310,8 @@ func TestPerformLeaseCancelWithProofs(t *testing.T) {
 		OriginTransactionID: leaseTx.ID,
 		Status:              LeaseCancelled,
 		Amount:              leaseTx.Amount,
-		Recipient:           *leaseTx.Recipient.Address(),
-		Sender:              testGlobal.senderInfo.addr,
+		RecipientAddr:       *leaseTx.Recipient.Address(),
+		SenderPK:            testGlobal.senderInfo.pk,
 		CancelTransactionID: tx.ID,
 	}
 	_, err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)

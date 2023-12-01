@@ -1244,7 +1244,16 @@ func createUpdateAssetInfoWithProofs(t *testing.T) *proto.UpdateAssetInfoWithPro
 }
 
 func createUpdateAssetInfoForAssetWithProofs(t *testing.T, assetID crypto.Digest) *proto.UpdateAssetInfoWithProofs {
-	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(1, assetID, testGlobal.senderInfo.pk, "noname", "someDescription", defaultTimestamp, *(testGlobal.asset1.asset), defaultFee)
+	tx := proto.NewUnsignedUpdateAssetInfoWithProofs(
+		1,
+		assetID,
+		testGlobal.senderInfo.pk,
+		"noname",
+		"someDescription",
+		defaultTimestamp,
+		*testGlobal.asset1.asset,
+		defaultFee,
+	)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
 	return tx

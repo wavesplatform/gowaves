@@ -430,7 +430,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 			&proto.NewLeaseSnapshot{
 				LeaseID:       *tx.ID,
 				Amount:        50,
-				SenderPK:      testGlobal.senderInfo.addr,
+				SenderPK:      testGlobal.senderInfo.pk,
 				RecipientAddr: testGlobal.recipientInfo.addr,
 			},
 			&proto.LeaseBalanceSnapshot{
@@ -466,8 +466,8 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 
 	leaseID := testGlobal.asset0.assetID
 	leasing := &leasing{
-		Sender:              testGlobal.senderInfo.addr,
-		Recipient:           testGlobal.recipientInfo.addr,
+		SenderPK:            testGlobal.senderInfo.pk,
+		RecipientAddr:       testGlobal.recipientInfo.addr,
 		Amount:              50,
 		OriginHeight:        1,
 		Status:              LeaseActive,

@@ -1020,11 +1020,7 @@ func (tc *transactionChecker) checkLeaseCancel(tx *proto.LeaseCancel, info *chec
 	if !l.isActive() && (info.currentTimestamp > tc.settings.AllowMultipleLeaseCancelUntilTime) {
 		return errs.NewTxValidationError("Reason: Cannot cancel already cancelled lease")
 	}
-	senderAddr, err := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return err
-	}
-	if (l.Sender != senderAddr) && (info.currentTimestamp > tc.settings.AllowMultipleLeaseCancelUntilTime) {
+	if (l.SenderPK != tx.SenderPK) && (info.currentTimestamp > tc.settings.AllowMultipleLeaseCancelUntilTime) {
 		return errs.NewTxValidationError("LeaseTransaction was leased by other sender")
 	}
 	return nil
