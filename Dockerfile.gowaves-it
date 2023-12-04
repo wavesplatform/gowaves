@@ -15,7 +15,7 @@ COPY pkg pkg
 
 RUN make build-node-linux-amd64
 
-FROM alpine:3.18.4
+FROM alpine:3.18.5
 ENV TZ=Etc/UTC \
     APP_USER=gowaves
 
