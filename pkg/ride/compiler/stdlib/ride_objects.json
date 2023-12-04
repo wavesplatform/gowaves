@@ -856,7 +856,7 @@
             },
             {
               "name": "attachment",
-              "type": "ByteVector",
+              "type": "ByteVector|Unit",
               "order": 14,
               "constructorOrder": 14
             },

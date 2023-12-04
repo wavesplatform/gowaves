@@ -265,7 +265,7 @@ func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideType, 
 	}
 	return newRideTransferTransaction(
 		optionalAsset(tx.AmountAsset),
-		rideByteVector(body),
+		body,
 		optionalAsset(tx.FeeAsset),
 		rideInt(tx.Version),
 		rideByteVector(tx.Attachment),
@@ -291,7 +291,7 @@ func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (ride
 	}
 	return newRideTransferTransaction(
 		optionalAsset(tx.AmountAsset),
-		rideByteVector(body),
+		body,
 		optionalAsset(tx.FeeAsset),
 		rideInt(tx.Version),
 		rideByteVector(tx.Attachment),
@@ -316,7 +316,7 @@ func reissueWithSigToObject(scheme byte, tx *proto.ReissueWithSig) (rideType, er
 		return nil, EvaluationFailure.Wrap(err, "reissueWithSigToObject")
 	}
 	return newRideReissueTransaction(
-		rideByteVector(body),
+		body,
 		signatureToProofs(tx.Signature),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -340,7 +340,7 @@ func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideRe
 		return rideReissueTransaction{}, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
 	}
 	return newRideReissueTransaction(
-		rideByteVector(body),
+		body,
 		proofs(tx.Proofs),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -364,7 +364,7 @@ func burnWithSigToObject(scheme byte, tx *proto.BurnWithSig) (rideType, error) {
 		return nil, EvaluationFailure.Wrap(err, "burnWithSigToObject")
 	}
 	return newRideBurnTransaction(
-		rideByteVector(body),
+		body,
 		signatureToProofs(tx.Signature),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -387,7 +387,7 @@ func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideBurnTran
 		return rideBurnTransaction{}, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
 	}
 	return newRideBurnTransaction(
-		rideByteVector(body),
+		body,
 		proofs(tx.Proofs),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -460,6 +460,10 @@ func orderToObject(ver ast.LibraryVersion, scheme proto.Scheme, o proto.Order) (
 			rideAddress(senderWavesAddr),
 		), nil
 	}
+	var att rideType = rideUnit{}
+	if o.GetAttachment().Size() > 0 {
+		att = rideByteVector(o.GetAttachment().Bytes())
+	}
 	return newRideOrderV8(
 		assetPairToObject(pair.AmountAsset, pair.PriceAsset),
 		orderType(o.GetOrderType()),
@@ -469,7 +473,7 @@ func orderToObject(ver ast.LibraryVersion, scheme proto.Scheme, o proto.Order) (
 		id,
 		common.Dup(o.GetSenderPKBytes()),
 		common.Dup(matcherPk.Bytes()),
-		o.GetAttachment().Bytes(),
+		att,
 		rideInt(o.GetAmount()),
 		rideInt(o.GetTimestamp()),
 		rideInt(o.GetExpiration()),

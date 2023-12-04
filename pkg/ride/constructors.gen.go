@@ -858,8 +858,11 @@ func orderV8Constructor(_ environment, args_ ...rideType) (rideType, error) {
 		}
 	}
 
-	attachment, ok := args_[14].(rideByteVector)
-	if !ok {
+	var attachment rideType
+	switch v := args_[14].(type) {
+	case rideByteVector, rideUnit:
+		attachment = v
+	default:
 		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for attachment", args_[14].instanceOf())
 	}
 

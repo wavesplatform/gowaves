@@ -1874,7 +1874,7 @@ type rideOrderV8 struct {
 	id                rideByteVector
 	senderPublicKey   rideByteVector
 	matcherPublicKey  rideByteVector
-	attachment        rideByteVector
+	attachment        rideType
 	amount            rideInt
 	timestamp         rideInt
 	expiration        rideInt
@@ -1883,7 +1883,7 @@ type rideOrderV8 struct {
 	sender            rideAddress
 }
 
-func newRideOrderV8(assetPair rideType, orderType rideType, matcherFeeAssetId rideType, proofs rideList, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, matcherPublicKey rideByteVector, attachment rideByteVector, amount rideInt, timestamp rideInt, expiration rideInt, matcherFee rideInt, price rideInt, sender rideAddress) rideOrderV8 {
+func newRideOrderV8(assetPair rideType, orderType rideType, matcherFeeAssetId rideType, proofs rideList, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, matcherPublicKey rideByteVector, attachment rideType, amount rideInt, timestamp rideInt, expiration rideInt, matcherFee rideInt, price rideInt, sender rideAddress) rideOrderV8 {
 	return rideOrderV8{
 		assetPair:         assetPair,
 		orderType:         orderType,
