@@ -15,7 +15,7 @@ COPY pkg pkg
 
 RUN make build-node-linux-amd64
 
-FROM alpine:3.18.4
+FROM alpine:3.18.5
 ENV TZ=Etc/UTC \
     APP_USER=gowaves
 
@@ -29,6 +29,7 @@ RUN mkdir -p /home/gowaves/config /home/gowaves/wallet
 ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
     STATE_PATH=/home/gowaves/  \
     WALLET_PATH=/home/gowaves/wallet/go.wallet
+
 
 USER $APP_USER
 
@@ -54,7 +55,8 @@ CMD /app/node \
     -serve-extended-api \
     -log-level=debug \
     -obsolescence=1h \
-    -reward=600000000 \
+    -reward=$DESIRED_REWARD \
+    -vote=$SUPPORTED_FEATURES \
     -disable-ntp \
     -microblock-interval 2s \
     -blacklist-residence-time 0 \

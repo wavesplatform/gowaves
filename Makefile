@@ -23,7 +23,7 @@ gotest:
 	go test -cover $$(go list ./... | grep -v "/itests")
 
 gotest-race-coverage:
-	go test -race -coverprofile=coverage.txt -covermode=atomic $$(go list ./... | grep -v "/itests")
+	go test -timeout 20m -race -coverprofile=coverage.txt -covermode=atomic $$(go list ./... | grep -v "/itests")
 
 gotest-real-node:
 	@REAL_NODE=true go test -cover $$(go list ./... | grep -v "/itests")
@@ -31,7 +31,7 @@ gotest-real-node:
 itest:
 	mkdir -p build/config
 	mkdir -p build/logs
-	go test -timeout 30m -parallel 3 $$(go list ./... | grep "/itests")
+	go test -timeout 40m -parallel 3 $$(go list ./... | grep "/itests")
 
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi

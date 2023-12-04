@@ -60,6 +60,231 @@ func SignedTxFromProtobuf(data []byte) (Transaction, error) {
 	return res, nil
 }
 
+func balancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, balance := range txSnapshotProto.Balances {
+		if len(balance.Amount.AssetId) == 0 {
+			var sn WavesBalanceSnapshot
+			err := sn.FromProtobuf(scheme, balance)
+			if err != nil {
+				return err
+			}
+			*res = append(*res, sn)
+		} else {
+			var sn AssetBalanceSnapshot
+			err := sn.FromProtobuf(scheme, balance)
+			if err != nil {
+				return err
+			}
+			*res = append(*res, sn)
+		}
+	}
+	return nil
+}
+func leaseBalancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, lBalance := range txSnapshotProto.LeaseBalances {
+		var sn LeaseBalanceSnapshot
+		err := sn.FromProtobuf(scheme, lBalance)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func staticAssetFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, assetStatic := range txSnapshotProto.AssetStatics {
+		var sn StaticAssetInfoSnapshot
+		err := sn.FromProtobuf(assetStatic)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func assetVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, assetVolume := range txSnapshotProto.AssetVolumes {
+		var sn AssetVolumeSnapshot
+		err := sn.FromProtobuf(assetVolume)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func assetDescrFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, assetNameAndDescr := range txSnapshotProto.AssetNamesAndDescriptions {
+		var sn AssetDescriptionSnapshot
+		err := sn.FromProtobuf(assetNameAndDescr)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func assetScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, assetScript := range txSnapshotProto.AssetScripts {
+		var sn AssetScriptSnapshot
+		err := sn.FromProtobuf(assetScript)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func aliasFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, alias := range txSnapshotProto.Aliases {
+		var sn AliasSnapshot
+		err := sn.FromProtobuf(scheme, alias)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func filledVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, orderFill := range txSnapshotProto.OrderFills {
+		var sn FilledVolumeFeeSnapshot
+		err := sn.FromProtobuf(orderFill)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func leaseStateFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, leaseState := range txSnapshotProto.LeaseStates {
+		var sn LeaseStateSnapshot
+		err := sn.FromProtobuf(scheme, leaseState)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func accountScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, accountScript := range txSnapshotProto.AccountScripts {
+		var sn AccountScriptSnapshot
+		err := sn.FromProtobuf(accountScript)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func dataEntryFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, accountData := range txSnapshotProto.AccountData {
+		var sn DataEntriesSnapshot
+		err := sn.FromProtobuf(scheme, accountData)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, sponsorship := range txSnapshotProto.Sponsorships {
+		var sn SponsorshipSnapshot
+		err := sn.FromProtobuf(sponsorship)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+// TxSnapshotsFromProtobuf Unmarshalling order (how in proto schemas):
+// WavesBalances and AssetBalances
+// LeaseBalances
+// StaticAsset
+// AssetVolume
+// AssetDescription
+// AssetScripts
+// Aliases
+// FilledVolumes
+// LeaseStates
+// AccountScripts
+// DataEntries
+// Sponsorships
+// TxStatus.
+func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+	var txSnapshots []AtomicSnapshot
+	err := balancesFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = leaseBalancesFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = staticAssetFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = assetVolumeFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = assetDescrFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = assetScriptFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = aliasFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = filledVolumeFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = leaseStateFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = accountScriptFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = dataEntryFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = sponsorshipFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	var sn TransactionStatusSnapshot
+	err = sn.FromProtobuf(txSnapshotProto.TransactionStatus)
+	if err != nil {
+		return nil, err
+	}
+	txSnapshots = append(txSnapshots, sn)
+	return txSnapshots, nil
+}
+
 type ProtobufConverter struct {
 	FallbackChainID byte
 	err             error

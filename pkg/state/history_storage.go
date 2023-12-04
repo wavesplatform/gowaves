@@ -41,6 +41,7 @@ const (
 	stateHash
 	hitSource
 	feeDistr
+	snapshots
 )
 
 type blockchainEntityProperties struct {
@@ -184,6 +185,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	rewardChanges: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	snapshots: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

@@ -64,6 +64,7 @@ const (
 	MaxAssetScriptActionsV3                  = 30
 	base64EncodingSizeLimit                  = 1024
 	base64EncodingPrefix                     = "base64:"
+	uint32Size                               = 4
 )
 
 type Timestamp = uint64
@@ -3140,6 +3141,18 @@ func (s *ScriptInfo) ToProtobuf() *pb.ScriptData {
 		ScriptBytes: s.Bytes,
 		ScriptText:  base64.StdEncoding.EncodeToString(s.Bytes),
 		Complexity:  int64(s.Complexity),
+	}
+}
+
+func (s *ScriptInfo) ToScriptResponseProtobuf() *pb.ScriptResponse {
+	if s == nil {
+		return &pb.ScriptResponse{}
+	}
+	return &pb.ScriptResponse{
+		ScriptBytes: s.Bytes,
+		ScriptText:  base64.StdEncoding.EncodeToString(s.Bytes),
+		Complexity:  int64(s.Complexity),
+		PublicKey:   nil,
 	}
 }
 

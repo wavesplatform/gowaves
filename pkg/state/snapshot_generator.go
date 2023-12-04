@@ -43,7 +43,7 @@ func (sg *snapshotGenerator) generateSnapshotForTransferTx(balanceChanges txDiff
 
 func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest,
 	senderPK crypto.PublicKey, assetInfo assetInfo, balanceChanges txDiff,
-	scriptEstimation *scriptEstimation, script *proto.Script) (txSnapshot, error) {
+	scriptEstimation *scriptEstimation, script proto.Script) (txSnapshot, error) {
 	var snapshot txSnapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
@@ -89,16 +89,10 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		issueStaticInfoSnapshot, assetDescription, assetReissuability,
 	)
 
-	if script == nil {
+	if !script.IsEmpty() { // generate asset script snapshot only for non-empty script
 		assetScriptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID: assetID,
-			Script:  proto.Script{},
-		}
-		snapshot.regular = append(snapshot.regular, assetScriptSnapshot)
-	} else {
-		assetScriptSnapshot := &proto.AssetScriptSnapshot{
-			AssetID: assetID,
-			Script:  *script,
+			Script:  script,
 		}
 		if scriptEstimation.isPresent() {
 			internalComplexitySnapshot := &InternalAssetScriptComplexitySnapshot{
@@ -331,7 +325,7 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	if err != nil {
 		return txSnapshot{}, err
 	}
-
+	// script here must not be empty, see transaction checker for set asset script transaction
 	assetScrptSnapshot := &proto.AssetScriptSnapshot{
 		AssetID: assetID,
 		Script:  script,
@@ -344,34 +338,38 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	return snapshot, nil
 }
 
-func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]assetInfo,
+func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]wrappedUncertainInfo,
 	txID crypto.Digest) []proto.AtomicSnapshot {
 	var atomicSnapshots []proto.AtomicSnapshot
-	for assetID, info := range assetsUncertain {
-		infoCpy := info // prevent implicit memory aliasing in for loop
-		fullAssetID := proto.ReconstructDigest(assetID, infoCpy.tail)
-		issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
-			AssetID:             fullAssetID,
-			IssuerPublicKey:     infoCpy.issuer,
-			SourceTransactionID: txID,
-			Decimals:            infoCpy.decimals,
-			IsNFT:               infoCpy.isNFT(),
-		}
+	for assetID, infoAsset := range assetsUncertain {
+		fullAssetID := proto.ReconstructDigest(assetID, infoAsset.assetInfo.tail)
+		// order of snapshots here is important: static info snapshot should be first
+		if infoAsset.wasJustIssued {
+			issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
+				AssetID:             fullAssetID,
+				IssuerPublicKey:     infoAsset.assetInfo.issuer,
+				SourceTransactionID: txID,
+				Decimals:            infoAsset.assetInfo.decimals,
+				IsNFT:               infoAsset.assetInfo.isNFT(),
+			}
 
-		assetDescription := &proto.AssetDescriptionSnapshot{
-			AssetID:          fullAssetID,
-			AssetName:        infoCpy.name,
-			AssetDescription: infoCpy.description,
-			ChangeHeight:     infoCpy.lastNameDescChangeHeight,
+			assetDescription := &proto.AssetDescriptionSnapshot{
+				AssetID:          fullAssetID,
+				AssetName:        infoAsset.assetInfo.name,
+				AssetDescription: infoAsset.assetInfo.description,
+				ChangeHeight:     infoAsset.assetInfo.lastNameDescChangeHeight,
+			}
+
+			atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription)
 		}
 
 		assetReissuability := &proto.AssetVolumeSnapshot{
 			AssetID:       fullAssetID,
-			IsReissuable:  infoCpy.reissuable,
-			TotalQuantity: infoCpy.quantity,
+			IsReissuable:  infoAsset.assetInfo.reissuable,
+			TotalQuantity: infoAsset.assetInfo.quantity,
 		}
 
-		atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription, assetReissuability)
+		atomicSnapshots = append(atomicSnapshots, assetReissuability)
 	}
 	return atomicSnapshots
 }
@@ -404,6 +402,9 @@ func generateSnapshotsFromAssetsScriptsUncertain(
 	assetScriptsUncertain map[proto.AssetID]assetScriptRecordWithAssetIDTail) []proto.AtomicSnapshot {
 	var atomicSnapshots []proto.AtomicSnapshot
 	for assetID, r := range assetScriptsUncertain {
+		if r.scriptDBItem.script.IsEmpty() { // don't generate asset script snapshot for empty script
+			continue
+		}
 		digest := proto.ReconstructDigest(assetID, r.assetIDTail)
 		assetScrptSnapshot := &proto.AssetScriptSnapshot{
 			AssetID: digest,
@@ -512,7 +513,7 @@ func (sg *snapshotGenerator) snapshotForInvoke(txID crypto.Digest,
 		if _, ok := uncertainAssets[key.asset]; ok {
 			// remove the element from the map
 			delete(addrAssetBalanceDiff, key)
-			fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].tail)
+			fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].assetInfo.tail)
 			specialAssetSnapshot := proto.AssetBalanceSnapshot{
 				Address: key.address,
 				AssetID: fullAssetID,
