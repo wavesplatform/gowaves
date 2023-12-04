@@ -715,7 +715,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	txStateSnapshotActivated, err := a.stor.features.newestIsActivated(int16(settings.TransactionStateSnapshot))
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
 		return err
 	}
@@ -734,7 +734,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			rideV6Activated:                  rideV6Activated,
 			consensusImprovementsActivated:   consensusImprovementsActivated,
 			blockRewardDistributionActivated: blockRewardDistributionActivated,
-			txStateSnapshotActivated:         txStateSnapshotActivated,
+			txStateSnapshotActivated:         lightNodeActivated,
 			validatingUtx:                    false,
 			stateActionsCounterInBlock:       stateActionsCounterInBlockValidation,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
@@ -870,11 +870,11 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 		}
 	}
 	// check attachment in order
-	txStateSnapshotActivated, err := a.stor.features.newestIsActivated(int16(settings.TransactionStateSnapshot))
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
 		return nil, err
 	}
-	if !txStateSnapshotActivated &&
+	if !lightNodeActivated &&
 		(exchange.GetOrder1().GetAttachment().Size() != 0 || exchange.GetOrder2().GetAttachment().Size() != 0) {
 		return nil, errors.New("Attachment field for orders is not supported yet")
 	}
@@ -989,7 +989,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
 	}
-	txStateSnapshotActivated, err := a.stor.features.newestIsActivated(int16(settings.TransactionStateSnapshot))
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
@@ -1009,7 +1009,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		rideV6Activated:                  rideV6Activated,
 		consensusImprovementsActivated:   consensusImprovementsActivated,
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
-		txStateSnapshotActivated:         txStateSnapshotActivated,
+		txStateSnapshotActivated:         lightNodeActivated,
 		validatingUtx:                    true,
 		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
 		stateActionsCounterInBlock: issueCounterInBlock,

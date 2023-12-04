@@ -807,6 +807,12 @@ func functionsV7() map[string]string {
 	return m
 }
 
+func functionsV8() map[string]string {
+	m := functionsV7()
+	constructorsFunctions(ast.LibV8, m)
+	return m
+}
+
 func catalogueV6() map[string]int {
 	m := catalogueV5()
 	m["3"] = 1
@@ -858,6 +864,12 @@ func catalogueV6() map[string]int {
 func catalogueV7() map[string]int {
 	m := catalogueV6()
 	constructorsCatalogue(ast.LibV7, m)
+	return m
+}
+
+func catalogueV8() map[string]int {
+	m := catalogueV7()
+	constructorsCatalogue(ast.LibV8, m)
 	return m
 }
 
@@ -919,27 +931,15 @@ func evaluationCatalogueV7EvaluatorV1() map[string]int {
 	return m
 }
 
-func evaluationCatalogueV7EvaluatorV2() map[string]int {
-	m := evaluationCatalogueV6EvaluatorV2()
-	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV7, m)
-	return m
-}
-
-func functionsV8() map[string]string {
-	m := functionsV7()
-	constructorsFunctions(ast.LibV8, m)
-	return m
-}
-
-func catalogueV8() map[string]int {
-	m := catalogueV7()
-	constructorsCatalogue(ast.LibV8, m)
-	return m
-}
-
 func evaluationCatalogueV8EvaluatorV1() map[string]int {
 	m := evaluationCatalogueV7EvaluatorV1()
 	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV8, m)
+	return m
+}
+
+func evaluationCatalogueV7EvaluatorV2() map[string]int {
+	m := evaluationCatalogueV6EvaluatorV2()
+	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV7, m)
 	return m
 }
 

@@ -88,7 +88,7 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
-	transactionStateSnapshotActivated, err := tc.stor.features.newestIsActivated(int16(settings.TransactionStateSnapshot))
+	lightNodeActivated, err := tc.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
@@ -116,9 +116,9 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 		return scriptFeaturesActivations{},
 			errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
 	}
-	if libVersion == ast.LibV8 && !transactionStateSnapshotActivated {
+	if libVersion == ast.LibV8 && !lightNodeActivated {
 		return scriptFeaturesActivations{},
-			errors.New("TransactionStateSnapshot feature must be activated for scripts version 7")
+			errors.New("LightNode feature must be activated for scripts version 8")
 	}
 	return scriptFeaturesActivations{
 		rideForDAppsActivated: rideForDAppsActivated,

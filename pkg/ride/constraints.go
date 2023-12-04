@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
