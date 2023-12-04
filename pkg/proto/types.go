@@ -654,7 +654,7 @@ func (m OrderPriceMode) isValidOrderPriceValue() bool {
 	}
 }
 
-func (m OrderPriceMode) Valid(orderVersion byte) (bool, error) {
+func (m OrderPriceMode) Valid(orderVersion OrderVersion) (bool, error) {
 	switch orderVersion {
 	case 1, 2, 3:
 		if m != OrderPriceModeDefault {
@@ -670,7 +670,7 @@ func (m OrderPriceMode) Valid(orderVersion byte) (bool, error) {
 	return true, nil
 }
 
-type OrderVersion = byte
+type OrderVersion byte
 
 const (
 	OrderVersionV1 OrderVersion = iota + 1
@@ -1284,7 +1284,7 @@ func (o OrderV2) BodyMarshalBinary() ([]byte, error) {
 		pal += crypto.DigestSize
 	}
 	buf := make([]byte, orderV2FixedBodyLen+aal+pal)
-	buf[0] = o.Version
+	buf[0] = byte(o.Version)
 	b, err := o.OrderBody.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
@@ -1297,7 +1297,7 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV2FixedBodyLen {
 		return errors.Errorf("not enough data for OrderV2, expected not less then %d, received %d", orderV2FixedBodyLen, l)
 	}
-	o.Version = data[0]
+	o.Version = OrderVersion(data[0])
 	if o.Version != OrderVersionV2 {
 		return errors.Errorf("unexpected version %d for OrderV2, expected 2", o.Version)
 	}
@@ -1522,7 +1522,7 @@ func (o *OrderV3) BodyMarshalBinary() ([]byte, error) {
 	}
 	buf := make([]byte, orderV3FixedBodyLen+aal+pal+mal)
 	pos := 0
-	buf[pos] = o.Version
+	buf[pos] = byte(o.Version)
 	pos++
 	b, err := o.OrderBody.marshalBinary()
 	if err != nil {
@@ -1543,7 +1543,7 @@ func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("not enough data for OrderV3, expected not less then %d, received %d", orderV3FixedBodyLen, l)
 	}
 	pos := 0
-	o.Version = data[pos]
+	o.Version = OrderVersion(data[pos])
 	pos++
 	if o.Version != OrderVersionV3 {
 		return errors.Errorf("unexpected version %d for OrderV3, expected 3", o.Version)

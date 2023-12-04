@@ -2,9 +2,10 @@ package proto
 
 import (
 	"github.com/pkg/errors"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
@@ -581,7 +582,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		c.err = errors.New("empty order")
 		return nil
 	}
-	orderVersion := c.byte(o.Version)
+	orderVersion := OrderVersion(c.byte(o.Version))
 	priceMode, err := c.orderPriceMode(o.PriceMode)
 	if err != nil {
 		c.err = err
