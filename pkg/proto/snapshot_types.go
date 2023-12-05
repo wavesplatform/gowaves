@@ -205,9 +205,13 @@ func (s *AccountScriptSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Accou
 	if c.err != nil {
 		return c.err
 	}
+	verifierComplexity := c.uint64(p.VerifierComplexity)
+	if c.err != nil {
+		return c.err
+	}
 	s.SenderPublicKey = publicKey
 	s.Script = script
-	s.VerifierComplexity = uint64(p.VerifierComplexity)
+	s.VerifierComplexity = verifierComplexity
 	return nil
 }
 
@@ -290,9 +294,18 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	if err != nil {
 		return err
 	}
+	var c ProtobufConverter
+	in := c.uint64(p.In)
+	if c.err != nil {
+		return c.err
+	}
+	out := c.uint64(p.Out)
+	if c.err != nil {
+		return c.err
+	}
 	s.Address = addr
-	s.LeaseIn = uint64(p.In)
-	s.LeaseOut = uint64(p.Out)
+	s.LeaseIn = in
+	s.LeaseOut = out
 	return nil
 }
 
@@ -434,8 +447,12 @@ func (s *SponsorshipSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Sponsor
 	if c.err != nil {
 		return c.err
 	}
+	minFee := c.uint64(p.MinFee)
+	if c.err != nil {
+		return c.err
+	}
 	s.AssetID = assetID
-	s.MinSponsoredFee = uint64(p.MinFee)
+	s.MinSponsoredFee = minFee
 	return nil
 }
 
@@ -515,9 +532,17 @@ func (s *FilledVolumeFeeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Ord
 	if c.err != nil {
 		return c.err
 	}
+	volume := c.uint64(p.Volume)
+	if c.err != nil {
+		return c.err
+	}
+	fee := c.uint64(p.Fee)
+	if c.err != nil {
+		return c.err
+	}
 	s.OrderID = orderID
-	s.FilledVolume = uint64(p.Volume)
-	s.FilledFee = uint64(p.Fee)
+	s.FilledVolume = volume
+	s.FilledFee = fee
 	return nil
 }
 
@@ -562,9 +587,13 @@ func (s *NewAssetSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_NewAsset) 
 	if c.err != nil {
 		return c.err
 	}
+	decimals := c.byte(p.Decimals)
+	if c.err != nil {
+		return c.err
+	}
 	s.AssetID = assetID
 	s.IssuerPublicKey = publicKey
-	s.Decimals = uint8(p.Decimals)
+	s.Decimals = decimals
 	s.IsNFT = p.Nft
 	return nil
 }
