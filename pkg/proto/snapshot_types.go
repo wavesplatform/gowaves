@@ -48,7 +48,7 @@ func (s WavesBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 
 func (s *WavesBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Balance) error {
 	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
@@ -88,7 +88,7 @@ func (s AssetBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Balance,
 
 func (s *AssetBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Balance) error {
 	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
@@ -147,7 +147,7 @@ func (s DataEntriesSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 
 func (s *DataEntriesSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_AccountData) error {
 	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
@@ -286,8 +286,7 @@ func (s LeaseBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 }
 
 func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_LeaseBalance) error {
-	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
@@ -356,7 +355,7 @@ func (s *NewLeaseSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnap
 	if c.err != nil {
 		return c.err
 	}
-	recipientAddr, err := c.Address(scheme, p.RecipientAddress)
+	recipientAddr, err := NewAddressFromBytesChecked(scheme, p.RecipientAddress)
 	if err != nil {
 		return err
 	}
@@ -471,8 +470,7 @@ func (s AliasSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot)
 }
 
 func (s *AliasSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Alias) error {
-	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
