@@ -357,7 +357,7 @@ func (a *blockSnapshotsApplier) ApplyAssetScriptComplexity(snapshot InternalAsse
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseStateActiveInfo(snapshot InternalLeaseStateActiveInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyNewLeaseInfo(snapshot InternalNewLeaseInfoSnapshot) error {
 	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding active info", snapshot.LeaseID)
@@ -367,7 +367,7 @@ func (a *blockSnapshotsApplier) ApplyLeaseStateActiveInfo(snapshot InternalLease
 	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseStateCancelInfo(snapshot InternalLeaseStateCancelInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyCancelledLeaseInfo(snapshot InternalCancelledLeaseInfoSnapshot) error {
 	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding cancel info", snapshot.LeaseID)

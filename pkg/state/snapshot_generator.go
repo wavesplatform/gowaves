@@ -214,7 +214,7 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease *leasing, leaseID 
 		SenderPK:      lease.SenderPK,
 		RecipientAddr: lease.RecipientAddr,
 	}
-	leaseStatusActiveSnapshot := &InternalLeaseStateActiveInfoSnapshot{
+	leaseStatusActiveSnapshot := &InternalNewLeaseInfoSnapshot{
 		LeaseID:             leaseID,
 		OriginHeight:        lease.OriginHeight,
 		OriginTransactionID: originalTxID,
@@ -238,7 +238,7 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(
 	cancelledLeaseSnapshot := &proto.CancelledLeaseSnapshot{
 		LeaseID: leaseID,
 	}
-	leaseStatusCancelledSnapshot := &InternalLeaseStateCancelInfoSnapshot{
+	leaseStatusCancelledSnapshot := &InternalCancelledLeaseInfoSnapshot{
 		LeaseID:             leaseID,
 		CancelHeight:        cancelHeight,
 		CancelTransactionID: txID,
@@ -431,7 +431,7 @@ func generateSnapshotsFromLeasingsUncertain(
 				SenderPK:      l.SenderPK,
 				RecipientAddr: l.RecipientAddr,
 			}
-			leaseStatusActiveSnapshot := &InternalLeaseStateActiveInfoSnapshot{
+			leaseStatusActiveSnapshot := &InternalNewLeaseInfoSnapshot{
 				LeaseID:             lID,
 				OriginHeight:        l.OriginHeight,
 				OriginTransactionID: l.OriginTransactionID,
@@ -461,7 +461,7 @@ func generateSnapshotsFromLeasingsUncertain(
 			cancelledLeaseSnapshot := &proto.CancelledLeaseSnapshot{
 				LeaseID: lID,
 			}
-			leaseStatusCancelledSnapshot := &InternalLeaseStateCancelInfoSnapshot{
+			leaseStatusCancelledSnapshot := &InternalCancelledLeaseInfoSnapshot{
 				LeaseID:             lID,
 				CancelHeight:        l.CancelHeight,
 				CancelTransactionID: l.CancelTransactionID,

@@ -445,7 +445,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 			},
 		},
 		internal: []internalSnapshot{
-			&InternalLeaseStateActiveInfoSnapshot{
+			&InternalNewLeaseInfoSnapshot{
 				LeaseID:             *tx.ID,
 				OriginHeight:        0,
 				OriginTransactionID: tx.ID,
@@ -520,7 +520,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 			},
 		},
 		internal: []internalSnapshot{
-			&InternalLeaseStateCancelInfoSnapshot{
+			&InternalCancelledLeaseInfoSnapshot{
 				LeaseID:             leaseID,
 				CancelHeight:        0,
 				CancelTransactionID: tx.ID,
