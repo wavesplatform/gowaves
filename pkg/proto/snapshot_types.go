@@ -29,7 +29,7 @@ func (s WavesBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyWav
 
 func (s WavesBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Balance, error) {
 	return &g.TransactionStateSnapshot_Balance{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		Amount: &g.Amount{
 			AssetId: nil,
 			Amount:  int64(s.Balance),
@@ -78,7 +78,7 @@ func (s AssetBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAss
 
 func (s AssetBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Balance, error) {
 	return &g.TransactionStateSnapshot_Balance{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		Amount: &g.Amount{
 			AssetId: s.AssetID.Bytes(),
 			Amount:  int64(s.Balance),
@@ -131,7 +131,7 @@ func (s DataEntriesSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AccountDa
 		entries = append(entries, e.ToProtobuf())
 	}
 	return &g.TransactionStateSnapshot_AccountData{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		Entries: entries,
 	}, nil
 }
@@ -270,7 +270,7 @@ func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLea
 
 func (s LeaseBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_LeaseBalance, error) {
 	return &g.TransactionStateSnapshot_LeaseBalance{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		In:      int64(s.LeaseIn),
 		Out:     int64(s.LeaseOut),
 	}, nil
@@ -453,7 +453,7 @@ func (s AliasSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAlias(s) }
 
 func (s AliasSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Alias, error) {
 	return &g.TransactionStateSnapshot_Alias{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		Alias:   s.Alias.Alias,
 	}, nil
 }
