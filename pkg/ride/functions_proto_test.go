@@ -1413,3 +1413,32 @@ func TestHashScriptAtAddress(t *testing.T) {
 		}
 	}
 }
+
+func TestCalculateDelay(t *testing.T) {
+	hs1 := bytes.Repeat([]byte{0xca, 0xfe, 0xba, 0xbe}, 24)
+	badHS := bytes.Repeat([]byte{0x0f}, 97)
+	addr1 := proto.MustAddressFromString("3Mp5JgVSHA9iziujC9Kmnf2rCN5SYFE97yC")
+	b1 := 1000_0000_0000
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideByteVector(hs1), rideInt(100), rideAddress(addr1), rideInt(b1)}, false, rideInt(782498)},
+		// TODO: Add more tests from scala implementation after completion of
+		//  https://vordex.atlassian.net/browse/NODE-2638.
+		{[]rideType{rideByteVector(badHS), rideInt(100), rideAddress(addr1), rideInt(b1)}, true, nil},
+		{[]rideType{rideByteVector(hs1), rideByteVector(hs1), rideAddress(addr1), rideInt(b1)}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideString("x")}, true, nil},
+	} {
+		r, err := calculateDelay(nil, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
+		}
+	}
+}

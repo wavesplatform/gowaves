@@ -2613,7 +2613,20 @@
       "remove": []
     },
     {
-      "new": {},
+      "new": {
+        "calculateDelay": [
+          {
+            "arguments": [
+              "ByteVector",
+              "Int",
+              "Address",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "1063"
+          }
+        ]
+      },
       "remove": []
     }
   ]

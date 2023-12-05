@@ -6,11 +6,14 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/blake2b"
 
+	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -19,7 +22,13 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-const invocationsLimit = 100
+const (
+	invocationsLimit = 100
+	delayDeltaV2     = 8
+	tMinV2           = 15000
+	fourArgs         = 4
+	maxHitSourceSize = 96
+)
 
 func containsAddress(addr proto.WavesAddress, list []proto.WavesAddress) bool {
 	for _, v := range list {
@@ -1196,6 +1205,57 @@ func ecRecover(_ environment, args ...rideType) (rideType, error) {
 	pkb := pk.SerializeUncompressed()
 	//We have to drop first byte because in bitcoin library where is a length.
 	return rideByteVector(pkb[1:]), nil
+}
+
+func calculateDelay(_ environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, fourArgs); err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	hitSource, ok := args[0].(rideByteVector)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	if len(hitSource) > maxHitSourceSize {
+		return nil, errors.Errorf("calculateDelay: hitSource lenght is more than expected")
+	}
+	baseTarget, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	generator, ok := args[2].(rideAddress)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	balance, ok := args[3].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[3].instanceOf())
+	}
+
+	//    val hit = Global.blake2b256(hitSource.arr ++ generator.arr).take(PoSCalculator.HitSize)
+	//    FairPoSCalculator.V2.calculateDelay(BigInt(1, hit), baseTarget, balance)
+
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	_, err = h.Write(hitSource)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	addr := proto.WavesAddress(generator)
+	_, err = h.Write(addr.Bytes())
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	hs := h.Sum(nil)[:consensus.HitSize]
+	hit := big.NewInt(0).SetBytes(hs)
+
+	pos := consensus.NewFairPosCalculator(delayDeltaV2, tMinV2)
+	delay, err := pos.CalculateDelay(hit, uint64(baseTarget), uint64(balance))
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	return rideInt(delay), nil
 }
 
 // Constructors
