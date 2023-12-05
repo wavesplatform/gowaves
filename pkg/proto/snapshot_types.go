@@ -475,7 +475,7 @@ func (s *AliasSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapsho
 		return err
 	}
 	s.Address = addr
-	s.Alias.Alias = p.Alias
+	s.Alias = *NewAlias(scheme, p.Alias)
 	return nil
 }
 
