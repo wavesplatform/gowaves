@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/base64"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/compiler"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -1150,6 +1152,120 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 		internal: nil,
 	}
 	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
+}
+
+func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
+	const (
+		script = `
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		
+		let addr = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh')
+		
+		@Callable(i)
+		func call() = {
+			let lease = Lease(addr, 1000000)
+			let leaseID = calculateLeaseId(lease)
+			[lease, LeaseCancel(leaseID)]
+		}`
+		calculatedLeaseID  = "G5XogVoQWp9DYLJ6cLxN3TGinj6Ps8tf9tzjbF3RtcFe"
+		leaseAmount        = 1000000
+		leaseRecipientAddr = "3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh"
+	)
+	scriptBytes, errs := compiler.Compile(script, false, true)
+	require.NoError(t, errors.Join(errs...))
+
+	to := createInvokeApplierTestObjects(t)
+	info := to.fallibleValidationParams(t)
+
+	dAppInfo := testGlobal.recipientInfo
+	to.setScript(t, testGlobal.recipientInfo.addr, dAppInfo.pk, scriptBytes)
+
+	amount := uint64(1000)
+	startBalance := amount + invokeFee + 1
+
+	wavesBalSender := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	wavesBalMiner := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	err := to.state.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesBalSender, blockID0)
+	assert.NoError(t, err)
+	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
+	assert.NoError(t, err)
+
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(
+		info.checkerInfo,
+		to.state.settings.AddressSchemeCharacter,
+		new(proto.StateActionsCounter),
+	)
+	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+
+	testData := invokeApplierTestData{
+		payments: []proto.ScriptPayment{},
+		fc:       proto.NewFunctionCall("call", []proto.Argument{}),
+		info:     info,
+	}
+
+	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
+	assert.NoError(t, err, "failed to sign invoke script tx")
+
+	invocationRes, applicationRes := to.applyAndSaveInvoke(t, tx, testData.info, false)
+
+	transactionSnapshot, err := to.state.appender.txHandler.tp.performInvokeScriptWithProofs(
+		tx,
+		defaultPerformerInfoWithChecker(applicationRes.checkerData),
+		invocationRes,
+		applicationRes.changes.diff,
+	)
+	assert.NoError(t, err, "failed to perform invoke script tx")
+
+	lID := crypto.MustDigestFromBase58(calculatedLeaseID)
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 1001001,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 1001,
+			},
+			&proto.NewLeaseSnapshot{
+				LeaseID:       lID,
+				Amount:        leaseAmount,
+				SenderPK:      dAppInfo.pk,
+				RecipientAddr: proto.MustAddressFromString(leaseRecipientAddr),
+			},
+			&proto.CancelledLeaseSnapshot{LeaseID: lID},
+		},
+		internal: []internalSnapshot{
+			&InternalNewLeaseInfoSnapshot{
+				LeaseID:             lID,
+				OriginHeight:        info.blockInfo.Height,
+				OriginTransactionID: tx.ID,
+			},
+			&InternalCancelledLeaseInfoSnapshot{
+				LeaseID:             lID,
+				CancelHeight:        info.blockInfo.Height,
+				CancelTransactionID: tx.ID,
+			},
+		},
+	}
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
+
 	flushErr := to.state.stor.flush()
 	assert.NoError(t, flushErr)
 }
