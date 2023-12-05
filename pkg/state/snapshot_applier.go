@@ -185,7 +185,7 @@ func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
 	return a.stor.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyNewAssetInfo(snapshot proto.NewAssetSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
 	height := a.info.CurrentBlockHeight()
 

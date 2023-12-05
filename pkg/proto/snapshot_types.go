@@ -534,7 +534,7 @@ func (s NewAssetSnapshot) IsGeneratedByTxDiff() bool {
 	return false
 }
 
-func (s NewAssetSnapshot) Apply(a SnapshotApplier) error { return a.ApplyNewAssetInfo(s) }
+func (s NewAssetSnapshot) Apply(a SnapshotApplier) error { return a.ApplyNewAsset(s) }
 
 func (s NewAssetSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_NewAsset, error) {
 	return &g.TransactionStateSnapshot_NewAsset{
@@ -701,7 +701,7 @@ type SnapshotApplier interface {
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
 	ApplyAssetBalance(snapshot AssetBalanceSnapshot) error
 	ApplyAlias(snapshot AliasSnapshot) error
-	ApplyNewAssetInfo(snapshot NewAssetSnapshot) error
+	ApplyNewAsset(snapshot NewAssetSnapshot) error
 	ApplyAssetDescription(snapshot AssetDescriptionSnapshot) error
 	ApplyAssetVolume(snapshot AssetVolumeSnapshot) error
 	ApplyAssetScript(snapshot AssetScriptSnapshot) error
