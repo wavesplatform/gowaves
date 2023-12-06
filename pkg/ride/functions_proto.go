@@ -22,13 +22,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-const (
-	invocationsLimit = 100
-	delayDeltaV2     = 8
-	tMinV2           = 15000
-	fourArgs         = 4
-	maxHitSourceSize = 96
-)
+const invocationsLimit = 100
 
 func containsAddress(addr proto.WavesAddress, list []proto.WavesAddress) bool {
 	for _, v := range list {
@@ -1207,33 +1201,46 @@ func ecRecover(_ environment, args ...rideType) (rideType, error) {
 	return rideByteVector(pkb[1:]), nil
 }
 
-func calculateDelay(_ environment, args ...rideType) (rideType, error) {
-	if err := checkArgs(args, fourArgs); err != nil {
+func calculateDelay(env environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 2); err != nil {
 		return nil, errors.Wrap(err, "calculateDelay")
 	}
-	hitSource, ok := args[0].(rideByteVector)
-	if !ok {
+	var addr []byte
+	switch arg0 := args[0].(type) {
+	case rideAddress:
+		addr = proto.WavesAddress(arg0).Bytes()
+	case rideAddressLike:
+		addr = arg0
+	default:
 		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	if len(hitSource) > maxHitSourceSize {
-		return nil, errors.Errorf("calculateDelay: hitSource lenght is more than expected")
-	}
-	baseTarget, ok := args[1].(rideInt)
+	balance, ok := args[1].(rideInt)
 	if !ok {
 		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[1].instanceOf())
 	}
-	generator, ok := args[2].(rideAddress)
-	if !ok {
-		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[2].instanceOf())
-	}
-	balance, ok := args[3].(rideInt)
-	if !ok {
-		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[3].instanceOf())
+	if balance <= 0 {
+		return nil, errors.Errorf("calculateDelay: balance '%d' should by positive", balance)
 	}
 
 	//    val hit = Global.blake2b256(hitSource.arr ++ generator.arr).take(PoSCalculator.HitSize)
 	//    FairPoSCalculator.V2.calculateDelay(BigInt(1, hit), baseTarget, balance)
 
+	vrf, err := env.block().get(vrfField)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	hitSource, ok := vrf.(rideByteVector)
+	if !ok {
+		return nil, errors.New("calculateDelay: empty hit source")
+	}
+	bt, err := env.block().get(baseTargetField)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	baseTarget, ok := bt.(rideInt)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: invalid type '%T' of baseTarget", bt)
+	}
 	h, err := blake2b.New256(nil)
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateDelay")
@@ -1242,15 +1249,14 @@ func calculateDelay(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateDelay")
 	}
-	addr := proto.WavesAddress(generator)
-	_, err = h.Write(addr.Bytes())
+	_, err = h.Write(addr)
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateDelay")
 	}
 	hs := h.Sum(nil)[:consensus.HitSize]
 	hit := big.NewInt(0).SetBytes(hs)
 
-	pos := consensus.NewFairPosCalculator(delayDeltaV2, tMinV2)
+	pos := consensus.NewFairPosCalculator(0, 0)
 	delay, err := pos.CalculateDelay(hit, uint64(baseTarget), uint64(balance))
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateDelay")

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"math"
 	"testing"
 	"time"
 
@@ -1415,25 +1416,28 @@ func TestHashScriptAtAddress(t *testing.T) {
 }
 
 func TestCalculateDelay(t *testing.T) {
-	hs1 := bytes.Repeat([]byte{0xca, 0xfe, 0xba, 0xbe}, 24)
-	badHS := bytes.Repeat([]byte{0x0f}, 97)
-	addr1 := proto.MustAddressFromString("3Mp5JgVSHA9iziujC9Kmnf2rCN5SYFE97yC")
-	b1 := 1000_0000_0000
+	addr := proto.WavesAddress(bytes.Repeat([]byte{0x01}, 26))
+	vrf := crypto.MustDigestFromBase58("5AFgQTfL1GhVUZr64N6tkmF8usX9QZsPcJbZmsX32VgK")
+	te := &mockRideEnvironment{
+		blockFunc: func() rideType {
+			return rideBlockInfoV7{baseTarget: 142244892, vrf: rideByteVector(vrf.Bytes())}
+		},
+	}
+
 	for _, test := range []struct {
 		args []rideType
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideByteVector(hs1), rideInt(100), rideAddress(addr1), rideInt(b1)}, false, rideInt(782498)},
-		// TODO: Add more tests from scala implementation after completion of
-		//  https://vordex.atlassian.net/browse/NODE-2638.
-		{[]rideType{rideByteVector(badHS), rideInt(100), rideAddress(addr1), rideInt(b1)}, true, nil},
-		{[]rideType{rideByteVector(hs1), rideByteVector(hs1), rideAddress(addr1), rideInt(b1)}, true, nil},
+		{[]rideType{rideAddressLike([]byte{}), rideInt(1)}, false, rideInt(1418883)},
+		{[]rideType{rideAddress(addr), rideInt(math.MaxInt32)}, false, rideInt(70064)},
+		{[]rideType{rideAddress(addr), rideInt(math.MaxInt32 * 100_000)}, false, rideInt(1)},
+		{[]rideType{rideAddress(addr), rideInt(math.MaxInt32 * 200_000)}, false, rideInt(0)},
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{}, true, nil},
 		{[]rideType{rideString("x")}, true, nil},
 	} {
-		r, err := calculateDelay(nil, test.args...)
+		r, err := calculateDelay(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
 		} else {

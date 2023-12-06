@@ -2617,9 +2617,7 @@
         "calculateDelay": [
           {
             "arguments": [
-              "ByteVector",
-              "Int",
-              "Address",
+              "Address|AddressLike",
               "Int"
             ],
             "return_type": "Int",
