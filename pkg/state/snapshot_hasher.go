@@ -67,7 +67,7 @@ func (h *txSnapshotHasher) Release() {
 	// no-op for now
 }
 
-func (h *txSnapshotHasher) CalculateHash(prevHash []byte) (crypto.Digest, error) {
+func (h *txSnapshotHasher) CalculateHash(prevHash crypto.Digest) (crypto.Digest, error) {
 	// scala node uses stable sort, thought it's unnecessary to use stable sort because:
 	// - every byte sequence is unique for each snapshot
 	// - if two byte sequences are equal then they are indistinguishable and order doesn't matter
@@ -89,7 +89,7 @@ func (h *txSnapshotHasher) CalculateHash(prevHash []byte) (crypto.Digest, error)
 	fh.Sum(txSnapshotsDigest[:0])
 
 	fh.Reset() // reuse the same hasher
-	if _, err := fh.Write(prevHash); err != nil {
+	if _, err := fh.Write(prevHash[:]); err != nil {
 		return crypto.Digest{}, errors.Wrapf(err, "failed to write to hasher previous tx state snapshot hash")
 	}
 	if _, err := fh.Write(txSnapshotsDigest[:]); err != nil {
