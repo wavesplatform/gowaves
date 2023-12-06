@@ -656,8 +656,7 @@ func (s *AssetDescriptionSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_As
 }
 
 type TransactionStatusSnapshot struct {
-	TransactionID crypto.Digest
-	Status        TransactionStatus
+	Status TransactionStatus
 }
 
 func (s TransactionStatusSnapshot) Apply(a SnapshotApplier) error {
