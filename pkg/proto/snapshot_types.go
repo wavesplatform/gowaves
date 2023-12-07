@@ -29,7 +29,7 @@ func (s WavesBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyWav
 
 func (s WavesBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Balance, error) {
 	return &g.TransactionStateSnapshot_Balance{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		Amount: &g.Amount{
 			AssetId: nil,
 			Amount:  int64(s.Balance),
@@ -48,7 +48,7 @@ func (s WavesBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 
 func (s *WavesBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Balance) error {
 	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
@@ -78,7 +78,7 @@ func (s AssetBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAss
 
 func (s AssetBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Balance, error) {
 	return &g.TransactionStateSnapshot_Balance{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		Amount: &g.Amount{
 			AssetId: s.AssetID.Bytes(),
 			Amount:  int64(s.Balance),
@@ -88,7 +88,7 @@ func (s AssetBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Balance,
 
 func (s *AssetBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Balance) error {
 	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
@@ -131,7 +131,7 @@ func (s DataEntriesSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AccountDa
 		entries = append(entries, e.ToProtobuf())
 	}
 	return &g.TransactionStateSnapshot_AccountData{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		Entries: entries,
 	}, nil
 }
@@ -147,7 +147,7 @@ func (s DataEntriesSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSna
 
 func (s *DataEntriesSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_AccountData) error {
 	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
@@ -205,9 +205,13 @@ func (s *AccountScriptSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Accou
 	if c.err != nil {
 		return c.err
 	}
+	verifierComplexity := c.uint64(p.VerifierComplexity)
+	if c.err != nil {
+		return c.err
+	}
 	s.SenderPublicKey = publicKey
 	s.Script = script
-	s.VerifierComplexity = uint64(p.VerifierComplexity)
+	s.VerifierComplexity = verifierComplexity
 	return nil
 }
 
@@ -270,7 +274,7 @@ func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLea
 
 func (s LeaseBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_LeaseBalance, error) {
 	return &g.TransactionStateSnapshot_LeaseBalance{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		In:      int64(s.LeaseIn),
 		Out:     int64(s.LeaseOut),
 	}, nil
@@ -286,14 +290,22 @@ func (s LeaseBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 }
 
 func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_LeaseBalance) error {
-	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
+	var c ProtobufConverter
+	in := c.uint64(p.In)
+	if c.err != nil {
+		return c.err
+	}
+	out := c.uint64(p.Out)
+	if c.err != nil {
+		return c.err
+	}
 	s.Address = addr
-	s.LeaseIn = uint64(p.In)
-	s.LeaseOut = uint64(p.Out)
+	s.LeaseIn = in
+	s.LeaseOut = out
 	return nil
 }
 
@@ -356,7 +368,7 @@ func (s *NewLeaseSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnap
 	if c.err != nil {
 		return c.err
 	}
-	recipientAddr, err := c.Address(scheme, p.RecipientAddress)
+	recipientAddr, err := NewAddressFromBytesChecked(scheme, p.RecipientAddress)
 	if err != nil {
 		return err
 	}
@@ -435,8 +447,12 @@ func (s *SponsorshipSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Sponsor
 	if c.err != nil {
 		return c.err
 	}
+	minFee := c.uint64(p.MinFee)
+	if c.err != nil {
+		return c.err
+	}
 	s.AssetID = assetID
-	s.MinSponsoredFee = uint64(p.MinFee)
+	s.MinSponsoredFee = minFee
 	return nil
 }
 
@@ -453,7 +469,7 @@ func (s AliasSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAlias(s) }
 
 func (s AliasSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Alias, error) {
 	return &g.TransactionStateSnapshot_Alias{
-		Address: s.Address.Body(),
+		Address: s.Address.Bytes(),
 		Alias:   s.Alias.Alias,
 	}, nil
 }
@@ -471,13 +487,12 @@ func (s AliasSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot)
 }
 
 func (s *AliasSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapshot_Alias) error {
-	var c ProtobufConverter
-	addr, err := c.Address(scheme, p.Address)
+	addr, err := NewAddressFromBytesChecked(scheme, p.Address)
 	if err != nil {
 		return err
 	}
 	s.Address = addr
-	s.Alias.Alias = p.Alias
+	s.Alias = *NewAlias(scheme, p.Alias)
 	return nil
 }
 
@@ -517,9 +532,17 @@ func (s *FilledVolumeFeeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Ord
 	if c.err != nil {
 		return c.err
 	}
+	volume := c.uint64(p.Volume)
+	if c.err != nil {
+		return c.err
+	}
+	fee := c.uint64(p.Fee)
+	if c.err != nil {
+		return c.err
+	}
 	s.OrderID = orderID
-	s.FilledVolume = uint64(p.Volume)
-	s.FilledFee = uint64(p.Fee)
+	s.FilledVolume = volume
+	s.FilledFee = fee
 	return nil
 }
 
@@ -564,9 +587,13 @@ func (s *NewAssetSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_NewAsset) 
 	if c.err != nil {
 		return c.err
 	}
+	decimals := c.byte(p.Decimals)
+	if c.err != nil {
+		return c.err
+	}
 	s.AssetID = assetID
 	s.IssuerPublicKey = publicKey
-	s.Decimals = uint8(p.Decimals)
+	s.Decimals = decimals
 	s.IsNFT = p.Nft
 	return nil
 }
