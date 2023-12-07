@@ -743,9 +743,13 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, er
 	if err != nil {
 		return nil, err
 	}
+	sender, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, leaseFromStore.SenderPK)
+	if err != nil {
+		return nil, err
+	}
 	leaseInfo := proto.LeaseInfo{
-		Sender:      leaseFromStore.Sender,
-		Recipient:   leaseFromStore.Recipient,
+		Sender:      sender,
+		Recipient:   leaseFromStore.RecipientAddr,
 		IsActive:    leaseFromStore.isActive(),
 		LeaseAmount: leaseFromStore.Amount,
 	}
@@ -1377,18 +1381,18 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(height)
 	}
 	if height == s.settings.ResetEffectiveBalanceAtHeight {
-		if err := s.stor.leases.cancelLeases(nil, blockID); err != nil {
+		if err := s.stor.leases.cancelLeases(s.settings.AddressSchemeCharacter, nil, blockID); err != nil {
 			return err
 		}
 		if err := s.stor.balances.cancelAllLeases(blockID); err != nil {
 			return err
 		}
 	} else if height == s.settings.BlockVersion3AfterHeight {
-		overflowAddresses, err := s.stor.balances.cancelLeaseOverflows(blockID)
-		if err != nil {
-			return err
+		overflowAddresses, ovErr := s.stor.balances.cancelLeaseOverflows(blockID)
+		if ovErr != nil {
+			return ovErr
 		}
-		if err := s.stor.leases.cancelLeases(overflowAddresses, blockID); err != nil {
+		if err := s.stor.leases.cancelLeases(s.settings.AddressSchemeCharacter, overflowAddresses, blockID); err != nil {
 			return err
 		}
 	} else if dataTxActivated && height == dataTxHeight {
