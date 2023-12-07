@@ -643,6 +643,37 @@ func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (txSn
 	return snapshot, nil
 }
 
+func calculateInitialSnapshotStateHash(
+	blockHeight proto.Height,
+	prevHash crypto.Digest,
+	txSnapshot []proto.AtomicSnapshot,
+) (crypto.Digest, error) {
+	var txID crypto.Digest // txID is necessary onfly for txStatus atomic snapshot; init snapshot can't have such msg
+	return calculateTxSnapshotStateHash(txID, blockHeight, prevHash, txSnapshot)
+}
+
+func calculateTxSnapshotStateHash(
+	txID crypto.Digest,
+	blockHeight proto.Height,
+	prevHash crypto.Digest,
+	txSnapshot []proto.AtomicSnapshot,
+) (crypto.Digest, error) {
+	if len(txSnapshot) == 0 { // sanity check
+		return crypto.Digest{}, errors.Errorf("snapshot of tx %q cannot be empty", txID.String())
+	}
+	h := newTxSnapshotHasher(blockHeight, txID)
+	defer h.Release()
+
+	for i, snapshot := range txSnapshot {
+		if err := snapshot.Apply(&h); err != nil {
+			return crypto.Digest{}, errors.Wrapf(err, "failed to apply to hasher %d-th snapshot (%T)",
+				i+1, snapshot,
+			)
+		}
+	}
+	return h.CalculateHash(prevHash)
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
 	defer func() {
@@ -687,9 +718,23 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// create the initial snapshot
-	_, err = a.createInitialBlockSnapshot(minerAndRewardDiff)
+	initialSnapshot, err := a.createInitialBlockSnapshot(minerAndRewardDiff)
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
+	}
+
+	prevHeight := params.height - 1
+	// get previous snapshot hash
+	prevBlockSH, err := a.stor.stateHashes.newestSnapshotStateHash(prevHeight)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get previous snapshot hash for height %d", prevHeight)
+	}
+	// get initial snapshot hash for block
+	stateHash, err := calculateInitialSnapshotStateHash(params.height, prevBlockSH, initialSnapshot.regular)
+	if err != nil {
+		return errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
+			params.block.BlockID(), params.height,
+		)
 	}
 
 	// TODO apply this snapshot when balances are refatored
@@ -744,9 +789,30 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return errAppendTx
 		}
 		blockSnapshots.AppendTxSnapshot(txSnapshots.regular)
+
+		txIDBytes, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
+		if idErr != nil {
+			return idErr
+		}
+		txID, idErr := crypto.NewDigestFromBytes(txIDBytes)
+		if idErr != nil {
+			return idErr
+		}
+		txSh, shErr := calculateTxSnapshotStateHash(txID, params.height, stateHash, txSnapshots.regular)
+		if shErr != nil {
+			return errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
+				txID.String(), params.height,
+			)
+		}
+		stateHash = txSh // update prevSH in order to accumulate state hashes into block snapshot hash
 	}
-	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
-		return err
+	blockID := params.block.BlockID()
+	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); ssErr != nil {
+		return ssErr
+	}
+	// TODO: check snapshot hash with the block snapshot hash if it exists
+	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, params.height, blockID); shErr != nil {
+		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", params.height)
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.

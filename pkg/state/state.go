@@ -117,7 +117,7 @@ func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64,
 	if err := sh.GenerateSumHash(prevHash); err != nil {
 		return nil, err
 	}
-	if err := s.stateHashes.saveStateHash(sh, height); err != nil {
+	if err := s.stateHashes.saveLegacyStateHash(sh, height); err != nil {
 		return nil, err
 	}
 	return sh, nil
@@ -145,7 +145,7 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	return nil
 }
 
-func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
+func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
 	if !s.calculateHashes {
 		return nil
 	}
@@ -156,7 +156,7 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	if err := s.prepareHashes(); err != nil {
 		return err
 	}
-	prevHash, err := s.stateHashes.stateHash(blockchainHeight)
+	prevHash, err := s.stateHashes.legacyStateHash(blockchainHeight)
 	if err != nil {
 		return err
 	}
@@ -1542,9 +1542,9 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, err
 	}
 
-	// Retrieve and store state hashes for each of new blocks.
-	if err := s.stor.handleStateHashes(height, ids); err != nil {
-		return nil, wrapErr(ModificationError, err)
+	// Retrieve and store legacy state hashes for each of new blocks.
+	if shErr := s.stor.handleLegacyStateHashes(height, ids); shErr != nil {
+		return nil, wrapErr(ModificationError, shErr)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
 	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
@@ -2479,7 +2479,7 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	return provides, nil
 }
 
-func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -2487,9 +2487,17 @@ func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error
 	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for state hashes"))
 	}
-	sh, err := s.stor.stateHashes.stateHash(height)
+	sh, err := s.stor.stateHashes.legacyStateHash(height)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
+	}
+	return sh, nil
+}
+
+func (s *stateManager) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
+	sh, err := s.stor.stateHashes.snapshotStateHash(height)
+	if err != nil {
+		return crypto.Digest{}, wrapErr(RetrievalError, err)
 	}
 	return sh, nil
 }
