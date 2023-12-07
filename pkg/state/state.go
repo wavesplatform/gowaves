@@ -1388,8 +1388,8 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 		if err != nil {
 			return err
 		}
-		if err := s.stor.leases.cancelLeases(overflowAddresses, blockID); err != nil {
-			return err
+		if cancelErr := s.stor.leases.cancelLeases(overflowAddresses, blockID); cancelErr != nil {
+			return cancelErr
 		}
 	} else if dataTxActivated && height == dataTxHeight {
 		leaseIns, err := s.stor.leases.validLeaseIns()

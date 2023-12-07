@@ -256,7 +256,7 @@ let a = FOLD<5>(arr, [], filterEven)
 		{`
 func sum(a:Int, b:Int) = a + b
 let a = FOLD<5>(1, 9, sum)
-`, true, "(6:17, 6:18): First argument of fold must be List, but 'Int' found"},
+`, true, "(6:17, 6:18): First argument of FOLD macros must be List, but 'Int' found"},
 		{`
 func sum(a:Int, b:String) = a
 let b = FOLD<5>([1], 0, sum)

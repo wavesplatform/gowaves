@@ -115,7 +115,7 @@ func (p *astParser) addError(token token32, format string, args ...any) {
 }
 
 func (p *astParser) loadBuildInVarsToStackByVersion() {
-	resVars := make(map[string]s.Variable, 0)
+	resVars := make(map[string]s.Variable)
 	ver := int(p.tree.LibVersion)
 	for i := 0; i < ver; i++ {
 		for _, v := range s.Vars().Vars[i].Append {
@@ -2357,12 +2357,20 @@ func (p *astParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 	}
 	curNode = skipToNextRule(curNode.next)
 	arr, arrVarType := p.ruleExprHandler(curNode)
+	if arr == nil {
+		p.addError(curNode.token32, "Undefined first argument of FOLD macros")
+		return nil, nil
+	}
 	var elemType s.Type
 	if l, ok := arrVarType.(s.ListType); !ok {
-		p.addError(curNode.token32, "First argument of fold must be List, but '%s' found", arrVarType.String())
+		p.addError(curNode.token32, "First argument of FOLD macros must be List, but '%s' found",
+			arrVarType.String())
 		return nil, nil
 	} else {
 		elemType = l.Type
+		if elemType == nil {
+			elemType = s.AnyType
+		}
 	}
 	curNode = skipToNextRule(curNode.next)
 	start, startVarType := p.ruleExprHandler(curNode)
