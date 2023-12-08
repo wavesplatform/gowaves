@@ -734,7 +734,7 @@ func (c *ProtobufConverter) entry(entry *g.DataEntry) DataEntry {
 		return nil
 	}
 	var e DataEntry
-	switch t := entry.Value.(type) { // TODO: change delete data entry to "case nil" and return an error in default
+	switch t := entry.Value.(type) {
 	case *g.DataEntry_IntValue:
 		e = &IntegerDataEntry{Key: entry.Key, Value: t.IntValue}
 	case *g.DataEntry_BoolValue:
@@ -743,8 +743,10 @@ func (c *ProtobufConverter) entry(entry *g.DataEntry) DataEntry {
 		e = &BinaryDataEntry{Key: entry.Key, Value: t.BinaryValue}
 	case *g.DataEntry_StringValue:
 		e = &StringDataEntry{Key: entry.Key, Value: t.StringValue}
-	default: // No value means DeleteDataEntry
+	case nil:
 		e = &DeleteDataEntry{Key: entry.Key}
+	default:
+		c.err = errors.Errorf("unknown data entry value type (%T)", entry.Value)
 	}
 	return e
 }
