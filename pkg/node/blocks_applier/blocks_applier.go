@@ -35,7 +35,7 @@ func (a *innerBlocksApplier) exists(storage innerState, block *proto.Block) (boo
 	return false, err
 }
 
-func (a *innerBlocksApplier) apply(
+func (a *innerBlocksApplier) apply( //nolint:gocognit
 	storage innerState,
 	blocks []*proto.Block,
 	snapshots []*proto.BlockSnapshot,
@@ -100,9 +100,18 @@ func (a *innerBlocksApplier) apply(
 	}
 
 	// save previously added blocks. If new firstBlock failed to add, then return them back
-	rollbackBlocks, rollbackBlocksSnapshots, err := a.getRollbackBlocksAndSnapshots(storage, deltaHeight, parentHeight)
-	if err != nil {
-		return 0, err
+	var rollbackBlocks []*proto.Block
+	var rollbackBlocksSnapshots []*proto.BlockSnapshot
+	if snapshots != nil {
+		rollbackBlocks, rollbackBlocksSnapshots, err = a.getRollbackBlocksAndSnapshots(storage, deltaHeight, parentHeight)
+		if err != nil {
+			return 0, err
+		}
+	} else {
+		rollbackBlocks, err = a.getRollbackBlocks(storage, deltaHeight, parentHeight)
+		if err != nil {
+			return 0, err
+		}
 	}
 
 	err = storage.RollbackToHeight(parentHeight)
@@ -145,6 +154,22 @@ func (a *innerBlocksApplier) getRollbackBlocksAndSnapshots(
 	return rollbackBlocks, rollbackBlocksSnapshots, nil
 }
 
+func (a *innerBlocksApplier) getRollbackBlocks(
+	storage innerState,
+	deltaHeight proto.Height,
+	parentHeight proto.Height,
+) ([]*proto.Block, error) {
+	rollbackBlocks := make([]*proto.Block, 0, deltaHeight)
+	for i := proto.Height(1); i <= deltaHeight; i++ {
+		block, err := storage.BlockByHeight(parentHeight + i)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get firstBlock by height %d", parentHeight+i)
+		}
+		rollbackBlocks = append(rollbackBlocks, block)
+	}
+	return rollbackBlocks, nil
+}
+
 func (a *innerBlocksApplier) applyMicro(
 	storage innerState,
 	block *proto.Block,
@@ -175,22 +200,31 @@ func (a *innerBlocksApplier) applyMicro(
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to get current block by height %d", currentHeight)
 	}
-	currentSnapshot, err := storage.SnapshotsAtHeight(currentHeight)
-	if err != nil {
-		return 0, err
+	var currentSnapshotsToApply []*proto.BlockSnapshot
+	if snapshot != nil {
+		curSnapshot, errSAT := storage.SnapshotsAtHeight(currentHeight)
+		if errSAT != nil {
+			return 0, errSAT
+		}
+		currentSnapshotsToApply = []*proto.BlockSnapshot{&curSnapshot}
 	}
+
 	err = storage.RollbackToHeight(parentHeight)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to rollback to height %d", parentHeight)
 	}
 
 	// applying new blocks
-	_, err = storage.AddDeserializedBlocks([]*proto.Block{block}, []*proto.BlockSnapshot{snapshot})
+	var snapshotToApply []*proto.BlockSnapshot
+	if snapshot != nil {
+		snapshotToApply = []*proto.BlockSnapshot{snapshot}
+	}
+	_, err = storage.AddDeserializedBlocks([]*proto.Block{block}, snapshotToApply)
 	if err != nil {
 		// return back saved blocks
 		_, err2 := storage.AddDeserializedBlocks(
 			[]*proto.Block{currentBlock},
-			[]*proto.BlockSnapshot{&currentSnapshot},
+			currentSnapshotsToApply,
 		)
 		if err2 != nil {
 			return 0, errors.Wrap(err2, "failed rollback block")

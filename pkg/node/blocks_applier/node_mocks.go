@@ -287,7 +287,9 @@ func (a *MockStateManager) AddDeserializedBlocks(
 		if out, err = a.AddDeserializedBlock(b); err != nil {
 			return nil, err
 		}
-		a.snapshots = append(a.snapshots, snapshots[i])
+		if snapshots != nil {
+			a.snapshots = append(a.snapshots, snapshots[i])
+		}
 	}
 	return out, nil
 }

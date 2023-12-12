@@ -156,7 +156,6 @@ type appendBlockParams struct {
 	block, parent *proto.BlockHeader
 	height        uint64
 	snapshot      *proto.BlockSnapshot
-	isLightNode   bool
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -768,7 +767,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err
 	}
-	if params.isLightNode {
+	if params.snapshot != nil {
 		if err = a.applySnapshotsInLightNode(params); err != nil {
 			return err
 		}

@@ -31,27 +31,31 @@ func (a *OrderedBlocks) SetSnapshot(blockID proto.BlockID, snapshot *proto.Block
 	a.snapshots[blockID] = snapshot
 }
 
-func (a *OrderedBlocks) pop() (proto.BlockID, *proto.Block, *proto.BlockSnapshot, bool) {
+func (a *OrderedBlocks) pop(isLightNode bool) (proto.BlockID, *proto.Block, *proto.BlockSnapshot, bool) {
 	if len(a.requestedBlocks) == 0 {
 		return proto.BlockID{}, nil, nil, false
 	}
 	firstSig := a.requestedBlocks[0]
 	bts := a.blocks[firstSig]
 	bsn := a.snapshots[firstSig]
-	if bts != nil && bsn != nil {
+	if bts != nil {
 		delete(a.blocks, firstSig)
-		delete(a.snapshots, firstSig)
+		if isLightNode && bsn != nil {
+			delete(a.snapshots, firstSig)
+			a.requestedBlocks = a.requestedBlocks[1:]
+			return firstSig, bts, bsn, true
+		}
 		a.requestedBlocks = a.requestedBlocks[1:]
-		return firstSig, bts, bsn, true
+		return firstSig, bts, nil, true
 	}
 	return proto.BlockID{}, nil, nil, false
 }
 
-func (a *OrderedBlocks) PopAll() ([]*proto.Block, []*proto.BlockSnapshot) {
+func (a *OrderedBlocks) PopAll(isLightNode bool) ([]*proto.Block, []*proto.BlockSnapshot) {
 	var outBlocks []*proto.Block
 	var outSnapshots []*proto.BlockSnapshot
 	for {
-		_, b, s, ok := a.pop()
+		_, b, s, ok := a.pop(isLightNode)
 		if !ok {
 			return outBlocks, outSnapshots
 		}
@@ -79,7 +83,7 @@ func (a *OrderedBlocks) RequestedCount() int {
 // blocks count available for pop
 func (a *OrderedBlocks) ReceivedCount(isLightNode bool) int {
 	for i, sig := range a.requestedBlocks {
-		if isLightNode && a.blocks[sig] == nil || a.snapshots[sig] == nil {
+		if isLightNode && (a.blocks[sig] == nil || a.snapshots[sig] == nil) {
 			return i
 		} else if !isLightNode && a.blocks[sig] == nil {
 			return i

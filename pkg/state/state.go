@@ -371,8 +371,7 @@ type stateManager struct {
 	// Specifies how many goroutines will be run for verification of transactions and blocks signatures.
 	verificationGoroutinesNum int
 
-	newBlocks   *newBlocks
-	isLightNode bool
+	newBlocks *newBlocks
 }
 
 func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -592,7 +591,7 @@ func (s *stateManager) addGenesisBlock() error {
 	defer cancel()
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	if err := s.addNewBlock(s.genesis, nil, chans, 0, nil, false); err != nil {
+	if err := s.addNewBlock(s.genesis, nil, chans, 0, nil); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
@@ -1065,7 +1064,6 @@ func (s *stateManager) addNewBlock(
 	chans *verifierChans,
 	height uint64,
 	snapshot *proto.BlockSnapshot,
-	isLightNode bool,
 ) error {
 	blockHeight := height + 1
 	// Add score.
@@ -1095,7 +1093,6 @@ func (s *stateManager) addNewBlock(
 		parent:       parentHeader,
 		height:       height,
 		snapshot:     snapshot,
-		isLightNode:  isLightNode,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
@@ -1459,6 +1456,14 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	return nil
 }
 
+func getSnapshotByIndIfNotNil(snapshots []*proto.BlockSnapshot, pos int) *proto.BlockSnapshot {
+	if snapshots == nil {
+		return nil
+	}
+
+	return snapshots[pos]
+}
+
 func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block, error) { //nolint:gocognit
 	// TODO: fix lint
 	ctx, cancel := context.WithCancel(context.Background())
@@ -1526,7 +1531,7 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		if err = s.addNewBlock(block, lastAppliedBlock, chans,
-			blockchainCurHeight, snapshots[pos], s.isLightNode); err != nil {
+			blockchainCurHeight, getSnapshotByIndIfNotNil(snapshots, pos)); err != nil {
 			return nil, err
 		}
 

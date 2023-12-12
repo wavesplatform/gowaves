@@ -106,11 +106,11 @@ func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Snapshots, Eof) {
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.isLightNode), nil, nil, false
 	}
 	if a.orderedBlocks.RequestedCount() < 100 {
-		bs, ss := a.orderedBlocks.PopAll()
+		bs, ss := a.orderedBlocks.PopAll(a.isLightNode)
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, false, a.isLightNode), bs, ss, true
 	}
 	p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
-	bs, ss := a.orderedBlocks.PopAll()
+	bs, ss := a.orderedBlocks.PopAll(a.isLightNode)
 	return NewInternal(a.orderedBlocks, a.respondedSignatures, true, a.isLightNode), bs, ss, false
 }
 
