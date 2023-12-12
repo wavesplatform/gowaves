@@ -11,19 +11,27 @@ import (
 )
 
 type performerInfo struct {
-	height              uint64
+	blockchainHeight    proto.Height
 	blockID             proto.BlockID
 	currentMinerAddress proto.WavesAddress
 	stateActionsCounter *proto.StateActionsCounter
 	checkerData         txCheckerData
 }
 
-func newPerformerInfo(height proto.Height, stateActionsCounter *proto.StateActionsCounter,
-	blockID proto.BlockID, currentMinerAddress proto.WavesAddress,
-	checkerData txCheckerData) *performerInfo {
-	return &performerInfo{height, blockID,
-		currentMinerAddress, stateActionsCounter,
-		checkerData} // all fields must be initialized
+func newPerformerInfo(
+	blockchainHeight proto.Height,
+	stateActionsCounter *proto.StateActionsCounter,
+	blockID proto.BlockID,
+	currentMinerAddress proto.WavesAddress,
+	checkerData txCheckerData,
+) *performerInfo {
+	return &performerInfo{ // all fields must be initialized
+		blockchainHeight,
+		blockID,
+		currentMinerAddress,
+		stateActionsCounter,
+		checkerData,
+	}
 }
 
 type transactionPerformer struct {
@@ -101,7 +109,7 @@ func (tp *transactionPerformer) performIssue(
 	scriptEstimation *scriptEstimation,
 	script proto.Script,
 ) (txSnapshot, error) {
-	blockHeight := info.height + 1
+	blockHeight := info.blockchainHeight + 1
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -275,7 +283,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, txID *crypto.Diges
 		SenderPK:      tx.SenderPK,
 		RecipientAddr: recipientAddr,
 		Amount:        tx.Amount,
-		OriginHeight:  info.height,
+		OriginHeight:  info.blockchainHeight,
 		Status:        LeaseActive,
 	}
 	leaseID := *txID
@@ -306,7 +314,12 @@ func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transac
 
 func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo,
 	balanceChanges txDiff) (txSnapshot, error) {
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseCancelTx(txID, tx.LeaseID, info.height, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseCancelTx(
+		txID,
+		tx.LeaseID,
+		info.blockchainHeight,
+		balanceChanges,
+	)
 	if err != nil {
 		return txSnapshot{}, err
 	}

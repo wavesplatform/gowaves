@@ -351,14 +351,14 @@ func (a *txAppender) commitTxApplication(
 	)
 	if applicationRes.status {
 		// We only perform tx in case it has not failed.
-		performerInfo := &performerInfo{
-			height:              params.checkerInfo.blockchainHeight,
-			blockID:             params.checkerInfo.blockID,
-			currentMinerAddress: currentMinerAddress,
-			checkerData:         applicationRes.checkerData,
-			stateActionsCounter: params.stateActionsCounterInBlock,
-		}
-		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
+		pi := newPerformerInfo(
+			params.checkerInfo.blockchainHeight,
+			params.stateActionsCounterInBlock,
+			params.checkerInfo.blockID,
+			currentMinerAddress,
+			applicationRes.checkerData,
+		)
+		snapshot, err = a.txHandler.performTx(tx, pi, invocationRes, applicationRes.changes.diff)
 		if err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}

@@ -40,7 +40,6 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 }
 
 func defaultPerformerInfo(stateActionsCounter *proto.StateActionsCounter) *performerInfo {
-	_ = stateActionsCounter
 	return newPerformerInfo(0, stateActionsCounter, blockID0, proto.WavesAddress{}, txCheckerData{})
 }
 
