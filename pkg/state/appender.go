@@ -345,7 +345,10 @@ func (a *txAppender) commitTxApplication(
 	}
 	currentMinerAddress := proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK)
 
-	var snapshot txSnapshot
+	var (
+		snapshot txSnapshot
+		status   *proto.TransactionStatusSnapshot
+	)
 	if applicationRes.status {
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
@@ -359,6 +362,13 @@ func (a *txAppender) commitTxApplication(
 		if err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
+		status = &proto.TransactionStatusSnapshot{
+			Status: proto.TransactionSucceeded,
+		}
+	} else {
+		status = &proto.TransactionStatusSnapshot{
+			Status: proto.TransactionFailed,
+		}
 	}
 	if params.validatingUtx {
 		// Save transaction to in-mem storage.
@@ -368,10 +378,13 @@ func (a *txAppender) commitTxApplication(
 			)
 		}
 	} else {
+		// TODO: snapshots for miner fee should be generated here, but not saved
+		//  They must be saved in snapshot applier
 		// Count tx fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
 		}
+		// TODO: tx MUST be saved in snapshotApplier
 		// Save transaction to storage.
 		if err = a.rw.writeTransaction(tx, !applicationRes.status); err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError,
@@ -379,7 +392,7 @@ func (a *txAppender) commitTxApplication(
 			)
 		}
 	}
-	// TODO: transaction status snapshot has to be appended here
+	snapshot.regular = append(snapshot.regular, status)
 	return snapshot, nil
 }
 
@@ -656,6 +669,7 @@ func calculateInitialSnapshotStateHash(
 		}
 		return prevHash, nil // return initial state hash as is
 	}
+	// TODO: can initial txSnapshot be empty? (at least before NG activation)
 	var txID []byte // txID is necessary only for txStatus atomic snapshot; init snapshot can't have such message
 	return calculateTxSnapshotStateHash(txID, blockHeight, prevHash, txSnapshot)
 }
@@ -666,9 +680,6 @@ func calculateTxSnapshotStateHash(
 	prevHash crypto.Digest,
 	txSnapshot []proto.AtomicSnapshot,
 ) (crypto.Digest, error) {
-	if len(txSnapshot) == 0 { // sanity check
-		return crypto.Digest{}, errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
-	}
 	h := newTxSnapshotHasher(blockHeight, txID)
 	defer h.Release()
 
@@ -801,6 +812,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
 			return idErr
+		}
+
+		if len(txSnapshots.regular) == 0 { // sanity check
+			return errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
 		txSh, shErr := calculateTxSnapshotStateHash(txID, currentBlockHeight, stateHash, txSnapshots.regular)
 		if shErr != nil {
