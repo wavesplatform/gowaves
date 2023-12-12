@@ -285,7 +285,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, txID *crypto.Diges
 		SenderPK:            tx.SenderPK,
 		RecipientAddr:       recipientAddr,
 		Amount:              tx.Amount,
-		OriginHeight:        info.blockchainHeight,
+		OriginHeight:        info.blockHeight(),
 		OriginTransactionID: txID,
 		Status:              LeaseActive,
 	}
