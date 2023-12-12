@@ -320,7 +320,7 @@ func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseCancelTx(
 		txID,
 		tx.LeaseID,
-		info.blockchainHeight,
+		info.blockHeight(),
 		balanceChanges,
 	)
 	if err != nil {
