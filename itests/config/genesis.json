@@ -17,10 +17,12 @@
     {"feature": 11, "height": 0},
     {"feature": 12, "height": 0},
     {"feature": 13, "height": 0},
-    {"feature": 14, "height": 2},
+    {"feature": 14, "height": 1},
     {"feature": 15, "height": 0},
     {"feature": 16, "height": 0},
-    {"feature": 17, "height": 0}
+    {"feature": 17, "height": 0},
+    {"feature": 18, "height": 0}
+
   ],
   "distributions": [
     {

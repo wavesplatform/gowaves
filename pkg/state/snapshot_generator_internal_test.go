@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/base64"
+	"errors"
 	"math/big"
 	"testing"
 
@@ -11,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/compiler"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -130,17 +132,15 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 
 	expectedSnapshot := txSnapshot{
 		regular: []proto.AtomicSnapshot{
-			&proto.StaticAssetInfoSnapshot{
-				AssetID:             *tx.ID,
-				SourceTransactionID: *tx.ID,
-				IssuerPublicKey:     testGlobal.issuerInfo.pk,
-				Decimals:            defaultDecimals,
-				IsNFT:               false},
+			&proto.NewAssetSnapshot{
+				AssetID:         *tx.ID,
+				IssuerPublicKey: testGlobal.issuerInfo.pk,
+				Decimals:        defaultDecimals,
+				IsNFT:           false},
 			&proto.AssetDescriptionSnapshot{
 				AssetID:          *tx.ID,
 				AssetName:        "asset0",
 				AssetDescription: "description",
-				ChangeHeight:     1,
 			},
 			&proto.AssetVolumeSnapshot{
 				AssetID:       *tx.ID,
@@ -159,10 +159,6 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 				Address: testGlobal.issuerInfo.addr,
 				AssetID: *tx.ID,
 				Balance: 1000,
-			},
-			&proto.AssetScriptSnapshot{
-				AssetID: *tx.ID,
-				Script:  proto.Script{},
 			},
 		},
 		internal: nil,
@@ -433,13 +429,11 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 				Address: testGlobal.senderInfo.addr,
 				Balance: 299900000,
 			},
-			&proto.LeaseStateSnapshot{
-				LeaseID: *tx.ID,
-				Status: &proto.LeaseStateStatusActive{
-					Amount:    50,
-					Sender:    testGlobal.senderInfo.addr,
-					Recipient: testGlobal.recipientInfo.addr,
-				},
+			&proto.NewLeaseSnapshot{
+				LeaseID:       *tx.ID,
+				Amount:        50,
+				SenderPK:      testGlobal.senderInfo.pk,
+				RecipientAddr: testGlobal.recipientInfo.addr,
 			},
 			&proto.LeaseBalanceSnapshot{
 				Address:  testGlobal.senderInfo.addr,
@@ -453,7 +447,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 			},
 		},
 		internal: []internalSnapshot{
-			&InternalLeaseStateActiveInfoSnapshot{
+			&InternalNewLeaseInfoSnapshot{
 				LeaseID:             *tx.ID,
 				OriginHeight:        0,
 				OriginTransactionID: tx.ID,
@@ -474,8 +468,8 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 
 	leaseID := testGlobal.asset0.assetID
 	leasing := &leasing{
-		Sender:              testGlobal.senderInfo.addr,
-		Recipient:           testGlobal.recipientInfo.addr,
+		SenderPK:            testGlobal.senderInfo.pk,
+		RecipientAddr:       testGlobal.recipientInfo.addr,
 		Amount:              50,
 		OriginHeight:        1,
 		Status:              LeaseActive,
@@ -513,9 +507,8 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 				Address: testGlobal.senderInfo.addr,
 				Balance: 299900000,
 			},
-			&proto.LeaseStateSnapshot{
+			&proto.CancelledLeaseSnapshot{
 				LeaseID: leaseID,
-				Status:  &proto.LeaseStatusCancelled{},
 			},
 			&proto.LeaseBalanceSnapshot{
 				Address:  testGlobal.senderInfo.addr,
@@ -529,7 +522,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 			},
 		},
 		internal: []internalSnapshot{
-			&InternalLeaseStateCancelInfoSnapshot{
+			&InternalCancelledLeaseInfoSnapshot{
 				LeaseID:             leaseID,
 				CancelHeight:        0,
 				CancelTransactionID: tx.ID,
@@ -947,4 +940,336 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 
 	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
 	to.stor.flush(t)
+}
+
+func TestDefaultInvokeScriptSnapshot(t *testing.T) {
+	to := createInvokeApplierTestObjects(t)
+	info := to.fallibleValidationParams(t)
+	to.setDApp(t, "default_dapp_snapshots.base64", testGlobal.recipientInfo)
+	amount := uint64(1000)
+	startBalance := amount + invokeFee + 1
+
+	wavesBalSender := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	wavesBalMiner := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	err := to.state.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesBalSender, blockID0)
+	assert.NoError(t, err)
+	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
+	assert.NoError(t, err)
+
+	issueCounterInBlock := new(proto.StateActionsCounter)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
+		issueCounterInBlock)
+	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	fc := proto.NewFunctionCall("call", []proto.Argument{})
+	testData := invokeApplierTestData{
+
+		payments: []proto.ScriptPayment{},
+		fc:       fc,
+		info:     info,
+	}
+
+	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
+	assert.NoError(t, err, "failed to sign invoke script tx")
+
+	invocationRes, applicationRes := to.applyAndSaveInvoke(t, tx, testData.info, false)
+
+	transactionSnapshot, err := to.state.appender.txHandler.tp.performInvokeScriptWithProofs(tx,
+		defaultPerformerInfoWithChecker(applicationRes.checkerData),
+		invocationRes, applicationRes.changes.diff)
+	assert.NoError(t, err, "failed to perform invoke script tx")
+
+	var dataEntrySnapshot *proto.DataEntriesSnapshot
+	var dataEntrySnapshoIdx int
+	var assetID crypto.Digest
+	for i, snap := range transactionSnapshot.regular {
+		if assetScriptSnapshot, ok := snap.(*proto.NewAssetSnapshot); ok {
+			assetID = assetScriptSnapshot.AssetID
+		}
+		if dataEntrySnap, ok := snap.(*proto.DataEntriesSnapshot); ok {
+			dataEntrySnapshot = dataEntrySnap
+			dataEntrySnapshoIdx = i
+		}
+	}
+	transactionSnapshot.regular = remove(transactionSnapshot.regular, dataEntrySnapshoIdx)
+
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 1001001,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 1001,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.recipientInfo.addr,
+				AssetID: assetID,
+				Balance: 1,
+			},
+			&proto.AssetDescriptionSnapshot{
+				AssetID:          assetID,
+				AssetName:        "Asset",
+				AssetDescription: "",
+			},
+			&proto.AssetVolumeSnapshot{
+				AssetID:       assetID,
+				TotalQuantity: *big.NewInt(1),
+				IsReissuable:  false,
+			},
+			&proto.NewAssetSnapshot{
+				AssetID:         assetID,
+				IssuerPublicKey: testGlobal.recipientInfo.pk,
+				Decimals:        0,
+				IsNFT:           true,
+			},
+		},
+		internal: nil,
+	}
+	expectedDataEntry := &proto.DataEntriesSnapshot{
+		Address: testGlobal.recipientInfo.addr,
+		DataEntries: []proto.DataEntry{
+			&proto.BinaryDataEntry{Key: "bin", Value: []byte{}},
+			&proto.BooleanDataEntry{Key: "bool", Value: true},
+			&proto.IntegerDataEntry{Key: "int", Value: 1},
+			// &proto.StringDataEntry{Key: "int", Value: ""}, // This entry will be overwritten by delete data entry
+			&proto.DeleteDataEntry{Key: "str"},
+		},
+	}
+	assert.Equal(t, expectedDataEntry.Address, dataEntrySnapshot.Address)
+	assert.ElementsMatch(t, expectedDataEntry.DataEntries, dataEntrySnapshot.DataEntries)
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
+}
+
+// Check if the snapshot generator doesn't generate
+// extra asset description and static asset info snapshots after reissue and burn.
+func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
+	to := createInvokeApplierTestObjects(t)
+	info := to.fallibleValidationParams(t)
+	to.setDApp(t, "issue_reissue_dapp_snapshots.base64", testGlobal.recipientInfo)
+	amount := uint64(1000)
+	startBalance := amount + invokeFee + 1
+
+	wavesBalSender := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	wavesBalMiner := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	err := to.state.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesBalSender, blockID0)
+	assert.NoError(t, err)
+	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
+	assert.NoError(t, err)
+
+	var asset crypto.Digest
+	err = asset.UnmarshalBinary([]byte("GAzAEjApmjMYZKPzri2g2VUXNvTiQGF7"))
+	assert.NoError(t, err)
+	assetID := proto.AssetIDFromDigest(asset)
+	err = to.state.stor.assets.issueAsset(assetID, &assetInfo{
+		assetConstInfo: assetConstInfo{
+			tail:                 proto.DigestTail(asset),
+			issuer:               testGlobal.recipientInfo.pk,
+			decimals:             0,
+			issueHeight:          0,
+			issueSequenceInBlock: 1,
+		},
+		assetChangeableInfo: assetChangeableInfo{
+			quantity:                 *big.NewInt(10),
+			name:                     "asset",
+			description:              "",
+			lastNameDescChangeHeight: 0,
+			reissuable:               true,
+		},
+	}, blockID0)
+	assert.NoError(t, err)
+
+	issueCounterInBlock := new(proto.StateActionsCounter)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
+		issueCounterInBlock)
+	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+
+	fc := proto.NewFunctionCall("call", []proto.Argument{})
+	testData := invokeApplierTestData{
+
+		payments: []proto.ScriptPayment{},
+		fc:       fc,
+		info:     info,
+	}
+
+	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
+	assert.NoError(t, err, "failed to sign invoke script tx")
+
+	invocationRes, applicationRes := to.applyAndSaveInvoke(t, tx, testData.info, false)
+
+	transactionSnapshot, err := to.state.appender.txHandler.tp.performInvokeScriptWithProofs(tx,
+		defaultPerformerInfoWithChecker(applicationRes.checkerData),
+		invocationRes, applicationRes.changes.diff)
+	assert.NoError(t, err, "failed to perform invoke script tx")
+
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 1001001,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 1001,
+			},
+			&proto.AssetBalanceSnapshot{
+				Address: testGlobal.recipientInfo.addr,
+				AssetID: asset,
+				Balance: 4,
+			},
+			&proto.AssetVolumeSnapshot{
+				AssetID:       asset,
+				TotalQuantity: *big.NewInt(14),
+				IsReissuable:  false,
+			},
+		},
+		internal: nil,
+	}
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
+}
+
+func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
+	const (
+		script = `
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		
+		let addr = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh')
+		
+		@Callable(i)
+		func call() = {
+			let lease = Lease(addr, 1000000)
+			let leaseID = calculateLeaseId(lease)
+			[lease, LeaseCancel(leaseID)]
+		}`
+		calculatedLeaseID  = "G5XogVoQWp9DYLJ6cLxN3TGinj6Ps8tf9tzjbF3RtcFe"
+		leaseAmount        = 1000000
+		leaseRecipientAddr = "3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh"
+	)
+	scriptBytes, errs := compiler.Compile(script, false, true)
+	require.NoError(t, errors.Join(errs...))
+
+	to := createInvokeApplierTestObjects(t)
+	info := to.fallibleValidationParams(t)
+
+	dAppInfo := testGlobal.recipientInfo
+	to.setScript(t, testGlobal.recipientInfo.addr, dAppInfo.pk, scriptBytes)
+
+	amount := uint64(1000)
+	startBalance := amount + invokeFee + 1
+
+	wavesBalSender := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	wavesBalMiner := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	err := to.state.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesBalSender, blockID0)
+	assert.NoError(t, err)
+	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
+	assert.NoError(t, err)
+
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(
+		info.checkerInfo,
+		to.state.settings.AddressSchemeCharacter,
+		new(proto.StateActionsCounter),
+	)
+	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+
+	testData := invokeApplierTestData{
+		payments: []proto.ScriptPayment{},
+		fc:       proto.NewFunctionCall("call", []proto.Argument{}),
+		info:     info,
+	}
+
+	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
+	assert.NoError(t, err, "failed to sign invoke script tx")
+
+	invocationRes, applicationRes := to.applyAndSaveInvoke(t, tx, testData.info, false)
+
+	transactionSnapshot, err := to.state.appender.txHandler.tp.performInvokeScriptWithProofs(
+		tx,
+		defaultPerformerInfoWithChecker(applicationRes.checkerData),
+		invocationRes,
+		applicationRes.changes.diff,
+	)
+	assert.NoError(t, err, "failed to perform invoke script tx")
+
+	lID := crypto.MustDigestFromBase58(calculatedLeaseID)
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.minerInfo.addr,
+				Balance: 1001001,
+			},
+			&proto.WavesBalanceSnapshot{
+				Address: testGlobal.senderInfo.addr,
+				Balance: 1001,
+			},
+			&proto.NewLeaseSnapshot{
+				LeaseID:       lID,
+				Amount:        leaseAmount,
+				SenderPK:      dAppInfo.pk,
+				RecipientAddr: proto.MustAddressFromString(leaseRecipientAddr),
+			},
+			&proto.CancelledLeaseSnapshot{LeaseID: lID},
+		},
+		internal: []internalSnapshot{
+			&InternalNewLeaseInfoSnapshot{
+				LeaseID:             lID,
+				OriginHeight:        info.blockInfo.Height,
+				OriginTransactionID: tx.ID,
+			},
+			&InternalCancelledLeaseInfoSnapshot{
+				LeaseID:             lID,
+				CancelHeight:        info.blockInfo.Height,
+				CancelTransactionID: tx.ID,
+			},
+		},
+	}
+	txSnapshotsEqual(t, expectedSnapshot, transactionSnapshot)
+
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
+}
+
+func remove(slice []proto.AtomicSnapshot, s int) []proto.AtomicSnapshot {
+	return append(slice[:s], slice[s+1:]...)
 }

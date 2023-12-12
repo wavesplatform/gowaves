@@ -173,7 +173,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Invalid version of script",
+				ErrBrdCstScalaMsg: "ScriptParseError(Invalid checksum)",
 			}),
 		"Asset was issued by other Account": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultRecipientNotMiner),

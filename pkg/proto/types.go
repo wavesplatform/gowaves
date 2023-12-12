@@ -2247,7 +2247,7 @@ type DataEntry interface {
 	BinarySize() int
 	PayloadSize() int
 
-	ToProtobuf() *g.DataTransactionData_DataEntry
+	ToProtobuf() *g.DataEntry
 }
 
 var bytesToDataEntry = map[DataValueType]reflect.Type{
@@ -2282,10 +2282,10 @@ type IntegerDataEntry struct {
 	Value int64
 }
 
-func (e IntegerDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e IntegerDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
-		Value: &g.DataTransactionData_DataEntry_IntValue{IntValue: e.Value},
+		Value: &g.DataEntry_IntValue{IntValue: e.Value},
 	}
 }
 
@@ -2413,10 +2413,10 @@ type BooleanDataEntry struct {
 	Value bool
 }
 
-func (e BooleanDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e BooleanDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
-		Value: &g.DataTransactionData_DataEntry_BoolValue{BoolValue: e.Value},
+		Value: &g.DataEntry_BoolValue{BoolValue: e.Value},
 	}
 }
 
@@ -2548,10 +2548,10 @@ type BinaryDataEntry struct {
 	Value []byte
 }
 
-func (e BinaryDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e BinaryDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
-		Value: &g.DataTransactionData_DataEntry_BinaryValue{BinaryValue: e.Value},
+		Value: &g.DataEntry_BinaryValue{BinaryValue: e.Value},
 	}
 }
 
@@ -2688,10 +2688,10 @@ type StringDataEntry struct {
 	Value string
 }
 
-func (e StringDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e StringDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
-		Value: &g.DataTransactionData_DataEntry_StringValue{StringValue: e.Value},
+		Value: &g.DataEntry_StringValue{StringValue: e.Value},
 	}
 }
 
@@ -2825,8 +2825,8 @@ type DeleteDataEntry struct {
 	Key string
 }
 
-func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e DeleteDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
 		Value: nil,
 	}

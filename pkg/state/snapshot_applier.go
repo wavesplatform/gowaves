@@ -3,6 +3,7 @@ package state
 import (
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
@@ -10,10 +11,67 @@ import (
 type blockSnapshotsApplier struct {
 	info *blockSnapshotsApplierInfo
 	stor snapshotApplierStorages
+
+	issuedAssets   []crypto.Digest
+	scriptedAssets map[crypto.Digest]struct{}
+
+	newLeases       []crypto.Digest
+	cancelledLeases map[crypto.Digest]struct{}
+}
+
+func (a *blockSnapshotsApplier) BeforeTxSnapshotApply() error {
+	a.issuedAssets = []crypto.Digest{}
+	if len(a.scriptedAssets) != 0 {
+		a.scriptedAssets = make(map[crypto.Digest]struct{})
+	}
+	a.newLeases = []crypto.Digest{}
+	if len(a.cancelledLeases) != 0 {
+		a.cancelledLeases = make(map[crypto.Digest]struct{})
+	}
+	return nil
+}
+
+func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
+	for _, assetID := range a.issuedAssets {
+		if _, ok := a.scriptedAssets[assetID]; ok { // don't set an empty script for scripted assets or script updates
+			continue
+		}
+		emptyAssetScriptSnapshot := proto.AssetScriptSnapshot{
+			AssetID: assetID,
+			Script:  proto.Script{},
+		}
+		// need for compatibility with legacy state hashes
+		// for issued asset without script we have to apply empty asset script snapshot
+		err := emptyAssetScriptSnapshot.Apply(a)
+		if err != nil {
+			return errors.Wrapf(err, "failed to apply empty asset scipt snapshot for asset %q", assetID)
+		}
+	}
+	for _, leaseID := range a.newLeases { // need for compatibility with legacy state hashes
+		if _, ok := a.cancelledLeases[leaseID]; ok { // skip cancelled leases
+			continue
+		}
+		if err := a.stor.leases.pushStateHash(leaseID, true, a.info.BlockID()); err != nil {
+			return errors.Wrapf(err, "failed to push state hash for new lease %q", leaseID)
+		}
+	}
+	for cancelledLeaseID := range a.cancelledLeases {
+		if err := a.stor.leases.pushStateHash(cancelledLeaseID, false, a.info.BlockID()); err != nil {
+			return errors.Wrapf(err, "failed to push state hash for cancelled lease %q", cancelledLeaseID)
+		}
+	}
+	return nil
 }
 
 func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
-	return blockSnapshotsApplier{info: info, stor: stor}
+	return blockSnapshotsApplier{
+		info:            info,
+		stor:            stor,
+		issuedAssets:    []crypto.Digest{},
+		scriptedAssets:  make(map[crypto.Digest]struct{}),
+		newLeases:       []crypto.Digest{},
+		cancelledLeases: make(map[crypto.Digest]struct{}),
+	}
 }
 
 type snapshotApplierStorages struct {
@@ -61,8 +119,12 @@ func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
 	return s.ci.blockID
 }
 
-func (s blockSnapshotsApplierInfo) Height() proto.Height {
+func (s blockSnapshotsApplierInfo) BlockchainHeight() proto.Height {
 	return s.ci.height
+}
+
+func (s blockSnapshotsApplierInfo) CurrentBlockHeight() proto.Height {
+	return s.BlockchainHeight() + 1
 }
 
 func (s blockSnapshotsApplierInfo) EstimatorVersion() int {
@@ -123,9 +185,9 @@ func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
 	return a.stor.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
-	height := a.info.Height() + 1
+	height := a.info.CurrentBlockHeight()
 
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
@@ -137,14 +199,19 @@ func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetI
 		},
 		assetChangeableInfo: assetChangeableInfo{},
 	}
-	return a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
+	err := a.stor.assets.issueAsset(assetID, assetFullInfo, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to issue asset %q", snapshot.AssetID.String())
+	}
+	a.issuedAssets = append(a.issuedAssets, snapshot.AssetID)
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot proto.AssetDescriptionSnapshot) error {
 	change := &assetInfoChange{
 		newName:        snapshot.AssetName,
 		newDescription: snapshot.AssetDescription,
-		newHeight:      snapshot.ChangeHeight,
+		newHeight:      a.info.CurrentBlockHeight(),
 	}
 	return a.stor.assets.updateAssetInfo(snapshot.AssetID, change, a.info.BlockID())
 }
@@ -161,7 +228,14 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnaps
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
-	return a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
+	err := a.stor.scriptsStorage.setAssetScript(snapshot.AssetID, snapshot.Script, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to apply asset script for asset %q", snapshot.AssetID)
+	}
+	if !snapshot.Script.IsEmpty() {
+		a.scriptedAssets[snapshot.AssetID] = struct{}{}
+	}
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplySponsorship(snapshot proto.SponsorshipSnapshot) error {
@@ -212,26 +286,33 @@ func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot proto.DataEntriesSnaps
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot proto.LeaseStateSnapshot) error {
-	switch status := snapshot.Status.(type) {
-	case *proto.LeaseStateStatusActive:
-		l := &leasing{
-			Sender:    status.Sender,
-			Recipient: status.Recipient,
-			Amount:    status.Amount,
-			Status:    LeaseActive,
-		}
-		return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
-	case *proto.LeaseStatusCancelled:
-		l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get leasing info by id '%s' for cancelling", snapshot.LeaseID)
-		}
-		l.Status = LeaseCancelled
-		return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
-	default:
-		return errors.Errorf("invalid lease state snapshot status (%T)", status)
+func (a *blockSnapshotsApplier) ApplyNewLease(snapshot proto.NewLeaseSnapshot) error {
+	l := &leasing{
+		SenderPK:      snapshot.SenderPK,
+		RecipientAddr: snapshot.RecipientAddr,
+		Amount:        snapshot.Amount,
+		Status:        LeaseActive,
 	}
+	err := a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to apply new lease %q", snapshot.LeaseID)
+	}
+	a.newLeases = append(a.newLeases, snapshot.LeaseID)
+	return nil
+}
+
+func (a *blockSnapshotsApplier) ApplyCancelledLease(snapshot proto.CancelledLeaseSnapshot) error {
+	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get leasing info by id '%s' for cancelling", snapshot.LeaseID)
+	}
+	l.Status = LeaseCancelled
+	err = a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to cancel lease %q", snapshot.LeaseID)
+	}
+	a.cancelledLeases[snapshot.LeaseID] = struct{}{}
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatusSnapshot) error {
@@ -276,7 +357,7 @@ func (a *blockSnapshotsApplier) ApplyAssetScriptComplexity(snapshot InternalAsse
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseStateActiveInfo(snapshot InternalLeaseStateActiveInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyNewLeaseInfo(snapshot InternalNewLeaseInfoSnapshot) error {
 	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding active info", snapshot.LeaseID)
@@ -286,7 +367,7 @@ func (a *blockSnapshotsApplier) ApplyLeaseStateActiveInfo(snapshot InternalLease
 	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseStateCancelInfo(snapshot InternalLeaseStateCancelInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyCancelledLeaseInfo(snapshot InternalCancelledLeaseInfoSnapshot) error {
 	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding cancel info", snapshot.LeaseID)

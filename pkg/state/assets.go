@@ -6,6 +6,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -167,7 +168,7 @@ type assets struct {
 
 	freshConstInfo map[proto.AssetID]assetConstInfo
 
-	uncertainAssetInfo map[proto.AssetID]assetInfo
+	uncertainAssetInfo map[proto.AssetID]wrappedUncertainInfo
 }
 
 func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage) *assets {
@@ -176,7 +177,7 @@ func newAssets(db keyvalue.KeyValue, dbBatch keyvalue.Batch, hs *historyStorage)
 		dbBatch:            dbBatch,
 		hs:                 hs,
 		freshConstInfo:     make(map[proto.AssetID]assetConstInfo),
-		uncertainAssetInfo: make(map[proto.AssetID]assetInfo),
+		uncertainAssetInfo: make(map[proto.AssetID]wrappedUncertainInfo),
 	}
 }
 
@@ -206,11 +207,33 @@ func (a *assets) issueAsset(assetID proto.AssetID, asset *assetInfo, blockID pro
 	return a.storeAssetInfo(assetID, asset, blockID)
 }
 
+type wrappedUncertainInfo struct {
+	assetInfo     assetInfo
+	wasJustIssued bool
+}
+
+func (a *assets) updateAssetUncertainInfo(assetID proto.AssetID, info *assetInfo) {
+	var wasJustIssued bool
+	// if the issue action happened in this tx, wasJustIssued will be true
+	if wrappedInfo, ok := a.uncertainAssetInfo[assetID]; ok {
+		wasJustIssued = wrappedInfo.wasJustIssued
+	}
+	wrappedUncertain := wrappedUncertainInfo{
+		assetInfo:     *info,
+		wasJustIssued: wasJustIssued,
+	}
+	a.uncertainAssetInfo[assetID] = wrappedUncertain
+}
+
 // issueAssetUncertain() is similar to issueAsset() but the changes can be
 // dropped later using dropUncertain() or committed using commitUncertain().
 // newest*() functions will take changes into account even before commitUncertain().
 func (a *assets) issueAssetUncertain(assetID proto.AssetID, asset *assetInfo) {
-	a.uncertainAssetInfo[assetID] = *asset
+	wrappedUncertain := wrappedUncertainInfo{
+		assetInfo:     *asset,
+		wasJustIssued: true,
+	}
+	a.uncertainAssetInfo[assetID] = wrappedUncertain
 }
 
 type assetReissueChange struct {
@@ -245,7 +268,7 @@ func (a *assets) reissueAssetUncertain(assetID proto.AssetID, ch *assetReissueCh
 	if err != nil {
 		return err
 	}
-	a.uncertainAssetInfo[assetID] = *info
+	a.updateAssetUncertainInfo(assetID, info)
 	return nil
 }
 
@@ -279,7 +302,7 @@ func (a *assets) burnAssetUncertain(assetID proto.AssetID, ch *assetBurnChange) 
 	if err != nil {
 		return err
 	}
-	a.uncertainAssetInfo[assetID] = *info
+	a.updateAssetUncertainInfo(assetID, info)
 	return nil
 }
 
@@ -324,7 +347,7 @@ func (a *assets) constInfo(assetID proto.AssetID) (*assetConstInfo, error) {
 
 func (a *assets) newestConstInfo(assetID proto.AssetID) (*assetConstInfo, error) {
 	if info, ok := a.uncertainAssetInfo[assetID]; ok {
-		return &info.assetConstInfo, nil
+		return &info.assetInfo.assetConstInfo, nil
 	}
 	if info, ok := a.freshConstInfo[assetID]; ok {
 		return &info, nil
@@ -335,7 +358,7 @@ func (a *assets) newestConstInfo(assetID proto.AssetID) (*assetConstInfo, error)
 func (a *assets) newestChangeableInfo(asset crypto.Digest) (*assetChangeableInfo, error) {
 	assetID := proto.AssetIDFromDigest(asset)
 	if info, ok := a.uncertainAssetInfo[assetID]; ok {
-		return &info.assetChangeableInfo, nil
+		return &info.assetInfo.assetChangeableInfo, nil
 	}
 	histKey := assetHistKey{assetID: assetID}
 	recordBytes, err := a.hs.newestTopEntryData(histKey.bytes())
@@ -398,7 +421,7 @@ func (a *assets) assetInfo(assetID proto.AssetID) (*assetInfo, error) {
 func (a *assets) commitUncertain(blockID proto.BlockID) error {
 	for assetID, info := range a.uncertainAssetInfo {
 		infoCpy := info // prevent implicit memory aliasing in for loop
-		if err := a.storeAssetInfo(assetID, &infoCpy, blockID); err != nil {
+		if err := a.storeAssetInfo(assetID, &infoCpy.assetInfo, blockID); err != nil {
 			return err
 		}
 	}
@@ -407,7 +430,7 @@ func (a *assets) commitUncertain(blockID proto.BlockID) error {
 
 // dropUncertain() removes all uncertain changes.
 func (a *assets) dropUncertain() {
-	a.uncertainAssetInfo = make(map[proto.AssetID]assetInfo)
+	a.uncertainAssetInfo = make(map[proto.AssetID]wrappedUncertainInfo)
 }
 
 func (a *assets) reset() {
