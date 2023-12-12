@@ -54,7 +54,7 @@ func defaultCheckerInfo() *checkerInfo {
 		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
 		blockID:          blockID0,
 		blockVersion:     1,
-		height:           100500,
+		blockchainHeight: 100500,
 	}
 }
 
@@ -72,7 +72,7 @@ func TestCheckGenesis(t *testing.T) {
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.EqualError(t, err, "genesis transaction on non zero height")
 
-	info.height = 0
+	info.blockchainHeight = 0
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed in non-initialisation mode")
 
@@ -87,10 +87,10 @@ func TestCheckPayment(t *testing.T) {
 
 	tx := createPayment(t)
 
-	info.height = settings.MainNetSettings.BlockVersion3AfterHeight
+	info.blockchainHeight = settings.MainNetSettings.BlockVersion3AfterHeight
 	_, err := to.tc.checkPayment(tx, info)
 	assert.Error(t, err, "checkPayment accepted payment tx after Block v3 height")
-	info.height = 10
+	info.blockchainHeight = 10
 	_, err = to.tc.checkPayment(tx, info)
 	assert.NoError(t, err, "checkPayment failed with valid payment tx")
 
@@ -1455,7 +1455,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	to.stor.createAsset(t, tx.FeeAsset.ID)
 	tx.SenderPK = assetInfo.issuer
 
-	info.height = 100001
+	info.blockchainHeight = 100001
 
 	// Check fail prior to activation.
 	_, err := to.tc.checkUpdateAssetInfoWithProofs(tx, info)
@@ -1480,9 +1480,11 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	assert.EqualError(t, err, "asset was issued by other address")
 	tx.SenderPK = assetInfo.issuer
 
-	info.height = 99999
+	info.blockchainHeight = 99999
 	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)
-	correctError := fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), 1+to.tc.settings.MinUpdateAssetInfoInterval, info.height+1)
+	correctError := fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d",
+		tx.AssetID.String(), 1+to.tc.settings.MinUpdateAssetInfoInterval, info.blockchainHeight+1,
+	)
 	assert.EqualError(t, err, correctError)
 }
 

@@ -120,7 +120,7 @@ func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
 }
 
 func (s blockSnapshotsApplierInfo) BlockchainHeight() proto.Height {
-	return s.ci.height
+	return s.ci.blockchainHeight
 }
 
 func (s blockSnapshotsApplierInfo) CurrentBlockHeight() proto.Height {

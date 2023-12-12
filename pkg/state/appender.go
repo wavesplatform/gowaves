@@ -352,7 +352,7 @@ func (a *txAppender) commitTxApplication(
 	if applicationRes.status {
 		// We only perform tx in case it has not failed.
 		performerInfo := &performerInfo{
-			height:              params.checkerInfo.height,
+			height:              params.checkerInfo.blockchainHeight,
 			blockID:             params.checkerInfo.blockID,
 			currentMinerAddress: currentMinerAddress,
 			checkerData:         applicationRes.checkerData,
@@ -493,7 +493,7 @@ func (a *txAppender) handleEthTx(
 		if err != nil {
 			return nil, nil, false, errors.Wrapf(err,
 				"failed to handle ethereum transaction (type %s) with id %s, on height %d",
-				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
+				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.blockchainHeight+1)
 		}
 		// In UTX balances are always validated.
 		needToValidateBalanceDiff = params.validatingUtx
@@ -507,7 +507,7 @@ func (a *txAppender) handleEthTx(
 		if err != nil {
 			return nil, nil, false, errors.Wrapf(err,
 				"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d",
-				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
+				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.blockchainHeight+1)
 		}
 	default:
 		return nil, nil, false, errors.Errorf("Undefined ethereum transaction kind %T", ethTx.TxKind)
@@ -715,7 +715,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		currentTimestamp:        params.block.Timestamp,
 		blockID:                 params.block.BlockID(),
 		blockVersion:            params.block.Version,
-		height:                  params.blockchainHeight,
+		blockchainHeight:        params.blockchainHeight,
 		rideV5Activated:         rideV5Activated,
 		rideV6Activated:         rideV6Activated,
 		blockRewardDistribution: blockRewardDistribution,
@@ -1048,7 +1048,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		parentTimestamp:         parentTimestamp,
 		blockID:                 block.BlockID(),
 		blockVersion:            version,
-		height:                  blockInfo.Height,
+		blockchainHeight:        blockInfo.Height,
 		rideV5Activated:         rideV5Activated,
 		rideV6Activated:         rideV6Activated,
 		blockRewardDistribution: blockRewardDistribution,

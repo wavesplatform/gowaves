@@ -344,7 +344,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 		Scheme:                ia.settings.AddressSchemeCharacter,
 		ScriptAddress:         info.scriptAddr,
 	}
-	validatePayments := info.checkerInfo.height > ia.settings.InternalInvokePaymentsValidationAfterHeight
+	validatePayments := info.checkerInfo.blockchainHeight > ia.settings.InternalInvokePaymentsValidationAfterHeight
 	if err := proto.ValidateActions(info.actions, restrictions, info.rideV6Activated, info.libVersion, validatePayments); err != nil {
 		return proto.DAppError, info.failedChanges, err
 	}
@@ -775,9 +775,10 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 		return invocationRes, applicationRes, err
 
 	case ride.InternalInvocationError:
+		blockchainHeight := info.checkerInfo.blockchainHeight
 		// Special script error produced by internal script invocation or application of results.
 		// Reject transaction after certain height
-		rejectOnInvocationError := info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
+		rejectOnInvocationError := blockchainHeight >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight
 		if !info.acceptFailed || rejectOnInvocationError || isCheap {
 			return nil, nil, errors.Wrapf(
 				err, "transaction rejected with spent complexity %d and following call stack:\n%s",
@@ -921,7 +922,7 @@ func (ia *invokeApplier) handleFallibleValidationError(err error,
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed ||
 			(ia.sc.recentTxComplexity <= FailFreeInvokeComplexity &&
-				info.checkerInfo.height >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight) {
+				info.checkerInfo.blockchainHeight >= ia.settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight) {
 			return nil, err
 		}
 		invocationRes = &invocationResult{

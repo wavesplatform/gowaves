@@ -50,7 +50,7 @@ func defaultCheckerInfoHeight0() *checkerInfo {
 		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
 		blockID:          blockID0,
 		blockVersion:     1,
-		height:           0,
+		blockchainHeight: 0,
 	}
 }
 
@@ -630,7 +630,7 @@ func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	assetInfo.name = tx.Name
 	assetInfo.description = tx.Description
-	assetInfo.lastNameDescChangeHeight = checkerInfo.height + 1
+	assetInfo.lastNameDescChangeHeight = checkerInfo.blockchainHeight + 1
 
 	// Check asset info.
 	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(tx.AssetID))
