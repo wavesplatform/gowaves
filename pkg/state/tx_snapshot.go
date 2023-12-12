@@ -29,11 +29,9 @@ func (ts txSnapshot) Apply(a extendedSnapshotApplier) error {
 	}
 	// internal snapshots must be applied at the end
 	for _, rs := range ts.regular {
-		if !rs.IsGeneratedByTxDiff() {
-			err := rs.Apply(a)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply regular transaction snapshot")
-			}
+		err := rs.Apply(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply regular transaction snapshot")
 		}
 	}
 	for _, is := range ts.internal {

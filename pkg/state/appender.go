@@ -354,6 +354,8 @@ func (a *txAppender) commitTxApplication(
 			checkerData:         applicationRes.checkerData,
 			stateActionsCounter: params.stateActionsCounterInBlock,
 		}
+		//changes := a.diffStor.allChanges()
+		//a.diffStor.reset()
 		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
 		if err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
