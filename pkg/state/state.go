@@ -1534,8 +1534,8 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, err
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if err := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, sh); err != nil {
-			return nil, err
+		if addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, sh); addErr != nil {
+			return nil, addErr
 		}
 
 		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {

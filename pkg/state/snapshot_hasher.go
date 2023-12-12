@@ -430,7 +430,7 @@ func (h *txSnapshotHasher) ApplyTransactionsStatus(snapshot proto.TransactionSta
 	buf.Grow(size)
 
 	// Non-successful transaction application status: tx_id || application_status
-	if _, err := buf.Write(h.transactionID[:]); err != nil {
+	if _, err := buf.Write(h.transactionID); err != nil {
 		return err
 	}
 	if err := buf.WriteByte(applicationStatus); err != nil {

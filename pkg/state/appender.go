@@ -784,7 +784,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// Check and append transactions.
-	var blockSnapshots proto.BlockSnapshot
+	var bs proto.BlockSnapshot
 
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -807,7 +807,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if errAppendTx != nil {
 			return errAppendTx
 		}
-		blockSnapshots.AppendTxSnapshot(txSnapshots.regular)
+		bs.AppendTxSnapshot(txSnapshots.regular)
 
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
@@ -826,7 +826,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		stateHash = txSh // update stateHash in order to accumulate state hashes into block snapshot hash
 	}
 	blockID := params.block.BlockID()
-	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.blockchainHeight, blockSnapshots); ssErr != nil {
+	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.blockchainHeight, bs); ssErr != nil {
 		return ssErr
 	}
 	// TODO: check snapshot hash with the block snapshot hash if it exists
