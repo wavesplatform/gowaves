@@ -415,8 +415,8 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 	ch, err := to.td.createDiffLeaseWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
-	transactionSnapshot, err := to.tp.performLeaseWithSig(tx, defaultPerformerInfo(to.stateActionsCounter),
-		nil, applicationRes.changes.diff)
+	pi := defaultPerformerInfo(to.stateActionsCounter)
+	transactionSnapshot, err := to.tp.performLeaseWithSig(tx, pi, nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -449,7 +449,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 		internal: []internalSnapshot{
 			&InternalNewLeaseInfoSnapshot{
 				LeaseID:             *tx.ID,
-				OriginHeight:        0,
+				OriginHeight:        pi.blockHeight(),
 				OriginTransactionID: tx.ID,
 			},
 		},
@@ -493,8 +493,8 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 	ch, err := to.td.createDiffLeaseCancelWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
-	transactionSnapshot, err := to.tp.performLeaseCancelWithSig(tx, defaultPerformerInfo(to.stateActionsCounter),
-		nil, applicationRes.changes.diff)
+	pi := defaultPerformerInfo(to.stateActionsCounter)
+	transactionSnapshot, err := to.tp.performLeaseCancelWithSig(tx, pi, nil, applicationRes.changes.diff)
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -524,7 +524,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 		internal: []internalSnapshot{
 			&InternalCancelledLeaseInfoSnapshot{
 				LeaseID:             leaseID,
-				CancelHeight:        0,
+				CancelHeight:        pi.blockHeight(),
 				CancelTransactionID: tx.ID,
 			},
 		},
