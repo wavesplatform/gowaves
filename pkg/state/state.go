@@ -1558,10 +1558,7 @@ func (s *stateManager) appendHitSource(block *proto.Block, blockchainCurHeight p
 	if err != nil {
 		return err
 	}
-	if err = s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
-		return err
-	}
-	return nil
+	return s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs)
 }
 
 func (s *stateManager) afterAddingNewBlocks(

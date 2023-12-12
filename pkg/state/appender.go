@@ -653,10 +653,7 @@ func (a *txAppender) applySnapshotsInLightNode(params *appendBlockParams) error 
 			}
 		}
 	}
-	if err := a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, *params.snapshot); err != nil {
-		return err
-	}
-	return nil
+	return a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, *params.snapshot)
 }
 
 func (a *txAppender) appendTxs(
@@ -712,10 +709,7 @@ func (a *txAppender) appendTxs(
 		}
 		blockSnapshots.AppendTxSnapshot(txSnapshots.regular)
 	}
-	if err := a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
-		return err
-	}
-	return nil
+	return a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots)
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
