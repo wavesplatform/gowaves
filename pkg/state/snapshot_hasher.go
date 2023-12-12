@@ -335,16 +335,10 @@ func (h *txSnapshotHasher) ApplyFilledVolumeAndFee(snapshot proto.FilledVolumeFe
 }
 
 func (h *txSnapshotHasher) ApplyDataEntries(snapshot proto.DataEntriesSnapshot) error {
-	for i, entry := range snapshot.DataEntries {
-		entryValue, marshalErr := entry.MarshalValue() // TODO: use writer methods
-		if marshalErr != nil {
-			return errors.Wrapf(marshalErr, "failed to marshal (%d) data entry (%T) for addr %s", i, entry,
-				snapshot.Address,
-			)
-		}
+	for _, entry := range snapshot.DataEntries {
 		entryKey := entry.GetKey()
 
-		size := len(snapshot.Address) + len(entryKey) + len(entryValue)
+		size := len(snapshot.Address) + len(entryKey) + entry.MarshaledValueSize()
 		var buf bytes.Buffer
 		buf.Grow(size)
 
@@ -355,7 +349,7 @@ func (h *txSnapshotHasher) ApplyDataEntries(snapshot proto.DataEntriesSnapshot) 
 		if _, err := buf.WriteString(entryKey); err != nil { // we assume that string is valid UTF-8
 			return err
 		}
-		if _, err := buf.Write(entryValue); err != nil {
+		if err := entry.WriteValueTo(&buf); err != nil {
 			return err
 		}
 
