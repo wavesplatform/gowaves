@@ -44,6 +44,8 @@ func (noopWrapper) AskBlocksIDs([]proto.BlockID) {}
 
 func (noopWrapper) AskBlock(proto.BlockID) {}
 
+func (noopWrapper) AskBlockSnapshot(proto.BlockID) {}
+
 type SyncState struct {
 	baseInfo BaseInfo
 	conf     conf
@@ -71,12 +73,22 @@ func (a *SyncState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 }
 
 func (a *SyncState) StopSync() (State, Async, error) {
-	_, blocks, _ := a.internal.Blocks(noopWrapper{})
+	_, blocks, snapshots, _ := a.internal.Blocks(noopWrapper{})
 	if len(blocks) > 0 {
-		err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-			_, err := a.baseInfo.blocksApplier.Apply(s, blocks)
-			return err
-		})
+		var err error
+		if a.baseInfo.enableLightMode {
+			err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+				var errApply error
+				_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, snapshots)
+				return errApply
+			})
+		} else {
+			err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+				var errApply error
+				_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, nil)
+				return errApply
+			})
+		}
 		return newIdleState(a.baseInfo), nil, a.Errorf(err)
 	}
 	return newIdleState(a.baseInfo), nil, nil
@@ -163,11 +175,30 @@ func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error)
 	}
 	metrics.FSMKeyBlockReceived("sync", block, p.Handshake().NodeName)
 	zap.S().Named(logging.FSMNamespace).Debugf("[Sync][%s] Received block %s", p.ID(), block.ID.String())
+
 	internal, err := a.internal.Block(block)
 	if err != nil {
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
 	}
-	return a.applyBlocks(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal)
+	if !a.baseInfo.enableLightMode {
+		return a.applyBlocksWithSnapshots(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal)
+	}
+	return a, nil, nil
+}
+
+func (a *SyncState) BlockSnapshot(
+	p peer.Peer,
+	blockID proto.BlockID,
+	snapshot proto.BlockSnapshot,
+) (State, Async, error) {
+	if !p.Equal(a.conf.peerSyncWith) {
+		return a, nil, nil
+	}
+	internal, err := a.internal.Snapshot(blockID, &snapshot)
+	if err != nil {
+		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
+	}
+	return a.applyBlocksWithSnapshots(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal)
 }
 
 func (a *SyncState) MinedBlock(
@@ -175,7 +206,7 @@ func (a *SyncState) MinedBlock(
 ) (State, Async, error) {
 	metrics.FSMKeyBlockGenerated("sync", block)
 	zap.S().Named(logging.FSMNamespace).Infof("[Sync] New block '%s' mined", block.ID.String())
-	_, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block})
+	_, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block}, nil)
 	if err != nil {
 		zap.S().Warnf("[Sync] Failed to apply mined block: %v", err)
 		return a, nil, nil // We've failed to apply mined block, it's not an error
@@ -213,19 +244,29 @@ func (a *SyncState) changePeerIfRequired() (peer.Peer, bool) {
 }
 
 // TODO suspend peer on state error
-func (a *SyncState) applyBlocks(
+func (a *SyncState) applyBlocksWithSnapshots(
 	baseInfo BaseInfo, conf conf, internal sync_internal.Internal,
 ) (State, Async, error) {
-	internal, blocks, eof := internal.Blocks(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
+	internal, blocks, snapshots, eof := internal.Blocks(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
 	if len(blocks) == 0 {
 		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")
 		return newSyncState(baseInfo, conf, internal), nil, nil
 	}
-	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-		var err error
-		_, err = a.baseInfo.blocksApplier.Apply(s, blocks)
-		return err
-	})
+	var err error
+	if baseInfo.enableLightMode {
+		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+			var errApply error
+			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, snapshots)
+			return errApply
+		})
+	} else {
+		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+			var errApply error
+			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, nil)
+			return errApply
+		})
+	}
+
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
 			zap.S().Named(logging.FSMNamespace).Debugf(
@@ -272,9 +313,15 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		proto.ContentIDMicroblock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
+		proto.ContentIDMicroBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshotRequest,
 	}
 	fsm.Configure(SyncStateName).
-		Ignore(MicroBlockEvent).Ignore(MicroBlockInvEvent).Ignore(StartMiningEvent).Ignore(StopMiningEvent).
+		Ignore(MicroBlockEvent).
+		Ignore(MicroBlockInvEvent).
+		Ignore(StartMiningEvent).
+		Ignore(StopMiningEvent).
+		Ignore(MicroBlockSnapshotEvent).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(syncSkipMessageList)
 			return nil
@@ -361,5 +408,18 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 						"unexpected type '%T' expected '*SyncState'", state.State))
 				}
 				return a.Halt()
+			})).
+		PermitDynamic(BlockSnapshotEvent,
+			createPermitDynamicCallback(BlockSnapshotEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*SyncState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*NGState'", state.State))
+				}
+				return a.BlockSnapshot(
+					convertToInterface[peer.Peer](args[0]),
+					args[1].(proto.BlockID),
+					args[2].(proto.BlockSnapshot),
+				)
 			}))
 }

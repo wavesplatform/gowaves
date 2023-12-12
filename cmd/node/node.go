@@ -482,7 +482,7 @@ func main() {
 		LoggableRunner:  logRunner,
 		Time:            ntpTime,
 		Wallet:          wal,
-		MicroBlockCache: microblock_cache.NewMicroblockCache(),
+		MicroBlockCache: microblock_cache.NewMicroBlockCache(),
 		InternalChannel: messages.NewInternalChannel(),
 		MinPeersMining:  nc.minPeersMining,
 		SkipMessageList: parent.SkipMessageList,

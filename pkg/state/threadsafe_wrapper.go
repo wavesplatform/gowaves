@@ -413,10 +413,13 @@ func (a *ThreadSafeWriteWrapper) AddBlock(block []byte) (*proto.Block, error) {
 	return a.s.AddBlock(block)
 }
 
-func (a *ThreadSafeWriteWrapper) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
+func (a *ThreadSafeWriteWrapper) AddDeserializedBlock(
+	block *proto.Block,
+	snapshot *proto.BlockSnapshot,
+) (*proto.Block, error) {
 	a.lock()
 	defer a.unlock()
-	return a.s.AddDeserializedBlock(block)
+	return a.s.AddDeserializedBlock(block, snapshot)
 }
 
 func (a *ThreadSafeWriteWrapper) AddBlocks(blocks [][]byte) error {
@@ -425,10 +428,13 @@ func (a *ThreadSafeWriteWrapper) AddBlocks(blocks [][]byte) error {
 	return a.s.AddBlocks(blocks)
 }
 
-func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(
+	blocks []*proto.Block,
+	snapshots []*proto.BlockSnapshot,
+) (*proto.Block, error) {
 	a.lock()
 	defer a.unlock()
-	return a.s.AddDeserializedBlocks(blocks)
+	return a.s.AddDeserializedBlocks(blocks, snapshots)
 }
 
 func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height) error {

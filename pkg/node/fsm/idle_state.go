@@ -17,7 +17,7 @@ import (
 
 type InvRequester interface {
 	Add2Cache(id []byte) (existed bool)
-	Request(p types.MessageSender, id []byte) (existed bool)
+	Request(p types.MessageSender, id []byte, enableLightNode bool) (existed bool)
 }
 
 type IdleState struct {
@@ -109,6 +109,9 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
 		proto.ContentIDBlockIds,
+		proto.ContentIDBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshotRequest,
 	}
 	fsm.Configure(IdleStateName).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
@@ -122,6 +125,8 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		Ignore(StopSyncEvent).
 		Ignore(ChangeSyncPeerEvent).
 		Ignore(StopMiningEvent).
+		Ignore(BlockSnapshotEvent).
+		Ignore(MicroBlockSnapshotEvent).
 		PermitDynamic(StartMiningEvent,
 			createPermitDynamicCallback(StartMiningEvent, state, func(args ...interface{}) (State, Async, error) {
 				a, ok := state.State.(*IdleState)

@@ -48,7 +48,7 @@ func TestGetBlock(t *testing.T) {
 	blockHeight := proto.Height(99)
 	blocks, err := state.ReadMainnetBlocksToHeight(blockHeight)
 	assert.NoError(t, err)
-	_, err = st.AddDeserializedBlocks(blocks)
+	_, err = st.AddDeserializedBlocks(blocks, nil)
 	assert.NoError(t, err)
 	// Retrieve expected block.
 	correctBlockProto := blockFromState(t, blockHeight, st)
@@ -95,7 +95,7 @@ func TestGetBlockRange(t *testing.T) {
 	blockHeight := proto.Height(99)
 	blocks, err := state.ReadMainnetBlocksToHeight(blockHeight)
 	assert.NoError(t, err)
-	_, err = st.AddDeserializedBlocks(blocks)
+	_, err = st.AddDeserializedBlocks(blocks, nil)
 	assert.NoError(t, err)
 
 	// With transactions.
@@ -169,7 +169,7 @@ func TestGetCurrentHeight(t *testing.T) {
 	blockHeight := proto.Height(99)
 	blocks, err := state.ReadMainnetBlocksToHeight(blockHeight)
 	assert.NoError(t, err)
-	_, err = st.AddDeserializedBlocks(blocks)
+	_, err = st.AddDeserializedBlocks(blocks, nil)
 	assert.NoError(t, err)
 
 	res, err = cl.GetCurrentHeight(ctx, &emptypb.Empty{})

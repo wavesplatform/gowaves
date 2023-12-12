@@ -41,30 +41,6 @@ var metricGetBlockMessage = prometheus.NewCounter(
 	},
 )
 
-var metricGetSnapshotMessage = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Namespace: "messages",
-		Name:      "get_snapshot",
-		Help:      "Counter of GetSnapshot message.",
-	},
-)
-
-var metricMicroSnapshotRequestMessage = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Namespace: "messages",
-		Name:      "micro_snapshot_request",
-		Help:      "Counter of MicroSnapshotRequest message.",
-	},
-)
-
-var metricSnapshotMessage = prometheus.NewCounter(
-	prometheus.CounterOpts{
-		Namespace: "messages",
-		Name:      "snapshot",
-		Help:      "Counter of Snapshot message.",
-	},
-)
-
 func init() {
 	prometheus.MustRegister(metricInternalChannelSize)
 	prometheus.MustRegister(metricPeersMessage)

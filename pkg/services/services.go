@@ -11,13 +11,15 @@ import (
 
 type BlocksApplier interface {
 	BlockExists(state state.State, block *proto.Block) (bool, error)
-	Apply(state state.State, block []*proto.Block) (proto.Height, error)
-	ApplyMicro(state state.State, block *proto.Block) (proto.Height, error)
+	Apply(state state.State, block []*proto.Block, snapshots []*proto.BlockSnapshot) (proto.Height, error)
+	ApplyMicro(state state.State, block *proto.Block, snapshots *proto.BlockSnapshot) (proto.Height, error)
 }
 
 type MicroBlockCache interface {
 	Add(blockID proto.BlockID, micro *proto.MicroBlock)
 	Get(proto.BlockID) (*proto.MicroBlock, bool)
+	AddSnapshot(blockID proto.BlockID, snapshot *proto.BlockSnapshot)
+	GetSnapshot(proto.BlockID) (*proto.BlockSnapshot, bool)
 }
 
 type MicroBlockInvCache interface {

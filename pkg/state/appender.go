@@ -155,7 +155,8 @@ type appendBlockParams struct {
 	chans         *verifierChans
 	block, parent *proto.BlockHeader
 	height        uint64
-	snapshot      proto.BlockSnapshot
+	snapshot      *proto.BlockSnapshot
+	isLightNode   bool
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -644,6 +645,79 @@ func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (txSn
 	return snapshot, nil
 }
 
+func (a *txAppender) applySnapshotsInLightNode(params *appendBlockParams) error {
+	for _, txs := range params.snapshot.TxSnapshots {
+		for _, snapshot := range txs {
+			if errApply := snapshot.Apply(a.txHandler.tp.snapshotApplier); errApply != nil {
+				return errors.Wrap(errApply, "failed to apply tx snapshot")
+			}
+		}
+	}
+	if err := a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, *params.snapshot); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (a *txAppender) appendTxs(
+	params *appendBlockParams,
+	info *checkerInfo,
+	stateActionsCounterInBlockValidation *proto.StateActionsCounter) error {
+	blockInfo, errBlockInfo := a.currentBlockInfo()
+	if errBlockInfo != nil {
+		return errBlockInfo
+	}
+	blockV5Activated, errActivatedFeature := a.stor.features.newestIsActivated(int16(settings.BlockV5))
+	if errActivatedFeature != nil {
+		return errActivatedFeature
+	}
+	consensusImprovementsActivated, errActivatedFeature :=
+		a.stor.features.newestIsActivated(int16(settings.ConsensusImprovements))
+	if errActivatedFeature != nil {
+		return errActivatedFeature
+	}
+	blockRewardDistributionActivated, errActivatedFeature :=
+		a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if errActivatedFeature != nil {
+		return errActivatedFeature
+	}
+	invokeExpressionActivated, errActivatedFeature :=
+		a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	if errActivatedFeature != nil {
+		return errActivatedFeature
+	}
+	// Check and append transactions.
+	var blockSnapshots proto.BlockSnapshot
+
+	for _, tx := range params.transactions {
+		appendTxArgs := &appendTxParams{
+			chans:                            params.chans,
+			checkerInfo:                      info,
+			blockInfo:                        blockInfo,
+			block:                            params.block,
+			acceptFailed:                     blockV5Activated,
+			blockV5Activated:                 blockV5Activated,
+			rideV5Activated:                  info.rideV5Activated,
+			rideV6Activated:                  info.rideV6Activated,
+			consensusImprovementsActivated:   consensusImprovementsActivated,
+			blockRewardDistributionActivated: blockRewardDistributionActivated,
+			invokeExpressionActivated:        invokeExpressionActivated,
+			validatingUtx:                    false,
+			stateActionsCounterInBlock:       stateActionsCounterInBlockValidation,
+			currentMinerPK:                   params.block.GeneratorPublicKey,
+		}
+		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
+		if errAppendTx != nil {
+			return errAppendTx
+		}
+		blockSnapshots.AppendTxSnapshot(txSnapshots.regular)
+	}
+	if err := a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
+		return err
+	}
+	return nil
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
 	defer func() {
@@ -700,126 +774,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err
 	}
-	blockInfo, err := a.currentBlockInfo()
-	if err != nil {
-		return err
-	}
-	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
-	if err != nil {
-		return err
-	}
-	consensusImprovementsActivated, err := a.stor.features.newestIsActivated(int16(settings.ConsensusImprovements))
-	if err != nil {
-		return err
-	}
-	blockRewardDistributionActivated, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
-	if err != nil {
-		return err
-	}
-	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
-	if err != nil {
-		return err
-	}
-	// Check and append transactions.
-	var blockSnapshots proto.BlockSnapshot
-
-	for _, tx := range params.transactions {
-		appendTxArgs := &appendTxParams{
-			chans:                            params.chans,
-			checkerInfo:                      checkerInfo,
-			blockInfo:                        blockInfo,
-			block:                            params.block,
-			acceptFailed:                     blockV5Activated,
-			blockV5Activated:                 blockV5Activated,
-			rideV5Activated:                  rideV5Activated,
-			rideV6Activated:                  rideV6Activated,
-			consensusImprovementsActivated:   consensusImprovementsActivated,
-			blockRewardDistributionActivated: blockRewardDistributionActivated,
-			invokeExpressionActivated:        invokeExpressionActivated,
-			validatingUtx:                    false,
-			stateActionsCounterInBlock:       stateActionsCounterInBlockValidation,
-			currentMinerPK:                   params.block.GeneratorPublicKey,
+	if params.isLightNode {
+		if err = a.applySnapshotsInLightNode(params); err != nil {
+			return err
 		}
-		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
-		if errAppendTx != nil {
-			return errAppendTx
+	} else {
+		if err = a.appendTxs(params, checkerInfo, stateActionsCounterInBlockValidation); err != nil {
+			return err
 		}
-		blockSnapshots.AppendTxSnapshot(txSnapshots.regular)
-	}
-	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
-		return err
-	}
-	// Save fee distribution of this block.
-	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
-	return a.blockDiffer.saveCurFeeDistr(params.block)
-}
-
-func (a *txAppender) appendBlockWithSnapshot(params *appendBlockParams) error {
-	// Reset block complexity counter.
-	defer func() {
-		a.sc.resetComplexity()
-		a.totalScriptsRuns = 0
-	}()
-	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return err
-	}
-	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
-	if err != nil {
-		return err
-	}
-	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
-	if err != nil {
-		return err
-	}
-	checkerInfo := &checkerInfo{
-		currentTimestamp:        params.block.Timestamp,
-		blockID:                 params.block.BlockID(),
-		blockVersion:            params.block.Version,
-		height:                  params.height,
-		rideV5Activated:         rideV5Activated,
-		rideV6Activated:         rideV6Activated,
-		blockRewardDistribution: blockRewardDistribution,
-	}
-	hasParent := params.parent != nil
-	if hasParent {
-		checkerInfo.parentTimestamp = params.parent.Timestamp
-	}
-	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
-
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		stateActionsCounterInBlockValidation)
-	a.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
-	// Create miner balance diff.
-	// This adds 60% of prev block fees as very first balance diff of the current block
-	// in case NG is activated, or empty diff otherwise.
-	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent)
-	if err != nil {
-		return err
-	}
-	// create the initial snapshot
-	_, err = a.createInitialBlockSnapshot(minerAndRewardDiff)
-	if err != nil {
-		return errors.Wrap(err, "failed to create initial snapshot")
-	}
-
-	// TODO apply this snapshot when balances are refatored
-	// err = initialSnapshot.Apply(&snapshotApplier)
-
-	// Save miner diff first (for validation)
-	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
-		return err
-	}
-
-	for _, txs := range params.snapshot.TxSnapshots {
-		for _, snapshot := range txs {
-			if errApply := snapshot.Apply(a.txHandler.tp.snapshotApplier); errApply != nil {
-				return errors.Wrap(errApply, "failed to apply tx snapshot")
-			}
-		}
-	}
-	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, params.snapshot); err != nil {
-		return err
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.

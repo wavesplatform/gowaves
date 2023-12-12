@@ -65,6 +65,16 @@ func eventArgsTypes(event stateless.Trigger) []reflect.Type {
 			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(),
 			reflect.TypeOf((*proto.Transaction)(nil)).Elem(),
 		}
+	case BlockSnapshotEvent:
+		return []reflect.Type{
+			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(proto.BlockID{}),
+			reflect.TypeOf(proto.BlockSnapshot{}),
+		}
+	case MicroBlockSnapshotEvent:
+		return []reflect.Type{
+			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(proto.BlockID{}),
+			reflect.TypeOf(proto.BlockSnapshot{}),
+		}
 	default:
 		return nil
 	}
@@ -76,7 +86,11 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 	if err != nil {
 		return state, nil, err
 	}
-	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSignatures)
+	internal := sync_internal.InternalFromLastSignatures(
+		extension.NewPeerExtension(p, baseInfo.scheme),
+		lastSignatures,
+		baseInfo.enableLightMode,
+	)
 	c := conf{
 		peerSyncWith: p,
 		timeout:      defaultSyncTimeout,

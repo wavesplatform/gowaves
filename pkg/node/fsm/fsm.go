@@ -2,7 +2,6 @@ package fsm
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/node/snapshot_applier"
 	"time"
 
 	"github.com/pkg/errors"
@@ -28,8 +27,8 @@ type Async []tasks.Task
 
 type BlocksApplier interface {
 	BlockExists(state storage.State, block *proto.Block) (bool, error)
-	Apply(state storage.State, block []*proto.Block) (proto.Height, error)
-	ApplyMicro(state storage.State, block *proto.Block) (proto.Height, error)
+	Apply(state storage.State, block []*proto.Block, snapshots []*proto.BlockSnapshot) (proto.Height, error)
+	ApplyMicro(state storage.State, block *proto.Block, snapshots *proto.BlockSnapshot) (proto.Height, error)
 }
 
 type BaseInfo struct {
@@ -42,11 +41,10 @@ type BaseInfo struct {
 	// ntp time
 	tm types.Time
 
-	scheme          proto.Scheme
-	invRequester    InvRequester
-	blocksApplier   BlocksApplier
-	snapshotApplier *snapshot_applier.SnapshotApplier
-	obsolescence    time.Duration
+	scheme        proto.Scheme
+	invRequester  InvRequester
+	blocksApplier BlocksApplier
+	obsolescence  time.Duration
 
 	// scheduler
 	scheduler types.Scheduler
@@ -106,10 +104,12 @@ const (
 	TransactionEvent   = "Transaction"
 	HaltEvent          = "Halt"
 
-	StopSyncEvent       = "StopSync"
-	StopMiningEvent     = "StopMining"
-	StartMiningEvent    = "StartMining"
-	ChangeSyncPeerEvent = "ChangeSyncPeer"
+	StopSyncEvent           = "StopSync"
+	StopMiningEvent         = "StopMining"
+	StartMiningEvent        = "StartMining"
+	ChangeSyncPeerEvent     = "ChangeSyncPeer"
+	BlockSnapshotEvent      = "BlockSnapshotEvent"
+	MicroBlockSnapshotEvent = "MicroBlockSnapshotEvent"
 )
 
 type FSM struct {
@@ -145,9 +145,8 @@ func NewFSM(
 		obsolescence: obsolescence,
 
 		//
-		invRequester:    ng.NewInvRequester(),
-		blocksApplier:   services.BlocksApplier,
-		snapshotApplier: snapshot_applier.NewSnapshotApplier(),
+		invRequester:  ng.NewInvRequester(),
+		blocksApplier: services.BlocksApplier,
 
 		scheduler: services.Scheduler,
 
@@ -302,5 +301,11 @@ func (f *FSM) ChangeSyncPeer(p peer.Peer) (Async, error) {
 func (f *FSM) BlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(BlockSnapshotEvent, asyncRes, p, blockID, snapshots)
+	return *asyncRes, err
+}
+
+func (f *FSM) MicroBlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(MicroBlockSnapshotEvent, asyncRes, p, blockID, snapshots)
 	return *asyncRes, err
 }

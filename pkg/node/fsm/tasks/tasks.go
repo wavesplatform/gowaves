@@ -15,6 +15,7 @@ const (
 	AskPeers
 	MineMicro
 	PersistComplete
+	SnapshotTimeout
 )
 
 // SendAsyncTask sends task into channel with overflow check.
@@ -172,4 +173,54 @@ func NewFuncTask(f func(ctx context.Context, output chan AsyncTask) error, taskT
 		f:     f,
 		_type: taskType,
 	}
+}
+
+type SnapshotTimeoutTaskType int
+
+const (
+	BlockSnapshot SnapshotTimeoutTaskType = iota
+	MicroBlockSnapshot
+)
+
+type SnapshotTimeoutTaskData struct {
+	BlockID          proto.BlockID
+	SnapshotTaskType SnapshotTimeoutTaskType
+}
+
+func (SnapshotTimeoutTaskData) taskDataMarker() {}
+
+type SnapshotTimeoutTask struct {
+	timeout                 time.Duration
+	SnapshotTimeoutTaskData SnapshotTimeoutTaskData
+}
+
+func NewSnapshotTimeoutTask(
+	timeout time.Duration,
+	blockID proto.BlockID,
+	taskType SnapshotTimeoutTaskType,
+) SnapshotTimeoutTask {
+	return SnapshotTimeoutTask{
+		timeout: timeout,
+		SnapshotTimeoutTaskData: SnapshotTimeoutTaskData{
+			BlockID:          blockID,
+			SnapshotTaskType: taskType,
+		},
+	}
+}
+
+func (SnapshotTimeoutTask) Type() int {
+	return SnapshotTimeout
+}
+
+func (a SnapshotTimeoutTask) Run(ctx context.Context, output chan AsyncTask) error {
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-time.After(a.timeout):
+		SendAsyncTask(output, AsyncTask{
+			TaskType: a.Type(),
+			Data:     a.SnapshotTimeoutTaskData,
+		})
+	}
+	return nil
 }

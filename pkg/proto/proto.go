@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
 )
@@ -56,6 +57,7 @@ const (
 	ContentIDMicroBlockSnapshot        PeerMessageID = 37
 )
 
+// ProtocolVersion TODO: change to 1.5.0
 var ProtocolVersion = NewVersion(1, 4, 0)
 
 type Message interface {
@@ -1819,6 +1821,8 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &MicroBlockSnapshotRequestMessage{}
 	case ContentIDBlockSnapshot:
 		m = &BlockSnapshotMessage{}
+	case ContentIDMicroBlockSnapshot:
+		m = &MicroBlockSnapshotMessage{}
 	default:
 		return nil, errors.Errorf(
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
@@ -2093,7 +2097,7 @@ func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
 
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetBlockSnapshot
 	h.PayloadLength = uint32(len(body))
@@ -2101,7 +2105,7 @@ func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -2135,7 +2139,7 @@ func (m *BlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
-	if len(data) < 17 {
+	if len(data) < maxHeaderLength {
 		return errors.New("BlockSnapshotMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
@@ -2149,15 +2153,16 @@ func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 	if h.ContentID != ContentIDBlockSnapshot {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
-	m.Bytes = data[17:]
+	m.Bytes = make([]byte, h.PayloadLength)
+	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.PayloadLength])
 	return nil
 }
 
-func (m *BlockSnapshotMessage) MarshalBinary() (data []byte, err error) {
+func (m *BlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDBlockSnapshot
 	h.PayloadLength = uint32(len(body))
@@ -2165,7 +2170,7 @@ func (m *BlockSnapshotMessage) MarshalBinary() (data []byte, err error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -2176,28 +2181,72 @@ func (m *BlockSnapshotMessage) MarshalBinary() (data []byte, err error) {
 }
 
 type MicroBlockSnapshotMessage struct {
-	BlockID   BlockID
-	Snapshots BlockSnapshot
+	Bytes []byte
 }
 
-func (m *MicroBlockSnapshotMessage) ReadFrom(_ io.Reader) (n int64, err error) {
-	panic("implement me")
+func (m *MicroBlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
 }
 
-func (m *MicroBlockSnapshotMessage) WriteTo(_ io.Writer) (n int64, err error) {
-	panic("implement me")
+func (m *MicroBlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
 }
 
-func (m *MicroBlockSnapshotMessage) UnmarshalBinary(_ []byte) error {
-	panic("implement me")
+func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < maxHeaderLength {
+		return errors.New("MicroBlockSnapshotMessage UnmarshalBinary: invalid data size")
+	}
+	var h Header
+
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	}
+	if h.ContentID != ContentIDMicroBlockSnapshot {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	m.Bytes = make([]byte, h.PayloadLength)
+	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.PayloadLength])
+	return nil
 }
 
-func (m *MicroBlockSnapshotMessage) MarshalBinary() (data []byte, err error) {
-	panic("ads")
+func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
+	body := m.Bytes
+
+	var h Header
+	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
+	h.Magic = headerMagic
+	h.ContentID = ContentIDMicroBlockSnapshot
+	h.PayloadLength = uint32(len(body))
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return nil, err
+	}
+	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	body = append(hdr, body...)
+	return body, nil
 }
 
 type MicroBlockSnapshotRequestMessage struct {
-	BlockID BlockID
+	BlockIDBytes []byte
 }
 
 func (m *MicroBlockSnapshotRequestMessage) ReadFrom(r io.Reader) (int64, error) {
@@ -2220,21 +2269,21 @@ func (m *MicroBlockSnapshotRequestMessage) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
-	return parsePacket(data, ContentIDMicroBlockSnapshotRequest, "MicroBlockSnapshotRequestMessage", func(payload []byte) error {
-		blockID, err := NewBlockIDFromBytes(payload)
-		if err != nil {
-			return err
-		}
-		m.BlockID = blockID
-		return nil
-	})
+	return parsePacket(
+		data,
+		ContentIDMicroBlockSnapshotRequest,
+		"MicroBlockSnapshotRequestMessage",
+		func(payload []byte) error {
+			m.BlockIDBytes = payload
+			return nil
+		})
 }
 
 func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
-	body := m.BlockID.Bytes()
+	body := m.BlockIDBytes
 
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetBlockSnapshot
 	h.PayloadLength = uint32(len(body))
@@ -2242,7 +2291,7 @@ func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
+	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {

@@ -25,12 +25,17 @@ func (a *InvRequesterImpl) Add2Cache(id []byte) (existed bool) {
 	return false
 }
 
-func (a *InvRequesterImpl) Request(p types.MessageSender, id []byte) (existed bool) {
-	existed = a.Add2Cache(id)
+func (a *InvRequesterImpl) Request(p types.MessageSender, id []byte, enableLightNode bool) bool {
+	existed := a.Add2Cache(id)
 	if !existed {
 		p.SendMessage(&proto.MicroBlockRequestMessage{
 			TotalBlockSig: id,
 		})
+		if enableLightNode {
+			p.SendMessage(&proto.MicroBlockSnapshotRequestMessage{
+				BlockIDBytes: id,
+			})
+		}
 	}
 	return existed
 }

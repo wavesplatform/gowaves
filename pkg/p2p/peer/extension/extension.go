@@ -14,6 +14,7 @@ var peerVersionWithProtobuf = proto.NewVersion(1, 2, 0)
 type PeerExtension interface {
 	AskBlocksIDs(id []proto.BlockID)
 	AskBlock(id proto.BlockID)
+	AskBlockSnapshot(id proto.BlockID)
 	SendMicroBlock(micro *proto.MicroBlock) error
 	SendTransaction(t proto.Transaction) error
 }
@@ -63,6 +64,13 @@ func (a PeerWrapperImpl) AskBlocksIDs(ids []proto.BlockID) {
 func (a PeerWrapperImpl) AskBlock(id proto.BlockID) {
 	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Requesting block %s", a.p.ID().String(), id.ShortString())
 	a.p.SendMessage(&proto.GetBlockMessage{BlockID: id})
+}
+
+func (a PeerWrapperImpl) AskBlockSnapshot(id proto.BlockID) {
+	zap.S().Named(logging.NetworkNamespace).Debugf(
+		"[%s] Requesting block snapshot for block %s", a.p.ID().String(), id.ShortString(),
+	)
+	a.p.SendMessage(&proto.GetBlockSnapshotMessage{BlockID: id})
 }
 
 func (a PeerWrapperImpl) SendMicroBlock(micro *proto.MicroBlock) error {
