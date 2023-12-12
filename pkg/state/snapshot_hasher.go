@@ -75,7 +75,7 @@ func (h *txSnapshotHasher) CalculateHash(prevHash crypto.Digest) (crypto.Digest,
 		return bytes.Compare(h.hashEntries[i].data, h.hashEntries[j].data) == -1
 	})
 
-	fh, errH := crypto.NewFastHash() // TODO: make hasher txSnapshotHasher field?
+	fh, errH := crypto.NewFastHash()
 	if errH != nil {
 		return crypto.Digest{}, errors.Wrap(errH, "failed to create new fast blake2b hasher")
 	}
