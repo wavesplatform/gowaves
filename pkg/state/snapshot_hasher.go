@@ -6,28 +6,34 @@ import (
 	"sort"
 
 	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
-	byteSize   = 1 // must be equal sizeof(byte)
-	boolSize   = 1 // must be equal sizeof(bool)
 	uint32Size = 4 // must be equal sizeof(uint32)
 	uint64Size = 8 // must be equal sizeof(uint64)
 )
 
 type hashEntry struct {
 	_    struct{}
-	data []byte
+	data *bytebufferpool.ByteBuffer
+}
+
+func (e *hashEntry) Release() {
+	if e.data != nil {
+		bytebufferpool.Put(e.data)
+		e.data = nil
+	}
 }
 
 type hashEntries []hashEntry
 
 func (h hashEntries) Len() int { return len(h) }
 
-func (h hashEntries) Less(i, j int) bool { return bytes.Compare(h[i].data, h[j].data) == -1 }
+func (h hashEntries) Less(i, j int) bool { return bytes.Compare(h[i].data.B, h[j].data.B) == -1 }
 
 func (h hashEntries) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
@@ -47,21 +53,21 @@ func newTxSnapshotHasher(blockHeight proto.Height, transactionID []byte) txSnaps
 	}
 }
 
-func writeUint32BigEndian(w *bytes.Buffer, v uint32) error {
+func writeUint32BigEndian(w *bytebufferpool.ByteBuffer, v uint32) error {
 	var buf [uint32Size]byte
 	binary.BigEndian.PutUint32(buf[:], v)
 	_, err := w.Write(buf[:])
 	return err
 }
 
-func writeUint64BigEndian(w *bytes.Buffer, v uint64) error {
+func writeUint64BigEndian(w *bytebufferpool.ByteBuffer, v uint64) error {
 	var buf [uint64Size]byte
 	binary.BigEndian.PutUint64(buf[:], v)
 	_, err := w.Write(buf[:])
 	return err
 }
 
-func writeBool(w *bytes.Buffer, v bool) error {
+func writeBool(w *bytebufferpool.ByteBuffer, v bool) error {
 	var b byte
 	if v {
 		b = 1
@@ -71,6 +77,9 @@ func writeBool(w *bytes.Buffer, v bool) error {
 
 // Release releases the hasher and sets its state to default.
 func (h *txSnapshotHasher) Release() {
+	for _, e := range h.hashEntries {
+		e.Release()
+	}
 	h.hashEntries = h.hashEntries[:0]
 	h.blockHeight = 0
 	h.transactionID = nil
@@ -95,7 +104,7 @@ func (h *txSnapshotHasher) CalculateHash(prevHash crypto.Digest) (crypto.Digest,
 	}
 
 	for i, entry := range h.hashEntries {
-		if _, err := fh.Write(entry.data); err != nil {
+		if _, err := fh.Write(entry.data.Bytes()); err != nil {
 			return crypto.Digest{}, errors.Wrapf(err, "failed to write to hasher %d-th hash entry", i)
 		}
 	}
@@ -116,46 +125,40 @@ func (h *txSnapshotHasher) CalculateHash(prevHash crypto.Digest) (crypto.Digest,
 }
 
 func (h *txSnapshotHasher) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
-	const size = len(snapshot.Address) + uint64Size
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Waves balances: address || balance
 	if _, err := buf.Write(snapshot.Address[:]); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.Balance); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.Balance); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
-	const size = len(snapshot.Address) + uint64Size + uint64Size
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Lease balance: address || lease_in || lease_out
 	if _, err := buf.Write(snapshot.Address[:]); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.LeaseIn); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.LeaseIn); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.LeaseOut); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.LeaseOut); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyAssetBalance(snapshot proto.AssetBalanceSnapshot) error {
-	const size = len(snapshot.Address) + len(snapshot.AssetID) + uint64Size
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Asset balances: address || asset_id || balance
 	if _, err := buf.Write(snapshot.Address[:]); err != nil {
@@ -164,18 +167,16 @@ func (h *txSnapshotHasher) ApplyAssetBalance(snapshot proto.AssetBalanceSnapshot
 	if _, err := buf.Write(snapshot.AssetID[:]); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.Balance); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.Balance); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyAlias(snapshot proto.AliasSnapshot) error {
-	size := len(snapshot.Address) + len(snapshot.Alias.Alias)
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Alias: address || alias
 	if _, err := buf.Write(snapshot.Address[:]); err != nil {
@@ -185,14 +186,12 @@ func (h *txSnapshotHasher) ApplyAlias(snapshot proto.AliasSnapshot) error {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyNewAsset(snapshot proto.NewAssetSnapshot) error {
-	const size = len(snapshot.AssetID) + len(snapshot.IssuerPublicKey) + byteSize + boolSize
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Static asset info: asset_id || issuer || decimals || is_nft
 	if _, err := buf.Write(snapshot.AssetID[:]); err != nil {
@@ -204,11 +203,11 @@ func (h *txSnapshotHasher) ApplyNewAsset(snapshot proto.NewAssetSnapshot) error 
 	if err := buf.WriteByte(snapshot.Decimals); err != nil {
 		return err
 	}
-	if err := writeBool(&buf, snapshot.IsNFT); err != nil {
+	if err := writeBool(buf, snapshot.IsNFT); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
@@ -216,9 +215,7 @@ func (h *txSnapshotHasher) ApplyAssetDescription(snapshot proto.AssetDescription
 	if h.blockHeight == 0 { // sanity check
 		return errors.New("failed to apply asset description snapshot: block height is not set")
 	}
-	size := len(snapshot.AssetID) + len(snapshot.AssetName) + len(snapshot.AssetDescription) + uint32Size
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Asset name and description: asset_id || name || description || change_height
 	if _, err := buf.Write(snapshot.AssetID[:]); err != nil {
@@ -231,39 +228,35 @@ func (h *txSnapshotHasher) ApplyAssetDescription(snapshot proto.AssetDescription
 		return err
 	}
 	// in scala node height is hashed as 4 byte integer
-	if err := writeUint32BigEndian(&buf, uint32(h.blockHeight)); err != nil {
+	if err := writeUint32BigEndian(buf, uint32(h.blockHeight)); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyAssetVolume(snapshot proto.AssetVolumeSnapshot) error {
 	totalQuantityBytes := snapshot.TotalQuantity.Bytes() // here the number is represented in big-endian form
-	size := len(snapshot.AssetID) + boolSize + len(totalQuantityBytes)
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Asset reissuability: asset_id || is_reissuable || total_quantity
 	if _, err := buf.Write(snapshot.AssetID[:]); err != nil {
 		return err
 	}
-	if err := writeBool(&buf, snapshot.IsReissuable); err != nil {
+	if err := writeBool(buf, snapshot.IsReissuable); err != nil {
 		return err
 	}
 	if _, err := buf.Write(totalQuantityBytes); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) error {
-	size := len(snapshot.AssetID) + len(snapshot.Script)
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Asset script: asset_id || script
 	if _, err := buf.Write(snapshot.AssetID[:]); err != nil {
@@ -273,45 +266,39 @@ func (h *txSnapshotHasher) ApplyAssetScript(snapshot proto.AssetScriptSnapshot) 
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplySponsorship(snapshot proto.SponsorshipSnapshot) error {
-	const size = len(snapshot.AssetID) + uint64Size
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Sponsorship: asset_id || min_sponsored_fee
 	if _, err := buf.Write(snapshot.AssetID[:]); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.MinSponsoredFee); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.MinSponsoredFee); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyAccountScript(snapshot proto.AccountScriptSnapshot) error {
 	if snapshot.Script.IsEmpty() {
-		var buf bytes.Buffer
-		const size = len(snapshot.SenderPublicKey)
-		buf.Grow(size)
+		buf := bytebufferpool.Get()
 
 		// Emtpy account script: sender_public_key
 
 		if _, err := buf.Write(snapshot.SenderPublicKey[:]); err != nil {
 			return err
 		}
-		h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+		h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 		return nil
 	}
 
-	var buf bytes.Buffer
-	size := len(snapshot.SenderPublicKey) + len(snapshot.Script) + uint64Size
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Not emtpy account script: sender_public_key || script || verifier_complexity
 	if _, err := buf.Write(snapshot.SenderPublicKey[:]); err != nil {
@@ -320,31 +307,29 @@ func (h *txSnapshotHasher) ApplyAccountScript(snapshot proto.AccountScriptSnapsh
 	if _, err := buf.Write(snapshot.Script); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.VerifierComplexity); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.VerifierComplexity); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyFilledVolumeAndFee(snapshot proto.FilledVolumeFeeSnapshot) error {
-	const size = len(snapshot.OrderID) + uint64Size + uint64Size
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Filled volume and fee: order_id || filled_volume || filled_fee
 	if _, err := buf.Write(snapshot.OrderID[:]); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.FilledVolume); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.FilledVolume); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.FilledFee); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.FilledFee); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
@@ -352,9 +337,7 @@ func (h *txSnapshotHasher) ApplyDataEntries(snapshot proto.DataEntriesSnapshot) 
 	for _, entry := range snapshot.DataEntries {
 		entryKey := entry.GetKey()
 
-		size := len(snapshot.Address) + len(entryKey) + entry.MarshaledValueSize()
-		var buf bytes.Buffer
-		buf.Grow(size)
+		buf := bytebufferpool.Get()
 
 		// Data entries: address || key || data_entry
 		if _, err := buf.Write(snapshot.Address[:]); err != nil {
@@ -363,36 +346,32 @@ func (h *txSnapshotHasher) ApplyDataEntries(snapshot proto.DataEntriesSnapshot) 
 		if _, err := buf.WriteString(entryKey); err != nil { // we assume that string is valid UTF-8
 			return err
 		}
-		if err := entry.WriteValueTo(&buf); err != nil {
+		if err := entry.WriteValueTo(buf); err != nil {
 			return err
 		}
 
-		h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+		h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	}
 	return nil
 }
 
 func (h *txSnapshotHasher) applyLeaseStatusHashEntry(leaseID crypto.Digest, isActive bool) error {
-	const size = len(leaseID) + boolSize
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Lease details: lease_id || is_active
 	if _, err := buf.Write(leaseID[:]); err != nil {
 		return err
 	}
-	if err := writeBool(&buf, isActive); err != nil {
+	if err := writeBool(buf, isActive); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
 
 func (h *txSnapshotHasher) ApplyNewLease(snapshot proto.NewLeaseSnapshot) error {
-	const size = len(snapshot.LeaseID) + len(snapshot.SenderPK) + len(snapshot.RecipientAddr) + uint64Size
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Lease details: lease_id || sender_public_key || recipient || amount
 	if _, err := buf.Write(snapshot.LeaseID[:]); err != nil {
@@ -404,11 +383,11 @@ func (h *txSnapshotHasher) ApplyNewLease(snapshot proto.NewLeaseSnapshot) error 
 	if _, err := buf.Write(snapshot.RecipientAddr[:]); err != nil {
 		return err
 	}
-	if err := writeUint64BigEndian(&buf, snapshot.Amount); err != nil {
+	if err := writeUint64BigEndian(buf, snapshot.Amount); err != nil {
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return h.applyLeaseStatusHashEntry(snapshot.LeaseID, true)
 }
 
@@ -433,9 +412,7 @@ func (h *txSnapshotHasher) ApplyTransactionsStatus(snapshot proto.TransactionSta
 		return errors.Errorf("invalid status value (%d) of TransactionStatus snapshot", v)
 	}
 
-	size := len(h.transactionID) + byteSize
-	var buf bytes.Buffer
-	buf.Grow(size)
+	buf := bytebufferpool.Get()
 
 	// Non-successful transaction application status: tx_id || application_status
 	if _, err := buf.Write(h.transactionID); err != nil {
@@ -445,6 +422,6 @@ func (h *txSnapshotHasher) ApplyTransactionsStatus(snapshot proto.TransactionSta
 		return err
 	}
 
-	h.hashEntries = append(h.hashEntries, hashEntry{data: buf.Bytes()})
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
 	return nil
 }
