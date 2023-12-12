@@ -175,3 +175,59 @@ func TestTxSnapshotHasher(t *testing.T) {
 		})
 	}
 }
+
+func BenchmarkTxSnapshotHasher(b *testing.B) {
+	const (
+		scheme      = proto.TestNetScheme
+		blockHeight = 10
+	)
+	testCase := struct {
+		testCaseName        string
+		pbInBase64          string
+		prevStateHashHex    string
+		transactionIDBase58 string
+	}{
+		testCaseName:        "all_together",
+		pbInBase64:          "CkMKGgFUYP1Q7yDeRXEgffuciL58HC+KIscK2I+1EiUKIF5mn4IKZ9CIbYdHjPBDoqx4XMevVdwxzhB1OUvTUKJbEJBOCkQKGgFUQsXJY3P1D9gTUGBPHBTypsklatr9GbAqEiYKIHidwBEj1TYPcIKv1LRquL/otRYLv7UmwEPl/Hg6T4lOEKCcAQokChoBVGD9UO8g3kVxIH37nIi+fBwviiLHCtiPtRIGEICU69wDCiQKGgFUQsXJY3P1D9gTUGBPHBTypsklatr9GbAqEgYQgKjWuQcSIgoaAVRg/VDvIN5FcSB9+5yIvnwcL4oixwrYj7UYgJri4RASIgoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoQgK7NvhQSIgoaAVQwI8uotbzVfYC2BqPYrAX1CRomrjsJ6/0YgKjWuQcSHAoaAVRhIl3y/Mj2ursZ0i4PLrkkxzzOLj3sT3waZgoguIIzLIWCBbxl3Ysa38C0yvtZan6R9ZvOU33eldmrOo0SIFDHWa9Cd6VU8M20LLFHzbBTveERf1sEOw19SUS40GBoGhoBVELFyWNz9Q/YE1BgTxwU8qbJJWra/RmwKiCA8ouoCSIiCiC4gjMshYIFvGXdixrfwLTK+1lqfpH1m85Tfd6V2as6jSpGCiBeZp+CCmfQiG2HR4zwQ6KseFzHr1XcMc4QdTlL01CiWxIg3GBhamPTKLR06Q6bJKMnDfzLetm2Xz8SAuH6VNGUwZ4gASpGCiB4ncARI9U2D3CCr9S0ari/6LUWC7+1JsBD5fx4Ok+JThIg3GBhamPTKLR06Q6bJKMnDfzLetm2Xz8SAuH6VNGUwZ4YCDIvCiB4ncARI9U2D3CCr9S0ari/6LUWC7+1JsBD5fx4Ok+JThABGgkE//////////YyJQogXmafggpn0Ihth0eM8EOirHhcx69V3DHOEHU5S9NQolsaAQEyKAogOG+NPdNOUn6/g2LbTm9xhzWb1ZaCdA8Wi+OYkjUfrbIaBDuaygA6QwogeJ3AESPVNg9wgq/UtGq4v+i1Fgu/tSbAQ+X8eDpPiU4SB25ld25hbWUaFnNvbWUgZmFuY3kgZGVzY3JpcHRpb25KJgoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoSCHdhdmVzZXZvUisKIMkknO8yHpMUT/XKkkdlrbYCG0Dt+qvVgphfgtRbyRDMEICU69wDGNAPUisKIJZ9YwvJObbWItHAD2zhbaFOTFx2zQ4p0Xbo81GXHKeEEICU69wDGNAPWi4KIFDHWa9Cd6VU8M20LLFHzbBTveERf1sEOw19SUS40GBoEgcGAQaw0U/PGPoBYloKGgFUYP1Q7yDeRXEgffuciL58HC+KIscK2I+1EgUKA2ZvbxISCgNiYXJqC1N0cmluZ1ZhbHVlEiEKA2JhemIaAVRg/VDvIN5FcSB9+5yIvnwcL4oixwrYj7ViLwoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoSCAoDZm9vULAJEgcKA2JhclgBaiUKIHidwBEj1TYPcIKv1LRquL/otRYLv7UmwEPl/Hg6T4lOEPwqcAE=", //nolint:lll
+		prevStateHashHex:    "7a15507d73ff9f98c3c777e687e23a4c8b33d02212203be73f0518403e91d431",
+		transactionIDBase58: "5gEi2kgbMSfUzdDXRKovEbEezq5ACpr8WTeafwkKQmHW",
+	}
+	pbBytes, err := base64.StdEncoding.DecodeString(testCase.pbInBase64)
+	require.NoError(b, err)
+
+	txSnapshotProto := new(g.TransactionStateSnapshot)
+	err = txSnapshotProto.UnmarshalVT(pbBytes)
+	require.NoError(b, err)
+
+	prevHashBytes, err := hex.DecodeString(testCase.prevStateHashHex)
+	require.NoError(b, err)
+	prevHash, err := crypto.NewDigestFromBytes(prevHashBytes)
+	require.NoError(b, err)
+
+	txSnapshot, err := proto.TxSnapshotsFromProtobuf(scheme, txSnapshotProto)
+	assert.NoError(b, err)
+
+	transactionID, err := crypto.NewDigestFromBase58(testCase.transactionIDBase58)
+	require.NoError(b, err)
+	txID := transactionID.Bytes()
+
+	b.ResetTimer()
+	for i := 0; i < b.N; i++ {
+		b.Run(testCase.testCaseName, func(b *testing.B) {
+			b.ReportAllocs()
+			for j := 0; j < b.N; j++ {
+				hasher := newTxSnapshotHasher(blockHeight, txID)
+
+				for _, snapshot := range txSnapshot {
+					err = snapshot.Apply(&hasher)
+					require.NoErrorf(b, err, "failed to apply atomic snapshot")
+				}
+
+				_, err = hasher.CalculateHash(prevHash)
+				require.NoError(b, err)
+
+				hasher.Release()
+			}
+		})
+	}
+}
