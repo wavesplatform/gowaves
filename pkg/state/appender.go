@@ -826,7 +826,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		stateHash = txSh // update stateHash in order to accumulate state hashes into block snapshot hash
 	}
 	blockID := params.block.BlockID()
-	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.blockchainHeight, bs); ssErr != nil {
+	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), currentBlockHeight, bs); ssErr != nil {
 		return ssErr
 	}
 	// TODO: check snapshot hash with the block snapshot hash if it exists
