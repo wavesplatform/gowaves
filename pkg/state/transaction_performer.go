@@ -18,6 +18,8 @@ type performerInfo struct {
 	checkerData         txCheckerData
 }
 
+func (i *performerInfo) blockHeight() proto.Height { return i.blockchainHeight + 1 }
+
 func newPerformerInfo(
 	blockchainHeight proto.Height,
 	stateActionsCounter *proto.StateActionsCounter,
@@ -109,7 +111,7 @@ func (tp *transactionPerformer) performIssue(
 	scriptEstimation *scriptEstimation,
 	script proto.Script,
 ) (txSnapshot, error) {
-	blockHeight := info.blockchainHeight + 1
+	blockHeight := info.blockHeight()
 	// Create new asset.
 	assetInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
