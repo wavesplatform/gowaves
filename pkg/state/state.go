@@ -589,9 +589,15 @@ func (s *stateManager) Map(func(State) error) error {
 func (s *stateManager) addGenesisBlock() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	initSH, shErr := crypto.FastHash(nil) // zero/initial snapshot state hash according to the specification
+	if shErr != nil {
+		return shErr
+	}
+
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
+	if err := s.addNewBlock(s.genesis, nil, chans, 0, initSH); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
@@ -1059,8 +1065,13 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, isCappedRewardsActivated, block.BlockID())
 }
 
-func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierChans, height uint64) error {
-	blockHeight := height + 1
+func (s *stateManager) addNewBlock(
+	block, parent *proto.Block,
+	chans *verifierChans,
+	blockchainHeight uint64,
+	lastSnapshotStateHash crypto.Digest,
+) error {
+	blockHeight := blockchainHeight + 1
 	// Add score.
 	if err := s.stor.scores.appendBlockScore(block, blockHeight); err != nil {
 		return err
@@ -1082,11 +1093,12 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 		parentHeader = &parent.BlockHeader
 	}
 	params := &appendBlockParams{
-		transactions: transactions,
-		chans:        chans,
-		block:        &block.BlockHeader,
-		parent:       parentHeader,
-		height:       height,
+		transactions:          transactions,
+		chans:                 chans,
+		block:                 &block.BlockHeader,
+		parent:                parentHeader,
+		blockchainHeight:      blockchainHeight,
+		lastSnapshotStateHash: lastSnapshotStateHash,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
@@ -1512,11 +1524,17 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err != nil {
 			return nil, err
 		}
+		sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get newest snapshot state hash for height %d",
+				blockchainCurHeight,
+			)
+		}
 		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
 			return nil, err
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if err := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight); err != nil {
+		if err := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, sh); err != nil {
 			return nil, err
 		}
 

@@ -160,7 +160,7 @@ func TestTxSnapshotHasher(t *testing.T) {
 				transactionID, err = crypto.NewDigestFromBase58(txIDStr)
 				require.NoError(t, err)
 			}
-			hasher := newTxSnapshotHasher(blockHeight, transactionID)
+			hasher := newTxSnapshotHasher(blockHeight, transactionID.Bytes())
 			defer hasher.Release()
 
 			for i, snapshot := range txSnapshot {

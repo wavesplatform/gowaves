@@ -26,14 +26,14 @@ type hashEntry struct {
 type txSnapshotHasher struct {
 	hashEntries   []hashEntry
 	blockHeight   proto.Height
-	transactionID crypto.Digest
+	transactionID []byte
 }
 
 var _ = proto.SnapshotApplier((*txSnapshotHasher)(nil)) // use the same interface for applying and hashing
 
 var _ = newTxSnapshotHasher // only for linter
 
-func newTxSnapshotHasher(blockHeight proto.Height, transactionID crypto.Digest) txSnapshotHasher {
+func newTxSnapshotHasher(blockHeight proto.Height, transactionID []byte) txSnapshotHasher {
 	return txSnapshotHasher{
 		hashEntries:   nil,
 		blockHeight:   blockHeight,
@@ -95,10 +95,10 @@ func (h *txSnapshotHasher) CalculateHash(prevHash crypto.Digest) (crypto.Digest,
 	if _, err := fh.Write(txSnapshotsDigest[:]); err != nil {
 		return crypto.Digest{}, errors.Wrapf(err, "failed to write to hasher current tx snapshots hash")
 	}
-	var txStateSnapshotDigest crypto.Digest
-	fh.Sum(txStateSnapshotDigest[:0])
+	var newHash crypto.Digest
+	fh.Sum(newHash[:0])
 
-	return txStateSnapshotDigest, nil
+	return newHash, nil
 }
 
 func (h *txSnapshotHasher) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
@@ -199,6 +199,9 @@ func (h *txSnapshotHasher) ApplyNewAsset(snapshot proto.NewAssetSnapshot) error 
 }
 
 func (h *txSnapshotHasher) ApplyAssetDescription(snapshot proto.AssetDescriptionSnapshot) error {
+	if h.blockHeight == 0 { // sanity check
+		return errors.New("failed to apply asset description snapshot: block height is not set")
+	}
 	size := len(snapshot.AssetID) + len(snapshot.AssetName) + len(snapshot.AssetDescription) + uint32Size
 	var buf bytes.Buffer
 	buf.Grow(size)
@@ -406,6 +409,9 @@ func (h *txSnapshotHasher) ApplyCancelledLease(snapshot proto.CancelledLeaseSnap
 }
 
 func (h *txSnapshotHasher) ApplyTransactionsStatus(snapshot proto.TransactionStatusSnapshot) error {
+	if len(h.transactionID) == 0 { // sanity check
+		return errors.New("failed to apply transaction status snapshot: transaction ID is not set")
+	}
 	// Application status is one byte, either 0x01 (script execution failed) or 0x02 (elided).
 	var applicationStatus byte
 	switch v := snapshot.Status; v {
@@ -419,7 +425,7 @@ func (h *txSnapshotHasher) ApplyTransactionsStatus(snapshot proto.TransactionSta
 		return errors.Errorf("invalid status value (%d) of TransactionStatus snapshot", v)
 	}
 
-	const size = len(h.transactionID) + byteSize
+	size := len(h.transactionID) + byteSize
 	var buf bytes.Buffer
 	buf.Grow(size)
 
