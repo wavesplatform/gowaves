@@ -280,14 +280,15 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, txID *crypto.Diges
 	}
 	// Add leasing to lease state.
 	l := &leasing{
-		SenderPK:      tx.SenderPK,
-		RecipientAddr: recipientAddr,
-		Amount:        tx.Amount,
-		OriginHeight:  info.blockchainHeight,
-		Status:        LeaseActive,
+		SenderPK:            tx.SenderPK,
+		RecipientAddr:       recipientAddr,
+		Amount:              tx.Amount,
+		OriginHeight:        info.blockchainHeight,
+		OriginTransactionID: txID,
+		Status:              LeaseActive,
 	}
 	leaseID := *txID
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseTx(l, leaseID, txID, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseTx(l, leaseID, balanceChanges)
 	if err != nil {
 		return txSnapshot{}, err
 	}
