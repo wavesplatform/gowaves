@@ -427,7 +427,7 @@ func GetTransferWithSponsorshipMaxValuesDataNegative(suite *f.BaseSuite, sponsor
 				ErrGoMsg:                  errMsg,
 				ErrScalaMsg:               errMsg,
 				ErrBrdCstGoMsg:            errBrdCstMsg,
-				ErrBrdCstScalaMsg:         fmt.Sprintf("asset %s overflow", sponsoredAssetId),
+				ErrBrdCstScalaMsg:         fmt.Sprintf("asset %s sum overflow", sponsoredAssetId),
 			}),
 	}
 }
