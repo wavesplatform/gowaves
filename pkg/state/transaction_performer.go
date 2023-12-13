@@ -14,7 +14,6 @@ type performerInfo struct {
 	blockchainHeight    proto.Height
 	blockID             proto.BlockID
 	currentMinerAddress proto.WavesAddress
-	stateActionsCounter *proto.StateActionsCounter
 	checkerData         txCheckerData
 }
 
@@ -22,7 +21,6 @@ func (i *performerInfo) blockHeight() proto.Height { return i.blockchainHeight +
 
 func newPerformerInfo(
 	blockchainHeight proto.Height,
-	stateActionsCounter *proto.StateActionsCounter,
 	blockID proto.BlockID,
 	currentMinerAddress proto.WavesAddress,
 	checkerData txCheckerData,
@@ -31,7 +29,6 @@ func newPerformerInfo(
 		blockchainHeight,
 		blockID,
 		currentMinerAddress,
-		stateActionsCounter,
 		checkerData,
 	}
 }

@@ -353,7 +353,6 @@ func (a *txAppender) commitTxApplication(
 		// We only perform tx in case it has not failed.
 		pi := newPerformerInfo(
 			params.checkerInfo.blockchainHeight,
-			params.stateActionsCounterInBlock,
 			params.checkerInfo.blockID,
 			currentMinerAddress,
 			applicationRes.checkerData,
@@ -436,7 +435,6 @@ type appendTxParams struct {
 	blockRewardDistributionActivated bool
 	invokeExpressionActivated        bool // TODO: check feature naming
 	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
-	stateActionsCounterInBlock       *proto.StateActionsCounter
 	currentMinerPK                   crypto.PublicKey
 }
 
@@ -800,7 +798,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			blockRewardDistributionActivated: blockRewardDistributionActivated,
 			invokeExpressionActivated:        invokeExpressionActivated,
 			validatingUtx:                    false,
-			stateActionsCounterInBlock:       stateActionsCounterInBlockValidation,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
@@ -1069,6 +1066,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
+	// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
 		issueCounterInBlock)
@@ -1087,8 +1085,6 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
 		invokeExpressionActivated:        invokeExpressionActivated,
 		validatingUtx:                    true,
-		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
-		stateActionsCounterInBlock: issueCounterInBlock,
 	}
 	_, err = a.appendTx(tx, appendTxArgs)
 	if err != nil {
