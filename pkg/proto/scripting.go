@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
@@ -40,7 +41,7 @@ func (a *DataEntryScriptAction) SenderPK() *crypto.PublicKey {
 	return a.Sender
 }
 
-func (a *DataEntryScriptAction) ToProtobuf() *g.DataTransactionData_DataEntry {
+func (a *DataEntryScriptAction) ToProtobuf() *g.DataEntry {
 	return a.Entry.ToProtobuf()
 }
 
@@ -383,7 +384,7 @@ func NewScriptResult(actions []ScriptAction, msg ScriptErrorMessage) (*ScriptRes
 }
 
 func (sr *ScriptResult) ToProtobuf() (*g.InvokeScriptResult, error) {
-	data := make([]*g.DataTransactionData_DataEntry, len(sr.DataEntries))
+	data := make([]*g.DataEntry, len(sr.DataEntries))
 	for i, e := range sr.DataEntries {
 		data[i] = e.ToProtobuf()
 	}

@@ -133,7 +133,7 @@ func GetNegativeAssetScriptData(suite *f.BaseSuite) map[string]IssueTestData[Exp
 				ErrGoMsg:          errMsg,
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
-				ErrBrdCstScalaMsg: "Invalid version of script",
+				ErrBrdCstScalaMsg: "ScriptParseError(Invalid checksum)",
 				WavesDiffBalance:  0,
 				AssetBalance:      0,
 			}),
