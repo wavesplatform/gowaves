@@ -1155,7 +1155,7 @@ func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *
 		return txBalanceChanges{}, err
 	}
 	// Append receiver diff.
-	receiverKey := wavesBalanceKey{address: l.Recipient.ID()}
+	receiverKey := wavesBalanceKey{address: l.RecipientAddr.ID()}
 	receiverLeaseInDiff := -int64(l.Amount)
 	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
 		return txBalanceChanges{}, err
@@ -1165,7 +1165,7 @@ func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *
 			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
 		}
 	}
-	addresses := []proto.WavesAddress{senderAddr, l.Recipient}
+	addresses := []proto.WavesAddress{senderAddr, l.RecipientAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	return changes, nil
 }

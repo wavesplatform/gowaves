@@ -594,33 +594,10 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 }
 
 func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
-	res := map[ast.LibraryVersion]map[string]Type{
-		ast.LibV1: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV2: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV3: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV4: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV5: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV6: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV7: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV8: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
+	res := make(map[ast.LibraryVersion]map[string]Type)
+	for v := ast.LibV1; v <= ast.CurrentMaxLibraryVersion(); v++ {
+		res[v] = map[string]Type{"Transaction": UnionType{Types: []Type{}}}
 	}
-
 	f, err := embedFS.ReadFile("ride_objects.json")
 	if err != nil {
 		panic(err)

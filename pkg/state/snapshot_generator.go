@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -41,9 +42,14 @@ func (sg *snapshotGenerator) generateSnapshotForTransferTx(balanceChanges txDiff
 	return sg.generateBalancesSnapshot(balanceChanges)
 }
 
-func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, txID crypto.Digest,
-	senderPK crypto.PublicKey, assetInfo assetInfo, balanceChanges txDiff,
-	scriptEstimation *scriptEstimation, script proto.Script) (txSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForIssueTx(
+	assetID crypto.Digest,
+	senderPK crypto.PublicKey,
+	assetInfo assetInfo,
+	balanceChanges txDiff,
+	scriptEstimation *scriptEstimation,
+	script proto.Script,
+) (txSnapshot, error) {
 	var snapshot txSnapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
@@ -64,19 +70,17 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(assetID crypto.Digest, t
 		}
 	}
 
-	issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
-		AssetID:             assetID,
-		IssuerPublicKey:     senderPK,
-		SourceTransactionID: txID,
-		Decimals:            assetInfo.decimals,
-		IsNFT:               assetInfo.isNFT(),
+	issueStaticInfoSnapshot := &proto.NewAssetSnapshot{
+		AssetID:         assetID,
+		IssuerPublicKey: senderPK,
+		Decimals:        assetInfo.decimals,
+		IsNFT:           assetInfo.isNFT(),
 	}
 
 	assetDescription := &proto.AssetDescriptionSnapshot{
 		AssetID:          assetID,
 		AssetName:        assetInfo.name,
 		AssetDescription: assetInfo.description,
-		ChangeHeight:     assetInfo.lastNameDescChangeHeight,
 	}
 
 	assetReissuability := &proto.AssetVolumeSnapshot{
@@ -204,15 +208,13 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease *leasing, leaseID 
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
 
-	leaseStatusSnapshot := &proto.LeaseStateSnapshot{
-		LeaseID: leaseID,
-		Status: &proto.LeaseStateStatusActive{
-			Amount:    lease.Amount,
-			Sender:    lease.Sender,
-			Recipient: lease.Recipient,
-		},
+	leaseStatusSnapshot := &proto.NewLeaseSnapshot{
+		LeaseID:       leaseID,
+		Amount:        lease.Amount,
+		SenderPK:      lease.SenderPK,
+		RecipientAddr: lease.RecipientAddr,
 	}
-	leaseStatusActiveSnapshot := &InternalLeaseStateActiveInfoSnapshot{
+	leaseStatusActiveSnapshot := &InternalNewLeaseInfoSnapshot{
 		LeaseID:             leaseID,
 		OriginHeight:        lease.OriginHeight,
 		OriginTransactionID: originalTxID,
@@ -233,16 +235,15 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
-	leaseStatusSnapshot := &proto.LeaseStateSnapshot{
+	cancelledLeaseSnapshot := &proto.CancelledLeaseSnapshot{
 		LeaseID: leaseID,
-		Status:  &proto.LeaseStatusCancelled{},
 	}
-	leaseStatusCancelledSnapshot := &InternalLeaseStateCancelInfoSnapshot{
+	leaseStatusCancelledSnapshot := &InternalCancelledLeaseInfoSnapshot{
 		LeaseID:             leaseID,
 		CancelHeight:        cancelHeight,
 		CancelTransactionID: txID,
 	}
-	snapshot.regular = append(snapshot.regular, leaseStatusSnapshot)
+	snapshot.regular = append(snapshot.regular, cancelledLeaseSnapshot)
 	snapshot.internal = append(snapshot.internal, leaseStatusCancelledSnapshot)
 	return snapshot, nil
 }
@@ -338,26 +339,25 @@ func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.
 	return snapshot, nil
 }
 
-func generateSnapshotsFromAssetsUncertain(assetsUncertain map[proto.AssetID]wrappedUncertainInfo,
-	txID crypto.Digest) []proto.AtomicSnapshot {
+func generateSnapshotsFromAssetsUncertain(
+	assetsUncertain map[proto.AssetID]wrappedUncertainInfo,
+) []proto.AtomicSnapshot {
 	var atomicSnapshots []proto.AtomicSnapshot
 	for assetID, infoAsset := range assetsUncertain {
 		fullAssetID := proto.ReconstructDigest(assetID, infoAsset.assetInfo.tail)
 		// order of snapshots here is important: static info snapshot should be first
 		if infoAsset.wasJustIssued {
-			issueStaticInfoSnapshot := &proto.StaticAssetInfoSnapshot{
-				AssetID:             fullAssetID,
-				IssuerPublicKey:     infoAsset.assetInfo.issuer,
-				SourceTransactionID: txID,
-				Decimals:            infoAsset.assetInfo.decimals,
-				IsNFT:               infoAsset.assetInfo.isNFT(),
+			issueStaticInfoSnapshot := &proto.NewAssetSnapshot{
+				AssetID:         fullAssetID,
+				IssuerPublicKey: infoAsset.assetInfo.issuer,
+				Decimals:        infoAsset.assetInfo.decimals,
+				IsNFT:           infoAsset.assetInfo.isNFT(),
 			}
 
 			assetDescription := &proto.AssetDescriptionSnapshot{
 				AssetID:          fullAssetID,
 				AssetName:        infoAsset.assetInfo.name,
 				AssetDescription: infoAsset.assetInfo.description,
-				ChangeHeight:     infoAsset.assetInfo.lastNameDescChangeHeight,
 			}
 
 			atomicSnapshots = append(atomicSnapshots, issueStaticInfoSnapshot, assetDescription)
@@ -425,32 +425,48 @@ func generateSnapshotsFromLeasingsUncertain(
 	for lID, l := range leasesUncertain {
 		switch status := l.Status; status {
 		case LeaseActive:
-			leaseStatusSnapshot := &proto.LeaseStateSnapshot{
-				LeaseID: lID,
-				Status: &proto.LeaseStateStatusActive{
-					Amount:    l.Amount,
-					Sender:    l.Sender,
-					Recipient: l.Recipient,
-				},
+			newLeaseSnapshot := &proto.NewLeaseSnapshot{
+				LeaseID:       lID,
+				Amount:        l.Amount,
+				SenderPK:      l.SenderPK,
+				RecipientAddr: l.RecipientAddr,
 			}
-			leaseStatusActiveSnapshot := &InternalLeaseStateActiveInfoSnapshot{
+			leaseStatusActiveSnapshot := &InternalNewLeaseInfoSnapshot{
 				LeaseID:             lID,
 				OriginHeight:        l.OriginHeight,
 				OriginTransactionID: l.OriginTransactionID,
 			}
-			atomicSnapshots = append(atomicSnapshots, leaseStatusSnapshot)
+			atomicSnapshots = append(atomicSnapshots, newLeaseSnapshot)
 			internalSnapshots = append(internalSnapshots, leaseStatusActiveSnapshot)
 		case LeaseCancelled:
-			leaseStatusSnapshot := &proto.LeaseStateSnapshot{
-				LeaseID: lID,
-				Status:  &proto.LeaseStatusCancelled{},
+			// the atomic snapshots order is important here, don't change it
+			if origTxID := l.OriginTransactionID; origTxID != nil { // can be nil if a node has been worked in the light mode
+				cancelTxID := l.CancelTransactionID // can't be nil here because node is working in the full mode
+				if bytes.Equal(origTxID[:], cancelTxID[:]) {
+					newLeaseSnapshot := &proto.NewLeaseSnapshot{
+						LeaseID:       lID,
+						Amount:        l.Amount,
+						SenderPK:      l.SenderPK,
+						RecipientAddr: l.RecipientAddr,
+					}
+					leaseStatusActiveSnapshot := &InternalNewLeaseInfoSnapshot{
+						LeaseID:             lID,
+						OriginHeight:        l.OriginHeight,
+						OriginTransactionID: l.OriginTransactionID,
+					}
+					atomicSnapshots = append(atomicSnapshots, newLeaseSnapshot)
+					internalSnapshots = append(internalSnapshots, leaseStatusActiveSnapshot)
+				}
 			}
-			leaseStatusCancelledSnapshot := &InternalLeaseStateCancelInfoSnapshot{
+			cancelledLeaseSnapshot := &proto.CancelledLeaseSnapshot{
+				LeaseID: lID,
+			}
+			leaseStatusCancelledSnapshot := &InternalCancelledLeaseInfoSnapshot{
 				LeaseID:             lID,
 				CancelHeight:        l.CancelHeight,
 				CancelTransactionID: l.CancelTransactionID,
 			}
-			atomicSnapshots = append(atomicSnapshots, leaseStatusSnapshot)
+			atomicSnapshots = append(atomicSnapshots, cancelledLeaseSnapshot)
 			internalSnapshots = append(internalSnapshots, leaseStatusCancelledSnapshot)
 		default:
 			return nil, nil, errors.Errorf("invalid lease status value (%d)", status)
@@ -529,7 +545,7 @@ func (sg *snapshotGenerator) snapshotForInvoke(txID crypto.Digest,
 	leasesUncertain := sg.stor.leases.uncertainLeases
 	sponsoredAssetsUncertain := sg.stor.sponsoredAssets.uncertainSponsoredAssets
 
-	assetsSnapshots := generateSnapshotsFromAssetsUncertain(assetsUncertain, txID)
+	assetsSnapshots := generateSnapshotsFromAssetsUncertain(assetsUncertain)
 	snapshot.regular = append(snapshot.regular, assetsSnapshots...)
 
 	dataEntriesSnapshots, err := generateSnapshotsFromDataEntryUncertain(dataEntriesUncertain, sg.scheme)
@@ -581,8 +597,12 @@ func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(txID cryp
 	return sg.snapshotForInvoke(txID, balanceChanges)
 }
 
-func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto.Digest, assetName string,
-	assetDescription string, changeHeight proto.Height, balanceChanges txDiff) (txSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(
+	assetID crypto.Digest,
+	assetName string,
+	assetDescription string,
+	balanceChanges txDiff,
+) (txSnapshot, error) {
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
 		return txSnapshot{}, err
@@ -591,7 +611,6 @@ func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(assetID crypto
 		AssetID:          assetID,
 		AssetName:        assetName,
 		AssetDescription: assetDescription,
-		ChangeHeight:     changeHeight,
 	}
 	snapshot.regular = append(snapshot.regular, assetDescriptionSnapshot)
 	return snapshot, nil
