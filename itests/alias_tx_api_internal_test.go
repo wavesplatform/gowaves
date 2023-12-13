@@ -43,7 +43,7 @@ func aliasAPINegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 
 func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 	if testing.Short() {
-		suite.T().Skip("skipping long positive tests in short mode")
+		suite.T().Skip("skipping long positive Alias API Tx tests in short mode")
 	}
 	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
@@ -64,7 +64,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 
 func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	if testing.Short() {
-		suite.T().Skip("skipping long positive max values tests in short mode")
+		suite.T().Skip("skipping long positive max values Alias API Tx tests in short mode")
 	}
 	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
@@ -87,7 +87,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 
 func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 	if testing.Short() {
-		suite.T().Skip("skipping long negative tests in short mode")
+		suite.T().Skip("skipping long negative Alias API Tx tests in short mode")
 	}
 	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := false
