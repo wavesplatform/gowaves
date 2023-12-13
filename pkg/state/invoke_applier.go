@@ -689,7 +689,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				return proto.DAppError, info.failedChanges, err
 			}
 			if senderAddress != li.Sender {
-				return proto.DAppError, info.failedChanges, errors.Errorf("attempt to cancel leasing that was created by other account; leaser '%s'; canceller '%s'; leasing: %s", li.Sender.String(), senderAddress.String(), a.LeaseID.String()) //TODO: Create a scala compatible error in errs package and use it here
+				return proto.DAppError, info.failedChanges,
+					//TODO: Create a scala compatible error in errs package and use it here
+					errors.Errorf("attempt to cancel leasing that was created by other account; leaser '%s'; "+
+						"canceller '%s'; leasing: %s", li.Sender.String(), senderAddress.String(), a.LeaseID.String())
 			}
 			// Update leasing info
 			if err := ia.stor.leases.cancelLeasingUncertain(a.LeaseID, info.blockInfo.Height, &txID); err != nil {
