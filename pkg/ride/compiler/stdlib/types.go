@@ -218,7 +218,7 @@ func (t SimpleType) Equal(other Type) bool {
 	if o, ok := other.(SimpleType); ok {
 		return t.Type == o.Type
 	}
-	return other == AnyType
+	return other.Equal(AnyType)
 }
 
 func (t SimpleType) String() string {

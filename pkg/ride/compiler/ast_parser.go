@@ -912,6 +912,8 @@ func (p *astParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 				p.addError(curNode.token32, "Unexpected types for '++' operator '%s' and '%s'", varType, nextVarType)
 				return nil, nil
 			}
+		default:
+			panic("unhandled default case")
 		}
 		expr = ast.NewFunctionCallNode(funcId, []ast.Node{expr, nextExpr})
 		curNode = curNode.next
@@ -2361,16 +2363,15 @@ func (p *astParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 		p.addError(curNode.token32, "Undefined first argument of FOLD macros")
 		return nil, nil
 	}
-	var elemType s.Type
-	if l, ok := arrVarType.(s.ListType); !ok {
+	l, ok := arrVarType.(s.ListType)
+	if !ok {
 		p.addError(curNode.token32, "First argument of FOLD macros must be List, but '%s' found",
 			arrVarType.String())
 		return nil, nil
-	} else {
-		elemType = l.Type
-		if elemType == nil {
-			elemType = s.AnyType
-		}
+	}
+	elemType := l.Type
+	if elemType == nil { // If the type of elements is unknown, set it to Any.
+		elemType = s.AnyType
 	}
 	curNode = skipToNextRule(curNode.next)
 	start, startVarType := p.ruleExprHandler(curNode)

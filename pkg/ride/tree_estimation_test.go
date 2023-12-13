@@ -425,12 +425,12 @@ func TestScope(t *testing.T) {
 		}
 		let b = {
 			let c = {
-		  		let d = {
-		    		func bar(i: Int) = i
-		    		bar(a)
-		  		}
-		  		func bar(i: Int) = i
-		  		bar(d)
+		 		let d = {
+		   		func bar(i: Int) = i
+		   		bar(a)
+		 		}
+		 		func bar(i: Int) = i
+		 		bar(d)
 			}
 			func bar(i: Int) = i
 			bar(c)
