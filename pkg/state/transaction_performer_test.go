@@ -718,6 +718,9 @@ func TestPerformSetAssetScriptWithProofs(t *testing.T) {
 func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
 	to := createPerformerTestObjects(t, checkerInfo)
+	// because update asset info tx has only protobuf binary representation
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+	to.stor.rw.setProtobufActivated()
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createUpdateAssetInfoWithProofs(t)
