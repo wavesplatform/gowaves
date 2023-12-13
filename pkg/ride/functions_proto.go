@@ -1221,10 +1221,6 @@ func calculateDelay(env environment, args ...rideType) (rideType, error) {
 	if balance <= 0 {
 		return nil, errors.Errorf("calculateDelay: balance '%d' should by positive", balance)
 	}
-
-	//    val hit = Global.blake2b256(hitSource.arr ++ generator.arr).take(PoSCalculator.HitSize)
-	//    FairPoSCalculator.V2.calculateDelay(BigInt(1, hit), baseTarget, balance)
-
 	vrf, err := env.block().get(vrfField)
 	if err != nil {
 		return nil, errors.Wrap(err, "calculateDelay")
