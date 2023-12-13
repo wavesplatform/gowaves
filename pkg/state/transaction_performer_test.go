@@ -49,6 +49,73 @@ func defaultCheckerInfoHeight0() *checkerInfo {
 	}
 }
 
+func TestPerformFailedTx(t *testing.T) {
+	const (
+		applicationStatus = false
+		validatingUTX     = false
+	)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
+	assetID := testGlobal.asset0.asset.ID
+	_ = to.stor.createAsset(t, assetID)
+	tx := createReissueWithSig(t, 1000)
+	snapshot, err := to.th.performTx(tx, defaultPerformerInfo(), validatingUTX, nil, applicationStatus, nil)
+	assert.NoError(t, err, "performReissueWithSig() failed")
+
+	// Check tx snapshot
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.TransactionStatusSnapshot{
+				Status: proto.TransactionFailed,
+			},
+		},
+		internal: nil,
+	}
+	assert.Equal(t, expectedSnapshot, snapshot)
+	to.stor.flush(t)
+
+	// Check that tx was written
+	info, err := to.stor.rw.transactionInfoByID(tx.ID.Bytes())
+	assert.NoError(t, err)
+	assert.True(t, info.failed)
+}
+
+func TestPerformFailedTxWhenValidatingUtx(t *testing.T) {
+	const (
+		applicationStatus = false
+		validatingUTX     = true
+	)
+	checkerInfo := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, checkerInfo)
+	assetID := testGlobal.asset0.asset.ID
+	_ = to.stor.createAsset(t, assetID)
+	tx := createReissueWithSig(t, 1000)
+	snapshot, err := to.th.performTx(tx, defaultPerformerInfo(), validatingUTX, nil, applicationStatus, nil)
+	assert.NoError(t, err, "performReissueWithSig() failed")
+
+	// Check tx snapshot
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.TransactionStatusSnapshot{
+				Status: proto.TransactionFailed,
+			},
+		},
+		internal: nil,
+	}
+	assert.Equal(t, expectedSnapshot, snapshot)
+
+	// Check that tx was written to in memory storage
+	info, err := to.stor.rw.newestTransactionInfoByID(tx.ID.Bytes())
+	assert.NoError(t, err)
+	assert.True(t, info.failed)
+
+	to.stor.flush(t)
+
+	// Check that tx doesn't exist after flush
+	_, err = to.stor.rw.transactionInfoByID(tx.ID.Bytes())
+	assert.Error(t, err)
+}
+
 func TestPerformIssueWithSig(t *testing.T) {
 	checkerInfo := defaultCheckerInfoHeight0()
 	to := createPerformerTestObjects(t, checkerInfo)
@@ -116,19 +183,43 @@ func TestPerformReissueWithSig(t *testing.T) {
 
 	checkerInfo := defaultCheckerInfo()
 	to := createPerformerTestObjects(t, checkerInfo)
+	assetID := testGlobal.asset0.asset.ID
 
-	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
+	assetInfo := to.stor.createAsset(t, assetID)
 	tx := createReissueWithSig(t, 1000)
-	_, err := to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
+	snapshot, err := to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performReissueWithSig() failed")
 	to.stor.flush(t)
 	assetInfo.reissuable = tx.Reissuable
 	assetInfo.quantity.Add(&assetInfo.quantity, big.NewInt(int64(tx.Quantity)))
 
 	// Check asset info.
-	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(testGlobal.asset0.asset.ID))
+	info, err := to.stor.entities.assets.assetInfo(proto.AssetIDFromDigest(assetID))
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing ReissueWithSig transaction")
+
+	// Check tx snapshot
+	expectedSnapshot := txSnapshot{
+		regular: []proto.AtomicSnapshot{
+			&proto.AssetVolumeSnapshot{
+				AssetID:       assetID,
+				TotalQuantity: info.quantity,
+				IsReissuable:  info.reissuable,
+			},
+			&proto.TransactionStatusSnapshot{
+				Status: proto.TransactionSucceeded,
+			},
+		},
+		internal: nil,
+	}
+	assert.Equal(t, expectedSnapshot, snapshot)
+
+	to.stor.flush(t)
+
+	// Check that tx was written
+	txInf, err := to.stor.rw.transactionInfoByID(tx.ID.Bytes())
+	assert.NoError(t, err)
+	assert.False(t, txInf.failed)
 }
 
 func TestPerformReissueWithProofs(t *testing.T) {
