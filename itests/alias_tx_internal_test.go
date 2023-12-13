@@ -1,6 +1,7 @@
 package itests
 
 import (
+	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -16,7 +17,29 @@ type AliasTxSuite struct {
 	f.BaseSuite
 }
 
+func aliasPositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.AliasTestData[testdata.AliasExpectedValuesPositive], addrByAliasGo, addrByAliasScala []byte,
+	actualDiffBalanceInWaves utl.BalanceInWaves, errMsg string) {
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.AddressByAliasCheck(t, td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala,
+		errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+}
+
+func aliasNegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.AliasTestData[testdata.AliasExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, errMsg string) {
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
+		tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+}
+
 func (suite *AliasTxSuite) Test_AliasPositive() {
+	if testing.Short() {
+		suite.T().Skip("skipping long positive tests in short mode")
+	}
 	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
@@ -28,19 +51,16 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 					v, waitForTx)
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 				errMsg := caseName + "Alias Tx: " + tx.TxID.String()
-
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala,
-					errMsg)
-				utl.WavesDiffBalanceCheck(
-					suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+				aliasPositiveChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala, actualDiffBalanceInWaves, errMsg)
 			})
 		}
 	}
 }
 
 func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
+	if testing.Short() {
+		suite.T().Skip("skipping long positive max values tests in short mode")
+	}
 	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	for _, v := range versions {
@@ -54,18 +74,16 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 					v, waitForTx)
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 				errMsg := caseName + "Alias Tx: " + tx.TxID.String()
-
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala,
-					errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+				aliasPositiveChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala, actualDiffBalanceInWaves, errMsg)
 			})
 		}
 	}
 }
 
 func (suite *AliasTxSuite) Test_AliasNegative() {
+	if testing.Short() {
+		suite.T().Skip("skipping long negative tests in short mode")
+	}
 	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := false
 	txIds := make(map[string]*crypto.Digest)
@@ -78,11 +96,7 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 					v, waitForTx)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Alias Tx: " + tx.TxID.String()
-
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
-					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+				aliasNegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, errMsg)
 			})
 		}
 	}
@@ -91,6 +105,9 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 }
 
 func (suite *AliasTxSuite) Test_SameAliasNegative() {
+	if testing.Short() {
+		suite.T().Skip("skipping long negative tests in short mode")
+	}
 	versions := alias_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	name := "Values for same alias"
@@ -170,6 +187,41 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 	}
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
 	suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds)
+}
+
+func (suite *AliasTxSuite) Test_AliasSmokePositive() {
+	versions := alias_utilities.GetVersions(&suite.BaseSuite)
+	randV := versions[rand.Intn(len(versions))]
+	tdmatrix := utl.GetRandomValueFromMap(testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite))
+	for name, td := range tdmatrix {
+		caseName := utl.GetTestcaseNameWithVersion(name, randV)
+		suite.Run(caseName, func() {
+			tx, _, actualDiffBalanceInWaves := alias_utilities.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td,
+				randV, true)
+			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
+			errMsg := caseName + "Alias Tx: " + tx.TxID.String()
+			aliasPositiveChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala, actualDiffBalanceInWaves, errMsg)
+		})
+	}
+}
+
+func (suite *AliasTxSuite) Test_AliasSmokeNegative() {
+	versions := alias_utilities.GetVersions(&suite.BaseSuite)
+	randV := versions[rand.Intn(len(versions))]
+	txIds := make(map[string]*crypto.Digest)
+	tdmatrix := utl.GetRandomValueFromMap(testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite))
+	for name, td := range tdmatrix {
+		caseName := utl.GetTestcaseNameWithVersion(name, randV)
+		suite.Run(caseName, func() {
+			tx, _, actualDiffBalanceInWaves := alias_utilities.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td,
+				randV, false)
+			txIds[name] = &tx.TxID
+			errMsg := caseName + "Alias Tx: " + tx.TxID.String()
+			aliasNegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, errMsg)
+		})
+	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
+	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestAliasTxSuite(t *testing.T) {
