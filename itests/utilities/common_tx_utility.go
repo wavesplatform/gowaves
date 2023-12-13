@@ -265,6 +265,17 @@ func Abs(x int64) int64 {
 	return x
 }
 
+func GetRandomValueFromMap[T any](tdMap map[string]T) map[string]T {
+	result := make(map[string]T)
+	keys := []string{}
+	for key := range tdMap {
+		keys = append(keys, key)
+	}
+	key := keys[rand.Intn(len(keys))]
+	result[key] = tdMap[key]
+	return result
+}
+
 func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 	var from, to int
 	switch len(accountNumbers) {
