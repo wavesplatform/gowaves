@@ -22,18 +22,20 @@ const (
 )
 
 type leaseRecordForStateHashes struct {
-	id     *crypto.Digest
-	active byte
+	id       crypto.Digest
+	isActive bool
 }
 
 func (lr *leaseRecordForStateHashes) writeTo(w io.Writer) error {
 	if _, err := w.Write(lr.id[:]); err != nil {
 		return err
 	}
-	if _, err := w.Write([]byte{lr.active}); err != nil {
-		return err
+	active := byte(0)
+	if lr.isActive {
+		active = byte(1)
 	}
-	return nil
+	_, err := w.Write([]byte{active})
+	return err
 }
 
 func (lr *leaseRecordForStateHashes) less(other stateComponent) bool {
@@ -42,8 +44,8 @@ func (lr *leaseRecordForStateHashes) less(other stateComponent) bool {
 }
 
 type leasing struct {
-	Sender              proto.WavesAddress `cbor:"0,keyasint"`
-	Recipient           proto.WavesAddress `cbor:"1,keyasint"`
+	SenderPK            crypto.PublicKey   `cbor:"0,keyasint"`
+	RecipientAddr       proto.WavesAddress `cbor:"1,keyasint"`
 	Amount              uint64             `cbor:"2,keyasint"`
 	OriginHeight        uint64             `cbor:"3,keyasint,omitempty"`
 	Status              LeaseStatus        `cbor:"4,keyasint"`
@@ -82,7 +84,11 @@ func newLeases(hs *historyStorage, calcHashes bool) *leases {
 	}
 }
 
-func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID proto.BlockID) error {
+func (l *leases) cancelLeases(
+	scheme proto.Scheme,
+	bySenders map[proto.WavesAddress]struct{},
+	blockID proto.BlockID,
+) error {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease)
 	if err != nil {
 		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
@@ -105,7 +111,11 @@ func (l *leases) cancelLeases(bySenders map[proto.WavesAddress]struct{}, blockID
 		}
 		toCancel := true
 		if bySenders != nil {
-			_, toCancel = bySenders[record.Sender]
+			sender, addrErr := proto.NewAddressFromPublicKey(scheme, record.SenderPK)
+			if addrErr != nil {
+				return errors.Wrapf(addrErr, "failed to build address from PK %q", record.SenderPK)
+			}
+			_, toCancel = bySenders[sender]
 		}
 		if record.isActive() && toCancel {
 			// Cancel lease.
@@ -142,17 +152,21 @@ func (l *leases) cancelLeasesToDisabledAliases(scheme proto.Scheme, height proto
 		if err := l.addLeasing(leaseID, record, blockID); err != nil {
 			return nil, errors.Wrapf(err, "failed to save leasing %q to storage", leaseID)
 		}
-		if diff, ok := changes[record.Sender]; ok {
-			diff.leaseOut += -int64(record.Amount)
-			changes[record.Sender] = diff
-		} else {
-			changes[record.Sender] = newBalanceDiff(0, 0, -int64(record.Amount), false)
+		senderAddr, err := proto.NewAddressFromPublicKey(scheme, record.SenderPK)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to build address for PK %q", record.SenderPK)
 		}
-		if diff, ok := changes[record.Recipient]; ok {
-			diff.leaseIn += -int64(record.Amount)
-			changes[record.Recipient] = diff
+		if diff, ok := changes[senderAddr]; ok {
+			diff.leaseOut += -int64(record.Amount)
+			changes[senderAddr] = diff
 		} else {
-			changes[record.Recipient] = newBalanceDiff(0, -int64(record.Amount), 0, false)
+			changes[senderAddr] = newBalanceDiff(0, 0, -int64(record.Amount), false)
+		}
+		if diff, ok := changes[record.RecipientAddr]; ok {
+			diff.leaseIn += -int64(record.Amount)
+			changes[record.RecipientAddr] = diff
+		} else {
+			changes[record.RecipientAddr] = newBalanceDiff(0, -int64(record.Amount), 0, false)
 		}
 	}
 	zap.S().Info("Finished cancelling leases to disabled aliases")
@@ -181,7 +195,7 @@ func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 			return nil, errors.Wrap(err, "failed to unmarshal lease")
 		}
 		if record.isActive() {
-			leaseIns[record.Recipient] += int64(record.Amount)
+			leaseIns[record.RecipientAddr] += int64(record.Amount)
 		}
 	}
 	zap.S().Info("Finished collecting leases")
@@ -243,13 +257,9 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.Bl
 		return errors.Wrap(err, "failed to marshal record")
 	}
 	if l.calculateHashes {
-		active := byte(0)
-		if leasing.isActive() {
-			active = byte(1)
-		}
 		lr := &leaseRecordForStateHashes{
-			id:     &id,
-			active: active,
+			id:       id,
+			isActive: leasing.isActive(),
 		}
 		if err := l.hasher.push(keyStr, lr, blockID); err != nil {
 			return err
@@ -259,6 +269,18 @@ func (l *leases) addLeasing(id crypto.Digest, leasing *leasing, blockID proto.Bl
 		return err
 	}
 	return nil
+}
+
+func (l *leases) pushStateHash(leaseID crypto.Digest, isActive bool, blockID proto.BlockID) error {
+	if !l.calculateHashes {
+		return nil
+	}
+	key := leaseKey{leaseID: leaseID}
+	lr := &leaseRecordForStateHashes{
+		id:       leaseID,
+		isActive: isActive,
+	}
+	return l.hasher.push(string(key.bytes()), lr, blockID)
 }
 
 func (l *leases) rawWriteLeasing(id crypto.Digest, leasing *leasing, blockID proto.BlockID) error {
