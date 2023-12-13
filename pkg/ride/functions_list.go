@@ -8,20 +8,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/math"
 )
 
-const (
-	maxListSize = 1000
-	threeArgs   = 3
-)
+const maxListSize = 1000
 
 func listAndStringArgs(args []rideType) (rideList, rideString, error) {
-	if len(args) != 2 {
-		return nil, "", errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
-	}
-	if args[0] == nil {
-		return nil, "", errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, "", errors.Errorf("argument 2 is empty")
+	if err := checkArgs(args, 2); err != nil {
+		return nil, "", err
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -35,14 +26,8 @@ func listAndStringArgs(args []rideType) (rideList, rideString, error) {
 }
 
 func listAndIntArgs(args []rideType) (rideList, int, error) {
-	if len(args) != 2 {
-		return nil, 0, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
-	}
-	if args[0] == nil {
-		return nil, 0, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, 0, errors.Errorf("argument 2 is empty")
+	if err := checkArgs(args, 2); err != nil {
+		return nil, 0, err
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -63,11 +48,8 @@ func listAndIntArgs(args []rideType) (rideList, int, error) {
 }
 
 func listArg(args []rideType) (rideList, error) {
-	if len(args) != 1 {
-		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
-	}
-	if args[0] == nil {
-		return nil, errors.Errorf("argument is empty")
+	if err := checkArgs(args, 1); err != nil {
+		return nil, err
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -77,14 +59,8 @@ func listArg(args []rideType) (rideList, error) {
 }
 
 func listAndElementArgs(args []rideType) (rideList, rideType, error) {
-	if len(args) != 2 {
-		return nil, nil, errors.Errorf("%d is invalid number of arguments, expected 2", len(args))
-	}
-	if args[0] == nil {
-		return nil, nil, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, nil, errors.Errorf("argument 2 is empty")
+	if err := checkArgs(args, 2); err != nil {
+		return nil, nil, err
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -94,17 +70,9 @@ func listAndElementArgs(args []rideType) (rideList, rideType, error) {
 }
 
 func listAndIntAndElementArgs(args []rideType) (rideList, int, rideType, error) {
-	if len(args) != threeArgs {
-		return nil, 0, nil, errors.Errorf("%d is invalid number of arguments, expected 3", len(args))
-	}
-	if args[0] == nil {
-		return nil, 0, nil, errors.Errorf("argument 1 is empty")
-	}
-	if args[1] == nil {
-		return nil, 0, nil, errors.Errorf("argument 2 is empty")
-	}
-	if args[2] == nil {
-		return nil, 0, nil, errors.Errorf("argument 3 is empty")
+	const threeArgs = 3
+	if err := checkArgs(args, threeArgs); err != nil {
+		return nil, 0, nil, err
 	}
 	l, ok := args[0].(rideList)
 	if !ok {
@@ -433,38 +401,38 @@ func median(_ environment, args ...rideType) (rideType, error) {
 	}
 }
 
-func max(_ environment, args ...rideType) (rideType, error) {
+func listMax(_ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "max")
+		return nil, errors.Wrap(err, "listMax")
 	}
 	size := len(list)
 	if size > maxListSize || size == 0 {
-		return nil, errors.Errorf("max: invalid list size %d", size)
+		return nil, errors.Errorf("listMax: invalid list size %d", size)
 	}
 	items, err := intSlice(list)
 	if err != nil {
-		return nil, errors.Wrap(err, "max")
+		return nil, errors.Wrap(err, "listMax")
 	}
-	_, max := minMax(items)
-	return rideInt(max), nil
+	_, mx := minMax(items)
+	return rideInt(mx), nil
 }
 
-func min(_ environment, args ...rideType) (rideType, error) {
+func listMin(_ environment, args ...rideType) (rideType, error) {
 	list, err := listArg(args)
 	if err != nil {
-		return nil, errors.Wrap(err, "min")
+		return nil, errors.Wrap(err, "listMin")
 	}
 	size := len(list)
 	if size > maxListSize || size == 0 {
-		return nil, errors.Errorf("min: invalid list size %d", size)
+		return nil, errors.Errorf("listMin: invalid list size %d", size)
 	}
 	items, err := intSlice(list)
 	if err != nil {
-		return nil, errors.Wrap(err, "min")
+		return nil, errors.Wrap(err, "listMin")
 	}
-	min, _ := minMax(items)
-	return rideInt(min), nil
+	mn, _ := minMax(items)
+	return rideInt(mn), nil
 }
 
 func containsElement(_ environment, args ...rideType) (rideType, error) {
@@ -554,15 +522,15 @@ func minMax(items []int) (int, int) {
 	if len(items) == 0 {
 		panic("empty slice")
 	}
-	max := items[0]
-	min := items[0]
+	mx := items[0]
+	mn := items[0]
 	for _, i := range items {
-		if max < i {
-			max = i
+		if mx < i {
+			mx = i
 		}
-		if min > i {
-			min = i
+		if mn > i {
+			mn = i
 		}
 	}
-	return min, max
+	return mn, mx
 }

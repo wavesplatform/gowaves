@@ -384,8 +384,8 @@ func functionsV4() map[string]string {
 	m["containsElement"] = "containsElement"
 	m["valueOrElse"] = "valueOrElse"
 	m["405"] = "median"
-	m["406"] = "max"
-	m["407"] = "min"
+	m["406"] = "listMax"
+	m["407"] = "listMin"
 	delete(m, "700") // remove CheckMerkleProof
 	m["701"] = "rebuildMerkleRoot"
 	m["800"] = "bls12Groth16Verify"
