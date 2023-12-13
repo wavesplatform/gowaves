@@ -31,19 +31,7 @@ func createCheckerTestObjects(t *testing.T, checkerInfo *checkerInfo) *checkerTe
 	stor := createStorageObjects(t, true)
 	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
 	require.NoError(t, err, "newTransactionChecker() failed")
-
-	actionsCounter := new(proto.StateActionsCounter)
-	snapshotApplier := newBlockSnapshotsApplier(
-		newBlockSnapshotsApplierInfo(
-			checkerInfo,
-			settings.MainNetSettings.AddressSchemeCharacter,
-			actionsCounter,
-		),
-		newSnapshotApplierStorages(stor.entities),
-	)
-	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
-
-	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
+	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	return &checkerTestObjects{stor, tc, tp}
 }
 

@@ -33,17 +33,23 @@ func newPerformerInfo(
 	}
 }
 
+// transactionPerformer ONLY generates tx snapshots
+// TODO: rename to snapshot generator
 type transactionPerformer struct {
-	stor              *blockchainEntitiesStorage
-	settings          *settings.BlockchainSettings
-	snapshotGenerator *snapshotGenerator      // initialized in appendTx
-	snapshotApplier   extendedSnapshotApplier // initialized in appendTx
+	stor        *blockchainEntitiesStorage
+	settings    *settings.BlockchainSettings
+	internalGen *internalSnapshotGenerator // TODO: remove this field
 }
 
-func newTransactionPerformer(stor *blockchainEntitiesStorage, settings *settings.BlockchainSettings,
-	snapshotGenerator *snapshotGenerator, snapshotApplier extendedSnapshotApplier) *transactionPerformer {
-	return &transactionPerformer{stor: stor, settings: settings,
-		snapshotGenerator: snapshotGenerator, snapshotApplier: snapshotApplier}
+func newTransactionPerformer(
+	stor *blockchainEntitiesStorage,
+	settings *settings.BlockchainSettings,
+) *transactionPerformer {
+	return &transactionPerformer{
+		stor:        stor,
+		settings:    settings,
+		internalGen: newInternalSnapshotGenerator(stor, settings.AddressSchemeCharacter),
+	}
 }
 
 func (tp *transactionPerformer) performGenesis(
@@ -54,11 +60,7 @@ func (tp *transactionPerformer) performGenesis(
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to genesis transaction")
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForGenesisTx(balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForGenesisTx(balanceChanges)
 }
 
 func (tp *transactionPerformer) performPayment(transaction proto.Transaction, _ *performerInfo,
@@ -67,19 +69,11 @@ func (tp *transactionPerformer) performPayment(transaction proto.Transaction, _ 
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to payment transaction")
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForPaymentTx(balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForPaymentTx(balanceChanges)
 }
 
 func (tp *transactionPerformer) performTransfer(balanceChanges txDiff) (txSnapshot, error) {
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForTransferTx(balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForTransferTx(balanceChanges)
 }
 
 func (tp *transactionPerformer) performTransferWithSig(transaction proto.Transaction, _ *performerInfo,
@@ -125,7 +119,7 @@ func (tp *transactionPerformer) performIssue(
 			reissuable:               tx.Reissuable,
 		},
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(
+	return tp.internalGen.generateSnapshotForIssueTx(
 		assetID,
 		tx.SenderPK,
 		*assetInfo,
@@ -133,10 +127,6 @@ func (tp *transactionPerformer) performIssue(
 		scriptEstimation,
 		script,
 	)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
 func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transaction, info *performerInfo,
@@ -176,16 +166,11 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, _ *performerInfo,
 	balanceChanges txDiff) (txSnapshot, error) {
 	// Modify asset.
-	change := &assetReissueChange{
+	change := assetReissueChange{
 		reissuable: tx.Reissuable,
 		diff:       int64(tx.Quantity),
 	}
-
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForReissueTx(tx.AssetID, *change, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForReissueTx(tx.AssetID, change, balanceChanges)
 }
 
 func (tp *transactionPerformer) performReissueWithSig(transaction proto.Transaction, info *performerInfo,
@@ -212,12 +197,7 @@ func (tp *transactionPerformer) performBurn(tx *proto.Burn, _ *performerInfo,
 	change := &assetBurnChange{
 		diff: int64(tx.Amount),
 	}
-
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForBurnTx(tx.AssetID, *change, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForBurnTx(tx.AssetID, *change, balanceChanges)
 }
 
 func (tp *transactionPerformer) performBurnWithSig(transaction proto.Transaction, info *performerInfo,
@@ -257,12 +237,8 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, _
 	buyFee := tx.GetBuyMatcherFee()
 
 	// snapshot must be generated before the state with orders is changed
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForExchangeTx(sellOrder,
+	return tp.internalGen.generateSnapshotForExchangeTx(sellOrder,
 		sellFee, buyOrder, buyFee, volume, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
 func (tp *transactionPerformer) performLease(tx *proto.Lease, txID *crypto.Digest, info *performerInfo,
@@ -287,11 +263,7 @@ func (tp *transactionPerformer) performLease(tx *proto.Lease, txID *crypto.Diges
 		Status:              LeaseActive,
 	}
 	leaseID := *txID
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseTx(l, leaseID, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForLeaseTx(l, leaseID, balanceChanges)
 }
 
 func (tp *transactionPerformer) performLeaseWithSig(transaction proto.Transaction, info *performerInfo,
@@ -314,16 +286,12 @@ func (tp *transactionPerformer) performLeaseWithProofs(transaction proto.Transac
 
 func (tp *transactionPerformer) performLeaseCancel(tx *proto.LeaseCancel, txID *crypto.Digest, info *performerInfo,
 	balanceChanges txDiff) (txSnapshot, error) {
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseCancelTx(
+	return tp.internalGen.generateSnapshotForLeaseCancelTx(
 		txID,
 		tx.LeaseID,
 		info.blockHeight(),
 		balanceChanges,
 	)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }
 
 func (tp *transactionPerformer) performLeaseCancelWithSig(transaction proto.Transaction, info *performerInfo,
@@ -350,12 +318,7 @@ func (tp *transactionPerformer) performCreateAlias(tx *proto.CreateAlias,
 	if err != nil {
 		return txSnapshot{}, err
 	}
-
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForCreateAliasTx(senderAddr, tx.Alias, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForCreateAliasTx(senderAddr, tx.Alias, balanceChanges)
 }
 
 func (tp *transactionPerformer) performCreateAliasWithSig(transaction proto.Transaction, info *performerInfo,
@@ -382,11 +345,7 @@ func (tp *transactionPerformer) performMassTransferWithProofs(transaction proto.
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to CreateAliasWithProofs transaction")
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForMassTransferTx(balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForMassTransferTx(balanceChanges)
 }
 
 func (tp *transactionPerformer) performDataWithProofs(transaction proto.Transaction,
@@ -399,12 +358,7 @@ func (tp *transactionPerformer) performDataWithProofs(transaction proto.Transact
 	if err != nil {
 		return txSnapshot{}, err
 	}
-
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForDataTx(senderAddr, tx.Entries, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForDataTx(senderAddr, tx.Entries, balanceChanges)
 }
 
 func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.Transaction, _ *performerInfo,
@@ -413,12 +367,7 @@ func (tp *transactionPerformer) performSponsorshipWithProofs(transaction proto.T
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to SponsorshipWithProofs transaction")
 	}
-
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForSponsorshipTx(tx.AssetID, tx.MinAssetFee, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForSponsorshipTx(tx.AssetID, tx.MinAssetFee, balanceChanges)
 }
 
 func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Transaction, info *performerInfo,
@@ -433,13 +382,11 @@ func (tp *transactionPerformer) performSetScriptWithProofs(transaction proto.Tra
 		return txSnapshot{}, errors.New("script estimations must be set for SetScriptWithProofs tx")
 	}
 
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetScriptTx(tx.SenderPK,
-		tx.Script, *se, balanceChanges)
+	snapshot, err := tp.internalGen.generateSnapshotForSetScriptTx(tx.SenderPK, tx.Script, *se, balanceChanges)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate snapshot for set script tx")
 	}
-
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return snapshot, nil
 }
 
 func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction proto.Transaction,
@@ -453,12 +400,7 @@ func (tp *transactionPerformer) performSetAssetScriptWithProofs(transaction prot
 	if !se.isPresent() {
 		return txSnapshot{}, errors.New("script estimations must be set for SetAssetScriptWithProofs tx")
 	}
-
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, balanceChanges, *se)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForSetAssetScriptTx(tx.AssetID, tx.Script, balanceChanges, *se)
 }
 
 func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.Transaction,
@@ -469,20 +411,8 @@ func (tp *transactionPerformer) performInvokeScriptWithProofs(transaction proto.
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
 	}
-	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txSnapshot{}, errors.Errorf("failed to get transaction ID: %v", err)
-	}
-	txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	if err != nil {
-		return txSnapshot{}, err
-	}
 	se := info.checkerData.scriptEstimation
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeScript(txID, tx.ScriptRecipient, balanceChanges, se)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForInvokeScript(tx.ScriptRecipient, balanceChanges, se)
 }
 
 func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction proto.Transaction,
@@ -491,19 +421,7 @@ func (tp *transactionPerformer) performInvokeExpressionWithProofs(transaction pr
 	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
-	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txSnapshot{}, errors.Errorf("failed to get transaction ID: %v", err)
-	}
-	txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForInvokeExpressionTx(txID, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForInvokeExpressionTx(balanceChanges)
 }
 
 func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction proto.Transaction, _ *performerInfo,
@@ -512,19 +430,7 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to EthereumTransaction transaction")
 	}
-	txIDBytes, err := transaction.GetID(tp.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txSnapshot{}, errors.Errorf("failed to get transaction ID: %v", err)
-	}
-	txID, err := crypto.NewDigestFromBytes(txIDBytes)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForEthereumInvokeScriptTx(txID, balanceChanges)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
+	return tp.internalGen.generateSnapshotForEthereumInvokeScriptTx(balanceChanges)
 }
 
 func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction,
@@ -533,14 +439,10 @@ func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction pro
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to UpdateAssetInfoWithProofs transaction")
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForUpdateAssetInfoTx(
+	return tp.internalGen.generateSnapshotForUpdateAssetInfoTx(
 		tx.AssetID,
 		tx.Name,
 		tx.Description,
 		balanceChanges,
 	)
-	if err != nil {
-		return txSnapshot{}, err
-	}
-	return snapshot, snapshot.Apply(tp.snapshotApplier)
 }

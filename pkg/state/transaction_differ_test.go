@@ -37,18 +37,7 @@ func createDifferTestObjects(t *testing.T, checkerInfo *checkerInfo) *differTest
 	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
 	require.NoError(t, err, "newTransactionDiffer() failed")
 
-	actionsCounter := new(proto.StateActionsCounter)
-
-	snapshotApplier := newBlockSnapshotsApplier(
-		newBlockSnapshotsApplierInfo(
-			checkerInfo,
-			settings.MainNetSettings.AddressSchemeCharacter,
-			actionsCounter,
-		),
-		newSnapshotApplierStorages(stor.entities),
-	)
-	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
-	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
+	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings)
 	require.NoError(t, err, "newTransactionPerformer() failed")
 	return &differTestObjects{stor, td, tp}
 }

@@ -971,7 +971,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
 		issueCounterInBlock)
-	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
 
@@ -1108,7 +1108,7 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
 		issueCounterInBlock)
-	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
@@ -1211,7 +1211,7 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 		to.state.settings.AddressSchemeCharacter,
 		new(proto.StateActionsCounter),
 	)
-	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	testData := invokeApplierTestData{
 		payments: []proto.ScriptPayment{},
