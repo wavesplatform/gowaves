@@ -164,7 +164,7 @@ func TestTxSnapshotHasher(t *testing.T) {
 			defer hasher.Release()
 
 			for i, snapshot := range txSnapshot {
-				err = snapshot.Apply(&hasher)
+				err = snapshot.Apply(hasher)
 				require.NoErrorf(t, err, "failed to apply %d-th atomic snapshot", i+1)
 			}
 
@@ -218,7 +218,7 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 			b.ReportAllocs()
 			for j := 0; j < b.N; j++ {
 				for _, snapshot := range txSnapshot {
-					err = snapshot.Apply(&hasher)
+					err = snapshot.Apply(hasher)
 					require.NoErrorf(b, err, "failed to apply atomic snapshot")
 				}
 

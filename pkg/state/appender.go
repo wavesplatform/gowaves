@@ -656,6 +656,7 @@ func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (txSn
 }
 
 func calculateInitialSnapshotStateHash(
+	h *txSnapshotHasher,
 	blockHasParent bool,
 	blockHeight proto.Height,
 	prevHash crypto.Digest,
@@ -669,20 +670,20 @@ func calculateInitialSnapshotStateHash(
 	}
 	// TODO: can initial txSnapshot be empty? (at least before NG activation)
 	var txID []byte // txID is necessary only for txStatus atomic snapshot; init snapshot can't have such message
-	return calculateTxSnapshotStateHash(txID, blockHeight, prevHash, txSnapshot)
+	return calculateTxSnapshotStateHash(h, txID, blockHeight, prevHash, txSnapshot)
 }
 
 func calculateTxSnapshotStateHash(
+	h *txSnapshotHasher,
 	txID []byte,
 	blockHeight proto.Height,
 	prevHash crypto.Digest,
 	txSnapshot []proto.AtomicSnapshot,
 ) (crypto.Digest, error) {
-	h := newTxSnapshotHasher(blockHeight, txID)
-	defer h.Release()
+	h.Reset(blockHeight, txID) // reset hasher before using
 
 	for i, snapshot := range txSnapshot {
-		if err := snapshot.Apply(&h); err != nil {
+		if err := snapshot.Apply(h); err != nil {
 			return crypto.Digest{}, errors.Wrapf(err, "failed to apply to hasher %d-th snapshot (%T)",
 				i+1, snapshot,
 			)
@@ -744,9 +745,13 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
 	}
+	hasher := newTxSnapshotHasher(0, nil) // create with zero state
+	defer hasher.Release()
+
 	currentBlockHeight := blockInfo.Height
 	// get initial snapshot hash for block
 	stateHash, err := calculateInitialSnapshotStateHash(
+		hasher,
 		hasParent,
 		currentBlockHeight,
 		params.lastSnapshotStateHash, // previous block state hash
@@ -814,7 +819,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		if len(txSnapshots.regular) == 0 { // sanity check
 			return errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
-		txSh, shErr := calculateTxSnapshotStateHash(txID, currentBlockHeight, stateHash, txSnapshots.regular)
+		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, currentBlockHeight, stateHash, txSnapshots.regular)
 		if shErr != nil {
 			return errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
 				base58.Encode(txID), currentBlockHeight,
