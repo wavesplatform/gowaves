@@ -865,6 +865,40 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transferByID")
 	}
+	switch t := tx.GetTypeInfo().Type; t {
+	case proto.TransferTransaction:
+		// ok, it's transfer tx
+	case proto.EthereumMetamaskTransaction:
+		ethTx, ok := tx.(*proto.EthereumTransaction)
+		if !ok {
+			return nil, errors.Errorf("transferByID: expected ethereum transaction, got (%T)", tx)
+		}
+		kindType, ktErr := proto.GuessEthereumTransactionKindType(ethTx.Data())
+		if ktErr != nil {
+			return nil, errors.Wrap(err, "transferByID: failed to guess ethereum transaction kind type")
+		}
+		switch kindType {
+		case proto.EthereumTransferWavesKindType, proto.EthereumTransferAssetsKindType:
+			// ok, it's an ethereum transfer tx (waves or asset)
+		case proto.EthereumInvokeKindType:
+			return rideUnit{}, nil // it's not an ethereum transfer tx
+		default:
+			return rideUnit{}, errors.Errorf("transferByID: unreachable point reached in eth kind type switch")
+		}
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.ExchangeTransaction,
+		proto.LeaseTransaction, proto.LeaseCancelTransaction, proto.CreateAliasTransaction,
+		proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.InvokeScriptTransaction,
+		proto.UpdateAssetInfoTransaction, proto.InvokeExpressionTransaction:
+		// it's not a transfer transaction
+		return rideUnit{}, nil
+	default:
+		return rideUnit{}, errors.Errorf("transferByID: unreachable point reached in tx type switch")
+	}
+	if tx.GetTypeInfo().Type != proto.TransferTransaction {
+		return rideUnit{}, nil
+	}
 	obj, err := transactionToObject(env, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
