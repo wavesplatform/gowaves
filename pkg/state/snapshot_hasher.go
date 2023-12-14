@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
+	"hash"
 	"sort"
 
 	"github.com/pkg/errors"
@@ -38,6 +39,7 @@ func (h hashEntries) Less(i, j int) bool { return bytes.Compare(h[i].data.B, h[j
 func (h hashEntries) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
 
 type txSnapshotHasher struct {
+	fastHasher    hash.Hash
 	hashEntries   hashEntries
 	blockHeight   proto.Height
 	transactionID []byte
@@ -45,16 +47,21 @@ type txSnapshotHasher struct {
 
 var _ = proto.SnapshotApplier((*txSnapshotHasher)(nil)) // use the same interface for applying and hashing
 
-func newTxSnapshotHasherDefault() *txSnapshotHasher {
+func newTxSnapshotHasherDefault() (*txSnapshotHasher, error) {
 	return newTxSnapshotHasher(0, nil)
 }
 
-func newTxSnapshotHasher(blockHeight proto.Height, transactionID []byte) *txSnapshotHasher {
+func newTxSnapshotHasher(blockHeight proto.Height, transactionID []byte) (*txSnapshotHasher, error) {
+	fastHasher, err := crypto.NewFastHash()
+	if err != nil {
+		return nil, err
+	}
 	return &txSnapshotHasher{
+		fastHasher:    fastHasher,
 		hashEntries:   nil,
 		blockHeight:   blockHeight,
 		transactionID: transactionID,
-	}
+	}, nil
 }
 
 func calculateTxSnapshotStateHash(
@@ -106,6 +113,7 @@ func (h *txSnapshotHasher) Release() {
 	h.hashEntries = h.hashEntries[:0]
 	h.blockHeight = 0
 	h.transactionID = nil
+	h.fastHasher.Reset()
 }
 
 // Reset releases the hasher and sets a new state.
@@ -116,33 +124,29 @@ func (h *txSnapshotHasher) Reset(blockHeight proto.Height, transactionID []byte)
 }
 
 func (h *txSnapshotHasher) CalculateHash(prevHash crypto.Digest) (crypto.Digest, error) {
+	defer h.fastHasher.Reset() // reset saved hasher
 	// scala node uses stable sort, thought it's unnecessary to use stable sort because:
 	// - every byte sequence is unique for each snapshot
 	// - if two byte sequences are equal then they are indistinguishable and order doesn't matter
 	sort.Sort(h.hashEntries)
 
-	fh, errH := crypto.NewFastHash()
-	if errH != nil {
-		return crypto.Digest{}, errors.Wrap(errH, "failed to create new fast blake2b hasher")
-	}
-
 	for i, entry := range h.hashEntries {
-		if _, err := fh.Write(entry.data.Bytes()); err != nil {
+		if _, err := h.fastHasher.Write(entry.data.Bytes()); err != nil {
 			return crypto.Digest{}, errors.Wrapf(err, "failed to write to hasher %d-th hash entry", i)
 		}
 	}
 	var txSnapshotsDigest crypto.Digest
-	fh.Sum(txSnapshotsDigest[:0])
+	h.fastHasher.Sum(txSnapshotsDigest[:0])
 
-	fh.Reset() // reuse the same hasher
-	if _, err := fh.Write(prevHash[:]); err != nil {
+	h.fastHasher.Reset() // reuse the same hasher
+	if _, err := h.fastHasher.Write(prevHash[:]); err != nil {
 		return crypto.Digest{}, errors.Wrapf(err, "failed to write to hasher previous tx state snapshot hash")
 	}
-	if _, err := fh.Write(txSnapshotsDigest[:]); err != nil {
+	if _, err := h.fastHasher.Write(txSnapshotsDigest[:]); err != nil {
 		return crypto.Digest{}, errors.Wrapf(err, "failed to write to hasher current tx snapshots hash")
 	}
 	var newHash crypto.Digest
-	fh.Sum(newHash[:0])
+	h.fastHasher.Sum(newHash[:0])
 
 	return newHash, nil
 }

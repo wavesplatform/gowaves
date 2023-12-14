@@ -139,7 +139,8 @@ func TestTxSnapshotHasher(t *testing.T) {
 		},
 	}
 
-	hasher := newTxSnapshotHasherDefault()
+	hasher, hErr := newTxSnapshotHasherDefault()
+	require.NoError(t, hErr)
 	defer hasher.Release()
 
 	for _, testCase := range testCases {
@@ -215,7 +216,8 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 	expectedHash, err := crypto.NewDigestFromBytes(expectedHashBytes)
 	require.NoError(b, err)
 
-	hasher := newTxSnapshotHasherDefault()
+	hasher, err := newTxSnapshotHasherDefault()
+	require.NoError(b, err)
 	defer hasher.Release()
 
 	b.ResetTimer()
