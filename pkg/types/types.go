@@ -50,7 +50,10 @@ type WavesBalanceProfile struct {
 type SmartState interface {
 	NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error)
 	AddingBlockHeight() (uint64, error)
+	// NewestTransactionByID returns a transaction, BUT returns error if a transaction exists but failed or elided.
 	NewestTransactionByID([]byte) (proto.Transaction, error)
+	// NewestTransactionHeightByID returns a transaction height, BUT returns error if a transaction
+	//  exists but failed or elided.
 	NewestTransactionHeightByID([]byte) (uint64, error)
 	NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error)
 	NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error)

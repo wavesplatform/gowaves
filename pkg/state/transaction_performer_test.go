@@ -77,7 +77,7 @@ func TestPerformFailedTx(t *testing.T) {
 	// Check that tx was written
 	info, err := to.stor.rw.transactionInfoByID(tx.ID.Bytes())
 	assert.NoError(t, err)
-	assert.True(t, info.failed)
+	assert.Equal(t, proto.TransactionFailed, info.txStatus)
 }
 
 func TestPerformFailedTxWhenValidatingUtx(t *testing.T) {
@@ -107,7 +107,7 @@ func TestPerformFailedTxWhenValidatingUtx(t *testing.T) {
 	// Check that tx was written to in memory storage
 	info, err := to.stor.rw.newestTransactionInfoByID(tx.ID.Bytes())
 	assert.NoError(t, err)
-	assert.True(t, info.failed)
+	assert.Equal(t, proto.TransactionFailed, info.txStatus)
 
 	to.stor.flush(t)
 
@@ -219,7 +219,7 @@ func TestPerformReissueWithSig(t *testing.T) {
 	// Check that tx was written
 	txInf, err := to.stor.rw.transactionInfoByID(tx.ID.Bytes())
 	assert.NoError(t, err)
-	assert.False(t, txInf.failed)
+	assert.Equal(t, proto.TransactionSucceeded, txInf.txStatus)
 }
 
 func TestPerformReissueWithProofs(t *testing.T) {

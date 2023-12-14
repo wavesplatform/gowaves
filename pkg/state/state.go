@@ -2027,14 +2027,14 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 }
 
 // NewestTransactionByID returns transaction by given ID. This function must be used only in Ride evaluator.
-// WARNING! Function returns error if a transaction exists but failed.
+// WARNING! Function returns error if a transaction exists but failed or elided.
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	tx, failed, err := s.rw.readNewestTransaction(id)
+	tx, status, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	if failed {
-		return nil, wrapErr(RetrievalError, errors.New("failed transaction"))
+	if status.IsNotSucceeded() {
+		return nil, wrapErr(RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
 	}
 	return tx, nil
 }
@@ -2047,23 +2047,23 @@ func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 	return tx, nil
 }
 
-func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
-	tx, failed, err := s.rw.readTransaction(id)
+func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
+	tx, status, err := s.rw.readTransaction(id)
 	if err != nil {
-		return nil, false, wrapErr(RetrievalError, err)
+		return nil, 0, wrapErr(RetrievalError, err)
 	}
-	return tx, failed, nil
+	return tx, status, nil
 }
 
 // NewestTransactionHeightByID returns transaction's height by given ID. This function must be used only in Ride evaluator.
 // WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, failed, err := s.rw.newestTransactionHeightByID(id)
+	txHeight, status, err := s.rw.newestTransactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if failed {
-		return 0, wrapErr(RetrievalError, errors.New("failed transaction"))
+	if status.IsNotSucceeded() {
+		return 0, wrapErr(RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
 	}
 	return txHeight, nil
 }

@@ -2,9 +2,13 @@ package server
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -13,8 +17,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/iterators"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
 )
 
 type getTransactionsHandler struct {
@@ -22,8 +24,8 @@ type getTransactionsHandler struct {
 	s   *Server
 }
 
-func (h *getTransactionsHandler) handle(tx proto.Transaction, failed bool) error {
-	res, err := h.s.transactionToTransactionResponse(tx, true, failed)
+func (h *getTransactionsHandler) handle(tx proto.Transaction, status proto.TransactionStatus) error {
+	res, err := h.s.transactionToTransactionResponse(tx, true, status)
 	if err != nil {
 		return errors.Wrap(err, "failed to form transaction response")
 	}
@@ -77,7 +79,7 @@ type getStateChangesHandler struct {
 	s   *Server
 }
 
-func (h *getStateChangesHandler) handle(tx proto.Transaction, failed bool) error {
+func (h *getStateChangesHandler) handle(tx proto.Transaction, _ proto.TransactionStatus) error {
 	var id crypto.Digest
 	switch t := tx.(type) {
 	case *proto.InvokeScriptWithProofs:
@@ -143,7 +145,7 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsApi_GetStatusesServer) error {
 	for _, id := range req.TransactionIds {
 		res := &g.TransactionStatus{Id: id}
-		if _, failed, err := s.state.TransactionByIDWithStatus(id); err == nil {
+		if _, txStatus, err := s.state.TransactionByIDWithStatus(id); err == nil {
 			// Transaction is in state, it is confirmed.
 			height, err := s.state.TransactionHeightByID(id)
 			if err != nil {
@@ -151,10 +153,15 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
 			res.Height = int64(height)
-			if failed {
-				res.ApplicationStatus = g.ApplicationStatus_SCRIPT_EXECUTION_FAILED
-			} else {
+			switch txStatus {
+			case proto.TransactionSucceeded:
 				res.ApplicationStatus = g.ApplicationStatus_SUCCEEDED
+			case proto.TransactionFailed:
+				res.ApplicationStatus = g.ApplicationStatus_SCRIPT_EXECUTION_FAILED
+			case proto.TransactionElided:
+				res.ApplicationStatus = g.ApplicationStatus_ELIDED
+			default:
+				return status.Errorf(codes.Internal, fmt.Sprintf("invalid tx status (%d)", txStatus))
 			}
 		} else if s.utx.ExistsByID(id) {
 			// Transaction is in UTX.
@@ -176,8 +183,8 @@ type getUnconfirmedHandler struct {
 	s   *Server
 }
 
-func (h *getUnconfirmedHandler) handle(tx proto.Transaction, failed bool) error {
-	res, err := h.s.transactionToTransactionResponse(tx, false, failed)
+func (h *getUnconfirmedHandler) handle(tx proto.Transaction, status proto.TransactionStatus) error {
+	res, err := h.s.transactionToTransactionResponse(tx, false, status)
 	if err != nil {
 		return errors.Wrap(err, "failed to form transaction response")
 	}
@@ -198,8 +205,8 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 		if !filter.filter(tx.T) {
 			continue
 		}
-		if err := handler.handle(tx.T, false); err != nil {
-			return status.Errorf(codes.Internal, err.Error())
+		if hErr := handler.handle(tx.T, proto.TransactionSucceeded); hErr != nil {
+			return status.Errorf(codes.Internal, hErr.Error())
 		}
 	}
 	return nil
