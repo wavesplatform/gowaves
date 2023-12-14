@@ -420,7 +420,7 @@ type appendTxParams struct {
 	rideV6Activated                  bool
 	consensusImprovementsActivated   bool
 	blockRewardDistributionActivated bool
-	txStateSnapshotActivated         bool // TODO: check feature naming
+	lightNodeActivated               bool // TODO: check feature naming
 	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
 	stateActionsCounterInBlock       *proto.StateActionsCounter
 	currentMinerPK                   crypto.PublicKey
@@ -734,7 +734,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			rideV6Activated:                  rideV6Activated,
 			consensusImprovementsActivated:   consensusImprovementsActivated,
 			blockRewardDistributionActivated: blockRewardDistributionActivated,
-			txStateSnapshotActivated:         lightNodeActivated,
+			lightNodeActivated:               lightNodeActivated,
 			validatingUtx:                    false,
 			stateActionsCounterInBlock:       stateActionsCounterInBlockValidation,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
@@ -1009,7 +1009,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		rideV6Activated:                  rideV6Activated,
 		consensusImprovementsActivated:   consensusImprovementsActivated,
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
-		txStateSnapshotActivated:         lightNodeActivated,
+		lightNodeActivated:               lightNodeActivated,
 		validatingUtx:                    true,
 		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
 		stateActionsCounterInBlock: issueCounterInBlock,

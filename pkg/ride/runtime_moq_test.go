@@ -53,6 +53,9 @@ var _ environment = &mockRideEnvironment{}
 //			libVersionFunc: func() (ast.LibraryVersion, error) {
 //				panic("mock out the libVersion method")
 //			},
+//			lightNodeActivatedFunc: func() bool {
+//				panic("mock out the lightNodeActivated method")
+//			},
 //			maxDataEntriesSizeFunc: func() int {
 //				panic("mock out the maxDataEntriesSize method")
 //			},
@@ -88,9 +91,6 @@ var _ environment = &mockRideEnvironment{}
 //			},
 //			txIDFunc: func() rideType {
 //				panic("mock out the txID method")
-//			},
-//			txStateSnapshotsActivatedFunc: func() bool {
-//				panic("mock out the txStateSnapshotsActivated method")
 //			},
 //			validateInternalPaymentsFunc: func() bool {
 //				panic("mock out the validateInternalPayments method")
@@ -135,6 +135,9 @@ type mockRideEnvironment struct {
 	// libVersionFunc mocks the libVersion method.
 	libVersionFunc func() (ast.LibraryVersion, error)
 
+	// lightNodeActivatedFunc mocks the lightNodeActivated method.
+	lightNodeActivatedFunc func() bool
+
 	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
 	maxDataEntriesSizeFunc func() int
 
@@ -170,9 +173,6 @@ type mockRideEnvironment struct {
 
 	// txIDFunc mocks the txID method.
 	txIDFunc func() rideType
-
-	// txStateSnapshotsActivatedFunc mocks the txStateSnapshotsActivated method.
-	txStateSnapshotsActivatedFunc func() bool
 
 	// validateInternalPaymentsFunc mocks the validateInternalPayments method.
 	validateInternalPaymentsFunc func() bool
@@ -213,6 +213,9 @@ type mockRideEnvironment struct {
 		}
 		// libVersion holds details about calls to the libVersion method.
 		libVersion []struct {
+		}
+		// lightNodeActivated holds details about calls to the lightNodeActivated method.
+		lightNodeActivated []struct {
 		}
 		// maxDataEntriesSize holds details about calls to the maxDataEntriesSize method.
 		maxDataEntriesSize []struct {
@@ -260,9 +263,6 @@ type mockRideEnvironment struct {
 		// txID holds details about calls to the txID method.
 		txID []struct {
 		}
-		// txStateSnapshotsActivated holds details about calls to the txStateSnapshotsActivated method.
-		txStateSnapshotsActivated []struct {
-		}
 		// validateInternalPayments holds details about calls to the validateInternalPayments method.
 		validateInternalPayments []struct {
 		}
@@ -278,6 +278,7 @@ type mockRideEnvironment struct {
 	lockinvocation                       sync.RWMutex
 	lockisProtobufTx                     sync.RWMutex
 	locklibVersion                       sync.RWMutex
+	locklightNodeActivated               sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
 	lockrideV6Activated                  sync.RWMutex
 	lockscheme                           sync.RWMutex
@@ -290,7 +291,6 @@ type mockRideEnvironment struct {
 	locktimestamp                        sync.RWMutex
 	locktransaction                      sync.RWMutex
 	locktxID                             sync.RWMutex
-	locktxStateSnapshotsActivated        sync.RWMutex
 	lockvalidateInternalPayments         sync.RWMutex
 }
 
@@ -593,6 +593,33 @@ func (mock *mockRideEnvironment) libVersionCalls() []struct {
 	mock.locklibVersion.RLock()
 	calls = mock.calls.libVersion
 	mock.locklibVersion.RUnlock()
+	return calls
+}
+
+// lightNodeActivated calls lightNodeActivatedFunc.
+func (mock *mockRideEnvironment) lightNodeActivated() bool {
+	if mock.lightNodeActivatedFunc == nil {
+		panic("mockRideEnvironment.lightNodeActivatedFunc: method is nil but environment.lightNodeActivated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.locklightNodeActivated.Lock()
+	mock.calls.lightNodeActivated = append(mock.calls.lightNodeActivated, callInfo)
+	mock.locklightNodeActivated.Unlock()
+	return mock.lightNodeActivatedFunc()
+}
+
+// lightNodeActivatedCalls gets all the calls that were made to lightNodeActivated.
+// Check the length with:
+//
+//	len(mockedenvironment.lightNodeActivatedCalls())
+func (mock *mockRideEnvironment) lightNodeActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.locklightNodeActivated.RLock()
+	calls = mock.calls.lightNodeActivated
+	mock.locklightNodeActivated.RUnlock()
 	return calls
 }
 
@@ -941,33 +968,6 @@ func (mock *mockRideEnvironment) txIDCalls() []struct {
 	mock.locktxID.RLock()
 	calls = mock.calls.txID
 	mock.locktxID.RUnlock()
-	return calls
-}
-
-// txStateSnapshotsActivated calls txStateSnapshotsActivatedFunc.
-func (mock *mockRideEnvironment) txStateSnapshotsActivated() bool {
-	if mock.txStateSnapshotsActivatedFunc == nil {
-		panic("mockRideEnvironment.txStateSnapshotsActivatedFunc: method is nil but environment.txStateSnapshotsActivated was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.locktxStateSnapshotsActivated.Lock()
-	mock.calls.txStateSnapshotsActivated = append(mock.calls.txStateSnapshotsActivated, callInfo)
-	mock.locktxStateSnapshotsActivated.Unlock()
-	return mock.txStateSnapshotsActivatedFunc()
-}
-
-// txStateSnapshotsActivatedCalls gets all the calls that were made to txStateSnapshotsActivated.
-// Check the length with:
-//
-//	len(mockedenvironment.txStateSnapshotsActivatedCalls())
-func (mock *mockRideEnvironment) txStateSnapshotsActivatedCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.locktxStateSnapshotsActivated.RLock()
-	calls = mock.calls.txStateSnapshotsActivated
-	mock.locktxStateSnapshotsActivated.RUnlock()
 	return calls
 }
 

@@ -2047,7 +2047,7 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 		{Name: "matcherFeeAssetId", Type: "string"},
 		{Name: "priceMode", Type: "string"},
 	}
-	if len(o.Attachment) == 0 {
+	if o.Attachment.Size() == 0 {
 		domainVer = "1"
 	} else {
 		domainVer = "2"
