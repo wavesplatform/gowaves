@@ -19,19 +19,19 @@ import (
 type snapshotGeneratorTestObjects struct {
 	stor *testStorageObjects
 	tc   *transactionChecker
-	tp   *transactionPerformer
+	tp   transactionPerformer
 	td   *transactionDiffer
 }
 
 func createSnapshotGeneratorTestObjects(t *testing.T) *snapshotGeneratorTestObjects {
 	stor := createStorageObjects(t, true)
-	tp := newTransactionPerformer(stor.entities, stor.settings.AddressSchemeCharacter)
+	sg := newInternalSnapshotGenerator(stor.entities, stor.settings.AddressSchemeCharacter)
 	genID := proto.NewBlockIDFromSignature(genSig)
 	tc, err := newTransactionChecker(genID, stor.entities, stor.settings)
 	require.NoError(t, err)
 	td, err := newTransactionDiffer(stor.entities, stor.settings)
 	require.NoError(t, err)
-	return &snapshotGeneratorTestObjects{stor, tc, tp, td}
+	return &snapshotGeneratorTestObjects{stor, tc, sg, td}
 }
 
 func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,

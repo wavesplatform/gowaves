@@ -39,7 +39,7 @@ type handles map[proto.TransactionTypeInfo]txHandleFuncs
 
 type transactionHandler struct {
 	tc *transactionChecker
-	tp *transactionPerformer
+	tp transactionPerformer
 	td *transactionDiffer
 	tf *transactionFeeCounter
 
@@ -49,8 +49,12 @@ type transactionHandler struct {
 }
 
 // TODO: see TODO on GetTypeInfo() in proto/transactions.go.
-// performer builds snapshots.
-func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transactionDiffer, tf *transactionFeeCounter) handles {
+func buildHandles( //nolint:funlen
+	tc *transactionChecker,
+	tp transactionPerformer,
+	td *transactionDiffer,
+	tf *transactionFeeCounter,
+) handles {
 	return handles{
 		proto.TransactionTypeInfo{Type: proto.GenesisTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
 			tc.checkGenesis, tp.performGenesis,
@@ -173,7 +177,7 @@ func newTransactionHandler(
 	if err != nil {
 		return nil, err
 	}
-	tp := newTransactionPerformer(stor, settings.AddressSchemeCharacter)
+	sg := newInternalSnapshotGenerator(stor, settings.AddressSchemeCharacter)
 	td, err := newTransactionDiffer(stor, settings)
 	if err != nil {
 		return nil, err
@@ -184,11 +188,11 @@ func newTransactionHandler(
 	}
 	return &transactionHandler{
 		tc:    tc,
-		tp:    tp,
+		tp:    sg,
 		td:    td,
 		tf:    tf,
 		sa:    snapshotApplier,
-		funcs: buildHandles(tc, tp, td, tf),
+		funcs: buildHandles(tc, sg, td, tf),
 	}, nil
 }
 
