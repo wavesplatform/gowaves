@@ -29,13 +29,12 @@ var (
 type differTestObjects struct {
 	stor *testStorageObjects
 	td   *transactionDiffer
-	tp   *transactionPerformer // DEPRECATED: create snapshot generator test objects
 	th   *transactionHandler
 }
 
 func createDifferTestObjects(t *testing.T, checkerInfo *checkerInfo) *differTestObjects {
 	cto := createCheckerTestObjects(t, checkerInfo)
-	return &differTestObjects{cto.stor, cto.th.td, cto.th.tp, cto.th}
+	return &differTestObjects{cto.stor, cto.th.td, cto.th}
 }
 
 func createGenesis() *proto.Genesis {

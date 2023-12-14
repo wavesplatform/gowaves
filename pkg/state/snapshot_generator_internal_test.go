@@ -16,6 +16,24 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
+type snapshotGeneratorTestObjects struct {
+	stor *testStorageObjects
+	tc   *transactionChecker
+	tp   *transactionPerformer
+	td   *transactionDiffer
+}
+
+func createSnapshotGeneratorTestObjects(t *testing.T) *snapshotGeneratorTestObjects {
+	stor := createStorageObjects(t, true)
+	tp := newTransactionPerformer(stor.entities, stor.settings)
+	genID := proto.NewBlockIDFromSignature(genSig)
+	tc, err := newTransactionChecker(genID, stor.entities, stor.settings)
+	require.NoError(t, err)
+	td, err := newTransactionDiffer(stor.entities, stor.settings)
+	require.NoError(t, err)
+	return &snapshotGeneratorTestObjects{stor, tc, tp, td}
+}
+
 func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,
 	amount int64, issuer crypto.PublicKey,
 	name string) *assetInfo {
@@ -56,8 +74,7 @@ func txSnapshotsEqual(t *testing.T, expected, actual txSnapshot) {
 }
 
 func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -103,8 +120,7 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 // TODO send only txBalanceChanges to perfomer
 
 func TestDefaultIssueTransactionSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -163,8 +179,7 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 }
 
 func TestDefaultReissueSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -221,8 +236,7 @@ func TestDefaultReissueSnapshot(t *testing.T) {
 }
 
 func TestDefaultBurnSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -278,8 +292,7 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 }
 
 func TestDefaultExchangeTransaction(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -392,8 +405,7 @@ func TestDefaultExchangeTransaction(t *testing.T) {
 }
 
 func TestDefaultLeaseSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -454,8 +466,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 }
 
 func TestDefaultLeaseCancelSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -529,8 +540,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 }
 
 func TestDefaultCreateAliasSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -572,8 +582,7 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 }
 
 func TestDefaultDataSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -624,8 +633,7 @@ func TestDefaultDataSnapshot(t *testing.T) {
 }
 
 func TestDefaultSponsorshipSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -697,7 +705,7 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 
 	assert.NoError(t, err, "failed to set decode base64 script")
 	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -754,8 +762,7 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 }
 
 func TestDefaultSetScriptSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -769,9 +776,7 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign set script tx")
 
-	co := createCheckerTestObjectsWithStor(t, checkerInfo, to.stor)
-	co.stor = to.stor
-	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	checkerData, err := to.tc.checkSetScriptWithProofs(tx, customCheckerInfo())
 	assert.NoError(t, err, "failed to check set script tx")
 
 	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
@@ -810,8 +815,7 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 }
 
 func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -825,9 +829,7 @@ func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign set script tx")
 
-	co := createCheckerTestObjectsWithStor(t, checkerInfo, to.stor)
-	co.stor = to.stor
-	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	checkerData, err := to.tc.checkSetScriptWithProofs(tx, customCheckerInfo())
 	assert.NoError(t, err, "failed to check set script tx")
 
 	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
@@ -867,8 +869,7 @@ func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
 }
 
 func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -892,9 +893,7 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign burn tx")
 
-	co := createCheckerTestObjectsWithStor(t, checkerInfo, to.stor)
-	co.stor = to.stor
-	checkerData, err := co.tc.checkSetAssetScriptWithProofs(tx, checkerInfo)
+	checkerData, err := to.tc.checkSetAssetScriptWithProofs(tx, customCheckerInfo())
 	assert.NoError(t, err, "failed to check set script tx")
 
 	ch, err := to.td.createDiffSetAssetScriptWithProofs(tx, defaultDifferInfo())
