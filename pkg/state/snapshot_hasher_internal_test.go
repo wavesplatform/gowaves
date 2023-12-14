@@ -210,14 +210,13 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 	transactionID, err := crypto.NewDigestFromBase58(testCase.transactionIDBase58)
 	require.NoError(b, err)
 	txID := transactionID.Bytes()
+	hasher := newTxSnapshotHasher(blockHeight, txID)
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.Run(testCase.testCaseName, func(b *testing.B) {
 			b.ReportAllocs()
 			for j := 0; j < b.N; j++ {
-				hasher := newTxSnapshotHasher(blockHeight, txID)
-
 				for _, snapshot := range txSnapshot {
 					err = snapshot.Apply(&hasher)
 					require.NoErrorf(b, err, "failed to apply atomic snapshot")
@@ -226,7 +225,7 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 				_, err = hasher.CalculateHash(prevHash)
 				require.NoError(b, err)
 
-				hasher.Release()
+				hasher.Reset(blockHeight, txID)
 			}
 		})
 	}

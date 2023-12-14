@@ -61,8 +61,18 @@ func writeBool(w *bytes.Buffer, v bool) error {
 	return w.WriteByte(b)
 }
 
+// Release releases the hasher and sets its state to default.
 func (h *txSnapshotHasher) Release() {
-	// no-op for now
+	h.hashEntries = h.hashEntries[:0]
+	h.blockHeight = 0
+	h.transactionID = nil
+}
+
+// Reset releases the hasher and sets a new state.
+func (h *txSnapshotHasher) Reset(blockHeight proto.Height, transactionID []byte) {
+	h.Release()
+	h.blockHeight = blockHeight
+	h.transactionID = transactionID
 }
 
 func (h *txSnapshotHasher) CalculateHash(prevHash crypto.Digest) (crypto.Digest, error) {
