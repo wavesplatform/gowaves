@@ -45,6 +45,10 @@ type txSnapshotHasher struct {
 
 var _ = proto.SnapshotApplier((*txSnapshotHasher)(nil)) // use the same interface for applying and hashing
 
+func newTxSnapshotHasherDefault() *txSnapshotHasher {
+	return newTxSnapshotHasher(0, nil)
+}
+
 func newTxSnapshotHasher(blockHeight proto.Height, transactionID []byte) *txSnapshotHasher {
 	return &txSnapshotHasher{
 		hashEntries:   nil,

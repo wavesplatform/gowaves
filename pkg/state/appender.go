@@ -745,7 +745,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
 	}
-	hasher := newTxSnapshotHasher(0, nil) // create with zero state
+	hasher := newTxSnapshotHasherDefault()
 	defer hasher.Release()
 
 	currentBlockHeight := blockInfo.Height

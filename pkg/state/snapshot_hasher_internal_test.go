@@ -138,6 +138,10 @@ func TestTxSnapshotHasher(t *testing.T) {
 			transactionIDBase58:  "5gEi2kgbMSfUzdDXRKovEbEezq5ACpr8WTeafwkKQmHW",
 		},
 	}
+
+	hasher := newTxSnapshotHasherDefault()
+	defer hasher.Release()
+
 	for _, testCase := range testCases {
 		t.Run(testCase.testCaseName, func(t *testing.T) {
 			pbBytes, err := base64.StdEncoding.DecodeString(testCase.pbInBase64)
@@ -160,15 +164,8 @@ func TestTxSnapshotHasher(t *testing.T) {
 				transactionID, err = crypto.NewDigestFromBase58(txIDStr)
 				require.NoError(t, err)
 			}
-			hasher := newTxSnapshotHasher(blockHeight, transactionID.Bytes())
-			defer hasher.Release()
 
-			for i, snapshot := range txSnapshot {
-				err = snapshot.Apply(hasher)
-				require.NoErrorf(t, err, "failed to apply %d-th atomic snapshot", i+1)
-			}
-
-			hash, err := hasher.CalculateHash(prevHash)
+			hash, err := calculateTxSnapshotStateHash(hasher, transactionID.Bytes(), blockHeight, prevHash, txSnapshot)
 			require.NoError(t, err)
 
 			assert.Equal(t, testCase.expectedStateHashHex, hash.Hex())
@@ -182,15 +179,17 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 		blockHeight = 10
 	)
 	testCase := struct {
-		testCaseName        string
-		pbInBase64          string
-		prevStateHashHex    string
-		transactionIDBase58 string
+		testCaseName         string
+		pbInBase64           string
+		prevStateHashHex     string
+		transactionIDBase58  string
+		expectedStateHashHex string
 	}{
-		testCaseName:        "all_together",
-		pbInBase64:          "CkMKGgFUYP1Q7yDeRXEgffuciL58HC+KIscK2I+1EiUKIF5mn4IKZ9CIbYdHjPBDoqx4XMevVdwxzhB1OUvTUKJbEJBOCkQKGgFUQsXJY3P1D9gTUGBPHBTypsklatr9GbAqEiYKIHidwBEj1TYPcIKv1LRquL/otRYLv7UmwEPl/Hg6T4lOEKCcAQokChoBVGD9UO8g3kVxIH37nIi+fBwviiLHCtiPtRIGEICU69wDCiQKGgFUQsXJY3P1D9gTUGBPHBTypsklatr9GbAqEgYQgKjWuQcSIgoaAVRg/VDvIN5FcSB9+5yIvnwcL4oixwrYj7UYgJri4RASIgoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoQgK7NvhQSIgoaAVQwI8uotbzVfYC2BqPYrAX1CRomrjsJ6/0YgKjWuQcSHAoaAVRhIl3y/Mj2ursZ0i4PLrkkxzzOLj3sT3waZgoguIIzLIWCBbxl3Ysa38C0yvtZan6R9ZvOU33eldmrOo0SIFDHWa9Cd6VU8M20LLFHzbBTveERf1sEOw19SUS40GBoGhoBVELFyWNz9Q/YE1BgTxwU8qbJJWra/RmwKiCA8ouoCSIiCiC4gjMshYIFvGXdixrfwLTK+1lqfpH1m85Tfd6V2as6jSpGCiBeZp+CCmfQiG2HR4zwQ6KseFzHr1XcMc4QdTlL01CiWxIg3GBhamPTKLR06Q6bJKMnDfzLetm2Xz8SAuH6VNGUwZ4gASpGCiB4ncARI9U2D3CCr9S0ari/6LUWC7+1JsBD5fx4Ok+JThIg3GBhamPTKLR06Q6bJKMnDfzLetm2Xz8SAuH6VNGUwZ4YCDIvCiB4ncARI9U2D3CCr9S0ari/6LUWC7+1JsBD5fx4Ok+JThABGgkE//////////YyJQogXmafggpn0Ihth0eM8EOirHhcx69V3DHOEHU5S9NQolsaAQEyKAogOG+NPdNOUn6/g2LbTm9xhzWb1ZaCdA8Wi+OYkjUfrbIaBDuaygA6QwogeJ3AESPVNg9wgq/UtGq4v+i1Fgu/tSbAQ+X8eDpPiU4SB25ld25hbWUaFnNvbWUgZmFuY3kgZGVzY3JpcHRpb25KJgoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoSCHdhdmVzZXZvUisKIMkknO8yHpMUT/XKkkdlrbYCG0Dt+qvVgphfgtRbyRDMEICU69wDGNAPUisKIJZ9YwvJObbWItHAD2zhbaFOTFx2zQ4p0Xbo81GXHKeEEICU69wDGNAPWi4KIFDHWa9Cd6VU8M20LLFHzbBTveERf1sEOw19SUS40GBoEgcGAQaw0U/PGPoBYloKGgFUYP1Q7yDeRXEgffuciL58HC+KIscK2I+1EgUKA2ZvbxISCgNiYXJqC1N0cmluZ1ZhbHVlEiEKA2JhemIaAVRg/VDvIN5FcSB9+5yIvnwcL4oixwrYj7ViLwoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoSCAoDZm9vULAJEgcKA2JhclgBaiUKIHidwBEj1TYPcIKv1LRquL/otRYLv7UmwEPl/Hg6T4lOEPwqcAE=", //nolint:lll
-		prevStateHashHex:    "7a15507d73ff9f98c3c777e687e23a4c8b33d02212203be73f0518403e91d431",
-		transactionIDBase58: "5gEi2kgbMSfUzdDXRKovEbEezq5ACpr8WTeafwkKQmHW",
+		testCaseName:         "all_together",
+		pbInBase64:           "CkMKGgFUYP1Q7yDeRXEgffuciL58HC+KIscK2I+1EiUKIF5mn4IKZ9CIbYdHjPBDoqx4XMevVdwxzhB1OUvTUKJbEJBOCkQKGgFUQsXJY3P1D9gTUGBPHBTypsklatr9GbAqEiYKIHidwBEj1TYPcIKv1LRquL/otRYLv7UmwEPl/Hg6T4lOEKCcAQokChoBVGD9UO8g3kVxIH37nIi+fBwviiLHCtiPtRIGEICU69wDCiQKGgFUQsXJY3P1D9gTUGBPHBTypsklatr9GbAqEgYQgKjWuQcSIgoaAVRg/VDvIN5FcSB9+5yIvnwcL4oixwrYj7UYgJri4RASIgoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoQgK7NvhQSIgoaAVQwI8uotbzVfYC2BqPYrAX1CRomrjsJ6/0YgKjWuQcSHAoaAVRhIl3y/Mj2ursZ0i4PLrkkxzzOLj3sT3waZgoguIIzLIWCBbxl3Ysa38C0yvtZan6R9ZvOU33eldmrOo0SIFDHWa9Cd6VU8M20LLFHzbBTveERf1sEOw19SUS40GBoGhoBVELFyWNz9Q/YE1BgTxwU8qbJJWra/RmwKiCA8ouoCSIiCiC4gjMshYIFvGXdixrfwLTK+1lqfpH1m85Tfd6V2as6jSpGCiBeZp+CCmfQiG2HR4zwQ6KseFzHr1XcMc4QdTlL01CiWxIg3GBhamPTKLR06Q6bJKMnDfzLetm2Xz8SAuH6VNGUwZ4gASpGCiB4ncARI9U2D3CCr9S0ari/6LUWC7+1JsBD5fx4Ok+JThIg3GBhamPTKLR06Q6bJKMnDfzLetm2Xz8SAuH6VNGUwZ4YCDIvCiB4ncARI9U2D3CCr9S0ari/6LUWC7+1JsBD5fx4Ok+JThABGgkE//////////YyJQogXmafggpn0Ihth0eM8EOirHhcx69V3DHOEHU5S9NQolsaAQEyKAogOG+NPdNOUn6/g2LbTm9xhzWb1ZaCdA8Wi+OYkjUfrbIaBDuaygA6QwogeJ3AESPVNg9wgq/UtGq4v+i1Fgu/tSbAQ+X8eDpPiU4SB25ld25hbWUaFnNvbWUgZmFuY3kgZGVzY3JpcHRpb25KJgoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoSCHdhdmVzZXZvUisKIMkknO8yHpMUT/XKkkdlrbYCG0Dt+qvVgphfgtRbyRDMEICU69wDGNAPUisKIJZ9YwvJObbWItHAD2zhbaFOTFx2zQ4p0Xbo81GXHKeEEICU69wDGNAPWi4KIFDHWa9Cd6VU8M20LLFHzbBTveERf1sEOw19SUS40GBoEgcGAQaw0U/PGPoBYloKGgFUYP1Q7yDeRXEgffuciL58HC+KIscK2I+1EgUKA2ZvbxISCgNiYXJqC1N0cmluZ1ZhbHVlEiEKA2JhemIaAVRg/VDvIN5FcSB9+5yIvnwcL4oixwrYj7ViLwoaAVRCxcljc/UP2BNQYE8cFPKmySVq2v0ZsCoSCAoDZm9vULAJEgcKA2JhclgBaiUKIHidwBEj1TYPcIKv1LRquL/otRYLv7UmwEPl/Hg6T4lOEPwqcAE=", //nolint:lll
+		prevStateHashHex:     "7a15507d73ff9f98c3c777e687e23a4c8b33d02212203be73f0518403e91d431",
+		transactionIDBase58:  "5gEi2kgbMSfUzdDXRKovEbEezq5ACpr8WTeafwkKQmHW",
+		expectedStateHashHex: "6502773294f32cc1702d374ffc1e67ee278cd63c5f00432f80f64a689fcb17f9",
 	}
 	pbBytes, err := base64.StdEncoding.DecodeString(testCase.pbInBase64)
 	require.NoError(b, err)
@@ -210,22 +209,27 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 	transactionID, err := crypto.NewDigestFromBase58(testCase.transactionIDBase58)
 	require.NoError(b, err)
 	txID := transactionID.Bytes()
-	hasher := newTxSnapshotHasher(blockHeight, txID)
+
+	expectedHashBytes, err := hex.DecodeString(testCase.expectedStateHashHex)
+	require.NoError(b, err)
+	expectedHash, err := crypto.NewDigestFromBytes(expectedHashBytes)
+	require.NoError(b, err)
+
+	hasher := newTxSnapshotHasherDefault()
+	defer hasher.Release()
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
 		b.Run(testCase.testCaseName, func(b *testing.B) {
 			b.ReportAllocs()
 			for j := 0; j < b.N; j++ {
-				for _, snapshot := range txSnapshot {
-					err = snapshot.Apply(hasher)
-					require.NoErrorf(b, err, "failed to apply atomic snapshot")
+				h, hErr := calculateTxSnapshotStateHash(hasher, txID, blockHeight, prevHash, txSnapshot)
+				if hErr != nil {
+					b.Fatalf("error occured: %+v", err)
 				}
-
-				_, err = hasher.CalculateHash(prevHash)
-				require.NoError(b, err)
-
-				hasher.Reset(blockHeight, txID)
+				if h != expectedHash {
+					b.Fatalf("expectedHash=%s  != actual=%s", expectedHash.Hex(), h.Hex())
+				}
 			}
 		})
 	}
