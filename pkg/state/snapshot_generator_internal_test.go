@@ -50,12 +50,6 @@ func customCheckerInfo() *checkerInfo {
 	}
 }
 
-func createCheckerCustomTestObjects(t *testing.T, differ *differTestObjects) *checkerTestObjects {
-	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), differ.stor.entities, settings.MainNetSettings)
-	require.NoError(t, err, "newTransactionChecker() failed")
-	return &checkerTestObjects{differ.stor, tc, differ.tp}
-}
-
 func txSnapshotsEqual(t *testing.T, expected, actual txSnapshot) {
 	_ = assert.ElementsMatch(t, expected.regular, actual.regular)
 	_ = assert.ElementsMatch(t, expected.internal, actual.internal)
@@ -718,7 +712,7 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign set script tx")
 
-	co := createCheckerCustomTestObjects(t, to)
+	co := createCheckerTestObjectsWithStor(t, checkerInfo, to.stor)
 	co.stor = to.stor
 	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
 	assert.NoError(t, err, "failed to check set script tx")
@@ -775,7 +769,7 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign set script tx")
 
-	co := createCheckerCustomTestObjects(t, to)
+	co := createCheckerTestObjectsWithStor(t, checkerInfo, to.stor)
 	co.stor = to.stor
 	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
 	assert.NoError(t, err, "failed to check set script tx")
@@ -831,7 +825,7 @@ func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign set script tx")
 
-	co := createCheckerCustomTestObjects(t, to)
+	co := createCheckerTestObjectsWithStor(t, checkerInfo, to.stor)
 	co.stor = to.stor
 	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
 	assert.NoError(t, err, "failed to check set script tx")
@@ -898,7 +892,7 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign burn tx")
 
-	co := createCheckerCustomTestObjects(t, to)
+	co := createCheckerTestObjectsWithStor(t, checkerInfo, to.stor)
 	co.stor = to.stor
 	checkerData, err := co.tc.checkSetAssetScriptWithProofs(tx, checkerInfo)
 	assert.NoError(t, err, "failed to check set script tx")
