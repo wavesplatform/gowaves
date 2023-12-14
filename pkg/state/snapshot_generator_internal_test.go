@@ -25,7 +25,7 @@ type snapshotGeneratorTestObjects struct {
 
 func createSnapshotGeneratorTestObjects(t *testing.T) *snapshotGeneratorTestObjects {
 	stor := createStorageObjects(t, true)
-	sg := newInternalSnapshotGenerator(stor.entities, stor.settings.AddressSchemeCharacter)
+	sg := newSnapshotGenerator(stor.entities, stor.settings.AddressSchemeCharacter)
 	genID := proto.NewBlockIDFromSignature(genSig)
 	tc, err := newTransactionChecker(genID, stor.entities, stor.settings)
 	require.NoError(t, err)

@@ -177,7 +177,7 @@ func newTransactionHandler(
 	if err != nil {
 		return nil, err
 	}
-	sg := newInternalSnapshotGenerator(stor, settings.AddressSchemeCharacter)
+	sg := newSnapshotGenerator(stor, settings.AddressSchemeCharacter)
 	td, err := newTransactionDiffer(stor, settings)
 	if err != nil {
 		return nil, err
