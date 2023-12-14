@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
-	stderrs "errors"
 	"math/big"
 	"strconv"
 	"strings"
@@ -21,7 +20,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
@@ -858,24 +856,6 @@ func TestTransferByID(t *testing.T) {
 		},
 	}
 
-	const code = `
-		{-# STDLIB_VERSION 5 #-}
-		{-# CONTENT_TYPE DAPP #-}
-		{-# SCRIPT_TYPE ACCOUNT #-}
-		
-		@Callable(i)
-		func call() = {
-			let txID = base58'GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9'
-			let transferTx = transferTransactionById(txID)
-			match (transferTx) {
-				case t:TransferTransaction => []
-				case _ => throw("")
-			  }
-		}`
-
-	tree1, errs := ridec.CompileToTree(code)
-	require.NoError(t, stderrs.Join(errs...))
-
 	for i, testCase := range testCases {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
 			env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 26000).
@@ -884,7 +864,6 @@ func TestTransferByID(t *testing.T) {
 				withValidateInternalPayments().withThis(dApp1).
 				withDApp(dApp1).withSender(sender).
 				withInvocation("call").
-				withTree(dApp1, tree1).
 				withWavesBalance(dApp1, 1_00000000).withWavesBalance(sender, 1_00000000).
 				withTransaction(testCase.tx).
 				withAsset(&proto.FullAssetInfo{
