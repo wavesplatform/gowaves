@@ -673,25 +673,6 @@ func calculateInitialSnapshotStateHash(
 	return calculateTxSnapshotStateHash(h, txID, blockHeight, prevHash, txSnapshot)
 }
 
-func calculateTxSnapshotStateHash(
-	h *txSnapshotHasher,
-	txID []byte,
-	blockHeight proto.Height,
-	prevHash crypto.Digest,
-	txSnapshot []proto.AtomicSnapshot,
-) (crypto.Digest, error) {
-	h.Reset(blockHeight, txID) // reset hasher before using
-
-	for i, snapshot := range txSnapshot {
-		if err := snapshot.Apply(h); err != nil {
-			return crypto.Digest{}, errors.Wrapf(err, "failed to apply to hasher %d-th snapshot (%T)",
-				i+1, snapshot,
-			)
-		}
-	}
-	return h.CalculateHash(prevHash)
-}
-
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
 	defer func() {

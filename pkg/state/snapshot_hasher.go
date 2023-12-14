@@ -57,6 +57,25 @@ func newTxSnapshotHasher(blockHeight proto.Height, transactionID []byte) *txSnap
 	}
 }
 
+func calculateTxSnapshotStateHash(
+	h *txSnapshotHasher,
+	txID []byte,
+	blockHeight proto.Height,
+	prevHash crypto.Digest,
+	txSnapshot []proto.AtomicSnapshot,
+) (crypto.Digest, error) {
+	h.Reset(blockHeight, txID) // reset hasher before using
+
+	for i, snapshot := range txSnapshot {
+		if err := snapshot.Apply(h); err != nil {
+			return crypto.Digest{}, errors.Wrapf(err, "failed to apply to hasher %d-th snapshot (%T)",
+				i+1, snapshot,
+			)
+		}
+	}
+	return h.CalculateHash(prevHash)
+}
+
 func writeUint32BigEndian(w *bytebufferpool.ByteBuffer, v uint32) error {
 	var buf [uint32Size]byte
 	binary.BigEndian.PutUint32(buf[:], v)
