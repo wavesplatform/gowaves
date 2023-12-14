@@ -23,8 +23,16 @@ type hashEntry struct {
 	data []byte
 }
 
+type hashEntries []hashEntry
+
+func (h hashEntries) Len() int { return len(h) }
+
+func (h hashEntries) Less(i, j int) bool { return bytes.Compare(h[i].data, h[j].data) == -1 }
+
+func (h hashEntries) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+
 type txSnapshotHasher struct {
-	hashEntries   []hashEntry
+	hashEntries   hashEntries
 	blockHeight   proto.Height
 	transactionID []byte
 }
@@ -79,9 +87,7 @@ func (h *txSnapshotHasher) CalculateHash(prevHash crypto.Digest) (crypto.Digest,
 	// scala node uses stable sort, thought it's unnecessary to use stable sort because:
 	// - every byte sequence is unique for each snapshot
 	// - if two byte sequences are equal then they are indistinguishable and order doesn't matter
-	sort.Slice(h.hashEntries, func(i, j int) bool {
-		return bytes.Compare(h.hashEntries[i].data, h.hashEntries[j].data) == -1
-	})
+	sort.Sort(h.hashEntries)
 
 	fh, errH := crypto.NewFastHash()
 	if errH != nil {
