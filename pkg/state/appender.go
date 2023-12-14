@@ -420,7 +420,7 @@ type appendTxParams struct {
 	rideV6Activated                  bool
 	consensusImprovementsActivated   bool
 	blockRewardDistributionActivated bool
-	lightNodeActivated               bool // TODO: check feature naming
+	lightNodeActivated               bool
 	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
 	stateActionsCounterInBlock       *proto.StateActionsCounter
 	currentMinerPK                   crypto.PublicKey
@@ -991,7 +991,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
+		return errs.Extend(err, "failed to check 'Light Node' is activated")
 	}
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
