@@ -4378,7 +4378,7 @@ func (s StateHashDebug) GetStateHash() *StateHash {
 type TransactionStatus byte
 
 const (
-	TransactionSucceeded TransactionStatus = iota // TODO: should be used as iota + 1, remains zero for compatibility
+	TransactionSucceeded TransactionStatus = iota + 1
 	TransactionFailed
 	TransactionElided
 )
