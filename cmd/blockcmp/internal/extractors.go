@@ -6,6 +6,7 @@ import (
 	"sort"
 
 	"github.com/mr-tron/base58"
+
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -125,15 +126,15 @@ func ExtractLeaseCancels(res *waves.InvokeScriptResult) []LeaseCancel {
 	return r
 }
 
-func extractValue(e *waves.DataTransactionData_DataEntry) string {
+func extractValue(e *waves.DataEntry) string {
 	switch v := e.GetValue().(type) {
-	case *waves.DataTransactionData_DataEntry_BinaryValue:
+	case *waves.DataEntry_BinaryValue:
 		return base58.Encode(v.BinaryValue)
-	case *waves.DataTransactionData_DataEntry_BoolValue:
+	case *waves.DataEntry_BoolValue:
 		return fmt.Sprintf("%t", v.BoolValue)
-	case *waves.DataTransactionData_DataEntry_IntValue:
+	case *waves.DataEntry_IntValue:
 		return fmt.Sprintf("%d", v.IntValue)
-	case *waves.DataTransactionData_DataEntry_StringValue:
+	case *waves.DataEntry_StringValue:
 		return v.StringValue
 	default:
 		return fmt.Sprintf("unsupported value type %T", e.GetValue())

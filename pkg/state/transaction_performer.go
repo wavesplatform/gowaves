@@ -93,9 +93,14 @@ func (tp *transactionPerformer) performTransferWithProofs(transaction proto.Tran
 	return tp.performTransfer(balanceChanges)
 }
 
-func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest,
-	assetID crypto.Digest, info *performerInfo,
-	balanceChanges txDiff, scriptEstimation *scriptEstimation, script proto.Script) (txSnapshot, error) {
+func (tp *transactionPerformer) performIssue(
+	tx *proto.Issue,
+	assetID crypto.Digest,
+	info *performerInfo,
+	balanceChanges txDiff,
+	scriptEstimation *scriptEstimation,
+	script proto.Script,
+) (txSnapshot, error) {
 	blockHeight := info.height + 1
 	// Create new asset.
 	assetInfo := &assetInfo{
@@ -113,8 +118,14 @@ func (tp *transactionPerformer) performIssue(tx *proto.Issue, txID crypto.Digest
 			reissuable:               tx.Reissuable,
 		},
 	}
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(assetID, txID, tx.SenderPK,
-		*assetInfo, balanceChanges, scriptEstimation, script)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForIssueTx(
+		assetID,
+		tx.SenderPK,
+		*assetInfo,
+		balanceChanges,
+		scriptEstimation,
+		script,
+	)
 	if err != nil {
 		return txSnapshot{}, err
 	}
@@ -135,7 +146,7 @@ func (tp *transactionPerformer) performIssueWithSig(transaction proto.Transactio
 	if err != nil {
 		return txSnapshot{}, err
 	}
-	return tp.performIssue(&tx.Issue, assetID, assetID, info, balanceChanges, nil, nil)
+	return tp.performIssue(&tx.Issue, assetID, info, balanceChanges, nil, nil)
 }
 
 func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transaction, info *performerInfo,
@@ -152,8 +163,7 @@ func (tp *transactionPerformer) performIssueWithProofs(transaction proto.Transac
 	if err != nil {
 		return txSnapshot{}, err
 	}
-	return tp.performIssue(&tx.Issue, assetID, assetID, info,
-		balanceChanges, info.checkerData.scriptEstimation, tx.Script)
+	return tp.performIssue(&tx.Issue, assetID, info, balanceChanges, info.checkerData.scriptEstimation, tx.Script)
 }
 
 func (tp *transactionPerformer) performReissue(tx *proto.Reissue, _ *performerInfo,
@@ -250,26 +260,23 @@ func (tp *transactionPerformer) performExchange(transaction proto.Transaction, _
 
 func (tp *transactionPerformer) performLease(tx *proto.Lease, txID *crypto.Digest, info *performerInfo,
 	balanceChanges txDiff) (txSnapshot, error) {
-	senderAddr, err := proto.NewAddressFromPublicKey(tp.settings.AddressSchemeCharacter, tx.SenderPK)
-	if err != nil {
-		return txSnapshot{}, err
-	}
 	var recipientAddr proto.WavesAddress
 	if addr := tx.Recipient.Address(); addr == nil {
-		recipientAddr, err = tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
+		rcpAddr, err := tp.stor.aliases.newestAddrByAlias(tx.Recipient.Alias().Alias)
 		if err != nil {
-			return txSnapshot{}, errors.Errorf("invalid alias: %v", err)
+			return txSnapshot{}, errors.Wrap(err, "invalid alias")
 		}
+		recipientAddr = rcpAddr
 	} else {
 		recipientAddr = *addr
 	}
 	// Add leasing to lease state.
 	l := &leasing{
-		Sender:       senderAddr,
-		Recipient:    recipientAddr,
-		Amount:       tx.Amount,
-		OriginHeight: info.height,
-		Status:       LeaseActive,
+		SenderPK:      tx.SenderPK,
+		RecipientAddr: recipientAddr,
+		Amount:        tx.Amount,
+		OriginHeight:  info.height,
+		Status:        LeaseActive,
 	}
 	leaseID := *txID
 	snapshot, err := tp.snapshotGenerator.generateSnapshotForLeaseTx(l, leaseID, txID, balanceChanges)
@@ -508,14 +515,17 @@ func (tp *transactionPerformer) performEthereumTransactionWithProofs(transaction
 }
 
 func (tp *transactionPerformer) performUpdateAssetInfoWithProofs(transaction proto.Transaction,
-	info *performerInfo, _ *invocationResult, balanceChanges txDiff) (txSnapshot, error) {
+	_ *performerInfo, _ *invocationResult, balanceChanges txDiff) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to UpdateAssetInfoWithProofs transaction")
 	}
-	blockHeight := info.height + 1
-	snapshot, err := tp.snapshotGenerator.generateSnapshotForUpdateAssetInfoTx(tx.AssetID,
-		tx.Name, tx.Description, blockHeight, balanceChanges)
+	snapshot, err := tp.snapshotGenerator.generateSnapshotForUpdateAssetInfoTx(
+		tx.AssetID,
+		tx.Name,
+		tx.Description,
+		balanceChanges,
+	)
 	if err != nil {
 		return txSnapshot{}, err
 	}

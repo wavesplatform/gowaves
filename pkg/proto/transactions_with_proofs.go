@@ -7,6 +7,7 @@ import (
 
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -3409,7 +3410,7 @@ func (tx *DataWithProofs) UnmarshalSignedFromProtobuf(data []byte) error {
 }
 
 func (tx *DataWithProofs) protobufDataTransactionData() *g.DataTransactionData {
-	entries := make([]*g.DataTransactionData_DataEntry, len(tx.Entries))
+	entries := make([]*g.DataEntry, len(tx.Entries))
 	for i, entry := range tx.Entries {
 		entries[i] = entry.ToProtobuf()
 	}
