@@ -896,9 +896,6 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 	default:
 		return rideUnit{}, errors.Errorf("transferByID: unreachable point reached in tx type switch")
 	}
-	if tx.GetTypeInfo().Type != proto.TransferTransaction {
-		return rideUnit{}, nil
-	}
 	obj, err := transactionToObject(env, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
