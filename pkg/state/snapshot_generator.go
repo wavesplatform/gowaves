@@ -684,17 +684,38 @@ func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 	return wavesBalanceSnapshot, assetBalanceSnapshot, leaseBalanceSnapshot, nil
 }
 
-//
-//func assetBalanceDiffFromTxDiff(balanceChange balanceChanges, scheme proto.Scheme) (addressAssetBalanceDiff, error) {
-//
-//}
-//
-//func wavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme proto.Scheme) (addressWavesBalanceDiff, error) {
-//
-//}
+func addAssetBalanceDiffFromTxDiff(change balanceDiff, assetKey []byte, scheme proto.Scheme,
+	addrAssetBalanceDiff addressAssetBalanceDiff) error {
+	assetBalanceK := &assetBalanceKey{}
+	if err := assetBalanceK.unmarshal(assetKey); err != nil {
+		return errors.Errorf("failed to unmarshal asset balance key: %v", err)
+	}
+	asset := assetBalanceK.asset
+	address, cnvrtErr := assetBalanceK.address.ToWavesAddress(scheme)
+	if cnvrtErr != nil {
+		return errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
+	}
+	assetBalKey := assetBalanceDiffKey{address: address, asset: asset}
+	addrAssetBalanceDiff[assetBalKey] = change.balance
+	return nil
+}
 
-// func balanceDiffFromTxDiff(diff txDiff, scheme proto.Scheme) (addressWavesBalanceDiff, addressAssetBalanceDiff, error) {
-func balanceDiffFromTxDiff(balanceChanges []balanceChanges, scheme proto.Scheme) (addressWavesBalanceDiff, addressAssetBalanceDiff, error) {
+func addWavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme proto.Scheme,
+	addrWavesBalanceDiff addressWavesBalanceDiff) error {
+	wavesBalanceK := &wavesBalanceKey{}
+	if err := wavesBalanceK.unmarshal(wavesKey); err != nil {
+		return errors.Errorf("failed to unmarshal waves balance key: %v", err)
+	}
+	address, cnvrtErr := wavesBalanceK.address.ToWavesAddress(scheme)
+	if cnvrtErr != nil {
+		return errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
+	}
+	addrWavesBalanceDiff[address] = change
+	return nil
+}
+
+func balanceDiffFromTxDiff(balanceChanges []balanceChanges,
+	scheme proto.Scheme) (addressWavesBalanceDiff, addressAssetBalanceDiff, error) {
 	addrAssetBalanceDiff := make(addressAssetBalanceDiff)
 	addrWavesBalanceDiff := make(addressWavesBalanceDiff)
 	for _, balanceChange := range balanceChanges {
@@ -703,29 +724,15 @@ func balanceDiffFromTxDiff(balanceChanges []balanceChanges, scheme proto.Scheme)
 			return nil, nil, errors.Errorf("more than one balance diff for the same address in the same block")
 		}
 		if len(balanceChange.key) > wavesBalanceKeySize {
-			var assetBalanceK assetBalanceKey
-			if err := assetBalanceK.unmarshal(balanceChange.key); err != nil {
-				return nil, nil, errors.Errorf("failed to unmarshal asset balance key: %v", err)
+			err := addAssetBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key, scheme, addrAssetBalanceDiff)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to add asset balance from tx diff")
 			}
-			change := balanceChange.balanceDiffs[0]
-			asset := assetBalanceK.asset
-			address, cnvrtErr := assetBalanceK.address.ToWavesAddress(scheme)
-			if cnvrtErr != nil {
-				return nil, nil, errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
-			}
-			assetBalKey := assetBalanceDiffKey{address: address, asset: asset}
-			addrAssetBalanceDiff[assetBalKey] = change.balance
 		} else {
-			change := balanceChange.balanceDiffs[0]
-			wavesBalanceK := &wavesBalanceKey{}
-			if err := wavesBalanceK.unmarshal(balanceChange.key); err != nil {
-				return nil, nil, errors.Errorf("failed to unmarshal waves balance key: %v", err)
+			err := addWavesBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key, scheme, addrWavesBalanceDiff)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to add waves balance from tx diff")
 			}
-			address, cnvrtErr := wavesBalanceK.address.ToWavesAddress(scheme)
-			if cnvrtErr != nil {
-				return nil, nil, errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
-			}
-			addrWavesBalanceDiff[address] = change
 		}
 	}
 	return addrWavesBalanceDiff, addrAssetBalanceDiff, nil

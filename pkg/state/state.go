@@ -1532,13 +1532,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
 
-	// TODO remove this
-	// Apply all the balance diffs accumulated from this blocks batch.
-	// This also validates diffs for negative balances.
-	// if err := s.appender.applyAllDiffs(); err != nil {
-	//	return nil, err
-	//}
-
 	// Retrieve and store state hashes for each of new blocks.
 	if err := s.stor.handleStateHashes(height, ids); err != nil {
 		return nil, wrapErr(ModificationError, err)
