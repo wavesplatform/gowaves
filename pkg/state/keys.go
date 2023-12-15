@@ -16,16 +16,18 @@ const (
 	// Key sizes.
 	minAccountsDataStorKeySize = 1 + 8 + 2 + 1
 
-	wavesBalanceKeySize     = 1 + proto.AddressIDSize
-	assetBalanceKeySize     = 1 + proto.AddressIDSize + proto.AssetIDSize
-	leaseKeySize            = 1 + crypto.DigestSize
-	aliasKeySize            = 1 + 2 + proto.AliasMaxLength
-	addressToAliasesKeySize = 1 + proto.AddressIDSize
-	disabledAliasKeySize    = 1 + 2 + proto.AliasMaxLength
-	approvedFeaturesKeySize = 1 + 2
-	votesFeaturesKeySize    = 1 + 2
-	invokeResultKeySize     = 1 + crypto.DigestSize
-	snapshotKeySize         = 1 + 8
+	wavesBalanceKeySize      = 1 + proto.AddressIDSize
+	assetBalanceKeySize      = 1 + proto.AddressIDSize + proto.AssetIDSize
+	leaseKeySize             = 1 + crypto.DigestSize
+	aliasKeySize             = 1 + 2 + proto.AliasMaxLength
+	addressToAliasesKeySize  = 1 + proto.AddressIDSize
+	disabledAliasKeySize     = 1 + 2 + proto.AliasMaxLength
+	approvedFeaturesKeySize  = 1 + 2
+	votesFeaturesKeySize     = 1 + 2
+	invokeResultKeySize      = 1 + crypto.DigestSize
+	legacyStateHashKeySize   = 1 + 8
+	snapshotStateHashKeySize = 1 + 8
+	snapshotKeySize          = 1 + 8
 )
 
 // Primary prefixes for storage keys
@@ -120,7 +122,8 @@ const (
 	rwProtobufInfoKeyPrefix
 
 	// Stores state hashes at height.
-	stateHashKeyPrefix
+	legacyStateHashKeyPrefix
+	snapshotStateHashKeyPrefix
 
 	// Hit source data.
 	hitSourceKeyPrefix
@@ -175,8 +178,10 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{invokeResultKeyPrefix}, nil
 	case score:
 		return []byte{scoreKeyPrefix}, nil
-	case stateHash:
-		return []byte{stateHashKeyPrefix}, nil
+	case legacyStateHash:
+		return []byte{legacyStateHashKeyPrefix}, nil
+	case snapshotStateHash:
+		return []byte{snapshotStateHashKeyPrefix}, nil
 	case hitSource:
 		return []byte{hitSourceKeyPrefix}, nil
 	case feeDistr:
@@ -669,13 +674,24 @@ func (k *invokeResultKey) bytes() []byte {
 	return res
 }
 
-type stateHashKey struct {
+type legacyStateHashKey struct {
 	height uint64
 }
 
-func (k *stateHashKey) bytes() []byte {
-	buf := make([]byte, 9)
-	buf[0] = stateHashKeyPrefix
+func (k *legacyStateHashKey) bytes() []byte {
+	buf := make([]byte, legacyStateHashKeySize)
+	buf[0] = legacyStateHashKeyPrefix
+	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type snapshotStateHashKey struct {
+	height uint64
+}
+
+func (k *snapshotStateHashKey) bytes() []byte {
+	buf := make([]byte, snapshotStateHashKeySize)
+	buf[0] = snapshotStateHashKeyPrefix
 	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }

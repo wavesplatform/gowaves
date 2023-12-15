@@ -389,7 +389,7 @@ func (a *scriptCaller) invokeFunctionByEthereumTx(
 	abiPayments := tx.TxKind.DecodedData().Payments
 	scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
 	for _, p := range abiPayments {
-		if p.Amount <= 0 && info.checkerInfo.height > a.settings.InvokeNoZeroPaymentsAfterHeight {
+		if p.Amount <= 0 && info.checkerInfo.blockchainHeight > a.settings.InvokeNoZeroPaymentsAfterHeight {
 			return nil, proto.FunctionCall{}, errors.Errorf("invalid payment amount '%d'", p.Amount)
 		}
 		optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
