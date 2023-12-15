@@ -29,11 +29,9 @@ func (ts txSnapshot) Apply(a extendedSnapshotApplier, tx proto.Transaction, vali
 	}
 	// internal snapshots must be applied at the end
 	for _, rs := range ts.regular {
-		if !rs.IsGeneratedByTxDiff() {
-			err := rs.Apply(a)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply regular transaction snapshot")
-			}
+		err := rs.Apply(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply regular transaction snapshot")
 		}
 	}
 	for _, is := range ts.internal {
@@ -44,6 +42,23 @@ func (ts txSnapshot) Apply(a extendedSnapshotApplier, tx proto.Transaction, vali
 	}
 	if err := a.AfterTxSnapshotApply(); err != nil {
 		return errors.Wrapf(err, "failed to execute after tx snapshot apply hook")
+	}
+	return nil
+}
+
+func (ts txSnapshot) ApplyInitialSnapshot(a extendedSnapshotApplier) error {
+	// internal snapshots must be applied at the end
+	for _, rs := range ts.regular {
+		err := rs.Apply(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply regular transaction snapshot")
+		}
+	}
+	for _, is := range ts.internal {
+		err := is.ApplyInternal(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply internal transaction snapshot")
+		}
 	}
 	return nil
 }
