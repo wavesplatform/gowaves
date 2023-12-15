@@ -27,10 +27,9 @@ var (
 )
 
 type differTestObjects struct {
-	stor                *testStorageObjects
-	td                  *transactionDiffer
-	tp                  *transactionPerformer
-	stateActionsCounter *proto.StateActionsCounter
+	stor *testStorageObjects
+	td   *transactionDiffer
+	tp   *transactionPerformer
 }
 
 func createDifferTestObjects(t *testing.T, checkerInfo *checkerInfo) *differTestObjects {
@@ -51,7 +50,7 @@ func createDifferTestObjects(t *testing.T, checkerInfo *checkerInfo) *differTest
 	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
 	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
 	require.NoError(t, err, "newTransactionPerformer() failed")
-	return &differTestObjects{stor, td, tp, actionsCounter}
+	return &differTestObjects{stor, td, tp}
 }
 
 func createGenesis() *proto.Genesis {
@@ -895,7 +894,7 @@ func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
 	to := createDifferTestObjects(t, checkerInfo)
 
 	leaseTx := createLeaseWithSig(t)
-	info := defaultPerformerInfo(to.stateActionsCounter)
+	info := defaultPerformerInfo()
 	to.stor.addBlock(t, blockID0)
 	_, err := to.tp.performLeaseWithSig(leaseTx, info, nil, nil)
 	assert.NoError(t, err, "performLeaseWithSig failed")
@@ -929,7 +928,7 @@ func TestCreateDiffLeaseCancelWithProofs(t *testing.T) {
 	to := createDifferTestObjects(t, checkerInfo)
 
 	leaseTx := createLeaseWithProofs(t)
-	info := defaultPerformerInfo(to.stateActionsCounter)
+	info := defaultPerformerInfo()
 	to.stor.addBlock(t, blockID0)
 	_, err := to.tp.performLeaseWithProofs(leaseTx, info, nil, nil)
 	assert.NoError(t, err, "performLeaseWithProofs failed")

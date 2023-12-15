@@ -686,7 +686,8 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true
 	info.blockV5Activated = true
-	info.checkerInfo.height = 3_000_000 // We have to move height forward here because MainNet settings are used and height must be more than 2792473
+	// We have to move height forward here because MainNet settings are used and height must be more than 2792473
+	info.checkerInfo.blockchainHeight = 3_000_000
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
@@ -756,7 +757,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 	infoAfter.acceptFailed = true
 	infoAfter.blockV5Activated = true
 	infoAfter.rideV5Activated = true
-	infoAfter.checkerInfo.height = 2_800_000
+	infoAfter.checkerInfo.blockchainHeight = 2_800_000
 
 	to.setDApp(t, "ride5_recursive_invoke.base64", testGlobal.recipientInfo)
 
@@ -841,7 +842,7 @@ func TestFailedInvokeApplicationComplexityAfterRideV6(t *testing.T) {
 	info.acceptFailed = true
 	info.blockV5Activated = true
 	info.rideV5Activated = true
-	info.checkerInfo.height = 2_800_000
+	info.checkerInfo.blockchainHeight = 2_800_000
 	info.rideV6Activated = true
 
 	to.setDApp(t, "ride5_recursive_invoke.base64", testGlobal.recipientInfo)
@@ -1101,7 +1102,7 @@ func TestFailRejectOnThrow(t *testing.T) {
 	info.acceptFailed = true
 	info.blockV5Activated = true
 	info.rideV5Activated = true
-	info.checkerInfo.height = 2_800_000
+	info.checkerInfo.blockchainHeight = 2_800_000
 
 	to.setDApp(t, "ride5_fail_on_throw.base64", testGlobal.recipientInfo)
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
