@@ -671,11 +671,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	minerAndRewardChanges := a.diffStor.allChanges()
-	a.diffStor.reset()
+
 	// create the initial snapshot
 
-	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardChanges)
+	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardDiff.balancesChanges())
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
@@ -691,6 +690,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
 	}
+	// Save miner diff first (for validation)
+	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
+		return err
+	}
+	// TODO validate before reset
+
+	a.diffStor.reset()
+
 	defer hasher.Release()
 
 	// get initial snapshot hash for block
@@ -707,14 +714,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		)
 	}
 
-	// Save miner diff first (for validation)
-	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
-		return err
-	}
-	err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
-	if err != nil {
-		return errors.Wrap(err, "failed to apply an initial snapshot")
-	}
+	// TODO snapshot is apply in hasher
+	//err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
+	//if err != nil {
+	//	return errors.Wrap(err, "failed to apply an initial snapshot")
+	//}
 
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
