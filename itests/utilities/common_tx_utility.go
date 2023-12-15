@@ -633,7 +633,8 @@ func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transactio
 
 }
 
-func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
+func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme,
+	waitForTx bool) ConsideredTransaction {
 	timeout := DefaultInitialTimeout
 	id := ExtractTxID(suite.T(), tx, scheme)
 	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
@@ -645,13 +646,25 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	connections, err := net.NewNodeConnections(suite.Ports)
 	suite.Require().NoError(err, "failed to create new node connections")
 	defer connections.Close(suite.T())
-	connections.SendToNodes(suite.T(), txMsg, scala)
 
+	connections.SendToNodes(suite.T(), txMsg, scala)
+	suite.T().Log("Tx msg was successfully send to nodes")
+
+	suite.T().Log("Waiting for Tx appears in Blockchain")
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
+	txInfoRawGo, respGo, _ := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
+	suite.T().Logf("Tx Info Go after waiting: %s, Response Go: %s",
+		GetTransactionJsonOrErrMsg(txInfoRawGo), respGo.Status)
+	suite.T().Log(errors.Errorf("Errors after waiting: %s", errGo))
+	txInfoRawScala, respScala, _ := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
+	suite.T().Logf("Tx Info Scala after waiting: %s, Response Scala: %s",
+		GetTransactionJsonOrErrMsg(txInfoRawScala), respScala.Status)
+	suite.T().Log(errors.Errorf("Errors after waiting: %s", errScala))
 	return NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
 }
 
-func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
+func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
+	scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
 	timeout := DefaultWaitTimeout
 	id := ExtractTxID(suite.T(), tx, scheme)
 	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
@@ -661,7 +674,18 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, schem
 		timeout = DefaultInitialTimeout
 		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
 	}
+	suite.T().Log("Tx msg was successfully Broadcast to nodes")
+
+	suite.T().Log("Waiting for Tx appears in Blockchain")
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
+	txInfoRawGo, responseGo, _ := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
+	suite.T().Logf("Tx Info Go after waiting: %s, Response Go: %s",
+		GetTransactionJsonOrErrMsg(txInfoRawGo), responseGo.Status)
+	suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtGo))
+	txInfoRawScala, responseScala, _ := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
+	suite.T().Logf("Tx Info Scala after waiting: %s, Response Scala: %s",
+		GetTransactionJsonOrErrMsg(txInfoRawScala), responseScala.Status)
+	suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtScala))
 	return NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
 }
 
