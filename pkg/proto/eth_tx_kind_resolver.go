@@ -7,15 +7,17 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
+type EthereumTransactionKindType byte
+
 const (
-	EthereumTransferWavesKind = iota + 1
-	EthereumTransferAssetsKind
-	EthereumInvokeKind
+	EthereumTransferWavesKindType EthereumTransactionKindType = iota + 1
+	EthereumTransferAssetsKindType
+	EthereumInvokeKindType
 )
 
-func GuessEthereumTransactionKind(data []byte) (int64, error) {
+func GuessEthereumTransactionKindType(data []byte) (EthereumTransactionKindType, error) {
 	if len(data) == 0 {
-		return EthereumTransferWavesKind, nil
+		return EthereumTransferWavesKindType, nil
 	}
 
 	selectorBytes := data
@@ -28,10 +30,10 @@ func GuessEthereumTransactionKind(data []byte) (int64, error) {
 	}
 
 	if ethabi.IsERC20TransferSelector(selector) {
-		return EthereumTransferAssetsKind, nil
+		return EthereumTransferAssetsKindType, nil
 	}
 
-	return EthereumInvokeKind, nil
+	return EthereumInvokeKindType, nil
 }
 
 type EthereumTransactionKindResolver interface {
@@ -53,15 +55,15 @@ func NewEthereumTransactionKindResolver(resolver ethKindResolverState, scheme Sc
 }
 
 func (e *ethTxKindResolver) ResolveTxKind(ethTx *EthereumTransaction, isBlockRewardDistributionActivated bool) (EthereumTransactionKind, error) {
-	txKind, err := GuessEthereumTransactionKind(ethTx.Data())
+	txKind, err := GuessEthereumTransactionKindType(ethTx.Data())
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to guess ethereum tx kind")
 	}
 
 	switch txKind {
-	case EthereumTransferWavesKind:
+	case EthereumTransferWavesKindType:
 		return NewEthereumTransferWavesTxKind(), nil
-	case EthereumTransferAssetsKind:
+	case EthereumTransferAssetsKindType:
 		db := ethabi.NewErc20MethodsMap()
 		decodedData, err := db.ParseCallDataRide(ethTx.Data(), isBlockRewardDistributionActivated)
 		if err != nil {
@@ -81,7 +83,7 @@ func (e *ethTxKindResolver) ResolveTxKind(ethTx *EthereumTransaction, isBlockRew
 			return nil, errors.Wrap(err, "failed to get erc20 arguments from decoded data")
 		}
 		return NewEthereumTransferAssetsErc20TxKind(*decodedData, *NewOptionalAssetFromDigest(assetInfo.ID), erc20Arguments), nil
-	case EthereumInvokeKind:
+	case EthereumInvokeKindType:
 		scriptAddr, err := ethTx.WavesAddressTo(e.scheme)
 		if err != nil {
 			return nil, err

@@ -86,15 +86,19 @@ type EthereumTxData interface {
 }
 
 type EthereumTransactionKind interface {
+	Type() EthereumTransactionKindType
 	String() string
 	DecodedData() *ethabi.DecodedCallData
 }
 
-type EthereumTransferWavesTxKind struct {
-}
+type EthereumTransferWavesTxKind struct{}
 
 func NewEthereumTransferWavesTxKind() *EthereumTransferWavesTxKind {
 	return &EthereumTransferWavesTxKind{}
+}
+
+func (k *EthereumTransferWavesTxKind) Type() EthereumTransactionKindType {
+	return EthereumTransferWavesKindType
 }
 
 func (k *EthereumTransferWavesTxKind) DecodedData() *ethabi.DecodedCallData {
@@ -115,6 +119,10 @@ func NewEthereumTransferAssetsErc20TxKind(decodedData ethabi.DecodedCallData, as
 	return &EthereumTransferAssetsErc20TxKind{Asset: asset, decodedData: decodedData, Arguments: arguments}
 }
 
+func (k *EthereumTransferAssetsErc20TxKind) Type() EthereumTransactionKindType {
+	return EthereumTransferAssetsKindType
+}
+
 func (k *EthereumTransferAssetsErc20TxKind) DecodedData() *ethabi.DecodedCallData {
 	return &k.decodedData
 }
@@ -129,6 +137,10 @@ type EthereumInvokeScriptTxKind struct {
 
 func NewEthereumInvokeScriptTxKind(decodedData ethabi.DecodedCallData) *EthereumInvokeScriptTxKind {
 	return &EthereumInvokeScriptTxKind{decodedData: decodedData}
+}
+
+func (k *EthereumInvokeScriptTxKind) Type() EthereumTransactionKindType {
+	return EthereumInvokeKindType
 }
 
 func (k *EthereumInvokeScriptTxKind) DecodedData() *ethabi.DecodedCallData {
