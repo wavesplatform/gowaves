@@ -354,12 +354,12 @@ func (a *txAppender) commitTxApplication(
 			checkerData:         applicationRes.checkerData,
 			stateActionsCounter: params.stateActionsCounterInBlock,
 		}
-		//changes := a.diffStor.allChanges()
-		//a.diffStor.reset()
-		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
+		changes := a.diffStor.allChanges()
+		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, changes)
 		if err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
 		}
+		a.diffStor.reset()
 	}
 	if params.validatingUtx {
 		// Save transaction to in-mem storage.
@@ -622,29 +622,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	return snapshot, nil
 }
 
-// rewards and 60% of the fee to the previous miner.
-func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (txSnapshot, error) {
-	addrWavesBalanceDiff, _, err := balanceDiffFromTxDiff(minerAndRewardDiff, a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
-	}
-	// add miner address to the diff
-	var snapshot txSnapshot
-	for wavesAddress, diffAmount := range addrWavesBalanceDiff {
-		var fullBalance balanceProfile
-		fullBalance, err = a.stor.balances.newestWavesBalance(wavesAddress.ID())
-		if err != nil {
-			return txSnapshot{}, errors.Wrap(err, "failed to receive sender's waves balance")
-		}
-		newBalance := &proto.WavesBalanceSnapshot{
-			Address: wavesAddress,
-			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
-		}
-		snapshot.regular = append(snapshot.regular, newBalance)
-	}
-	return snapshot, nil
-}
-
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
 	defer func() {
@@ -689,18 +666,22 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// create the initial snapshot
-	_, err = a.createInitialBlockSnapshot(minerAndRewardDiff)
-	if err != nil {
-		return errors.Wrap(err, "failed to create initial snapshot")
-	}
-
-	// TODO apply this snapshot when balances are refatored
-	// err = initialSnapshot.Apply(&snapshotApplier)
 
 	// Save miner diff first (for validation)
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err
 	}
+	minerAndRewardChanges := a.diffStor.allChanges()
+	a.diffStor.reset()
+	initialSnapshot, err := a.txHandler.tp.snapshotGenerator.createInitialBlockSnapshot(minerAndRewardChanges)
+	if err != nil {
+		return errors.Wrap(err, "failed to create initial snapshot")
+	}
+	err = initialSnapshot.Apply(a.txHandler.tp.snapshotApplier)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply an initial snapshot")
+	}
+
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
 		return err

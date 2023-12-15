@@ -24,7 +24,7 @@ type scriptEstimation struct {
 func (e *scriptEstimation) isPresent() bool { return e != nil }
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) (txCheckerData, error)
-type txPerformFunc func(proto.Transaction, *performerInfo, *invocationResult, txDiff) (txSnapshot, error)
+type txPerformFunc func(proto.Transaction, *performerInfo, *invocationResult, []balanceChanges) (txSnapshot, error)
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
 
@@ -198,7 +198,7 @@ func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) (t
 }
 
 func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff) (txSnapshot, error) {
+	invocationRes *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
 	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {

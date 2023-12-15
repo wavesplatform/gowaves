@@ -419,9 +419,5 @@ func TestStateHashAtHeight(t *testing.T) {
 	var correctHash proto.StateHash
 	err = correctHash.UnmarshalJSON([]byte(correctHashJs))
 	assert.NoError(t, err, "failed to unmarshal correct hash JSON")
-
-	stateHashJS, err := stateHash.MarshalJSON()
-	assert.NoError(t, err)
-	fmt.Println(stateHashJS)
 	assert.Equal(t, correctHash, *stateHash)
 }
