@@ -92,7 +92,7 @@ jobs:
         run: make itest
 
       - name: Upload itest logs
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         if: failure()
         with:
           name: itest_logs
