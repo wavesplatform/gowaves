@@ -135,7 +135,7 @@ func run() error {
 			zap.S().Errorf("Failed to get remote state hash at height 1: %v", err)
 			return err
 		}
-		lsh, err := st.StateHashAtHeight(1)
+		lsh, err := st.LegacyStateHashAtHeight(1)
 		if err != nil {
 			zap.S().Errorf("Failed to get local state hash at 1: %v", err)
 			return err
@@ -156,7 +156,7 @@ func run() error {
 		}
 		height = h
 	}
-	lsh, err := st.StateHashAtHeight(height)
+	lsh, err := st.LegacyStateHashAtHeight(height)
 	if err != nil {
 		zap.S().Errorf("Failed to get state hash at %d: %v", height, err)
 		return err
@@ -178,7 +178,7 @@ func run() error {
 					return err
 				}
 				zap.S().Infof("State hashes are equal at height %d", h)
-				lsh, err = st.StateHashAtHeight(h + 1)
+				lsh, err = st.LegacyStateHashAtHeight(h + 1)
 				if err != nil {
 					zap.S().Errorf("Failed to get state hash at %d: %v", h+1, err)
 					return err
@@ -205,7 +205,7 @@ func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64) (ui
 	var start uint64 = 1
 	for start <= stop {
 		middle := (start + stop) / 2
-		lsh, err = st.StateHashAtHeight(middle)
+		lsh, err = st.LegacyStateHashAtHeight(middle)
 		if err != nil {
 			return middle, err
 		}

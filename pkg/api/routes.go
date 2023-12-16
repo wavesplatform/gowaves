@@ -7,8 +7,9 @@ import (
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
-	"github.com/wavesplatform/gowaves/pkg/api/metamask"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/api/metamask"
 )
 
 type HandleErrorFunc func(w http.ResponseWriter, r *http.Request, err error)
@@ -87,6 +88,9 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			rAuth := r.With(checkAuthMiddleware)
 
 			rAuth.Post("/load", wrapper(WalletLoadKeys(a.app)))
+		})
+		r.Route("/debug", func(r chi.Router) {
+			r.Get("/snapshotStateHash/{height:\\d+}", wrapper(a.snapshotStateHash))
 		})
 
 		r.Get("/miner/info", wrapper(a.GoMinerInfo))
