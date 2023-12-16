@@ -47,14 +47,14 @@ var _ environment = &mockRideEnvironment{}
 //			invocationFunc: func() rideType {
 //				panic("mock out the invocation method")
 //			},
-//			invokeExpressionActivatedFunc: func() bool {
-//				panic("mock out the invokeExpressionActivated method")
-//			},
 //			isProtobufTxFunc: func() bool {
 //				panic("mock out the isProtobufTx method")
 //			},
 //			libVersionFunc: func() (ast.LibraryVersion, error) {
 //				panic("mock out the libVersion method")
+//			},
+//			lightNodeActivatedFunc: func() bool {
+//				panic("mock out the lightNodeActivated method")
 //			},
 //			maxDataEntriesSizeFunc: func() int {
 //				panic("mock out the maxDataEntriesSize method")
@@ -129,14 +129,14 @@ type mockRideEnvironment struct {
 	// invocationFunc mocks the invocation method.
 	invocationFunc func() rideType
 
-	// invokeExpressionActivatedFunc mocks the invokeExpressionActivated method.
-	invokeExpressionActivatedFunc func() bool
-
 	// isProtobufTxFunc mocks the isProtobufTx method.
 	isProtobufTxFunc func() bool
 
 	// libVersionFunc mocks the libVersion method.
 	libVersionFunc func() (ast.LibraryVersion, error)
+
+	// lightNodeActivatedFunc mocks the lightNodeActivated method.
+	lightNodeActivatedFunc func() bool
 
 	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
 	maxDataEntriesSizeFunc func() int
@@ -208,14 +208,14 @@ type mockRideEnvironment struct {
 		// invocation holds details about calls to the invocation method.
 		invocation []struct {
 		}
-		// invokeExpressionActivated holds details about calls to the invokeExpressionActivated method.
-		invokeExpressionActivated []struct {
-		}
 		// isProtobufTx holds details about calls to the isProtobufTx method.
 		isProtobufTx []struct {
 		}
 		// libVersion holds details about calls to the libVersion method.
 		libVersion []struct {
+		}
+		// lightNodeActivated holds details about calls to the lightNodeActivated method.
+		lightNodeActivated []struct {
 		}
 		// maxDataEntriesSize holds details about calls to the maxDataEntriesSize method.
 		maxDataEntriesSize []struct {
@@ -276,9 +276,9 @@ type mockRideEnvironment struct {
 	lockheight                           sync.RWMutex
 	lockinternalPaymentsValidationHeight sync.RWMutex
 	lockinvocation                       sync.RWMutex
-	lockinvokeExpressionActivated        sync.RWMutex
 	lockisProtobufTx                     sync.RWMutex
 	locklibVersion                       sync.RWMutex
+	locklightNodeActivated               sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
 	lockrideV6Activated                  sync.RWMutex
 	lockscheme                           sync.RWMutex
@@ -542,33 +542,6 @@ func (mock *mockRideEnvironment) invocationCalls() []struct {
 	return calls
 }
 
-// invokeExpressionActivated calls invokeExpressionActivatedFunc.
-func (mock *mockRideEnvironment) invokeExpressionActivated() bool {
-	if mock.invokeExpressionActivatedFunc == nil {
-		panic("mockRideEnvironment.invokeExpressionActivatedFunc: method is nil but environment.invokeExpressionActivated was just called")
-	}
-	callInfo := struct {
-	}{}
-	mock.lockinvokeExpressionActivated.Lock()
-	mock.calls.invokeExpressionActivated = append(mock.calls.invokeExpressionActivated, callInfo)
-	mock.lockinvokeExpressionActivated.Unlock()
-	return mock.invokeExpressionActivatedFunc()
-}
-
-// invokeExpressionActivatedCalls gets all the calls that were made to invokeExpressionActivated.
-// Check the length with:
-//
-//	len(mockedenvironment.invokeExpressionActivatedCalls())
-func (mock *mockRideEnvironment) invokeExpressionActivatedCalls() []struct {
-} {
-	var calls []struct {
-	}
-	mock.lockinvokeExpressionActivated.RLock()
-	calls = mock.calls.invokeExpressionActivated
-	mock.lockinvokeExpressionActivated.RUnlock()
-	return calls
-}
-
 // isProtobufTx calls isProtobufTxFunc.
 func (mock *mockRideEnvironment) isProtobufTx() bool {
 	if mock.isProtobufTxFunc == nil {
@@ -620,6 +593,33 @@ func (mock *mockRideEnvironment) libVersionCalls() []struct {
 	mock.locklibVersion.RLock()
 	calls = mock.calls.libVersion
 	mock.locklibVersion.RUnlock()
+	return calls
+}
+
+// lightNodeActivated calls lightNodeActivatedFunc.
+func (mock *mockRideEnvironment) lightNodeActivated() bool {
+	if mock.lightNodeActivatedFunc == nil {
+		panic("mockRideEnvironment.lightNodeActivatedFunc: method is nil but environment.lightNodeActivated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.locklightNodeActivated.Lock()
+	mock.calls.lightNodeActivated = append(mock.calls.lightNodeActivated, callInfo)
+	mock.locklightNodeActivated.Unlock()
+	return mock.lightNodeActivatedFunc()
+}
+
+// lightNodeActivatedCalls gets all the calls that were made to lightNodeActivated.
+// Check the length with:
+//
+//	len(mockedenvironment.lightNodeActivatedCalls())
+func (mock *mockRideEnvironment) lightNodeActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.locklightNodeActivated.RLock()
+	calls = mock.calls.lightNodeActivated
+	mock.locklightNodeActivated.RUnlock()
 	return calls
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/hex"
 	"fmt"
+	"io"
 	"math"
 	"strings"
 	"time"
@@ -12,6 +13,27 @@ import (
 )
 
 var ErrNotFound = errors.New("not found")
+
+// WriteBool writes the bool to the writer.
+func WriteBool(w io.Writer, b bool) error {
+	var c byte
+	if b {
+		c = 1
+	} else {
+		c = 0
+	}
+	return WriteByte(w, c)
+}
+
+// WriteByte writes the byte to the writer.
+func WriteByte(w io.Writer, c byte) error {
+	if bw, ok := w.(io.ByteWriter); ok {
+		return bw.WriteByte(c)
+	}
+	data := [...]byte{c}
+	_, err := w.Write(data[:])
+	return err
+}
 
 // PutStringWithUInt8Len converts the string to slice of bytes. The first byte of resulting slice contains the length of the string.
 func PutStringWithUInt8Len(buf []byte, s string) {
@@ -40,6 +62,23 @@ func PutStringWithUInt16Len(buf []byte, s string) {
 	sl := uint16(len(s))
 	binary.BigEndian.PutUint16(buf, sl)
 	copy(buf[2:], s)
+}
+
+// WriteStringWithUInt16Len writes given data with 2 bytes of its length.
+func WriteStringWithUInt16Len(w io.Writer, data string) error {
+	l := len(data)
+	if l > math.MaxInt16 {
+		return errors.Errorf("invalid data length %d", l)
+	}
+	var size [uint16Size]byte
+	binary.BigEndian.PutUint16(size[:], uint16(l))
+	if _, err := w.Write(size[:]); err != nil {
+		return errors.Wrap(err, "failed to write uin16 data size")
+	}
+	if _, err := io.WriteString(w, data); err != nil {
+		return errors.Wrap(err, "failed to write data")
+	}
+	return nil
 }
 
 // StringWithUInt16Len reads a string from the buffer `buf`.
@@ -88,6 +127,23 @@ func PutBytesWithUInt16Len(buf []byte, data []byte) error {
 	}
 	binary.BigEndian.PutUint16(buf, uint16(l))
 	copy(buf[2:], data)
+	return nil
+}
+
+// WriteBytesWithUInt16Len writes given data with 2 bytes of its length.
+func WriteBytesWithUInt16Len(w io.Writer, data []byte) error {
+	l := len(data)
+	if l > math.MaxInt16 {
+		return errors.Errorf("invalid data length %d", l)
+	}
+	var size [uint16Size]byte
+	binary.BigEndian.PutUint16(size[:], uint16(l))
+	if _, err := w.Write(size[:]); err != nil {
+		return errors.Wrap(err, "failed to write uin16 data size")
+	}
+	if _, err := w.Write(data); err != nil {
+		return errors.Wrap(err, "failed to write data")
+	}
 	return nil
 }
 
