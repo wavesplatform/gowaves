@@ -266,8 +266,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return err
 	}
-	invokeExpressionActivated := env.invokeExpressionActivated()
-	if invokeExpressionActivated { // Check payments result balances here after invoke expression activation.
+	lightNodeActivated := env.lightNodeActivated()
+	if lightNodeActivated { // Check payments result balances here AFTER Light Node activation
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
@@ -301,7 +301,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipientAddr, fn, arguments)
 	}
 
-	if !invokeExpressionActivated { // Check payments result balances here before invoke expression activation.
+	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
