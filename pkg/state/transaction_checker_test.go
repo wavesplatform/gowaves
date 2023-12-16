@@ -22,10 +22,9 @@ var (
 )
 
 type checkerTestObjects struct {
-	stor                *testStorageObjects
-	tc                  *transactionChecker
-	tp                  *transactionPerformer
-	stateActionsCounter *proto.StateActionsCounter
+	stor *testStorageObjects
+	tc   *transactionChecker
+	tp   *transactionPerformer
 }
 
 func createCheckerTestObjects(t *testing.T, checkerInfo *checkerInfo) *checkerTestObjects {
@@ -45,7 +44,7 @@ func createCheckerTestObjects(t *testing.T, checkerInfo *checkerInfo) *checkerTe
 	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
 
 	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
-	return &checkerTestObjects{stor, tc, tp, actionsCounter}
+	return &checkerTestObjects{stor, tc, tp}
 }
 
 func defaultCheckerInfo() *checkerInfo {
@@ -54,7 +53,7 @@ func defaultCheckerInfo() *checkerInfo {
 		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
 		blockID:          blockID0,
 		blockVersion:     1,
-		height:           100500,
+		blockchainHeight: 100500,
 	}
 }
 
@@ -72,7 +71,7 @@ func TestCheckGenesis(t *testing.T) {
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.EqualError(t, err, "genesis transaction on non zero height")
 
-	info.height = 0
+	info.blockchainHeight = 0
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed in non-initialisation mode")
 
@@ -87,10 +86,10 @@ func TestCheckPayment(t *testing.T) {
 
 	tx := createPayment(t)
 
-	info.height = settings.MainNetSettings.BlockVersion3AfterHeight
+	info.blockchainHeight = settings.MainNetSettings.BlockVersion3AfterHeight
 	_, err := to.tc.checkPayment(tx, info)
 	assert.Error(t, err, "checkPayment accepted payment tx after Block v3 height")
-	info.height = 10
+	info.blockchainHeight = 10
 	_, err = to.tc.checkPayment(tx, info)
 	assert.NoError(t, err, "checkPayment failed with valid payment tx")
 
@@ -264,7 +263,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
-	_, err = to.tp.performReissueWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performReissueWithSig(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performReissueWithSig failed")
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
@@ -313,7 +312,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
-	_, err = to.tp.performReissueWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performReissueWithProofs(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performReissueWithProofs failed")
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
@@ -646,7 +645,7 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 	assert.Error(t, err, "checkLeaseCancelWithSig did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performLeaseWithSig(leaseTx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performLeaseWithSig(leaseTx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performLeaseWithSig failed")
 	to.stor.flush(t)
 
@@ -675,7 +674,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkLeaseCancelWithProofs did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performLeaseWithProofs(leaseTx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performLeaseWithProofs(leaseTx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performLeaseWithProofs failed")
 	to.stor.flush(t)
 
@@ -691,7 +690,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
 	assert.NoError(t, err, "checkLeaseCancelWithProofs failed with valid leaseCancel tx")
-	_, err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performLeaseCancelWithProofs() failed")
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
@@ -708,7 +707,7 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 	assert.NoError(t, err, "checkCreateAliasWithSig failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performCreateAliasWithSig failed")
 	to.stor.flush(t)
 
@@ -736,7 +735,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkCreateAliasWithProofs failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo(), nil, nil)
 	assert.NoError(t, err, "performCreateAliasWithProofs failed")
 	to.stor.flush(t)
 
@@ -1455,7 +1454,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	to.stor.createAsset(t, tx.FeeAsset.ID)
 	tx.SenderPK = assetInfo.issuer
 
-	info.height = 100001
+	info.blockchainHeight = 100001
 
 	// Check fail prior to activation.
 	_, err := to.tc.checkUpdateAssetInfoWithProofs(tx, info)
@@ -1480,9 +1479,11 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	assert.EqualError(t, err, "asset was issued by other address")
 	tx.SenderPK = assetInfo.issuer
 
-	info.height = 99999
+	info.blockchainHeight = 99999
 	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)
-	correctError := fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), 1+to.tc.settings.MinUpdateAssetInfoInterval, info.height+1)
+	correctError := fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d",
+		tx.AssetID.String(), 1+to.tc.settings.MinUpdateAssetInfoInterval, info.blockchainHeight+1,
+	)
 	assert.EqualError(t, err, correctError)
 }
 
