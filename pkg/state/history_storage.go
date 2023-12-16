@@ -38,7 +38,8 @@ const (
 	rewardChanges
 	invokeResult
 	score
-	stateHash
+	legacyStateHash
+	snapshotStateHash
 	hitSource
 	feeDistr
 	snapshots
@@ -168,7 +169,12 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToCut:    true,
 		fixedSize:    false,
 	},
-	stateHash: {
+	legacyStateHash: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	snapshotStateHash: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,
