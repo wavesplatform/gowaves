@@ -58,10 +58,8 @@ func CurrentMaxLibraryVersion() LibraryVersion {
 
 func NewLibraryVersion(b byte) (LibraryVersion, error) {
 	lv := LibraryVersion(b)
-	switch lv {
-	case LibV1, LibV2, LibV3, LibV4, LibV5, LibV6, LibV7, LibV8:
+	if LibV1 <= lv && lv <= CurrentMaxLibraryVersion() {
 		return lv, nil
-	default:
-		return 0, errors.Errorf("unsupported library version '%d'", b)
 	}
+	return 0, errors.Errorf("unsupported library version '%d'", b)
 }

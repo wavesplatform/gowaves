@@ -29,7 +29,7 @@ type checkerInfo struct {
 	parentTimestamp         uint64
 	blockID                 proto.BlockID
 	blockVersion            proto.BlockVersion
-	height                  uint64
+	blockchainHeight        proto.Height
 	rideV5Activated         bool
 	rideV6Activated         bool
 	blockRewardDistribution bool
@@ -93,25 +93,32 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 		return scriptFeaturesActivations{}, err
 	}
 	if libVersion == ast.LibV3 && !rideForDAppsActivated {
-		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts version 3")
+		return scriptFeaturesActivations{},
+			errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
 	if hasBlockV2 && !rideForDAppsActivated {
-		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
+		return scriptFeaturesActivations{},
+			errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
 	}
 	if libVersion == ast.LibV4 && !blockV5Activated {
-		return scriptFeaturesActivations{}, errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
+		return scriptFeaturesActivations{},
+			errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
 	if libVersion == ast.LibV5 && !rideV5Activated {
-		return scriptFeaturesActivations{}, errors.New("RideV5 feature must be activated for scripts version 5")
+		return scriptFeaturesActivations{},
+			errors.New("RideV5 feature must be activated for scripts version 5")
 	}
 	if libVersion == ast.LibV6 && !rideV6Activated {
-		return scriptFeaturesActivations{}, errors.New("RideV6 feature must be activated for scripts version 6")
+		return scriptFeaturesActivations{},
+			errors.New("RideV6 feature must be activated for scripts version 6")
 	}
 	if libVersion == ast.LibV7 && !blockRewardDistributionActivated {
-		return scriptFeaturesActivations{}, errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
+		return scriptFeaturesActivations{},
+			errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
 	}
 	if libVersion == ast.LibV8 && !lightNodeActivated {
-		return scriptFeaturesActivations{}, errors.New("LightNode feature must be activated for scripts version 8")
+		return scriptFeaturesActivations{},
+			errors.New("LightNode feature must be activated for scripts version 8")
 	}
 	return scriptFeaturesActivations{
 		rideForDAppsActivated: rideForDAppsActivated,
@@ -132,7 +139,7 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion ast.LibraryVersio
 		| DApp Callable V1, V2                   | 2000                          | 2000                         |
 		| DApp Callable V3, V4                   | 4000                          | 4000                         |
 		| DApp Callable V5                       | 10000                         | 10000                        |
-		| DApp Callable V6, V7                   | 52000                         | 52000                        |
+		| DApp Callable V6, V7, V8               | 52000                         | 52000                        |
 	*/
 	var maxCallableComplexity, maxVerifierComplexity int
 	switch version := libVersion; version {
@@ -350,7 +357,7 @@ func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *
 	if info.blockID != tc.genesis {
 		return out, errors.New("genesis transaction inside of non-genesis block")
 	}
-	if info.height != 0 {
+	if info.blockchainHeight != 0 {
 		return out, errors.New("genesis transaction on non zero height")
 	}
 	assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves()}
@@ -365,7 +372,7 @@ func (tc *transactionChecker) checkPayment(transaction proto.Transaction, info *
 	if !ok {
 		return out, errors.New("failed to convert interface to Payment transaction")
 	}
-	if info.height >= tc.settings.BlockVersion3AfterHeight {
+	if info.blockchainHeight >= tc.settings.BlockVersion3AfterHeight {
 		return out, errors.Errorf("Payment transaction is deprecated after height %d", tc.settings.BlockVersion3AfterHeight)
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
@@ -478,7 +485,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 
 		paymentAssets := make([]proto.OptionalAsset, 0, len(abiPayments))
 		for _, p := range abiPayments {
-			if p.Amount <= 0 && info.height > tc.settings.InvokeNoZeroPaymentsAfterHeight {
+			if p.Amount <= 0 && info.blockchainHeight > tc.settings.InvokeNoZeroPaymentsAfterHeight {
 				return out, errors.Errorf("invalid payment amount '%d'", p.Amount)
 			}
 			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
@@ -1525,7 +1532,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 		return out, errs.Extend(err, "failed to retrieve last update height")
 	}
 	updateAllowedAt := lastUpdateHeight + tc.settings.MinUpdateAssetInfoInterval
-	blockHeight := info.height + 1
+	blockHeight := info.blockchainHeight + 1
 	if blockHeight < updateAllowedAt {
 		return out, errs.NewAssetUpdateInterval(fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight))
 	}

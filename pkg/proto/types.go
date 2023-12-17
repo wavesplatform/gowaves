@@ -45,6 +45,7 @@ const (
 	stringArgumentMinLen                     = 1 + 4
 	listArgumentMinLen                       = 1 + 4
 	PriceConstant                            = 100000000
+	MaxAttachmentSize                        = 1024
 	MaxOrderAmount                           = 100 * PriceConstant * PriceConstant
 	MaxOrderTTL                              = uint64((30 * 24 * time.Hour) / time.Millisecond)
 	MaxKeySize                               = 100
@@ -63,7 +64,9 @@ const (
 	MaxAssetScriptActionsV3                  = 30
 	base64EncodingSizeLimit                  = 1024
 	base64EncodingPrefix                     = "base64:"
+	uint16Size                               = 2
 	uint32Size                               = 4
+	uint64Size                               = 8
 )
 
 type Timestamp = uint64
@@ -441,8 +444,8 @@ func (a Attachment) Size() int {
 	return len(a)
 }
 
-func (a Attachment) Bytes() ([]byte, error) {
-	return a, nil
+func (a Attachment) Bytes() []byte {
+	return a
 }
 
 func (a Attachment) MarshalJSON() ([]byte, error) {
@@ -471,6 +474,10 @@ func (a *Attachment) UnmarshalJSON(data []byte) error {
 	}
 	*a = rs
 	return nil
+}
+
+func (a Attachment) String() string {
+	return base58.Encode(a)
 }
 
 func NewAttachmentFromBase58(s string) (Attachment, error) {
@@ -649,7 +656,7 @@ func (m OrderPriceMode) isValidOrderPriceValue() bool {
 	}
 }
 
-func (m OrderPriceMode) Valid(orderVersion byte) (bool, error) {
+func (m OrderPriceMode) Valid(orderVersion OrderVersion) (bool, error) {
 	switch orderVersion {
 	case 1, 2, 3:
 		if m != OrderPriceModeDefault {
@@ -665,9 +672,18 @@ func (m OrderPriceMode) Valid(orderVersion byte) (bool, error) {
 	return true, nil
 }
 
+type OrderVersion byte
+
+const (
+	OrderVersionV1 OrderVersion = iota + 1
+	OrderVersionV2
+	OrderVersionV3
+	OrderVersionV4
+)
+
 type Order interface {
 	GetID() ([]byte, error)
-	GetVersion() byte
+	GetVersion() OrderVersion
 	GetPriceMode() OrderPriceMode
 	GetOrderType() OrderType
 	GetMatcherPK() crypto.PublicKey
@@ -683,6 +699,7 @@ type Order interface {
 	GetSender(scheme Scheme) (Address, error)
 	GenerateID(scheme Scheme) error
 	GetProofs() (*ProofsV1, error)
+	GetAttachment() Attachment
 	Verify(Scheme) (bool, error)
 	ToProtobuf(Scheme) *g.Order
 	ToProtobufSigned(Scheme) *g.Order
@@ -1003,8 +1020,8 @@ func NewUnsignedOrderV1(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 	return &OrderV1{OrderBody: ob}
 }
 
-func (o *OrderV1) GetVersion() byte {
-	return 1
+func (o *OrderV1) GetVersion() OrderVersion {
+	return OrderVersionV1
 }
 
 func (o *OrderV1) GetPriceMode() OrderPriceMode {
@@ -1029,6 +1046,10 @@ func (o *OrderV1) GetPrice() uint64 {
 
 func (o *OrderV1) GetExpiration() uint64 {
 	return o.Expiration
+}
+
+func (o *OrderV1) GetAttachment() Attachment {
+	return Attachment{}
 }
 
 func (o OrderV1) BodyMarshalBinary() ([]byte, error) {
@@ -1141,7 +1162,7 @@ func (o *OrderV1) UnmarshalBinary(data []byte) error {
 
 // OrderV2 is an order created and signed by user. Two matched orders builds up an Exchange transaction. Version 2 with proofs.
 type OrderV2 struct {
-	Version byte           `json:"version"`
+	Version OrderVersion   `json:"version"`
 	ID      *crypto.Digest `json:"id,omitempty"`
 	Proofs  *ProofsV1      `json:"proofs,omitempty"`
 	OrderBody
@@ -1155,7 +1176,7 @@ func (o OrderV2) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: nil, Amount: int64(o.MatcherFee)}
 	res.PriceMode = o.GetPriceMode().ToProtobuf()
-	res.Version = 2
+	res.Version = int32(o.Version)
 	return res
 }
 
@@ -1207,10 +1228,10 @@ func NewUnsignedOrderV2(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV2{Version: 2, OrderBody: ob}
+	return &OrderV2{Version: OrderVersionV2, OrderBody: ob}
 }
 
-func (o *OrderV2) GetVersion() byte {
+func (o *OrderV2) GetVersion() OrderVersion {
 	return o.Version
 }
 
@@ -1238,6 +1259,10 @@ func (o *OrderV2) GetExpiration() uint64 {
 	return o.Expiration
 }
 
+func (o *OrderV2) GetAttachment() Attachment {
+	return Attachment{}
+}
+
 func (o *OrderV2) GenerateID(_ Scheme) error {
 	b, err := o.BodyMarshalBinary()
 	if err != nil {
@@ -1261,7 +1286,7 @@ func (o OrderV2) BodyMarshalBinary() ([]byte, error) {
 		pal += crypto.DigestSize
 	}
 	buf := make([]byte, orderV2FixedBodyLen+aal+pal)
-	buf[0] = o.Version
+	buf[0] = byte(o.Version)
 	b, err := o.OrderBody.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
@@ -1274,8 +1299,8 @@ func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV2FixedBodyLen {
 		return errors.Errorf("not enough data for OrderV2, expected not less then %d, received %d", orderV2FixedBodyLen, l)
 	}
-	o.Version = data[0]
-	if o.Version != 2 {
+	o.Version = OrderVersion(data[0])
+	if o.Version != OrderVersionV2 {
 		return errors.Errorf("unexpected version %d for OrderV2, expected 2", o.Version)
 	}
 	var oo OrderBody
@@ -1369,7 +1394,7 @@ func (o *OrderV2) UnmarshalBinary(data []byte) error {
 
 // OrderV3 is an order that supports matcher's fee in assets.
 type OrderV3 struct {
-	Version         byte           `json:"version"`
+	Version         OrderVersion   `json:"version"`
 	ID              *crypto.Digest `json:"id,omitempty"`
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
@@ -1384,7 +1409,7 @@ func (o OrderV3) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
 	res.PriceMode = o.GetPriceMode().ToProtobuf()
-	res.Version = 3
+	res.Version = int32(o.Version)
 	return res
 }
 
@@ -1436,10 +1461,10 @@ func NewUnsignedOrderV3(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV3{Version: 3, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
+	return &OrderV3{Version: OrderVersionV3, MatcherFeeAsset: matcherFeeAsset, OrderBody: ob}
 }
 
-func (o *OrderV3) GetVersion() byte {
+func (o *OrderV3) GetVersion() OrderVersion {
 	return o.Version
 }
 
@@ -1465,6 +1490,10 @@ func (o *OrderV3) GetPrice() uint64 {
 
 func (o *OrderV3) GetExpiration() uint64 {
 	return o.Expiration
+}
+
+func (o *OrderV3) GetAttachment() Attachment {
+	return Attachment{}
 }
 
 func (o *OrderV3) GenerateID(_ Scheme) error {
@@ -1495,7 +1524,7 @@ func (o *OrderV3) BodyMarshalBinary() ([]byte, error) {
 	}
 	buf := make([]byte, orderV3FixedBodyLen+aal+pal+mal)
 	pos := 0
-	buf[pos] = o.Version
+	buf[pos] = byte(o.Version)
 	pos++
 	b, err := o.OrderBody.marshalBinary()
 	if err != nil {
@@ -1516,9 +1545,9 @@ func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 		return errors.Errorf("not enough data for OrderV3, expected not less then %d, received %d", orderV3FixedBodyLen, l)
 	}
 	pos := 0
-	o.Version = data[pos]
+	o.Version = OrderVersion(data[pos])
 	pos++
-	if o.Version != 3 {
+	if o.Version != OrderVersionV3 {
 		return errors.Errorf("unexpected version %d for OrderV3, expected 3", o.Version)
 	}
 	var oo OrderBody
@@ -1626,11 +1655,12 @@ func (o *OrderV3) UnmarshalBinary(data []byte) error {
 
 // OrderV4 is for Protobuf.
 type OrderV4 struct {
-	Version         byte           `json:"version"`
+	Version         OrderVersion   `json:"version"`
 	ID              *crypto.Digest `json:"id,omitempty"`
 	Proofs          *ProofsV1      `json:"proofs,omitempty"`
 	MatcherFeeAsset OptionalAsset  `json:"matcherFeeAssetId"`
 	PriceMode       OrderPriceMode `json:"priceMode"`
+	Attachment      Attachment     `json:"attachment,omitempty"`
 	OrderBody
 }
 
@@ -1643,7 +1673,8 @@ func (o OrderV4) ToProtobuf(scheme Scheme) *g.Order {
 	res := o.OrderBody.ToProtobuf(scheme)
 	res.MatcherFee = &g.Amount{AssetId: o.MatcherFeeAsset.ToID(), Amount: int64(o.MatcherFee)}
 	res.PriceMode = o.PriceMode.ToProtobuf()
-	res.Version = 4
+	res.Version = int32(o.Version)
+	res.Attachment = o.Attachment.Bytes()
 	return res
 }
 
@@ -1681,7 +1712,14 @@ func (o OrderV4) GetProofs() (*ProofsV1, error) {
 }
 
 // NewUnsignedOrderV4 creates the new unsigned order.
-func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *OrderV4 {
+func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey,
+	amountAsset, priceAsset OptionalAsset,
+	orderType OrderType,
+	price, amount, timestamp, expiration, matcherFee uint64,
+	matcherFeeAsset OptionalAsset,
+	priceMode OrderPriceMode,
+	attachment Attachment,
+) *OrderV4 {
 	ob := OrderBody{
 		SenderPK:  senderPK,
 		MatcherPK: matcherPK,
@@ -1695,10 +1733,16 @@ func NewUnsignedOrderV4(senderPK, matcherPK crypto.PublicKey, amountAsset, price
 		Expiration: expiration,
 		MatcherFee: matcherFee,
 	}
-	return &OrderV4{Version: 4, MatcherFeeAsset: matcherFeeAsset, PriceMode: priceMode, OrderBody: ob}
+	return &OrderV4{
+		Version:         OrderVersionV4,
+		MatcherFeeAsset: matcherFeeAsset,
+		PriceMode:       priceMode,
+		Attachment:      attachment,
+		OrderBody:       ob,
+	}
 }
 
-func (o *OrderV4) GetVersion() byte {
+func (o *OrderV4) GetVersion() OrderVersion {
 	return o.Version
 }
 
@@ -1724,6 +1768,10 @@ func (o *OrderV4) GetPrice() uint64 {
 
 func (o *OrderV4) GetExpiration() uint64 {
 	return o.Expiration
+}
+
+func (o *OrderV4) GetAttachment() Attachment {
+	return o.Attachment
 }
 
 func (o *OrderV4) GenerateID(scheme Scheme) error {
@@ -1779,6 +1827,9 @@ func (o *OrderV4) Valid() (bool, error) {
 	if ok, err := o.OrderBody.Valid(); !ok {
 		return false, err
 	}
+	if l := o.Attachment.Size(); l > MaxAttachmentSize {
+		return false, errors.Errorf("attachment size should be <= %d bytes, got %d", MaxAttachmentSize, l)
+	}
 	if ok, err := o.GetPriceMode().Valid(o.GetVersion()); !ok {
 		return false, err
 	}
@@ -1786,8 +1837,30 @@ func (o *OrderV4) Valid() (bool, error) {
 }
 
 // NewUnsignedEthereumOrderV4 creates the new ethereum unsigned order.
-func NewUnsignedEthereumOrderV4(senderPK *EthereumPublicKey, matcherPK crypto.PublicKey, amountAsset, priceAsset OptionalAsset, orderType OrderType, price, amount, timestamp, expiration, matcherFee uint64, matcherFeeAsset OptionalAsset, priceMode OrderPriceMode) *EthereumOrderV4 {
-	orderV4 := NewUnsignedOrderV4(crypto.PublicKey{}, matcherPK, amountAsset, priceAsset, orderType, price, amount, timestamp, expiration, matcherFee, matcherFeeAsset, priceMode)
+func NewUnsignedEthereumOrderV4(
+	senderPK *EthereumPublicKey, matcherPK crypto.PublicKey,
+	amountAsset, priceAsset OptionalAsset,
+	orderType OrderType,
+	price, amount, timestamp, expiration, matcherFee uint64,
+	matcherFeeAsset OptionalAsset,
+	priceMode OrderPriceMode,
+	attachment Attachment,
+) *EthereumOrderV4 {
+	orderV4 := NewUnsignedOrderV4(
+		crypto.PublicKey{},
+		matcherPK,
+		amountAsset,
+		priceAsset,
+		orderType,
+		price,
+		amount,
+		timestamp,
+		expiration,
+		matcherFee,
+		matcherFeeAsset,
+		priceMode,
+		attachment,
+	)
 	return &EthereumOrderV4{
 		SenderPK:        ethereumPublicKeyBase58Wrapper{inner: senderPK},
 		Eip712Signature: EthereumSignature{},
@@ -1961,6 +2034,29 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 		"priceMode":         priceMode.upperSnakeCaseString(),
 	}
 
+	var domainVer string
+	ethOrderDataType := []ethereumTypedDataType{
+		{Name: "version", Type: "int32"},
+		{Name: "matcherPublicKey", Type: "string"},
+		{Name: "amountAsset", Type: "string"},
+		{Name: "priceAsset", Type: "string"},
+		{Name: "orderType", Type: "string"},
+		{Name: "amount", Type: "int64"},
+		{Name: "price", Type: "int64"},
+		{Name: "timestamp", Type: "int64"},
+		{Name: "expiration", Type: "int64"},
+		{Name: "matcherFee", Type: "int64"},
+		{Name: "matcherFeeAssetId", Type: "string"},
+		{Name: "priceMode", Type: "string"},
+	}
+	if o.Attachment.Size() == 0 {
+		domainVer = "1"
+	} else {
+		domainVer = "2"
+		ethOrderDataType = append(ethOrderDataType, ethereumTypedDataType{Name: "attachment", Type: "string"})
+		message["attachment"] = o.Attachment.String()
+	}
+
 	var orderDomain = ethereumTypedData{
 		Types: ethereumTypedDataTypes{
 			"EIP712Domain": []ethereumTypedDataType{
@@ -1968,25 +2064,12 @@ func (o *EthereumOrderV4) buildEthereumOrderV4TypedData(scheme Scheme) ethereumT
 				{Name: "version", Type: "string"},
 				{Name: "chainId", Type: "uint256"},
 			},
-			"Order": []ethereumTypedDataType{
-				{Name: "version", Type: "int32"},
-				{Name: "matcherPublicKey", Type: "string"},
-				{Name: "amountAsset", Type: "string"},
-				{Name: "priceAsset", Type: "string"},
-				{Name: "orderType", Type: "string"},
-				{Name: "amount", Type: "int64"},
-				{Name: "price", Type: "int64"},
-				{Name: "timestamp", Type: "int64"},
-				{Name: "expiration", Type: "int64"},
-				{Name: "matcherFee", Type: "int64"},
-				{Name: "matcherFeeAssetId", Type: "string"},
-				{Name: "priceMode", Type: "string"},
-			},
+			"Order": ethOrderDataType,
 		},
 		PrimaryType: "Order",
 		Domain: ethereumTypedDataDomain{
 			Name:    "Waves Order",
-			Version: "1",
+			Version: domainVer,
 			ChainId: newHexOrDecimal256(int64(scheme)),
 		},
 		Message: message,
@@ -2241,6 +2324,9 @@ type DataEntry interface {
 	MarshalValue() ([]byte, error)
 	UnmarshalValue([]byte) error
 
+	MarshaledValueSize() int
+	WriteValueTo(w io.Writer) error
+
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
 	Valid(forbidEmptyKey, utf16KeyLen bool) error
@@ -2328,14 +2414,30 @@ func (e IntegerDataEntry) PayloadSize() int {
 	return len(e.Key) + 8 // 8 == sizeof(int64)
 }
 
+func (e *IntegerDataEntry) MarshaledValueSize() int {
+	return 1 + uint64Size
+}
+
 // MarshalValue marshals the integer data entry value in its bytes representation.
 func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+8)
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataInteger)
 	pos++
 	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
 	return buf, nil
+}
+
+func (e *IntegerDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataInteger)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataInteger)
+	}
+	var value [uint64Size]byte
+	binary.BigEndian.PutUint64(value[:], uint64(e.Value))
+	if _, err := w.Write(value[:]); err != nil {
+		return errors.Wrap(err, "failed to write integer data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads binary representation of integer data entry value to the structure.
@@ -2459,14 +2561,28 @@ func (e BooleanDataEntry) PayloadSize() int {
 	return len(e.Key) + 1 // 1 == sizeof(bool)
 }
 
+func (e *BooleanDataEntry) MarshaledValueSize() int {
+	return 1 + 1
+}
+
 // MarshalValue writes a byte representation of the boolean data entry value.
 func (e BooleanDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+1)
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataBoolean)
 	pos++
 	PutBool(buf[pos:], e.Value)
 	return buf, nil
+}
+
+func (e *BooleanDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataBoolean)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataBoolean)
+	}
+	if err := WriteBool(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write boolean data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads a byte representation of the data entry value.
@@ -2597,16 +2713,30 @@ func (e BinaryDataEntry) PayloadSize() int {
 	return len(e.Key) + len(e.Value)
 }
 
+func (e *BinaryDataEntry) MarshaledValueSize() int {
+	return 1 + 2 + len(e.Value)
+}
+
 // MarshalValue writes an entry value to its byte representation.
 func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
 	pos := 0
-	buf := make([]byte, 1+2+len(e.Value))
+	buf := make([]byte, e.MarshaledValueSize())
 	buf[pos] = byte(DataBinary)
 	pos++
 	if err := PutBytesWithUInt16Len(buf[pos:], e.Value); err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BinaryDataEntry value")
 	}
 	return buf, nil
+}
+
+func (e *BinaryDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataBinary)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataBinary)
+	}
+	if err := WriteBytesWithUInt16Len(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write binary data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads an entry value from a binary representation.
@@ -2737,14 +2867,28 @@ func (e StringDataEntry) PayloadSize() int {
 	return len(e.Key) + len(e.Value)
 }
 
+func (e *StringDataEntry) MarshaledValueSize() int {
+	return 1 + 2 + len(e.Value)
+}
+
 // MarshalValue converts the data entry value to its byte representation.
 func (e StringDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+2+len(e.Value))
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataString)
 	pos++
 	PutStringWithUInt16Len(buf[pos:], e.Value)
 	return buf, nil
+}
+
+func (e *StringDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataString)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataString)
+	}
+	if err := WriteStringWithUInt16Len(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write string data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads StringDataEntry value from bytes.
@@ -2871,9 +3015,20 @@ func (e DeleteDataEntry) PayloadSize() int {
 	return 0 // this entry doesn't have any payload
 }
 
+func (e *DeleteDataEntry) MarshaledValueSize() int {
+	return 1
+}
+
 // MarshalValue converts the data entry value to its byte representation.
 func (e DeleteDataEntry) MarshalValue() ([]byte, error) {
 	return []byte{byte(DataDelete)}, nil
+}
+
+func (e *DeleteDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataDelete)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataDelete)
+	}
+	return nil
 }
 
 // UnmarshalValue checks DeleteDataEntry value type is set.

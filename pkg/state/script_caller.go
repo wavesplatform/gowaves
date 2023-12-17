@@ -61,20 +61,20 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		info.rideV6Activated,
 		info.consensusImprovementsActivated,
 		info.blockRewardDistributionActivated,
-		info.invokeExpressionActivated,
+		info.lightNodeActivated,
 	)
 	if err != nil {
 		return errors.Wrap(err, "failed to create RIDE environment")
 	}
 	env.SetThisFromAddress(senderWavesAddr)
 	env.ChooseSizeCheck(tree.LibVersion)
-	if err := env.SetLastBlockFromBlockInfo(lastBlockInfo); err != nil {
+	if err = env.SetLastBlockFromBlockInfo(lastBlockInfo); err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
 	env.ChooseTakeString(info.rideV5Activated)
 	env.ChooseMaxDataEntriesSize(info.rideV5Activated)
 	env.SetLimit(ride.MaxVerifierComplexity(info.rideV5Activated))
-	if err := env.SetTransactionFromOrder(order); err != nil {
+	if err = env.SetTransactionFromOrder(order, tree.LibVersion); err != nil {
 		return errors.Wrap(err, "failed to convert order")
 	}
 	r, err := ride.CallVerifier(env, tree)
@@ -124,7 +124,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
 		params.blockRewardDistributionActivated,
-		params.invokeExpressionActivated,
+		params.lightNodeActivated,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
@@ -225,7 +225,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
 		params.blockRewardDistributionActivated,
-		params.invokeExpressionActivated,
+		params.lightNodeActivated,
 	)
 	if err != nil {
 		return nil, err
@@ -246,7 +246,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
 		params.blockRewardDistributionActivated,
-		params.invokeExpressionActivated,
+		params.lightNodeActivated,
 	)
 	if err != nil {
 		return nil, err
@@ -273,7 +273,7 @@ func (a *scriptCaller) invokeFunction(
 		info.rideV6Activated,
 		info.consensusImprovementsActivated,
 		info.blockRewardDistributionActivated,
-		info.invokeExpressionActivated,
+		info.lightNodeActivated,
 	)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create RIDE environment")
@@ -389,7 +389,7 @@ func (a *scriptCaller) invokeFunctionByEthereumTx(
 	abiPayments := tx.TxKind.DecodedData().Payments
 	scriptPayments := make([]proto.ScriptPayment, 0, len(abiPayments))
 	for _, p := range abiPayments {
-		if p.Amount <= 0 && info.checkerInfo.height > a.settings.InvokeNoZeroPaymentsAfterHeight {
+		if p.Amount <= 0 && info.checkerInfo.blockchainHeight > a.settings.InvokeNoZeroPaymentsAfterHeight {
 			return nil, proto.FunctionCall{}, errors.Errorf("invalid payment amount '%d'", p.Amount)
 		}
 		optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)

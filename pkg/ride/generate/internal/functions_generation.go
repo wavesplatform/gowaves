@@ -384,8 +384,8 @@ func functionsV4() map[string]string {
 	m["containsElement"] = "containsElement"
 	m["valueOrElse"] = "valueOrElse"
 	m["405"] = "median"
-	m["406"] = "max"
-	m["407"] = "min"
+	m["406"] = "listMax"
+	m["407"] = "listMin"
 	delete(m, "700") // remove CheckMerkleProof
 	m["701"] = "rebuildMerkleRoot"
 	m["800"] = "bls12Groth16Verify"
@@ -809,6 +809,8 @@ func functionsV7() map[string]string {
 
 func functionsV8() map[string]string {
 	m := functionsV7()
+	m["901"] = "calculateDelay"
+	m["1106"] = "listReplaceByIndex"
 	constructorsFunctions(ast.LibV8, m)
 	return m
 }
@@ -869,6 +871,25 @@ func catalogueV7() map[string]int {
 
 func catalogueV8() map[string]int {
 	m := catalogueV7()
+	m["311"] = 1
+	m["312"] = 1
+	m["313"] = 1
+	m["314"] = 1
+	m["315"] = 1
+	m["318"] = 1
+	m["319"] = 1
+	m["320"] = 1
+	m["408"] = 6
+	m["409"] = 6
+	m["413"] = 1
+	m["414"] = 1
+	m["415"] = 1
+	m["423"] = 1
+	m["424"] = 1
+	m["425"] = 35
+	m["901"] = 1
+	m["1105"] = 4
+	m["1106"] = 4
 	constructorsCatalogue(ast.LibV8, m)
 	return m
 }

@@ -2613,7 +2613,18 @@
       "remove": []
     },
     {
-      "new": {},
+      "new": {
+        "calculateDelay": [
+          {
+            "arguments": [
+              "Address|AddressLike",
+              "Int"
+            ],
+            "return_type": "Int",
+            "id": "901"
+          }
+        ]
+      },
       "remove": []
     }
   ]

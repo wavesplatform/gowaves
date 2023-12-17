@@ -81,28 +81,34 @@ func TestDirectivesCompileFail(t *testing.T) {
 		{`
 {-# STDLIB_VERSION 0 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '0'"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`,
+			[]string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '0'"}},
 		{`
 {-# STDLIB_VERSION XXX #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(2:20, 2:23): Failed to parse version 'XXX': strconv.ParseInt: parsing \"XXX\": invalid syntax"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`,
+			[]string{"(2:20, 2:23): Failed to parse version 'XXX': strconv.ParseInt: parsing \"XXX\": invalid syntax"}},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE XXX #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:5, 3:17): Illegal value 'XXX' of directive 'CONTENT_TYPE'"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`,
+			[]string{"(3:5, 3:17): Illegal value 'XXX' of directive 'CONTENT_TYPE'"}},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# XXX XXX #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:5, 3:8): Illegal directive 'XXX'"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`,
+			[]string{"(3:5, 3:8): Illegal directive 'XXX'"}},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE XXX #-}`, []string{"(4:5, 4:16): Illegal value 'XXX' of directive 'SCRIPT_TYPE'"}},
+{-# SCRIPT_TYPE XXX #-}`,
+			[]string{"(4:5, 4:16): Illegal value 'XXX' of directive 'SCRIPT_TYPE'"}},
 		{`
 {-# STDLIB_VERSION 6 #-}
 {-# STDLIB_VERSION 6 #-}
 {-# CONTENT_TYPE DAPP #-}
-{-# SCRIPT_TYPE ACCOUNT #-}`, []string{"(3:1, 4:0): Directive 'STDLIB_VERSION' is used more than once"}},
+{-# SCRIPT_TYPE ACCOUNT #-}`,
+			[]string{"(3:1, 4:0): Directive 'STDLIB_VERSION' is used more than once"}},
 	} {
 		code := test.code
 		rawAST, buf, err := buildAST(t, code, false)
@@ -1081,5 +1087,46 @@ func TestCompilationWithScalaNodeWithCompaction(t *testing.T) {
 		res, _, err := cli.Utils.ScriptCompileCode(context.Background(), string(code), true)
 		require.NoError(t, err)
 		compareScriptsOrError(t, string(code), false, strings.TrimPrefix(res.Script, "base64:"), true, false)
+	}
+}
+
+func TestOrderConstructorsWithAttachment(t *testing.T) {
+	tests := []struct {
+		code     string
+		fail     bool
+		expected string
+	}{
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let a = Order("".toBytes(), "".toBytes(), AssetPair("".toBytes(), "".toBytes()), 
+    Buy, 0, 0, 0, 0, 0, "".toBytes(), Address("".toBytes()), "".toBytes(), "".toBytes(), [])
+`, false, "BgICCAIBAAFhCQEFT3JkZXIOCQCbAwECAAkAmwMBAgAJAQlBc3NldFBhaXICCQCbAwECAAkAmwMBAgAFA0J1eQAAAAAAAAAAAAAJAJsDAQIACQEHQWRkcmVzcwEJAJsDAQIACQCbAwECAAkAmwMBAgAFA25pbAAAiAK01A==", //nolint:lll
+		},
+		{`
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let a = Order("".toBytes(), "".toBytes(), AssetPair("".toBytes(), "".toBytes()), 
+    Buy, 0, 0, 0, 0, 0, "".toBytes(), Address("".toBytes()), "".toBytes(), "".toBytes(), [], "".toBytes())
+`, true, "(6:9, 6:14): Undefined function 'Order(ByteVector, ByteVector, AssetPair, Buy, Int, Int, Int, Int, Int, ByteVector, Address, ByteVector, ByteVector, List[], ByteVector)'", //nolint:lll
+		},
+		{`
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let a = Order("".toBytes(), "".toBytes(), AssetPair("".toBytes(), "".toBytes()), 
+    Buy, 0, 0, 0, 0, 0, "".toBytes(), Address("".toBytes()), "".toBytes(), "".toBytes(), [], "".toBytes())
+`, false, "CAICCAIBAAFhCQEFT3JkZXIPCQCbAwECAAkAmwMBAgAJAQlBc3NldFBhaXICCQCbAwECAAkAmwMBAgAFA0J1eQAAAAAAAAAAAAAJAJsDAQIACQEHQWRkcmVzcwEJAJsDAQIACQCbAwECAAkAmwMBAgAFA25pbAkAmwMBAgAAAGfLAWg=", //nolint:lll
+		},
+	}
+	for i, test := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			compareScriptsOrError(t, test.code, test.fail, test.expected, false, false)
+		})
 	}
 }

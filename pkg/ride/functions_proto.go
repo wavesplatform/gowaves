@@ -6,11 +6,14 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/blake2b"
 
+	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -266,8 +269,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return err
 	}
-	invokeExpressionActivated := env.invokeExpressionActivated()
-	if invokeExpressionActivated { // Check payments result balances here after invoke expression activation.
+	lightNodeActivated := env.lightNodeActivated()
+	if lightNodeActivated { // Check payments result balances here AFTER Light Node activation
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
@@ -301,7 +304,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipientAddr, fn, arguments)
 	}
 
-	if !invokeExpressionActivated { // Check payments result balances here before invoke expression activation.
+	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
 		if err := checkPaymentsAfterApplication(); err != nil {
 			return nil, err
 		}
@@ -865,6 +868,37 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		}
 		return nil, errors.Wrap(err, "transferByID")
 	}
+	switch t := tx.GetTypeInfo().Type; t {
+	case proto.TransferTransaction:
+		// ok, it's transfer tx
+	case proto.EthereumMetamaskTransaction:
+		ethTx, ok := tx.(*proto.EthereumTransaction)
+		if !ok {
+			return nil, errors.Errorf("transferByID: expected ethereum transaction, got (%T)", tx)
+		}
+		kindType, ktErr := proto.GuessEthereumTransactionKindType(ethTx.Data())
+		if ktErr != nil {
+			return nil, errors.Wrap(err, "transferByID: failed to guess ethereum transaction kind type")
+		}
+		switch kindType {
+		case proto.EthereumTransferWavesKindType, proto.EthereumTransferAssetsKindType:
+			// ok, it's an ethereum transfer tx (waves or asset)
+		case proto.EthereumInvokeKindType:
+			return rideUnit{}, nil // it's not an ethereum transfer tx
+		default:
+			return rideUnit{}, errors.Errorf("transferByID: unreachable point reached in eth kind type switch")
+		}
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.ExchangeTransaction,
+		proto.LeaseTransaction, proto.LeaseCancelTransaction, proto.CreateAliasTransaction,
+		proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.InvokeScriptTransaction,
+		proto.UpdateAssetInfoTransaction, proto.InvokeExpressionTransaction:
+		// it's not a transfer transaction
+		return rideUnit{}, nil
+	default:
+		return rideUnit{}, errors.Errorf("transferByID: unreachable point reached in tx type switch")
+	}
 	obj, err := transactionToObject(env, tx)
 	if err != nil {
 		return nil, errors.Wrap(err, "transferByID")
@@ -1196,6 +1230,65 @@ func ecRecover(_ environment, args ...rideType) (rideType, error) {
 	pkb := pk.SerializeUncompressed()
 	//We have to drop first byte because in bitcoin library where is a length.
 	return rideByteVector(pkb[1:]), nil
+}
+
+func calculateDelay(env environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 2); err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	var addr []byte
+	switch arg0 := args[0].(type) {
+	case rideAddress:
+		addr = proto.WavesAddress(arg0).Bytes()
+	case rideAddressLike:
+		addr = arg0
+	default:
+		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	balance, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	if balance <= 0 {
+		return nil, errors.Errorf("calculateDelay: balance '%d' should by positive", balance)
+	}
+	vrf, err := env.block().get(vrfField)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	hitSource, ok := vrf.(rideByteVector)
+	if !ok {
+		return nil, errors.New("calculateDelay: empty hit source")
+	}
+	bt, err := env.block().get(baseTargetField)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	baseTarget, ok := bt.(rideInt)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: invalid type '%T' of baseTarget", bt)
+	}
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	_, err = h.Write(hitSource)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	_, err = h.Write(addr)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	hs := h.Sum(nil)[:consensus.HitSize]
+	hit := big.NewInt(0).SetBytes(hs)
+
+	pos := consensus.NewFairPosCalculator(0, 0)
+	delay, err := pos.CalculateDelay(hit, uint64(baseTarget), uint64(balance))
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	return rideInt(delay), nil
 }
 
 // Constructors
