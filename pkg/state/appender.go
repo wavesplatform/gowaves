@@ -734,6 +734,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
+	bs.AppendTxSnapshot(initialSnapshot.regular) // save initial snapshot as first block snapshot
 
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
