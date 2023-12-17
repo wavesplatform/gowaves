@@ -352,7 +352,8 @@ func (a *txAppender) commitTxApplication(
 		applicationStatus = applicationRes.status
 	)
 
-	balanceChanges := a.diffStor.allChanges()
+	//balanceChanges := a.diffStor.allChanges()
+	balanceChanges := applicationRes.changes.diff.balancesChanges()
 	a.diffStor.reset()
 	snapshot, err := a.txHandler.performTx(tx, pi, params.validatingUtx, invocationRes, applicationStatus, balanceChanges)
 	if err != nil {
@@ -673,7 +674,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	// create the initial snapshot
-
 	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardDiff.balancesChanges())
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
@@ -695,8 +695,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// TODO validate before reset
-
 	a.diffStor.reset()
+
+	err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply an initial snapshot")
+	}
 
 	defer hasher.Release()
 
@@ -713,12 +717,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			params.block.BlockID(), currentBlockHeight,
 		)
 	}
-
-	// TODO snapshot is apply in hasher
-	//err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
-	//if err != nil {
-	//	return errors.Wrap(err, "failed to apply an initial snapshot")
-	//}
 
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
