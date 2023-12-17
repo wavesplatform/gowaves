@@ -809,6 +809,7 @@ func functionsV7() map[string]string {
 
 func functionsV8() map[string]string {
 	m := functionsV7()
+	m["901"] = "calculateDelay"
 	m["1106"] = "listReplaceByIndex"
 	constructorsFunctions(ast.LibV8, m)
 	return m
@@ -886,9 +887,10 @@ func catalogueV8() map[string]int {
 	m["423"] = 1
 	m["424"] = 1
 	m["425"] = 35
+	m["901"] = 1
 	m["1105"] = 4
-	constructorsCatalogue(ast.LibV8, m)
 	m["1106"] = 4
+	constructorsCatalogue(ast.LibV8, m)
 	return m
 }
 

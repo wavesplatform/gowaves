@@ -6,11 +6,14 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"math/big"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"golang.org/x/crypto/blake2b"
 
+	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -1227,6 +1230,65 @@ func ecRecover(_ environment, args ...rideType) (rideType, error) {
 	pkb := pk.SerializeUncompressed()
 	//We have to drop first byte because in bitcoin library where is a length.
 	return rideByteVector(pkb[1:]), nil
+}
+
+func calculateDelay(env environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 2); err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	var addr []byte
+	switch arg0 := args[0].(type) {
+	case rideAddress:
+		addr = proto.WavesAddress(arg0).Bytes()
+	case rideAddressLike:
+		addr = arg0
+	default:
+		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[0].instanceOf())
+	}
+	balance, ok := args[1].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: unexpected argument type '%s'", args[1].instanceOf())
+	}
+	if balance <= 0 {
+		return nil, errors.Errorf("calculateDelay: balance '%d' should by positive", balance)
+	}
+	vrf, err := env.block().get(vrfField)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	hitSource, ok := vrf.(rideByteVector)
+	if !ok {
+		return nil, errors.New("calculateDelay: empty hit source")
+	}
+	bt, err := env.block().get(baseTargetField)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	baseTarget, ok := bt.(rideInt)
+	if !ok {
+		return nil, errors.Errorf("calculateDelay: invalid type '%T' of baseTarget", bt)
+	}
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	_, err = h.Write(hitSource)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	_, err = h.Write(addr)
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	hs := h.Sum(nil)[:consensus.HitSize]
+	hit := big.NewInt(0).SetBytes(hs)
+
+	pos := consensus.NewFairPosCalculator(0, 0)
+	delay, err := pos.CalculateDelay(hit, uint64(baseTarget), uint64(balance))
+	if err != nil {
+		return nil, errors.Wrap(err, "calculateDelay")
+	}
+	return rideInt(delay), nil
 }
 
 // Constructors
