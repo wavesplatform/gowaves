@@ -239,6 +239,7 @@ func (h *transactionHandler) performTx(
 			},
 		)
 	} else {
+		// TODO: generate balance atomic snapshots here for failed transactions
 		snapshot = txSnapshot{
 			regular: []proto.AtomicSnapshot{
 				&proto.TransactionStatusSnapshot{Status: proto.TransactionFailed},
