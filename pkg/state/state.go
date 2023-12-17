@@ -1371,6 +1371,8 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 	// Move balance diffs from diffStorage to historyStorage.
 	// It must be done before lease cancellation, because
 	// lease cancellation iterates through historyStorage.
+	fmt.Println("CANCELING LEASES")
+	fmt.Println("height is ", height)
 	if err := s.appender.moveChangesToHistoryStorage(); err != nil {
 		return err
 	}

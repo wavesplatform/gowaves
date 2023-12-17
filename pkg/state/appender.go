@@ -361,6 +361,18 @@ func (a *txAppender) commitTxApplication(
 			errors.Wrapf(err, "failed to perform transaction %q", base58.Encode(txID)),
 		)
 	}
+
+	if params.block.BlockID().String() == "33wbvguP59f3wMAnmPHFATh6u8TiKoEAiLVWjMMsZQZj25HqZFbYUwyLkWaZ9cHjUM278U4RUyWUbCpzPxPBgaMZ" {
+		fmt.Println("My snapshots")
+		for _, snap := range snapshot.regular {
+			json, err := snap.ToJson()
+			if err != nil {
+				fmt.Println(err, "failed to convert snapshot to json")
+			}
+			fmt.Println(json)
+		}
+	}
+
 	if !params.validatingUtx {
 		// TODO: snapshots for miner fee should be generated here, but not saved
 		//  They must be saved in snapshot applier
