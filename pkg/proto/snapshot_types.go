@@ -325,9 +325,9 @@ func (*LeaseStatusCancelled) leaseStateStatusMarker() {}
 
 type NewLeaseSnapshot struct {
 	LeaseID       crypto.Digest
-	Amount        uint64
 	SenderPK      crypto.PublicKey
 	RecipientAddr WavesAddress
+	Amount        uint64
 }
 
 func (s NewLeaseSnapshot) IsGeneratedByTxDiff() bool {
@@ -600,8 +600,8 @@ func (s *NewAssetSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_NewAsset) 
 
 type AssetVolumeSnapshot struct { // AssetVolume in pb
 	AssetID       crypto.Digest
-	TotalQuantity big.Int // volume in protobuf
 	IsReissuable  bool
+	TotalQuantity big.Int // volume in protobuf
 }
 
 func (s AssetVolumeSnapshot) IsGeneratedByTxDiff() bool {
