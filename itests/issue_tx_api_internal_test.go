@@ -100,8 +100,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 					&suite.BaseSuite, td, v, !waitForTx)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Issue tx:" + tx.TxID.String()
-				issueNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
-					errMsg)
+				issueNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}
