@@ -55,7 +55,6 @@ func (suite *ReissueTxSuite) Test_ReissuePositive() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue_utilities.SendReissueTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
 				errMsg := caseName + "Reissue tx:" + tx.TxID.String()
-
 				reissuePositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
