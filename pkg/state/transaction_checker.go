@@ -97,25 +97,32 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 			errors.New("scripts versions 1, 2 and 3 are disable after activation of Light Node feature")
 	}
 	if libVersion == ast.LibV3 && !rideForDAppsActivated {
-		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts version 3")
+		return scriptFeaturesActivations{},
+			errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
 	if hasBlockV2 && !rideForDAppsActivated {
-		return scriptFeaturesActivations{}, errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
+		return scriptFeaturesActivations{},
+			errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
 	}
 	if libVersion == ast.LibV4 && !blockV5Activated {
-		return scriptFeaturesActivations{}, errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
+		return scriptFeaturesActivations{},
+			errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
 	if libVersion == ast.LibV5 && !rideV5Activated {
-		return scriptFeaturesActivations{}, errors.New("RideV5 feature must be activated for scripts version 5")
+		return scriptFeaturesActivations{},
+			errors.New("RideV5 feature must be activated for scripts version 5")
 	}
 	if libVersion == ast.LibV6 && !rideV6Activated {
-		return scriptFeaturesActivations{}, errors.New("RideV6 feature must be activated for scripts version 6")
+		return scriptFeaturesActivations{},
+			errors.New("RideV6 feature must be activated for scripts version 6")
 	}
 	if libVersion == ast.LibV7 && !blockRewardDistributionActivated {
-		return scriptFeaturesActivations{}, errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
+		return scriptFeaturesActivations{},
+			errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
 	}
 	if libVersion == ast.LibV8 && !lightNodeActivated {
-		return scriptFeaturesActivations{}, errors.New("LightNode feature must be activated for scripts version 8")
+		return scriptFeaturesActivations{},
+			errors.New("LightNode feature must be activated for scripts version 8")
 	}
 	return scriptFeaturesActivations{
 		rideForDAppsActivated: rideForDAppsActivated,
@@ -136,7 +143,7 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion ast.LibraryVersio
 		| DApp Callable V1, V2                   | 2000                          | 2000                         |
 		| DApp Callable V3, V4                   | 4000                          | 4000                         |
 		| DApp Callable V5                       | 10000                         | 10000                        |
-		| DApp Callable V6, V7                   | 52000                         | 52000                        |
+		| DApp Callable V6, V7, V8               | 52000                         | 52000                        |
 	*/
 	var maxCallableComplexity, maxVerifierComplexity int
 	switch version := libVersion; version {
