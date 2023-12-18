@@ -5795,3 +5795,65 @@ func TestHitInDeepInvocationsLimit(t *testing.T) {
 	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
 	assert.EqualError(t, err, "invoke: too many internal invocations")
 }
+
+func TestGlobalDeclarationScopesEvaluation(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	src := `
+	{-# STDLIB_VERSION 6 #-}
+	{-# CONTENT_TYPE DAPP #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+           
+	let a = {
+		func bar(i: Int) = i
+		bar(1)
+	}
+	let b = {
+		let c = {
+			let d = {
+				func bar(i: Int) = i + 1
+				bar(a)
+			}
+			func bar(i: Int) = i * 2
+			bar(d)
+		}
+		func bar(i: Int) = i + 1
+		bar(c)
+	}
+           
+	@Callable(i)
+	func foo() = {
+		[IntegerEntry("key", b)]
+	}	
+	`
+	tree, errs := ridec.CompileToTree(src)
+	require.Empty(t, errs)
+
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(ast.LibV6, 52000).
+		withBlockV5Activated().withProtobufTx().withRideV6Activated().
+		withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+		withThis(dApp1).withDApp(dApp1).withSender(sender).
+		withInvocation("foo", withTransactionID(crypto.Digest{})).withTree(dApp1, tree).
+		withWrappedState()
+	res, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("foo", proto.Arguments{}))
+	require.NoError(t, err)
+	assert.Equal(t, 1, len(res.ScriptActions()))
+	r, ok := res.(DAppResult)
+	require.True(t, ok)
+
+	sr, _, err := proto.NewScriptResult(r.actions, proto.ScriptErrorMessage{})
+	require.NoError(t, err)
+	expectedResult := &proto.ScriptResult{
+		DataEntries:  []*proto.DataEntryScriptAction{{Entry: &proto.IntegerDataEntry{Key: "key", Value: 5}}},
+		Transfers:    make([]*proto.TransferScriptAction, 0),
+		Issues:       make([]*proto.IssueScriptAction, 0),
+		Reissues:     make([]*proto.ReissueScriptAction, 0),
+		Burns:        make([]*proto.BurnScriptAction, 0),
+		Sponsorships: make([]*proto.SponsorshipScriptAction, 0),
+		Leases:       make([]*proto.LeaseScriptAction, 0),
+		LeaseCancels: make([]*proto.LeaseCancelScriptAction, 0),
+		ErrorMsg:     proto.ScriptErrorMessage{},
+	}
+	assert.Equal(t, expectedResult, sr)
+}

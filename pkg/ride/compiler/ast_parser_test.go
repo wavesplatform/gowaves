@@ -260,9 +260,17 @@ let arr = [1,2,3,4,5]
 let a = FOLD<5>(arr, [], filterEven)
 `, false, "BgICCAIDAQpmaWx0ZXJFdmVuAgVhY2N1bQRuZXh0AwkAAAIJAGoCBQRuZXh0AAIAAAkAzQgCBQVhY2N1bQUEbmV4dAUFYWNjdW0AA2FycgkAzAgCAAEJAMwIAgACCQDMCAIAAwkAzAgCAAQJAMwIAgAFBQNuaWwAAWEKAAIkbAUDYXJyCgACJHMJAJADAQUCJGwKAAUkYWNjMAUDbmlsCgEFJGYwXzECAiRhAiRpAwkAZwIFAiRpBQIkcwUCJGEJAQpmaWx0ZXJFdmVuAgUCJGEJAJEDAgUCJGwFAiRpCgEFJGYwXzICAiRhAiRpAwkAZwIFAiRpBQIkcwUCJGEJAAIBAhNMaXN0IHNpemUgZXhjZWVkcyA1CQEFJGYwXzICCQEFJGYwXzECCQEFJGYwXzECCQEFJGYwXzECCQEFJGYwXzECCQEFJGYwXzECBQUkYWNjMAAAAAEAAgADAAQABQAAWwkCmw=="},
 		{`
+func sum(accum: Int, next: Int) = accum + next
+let arr = []
+let a = FOLD<5>(arr, 0, sum)
+		`, false, "BgICCAIDAQNzdW0CBWFjY3VtBG5leHQJAGQCBQVhY2N1bQUEbmV4dAADYXJyBQNuaWwAAWEKAAIkbAUDYXJyCg" +
+			"ACJHMJAJADAQUCJGwKAAUkYWNjMAAACgEFJGYwXzECAiRhAiRpAwkAZwIFAiRpBQIkcwUCJGEJAQNzdW0CBQIkYQkAkQMCBQIkbA" +
+			"UCJGkKAQUkZjBfMgICJGECJGkDCQBnAgUCJGkFAiRzBQIkYQkAAgECE0xpc3Qgc2l6ZSBleGNlZWRzIDUJAQUkZjBfMgIJAQUkZj" +
+			"BfMQIJAQUkZjBfMQIJAQUkZjBfMQIJAQUkZjBfMQIJAQUkZjBfMQIFBSRhY2MwAAAAAQACAAMABAAFAABmy6Xs"},
+		{`
 func sum(a:Int, b:Int) = a + b
 let a = FOLD<5>(1, 9, sum)
-`, true, "(6:17, 6:18): First argument of fold must be List, but 'Int' found"},
+`, true, "(6:17, 6:18): First argument of FOLD macros must be List, but 'Int' found"},
 		{`
 func sum(a:Int, b:String) = a
 let b = FOLD<5>([1], 0, sum)
