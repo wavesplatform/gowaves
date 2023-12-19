@@ -5,7 +5,6 @@ import (
 	"fmt"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 	"log"
 	"os"
 )
@@ -30,71 +29,74 @@ func main() {
 		log.Fatalf("unable to read file: %v", err)
 	}
 
-	defer func() {
-		if err := snapshotsBody.Close(); err != nil {
-			zap.S().Fatalf("Failed to close blockchain file: %v", err)
-		}
-	}()
+	//defer func() {
+	//	if err := snapshotsBody.Close(); err != nil {
+	//		zap.S().Fatalf("Failed to close blockchain file: %v", err)
+	//	}
+	//}()
+	//blockSnapshot := proto.BlockSnapshot{}
+	//err = blockSnapshot.UnmarshalBinary(snapshotsBody, proto.StageNetScheme)
+	//if err != nil {
+	//	return
+
 	var nBlocks uint64 = 1834290
-	snapshotsChunkSize := make([]byte, 4)
+	snapshotsSizeBytes := make([]byte, 4)
 	//blocksIndex := 0
 	readPos := int64(0)
 	//totalSize := 0
 	//prevSpeed := float64(0)
 	//increasingSize := true
+	var blocksSnapshots []proto.BlockSnapshot
 	for height := uint64(1); height <= nBlocks; height++ {
-		if _, err := snapshotsBody.ReadAt(snapshotsChunkSize, readPos); err != nil {
+		if _, err := snapshotsBody.ReadAt(snapshotsSizeBytes, readPos); err != nil {
 			log.Fatal(err)
 		}
-		snapshotsSize := binary.BigEndian.Uint32(snapshotsChunkSize)
+		snapshotsSize := binary.BigEndian.Uint32(snapshotsSizeBytes)
 		if snapshotsSize == 0 {
 			readPos += 4
 			continue
 		}
-		snapshotsSize = snapshotsSize - 4 // snapshotsSize include 4 bytes of the int size number itself, we don't need it
-		//if size > MaxBlockSize || size == 0 {
-		//	return errors.New("corrupted blockchain file: invalid block size")
-		//}
-		readPos += 4
 		if snapshotsSize != 0 {
 			fmt.Println()
-			//blockSnapshot := proto.BlockSnapshot{}
-			//snapshots := make([]byte, snapshotsSize)
-			//if _, err := snapshotsBody.ReadAt(snapshots, readPos); err != nil {
-			//	log.Fatal(err)
-			//}
-			//err := blockSnapshot.UnmarshalBinary(snapshots, proto.StageNetScheme)
-			//if err != nil {
-			//	return
-			//}
-		}
-
-		for {
-			if snapshotsSize <= 0 {
-				break
-			}
-			snapshotChunkSize := make([]byte, 4)
-			if _, err := snapshotsBody.ReadAt(snapshotChunkSize, readPos); err != nil {
+			snapshotsInBlock := proto.BlockSnapshot{}
+			snapshots := make([]byte, snapshotsSize+4) // []{snapshot, size} + 4 bytes = size of all snapshots
+			if _, err := snapshotsBody.ReadAt(snapshots, readPos); err != nil {
 				log.Fatal(err)
 			}
-			readPos += 4
-			snapshotsSize = snapshotsSize - 4 // cut off the size chunk from the overall size number
-
-			snapshotSize := binary.BigEndian.Uint32(snapshotChunkSize)
-			snapshotSize = snapshotSize - 4 // snapshotSize include 4 bytes of the int size number itself, we don't need it
-
-			snapshotBody := make([]byte, snapshotSize)
-			if _, err := snapshotsBody.ReadAt(snapshotBody, readPos); err != nil {
-				log.Fatal(err)
-			}
-			snapshot, err := unmarshalSnapshot(snapshotBody, proto.StageNetScheme)
+			err := snapshotsInBlock.UnmarshalBinaryImport(snapshots, proto.StageNetScheme)
 			if err != nil {
-				log.Fatal(err)
+				return
 			}
-			fmt.Println(snapshot)
-			readPos += int64(snapshotSize)
-			snapshotsSize = snapshotsSize - snapshotSize // cut off the snapshot chunk size from the overall size number
+			blocksSnapshots = append(blocksSnapshots, snapshotsInBlock)
 		}
+
+		fmt.Println(len(blocksSnapshots))
+		//for {
+		//	if snapshotsSize <= 0 {
+		//		break
+		//	}
+		//	snapshotChunkSize := make([]byte, 4)
+		//	if _, err := snapshotsBody.ReadAt(snapshotChunkSize, readPos); err != nil {
+		//		log.Fatal(err)
+		//	}
+		//	readPos += 4
+		//	snapshotsSize = snapshotsSize - 4 // cut off the size chunk from the overall size number
+		//
+		//	snapshotSize := binary.BigEndian.Uint32(snapshotChunkSize)
+		//	snapshotSize = snapshotSize - 4 // snapshotSize include 4 bytes of the int size number itself, we don't need it
+		//
+		//	snapshotBody := make([]byte, snapshotSize)
+		//	if _, err := snapshotsBody.ReadAt(snapshotBody, readPos); err != nil {
+		//		log.Fatal(err)
+		//	}
+		//	snapshot, err := unmarshalSnapshot(snapshotBody, proto.StageNetScheme)
+		//	if err != nil {
+		//		log.Fatal(err)
+		//	}
+		//	fmt.Println(snapshot)
+		//	readPos += int64(snapshotSize)
+		//	snapshotsSize = snapshotsSize - snapshotSize // cut off the snapshot chunk size from the overall size number
+		//}
 		////if height < startHeight {
 		////	readPos += int64(size)
 		////	continue
