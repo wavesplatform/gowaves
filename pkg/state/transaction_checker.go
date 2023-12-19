@@ -92,6 +92,10 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
+	if libVersion < ast.LibV4 && lightNodeActivated {
+		return scriptFeaturesActivations{},
+			errors.New("scripts versions 1, 2 and 3 are disable after activation of Light Node feature")
+	}
 	if libVersion == ast.LibV3 && !rideForDAppsActivated {
 		return scriptFeaturesActivations{},
 			errors.New("Ride4DApps feature must be activated for scripts version 3")
