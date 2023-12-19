@@ -51,6 +51,9 @@ func main() {
 				"WARNING: this slows down the import, use only if you do really need extended API.")
 		buildStateHashes = flag.Bool("build-state-hashes", false,
 			"Calculate and store state hashes for each block height.")
+		lightNodeMode = flag.Bool("light-node", false,
+			"Run the node in the light mode in which snapshots are imported without validation")
+		snapshotsPath = flag.String("snapshots-path", "", "Path to binary snapshots file.")
 		// Debug.
 		cpuProfilePath = flag.String("cpuprofile", "", "Write cpu profile to this file.")
 		memProfilePath = flag.String("memprofile", "", "Write memory profile to this file.")
@@ -81,6 +84,11 @@ func main() {
 	}
 	if *dataDirPath == "" {
 		zap.S().Fatalf("You must specify data-path option.")
+	}
+	if *lightNodeMode {
+		if *snapshotsPath == "" {
+			zap.S().Fatalf("You must specify snapshots path because you enabled light mode")
+		}
 	}
 
 	// Debug.
@@ -124,6 +132,7 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
+	params.LightNodeMode = *lightNodeMode
 
 	st, err := state.NewState(*dataDirPath, false, params, ss)
 	if err != nil {
@@ -141,7 +150,7 @@ func main() {
 		zap.S().Fatalf("Failed to get current height: %v", err)
 	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(st, *blockchainPath, uint64(*nBlocks), height); err != nil {
+	if err := importer.ApplyFromFile(st, *blockchainPath, *snapshotsPath, uint64(*nBlocks), height); err != nil {
 		height, err1 := st.Height()
 		if err1 != nil {
 			zap.S().Fatalf("Failed to get current height: %v", err1)

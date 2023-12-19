@@ -372,6 +372,7 @@ type stateManager struct {
 	verificationGoroutinesNum int
 
 	newBlocks *newBlocks
+	currentSnapshot *proto.BlockSnapshot
 }
 
 func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -597,7 +598,8 @@ func (s *stateManager) addGenesisBlock() error {
 
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	if err := s.addNewBlock(s.genesis, nil, chans, 0, initSH); err != nil {
+	blockInfoOpt := &BlockInfoOptional{block: s.genesis, genesis: true, snapshot: nil}
+	if err := s.addNewBlock(blockInfoOpt, nil, chans, 0, initSH); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
@@ -1065,59 +1067,82 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, isCappedRewardsActivated, block.BlockID())
 }
 
+type BlockInfoOptional struct {
+	block    *proto.Block
+	genesis  bool
+	snapshot *proto.BlockSnapshot
+}
+
 func (s *stateManager) addNewBlock(
-	block, parent *proto.Block,
+	blockInfoOpt, parentInfoOpt *BlockInfoOptional,
 	chans *verifierChans,
 	blockchainHeight uint64,
 	lastSnapshotStateHash crypto.Digest,
 ) error {
 	blockHeight := blockchainHeight + 1
 	// Add score.
-	if err := s.stor.scores.appendBlockScore(block, blockHeight); err != nil {
+	if err := s.stor.scores.appendBlockScore(blockInfoOpt.block, blockHeight); err != nil {
 		return err
 	}
 	// Indicate new block for storage.
-	if err := s.rw.startBlock(block.BlockID()); err != nil {
+	if err := s.rw.startBlock(blockInfoOpt.block.BlockID()); err != nil {
 		return err
 	}
 	// Save block header to block storage.
-	if err := s.rw.writeBlockHeader(&block.BlockHeader); err != nil {
+	if err := s.rw.writeBlockHeader(&blockInfoOpt.block.BlockHeader); err != nil {
 		return err
 	}
-	transactions := block.Transactions
-	if block.TransactionCount != transactions.Count() {
-		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", block.TransactionCount, transactions.Count())
+	transactions := blockInfoOpt.block.Transactions
+	if blockInfoOpt.block.TransactionCount != transactions.Count() {
+		return errors.Errorf("block.TransactionCount != transactions.Count(), %d != %d", blockInfoOpt.block.TransactionCount, transactions.Count())
 	}
 	var parentHeader *proto.BlockHeader
-	if parent != nil {
-		parentHeader = &parent.BlockHeader
+	if parentInfoOpt.block != nil {
+		parentHeader = &parentInfoOpt.block.BlockHeader
 	}
-	params := &appendBlockParams{
-		transactions:          transactions,
-		chans:                 chans,
-		block:                 &block.BlockHeader,
-		parent:                parentHeader,
-		blockchainHeight:      blockchainHeight,
-		lastSnapshotStateHash: lastSnapshotStateHash,
+
+	if s.appender.lightNodeMode && !parentInfoOpt.genesis {
+		params := &appendSnapshotParams{
+			blockSnapshot:         *blockInfoOpt.snapshot,
+			chans:                 chans,
+			block:                 &parentInfoOpt.block.BlockHeader,
+			parent:                parentHeader,
+			blockchainHeight:      blockchainHeight,
+			lastSnapshotStateHash: lastSnapshotStateHash,
+		}
+		// Check and perform block's transactions, create balance diffs, write transactions to storage.
+		if err := s.appender.appendSnapshotsToBlock(params); err != nil {
+			return err
+		}
+	} else {
+		params := &appendBlockParams{
+			transactions:          transactions,
+			chans:                 chans,
+			block:                 &blockInfoOpt.block.BlockHeader,
+			parent:                parentHeader,
+			blockchainHeight:      blockchainHeight,
+			lastSnapshotStateHash: lastSnapshotStateHash,
+		}
+		// Check and perform block's transactions, create balance diffs, write transactions to storage.
+		if err := s.appender.appendBlock(params); err != nil {
+			return err
+		}
 	}
-	// Check and perform block's transactions, create balance diffs, write transactions to storage.
-	if err := s.appender.appendBlock(params); err != nil {
-		return err
-	}
+
 	// Let block storage know that the current block is over.
-	if err := s.rw.finishBlock(block.BlockID()); err != nil {
+	if err := s.rw.finishBlock(blockInfoOpt.block.BlockID()); err != nil {
 		return err
 	}
 	// when block is finished blockchain height is incremented, so we should use 'blockHeight' as height value in actions below
 
 	// Count features votes.
-	if err := s.addFeaturesVotes(block); err != nil {
+	if err := s.addFeaturesVotes(blockInfoOpt.block); err != nil {
 		return err
 	}
 	blockRewardActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), blockHeight)
 	// Count reward vote.
 	if blockRewardActivated {
-		err := s.addRewardVote(block, blockHeight)
+		err := s.addRewardVote(blockInfoOpt.block, blockHeight)
 		if err != nil {
 			return err
 		}
@@ -1534,6 +1559,11 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, err
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
+		blockInfo := &BlockInfoOptional{
+			block: block,
+			genesis: false,
+			snapshot: s
+		}
 		if addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, sh); addErr != nil {
 			return nil, addErr
 		}
@@ -1556,9 +1586,9 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 
 	// Apply all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
-	if err := s.appender.applyAllDiffs(); err != nil {
-		return nil, err
-	}
+	//if err := s.appender.applyAllDiffs(); err != nil {
+	//	return nil, err
+	//}
 
 	// Retrieve and store legacy state hashes for each of new blocks.
 	if shErr := s.stor.handleLegacyStateHashes(height, ids); shErr != nil {

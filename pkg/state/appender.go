@@ -52,6 +52,8 @@ type txAppender struct {
 	// buildApiData flag indicates that additional data for API is built when
 	// appending transactions.
 	buildApiData bool
+
+	lightNodeMode bool
 }
 
 func newTxAppender(
@@ -63,6 +65,7 @@ func newTxAppender(
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
 	snapshotGenerator *snapshotGenerator,
+	lightNodeMode bool,
 ) (*txAppender, error) {
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
@@ -111,6 +114,7 @@ func newTxAppender(
 		diffApplier:       diffApplier,
 		buildApiData:      buildApiData,
 		ethTxKindResolver: ethKindResolver,
+		lightNodeMode:     lightNodeMode,
 	}, nil
 }
 
@@ -152,6 +156,14 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 
 type appendBlockParams struct {
 	transactions          []proto.Transaction
+	chans                 *verifierChans
+	block, parent         *proto.BlockHeader
+	blockchainHeight      proto.Height
+	lastSnapshotStateHash crypto.Digest
+}
+
+type appendSnapshotParams struct {
+	blockSnapshot         proto.BlockSnapshot
 	chans                 *verifierChans
 	block, parent         *proto.BlockHeader
 	blockchainHeight      proto.Height
@@ -824,6 +836,76 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	return a.blockDiffer.saveCurFeeDistr(params.block)
+}
+
+func (a *txAppender) appendSnapshotsToBlock(params *appendSnapshotParams) error {
+	// Reset block complexity counter.
+	defer func() {
+		a.sc.resetComplexity()
+		a.totalScriptsRuns = 0
+	}()
+	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return err
+	}
+	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return err
+	}
+	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return err
+	}
+	checkerInfo := &checkerInfo{
+		currentTimestamp:        params.block.Timestamp,
+		blockID:                 params.block.BlockID(),
+		blockVersion:            params.block.Version,
+		blockchainHeight:        params.blockchainHeight,
+		rideV5Activated:         rideV5Activated,
+		rideV6Activated:         rideV6Activated,
+		blockRewardDistribution: blockRewardDistribution,
+	}
+	hasParent := params.parent != nil
+	if hasParent {
+		checkerInfo.parentTimestamp = params.parent.Timestamp
+	}
+	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
+
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
+		stateActionsCounterInBlockValidation)
+	a.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+
+	blockInfo, err := a.currentBlockInfo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
+	}
+
+	currentBlockHeight := blockInfo.Height
+
+	hasher, err := newTxSnapshotHasherDefault()
+	if err != nil {
+		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
+	}
+	defer hasher.Release()
+
+	if err != nil {
+		return errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
+			params.block.BlockID(), currentBlockHeight,
+		)
+	}
+	for i, snapshotsInTx := range params.blockSnapshot.TxSnapshots {
+		for _, atomicSnapshot := range snapshotsInTx {
+			err := atomicSnapshot.Apply(a.txHandler.tp.snapshotApplier)
+			if err != nil {
+				return errors.Wrapf(err, "failed to apply an atomic snapshot in block %s, tx number %d", params.block.BlockID(), i)
+			}
+		}
+	}
+
+	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), currentBlockHeight, params.blockSnapshot); ssErr != nil {
+		return ssErr
+	}
+	return nil
 }
 
 // used only in tests now. All diffs are applied in snapshotApplier.
