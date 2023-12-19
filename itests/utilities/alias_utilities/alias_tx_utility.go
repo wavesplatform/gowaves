@@ -16,12 +16,12 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Alias
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
 	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
 	tx := makeTx(suite, testdata, version, waitForTx)
-	actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala := utl.GetActualDiffBalanceInWaves(
+	actualDiffBalanceInWaves := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Account.Address, initBalanceGo, initBalanceScala)
-	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
-			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
+	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo,
+			tx.WtErr.ErrWtScala, tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
 		utl.NewBalanceInWaves(initBalanceGo, initBalanceScala),
-		utl.NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
+		utl.NewBalanceInWaves(actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala)
 }
 
 func NewSignAliasTransaction(suite *f.BaseSuite, version byte, scheme proto.Scheme, accountPK crypto.PublicKey,

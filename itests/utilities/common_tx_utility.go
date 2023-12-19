@@ -559,18 +559,19 @@ func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, assetId cry
 	return GetAssetBalanceGo(suite, address, assetId), GetAssetBalanceScala(suite, address, assetId)
 }
 
-func GetActualDiffBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress, initBalanceGo, initBalanceScala int64) (int64, int64) {
+func GetActualDiffBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress, initBalanceGo, initBalanceScala int64) BalanceInWaves {
 	currentBalanceInWavesGo, currentBalanceInWavesScala := GetAvailableBalanceInWaves(suite, address)
 	actualDiffBalanceInWavesGo := Abs(initBalanceGo - currentBalanceInWavesGo)
 	actualDiffBalanceInWavesScala := Abs(initBalanceScala - currentBalanceInWavesScala)
-	return actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala
+	return NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
 }
 
-func GetActualDiffBalanceInAssets(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest, initBalanceGo, initBalanceScala int64) (int64, int64) {
+func GetActualDiffBalanceInAssets(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest,
+	initBalanceGo, initBalanceScala int64) BalanceInAsset {
 	currentBalanceInAssetGo, currentBalanceInAssetScala := GetAssetBalance(suite, address, assetId)
 	actualDiffBalanceInAssetGo := Abs(currentBalanceInAssetGo - initBalanceGo)
 	actualDiffBalanceInAssetScala := Abs(currentBalanceInAssetScala - initBalanceScala)
-	return actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala
+	return NewBalanceInAsset(actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
 }
 
 func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest) map[string]string {
