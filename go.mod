@@ -48,7 +48,7 @@ require (
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/sync v0.5.0
 	golang.org/x/sys v0.15.0
-	google.golang.org/grpc v1.60.0
+	google.golang.org/grpc v1.60.1
 	google.golang.org/protobuf v1.31.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	moul.io/zapfilter v1.7.0
