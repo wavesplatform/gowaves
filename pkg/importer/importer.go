@@ -3,6 +3,7 @@ package importer
 import (
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -27,7 +28,7 @@ const (
 )
 
 type State interface {
-	AddBlocks(blocks [][]byte) error
+	AddBlocks(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	WavesAddressesNumber() (uint64, error)
 	WavesBalance(account proto.Recipient) (uint64, error)
 	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
@@ -77,19 +78,35 @@ func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, inc
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
-func ApplyFromFile(st State, blockchainPath string, snapshotsPath string, nBlocks, startHeight uint64) error {
+func ApplyFromFile(st State, blockchainPath string, snapshotsPath string, nBlocks, startHeight uint64, isLightMode bool) error {
 	blockchain, err := os.Open(blockchainPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v", err)
 	}
-
 	defer func() {
 		if err := blockchain.Close(); err != nil {
 			zap.S().Fatalf("Failed to close blockchain file: %v", err)
 		}
 	}()
+
+	var snapshotsBody *os.File
+	readPosSnapshots := int64(0)
+	snapshotsSizeBytes := make([]byte, 4)
+	if isLightMode {
+		snapshotsBody, err = os.Open(snapshotsPath)
+		if err != nil {
+			return errors.Errorf("failed to open snapshots file: %v", err)
+		}
+		defer func() {
+			if err := snapshotsBody.Close(); err != nil {
+				zap.S().Fatalf("Failed to close snapshots file: %v", err)
+			}
+		}()
+	}
+
 	sb := make([]byte, 4)
 	var blocks [MaxBlocksBatchSize][]byte
+	var blockSnapshots [MaxBlocksBatchSize]*proto.BlockSnapshot
 	blocksIndex := 0
 	readPos := int64(0)
 	totalSize := 0
@@ -97,6 +114,28 @@ func ApplyFromFile(st State, blockchainPath string, snapshotsPath string, nBlock
 	increasingSize := true
 	maxSize := initTotalBatchSize
 	for height := uint64(1); height <= nBlocks; height++ {
+		// reading snapshots
+		if isLightMode && snapshotsBody != nil {
+			if _, err := snapshotsBody.ReadAt(snapshotsSizeBytes, readPosSnapshots); err != nil {
+				return errors.Wrapf(err, "failed to read snapshots main size byte")
+			}
+			snapshotsSize := binary.BigEndian.Uint32(snapshotsSizeBytes)
+			if snapshotsSize != 0 {
+				fmt.Println()
+				snapshotsInBlock := proto.BlockSnapshot{}
+				snapshots := make([]byte, snapshotsSize+4) // []{snapshot, size} + 4 bytes = size of all snapshots
+				if _, err := snapshotsBody.ReadAt(snapshots, readPosSnapshots); err != nil {
+					return errors.Wrapf(err, "failed to read snapshots size byte")
+				}
+				err := snapshotsInBlock.UnmarshalBinaryImport(snapshots, proto.StageNetScheme)
+				if err != nil {
+					return errors.Wrapf(err, "failed to unmarshal snapshot")
+				}
+				blockSnapshots[blocksIndex] = &snapshotsInBlock
+				readPosSnapshots += int64(snapshotsSize) + 4
+			}
+		}
+
 		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
 			return err
 		}
@@ -121,7 +160,7 @@ func ApplyFromFile(st State, blockchainPath string, snapshotsPath string, nBlock
 			continue
 		}
 		start := time.Now()
-		if err := st.AddBlocks(blocks[:blocksIndex]); err != nil {
+		if err := st.AddBlocks(blocks[:blocksIndex], blockSnapshots[:blocksIndex]); err != nil {
 			return err
 		}
 		elapsed := time.Since(start)

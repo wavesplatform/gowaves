@@ -4,6 +4,8 @@ import (
 	"bytes"
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"io/fs"
 	"math/big"
 	"os"
@@ -18,9 +20,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -260,6 +260,34 @@ func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
 	return storedAmend, nil
 }
 
+type newSnapshots struct {
+	curPos         int
+	blockSnapshots []*proto.BlockSnapshot
+}
+
+func (n *newSnapshots) setNew(blockSnapshots []*proto.BlockSnapshot) {
+	n.reset()
+	n.blockSnapshots = blockSnapshots
+}
+
+func (n *newSnapshots) next() bool {
+	n.curPos++
+	return n.curPos <= len(n.blockSnapshots)
+}
+
+func (n *newSnapshots) current() (*proto.BlockSnapshot, error) {
+	if n.curPos > len(n.blockSnapshots) || n.curPos < 1 {
+		return nil, errors.New("bad current position")
+	}
+	blockSnapshot := n.blockSnapshots[n.curPos-1]
+	return blockSnapshot, nil
+}
+
+func (n *newSnapshots) reset() {
+	n.blockSnapshots = nil
+	n.curPos = 0
+}
+
 type newBlocks struct {
 	binary    bool
 	binBlocks [][]byte
@@ -371,11 +399,12 @@ type stateManager struct {
 	// Specifies how many goroutines will be run for verification of transactions and blocks signatures.
 	verificationGoroutinesNum int
 
-	newBlocks *newBlocks
-	currentSnapshot *proto.BlockSnapshot
+	newBlocks    *newBlocks
+	newSnapshots *newSnapshots
 }
 
-func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+func newStateManager(dataDir string, amend bool, params StateParams,
+	settings *settings.BlockchainSettings) (*stateManager, error) {
 	err := validateSettings(settings)
 	if err != nil {
 		return nil, err
@@ -461,6 +490,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		atx:                       atx,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
+		newSnapshots:              &newSnapshots{curPos: 0, blockSnapshots: nil},
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -469,7 +499,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		newSnapshotApplierStorages(stor),
 	)
 	snapshotGen := newSnapshotGenerator(stor, settings.AddressSchemeCharacter)
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier, &snapshotGen)
+	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier, &snapshotGen, params.LightNodeMode)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -518,6 +548,10 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	}
 	state.checkProtobufActivation(h + 1)
 	return state, nil
+}
+
+func (s *stateManager) IsLightMode() bool {
+	return s.appender.lightNodeMode
 }
 
 func (s *stateManager) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
@@ -599,7 +633,8 @@ func (s *stateManager) addGenesisBlock() error {
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
 	blockInfoOpt := &BlockInfoOptional{block: s.genesis, genesis: true, snapshot: nil}
-	if err := s.addNewBlock(blockInfoOpt, nil, chans, 0, initSH); err != nil {
+	parentInfoOpt := &BlockInfoOptional{block: nil, genesis: true, snapshot: nil}
+	if err := s.addNewBlock(blockInfoOpt, parentInfoOpt, chans, 0, initSH); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
@@ -1101,9 +1136,9 @@ func (s *stateManager) addNewBlock(
 		parentHeader = &parentInfoOpt.block.BlockHeader
 	}
 
-	if s.appender.lightNodeMode && !parentInfoOpt.genesis {
+	if s.appender.lightNodeMode && !blockInfoOpt.genesis {
 		params := &appendSnapshotParams{
-			blockSnapshot:         *blockInfoOpt.snapshot,
+			blockSnapshot:         blockInfoOpt.snapshot,
 			chans:                 chans,
 			block:                 &parentInfoOpt.block.BlockHeader,
 			parent:                parentHeader,
@@ -1198,8 +1233,11 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 	return rs, nil
 }
 
-func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
+func (s *stateManager) AddBlocks(blockBytes [][]byte, snapshots []*proto.BlockSnapshot) error {
 	s.newBlocks.setNewBinary(blockBytes)
+	if snapshots != nil {
+		s.newSnapshots.setNew(snapshots)
+	}
 	if _, err := s.addBlocks(); err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
@@ -1524,6 +1562,11 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
+		s.newSnapshots.next()
+		currentSnapshot, err := s.newSnapshots.current()
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get current snapshot")
+		}
 		if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); err != nil {
 			return nil, err
 		}
@@ -1549,22 +1592,28 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err != nil {
 			return nil, err
 		}
-		sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get newest snapshot state hash for height %d",
-				blockchainCurHeight,
-			)
-		}
+		//sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
+		//if err != nil {
+		//	return nil, errors.Wrapf(err, "failed to get newest snapshot state hash for height %d",
+		//		blockchainCurHeight,
+		//	)
+		//}
 		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
 			return nil, err
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		blockInfo := &BlockInfoOptional{
-			block: block,
-			genesis: false,
-			snapshot: s
+			block:    block,
+			genesis:  false,
+			snapshot: currentSnapshot,
 		}
-		if addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, sh); addErr != nil {
+		lastAppliedBlockInfo := &BlockInfoOptional{
+			block:    lastAppliedBlock,
+			genesis:  false,
+			snapshot: nil,
+		}
+		sh := crypto.Digest{}
+		if addErr := s.addNewBlock(blockInfo, lastAppliedBlockInfo, chans, blockchainCurHeight, sh); addErr != nil {
 			return nil, addErr
 		}
 

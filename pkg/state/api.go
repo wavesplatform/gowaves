@@ -151,7 +151,7 @@ type StateModifier interface {
 	AddBlock(block []byte) (*proto.Block, error)
 	AddDeserializedBlock(block *proto.Block) (*proto.Block, error)
 	// AddBlocks adds batch of new blocks to state.
-	AddBlocks(blocks [][]byte) error
+	AddBlocks(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	// AddDeserializedBlocks marshals blocks to binary and calls AddBlocks.
 	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	// Rollback functionality.

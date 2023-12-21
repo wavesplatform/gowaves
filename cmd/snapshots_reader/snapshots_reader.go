@@ -29,7 +29,7 @@ func main() {
 		log.Fatalf("unable to read file: %v", err)
 	}
 
-	var nBlocks uint64 = 1834290
+	var nBlocks uint64 = 1000000
 	snapshotsSizeBytes := make([]byte, 4)
 	readPos := int64(0)
 	var blocksSnapshots []proto.BlockSnapshot
@@ -54,6 +54,7 @@ func main() {
 				return
 			}
 			blocksSnapshots = append(blocksSnapshots, snapshotsInBlock)
+			readPos += int64(snapshotsSize) + 4
 		}
 	}
 }

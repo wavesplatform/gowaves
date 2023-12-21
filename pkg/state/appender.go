@@ -163,7 +163,7 @@ type appendBlockParams struct {
 }
 
 type appendSnapshotParams struct {
-	blockSnapshot         proto.BlockSnapshot
+	blockSnapshot         *proto.BlockSnapshot
 	chans                 *verifierChans
 	block, parent         *proto.BlockHeader
 	blockchainHeight      proto.Height
@@ -882,29 +882,33 @@ func (a *txAppender) appendSnapshotsToBlock(params *appendSnapshotParams) error 
 
 	currentBlockHeight := blockInfo.Height
 
-	hasher, err := newTxSnapshotHasherDefault()
-	if err != nil {
-		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
-	}
-	defer hasher.Release()
+	//hasher, err := newTxSnapshotHasherDefault()
+	//if err != nil {
+	//	return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
+	//}
+	//defer hasher.Release()
 
 	if err != nil {
 		return errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
 			params.block.BlockID(), currentBlockHeight,
 		)
 	}
-	for i, snapshotsInTx := range params.blockSnapshot.TxSnapshots {
-		for _, atomicSnapshot := range snapshotsInTx {
-			err := atomicSnapshot.Apply(a.txHandler.tp.snapshotApplier)
-			if err != nil {
-				return errors.Wrapf(err, "failed to apply an atomic snapshot in block %s, tx number %d", params.block.BlockID(), i)
+	if params.blockSnapshot != nil {
+		for _, snapshotsInTx := range params.blockSnapshot.TxSnapshots {
+			txSnapshot := txSnapshot{
+				regular:  snapshotsInTx,
+				internal: nil,
 			}
+			err := txSnapshot.Apply(a.txHandler.tp.snapshotApplier)
+			if err != nil {
+				return err
+			}
+		}
+		if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), currentBlockHeight, *params.blockSnapshot); ssErr != nil {
+			return ssErr
 		}
 	}
 
-	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), currentBlockHeight, params.blockSnapshot); ssErr != nil {
-		return ssErr
-	}
 	return nil
 }
 
