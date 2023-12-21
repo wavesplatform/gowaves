@@ -59,6 +59,8 @@ type transactionPerformer interface {
 		*invocationResult, []balanceChanges) (txSnapshot, error)
 
 	createInitialBlockSnapshot(minerAndRewardChanges []balanceChanges) (txSnapshot, error)
+	// used for creating snapshots from failed changes
+	generateBalancesSnapshot(balanceChanges []balanceChanges) (txSnapshot, error)
 }
 
 type performerInfo struct {

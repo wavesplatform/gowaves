@@ -239,13 +239,12 @@ func (h *transactionHandler) performTx(
 			},
 		)
 	} else {
-		// TODO: generate balance atomic snapshots here for failed transactions
-		snapshot = txSnapshot{
-			regular: []proto.AtomicSnapshot{
-				&proto.TransactionStatusSnapshot{Status: proto.TransactionFailed},
-			},
-			internal: nil,
+		failedChangesSnapshots, err := h.tp.generateBalancesSnapshot(balanceChanges)
+		if err != nil {
+			return txSnapshot{}, errors.Wrap(err, "failed to create snapshots from failed changes")
 		}
+		failedChangesSnapshots.regular = append(failedChangesSnapshots.regular, &proto.TransactionStatusSnapshot{Status: proto.TransactionFailed})
+
 	}
 	if err := snapshot.Apply(h.sa, tx, validatingUTX); err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to apply transaction snapshot")

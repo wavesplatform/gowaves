@@ -77,9 +77,6 @@ func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
 		}
 	}
 
-	//LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
-	//	LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
-
 	a.txSnapshotContext = txSnapshotContext{} // reset to default
 	return nil
 }
