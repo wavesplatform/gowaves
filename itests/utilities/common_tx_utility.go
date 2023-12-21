@@ -869,3 +869,9 @@ func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) 
 	suite.T().Logf("Rollback to height: %d from height: %d", height, GetHeight(suite))
 	return GetRollbackToHeightGo(suite, height, returnTxToUtx), GetRollbackToHeightScala(suite, height, returnTxToUtx)
 }
+
+func SkipLongTest(t *testing.T) {
+	if testing.Short() {
+		t.Skip("skipping tests in short mode")
+	}
+}
