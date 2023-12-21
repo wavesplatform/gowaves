@@ -55,6 +55,10 @@ func main() {
 			}
 			blocksSnapshots = append(blocksSnapshots, snapshotsInBlock)
 			readPos += int64(snapshotsSize) + 4
+
+			if height == 63397 || height == 63398 {
+				fmt.Println("here")
+			}
 		}
 	}
 }
