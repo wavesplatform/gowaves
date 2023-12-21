@@ -182,6 +182,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		pe.AskBlockSnapshot(block.BlockID())
 		return a, tasks.Tasks(tasks.NewSnapshotTimeoutTask(time.Minute, block.BlockID(), tasks.BlockSnapshot)), nil
 	}
+	_, err = a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block}, nil)
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
@@ -248,7 +249,6 @@ func (a *NGState) MinedBlock(
 
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
-
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)

@@ -610,8 +610,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
 		return txSnapshot{}, err
 	}
-	// TODO: a temporary dummy for linters
-	_ = snapshot
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
 		if err = a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID); err != nil {
