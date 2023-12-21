@@ -200,8 +200,11 @@ func (sg *snapshotGenerator) generateSnapshotForExchangeTx(sellOrder proto.Order
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease *leasing, leaseID crypto.Digest,
-	originalTxID *crypto.Digest, balanceChanges txDiff) (txSnapshot, error) {
+func (sg *snapshotGenerator) generateSnapshotForLeaseTx(
+	lease *leasing,
+	leaseID crypto.Digest,
+	balanceChanges txDiff,
+) (txSnapshot, error) {
 	var err error
 	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
 	if err != nil {
@@ -217,7 +220,7 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease *leasing, leaseID 
 	leaseStatusActiveSnapshot := &InternalNewLeaseInfoSnapshot{
 		LeaseID:             leaseID,
 		OriginHeight:        lease.OriginHeight,
-		OriginTransactionID: originalTxID,
+		OriginTransactionID: lease.OriginTransactionID,
 	}
 	snapshot.regular = append(snapshot.regular, leaseStatusSnapshot)
 	snapshot.internal = append(snapshot.internal, leaseStatusActiveSnapshot)
@@ -227,7 +230,7 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseTx(lease *leasing, leaseID 
 func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(
 	txID *crypto.Digest,
 	leaseID crypto.Digest,
-	cancelHeight uint64,
+	cancelHeight proto.Height,
 	balanceChanges txDiff,
 ) (txSnapshot, error) {
 	var err error

@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"math/big"
+	"strconv"
+	"strings"
 	"testing"
 	"time"
 
@@ -15,8 +18,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 var (
@@ -763,8 +769,123 @@ func TestBlockInfoByHeight(t *testing.T) {
 	}
 }
 
+func getPtr[T any](t T) *T { return &t }
+
 func TestTransferByID(t *testing.T) {
-	t.SkipNow()
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	txID, err := crypto.NewDigestFromBase58("GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9")
+	require.NoError(t, err)
+	assetID := txID
+	stubEthPK := new(proto.EthereumPublicKey)
+	ethTo := getPtr(proto.EthereumAddress(assetID[:proto.EthereumAddressSize]))
+
+	erc20HexData := "0xa9059cbb0000000000000000000000009a1989946ae4249aac19ac7a038d24aab03c3d8c00000000000000000000000000000000000000000000000000001cc92ad60000" //nolint:lll
+	erc20Data, err := hex.DecodeString(strings.TrimPrefix(erc20HexData, "0x"))
+	require.NoError(t, err)
+	callData, err := ethabi.NewErc20MethodsMap().ParseCallDataRide(erc20Data, true)
+	require.NoError(t, err)
+
+	rideFunctionMeta := meta.Function{
+		Name:      "call",
+		Arguments: []meta.Type{meta.String},
+	}
+	callHexData := "0x3e08c22800000000000000000000000000000000000000000000000000000000000000400000000000000000000000000000000000000000000000000000000000000080000000000000000000000000000000000000000000000000000000000000000573616664730000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000" //nolint:lll
+	invokeData, err := hex.DecodeString(strings.TrimPrefix(callHexData, "0x"))
+	require.NoError(t, err)
+	mm, err := ethabi.NewMethodsMapFromRideDAppMeta(meta.DApp{Functions: []meta.Function{rideFunctionMeta}})
+	require.NoError(t, err)
+	invokeCallData, err := mm.ParseCallDataRide(invokeData, true)
+	require.NoError(t, err)
+
+	testCases := []struct {
+		tx   proto.Transaction
+		unit bool
+	}{
+		{
+			tx:   byte_helpers.TransferWithProofs.Transaction.Clone(),
+			unit: false,
+		},
+		{
+			tx:   byte_helpers.TransferWithSig.Transaction.Clone(),
+			unit: false,
+		},
+		{
+			tx: getPtr(proto.NewEthereumTransaction(
+				&proto.EthereumLegacyTx{To: ethTo, Value: big.NewInt(100500)},
+				proto.NewEthereumTransferWavesTxKind(),
+				&txID,
+				stubEthPK,
+				0,
+			)),
+			unit: false,
+		},
+		{
+			tx: getPtr(proto.NewEthereumTransaction(
+				&proto.EthereumLegacyTx{
+					To:   ethTo,
+					Data: erc20Data,
+				},
+				proto.NewEthereumTransferAssetsErc20TxKind(
+					*callData,
+					proto.NewOptionalAsset(true, assetID),
+					ethabi.ERC20TransferArguments{Recipient: sender.address().ID(), Amount: 100500},
+				),
+				&txID,
+				stubEthPK,
+				0,
+			)),
+			unit: false,
+		},
+		{
+			tx: getPtr(proto.NewEthereumTransaction(
+				&proto.EthereumLegacyTx{
+					To:   ethTo,
+					Data: invokeData,
+				},
+				proto.NewEthereumInvokeScriptTxKind(*invokeCallData),
+				&txID,
+				stubEthPK,
+				0,
+			)),
+			unit: true,
+		},
+		{
+			tx:   byte_helpers.InvokeScriptWithProofs.Transaction.Clone(),
+			unit: true,
+		},
+	}
+
+	for i, testCase := range testCases {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 26000).
+				withBlockV5Activated().withProtobufTx().
+				withDataEntriesSizeV2().withMessageLengthV3().
+				withValidateInternalPayments().withThis(dApp1).
+				withDApp(dApp1).withSender(sender).
+				withInvocation("call").
+				withWavesBalance(dApp1, 1_00000000).withWavesBalance(sender, 1_00000000).
+				withTransaction(testCase.tx).
+				withAsset(&proto.FullAssetInfo{
+					AssetInfo: proto.AssetInfo{
+						AssetConstInfo: proto.AssetConstInfo{
+							ID: txID,
+						},
+					},
+				}).
+				withWrappedState()
+
+			txIDBytes := txID.Bytes()
+			res, tErr := transferByID(env.me, rideByteVector(txIDBytes))
+			assert.NoError(t, tErr)
+			assert.NotNil(t, res)
+			if testCase.unit {
+				assert.Equal(t, rideUnit{}, res)
+			} else {
+				assert.NotEqual(t, rideUnit{}, res)
+			}
+		})
+	}
 }
 
 func TestAddressToString(t *testing.T) {
