@@ -244,6 +244,7 @@ func (h *transactionHandler) performTx(
 			return txSnapshot{}, errors.Wrap(err, "failed to create snapshots from failed changes")
 		}
 		failedChangesSnapshots.regular = append(failedChangesSnapshots.regular, &proto.TransactionStatusSnapshot{Status: proto.TransactionFailed})
+		snapshot = failedChangesSnapshots
 
 	}
 	if err := snapshot.Apply(h.sa, tx, validatingUTX); err != nil {

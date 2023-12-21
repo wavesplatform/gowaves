@@ -594,6 +594,9 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	}
 
 	// invocationResult may be empty if it was not an Invoke Transaction
+	if params.blockInfo.Height == 389487 {
+		fmt.Println("here")
+	}
 
 	snapshot, err := a.commitTxApplication(tx, params, invocationResult, applicationRes)
 
@@ -604,6 +607,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	// Store additional data for API: transaction by address.
 	if !params.validatingUtx && a.buildApiData {
 		if err = a.saveTransactionIdByAddresses(applicationRes.changes.addresses(), txID, blockID); err != nil {
+			fmt.Println("failed at ", params.blockInfo.Height)
 			return txSnapshot{}, errs.Extend(err, "save transaction id by addresses")
 		}
 	}
@@ -755,7 +759,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			validatingUtx:                    false,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
-		//if blockInfo.Height == 389487 || blockInfo.Height == 389488 {
+		//if blockInfo.Height == 383997 {
 		//	fmt.Println("here")
 		//}
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
