@@ -377,7 +377,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 		},
 	}
 
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
@@ -877,7 +877,7 @@ func (sg *snapshotGenerator) generateSnapshotForInvokeScript(
 
 func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) (txSnapshot, error) {
 	var snapshot txSnapshot
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
@@ -997,7 +997,7 @@ func (sg *snapshotGenerator) generateOrderAtomicSnapshot(orderID []byte,
 }
 
 func (sg *snapshotGenerator) createInitialBlockSnapshot(minerAndRewardChanges []balanceChanges) (txSnapshot, error) {
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(minerAndRewardChanges, sg.scheme)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(minerAndRewardChanges, sg.scheme)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
@@ -1021,7 +1021,7 @@ func (sg *snapshotGenerator) createInitialBlockSnapshot(minerAndRewardChanges []
 
 func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges []balanceChanges) (txSnapshot, error) {
 	var snapshot txSnapshot
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := balanceDiffFromTxDiff(balanceChanges, sg.scheme)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
@@ -1063,7 +1063,7 @@ func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 	return wavesBalanceSnapshot, assetBalanceSnapshot, leaseBalanceSnapshot, nil
 }
 
-func addAssetBalanceDiffFromTxDiff(change balanceDiff, assetKey []byte, scheme proto.Scheme,
+func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(change balanceDiff, assetKey []byte, scheme proto.Scheme,
 	addrAssetBalanceDiff addressAssetBalanceDiff) error {
 	if change.balance == 0 {
 		return nil
@@ -1079,10 +1079,15 @@ func addAssetBalanceDiffFromTxDiff(change balanceDiff, assetKey []byte, scheme p
 	}
 	assetBalKey := assetBalanceDiffKey{address: address, asset: asset}
 	addrAssetBalanceDiff[assetBalKey] = change.balance
+
+	keyBytes := assetBalanceK.bytes()
+	keyStr := string(keyBytes)
+	sg.stor.balances.assetDiffRecordsLegacySH.add(change.balance, keyStr)
+
 	return nil
 }
 
-func addWavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme proto.Scheme,
+func (sg *snapshotGenerator) addWavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme proto.Scheme,
 	addrWavesBalanceDiff addressWavesBalanceDiff) error {
 	if change.balance == 0 && change.leaseOut == 0 && change.leaseIn == 0 {
 		return nil
@@ -1096,10 +1101,16 @@ func addWavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme p
 		return errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
 	}
 	addrWavesBalanceDiff[address] = change
+
+	keyBytes := wavesBalanceK.bytes()
+	keyStr := string(keyBytes)
+	sg.stor.balances.wavesDiffRecordsLegacySH.add(change.balance, keyStr)
+	sg.stor.balances.leasesDiffRecordsLegacySH.add(change.leaseIn, change.leaseOut, keyStr)
+
 	return nil
 }
 
-func balanceDiffFromTxDiff(balanceChanges []balanceChanges,
+func (sg *snapshotGenerator) balanceDiffFromTxDiff(balanceChanges []balanceChanges,
 	scheme proto.Scheme) (addressWavesBalanceDiff, addressAssetBalanceDiff, error) {
 	addrAssetBalanceDiff := make(addressAssetBalanceDiff)
 	addrWavesBalanceDiff := make(addressWavesBalanceDiff)
@@ -1109,12 +1120,12 @@ func balanceDiffFromTxDiff(balanceChanges []balanceChanges,
 			return nil, nil, errors.Errorf("more than one balance diff for the same address in the same block")
 		}
 		if len(balanceChange.key) > wavesBalanceKeySize {
-			err := addAssetBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key, scheme, addrAssetBalanceDiff)
+			err := sg.addAssetBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key, scheme, addrAssetBalanceDiff)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "failed to add asset balance from tx diff")
 			}
 		} else {
-			err := addWavesBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key, scheme, addrWavesBalanceDiff)
+			err := sg.addWavesBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key, scheme, addrWavesBalanceDiff)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "failed to add waves balance from tx diff")
 			}

@@ -362,17 +362,6 @@ func (a *txAppender) commitTxApplication(
 		)
 	}
 
-	if params.block.BlockID().String() == "33wbvguP59f3wMAnmPHFATh6u8TiKoEAiLVWjMMsZQZj25HqZFbYUwyLkWaZ9cHjUM278U4RUyWUbCpzPxPBgaMZ" {
-		fmt.Println("My snapshots")
-		for _, snap := range snapshot.regular {
-			json, err := snap.ToJson()
-			if err != nil {
-				fmt.Println(err, "failed to convert snapshot to json")
-			}
-			fmt.Println(json)
-		}
-	}
-
 	if !params.validatingUtx {
 		// TODO: snapshots for miner fee should be generated here, but not saved
 		//  They must be saved in snapshot applier
@@ -766,9 +755,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			validatingUtx:                    false,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
-		if blockInfo.Height == 63397 || blockInfo.Height == 63398 {
-			fmt.Println("here")
-		}
+		//if blockInfo.Height == 97392 || blockInfo.Height == 97393 {
+		//	fmt.Println("here")
+		//}
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
 			return errAppendTx
@@ -795,10 +784,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), currentBlockHeight, bs); ssErr != nil {
 		return ssErr
 	}
+
+	// clean up legacy state hash records with zero diffs
+	a.stor.balances.filterZeroDiffsSHOut(blockID)
 	// TODO: check snapshot hash with the block snapshot hash if it exists
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
 		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", currentBlockHeight)
 	}
+
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	return a.blockDiffer.saveCurFeeDistr(params.block)

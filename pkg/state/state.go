@@ -1555,7 +1555,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	if verifyError := chans.closeAndWait(); verifyError != nil {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
-
 	// Apply all the balance diffs accumulated from this blocks batch.
 	// This also validates diffs for negative balances.
 	// TODO validate it instead
