@@ -666,9 +666,11 @@ func calculateInitialSnapshotStateHash(
 		if len(txSnapshot) != 0 { // sanity check
 			return crypto.Digest{}, errors.New("initial block snapshot for genesis block must be empty")
 		}
-		return prevHash, nil // return initial state hash as is
+		return prevHash, nil // return prevHash state hash as initial state hash
 	}
-	// TODO: can initial txSnapshot be empty? (at least before NG activation)
+	if len(txSnapshot) == 0 {
+		return prevHash, nil // return prevHash state hash as initial state hash
+	}
 	var txID []byte // txID is necessary only for txStatus atomic snapshot; init snapshot can't have such message
 	return calculateTxSnapshotStateHash(h, txID, blockHeight, prevHash, txSnapshot)
 }
