@@ -766,6 +766,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			validatingUtx:                    false,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
+		if blockInfo.Height == 63397 || blockInfo.Height == 63398 {
+			fmt.Println("here")
+		}
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
 			return errAppendTx

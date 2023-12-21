@@ -1065,6 +1065,9 @@ func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 
 func addAssetBalanceDiffFromTxDiff(change balanceDiff, assetKey []byte, scheme proto.Scheme,
 	addrAssetBalanceDiff addressAssetBalanceDiff) error {
+	if change.balance == 0 {
+		return nil
+	}
 	assetBalanceK := &assetBalanceKey{}
 	if err := assetBalanceK.unmarshal(assetKey); err != nil {
 		return errors.Errorf("failed to unmarshal asset balance key: %v", err)
@@ -1081,6 +1084,9 @@ func addAssetBalanceDiffFromTxDiff(change balanceDiff, assetKey []byte, scheme p
 
 func addWavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme proto.Scheme,
 	addrWavesBalanceDiff addressWavesBalanceDiff) error {
+	if change.balance == 0 && change.leaseOut == 0 && change.leaseIn == 0 {
+		return nil
+	}
 	wavesBalanceK := &wavesBalanceKey{}
 	if err := wavesBalanceK.unmarshal(wavesKey); err != nil {
 		return errors.Errorf("failed to unmarshal waves balance key: %v", err)
