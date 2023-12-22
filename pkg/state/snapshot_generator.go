@@ -381,20 +381,21 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
-	// Remove the just issues snapshot from the diff, because it's not in the storage yet,
-	// so can't be processed with generateBalancesAtomicSnapshots.
-	var specialAssetSnapshot *proto.AssetBalanceSnapshot
-	for key, diffAmount := range addrAssetBalanceDiff {
-		if key.asset == proto.AssetIDFromDigest(assetID) {
-			// remove the element from the array
-			delete(addrAssetBalanceDiff, key)
-			specialAssetSnapshot = &proto.AssetBalanceSnapshot{
-				Address: key.address,
-				AssetID: assetID,
-				Balance: uint64(diffAmount),
-			}
-		}
-	}
+	// Just issued Asset IDs are not in the storage yet,
+	// so can't be processed with generateBalancesAtomicSnapshots, unless we specify full asset ids from uncertain info
+	shortAssetID := proto.AssetIDFromDigest(assetID)
+	justIssuedAssets := newJustIssuedAssetsIDs()
+	justIssuedAssets.shortIdFullIdMap[shortAssetID] = assetID
+	//for key, _ := range addrAssetBalanceDiff {
+	//	uncertainAssets := sg.stor.assets.uncertainAssetInfo
+	//	if uncertainInfo, ok := uncertainAssets[key.asset]; ok {
+	//		if !uncertainInfo.wasJustIssued {
+	//			continue
+	//		}
+	//		fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].assetInfo.tail)
+	//		justIssuedAssets.shortIdFullIdMap[key.asset] = fullAssetID
+	//	}
+	//}
 
 	var snapshot txSnapshot
 
@@ -433,7 +434,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 		snapshot.regular = append(snapshot.regular, assetScriptSnapshot)
 	}
 	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
+		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff, justIssuedAssets)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
@@ -445,9 +446,6 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 	}
 	for i := range assetBalancesSnapshot {
 		snapshot.regular = append(snapshot.regular, &assetBalancesSnapshot[i])
-	}
-	if specialAssetSnapshot != nil {
-		snapshot.regular = append(snapshot.regular, specialAssetSnapshot)
 	}
 
 	return snapshot, nil
@@ -875,30 +873,34 @@ func (sg *snapshotGenerator) generateSnapshotForInvokeScript(
 	return snapshot, nil
 }
 
+type justIssuedAssetsIDs struct {
+	shortIdFullIdMap map[proto.AssetID]crypto.Digest
+}
+
+func newJustIssuedAssetsIDs() *justIssuedAssetsIDs {
+	return &justIssuedAssetsIDs{shortIdFullIdMap: make(map[proto.AssetID]crypto.Digest)}
+}
+
 func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) (txSnapshot, error) {
 	var snapshot txSnapshot
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
-	// Remove the just issues snapshot from the diff, because it's not in the storage yet,
-	// so can't be processed with generateBalancesAtomicSnapshots.
-	var specialAssetsSnapshots []proto.AssetBalanceSnapshot
-	for key, diffAmount := range addrAssetBalanceDiff {
+	// Just issued Asset IDs are not in the storage yet,
+	// so can't be processed with generateBalancesAtomicSnapshots, unless we specify full asset ids from uncertain info
+	var justIssuedAssets *justIssuedAssetsIDs
+	for key, _ := range addrAssetBalanceDiff {
 		uncertainAssets := sg.stor.assets.uncertainAssetInfo
-		if _, ok := uncertainAssets[key.asset]; ok {
-			// remove the element from the map
-			delete(addrAssetBalanceDiff, key)
-			fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].assetInfo.tail)
-			specialAssetSnapshot := proto.AssetBalanceSnapshot{
-				Address: key.address,
-				AssetID: fullAssetID,
-				Balance: uint64(diffAmount),
+		if uncertainInfo, ok := uncertainAssets[key.asset]; ok {
+			if !uncertainInfo.wasJustIssued {
+				continue
 			}
-			specialAssetsSnapshots = append(specialAssetsSnapshots, specialAssetSnapshot)
+			fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].assetInfo.tail)
+			justIssuedAssets = newJustIssuedAssetsIDs()
+			justIssuedAssets.shortIdFullIdMap[key.asset] = fullAssetID
 		}
 	}
-
 	assetsUncertain := sg.stor.assets.uncertainAssetInfo
 	dataEntriesUncertain := sg.stor.accountsDataStor.uncertainEntries
 	assetScriptsUncertain := sg.stor.scriptsStorage.uncertainAssetScriptsCopy()
@@ -928,7 +930,7 @@ func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) 
 	snapshot.regular = append(snapshot.regular, sponsoredAssetsSnapshots...)
 
 	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
+		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff, justIssuedAssets)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
@@ -940,9 +942,6 @@ func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) 
 	}
 	for i := range assetBalancesSnapshot {
 		snapshot.regular = append(snapshot.regular, &assetBalancesSnapshot[i])
-	}
-	for i := range specialAssetsSnapshots {
-		snapshot.regular = append(snapshot.regular, &specialAssetsSnapshots[i])
 	}
 	return snapshot, nil
 }
@@ -1003,7 +1002,7 @@ func (sg *snapshotGenerator) createInitialBlockSnapshot(minerAndRewardChanges []
 	}
 	var snapshot txSnapshot
 	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
+		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff, nil)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
@@ -1026,7 +1025,7 @@ func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges []balanceCh
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
 	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff)
+		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff, nil)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
@@ -1044,7 +1043,7 @@ func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges []balanceCh
 
 func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 	addrWavesBalanceDiff addressWavesBalanceDiff,
-	addrAssetBalanceDiff addressAssetBalanceDiff) (
+	addrAssetBalanceDiff addressAssetBalanceDiff, justIssuedAssets *justIssuedAssetsIDs) (
 	[]proto.WavesBalanceSnapshot,
 	[]proto.AssetBalanceSnapshot,
 	[]proto.LeaseBalanceSnapshot, error) {
@@ -1056,7 +1055,7 @@ func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 		return wavesBalanceSnapshot, nil, leaseBalanceSnapshot, nil
 	}
 
-	assetBalanceSnapshot, err := sg.assetBalanceSnapshotFromBalanceDiff(addrAssetBalanceDiff)
+	assetBalanceSnapshot, err := sg.assetBalanceSnapshotFromBalanceDiff(addrAssetBalanceDiff, justIssuedAssets)
 	if err != nil {
 		return nil, nil, nil, errors.Wrap(err, "failed to construct asset balance snapshot")
 	}
@@ -1166,7 +1165,7 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 }
 
 func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
-	diff addressAssetBalanceDiff) ([]proto.AssetBalanceSnapshot, error) {
+	diff addressAssetBalanceDiff, justIssuedAssets *justIssuedAssetsIDs) ([]proto.AssetBalanceSnapshot, error) {
 	var assetBalances []proto.AssetBalanceSnapshot
 	// add miner address to the diff
 
@@ -1175,9 +1174,25 @@ func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
+		var tryFullAssetID crypto.Digest
 		assetInfo, err := sg.stor.assets.newestAssetInfo(key.asset)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to get newest asset info")
+			// if we can't fnd the asset info in the storage, it might be that it was just issued, so we try taking ID from
+			// uncertain info
+			if justIssuedAssets == nil {
+				return nil, errors.Wrap(err, "failed to get newest asset info even after checking just issued asset")
+			}
+			var ok bool
+			if tryFullAssetID, ok = justIssuedAssets.shortIdFullIdMap[key.asset]; !ok {
+				return nil, errors.Wrap(err, "failed to get newest asset info even after checking just issued asset")
+			}
+			newBalance := proto.AssetBalanceSnapshot{
+				Address: key.address,
+				AssetID: tryFullAssetID,
+				Balance: uint64(int64(balance) + diffAmount),
+			}
+			assetBalances = append(assetBalances, newBalance)
+			continue
 		}
 
 		newBalance := proto.AssetBalanceSnapshot{

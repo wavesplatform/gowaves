@@ -594,10 +594,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	}
 
 	// invocationResult may be empty if it was not an Invoke Transaction
-	if params.blockInfo.Height == 389487 {
-		fmt.Println("here")
-	}
-
 	snapshot, err := a.commitTxApplication(tx, params, invocationResult, applicationRes)
 
 	if err != nil {
@@ -759,9 +755,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			validatingUtx:                    false,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
-		//if blockInfo.Height == 383997 {
+		//if blockInfo.Height == 342423 {
 		//	fmt.Println("here")
 		//}
+		if blockInfo.Height == 428484 {
+			fmt.Println("here")
+		}
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
 			return errAppendTx
