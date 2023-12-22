@@ -139,6 +139,7 @@ func (cv *Validator) ValidateHeaderBeforeBlockApplying(newestHeader *proto.Block
 	if err := cv.validateMinerAccount(newestHeader, blockHeight); err != nil {
 		return errors.Wrap(err, "miner account validation failed")
 	}
+	// TODO: add consensus validation about StateHash and ChallengedHeader fields (protocol version 1.5)
 	return nil
 }
 
