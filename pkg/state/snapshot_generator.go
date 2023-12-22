@@ -386,16 +386,6 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 	shortAssetID := proto.AssetIDFromDigest(assetID)
 	justIssuedAssets := newJustIssuedAssetsIDs()
 	justIssuedAssets.shortIdFullIdMap[shortAssetID] = assetID
-	//for key, _ := range addrAssetBalanceDiff {
-	//	uncertainAssets := sg.stor.assets.uncertainAssetInfo
-	//	if uncertainInfo, ok := uncertainAssets[key.asset]; ok {
-	//		if !uncertainInfo.wasJustIssued {
-	//			continue
-	//		}
-	//		fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].assetInfo.tail)
-	//		justIssuedAssets.shortIdFullIdMap[key.asset] = fullAssetID
-	//	}
-	//}
 
 	var snapshot txSnapshot
 
@@ -890,7 +880,7 @@ func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) 
 	// Just issued Asset IDs are not in the storage yet,
 	// so can't be processed with generateBalancesAtomicSnapshots, unless we specify full asset ids from uncertain info
 	var justIssuedAssets *justIssuedAssetsIDs
-	for key, _ := range addrAssetBalanceDiff {
+	for key := range addrAssetBalanceDiff {
 		uncertainAssets := sg.stor.assets.uncertainAssetInfo
 		if uncertainInfo, ok := uncertainAssets[key.asset]; ok {
 			if !uncertainInfo.wasJustIssued {
