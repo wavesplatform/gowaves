@@ -605,7 +605,8 @@ func (s *balances) wavesBalance(addr proto.AddressID) (balanceProfile, error) {
 	return r.balanceProfile, nil
 }
 
-func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetID proto.AssetID, balance uint64, blockID proto.BlockID, keyStr string) error {
+func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetID proto.AssetID,
+	balance uint64, blockID proto.BlockID, keyStr string) error {
 	info, err := s.assets.newestAssetInfo(assetID)
 	if err != nil {
 		return err
@@ -637,15 +638,15 @@ func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, 
 		return err
 	}
 	if s.calculateHashes {
-		err := s.calculateStateHashesAssetBalance(addr, assetID, balance, blockID, keyStr)
-		if err != nil {
-			return err
+		shErr := s.calculateStateHashesAssetBalance(addr, assetID, balance, blockID, keyStr)
+		if shErr != nil {
+			return shErr
 		}
 	}
 	return s.hs.addNewEntry(assetBalance, keyBytes, recordBytes, blockID)
 }
 
-func (s *balances) filterZeroDiffsSHOut(blockID proto.BlockID) {
+func (s *balances) filterZeroWavesDiffRecords(blockID proto.BlockID) {
 	for key, diffWavesRec := range s.wavesDiffRecordsLegacySH.wavesDiffRecordsLegacySHs {
 		if diffWavesRec == 0 {
 			temporarySHRecords, ok := s.wavesHashesState[blockID]
@@ -655,7 +656,9 @@ func (s *balances) filterZeroDiffsSHOut(blockID proto.BlockID) {
 			}
 		}
 	}
+}
 
+func (s *balances) filterZeroAssetDiffRecords(blockID proto.BlockID) {
 	for key, assetDiffRec := range s.assetDiffRecordsLegacySH.assetDiffRecordsLegacySHs {
 		if assetDiffRec == 0 {
 			temporarySHRecords, ok := s.assetsHashesState[blockID]
@@ -665,7 +668,9 @@ func (s *balances) filterZeroDiffsSHOut(blockID proto.BlockID) {
 			}
 		}
 	}
+}
 
+func (s *balances) filterZeroLeasingDiffRecords(blockID proto.BlockID) {
 	for key, leaseDiffRec := range s.leasesDiffRecordsLegacySH.leaseDiffRecordsLegacySH {
 		if leaseDiffRec.leaseInDiff == 0 && leaseDiffRec.leaseOutDiff == 0 {
 			temporarySHRecords, ok := s.leaseHashesState[blockID]
@@ -675,6 +680,12 @@ func (s *balances) filterZeroDiffsSHOut(blockID proto.BlockID) {
 			}
 		}
 	}
+}
+
+func (s *balances) filterZeroDiffsSHOut(blockID proto.BlockID) {
+	s.filterZeroWavesDiffRecords(blockID)
+	s.filterZeroAssetDiffRecords(blockID)
+	s.filterZeroLeasingDiffRecords(blockID)
 
 	s.wavesDiffRecordsLegacySH.reset()
 	s.assetDiffRecordsLegacySH.reset()
@@ -750,7 +761,8 @@ func (w *leasesRecordLegacyStateHash) reset() {
 	w.leaseDiffRecordsLegacySH = make(map[string]leaseDiffRecord)
 }
 
-func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balance wavesValue, blockID proto.BlockID, keyStr string, record wavesBalanceRecord) error {
+func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balance wavesValue,
+	blockID proto.BlockID, keyStr string, record wavesBalanceRecord) error {
 	wavesAddress, err := addr.ToWavesAddress(s.scheme)
 	if err != nil {
 		return err
@@ -789,9 +801,9 @@ func (s *balances) setWavesBalance(addr proto.AddressID, balance wavesValue, blo
 		return err
 	}
 	if s.calculateHashes {
-		err := s.calculateStateHashesWavesBalance(addr, balance, blockID, keyStr, record)
-		if err != nil {
-			return err
+		shErr := s.calculateStateHashesWavesBalance(addr, balance, blockID, keyStr, record)
+		if shErr != nil {
+			return shErr
 		}
 	}
 	return s.hs.addNewEntry(wavesBalance, keyBytes, recordBytes, blockID)

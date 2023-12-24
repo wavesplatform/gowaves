@@ -352,8 +352,11 @@ func (a *txAppender) commitTxApplication(
 		applicationStatus = applicationRes.status
 	)
 
-	//balanceChanges := a.diffStor.allChanges()
 	balanceChanges := applicationRes.changes.diff.balancesChanges()
+	err = a.diffApplier.validateBalancesChanges(balanceChanges)
+	if err != nil {
+		return txSnapshot{}, err
+	}
 	a.diffStor.reset()
 	snapshot, err := a.txHandler.performTx(tx, pi, params.validatingUtx, invocationRes, applicationStatus, balanceChanges)
 	if err != nil {

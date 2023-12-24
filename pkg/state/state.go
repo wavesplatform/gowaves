@@ -603,10 +603,11 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 
-	// TODO validate it instead
-	//if err := s.appender.applyAllDiffs(); err != nil {
-	//	return err
-	//}
+	err := s.appender.diffApplier.validateBalancesChanges(s.appender.diffStor.allChanges())
+	if err != nil {
+		return err
+	}
+
 	if err := s.stor.prepareHashes(); err != nil {
 		return err
 	}
@@ -1371,8 +1372,6 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 	// Move balance diffs from diffStorage to historyStorage.
 	// It must be done before lease cancellation, because
 	// lease cancellation iterates through historyStorage.
-	fmt.Println("CANCELING LEASES")
-	fmt.Println("height is ", height)
 	if err := s.appender.moveChangesToHistoryStorage(); err != nil {
 		return err
 	}
@@ -1555,12 +1554,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	if verifyError := chans.closeAndWait(); verifyError != nil {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
-	// Apply all the balance diffs accumulated from this blocks batch.
-	// This also validates diffs for negative balances.
-	// TODO validate it instead
-	//if err := s.appender.applyAllDiffs(); err != nil {
-	//	return nil, err
-	//}
 
 	// Retrieve and store legacy state hashes for each of new blocks.
 	if shErr := s.stor.handleLegacyStateHashes(height, ids); shErr != nil {

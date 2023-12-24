@@ -52,11 +52,9 @@ func (s *stateForHashes) remove(key string) {
 	pos, ok := s.pos[key]
 	if !ok {
 		return
-	} else {
-		s.data = append(s.data[:pos], s.data[pos+1:]...) // removing the element at `pos` position
-		delete(s.pos, key)
 	}
-
+	s.data = append(s.data[:pos], s.data[pos+1:]...) // removing the element at `pos` position
+	delete(s.pos, key)
 	// rearrange positions of the rest of the array
 	for key, posNum := range s.pos {
 		if posNum > pos {
