@@ -1569,6 +1569,17 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		ids = append(ids, block.BlockID())
 		lastAppliedBlock = block
 	}
+	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
+	// wait for all verifier goroutines
+	if verifyError := chans.closeAndWait(); verifyError != nil {
+		return nil, wrapErr(ValidationError, verifyError)
+	}
+
+	// Apply all the balance diffs accumulated from this blocks batch.
+	// This also validates diffs for negative balances.
+	if err := s.appender.applyAllDiffs(); err != nil {
+		return nil, err
+	}
 
 	// Retrieve and store legacy state hashes for each of new blocks.
 	if shErr := s.stor.handleLegacyStateHashes(height, ids); shErr != nil {
