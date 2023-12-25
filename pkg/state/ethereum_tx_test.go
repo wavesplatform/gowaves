@@ -78,7 +78,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 		newBlockSnapshotsApplierInfo(
 			params.checkerInfo,
 			blockchainSettings.AddressSchemeCharacter,
-			params.stateActionsCounterInBlock,
+			new(proto.StateActionsCounter),
 		),
 		newSnapshotApplierStorages(stor.entities),
 	)

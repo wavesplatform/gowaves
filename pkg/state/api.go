@@ -120,7 +120,8 @@ type StateInfo interface {
 	ProvidesStateHashes() (bool, error)
 
 	// State hashes.
-	StateHashAtHeight(height uint64) (*proto.StateHash, error)
+	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
+	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)

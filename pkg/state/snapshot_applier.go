@@ -120,7 +120,7 @@ func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
 }
 
 func (s blockSnapshotsApplierInfo) BlockchainHeight() proto.Height {
-	return s.ci.height
+	return s.ci.blockchainHeight
 }
 
 func (s blockSnapshotsApplierInfo) CurrentBlockHeight() proto.Height {
@@ -195,7 +195,7 @@ func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) e
 			issuer:               snapshot.IssuerPublicKey,
 			decimals:             snapshot.Decimals,
 			issueHeight:          height,
-			issueSequenceInBlock: a.info.stateActionsCounter.NextIssueActionNumber(),
+			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{},
 	}
@@ -316,7 +316,7 @@ func (a *blockSnapshotsApplier) ApplyCancelledLease(snapshot proto.CancelledLeas
 }
 
 func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatusSnapshot) error {
-	return nil // no-op
+	return nil // TODO: tx MUST be saved here
 }
 
 func (a *blockSnapshotsApplier) ApplyDAppComplexity(snapshot InternalDAppComplexitySnapshot) error {

@@ -29,7 +29,7 @@ type checkerInfo struct {
 	parentTimestamp         uint64
 	blockID                 proto.BlockID
 	blockVersion            proto.BlockVersion
-	height                  uint64
+	blockchainHeight        proto.Height
 	rideV5Activated         bool
 	rideV6Activated         bool
 	blockRewardDistribution bool
@@ -343,7 +343,7 @@ func (tc *transactionChecker) checkGenesis(transaction proto.Transaction, info *
 	if info.blockID != tc.genesis {
 		return out, errors.New("genesis transaction inside of non-genesis block")
 	}
-	if info.height != 0 {
+	if info.blockchainHeight != 0 {
 		return out, errors.New("genesis transaction on non zero height")
 	}
 	assets := &txAssets{feeAsset: proto.NewOptionalAssetWaves()}
@@ -358,7 +358,7 @@ func (tc *transactionChecker) checkPayment(transaction proto.Transaction, info *
 	if !ok {
 		return out, errors.New("failed to convert interface to Payment transaction")
 	}
-	if info.height >= tc.settings.BlockVersion3AfterHeight {
+	if info.blockchainHeight >= tc.settings.BlockVersion3AfterHeight {
 		return out, errors.Errorf("Payment transaction is deprecated after height %d", tc.settings.BlockVersion3AfterHeight)
 	}
 	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
@@ -471,7 +471,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 
 		paymentAssets := make([]proto.OptionalAsset, 0, len(abiPayments))
 		for _, p := range abiPayments {
-			if p.Amount <= 0 && info.height > tc.settings.InvokeNoZeroPaymentsAfterHeight {
+			if p.Amount <= 0 && info.blockchainHeight > tc.settings.InvokeNoZeroPaymentsAfterHeight {
 				return out, errors.Errorf("invalid payment amount '%d'", p.Amount)
 			}
 			optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
@@ -1518,7 +1518,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 		return out, errs.Extend(err, "failed to retrieve last update height")
 	}
 	updateAllowedAt := lastUpdateHeight + tc.settings.MinUpdateAssetInfoInterval
-	blockHeight := info.height + 1
+	blockHeight := info.blockchainHeight + 1
 	if blockHeight < updateAllowedAt {
 		return out, errs.NewAssetUpdateInterval(fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight))
 	}

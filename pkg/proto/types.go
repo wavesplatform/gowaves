@@ -63,7 +63,9 @@ const (
 	MaxAssetScriptActionsV3                  = 30
 	base64EncodingSizeLimit                  = 1024
 	base64EncodingPrefix                     = "base64:"
+	uint16Size                               = 2
 	uint32Size                               = 4
+	uint64Size                               = 8
 )
 
 type Timestamp = uint64
@@ -2241,6 +2243,9 @@ type DataEntry interface {
 	MarshalValue() ([]byte, error)
 	UnmarshalValue([]byte) error
 
+	MarshaledValueSize() int
+	WriteValueTo(w io.Writer) error
+
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
 	Valid(forbidEmptyKey, utf16KeyLen bool) error
@@ -2328,14 +2333,30 @@ func (e IntegerDataEntry) PayloadSize() int {
 	return len(e.Key) + 8 // 8 == sizeof(int64)
 }
 
+func (e *IntegerDataEntry) MarshaledValueSize() int {
+	return 1 + uint64Size
+}
+
 // MarshalValue marshals the integer data entry value in its bytes representation.
 func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+8)
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataInteger)
 	pos++
 	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
 	return buf, nil
+}
+
+func (e *IntegerDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataInteger)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataInteger)
+	}
+	var value [uint64Size]byte
+	binary.BigEndian.PutUint64(value[:], uint64(e.Value))
+	if _, err := w.Write(value[:]); err != nil {
+		return errors.Wrap(err, "failed to write integer data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads binary representation of integer data entry value to the structure.
@@ -2459,14 +2480,28 @@ func (e BooleanDataEntry) PayloadSize() int {
 	return len(e.Key) + 1 // 1 == sizeof(bool)
 }
 
+func (e *BooleanDataEntry) MarshaledValueSize() int {
+	return 1 + 1
+}
+
 // MarshalValue writes a byte representation of the boolean data entry value.
 func (e BooleanDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+1)
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataBoolean)
 	pos++
 	PutBool(buf[pos:], e.Value)
 	return buf, nil
+}
+
+func (e *BooleanDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataBoolean)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataBoolean)
+	}
+	if err := WriteBool(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write boolean data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads a byte representation of the data entry value.
@@ -2597,16 +2632,30 @@ func (e BinaryDataEntry) PayloadSize() int {
 	return len(e.Key) + len(e.Value)
 }
 
+func (e *BinaryDataEntry) MarshaledValueSize() int {
+	return 1 + 2 + len(e.Value)
+}
+
 // MarshalValue writes an entry value to its byte representation.
 func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
 	pos := 0
-	buf := make([]byte, 1+2+len(e.Value))
+	buf := make([]byte, e.MarshaledValueSize())
 	buf[pos] = byte(DataBinary)
 	pos++
 	if err := PutBytesWithUInt16Len(buf[pos:], e.Value); err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BinaryDataEntry value")
 	}
 	return buf, nil
+}
+
+func (e *BinaryDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataBinary)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataBinary)
+	}
+	if err := WriteBytesWithUInt16Len(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write binary data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads an entry value from a binary representation.
@@ -2737,14 +2786,28 @@ func (e StringDataEntry) PayloadSize() int {
 	return len(e.Key) + len(e.Value)
 }
 
+func (e *StringDataEntry) MarshaledValueSize() int {
+	return 1 + 2 + len(e.Value)
+}
+
 // MarshalValue converts the data entry value to its byte representation.
 func (e StringDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+2+len(e.Value))
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataString)
 	pos++
 	PutStringWithUInt16Len(buf[pos:], e.Value)
 	return buf, nil
+}
+
+func (e *StringDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataString)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataString)
+	}
+	if err := WriteStringWithUInt16Len(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write string data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads StringDataEntry value from bytes.
@@ -2871,9 +2934,20 @@ func (e DeleteDataEntry) PayloadSize() int {
 	return 0 // this entry doesn't have any payload
 }
 
+func (e *DeleteDataEntry) MarshaledValueSize() int {
+	return 1
+}
+
 // MarshalValue converts the data entry value to its byte representation.
 func (e DeleteDataEntry) MarshalValue() ([]byte, error) {
 	return []byte{byte(DataDelete)}, nil
+}
+
+func (e *DeleteDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataDelete)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataDelete)
+	}
+	return nil
 }
 
 // UnmarshalValue checks DeleteDataEntry value type is set.

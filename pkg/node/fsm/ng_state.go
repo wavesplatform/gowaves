@@ -183,6 +183,9 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		return a, tasks.Tasks(tasks.NewSnapshotTimeoutTask(time.Minute, block.BlockID(), tasks.BlockSnapshot)), nil
 	}
 	_, err = a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block}, nil)
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
+	}
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()

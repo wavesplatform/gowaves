@@ -65,7 +65,7 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := defaultPerformerInfo(to.stateActionsCounter)
+	txPerformerInfo := defaultPerformerInfo()
 	txPerformerInfo.blockID = blockID2
 	info.blockID = blockID2 // the block from checker info is used by snapshot applier to apply a tx
 	txPerformerInfo.checkerData = checkerData
@@ -103,7 +103,7 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := defaultPerformerInfo(to.stateActionsCounter)
+	txPerformerInfo := defaultPerformerInfo()
 	txPerformerInfo.blockID = blockID2
 	info.blockID = blockID2 // the block from checker info is used by snapshot applier to apply a tx
 	txPerformerInfo.checkerData.scriptEstimation = &scriptEstimation{}

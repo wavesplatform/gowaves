@@ -117,7 +117,7 @@ func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64,
 	if err := sh.GenerateSumHash(prevHash); err != nil {
 		return nil, err
 	}
-	if err := s.stateHashes.saveStateHash(sh, height); err != nil {
+	if err := s.stateHashes.saveLegacyStateHash(sh, height); err != nil {
 		return nil, err
 	}
 	return sh, nil
@@ -145,7 +145,7 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	return nil
 }
 
-func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
+func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
 	if !s.calculateHashes {
 		return nil
 	}
@@ -156,7 +156,7 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	if err := s.prepareHashes(); err != nil {
 		return err
 	}
-	prevHash, err := s.stateHashes.stateHash(blockchainHeight)
+	prevHash, err := s.stateHashes.legacyStateHash(blockchainHeight)
 	if err != nil {
 		return err
 	}
@@ -589,9 +589,15 @@ func (s *stateManager) Map(func(State) error) error {
 func (s *stateManager) addGenesisBlock() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	initSH, shErr := crypto.FastHash(nil) // zero/initial snapshot state hash according to the specification
+	if shErr != nil {
+		return shErr
+	}
+
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	if err := s.addNewBlock(s.genesis, nil, chans, 0, nil); err != nil {
+	if err := s.addNewBlock(s.genesis, nil, chans, 0, nil, initSH); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
@@ -1062,10 +1068,11 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 func (s *stateManager) addNewBlock(
 	block, parent *proto.Block,
 	chans *verifierChans,
-	height uint64,
+	blockchainHeight uint64,
 	snapshot *proto.BlockSnapshot,
+	lastSnapshotStateHash crypto.Digest,
 ) error {
-	blockHeight := height + 1
+	blockHeight := blockchainHeight + 1
 	// Add score.
 	if err := s.stor.scores.appendBlockScore(block, blockHeight); err != nil {
 		return err
@@ -1087,12 +1094,13 @@ func (s *stateManager) addNewBlock(
 		parentHeader = &parent.BlockHeader
 	}
 	params := &appendBlockParams{
-		transactions: transactions,
-		chans:        chans,
-		block:        &block.BlockHeader,
-		parent:       parentHeader,
-		height:       height,
-		snapshot:     snapshot,
+		transactions:          transactions,
+		chans:                 chans,
+		block:                 &block.BlockHeader,
+		parent:                parentHeader,
+		blockchainHeight:      blockchainHeight,
+		lastSnapshotStateHash: lastSnapshotStateHash,
+		snapshot:              snapshot,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
@@ -1464,7 +1472,7 @@ func getSnapshotByIndIfNotNil(snapshots []*proto.BlockSnapshot, pos int) *proto.
 	return snapshots[pos]
 }
 
-func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block, error) { //nolint:gocognit
+func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block, error) { //nolint:gocognit,funlen
 	// TODO: fix lint
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1526,13 +1534,29 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		if err = chans.trySend(task); err != nil {
 			return nil, err
 		}
-		if err = s.appendHitSource(block, blockchainCurHeight); err != nil {
+		hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
+		if err != nil {
+			return nil, err
+		}
+		sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get newest snapshot state hash for height %d",
+				blockchainCurHeight,
+			)
+		}
+		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
 			return nil, err
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if err = s.addNewBlock(block, lastAppliedBlock, chans,
-			blockchainCurHeight, getSnapshotByIndIfNotNil(snapshots, pos)); err != nil {
-			return nil, err
+		if addErr := s.addNewBlock(
+			block,
+			lastAppliedBlock,
+			chans,
+			blockchainCurHeight,
+			getSnapshotByIndIfNotNil(snapshots, pos),
+			sh,
+		); addErr != nil {
+			return nil, addErr
 		}
 
 		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {
@@ -1545,8 +1569,18 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		ids = append(ids, block.BlockID())
 		lastAppliedBlock = block
 	}
-	if err = s.afterAddingNewBlocks(chans, height, headers, pos, ids); err != nil {
-		return nil, err
+
+	// Retrieve and store legacy state hashes for each of new blocks.
+	if shErr := s.stor.handleLegacyStateHashes(height, ids); shErr != nil {
+		return nil, wrapErr(ModificationError, shErr)
+	}
+	// Validate consensus (i.e. that all the new blocks were mined fairly).
+	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
+		return nil, wrapErr(ValidationError, err)
+	}
+	// After everything is validated, save all the changes to DB.
+	if err := s.flush(); err != nil {
+		return nil, wrapErr(ModificationError, err)
 	}
 	zap.S().Infof(
 		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
@@ -1556,48 +1590,6 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		lastAppliedBlock.Timestamp,
 	)
 	return lastAppliedBlock, nil
-}
-
-func (s *stateManager) appendHitSource(block *proto.Block, blockchainCurHeight proto.Height) error {
-	hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
-	if err != nil {
-		return err
-	}
-	return s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs)
-}
-
-func (s *stateManager) afterAddingNewBlocks(
-	chans *verifierChans,
-	height proto.Height,
-	headers []proto.BlockHeader,
-	pos int,
-	ids []proto.BlockID,
-) error {
-	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
-	// wait for all verifier goroutines
-	if verifyError := chans.closeAndWait(); verifyError != nil {
-		return wrapErr(ValidationError, verifyError)
-	}
-
-	// Apply all the balance diffs accumulated from this blocks batch.
-	// This also validates diffs for negative balances.
-	if err := s.appender.applyAllDiffs(); err != nil {
-		return err
-	}
-
-	// Retrieve and store state hashes for each of new blocks.
-	if err := s.stor.handleStateHashes(height, ids); err != nil {
-		return wrapErr(ModificationError, err)
-	}
-	// Validate consensus (i.e. that all the new blocks were mined fairly).
-	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
-		return wrapErr(ValidationError, err)
-	}
-	// After everything is validated, save all the changes to DB.
-	if err := s.flush(); err != nil {
-		return wrapErr(ModificationError, err)
-	}
-	return nil
 }
 
 func (s *stateManager) checkRollbackHeight(height uint64) error {
@@ -2515,7 +2507,7 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	return provides, nil
 }
 
-func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -2523,9 +2515,17 @@ func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error
 	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for state hashes"))
 	}
-	sh, err := s.stor.stateHashes.stateHash(height)
+	sh, err := s.stor.stateHashes.legacyStateHash(height)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
+	}
+	return sh, nil
+}
+
+func (s *stateManager) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
+	sh, err := s.stor.stateHashes.snapshotStateHash(height)
+	if err != nil {
+		return crypto.Digest{}, wrapErr(RetrievalError, err)
 	}
 	return sh, nil
 }
