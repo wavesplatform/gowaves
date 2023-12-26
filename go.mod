@@ -4,7 +4,7 @@ go 1.20
 
 require (
 	filippo.io/edwards25519 v1.1.0
-	github.com/beevik/ntp v1.3.0
+	github.com/beevik/ntp v1.3.1
 	github.com/btcsuite/btcd/btcec/v2 v2.3.2
 	github.com/cenkalti/backoff/v4 v4.2.1
 	github.com/cespare/xxhash/v2 v2.2.0
