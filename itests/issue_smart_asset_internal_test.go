@@ -52,10 +52,10 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.SendIssueTxAndGetBalances(
 					&suite.BaseSuite, td, v, waitForTx)
-				assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
+				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
 				errMsg := caseName + "Issue smart asset tx:" + tx.TxID.String()
 				issueSmartAssetPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
-					assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes, errMsg)
+					assetDetails.AssetInfoGo.Script.ScriptBytes, assetDetails.AssetInfoScala.Script.ScriptBytes, errMsg)
 			})
 		}
 	}
@@ -95,10 +95,10 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetSmokePositive() {
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.SendIssueTxAndGetBalances(
 				&suite.BaseSuite, td, randV, true)
-			assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
+			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
 			errMsg := caseName + "Issue smart asset tx:" + tx.TxID.String()
 			issueSmartAssetPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
-				assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes, errMsg)
+				assetDetails.AssetInfoGo.Script.ScriptBytes, assetDetails.AssetInfoScala.Script.ScriptBytes, errMsg)
 		})
 	}
 }

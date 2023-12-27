@@ -104,6 +104,11 @@ type AccountDiffBalancesSponsorshipSender struct {
 	DiffBalanceFeeAsset BalanceInAsset
 }
 
+type AssetInfo struct {
+	AssetInfoGo    *g.AssetInfoResponse
+	AssetInfoScala *g.AssetInfoResponse
+}
+
 func NewBalanceInWaves(balanceGo, balanceScala int64) BalanceInWaves {
 	return BalanceInWaves{
 		BalanceInWavesGo:    balanceGo,
@@ -543,8 +548,8 @@ func GetAssetInfoGrpcScala(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetIn
 	return suite.Clients.ScalaClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
 }
 
-func GetAssetInfoGrpc(suite *f.BaseSuite, assetId crypto.Digest) (*g.AssetInfoResponse, *g.AssetInfoResponse) {
-	return GetAssetInfoGrpcGo(suite, assetId), GetAssetInfoGrpcScala(suite, assetId)
+func GetAssetInfoGrpc(suite *f.BaseSuite, assetId crypto.Digest) AssetInfo {
+	return AssetInfo{GetAssetInfoGrpcGo(suite, assetId), GetAssetInfoGrpcScala(suite, assetId)}
 }
 
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {

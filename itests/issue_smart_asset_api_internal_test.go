@@ -55,12 +55,12 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
-				assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					issue_utilities.BroadcastIssueTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
+				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
 				errMsg := caseName + "Broadcast Issue smart asset tx:" + tx.TxID.String()
 				issueSmartAssetPositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
-					assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes, errMsg)
+					assetDetails.AssetInfoGo.Script.ScriptBytes, assetDetails.AssetInfoScala.Script.ScriptBytes, errMsg)
 			})
 		}
 	}
@@ -78,8 +78,8 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					issue_utilities.BroadcastIssueTxAndGetBalances(&suite.BaseSuite, td, v, !waitForTx)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Issue smart asset tx:" + tx.TxID.String()
 				issueSmartAssetNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
@@ -100,10 +100,10 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiSmokePositive() {
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
 				&suite.BaseSuite, td, randV, true)
-			assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
+			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
 			errMsg := caseName + "Broadcast Issue smart asset tx:" + tx.TxID.String()
 			issueSmartAssetPositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
-				assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes, errMsg)
+				assetDetails.AssetInfoGo.Script.ScriptBytes, assetDetails.AssetInfoScala.Script.ScriptBytes, errMsg)
 		})
 	}
 }
