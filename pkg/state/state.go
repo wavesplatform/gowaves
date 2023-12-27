@@ -260,6 +260,11 @@ func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
 	return storedAmend, nil
 }
 
+type newSnapshots struct {
+	curPos         int
+	blockSnapshots []*proto.BlockSnapshot
+}
+
 type newBlocks struct {
 	binary    bool
 	binBlocks [][]byte
@@ -371,7 +376,8 @@ type stateManager struct {
 	// Specifies how many goroutines will be run for verification of transactions and blocks signatures.
 	verificationGoroutinesNum int
 
-	newBlocks *newBlocks
+	newBlocks    *newBlocks
+	newSnapshots *newSnapshots
 }
 
 func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
@@ -460,6 +466,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		atx:                       atx,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
+		newSnapshots:              &newSnapshots{curPos: 0, blockSnapshots: nil},
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -1175,9 +1182,9 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block, snapshot *proto.
 	return rs, nil
 }
 
-func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
+func (s *stateManager) AddBlocks(blockBytes [][]byte, snapshots []*proto.BlockSnapshot) error {
 	s.newBlocks.setNewBinary(blockBytes)
-	if _, err := s.addBlocks(nil); err != nil {
+	if _, err := s.addBlocks(snapshots); err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}

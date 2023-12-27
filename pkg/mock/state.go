@@ -1087,17 +1087,17 @@ func (mr *MockStateModifierMockRecorder) AddBlock(block interface{}) *gomock.Cal
 }
 
 // AddBlocks mocks base method.
-func (m *MockStateModifier) AddBlocks(blocks [][]byte) error {
+func (m *MockStateModifier) AddBlocks(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddBlocks", blocks)
+	ret := m.ctrl.Call(m, "AddBlocks", blocks, snapshots)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddBlocks indicates an expected call of AddBlocks.
-func (mr *MockStateModifierMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) AddBlocks(blocks, snapshots interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddBlocks), blocks)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddBlocks), blocks, snapshots)
 }
 
 // AddDeserializedBlock mocks base method.
@@ -1345,17 +1345,17 @@ func (mr *MockStateMockRecorder) AddBlock(block interface{}) *gomock.Call {
 }
 
 // AddBlocks mocks base method.
-func (m *MockState) AddBlocks(blocks [][]byte) error {
+func (m *MockState) AddBlocks(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddBlocks", blocks)
+	ret := m.ctrl.Call(m, "AddBlocks", blocks, snapshots)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // AddBlocks indicates an expected call of AddBlocks.
-func (mr *MockStateMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) AddBlocks(blocks, snapshots interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockState)(nil).AddBlocks), blocks)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockState)(nil).AddBlocks), blocks, snapshots)
 }
 
 // AddDeserializedBlock mocks base method.

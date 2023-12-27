@@ -428,10 +428,10 @@ func (a *ThreadSafeWriteWrapper) AddDeserializedBlock(
 	return a.s.AddDeserializedBlock(block, snapshot)
 }
 
-func (a *ThreadSafeWriteWrapper) AddBlocks(blocks [][]byte) error {
+func (a *ThreadSafeWriteWrapper) AddBlocks(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
 	a.lock()
 	defer a.unlock()
-	return a.s.AddBlocks(blocks)
+	return a.s.AddBlocks(blocks, snapshots)
 }
 
 func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(

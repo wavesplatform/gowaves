@@ -3,7 +3,6 @@ package importer
 import (
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"os"
 	"path/filepath"
 	"time"
@@ -28,8 +27,7 @@ const (
 )
 
 type State interface {
-	//AddBlocks(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
-	AddBlocks(blocks [][]byte) error
+	AddBlocks(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	WavesAddressesNumber() (uint64, error)
 	WavesBalance(account proto.Recipient) (uint64, error)
 	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
@@ -122,7 +120,6 @@ func ApplyFromFile(st State, blockchainPath string, snapshotsPath string, nBlock
 			}
 			snapshotsSize := binary.BigEndian.Uint32(snapshotsSizeBytes)
 			if snapshotsSize != 0 {
-				fmt.Println()
 				snapshotsInBlock := proto.BlockSnapshot{}
 				snapshots := make([]byte, snapshotsSize+4) // []{snapshot, size} + 4 bytes = size of all snapshots
 				if _, err := snapshotsBody.ReadAt(snapshots, readPosSnapshots); err != nil {

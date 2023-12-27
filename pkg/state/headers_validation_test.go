@@ -34,7 +34,7 @@ func applyBlocks(t *testing.T, blocks []proto.Block, st State, scheme proto.Sche
 		if blocksIndex != blocksBatchSize && height != blocksNumber {
 			continue
 		}
-		if err := st.AddBlocks(blocksBatch[:blocksIndex]); err != nil {
+		if err := st.AddBlocks(blocksBatch[:blocksIndex], nil); err != nil {
 			return err
 		}
 		blocksIndex = 0
