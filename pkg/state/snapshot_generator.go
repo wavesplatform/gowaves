@@ -1068,11 +1068,8 @@ func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(change balanceDiff, a
 	}
 	assetBalKey := assetBalanceDiffKey{address: address, asset: asset}
 	addrAssetBalanceDiff[assetBalKey] = change.balance
-
-	keyBytes := assetBalanceK.bytes()
-	keyStr := string(keyBytes)
-	sg.stor.balances.assetDiffRecordsLegacySH.add(change.balance, keyStr)
-
+	// for compatibility with the legacy state hashes
+	sg.stor.balances.addAssetBalanceChangeLegacySH(address, asset, change.balance)
 	return nil
 }
 
@@ -1090,12 +1087,8 @@ func (sg *snapshotGenerator) addWavesBalanceDiffFromTxDiff(change balanceDiff, w
 		return errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
 	}
 	addrWavesBalanceDiff[address] = change
-
-	keyBytes := wavesBalanceK.bytes()
-	keyStr := string(keyBytes)
-	sg.stor.balances.wavesDiffRecordsLegacySH.add(change.balance, keyStr)
-	sg.stor.balances.leasesDiffRecordsLegacySH.add(change.leaseIn, change.leaseOut, keyStr)
-
+	// for compatibility with the legacy state hashes
+	sg.stor.balances.addWavesBalanceChangeLegacySH(address, change)
 	return nil
 }
 

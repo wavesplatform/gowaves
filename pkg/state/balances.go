@@ -213,8 +213,8 @@ func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInf
 		leaseHashesState:  make(map[proto.BlockID]*stateForHashes),
 		leaseHashes:       make(map[proto.BlockID]crypto.Digest),
 
-		wavesDiffRecordsLegacySH:  wavesDiffRecordsLegacyStateHash{wavesDiffRecordsLegacySHs: make(map[string]int64)},
-		assetDiffRecordsLegacySH:  assetDiffRecordsLegacyStateHash{assetDiffRecordsLegacySHs: make(map[string]int64)},
+		wavesDiffRecordsLegacySH:  wavesDiffRecordsLegacyStateHash{make(map[string]int64)},
+		assetDiffRecordsLegacySH:  assetDiffRecordsLegacyStateHash{make(map[string]int64)},
 		leasesDiffRecordsLegacySH: leasesRecordLegacyStateHash{make(map[string]leaseDiffRecord)},
 	}, nil
 }
@@ -241,6 +241,27 @@ func (s *balances) leaseHashAt(blockID proto.BlockID) crypto.Digest {
 		return s.emptyHash
 	}
 	return hash
+}
+
+func (s *balances) addAssetBalanceChangeLegacySH(addr proto.WavesAddress, asset proto.AssetID, balanceDiff int64) {
+	if !s.calculateHashes {
+		return
+	}
+	key := assetBalanceKey{address: addr.ID(), asset: asset}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
+	s.assetDiffRecordsLegacySH.add(balanceDiff, keyStr)
+}
+
+func (s *balances) addWavesBalanceChangeLegacySH(addr proto.WavesAddress, change balanceDiff) {
+	if !s.calculateHashes {
+		return
+	}
+	key := wavesBalanceKey{address: addr.ID()}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
+	s.wavesDiffRecordsLegacySH.add(change.balance, keyStr)
+	s.leasesDiffRecordsLegacySH.add(change.leaseIn, change.leaseOut, keyStr)
 }
 
 func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
@@ -683,6 +704,9 @@ func (s *balances) filterZeroLeasingDiffRecords(blockID proto.BlockID) {
 }
 
 func (s *balances) filterZeroDiffsSHOut(blockID proto.BlockID) {
+	if !s.calculateHashes {
+		return
+	}
 	s.filterZeroWavesDiffRecords(blockID)
 	s.filterZeroAssetDiffRecords(blockID)
 	s.filterZeroLeasingDiffRecords(blockID)
