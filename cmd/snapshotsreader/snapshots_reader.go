@@ -5,15 +5,48 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/logging"
-	"github.com/wavesplatform/gowaves/pkg/settings"
-	"log"
 	"os"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
+
+const (
+	snapshotsByteSize = 4
+)
+
+func parseSnapshots(nBlocks int, snapshotsBody *os.File, scheme proto.Scheme) []proto.BlockSnapshot {
+	snapshotsSizeBytes := make([]byte, snapshotsByteSize)
+	readPos := int64(0)
+	var blocksSnapshots []proto.BlockSnapshot
+	for height := uint64(1); height <= uint64(nBlocks); height++ {
+		if _, readBerr := snapshotsBody.ReadAt(snapshotsSizeBytes, readPos); readBerr != nil {
+			zap.S().Fatalf("failed to read the snapshots size in block %v", readBerr)
+		}
+		snapshotsSize := binary.BigEndian.Uint32(snapshotsSizeBytes)
+		if snapshotsSize == 0 {
+			readPos += snapshotsByteSize
+			continue
+		}
+		if snapshotsSize != 0 {
+			snapshotsInBlock := proto.BlockSnapshot{}
+			snapshots := make([]byte, snapshotsSize+snapshotsByteSize) // []{snapshot, size} + 4 bytes = size of all snapshots
+			if _, readRrr := snapshotsBody.ReadAt(snapshots, readPos); readRrr != nil {
+				zap.S().Fatalf("failed to read the snapshots in block %v", readRrr)
+			}
+			unmrshlErr := snapshotsInBlock.UnmarshalBinaryImport(snapshots, scheme)
+			if unmrshlErr != nil {
+				zap.S().Fatalf("failed to unmarshal snapshots in block %v", unmrshlErr)
+			}
+			blocksSnapshots = append(blocksSnapshots, snapshotsInBlock)
+			readPos += int64(snapshotsSize) + snapshotsByteSize
+		}
+	}
+	return blocksSnapshots
+}
 
 func main() {
 	const (
@@ -49,32 +82,7 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("failed to open snapshots file, %v", err)
 	}
+	blocksSnapshots := parseSnapshots(*nBlocks, snapshotsBody, ss.AddressSchemeCharacter)
 
-	snapshotsSizeBytes := make([]byte, 4)
-	readPos := int64(0)
-	var blocksSnapshots []proto.BlockSnapshot
-	for height := uint64(1); height <= uint64(*nBlocks); height++ {
-		if _, err := snapshotsBody.ReadAt(snapshotsSizeBytes, readPos); err != nil {
-			log.Fatal(err)
-		}
-		snapshotsSize := binary.BigEndian.Uint32(snapshotsSizeBytes)
-		if snapshotsSize == 0 {
-			readPos += 4
-			continue
-		}
-		if snapshotsSize != 0 {
-			fmt.Println()
-			snapshotsInBlock := proto.BlockSnapshot{}
-			snapshots := make([]byte, snapshotsSize+4) // []{snapshot, size} + 4 bytes = size of all snapshots
-			if _, err := snapshotsBody.ReadAt(snapshots, readPos); err != nil {
-				log.Fatal(err)
-			}
-			err := snapshotsInBlock.UnmarshalBinaryImport(snapshots, ss.AddressSchemeCharacter)
-			if err != nil {
-				return
-			}
-			blocksSnapshots = append(blocksSnapshots, snapshotsInBlock)
-			readPos += int64(snapshotsSize) + 4
-		}
-	}
+	zap.S().Info(blocksSnapshots[0])
 }
