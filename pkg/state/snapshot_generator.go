@@ -1142,33 +1142,30 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 }
 
 func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
-	diff addressAssetBalanceDiff, justIssuedAssets justIssuedAssetsIDsToTails) ([]proto.AssetBalanceSnapshot, error) {
-	var assetBalances []proto.AssetBalanceSnapshot
+	diff addressAssetBalanceDiff,
+	justIssuedAssets justIssuedAssetsIDsToTails,
+) ([]proto.AssetBalanceSnapshot, error) {
+	assetBalances := make([]proto.AssetBalanceSnapshot, 0, len(diff))
 	// add miner address to the diff
 
 	for key, diffAmount := range diff {
-		balance, err := sg.stor.balances.newestAssetBalance(key.address.ID(), key.asset)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
+		balance, balErr := sg.stor.balances.newestAssetBalance(key.address.ID(), key.asset)
+		if balErr != nil {
+			return nil, errors.Wrapf(balErr, "failed to receive sender's %q waves balance", key.address.String())
 		}
-		assetInfo, err := sg.stor.assets.newestAssetInfo(key.asset)
-		if err != nil {
-			assetIDTail, ok := justIssuedAssets[key.asset]
-			if !ok {
-				return nil, errors.Wrap(err, "failed to get newest asset info even after checking just issued asset")
+		assetIDTail, ok := justIssuedAssets[key.asset]
+		if !ok { // asset is not just issued, looking in the storage
+			constInfo, err := sg.stor.assets.newestConstInfo(key.asset)
+			if err != nil {
+				return nil, errors.Wrapf(err, "failed to get newest asset info for short assetID %q",
+					key.asset.String(),
+				)
 			}
-			newBalance := proto.AssetBalanceSnapshot{
-				Address: key.address,
-				AssetID: key.asset.Digest(assetIDTail),
-				Balance: uint64(int64(balance) + diffAmount),
-			}
-			assetBalances = append(assetBalances, newBalance)
-			continue
+			assetIDTail = constInfo.tail
 		}
-
 		newBalance := proto.AssetBalanceSnapshot{
 			Address: key.address,
-			AssetID: key.asset.Digest(assetInfo.tail),
+			AssetID: key.asset.Digest(assetIDTail),
 			Balance: uint64(int64(balance) + diffAmount),
 		}
 		assetBalances = append(assetBalances, newBalance)
