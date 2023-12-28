@@ -168,7 +168,7 @@ func (ac *assetRecordForHashes) writeTo(w io.Writer) error {
 
 type assetInfoGetter interface {
 	assetInfo(assetID proto.AssetID) (*assetInfo, error)
-	newestAssetInfo(assetID proto.AssetID) (*assetInfo, error)
+	newestConstInfo(assetID proto.AssetID) (*assetConstInfo, error)
 }
 
 type balances struct {
@@ -628,7 +628,7 @@ func (s *balances) wavesBalance(addr proto.AddressID) (balanceProfile, error) {
 
 func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetID proto.AssetID,
 	balance uint64, blockID proto.BlockID, keyStr string) error {
-	info, err := s.assets.newestAssetInfo(assetID)
+	info, err := s.assets.newestConstInfo(assetID)
 	if err != nil {
 		return err
 	}
