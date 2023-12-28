@@ -699,7 +699,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err
 	}
-	// TODO validate before reset
+	err = a.diffApplier.validateBalancesChanges(minerAndRewardDiff.balancesChanges())
+	if err != nil {
+		return errors.Wrap(err, "failed to validate miner reward changes")
+	}
 	a.diffStor.reset()
 
 	err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)

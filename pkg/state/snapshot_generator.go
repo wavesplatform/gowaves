@@ -1089,22 +1089,26 @@ func (sg *snapshotGenerator) balanceDiffFromTxDiff(balanceChanges []balanceChang
 	addrAssetBalanceDiff := make(addressAssetBalanceDiff)
 	addrWavesBalanceDiff := make(addressWavesBalanceDiff)
 	for _, balanceChange := range balanceChanges {
-		// TODO check this place
 		if len(balanceChange.balanceDiffs) > 1 {
 			return nil, nil, errors.Errorf("more than one balance diff for the same address in the same block")
 		}
-		if len(balanceChange.key) > wavesBalanceKeySize {
-			err := sg.addAssetBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key,
-				scheme, addrAssetBalanceDiff)
-			if err != nil {
-				return nil, nil, errors.Wrap(err, "failed to add asset balance from tx diff")
-			}
-		} else {
+		switch len(balanceChange.key) {
+		case wavesBalanceKeySize:
 			err := sg.addWavesBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key,
 				scheme, addrWavesBalanceDiff)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "failed to add waves balance from tx diff")
 			}
+		case assetBalanceKeySize:
+			err := sg.addAssetBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key,
+				scheme, addrAssetBalanceDiff)
+			if err != nil {
+				return nil, nil, errors.Wrap(err, "failed to add asset balance from tx diff")
+			}
+		default:
+			return nil, nil,
+				errors.Errorf("wrong key size to calculate balance diff from tx diff, key size is %d",
+					len(balanceChange.key))
 		}
 	}
 	return addrWavesBalanceDiff, addrAssetBalanceDiff, nil
