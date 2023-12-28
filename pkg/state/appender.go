@@ -693,6 +693,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
 	}
+	defer hasher.Release()
+
 	// Save miner diff first (for validation)
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err
@@ -704,8 +706,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to apply an initial snapshot")
 	}
-
-	defer hasher.Release()
 
 	// get initial snapshot hash for block
 	stateHash, err := calculateInitialSnapshotStateHash(
