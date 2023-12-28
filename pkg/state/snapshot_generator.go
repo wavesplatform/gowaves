@@ -383,9 +383,9 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 	}
 	// Just issued Asset IDs are not in the storage yet,
 	// so can't be processed with generateBalancesAtomicSnapshots, unless we specify full asset ids from uncertain info
-	shortAssetID := proto.AssetIDFromDigest(assetID)
-	justIssuedAssets := newJustIssuedAssetsIDs()
-	justIssuedAssets.shortIDFullIDMap[shortAssetID] = assetID
+	justIssuedAssets := justIssuedAssetsIDsToTails{
+		proto.AssetIDFromDigest(assetID): proto.DigestTail(assetID),
+	}
 
 	var snapshot txSnapshot
 
@@ -863,13 +863,7 @@ func (sg *snapshotGenerator) generateSnapshotForInvokeScript(
 	return snapshot, nil
 }
 
-type justIssuedAssetsIDs struct {
-	shortIDFullIDMap map[proto.AssetID]crypto.Digest
-}
-
-func newJustIssuedAssetsIDs() *justIssuedAssetsIDs {
-	return &justIssuedAssetsIDs{shortIDFullIDMap: make(map[proto.AssetID]crypto.Digest)}
-}
+type justIssuedAssetsIDsToTails map[proto.AssetID][proto.AssetIDTailSize]byte // asset id -> asset id tail
 
 func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) (txSnapshot, error) {
 	var snapshot txSnapshot
@@ -879,16 +873,14 @@ func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) 
 	}
 	// Just issued Asset IDs are not in the storage yet,
 	// so can't be processed with generateBalancesAtomicSnapshots, unless we specify full asset ids from uncertain info
-	var justIssuedAssets *justIssuedAssetsIDs
+	justIssuedAssets := justIssuedAssetsIDsToTails{}
 	for key := range addrAssetBalanceDiff {
 		uncertainAssets := sg.stor.assets.uncertainAssetInfo
 		if uncertainInfo, ok := uncertainAssets[key.asset]; ok {
 			if !uncertainInfo.wasJustIssued {
 				continue
 			}
-			fullAssetID := proto.ReconstructDigest(key.asset, uncertainAssets[key.asset].assetInfo.tail)
-			justIssuedAssets = newJustIssuedAssetsIDs()
-			justIssuedAssets.shortIDFullIDMap[key.asset] = fullAssetID
+			justIssuedAssets[key.asset] = uncertainInfo.assetInfo.tail
 		}
 	}
 	assetsUncertain := sg.stor.assets.uncertainAssetInfo
@@ -1033,7 +1025,7 @@ func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges []balanceCh
 
 func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 	addrWavesBalanceDiff addressWavesBalanceDiff,
-	addrAssetBalanceDiff addressAssetBalanceDiff, justIssuedAssets *justIssuedAssetsIDs) (
+	addrAssetBalanceDiff addressAssetBalanceDiff, justIssuedAssets justIssuedAssetsIDsToTails) (
 	[]proto.WavesBalanceSnapshot,
 	[]proto.AssetBalanceSnapshot,
 	[]proto.LeaseBalanceSnapshot, error) {
@@ -1150,7 +1142,7 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 }
 
 func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
-	diff addressAssetBalanceDiff, justIssuedAssets *justIssuedAssetsIDs) ([]proto.AssetBalanceSnapshot, error) {
+	diff addressAssetBalanceDiff, justIssuedAssets justIssuedAssetsIDsToTails) ([]proto.AssetBalanceSnapshot, error) {
 	var assetBalances []proto.AssetBalanceSnapshot
 	// add miner address to the diff
 
@@ -1159,21 +1151,15 @@ func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
-		var tryFullAssetID crypto.Digest
 		assetInfo, err := sg.stor.assets.newestAssetInfo(key.asset)
 		if err != nil {
-			// if we can't fnd the asset info in the storage, it might be that it was just issued, so we try taking ID from
-			// uncertain info
-			if justIssuedAssets == nil {
-				return nil, errors.Wrap(err, "failed to get newest asset info even after checking just issued asset")
-			}
-			var ok bool
-			if tryFullAssetID, ok = justIssuedAssets.shortIDFullIDMap[key.asset]; !ok {
+			assetIDTail, ok := justIssuedAssets[key.asset]
+			if !ok {
 				return nil, errors.Wrap(err, "failed to get newest asset info even after checking just issued asset")
 			}
 			newBalance := proto.AssetBalanceSnapshot{
 				Address: key.address,
-				AssetID: tryFullAssetID,
+				AssetID: key.asset.Digest(assetIDTail),
 				Balance: uint64(int64(balance) + diffAmount),
 			}
 			assetBalances = append(assetBalances, newBalance)
