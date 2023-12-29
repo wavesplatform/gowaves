@@ -47,20 +47,17 @@ func burnAPINegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 }
 
 func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Burn API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := burn_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetBurnPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.BroadcastBurnTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+					&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Burn tx" + tx.TxID.String()
 				burnAPIPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
@@ -69,22 +66,19 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 }
 
 func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Burn API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := burn_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultAccountForLoanFunds, 10000000000)
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetBurnAllAssetWithMaxAvailableFee(&suite.BaseSuite, itx.TxID, n)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.BroadcastBurnTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+					&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Burn tx" + tx.TxID.String()
 				burnAPIPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
@@ -94,11 +88,10 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 
 func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	versions := burn_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
 		//get NFT
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, nft, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, nft, v, true)
 		//data for transfer
 		transferNFT := testdata.GetCommonTransferData(&suite.BaseSuite, &itx.TxID).NFT
 		tdmatrix := testdata.GetBurnNFTFromOwnerAccount(&suite.BaseSuite, itx.TxID)
@@ -106,7 +99,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				//transfer NFT from Account 2 to Account 3
-				ttx := transfer_utilities.TransferBroadcastWithTestData(&suite.BaseSuite, transferNFT, v, waitForTx)
+				ttx := transfer_utilities.TransferBroadcastWithTestData(&suite.BaseSuite, transferNFT, v, true)
 				errMsg := caseName + "Transfer tx" + ttx.TxID.String()
 
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, ttx, errMsg)
@@ -115,7 +108,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 
 				//burn NFT from Account 3
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.BroadcastBurnTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+					&suite.BaseSuite, td, v, true)
 				errMsg = caseName + "Broadcast Burn tx" + tx.TxID.String()
 				burnAPIPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
@@ -124,15 +117,12 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 }
 
 func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Burn API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := burn_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetBurnNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		//TODO (ipereiaslavskaia) For v1 of burn tx negative cases for chainID will be ignored
 		if v >= 2 {
@@ -142,7 +132,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn_utilities.BroadcastBurnTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+					&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Burn tx" + tx.TxID.String()
 				burnAPINegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)

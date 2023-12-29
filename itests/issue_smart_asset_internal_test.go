@@ -40,18 +40,15 @@ func issueSmartAssetNegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 }
 
 func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Issue Smart Asset Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveAssetScriptData(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.SendIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+					&suite.BaseSuite, td, v, true)
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
 				errMsg := caseName + "Issue smart asset tx:" + tx.TxID.String()
 				issueSmartAssetPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
@@ -62,11 +59,8 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
 }
 
 func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Issue Smart Asset Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		tdmatrix := testdata.GetNegativeAssetScriptData(&suite.BaseSuite)
@@ -74,7 +68,7 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetNegative() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.SendIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+					&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Issue smart asset tx:" + tx.TxID.String()
 				issueSmartAssetNegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,

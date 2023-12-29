@@ -44,21 +44,18 @@ func setAssetScriptAPINegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Set Asset Script API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, v, true)
 		tdmatrix := testdata.GetSetAssetScriptPositiveData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					set_asset_script_utilities.BroadcastSetAssetScriptTxAndGetBalances(
-						&suite.BaseSuite, td, v, waitForTx)
+						&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
 				setAssetScriptAPIPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
@@ -68,22 +65,19 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Set Asset Script API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, v, true)
 		tdmatrix := testdata.GetSetAssetScriptNegativeData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					set_asset_script_utilities.BroadcastSetAssetScriptTxAndGetBalances(
-						&suite.BaseSuite, td, v, !waitForTx)
+						&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
 				setAssetScriptAPINegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
@@ -96,21 +90,19 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Set Asset Script API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		asset := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, asset, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, asset, v, true)
 		name := "Set script for not scripted asset"
 		td := testdata.GetSimpleSmartAssetNegativeData(&suite.BaseSuite, itx.TxID)
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				set_asset_script_utilities.BroadcastSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, !waitForTx)
+				set_asset_script_utilities.BroadcastSetAssetScriptTxAndGetBalances(
+					&suite.BaseSuite, td, v, false)
 			txIds[name] = &tx.TxID
 			errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
 			setAssetScriptAPINegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
@@ -124,16 +116,15 @@ func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegativ
 func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiSmokePositive() {
 	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, randV, waitForTx)
+	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetSetAssetScriptPositiveData(&suite.BaseSuite, itx.TxID))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				set_asset_script_utilities.BroadcastSetAssetScriptTxAndGetBalances(
-					&suite.BaseSuite, td, randV, waitForTx)
+					&suite.BaseSuite, td, randV, true)
 			errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
 			setAssetScriptAPIPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
@@ -144,17 +135,16 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiSmokePositive() {
 func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiSmokeNegative() {
 	versions := set_asset_script_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, randV, waitForTx)
+	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetSetAssetScriptNegativeData(&suite.BaseSuite, itx.TxID))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				set_asset_script_utilities.BroadcastSetAssetScriptTxAndGetBalances(
-					&suite.BaseSuite, td, randV, !waitForTx)
+					&suite.BaseSuite, td, randV, false)
 			txIds[name] = &tx.TxID
 			errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
 			setAssetScriptAPINegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,

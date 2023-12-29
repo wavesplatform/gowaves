@@ -40,20 +40,17 @@ func sponsorshipNegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Sponsorship Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetSponsorshipPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
+					sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
 				sponsorshipPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
@@ -63,11 +60,8 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Sponsorship Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultAccountForLoanFunds, 10000000000)
@@ -80,7 +74,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
+					sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
 				sponsorshipPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
@@ -90,28 +84,27 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTx() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Sponsorship Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
-	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		sponsorship := testdata.GetSponsorshipEnabledDisabledData(&suite.BaseSuite, itx.TxID)
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			//switch on sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, sponsorship.Enabled, v, waitForTx)
+				sponsor_utilities.SendSponsorshipTxAndGetBalances(
+					&suite.BaseSuite, sponsorship.Enabled, v, true)
 			errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
 			sponsorshipPositiveChecks(suite.T(), tx, sponsorship.Enabled, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
 
 			//switch off sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset =
-				sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, sponsorship.Disabled, v, waitForTx)
+				sponsor_utilities.SendSponsorshipTxAndGetBalances(
+					&suite.BaseSuite, sponsorship.Disabled, v, true)
 			errMsg = caseName + "Sponsorship Disabled tx: " + tx.TxID.String()
 			sponsorshipPositiveChecks(suite.T(), tx, sponsorship.Disabled, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
@@ -120,23 +113,20 @@ func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTx() {
 }
 
 func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Sponsorship Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetSponsorshipNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, !waitForTx)
+					sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
 				txIds[name] = &tx.TxID
 				sponsorshipNegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
@@ -150,17 +140,16 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
 
 func (suite *SponsorshipTxSuite) Test_SponsorshipForSmartAssetNegative() {
 	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smart, v, waitForTx)
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smart, v, true)
 		td := testdata.GetSponsorshipForSmartAssetData(&suite.BaseSuite, itx.TxID).Enabled
 		name := "Check sponsorship for smart asset"
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, !waitForTx)
+				sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, false)
 			errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
 			txIds[name] = &tx.TxID
 			sponsorshipNegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
@@ -174,15 +163,14 @@ func (suite *SponsorshipTxSuite) Test_SponsorshipForSmartAssetNegative() {
 func (suite *SponsorshipTxSuite) TestSponsorshipTxSmokePositive() {
 	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, randV, waitForTx)
+	itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetSponsorshipPositiveDataMatrix(&suite.BaseSuite, itx.TxID))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, randV, waitForTx)
+				sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, randV, true)
 			errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
 			sponsorshipPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
@@ -193,16 +181,15 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxSmokePositive() {
 func (suite *SponsorshipTxSuite) TestSponsorshipTxSmokeNegative() {
 	versions := sponsor_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, randV, waitForTx)
+	itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetSponsorshipNegativeDataMatrix(&suite.BaseSuite, itx.TxID))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, randV, !waitForTx)
+				sponsor_utilities.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, randV, false)
 			errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
 			txIds[name] = &tx.TxID
 			sponsorshipNegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,

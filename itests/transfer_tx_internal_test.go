@@ -68,16 +68,13 @@ func transferBaseNegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 }
 
 func (suite *TransferTxSuite) Test_TransferTxPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Transfer Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		alias := utl.RandStringBytes(15, testdata.AliasSymbolSet)
 		alias_utilities.SetAliasToAccount(&suite.BaseSuite, v, utl.TestChainID, alias, utl.DefaultRecipientNotMiner)
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetTransferPositiveData(&suite.BaseSuite, itx.TxID, alias)
 		if v <= 2 {
 			maps.Copy(tdmatrix, testdata.GetTransferChainIDDataBinaryVersions(&suite.BaseSuite, itx.TxID))
@@ -86,7 +83,7 @@ func (suite *TransferTxSuite) Test_TransferTxPositive() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
-					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, waitForTx)
+					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, true)
 				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
 				transferPositiveChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
@@ -95,22 +92,19 @@ func (suite *TransferTxSuite) Test_TransferTxPositive() {
 }
 
 func (suite *TransferTxSuite) Test_TransferSmartAssetPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Transfer Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	saversions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
-	waitForTx := true
 	name := "Check transfer smart asset"
 	for _, v := range versions {
 		for _, sav := range saversions {
 			smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-			itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smart, sav, waitForTx)
+			itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, smart, sav, true)
 			td := testdata.GetCommonTransferData(&suite.BaseSuite, &itx.TxID).Smart
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
-					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, waitForTx)
+					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, true)
 				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
 				transferPositiveChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
@@ -119,11 +113,8 @@ func (suite *TransferTxSuite) Test_TransferSmartAssetPositive() {
 }
 
 func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Transfer Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultAccountForLoanFunds, 10000000000)
@@ -136,7 +127,7 @@ func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+					&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
 				transferPositiveChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
@@ -145,21 +136,18 @@ func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
 }
 
 func (suite *TransferTxSuite) Test_TransferTxNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Transfer Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetTransferNegativeData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+					&suite.BaseSuite, td, v, false)
 				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
 				txIds[name] = &tx.TxID
 				transferNegativeChecks(suite.T(), tx, td, diffBalances, errMsg)
@@ -171,9 +159,7 @@ func (suite *TransferTxSuite) Test_TransferTxNegative() {
 }
 
 func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Transfer Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)

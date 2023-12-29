@@ -43,18 +43,16 @@ func issueNegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
 }
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Issue API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := issue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					issue_utilities.BroadcastIssueTxAndGetBalances(
+						&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Issue tx:" + tx.TxID.String()
 				issuePositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
@@ -63,21 +61,20 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 }
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Issue API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := issue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				for j := 0; j < 2; j++ {
-					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(&suite.BaseSuite,
-						testdata.DataChangedTimestamp(&td), v, waitForTx)
+					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+						issue_utilities.BroadcastIssueTxAndGetBalances(
+							&suite.BaseSuite, testdata.DataChangedTimestamp(&td), v, true)
 					errMsg := caseName + "Broadcast Issue tx:" + tx.TxID.String()
-					issuePositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
+					issuePositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+						actualDiffBalanceInAsset, errMsg)
 				}
 			})
 		}
@@ -85,19 +82,17 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 }
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Issue API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := issue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		tdmatrix := testdata.GetNegativeDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					issue_utilities.BroadcastIssueTxAndGetBalances(
+						&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Issue tx:" + tx.TxID.String()
 				issueNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)

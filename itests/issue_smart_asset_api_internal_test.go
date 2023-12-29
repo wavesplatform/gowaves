@@ -45,18 +45,15 @@ func issueSmartAssetNegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Issue Smart Asset API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveAssetScriptData(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					issue_utilities.BroadcastIssueTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
+					issue_utilities.BroadcastIssueTxAndGetBalances(&suite.BaseSuite, td, v, true)
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
 				errMsg := caseName + "Broadcast Issue smart asset tx:" + tx.TxID.String()
 				issueSmartAssetPositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
@@ -67,11 +64,8 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Issue Smart Asset API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		tdmatrix := testdata.GetNegativeAssetScriptData(&suite.BaseSuite)
@@ -79,7 +73,7 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					issue_utilities.BroadcastIssueTxAndGetBalances(&suite.BaseSuite, td, v, !waitForTx)
+					issue_utilities.BroadcastIssueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Issue smart asset tx:" + tx.TxID.String()
 				issueSmartAssetNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,

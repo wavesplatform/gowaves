@@ -45,20 +45,17 @@ func reissueNegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Reissue API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissuePositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
+					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
 				reissuePositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
@@ -67,20 +64,17 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
-	if testing.Short() {
-		suite.T().Skip("skipping long positive Reissue API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissueMaxQuantityValue(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
+					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
 				reissuePositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
@@ -89,22 +83,19 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Reissue API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetNotReissuableTestData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				//first tx should be successful
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, waitForTx)
+					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
 				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
@@ -112,7 +103,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 				//second reissue tx should be failed because of reissuable=false
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset =
 					reissue_utilities.BroadcastReissueTxAndGetBalances(
-						&suite.BaseSuite, testdata.ReissueDataChangedTimestamp(&td), v, !waitForTx)
+						&suite.BaseSuite, testdata.ReissueDataChangedTimestamp(&td), v, false)
 				errMsg = caseName + "Broadcast Reissue tx2:" + tx.TxID.String()
 				txIds[name] = &tx.TxID
 				reissueNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
@@ -124,21 +115,18 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Reissue API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, nft, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, nft, v, true)
 		tdmatrix := testdata.GetReissueNFTData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, !waitForTx)
+					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
 				reissueNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
@@ -150,15 +138,12 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
-	if testing.Short() {
-		suite.T().Skip("skipping long negative Reissue API Tx tests in short mode")
-	}
+	utl.SkipLongTest(suite.T())
 	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		//TODO (ipereiaslavskaia) For v1 of reissue tx negative cases for chainID will be ignored
 		if v >= 2 {
@@ -168,7 +153,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, !waitForTx)
+					reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
 				reissueNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
@@ -182,15 +167,14 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiSmokePositive() {
 	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, randV, waitForTx)
+	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetReissuePositiveDataMatrix(&suite.BaseSuite, itx.TxID))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, randV, waitForTx)
+				reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, randV, true)
 			errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
 			reissuePositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 		})
@@ -200,10 +184,9 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiSmokePositive() {
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiSmokeNegative() {
 	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, randV, waitForTx)
+	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, itx.TxID))
 	//TODO (ipereiaslavskaia) For v1 of reissue tx negative cases for chainID will be ignored
 	if randV >= 2 {
@@ -214,7 +197,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiSmokeNegative() {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, randV, !waitForTx)
+				reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, randV, false)
 			txIds[name] = &tx.TxID
 			errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
 			reissueNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
@@ -227,16 +210,15 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiSmokeNegative() {
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTSmokeNegative() {
 	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
-	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, nft, randV, waitForTx)
+	itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, nft, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetReissueNFTData(&suite.BaseSuite, itx.TxID))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, randV, !waitForTx)
+				reissue_utilities.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, randV, false)
 			txIds[name] = &tx.TxID
 			errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
 			reissueNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
