@@ -161,11 +161,10 @@ func (suite *TransferTxSuite) Test_TransferTxNegative() {
 func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
 	utl.SkipLongTest(suite.T())
 	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetTransferChainIDChangedNegativeData(&suite.BaseSuite, itx.TxID)
 		if v > 2 {
 			maps.Copy(tdmatrix, testdata.GetTransferChainIDDataNegative(&suite.BaseSuite, itx.TxID))
@@ -177,7 +176,7 @@ func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
 					&suite.BaseSuite, td.Sender.Address)
 				initBalanceAssetGoSender, initBalanceAssetScalaSender := utl.GetAssetBalance(
 					&suite.BaseSuite, td.Sender.Address, td.Asset.ID)
-				tx := transfer_utilities.TransferSendWithTestData(&suite.BaseSuite, td, v, !waitForTx)
+				tx := transfer_utilities.TransferSendWithTestData(&suite.BaseSuite, td, v, false)
 				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
 				txIds[name] = &tx.TxID
 				actualDiffBalanceWavesSender := utl.GetActualDiffBalanceInWaves(&suite.BaseSuite, td.Sender.Address,
