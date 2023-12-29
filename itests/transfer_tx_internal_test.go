@@ -195,11 +195,10 @@ func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
 func (suite *TransferTxSuite) Test_TransferTxSmokePositive() {
 	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	alias := utl.RandStringBytes(15, testdata.AliasSymbolSet)
 	alias_utilities.SetAliasToAccount(&suite.BaseSuite, randV, utl.TestChainID, alias, utl.DefaultRecipientNotMiner)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, randV, waitForTx)
+	itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetTransferPositiveData(&suite.BaseSuite, itx.TxID, alias))
 	if randV <= 2 {
 		maps.Copy(tdmatrix, utl.GetRandomValueFromMap(testdata.GetTransferChainIDDataBinaryVersions(
@@ -209,7 +208,7 @@ func (suite *TransferTxSuite) Test_TransferTxSmokePositive() {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
-				&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), randV, waitForTx)
+				&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), randV, true)
 			errMsg := caseName + "Transfer tx: " + tx.TxID.String()
 			transferPositiveChecks(suite.T(), tx, td, diffBalances, errMsg)
 		})
@@ -219,16 +218,15 @@ func (suite *TransferTxSuite) Test_TransferTxSmokePositive() {
 func (suite *TransferTxSuite) Test_TransferTxSmokeNegative() {
 	versions := transfer_utilities.GetVersions(&suite.BaseSuite)
 	randV := versions[rand.Intn(len(versions))]
-	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, randV, waitForTx)
+	itx := issue_utilities.IssueSendWithTestData(&suite.BaseSuite, reissuable, randV, true)
 	tdmatrix := utl.GetRandomValueFromMap(testdata.GetTransferNegativeData(&suite.BaseSuite, itx.TxID))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, randV)
 		suite.Run(caseName, func() {
 			tx, diffBalances := transfer_utilities.SendTransferTxAndGetBalances(
-				&suite.BaseSuite, td, randV, !waitForTx)
+				&suite.BaseSuite, td, randV, false)
 			errMsg := caseName + "Transfer tx: " + tx.TxID.String()
 			txIds[name] = &tx.TxID
 			transferNegativeChecks(suite.T(), tx, td, diffBalances, errMsg)
