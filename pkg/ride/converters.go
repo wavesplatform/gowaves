@@ -1589,10 +1589,6 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
 		}
-		recipient, err = ensureRecipientAddress(env, recipient)
-		if err != nil {
-			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
-		}
 		amount, err := intProperty(obj, amountField)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
@@ -1601,16 +1597,20 @@ func convertToAction(env environment, obj rideType) (proto.ScriptAction, error) 
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
 		}
-		id, err := calcLeaseID(env, recipient, amount, nonce)
+		leaseID, err := calcLeaseID(env, recipient, amount, nonce)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
 		}
-		d, err := crypto.NewDigestFromBytes(id)
+		leaseIDDigest, err := crypto.NewDigestFromBytes(leaseID)
+		if err != nil {
+			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
+		}
+		recipient, err = ensureRecipientAddress(env, recipient)
 		if err != nil {
 			return nil, EvaluationFailure.Wrap(err, "failed to convert Lease to LeaseScriptAction")
 		}
 		return &proto.LeaseScriptAction{
-			ID:        d,
+			ID:        leaseIDDigest,
 			Recipient: recipient,
 			Amount:    int64(amount),
 			Nonce:     int64(nonce),
