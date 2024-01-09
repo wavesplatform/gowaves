@@ -24,7 +24,7 @@ func createBlockDiffer(t *testing.T) *blockDifferTestObjects {
 
 func createBlockDifferWithSettings(t *testing.T, sets *settings.BlockchainSettings) *blockDifferTestObjects {
 	stor := createStorageObjectsWithOptions(t, testStorageObjectsOptions{Amend: false, Settings: sets})
-	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets, nil, nil)
+	handler, err := newTransactionHandler(sets.Genesis.BlockID(), stor.entities, sets, nil)
 	require.NoError(t, err, "newTransactionHandler() failed")
 	blockDiffer, err := newBlockDiffer(handler, stor.entities, sets)
 	require.NoError(t, err, "newBlockDiffer() failed")

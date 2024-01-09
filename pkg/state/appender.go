@@ -62,14 +62,13 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
-	snapshotGenerator *snapshotGenerator,
 ) (*txAppender, error) {
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotGenerator, snapshotApplier)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier)
 	if err != nil {
 		return nil, err
 	}
@@ -343,55 +342,31 @@ func (a *txAppender) commitTxApplication(
 	if err = a.diffStor.saveTxDiff(applicationRes.changes.diff); err != nil {
 		return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
 	}
-	currentMinerAddress := proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK)
-
 	var (
-		snapshot txSnapshot
-		status   *proto.TransactionStatusSnapshot
-	)
-	if applicationRes.status {
-		// We only perform tx in case it has not failed.
-		pi := newPerformerInfo(
+		pi = newPerformerInfo(
 			params.checkerInfo.blockchainHeight,
 			params.checkerInfo.blockID,
-			currentMinerAddress,
+			proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK),
 			applicationRes.checkerData,
 		)
-		snapshot, err = a.txHandler.performTx(tx, pi, invocationRes, applicationRes.changes.diff)
-		if err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
-		}
-		status = &proto.TransactionStatusSnapshot{
-			Status: proto.TransactionSucceeded,
-		}
-	} else {
-		status = &proto.TransactionStatusSnapshot{
-			Status: proto.TransactionFailed,
-		}
+		diff              = applicationRes.changes.diff
+		applicationStatus = applicationRes.status
+	)
+
+	snapshot, err := a.txHandler.performTx(tx, pi, params.validatingUtx, invocationRes, applicationStatus, diff)
+	if err != nil {
+		return txSnapshot{}, wrapErr(TxCommitmentError,
+			errors.Wrapf(err, "failed to perform transaction %q", base58.Encode(txID)),
+		)
 	}
-	if params.validatingUtx {
-		// Save transaction to in-mem storage.
-		if err = a.rw.writeTransactionToMem(tx, !applicationRes.status); err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError,
-				errors.Errorf("failed to write transaction to in mem stor: %v", err),
-			)
-		}
-	} else {
+	if !params.validatingUtx {
 		// TODO: snapshots for miner fee should be generated here, but not saved
 		//  They must be saved in snapshot applier
 		// Count tx fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
 		}
-		// TODO: tx MUST be saved in snapshotApplier
-		// Save transaction to storage.
-		if err = a.rw.writeTransaction(tx, !applicationRes.status); err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError,
-				errors.Errorf("failed to write transaction to storage: %v", err),
-			)
-		}
 	}
-	snapshot.regular = append(snapshot.regular, status)
 	return snapshot, nil
 }
 
@@ -710,7 +685,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
 		stateActionsCounterInBlockValidation)
-	a.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
@@ -1063,7 +1038,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
 		issueCounterInBlock)
-	a.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true

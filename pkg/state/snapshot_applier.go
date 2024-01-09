@@ -1,6 +1,9 @@
 package state
 
 import (
+	stderrs "errors"
+
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -8,9 +11,17 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
+type txSnapshotContext struct {
+	initialized   bool
+	validatingUTX bool
+	applyingTx    proto.Transaction
+}
+
 type blockSnapshotsApplier struct {
 	info *blockSnapshotsApplierInfo
 	stor snapshotApplierStorages
+
+	txSnapshotContext txSnapshotContext
 
 	issuedAssets   []crypto.Digest
 	scriptedAssets map[crypto.Digest]struct{}
@@ -19,7 +30,12 @@ type blockSnapshotsApplier struct {
 	cancelledLeases map[crypto.Digest]struct{}
 }
 
-func (a *blockSnapshotsApplier) BeforeTxSnapshotApply() error {
+func (a *blockSnapshotsApplier) BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error {
+	a.txSnapshotContext = txSnapshotContext{
+		initialized:   true,
+		validatingUTX: validatingUTX,
+		applyingTx:    tx,
+	}
 	a.issuedAssets = []crypto.Digest{}
 	if len(a.scriptedAssets) != 0 {
 		a.scriptedAssets = make(map[crypto.Digest]struct{})
@@ -60,6 +76,7 @@ func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
 			return errors.Wrapf(err, "failed to push state hash for cancelled lease %q", cancelledLeaseID)
 		}
 	}
+	a.txSnapshotContext = txSnapshotContext{} // reset to default
 	return nil
 }
 
@@ -75,6 +92,7 @@ func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotAppl
 }
 
 type snapshotApplierStorages struct {
+	rw                *blockReadWriter
 	balances          *balances
 	aliases           *aliases
 	assets            *assets
@@ -86,8 +104,9 @@ type snapshotApplierStorages struct {
 	leases            *leases
 }
 
-func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplierStorages {
+func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWriter) snapshotApplierStorages {
 	return snapshotApplierStorages{
+		rw:                rw,
 		balances:          stor.balances,
 		aliases:           stor.aliases,
 		assets:            stor.assets,
@@ -315,8 +334,36 @@ func (a *blockSnapshotsApplier) ApplyCancelledLease(snapshot proto.CancelledLeas
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatusSnapshot) error {
-	return nil // TODO: tx MUST be saved here
+func (a *blockSnapshotsApplier) ApplyTransactionsStatus(snapshot proto.TransactionStatusSnapshot) error {
+	if !a.txSnapshotContext.initialized { // sanity check
+		return errors.New("failed to apply transaction status snapshot: transaction is not set")
+	}
+	var (
+		failed        = snapshot.Status != proto.TransactionSucceeded // TODO: handle elided tx status
+		tx            = a.txSnapshotContext.applyingTx
+		validatingUTX = a.txSnapshotContext.validatingUTX
+	)
+	var err error
+	if validatingUTX {
+		// Save transaction to in-mem storage.
+		err = a.stor.rw.writeTransactionToMem(tx, failed)
+	} else {
+		// Save transaction to in-mem storage and persistent storage.
+		err = a.stor.rw.writeTransaction(tx, failed)
+	}
+	if err != nil {
+		txID, idErr := tx.GetID(a.info.Scheme())
+		if idErr != nil {
+			return errors.Wrapf(stderrs.Join(err, idErr),
+				"failed to write transaction to storage, validatingUTX=%t", validatingUTX,
+			)
+		}
+		return errors.Wrapf(err, "failed to write transaction %q to storage, validatingUTX=%t",
+			base58.Encode(txID), validatingUTX,
+		)
+	}
+	a.txSnapshotContext = txSnapshotContext{} // reset to default because transaction status should be applied only once
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyDAppComplexity(snapshot InternalDAppComplexitySnapshot) error {
