@@ -8,10 +8,11 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	pb "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
-	pb "google.golang.org/protobuf/proto"
 )
 
 func TestScriptResultBinaryRoundTrip(t *testing.T) {
@@ -434,11 +435,27 @@ func TestGenerateLeaseScriptActionID(t *testing.T) {
 		tx        crypto.Digest
 		id        string
 	}{
-		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("3JGcEMaASHc7zcJwpkuFTU3WScKtMU6KDQ5KFr53GQhV"), "HrvHDiegqPhcoKamTeTsNUcQiFot8D1KqyBirsEuCMG9"},
-		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("45R9UJrmCmZu1HtofbHyEmaFr2r1u5xXThGmESszVuFV"), "28yGDS82NrYBC1B4XTVYbwWpJyW7JPYTX7UtVQd1Prkw"},
-		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 50000000, 0, crypto.MustDigestFromBase58("45R9UJrmCmZu1HtofbHyEmaFr2r1u5xXThGmESszVuFV"), "GmqQBZPPAHb1u7mQJ8vVp89mcaii23jAyrbDfqYiGo6U"},
-		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0, crypto.MustDigestFromBase58("FBmMUrQ5GXun9LrGtHPcJYWSkkfToMReux14iSb2zf4c"), "5PmSmWMmCGh7zjf8SgvzmrUZrEKVeNL2wK12p7Y3Rezi"},
-		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 50000000, 0, crypto.MustDigestFromBase58("FBmMUrQ5GXun9LrGtHPcJYWSkkfToMReux14iSb2zf4c"), "2EgitLRfQmYckjmi16b2h3YFLBz7yKS877tb1TQRXR6Y"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0,
+			crypto.MustDigestFromBase58("3JGcEMaASHc7zcJwpkuFTU3WScKtMU6KDQ5KFr53GQhV"),
+			"HrvHDiegqPhcoKamTeTsNUcQiFot8D1KqyBirsEuCMG9"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0,
+			crypto.MustDigestFromBase58("45R9UJrmCmZu1HtofbHyEmaFr2r1u5xXThGmESszVuFV"),
+			"28yGDS82NrYBC1B4XTVYbwWpJyW7JPYTX7UtVQd1Prkw"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 50000000, 0,
+			crypto.MustDigestFromBase58("45R9UJrmCmZu1HtofbHyEmaFr2r1u5xXThGmESszVuFV"),
+			"GmqQBZPPAHb1u7mQJ8vVp89mcaii23jAyrbDfqYiGo6U"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 100000000, 0,
+			crypto.MustDigestFromBase58("FBmMUrQ5GXun9LrGtHPcJYWSkkfToMReux14iSb2zf4c"),
+			"5PmSmWMmCGh7zjf8SgvzmrUZrEKVeNL2wK12p7Y3Rezi"},
+		{mustRecipientFromString("3Me8JF8fhugSSa2Kx4w7v2tX377sTVtKSU5"), 50000000, 0,
+			crypto.MustDigestFromBase58("FBmMUrQ5GXun9LrGtHPcJYWSkkfToMReux14iSb2zf4c"),
+			"2EgitLRfQmYckjmi16b2h3YFLBz7yKS877tb1TQRXR6Y"},
+		{mustRecipientFromString("alias:W:tradecoin_node"), 100000000, 0,
+			crypto.MustDigestFromBase58("HDXcWwLup4jpmJKRtcNFXMtdqTtorhzJPsbuPNGpsRy8"),
+			"5ic8qLskqRKY8ZdLtuBe4B9Xo5WPKKbxg46sLRvAgdyV"},
+		{mustRecipientFromString("3PJgDho14MN1ueX7D1kp2XJ3McggppfdQeT"), 100000000, 0,
+			crypto.MustDigestFromBase58("HDXcWwLup4jpmJKRtcNFXMtdqTtorhzJPsbuPNGpsRy8"),
+			"8i7yybRxkzUuavbKR9qde64B6U9Pr2x4heDJyPgTw82Y"},
 	} {
 		id := GenerateLeaseScriptActionID(test.recipient, test.amount, test.nonce, test.tx)
 		assert.Equal(t, test.id, id.String())
