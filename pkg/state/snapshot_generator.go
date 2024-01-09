@@ -1089,8 +1089,10 @@ func (sg *snapshotGenerator) balanceDiffFromTxDiff(balanceChanges []balanceChang
 	addrAssetBalanceDiff := make(addressAssetBalanceDiff)
 	addrWavesBalanceDiff := make(addressWavesBalanceDiff)
 	for _, balanceChange := range balanceChanges {
-		if len(balanceChange.balanceDiffs) > 1 {
-			return nil, nil, errors.Errorf("more than one balance diff for the same address in the same block")
+		if l := len(balanceChange.balanceDiffs); l != 1 {
+			return nil, nil, errors.Errorf(
+				"invalid balance diff count for the same address in the same block: want 1, got %d", l,
+			)
 		}
 		switch len(balanceChange.key) {
 		case wavesBalanceKeySize:
