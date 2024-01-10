@@ -648,7 +648,7 @@ func (a *txAppender) applySnapshotsInLightNode(
 		}
 
 		for _, snapshot := range txs {
-			if errApply := snapshot.Apply(a.txHandler.tp.snapshotApplier); errApply != nil {
+			if errApply := snapshot.Apply(a.txHandler.sa); errApply != nil {
 				return errors.Wrap(errApply, "failed to apply tx snapshot")
 			}
 		}
