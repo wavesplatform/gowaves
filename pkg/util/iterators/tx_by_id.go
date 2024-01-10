@@ -19,7 +19,7 @@ func NewTxByIdIterator(s state.StateInfo, ids [][]byte) *TxByIdIterator {
 	}
 }
 
-func (a *TxByIdIterator) Transaction() (proto.Transaction, bool, error) {
+func (a *TxByIdIterator) Transaction() (proto.Transaction, proto.TransactionStatus, error) {
 	return a.s.TransactionByIDWithStatus(a.ids[a.id])
 }
 

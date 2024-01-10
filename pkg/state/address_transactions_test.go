@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -83,9 +84,9 @@ func testIterImpl(t *testing.T, params StateParams) {
 	require.NoError(t, err)
 	i := 0
 	for iter.Next() {
-		tx, fs, err := iter.Transaction()
-		require.NoError(t, err)
-		assert.False(t, fs)
+		tx, status, itErr := iter.Transaction()
+		require.NoError(t, itErr)
+		assert.Equal(t, proto.TransactionSucceeded, status)
 		assert.Equal(t, validTxs[i], tx)
 		i++
 	}
@@ -126,7 +127,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	// Save the same transaction ID twice.
 	// Then make sure it was added to batchedStor only once.
-	err = stor.rw.writeTransaction(tx, false)
+	err = stor.rw.writeTransaction(tx, proto.TransactionSucceeded)
 	require.NoError(t, err)
 	stor.addBlock(t, blockID0)
 	err = atx.saveTxIdByAddress(addr, txID, blockID0)
@@ -146,7 +147,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	for iter.Next() {
 		transaction, fs, err := iter.Transaction()
 		require.NoError(t, err)
-		assert.False(t, fs)
+		assert.Equal(t, proto.TransactionSucceeded, fs)
 		assert.Equal(t, tx, transaction)
 		i++
 	}
@@ -173,7 +174,7 @@ func TestFailedTransaction(t *testing.T) {
 	txID, err := tx.GetID(proto.MainNetScheme)
 	require.NoError(t, err)
 
-	err = stor.rw.writeTransaction(tx, true)
+	err = stor.rw.writeTransaction(tx, proto.TransactionFailed)
 	require.NoError(t, err)
 	stor.addBlock(t, blockID0)
 	err = atx.saveTxIdByAddress(addr, txID, blockID0)
@@ -187,18 +188,18 @@ func TestFailedTransaction(t *testing.T) {
 	require.NoError(t, err)
 
 	// Read transaction status from main transaction storage
-	_, fs1, err := stor.rw.readTransaction(tx.ID.Bytes())
+	_, status, err := stor.rw.readTransaction(tx.ID.Bytes())
 	require.NoError(t, err)
-	assert.True(t, fs1)
+	assert.Equal(t, proto.TransactionFailed, status)
 
 	// Read transaction failure status from account's transactions storage
 	iter, err := atx.newTransactionsByAddrIterator(addr)
 	require.NoError(t, err)
 	i := 0
 	for iter.Next() {
-		transaction, fs, err := iter.Transaction()
-		require.NoError(t, err)
-		assert.True(t, fs)
+		transaction, txStatus, itErr := iter.Transaction()
+		require.NoError(t, itErr)
+		assert.Equal(t, proto.TransactionFailed, txStatus)
 		assert.Equal(t, tx, transaction)
 		i++
 	}

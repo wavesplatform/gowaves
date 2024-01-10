@@ -28,39 +28,37 @@ func (s stateComponents) Less(i, j int) bool {
 }
 
 type stateForHashes struct {
-	pos  map[string]int
-	data stateComponents
+	componentByKey map[string]stateComponent
 }
 
 func newStateForHashes() *stateForHashes {
 	return &stateForHashes{
-		pos:  make(map[string]int),
-		data: make(stateComponents, 0),
+		componentByKey: make(map[string]stateComponent),
 	}
 }
 
 func (s *stateForHashes) set(key string, c stateComponent) {
-	pos, ok := s.pos[key]
-	if !ok {
-		s.pos[key] = len(s.data)
-		s.data = append(s.data, c)
-	} else {
-		s.data[pos] = c
-	}
+	s.componentByKey[key] = c
+}
+func (s *stateForHashes) remove(key string) {
+	delete(s.componentByKey, key)
 }
 
 func (s *stateForHashes) reset() {
-	s.data = make(stateComponents, 0)
-	s.pos = make(map[string]int)
+	s.componentByKey = make(map[string]stateComponent)
 }
 
 func (s *stateForHashes) hash() (crypto.Digest, error) {
-	sort.Sort(s.data)
+	components := make(stateComponents, 0, len(s.componentByKey))
+	for _, component := range s.componentByKey {
+		components = append(components, component)
+	}
+	sort.Sort(components)
 	h, err := crypto.NewFastHash()
 	if err != nil {
 		return crypto.Digest{}, err
 	}
-	for _, c := range s.data {
+	for _, c := range components {
 		if err := c.writeTo(h); err != nil {
 			return crypto.Digest{}, err
 		}
