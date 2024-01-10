@@ -76,6 +76,7 @@ func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
 			return errors.Wrapf(err, "failed to push state hash for cancelled lease %q", cancelledLeaseID)
 		}
 	}
+
 	a.txSnapshotContext = txSnapshotContext{} // reset to default
 	return nil
 }
