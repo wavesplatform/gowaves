@@ -39,16 +39,22 @@ type handles map[proto.TransactionTypeInfo]txHandleFuncs
 
 type transactionHandler struct {
 	tc *transactionChecker
-	tp *transactionPerformer
+	tp transactionPerformer
 	td *transactionDiffer
 	tf *transactionFeeCounter
+
+	sa extendedSnapshotApplier
 
 	funcs handles
 }
 
 // TODO: see TODO on GetTypeInfo() in proto/transactions.go.
-// performer builds snapshots.
-func buildHandles(tc *transactionChecker, tp *transactionPerformer, td *transactionDiffer, tf *transactionFeeCounter) handles {
+func buildHandles( //nolint:funlen
+	tc *transactionChecker,
+	tp transactionPerformer,
+	td *transactionDiffer,
+	tf *transactionFeeCounter,
+) handles {
 	return handles{
 		proto.TransactionTypeInfo{Type: proto.GenesisTransaction, ProofVersion: proto.Signature}: txHandleFuncs{
 			tc.checkGenesis, tp.performGenesis,
@@ -165,14 +171,13 @@ func newTransactionHandler(
 	genesis proto.BlockID,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
-	snapshotGenerator *snapshotGenerator,
 	snapshotApplier extendedSnapshotApplier,
 ) (*transactionHandler, error) {
 	tc, err := newTransactionChecker(genesis, stor, settings)
 	if err != nil {
 		return nil, err
 	}
-	tp := newTransactionPerformer(stor, settings, snapshotGenerator, snapshotApplier)
+	sg := newSnapshotGenerator(stor, settings.AddressSchemeCharacter)
 	td, err := newTransactionDiffer(stor, settings)
 	if err != nil {
 		return nil, err
@@ -181,7 +186,14 @@ func newTransactionHandler(
 	if err != nil {
 		return nil, err
 	}
-	return &transactionHandler{tc: tc, tp: tp, td: td, tf: tf, funcs: buildHandles(tc, tp, td, tf)}, nil
+	return &transactionHandler{
+		tc:    tc,
+		tp:    sg,
+		td:    td,
+		tf:    tf,
+		sa:    snapshotApplier,
+		funcs: buildHandles(tc, sg, td, tf),
+	}, nil
 }
 
 func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) (txCheckerData, error) {
@@ -197,8 +209,14 @@ func (h *transactionHandler) checkTx(tx proto.Transaction, info *checkerInfo) (t
 	return funcs.check(tx, info)
 }
 
-func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo,
-	invocationRes *invocationResult, balanceChanges txDiff) (txSnapshot, error) {
+func (h *transactionHandler) performTx(
+	tx proto.Transaction,
+	info *performerInfo,
+	validatingUTX bool,
+	invocationRes *invocationResult,
+	applicationStatus bool,
+	balanceChanges txDiff,
+) (txSnapshot, error) {
 	tv := tx.GetTypeInfo()
 	funcs, ok := h.funcs[tv]
 	if !ok {
@@ -208,7 +226,31 @@ func (h *transactionHandler) performTx(tx proto.Transaction, info *performerInfo
 		// performer function must not be nil
 		return txSnapshot{}, errors.Errorf("performer function handler is nil for tx struct type %T", tx)
 	}
-	return funcs.perform(tx, info, invocationRes, balanceChanges)
+	var snapshot txSnapshot
+	if applicationStatus {
+		var err error
+		snapshot, err = funcs.perform(tx, info, invocationRes, balanceChanges)
+		if err != nil {
+			return txSnapshot{}, errors.Wrapf(err, "failed to perform and generate snapshots for tx %q", tx)
+		}
+		snapshot.regular = append(snapshot.regular,
+			&proto.TransactionStatusSnapshot{
+				Status: proto.TransactionSucceeded,
+			},
+		)
+	} else {
+		// TODO: generate balance atomic snapshots here for failed transactions
+		snapshot = txSnapshot{
+			regular: []proto.AtomicSnapshot{
+				&proto.TransactionStatusSnapshot{Status: proto.TransactionFailed},
+			},
+			internal: nil,
+		}
+	}
+	if err := snapshot.Apply(h.sa, tx, validatingUTX); err != nil {
+		return txSnapshot{}, errors.Wrap(err, "failed to apply transaction snapshot")
+	}
+	return snapshot, nil
 }
 
 func (h *transactionHandler) createDiffTx(tx proto.Transaction, info *differInfo) (txBalanceChanges, error) {
