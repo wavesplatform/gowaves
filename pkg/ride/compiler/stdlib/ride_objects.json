@@ -802,6 +802,102 @@
             }
           ],
           "set_proofs": true
+        },
+        {
+          "version": 8,
+          "fields": [
+            {
+              "name": "assetPair",
+              "type": "Type",
+              "order": 0,
+              "constructorOrder": 2
+            },
+            {
+              "name": "orderType",
+              "type": "Type",
+              "order": 9,
+              "constructorOrder": 3
+            },
+            {
+              "name": "matcherFeeAssetId",
+              "type": "ByteVector|Unit",
+              "order": 4,
+              "constructorOrder": 9
+            },
+            {
+              "name": "proofs",
+              "type": "List[ByteVector]",
+              "order": 10,
+              "constructorOrder": 13
+            },
+            {
+              "name": "bodyBytes",
+              "type": "ByteVector",
+              "order": 2,
+              "constructorOrder": 12
+            },
+            {
+              "name": "id",
+              "type": "ByteVector",
+              "order": 5,
+              "constructorOrder": 0
+            },
+            {
+              "name": "senderPublicKey",
+              "type": "ByteVector",
+              "order": 6,
+              "constructorOrder": 11
+            },
+            {
+              "name": "matcherPublicKey",
+              "type": "ByteVector",
+              "order": 7,
+              "constructorOrder": 1
+            },
+            {
+              "name": "attachment",
+              "type": "ByteVector|Unit",
+              "order": 14,
+              "constructorOrder": 14
+            },
+            {
+              "name": "amount",
+              "type": "Int",
+              "order": 3,
+              "constructorOrder": 5
+            },
+            {
+              "name": "timestamp",
+              "type": "Int",
+              "order": 1,
+              "constructorOrder": 6
+            },
+            {
+              "name": "expiration",
+              "type": "Int",
+              "order": 11,
+              "constructorOrder": 7
+            },
+            {
+              "name": "matcherFee",
+              "type": "Int",
+              "order": 12,
+              "constructorOrder": 8
+            },
+            {
+              "name": "price",
+              "type": "Int",
+              "order": 13,
+              "constructorOrder": 4
+            },
+            {
+              "name": "sender",
+              "type": "Address",
+              "order": 8,
+              "constructorOrder": 10
+            }
+          ],
+          "set_proofs": true
         }
       ]
     },
