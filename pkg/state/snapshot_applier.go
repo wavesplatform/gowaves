@@ -340,17 +340,17 @@ func (a *blockSnapshotsApplier) ApplyTransactionsStatus(snapshot proto.Transacti
 		return errors.New("failed to apply transaction status snapshot: transaction is not set")
 	}
 	var (
-		failed        = snapshot.Status != proto.TransactionSucceeded // TODO: handle elided tx status
+		status        = snapshot.Status
 		tx            = a.txSnapshotContext.applyingTx
 		validatingUTX = a.txSnapshotContext.validatingUTX
 	)
 	var err error
 	if validatingUTX {
 		// Save transaction to in-mem storage.
-		err = a.stor.rw.writeTransactionToMem(tx, failed)
+		err = a.stor.rw.writeTransactionToMem(tx, status)
 	} else {
 		// Save transaction to in-mem storage and persistent storage.
-		err = a.stor.rw.writeTransaction(tx, failed)
+		err = a.stor.rw.writeTransaction(tx, status)
 	}
 	if err != nil {
 		txID, idErr := tx.GetID(a.info.Scheme())
