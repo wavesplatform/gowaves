@@ -8,16 +8,17 @@ import (
 
 // store only inv signatures to cache non requested
 type InvRequesterImpl struct {
-	cache *fifo_cache.FIFOCache
+	cache *fifo_cache.FIFOCache[proto.BlockID, struct{}]
 }
 
 func NewInvRequester() *InvRequesterImpl {
+	const invRequestsCacheSize = 16
 	return &InvRequesterImpl{
-		cache: fifo_cache.New(16),
+		cache: fifo_cache.New[proto.BlockID, struct{}](invRequestsCacheSize),
 	}
 }
 
-func (a *InvRequesterImpl) Add2Cache(id []byte) (existed bool) {
+func (a *InvRequesterImpl) Add2Cache(id proto.BlockID) bool {
 	if a.cache.Exists(id) {
 		return true
 	}
@@ -25,15 +26,16 @@ func (a *InvRequesterImpl) Add2Cache(id []byte) (existed bool) {
 	return false
 }
 
-func (a *InvRequesterImpl) Request(p types.MessageSender, id []byte, enableLightNode bool) bool {
+func (a *InvRequesterImpl) Request(p types.MessageSender, id proto.BlockID, enableLightNode bool) bool {
 	existed := a.Add2Cache(id)
 	if !existed {
+		idBytes := id.Bytes()
 		p.SendMessage(&proto.MicroBlockRequestMessage{
-			TotalBlockSig: id,
+			TotalBlockSig: idBytes,
 		})
 		if enableLightNode {
 			p.SendMessage(&proto.MicroBlockSnapshotRequestMessage{
-				BlockIDBytes: id,
+				BlockIDBytes: idBytes,
 			})
 		}
 	}

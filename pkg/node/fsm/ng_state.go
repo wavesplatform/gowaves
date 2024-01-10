@@ -382,7 +382,7 @@ func (a *NGState) broadcastMicroBlockInv(inv *proto.MicroBlockInv) error {
 		p.SendMessage(msg)
 		cnt++
 	})
-	a.baseInfo.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
+	_ = a.baseInfo.invRequester.Add2Cache(inv.TotalBlockID) // prevent further unnecessary microblock request
 	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: blockID='%s', ref='%s'",
 		msg, cnt, inv.TotalBlockID, inv.Reference,
 	)
@@ -456,7 +456,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 func (a *NGState) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (State, Async, error) {
 	metrics.MicroBlockInv(inv, p.Handshake().NodeName)
 	// TODO: add logs about microblock request
-	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID.Bytes(), a.baseInfo.enableLightMode)
+	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID, a.baseInfo.enableLightMode)
 	if existed {
 		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Microblock inv received: block '%s' already in cache",
 			a, inv.TotalBlockID)

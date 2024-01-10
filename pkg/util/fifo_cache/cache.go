@@ -1,92 +1,88 @@
 package fifo_cache
 
-const idSize = 64
-
-type KeyValue interface {
-	Key() []byte
-	Value() interface{}
+type KeyValue[K comparable, V any] interface {
+	Key() K
+	Value() V
 }
 
-type keyValue struct {
-	key   []byte
-	value interface{}
+type keyValue[K comparable, V any] struct {
+	key   K
+	value V
 }
 
-func (a keyValue) Key() []byte {
+func (a keyValue[K, V]) Key() K {
 	return a.key
 }
 
-func (a keyValue) Value() interface{} {
+func (a keyValue[K, V]) Value() V {
 	return a.value
 }
 
-type FIFOCache struct {
-	index     int
-	size      int
-	insertSeq []*[idSize]byte
-	cache     map[[idSize]byte]interface{}
+type nullableKey[K comparable] struct {
+	key   K
+	valid bool // valid == true means that key is initialized
 }
 
-func New(size int) *FIFOCache {
-	return &FIFOCache{
+type FIFOCache[K comparable, V any] struct {
+	index     int
+	size      int
+	insertSeq []nullableKey[K]
+	cache     map[K]V
+}
+
+func New[K comparable, V any](size int) *FIFOCache[K, V] {
+	return &FIFOCache[K, V]{
 		size:      size,
-		insertSeq: make([]*[idSize]byte, size),
+		insertSeq: make([]nullableKey[K], size),
 		index:     0,
-		cache:     make(map[[idSize]byte]interface{}),
+		cache:     make(map[K]V),
 	}
 }
 
-func (a *FIFOCache) Add(keyValue KeyValue) {
+func (a *FIFOCache[K, V]) Add(keyValue KeyValue[K, V]) {
 	if a.exists(keyValue.Key()) {
 		return
 	}
-	b := [idSize]byte{}
-	copy(b[:], keyValue.Key())
-	a.cache[b] = keyValue.Value()
-	a.replace(keyValue)
+	key := keyValue.Key()
+	a.cache[key] = keyValue.Value()
+	a.replace(key)
 }
 
-func (a *FIFOCache) Add2(key []byte, value interface{}) {
-	a.Add(keyValue{
+func (a *FIFOCache[K, V]) Add2(key K, value V) {
+	a.Add(keyValue[K, V]{
 		key:   key,
 		value: value,
 	})
 }
 
-func (a *FIFOCache) Get(key []byte) (value interface{}, ok bool) {
-	b := [idSize]byte{}
-	copy(b[:], key)
-	value, ok = a.cache[b]
-	return
+func (a *FIFOCache[K, V]) Get(key K) (V, bool) {
+	value, ok := a.cache[key]
+	return value, ok
 }
 
-func (a *FIFOCache) replace(keyValue KeyValue) {
+func (a *FIFOCache[K, V]) replace(key K) {
 	curIdx := a.index % a.size
 	curTransaction := a.insertSeq[curIdx]
-	if curTransaction != nil {
-		delete(a.cache, *curTransaction)
-	} else {
-		a.insertSeq[curIdx] = &[idSize]byte{}
+	if curTransaction.valid {
+		delete(a.cache, curTransaction.key)
 	}
-	copy(a.insertSeq[curIdx][:], keyValue.Key())
+	a.insertSeq[curIdx] = nullableKey[K]{key: key, valid: true}
 	a.index += 1
 }
 
-func (a *FIFOCache) Exists(key []byte) bool {
+func (a *FIFOCache[K, V]) Exists(key K) bool {
 	return a.exists(key)
 }
 
-func (a FIFOCache) exists(key []byte) bool {
-	b := [idSize]byte{}
-	copy(b[:], key)
-	_, ok := a.cache[b]
+func (a FIFOCache[K, V]) exists(key K) bool {
+	_, ok := a.cache[key]
 	return ok
 }
 
-func (a FIFOCache) Len() int {
+func (a FIFOCache[K, V]) Len() int {
 	return len(a.cache)
 }
 
-func (a FIFOCache) Cap() int {
+func (a FIFOCache[K, V]) Cap() int {
 	return a.size
 }
