@@ -7,7 +7,7 @@ import (
 )
 
 type snapshotApplierHooks interface {
-	BeforeTxSnapshotApply() error
+	BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error
 	AfterTxSnapshotApply() error
 }
 
@@ -23,8 +23,8 @@ type txSnapshot struct {
 	internal []internalSnapshot
 }
 
-func (ts txSnapshot) Apply(a extendedSnapshotApplier) error {
-	if err := a.BeforeTxSnapshotApply(); err != nil {
+func (ts txSnapshot) Apply(a extendedSnapshotApplier, tx proto.Transaction, validatingUTX bool) error {
+	if err := a.BeforeTxSnapshotApply(tx, validatingUTX); err != nil {
 		return errors.Wrapf(err, "failed to execute before tx snapshot apply hook")
 	}
 	// internal snapshots must be applied at the end

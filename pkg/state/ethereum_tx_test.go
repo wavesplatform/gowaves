@@ -80,11 +80,10 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 			blockchainSettings.AddressSchemeCharacter,
 			new(proto.StateActionsCounter),
 		),
-		newSnapshotApplierStorages(stor.entities),
+		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
-	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
 
-	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings, &snapshotGen, &snapshotApplier)
+	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings, &snapshotApplier)
 	assert.NoError(t, err)
 	blockchainEntitiesStor := blockchainEntitiesStorage{scriptsStorage: storage}
 	txAppender := txAppender{

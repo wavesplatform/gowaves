@@ -24,27 +24,30 @@ var (
 type checkerTestObjects struct {
 	stor *testStorageObjects
 	tc   *transactionChecker
-	tp   *transactionPerformer
+	th   *transactionHandler
 }
 
 func createCheckerTestObjects(t *testing.T, checkerInfo *checkerInfo) *checkerTestObjects {
-	stor := createStorageObjects(t, true)
-	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
-	require.NoError(t, err, "newTransactionChecker() failed")
+	return createCheckerTestObjectsWithStor(t, checkerInfo, createStorageObjects(t, true))
+}
 
-	actionsCounter := new(proto.StateActionsCounter)
+func createCheckerTestObjectsWithStor(
+	t *testing.T,
+	checkerInfo *checkerInfo,
+	stor *testStorageObjects,
+) *checkerTestObjects {
 	snapshotApplier := newBlockSnapshotsApplier(
 		newBlockSnapshotsApplierInfo(
 			checkerInfo,
-			settings.MainNetSettings.AddressSchemeCharacter,
-			actionsCounter,
+			stor.settings.AddressSchemeCharacter,
+			new(proto.StateActionsCounter),
 		),
-		newSnapshotApplierStorages(stor.entities),
+		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
-	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
-
-	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
-	return &checkerTestObjects{stor, tc, tp}
+	genID := proto.NewBlockIDFromSignature(genSig)
+	th, err := newTransactionHandler(genID, stor.entities, stor.settings, &snapshotApplier)
+	require.NoError(t, err)
+	return &checkerTestObjects{stor, th.tc, th}
 }
 
 func defaultCheckerInfo() *checkerInfo {
@@ -263,7 +266,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
-	_, err = to.tp.performReissueWithSig(tx, defaultPerformerInfo(), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performReissueWithSig failed")
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
@@ -312,7 +315,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	tx.SenderPK = assetInfo.issuer
 
 	tx.Reissuable = false
-	_, err = to.tp.performReissueWithProofs(tx, defaultPerformerInfo(), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performReissueWithProofs failed")
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
@@ -645,7 +648,7 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 	assert.Error(t, err, "checkLeaseCancelWithSig did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performLeaseWithSig(leaseTx, defaultPerformerInfo(), nil, nil)
+	_, err = to.th.performTx(leaseTx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performLeaseWithSig failed")
 	to.stor.flush(t)
 
@@ -674,7 +677,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkLeaseCancelWithProofs did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performLeaseWithProofs(leaseTx, defaultPerformerInfo(), nil, nil)
+	_, err = to.th.performTx(leaseTx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performLeaseWithProofs failed")
 	to.stor.flush(t)
 
@@ -690,7 +693,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
 	assert.NoError(t, err, "checkLeaseCancelWithProofs failed with valid leaseCancel tx")
-	_, err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo(), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performLeaseCancelWithProofs() failed")
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
@@ -707,7 +710,7 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 	assert.NoError(t, err, "checkCreateAliasWithSig failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performCreateAliasWithSig failed")
 	to.stor.flush(t)
 
@@ -735,7 +738,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkCreateAliasWithProofs failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo(), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performCreateAliasWithProofs failed")
 	to.stor.flush(t)
 
