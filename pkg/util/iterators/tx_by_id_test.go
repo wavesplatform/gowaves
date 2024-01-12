@@ -5,7 +5,9 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/mock"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
@@ -18,7 +20,7 @@ func TestTxByIdIterator(t *testing.T) {
 	stateMock := mock.NewMockState(ctrl)
 	stateMock.EXPECT().
 		TransactionByIDWithStatus([]byte{'a'}).
-		Return(byte_helpers.BurnWithProofs.Transaction, true, nil)
+		Return(byte_helpers.BurnWithProofs.Transaction, proto.TransactionSucceeded, nil)
 
 	iter := NewTxByIdIterator(stateMock, ids)
 	require.True(t, iter.Next())

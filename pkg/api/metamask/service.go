@@ -424,7 +424,7 @@ type GetTransactionReceiptResponse struct {
 
 func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetTransactionReceiptResponse, error) {
 	txID := crypto.Digest(ethTxID)
-	tx, txIsFailed, err := s.nodeRPCApp.State.TransactionByIDWithStatus(txID.Bytes())
+	tx, status, err := s.nodeRPCApp.State.TransactionByIDWithStatus(txID.Bytes())
 	if state.IsNotFound(err) {
 		zap.S().Debugf("Eth_GetTransactionReceipt: transaction with ID=%q or ethID=%q cannot be found",
 			txID, ethTxID,
@@ -462,7 +462,7 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 
 	lastBlockHeader := s.nodeRPCApp.State.TopBlock()
 	txStatus := "0x1"
-	if txIsFailed {
+	if status.IsNotSucceeded() {
 		txStatus = "0x0"
 	}
 	gasLimit := uint64ToHexString(tx.GetFee())
