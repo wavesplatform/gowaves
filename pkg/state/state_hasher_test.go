@@ -46,14 +46,24 @@ func TestPushOneBlock(t *testing.T) {
 	assert.Equal(t, sh.emptyHash, sh.stateHashAt(id2))
 }
 
-// TODO do the actual initial balances in appender
-
 func TestLegacyStateHashSupport(t *testing.T) {
 	to := createStorageObjects(t, true)
-	// Add some entries and flush.
 	to.addBlock(t, blockID0)
 	to.entities.balances.calculateHashes = true
 
+	var snapshotApplier = &blockSnapshotsApplier{
+		info: &blockSnapshotsApplierInfo{
+			ci:                  &checkerInfo{blockID: blockID0},
+			scheme:              proto.MainNetScheme,
+			stateActionsCounter: nil,
+		},
+		stor:              newSnapshotApplierStorages(to.entities, to.rw),
+		txSnapshotContext: txSnapshotContext{},
+		issuedAssets:      nil,
+		scriptedAssets:    nil,
+		newLeases:         nil,
+		cancelledLeases:   make(map[crypto.Digest]struct{}),
+	}
 	err := to.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{
 		profile: balanceProfile{
 			balance:  5,
@@ -65,40 +75,19 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	}, blockID0)
 	assert.NoError(t, err)
 
-	err = to.entities.balances.setAssetBalance(testGlobal.senderInfo.addr.ID(), proto.AssetIDFromDigest(testGlobal.asset0.assetID), 3, blockID0)
-	assert.NoError(t, err)
-
 	snapshotsSetFirst := []proto.AtomicSnapshot{
 		&proto.WavesBalanceSnapshot{Address: proto.MustAddressFromString(testGlobal.issuerInfo.Address().String()), Balance: 1},
 		&proto.WavesBalanceSnapshot{Address: testGlobal.senderInfo.addr, Balance: 3},
 		&proto.WavesBalanceSnapshot{Address: testGlobal.recipientInfo.addr, Balance: 5},
-
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			AssetID: crypto.MustDigestFromBase58(assetStr),
-			Balance: 3,
-		},
-		&proto.AssetBalanceSnapshot{
-			Address: testGlobal.issuerInfo.addr,
-			AssetID: crypto.MustDigestFromBase58(assetStr),
-			Balance: 0,
-		},
-		proto.AssetBalanceSnapshot{
-			Address: testGlobal.senderInfo.addr,
-			AssetID: crypto.MustDigestFromBase58(assetStr),
-			Balance: 3,
-		},
 	}
+
 	err = to.entities.balances.addInitialBalancesIfNotExists(snapshotsSetFirst)
 	assert.NoError(t, err)
 
-	to.entities.balances.addWavesBalanceChangeLegacySH(testGlobal.issuerInfo.Address().ID(), 1)
-	to.entities.balances.addWavesBalanceChangeLegacySH(testGlobal.senderInfo.Address().ID(), 3)
-	to.entities.balances.addWavesBalanceChangeLegacySH(testGlobal.recipientInfo.Address().ID(), 5)
-
-	to.entities.balances.addAssetBalanceChangeLegacySH(testGlobal.senderInfo.Address().ID(), proto.AssetIDFromDigest(crypto.MustDigestFromBase58(assetStr)), 3)
-	to.entities.balances.addAssetBalanceChangeLegacySH(testGlobal.issuerInfo.Address().ID(), proto.AssetIDFromDigest(crypto.MustDigestFromBase58(assetStr)), 0)
-	to.entities.balances.addAssetBalanceChangeLegacySH(testGlobal.senderInfo.Address().ID(), proto.AssetIDFromDigest(crypto.MustDigestFromBase58(assetStr)), 3)
+	for _, s := range snapshotsSetFirst {
+		err := s.Apply(snapshotApplier)
+		assert.NoError(t, err)
+	}
 
 	snapshotsSetSecond := []proto.AtomicSnapshot{
 		&proto.NewLeaseSnapshot{
@@ -120,23 +109,24 @@ func TestLegacyStateHashSupport(t *testing.T) {
 		&proto.CancelledLeaseSnapshot{
 			LeaseID: crypto.MustDigestFromBase58(invokeId),
 		},
+		&proto.LeaseBalanceSnapshot{
+			Address:  testGlobal.senderInfo.addr,
+			LeaseIn:  0,
+			LeaseOut: 0,
+		},
+		&proto.LeaseBalanceSnapshot{
+			Address:  testGlobal.recipientInfo.addr,
+			LeaseIn:  0,
+			LeaseOut: 0,
+		},
 	}
 	err = to.entities.balances.addInitialBalancesIfNotExists(snapshotsSetSecond)
 	assert.NoError(t, err)
 
-	to.entities.balances.addLeasesBalanceChangeLegacySH(testGlobal.senderInfo.Address().ID(), 0, 5)
-	to.entities.balances.addLeasesBalanceChangeLegacySH(testGlobal.recipientInfo.Address().ID(), 5, 0)
-	l := &leasing{
-		SenderPK:            testGlobal.senderInfo.pk,
-		RecipientAddr:       testGlobal.recipientInfo.addr,
-		Amount:              5,
-		OriginHeight:        0,
-		Status:              LeaseCancelled,
-		OriginTransactionID: nil,
-		CancelHeight:        0,
-		CancelTransactionID: nil,
+	for _, s := range snapshotsSetSecond {
+		err := s.Apply(snapshotApplier)
+		assert.NoError(t, err)
 	}
-	to.entities.balances.addCancelLeasesBalanceChangeLegacySH(l)
 
 	to.entities.balances.filterZeroDiffsSHOut(blockID0)
 }

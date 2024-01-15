@@ -342,9 +342,6 @@ func (a *blockSnapshotsApplier) ApplyCancelledLease(snapshot proto.CancelledLeas
 		return errors.Wrapf(err, "failed to cancel lease %q", snapshot.LeaseID)
 	}
 	a.cancelledLeases[snapshot.LeaseID] = struct{}{}
-
-	// for compatibility with the legacy state hashes
-	a.stor.balances.addCancelLeasesBalanceChangeLegacySH(l)
 	return nil
 }
 

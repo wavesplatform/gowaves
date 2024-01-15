@@ -276,21 +276,6 @@ func (s *balances) addLeasesBalanceChangeLegacySH(addressID proto.AddressID, lea
 	s.leasesBalanceRecordsLegacySH.add(keyStr, leaseIn, leaseOut)
 }
 
-func (s *balances) addCancelLeasesBalanceChangeLegacySH(l *leasing) {
-	if !s.calculateHashes {
-		return
-	}
-	keyRecipient := wavesBalanceKey{address: l.RecipientAddr.ID()}
-	keyStrRecipient := string(keyRecipient.bytes())
-
-	senderAddr := proto.MustAddressFromPublicKey(s.scheme, l.SenderPK)
-	keySender := wavesBalanceKey{address: senderAddr.ID()}
-	keyStrSender := string(keySender.bytes())
-
-	s.leasesBalanceRecordsLegacySH.add(keyStrRecipient, int64(-l.Amount), 0)
-	s.leasesBalanceRecordsLegacySH.add(keyStrSender, 0, int64(-l.Amount))
-}
-
 func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
 	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
 	if err != nil {
@@ -760,7 +745,7 @@ func (s *balances) filterZeroWavesDiffRecords(initialWavesBalances map[string]ui
 	for key, initialBalance := range initialWavesBalances {
 		balances, ok := s.wavesBalanceRecordsLegacySH.wavesBalanceRecordsLegacySHs[key]
 		var lastBalanceInSnapshots int64 = 0
-		if ok && len(balances) > 1 {
+		if ok && len(balances) > 0 {
 			lastBalanceInSnapshots = balances[len(balances)-1]
 		} else {
 			lastBalanceInSnapshots = 0
@@ -780,7 +765,7 @@ func (s *balances) filterZeroAssetDiffRecords(initialAssetBalances map[string]ui
 	for key, initialBalance := range initialAssetBalances {
 		balances, ok := s.assetBalanceRecordsLegacySH.assetBalanceRecordsLegacySHs[key]
 		var lastBalanceInSnapshots int64 = 0
-		if ok && len(balances) > 1 {
+		if ok && len(balances) > 0 {
 			lastBalanceInSnapshots = balances[len(balances)-1]
 		}
 		if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
@@ -799,7 +784,7 @@ func (s *balances) filterZeroLeasingDiffRecords(initialLeasingBalances map[strin
 	for key, initialBalance := range initialLeasingBalances {
 		balances, ok := s.leasesBalanceRecordsLegacySH.leaseBalanceRecordsLegacySH[key]
 		var lastBalanceInSnapshots = leaseRecords{leaseIn: 0, leaseOut: 0}
-		if ok && len(balances) > 1 {
+		if ok && len(balances) > 0 {
 			lastBalanceInSnapshots = balances[len(balances)-1]
 		}
 		if lastBalanceInSnapshots.leaseIn == initialBalance.leaseIn &&
