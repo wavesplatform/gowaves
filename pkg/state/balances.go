@@ -708,7 +708,7 @@ func (b *balances) addInitialBalancesIfNotExists(snapshots []proto.AtomicSnapsho
 				b.initialBalances.initialWavesBalances[keyStr] = initialBalance.balance
 			}
 		case *proto.AssetBalanceSnapshot:
-			key := assetBalanceKey{address: snapshot.Address.ID()}
+			key := assetBalanceKey{address: snapshot.Address.ID(), asset: proto.AssetIDFromDigest(snapshot.AssetID)}
 			keyStr := string(key.bytes())
 			if _, ok := b.initialBalances.initialAssetBalances[keyStr]; !ok {
 				initialBalance, err := b.newestAssetBalance(snapshot.Address.ID(), proto.AssetIDFromDigest(snapshot.AssetID))
@@ -736,7 +736,6 @@ func (i *initialBalancesInBlock) reset() {
 	i.initialWavesBalances = make(map[string]uint64)
 	i.initialAssetBalances = make(map[string]uint64)
 	i.initialLeaseBalances = make(map[string]leaseRecords)
-	return
 }
 
 func (s *balances) filterZeroWavesDiffRecords(initialWavesBalances map[string]uint64, blockID proto.BlockID) {
@@ -744,7 +743,7 @@ func (s *balances) filterZeroWavesDiffRecords(initialWavesBalances map[string]ui
 	// comparing the final balance to the initial one
 	for key, initialBalance := range initialWavesBalances {
 		balances, ok := s.wavesBalanceRecordsLegacySH.wavesBalanceRecordsLegacySHs[key]
-		var lastBalanceInSnapshots int64 = 0
+		var lastBalanceInSnapshots int64
 		if ok && len(balances) > 0 {
 			lastBalanceInSnapshots = balances[len(balances)-1]
 		} else {
@@ -858,16 +857,6 @@ type leasesRecordLegacyStateHash struct {
 }
 
 func (w *leasesRecordLegacyStateHash) add(keyStr string, leaseIn int64, leaseOut int64) {
-	prevLeaseInOut, ok := w.leaseBalanceRecordsLegacySH[keyStr]
-	if ok {
-		prevLeaseInOut = append(prevLeaseInOut, leaseRecords{leaseIn: leaseIn, leaseOut: leaseOut})
-		w.leaseBalanceRecordsLegacySH[keyStr] = prevLeaseInOut
-	} else {
-		w.leaseBalanceRecordsLegacySH[keyStr] = []leaseRecords{{leaseIn: leaseIn, leaseOut: leaseOut}}
-	}
-}
-
-func (w *leasesRecordLegacyStateHash) cancel(keyStr string, leaseIn int64, leaseOut int64) {
 	prevLeaseInOut, ok := w.leaseBalanceRecordsLegacySH[keyStr]
 	if ok {
 		prevLeaseInOut = append(prevLeaseInOut, leaseRecords{leaseIn: leaseIn, leaseOut: leaseOut})

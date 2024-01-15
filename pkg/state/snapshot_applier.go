@@ -163,6 +163,10 @@ func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) 
 	a.info = info
 }
 
+func (a *blockSnapshotsApplier) SaveInitialBalances(snapshots []proto.AtomicSnapshot) error {
+	return a.stor.balances.addInitialBalancesIfNotExists(snapshots)
+}
+
 func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	profile, err := a.stor.balances.newestWavesBalance(addrID)

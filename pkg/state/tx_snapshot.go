@@ -13,6 +13,8 @@ type snapshotApplierHooks interface {
 
 type extendedSnapshotApplier interface {
 	SetApplierInfo(info *blockSnapshotsApplierInfo)
+	SaveInitialBalances(snapshots []proto.AtomicSnapshot) error // to support legacy SH
+	// saveInitialBalances
 	proto.SnapshotApplier
 	internalSnapshotApplier
 	snapshotApplierHooks

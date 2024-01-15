@@ -247,6 +247,10 @@ func (h *transactionHandler) performTx(
 			&proto.TransactionStatusSnapshot{Status: proto.TransactionFailed})
 		snapshot = failedChangesSnapshots
 	}
+	err := h.sa.SaveInitialBalances(snapshot.regular)
+	if err != nil {
+		return txSnapshot{}, errors.Wrap(err, "failed to save initial balances before apply")
+	}
 	if err := snapshot.Apply(h.sa, tx, validatingUTX); err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to apply transaction snapshot")
 	}
