@@ -192,6 +192,8 @@ type balances struct {
 	wavesBalanceRecordsLegacySH  wavesBalanceRecordsLegacyStateHash
 	assetBalanceRecordsLegacySH  assetBalanceRecordsLegacyStateHash
 	leasesBalanceRecordsLegacySH leasesRecordLegacyStateHash
+
+	initialBalances initialBalancesInBlock
 }
 
 func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInfoGetter, scheme proto.Scheme, calcHashes bool) (*balances, error) {
@@ -216,6 +218,7 @@ func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInf
 		wavesBalanceRecordsLegacySH:  wavesBalanceRecordsLegacyStateHash{make(map[string][]int64)},
 		assetBalanceRecordsLegacySH:  assetBalanceRecordsLegacyStateHash{make(map[string][]int64)},
 		leasesBalanceRecordsLegacySH: leasesRecordLegacyStateHash{make(map[string][]leaseRecords)},
+		initialBalances:              newInitialBalancesInBlock(),
 	}, nil
 }
 
@@ -697,40 +700,51 @@ type initialBalancesInBlock struct {
 	initialLeaseBalances map[string]leaseRecords
 }
 
-func newInitialBalancesInBlock() *initialBalancesInBlock {
-	return &initialBalancesInBlock{
+func newInitialBalancesInBlock() initialBalancesInBlock {
+	return initialBalancesInBlock{
 		make(map[string]uint64),
 		make(map[string]uint64),
 		make(map[string]leaseRecords),
 	}
 }
 
-func (i *initialBalancesInBlock) addIfNotExists(snapshots []proto.AtomicSnapshot) {
+// for legacy SH
+func (b *balances) addInitialBalancesIfNotExists(snapshots []proto.AtomicSnapshot) error {
 	for _, s := range snapshots {
 		switch snapshot := s.(type) {
-		case proto.WavesBalanceSnapshot:
+		case *proto.WavesBalanceSnapshot:
 			key := wavesBalanceKey{address: snapshot.Address.ID()}
 			keyStr := string(key.bytes())
-			if _, ok := i.initialWavesBalances[keyStr]; !ok {
-				i.initialWavesBalances[keyStr] = snapshot.Balance
-				return
+			if _, ok := b.initialBalances.initialWavesBalances[keyStr]; !ok {
+				initialBalance, err := b.newestWavesBalance(snapshot.Address.ID())
+				if err != nil {
+					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
+				}
+				b.initialBalances.initialWavesBalances[keyStr] = initialBalance.balance
 			}
-		case proto.AssetBalanceSnapshot:
+		case *proto.AssetBalanceSnapshot:
 			key := assetBalanceKey{address: snapshot.Address.ID()}
 			keyStr := string(key.bytes())
-			if _, ok := i.initialAssetBalances[keyStr]; !ok {
-				i.initialAssetBalances[keyStr] = snapshot.Balance
-				return
+			if _, ok := b.initialBalances.initialAssetBalances[keyStr]; !ok {
+				initialBalance, err := b.newestAssetBalance(snapshot.Address.ID(), proto.AssetIDFromDigest(snapshot.AssetID))
+				if err != nil {
+					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
+				}
+				b.initialBalances.initialAssetBalances[keyStr] = initialBalance
 			}
-		case proto.LeaseBalanceSnapshot:
+		case *proto.LeaseBalanceSnapshot:
 			key := wavesBalanceKey{address: snapshot.Address.ID()}
 			keyStr := string(key.bytes())
-			if _, ok := i.initialLeaseBalances[keyStr]; !ok {
-				i.initialLeaseBalances[keyStr] = leaseRecords{int64(snapshot.LeaseIn), int64(snapshot.LeaseOut)}
-				return
+			if _, ok := b.initialBalances.initialLeaseBalances[keyStr]; !ok {
+				initialBalance, err := b.newestWavesBalance(snapshot.Address.ID())
+				if err != nil {
+					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
+				}
+				b.initialBalances.initialLeaseBalances[keyStr] = leaseRecords{int64(initialBalance.leaseIn), int64(initialBalance.leaseOut)}
 			}
 		}
 	}
+	return nil
 }
 
 func (i *initialBalancesInBlock) reset() {
@@ -744,35 +758,36 @@ func (s *balances) filterZeroWavesDiffRecords(initialWavesBalances map[string]ui
 
 	// comparing the final balance to the initial one
 	for key, initialBalance := range initialWavesBalances {
-		if balances, ok := s.wavesBalanceRecordsLegacySH.wavesBalanceRecordsLegacySHs[key]; ok {
-			if len(balances) > 1 { // if there is just one balance snapshot, the diff won't be 0
-				lastBalanceInSnapshots := balances[len(balances)-1]
-				if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
-					temporarySHRecords, ok := s.wavesHashesState[blockID]
-					if ok && temporarySHRecords != nil {
-						temporarySHRecords.remove(key)
-						s.wavesHashesState[blockID] = temporarySHRecords
-					}
-				}
+		balances, ok := s.wavesBalanceRecordsLegacySH.wavesBalanceRecordsLegacySHs[key]
+		var lastBalanceInSnapshots int64 = 0
+		if ok && len(balances) > 1 {
+			lastBalanceInSnapshots = balances[len(balances)-1]
+		} else {
+			lastBalanceInSnapshots = 0
+		}
+		if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
+			temporarySHRecords, ok := s.wavesHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				temporarySHRecords.remove(key)
+				s.wavesHashesState[blockID] = temporarySHRecords
 			}
 		}
 	}
-
 }
 
 func (s *balances) filterZeroAssetDiffRecords(initialAssetBalances map[string]uint64, blockID proto.BlockID) {
 	// comparing the final balance to the initial one
 	for key, initialBalance := range initialAssetBalances {
-		if balances, ok := s.assetBalanceRecordsLegacySH.assetBalanceRecordsLegacySHs[key]; ok {
-			if len(balances) > 1 { // if there is just one balance snapshot, the diff won't be 0
-				lastBalanceInSnapshots := balances[len(balances)-1]
-				if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
-					temporarySHRecords, ok := s.assetsHashesState[blockID]
-					if ok && temporarySHRecords != nil {
-						temporarySHRecords.remove(key)
-						s.assetsHashesState[blockID] = temporarySHRecords
-					}
-				}
+		balances, ok := s.assetBalanceRecordsLegacySH.assetBalanceRecordsLegacySHs[key]
+		var lastBalanceInSnapshots int64 = 0
+		if ok && len(balances) > 1 {
+			lastBalanceInSnapshots = balances[len(balances)-1]
+		}
+		if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
+			temporarySHRecords, ok := s.assetsHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				temporarySHRecords.remove(key)
+				s.assetsHashesState[blockID] = temporarySHRecords
 			}
 		}
 	}
@@ -782,33 +797,34 @@ func (s *balances) filterZeroAssetDiffRecords(initialAssetBalances map[string]ui
 func (s *balances) filterZeroLeasingDiffRecords(initialLeasingBalances map[string]leaseRecords, blockID proto.BlockID) {
 	// comparing the final balance to the initial one
 	for key, initialBalance := range initialLeasingBalances {
-		if balances, ok := s.leasesBalanceRecordsLegacySH.leaseBalanceRecordsLegacySH[key]; ok {
-			if len(balances) > 1 { // if there is just one balance snapshot, the diff won't be 0
-				lastBalanceInSnapshots := balances[len(balances)-1]
-				if lastBalanceInSnapshots.leaseIn == initialBalance.leaseIn &&
-					lastBalanceInSnapshots.leaseOut == initialBalance.leaseOut { // this means the diff is 0 in block
-					temporarySHRecords, ok := s.leaseHashesState[blockID]
-					if ok && temporarySHRecords != nil {
-						temporarySHRecords.remove(key)
-						s.leaseHashesState[blockID] = temporarySHRecords
-					}
-				}
+		balances, ok := s.leasesBalanceRecordsLegacySH.leaseBalanceRecordsLegacySH[key]
+		var lastBalanceInSnapshots = leaseRecords{leaseIn: 0, leaseOut: 0}
+		if ok && len(balances) > 1 {
+			lastBalanceInSnapshots = balances[len(balances)-1]
+		}
+		if lastBalanceInSnapshots.leaseIn == initialBalance.leaseIn &&
+			lastBalanceInSnapshots.leaseOut == initialBalance.leaseOut { // this means the diff is 0 in block
+			temporarySHRecords, ok := s.leaseHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				temporarySHRecords.remove(key)
+				s.leaseHashesState[blockID] = temporarySHRecords
 			}
 		}
 	}
 }
 
-func (s *balances) filterZeroDiffsSHOut(initialBalances initialBalancesInBlock, blockID proto.BlockID) {
+func (s *balances) filterZeroDiffsSHOut(blockID proto.BlockID) {
 	if !s.calculateHashes {
 		return
 	}
-	s.filterZeroWavesDiffRecords(initialBalances.initialWavesBalances, blockID)
-	s.filterZeroAssetDiffRecords(initialBalances.initialAssetBalances, blockID)
-	s.filterZeroLeasingDiffRecords(initialBalances.initialLeaseBalances, blockID)
+	s.filterZeroWavesDiffRecords(s.initialBalances.initialWavesBalances, blockID)
+	s.filterZeroAssetDiffRecords(s.initialBalances.initialAssetBalances, blockID)
+	s.filterZeroLeasingDiffRecords(s.initialBalances.initialLeaseBalances, blockID)
 
 	s.wavesBalanceRecordsLegacySH.reset()
 	s.assetBalanceRecordsLegacySH.reset()
 	s.leasesBalanceRecordsLegacySH.reset()
+	s.initialBalances.reset()
 }
 
 type wavesBalanceRecordsLegacyStateHash struct {
@@ -857,6 +873,16 @@ type leasesRecordLegacyStateHash struct {
 }
 
 func (w *leasesRecordLegacyStateHash) add(keyStr string, leaseIn int64, leaseOut int64) {
+	prevLeaseInOut, ok := w.leaseBalanceRecordsLegacySH[keyStr]
+	if ok {
+		prevLeaseInOut = append(prevLeaseInOut, leaseRecords{leaseIn: leaseIn, leaseOut: leaseOut})
+		w.leaseBalanceRecordsLegacySH[keyStr] = prevLeaseInOut
+	} else {
+		w.leaseBalanceRecordsLegacySH[keyStr] = []leaseRecords{{leaseIn: leaseIn, leaseOut: leaseOut}}
+	}
+}
+
+func (w *leasesRecordLegacyStateHash) cancel(keyStr string, leaseIn int64, leaseOut int64) {
 	prevLeaseInOut, ok := w.leaseBalanceRecordsLegacySH[keyStr]
 	if ok {
 		prevLeaseInOut = append(prevLeaseInOut, leaseRecords{leaseIn: leaseIn, leaseOut: leaseOut})

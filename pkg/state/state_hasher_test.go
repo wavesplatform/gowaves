@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/opencontainers/go-digest"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"testing"
 
@@ -50,52 +49,94 @@ func TestPushOneBlock(t *testing.T) {
 // TODO do the actual initial balances in appender
 
 func TestLegacyStateHashSupport(t *testing.T) {
-	initialBalances := newInitialBalancesInBlock()
+	to := createStorageObjects(t, true)
+	// Add some entries and flush.
+	to.addBlock(t, blockID0)
+	to.entities.balances.calculateHashes = true
 
-	snapshots1 := []proto.AtomicSnapshot {
-		&proto.WavesBalanceSnapshot{},
+	err := to.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{
+		profile: balanceProfile{
+			balance:  5,
+			leaseIn:  0,
+			leaseOut: 0,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}, blockID0)
+	assert.NoError(t, err)
+
+	err = to.entities.balances.setAssetBalance(testGlobal.senderInfo.addr.ID(), proto.AssetIDFromDigest(testGlobal.asset0.assetID), 3, blockID0)
+	assert.NoError(t, err)
+
+	snapshotsSetFirst := []proto.AtomicSnapshot{
+		&proto.WavesBalanceSnapshot{Address: proto.MustAddressFromString(testGlobal.issuerInfo.Address().String()), Balance: 1},
+		&proto.WavesBalanceSnapshot{Address: testGlobal.senderInfo.addr, Balance: 3},
+		&proto.WavesBalanceSnapshot{Address: testGlobal.recipientInfo.addr, Balance: 5},
+
+		&proto.AssetBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			AssetID: crypto.MustDigestFromBase58(assetStr),
+			Balance: 3,
+		},
+		&proto.AssetBalanceSnapshot{
+			Address: testGlobal.issuerInfo.addr,
+			AssetID: crypto.MustDigestFromBase58(assetStr),
+			Balance: 0,
+		},
+		proto.AssetBalanceSnapshot{
+			Address: testGlobal.senderInfo.addr,
+			AssetID: crypto.MustDigestFromBase58(assetStr),
+			Balance: 3,
+		},
 	}
+	err = to.entities.balances.addInitialBalancesIfNotExists(snapshotsSetFirst)
+	assert.NoError(t, err)
 
-	snapshots := []proto.AtomicSnapshot {
-			&proto.WavesBalanceSnapshot{Address:testAddr ,Balance: 1},
-			&proto.WavesBalanceSnapshot{Address: same ,Balance: 5},
-			&proto.WavesBalanceSnapshot{Address: ,Balance: 3},
-			&proto.WavesBalanceSnapshot{Address: same ,Balance: 5},
+	to.entities.balances.addWavesBalanceChangeLegacySH(testGlobal.issuerInfo.Address().ID(), 1)
+	to.entities.balances.addWavesBalanceChangeLegacySH(testGlobal.senderInfo.Address().ID(), 3)
+	to.entities.balances.addWavesBalanceChangeLegacySH(testGlobal.recipientInfo.Address().ID(), 5)
 
-			&proto.AssetBalanceSnapshot{
-				Address: proto.WavesAddress{},
-				AssetID: crypto.MustDigestFromBase58(assetStr),
-				Balance: 3,
-			},
-			&proto.AssetBalanceSnapshot{
-				Address: proto.WavesAddress{},
-				AssetID: crypto.MustDigestFromBase58(assetStr),
-				Balance: 0,
-			},
-			proto.AssetBalanceSnapshot{
-				Address: proto.WavesAddress{},
-				AssetID: crypto.MustDigestFromBase58(assetStr),
-				Balance: 3,
-			},
+	to.entities.balances.addAssetBalanceChangeLegacySH(testGlobal.senderInfo.Address().ID(), proto.AssetIDFromDigest(crypto.MustDigestFromBase58(assetStr)), 3)
+	to.entities.balances.addAssetBalanceChangeLegacySH(testGlobal.issuerInfo.Address().ID(), proto.AssetIDFromDigest(crypto.MustDigestFromBase58(assetStr)), 0)
+	to.entities.balances.addAssetBalanceChangeLegacySH(testGlobal.senderInfo.Address().ID(), proto.AssetIDFromDigest(crypto.MustDigestFromBase58(assetStr)), 3)
 
-			proto.LeaseBalanceSnapshot{
-				Address: proto.MustAddressFromString(testAddr),
-				LeaseIn: 10,
-				LeaseOut: 10,
-			},
-			proto.LeaseCancel{
-				Address: proto.WavesAddress{},
-				AssetID: crypto.Digest{},
-				Balance: 0,
-			},
-
-			proto.LeaseBalanceSnapshot{
-				Address: proto.WavesAddress{},
-				AssetID: crypto.Digest{},
-				Balance: 0,
-			},
+	snapshotsSetSecond := []proto.AtomicSnapshot{
+		&proto.NewLeaseSnapshot{
+			LeaseID:       crypto.MustDigestFromBase58(invokeId),
+			Amount:        5,
+			SenderPK:      testGlobal.senderInfo.pk,
+			RecipientAddr: testGlobal.recipientInfo.addr,
+		},
+		&proto.LeaseBalanceSnapshot{
+			Address:  testGlobal.senderInfo.addr,
+			LeaseIn:  0,
+			LeaseOut: 5,
+		},
+		&proto.LeaseBalanceSnapshot{
+			Address:  testGlobal.recipientInfo.addr,
+			LeaseIn:  5,
+			LeaseOut: 0,
+		},
+		&proto.CancelledLeaseSnapshot{
+			LeaseID: crypto.MustDigestFromBase58(invokeId),
+		},
 	}
+	err = to.entities.balances.addInitialBalancesIfNotExists(snapshotsSetSecond)
+	assert.NoError(t, err)
 
-	initialBalances.addIfNotExists(txSnapshots.regular)
+	to.entities.balances.addLeasesBalanceChangeLegacySH(testGlobal.senderInfo.Address().ID(), 0, 5)
+	to.entities.balances.addLeasesBalanceChangeLegacySH(testGlobal.recipientInfo.Address().ID(), 5, 0)
+	l := &leasing{
+		SenderPK:            testGlobal.senderInfo.pk,
+		RecipientAddr:       testGlobal.recipientInfo.addr,
+		Amount:              5,
+		OriginHeight:        0,
+		Status:              LeaseCancelled,
+		OriginTransactionID: nil,
+		CancelHeight:        0,
+		CancelTransactionID: nil,
+	}
+	to.entities.balances.addCancelLeasesBalanceChangeLegacySH(l)
 
+	to.entities.balances.filterZeroDiffsSHOut(blockID0)
 }
