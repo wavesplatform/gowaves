@@ -743,6 +743,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
 
+	initialBalances := newInitialBalancesInBlock()
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
 			chans:                            params.chans,
@@ -764,6 +765,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return errAppendTx
 		}
 		bs.AppendTxSnapshot(txSnapshots.regular)
+		// for legacy SH
+		initialBalances.addIfNotExists(txSnapshots.regular)
 
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
@@ -787,7 +790,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	// clean up legacy state hash records with zero diffs
-	a.stor.balances.filterZeroDiffsSHOut(blockID)
+	if initialBalances != nil {
+		a.stor.balances.filterZeroDiffsSHOut(*initialBalances, blockID)
+	}
 	// TODO: check snapshot hash with the block snapshot hash if it exists
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
 		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", currentBlockHeight)

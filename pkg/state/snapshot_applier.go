@@ -175,6 +175,9 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
 	}
+
+	// for compatibility with the legacy state hashes
+	a.stor.balances.addWavesBalanceChangeLegacySH(addrID, int64(snapshot.Balance))
 	return nil
 }
 
@@ -192,13 +195,20 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSna
 	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
 	}
+	a.stor.balances.addLeasesBalanceChangeLegacySH(addrID, int64(snapshot.LeaseIn), int64(snapshot.LeaseOut))
 	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot proto.AssetBalanceSnapshot) error {
 	addrID := snapshot.Address.ID()
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
-	return a.stor.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
+	err := a.stor.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to set asset balance profile for address %q", snapshot.Address.String())
+	}
+	// for compatibility with the legacy state hashes
+	a.stor.balances.addAssetBalanceChangeLegacySH(addrID, assetID, int64(snapshot.Balance))
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
@@ -332,6 +342,9 @@ func (a *blockSnapshotsApplier) ApplyCancelledLease(snapshot proto.CancelledLeas
 		return errors.Wrapf(err, "failed to cancel lease %q", snapshot.LeaseID)
 	}
 	a.cancelledLeases[snapshot.LeaseID] = struct{}{}
+
+	// for compatibility with the legacy state hashes
+	a.stor.balances.addCancelLeasesBalanceChangeLegacySH(l)
 	return nil
 }
 
