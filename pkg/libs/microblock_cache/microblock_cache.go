@@ -27,7 +27,7 @@ func (a *MicroBlockCache) AddMicroBlockWithSnapshot(
 	micro *proto.MicroBlock,
 	snapshot *proto.BlockSnapshot,
 ) {
-	a.cache.Add2(blockID.Bytes(), microBlockWithSnapshot{
+	a.cache.Add2(blockID.Bytes(), &microBlockWithSnapshot{
 		microBlock: micro,
 		snapshot:   snapshot,
 	})
@@ -38,7 +38,7 @@ func (a *MicroBlockCache) GetBlock(sig proto.BlockID) (*proto.MicroBlock, bool) 
 	if !ok {
 		return nil, false
 	}
-	return rs.(microBlockWithSnapshot).microBlock, true
+	return rs.(*microBlockWithSnapshot).microBlock, true
 }
 
 func (a *MicroBlockCache) GetSnapshot(sig proto.BlockID) (*proto.BlockSnapshot, bool) {
@@ -46,7 +46,7 @@ func (a *MicroBlockCache) GetSnapshot(sig proto.BlockID) (*proto.BlockSnapshot, 
 	if !ok {
 		return nil, false
 	}
-	return rs.(microBlockWithSnapshot).snapshot, true
+	return rs.(*microBlockWithSnapshot).snapshot, true
 }
 
 type MicroblockInvCache struct {

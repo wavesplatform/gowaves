@@ -5,7 +5,6 @@ import (
 	"reflect"
 
 	"go.uber.org/zap"
-	protobuf "google.golang.org/protobuf/proto"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -272,7 +271,7 @@ func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessa
 			Snapshots:    snapshotProto,
 			TotalBlockId: blockIDBytes,
 		}
-		bsmBytes, errMarshall := protobuf.Marshal(&sProto)
+		bsmBytes, errMarshall := sProto.MarshalVTStrict()
 		if errMarshall != nil {
 			return nil, errMarshall
 		}
@@ -300,7 +299,7 @@ func GetSnapshotAction(services services.Services, mess peer.ProtoMessage, _ *fs
 		Snapshots: snapshotProto,
 		BlockId:   blockID.Bytes(),
 	}
-	bsmBytes, err := protobuf.Marshal(&sProto)
+	bsmBytes, err := sProto.MarshalVTStrict()
 	if err != nil {
 		return nil, err
 	}

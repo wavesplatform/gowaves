@@ -282,8 +282,9 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 			"[%s] Received microblock '%s' (referencing '%s') successfully applied to state",
 			a, block.BlockID(), micro.Reference,
 		)
-		a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), micro, nil)
+		a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), micro, &proto.BlockSnapshot{})
 		a.blocksCache.AddBlockState(block)
+		return a, nil, nil
 	}
 
 	a.microBlockWaitingForSnapshot = micro
