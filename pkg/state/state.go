@@ -1479,10 +1479,9 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 }
 
 func getSnapshotByIndIfNotNil(snapshots []*proto.BlockSnapshot, pos int) *proto.BlockSnapshot {
-	if len(snapshots) != 0 {
+	if len(snapshots) == 0 {
 		return nil
 	}
-
 	return snapshots[pos]
 }
 
