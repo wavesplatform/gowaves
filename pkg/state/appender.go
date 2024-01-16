@@ -682,6 +682,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
 
+	err = a.txHandler.sa.SaveInitialBalances(initialSnapshot.regular)
+	if err != nil {
+		return errors.Wrap(err, "failed to save initial balances from miner rewards diffs")
+	}
+
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
@@ -742,6 +747,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
+
+	if params.block.BlockID().String() == "Fmi8w2L98ea8kEg3PE41m3JKZwMeewJ7Z99mZb7W9ufa" {
+		fmt.Println("here")
+	}
 
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
