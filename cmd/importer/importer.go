@@ -125,7 +125,7 @@ func main() {
 	// We do not need to provide any APIs during import.
 	params.ProvideExtendedApi = false
 
-	st, err := state.NewState(*dataDirPath, false, params, ss)
+	st, err := state.NewState(*dataDirPath, false, params, ss, false)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)
 	}

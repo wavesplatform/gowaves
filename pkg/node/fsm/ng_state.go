@@ -2,8 +2,6 @@ package fsm
 
 import (
 	"context"
-	"time"
-
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
@@ -64,24 +62,6 @@ func (a *NGState) Task(task tasks.AsyncTask) (State, Async, error) {
 				"unexpected type %T, expected 'tasks.MineMicroTaskData'", task.Data))
 		}
 		return a.mineMicro(t.Block, t.Limits, t.KeyPair, t.Vrf)
-	case tasks.SnapshotTimeout:
-		t, ok := task.Data.(tasks.SnapshotTimeoutTaskData)
-		if !ok {
-			return a, nil, a.Errorf(errors.Errorf(
-				"unexpected type %T, expected 'tasks.SnapshotTimeoutTaskData'", task.Data))
-		}
-		switch t.SnapshotTaskType {
-		case tasks.BlockSnapshot:
-			a.blockWaitingForSnapshot = nil
-			return a, nil, a.Errorf(errors.Errorf(
-				"failed to get snapshot for block '%s' - timeout", t.BlockID))
-		case tasks.MicroBlockSnapshot:
-			a.microBlockWaitingForSnapshot = nil
-			return a, nil, a.Errorf(errors.Errorf(
-				"failed to get snapshot for micro block '%s' - timeout", t.BlockID))
-		default:
-			return a, nil, a.Errorf(errors.New("undefined Snapshot Task type"))
-		}
 	default:
 		return a, nil, a.Errorf(errors.Errorf(
 			"unexpected internal task '%d' with data '%+v' received by %s State",
@@ -112,7 +92,12 @@ func (a *NGState) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 		return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
 			previousBlockID.String(), blockFromCache.ID.String())
 	}
-	_, err = a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{blockFromCache}, nil)
+	_, err = a.baseInfo.blocksApplier.Apply(
+		a.baseInfo.storage,
+		[]*proto.Block{blockFromCache},
+		nil,
+		a.baseInfo.enableLightMode,
+	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to apply cached block %q", blockFromCache.ID.String())
 	}
@@ -135,6 +120,7 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 			a.baseInfo.storage,
 			[]*proto.Block{blockFromCache},
 			[]*proto.BlockSnapshot{snapshotFromCache},
+			a.baseInfo.enableLightMode,
 		)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply cached block %q", blockFromCache.ID.String())
@@ -144,6 +130,12 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 }
 
 func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error) {
+	if a.blockWaitingForSnapshot != nil {
+		return a, nil, a.Errorf(errors.Errorf(
+			"skip block %s, waiting snapshot for block %s",
+			block.BlockID().String(),
+			a.blockWaitingForSnapshot.BlockID().String()))
+	}
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
@@ -180,9 +172,14 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		a.blockWaitingForSnapshot = block
 		pe := extension.NewPeerExtension(peer, a.baseInfo.scheme)
 		pe.AskBlockSnapshot(block.BlockID())
-		return a, tasks.Tasks(tasks.NewSnapshotTimeoutTask(time.Minute, block.BlockID(), tasks.BlockSnapshot)), nil
+		return a, nil, nil
 	}
-	_, err = a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block}, nil)
+	_, err = a.baseInfo.blocksApplier.Apply(
+		a.baseInfo.storage,
+		[]*proto.Block{block},
+		nil,
+		a.baseInfo.enableLightMode,
+	)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
@@ -206,13 +203,14 @@ func (a *NGState) BlockSnapshot(
 	}
 	if a.blockWaitingForSnapshot.BlockID() != blockID {
 		return a, nil, a.Errorf(
-			errors.Errorf("New snapshot doesn't match with block %s", a.blockWaitingForSnapshot.BlockID()))
+			errors.Errorf("new snapshot doesn't match with block %s", a.blockWaitingForSnapshot.BlockID()))
 	}
 
 	_, err := a.baseInfo.blocksApplier.Apply(
 		a.baseInfo.storage,
 		[]*proto.Block{a.blockWaitingForSnapshot},
 		[]*proto.BlockSnapshot{&snapshot},
+		a.baseInfo.enableLightMode,
 	)
 	if err != nil {
 		// metrics.FSMKeyBlockDeclined("ng", block, err)
@@ -239,7 +237,12 @@ func (a *NGState) MinedBlock(
 	metrics.FSMKeyBlockGenerated("ng", block)
 	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
-		_, err = a.baseInfo.blocksApplier.Apply(state, []*proto.Block{block}, nil)
+		_, err = a.baseInfo.blocksApplier.Apply(
+			state,
+			[]*proto.Block{block},
+			nil,
+			a.baseInfo.enableLightMode,
+		)
 		return err
 	})
 	if err != nil {
@@ -262,6 +265,12 @@ func (a *NGState) MinedBlock(
 }
 
 func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async, error) {
+	if a.microBlockWaitingForSnapshot != nil {
+		return a, nil, a.Errorf(errors.Errorf(
+			"skip micro block %s, waiting snapshot for micro block %s",
+			micro.TotalBlockID.String(),
+			a.microBlockWaitingForSnapshot.TotalBlockID.String()))
+	}
 	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
 	if !a.baseInfo.enableLightMode {
 		block, err := a.checkAndAppendMicroBlock(micro, nil) // the TopBlock() is used here
@@ -273,12 +282,11 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 			"[%s] Received microblock '%s' (referencing '%s') successfully applied to state",
 			a, block.BlockID(), micro.Reference,
 		)
-		a.baseInfo.MicroBlockCache.Add(block.BlockID(), micro)
+		a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), micro, nil)
 		a.blocksCache.AddBlockState(block)
 	}
 
 	a.microBlockWaitingForSnapshot = micro
-	tasks.Tasks(tasks.NewSnapshotTimeoutTask(time.Minute, micro.TotalBlockID, tasks.MicroBlockSnapshot))
 	return a, nil, nil
 }
 
@@ -303,8 +311,7 @@ func (a *NGState) MicroBlockSnapshot(
 	zap.S().Named(logging.FSMNamespace).Debugf(
 		"[%s] Received snapshot for microblock '%s' successfully applied to state", a, block.BlockID(),
 	)
-	a.baseInfo.MicroBlockCache.Add(block.BlockID(), a.microBlockWaitingForSnapshot)
-	a.baseInfo.MicroBlockCache.AddSnapshot(block.BlockID(), &snapshot)
+	a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), a.microBlockWaitingForSnapshot, &snapshot)
 	a.blocksCache.AddBlockState(block)
 	a.blocksCache.AddSnapshot(block.BlockID(), snapshot)
 	a.baseInfo.scheduler.Reschedule()
@@ -335,7 +342,7 @@ func (a *NGState) mineMicro(
 	}
 	metrics.FSMMicroBlockGenerated("ng", micro)
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block, nil)
+		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block, nil, a.baseInfo.enableLightMode)
 		return er
 	})
 	if err != nil {
@@ -361,7 +368,7 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to broadcast generated microblock"))
 	}
 
-	a.baseInfo.MicroBlockCache.Add(block.BlockID(), micro)
+	a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), micro, nil)
 	a.baseInfo.MicroBlockInvCache.Add(block.BlockID(), inv)
 
 	return a, tasks.Tasks(tasks.NewMineMicroTask(a.baseInfo.microblockInterval, block, rest, keyPair, vrf)), nil
@@ -442,7 +449,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 		snapshotsToApply = &topBlockSnapshots
 	}
 	err = a.baseInfo.storage.Map(func(state state.State) error {
-		_, er := a.baseInfo.blocksApplier.ApplyMicro(state, newBlock, snapshotsToApply)
+		_, er := a.baseInfo.blocksApplier.ApplyMicro(state, newBlock, snapshotsToApply, a.baseInfo.enableLightMode)
 		return er
 	})
 	if err != nil {

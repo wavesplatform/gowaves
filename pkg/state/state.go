@@ -372,9 +372,18 @@ type stateManager struct {
 	verificationGoroutinesNum int
 
 	newBlocks *newBlocks
+
+	enableLightNode bool
 }
 
-func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+func newStateManager( //nolint:funlen,gocognit
+	dataDir string,
+	amend bool,
+	params StateParams,
+	settings *settings.BlockchainSettings,
+	enableLightNode bool,
+) (*stateManager, error) {
+	// TODO(anton): fix lint
 	err := validateSettings(settings)
 	if err != nil {
 		return nil, err
@@ -460,6 +469,7 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		atx:                       atx,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
+		enableLightNode:           enableLightNode,
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
@@ -1191,6 +1201,9 @@ func (s *stateManager) AddDeserializedBlocks(
 	blocks []*proto.Block,
 	snapshots []*proto.BlockSnapshot,
 ) (*proto.Block, error) {
+	if s.enableLightNode && (len(blocks) != len(snapshots)) {
+		return nil, errors.New("the numbers of snapshots doesn't match the number of blocks")
+	}
 	s.newBlocks.setNew(blocks)
 	lastBlock, err := s.addBlocks(snapshots)
 	if err != nil {
@@ -1466,7 +1479,7 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 }
 
 func getSnapshotByIndIfNotNil(snapshots []*proto.BlockSnapshot, pos int) *proto.BlockSnapshot {
-	if snapshots == nil {
+	if len(snapshots) != 0 {
 		return nil
 	}
 

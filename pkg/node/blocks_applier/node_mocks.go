@@ -118,6 +118,7 @@ func (a *MockStateManager) RollbackToHeight(height uint64) error {
 		block := a.state[len(a.state)-1]
 		a.state = a.state[:len(a.state)-1]
 		delete(a.blockIDToHeight, block.BlockID())
+		a.snapshots = a.snapshots[:len(a.snapshots)-1]
 	}
 	return nil
 }
@@ -283,6 +284,9 @@ func (a *MockStateManager) AddDeserializedBlocks(
 ) (*proto.Block, error) {
 	var out *proto.Block
 	var err error
+	if snapshots != nil && (len(blocks) != len(snapshots)) {
+		panic("the numbers of snapshots doesn't match the number of blocks")
+	}
 	for i, b := range blocks {
 		if out, err = a.AddDeserializedBlock(b); err != nil {
 			return nil, err

@@ -35,7 +35,7 @@ type invokeApplierTestObjects struct {
 }
 
 func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
-	state, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings)
+	state, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings, false)
 	assert.NoError(t, err, "newStateManager() failed")
 	err = state.stateDB.addBlock(blockID0)
 	assert.NoError(t, err)
