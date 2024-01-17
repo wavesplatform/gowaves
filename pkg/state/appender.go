@@ -62,14 +62,13 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
-	snapshotGenerator *snapshotGenerator,
 ) (*txAppender, error) {
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotGenerator, snapshotApplier)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier)
 	if err != nil {
 		return nil, err
 	}
@@ -343,55 +342,37 @@ func (a *txAppender) commitTxApplication(
 	if err = a.diffStor.saveTxDiff(applicationRes.changes.diff); err != nil {
 		return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
 	}
-	currentMinerAddress := proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK)
-
 	var (
-		snapshot txSnapshot
-		status   *proto.TransactionStatusSnapshot
-	)
-	if applicationRes.status {
-		// We only perform tx in case it has not failed.
-		pi := newPerformerInfo(
+		pi = newPerformerInfo(
 			params.checkerInfo.blockchainHeight,
 			params.checkerInfo.blockID,
-			currentMinerAddress,
+			proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK),
 			applicationRes.checkerData,
 		)
-		snapshot, err = a.txHandler.performTx(tx, pi, invocationRes, applicationRes.changes.diff)
-		if err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
-		}
-		status = &proto.TransactionStatusSnapshot{
-			Status: proto.TransactionSucceeded,
-		}
-	} else {
-		status = &proto.TransactionStatusSnapshot{
-			Status: proto.TransactionFailed,
-		}
+		applicationStatus = applicationRes.status
+	)
+
+	balanceChanges := applicationRes.changes.diff.balancesChanges()
+	err = a.diffApplier.validateBalancesChanges(balanceChanges)
+	if err != nil {
+		return txSnapshot{}, err
 	}
-	if params.validatingUtx {
-		// Save transaction to in-mem storage.
-		if err = a.rw.writeTransactionToMem(tx, !applicationRes.status); err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError,
-				errors.Errorf("failed to write transaction to in mem stor: %v", err),
-			)
-		}
-	} else {
+	a.diffStor.reset()
+	snapshot, err := a.txHandler.performTx(tx, pi, params.validatingUtx, invocationRes, applicationStatus, balanceChanges)
+	if err != nil {
+		return txSnapshot{}, wrapErr(TxCommitmentError,
+			errors.Wrapf(err, "failed to perform transaction %q", base58.Encode(txID)),
+		)
+	}
+
+	if !params.validatingUtx {
 		// TODO: snapshots for miner fee should be generated here, but not saved
 		//  They must be saved in snapshot applier
 		// Count tx fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
 		}
-		// TODO: tx MUST be saved in snapshotApplier
-		// Save transaction to storage.
-		if err = a.rw.writeTransaction(tx, !applicationRes.status); err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError,
-				errors.Errorf("failed to write transaction to storage: %v", err),
-			)
-		}
 	}
-	snapshot.regular = append(snapshot.regular, status)
 	return snapshot, nil
 }
 
@@ -616,7 +597,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	}
 
 	// invocationResult may be empty if it was not an Invoke Transaction
-
 	snapshot, err := a.commitTxApplication(tx, params, invocationResult, applicationRes)
 
 	if err != nil {
@@ -632,29 +612,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	return snapshot, nil
 }
 
-// rewards and 60% of the fee to the previous miner.
-func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (txSnapshot, error) {
-	addrWavesBalanceDiff, _, err := balanceDiffFromTxDiff(minerAndRewardDiff, a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
-	}
-	// add miner address to the diff
-	var snapshot txSnapshot
-	for wavesAddress, diffAmount := range addrWavesBalanceDiff {
-		var fullBalance balanceProfile
-		fullBalance, err = a.stor.balances.newestWavesBalance(wavesAddress.ID())
-		if err != nil {
-			return txSnapshot{}, errors.Wrap(err, "failed to receive sender's waves balance")
-		}
-		newBalance := &proto.WavesBalanceSnapshot{
-			Address: wavesAddress,
-			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
-		}
-		snapshot.regular = append(snapshot.regular, newBalance)
-	}
-	return snapshot, nil
-}
-
 func calculateInitialSnapshotStateHash(
 	h *txSnapshotHasher,
 	blockHasParent bool,
@@ -666,9 +623,11 @@ func calculateInitialSnapshotStateHash(
 		if len(txSnapshot) != 0 { // sanity check
 			return crypto.Digest{}, errors.New("initial block snapshot for genesis block must be empty")
 		}
-		return prevHash, nil // return initial state hash as is
+		return prevHash, nil // return prevHash state hash as initial state hash
 	}
-	// TODO: can initial txSnapshot be empty? (at least before NG activation)
+	if len(txSnapshot) == 0 {
+		return prevHash, nil // return prevHash state hash as initial state hash
+	}
 	var txID []byte // txID is necessary only for txStatus atomic snapshot; init snapshot can't have such message
 	return calculateTxSnapshotStateHash(h, txID, blockHeight, prevHash, txSnapshot)
 }
@@ -708,7 +667,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
 		stateActionsCounterInBlockValidation)
-	a.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
 	// in case NG is activated, or empty diff otherwise.
@@ -716,8 +675,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+
 	// create the initial snapshot
-	initialSnapshot, err := a.createInitialBlockSnapshot(minerAndRewardDiff)
+	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardDiff.balancesChanges())
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
@@ -735,6 +695,21 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	defer hasher.Release()
 
+	// Save miner diff first (for validation)
+	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
+		return err
+	}
+	err = a.diffApplier.validateBalancesChanges(minerAndRewardDiff.balancesChanges())
+	if err != nil {
+		return errors.Wrap(err, "failed to validate miner reward changes")
+	}
+	a.diffStor.reset()
+
+	err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply an initial snapshot")
+	}
+
 	// get initial snapshot hash for block
 	stateHash, err := calculateInitialSnapshotStateHash(
 		hasher,
@@ -749,13 +724,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		)
 	}
 
-	// TODO apply this snapshot when balances are refatored
-	// err = initialSnapshot.Apply(&snapshotApplier)
-
-	// Save miner diff first (for validation)
-	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
-		return err
-	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return err
@@ -817,10 +785,14 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), currentBlockHeight, bs); ssErr != nil {
 		return ssErr
 	}
+
+	// clean up legacy state hash records with zero diffs
+	a.stor.balances.filterZeroDiffsSHOut(blockID)
 	// TODO: check snapshot hash with the block snapshot hash if it exists
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
 		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", currentBlockHeight)
 	}
+
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	return a.blockDiffer.saveCurFeeDistr(params.block)
@@ -1061,7 +1033,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
 		issueCounterInBlock)
-	a.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true

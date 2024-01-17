@@ -402,7 +402,7 @@ func (s *testStorageObjects) addRealBlock(t *testing.T, block *proto.Block) {
 	err = s.rw.writeBlockHeader(&block.BlockHeader)
 	assert.NoError(t, err, "writeBlockHeader() failed")
 	for _, tx := range block.Transactions {
-		err = s.rw.writeTransaction(tx, false)
+		err = s.rw.writeTransaction(tx, proto.TransactionSucceeded)
 		assert.NoError(t, err, "writeTransaction() failed")
 	}
 	err = s.rw.finishBlock(blockID)

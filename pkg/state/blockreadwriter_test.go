@@ -10,6 +10,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -97,9 +98,9 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 					return err
 				}
 			}
-			if err := rw.writeTransaction(tx, false); err != nil {
+			if wErr := rw.writeTransaction(tx, proto.TransactionSucceeded); wErr != nil {
 				close(readTasks)
-				return err
+				return wErr
 			}
 			task = &readTask{taskType: readTx, txID: txID, correctTx: tx}
 			tasksBuf = append(tasksBuf, task)
