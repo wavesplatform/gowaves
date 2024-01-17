@@ -19,7 +19,6 @@ type UpdateAssetInfoTxApiSuite struct {
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableTokenPositive() {
-	utl.SkipLongTest(suite.T())
 	versions := update_asset_info.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		assets := issue.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -43,7 +42,6 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
-	utl.SkipLongTest(suite.T())
 	versions := update_asset_info.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := issue.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -67,7 +65,6 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPositive() {
-	utl.SkipLongTest(suite.T())
 	versions := update_asset_info.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smart := issue.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -91,7 +88,6 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPosit
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableTokenNegative() {
-	utl.SkipLongTest(suite.T())
 	versions := update_asset_info.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
