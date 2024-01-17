@@ -1,6 +1,9 @@
-package set_asset_script_utilities
+package set_asset_script
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -70,4 +73,50 @@ func BroadcastSetAssetScriptTxAndGetBalances[T any](suite *f.BaseSuite, testdata
 
 func GetVersions(suite *f.BaseSuite) []byte {
 	return utl.GetAvailableVersions(suite.T(), proto.SetAssetScriptTransaction, testdata.SetAssetScriptMinVersion, testdata.SetAssetScriptMaxVersion).Sum
+}
+
+func PositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.SetAssetScriptTestData[testdata.SetAssetScriptExpectedValuesPositive],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func NegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.SetAssetScriptTestData[testdata.SetAssetScriptExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func APIPositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.SetAssetScriptTestData[testdata.SetAssetScriptExpectedValuesPositive],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusOK, http.StatusOK, tx, errMsg)
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func APINegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.SetAssetScriptTestData[testdata.SetAssetScriptExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+		tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 }

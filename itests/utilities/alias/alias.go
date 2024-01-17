@@ -1,6 +1,9 @@
-package alias_utilities
+package alias
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -90,4 +93,46 @@ func BroadcastAliasTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata tes
 
 func GetVersions(suite *f.BaseSuite) []byte {
 	return utl.GetAvailableVersions(suite.T(), proto.CreateAliasTransaction, testdata.AliasMinVersion, testdata.AliasMaxVersion).Sum
+}
+
+func PositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.AliasTestData[testdata.AliasExpectedValuesPositive], addrByAliasGo, addrByAliasScala []byte,
+	actualDiffBalanceInWaves utl.BalanceInWaves, errMsg string) {
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.AddressByAliasCheck(t, td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala,
+		errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+}
+
+func NegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.AliasTestData[testdata.AliasExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, errMsg string) {
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
+		tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+}
+
+func PositiveAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.AliasTestData[testdata.AliasExpectedValuesPositive], addrByAliasGo, addrByAliasScala []byte,
+	actualDiffBalanceInWaves utl.BalanceInWaves, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusOK, http.StatusOK, tx, errMsg)
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.AddressByAliasCheck(t, td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala,
+		errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+}
+
+func NegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.AliasTestData[testdata.AliasExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+		tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
+		tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 }

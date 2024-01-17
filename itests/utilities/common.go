@@ -540,6 +540,14 @@ func FeatureShouldBeActivated(suite *f.BaseSuite, featureID settings.Feature, he
 	suite.T().Logf("Feature %d is activated on height @%d\n", featureID, activationHeight)
 }
 
+func GetActivationOfFeatures(suite *f.BaseSuite, featureIDs ...settings.Feature) {
+	h := GetHeight(suite)
+	// features that should be activated
+	for _, featureID := range featureIDs {
+		FeatureShouldBeActivated(suite, featureID, h)
+	}
+}
+
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
 	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
 }
@@ -873,10 +881,4 @@ func GetRollbackToHeightScala(suite *f.BaseSuite, height uint64, returnTxToUtx b
 func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) (*proto.BlockID, *proto.BlockID) {
 	suite.T().Logf("Rollback to height: %d from height: %d", height, GetHeight(suite))
 	return GetRollbackToHeightGo(suite, height, returnTxToUtx), GetRollbackToHeightScala(suite, height, returnTxToUtx)
-}
-
-func SkipLongTest(t *testing.T) {
-	if testing.Short() {
-		t.Skip("skipping tests in short mode")
-	}
 }

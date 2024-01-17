@@ -1,7 +1,8 @@
+//go:build !smoke
+
 package itests
 
 import (
-	"math/rand"
 	"net/http"
 	"testing"
 
@@ -9,8 +10,8 @@ import (
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
-	"github.com/wavesplatform/gowaves/itests/utilities/alias_utilities"
-	"github.com/wavesplatform/gowaves/itests/utilities/transfer_utilities"
+	"github.com/wavesplatform/gowaves/itests/utilities/alias"
+	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -18,42 +19,18 @@ type AliasTxApiSuite struct {
 	f.BaseSuite
 }
 
-func aliasAPIPositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
-	td testdata.AliasTestData[testdata.AliasExpectedValuesPositive], addrByAliasGo, addrByAliasScala []byte,
-	actualDiffBalanceInWaves utl.BalanceInWaves, errMsg string) {
-	utl.StatusCodesCheck(t, http.StatusOK, http.StatusOK, tx, errMsg)
-	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-	utl.AddressByAliasCheck(t, td.Expected.ExpectedAddress.Bytes(), addrByAliasGo, addrByAliasScala,
-		errMsg)
-	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-}
-
-func aliasAPINegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
-	td testdata.AliasTestData[testdata.AliasExpectedValuesNegative],
-	actualDiffBalanceInWaves utl.BalanceInWaves, errMsg string) {
-	utl.StatusCodesCheck(t, http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
-	utl.ErrorMessageCheck(t, td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-		tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
-	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-		tx.WtErr.ErrWtScala, errMsg)
-	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-}
-
 func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
-	utl.SkipLongTest(suite.T())
-	versions := alias_utilities.GetVersions(&suite.BaseSuite)
+	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(
+				tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-				aliasAPIPositiveChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala,
+				alias.PositiveAPIChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala,
 					actualDiffBalanceInWaves, errMsg)
 			})
 		}
@@ -61,20 +38,19 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 }
 
 func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
-	utl.SkipLongTest(suite.T())
-	versions := alias_utilities.GetVersions(&suite.BaseSuite)
+	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
-		n := transfer_utilities.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
+		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultAccountForLoanFunds, 10000000000)
 		tdmatrix := testdata.GetAliasMaxPositiveDataMatrix(&suite.BaseSuite, n)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(
+				tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-				aliasAPIPositiveChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala,
+				alias.PositiveAPIChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala,
 					actualDiffBalanceInWaves, errMsg)
 			})
 		}
@@ -82,19 +58,18 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 }
 
 func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
-	utl.SkipLongTest(suite.T())
-	versions := alias_utilities.GetVersions(&suite.BaseSuite)
+	versions := alias.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(
+				tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
 				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
-				aliasAPINegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, errMsg)
+				alias.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, errMsg)
 			})
 		}
 	}
@@ -103,8 +78,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 }
 
 func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
-	utl.SkipLongTest(suite.T())
-	versions := alias_utilities.GetVersions(&suite.BaseSuite)
+	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Values for same alias"
 	//Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
 	txIds := make(map[string]*crypto.Digest)
@@ -114,7 +88,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				//first alias tx should be successful
-				tx1, _, actualDiffBalanceInWaves1 := alias_utilities.BroadcastAliasTxAndGetWavesBalances(
+				tx1, _, actualDiffBalanceInWaves1 := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Alias Tx1: " + tx1.TxID.String()
 
@@ -129,7 +103,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 					errMsg)
 
 				//second alias tx with same alias had same ID for v1 and v2
-				tx2, _, actualDiffBalanceInWaves2 := alias_utilities.BroadcastAliasTxAndGetWavesBalances(
+				tx2, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, false)
 				errMsg = caseName + "Broadcast Alias Tx2: " + tx2.TxID.String()
 				//already there for v1 and v2, and should be new for v3
@@ -139,8 +113,8 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 					errMsg)
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
 					tx2.BrdCstErr.ErrorBrdCstGo, tx2.BrdCstErr.ErrorBrdCstScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves2.BalanceInWavesGo,
-					actualDiffBalanceInWaves2.BalanceInWavesScala, errMsg)
+				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			})
 		}
 	}
@@ -150,7 +124,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 }
 
 func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
-	versions := alias_utilities.GetVersions(&suite.BaseSuite)
+	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Same alias for different accounts "
 	var idsCount = 2
 	txIds := make(map[string]*crypto.Digest)
@@ -159,7 +133,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			//send alias tx from account that is in first element of testdata slice
-			tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
+			tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 				tdSlice[0], v, true)
 			errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
 
@@ -170,7 +144,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 				errMsg)
 			//send alias tx from account that is in each next slice element
 			for j := 1; j < len(tdSlice); j++ {
-				tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(
+				tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, tdSlice[j], v, false)
 				txIds[name] = &tx.TxID
 
@@ -191,41 +165,6 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 	}
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
 	suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds)
-}
-
-func (suite *AliasTxApiSuite) Test_AliasTxApiSmokePositive() {
-	versions := alias_utilities.GetVersions(&suite.BaseSuite)
-	randV := versions[rand.Intn(len(versions))]
-	tdmatrix := utl.GetRandomValueFromMap(testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite))
-	for name, td := range tdmatrix {
-		caseName := utl.GetTestcaseNameWithVersion(name, randV)
-		suite.Run(caseName, func() {
-			tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
-				td, randV, true)
-			errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
-			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-			aliasAPIPositiveChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala, actualDiffBalanceInWaves, errMsg)
-		})
-	}
-}
-
-func (suite *AliasTxApiSuite) Test_AliasTxApiSmokeNegative() {
-	versions := alias_utilities.GetVersions(&suite.BaseSuite)
-	randV := versions[rand.Intn(len(versions))]
-	txIds := make(map[string]*crypto.Digest)
-	tdmatrix := utl.GetRandomValueFromMap(testdata.GetAliasNegativeDataMatrix(&suite.BaseSuite))
-	for name, td := range tdmatrix {
-		caseName := utl.GetTestcaseNameWithVersion(name, randV)
-		suite.Run(caseName, func() {
-			tx, _, actualDiffBalanceInWaves := alias_utilities.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
-				td, randV, false)
-			txIds[name] = &tx.TxID
-			errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
-			aliasAPINegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, errMsg)
-		})
-	}
-	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
-	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
 func TestAliasTxApiSuite(t *testing.T) {

@@ -1,6 +1,9 @@
-package issue_utilities
+package issue
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -134,4 +137,100 @@ func getAssetsMatrix(suite *f.BaseSuite, data testdata.IssueTestData[testdata.Ex
 		}
 	}
 	return matrix
+}
+
+func PositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.IssueTestData[testdata.ExpectedValuesPositive],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func NegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.IssueTestData[testdata.ExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func PositiveAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.IssueTestData[testdata.ExpectedValuesPositive],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusOK, http.StatusOK, tx, errMsg)
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func NegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.IssueTestData[testdata.ExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+		tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func SmartAssetPositiveAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.IssueTestData[testdata.ExpectedValuesPositive],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset,
+	actualScriptGo, actualScriptScala []byte, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusOK, http.StatusOK, tx, errMsg)
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+	utl.AssetScriptCheck(t, td.Script, actualScriptGo, actualScriptScala, errMsg)
+}
+
+func SmartAssetNegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.IssueTestData[testdata.ExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+		tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func SmartAssetPositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.IssueTestData[testdata.ExpectedValuesPositive],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset,
+	actualScriptGo, actualScriptScala []byte, errMsg string) {
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+	utl.AssetScriptCheck(t, td.Script, actualScriptGo, actualScriptScala, errMsg)
+}
+
+func SmartAssetNegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.IssueTestData[testdata.ExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 }

@@ -1,6 +1,9 @@
-package sponsor_utilities
+package sponsorship
 
 import (
+	"net/http"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -105,4 +108,50 @@ func SponsorshipEnableBroadcast(suite *f.BaseSuite, version byte, scheme proto.S
 func GetVersions(suite *f.BaseSuite) []byte {
 	return utl.GetAvailableVersions(suite.T(), proto.SponsorshipTransaction, testdata.SponsorshipMinVersion,
 		testdata.SponsorshipMaxVersion).Sum
+}
+
+func PositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.SponsorshipTestData[testdata.SponsorshipExpectedValuesPositive],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func NegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.SponsorshipTestData[testdata.SponsorshipExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func PositiveAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.SponsorshipTestData[testdata.SponsorshipExpectedValuesPositive],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusOK, http.StatusOK, tx, errMsg)
+	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+}
+
+func NegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction,
+	td testdata.SponsorshipTestData[testdata.SponsorshipExpectedValuesNegative],
+	actualDiffBalanceInWaves utl.BalanceInWaves, actualDiffBalanceInAsset utl.BalanceInAsset, errMsg string) {
+	utl.StatusCodesCheck(t, http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
+		tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
+	utl.ErrorMessageCheck(t, td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+		actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+	utl.AssetDiffBalanceCheck(t, td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
+		actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
 }
