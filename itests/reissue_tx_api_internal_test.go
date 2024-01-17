@@ -67,19 +67,18 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				//first tx should be successful
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+				tx1, _, _ := reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
+				errMsg := caseName + "Broadcast Reissue tx:" + tx1.TxID.String()
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, errMsg)
+				utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 
 				//second reissue tx should be failed because of reissuable=false
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset =
+				tx2, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.BroadcastReissueTxAndGetBalances(
 						&suite.BaseSuite, testdata.ReissueDataChangedTimestamp(&td), v, false)
-				errMsg = caseName + "Broadcast Reissue tx2:" + tx.TxID.String()
-				txIds[name] = &tx.TxID
-				reissue.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
+				errMsg = caseName + "Broadcast Reissue tx2:" + tx2.TxID.String()
+				txIds[name] = &tx2.TxID
+				reissue.NegativeAPIChecks(suite.T(), tx2, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}
