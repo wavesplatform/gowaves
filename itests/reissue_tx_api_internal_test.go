@@ -24,7 +24,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissuePositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -42,7 +42,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissueMaxQuantityValue(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -61,7 +61,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetNotReissuableTestData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -91,7 +91,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, nft, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, nft, v, true)
 		tdmatrix := testdata.GetReissueNFTData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -113,7 +113,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		//TODO (ipereiaslavskaia) For v1 of reissue tx negative cases for chainID will be ignored
 		if v >= 2 {

@@ -11,59 +11,69 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte,
+	waitForTx bool) utl.ConsideredTransaction
 
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte,
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
-	initBalanceInAssetGo, initBalanceInAssetScala := utl.GetAssetBalance(suite, testdata.Account.Address, testdata.AssetID)
+	initBalanceInAssetGo, initBalanceInAssetScala := utl.GetAssetBalance(suite, testdata.Account.Address,
+		testdata.AssetID)
 	tx := makeTx(suite, testdata, version, waitForTx)
 	actualDiffBalanceInWaves := utl.GetActualDiffBalanceInWaves(suite, testdata.Account.Address,
 		initBalanceInWavesGo, initBalanceInWavesScala)
 	actualDiffBalanceInAsset := utl.GetActualDiffBalanceInAssets(suite, testdata.Account.Address,
 		testdata.AssetID, initBalanceInAssetGo, initBalanceInAssetScala)
-	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala,
-			tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
+	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo,
+			tx.WtErr.ErrWtScala, tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
 		utl.NewBalanceInWaves(actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala),
 		utl.NewBalanceInAsset(actualDiffBalanceInAsset.BalanceInAssetGo, actualDiffBalanceInAsset.BalanceInAssetScala)
 }
 
-func NewSignBurnTransaction[T any](suite *f.BaseSuite, version byte, testdata testdata.BurnTestData[T]) proto.Transaction {
+func NewSignBurnTransaction[T any](suite *f.BaseSuite, version byte,
+	testdata testdata.BurnTestData[T]) proto.Transaction {
 	var tx proto.Transaction
 	if version == 1 {
-		tx = proto.NewUnsignedBurnWithSig(testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Timestamp, testdata.Fee)
+		tx = proto.NewUnsignedBurnWithSig(testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity,
+			testdata.Timestamp, testdata.Fee)
 	} else {
-		tx = proto.NewUnsignedBurnWithProofs(version, testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity, testdata.Timestamp, testdata.Fee)
+		tx = proto.NewUnsignedBurnWithProofs(version, testdata.Account.PublicKey, testdata.AssetID, testdata.Quantity,
+			testdata.Timestamp, testdata.Fee)
 	}
 	err := tx.Sign(testdata.ChainID, testdata.Account.SecretKey)
-	txJson := utl.GetTransactionJsonOrErrMsg(tx)
-	suite.T().Logf("Burn Transaction JSON after sign: %s", txJson)
+	txJSON := utl.GetTransactionJsonOrErrMsg(tx)
+	suite.T().Logf("Burn Transaction JSON after sign: %s", txJSON)
 	require.NoError(suite.T(), err, "failed to create proofs from signature")
 	return tx
 }
 
-func BurnSend[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
+func Send[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte,
+	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignBurnTransaction(suite, version, testdata)
 	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func BurnBroadcast[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
+func Broadcast[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte,
+	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignBurnTransaction(suite, version, testdata)
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func SendBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) (
+func SendBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte,
+	waitForTx bool) (
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BurnSend[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, Send[T])
 }
 
-func BroadcastBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte, waitForTx bool) (
+func BroadcastBurnTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.BurnTestData[T], version byte,
+	waitForTx bool) (
 	utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BurnBroadcast[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, Broadcast[T])
 }
 
 func GetVersions(suite *f.BaseSuite) []byte {
-	return utl.GetAvailableVersions(suite.T(), proto.BurnTransaction, testdata.BurnMinVersion, testdata.BurnMaxVersion).Sum
+	return utl.GetAvailableVersions(suite.T(), proto.BurnTransaction, testdata.BurnMinVersion,
+		testdata.BurnMaxVersion).Sum
 }
 
 func PositiveChecks(t *testing.T, tx utl.ConsideredTransaction,

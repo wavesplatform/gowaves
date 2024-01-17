@@ -12,9 +12,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
+	waitForTx bool) utl.ConsideredTransaction
 
-// MakeTxAndGetDiffBalances This function returns txID with init balance before tx and difference balance after tx for both nodes
+// MakeTxAndGetDiffBalances This function returns txID with init balance before tx and difference balance
+// after tx for both nodes.
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
 	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
@@ -66,33 +68,37 @@ func AliasBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, accou
 	return utl.BroadcastAndWaitTransaction(suite, tx, scheme, waitForTx)
 }
 
-func NewSignAliasTransactionWithTestData[T any](suite *f.BaseSuite, version byte, testdata testdata.AliasTestData[T]) proto.Transaction {
+func NewSignAliasTransactionWithTestData[T any](suite *f.BaseSuite, version byte,
+	testdata testdata.AliasTestData[T]) proto.Transaction {
 	return NewSignAliasTransaction(suite, version, testdata.ChainID, testdata.Account.PublicKey,
 		testdata.Account.SecretKey, testdata.Alias, testdata.Fee, testdata.Timestamp)
 }
 
-func AliasSendWithTestData[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
+func SendWithTestData[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
+	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignAliasTransactionWithTestData(suite, version, testdata)
 	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func AliasBroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte, waitForTx bool) utl.ConsideredTransaction {
+func BroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
+	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignAliasTransactionWithTestData(suite, version, testdata)
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
 func SendAliasTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
 	waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, AliasSendWithTestData[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SendWithTestData[T])
 }
 
 func BroadcastAliasTxAndGetWavesBalances[T any](suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
 	waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInWaves) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, AliasBroadcastWithTestData[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BroadcastWithTestData[T])
 }
 
 func GetVersions(suite *f.BaseSuite) []byte {
-	return utl.GetAvailableVersions(suite.T(), proto.CreateAliasTransaction, testdata.AliasMinVersion, testdata.AliasMaxVersion).Sum
+	return utl.GetAvailableVersions(suite.T(), proto.CreateAliasTransaction, testdata.AliasMinVersion,
+		testdata.AliasMaxVersion).Sum
 }
 
 func PositiveChecks(t *testing.T, tx utl.ConsideredTransaction,

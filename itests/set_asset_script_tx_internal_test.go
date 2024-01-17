@@ -22,7 +22,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 	versions := set_asset_script.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-		itx := issue.IssueSendWithTestData(&suite.BaseSuite, smartAsset, v, true)
+		itx := issue.SendWithTestData(&suite.BaseSuite, smartAsset, v, true)
 		tdmatrix := testdata.GetSetAssetScriptPositiveData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -42,7 +42,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-		itx := issue.IssueSendWithTestData(&suite.BaseSuite, smartAsset, v, true)
+		itx := issue.SendWithTestData(&suite.BaseSuite, smartAsset, v, true)
 		tdmatrix := testdata.GetSetAssetScriptNegativeData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -65,7 +65,7 @@ func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		asset := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueSendWithTestData(&suite.BaseSuite, asset, v, true)
+		itx := issue.SendWithTestData(&suite.BaseSuite, asset, v, true)
 		name := "Set script for not scripted asset"
 		td := testdata.GetSimpleSmartAssetNegativeData(&suite.BaseSuite, itx.TxID)
 		caseName := utl.GetTestcaseNameWithVersion(name, v)

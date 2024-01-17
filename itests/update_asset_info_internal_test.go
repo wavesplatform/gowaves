@@ -92,7 +92,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxReissuableTokenNegati
 	for _, v := range versions {
 		for _, iv := range issueVersions {
 			reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-			itx := issue.IssueSendWithTestData(&suite.BaseSuite, reissuable, iv, true)
+			itx := issue.SendWithTestData(&suite.BaseSuite, reissuable, iv, true)
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
@@ -120,7 +120,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxNFTNegative() {
 	for _, v := range versions {
 		for _, iv := range issueVersions {
 			nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
-			itx := issue.IssueSendWithTestData(&suite.BaseSuite, nft, iv, true)
+			itx := issue.SendWithTestData(&suite.BaseSuite, nft, iv, true)
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
@@ -149,7 +149,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxSmartAssetNegative() 
 	for _, v := range versions {
 		for _, iv := range issueVersions {
 			smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-			itx := issue.IssueSendWithTestData(&suite.BaseSuite, smart, iv, true)
+			itx := issue.SendWithTestData(&suite.BaseSuite, smart, iv, true)
 			tdmatrix := testdata.GetUpdateSmartAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
@@ -178,7 +178,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxWithoutWaitingNegativ
 	for _, v := range versions {
 		for _, iv := range issueVersions {
 			reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-			itx := issue.IssueSendWithTestData(&suite.BaseSuite, reissuable, iv, true)
+			itx := issue.SendWithTestData(&suite.BaseSuite, reissuable, iv, true)
 			name := "Updating Asset Info without waiting"
 			tdstruct := testdata.GetUpdateAssetInfoWithoutWaitingNegativeData(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)

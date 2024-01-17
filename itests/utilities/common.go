@@ -49,6 +49,7 @@ const (
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
+	DefaultTimeInterval        = 5 * time.Second
 )
 
 const (
@@ -130,9 +131,10 @@ type AccountsDiffBalancesTxWithSponsorship struct {
 }
 
 func NewDiffBalancesTxWithSponsorship(diffBalanceWavesGoSender, diffBalanceWavesScalaSender, diffBalanceAssetGoSender,
-	diffBalanceAssetScalaSender, diffBalanceFeeAssetGoSender, diffBalanceFeeAssetScalaSender, diffBalanceWavesGoRecipient,
-	diffBalanceWavesScalaRecipient, diffBalanceAssetGoRecipient, diffBalanceAssetScalaRecipient, diffBalanceWavesGoSponsor,
-	diffBalanceWavesScalaSponsor, diffBalanceAssetGoSponsor, diffBalanceAssetScalaSponsor int64) AccountsDiffBalancesTxWithSponsorship {
+	diffBalanceAssetScalaSender, diffBalanceFeeAssetGoSender, diffBalanceFeeAssetScalaSender,
+	diffBalanceWavesGoRecipient, diffBalanceWavesScalaRecipient, diffBalanceAssetGoRecipient,
+	diffBalanceAssetScalaRecipient, diffBalanceWavesGoSponsor, diffBalanceWavesScalaSponsor, diffBalanceAssetGoSponsor,
+	diffBalanceAssetScalaSponsor int64) AccountsDiffBalancesTxWithSponsorship {
 
 	return AccountsDiffBalancesTxWithSponsorship{
 		DiffBalancesSender: AccountDiffBalancesSponsorshipSender{
@@ -209,7 +211,8 @@ func NewAvailableVersions(binary []byte, protobuf []byte) AvailableVersions {
 func GetAvailableVersions(t *testing.T, txType proto.TransactionType, minVersion, maxVersion byte) AvailableVersions {
 	var binary, protobuf []byte
 	minPBVersion := proto.ProtobufTransactionsVersions[txType]
-	require.GreaterOrEqual(t, minPBVersion, minVersion, "Min binary version greater then min protobuf version")
+	require.GreaterOrEqual(t, minPBVersion, minVersion,
+		"Min binary version greater then min protobuf version")
 	for i := minVersion; i < minPBVersion; i++ {
 		binary = append(binary, i)
 	}
@@ -365,8 +368,8 @@ func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) 
 	return GetAvailableBalanceInWavesGo(suite, address), GetAvailableBalanceInWavesScala(suite, address)
 }
 
-func GetAssetInfo(suite *f.BaseSuite, assetId crypto.Digest) *client.AssetsDetail {
-	assetInfo, err := suite.Clients.ScalaClients.HttpClient.GetAssetDetails(assetId)
+func GetAssetInfo(suite *f.BaseSuite, assetID crypto.Digest) *client.AssetsDetail {
+	assetInfo, err := suite.Clients.ScalaClients.HttpClient.GetAssetDetails(assetID)
 	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
 	return assetInfo
 }
@@ -537,40 +540,41 @@ func GetActivationOfFeatures(suite *f.BaseSuite, featureIDs ...settings.Feature)
 	}
 }
 
-func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
-	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
+func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetID crypto.Digest) *g.AssetInfoResponse {
+	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetID.Bytes())
 }
 
-func GetAssetInfoGrpcScala(suite *f.BaseSuite, assetId crypto.Digest) *g.AssetInfoResponse {
-	return suite.Clients.ScalaClients.GrpcClient.GetAssetsInfo(suite.T(), assetId.Bytes())
+func GetAssetInfoGrpcScala(suite *f.BaseSuite, assetID crypto.Digest) *g.AssetInfoResponse {
+	return suite.Clients.ScalaClients.GrpcClient.GetAssetsInfo(suite.T(), assetID.Bytes())
 }
 
-func GetAssetInfoGrpc(suite *f.BaseSuite, assetId crypto.Digest) AssetInfo {
-	return AssetInfo{GetAssetInfoGrpcGo(suite, assetId), GetAssetInfoGrpcScala(suite, assetId)}
+func GetAssetInfoGrpc(suite *f.BaseSuite, assetID crypto.Digest) AssetInfo {
+	return AssetInfo{GetAssetInfoGrpcGo(suite, assetID), GetAssetInfoGrpcScala(suite, assetID)}
 }
 
-func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {
-	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, assetId.Bytes()).GetAmount()
+func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetID crypto.Digest) int64 {
+	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, assetID.Bytes()).GetAmount()
 }
 
-func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) int64 {
-	return suite.Clients.ScalaClients.GrpcClient.GetAssetBalance(suite.T(), address, assetId.Bytes()).GetAmount()
+func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, assetID crypto.Digest) int64 {
+	return suite.Clients.ScalaClients.GrpcClient.GetAssetBalance(suite.T(), address, assetID.Bytes()).GetAmount()
 }
 
-func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest) (int64, int64) {
-	return GetAssetBalanceGo(suite, address, assetId), GetAssetBalanceScala(suite, address, assetId)
+func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, assetID crypto.Digest) (int64, int64) {
+	return GetAssetBalanceGo(suite, address, assetID), GetAssetBalanceScala(suite, address, assetID)
 }
 
-func GetActualDiffBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress, initBalanceGo, initBalanceScala int64) BalanceInWaves {
+func GetActualDiffBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress,
+	initBalanceGo, initBalanceScala int64) BalanceInWaves {
 	currentBalanceInWavesGo, currentBalanceInWavesScala := GetAvailableBalanceInWaves(suite, address)
 	actualDiffBalanceInWavesGo := Abs(initBalanceGo - currentBalanceInWavesGo)
 	actualDiffBalanceInWavesScala := Abs(initBalanceScala - currentBalanceInWavesScala)
 	return NewBalanceInWaves(actualDiffBalanceInWavesGo, actualDiffBalanceInWavesScala)
 }
 
-func GetActualDiffBalanceInAssets(suite *f.BaseSuite, address proto.WavesAddress, assetId crypto.Digest,
+func GetActualDiffBalanceInAssets(suite *f.BaseSuite, address proto.WavesAddress, assetID crypto.Digest,
 	initBalanceGo, initBalanceScala int64) BalanceInAsset {
-	currentBalanceInAssetGo, currentBalanceInAssetScala := GetAssetBalance(suite, address, assetId)
+	currentBalanceInAssetGo, currentBalanceInAssetScala := GetAssetBalance(suite, address, assetID)
 	actualDiffBalanceInAssetGo := Abs(currentBalanceInAssetGo - initBalanceGo)
 	actualDiffBalanceInAssetScala := Abs(currentBalanceInAssetScala - initBalanceScala)
 	return NewBalanceInAsset(actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)

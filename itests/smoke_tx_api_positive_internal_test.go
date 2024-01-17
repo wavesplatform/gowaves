@@ -42,7 +42,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_AliasTxApiSmokePositive() {
 func (suite *SmokeTxApiPositiveSuite) Test_BurnTxApiSmokePositive() {
 	v := byte(testdata.BurnMaxVersion)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+	itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 	tdmatrix := testdata.GetBurnPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -88,7 +88,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_IssueTxApiSmokePositive() {
 func (suite *SmokeTxApiPositiveSuite) Test_ReissueTxApiSmokePositive() {
 	v := byte(testdata.ReissueMaxVersion)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+	itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 	tdmatrix := testdata.GetReissuePositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -104,7 +104,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_ReissueTxApiSmokePositive() {
 func (suite *SmokeTxApiPositiveSuite) Test_SetAssetScriptApiSmokePositive() {
 	v := byte(testdata.SetAssetScriptMaxVersion)
 	smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-	itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, smartAsset, v, true)
+	itx := issue.BroadcastWithTestData(&suite.BaseSuite, smartAsset, v, true)
 	tdmatrix := testdata.GetSetAssetScriptPositiveData(&suite.BaseSuite, itx.TxID)
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -122,7 +122,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_SetAssetScriptApiSmokePositive() {
 func (suite *SmokeTxApiPositiveSuite) TestSponsorshipTxApiSmokePositive() {
 	v := byte(testdata.SponsorshipMaxVersion)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+	itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 	tdmatrix := testdata.GetSponsorshipPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -142,7 +142,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_TransferTxApiSmokePositive() {
 	alias.SetAliasToAccountByAPI(&suite.BaseSuite, v, utl.TestChainID, aliasStr,
 		utl.DefaultRecipientNotMiner)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-	itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+	itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 	tdmatrix := testdata.GetTransferPositiveData(&suite.BaseSuite, itx.TxID, aliasStr)
 	if v <= 2 {
 		maps.Copy(tdmatrix, testdata.GetTransferChainIDDataBinaryVersions(
@@ -165,7 +165,7 @@ func (suite *SmokeTxApiPositiveSuite) TestTransferWithSponsorshipApiSmokePositiv
 	sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 		testdata.Sponsor, utl.MaxAmount)
 	//Sponsor set up sponsorship for this token
-	sponsorship.SponsorshipEnableBroadcast(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
+	sponsorship.EnableBroadcast(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
 		sponsoredAssetId, testdata.DefaultMinSponsoredAssetFee)
 	//Sponsor transfers all issued sponsored tokens to RecipientSender
 	transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
@@ -198,7 +198,7 @@ func (suite *SmokeTxApiPositiveSuite) TestTransferWithSponsorshipToOneselfApiSmo
 	sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 		testdata.Sponsor, utl.MaxAmount)
 	//Sponsor set up sponsorship for this token
-	sponsorship.SponsorshipEnableBroadcast(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
+	sponsorship.EnableBroadcast(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
 		sponsoredAssetId, testdata.DefaultMinSponsoredAssetFee)
 	//Sponsor issues one more token
 	assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
@@ -241,7 +241,7 @@ func (suite *SmokeTxApiPositiveSuite) TestFeeInWavesAccordingMinSponsoredAssetAp
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			//Sponsor set up sponsorship for the token
-			sponsorship.SponsorshipEnableBroadcast(&suite.BaseSuite, v,
+			sponsorship.EnableBroadcast(&suite.BaseSuite, v,
 				td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
 
 			//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset

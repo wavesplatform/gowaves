@@ -94,7 +94,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 	for _, v := range versions {
 		for _, iv := range issueVersions {
 			reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-			itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, iv, true)
+			itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, iv, true)
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
@@ -123,7 +123,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
 	for _, v := range versions {
 		for _, iv := range issueVersions {
 			nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
-			itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, nft, iv, true)
+			itx := issue.BroadcastWithTestData(&suite.BaseSuite, nft, iv, true)
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
@@ -152,7 +152,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxSmartAssetApiNegat
 	for _, v := range versions {
 		for _, iv := range issueVersions {
 			smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-			itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, smart, iv, true)
+			itx := issue.BroadcastWithTestData(&suite.BaseSuite, smart, iv, true)
 			tdmatrix := testdata.GetUpdateSmartAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			for name, td := range tdmatrix {
@@ -181,7 +181,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiWithoutWaitingN
 	for _, v := range versions {
 		for _, iv := range issueVersions {
 			reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-			itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, iv, true)
+			itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, iv, true)
 			name := "Broadcast Update Asset Info without waiting"
 			tdstruct := testdata.GetUpdateAssetInfoWithoutWaitingNegativeData(&suite.BaseSuite, itx.TxID)
 			for _, td := range tdstruct {

@@ -3,7 +3,6 @@ package transfer
 import (
 	"net/http"
 	"testing"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -28,13 +27,13 @@ func NewSignTransferTransaction(suite *f.BaseSuite, version byte, scheme proto.S
 			fee, recipient, attachment)
 	}
 	err := tx.Sign(scheme, senderSK)
-	txJson := utl.GetTransactionJsonOrErrMsg(tx)
-	suite.T().Logf("Transfer Transaction JSON after sign: %s", txJson)
+	txJSON := utl.GetTransactionJsonOrErrMsg(tx)
+	suite.T().Logf("Transfer Transaction JSON after sign: %s", txJSON)
 	require.NoError(suite.T(), err, "failed to create proofs from signature")
 	return tx
 }
 
-func TransferSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
+func Send(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
 	sk crypto.SecretKey, amountAsset, feeAsset proto.OptionalAsset, timestamp, amount, fee uint64,
 	recipient proto.Recipient, attachment proto.Attachment, waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignTransferTransaction(suite, version, scheme, senderPK, sk, amountAsset, feeAsset, timestamp, amount,
@@ -53,7 +52,8 @@ type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.TransferTestData[T
 	waitForTx bool) utl.ConsideredTransaction
 
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T],
-	version byte, waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.AccountsDiffBalancesTxWithSponsorship) {
+	version byte, waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction,
+	utl.AccountsDiffBalancesTxWithSponsorship) {
 
 	var assetDetails *client.AssetsDetail
 	if testdata.FeeAsset.ToDigest() != nil {
@@ -62,18 +62,25 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Trans
 
 	address := utl.GetAddressFromRecipient(suite, testdata.Recipient)
 
-	initBalanceWavesGoSender, initBalanceWavesScalaSender := utl.GetAvailableBalanceInWaves(suite, testdata.Sender.Address)
-	initBalanceAssetGoSender, initBalanceAssetScalaSender := utl.GetAssetBalance(suite, testdata.Sender.Address, testdata.Asset.ID)
-	initBalanceFeeAssetGoSender, initBalanceFeeAssetScalaSender := utl.GetAssetBalance(suite, testdata.Sender.Address, testdata.FeeAsset.ID)
+	initBalanceWavesGoSender, initBalanceWavesScalaSender :=
+		utl.GetAvailableBalanceInWaves(suite, testdata.Sender.Address)
+	initBalanceAssetGoSender, initBalanceAssetScalaSender :=
+		utl.GetAssetBalance(suite, testdata.Sender.Address, testdata.Asset.ID)
+	initBalanceFeeAssetGoSender, initBalanceFeeAssetScalaSender :=
+		utl.GetAssetBalance(suite, testdata.Sender.Address, testdata.FeeAsset.ID)
 
-	initBalanceWavesGoRecipient, initBalanceWavesScalaRecipient := utl.GetAvailableBalanceInWaves(suite, address)
-	initBalanceAssetGoRecipient, initBalanceAssetScalaRecipient := utl.GetAssetBalance(suite, address, testdata.Asset.ID)
+	initBalanceWavesGoRecipient, initBalanceWavesScalaRecipient :=
+		utl.GetAvailableBalanceInWaves(suite, address)
+	initBalanceAssetGoRecipient, initBalanceAssetScalaRecipient :=
+		utl.GetAssetBalance(suite, address, testdata.Asset.ID)
 
 	var initBalanceWavesGoSponsor, initBalanceWavesScalaSponsor,
 		initBalanceAssetGoSponsor, initBalanceAssetScalaSponsor int64
 	if assetDetails != nil {
-		initBalanceWavesGoSponsor, initBalanceWavesScalaSponsor = utl.GetAvailableBalanceInWaves(suite, assetDetails.Issuer)
-		initBalanceAssetGoSponsor, initBalanceAssetScalaSponsor = utl.GetAssetBalance(suite, assetDetails.Issuer, testdata.FeeAsset.ID)
+		initBalanceWavesGoSponsor, initBalanceWavesScalaSponsor =
+			utl.GetAvailableBalanceInWaves(suite, assetDetails.Issuer)
+		initBalanceAssetGoSponsor, initBalanceAssetScalaSponsor =
+			utl.GetAssetBalance(suite, assetDetails.Issuer, testdata.FeeAsset.ID)
 	}
 
 	tx := makeTx(suite, testdata, version, waitForTx)
@@ -111,13 +118,13 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Trans
 			actualDiffBalanceAssetSponsor.BalanceInAssetScala)
 }
 
-func TransferSendWithTestData[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
+func SendWithTestData[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignTransferTransactionWithTestData(suite, version, testdata)
 	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func TransferBroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
+func BroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignTransferTransactionWithTestData(suite, version, testdata)
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
@@ -125,20 +132,21 @@ func TransferBroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.
 
 func SendTransferTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
 	waitForTx bool) (utl.ConsideredTransaction, utl.AccountsDiffBalancesTxWithSponsorship) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, TransferSendWithTestData[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SendWithTestData[T])
 }
 
 func BroadcastTransferTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T], version byte,
 	waitForTx bool) (utl.ConsideredTransaction, utl.AccountsDiffBalancesTxWithSponsorship) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, TransferBroadcastWithTestData[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BroadcastWithTestData[T])
 }
 
-func TransferFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from, to int, amount uint64) utl.ConsideredTransaction {
+func TransferFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from, to int,
+	amount uint64) utl.ConsideredTransaction {
 	sender := utl.GetAccount(suite, from)
 	recipient := utl.GetAccount(suite, to)
-	tx := TransferSend(suite, version, scheme, sender.PublicKey, sender.SecretKey,
-		proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount, 100000,
-		proto.NewRecipientFromAddress(recipient.Address), nil, true)
+	tx := Send(suite, version, scheme, sender.PublicKey, sender.SecretKey,
+		proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount,
+		utl.MinTxFeeWaves, proto.NewRecipientFromAddress(recipient.Address), nil, true)
 	return tx
 }
 
@@ -147,8 +155,8 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 	tx := TransferFunds(suite, version, scheme, from, accNumber, amount)
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
-	//waiting for changing waves balance
-	err := node_client.Retry(5*time.Second, func() error {
+	// Waiting for changing waves balance.
+	err := node_client.Retry(utl.DefaultTimeInterval, func() error {
 		var balanceErr error
 		balanceGo, balanceScala := utl.GetAvailableBalanceInWaves(suite, utl.GetAccount(suite, accNumber).Address)
 		if balanceScala == 0 && balanceGo == 0 {
@@ -160,7 +168,8 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 	return accNumber
 }
 
-// amount of Asset that transfered from one account to another, by default it will be all amount of Asset
+// TransferAssetAmount - Amount of Asset that transferred from one account to another,
+// by default it will be all amount of Asset.
 func TransferAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest,
 	from, to int, assetAmount ...uint64) {
 	var amount, currentAmount uint64
@@ -170,15 +179,17 @@ func TransferAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, 
 	} else {
 		amount = currentAmount
 	}
-	tx := TransferSend(suite, version, scheme, utl.GetAccount(suite, from).PublicKey, utl.GetAccount(suite, from).SecretKey,
-		*proto.NewOptionalAssetFromDigest(assetId), proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount,
-		100000, proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address), nil, true)
+	tx := Send(suite, version, scheme, utl.GetAccount(suite, from).PublicKey,
+		utl.GetAccount(suite, from).SecretKey, *proto.NewOptionalAssetFromDigest(assetId),
+		proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount, utl.MinTxFeeWaves,
+		proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address), nil, true)
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
 }
 
 func GetVersions(suite *f.BaseSuite) []byte {
-	return utl.GetAvailableVersions(suite.T(), proto.TransferTransaction, testdata.TransferMinVersion, testdata.TransferMaxVersion).Sum
+	return utl.GetAvailableVersions(suite.T(), proto.TransferTransaction, testdata.TransferMinVersion,
+		testdata.TransferMaxVersion).Sum
 }
 
 func PositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
@@ -283,9 +294,9 @@ func WithSponsorshipPositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
 	td testdata.TransferTestData[testdata.TransferSponsoredExpectedValuesPositive],
 	diffBalances utl.AccountsDiffBalancesTxWithSponsorship, errMsg string) {
 	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-	//RecipientSender balance in Waves does not change because of fee in sponsored asset
-	//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
-	//The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee
+	// RecipientSender balance in Waves does not change because of fee in sponsored asset.
+	// RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient.
+	// The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee.
 	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalanceSender,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
@@ -298,8 +309,8 @@ func WithSponsorshipPositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
 		errMsg)
-	//Recipient balance in Waves changes if Waves were transferred
-	//Recipient Asset balance increases by the asset amount being transferred
+	// Recipient balance in Waves changes if Waves were transferred.
+	// Recipient Asset balance increases by the asset amount being transferred.
 	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalanceRecipient,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
@@ -308,8 +319,8 @@ func WithSponsorshipPositiveChecks(t *testing.T, tx utl.ConsideredTransaction,
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
 		errMsg)
-	//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-	//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
+	// Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee.
+	// Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender.
 	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalanceSponsor,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
@@ -324,9 +335,9 @@ func WithSponsorshipMinAssetFeePositiveChecks(t *testing.T, tx utl.ConsideredTra
 	td testdata.TransferSponsoredTestData[testdata.TransferSponsoredExpectedValuesPositive],
 	diffBalances utl.AccountsDiffBalancesTxWithSponsorship, errMsg string) {
 	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-	//RecipientSender balance in Waves does not change because of fee in sponsored asset
-	//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
-	//The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee
+	// RecipientSender balance in Waves does not change because of fee in sponsored asset.
+	// RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient.
+	// The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceSender,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
@@ -339,8 +350,8 @@ func WithSponsorshipMinAssetFeePositiveChecks(t *testing.T, tx utl.ConsideredTra
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
 		errMsg)
-	//Recipient balance in Waves changes if Waves were transferred
-	//Recipient Asset balance increases by the asset amount being transferred
+	// Recipient balance in Waves changes if Waves were transferred.
+	// Recipient Asset balance increases by the asset amount being transferred.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceRecipient,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
@@ -349,8 +360,8 @@ func WithSponsorshipMinAssetFeePositiveChecks(t *testing.T, tx utl.ConsideredTra
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
 		errMsg)
-	//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-	//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
+	// Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee.
+	// Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceSponsor,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
@@ -364,10 +375,10 @@ func WithSponsorshipMinAssetFeePositiveChecks(t *testing.T, tx utl.ConsideredTra
 func WithSponsorshipNegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 	td testdata.TransferSponsoredTestData[testdata.TransferSponsoredExpectedValuesNegative],
 	diffBalances utl.AccountsDiffBalancesTxWithSponsorship, errMsg string) {
-	utl.ErrorMessageCheck(t, td.TransferTestData.Expected.ErrGoMsg, td.TransferTestData.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-		tx.WtErr.ErrWtScala, errMsg)
+	utl.ErrorMessageCheck(t, td.TransferTestData.Expected.ErrGoMsg, td.TransferTestData.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
-	//Balances of RecipientSender do not change
+	// Balances of RecipientSender do not change.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceSender,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
@@ -383,7 +394,7 @@ func WithSponsorshipNegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
 		errMsg)
 
-	//Balances of Recipient do not change
+	// Balances of Recipient do not change.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceRecipient,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
@@ -394,7 +405,7 @@ func WithSponsorshipNegativeChecks(t *testing.T, tx utl.ConsideredTransaction,
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
 		errMsg)
 
-	//Balances of Sponsor do not change
+	// Balances of Sponsor do not change.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceSponsor,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
@@ -411,9 +422,9 @@ func WithSponsorshipPositiveAPIChecks(t *testing.T, tx utl.ConsideredTransaction
 	diffBalances utl.AccountsDiffBalancesTxWithSponsorship, errMsg string) {
 	utl.StatusCodesCheck(t, http.StatusOK, http.StatusOK, tx, errMsg)
 	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-	//RecipientSender balance in Waves does not change because of fee in sponsored asset
-	//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
-	//The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee
+	// RecipientSender balance in Waves does not change because of fee in sponsored asset.
+	// RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient.
+	// The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee.
 	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalanceSender,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
@@ -426,8 +437,8 @@ func WithSponsorshipPositiveAPIChecks(t *testing.T, tx utl.ConsideredTransaction
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
 		errMsg)
-	//Recipient balance in Waves changes if Waves were transferred
-	//Recipient Asset balance increases by the asset amount being transferred
+	// Recipient balance in Waves changes if Waves were transferred.
+	// Recipient Asset balance increases by the asset amount being transferred.
 	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalanceRecipient,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
@@ -436,8 +447,8 @@ func WithSponsorshipPositiveAPIChecks(t *testing.T, tx utl.ConsideredTransaction
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
 		errMsg)
-	//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-	//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
+	// Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee.
+	// Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender.
 	utl.WavesDiffBalanceCheck(t, td.Expected.WavesDiffBalanceSponsor,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
@@ -453,9 +464,9 @@ func WithSponsorshipMinAssetFeePositiveAPIChecks(t *testing.T, tx utl.Considered
 	diffBalances utl.AccountsDiffBalancesTxWithSponsorship, errMsg string) {
 	utl.StatusCodesCheck(t, http.StatusOK, http.StatusOK, tx, errMsg)
 	utl.TxInfoCheck(t, tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-	//RecipientSender balance in Waves does not change because of fee in sponsored asset
-	//RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient
-	//The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee
+	// RecipientSender balance in Waves does not change because of fee in sponsored asset.
+	// RecipientSender balance of tokens (waves) is reduced by the amount of tokens that transferred to Recipient.
+	// The RecipientSender's balance of tokens specified as an asset fee is reduced by the amount of the fee.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceSender,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
@@ -468,8 +479,8 @@ func WithSponsorshipMinAssetFeePositiveAPIChecks(t *testing.T, tx utl.Considered
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetGo,
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
 		errMsg)
-	//Recipient balance in Waves changes if Waves were transferred
-	//Recipient Asset balance increases by the asset amount being transferred
+	// Recipient balance in Waves changes if Waves were transferred.
+	// Recipient Asset balance increases by the asset amount being transferred.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceRecipient,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
@@ -478,8 +489,8 @@ func WithSponsorshipMinAssetFeePositiveAPIChecks(t *testing.T, tx utl.Considered
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
 		errMsg)
-	//Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee
-	//Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender
+	// Sponsor balance in Waves decreases by amount feeInWaves = feeInSponsoredAsset × 0,001 / minSponsoredAssetFee.
+	// Sponsor Asset balance increases by amount of fee in sponsored asset that was used by RecipientSender.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceSponsor,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,
@@ -494,10 +505,10 @@ func WithSponsorshipNegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction
 	td testdata.TransferSponsoredTestData[testdata.TransferSponsoredExpectedValuesNegative],
 	diffBalances utl.AccountsDiffBalancesTxWithSponsorship, errMsg string) {
 	utl.StatusCodesCheck(t, http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
-	utl.ErrorMessageCheck(t, td.TransferTestData.Expected.ErrGoMsg, td.TransferTestData.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-		tx.WtErr.ErrWtScala, errMsg)
+	utl.ErrorMessageCheck(t, td.TransferTestData.Expected.ErrGoMsg, td.TransferTestData.Expected.ErrScalaMsg,
+		tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
-	//Balances of RecipientSender do not change
+	// Balances of RecipientSender do not change.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceSender,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSender.DiffBalanceWaves.BalanceInWavesScala,
@@ -513,7 +524,7 @@ func WithSponsorshipNegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction
 		diffBalances.DiffBalancesSender.DiffBalanceFeeAsset.BalanceInAssetScala,
 		errMsg)
 
-	//Balances of Recipient do not change
+	// Balances of Recipient do not change.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceRecipient,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesRecipient.DiffBalanceWaves.BalanceInWavesScala,
@@ -524,7 +535,7 @@ func WithSponsorshipNegativeAPIChecks(t *testing.T, tx utl.ConsideredTransaction
 		diffBalances.DiffBalancesRecipient.DiffBalanceAsset.BalanceInAssetScala,
 		errMsg)
 
-	//Balances of Sponsor do not change
+	// Balances of Sponsor do not change.
 	utl.WavesDiffBalanceCheck(t, td.TransferTestData.Expected.WavesDiffBalanceSponsor,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesGo,
 		diffBalances.DiffBalancesSponsor.DiffBalanceWaves.BalanceInWavesScala,

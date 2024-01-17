@@ -23,7 +23,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.SendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetSponsorshipPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -66,7 +66,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTx() {
 	name := "Sponsorship Enabled/Disabled"
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.SendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		sponsorshipData := testdata.GetSponsorshipEnabledDisabledData(&suite.BaseSuite, itx.TxID)
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
@@ -95,7 +95,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
 
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.SendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetSponsorshipNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 
 		for name, td := range tdmatrix {
@@ -119,7 +119,7 @@ func (suite *SponsorshipTxSuite) Test_SponsorshipForSmartAssetNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-		itx := issue.IssueSendWithTestData(&suite.BaseSuite, smart, v, true)
+		itx := issue.SendWithTestData(&suite.BaseSuite, smart, v, true)
 		td := testdata.GetSponsorshipForSmartAssetData(&suite.BaseSuite, itx.TxID).Enabled
 		name := "Check sponsorship for smart asset"
 		caseName := utl.GetTestcaseNameWithVersion(name, v)

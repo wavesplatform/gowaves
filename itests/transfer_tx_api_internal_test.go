@@ -27,7 +27,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 		alias.SetAliasToAccountByAPI(&suite.BaseSuite, v, utl.TestChainID, aliasStr,
 			utl.DefaultRecipientNotMiner)
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetTransferPositiveData(&suite.BaseSuite, itx.TxID, aliasStr)
 		if v <= 2 {
 			maps.Copy(tdmatrix, testdata.GetTransferChainIDDataBinaryVersions(&suite.BaseSuite, itx.TxID))
@@ -51,7 +51,7 @@ func (suite *TransferTxApiSuite) Test_TransferSmartAssetApiPositive() {
 	for _, v := range versions {
 		for _, sav := range saversions {
 			smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-			itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, smart, sav, true)
+			itx := issue.BroadcastWithTestData(&suite.BaseSuite, smart, sav, true)
 			td := testdata.GetCommonTransferData(&suite.BaseSuite, &itx.TxID).Smart
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
@@ -91,7 +91,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueSendWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.SendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetTransferNegativeData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -113,7 +113,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetTransferChainIDChangedNegativeData(&suite.BaseSuite, itx.TxID)
 		if v > 2 {
 			maps.Copy(tdmatrix, testdata.GetTransferChainIDDataNegative(&suite.BaseSuite, itx.TxID))
@@ -125,7 +125,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
 					&suite.BaseSuite, td.Sender.Address)
 				initBalanceAssetGoSender, initBalanceAssetScalaSender := utl.GetAssetBalance(
 					&suite.BaseSuite, td.Sender.Address, td.Asset.ID)
-				tx := transfer.TransferBroadcastWithTestData(&suite.BaseSuite, td, v, false)
+				tx := transfer.BroadcastWithTestData(&suite.BaseSuite, td, v, false)
 				errMsg := caseName + "Broadcast Transfer tx: " + tx.TxID.String()
 				txIds[name] = &tx.TxID
 				actualDiffBalanceWavesSender := utl.GetActualDiffBalanceInWaves(&suite.BaseSuite, td.Sender.Address,

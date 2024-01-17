@@ -25,7 +25,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetBurnPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -45,7 +45,7 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultAccountForLoanFunds, 10000000000)
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetBurnAllAssetWithMaxAvailableFee(&suite.BaseSuite, itx.TxID, n)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -64,7 +64,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
 		//get NFT
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, nft, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, nft, v, true)
 		//data for transfer
 		transferNFT := testdata.GetCommonTransferData(&suite.BaseSuite, &itx.TxID).NFT
 		tdmatrix := testdata.GetBurnNFTFromOwnerAccount(&suite.BaseSuite, itx.TxID)
@@ -72,7 +72,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				//transfer NFT from Account 2 to Account 3
-				ttx := transfer.TransferBroadcastWithTestData(&suite.BaseSuite, transferNFT, v, true)
+				ttx := transfer.BroadcastWithTestData(&suite.BaseSuite, transferNFT, v, true)
 				errMsg := caseName + "Transfer tx" + ttx.TxID.String()
 
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, ttx, errMsg)
@@ -94,7 +94,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetBurnNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		//TODO (ipereiaslavskaia) For v1 of burn tx negative cases for chainID will be ignored
 		if v >= 2 {

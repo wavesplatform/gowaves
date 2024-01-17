@@ -23,7 +23,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetSponsorshipPositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -66,7 +66,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
 	name := "Sponsorship Enabled/Disabled"
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		sponsorshipData := testdata.GetSponsorshipEnabledDisabledData(&suite.BaseSuite, itx.TxID)
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
@@ -94,7 +94,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetSponsorshipNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -117,7 +117,7 @@ func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		smart := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
-		itx := issue.IssueBroadcastWithTestData(&suite.BaseSuite, smart, v, true)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, smart, v, true)
 		td := testdata.GetSponsorshipForSmartAssetData(&suite.BaseSuite, itx.TxID).Enabled
 		name := "Check sponsorship for smart asset"
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
