@@ -7,39 +7,46 @@ import (
 
 const microBlockCacheSize = 24
 
+type microBlockWithSnapshot struct {
+	microBlock *proto.MicroBlock
+	snapshot   *proto.BlockSnapshot
+}
+
 type MicroBlockCache struct {
-	blockCache    *fifo_cache.FIFOCache
-	snapshotCache *fifo_cache.FIFOCache
+	cache *fifo_cache.FIFOCache
 }
 
 func NewMicroBlockCache() *MicroBlockCache {
 	return &MicroBlockCache{
-		blockCache:    fifo_cache.New(microBlockCacheSize),
-		snapshotCache: fifo_cache.New(microBlockCacheSize),
+		cache: fifo_cache.New(microBlockCacheSize),
 	}
 }
 
-func (a *MicroBlockCache) Add(blockID proto.BlockID, micro *proto.MicroBlock) {
-	a.blockCache.Add2(blockID.Bytes(), micro)
+func (a *MicroBlockCache) AddMicroBlockWithSnapshot(
+	blockID proto.BlockID,
+	micro *proto.MicroBlock,
+	snapshot *proto.BlockSnapshot,
+) {
+	a.cache.Add2(blockID.Bytes(), &microBlockWithSnapshot{
+		microBlock: micro,
+		snapshot:   snapshot,
+	})
 }
 
-func (a *MicroBlockCache) Get(sig proto.BlockID) (*proto.MicroBlock, bool) {
-	rs, ok := a.blockCache.Get(sig.Bytes())
+func (a *MicroBlockCache) GetBlock(sig proto.BlockID) (*proto.MicroBlock, bool) {
+	rs, ok := a.cache.Get(sig.Bytes())
 	if !ok {
 		return nil, false
 	}
-	return rs.(*proto.MicroBlock), true
+	return rs.(*microBlockWithSnapshot).microBlock, true
 }
 
-func (a *MicroBlockCache) AddSnapshot(blockID proto.BlockID, snapshot *proto.BlockSnapshot) {
-	a.snapshotCache.Add2(blockID.Bytes(), snapshot)
-}
 func (a *MicroBlockCache) GetSnapshot(sig proto.BlockID) (*proto.BlockSnapshot, bool) {
-	rs, ok := a.snapshotCache.Get(sig.Bytes())
+	rs, ok := a.cache.Get(sig.Bytes())
 	if !ok {
 		return nil, false
 	}
-	return rs.(*proto.BlockSnapshot), true
+	return rs.(*microBlockWithSnapshot).snapshot, true
 }
 
 type MicroblockInvCache struct {

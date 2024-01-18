@@ -27,8 +27,18 @@ type Async []tasks.Task
 
 type BlocksApplier interface {
 	BlockExists(state storage.State, block *proto.Block) (bool, error)
-	Apply(state storage.State, block []*proto.Block, snapshots []*proto.BlockSnapshot) (proto.Height, error)
-	ApplyMicro(state storage.State, block *proto.Block, snapshots *proto.BlockSnapshot) (proto.Height, error)
+	Apply(
+		state storage.State,
+		block []*proto.Block,
+		snapshots []*proto.BlockSnapshot,
+		isLightNode bool,
+	) (proto.Height, error)
+	ApplyMicro(
+		state storage.State,
+		block *proto.Block,
+		snapshots *proto.BlockSnapshot,
+		isLightNode bool,
+	) (proto.Height, error)
 }
 
 type BaseInfo struct {

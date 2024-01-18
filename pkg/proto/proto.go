@@ -2059,6 +2059,20 @@ type MiningLimits struct {
 	MaxTxsSizeInBytes           int
 }
 
+func buildHeader(body []byte, messID PeerMessageID) (Header, error) {
+	var h Header
+	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
+	h.Magic = headerMagic
+	h.ContentID = messID
+	h.PayloadLength = uint32(len(body))
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return Header{}, err
+	}
+	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
+	return h, nil
+}
+
 type GetBlockSnapshotMessage struct {
 	BlockID BlockID
 }
@@ -2095,18 +2109,10 @@ func (m *GetBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 
 func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
-
-	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDGetBlockSnapshot
-	h.PayloadLength = uint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := buildHeader(body, ContentIDGetBlockSnapshot)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -2161,16 +2167,10 @@ func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *BlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
-	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDBlockSnapshot
-	h.PayloadLength = uint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := buildHeader(body, ContentIDBlockSnapshot)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -2226,16 +2226,10 @@ func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
-	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDMicroBlockSnapshot
-	h.PayloadLength = uint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := buildHeader(body, ContentIDMicroBlockSnapshot)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -2282,16 +2276,10 @@ func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
 func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockIDBytes
 
-	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDGetBlockSnapshot
-	h.PayloadLength = uint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := buildHeader(body, ContentIDMicroBlockSnapshotRequest)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {

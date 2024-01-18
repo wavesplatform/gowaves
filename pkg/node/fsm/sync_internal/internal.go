@@ -86,7 +86,7 @@ func (a Internal) Block(block *proto.Block) (Internal, error) {
 	return a, nil
 }
 
-func (a Internal) Snapshot(blockID proto.BlockID, snapshot *proto.BlockSnapshot) (Internal, error) {
+func (a Internal) SetSnapshot(blockID proto.BlockID, snapshot *proto.BlockSnapshot) (Internal, error) {
 	if !a.orderedBlocks.Contains(blockID) {
 		return a, UnexpectedBlockErr
 	}

@@ -50,7 +50,7 @@ func TestApply_ValidBlockWithRollback(t *testing.T) {
 	require.NoError(t, err)
 
 	ba := innerBlocksApplier{}
-	height, err := ba.apply(mockState, []*proto.Block{block2}, nil)
+	height, err := ba.apply(mockState, []*proto.Block{block2}, nil, false)
 	require.NoError(t, err)
 	require.EqualValues(t, 2, height)
 	newBlock, _ := mockState.BlockByHeight(2)
@@ -103,7 +103,7 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	stateMock.EXPECT().AddDeserializedBlocks([]*proto.Block{block1}, nil).Return(nil, nil)
 
 	ba := innerBlocksApplier{}
-	_, err := ba.apply(stateMock, []*proto.Block{block2}, nil)
+	_, err := ba.apply(stateMock, []*proto.Block{block2}, nil, false)
 	require.NotNil(t, err)
 	require.Equal(t, "failed add deserialized blocks, first block id sV8beveiVKCiUn9BGZRgZj7V5tRRWPMRj1V9WWzKWnigtfQyZ2eErVXHi7vyGXj5hPuaxF9sGxowZr5XuD4UAwW: error message", err.Error())
 }

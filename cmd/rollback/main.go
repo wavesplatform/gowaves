@@ -75,7 +75,7 @@ func main() {
 	params.BuildStateHashes = *buildStateHashes
 	params.StoreExtendedApiData = *buildExtendedAPI
 
-	s, err := state.NewState(*statePath, true, params, cfg)
+	s, err := state.NewState(*statePath, true, params, cfg, false)
 	if err != nil {
 		zap.S().Error(err)
 		return

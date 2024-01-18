@@ -614,50 +614,44 @@ func (a *txAppender) applySnapshotsInLightNode(
 	params *appendBlockParams,
 	stateHash crypto.Digest,
 	hasher *txSnapshotHasher,
-) error {
+) (*proto.BlockSnapshot, crypto.Digest, error) {
 	blockInfo, errBlockInfo := a.currentBlockInfo()
 	if errBlockInfo != nil {
-		return errBlockInfo
+		return nil, crypto.Digest{}, errBlockInfo
 	}
-	blockID := params.block.BlockID()
 	for i, atomicSnapshots := range params.snapshot.TxSnapshots {
 		tx := params.transactions[i]
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
-			return idErr
+			return nil, crypto.Digest{}, idErr
 		}
 		if len(atomicSnapshots) == 0 { // sanity check
-			return errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
+			return nil, crypto.Digest{}, errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
 		// Count miner fee
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
-			return errors.Wrapf(err, "failed to count miner fee for txID %q", base58.Encode(txID))
+			return nil, crypto.Digest{}, errors.Wrapf(err, "failed to count miner fee for txID %q", base58.Encode(txID))
 		}
 		for _, atomicSnapshot := range atomicSnapshots {
 			if errApply := atomicSnapshot.Apply(a.txHandler.sa); errApply != nil {
-				return errors.Wrap(errApply, "failed to apply tx snapshot")
+				return nil, crypto.Digest{}, errors.Wrap(errApply, "failed to apply tx snapshot")
 			}
 		}
 
 		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, atomicSnapshots)
 		if shErr != nil {
-			return errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
+			return nil, crypto.Digest{}, errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
 				base58.Encode(txID), blockInfo.Height,
 			)
 		}
 		stateHash = txSh
+		regSnapshots := txSnapshot{regular: atomicSnapshots}
+		if err := regSnapshots.Apply(a.txHandler.sa, params.transactions[i], false); err != nil {
+			return nil, crypto.Digest{}, errors.Wrap(err, "failed to apply tx snapshot")
+		}
 		// TODO: In future we have to store the list of affected addresses for each transaction here.
 	}
-	if ssErr := a.stor.snapshots.saveSnapshots(blockID, blockInfo.Height, *params.snapshot); ssErr != nil {
-		return ssErr
-	}
-	// clean up legacy state hash records with zero diffs
-	a.stor.balances.filterZeroDiffsSHOut(blockID)
-	// TODO: check snapshot hash with the block snapshot hash if it exists
-	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, blockInfo.Height, blockID); shErr != nil {
-		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", blockInfo.Height)
-	}
-	return nil
+	return params.snapshot, stateHash, nil
 }
 
 func (a *txAppender) appendTxs(
@@ -666,7 +660,7 @@ func (a *txAppender) appendTxs(
 	blockInfo *proto.BlockInfo,
 	stateHash crypto.Digest,
 	hasher *txSnapshotHasher,
-) error {
+) (*proto.BlockSnapshot, crypto.Digest, error) {
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
 
@@ -688,37 +682,27 @@ func (a *txAppender) appendTxs(
 		}
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
-			return errAppendTx
+			return nil, crypto.Digest{}, errAppendTx
 		}
 		bs.AppendTxSnapshot(txSnapshots.regular)
 
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
-			return idErr
+			return nil, crypto.Digest{}, idErr
 		}
 
 		if len(txSnapshots.regular) == 0 { // sanity check
-			return errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
+			return nil, crypto.Digest{}, errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
 		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, txSnapshots.regular)
 		if shErr != nil {
-			return errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
+			return nil, crypto.Digest{}, errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
 				base58.Encode(txID), blockInfo.Height,
 			)
 		}
 		stateHash = txSh // update stateHash in order to accumulate state hashes into block snapshot hash
 	}
-	blockID := params.block.BlockID()
-	if ssErr := a.stor.snapshots.saveSnapshots(blockID, blockInfo.Height, bs); ssErr != nil {
-		return ssErr
-	}
-	// clean up legacy state hash records with zero diffs
-	a.stor.balances.filterZeroDiffsSHOut(blockID)
-	// TODO: check snapshot hash with the block snapshot hash if it exists
-	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, blockInfo.Height, blockID); shErr != nil {
-		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", blockInfo.Height)
-	}
-	return nil
+	return &bs, stateHash, nil
 }
 
 func calculateInitialSnapshotStateHash(
@@ -850,15 +834,28 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			params.block.BlockID(), currentBlockHeight,
 		)
 	}
-
+	var blockSnapshots *proto.BlockSnapshot
 	if params.snapshot != nil {
-		if err = a.applySnapshotsInLightNode(params, stateHash, hasher); err != nil {
+		blockSnapshots, stateHash, err = a.applySnapshotsInLightNode(params, stateHash, hasher)
+		if err != nil {
 			return err
 		}
 	} else {
-		if err = a.appendTxs(params, checkerInfo, blockInfo, stateHash, hasher); err != nil {
+		blockSnapshots, stateHash, err = a.appendTxs(params, checkerInfo, blockInfo, stateHash, hasher)
+		if err != nil {
 			return err
 		}
+	}
+
+	blockID := params.block.BlockID()
+	if ssErr := a.stor.snapshots.saveSnapshots(blockID, blockInfo.Height, *blockSnapshots); ssErr != nil {
+		return ssErr
+	}
+	// clean up legacy state hash records with zero diffs
+	a.stor.balances.filterZeroDiffsSHOut(blockID)
+	// TODO: check snapshot hash with the block snapshot hash if it exists
+	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, blockInfo.Height, blockID); shErr != nil {
+		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", blockInfo.Height)
 	}
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
