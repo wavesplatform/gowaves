@@ -3,6 +3,7 @@ package ride
 import (
 	"fmt"
 	"math/big"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -3346,5 +3347,58 @@ func TestSetScriptRideObjectScriptField(t *testing.T) {
 		actualScriptField, err := testSetScriptTransaction.get(scriptField)
 		require.NoError(t, err)
 		assert.Equal(t, tc.expectedScriptField, actualScriptField)
+	}
+}
+
+func TestConvertToActionLease(t *testing.T) {
+	var (
+		scheme         = proto.TestNetScheme
+		txID           = crypto.MustDigestFromBase58("DHgwrRvVyqJsepd32YbBqUeDH4GJ1N984X8QoekjgH8J")
+		recipient      = newTestAccount(t, "recipient-blah-blah-blah")
+		recipientAlias = proto.NewAlias(scheme, "some-fancy-alias")
+		aliasRecipient = proto.NewRecipientFromAlias(*recipientAlias)
+		addrRecipient  = proto.NewRecipientFromAddress(recipient.address())
+	)
+	tests := []struct {
+		rt rideType
+		sa proto.ScriptAction
+	}{
+		{
+			rt: rideLease{
+				recipient: rideAlias(*recipientAlias),
+				amount:    100000000,
+				nonce:     2,
+			},
+			sa: &proto.LeaseScriptAction{
+				Sender:    nil,
+				ID:        proto.GenerateLeaseScriptActionID(aliasRecipient, int64(100000000), int64(2), txID),
+				Recipient: addrRecipient,
+				Amount:    100000000,
+				Nonce:     2,
+			},
+		},
+		{
+			rt: rideLease{
+				recipient: rideAddress(*addrRecipient.Address()),
+				amount:    100050000,
+				nonce:     3,
+			},
+			sa: &proto.LeaseScriptAction{
+				Sender:    nil,
+				ID:        proto.GenerateLeaseScriptActionID(addrRecipient, int64(100050000), int64(3), txID),
+				Recipient: addrRecipient,
+				Amount:    100050000,
+				Nonce:     3,
+			},
+		},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			env := newTestEnv(t).withLibVersion(ast.LibV6).withScheme(scheme).withTransactionID(txID).
+				withAlias(recipient, recipientAlias).toEnv()
+			action, err := convertToAction(env, tc.rt)
+			require.NoError(t, err)
+			require.Equal(t, tc.sa, action)
+		})
 	}
 }

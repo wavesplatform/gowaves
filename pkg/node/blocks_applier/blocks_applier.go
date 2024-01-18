@@ -39,6 +39,7 @@ func (a *innerBlocksApplier) apply( //nolint:gocognit
 	storage innerState,
 	blocks []*proto.Block,
 	snapshots []*proto.BlockSnapshot,
+	isLightNode bool,
 ) (proto.Height, error) {
 	if len(blocks) == 0 {
 		return 0, errors.New("empty blocks")
@@ -102,7 +103,7 @@ func (a *innerBlocksApplier) apply( //nolint:gocognit
 	// save previously added blocks. If new firstBlock failed to add, then return them back
 	var rollbackBlocks []*proto.Block
 	var rollbackBlocksSnapshots []*proto.BlockSnapshot
-	if snapshots != nil {
+	if isLightNode {
 		rollbackBlocks, rollbackBlocksSnapshots, err = a.getRollbackBlocksAndSnapshots(storage, deltaHeight, parentHeight)
 		if err != nil {
 			return 0, err
@@ -122,9 +123,9 @@ func (a *innerBlocksApplier) apply( //nolint:gocognit
 	_, err = storage.AddDeserializedBlocks(blocks, snapshots)
 	if err != nil {
 		// return back saved blocks
-		_, err2 := storage.AddDeserializedBlocks(rollbackBlocks, rollbackBlocksSnapshots)
-		if err2 != nil {
-			return 0, errors.Wrap(err2, "failed rollback deserialized blocks")
+		_, errDeserialized := storage.AddDeserializedBlocks(rollbackBlocks, rollbackBlocksSnapshots)
+		if errDeserialized != nil {
+			return 0, errors.Wrap(errDeserialized, "failed rollback deserialized blocks")
 		}
 		return 0, errors.Wrapf(err, "failed add deserialized blocks, first block id %s", firstBlock.BlockID().String())
 	}
@@ -174,6 +175,7 @@ func (a *innerBlocksApplier) applyMicro(
 	storage innerState,
 	block *proto.Block,
 	snapshot *proto.BlockSnapshot,
+	isLightNode bool,
 ) (proto.Height, error) {
 	_, err := storage.Block(block.BlockID())
 	if err == nil {
@@ -201,7 +203,7 @@ func (a *innerBlocksApplier) applyMicro(
 		return 0, errors.Wrapf(err, "failed to get current block by height %d", currentHeight)
 	}
 	var currentSnapshotsToApply []*proto.BlockSnapshot
-	if snapshot != nil {
+	if isLightNode {
 		curSnapshot, errSAT := storage.SnapshotsAtHeight(currentHeight)
 		if errSAT != nil {
 			return 0, errSAT
@@ -252,16 +254,18 @@ func (a *BlocksApplier) Apply(
 	state state.State,
 	blocks []*proto.Block,
 	snapshots []*proto.BlockSnapshot,
+	isLightNode bool,
 ) (proto.Height, error) {
-	return a.inner.apply(state, blocks, snapshots)
+	return a.inner.apply(state, blocks, snapshots, isLightNode)
 }
 
 func (a *BlocksApplier) ApplyMicro(
 	state state.State,
 	block *proto.Block,
 	snapshot *proto.BlockSnapshot,
+	isLightNode bool,
 ) (proto.Height, error) {
-	return a.inner.applyMicro(state, block, snapshot)
+	return a.inner.applyMicro(state, block, snapshot, isLightNode)
 }
 
 func calcMultipleScore(blocks []*proto.Block) (*big.Int, error) {

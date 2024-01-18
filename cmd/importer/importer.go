@@ -134,7 +134,7 @@ func main() {
 	params.ProvideExtendedApi = false
 	params.LightNodeMode = *lightNodeMode
 
-	st, err := state.NewState(*dataDirPath, false, params, ss)
+	st, err := state.NewState(*dataDirPath, false, params, ss, false)
 	if err != nil {
 		zap.S().Fatalf("Failed to create state: %v", err)
 	}

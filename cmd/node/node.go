@@ -234,7 +234,7 @@ func (c *config) parse() {
 	flag.DurationVar(&c.microblockInterval, "microblock-interval", defaultMicroblockInterval,
 		"Interval between microblocks.")
 	flag.BoolVar(&c.enableLightMode, "enable-light-mode", false,
-		"Start node in light mode (disable mining and store only snapshots)")
+		"Start node in light mode")
 	flag.Parse()
 	c.logLevel = *l
 }
@@ -383,7 +383,7 @@ func main() {
 	params.Time = ntpTime
 	params.DbParams.BloomFilterParams.Disable = nc.disableBloomFilter
 
-	st, err := state.NewState(path, true, params, cfg)
+	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode)
 	if err != nil {
 		zap.S().Error("Failed to initialize node's state: %v", err)
 		return

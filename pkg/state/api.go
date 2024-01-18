@@ -22,7 +22,7 @@ import (
 // Release() must be called after using iterator.
 // Error() should return nil if iterating was successful.
 type TransactionIterator interface {
-	Transaction() (proto.Transaction, bool, error)
+	Transaction() (proto.Transaction, proto.TransactionStatus, error)
 	Next() bool
 	Release()
 	Error() error
@@ -88,7 +88,7 @@ type StateInfo interface {
 
 	// Transactions.
 	TransactionByID(id []byte) (proto.Transaction, error)
-	TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error)
+	TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error)
 	TransactionHeightByID(id []byte) (uint64, error)
 	// NewAddrTransactionsIterator() returns iterator to iterate all transactions that affected
 	// given address.
@@ -200,8 +200,14 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	s, err := newStateManager(dataDir, amend, params, settings)
+func NewState(
+	dataDir string,
+	amend bool,
+	params StateParams,
+	settings *settings.BlockchainSettings,
+	enableLightNode bool,
+) (State, error) {
+	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

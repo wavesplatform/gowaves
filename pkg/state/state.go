@@ -378,9 +378,18 @@ type stateManager struct {
 
 	newBlocks    *newBlocks
 	newSnapshots *newSnapshots
+
+	enableLightNode bool
 }
 
-func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
+func newStateManager( //nolint:funlen,gocognit
+	dataDir string,
+	amend bool,
+	params StateParams,
+	settings *settings.BlockchainSettings,
+	enableLightNode bool,
+) (*stateManager, error) {
+	// TODO(anton): fix lint
 	err := validateSettings(settings)
 	if err != nil {
 		return nil, err
@@ -467,15 +476,15 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
 		newSnapshots:              &newSnapshots{curPos: 0, blockSnapshots: nil},
+		enableLightNode:           enableLightNode,
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
 	snapshotApplier := newBlockSnapshotsApplier(
 		nil,
-		newSnapshotApplierStorages(stor),
+		newSnapshotApplierStorages(stor, rw),
 	)
-	snapshotGen := newSnapshotGenerator(stor, settings.AddressSchemeCharacter)
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier, &snapshotGen)
+	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -611,9 +620,11 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 
-	if err := s.appender.applyAllDiffs(); err != nil {
+	err := s.appender.diffApplier.validateBalancesChanges(s.appender.diffStor.allChanges())
+	if err != nil {
 		return err
 	}
+
 	if err := s.stor.prepareHashes(); err != nil {
 		return err
 	}
@@ -1197,6 +1208,9 @@ func (s *stateManager) AddDeserializedBlocks(
 	blocks []*proto.Block,
 	snapshots []*proto.BlockSnapshot,
 ) (*proto.Block, error) {
+	if s.enableLightNode && (len(blocks) != len(snapshots)) {
+		return nil, errors.New("the numbers of snapshots doesn't match the number of blocks")
+	}
 	s.newBlocks.setNew(blocks)
 	lastBlock, err := s.addBlocks(snapshots)
 	if err != nil {
@@ -1472,10 +1486,9 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 }
 
 func getSnapshotByIndIfNotNil(snapshots []*proto.BlockSnapshot, pos int) *proto.BlockSnapshot {
-	if snapshots == nil {
+	if len(snapshots) == 0 {
 		return nil
 	}
-
 	return snapshots[pos]
 }
 
@@ -1520,9 +1533,6 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		if errCurBlock != nil {
 			return nil, wrapErr(DeserializationError, errCurBlock)
 		}
-		if err = s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); err != nil {
-			return nil, err
-		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if err = s.stateDB.addBlock(block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
@@ -1531,6 +1541,9 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		// This includes voting for features, block rewards and so on.
 		if err = s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
+		}
+		if vhErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); vhErr != nil {
+			return nil, vhErr
 		}
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
@@ -1580,12 +1593,6 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 	// wait for all verifier goroutines
 	if verifyError := chans.closeAndWait(); verifyError != nil {
 		return nil, wrapErr(ValidationError, verifyError)
-	}
-
-	// Apply all the balance diffs accumulated from this blocks batch.
-	// This also validates diffs for negative balances.
-	if err := s.appender.applyAllDiffs(); err != nil {
-		return nil, err
 	}
 
 	// Retrieve and store legacy state hashes for each of new blocks.
@@ -2060,14 +2067,14 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 }
 
 // NewestTransactionByID returns transaction by given ID. This function must be used only in Ride evaluator.
-// WARNING! Function returns error if a transaction exists but failed.
+// WARNING! Function returns error if a transaction exists but failed or elided.
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	tx, failed, err := s.rw.readNewestTransaction(id)
+	tx, status, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	if failed {
-		return nil, wrapErr(RetrievalError, errors.New("failed transaction"))
+	if status.IsNotSucceeded() {
+		return nil, wrapErr(RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
 	}
 	return tx, nil
 }
@@ -2080,23 +2087,23 @@ func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 	return tx, nil
 }
 
-func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
-	tx, failed, err := s.rw.readTransaction(id)
+func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
+	tx, status, err := s.rw.readTransaction(id)
 	if err != nil {
-		return nil, false, wrapErr(RetrievalError, err)
+		return nil, 0, wrapErr(RetrievalError, err)
 	}
-	return tx, failed, nil
+	return tx, status, nil
 }
 
 // NewestTransactionHeightByID returns transaction's height by given ID. This function must be used only in Ride evaluator.
 // WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, failed, err := s.rw.newestTransactionHeightByID(id)
+	txHeight, status, err := s.rw.newestTransactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if failed {
-		return 0, wrapErr(RetrievalError, errors.New("failed transaction"))
+	if status.IsNotSucceeded() {
+		return 0, wrapErr(RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
 	}
 	return txHeight, nil
 }

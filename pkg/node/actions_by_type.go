@@ -4,9 +4,7 @@ import (
 	"math/big"
 	"reflect"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
-	protobuf "google.golang.org/protobuf/proto"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -181,7 +179,7 @@ func MicroBlockRequestAction(
 	if err != nil {
 		return nil, err
 	}
-	micro, ok := services.MicroBlockCache.Get(blockID)
+	micro, ok := services.MicroBlockCache.GetBlock(blockID)
 	if ok {
 		_ = extension.NewPeerExtension(mess.ID, services.Scheme).SendMicroBlock(micro)
 	}
@@ -258,7 +256,8 @@ func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 }
 
 func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
-	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockSnapshotRequestMessage).BlockIDBytes)
+	blockIDBytes := mess.Message.(*proto.MicroBlockSnapshotRequestMessage).BlockIDBytes
+	blockID, err := proto.NewBlockIDFromBytes(blockIDBytes)
 	if err != nil {
 		return nil, err
 	}
@@ -270,9 +269,9 @@ func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessa
 		}
 		sProto := g.MicroBlockSnapshot{
 			Snapshots:    snapshotProto,
-			TotalBlockId: mess.Message.(*proto.MicroBlockSnapshotRequestMessage).BlockIDBytes,
+			TotalBlockId: blockIDBytes,
 		}
-		bsmBytes, errMarshall := protobuf.Marshal(&sProto)
+		bsmBytes, errMarshall := sProto.MarshalVTStrict()
 		if errMarshall != nil {
 			return nil, errMarshall
 		}
@@ -283,7 +282,8 @@ func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessa
 }
 
 func GetSnapshotAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
-	h, err := services.State.BlockIDToHeight(mess.Message.(*proto.GetBlockSnapshotMessage).BlockID)
+	blockID := mess.Message.(*proto.GetBlockSnapshotMessage).BlockID
+	h, err := services.State.BlockIDToHeight(blockID)
 	if err != nil {
 		return nil, err
 	}
@@ -297,9 +297,9 @@ func GetSnapshotAction(services services.Services, mess peer.ProtoMessage, _ *fs
 	}
 	sProto := g.BlockSnapshot{
 		Snapshots: snapshotProto,
-		BlockId:   mess.Message.(*proto.GetBlockSnapshotMessage).BlockID.Bytes(),
+		BlockId:   blockID.Bytes(),
 	}
-	bsmBytes, err := protobuf.Marshal(&sProto)
+	bsmBytes, err := sProto.MarshalVTStrict()
 	if err != nil {
 		return nil, err
 	}
@@ -309,12 +309,9 @@ func GetSnapshotAction(services services.Services, mess peer.ProtoMessage, _ *fs
 }
 
 func BlockSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
-	m, ok := mess.Message.(*proto.BlockSnapshotMessage)
-	if !ok {
-		return nil, errors.New("Message is not BlockSnapshot")
-	}
 	protoMess := g.BlockSnapshot{}
-	if err := protobuf.Unmarshal(m.Bytes, &protoMess); err != nil {
+	if err := protoMess.UnmarshalVT(mess.Message.(*proto.BlockSnapshotMessage).Bytes); err != nil {
+		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to deserialize block snapshot: %v", err)
 		return nil, err
 	}
 	blockID, err := proto.NewBlockIDFromBytes(protoMess.BlockId)
@@ -329,12 +326,9 @@ func BlockSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm
 }
 
 func MicroBlockSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
-	m, ok := mess.Message.(*proto.MicroBlockSnapshotMessage)
-	if !ok {
-		return nil, errors.New("Message is not MicroBlockSnapshotMessage")
-	}
 	protoMess := g.MicroBlockSnapshot{}
-	if err := protobuf.Unmarshal(m.Bytes, &protoMess); err != nil {
+	if err := protoMess.UnmarshalVT(mess.Message.(*proto.MicroBlockSnapshotMessage).Bytes); err != nil {
+		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to deserialize micro block snapshot: %v", err)
 		return nil, err
 	}
 	blockID, err := proto.NewBlockIDFromBytes(protoMess.TotalBlockId)

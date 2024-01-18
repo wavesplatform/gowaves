@@ -7,7 +7,7 @@ import (
 )
 
 type snapshotApplierHooks interface {
-	BeforeTxSnapshotApply() error
+	BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error
 	AfterTxSnapshotApply() error
 }
 
@@ -23,17 +23,15 @@ type txSnapshot struct {
 	internal []internalSnapshot
 }
 
-func (ts txSnapshot) Apply(a extendedSnapshotApplier) error {
-	if err := a.BeforeTxSnapshotApply(); err != nil {
+func (ts txSnapshot) Apply(a extendedSnapshotApplier, tx proto.Transaction, validatingUTX bool) error {
+	if err := a.BeforeTxSnapshotApply(tx, validatingUTX); err != nil {
 		return errors.Wrapf(err, "failed to execute before tx snapshot apply hook")
 	}
 	// internal snapshots must be applied at the end
 	for _, rs := range ts.regular {
-		if !rs.IsGeneratedByTxDiff() {
-			err := rs.Apply(a)
-			if err != nil {
-				return errors.Wrap(err, "failed to apply regular transaction snapshot")
-			}
+		err := rs.Apply(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply regular transaction snapshot")
 		}
 	}
 	for _, is := range ts.internal {
@@ -44,6 +42,23 @@ func (ts txSnapshot) Apply(a extendedSnapshotApplier) error {
 	}
 	if err := a.AfterTxSnapshotApply(); err != nil {
 		return errors.Wrapf(err, "failed to execute after tx snapshot apply hook")
+	}
+	return nil
+}
+
+func (ts txSnapshot) ApplyInitialSnapshot(a extendedSnapshotApplier) error {
+	// internal snapshots must be applied at the end
+	for _, rs := range ts.regular {
+		err := rs.Apply(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply regular transaction snapshot")
+		}
+	}
+	for _, is := range ts.internal {
+		err := is.ApplyInternal(a)
+		if err != nil {
+			return errors.Wrap(err, "failed to apply internal transaction snapshot")
+		}
 	}
 	return nil
 }

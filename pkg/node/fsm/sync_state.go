@@ -75,20 +75,14 @@ func (a *SyncState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 func (a *SyncState) StopSync() (State, Async, error) {
 	_, blocks, snapshots, _ := a.internal.Blocks(noopWrapper{})
 	if len(blocks) > 0 {
-		var err error
-		if a.baseInfo.enableLightMode {
-			err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-				var errApply error
-				_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, snapshots)
-				return errApply
-			})
-		} else {
-			err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-				var errApply error
-				_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, nil)
-				return errApply
-			})
+		if !a.baseInfo.enableLightMode {
+			snapshots = nil // ensure that snapshots are emtpy
 		}
+		err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+			var errApply error
+			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, snapshots, a.baseInfo.enableLightMode)
+			return errApply
+		})
 		return newIdleState(a.baseInfo), nil, a.Errorf(err)
 	}
 	return newIdleState(a.baseInfo), nil, nil
@@ -194,7 +188,7 @@ func (a *SyncState) BlockSnapshot(
 	if !p.Equal(a.conf.peerSyncWith) {
 		return a, nil, nil
 	}
-	internal, err := a.internal.Snapshot(blockID, &snapshot)
+	internal, err := a.internal.SetSnapshot(blockID, &snapshot)
 	if err != nil {
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
 	}
@@ -206,7 +200,12 @@ func (a *SyncState) MinedBlock(
 ) (State, Async, error) {
 	metrics.FSMKeyBlockGenerated("sync", block)
 	zap.S().Named(logging.FSMNamespace).Infof("[Sync] New block '%s' mined", block.ID.String())
-	_, err := a.baseInfo.blocksApplier.Apply(a.baseInfo.storage, []*proto.Block{block}, nil)
+	_, err := a.baseInfo.blocksApplier.Apply(
+		a.baseInfo.storage,
+		[]*proto.Block{block},
+		nil,
+		a.baseInfo.enableLightMode,
+	)
 	if err != nil {
 		zap.S().Warnf("[Sync] Failed to apply mined block: %v", err)
 		return a, nil, nil // We've failed to apply mined block, it's not an error
@@ -252,20 +251,14 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")
 		return newSyncState(baseInfo, conf, internal), nil, nil
 	}
-	var err error
-	if baseInfo.enableLightMode {
-		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-			var errApply error
-			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, snapshots)
-			return errApply
-		})
-	} else {
-		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-			var errApply error
-			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, nil)
-			return errApply
-		})
+	if !a.baseInfo.enableLightMode {
+		snapshots = nil // ensure that snapshots are emtpy
 	}
+	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+		var errApply error
+		_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, snapshots, a.baseInfo.enableLightMode)
+		return errApply
+	})
 
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {

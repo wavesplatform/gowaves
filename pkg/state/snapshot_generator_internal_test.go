@@ -16,6 +16,24 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
+type snapshotGeneratorTestObjects struct {
+	stor *testStorageObjects
+	tc   *transactionChecker
+	tp   transactionPerformer
+	td   *transactionDiffer
+}
+
+func createSnapshotGeneratorTestObjects(t *testing.T) *snapshotGeneratorTestObjects {
+	stor := createStorageObjects(t, true)
+	sg := newSnapshotGenerator(stor.entities, stor.settings.AddressSchemeCharacter)
+	genID := proto.NewBlockIDFromSignature(genSig)
+	tc, err := newTransactionChecker(genID, stor.entities, stor.settings)
+	require.NoError(t, err)
+	td, err := newTransactionDiffer(stor.entities, stor.settings)
+	require.NoError(t, err)
+	return &snapshotGeneratorTestObjects{stor, tc, sg, td}
+}
+
 func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,
 	amount int64, issuer crypto.PublicKey,
 	name string) *assetInfo {
@@ -50,20 +68,13 @@ func customCheckerInfo() *checkerInfo {
 	}
 }
 
-func createCheckerCustomTestObjects(t *testing.T, differ *differTestObjects) *checkerTestObjects {
-	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), differ.stor.entities, settings.MainNetSettings)
-	require.NoError(t, err, "newTransactionChecker() failed")
-	return &checkerTestObjects{differ.stor, tc, differ.tp}
-}
-
 func txSnapshotsEqual(t *testing.T, expected, actual txSnapshot) {
 	_ = assert.ElementsMatch(t, expected.regular, actual.regular)
 	_ = assert.ElementsMatch(t, expected.internal, actual.internal)
 }
 
 func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -82,7 +93,7 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffTransferWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performTransferWithSig(tx,
-		defaultPerformerInfo(), nil, applicationRes.changes.diff)
+		defaultPerformerInfo(), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform transfer tx")
 	expectedSnapshot := txSnapshot{
 		regular: []proto.AtomicSnapshot{
@@ -109,8 +120,7 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 // TODO send only txBalanceChanges to perfomer
 
 func TestDefaultIssueTransactionSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -127,7 +137,7 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffIssueWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performIssueWithSig(tx,
-		defaultPerformerInfo(), nil, applicationRes.changes.diff)
+		defaultPerformerInfo(), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform issue tx")
 
 	expectedSnapshot := txSnapshot{
@@ -169,8 +179,7 @@ func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 }
 
 func TestDefaultReissueSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -195,7 +204,7 @@ func TestDefaultReissueSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffReissueWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performReissueWithSig(tx,
-		defaultPerformerInfo(), nil, applicationRes.changes.diff)
+		defaultPerformerInfo(), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform reissue tx")
 
 	expectedSnapshot := txSnapshot{
@@ -227,8 +236,7 @@ func TestDefaultReissueSnapshot(t *testing.T) {
 }
 
 func TestDefaultBurnSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -252,7 +260,7 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performBurnWithSig(tx,
-		defaultPerformerInfo(), nil, applicationRes.changes.diff)
+		defaultPerformerInfo(), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -284,8 +292,7 @@ func TestDefaultBurnSnapshot(t *testing.T) {
 }
 
 func TestDefaultExchangeTransaction(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -338,7 +345,7 @@ func TestDefaultExchangeTransaction(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performExchange(tx, defaultPerformerInfo(),
-		nil, applicationRes.changes.diff)
+		nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -398,8 +405,7 @@ func TestDefaultExchangeTransaction(t *testing.T) {
 }
 
 func TestDefaultLeaseSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -416,7 +422,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	pi := defaultPerformerInfo()
-	transactionSnapshot, err := to.tp.performLeaseWithSig(tx, pi, nil, applicationRes.changes.diff)
+	transactionSnapshot, err := to.tp.performLeaseWithSig(tx, pi, nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -460,8 +466,7 @@ func TestDefaultLeaseSnapshot(t *testing.T) {
 }
 
 func TestDefaultLeaseCancelSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -494,7 +499,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	pi := defaultPerformerInfo()
-	transactionSnapshot, err := to.tp.performLeaseCancelWithSig(tx, pi, nil, applicationRes.changes.diff)
+	transactionSnapshot, err := to.tp.performLeaseCancelWithSig(tx, pi, nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -535,8 +540,7 @@ func TestDefaultLeaseCancelSnapshot(t *testing.T) {
 }
 
 func TestDefaultCreateAliasSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -552,7 +556,7 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(),
-		nil, applicationRes.changes.diff)
+		nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -578,8 +582,7 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 }
 
 func TestDefaultDataSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -603,7 +606,7 @@ func TestDefaultDataSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performDataWithProofs(tx, defaultPerformerInfo(),
-		nil, applicationRes.changes.diff)
+		nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -630,8 +633,7 @@ func TestDefaultDataSnapshot(t *testing.T) {
 }
 
 func TestDefaultSponsorshipSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -648,7 +650,7 @@ func TestDefaultSponsorshipSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performSponsorshipWithProofs(tx,
-		defaultPerformerInfo(), nil, applicationRes.changes.diff)
+		defaultPerformerInfo(), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -703,7 +705,7 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 
 	assert.NoError(t, err, "failed to set decode base64 script")
 	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -718,7 +720,7 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign set script tx")
 
-	co := createCheckerCustomTestObjects(t, to)
+	co := createCheckerTestObjectsWithStor(t, checkerInfo, to.stor)
 	co.stor = to.stor
 	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
 	assert.NoError(t, err, "failed to check set script tx")
@@ -727,7 +729,7 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx,
-		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
+		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -760,8 +762,7 @@ func TestDefaultSetDappScriptSnapshot(t *testing.T) {
 }
 
 func TestDefaultSetScriptSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -775,16 +776,14 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign set script tx")
 
-	co := createCheckerCustomTestObjects(t, to)
-	co.stor = to.stor
-	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	checkerData, err := to.tc.checkSetScriptWithProofs(tx, customCheckerInfo())
 	assert.NoError(t, err, "failed to check set script tx")
 
 	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx,
-		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
+		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -816,8 +815,7 @@ func TestDefaultSetScriptSnapshot(t *testing.T) {
 }
 
 func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -831,16 +829,14 @@ func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign set script tx")
 
-	co := createCheckerCustomTestObjects(t, to)
-	co.stor = to.stor
-	checkerData, err := co.tc.checkSetScriptWithProofs(tx, checkerInfo)
+	checkerData, err := to.tc.checkSetScriptWithProofs(tx, customCheckerInfo())
 	assert.NoError(t, err, "failed to check set script tx")
 
 	ch, err := to.td.createDiffSetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performSetScriptWithProofs(tx,
-		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
+		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -873,8 +869,7 @@ func TestDefaultSetEmptyScriptSnapshot(t *testing.T) {
 }
 
 func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
-	checkerInfo := customCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
+	to := createSnapshotGeneratorTestObjects(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.activateFeature(t, int16(settings.NG))
@@ -898,16 +893,14 @@ func TestDefaultSetAssetScriptSnapshot(t *testing.T) {
 	err = tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "failed to sign burn tx")
 
-	co := createCheckerCustomTestObjects(t, to)
-	co.stor = to.stor
-	checkerData, err := co.tc.checkSetAssetScriptWithProofs(tx, checkerInfo)
+	checkerData, err := to.tc.checkSetAssetScriptWithProofs(tx, customCheckerInfo())
 	assert.NoError(t, err, "failed to check set script tx")
 
 	ch, err := to.td.createDiffSetAssetScriptWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	applicationRes := &applicationResult{changes: ch, checkerData: txCheckerData{}}
 	transactionSnapshot, err := to.tp.performSetAssetScriptWithProofs(tx,
-		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff)
+		defaultPerformerInfoWithChecker(checkerData), nil, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform burn tx")
 
 	expectedSnapshot := txSnapshot{
@@ -971,7 +964,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
 		issueCounterInBlock)
-	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
 
@@ -987,7 +980,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 
 	transactionSnapshot, err := to.state.appender.txHandler.tp.performInvokeScriptWithProofs(tx,
 		defaultPerformerInfoWithChecker(applicationRes.checkerData),
-		invocationRes, applicationRes.changes.diff)
+		invocationRes, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform invoke script tx")
 
 	var dataEntrySnapshot *proto.DataEntriesSnapshot
@@ -1108,7 +1101,7 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 	issueCounterInBlock := new(proto.StateActionsCounter)
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
 		issueCounterInBlock)
-	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
@@ -1125,7 +1118,7 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 
 	transactionSnapshot, err := to.state.appender.txHandler.tp.performInvokeScriptWithProofs(tx,
 		defaultPerformerInfoWithChecker(applicationRes.checkerData),
-		invocationRes, applicationRes.changes.diff)
+		invocationRes, applicationRes.changes.diff.balancesChanges())
 	assert.NoError(t, err, "failed to perform invoke script tx")
 
 	expectedSnapshot := txSnapshot{
@@ -1211,7 +1204,7 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 		to.state.settings.AddressSchemeCharacter,
 		new(proto.StateActionsCounter),
 	)
-	to.state.appender.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	testData := invokeApplierTestData{
 		payments: []proto.ScriptPayment{},
@@ -1228,7 +1221,7 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 		tx,
 		defaultPerformerInfoWithChecker(applicationRes.checkerData),
 		invocationRes,
-		applicationRes.changes.diff,
+		applicationRes.changes.diff.balancesChanges(),
 	)
 	assert.NoError(t, err, "failed to perform invoke script tx")
 

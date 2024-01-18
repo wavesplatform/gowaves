@@ -5,16 +5,16 @@ import (
 )
 
 type OrderedBlocks struct {
-	requestedBlocks []proto.BlockID
-	blocks          map[proto.BlockID]*proto.Block
-	snapshots       map[proto.BlockID]*proto.BlockSnapshot
+	requested []proto.BlockID
+	blocks    map[proto.BlockID]*proto.Block
+	snapshots map[proto.BlockID]*proto.BlockSnapshot
 }
 
 func NewOrderedBlocks() *OrderedBlocks {
 	return &OrderedBlocks{
-		requestedBlocks: nil,
-		blocks:          make(map[proto.BlockID]*proto.Block),
-		snapshots:       make(map[proto.BlockID]*proto.BlockSnapshot),
+		requested: nil,
+		blocks:    make(map[proto.BlockID]*proto.Block),
+		snapshots: make(map[proto.BlockID]*proto.BlockSnapshot),
 	}
 }
 
@@ -32,20 +32,20 @@ func (a *OrderedBlocks) SetSnapshot(blockID proto.BlockID, snapshot *proto.Block
 }
 
 func (a *OrderedBlocks) pop(isLightNode bool) (proto.BlockID, *proto.Block, *proto.BlockSnapshot, bool) {
-	if len(a.requestedBlocks) == 0 {
+	if len(a.requested) == 0 {
 		return proto.BlockID{}, nil, nil, false
 	}
-	firstSig := a.requestedBlocks[0]
+	firstSig := a.requested[0]
 	bts := a.blocks[firstSig]
 	bsn := a.snapshots[firstSig]
 	if bts != nil {
 		delete(a.blocks, firstSig)
 		if isLightNode && bsn != nil {
 			delete(a.snapshots, firstSig)
-			a.requestedBlocks = a.requestedBlocks[1:]
+			a.requested = a.requested[1:]
 			return firstSig, bts, bsn, true
 		}
-		a.requestedBlocks = a.requestedBlocks[1:]
+		a.requested = a.requested[1:]
 		return firstSig, bts, nil, true
 	}
 	return proto.BlockID{}, nil, nil, false
@@ -70,24 +70,25 @@ func (a *OrderedBlocks) Add(sig proto.BlockID) bool {
 	if _, ok := a.blocks[sig]; ok {
 		return false
 	}
-	a.requestedBlocks = append(a.requestedBlocks, sig)
+	a.requested = append(a.requested, sig)
 	a.blocks[sig] = nil
 	a.snapshots[sig] = nil
 	return true
 }
 
 func (a *OrderedBlocks) RequestedCount() int {
-	return len(a.requestedBlocks)
+	return len(a.requested)
 }
 
 // blocks count available for pop
 func (a *OrderedBlocks) ReceivedCount(isLightNode bool) int {
-	for i, sig := range a.requestedBlocks {
-		if isLightNode && (a.blocks[sig] == nil || a.snapshots[sig] == nil) {
+	for i, sig := range a.requested {
+		blockIsNil := a.blocks[sig] == nil
+		if isLightNode && (blockIsNil || a.snapshots[sig] == nil) {
 			return i
-		} else if !isLightNode && a.blocks[sig] == nil {
+		} else if !isLightNode && blockIsNil {
 			return i
 		}
 	}
-	return len(a.requestedBlocks)
+	return len(a.requested)
 }
