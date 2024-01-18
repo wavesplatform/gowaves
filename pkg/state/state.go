@@ -1497,9 +1497,6 @@ func getSnapshotByIndIfNotNil(snapshots []*proto.BlockSnapshot, pos int) *proto.
 func (s *stateManager) addBlock(
 	blockchainHeight uint64, block, prevBlock *proto.Block, chans *verifierChans, snapshot *proto.BlockSnapshot,
 ) error {
-	if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainHeight); err != nil {
-		return err
-	}
 	// Assign unique block number for this block ID, add this number to the list of valid blocks.
 	if err := s.stateDB.addBlock(block.BlockID()); err != nil {
 		return wrapErr(ModificationError, err)
@@ -1508,6 +1505,10 @@ func (s *stateManager) addBlock(
 	// This includes voting for features, block rewards and so on.
 	if err := s.blockchainHeightAction(blockchainHeight, prevBlock.BlockID(), block.BlockID()); err != nil {
 		return wrapErr(ModificationError, err)
+	}
+	// Block header validation goes here, see https://github.com/wavesplatform/gowaves/pull/1299
+	if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainHeight); err != nil {
+		return err
 	}
 	// Send block for signature verification, which works in separate goroutine.
 	task := &verifyTask{
