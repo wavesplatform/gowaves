@@ -1,4 +1,4 @@
-package update_asset_info
+package updateassetinfo
 
 import (
 	"net/http"

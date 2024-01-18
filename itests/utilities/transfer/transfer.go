@@ -168,17 +168,17 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 
 // TransferringAssetAmount - Amount of Asset that transferred from one account to another,
 // by default it will be all amount of Asset.
-func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest,
+func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetID crypto.Digest,
 	from, to int, assetAmount ...uint64) {
 	var amount, currentAmount uint64
-	currentAmount = uint64(utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, from).Address, assetId))
+	currentAmount = uint64(utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, from).Address, assetID))
 	if len(assetAmount) == 1 && assetAmount[0] <= currentAmount {
 		amount = assetAmount[0]
 	} else {
 		amount = currentAmount
 	}
 	tx := Send(suite, version, scheme, utl.GetAccount(suite, from).PublicKey,
-		utl.GetAccount(suite, from).SecretKey, *proto.NewOptionalAssetFromDigest(assetId),
+		utl.GetAccount(suite, from).SecretKey, *proto.NewOptionalAssetFromDigest(assetID),
 		proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount, utl.MinTxFeeWaves,
 		proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address), nil, true)
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")

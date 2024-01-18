@@ -1,4 +1,4 @@
-package set_asset_script
+package setassetscript
 
 import (
 	"net/http"

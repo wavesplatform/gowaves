@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
-	"github.com/wavesplatform/gowaves/itests/utilities/update_asset_info"
+	"github.com/wavesplatform/gowaves/itests/utilities/updateassetinfo"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -19,7 +19,7 @@ type UpdateAssetInfoTxApiSuite struct {
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableTokenPositive() {
-	versions := update_asset_info.GetVersions(&suite.BaseSuite)
+	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		assets := issue.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, assets)
@@ -30,11 +30,11 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+					updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+				updateassetinfo.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, assetDetails, errMsg)
 			})
 		}
@@ -42,7 +42,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
-	versions := update_asset_info.GetVersions(&suite.BaseSuite)
+	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := issue.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, nft)
@@ -53,11 +53,11 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+					updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+				updateassetinfo.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, assetDetails, errMsg)
 			})
 		}
@@ -65,7 +65,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPositive() {
-	versions := update_asset_info.GetVersions(&suite.BaseSuite)
+	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smart := issue.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateSmartAssetInfoPositiveDataMatrix(&suite.BaseSuite, smart)
@@ -76,11 +76,11 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPosit
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+					updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+				updateassetinfo.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, assetDetails, errMsg)
 			})
 		}
@@ -88,7 +88,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPosit
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableTokenNegative() {
-	versions := update_asset_info.GetVersions(&suite.BaseSuite)
+	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -101,12 +101,12 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-						update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+						updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 							&suite.BaseSuite, td, v, false)
 					txIds[name] = &tx.TxID
 					errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 					assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
-					update_asset_info.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+					updateassetinfo.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 						actualDiffBalanceInAsset, initAssetDetails, assetDetails, errMsg)
 				})
 			}
@@ -117,7 +117,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
-	versions := update_asset_info.GetVersions(&suite.BaseSuite)
+	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -130,12 +130,12 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-						update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+						updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 							&suite.BaseSuite, td, v, false)
 					txIds[name] = &tx.TxID
 					errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 					assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
-					update_asset_info.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+					updateassetinfo.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 						actualDiffBalanceInAsset, initAssetDetails, assetDetails, errMsg)
 				})
 			}
@@ -146,7 +146,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxSmartAssetApiNegative() {
-	versions := update_asset_info.GetVersions(&suite.BaseSuite)
+	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -159,12 +159,12 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxSmartAssetApiNegat
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-						update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+						updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 							&suite.BaseSuite, td, v, false)
 					txIds[name] = &tx.TxID
 					errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 					assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
-					update_asset_info.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+					updateassetinfo.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 						actualDiffBalanceInAsset, initAssetDetails, assetDetails, errMsg)
 				})
 			}
@@ -175,7 +175,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxSmartAssetApiNegat
 }
 
 func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiWithoutWaitingNegative() {
-	versions := update_asset_info.GetVersions(&suite.BaseSuite)
+	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -189,12 +189,12 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiWithoutWaitingN
 				initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 				suite.Run(caseName, func() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-						update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
+						updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 							&suite.BaseSuite, td, v, false)
 					txIds[name] = &tx.TxID
 					errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
 					assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
-					update_asset_info.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+					updateassetinfo.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 						actualDiffBalanceInAsset, initAssetDetails, assetDetails, errMsg)
 				})
 			}

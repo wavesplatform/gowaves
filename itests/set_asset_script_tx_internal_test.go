@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
-	"github.com/wavesplatform/gowaves/itests/utilities/set_asset_script"
+	"github.com/wavesplatform/gowaves/itests/utilities/setassetscript"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -19,7 +19,7 @@ type SetAssetScriptSuite struct {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
-	versions := set_asset_script.GetVersions(&suite.BaseSuite)
+	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
 		itx := issue.SendWithTestData(&suite.BaseSuite, smartAsset, v, true)
@@ -28,9 +28,9 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					set_asset_script.SendSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, true)
+					setassetscript.SendSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Set Asset Script tx: " + tx.TxID.String()
-				set_asset_script.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+				setassetscript.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -38,7 +38,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
-	versions := set_asset_script.GetVersions(&suite.BaseSuite)
+	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
@@ -48,10 +48,10 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-					set_asset_script.SendSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, false)
+					setassetscript.SendSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				errMsg := caseName + "Set Asset Script tx: " + tx.TxID.String()
 				txIds[name] = &tx.TxID
-				set_asset_script.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+				setassetscript.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -61,7 +61,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
-	versions := set_asset_script.GetVersions(&suite.BaseSuite)
+	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		asset := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -71,10 +71,10 @@ func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				set_asset_script.SendSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, false)
+				setassetscript.SendSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, false)
 			errMsg := caseName + "Set Asset Script tx: " + tx.TxID.String()
 			txIds[name] = &tx.TxID
-			set_asset_script.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
+			setassetscript.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 		})
 	}
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)

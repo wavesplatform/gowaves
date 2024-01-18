@@ -13,10 +13,10 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/burn"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/itests/utilities/reissue"
-	"github.com/wavesplatform/gowaves/itests/utilities/set_asset_script"
+	"github.com/wavesplatform/gowaves/itests/utilities/setassetscript"
 	"github.com/wavesplatform/gowaves/itests/utilities/sponsorship"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
-	"github.com/wavesplatform/gowaves/itests/utilities/update_asset_info"
+	"github.com/wavesplatform/gowaves/itests/utilities/updateassetinfo"
 	"golang.org/x/exp/maps"
 )
 
@@ -110,9 +110,9 @@ func (suite *SmokeTxPositiveSuite) Test_SetAssetScriptSmokePositive() {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				set_asset_script.SendSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, true)
+				setassetscript.SendSetAssetScriptTxAndGetBalances(&suite.BaseSuite, td, v, true)
 			errMsg := caseName + "Set Asset Script tx: " + tx.TxID.String()
-			set_asset_script.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+			setassetscript.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
 		})
 	}
@@ -264,10 +264,10 @@ func (suite *SmokeTxPositiveSuite) TestUpdateAssetInfoTxReissuableTokenSmokePosi
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				update_asset_info.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, true)
+				updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, true)
 			errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
 			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-			update_asset_info.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
+			updateassetinfo.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)
 		})
 	}
@@ -284,10 +284,10 @@ func (suite *SmokeTxPositiveSuite) TestUpdateAssetInfoTxNFTSmokePositive() {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				update_asset_info.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, true)
+				updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, true)
 			errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
 			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-			update_asset_info.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
+			updateassetinfo.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)
 		})
 	}
@@ -304,10 +304,10 @@ func (suite *SmokeTxPositiveSuite) TestUpdateAssetInfoTxSmartAssetSmokePositive(
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
-				update_asset_info.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, true)
+				updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, true)
 			errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
 			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-			update_asset_info.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
+			updateassetinfo.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)
 		})
 	}
