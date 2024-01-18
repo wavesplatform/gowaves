@@ -823,7 +823,7 @@ func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.Asse
 	// Retrieve the latest balance diff as for the moment of this function call.
 	key := assetBalanceKey{address: addr, asset: asset}
 	diff, err := s.appender.diffStorInvoke.latestDiffByKey(string(key.bytes()))
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// If there is no diff, old balance is the newest.
 		return balance, nil
 	} else if err != nil {
@@ -846,7 +846,7 @@ func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (balanceP
 	// Retrieve the latest balance diff as for the moment of this function call.
 	key := wavesBalanceKey{address: addr}
 	diff, err := s.appender.diffStorInvoke.latestDiffByKey(string(key.bytes()))
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// If there is no diff, old balance is the newest.
 		return profile, nil
 	} else if err != nil {
@@ -1339,11 +1339,11 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		}
 	}
 
-	needToRecalc, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)
+	needToRecalculate, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)
 	if err != nil {
 		return err
 	}
-	if needToRecalc { // one time action
+	if needToRecalculate { // one time action
 		if err := s.recalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight, lastBlock); err != nil {
 			return errors.Wrap(err, "failed to recalculate monetary policy votes")
 		}
@@ -1473,8 +1473,62 @@ func getSnapshotByIndIfNotNil(snapshots []*proto.BlockSnapshot, pos int) *proto.
 	return snapshots[pos]
 }
 
-func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block, error) { //nolint:gocognit,funlen
-	// TODO: fix lint
+func (s *stateManager) addBlock(
+	blockchainHeight uint64, block, prevBlock *proto.Block, chans *verifierChans, snapshot *proto.BlockSnapshot,
+) error {
+	if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainHeight); err != nil {
+		return err
+	}
+	// Assign unique block number for this block ID, add this number to the list of valid blocks.
+	if err := s.stateDB.addBlock(block.BlockID()); err != nil {
+		return wrapErr(ModificationError, err)
+	}
+	// At some blockchain heights specific logic is performed.
+	// This includes voting for features, block rewards and so on.
+	if err := s.blockchainHeightAction(blockchainHeight, prevBlock.BlockID(), block.BlockID()); err != nil {
+		return wrapErr(ModificationError, err)
+	}
+	// Send block for signature verification, which works in separate goroutine.
+	task := &verifyTask{
+		taskType: verifyBlock,
+		parentID: prevBlock.BlockID(),
+		block:    block,
+	}
+	if err := chans.trySend(task); err != nil {
+		return err
+	}
+	hs, err := s.cv.GenerateHitSource(blockchainHeight, block.BlockHeader)
+	if err != nil {
+		return err
+	}
+	sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainHeight)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get newest snapshot state hash for height %d", blockchainHeight)
+	}
+	if err = s.stor.hitSources.appendBlockHitSource(block, blockchainHeight+1, hs); err != nil {
+		return err
+	}
+	// Save block to storage, check its transactions, create and save balance diffs for its transactions.
+	if addErr := s.addNewBlock(
+		block,
+		prevBlock,
+		chans,
+		blockchainHeight,
+		snapshot,
+		sh,
+	); addErr != nil {
+		return addErr
+	}
+
+	if s.needToFinishVotingPeriod(blockchainHeight + 1) {
+		// If we need to finish voting period on the next block (h+1) then
+		// we have to check that protobuf will be activated on next block
+		s.checkProtobufActivation(blockchainHeight + 2)
+	}
+	return nil
+}
+
+func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	defer func() {
@@ -1514,56 +1568,9 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		if errCurBlock != nil {
 			return nil, wrapErr(DeserializationError, errCurBlock)
 		}
-		if err = s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); err != nil {
+		snapshot := getSnapshotByIndIfNotNil(snapshots, pos)
+		if err = s.addBlock(blockchainCurHeight, block, lastAppliedBlock, chans, snapshot); err != nil {
 			return nil, err
-		}
-		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err = s.stateDB.addBlock(block.BlockID()); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
-		// At some blockchain heights specific logic is performed.
-		// This includes voting for features, block rewards and so on.
-		if err = s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
-		// Send block for signature verification, which works in separate goroutine.
-		task := &verifyTask{
-			taskType: verifyBlock,
-			parentID: lastAppliedBlock.BlockID(),
-			block:    block,
-		}
-		if err = chans.trySend(task); err != nil {
-			return nil, err
-		}
-		hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
-		if err != nil {
-			return nil, err
-		}
-		sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get newest snapshot state hash for height %d",
-				blockchainCurHeight,
-			)
-		}
-		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
-			return nil, err
-		}
-		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if addErr := s.addNewBlock(
-			block,
-			lastAppliedBlock,
-			chans,
-			blockchainCurHeight,
-			getSnapshotByIndIfNotNil(snapshots, pos),
-			sh,
-		); addErr != nil {
-			return nil, addErr
-		}
-
-		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {
-			// If we need to finish voting period on the next block (h+1) then
-			// we have to check that protobuf will be activated on next block
-			s.checkProtobufActivation(blockchainCurHeight + 2)
 		}
 		headers[pos] = block.BlockHeader
 		pos++
@@ -2294,7 +2301,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	txID := crypto.Digest(ai.ID)             // explicitly show that full asset ID is a crypto.Digest and equals txID
+	txID := ai.ID                            // explicitly show that full asset ID is a crypto.Digest and equals txID
 	tx, _ := s.TransactionByID(txID.Bytes()) // Explicitly ignore error here, in case of error tx is nil as expected
 	res := &proto.FullAssetInfo{
 		AssetInfo:        *ai,

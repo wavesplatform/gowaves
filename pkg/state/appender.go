@@ -367,8 +367,6 @@ func (a *txAppender) commitTxApplication(
 	}
 
 	if !params.validatingUtx {
-		// TODO: snapshots for miner fee should be generated here, but not saved
-		//  They must be saved in snapshot applier
 		// Count tx fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
@@ -621,30 +619,35 @@ func (a *txAppender) applySnapshotsInLightNode(
 	if errBlockInfo != nil {
 		return errBlockInfo
 	}
-	for i, txs := range params.snapshot.TxSnapshots {
-		txID, idErr := params.transactions[i].GetID(a.settings.AddressSchemeCharacter)
+	blockID := params.block.BlockID()
+	for i, atomicSnapshots := range params.snapshot.TxSnapshots {
+		tx := params.transactions[i]
+		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
 			return idErr
 		}
-		if len(txs) == 0 { // sanity check
+		if len(atomicSnapshots) == 0 { // sanity check
 			return errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
-
-		for _, snapshot := range txs {
-			if errApply := snapshot.Apply(a.txHandler.sa); errApply != nil {
+		// Count miner fee
+		if err := a.blockDiffer.countMinerFee(tx); err != nil {
+			return errors.Wrapf(err, "failed to count miner fee for txID %q", base58.Encode(txID))
+		}
+		for _, atomicSnapshot := range atomicSnapshots {
+			if errApply := atomicSnapshot.Apply(a.txHandler.sa); errApply != nil {
 				return errors.Wrap(errApply, "failed to apply tx snapshot")
 			}
 		}
 
-		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, txs)
+		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, atomicSnapshots)
 		if shErr != nil {
 			return errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
 				base58.Encode(txID), blockInfo.Height,
 			)
 		}
 		stateHash = txSh
+		// TODO: In future we have to store the list of affected addresses for each transaction here.
 	}
-	blockID := params.block.BlockID()
 	if ssErr := a.stor.snapshots.saveSnapshots(blockID, blockInfo.Height, *params.snapshot); ssErr != nil {
 		return ssErr
 	}
@@ -660,29 +663,10 @@ func (a *txAppender) applySnapshotsInLightNode(
 func (a *txAppender) appendTxs(
 	params *appendBlockParams,
 	info *checkerInfo,
+	blockInfo *proto.BlockInfo,
 	stateHash crypto.Digest,
 	hasher *txSnapshotHasher,
 ) error {
-	blockInfo, errBlockInfo := a.currentBlockInfo()
-	if errBlockInfo != nil {
-		return errBlockInfo
-	}
-	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
-	if err != nil {
-		return err
-	}
-	consensusImprovementsActivated, err := a.stor.features.newestIsActivated(int16(settings.ConsensusImprovements))
-	if err != nil {
-		return err
-	}
-	blockRewardDistributionActivated, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
-	if err != nil {
-		return err
-	}
-	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
-	if err != nil {
-		return err
-	}
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
 
@@ -692,13 +676,13 @@ func (a *txAppender) appendTxs(
 			checkerInfo:                      info,
 			blockInfo:                        blockInfo,
 			block:                            params.block,
-			acceptFailed:                     blockV5Activated,
-			blockV5Activated:                 blockV5Activated,
+			acceptFailed:                     info.blockV5Activated,
+			blockV5Activated:                 info.blockV5Activated,
 			rideV5Activated:                  info.rideV5Activated,
 			rideV6Activated:                  info.rideV6Activated,
-			consensusImprovementsActivated:   consensusImprovementsActivated,
-			blockRewardDistributionActivated: blockRewardDistributionActivated,
-			invokeExpressionActivated:        invokeExpressionActivated,
+			consensusImprovementsActivated:   info.consensusImprovementsActivated,
+			blockRewardDistributionActivated: info.blockRewardDistributionActivated,
+			invokeExpressionActivated:        info.invokeExpressionActivated,
 			validatingUtx:                    false,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
@@ -763,6 +747,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		a.sc.resetComplexity()
 		a.totalScriptsRuns = 0
 	}()
+
+	// Collect features activation info.
+	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return err
+	}
 	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
 	if err != nil {
 		return err
@@ -771,18 +761,30 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	consensusImprovementsActivated, err := a.stor.features.newestIsActivated(int16(settings.ConsensusImprovements))
 	if err != nil {
 		return err
 	}
+	blockRewardDistributionActivated, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return err
+	}
+	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	if err != nil {
+		return err
+	}
+
 	checkerInfo := &checkerInfo{
-		currentTimestamp:        params.block.Timestamp,
-		blockID:                 params.block.BlockID(),
-		blockVersion:            params.block.Version,
-		blockchainHeight:        params.blockchainHeight,
-		rideV5Activated:         rideV5Activated,
-		rideV6Activated:         rideV6Activated,
-		blockRewardDistribution: blockRewardDistribution,
+		currentTimestamp:                 params.block.Timestamp,
+		blockID:                          params.block.BlockID(),
+		blockVersion:                     params.block.Version,
+		blockchainHeight:                 params.blockchainHeight,
+		blockV5Activated:                 blockV5Activated,
+		rideV5Activated:                  rideV5Activated,
+		rideV6Activated:                  rideV6Activated,
+		consensusImprovementsActivated:   consensusImprovementsActivated,
+		blockRewardDistributionActivated: blockRewardDistributionActivated,
+		invokeExpressionActivated:        invokeExpressionActivated,
 	}
 	hasParent := params.parent != nil
 	if hasParent {
@@ -854,7 +856,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return err
 		}
 	} else {
-		if err = a.appendTxs(params, checkerInfo, stateHash, hasher); err != nil {
+		if err = a.appendTxs(params, checkerInfo, blockInfo, stateHash, hasher); err != nil {
 			return err
 		}
 	}
@@ -1039,8 +1041,9 @@ func (a *txAppender) handleFallible(
 	case proto.ExchangeTransaction:
 		applicationRes, err := a.handleExchange(tx, info)
 		return nil, applicationRes, err
+	default:
+		return nil, nil, errors.New("transaction is not fallible")
 	}
-	return nil, nil, errors.New("transaction is not fallible")
 }
 
 // For UTX validation.
@@ -1069,14 +1072,14 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	blockInfo.Timestamp = currentTimestamp
 	checkerInfo := &checkerInfo{
-		currentTimestamp:        currentTimestamp,
-		parentTimestamp:         parentTimestamp,
-		blockID:                 block.BlockID(),
-		blockVersion:            version,
-		blockchainHeight:        blockInfo.Height,
-		rideV5Activated:         rideV5Activated,
-		rideV6Activated:         rideV6Activated,
-		blockRewardDistribution: blockRewardDistribution,
+		currentTimestamp:                 currentTimestamp,
+		parentTimestamp:                  parentTimestamp,
+		blockID:                          block.BlockID(),
+		blockVersion:                     version,
+		blockchainHeight:                 blockInfo.Height,
+		rideV5Activated:                  rideV5Activated,
+		rideV6Activated:                  rideV6Activated,
+		blockRewardDistributionActivated: blockRewardDistribution,
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {

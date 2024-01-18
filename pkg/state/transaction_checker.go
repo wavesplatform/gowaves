@@ -25,14 +25,17 @@ const (
 )
 
 type checkerInfo struct {
-	currentTimestamp        uint64
-	parentTimestamp         uint64
-	blockID                 proto.BlockID
-	blockVersion            proto.BlockVersion
-	blockchainHeight        proto.Height
-	rideV5Activated         bool
-	rideV6Activated         bool
-	blockRewardDistribution bool
+	currentTimestamp                 uint64
+	parentTimestamp                  uint64
+	blockID                          proto.BlockID
+	blockVersion                     proto.BlockVersion
+	blockchainHeight                 proto.Height
+	blockV5Activated                 bool
+	rideV5Activated                  bool
+	rideV6Activated                  bool
+	consensusImprovementsActivated   bool
+	blockRewardDistributionActivated bool
+	invokeExpressionActivated        bool
 }
 
 func (i *checkerInfo) estimatorVersion() int {
@@ -421,7 +424,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		return out, errs.Extend(err, "invalid timestamp in ethereum transaction")
 	}
 
-	needToValidateNonEmptyCallData := info.blockRewardDistribution
+	needToValidateNonEmptyCallData := info.blockRewardDistributionActivated
 	var smartAssets []crypto.Digest
 	switch kind := tx.TxKind.(type) {
 	case *proto.EthereumTransferWavesTxKind:
