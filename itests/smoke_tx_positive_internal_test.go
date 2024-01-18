@@ -160,23 +160,23 @@ func (suite *SmokeTxPositiveSuite) Test_TransferTxSmokePositive() {
 func (suite *SmokeTxPositiveSuite) TestTransferWithSponsorshipSmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	//Sponsor creates a new token
-	sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+	sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 		testdata.Sponsor, utl.MaxAmount)
 	//Sponsor set up sponsorship for this token
 	sponsorship.EnableSend(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
-		sponsoredAssetId, testdata.DefaultMinSponsoredAssetFee)
+		sponsoredAssetID, testdata.DefaultMinSponsoredAssetFee)
 	//Sponsor transfers all issued sponsored tokens to RecipientSender
-	transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-		sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
+	transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+		sponsoredAssetID, testdata.Sponsor, testdata.RecipientSender)
 	//Sponsor issues one more token
-	assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+	assetId := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 		testdata.Sponsor, utl.MaxAmount)
 	//Sponsor transfers all issued tokens to RecipientSender
-	transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+	transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 		assetId, testdata.Sponsor, testdata.RecipientSender)
 	//Test data
 	tdmatrix := testdata.GetSponsoredTransferPositiveData(&suite.BaseSuite,
-		assetId, sponsoredAssetId)
+		assetId, sponsoredAssetID)
 
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -193,17 +193,17 @@ func (suite *SmokeTxPositiveSuite) TestTransferWithSponsorshipSmokePositive() {
 func (suite *SmokeTxPositiveSuite) TestTransferWithSponsorshipToOneselfSmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	//Sponsor creates a new token
-	sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+	sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 		testdata.Sponsor, utl.MaxAmount)
 	//Sponsor set up sponsorship for this token
 	sponsorship.EnableSend(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
-		sponsoredAssetId, testdata.DefaultMinSponsoredAssetFee)
+		sponsoredAssetID, testdata.DefaultMinSponsoredAssetFee)
 	//Sponsor issues one more token
-	assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+	assetId := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 		testdata.Sponsor, utl.MaxAmount)
 	//Test data
 	tdmatrix := testdata.GetSposoredTransferBySponsorAsSender(&suite.BaseSuite,
-		sponsoredAssetId, assetId)
+		sponsoredAssetID, assetId)
 
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -223,27 +223,27 @@ func (suite *SmokeTxPositiveSuite) TestTransferWithSponsorshipToOneselfSmokePosi
 func (suite *SmokeTxPositiveSuite) TestFeeInWavesAccordingMinSponsoredAssetSmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	//Sponsor creates a new token
-	sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+	sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 		testdata.Sponsor, utl.MaxAmount)
 	//Sponsor issues one more token
-	assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+	assetId := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 		testdata.Sponsor, utl.MaxAmount)
 	//Sponsor transfers all issued tokens to RecipientSender
-	transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-		sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
+	transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+		sponsoredAssetID, testdata.Sponsor, testdata.RecipientSender)
 	//Sponsor transfers all issued tokens to RecipientSender
-	transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+	transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
 		assetId, testdata.Sponsor, testdata.RecipientSender)
 	//Test data
 	tdmatrix := testdata.GetTransferSponsoredAssetsWithDifferentMinSponsoredFeeData(
-		&suite.BaseSuite, sponsoredAssetId, assetId)
+		&suite.BaseSuite, sponsoredAssetID, assetId)
 
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			//Sponsor set up sponsorship for the token
 			sponsorship.EnableSend(&suite.BaseSuite, v,
-				td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
+				td.TransferTestData.ChainID, sponsoredAssetID, td.MinSponsoredAssetFee)
 			//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
 			tx, diffBalances := transfer.SendTransferTxAndGetBalances(
 				&suite.BaseSuite, td.TransferTestData, v, true)

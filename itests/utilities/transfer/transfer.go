@@ -54,12 +54,10 @@ type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.TransferTestData[T
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.TransferTestData[T],
 	version byte, waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction,
 	utl.AccountsDiffBalancesTxWithSponsorship) {
-
 	var assetDetails *client.AssetsDetail
 	if testdata.FeeAsset.ToDigest() != nil {
 		assetDetails = utl.GetAssetInfo(suite, testdata.FeeAsset.ID)
 	}
-
 	address := utl.GetAddressFromRecipient(suite, testdata.Recipient)
 
 	initBalanceWavesGoSender, initBalanceWavesScalaSender :=
@@ -140,7 +138,7 @@ func BroadcastTransferTxAndGetBalances[T any](suite *f.BaseSuite, testdata testd
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BroadcastWithTestData[T])
 }
 
-func TransferFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from, to int,
+func TransferringFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from, to int,
 	amount uint64) utl.ConsideredTransaction {
 	sender := utl.GetAccount(suite, from)
 	recipient := utl.GetAccount(suite, to)
@@ -152,7 +150,7 @@ func TransferFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from, 
 
 func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from int, amount uint64) int {
 	accNumber, _ := utl.AddNewAccount(suite, scheme)
-	tx := TransferFunds(suite, version, scheme, from, accNumber, amount)
+	tx := TransferringFunds(suite, version, scheme, from, accNumber, amount)
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
 	// Waiting for changing waves balance.
@@ -168,9 +166,9 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 	return accNumber
 }
 
-// TransferAssetAmount - Amount of Asset that transferred from one account to another,
+// TransferringAssetAmount - Amount of Asset that transferred from one account to another,
 // by default it will be all amount of Asset.
-func TransferAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest,
+func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest,
 	from, to int, assetAmount ...uint64) {
 	var amount, currentAmount uint64
 	currentAmount = uint64(utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, from).Address, assetId))

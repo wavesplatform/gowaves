@@ -88,19 +88,19 @@ func BroadcastSponsorshipTxAndGetBalances[T any](suite *f.BaseSuite, testdata te
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BroadcastWithTestData[T])
 }
 
-func EnableSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest,
+func EnableSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetID crypto.Digest,
 	minAssetFee uint64) {
-	assetDetails := utl.GetAssetInfo(suite, assetId)
+	assetDetails := utl.GetAssetInfo(suite, assetID)
 	issuer := utl.MustGetAccountByAddress(suite, assetDetails.Issuer)
-	Send(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, minAssetFee,
+	Send(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetID, minAssetFee,
 		utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
 }
 
-func EnableBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetId crypto.Digest,
+func EnableBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetID crypto.Digest,
 	minAssetFee uint64) {
-	assetDetails := utl.GetAssetInfo(suite, assetId)
+	assetDetails := utl.GetAssetInfo(suite, assetID)
 	issuer := utl.MustGetAccountByAddress(suite, assetDetails.Issuer)
-	Broadcast(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetId, minAssetFee,
+	Broadcast(suite, version, scheme, issuer.PublicKey, issuer.SecretKey, assetID, minAssetFee,
 		utl.MinTxFeeWaves, utl.GetCurrentTimestampInMs(), true)
 }
 

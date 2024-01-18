@@ -44,6 +44,8 @@ const (
 	MinSetAssetScriptFeeWaves  = 100000000
 	MinTxFeeWaves              = 100000
 	MinTxFeeWavesSmartAsset    = 500000
+	MinDecimals                = 0
+	MaxDecimals                = 8
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
@@ -135,7 +137,6 @@ func NewDiffBalancesTxWithSponsorship(diffBalanceWavesGoSender, diffBalanceWaves
 	diffBalanceWavesGoRecipient, diffBalanceWavesScalaRecipient, diffBalanceAssetGoRecipient,
 	diffBalanceAssetScalaRecipient, diffBalanceWavesGoSponsor, diffBalanceWavesScalaSponsor, diffBalanceAssetGoSponsor,
 	diffBalanceAssetScalaSponsor int64) AccountsDiffBalancesTxWithSponsorship {
-
 	return AccountsDiffBalancesTxWithSponsorship{
 		DiffBalancesSender: AccountDiffBalancesSponsorshipSender{
 			DiffBalanceWaves: BalanceInWaves{

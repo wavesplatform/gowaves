@@ -133,25 +133,25 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			//send alias tx from account that is in first element of testdata slice
-			tx1, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
+			tx1, _, actualDiffBalanceInWaves1 := alias.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 				tdSlice[0], v, true)
 			errMsg := caseName + "Broadcast Alias Tx: " + tx1.TxID.String()
 
 			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, errMsg)
 			utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), tdSlice[0].Expected.WavesDiffBalanceAfterFirstTx,
-				actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala,
+				actualDiffBalanceInWaves1.BalanceInWavesGo, actualDiffBalanceInWaves1.BalanceInWavesScala,
 				errMsg)
 			//send alias tx from account that is in each next slice element
 			for j := 1; j < len(tdSlice); j++ {
-				tx2, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
+				tx2, _, actualDiffBalanceInWaves2 := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, tdSlice[j], v, false)
 				txIds[name] = &tx2.TxID
 
 				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx2,
 					errMsg)
 				utl.WavesDiffBalanceCheck(suite.T(), tdSlice[j].Expected.WavesDiffBalance,
-					actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesGo,
+					actualDiffBalanceInWaves2.BalanceInWavesGo, actualDiffBalanceInWaves2.BalanceInWavesGo,
 					errMsg)
 				//because of new IDs for v3
 				if v == 3 {

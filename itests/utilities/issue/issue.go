@@ -40,7 +40,8 @@ func Send(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto
 type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction
 
-// MakeTxAndGetDiffBalances This function returns txID with init balance before tx and difference balance after tx for both nodes
+// MakeTxAndGetDiffBalances This function returns txID with init balance before tx
+// and difference balance after tx for both nodes.
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.IssueTestData[T], version byte,
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)
@@ -84,7 +85,7 @@ func BroadcastIssueTxAndGetBalances[T any](suite *f.BaseSuite, testdata testdata
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BroadcastWithTestData[T])
 }
 
-func IssueAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, accountNumber int,
+func IssuedAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, accountNumber int,
 	assetAmount ...uint64) crypto.Digest {
 	var amount uint64
 	if len(assetAmount) == 1 {
@@ -94,7 +95,7 @@ func IssueAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, acc
 	}
 	tx := Send(suite, version, scheme, utl.GetAccount(suite, accountNumber).PublicKey,
 		utl.GetAccount(suite, accountNumber).SecretKey, "Asset", "Common Asset for testing", amount,
-		utl.GetCurrentTimestampInMs(), utl.MinIssueFeeWaves, 8, true, true, nil)
+		utl.GetCurrentTimestampInMs(), utl.MinIssueFeeWaves, utl.MaxDecimals, true, true, nil)
 	return tx.TxID
 }
 

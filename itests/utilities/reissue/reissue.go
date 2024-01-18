@@ -14,7 +14,7 @@ import (
 type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction
 
-// MakeTxAndGetDiffBalances This function returns txID with difference balances after tx for both nodes
+// MakeTxAndGetDiffBalances This function returns txID with difference balances after tx for both nodes.
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.ReissueTestData[T], version byte,
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
 	initBalanceInWavesGo, initBalanceInWavesScala := utl.GetAvailableBalanceInWaves(suite, testdata.Account.Address)

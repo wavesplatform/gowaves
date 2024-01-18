@@ -68,9 +68,9 @@ func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultAccountForLoanFunds, 10000000000)
-		itxID := issue.IssueAssetAmount(&suite.BaseSuite, v, utl.TestChainID,
+		itxID := issue.IssuedAssetAmount(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultSenderNotMiner, utl.MaxAmount)
-		transfer.TransferAssetAmount(&suite.BaseSuite, v, utl.TestChainID, itxID,
+		transfer.TransferringAssetAmount(&suite.BaseSuite, v, utl.TestChainID, itxID,
 			utl.DefaultSenderNotMiner, n)
 		tdmatrix := testdata.GetTransferMaxAmountPositive(&suite.BaseSuite, itxID, n)
 		for name, td := range tdmatrix {

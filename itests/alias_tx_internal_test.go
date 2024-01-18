@@ -125,27 +125,27 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
 			//send alias tx from account that is in first element of testdata slice
-			tx, _, actualDiffBalanceInWaves := alias.SendAliasTxAndGetWavesBalances(
+			tx1, _, actualDiffBalanceInWaves1 := alias.SendAliasTxAndGetWavesBalances(
 				&suite.BaseSuite, tdSlice[0], v, true)
-			errMsg := caseName + "Alias Tx: " + tx.TxID.String()
+			errMsg := caseName + "Alias Tx: " + tx1.TxID.String()
 
-			utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+			utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), tdSlice[0].Expected.WavesDiffBalanceAfterFirstTx,
-				actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
+				actualDiffBalanceInWaves1.BalanceInWavesGo, actualDiffBalanceInWaves1.BalanceInWavesScala, errMsg)
 			//send alias tx from account that is in each next slice element
 			for j := 1; j < len(tdSlice); j++ {
-				tx, _, actualDiffBalanceInWaves := alias.SendAliasTxAndGetWavesBalances(
+				tx2, _, actualDiffBalanceInWaves2 := alias.SendAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, tdSlice[j], v, false)
-				txIds[name] = &tx.TxID
-				errMsg = caseName + "Alias Tx: " + tx.TxID.String()
+				txIds[name] = &tx2.TxID
+				errMsg = caseName + "Alias Tx: " + tx2.TxID.String()
 
 				utl.WavesDiffBalanceCheck(suite.T(), tdSlice[j].Expected.WavesDiffBalance,
-					actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesGo, errMsg)
+					actualDiffBalanceInWaves2.BalanceInWavesGo, actualDiffBalanceInWaves2.BalanceInWavesGo, errMsg)
 				//because of new IDs for v3
 				if v == 3 {
 					idsCount = 0
 					utl.ErrorMessageCheck(suite.T(), tdSlice[j].Expected.ErrGoMsg, tdSlice[j].Expected.ErrScalaMsg,
-						tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+						tx2.WtErr.ErrWtGo, tx2.WtErr.ErrWtScala, errMsg)
 				}
 			}
 		})

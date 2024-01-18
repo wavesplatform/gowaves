@@ -23,22 +23,22 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipPositive
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Sponsor creates a new token.
-		sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor set up sponsorship for this token.
 		sponsorship.EnableSend(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
-			sponsoredAssetId, testdata.DefaultMinSponsoredAssetFee)
+			sponsoredAssetID, testdata.DefaultMinSponsoredAssetFee)
 		// Sponsor transfers all issued sponsored tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			sponsoredAssetID, testdata.Sponsor, testdata.RecipientSender)
 		// Sponsor issues one more token.
-		assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		assetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			assetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			assetID, testdata.Sponsor, testdata.RecipientSender)
 		// Test data.
-		tdmatrix := testdata.GetSponsoredTransferPositiveData(&suite.BaseSuite, assetId, sponsoredAssetId)
+		tdmatrix := testdata.GetSponsoredTransferPositiveData(&suite.BaseSuite, assetID, sponsoredAssetID)
 
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -58,16 +58,16 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipToOnesel
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Sponsor creates a new token.
-		sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor set up sponsorship for this token.
 		sponsorship.EnableSend(&suite.BaseSuite, testdata.SponsorshipMaxVersion, utl.TestChainID,
-			sponsoredAssetId, testdata.DefaultMinSponsoredAssetFee)
+			sponsoredAssetID, testdata.DefaultMinSponsoredAssetFee)
 		// Sponsor issues one more token.
-		assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		assetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Test data.
-		tdmatrix := testdata.GetSposoredTransferBySponsorAsSender(&suite.BaseSuite, sponsoredAssetId, assetId)
+		tdmatrix := testdata.GetSposoredTransferBySponsorAsSender(&suite.BaseSuite, sponsoredAssetID, assetID)
 
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
@@ -90,27 +90,27 @@ func (suite *TransferWithSponsorshipTxSuite) TestFeeInWavesAccordingMinSponsored
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Sponsor creates a new token.
-		sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor issues one more token.
-		assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		assetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			sponsoredAssetID, testdata.Sponsor, testdata.RecipientSender)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			assetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			assetID, testdata.Sponsor, testdata.RecipientSender)
 		// Test data.
 		tdmatrix := testdata.GetTransferSponsoredAssetsWithDifferentMinSponsoredFeeData(&suite.BaseSuite,
-			sponsoredAssetId, assetId)
+			sponsoredAssetID, assetID)
 
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				// Sponsor set up sponsorship for the token.
 				sponsorship.EnableSend(&suite.BaseSuite, v,
-					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
+					td.TransferTestData.ChainID, sponsoredAssetID, td.MinSponsoredAssetFee)
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, true)
@@ -125,29 +125,29 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipMaxValue
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Fill Sponsor's Waves balance.
-		transfer.TransferFunds(&suite.BaseSuite, v, utl.TestChainID,
+		transfer.TransferringFunds(&suite.BaseSuite, v, utl.TestChainID,
 			utl.DefaultAccountForLoanFunds, testdata.Sponsor, 100000000000000)
 		// Sponsor creates a new token.
-		sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor issues one more token.
-		assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		assetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			sponsoredAssetID, testdata.Sponsor, testdata.RecipientSender)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			assetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			assetID, testdata.Sponsor, testdata.RecipientSender)
 		// Test data.
-		tdmatrix := testdata.GetTransferWithSponsorshipMaxAmountPositive(&suite.BaseSuite, sponsoredAssetId, assetId)
+		tdmatrix := testdata.GetTransferWithSponsorshipMaxAmountPositive(&suite.BaseSuite, sponsoredAssetID, assetID)
 
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				// Sponsor set up sponsorship for the token.
 				sponsorship.EnableSend(&suite.BaseSuite, v,
-					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
+					td.TransferTestData.ChainID, sponsoredAssetID, td.MinSponsoredAssetFee)
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, true)
@@ -163,26 +163,26 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		// Sponsor creates a new token.
-		sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor issues one more token.
-		assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		assetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			sponsoredAssetID, testdata.Sponsor, testdata.RecipientSender)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			assetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			assetID, testdata.Sponsor, testdata.RecipientSender)
 		// Test data.
-		tdmatrix := testdata.GetTransferWithSponsorshipMaxValuesDataNegative(&suite.BaseSuite, sponsoredAssetId, assetId)
+		tdmatrix := testdata.GetTransferWithSponsorshipMaxValuesDataNegative(&suite.BaseSuite, sponsoredAssetID, assetID)
 
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				// Sponsor set up sponsorship for the token.
 				sponsorship.EnableSend(&suite.BaseSuite, v,
-					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
+					td.TransferTestData.ChainID, sponsoredAssetID, td.MinSponsoredAssetFee)
 
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.SendTransferTxAndGetBalances(
@@ -204,26 +204,26 @@ func (suite *TransferWithSponsorshipTxSuite) TestSponsoredTransferFeeNegative() 
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		// Sponsor creates a new token.
-		sponsoredAssetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion,
+		sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion,
 			utl.TestChainID, testdata.Sponsor, 10000000000)
 		// Sponsor issues one more token.
-		assetId := issue.IssueAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
+		assetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
 			testdata.Sponsor, utl.MaxAmount)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			sponsoredAssetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			sponsoredAssetID, testdata.Sponsor, testdata.RecipientSender)
 		// Sponsor transfers all issued tokens to RecipientSender.
-		transfer.TransferAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
-			assetId, testdata.Sponsor, testdata.RecipientSender)
+		transfer.TransferringAssetAmount(&suite.BaseSuite, testdata.TransferMaxVersion, utl.TestChainID,
+			assetID, testdata.Sponsor, testdata.RecipientSender)
 		// Test data.
-		tdmatrix := testdata.GetTransferWithSponsorshipDataNegative(&suite.BaseSuite, sponsoredAssetId, assetId)
+		tdmatrix := testdata.GetTransferWithSponsorshipDataNegative(&suite.BaseSuite, sponsoredAssetID, assetID)
 
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				// Sponsor set up sponsorship for the token.
 				sponsorship.EnableSend(&suite.BaseSuite, v,
-					td.TransferTestData.ChainID, sponsoredAssetId, td.MinSponsoredAssetFee)
+					td.TransferTestData.ChainID, sponsoredAssetID, td.MinSponsoredAssetFee)
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, !waitForTx)
