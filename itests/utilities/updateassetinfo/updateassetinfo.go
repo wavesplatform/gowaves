@@ -52,13 +52,13 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Updat
 		utl.NewBalanceInAsset(actualDiffBalanceInAsset.BalanceInAssetGo, actualDiffBalanceInAsset.BalanceInAssetScala)
 }
 
-func UpdateAssetInfoSendWithTestData[T any](suite *f.BaseSuite, testdata testdata.UpdateAssetInfoTestData[T],
+func SendWithTestData[T any](suite *f.BaseSuite, testdata testdata.UpdateAssetInfoTestData[T],
 	version byte, waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignedUpdateAssetInfoTransactionWithTestData(suite, version, testdata)
 	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func UpdateAssetInfoBroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.UpdateAssetInfoTestData[T],
+func BroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.UpdateAssetInfoTestData[T],
 	version byte, waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignedUpdateAssetInfoTransactionWithTestData(suite, version, testdata)
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
@@ -66,13 +66,13 @@ func UpdateAssetInfoBroadcastWithTestData[T any](suite *f.BaseSuite, testdata te
 
 func SendUpdateAssetInfoTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.UpdateAssetInfoTestData[T],
 	version byte, waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, UpdateAssetInfoSendWithTestData[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SendWithTestData[T])
 }
 
 func BroadcastUpdateAssetInfoTxAndGetDiffBalances[T any](suite *f.BaseSuite,
 	testdata testdata.UpdateAssetInfoTestData[T], version byte, waitForTx bool) (utl.ConsideredTransaction,
 	utl.BalanceInWaves, utl.BalanceInAsset) {
-	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, UpdateAssetInfoBroadcastWithTestData[T])
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, BroadcastWithTestData[T])
 }
 
 func GetVersions(suite *f.BaseSuite) []byte {
