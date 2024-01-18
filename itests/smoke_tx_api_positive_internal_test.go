@@ -267,7 +267,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiReissuableTokenSmo
 				update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 					&suite.BaseSuite, td, v, true)
 			errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
-			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.assetID)
+			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 			update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)
 		})
@@ -288,7 +288,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiNFTSmokePositive()
 				update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 					&suite.BaseSuite, td, v, true)
 			errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
-			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.assetID)
+			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 			update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)
 		})
@@ -309,7 +309,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiSmartAssetSmokePos
 				update_asset_info.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 					&suite.BaseSuite, td, v, true)
 			errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
-			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.assetID)
+			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 			update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)
 		})

@@ -34,8 +34,8 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 						&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
-					assetDetails, errMsg)
+				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+					actualDiffBalanceInAsset, assetDetails, errMsg)
 			})
 		}
 	}
@@ -57,8 +57,8 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
 						&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
-					assetDetails, errMsg)
+				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+					actualDiffBalanceInAsset, assetDetails, errMsg)
 			})
 		}
 	}
@@ -80,8 +80,8 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPosit
 						&suite.BaseSuite, td, v, true)
 				errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
-				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
-					assetDetails, errMsg)
+				update_asset_info.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+					actualDiffBalanceInAsset, assetDetails, errMsg)
 			})
 		}
 	}
