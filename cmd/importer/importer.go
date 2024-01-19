@@ -150,13 +150,13 @@ func main() {
 		zap.S().Fatalf("Failed to get current height: %v", err)
 	}
 	start := time.Now()
-	if err := importer.ApplyFromFile(st, *blockchainPath, *snapshotsPath,
-		uint64(*nBlocks), height, *lightNodeMode); err != nil {
-		height, err1 := st.Height()
+	if aErr := importer.ApplyFromFile(ss.AddressSchemeCharacter, st, *blockchainPath, *snapshotsPath, uint64(*nBlocks),
+		height, *lightNodeMode); aErr != nil {
+		h, err1 := st.Height()
 		if err1 != nil {
 			zap.S().Fatalf("Failed to get current height: %v", err1)
 		}
-		zap.S().Fatalf("Failed to apply blocks after height %d: %v", height, err)
+		zap.S().Fatalf("Failed to apply blocks after height %d: %v", h, aErr)
 	}
 	elapsed := time.Since(start)
 	zap.S().Infof("Import took %s", elapsed)
