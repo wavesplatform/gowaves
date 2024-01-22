@@ -748,10 +748,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
 
-	if params.block.BlockID().String() == "Fmi8w2L98ea8kEg3PE41m3JKZwMeewJ7Z99mZb7W9ufa" {
-		fmt.Println("here")
-	}
-
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
 			chans:                            params.chans,
@@ -798,7 +794,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	// clean up legacy state hash records with zero diffs
-	a.stor.balances.filterZeroDiffsSHOut(blockID)
+	a.txHandler.sa.filterZeroDiffsSHOut(blockID)
 	// TODO: check snapshot hash with the block snapshot hash if it exists
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
 		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", currentBlockHeight)

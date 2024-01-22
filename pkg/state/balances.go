@@ -187,13 +187,6 @@ type balances struct {
 
 	calculateHashes bool
 	scheme          proto.Scheme
-
-	// used for legacy state hashes to filter out statehash temporary records with 0 change in a block.
-	wavesBalanceRecordsLegacySH  wavesBalanceRecordsLegacyStateHash
-	assetBalanceRecordsLegacySH  assetBalanceRecordsLegacyStateHash
-	leasesBalanceRecordsLegacySH leasesRecordLegacyStateHash
-
-	initialBalances initialBalancesInBlock
 }
 
 func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInfoGetter, scheme proto.Scheme, calcHashes bool) (*balances, error) {
@@ -214,11 +207,6 @@ func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInf
 		assetsHashes:      make(map[proto.BlockID]crypto.Digest),
 		leaseHashesState:  make(map[proto.BlockID]*stateForHashes),
 		leaseHashes:       make(map[proto.BlockID]crypto.Digest),
-
-		wavesBalanceRecordsLegacySH:  wavesBalanceRecordsLegacyStateHash{make(map[string][]int64)},
-		assetBalanceRecordsLegacySH:  assetBalanceRecordsLegacyStateHash{make(map[string][]int64)},
-		leasesBalanceRecordsLegacySH: leasesRecordLegacyStateHash{make(map[string][]leaseRecords)},
-		initialBalances:              newInitialBalancesInBlock(),
 	}, nil
 }
 
@@ -244,36 +232,6 @@ func (s *balances) leaseHashAt(blockID proto.BlockID) crypto.Digest {
 		return s.emptyHash
 	}
 	return hash
-}
-
-func (s *balances) addAssetBalanceChangeLegacySH(addressID proto.AddressID, asset proto.AssetID, balance int64) {
-	if !s.calculateHashes {
-		return
-	}
-	key := assetBalanceKey{address: addressID, asset: asset}
-	keyBytes := key.bytes()
-	keyStr := string(keyBytes)
-	s.assetBalanceRecordsLegacySH.add(keyStr, balance)
-}
-
-func (s *balances) addWavesBalanceChangeLegacySH(addressID proto.AddressID, balance int64) {
-	if !s.calculateHashes {
-		return
-	}
-	key := wavesBalanceKey{address: addressID}
-	keyBytes := key.bytes()
-	keyStr := string(keyBytes)
-	s.wavesBalanceRecordsLegacySH.add(keyStr, balance)
-}
-
-func (s *balances) addLeasesBalanceChangeLegacySH(addressID proto.AddressID, leaseIn int64, leaseOut int64) {
-	if !s.calculateHashes {
-		return
-	}
-	key := wavesBalanceKey{address: addressID}
-	keyBytes := key.bytes()
-	keyStr := string(keyBytes)
-	s.leasesBalanceRecordsLegacySH.add(keyStr, leaseIn, leaseOut)
 }
 
 func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
@@ -677,197 +635,6 @@ func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, 
 		}
 	}
 	return s.hs.addNewEntry(assetBalance, keyBytes, recordBytes, blockID)
-}
-
-type initialBalancesInBlock struct {
-	initialWavesBalances map[string]uint64 // key, balance
-	initialAssetBalances map[string]uint64
-	initialLeaseBalances map[string]leaseRecords
-}
-
-func newInitialBalancesInBlock() initialBalancesInBlock {
-	return initialBalancesInBlock{
-		make(map[string]uint64),
-		make(map[string]uint64),
-		make(map[string]leaseRecords),
-	}
-}
-
-// for legacy SH
-func (b *balances) addInitialBalancesIfNotExists(snapshots []proto.AtomicSnapshot) error {
-	for _, s := range snapshots {
-		switch snapshot := s.(type) {
-		case *proto.WavesBalanceSnapshot:
-			key := wavesBalanceKey{address: snapshot.Address.ID()}
-			keyStr := string(key.bytes())
-			if _, ok := b.initialBalances.initialWavesBalances[keyStr]; !ok {
-				initialBalance, err := b.newestWavesBalance(snapshot.Address.ID())
-				if err != nil {
-					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
-				}
-				b.initialBalances.initialWavesBalances[keyStr] = initialBalance.balance
-			}
-		case *proto.AssetBalanceSnapshot:
-			key := assetBalanceKey{address: snapshot.Address.ID(), asset: proto.AssetIDFromDigest(snapshot.AssetID)}
-			keyStr := string(key.bytes())
-			if _, ok := b.initialBalances.initialAssetBalances[keyStr]; !ok {
-				initialBalance, err := b.newestAssetBalance(snapshot.Address.ID(), proto.AssetIDFromDigest(snapshot.AssetID))
-				if err != nil {
-					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
-				}
-				b.initialBalances.initialAssetBalances[keyStr] = initialBalance
-			}
-		case *proto.LeaseBalanceSnapshot:
-			key := wavesBalanceKey{address: snapshot.Address.ID()}
-			keyStr := string(key.bytes())
-			if _, ok := b.initialBalances.initialLeaseBalances[keyStr]; !ok {
-				initialBalance, err := b.newestWavesBalance(snapshot.Address.ID())
-				if err != nil {
-					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
-				}
-				b.initialBalances.initialLeaseBalances[keyStr] = leaseRecords{int64(initialBalance.leaseIn), int64(initialBalance.leaseOut)}
-			}
-		}
-	}
-	return nil
-}
-
-func (i *initialBalancesInBlock) reset() {
-	i.initialWavesBalances = make(map[string]uint64)
-	i.initialAssetBalances = make(map[string]uint64)
-	i.initialLeaseBalances = make(map[string]leaseRecords)
-}
-
-func (s *balances) filterZeroWavesDiffRecords(initialWavesBalances map[string]uint64, blockID proto.BlockID) {
-
-	// comparing the final balance to the initial one
-	for key, initialBalance := range initialWavesBalances {
-		balances, ok := s.wavesBalanceRecordsLegacySH.wavesBalanceRecordsLegacySHs[key]
-		var lastBalanceInSnapshots int64
-		if ok && len(balances) > 0 {
-			lastBalanceInSnapshots = balances[len(balances)-1]
-		} else {
-			lastBalanceInSnapshots = 0
-		}
-		if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
-			temporarySHRecords, ok := s.wavesHashesState[blockID]
-			if ok && temporarySHRecords != nil {
-				temporarySHRecords.remove(key)
-				s.wavesHashesState[blockID] = temporarySHRecords
-			}
-		}
-	}
-}
-
-func (s *balances) filterZeroAssetDiffRecords(initialAssetBalances map[string]uint64, blockID proto.BlockID) {
-	// comparing the final balance to the initial one
-	for key, initialBalance := range initialAssetBalances {
-		balances, ok := s.assetBalanceRecordsLegacySH.assetBalanceRecordsLegacySHs[key]
-		var lastBalanceInSnapshots int64 = 0
-		if ok && len(balances) > 0 {
-			lastBalanceInSnapshots = balances[len(balances)-1]
-		}
-		if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
-			temporarySHRecords, ok := s.assetsHashesState[blockID]
-			if ok && temporarySHRecords != nil {
-				temporarySHRecords.remove(key)
-				s.assetsHashesState[blockID] = temporarySHRecords
-			}
-		}
-	}
-}
-
-// comparing the final balance to the initial one
-func (s *balances) filterZeroLeasingDiffRecords(initialLeasingBalances map[string]leaseRecords, blockID proto.BlockID) {
-	// comparing the final balance to the initial one
-	for key, initialBalance := range initialLeasingBalances {
-		balances, ok := s.leasesBalanceRecordsLegacySH.leaseBalanceRecordsLegacySH[key]
-		var lastBalanceInSnapshots = leaseRecords{leaseIn: 0, leaseOut: 0}
-		if ok && len(balances) > 0 {
-			lastBalanceInSnapshots = balances[len(balances)-1]
-		}
-		if lastBalanceInSnapshots.leaseIn == initialBalance.leaseIn &&
-			lastBalanceInSnapshots.leaseOut == initialBalance.leaseOut { // this means the diff is 0 in block
-			temporarySHRecords, ok := s.leaseHashesState[blockID]
-			if ok && temporarySHRecords != nil {
-				temporarySHRecords.remove(key)
-				s.leaseHashesState[blockID] = temporarySHRecords
-			}
-		}
-	}
-}
-
-func (s *balances) filterZeroDiffsSHOut(blockID proto.BlockID) {
-	if !s.calculateHashes {
-		return
-	}
-	s.filterZeroWavesDiffRecords(s.initialBalances.initialWavesBalances, blockID)
-	s.filterZeroAssetDiffRecords(s.initialBalances.initialAssetBalances, blockID)
-	s.filterZeroLeasingDiffRecords(s.initialBalances.initialLeaseBalances, blockID)
-
-	s.wavesBalanceRecordsLegacySH.reset()
-	s.assetBalanceRecordsLegacySH.reset()
-	s.leasesBalanceRecordsLegacySH.reset()
-	s.initialBalances.reset()
-}
-
-type wavesBalanceRecordsLegacyStateHash struct {
-	wavesBalanceRecordsLegacySHs map[string][]int64
-}
-
-func (w *wavesBalanceRecordsLegacyStateHash) add(keyStr string, balance int64) {
-	prevRec, ok := w.wavesBalanceRecordsLegacySHs[keyStr]
-	if ok {
-		prevRec = append(prevRec, balance)
-		w.wavesBalanceRecordsLegacySHs[keyStr] = prevRec
-	} else {
-		w.wavesBalanceRecordsLegacySHs[keyStr] = []int64{balance}
-	}
-}
-
-func (w *wavesBalanceRecordsLegacyStateHash) reset() {
-	w.wavesBalanceRecordsLegacySHs = make(map[string][]int64)
-}
-
-type assetBalanceRecordsLegacyStateHash struct {
-	assetBalanceRecordsLegacySHs map[string][]int64
-}
-
-func (w *assetBalanceRecordsLegacyStateHash) add(keyStr string, balance int64) {
-	prevRec, ok := w.assetBalanceRecordsLegacySHs[keyStr]
-	if ok {
-		prevRec = append(prevRec, balance)
-		w.assetBalanceRecordsLegacySHs[keyStr] = prevRec
-	} else {
-		w.assetBalanceRecordsLegacySHs[keyStr] = []int64{balance}
-	}
-}
-
-func (w *assetBalanceRecordsLegacyStateHash) reset() {
-	w.assetBalanceRecordsLegacySHs = make(map[string][]int64)
-}
-
-type leaseRecords struct {
-	leaseIn  int64
-	leaseOut int64
-}
-
-type leasesRecordLegacyStateHash struct {
-	leaseBalanceRecordsLegacySH map[string][]leaseRecords
-}
-
-func (w *leasesRecordLegacyStateHash) add(keyStr string, leaseIn int64, leaseOut int64) {
-	prevLeaseInOut, ok := w.leaseBalanceRecordsLegacySH[keyStr]
-	if ok {
-		prevLeaseInOut = append(prevLeaseInOut, leaseRecords{leaseIn: leaseIn, leaseOut: leaseOut})
-		w.leaseBalanceRecordsLegacySH[keyStr] = prevLeaseInOut
-	} else {
-		w.leaseBalanceRecordsLegacySH[keyStr] = []leaseRecords{{leaseIn: leaseIn, leaseOut: leaseOut}}
-	}
-}
-
-func (w *leasesRecordLegacyStateHash) reset() {
-	w.leaseBalanceRecordsLegacySH = make(map[string][]leaseRecords)
 }
 
 func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balance wavesValue,

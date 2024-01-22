@@ -14,6 +14,7 @@ type snapshotApplierHooks interface {
 type extendedSnapshotApplier interface {
 	SetApplierInfo(info *blockSnapshotsApplierInfo)
 	SaveInitialBalances(snapshots []proto.AtomicSnapshot) error // to support legacy SH
+	filterZeroDiffsSHOut(blockID proto.BlockID)
 	// saveInitialBalances
 	proto.SnapshotApplier
 	internalSnapshotApplier

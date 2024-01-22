@@ -28,6 +28,9 @@ type blockSnapshotsApplier struct {
 
 	newLeases       []crypto.Digest
 	cancelledLeases map[crypto.Digest]struct{}
+
+	// used for legacy SH
+	balanceRecordsContext BalanceRecordsContext
 }
 
 func (a *blockSnapshotsApplier) BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error {
@@ -83,13 +86,258 @@ func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
 
 func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
 	return blockSnapshotsApplier{
-		info:            info,
-		stor:            stor,
-		issuedAssets:    []crypto.Digest{},
-		scriptedAssets:  make(map[crypto.Digest]struct{}),
-		newLeases:       []crypto.Digest{},
-		cancelledLeases: make(map[crypto.Digest]struct{}),
+		info:                  info,
+		stor:                  stor,
+		issuedAssets:          []crypto.Digest{},
+		scriptedAssets:        make(map[crypto.Digest]struct{}),
+		newLeases:             []crypto.Digest{},
+		cancelledLeases:       make(map[crypto.Digest]struct{}),
+		balanceRecordsContext: NewBalanceRecordsContext(),
 	}
+}
+
+type BalanceRecordsContext struct {
+	// used for legacy state hashes to filter out statehash temporary records with 0 change in a block.
+	wavesBalanceRecordsLegacySH  wavesBalanceRecordsLegacyStateHash
+	assetBalanceRecordsLegacySH  assetBalanceRecordsLegacyStateHash
+	leasesBalanceRecordsLegacySH leasesRecordLegacyStateHash
+
+	initialBalances initialBalancesInBlock
+}
+
+func NewBalanceRecordsContext() BalanceRecordsContext {
+	return BalanceRecordsContext{
+		wavesBalanceRecordsLegacySH:  wavesBalanceRecordsLegacyStateHash{make(map[string][]int64)},
+		assetBalanceRecordsLegacySH:  assetBalanceRecordsLegacyStateHash{make(map[string][]int64)},
+		leasesBalanceRecordsLegacySH: leasesRecordLegacyStateHash{make(map[string][]leaseRecords)},
+		initialBalances:              newInitialBalancesInBlock(),
+	}
+}
+
+func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(addressID proto.AddressID, asset proto.AssetID, balance int64) {
+	if !a.stor.balances.calculateHashes {
+		return
+	}
+	key := assetBalanceKey{address: addressID, asset: asset}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
+	a.balanceRecordsContext.assetBalanceRecordsLegacySH.add(keyStr, balance)
+}
+
+func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(addressID proto.AddressID, balance int64) {
+	if !a.stor.balances.calculateHashes {
+		return
+	}
+	key := wavesBalanceKey{address: addressID}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
+	a.balanceRecordsContext.wavesBalanceRecordsLegacySH.add(keyStr, balance)
+}
+
+func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(addressID proto.AddressID, leaseIn int64, leaseOut int64) {
+	if !a.stor.balances.calculateHashes {
+		return
+	}
+	key := wavesBalanceKey{address: addressID}
+	keyBytes := key.bytes()
+	keyStr := string(keyBytes)
+	a.balanceRecordsContext.leasesBalanceRecordsLegacySH.add(keyStr, leaseIn, leaseOut)
+}
+
+type initialBalancesInBlock struct {
+	initialWavesBalances map[string]uint64 // key, balance
+	initialAssetBalances map[string]uint64
+	initialLeaseBalances map[string]leaseRecords
+}
+
+func newInitialBalancesInBlock() initialBalancesInBlock {
+	return initialBalancesInBlock{
+		make(map[string]uint64),
+		make(map[string]uint64),
+		make(map[string]leaseRecords),
+	}
+}
+
+// for legacy SH
+func (a *blockSnapshotsApplier) addInitialBalancesIfNotExists(snapshots []proto.AtomicSnapshot) error {
+	for _, s := range snapshots {
+		switch snapshot := s.(type) {
+		case *proto.WavesBalanceSnapshot:
+			key := wavesBalanceKey{address: snapshot.Address.ID()}
+			keyStr := string(key.bytes())
+			if _, ok := a.balanceRecordsContext.initialBalances.initialWavesBalances[keyStr]; !ok {
+				initialBalance, err := a.stor.balances.newestWavesBalance(snapshot.Address.ID())
+				if err != nil {
+					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
+				}
+				a.balanceRecordsContext.initialBalances.initialWavesBalances[keyStr] = initialBalance.balance
+			}
+		case *proto.AssetBalanceSnapshot:
+			key := assetBalanceKey{address: snapshot.Address.ID(), asset: proto.AssetIDFromDigest(snapshot.AssetID)}
+			keyStr := string(key.bytes())
+			if _, ok := a.balanceRecordsContext.initialBalances.initialAssetBalances[keyStr]; !ok {
+				initialBalance, err := a.stor.balances.newestAssetBalance(snapshot.Address.ID(), proto.AssetIDFromDigest(snapshot.AssetID))
+				if err != nil {
+					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
+				}
+				a.balanceRecordsContext.initialBalances.initialAssetBalances[keyStr] = initialBalance
+			}
+		case *proto.LeaseBalanceSnapshot:
+			key := wavesBalanceKey{address: snapshot.Address.ID()}
+			keyStr := string(key.bytes())
+			if _, ok := a.balanceRecordsContext.initialBalances.initialLeaseBalances[keyStr]; !ok {
+				initialBalance, err := a.stor.balances.newestWavesBalance(snapshot.Address.ID())
+				if err != nil {
+					return errors.Wrapf(err, "failed to gen initial balance for address %s", snapshot.Address.String())
+				}
+				a.balanceRecordsContext.initialBalances.initialLeaseBalances[keyStr] = leaseRecords{int64(initialBalance.leaseIn), int64(initialBalance.leaseOut)}
+			}
+		}
+	}
+	return nil
+}
+
+func (i *initialBalancesInBlock) reset() {
+	i.initialWavesBalances = make(map[string]uint64)
+	i.initialAssetBalances = make(map[string]uint64)
+	i.initialLeaseBalances = make(map[string]leaseRecords)
+}
+
+func (a *blockSnapshotsApplier) filterZeroWavesDiffRecords(initialWavesBalances map[string]uint64, blockID proto.BlockID) {
+
+	// comparing the final balance to the initial one
+	for key, initialBalance := range initialWavesBalances {
+		balances, ok := a.balanceRecordsContext.wavesBalanceRecordsLegacySH.wavesBalanceRecordsLegacySHs[key]
+		var lastBalanceInSnapshots int64
+		if ok && len(balances) > 0 {
+			lastBalanceInSnapshots = balances[len(balances)-1]
+		} else {
+			lastBalanceInSnapshots = 0
+		}
+		if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.wavesHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				temporarySHRecords.remove(key)
+				a.stor.balances.wavesHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroAssetDiffRecords(initialAssetBalances map[string]uint64, blockID proto.BlockID) {
+	// comparing the final balance to the initial one
+	for key, initialBalance := range initialAssetBalances {
+		balances, ok := a.balanceRecordsContext.assetBalanceRecordsLegacySH.assetBalanceRecordsLegacySHs[key]
+		var lastBalanceInSnapshots int64 = 0
+		if ok && len(balances) > 0 {
+			lastBalanceInSnapshots = balances[len(balances)-1]
+		}
+		if lastBalanceInSnapshots == int64(initialBalance) { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.assetsHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				temporarySHRecords.remove(key)
+				a.stor.balances.assetsHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+// comparing the final balance to the initial one
+func (a *blockSnapshotsApplier) filterZeroLeasingDiffRecords(initialLeasingBalances map[string]leaseRecords, blockID proto.BlockID) {
+	// comparing the final balance to the initial one
+	for key, initialBalance := range initialLeasingBalances {
+		balances, ok := a.balanceRecordsContext.leasesBalanceRecordsLegacySH.leaseBalanceRecordsLegacySH[key]
+		var lastBalanceInSnapshots = leaseRecords{leaseIn: 0, leaseOut: 0}
+		if ok && len(balances) > 0 {
+			lastBalanceInSnapshots = balances[len(balances)-1]
+		}
+		if lastBalanceInSnapshots.leaseIn == initialBalance.leaseIn &&
+			lastBalanceInSnapshots.leaseOut == initialBalance.leaseOut { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.leaseHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				temporarySHRecords.remove(key)
+				a.stor.balances.leaseHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroDiffsSHOut(blockID proto.BlockID) {
+	if !a.stor.balances.calculateHashes {
+		return
+	}
+	a.filterZeroWavesDiffRecords(a.balanceRecordsContext.initialBalances.initialWavesBalances, blockID)
+	a.filterZeroAssetDiffRecords(a.balanceRecordsContext.initialBalances.initialAssetBalances, blockID)
+	a.filterZeroLeasingDiffRecords(a.balanceRecordsContext.initialBalances.initialLeaseBalances, blockID)
+
+	a.balanceRecordsContext.wavesBalanceRecordsLegacySH.reset()
+	a.balanceRecordsContext.assetBalanceRecordsLegacySH.reset()
+	a.balanceRecordsContext.leasesBalanceRecordsLegacySH.reset()
+	a.balanceRecordsContext.initialBalances.reset()
+}
+
+type balanceContext struct {
+	initial int64
+	current int64
+}
+
+type wavesBalanceRecordsLegacyStateHash struct {
+	wavesBalanceRecordsLegacySHs map[string][]int64
+}
+
+func (w *wavesBalanceRecordsLegacyStateHash) add(keyStr string, balance int64) {
+	prevRec, ok := w.wavesBalanceRecordsLegacySHs[keyStr]
+	if ok {
+		prevRec = append(prevRec, balance)
+		w.wavesBalanceRecordsLegacySHs[keyStr] = prevRec
+	} else {
+		w.wavesBalanceRecordsLegacySHs[keyStr] = []int64{balance}
+	}
+}
+
+func (w *wavesBalanceRecordsLegacyStateHash) reset() {
+	w.wavesBalanceRecordsLegacySHs = make(map[string][]int64)
+}
+
+type assetBalanceRecordsLegacyStateHash struct {
+	assetBalanceRecordsLegacySHs map[string][]int64
+}
+
+func (w *assetBalanceRecordsLegacyStateHash) add(keyStr string, balance int64) {
+	prevRec, ok := w.assetBalanceRecordsLegacySHs[keyStr]
+	if ok {
+		prevRec = append(prevRec, balance)
+		w.assetBalanceRecordsLegacySHs[keyStr] = prevRec
+	} else {
+		w.assetBalanceRecordsLegacySHs[keyStr] = []int64{balance}
+	}
+}
+
+func (w *assetBalanceRecordsLegacyStateHash) reset() {
+	w.assetBalanceRecordsLegacySHs = make(map[string][]int64)
+}
+
+type leaseRecords struct {
+	leaseIn  int64
+	leaseOut int64
+}
+
+type leasesRecordLegacyStateHash struct {
+	leaseBalanceRecordsLegacySH map[string][]leaseRecords
+}
+
+func (w *leasesRecordLegacyStateHash) add(keyStr string, leaseIn int64, leaseOut int64) {
+	prevLeaseInOut, ok := w.leaseBalanceRecordsLegacySH[keyStr]
+	if ok {
+		prevLeaseInOut = append(prevLeaseInOut, leaseRecords{leaseIn: leaseIn, leaseOut: leaseOut})
+		w.leaseBalanceRecordsLegacySH[keyStr] = prevLeaseInOut
+	} else {
+		w.leaseBalanceRecordsLegacySH[keyStr] = []leaseRecords{{leaseIn: leaseIn, leaseOut: leaseOut}}
+	}
+}
+
+func (w *leasesRecordLegacyStateHash) reset() {
+	w.leaseBalanceRecordsLegacySH = make(map[string][]leaseRecords)
 }
 
 type snapshotApplierStorages struct {
@@ -164,7 +412,7 @@ func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) 
 }
 
 func (a *blockSnapshotsApplier) SaveInitialBalances(snapshots []proto.AtomicSnapshot) error {
-	return a.stor.balances.addInitialBalancesIfNotExists(snapshots)
+	return a.addInitialBalancesIfNotExists(snapshots)
 }
 
 func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
@@ -181,7 +429,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 	}
 
 	// for compatibility with the legacy state hashes
-	a.stor.balances.addWavesBalanceChangeLegacySH(addrID, int64(snapshot.Balance))
+	a.addWavesBalanceRecordLegacySH(addrID, int64(snapshot.Balance))
 	return nil
 }
 
@@ -199,7 +447,7 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSna
 	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
 	}
-	a.stor.balances.addLeasesBalanceChangeLegacySH(addrID, int64(snapshot.LeaseIn), int64(snapshot.LeaseOut))
+	a.addLeasesBalanceRecordLegacySH(addrID, int64(snapshot.LeaseIn), int64(snapshot.LeaseOut))
 	return nil
 }
 
@@ -211,7 +459,7 @@ func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot proto.AssetBalanceSna
 		return errors.Wrapf(err, "failed to set asset balance profile for address %q", snapshot.Address.String())
 	}
 	// for compatibility with the legacy state hashes
-	a.stor.balances.addAssetBalanceChangeLegacySH(addrID, assetID, int64(snapshot.Balance))
+	a.addAssetBalanceRecordLegacySH(addrID, assetID, int64(snapshot.Balance))
 	return nil
 }
 

@@ -81,7 +81,7 @@ func TestLegacyStateHashSupport(t *testing.T) {
 		&proto.WavesBalanceSnapshot{Address: testGlobal.recipientInfo.addr, Balance: 5},
 	}
 
-	err = to.entities.balances.addInitialBalancesIfNotExists(snapshotsSetFirst)
+	err = snapshotApplier.addInitialBalancesIfNotExists(snapshotsSetFirst)
 	assert.NoError(t, err)
 
 	for _, s := range snapshotsSetFirst {
@@ -120,7 +120,7 @@ func TestLegacyStateHashSupport(t *testing.T) {
 			LeaseOut: 0,
 		},
 	}
-	err = to.entities.balances.addInitialBalancesIfNotExists(snapshotsSetSecond)
+	err = snapshotApplier.addInitialBalancesIfNotExists(snapshotsSetSecond)
 	assert.NoError(t, err)
 
 	for _, s := range snapshotsSetSecond {
@@ -128,5 +128,5 @@ func TestLegacyStateHashSupport(t *testing.T) {
 		assert.NoError(t, err)
 	}
 
-	to.entities.balances.filterZeroDiffsSHOut(blockID0)
+	snapshotApplier.filterZeroDiffsSHOut(blockID0)
 }
