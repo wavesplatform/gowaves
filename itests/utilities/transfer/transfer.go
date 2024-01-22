@@ -158,9 +158,8 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 		balanceGo, balanceScala := utl.GetAvailableBalanceInWaves(suite, utl.GetAccount(suite, accNumber).Address)
 		if balanceScala == 0 && balanceGo == 0 {
 			return errors.New("account Waves balance is empty")
-		} else {
-			return nil
 		}
+		return nil
 	})
 	require.NoError(suite.T(), err)
 	return accNumber
