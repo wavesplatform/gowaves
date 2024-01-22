@@ -649,7 +649,7 @@ func (b *Block) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return MarshalToProtobufDeterministic(pbBlock)
+	return pbBlock.MarshalVTStrict()
 }
 
 func (b *Block) Marshaller() Marshaller {
