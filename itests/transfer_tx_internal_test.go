@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -36,7 +37,7 @@ func (suite *TransferTxSuite) Test_TransferTxPositive() {
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, true)
-				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Transfer tx: %s", caseName, tx.TxID.String())
 				transfer.PositiveChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -56,7 +57,7 @@ func (suite *TransferTxSuite) Test_TransferSmartAssetPositive() {
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, true)
-				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Transfer tx: %s", caseName, tx.TxID.String())
 				transfer.PositiveChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -78,7 +79,7 @@ func (suite *TransferTxSuite) Test_TransferTxMaxAmountAndFeePositive() {
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Transfer tx: %s", caseName, tx.TxID.String())
 				transfer.PositiveChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -97,7 +98,7 @@ func (suite *TransferTxSuite) Test_TransferTxNegative() {
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer.SendTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, false)
-				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Transfer tx: %s", caseName, tx.TxID.String())
 				txIds[name] = &tx.TxID
 				transfer.NegativeChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
@@ -125,7 +126,7 @@ func (suite *TransferTxSuite) Test_TransferTxChainIDNegative() {
 				initBalanceAssetGoSender, initBalanceAssetScalaSender := utl.GetAssetBalance(
 					&suite.BaseSuite, td.Sender.Address, td.Asset.ID)
 				tx := transfer.SendWithTestData(&suite.BaseSuite, td, v, false)
-				errMsg := caseName + "Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Transfer tx: %s", caseName, tx.TxID.String())
 				txIds[name] = &tx.TxID
 				actualDiffBalanceWavesSender := utl.GetActualDiffBalanceInWaves(&suite.BaseSuite, td.Sender.Address,
 					initBalanceWavesGoSender, initBalanceWavesScalaSender)

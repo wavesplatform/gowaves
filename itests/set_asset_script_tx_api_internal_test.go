@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -30,7 +31,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					setassetscript.BroadcastSetAssetScriptTxAndGetBalances(
 						&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Set Asset Script tx: %s", caseName, tx.TxID.String())
 				setassetscript.APIPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
 			})
@@ -52,7 +53,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 					setassetscript.BroadcastSetAssetScriptTxAndGetBalances(
 						&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Set Asset Script tx: %s", caseName, tx.TxID.String())
 				setassetscript.APINegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
 			})
@@ -76,7 +77,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegativ
 				setassetscript.BroadcastSetAssetScriptTxAndGetBalances(
 					&suite.BaseSuite, td, v, false)
 			txIds[name] = &tx.TxID
-			errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Set Asset Script tx: %s", caseName, tx.TxID.String())
 			setassetscript.APINegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
 		})

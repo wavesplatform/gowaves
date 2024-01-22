@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -32,7 +33,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_AliasTxApiSmokePositive() {
 		suite.Run(caseName, func() {
 			tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 				td, v, true)
-			errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Alias Tx: %s", caseName, tx.TxID.String())
 			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 			alias.PositiveAPIChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala, actualDiffBalanceInWaves, errMsg)
 		})
@@ -49,7 +50,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_BurnTxApiSmokePositive() {
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.BroadcastBurnTxAndGetBalances(
 				&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Burn tx" + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Burn tx: %s", caseName, tx.TxID.String())
 			burn.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 		})
 	}
@@ -64,7 +65,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_IssueSmartAssetApiSmokePositive() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue.BroadcastIssueTxAndGetBalances(
 				&suite.BaseSuite, td, v, true)
 			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
-			errMsg := caseName + "Broadcast Issue smart asset tx:" + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Issue smart asset tx: %s", caseName, tx.TxID.String())
 			issue.SmartAssetPositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails.AssetInfoGo.Script.ScriptBytes, assetDetails.AssetInfoScala.Script.ScriptBytes, errMsg)
 		})
@@ -79,7 +80,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_IssueTxApiSmokePositive() {
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue.BroadcastIssueTxAndGetBalances(
 				&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Issue tx:" + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Issue tx: %s", caseName, tx.TxID.String())
 			issue.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 		})
 	}
@@ -95,7 +96,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_ReissueTxApiSmokePositive() {
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
 			reissue.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 		})
 	}
@@ -112,7 +113,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_SetAssetScriptApiSmokePositive() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				setassetscript.BroadcastSetAssetScriptTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Set Asset Script tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Set Asset Script tx: %s", caseName, tx.TxID.String())
 			setassetscript.APIPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
 		})
@@ -129,7 +130,7 @@ func (suite *SmokeTxApiPositiveSuite) TestSponsorshipTxApiSmokePositive() {
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				sponsorship.BroadcastSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Sponsorship tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Sponsorship tx: %s", caseName, tx.TxID.String())
 			sponsorship.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
 		})
@@ -153,7 +154,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_TransferTxApiSmokePositive() {
 		suite.Run(caseName, func() {
 			tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 				&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, true)
-			errMsg := caseName + "Broadcast Transfer tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, tx.TxID.String())
 			transfer.PositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 		})
 	}
@@ -186,7 +187,8 @@ func (suite *SmokeTxApiPositiveSuite) TestTransferWithSponsorshipApiSmokePositiv
 			//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
 			tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 				&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+				caseName, tx.TxID.String())
 			transfer.WithSponsorshipPositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 		})
 	}
@@ -213,7 +215,8 @@ func (suite *SmokeTxApiPositiveSuite) TestTransferWithSponsorshipToOneselfApiSmo
 			//Sponsor transfers assets to himself, sponsored asset is used as fee asset
 			tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 				&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+				caseName, tx.TxID.String())
 			transfer.WithSponsorshipPositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 		})
 	}
@@ -247,7 +250,8 @@ func (suite *SmokeTxApiPositiveSuite) TestFeeInWavesAccordingMinSponsoredAssetAp
 			//RecipientSender transfers assets to Recipient specifying fee in the sponsored asset
 			tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 				&suite.BaseSuite, td.TransferTestData, v, true)
-			errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+				caseName, tx.TxID.String())
 			transfer.WithSponsorshipMinAssetFeePositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 		})
 	}
@@ -266,7 +270,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiReissuableTokenSmo
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 					&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Update Asset Info tx: %s", caseName, tx.TxID.String())
 			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 			updateassetinfo.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)
@@ -287,7 +291,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiNFTSmokePositive()
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 					&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Update Asset Info tx: %s", caseName, tx.TxID.String())
 			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 			updateassetinfo.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)
@@ -308,7 +312,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiSmartAssetSmokePos
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				updateassetinfo.BroadcastUpdateAssetInfoTxAndGetDiffBalances(
 					&suite.BaseSuite, td, v, true)
-			errMsg := caseName + "Broadcast Update Asset Info tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Update Asset Info tx: %s", caseName, tx.TxID.String())
 			assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 			updateassetinfo.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 				assetDetails, errMsg)

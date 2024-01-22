@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -26,7 +27,7 @@ func (suite *IssueTxSuite) Test_IssueTxPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue.SendIssueTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Issue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Issue tx: %s", caseName, tx.TxID.String())
 				issue.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -44,7 +45,7 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 						issue.SendIssueTxAndGetBalances(&suite.BaseSuite,
 							testdata.DataChangedTimestamp(&td), v, true)
-					errMsg := caseName + "Issue tx:" + tx.TxID.String()
+					errMsg := fmt.Sprintf("Case: %s; Issue tx: %s", caseName, tx.TxID.String())
 					issue.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 				}
 			})
@@ -63,7 +64,7 @@ func (suite *IssueTxSuite) Test_IssueTxNegative() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue.SendIssueTxAndGetBalances(
 					&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Issue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Issue tx: %s", caseName, tx.TxID.String())
 				issue.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}

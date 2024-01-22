@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -37,7 +38,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, true)
-				errMsg := caseName + "Broadcast Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, tx.TxID.String())
 				transfer.PositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -57,7 +58,7 @@ func (suite *TransferTxApiSuite) Test_TransferSmartAssetApiPositive() {
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, testdata.TransferDataChangedTimestamp(&td), v, true)
-				errMsg := caseName + "Broadcast Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, tx.TxID.String())
 				transfer.PositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -79,7 +80,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, tx.TxID.String())
 				transfer.PositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -98,7 +99,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 			suite.Run(caseName, func() {
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, false)
-				errMsg := caseName + "Broadcast Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, tx.TxID.String())
 				txIds[name] = &tx.TxID
 				transfer.NegativeAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
@@ -126,7 +127,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
 				initBalanceAssetGoSender, initBalanceAssetScalaSender := utl.GetAssetBalance(
 					&suite.BaseSuite, td.Sender.Address, td.Asset.ID)
 				tx := transfer.BroadcastWithTestData(&suite.BaseSuite, td, v, false)
-				errMsg := caseName + "Broadcast Transfer tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, tx.TxID.String())
 				txIds[name] = &tx.TxID
 				actualDiffBalanceWavesSender := utl.GetActualDiffBalanceInWaves(&suite.BaseSuite, td.Sender.Address,
 					initBalanceWavesGoSender, initBalanceWavesScalaSender)

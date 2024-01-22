@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -46,7 +47,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPo
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+					caseName, tx.TxID.String())
 				transfer.WithSponsorshipPositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -74,7 +76,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipToOne
 				// Sponsor transfers assets to himself, sponsored asset is used as fee asset.
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+					caseName, tx.TxID.String())
 				transfer.WithSponsorshipPositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -110,7 +113,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponso
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, true)
-				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+					caseName, tx.TxID.String())
 				transfer.WithSponsorshipMinAssetFeePositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -146,7 +150,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxVa
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, true)
-				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+					caseName, tx.TxID.String())
 				transfer.WithSponsorshipMinAssetFeePositiveAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
 		}
@@ -180,7 +185,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiNe
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, false)
-				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+					caseName, tx.TxID.String())
 				txIds[name] = &tx.TxID
 				transfer.WithSponsorshipNegativeAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})
@@ -219,7 +225,8 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestSponsoredTransferFeeApiNegat
 				// RecipientSender transfers assets to Recipient specifying fee in the sponsored asset.
 				tx, diffBalances := transfer.BroadcastTransferTxAndGetBalances(
 					&suite.BaseSuite, td.TransferTestData, v, false)
-				errMsg := caseName + "Broadcast Transfer with Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer with Sponsorship tx: %s",
+					caseName, tx.TxID.String())
 				txIds[name] = &tx.TxID
 				transfer.WithSponsorshipNegativeAPIChecks(suite.T(), tx, td, diffBalances, errMsg)
 			})

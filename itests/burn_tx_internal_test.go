@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -31,7 +32,7 @@ func (suite *BurnTxSuite) Test_BurnTxPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.SendBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Burn tx" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Burn tx: %s", caseName, tx.TxID.String())
 				burn.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -51,7 +52,7 @@ func (suite *BurnTxSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.SendBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Burn tx" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Burn tx: %s", caseName, tx.TxID.String())
 				burn.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -72,14 +73,14 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 			suite.Run(caseName, func() {
 				//transfer NFT from Account 2 to Account 3
 				ttx := transfer.SendWithTestData(&suite.BaseSuite, transferNFT, v, true)
-				errMsg := caseName + "Transfer tx" + ttx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Transfer tx: %s", caseName, ttx.TxID.String())
 
 				utl.TxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala, errMsg)
 
 				//burn NFT from Account 3
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.SendBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg = caseName + "Burn tx" + tx.TxID.String()
+				errMsg = fmt.Sprintf("Case: %s; Burn tx: %s", caseName, tx.TxID.String())
 				burn.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -103,7 +104,7 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.SendBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Burn tx" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Burn tx: %s", caseName, tx.TxID.String())
 				burn.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}

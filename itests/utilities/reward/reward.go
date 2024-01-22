@@ -84,11 +84,11 @@ func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.Addresses
 		diffXtnBalance.BalanceInWavesScala), term
 }
 
-type TestData func(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
+type GetTestData func(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
 	height uint64) testdata.RewardDistributionTestData[testdata.RewardDistributionExpectedValues]
 
 func GetRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
-	testdata TestData) {
+	testdata GetTestData) {
 	// Get reward for 1 block.
 	rewardDistributions, term := GetBlockRewardDistribution(suite, addresses)
 	// Get expected results on current height

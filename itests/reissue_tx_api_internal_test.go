@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -31,7 +32,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
 				reissue.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -49,7 +50,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
 				reissue.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -68,7 +69,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 			suite.Run(caseName, func() {
 				//first tx should be successful
 				tx1, _, _ := reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Reissue tx:" + tx1.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx1.TxID.String())
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, errMsg)
 				utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 
@@ -76,7 +77,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 				tx2, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.BroadcastReissueTxAndGetBalances(
 						&suite.BaseSuite, testdata.ReissueDataChangedTimestamp(&td), v, false)
-				errMsg = caseName + "Broadcast Reissue tx2:" + tx2.TxID.String()
+				errMsg = fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx2.TxID.String())
 				txIds[name] = &tx2.TxID
 				reissue.NegativeAPIChecks(suite.T(), tx2, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
@@ -99,7 +100,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
 				reissue.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -125,7 +126,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
 				reissue.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}

@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -30,7 +31,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					sponsorship.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Sponsorship tx: %s", caseName, tx.TxID.String())
 				sponsorship.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
 			})
@@ -53,7 +54,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValues() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					sponsorship.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Sponsorship tx: %s", caseName, tx.TxID.String())
 				sponsorship.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
 			})
@@ -74,7 +75,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTx() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				sponsorship.SendSponsorshipTxAndGetBalances(
 					&suite.BaseSuite, sponsorshipData.Enabled, v, true)
-			errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Sponsorship tx: %s", caseName, tx.TxID.String())
 			sponsorship.PositiveChecks(suite.T(), tx, sponsorshipData.Enabled, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
 
@@ -103,7 +104,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxNegative() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					sponsorship.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, false)
-				errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Sponsorship tx: %s", caseName, tx.TxID.String())
 				txIds[name] = &tx.TxID
 				sponsorship.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 					actualDiffBalanceInAsset, errMsg)
@@ -126,7 +127,7 @@ func (suite *SponsorshipTxSuite) Test_SponsorshipForSmartAssetNegative() {
 		suite.Run(caseName, func() {
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				sponsorship.SendSponsorshipTxAndGetBalances(&suite.BaseSuite, td, v, false)
-			errMsg := caseName + "Sponsorship tx: " + tx.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Sponsorship tx: %s", caseName, tx.TxID.String())
 			txIds[name] = &tx.TxID
 			sponsorship.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)

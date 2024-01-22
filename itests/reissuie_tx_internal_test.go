@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -30,7 +31,7 @@ func (suite *ReissueTxSuite) Test_ReissuePositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.SendReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Reissue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Reissue tx: %s", caseName, tx.TxID.String())
 				reissue.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -48,7 +49,7 @@ func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.SendReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Reissue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Reissue tx: %s", caseName, tx.TxID.String())
 				reissue.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -67,7 +68,7 @@ func (suite *ReissueTxSuite) Test_ReissueNotReissuableNegative() {
 			suite.Run(caseName, func() {
 				//first tx should be successful
 				tx1, _, _ := reissue.SendReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Reissue tx:" + tx1.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Reissue tx: %s", caseName, tx1.TxID.String())
 				utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 
 				//second reissue tx should be failed because of reissuable=false
@@ -75,7 +76,7 @@ func (suite *ReissueTxSuite) Test_ReissueNotReissuableNegative() {
 					reissue.SendReissueTxAndGetBalances(
 						&suite.BaseSuite, testdata.ReissueDataChangedTimestamp(&td), v, false)
 				txIds[name] = &tx2.TxID
-				errMsg = caseName + "Broadcast Reissue tx2:" + tx2.TxID.String()
+				errMsg = fmt.Sprintf("Case: %s; Reissue tx: %s", caseName, tx2.TxID.String())
 				reissue.NegativeChecks(suite.T(), tx2, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -97,7 +98,7 @@ func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.SendReissueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Reissue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Reissue tx: %s", caseName, tx.TxID.String())
 				reissue.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -123,7 +124,7 @@ func (suite *ReissueTxSuite) Test_ReissueNegative() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					reissue.SendReissueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Reissue tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Reissue tx: %s", caseName, tx.TxID.String())
 				reissue.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}

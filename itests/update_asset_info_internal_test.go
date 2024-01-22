@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -32,7 +33,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxReissuableTokenPositi
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(
 						&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Update Asset Info tx: %s", caseName, tx.TxID.String())
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 				updateassetinfo.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 					assetDetails, errMsg)
@@ -54,7 +55,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxNFTPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Update Asset Info tx: %s", caseName, tx.TxID.String())
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 				updateassetinfo.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 					assetDetails, errMsg)
@@ -76,7 +77,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxSmartAssetPositive() 
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 					updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Update Asset Info tx: %s", caseName, tx.TxID.String())
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, td.AssetID)
 				updateassetinfo.PositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 					assetDetails, errMsg)
@@ -101,7 +102,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxReissuableTokenNegati
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 						updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(&suite.BaseSuite, td, v, false)
 					txIds[name] = &tx.TxID
-					errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
+					errMsg := fmt.Sprintf("Case: %s; Update Asset Info tx: %s", caseName, tx.TxID.String())
 					assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 					updateassetinfo.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 						initAssetDetails, assetDetails, errMsg)
@@ -130,7 +131,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxNFTNegative() {
 						updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(
 							&suite.BaseSuite, td, v, false)
 					txIds[name] = &tx.TxID
-					errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
+					errMsg := fmt.Sprintf("Case: %s; Update Asset Info tx: %s", caseName, tx.TxID.String())
 					assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 					updateassetinfo.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 						initAssetDetails, assetDetails, errMsg)
@@ -159,7 +160,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxSmartAssetNegative() 
 						updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(
 							&suite.BaseSuite, td, v, false)
 					txIds[name] = &tx.TxID
-					errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
+					errMsg := fmt.Sprintf("Case: %s; Update Asset Info tx: %s", caseName, tx.TxID.String())
 					assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 					updateassetinfo.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 						initAssetDetails, assetDetails, errMsg)
@@ -189,7 +190,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxWithoutWaitingNegativ
 						updateassetinfo.SendUpdateAssetInfoTxAndGetDiffBalances(
 							&suite.BaseSuite, td, v, false)
 					txIds[name] = &tx.TxID
-					errMsg := caseName + "Updating Asset Info tx: " + tx.TxID.String()
+					errMsg := fmt.Sprintf("Case: %s; Update Asset Info tx: %s", caseName, tx.TxID.String())
 					assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 					updateassetinfo.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 						initAssetDetails, assetDetails, errMsg)

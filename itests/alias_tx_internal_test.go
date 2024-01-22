@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -28,7 +29,7 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 				tx, _, actualDiffBalanceInWaves := alias.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td,
 					v, true)
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-				errMsg := caseName + "Alias Tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Alias Tx: %s", caseName, tx.TxID.String())
 				alias.PositiveChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala, actualDiffBalanceInWaves, errMsg)
 			})
 		}
@@ -47,7 +48,7 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 				tx, _, actualDiffBalanceInWaves := alias.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td,
 					v, true)
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-				errMsg := caseName + "Alias Tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Alias Tx: %s", caseName, tx.TxID.String())
 				alias.PositiveChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala, actualDiffBalanceInWaves, errMsg)
 			})
 		}
@@ -65,7 +66,7 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 				tx, _, actualDiffBalanceInWaves := alias.SendAliasTxAndGetWavesBalances(&suite.BaseSuite, td,
 					v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Alias Tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Alias Tx: %s", caseName, tx.TxID.String())
 				alias.NegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, errMsg)
 			})
 		}
@@ -89,7 +90,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 				tx1, _, actualDiffBalanceInWaves1 := alias.SendAliasTxAndGetWavesBalances(&suite.BaseSuite,
 					td, v, true)
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-				errMsg := caseName + "Alias Tx1: " + tx1.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Alias Tx1: %s", caseName, tx1.TxID.String())
 
 				utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 				utl.AddressByAliasCheck(suite.T(), td.Expected.ExpectedAddressAfterFirstTx.Bytes(),
@@ -103,7 +104,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 					td, v, false)
 				//already there for v1 and v2, and should be new for v3
 				txIds[name] = &tx2.TxID
-				errMsg = caseName + "Alias Tx2: " + tx2.TxID.String()
+				errMsg = fmt.Sprintf("Case: %s; Alias Tx2: %s", caseName, tx2.TxID.String())
 
 				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance,
 					actualDiffBalanceInWaves2.BalanceInWavesGo, actualDiffBalanceInWaves2.BalanceInWavesScala, errMsg)
@@ -127,7 +128,7 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 			//send alias tx from account that is in first element of testdata slice
 			tx1, _, actualDiffBalanceInWaves1 := alias.SendAliasTxAndGetWavesBalances(
 				&suite.BaseSuite, tdSlice[0], v, true)
-			errMsg := caseName + "Alias Tx: " + tx1.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Alias Tx1: %s", caseName, tx1.TxID.String())
 
 			utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), tdSlice[0].Expected.WavesDiffBalanceAfterFirstTx,
@@ -137,7 +138,7 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 				tx2, _, actualDiffBalanceInWaves2 := alias.SendAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, tdSlice[j], v, false)
 				txIds[name] = &tx2.TxID
-				errMsg = caseName + "Alias Tx: " + tx2.TxID.String()
+				errMsg = fmt.Sprintf("Case: %s; Alias Tx2: %s", caseName, tx2.TxID.String())
 
 				utl.WavesDiffBalanceCheck(suite.T(), tdSlice[j].Expected.WavesDiffBalance,
 					actualDiffBalanceInWaves2.BalanceInWavesGo, actualDiffBalanceInWaves2.BalanceInWavesGo, errMsg)

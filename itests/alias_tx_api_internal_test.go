@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -28,7 +29,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 			suite.Run(caseName, func() {
 				tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Alias Tx: %s", caseName, tx.TxID.String())
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 				alias.PositiveAPIChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala,
 					actualDiffBalanceInWaves, errMsg)
@@ -48,7 +49,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 			suite.Run(caseName, func() {
 				tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Alias Tx: %s", caseName, tx.TxID.String())
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 				alias.PositiveAPIChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala,
 					actualDiffBalanceInWaves, errMsg)
@@ -68,7 +69,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 				tx, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Alias Tx: " + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Alias Tx: %s", caseName, tx.TxID.String())
 				alias.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, errMsg)
 			})
 		}
@@ -90,7 +91,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 				//first alias tx should be successful
 				tx1, _, actualDiffBalanceInWaves1 := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Alias Tx1: " + tx1.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Alias Tx1: %s", caseName, tx1.TxID.String())
 
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
 
@@ -105,7 +106,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 				//second alias tx with same alias had same ID for v1 and v2
 				tx2, _, actualDiffBalanceInWaves := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, td, v, false)
-				errMsg = caseName + "Broadcast Alias Tx2: " + tx2.TxID.String()
+				errMsg = fmt.Sprintf("Case: %s; Broadcast Alias Tx2: %s", caseName, tx2.TxID.String())
 				//already there for v1 and v2, and should be new for v3
 				txIds[name] = &tx2.TxID
 
@@ -135,7 +136,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 			//send alias tx from account that is in first element of testdata slice
 			tx1, _, actualDiffBalanceInWaves1 := alias.BroadcastAliasTxAndGetWavesBalances(&suite.BaseSuite,
 				tdSlice[0], v, true)
-			errMsg := caseName + "Broadcast Alias Tx: " + tx1.TxID.String()
+			errMsg := fmt.Sprintf("Case: %s; Broadcast Alias Tx1: %s", caseName, tx1.TxID.String())
 
 			utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, errMsg)
 			utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
@@ -147,6 +148,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 				tx2, _, actualDiffBalanceInWaves2 := alias.BroadcastAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, tdSlice[j], v, false)
 				txIds[name] = &tx2.TxID
+				errMsg = fmt.Sprintf("Case: %s; Broadcast Alias Tx2: %s", caseName, tx2.TxID.String())
 
 				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx2,
 					errMsg)

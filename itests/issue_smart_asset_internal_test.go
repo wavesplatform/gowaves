@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -27,7 +28,7 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue.SendIssueTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
 				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
-				errMsg := caseName + "Issue smart asset tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Issue smart asset tx: %s", caseName, tx.TxID.String())
 				issue.SmartAssetPositiveChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 					assetDetails.AssetInfoGo.Script.ScriptBytes, assetDetails.AssetInfoScala.Script.ScriptBytes, errMsg)
 			})
@@ -46,7 +47,7 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetNegative() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue.SendIssueTxAndGetBalances(
 					&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Issue smart asset tx:" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Issue smart asset tx: %s", caseName, tx.TxID.String())
 				issue.SmartAssetNegativeChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
 					errMsg)
 			})

@@ -3,6 +3,7 @@
 package itests
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -32,7 +33,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.BroadcastBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Burn tx" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Burn tx: %s", caseName, tx.TxID.String())
 				burn.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -52,7 +53,7 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 			suite.Run(caseName, func() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.BroadcastBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg := caseName + "Broadcast Burn tx" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Burn tx: %s", caseName, tx.TxID.String())
 				burn.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -73,7 +74,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 			suite.Run(caseName, func() {
 				//transfer NFT from Account 2 to Account 3
 				ttx := transfer.BroadcastWithTestData(&suite.BaseSuite, transferNFT, v, true)
-				errMsg := caseName + "Transfer tx" + ttx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, ttx.TxID.String())
 
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, ttx, errMsg)
 				utl.TxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala,
@@ -82,7 +83,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 				//burn NFT from Account 3
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.BroadcastBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
-				errMsg = caseName + "Broadcast Burn tx" + tx.TxID.String()
+				errMsg = fmt.Sprintf("Case: %s; Broadcast Burn tx: %s", caseName, tx.TxID.String())
 				burn.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
@@ -106,7 +107,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.BroadcastBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Burn tx" + tx.TxID.String()
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Burn tx: %s", caseName, tx.TxID.String())
 				burn.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}

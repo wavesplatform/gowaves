@@ -55,7 +55,7 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Trans
 	version byte, waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction,
 	utl.AccountsDiffBalancesTxWithSponsorship) {
 	var assetDetails *client.AssetsDetail
-	if testdata.FeeAsset.ToDigest() != nil {
+	if testdata.FeeAsset.Present {
 		assetDetails = utl.GetAssetInfo(suite, testdata.FeeAsset.ID)
 	}
 	address := utl.GetAddressFromRecipient(suite, testdata.Recipient)
@@ -155,12 +155,12 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
 	// Waiting for changing waves balance.
 	err := node_client.Retry(utl.DefaultTimeInterval, func() error {
-		var balanceErr error
 		balanceGo, balanceScala := utl.GetAvailableBalanceInWaves(suite, utl.GetAccount(suite, accNumber).Address)
 		if balanceScala == 0 && balanceGo == 0 {
-			balanceErr = errors.New("account Waves balance is empty")
+			return errors.New("account Waves balance is empty")
+		} else {
+			return nil
 		}
-		return balanceErr
 	})
 	require.NoError(suite.T(), err)
 	return accNumber
