@@ -12,6 +12,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -450,4 +451,29 @@ func TestBlockVerifyRootHash(t *testing.T) {
 	ok, err = block.VerifyTransactionsRoot(TestNetScheme)
 	require.NoError(t, err)
 	assert.False(t, ok)
+}
+
+func TestBlockAfterLightNodeFeature(t *testing.T) {
+	const (
+		blockchainScheme           = 'D'
+		blockBytesWithChallengeHex = "0af90308441220b9a269272e037e7f90c1af5076c46a46ec11bfc1ff42913393d28e94aea79c23188003226063bd0a3508afd1c5fb0699be3e775ed7d17e724a4941321c6ec5c2bc09b00e1978faaffae91070ffa226e5d01b2af4bea2dddbbf7f6355fda601c42fe1f5980d5301f48d57e39f79d5d54c81e84098b8102b1ba94e556af64fd62b310da7ba0a3086fec3b6d1313805422097a186a5a964dddb69438f7039775d516ac303ab4606c6d2b155c7f39f5136764880cab5ee0152205f5b2e36e4986503fb1aaf8ca33fb7f80a866885f23f34ccdeccd05878458c9a5a20271c305e4823797bb532788d8b0f8273b7d91c4df3632337c8edf75b1dbe559262f8010880031260805bddec5cd6dc210dca38828069e55eaf0fd40408352e6a12cdf0aabb1966725754ee2cc7b47058d650f9e90d656a89e19144aa7a1f934239705120fca6f405f9fe782016695711e3eaefa4aa7eda137a240414e6379abf849aad7bbb4ba60a2085cdc4b6d1312a2099d7b4bd83fdc2fe32f8ccefef9437a0d5fa89093eb0b557ded6554167eb6e363080cab5ee013a20010101010101010101010101010101010101010101010101010101010101010142404a2ac66cfb02c74a117266135bc6295215026c323d646349fad638b38786092d48057978eaabf3c949a37175965df5dc18ac36d3104ad6ba583bc59ffb836b0c1240839fbb955249fa15997c87397abf7a5fccdb705e46e5307e183c14df78becec4e1bdc25a1e8641954d364f9352281ee76b2104e6d734df53564c3e64642ef90a1aa3010a5f0844122070a0b097af1813f2571c759c4c72ccc92bc6c8c1b847f437c106d68a930b517c1a0410a0c21e20b7d3c4b6d1312802a207290a160a14f9b561bba9e294b1f79f3e29fcaa066bd05c4da0120f0109010000000463616c6c0000000012403eab127938c969d4c928f602c2a0fecd5eb0705fd2e7feff66a01a2f641879a1b2b3cf58fa0f08993a5439331d11fec68d7890792c81742dcea2f30d4ebfc4061a96010a520844122070a0b097af1813f2571c759c4c72ccc92bc6c8c1b847f437c106d68a930b517c1a0410a08d0620a6d5c4b6d1312803c2061c0a160a14f9b561bba9e294b1f79f3e29fcaa066bd05c4da0120210011240a84c703028e852a1faf59c8defd8c560b2f84bafa0f7db305def6ec6b17db08f1f31f29f2b3a0da1d2ac6b424f5c58de2dcb0f5a3f9d3bd963246cb223705502" //nolint:lll
+	)
+	blockBytes, err := hex.DecodeString(blockBytesWithChallengeHex)
+	require.NoError(t, err)
+
+	block := new(Block)
+	err = block.UnmarshalFromProtobuf(blockBytes)
+	require.NoError(t, err, "failed to unmarshal block from protobuf")
+
+	t.Run("MarshalToProtobuf", func(t *testing.T) {
+		marshaledBlockBytes, mErr := block.MarshalToProtobuf(blockchainScheme)
+		require.NoError(t, mErr)
+		require.Equal(t, blockBytes, marshaledBlockBytes)
+	})
+
+	t.Run("VerifySignature", func(t *testing.T) {
+		ok, vErr := block.VerifySignature(blockchainScheme)
+		require.NoError(t, vErr)
+		require.True(t, ok)
+	})
 }

@@ -14,6 +14,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+var errBlockSnapshotStateHashMismatch = errors.New("block snapshot state hash differs from the calculated one")
+
 type blockInfoProvider interface {
 	NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error)
 }
@@ -781,16 +783,22 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		}
 		stateHash = txSh // update stateHash in order to accumulate state hashes into block snapshot hash
 	}
+	// check whether the calculated snapshot state hash equals with the provided one
+	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
+		return errors.Wrapf(errBlockSnapshotStateHashMismatch, "state hash mismatch; provided '%s', caluclated '%s'",
+			blockStateHash.String(), stateHash.String(),
+		)
+	}
 	blockID := params.block.BlockID()
-	if ssErr := a.stor.snapshots.saveSnapshots(params.block.BlockID(), currentBlockHeight, bs); ssErr != nil {
-		return ssErr
+	if ssErr := a.stor.snapshots.saveSnapshots(blockID, currentBlockHeight, bs); ssErr != nil {
+		return errors.Wrapf(ssErr, "failed to save block snapshots at height %d", currentBlockHeight)
 	}
 
 	// clean up legacy state hash records with zero diffs
 	a.stor.balances.filterZeroDiffsSHOut(blockID)
-	// TODO: check snapshot hash with the block snapshot hash if it exists
+
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
-		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", currentBlockHeight)
+		return errors.Wrapf(shErr, "failed to save block snapshot hash at height %d", currentBlockHeight)
 	}
 
 	// Save fee distribution of this block.
