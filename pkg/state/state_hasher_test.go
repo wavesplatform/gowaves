@@ -57,12 +57,13 @@ func TestLegacyStateHashSupport(t *testing.T) {
 			scheme:              proto.MainNetScheme,
 			stateActionsCounter: nil,
 		},
-		stor:              newSnapshotApplierStorages(to.entities, to.rw),
-		txSnapshotContext: txSnapshotContext{},
-		issuedAssets:      nil,
-		scriptedAssets:    nil,
-		newLeases:         nil,
-		cancelledLeases:   make(map[crypto.Digest]struct{}),
+		stor:                  newSnapshotApplierStorages(to.entities, to.rw),
+		txSnapshotContext:     txSnapshotContext{},
+		issuedAssets:          nil,
+		scriptedAssets:        nil,
+		newLeases:             nil,
+		cancelledLeases:       make(map[crypto.Digest]struct{}),
+		balanceRecordsContext: NewBalanceRecordsContext(),
 	}
 	err := to.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{
 		profile: balanceProfile{
@@ -80,9 +81,6 @@ func TestLegacyStateHashSupport(t *testing.T) {
 		&proto.WavesBalanceSnapshot{Address: testGlobal.senderInfo.addr, Balance: 3},
 		&proto.WavesBalanceSnapshot{Address: testGlobal.recipientInfo.addr, Balance: 5},
 	}
-
-	err = snapshotApplier.addInitialBalancesIfNotExists(snapshotsSetFirst)
-	assert.NoError(t, err)
 
 	for _, s := range snapshotsSetFirst {
 		err := s.Apply(snapshotApplier)
@@ -120,8 +118,6 @@ func TestLegacyStateHashSupport(t *testing.T) {
 			LeaseOut: 0,
 		},
 	}
-	err = snapshotApplier.addInitialBalancesIfNotExists(snapshotsSetSecond)
-	assert.NoError(t, err)
 
 	for _, s := range snapshotsSetSecond {
 		err := s.Apply(snapshotApplier)

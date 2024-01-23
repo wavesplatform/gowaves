@@ -682,11 +682,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
 
-	err = a.txHandler.sa.SaveInitialBalances(initialSnapshot.regular)
-	if err != nil {
-		return errors.Wrap(err, "failed to save initial balances from miner rewards diffs")
-	}
-
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
