@@ -1,11 +1,11 @@
 package state
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -77,14 +77,14 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	assert.NoError(t, err)
 
 	snapshotsSetFirst := []proto.AtomicSnapshot{
-		&proto.WavesBalanceSnapshot{Address: proto.MustAddressFromString(testGlobal.issuerInfo.Address().String()), Balance: 1},
+		&proto.WavesBalanceSnapshot{Address: testGlobal.issuerInfo.Address(), Balance: 1},
 		&proto.WavesBalanceSnapshot{Address: testGlobal.senderInfo.addr, Balance: 3},
 		&proto.WavesBalanceSnapshot{Address: testGlobal.recipientInfo.addr, Balance: 5},
 	}
 
 	for _, s := range snapshotsSetFirst {
-		err := s.Apply(snapshotApplier)
-		assert.NoError(t, err)
+		applErr := s.Apply(snapshotApplier)
+		assert.NoError(t, applErr)
 	}
 
 	snapshotsSetSecond := []proto.AtomicSnapshot{
@@ -120,8 +120,8 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	}
 
 	for _, s := range snapshotsSetSecond {
-		err := s.Apply(snapshotApplier)
-		assert.NoError(t, err)
+		applErr := s.Apply(snapshotApplier)
+		assert.NoError(t, applErr)
 	}
 
 	snapshotApplier.filterZeroDiffsSHOut(blockID0)

@@ -764,9 +764,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return errAppendTx
 		}
 		bs.AppendTxSnapshot(txSnapshots.regular)
-		//// for legacy SH
-		//initialBalances.addIfNotExists(txSnapshots.regular)
-
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
 			return idErr

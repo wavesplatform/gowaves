@@ -121,7 +121,8 @@ func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.Addr
 	return a.addWavesBalanceRecord(keyStr, address, balance)
 }
 
-func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(address proto.Address, asset proto.AssetID, balance int64) error {
+func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(address proto.Address, asset proto.AssetID,
+	balance int64) error {
 	if !a.stor.balances.calculateHashes {
 		return nil
 	}
@@ -131,7 +132,8 @@ func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(address proto.Addr
 	return a.addAssetBalanceRecord(keyStr, address, asset, balance)
 }
 
-func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(address proto.Address, leaseIn int64, leaseOut int64) error {
+func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(address proto.Address,
+	leaseIn int64, leaseOut int64) error {
 	if !a.stor.balances.calculateHashes {
 		return nil
 	}
@@ -211,9 +213,11 @@ func (a *blockSnapshotsApplier) addWavesBalanceRecord(keyStr string, address pro
 	} else {
 		initialBalance, err := a.stor.balances.newestWavesBalance(address.ID())
 		if err != nil {
-			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
+			return errors.Wrapf(err,
+				"failed to gen initial balance for address %s", address.String())
 		}
-		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[keyStr] = balanceRecordInBlock{initial: int64(initialBalance.balance), current: balance}
+		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[keyStr] = balanceRecordInBlock{
+			initial: int64(initialBalance.balance), current: balance}
 	}
 	return nil
 }
@@ -226,7 +230,8 @@ type assetBalanceRecords struct {
 	assetRecords map[string]balanceRecordInBlock
 }
 
-func (a *blockSnapshotsApplier) addAssetBalanceRecord(keyStr string, address proto.Address, assetID proto.AssetID, balance int64) error {
+func (a *blockSnapshotsApplier) addAssetBalanceRecord(keyStr string,
+	address proto.Address, assetID proto.AssetID, balance int64) error {
 	prevRec, ok := a.balanceRecordsContext.assetBalanceRecords.assetRecords[keyStr]
 	if ok {
 		prevRec.current = balance
@@ -236,7 +241,8 @@ func (a *blockSnapshotsApplier) addAssetBalanceRecord(keyStr string, address pro
 		if err != nil {
 			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
 		}
-		a.balanceRecordsContext.assetBalanceRecords.assetRecords[keyStr] = balanceRecordInBlock{initial: int64(initialBalance), current: balance}
+		a.balanceRecordsContext.assetBalanceRecords.assetRecords[keyStr] = balanceRecordInBlock{
+			initial: int64(initialBalance), current: balance}
 	}
 	return nil
 }
@@ -256,7 +262,8 @@ type leaseBalanceRecords struct {
 	leaseRecords map[string]leaseRecordsInBlock
 }
 
-func (a *blockSnapshotsApplier) addLeaseBalanceRecord(keyStr string, address proto.Address, leaseIn int64, leaseOut int64) error {
+func (a *blockSnapshotsApplier) addLeaseBalanceRecord(keyStr string, address proto.Address,
+	leaseIn int64, leaseOut int64) error {
 	prevLeaseInOut, ok := a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[keyStr]
 	if ok {
 		prevLeaseInOut.currentLeaseIn = leaseIn

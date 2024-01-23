@@ -1500,12 +1500,12 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
-		if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); err != nil {
-			return nil, err
+		if valErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); valErr != nil {
+			return nil, valErr
 		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
-			return nil, wrapErr(ModificationError, err)
+		if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
+			return nil, wrapErr(ModificationError, blErr)
 		}
 		// At some blockchain heights specific logic is performed.
 		// This includes voting for features, block rewards and so on.
