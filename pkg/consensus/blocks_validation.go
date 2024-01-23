@@ -5,6 +5,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -134,7 +135,8 @@ func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) 
 }
 
 func (cv *Validator) ValidateHeaderBeforeBlockApplying(newestHeader *proto.BlockHeader, height proto.Height) error {
-	if err := cv.validateMinerAccount(newestHeader, height); err != nil {
+	blockHeight := height + 1
+	if err := cv.validateMinerAccount(newestHeader, blockHeight); err != nil {
 		return errors.Wrap(err, "miner account validation failed")
 	}
 	return nil
@@ -247,8 +249,8 @@ func (cv *Validator) validateBlockVersion(block *proto.BlockHeader, blockchainHe
 	return nil
 }
 
-func (cv *Validator) validateMinerAccount(block *proto.BlockHeader, blockchainHeight uint64) error {
-	rideV6Activated, err := cv.rideV6Activated(blockchainHeight)
+func (cv *Validator) validateMinerAccount(block *proto.BlockHeader, blockHeight proto.Height) error {
+	rideV6Activated, err := cv.rideV6Activated(blockHeight)
 	if err != nil {
 		return errors.Wrap(err, "failed to validate miner address")
 	}
