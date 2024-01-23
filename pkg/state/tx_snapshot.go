@@ -14,7 +14,6 @@ type snapshotApplierHooks interface {
 type extendedSnapshotApplier interface {
 	SetApplierInfo(info *blockSnapshotsApplierInfo)
 	filterZeroDiffsSHOut(blockID proto.BlockID)
-	// saveInitialBalances
 	proto.SnapshotApplier
 	internalSnapshotApplier
 	snapshotApplierHooks
