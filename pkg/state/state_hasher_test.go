@@ -49,24 +49,18 @@ func TestPushOneBlock(t *testing.T) {
 
 func TestLegacyStateHashSupport(t *testing.T) {
 	to := createStorageObjects(t, true)
+	to.entities.calculateHashes = true
 	to.addBlock(t, blockID0)
-	to.entities.balances.calculateHashes = true
 
-	var snapshotApplier = &blockSnapshotsApplier{
-		info: &blockSnapshotsApplierInfo{
+	snapshotApplier := newBlockSnapshotsApplier(
+		&blockSnapshotsApplierInfo{
 			ci:                  &checkerInfo{blockID: blockID0},
 			scheme:              proto.MainNetScheme,
 			stateActionsCounter: nil,
 		},
-		stor:                  newSnapshotApplierStorages(to.entities, to.rw),
-		txSnapshotContext:     txSnapshotContext{},
-		issuedAssets:          nil,
-		scriptedAssets:        nil,
-		newLeases:             nil,
-		cancelledLeases:       make(map[crypto.Digest]struct{}),
-		balanceRecordsContext: newBalanceRecordsContext(),
-	}
-	err := to.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{
+		newSnapshotApplierStorages(to.entities, to.rw),
+	)
+	swbErr := to.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{
 		profile: balanceProfile{
 			balance:  5,
 			leaseIn:  0,
@@ -75,7 +69,7 @@ func TestLegacyStateHashSupport(t *testing.T) {
 		leaseChange:   false,
 		balanceChange: false,
 	}, blockID0)
-	assert.NoError(t, err)
+	assert.NoError(t, swbErr)
 
 	snapshotsSetFirst := []proto.AtomicSnapshot{
 		&proto.WavesBalanceSnapshot{Address: testGlobal.issuerInfo.Address(), Balance: 1},
@@ -84,8 +78,8 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	}
 
 	for _, s := range snapshotsSetFirst {
-		applErr := s.Apply(snapshotApplier)
-		assert.NoError(t, applErr)
+		err := s.Apply(&snapshotApplier)
+		assert.NoError(t, err)
 	}
 
 	snapshotsSetSecond := []proto.AtomicSnapshot{
@@ -121,8 +115,8 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	}
 
 	for _, s := range snapshotsSetSecond {
-		applErr := s.Apply(snapshotApplier)
-		assert.NoError(t, applErr)
+		err := s.Apply(&snapshotApplier)
+		assert.NoError(t, err)
 	}
 
 	snapshotApplier.filterZeroDiffsSHOut(blockID0)
