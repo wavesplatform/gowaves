@@ -111,29 +111,6 @@ func newBalanceRecordsContext() balanceRecordsContext {
 	}
 }
 
-func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.WavesAddress, balance int64) error {
-	if !a.stor.calculateHashes {
-		return nil
-	}
-	return a.addWavesBalanceRecord(address, balance)
-}
-
-func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(address proto.WavesAddress, asset proto.AssetID,
-	balance int64) error {
-	if !a.stor.calculateHashes {
-		return nil
-	}
-	return a.addAssetBalanceRecord(address, asset, balance)
-}
-
-func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(address proto.WavesAddress,
-	leaseIn int64, leaseOut int64) error {
-	if !a.stor.calculateHashes {
-		return nil
-	}
-	return a.addLeaseBalanceRecord(address, leaseIn, leaseOut)
-}
-
 func (a *blockSnapshotsApplier) filterZeroWavesDiffRecords(blockID proto.BlockID) {
 	// comparing the final balance to the initial one
 	for key, balanceRecord := range a.balanceRecordsContext.wavesBalanceRecords.wavesRecords {
@@ -202,7 +179,11 @@ type wavesBalanceRecords struct {
 	wavesRecords map[wavesBalanceKey]balanceRecordInBlock
 }
 
-func (a *blockSnapshotsApplier) addWavesBalanceRecord(address proto.WavesAddress, balance int64) error {
+func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.WavesAddress, balance int64) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
 	key := wavesBalanceKey{address: address.ID()}
 
 	prevRec, ok := a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key]
@@ -229,8 +210,15 @@ type assetBalanceRecords struct {
 	assetRecords map[assetBalanceKey]balanceRecordInBlock
 }
 
-func (a *blockSnapshotsApplier) addAssetBalanceRecord(address proto.WavesAddress,
-	assetID proto.AssetID, balance int64) error {
+func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(
+	address proto.WavesAddress,
+	assetID proto.AssetID,
+	balance int64,
+) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
 	key := assetBalanceKey{address: address.ID(), asset: assetID}
 	prevRec, ok := a.balanceRecordsContext.assetBalanceRecords.assetRecords[key]
 	if ok {
@@ -266,7 +254,15 @@ type leaseBalanceRecords struct {
 	leaseRecords map[wavesBalanceKey]leaseRecordInBlock
 }
 
-func (a *blockSnapshotsApplier) addLeaseBalanceRecord(address proto.WavesAddress, leaseIn int64, leaseOut int64) error {
+func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(
+	address proto.WavesAddress,
+	leaseIn int64,
+	leaseOut int64,
+) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
 	key := wavesBalanceKey{address: address.ID()}
 
 	prevLeaseInOut, ok := a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key]
