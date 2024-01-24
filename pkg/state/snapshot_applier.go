@@ -154,9 +154,6 @@ func (a *blockSnapshotsApplier) filterZeroLeasingDiffRecords(blockID proto.Block
 }
 
 func (a *blockSnapshotsApplier) filterZeroDiffsSHOut(blockID proto.BlockID) {
-	if !a.stor.calculateHashes {
-		return
-	}
 	a.filterZeroWavesDiffRecords(blockID)
 	a.filterZeroAssetDiffRecords(blockID)
 	a.filterZeroLeasingDiffRecords(blockID)
