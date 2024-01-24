@@ -107,7 +107,7 @@ func newBalanceRecordsContext() balanceRecordsContext {
 	return balanceRecordsContext{
 		wavesBalanceRecords:  wavesBalanceRecords{make(map[wavesBalanceKey]balanceRecordInBlock)},
 		assetBalanceRecords:  assetBalanceRecords{make(map[assetBalanceKey]balanceRecordInBlock)},
-		leasesBalanceRecords: leaseBalanceRecords{make(map[wavesBalanceKey]leaseRecordsInBlock)},
+		leasesBalanceRecords: leaseBalanceRecords{make(map[wavesBalanceKey]leaseRecordInBlock)},
 	}
 }
 
@@ -137,7 +137,7 @@ func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(address proto.Wav
 func (a *blockSnapshotsApplier) filterZeroWavesDiffRecords(blockID proto.BlockID) {
 	// comparing the final balance to the initial one
 	for key, balanceRecord := range a.balanceRecordsContext.wavesBalanceRecords.wavesRecords {
-		if balanceRecord.current == balanceRecord.initial { // this means the diff is 0 in block
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
 			temporarySHRecords, ok := a.stor.balances.wavesHashesState[blockID]
 			if ok && temporarySHRecords != nil {
 				keyStr := string(key.bytes())
@@ -151,7 +151,7 @@ func (a *blockSnapshotsApplier) filterZeroWavesDiffRecords(blockID proto.BlockID
 func (a *blockSnapshotsApplier) filterZeroAssetDiffRecords(blockID proto.BlockID) {
 	// comparing the final balance to the initial one
 	for key, balanceRecord := range a.balanceRecordsContext.assetBalanceRecords.assetRecords {
-		if balanceRecord.current == balanceRecord.initial { // this means the diff is 0 in block
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
 			temporarySHRecords, ok := a.stor.balances.assetsHashesState[blockID]
 			if ok && temporarySHRecords != nil {
 				keyStr := string(key.bytes())
@@ -165,8 +165,7 @@ func (a *blockSnapshotsApplier) filterZeroAssetDiffRecords(blockID proto.BlockID
 func (a *blockSnapshotsApplier) filterZeroLeasingDiffRecords(blockID proto.BlockID) {
 	// comparing the final balance to the initial one
 	for key, balanceRecord := range a.balanceRecordsContext.leasesBalanceRecords.leaseRecords {
-		if balanceRecord.currentLeaseIn == balanceRecord.initialLeaseIn &&
-			balanceRecord.currentLeaseOut == balanceRecord.initialLeaseOut { // this means the diff is 0 in block
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
 			temporarySHRecords, ok := a.stor.balances.leaseHashesState[blockID]
 			if ok && temporarySHRecords != nil {
 				keyStr := string(key.bytes())
@@ -193,6 +192,10 @@ func (a *blockSnapshotsApplier) filterZeroDiffsSHOut(blockID proto.BlockID) {
 type balanceRecordInBlock struct {
 	initial int64
 	current int64
+}
+
+func (r balanceRecordInBlock) isDiffZero() bool {
+	return r.initial == r.current
 }
 
 type wavesBalanceRecords struct {
@@ -248,15 +251,19 @@ func (w *assetBalanceRecords) reset() {
 	w.assetRecords = make(map[assetBalanceKey]balanceRecordInBlock)
 }
 
-type leaseRecordsInBlock struct {
+type leaseRecordInBlock struct {
 	initialLeaseIn  int64
 	initialLeaseOut int64
 	currentLeaseIn  int64
 	currentLeaseOut int64
 }
 
+func (r leaseRecordInBlock) isDiffZero() bool {
+	return r.initialLeaseIn == r.currentLeaseIn && r.initialLeaseOut == r.currentLeaseOut
+}
+
 type leaseBalanceRecords struct {
-	leaseRecords map[wavesBalanceKey]leaseRecordsInBlock
+	leaseRecords map[wavesBalanceKey]leaseRecordInBlock
 }
 
 func (a *blockSnapshotsApplier) addLeaseBalanceRecord(address proto.WavesAddress, leaseIn int64, leaseOut int64) error {
@@ -272,7 +279,7 @@ func (a *blockSnapshotsApplier) addLeaseBalanceRecord(address proto.WavesAddress
 		if err != nil {
 			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
 		}
-		a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key] = leaseRecordsInBlock{
+		a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key] = leaseRecordInBlock{
 			initialLeaseIn:  initialBalance.leaseIn,
 			initialLeaseOut: initialBalance.leaseOut,
 			currentLeaseIn:  leaseIn,
@@ -282,7 +289,7 @@ func (a *blockSnapshotsApplier) addLeaseBalanceRecord(address proto.WavesAddress
 }
 
 func (w *leaseBalanceRecords) reset() {
-	w.leaseRecords = make(map[wavesBalanceKey]leaseRecordsInBlock)
+	w.leaseRecords = make(map[wavesBalanceKey]leaseRecordInBlock)
 }
 
 type snapshotApplierStorages struct {
@@ -411,7 +418,6 @@ func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot proto.AssetBalanceSna
 	if err != nil {
 		return errors.Wrapf(err, "failed to set asset balance profile for address %q", snapshot.Address.String())
 	}
-	// for compatibility with the legacy state hashes
 	return nil
 }
 
