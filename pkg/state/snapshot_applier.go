@@ -203,7 +203,9 @@ func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.Wave
 }
 
 func (w *wavesBalanceRecords) reset() {
-	w.wavesRecords = make(map[wavesBalanceKey]balanceRecordInBlock)
+	if len(w.wavesRecords) != 0 {
+		w.wavesRecords = make(map[wavesBalanceKey]balanceRecordInBlock)
+	}
 }
 
 type assetBalanceRecords struct {
@@ -236,7 +238,9 @@ func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(
 }
 
 func (w *assetBalanceRecords) reset() {
-	w.assetRecords = make(map[assetBalanceKey]balanceRecordInBlock)
+	if len(w.assetRecords) != 0 {
+		w.assetRecords = make(map[assetBalanceKey]balanceRecordInBlock)
+	}
 }
 
 type leaseRecordInBlock struct {
@@ -285,7 +289,9 @@ func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(
 }
 
 func (w *leaseBalanceRecords) reset() {
-	w.leaseRecords = make(map[wavesBalanceKey]leaseRecordInBlock)
+	if len(w.leaseRecords) != 0 {
+		w.leaseRecords = make(map[wavesBalanceKey]leaseRecordInBlock)
+	}
 }
 
 type snapshotApplierStorages struct {
