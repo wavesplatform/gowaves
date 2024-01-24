@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -63,7 +64,7 @@ func TestLegacyStateHashSupport(t *testing.T) {
 		scriptedAssets:        nil,
 		newLeases:             nil,
 		cancelledLeases:       make(map[crypto.Digest]struct{}),
-		balanceRecordsContext: NewBalanceRecordsContext(),
+		balanceRecordsContext: newBalanceRecordsContext(),
 	}
 	err := to.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{
 		profile: balanceProfile{

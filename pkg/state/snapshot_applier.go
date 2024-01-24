@@ -30,7 +30,7 @@ type blockSnapshotsApplier struct {
 	cancelledLeases map[crypto.Digest]struct{}
 
 	// used for legacy SH
-	balanceRecordsContext BalanceRecordsContext
+	balanceRecordsContext balanceRecordsContext
 }
 
 func (a *blockSnapshotsApplier) BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error {
@@ -92,19 +92,19 @@ func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotAppl
 		scriptedAssets:        make(map[crypto.Digest]struct{}),
 		newLeases:             []crypto.Digest{},
 		cancelledLeases:       make(map[crypto.Digest]struct{}),
-		balanceRecordsContext: NewBalanceRecordsContext(),
+		balanceRecordsContext: newBalanceRecordsContext(),
 	}
 }
 
-type BalanceRecordsContext struct {
+type balanceRecordsContext struct {
 	// used for legacy state hashes to filter out statehash temporary records with 0 change in a block.
 	wavesBalanceRecords  wavesBalanceRecords
 	assetBalanceRecords  assetBalanceRecords
 	leasesBalanceRecords leaseBalanceRecords
 }
 
-func NewBalanceRecordsContext() BalanceRecordsContext {
-	return BalanceRecordsContext{
+func newBalanceRecordsContext() balanceRecordsContext {
+	return balanceRecordsContext{
 		wavesBalanceRecords:  wavesBalanceRecords{make(map[wavesBalanceKey]balanceRecordInBlock)},
 		assetBalanceRecords:  assetBalanceRecords{make(map[assetBalanceKey]balanceRecordInBlock)},
 		leasesBalanceRecords: leaseBalanceRecords{make(map[wavesBalanceKey]leaseRecordsInBlock)},
