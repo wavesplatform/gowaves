@@ -10,12 +10,13 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 type BlockVersion byte
@@ -158,6 +159,41 @@ func (id *BlockID) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+type ChallengedHeader struct {
+	Timestamp uint64 `json:"timestamp"`
+	NxtConsensus
+	Features           []int16          `json:"features,omitempty"`
+	GeneratorPublicKey crypto.PublicKey `json:"generatorPublicKey"`
+	RewardVote         int64            `json:"desiredReward"`
+	StateHash          crypto.Digest    `json:"stateHash"`
+	BlockSignature     crypto.Signature `json:"headerSignature"`
+}
+
+func int16SliceToUint32(ins []int16) []uint32 {
+	outs := make([]uint32, len(ins))
+	for i, in := range ins {
+		outs[i] = uint32(in)
+	}
+	return outs
+}
+
+func (ch *ChallengedHeader) ToProtobuf() (*g.Block_Header_ChallengedHeader, error) {
+	headerSig, err := ch.BlockSignature.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	return &g.Block_Header_ChallengedHeader{
+		BaseTarget:          int64(ch.BaseTarget),
+		GenerationSignature: ch.GenSignature,
+		FeatureVotes:        int16SliceToUint32(ch.Features),
+		Timestamp:           int64(ch.Timestamp),
+		Generator:           ch.GeneratorPublicKey.Bytes(),
+		RewardVote:          ch.RewardVote,
+		StateHash:           ch.StateHash.Bytes(),
+		HeaderSignature:     headerSig,
+	}, nil
+}
+
 // BlockHeader contains Block meta-information without transactions
 type BlockHeader struct {
 	Version                BlockVersion `json:"version"`
@@ -168,13 +204,37 @@ type BlockHeader struct {
 	RewardVote             int64        `json:"desiredReward"`
 	ConsensusBlockLength   uint32       `json:"-"`
 	NxtConsensus           `json:"nxt-consensus"`
-	TransactionBlockLength uint32           `json:"transactionBlockLength,omitempty"`
-	TransactionCount       int              `json:"transactionCount"`
-	GeneratorPublicKey     crypto.PublicKey `json:"generatorPublicKey"`
-	BlockSignature         crypto.Signature `json:"signature"`
-	TransactionsRoot       B58Bytes         `json:"transactionsRoot,omitempty"`
+	TransactionBlockLength uint32            `json:"transactionBlockLength,omitempty"`
+	TransactionCount       int               `json:"transactionCount"`
+	GeneratorPublicKey     crypto.PublicKey  `json:"generatorPublicKey"`
+	BlockSignature         crypto.Signature  `json:"signature"`
+	TransactionsRoot       B58Bytes          `json:"transactionsRoot,omitempty"`
+	StateHash              *crypto.Digest    `json:"stateHash,omitempty"`        // is nil before protocol version 1.5
+	ChallengedHeader       *ChallengedHeader `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
 
 	ID BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
+}
+
+func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
+	var (
+		sh      crypto.Digest
+		present = b.StateHash != nil
+	)
+	if present {
+		sh = *b.StateHash
+	}
+	return sh, present
+}
+
+func (b *BlockHeader) GetChallengedHeader() (ChallengedHeader, bool) {
+	var (
+		ch      ChallengedHeader
+		present = b.ChallengedHeader != nil
+	)
+	if present {
+		ch = *b.ChallengedHeader
+	}
+	return ch, present
 }
 
 func featuresToBinary(features []int16) ([]byte, error) {
@@ -192,6 +252,25 @@ func featuresFromBinary(data []byte) ([]int16, error) {
 		return nil, err
 	}
 	return res, nil
+}
+
+func (b *BlockHeader) origHeader() (*BlockHeader, bool) {
+	ch, present := b.GetChallengedHeader()
+	if !present { // fast path
+		return b, false
+	}
+	chSH := ch.StateHash // make a copy of the original value
+
+	orig := *b
+	orig.ChallengedHeader = nil // remove the challenged header
+	orig.Timestamp = ch.Timestamp
+	orig.NxtConsensus = ch.NxtConsensus
+	orig.Features = ch.Features
+	orig.GeneratorPublicKey = ch.GeneratorPublicKey
+	orig.RewardVote = ch.RewardVote
+	orig.StateHash = &chSH
+	orig.BlockSignature = ch.BlockSignature
+	return &orig, true
 }
 
 func (b *BlockHeader) GenerateBlockID(scheme Scheme) error {
@@ -242,23 +321,31 @@ func (b *BlockHeader) MarshalHeaderToProtobuf(scheme Scheme) ([]byte, error) {
 }
 
 func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, error) {
-	ref := b.Parent.Bytes()
-	pkBytes := b.GeneratorPublicKey.Bytes()
-	features := make([]uint32, len(b.Features))
-	for i := range b.Features {
-		features[i] = uint32(b.Features[i])
+	var challengedHeader *g.Block_Header_ChallengedHeader
+	if ch, present := b.GetChallengedHeader(); present {
+		var err error
+		challengedHeader, err = ch.ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
+	}
+	var stateHash []byte
+	if sh, present := b.GetStateHash(); present {
+		stateHash = sh.Bytes()
 	}
 	return &g.Block_Header{
 		ChainId:             int32(scheme),
-		Reference:           ref,
+		Reference:           b.Parent.Bytes(),
 		BaseTarget:          int64(b.BaseTarget),
 		GenerationSignature: b.GenSignature.Bytes(),
-		FeatureVotes:        features,
+		FeatureVotes:        int16SliceToUint32(b.Features),
 		Timestamp:           int64(b.Timestamp),
 		Version:             int32(b.Version),
-		Generator:           pkBytes,
+		Generator:           b.GeneratorPublicKey.Bytes(),
 		RewardVote:          b.RewardVote,
 		TransactionsRoot:    b.TransactionsRoot,
+		StateHash:           stateHash,
+		ChallengedHeader:    challengedHeader,
 	}, nil
 }
 
@@ -479,22 +566,35 @@ func (b *Block) SetTransactionsRootIfPossible(scheme Scheme) error {
 }
 
 func (b *Block) VerifySignature(scheme Scheme) (bool, error) {
-	var bb []byte
-	if b.Version >= ProtobufBlockVersion {
-		b, err := b.MarshalHeaderToProtobufWithoutSignature(scheme)
-		if err != nil {
-			return false, err
-		}
-		bb = b
-	} else {
+	if b.Version < ProtobufBlockVersion {
 		buf := bytebufferpool.Get()
 		defer bytebufferpool.Put(buf)
 		if _, err := b.WriteToWithoutSignature(buf, scheme); err != nil {
 			return false, err
 		}
-		bb = buf.Bytes()
+		return crypto.Verify(b.GeneratorPublicKey, b.BlockSignature, buf.Bytes()), nil
 	}
-	return crypto.Verify(b.GeneratorPublicKey, b.BlockSignature, bb), nil
+
+	headerBytes, err := b.MarshalHeaderToProtobufWithoutSignature(scheme)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to marshal header to protobuf")
+	}
+	isHeaderValid := crypto.Verify(b.GeneratorPublicKey, b.BlockSignature, headerBytes)
+	if !isHeaderValid { // fast path, block is invalid
+		return false, nil
+	}
+
+	origHeader, changed := b.origHeader()
+	if !changed { // fast path, valid block without challenge
+		return true, nil
+	}
+	// block with challenge
+	origHeaderBytes, err := origHeader.MarshalHeaderToProtobufWithoutSignature(scheme)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to marshal challenged header to protobuf")
+	}
+	isOrigHeaderValid := crypto.Verify(origHeader.GeneratorPublicKey, origHeader.BlockSignature, origHeaderBytes)
+	return isOrigHeaderValid, nil
 }
 
 func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
@@ -549,7 +649,7 @@ func (b *Block) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return MarshalToProtobufDeterministic(pbBlock)
+	return pbBlock.MarshalVTStrict()
 }
 
 func (b *Block) Marshaller() Marshaller {

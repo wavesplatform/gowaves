@@ -1607,6 +1607,42 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 	}
 }
 
+func (c *ProtobufConverter) challengedHeader(pbCh *g.Block_Header_ChallengedHeader) *ChallengedHeader {
+	if c.err != nil { // error case
+		return nil
+	}
+	if pbCh == nil { // valid case, pb challenged header can be empty
+		return nil
+	}
+	return &ChallengedHeader{
+		Timestamp: uint64(pbCh.Timestamp),
+		NxtConsensus: NxtConsensus{
+			GenSignature: pbCh.GenerationSignature,
+			BaseTarget:   c.uint64(pbCh.BaseTarget),
+		},
+		Features:           c.features(pbCh.FeatureVotes),
+		GeneratorPublicKey: c.publicKey(pbCh.Generator),
+		RewardVote:         pbCh.RewardVote,
+		StateHash:          c.digest(pbCh.StateHash),
+		BlockSignature:     c.signature(pbCh.HeaderSignature),
+	}
+}
+
+func (c *ProtobufConverter) stateHash(stateHashBytes []byte) *crypto.Digest {
+	if c.err != nil { // error case
+		return nil
+	}
+	if len(stateHashBytes) == 0 { // can be empty
+		return nil
+	}
+	sh, err := crypto.NewDigestFromBytes(stateHashBytes)
+	if err != nil {
+		c.err = err
+		return nil
+	}
+	return &sh
+}
+
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 	if block == nil {
 		return BlockHeader{}, errors.New("empty block")
@@ -1630,6 +1666,8 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 		GeneratorPublicKey:   c.publicKey(block.Header.Generator),
 		BlockSignature:       c.signature(block.Signature),
 		TransactionsRoot:     block.Header.TransactionsRoot,
+		StateHash:            c.stateHash(block.Header.StateHash),
+		ChallengedHeader:     c.challengedHeader(block.Header.ChallengedHeader),
 	}
 	if c.err != nil {
 		err := c.err
