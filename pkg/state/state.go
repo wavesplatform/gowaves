@@ -1500,9 +1500,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
-		if valErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); valErr != nil {
-			return nil, valErr
-		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
 			return nil, wrapErr(ModificationError, blErr)
