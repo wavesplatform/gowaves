@@ -112,7 +112,7 @@ func NewBalanceRecordsContext() BalanceRecordsContext {
 }
 
 func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.Address, balance int64) error {
-	if !a.stor.balances.calculateHashes {
+	if !a.stor.calculateHashes {
 		return nil
 	}
 	return a.addWavesBalanceRecord(address, balance)
@@ -120,7 +120,7 @@ func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.Addr
 
 func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(address proto.Address, asset proto.AssetID,
 	balance int64) error {
-	if !a.stor.balances.calculateHashes {
+	if !a.stor.calculateHashes {
 		return nil
 	}
 	return a.addAssetBalanceRecord(address, asset, balance)
@@ -128,7 +128,7 @@ func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(address proto.Addr
 
 func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(address proto.Address,
 	leaseIn int64, leaseOut int64) error {
-	if !a.stor.balances.calculateHashes {
+	if !a.stor.calculateHashes {
 		return nil
 	}
 	return a.addLeaseBalanceRecord(address, leaseIn, leaseOut)
@@ -178,7 +178,7 @@ func (a *blockSnapshotsApplier) filterZeroLeasingDiffRecords(blockID proto.Block
 }
 
 func (a *blockSnapshotsApplier) filterZeroDiffsSHOut(blockID proto.BlockID) {
-	if !a.stor.balances.calculateHashes {
+	if !a.stor.calculateHashes {
 		return
 	}
 	a.filterZeroWavesDiffRecords(blockID)
@@ -297,6 +297,7 @@ type snapshotApplierStorages struct {
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
 	leases            *leases
+	calculateHashes   bool
 }
 
 func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWriter) snapshotApplierStorages {
@@ -311,6 +312,7 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWr
 		ordersVolumes:     stor.ordersVolumes,
 		accountsDataStor:  stor.accountsDataStor,
 		leases:            stor.leases,
+		calculateHashes:   stor.calculateHashes,
 	}
 }
 
