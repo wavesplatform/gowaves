@@ -245,6 +245,8 @@ func testReader(rw *blockReadWriter, readTasks <-chan *readTask) error {
 }
 
 func TestSimpleReadWrite(t *testing.T) {
+	t.Parallel()
+
 	to := createStorageObjects(t, true)
 
 	blocks, err := readBlocksFromTestPath(blocksNumber)
@@ -257,6 +259,8 @@ func TestSimpleReadWrite(t *testing.T) {
 }
 
 func TestSimultaneousReadWrite(t *testing.T) {
+	t.Parallel()
+
 	to := createStorageObjects(t, true)
 
 	blocks, err := readBlocksFromTestPath(blocksNumber)
@@ -345,6 +349,8 @@ func TestReadNewest(t *testing.T) {
 }
 
 func TestSimultaneousReadDelete(t *testing.T) {
+	t.Parallel()
+
 	to := createStorageObjects(t, true)
 
 	blocks, err := readBlocksFromTestPath(blocksNumber)
