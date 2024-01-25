@@ -120,4 +120,25 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	}
 
 	snapshotApplier.filterZeroDiffsSHOut(blockID0)
+
+	wavesTmpSHRecords := to.entities.balances.wavesHashesState[blockID0]
+	leaseTmpSHRecords := to.entities.balances.leaseHashesState[blockID0]
+
+	testGlobal.issuerInfo.Address()
+	wavesKeyA := wavesBalanceKey{address: testGlobal.issuerInfo.addr.ID()}
+	wavesKeyB := wavesBalanceKey{address: testGlobal.recipientInfo.addr.ID()}
+	leaseKeyA := wavesBalanceKey{address: testGlobal.senderInfo.addr.ID()}
+	leaseKeyB := wavesBalanceKey{address: testGlobal.recipientInfo.addr.ID()}
+
+	_, wavesFoundAshRecord := wavesTmpSHRecords.componentByKey[string(wavesKeyA.bytes())]
+	assert.True(t, wavesFoundAshRecord)
+
+	_, wavesFoundBshRecord := wavesTmpSHRecords.componentByKey[string(wavesKeyB.bytes())]
+	assert.False(t, wavesFoundBshRecord)
+
+	_, leaseFoundAshRecord := leaseTmpSHRecords.componentByKey[string(leaseKeyA.bytes())]
+	assert.False(t, leaseFoundAshRecord)
+
+	_, leaseFoundBshRecord := leaseTmpSHRecords.componentByKey[string(leaseKeyB.bytes())]
+	assert.False(t, leaseFoundBshRecord)
 }
