@@ -50,6 +50,7 @@ func TestPushOneBlock(t *testing.T) {
 func TestLegacyStateHashSupport(t *testing.T) {
 	to := createStorageObjects(t, true)
 	to.entities.calculateHashes = true
+	to.entities.balances.calculateHashes = true
 	to.addBlock(t, blockID0)
 
 	snapshotApplier := newBlockSnapshotsApplier(
@@ -126,15 +127,25 @@ func TestLegacyStateHashSupport(t *testing.T) {
 
 	testGlobal.issuerInfo.Address()
 	wavesKeyA := wavesBalanceKey{address: testGlobal.issuerInfo.addr.ID()}
-	wavesKeyB := wavesBalanceKey{address: testGlobal.recipientInfo.addr.ID()}
+	wavesKeyB := wavesBalanceKey{address: testGlobal.senderInfo.addr.ID()}
+	wavesKeyC := wavesBalanceKey{address: testGlobal.recipientInfo.addr.ID()}
 	leaseKeyA := wavesBalanceKey{address: testGlobal.senderInfo.addr.ID()}
 	leaseKeyB := wavesBalanceKey{address: testGlobal.recipientInfo.addr.ID()}
 
+	/*
+		for wavesKeyA (issuer) the initial balance 0, result balance 1
+		for wavesKeyB (sender) the initial balance 0, result balance 3
+		for wavesKeyC (recipient) the initial balance 5, result balance 5 => diff 0
+		for leaseKeyA (issuer) the initial lease balances 0, result balances 0 => diff 0
+		for leaseKeyB (issuer) the initial lease balances 0, result balances 0 => diff 0
+	*/
 	_, wavesFoundAshRecord := wavesTmpSHRecords.componentByKey[string(wavesKeyA.bytes())]
 	assert.True(t, wavesFoundAshRecord)
-
 	_, wavesFoundBshRecord := wavesTmpSHRecords.componentByKey[string(wavesKeyB.bytes())]
-	assert.False(t, wavesFoundBshRecord)
+	assert.True(t, wavesFoundBshRecord)
+
+	_, wavesFoundCshRecord := wavesTmpSHRecords.componentByKey[string(wavesKeyC.bytes())]
+	assert.False(t, wavesFoundCshRecord)
 
 	_, leaseFoundAshRecord := leaseTmpSHRecords.componentByKey[string(leaseKeyA.bytes())]
 	assert.False(t, leaseFoundAshRecord)
