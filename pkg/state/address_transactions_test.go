@@ -25,7 +25,7 @@ func testIterImpl(t *testing.T, params StateParams) {
 	blocks, err := ReadMainnetBlocksToHeight(blockHeight)
 	require.NoError(t, err)
 	// Add extra blocks and rollback to check that rollback scenario is handled correctly.
-	_, err = st.AddDeserializedBlocks(blocks, nil)
+	_, err = st.AddDeserializedBlocks(blocks)
 	require.NoError(t, err)
 	err = st.RollbackToHeight(8000)
 	require.NoError(t, err)

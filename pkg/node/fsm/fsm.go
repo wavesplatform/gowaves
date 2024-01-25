@@ -30,14 +30,20 @@ type BlocksApplier interface {
 	Apply(
 		state storage.State,
 		block []*proto.Block,
-		snapshots []*proto.BlockSnapshot,
-		isLightNode bool,
 	) (proto.Height, error)
 	ApplyMicro(
 		state storage.State,
 		block *proto.Block,
+	) (proto.Height, error)
+	ApplyWithSnapshots(
+		state storage.State,
+		block []*proto.Block,
+		snapshots []*proto.BlockSnapshot,
+	) (proto.Height, error)
+	ApplyMicroWithSnapshots(
+		state storage.State,
+		block *proto.Block,
 		snapshots *proto.BlockSnapshot,
-		isLightNode bool,
 	) (proto.Height, error)
 }
 
@@ -91,12 +97,12 @@ func (a *BaseInfo) CleanUtx() {
 
 // States.
 const (
-	IdleStateName    = "Idle"
-	NGStateName      = "NG"
-	NGLightStateName = "NGLight"
-	PersistStateName = "Persist"
-	SyncStateName    = "Sync"
-	HaltStateName    = "Halt"
+	IdleStateName         = "Idle"
+	NGStateName           = "NG"
+	WaitSnapshotStateName = "WaitSnapshotLight"
+	PersistStateName      = "Persist"
+	SyncStateName         = "Sync"
+	HaltStateName         = "Halt"
 )
 
 // Events.
@@ -204,6 +210,8 @@ func NewFSM(
 	initNGStateInFSM(state, fsm, info)
 	initPersistStateInFSM(state, fsm, info)
 	initSyncStateInFSM(state, fsm, info)
+	initWaitMicroSnapshotStateInFSM(state, fsm, info)
+	initWaitSnapshotStateInFSM(state, fsm, info)
 
 	return &FSM{
 		fsm:      fsm,

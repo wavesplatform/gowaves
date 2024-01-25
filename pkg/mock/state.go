@@ -1101,33 +1101,48 @@ func (mr *MockStateModifierMockRecorder) AddBlocks(blocks interface{}) *gomock.C
 }
 
 // AddDeserializedBlock mocks base method.
-func (m *MockStateModifier) AddDeserializedBlock(block *proto.Block, snapshot *proto.BlockSnapshot) (*proto.Block, error) {
+func (m *MockStateModifier) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlock", block, snapshot)
+	ret := m.ctrl.Call(m, "AddDeserializedBlock", block)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddDeserializedBlock indicates an expected call of AddDeserializedBlock.
-func (mr *MockStateModifierMockRecorder) AddDeserializedBlock(block, snapshot interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) AddDeserializedBlock(block interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlock), block, snapshot)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlock), block)
 }
 
 // AddDeserializedBlocks mocks base method.
-func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
+func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks, snapshots)
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
-func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks, snapshots interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks, snapshots)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks)
+}
+
+// AddDeserializedBlocksWithSnapshots mocks base method.
+func (m *MockStateModifier) AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddDeserializedBlocksWithSnapshots", blocks, snapshots)
+	ret0, _ := ret[0].(*proto.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddDeserializedBlocksWithSnapshots indicates an expected call of AddDeserializedBlocksWithSnapshots.
+func (mr *MockStateModifierMockRecorder) AddDeserializedBlocksWithSnapshots(blocks, snapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocksWithSnapshots", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocksWithSnapshots), blocks, snapshots)
 }
 
 // Close mocks base method.
@@ -1359,33 +1374,48 @@ func (mr *MockStateMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
 }
 
 // AddDeserializedBlock mocks base method.
-func (m *MockState) AddDeserializedBlock(block *proto.Block, snapshot *proto.BlockSnapshot) (*proto.Block, error) {
+func (m *MockState) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlock", block, snapshot)
+	ret := m.ctrl.Call(m, "AddDeserializedBlock", block)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddDeserializedBlock indicates an expected call of AddDeserializedBlock.
-func (mr *MockStateMockRecorder) AddDeserializedBlock(block, snapshot interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) AddDeserializedBlock(block interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockState)(nil).AddDeserializedBlock), block, snapshot)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlock", reflect.TypeOf((*MockState)(nil).AddDeserializedBlock), block)
 }
 
 // AddDeserializedBlocks mocks base method.
-func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
+func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks, snapshots)
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
-func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks, snapshots interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks, snapshots)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks)
+}
+
+// AddDeserializedBlocksWithSnapshots mocks base method.
+func (m *MockState) AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddDeserializedBlocksWithSnapshots", blocks, snapshots)
+	ret0, _ := ret[0].(*proto.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddDeserializedBlocksWithSnapshots indicates an expected call of AddDeserializedBlocksWithSnapshots.
+func (mr *MockStateMockRecorder) AddDeserializedBlocksWithSnapshots(blocks, snapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocksWithSnapshots", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocksWithSnapshots), blocks, snapshots)
 }
 
 // AddrByAlias mocks base method.

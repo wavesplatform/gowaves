@@ -68,6 +68,8 @@ func (a *IdleState) Task(task tasks.AsyncTask) (State, Async, error) {
 		return a, nil, nil
 	case tasks.MineMicro: // Do nothing
 		return a, nil, nil
+	case tasks.SnapshotTimeout:
+		return a, nil, nil
 	default:
 		return a, nil, a.Errorf(errors.Errorf(
 			"unexpected internal task '%d' with data '%+v' received by %s State",

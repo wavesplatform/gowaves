@@ -149,11 +149,12 @@ type StateModifier interface {
 	// It's not recommended using this function when you are able to accumulate big blocks batch,
 	// since it's much more efficient to add many blocks at once.
 	AddBlock(block []byte) (*proto.Block, error)
-	AddDeserializedBlock(block *proto.Block, snapshot *proto.BlockSnapshot) (*proto.Block, error)
+	AddDeserializedBlock(block *proto.Block) (*proto.Block, error)
 	// AddBlocks adds batch of new blocks to state.
 	AddBlocks(blocks [][]byte) error
 	// AddDeserializedBlocks marshals blocks to binary and calls AddBlocks.
-	AddDeserializedBlocks(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
+	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
+	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 	// Rollback functionality.
 	RollbackToHeight(height proto.Height) error
 	RollbackTo(removalEdge proto.BlockID) error

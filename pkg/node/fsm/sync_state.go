@@ -75,14 +75,20 @@ func (a *SyncState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 func (a *SyncState) StopSync() (State, Async, error) {
 	_, blocks, snapshots, _ := a.internal.Blocks(noopWrapper{})
 	if len(blocks) > 0 {
-		if !a.baseInfo.enableLightMode {
-			snapshots = nil // ensure that snapshots are emtpy
+		var err error
+		if a.baseInfo.enableLightMode {
+			err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+				var errApply error
+				_, errApply = a.baseInfo.blocksApplier.ApplyWithSnapshots(s, blocks, snapshots)
+				return errApply
+			})
+		} else {
+			err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+				var errApply error
+				_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks)
+				return errApply
+			})
 		}
-		err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-			var errApply error
-			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, snapshots, a.baseInfo.enableLightMode)
-			return errApply
-		})
 		return newIdleState(a.baseInfo), nil, a.Errorf(err)
 	}
 	return newIdleState(a.baseInfo), nil, nil
@@ -110,6 +116,8 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 		}
 		return a, nil, nil
 	case tasks.MineMicro:
+		return a, nil, nil
+	case tasks.SnapshotTimeout:
 		return a, nil, nil
 	default:
 		return a, nil, a.Errorf(errors.Errorf(
@@ -203,8 +211,6 @@ func (a *SyncState) MinedBlock(
 	_, err := a.baseInfo.blocksApplier.Apply(
 		a.baseInfo.storage,
 		[]*proto.Block{block},
-		nil,
-		a.baseInfo.enableLightMode,
 	)
 	if err != nil {
 		zap.S().Warnf("[Sync] Failed to apply mined block: %v", err)
@@ -251,14 +257,20 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")
 		return newSyncState(baseInfo, conf, internal), nil, nil
 	}
-	if !a.baseInfo.enableLightMode {
-		snapshots = nil // ensure that snapshots are emtpy
+	var err error
+	if a.baseInfo.enableLightMode {
+		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+			var errApply error
+			_, errApply = a.baseInfo.blocksApplier.ApplyWithSnapshots(s, blocks, snapshots)
+			return errApply
+		})
+	} else {
+		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+			var errApply error
+			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks)
+			return errApply
+		})
 	}
-	err := a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
-		var errApply error
-		_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks, snapshots, a.baseInfo.enableLightMode)
-		return errApply
-	})
 
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
@@ -308,6 +320,11 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		proto.ContentIDPBTransaction,
 		proto.ContentIDMicroBlockSnapshot,
 		proto.ContentIDMicroBlockSnapshotRequest,
+	}
+	if !info.enableLightMode {
+		syncSkipMessageList = append(syncSkipMessageList, []proto.PeerMessageID{
+			proto.ContentIDBlockSnapshot,
+		}...)
 	}
 	fsm.Configure(SyncStateName).
 		Ignore(MicroBlockEvent).
@@ -407,7 +424,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
-						"unexpected type '%T' expected '*NGState'", state.State))
+						"unexpected type '%T' expected '*SyncState'", state.State))
 				}
 				return a.BlockSnapshot(
 					convertToInterface[peer.Peer](args[0]),

@@ -742,17 +742,63 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		a.sc.resetComplexity()
 		a.totalScriptsRuns = 0
 	}()
-	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+	checkerInfo, err := a.createCheckerInfo(params)
 	if err != nil {
 		return err
+	}
+	hasParent := params.parent != nil
+	if hasParent {
+		checkerInfo.parentTimestamp = params.parent.Timestamp
+	}
+	blockInfo, err := a.currentBlockInfo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
+	}
+	currentBlockHeight := blockInfo.Height
+	hasher, err := newTxSnapshotHasherDefault()
+	if err != nil {
+		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
+	}
+	defer hasher.Release()
+
+	stateHash, err := a.createInitialDiffAndStateHash(params, hasParent, blockInfo, hasher)
+	if err != nil {
+		return err
+	}
+	var blockSnapshots *proto.BlockSnapshot
+
+	blockSnapshots, stateHash, err = a.appendTxs(params, checkerInfo, stateHash, hasher)
+	if err != nil {
+		return err
+	}
+
+	blockID := params.block.BlockID()
+	if ssErr := a.stor.snapshots.saveSnapshots(blockID, blockInfo.Height, *blockSnapshots); ssErr != nil {
+		return ssErr
+	}
+	// clean up legacy state hash records with zero diffs
+	a.stor.balances.filterZeroDiffsSHOut(blockID)
+	// TODO: check snapshot hash with the block snapshot hash if it exists
+	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, blockInfo.Height, blockID); shErr != nil {
+		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", blockInfo.Height)
+	}
+	// Save fee distribution of this block.
+	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
+	return a.blockDiffer.saveCurFeeDistr(params.block)
+}
+
+func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {
+	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return nil, err
 	}
 	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
 	if err != nil {
-		return err
+		return nil, err
 	}
 	checkerInfo := &checkerInfo{
 		currentTimestamp:        params.block.Timestamp,
@@ -763,55 +809,41 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		rideV6Activated:         rideV6Activated,
 		blockRewardDistribution: blockRewardDistribution,
 	}
-	hasParent := params.parent != nil
-	if hasParent {
-		checkerInfo.parentTimestamp = params.parent.Timestamp
-	}
-	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
+	return checkerInfo, nil
+}
 
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		stateActionsCounterInBlockValidation)
-	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
-	// Create miner balance diff.
-	// This adds 60% of prev block fees as very first balance diff of the current block
-	// in case NG is activated, or empty diff otherwise.
+func (a *txAppender) createInitialDiffAndStateHash(
+	params *appendBlockParams,
+	hasParent bool,
+	blockInfo *proto.BlockInfo,
+	hasher *txSnapshotHasher,
+) (crypto.Digest, error) {
 	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent)
 	if err != nil {
-		return err
+		return crypto.Digest{}, err
 	}
 
 	// create the initial snapshot
 	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardDiff.balancesChanges())
 	if err != nil {
-		return errors.Wrap(err, "failed to create initial snapshot")
-	}
-
-	blockInfo, err := a.currentBlockInfo()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
+		return crypto.Digest{}, errors.Wrap(err, "failed to create initial snapshot")
 	}
 
 	currentBlockHeight := blockInfo.Height
 
-	hasher, err := newTxSnapshotHasherDefault()
-	if err != nil {
-		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
-	}
-	defer hasher.Release()
-
 	// Save miner diff first (for validation)
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
-		return err
+		return crypto.Digest{}, err
 	}
 	err = a.diffApplier.validateBalancesChanges(minerAndRewardDiff.balancesChanges())
 	if err != nil {
-		return errors.Wrap(err, "failed to validate miner reward changes")
+		return crypto.Digest{}, errors.Wrap(err, "failed to validate miner reward changes")
 	}
 	a.diffStor.reset()
 
 	err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
 	if err != nil {
-		return errors.Wrap(err, "failed to apply an initial snapshot")
+		return crypto.Digest{}, errors.Wrap(err, "failed to apply an initial snapshot")
 	}
 
 	// get initial snapshot hash for block
@@ -823,21 +855,47 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		initialSnapshot.regular,
 	)
 	if err != nil {
-		return errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
+		return crypto.Digest{}, errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
 			params.block.BlockID(), currentBlockHeight,
 		)
 	}
+	return stateHash, nil
+}
+
+func (a *txAppender) appendBlockWithSnapshot(params *appendBlockParams) error {
+	// Reset block complexity counter.
+	defer func() {
+		a.sc.resetComplexity()
+		a.totalScriptsRuns = 0
+	}()
+	checkerInfo, err := a.createCheckerInfo(params)
+	if err != nil {
+		return err
+	}
+	hasParent := params.parent != nil
+	if hasParent {
+		checkerInfo.parentTimestamp = params.parent.Timestamp
+	}
+	blockInfo, err := a.currentBlockInfo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
+	}
+	currentBlockHeight := blockInfo.Height
+	hasher, err := newTxSnapshotHasherDefault()
+	if err != nil {
+		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
+	}
+	defer hasher.Release()
+
+	stateHash, err := a.createInitialDiffAndStateHash(params, hasParent, blockInfo, hasher)
+	if err != nil {
+		return err
+	}
 	var blockSnapshots *proto.BlockSnapshot
-	if params.snapshot != nil {
-		blockSnapshots, stateHash, err = a.applySnapshotsInLightNode(params, stateHash, hasher)
-		if err != nil {
-			return err
-		}
-	} else {
-		blockSnapshots, stateHash, err = a.appendTxs(params, checkerInfo, stateHash, hasher)
-		if err != nil {
-			return err
-		}
+
+	blockSnapshots, stateHash, err = a.applySnapshotsInLightNode(params, stateHash, hasher)
+	if err != nil {
+		return err
 	}
 	// check whether the calculated snapshot state hash equals with the provided one
 	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
