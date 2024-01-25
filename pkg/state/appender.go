@@ -674,23 +674,22 @@ func (a *txAppender) appendTxs(
 	}
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
-
+	appendTxArgs := &appendTxParams{
+		chans:                            params.chans,
+		checkerInfo:                      info,
+		blockInfo:                        blockInfo,
+		block:                            params.block,
+		acceptFailed:                     blockV5Activated,
+		blockV5Activated:                 blockV5Activated,
+		rideV5Activated:                  info.rideV5Activated,
+		rideV6Activated:                  info.rideV6Activated,
+		consensusImprovementsActivated:   consensusImprovementsActivated,
+		blockRewardDistributionActivated: blockRewardDistributionActivated,
+		invokeExpressionActivated:        invokeExpressionActivated,
+		validatingUtx:                    false,
+		currentMinerPK:                   params.block.GeneratorPublicKey,
+	}
 	for _, tx := range params.transactions {
-		appendTxArgs := &appendTxParams{
-			chans:                            params.chans,
-			checkerInfo:                      info,
-			blockInfo:                        blockInfo,
-			block:                            params.block,
-			acceptFailed:                     blockV5Activated,
-			blockV5Activated:                 blockV5Activated,
-			rideV5Activated:                  info.rideV5Activated,
-			rideV6Activated:                  info.rideV6Activated,
-			consensusImprovementsActivated:   consensusImprovementsActivated,
-			blockRewardDistributionActivated: blockRewardDistributionActivated,
-			invokeExpressionActivated:        invokeExpressionActivated,
-			validatingUtx:                    false,
-			currentMinerPK:                   params.block.GeneratorPublicKey,
-		}
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
 			return nil, crypto.Digest{}, errAppendTx
@@ -750,6 +749,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
+	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
+		stateActionsCounterInBlockValidation)
+	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
@@ -876,6 +879,10 @@ func (a *txAppender) appendBlockWithSnapshot(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
+	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
+		stateActionsCounterInBlockValidation)
+	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)

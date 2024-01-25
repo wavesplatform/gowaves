@@ -189,8 +189,8 @@ func initWaitMicroSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachi
 		proto.ContentIDGetBlockIds,
 		proto.ContentIDBlockSnapshot,
 	}
-	fsm.Configure(WaitSnapshotStateName).
-		OnEntry(func(ctx context.Context, args ...interface{}) error {
+	fsm.Configure(WaitSnapshotStateName). //nolint:dupl // it's state setup
+						OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(waitSnapshotSkipMessageList)
 			return nil
 		}).
