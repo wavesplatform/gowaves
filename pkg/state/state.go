@@ -1500,9 +1500,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
-		if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); err != nil {
-			return nil, err
-		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
@@ -1511,6 +1508,9 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		// This includes voting for features, block rewards and so on.
 		if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
+		}
+		if vhErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); vhErr != nil {
+			return nil, vhErr
 		}
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
