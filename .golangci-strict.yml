@@ -100,6 +100,8 @@ linters-settings:
     # `strconv.FormatInt`, `strconv.FormatUint`, `strconv.FormatFloat`,
     # `strconv.ParseInt`, `strconv.ParseUint`, `strconv.ParseFloat`.
     # Default: []
+    ignored-files:
+      - 'pkg(/|\\)settings(/|\\)blockchain_settings\.go$' # using both file path separators to support Windows
     ignored-functions:
       - os.Chmod
       - os.Mkdir
