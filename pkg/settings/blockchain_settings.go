@@ -23,8 +23,9 @@ const (
 
 // Default it is params for FairPosCalculatorV2
 const (
-	minBlockTimeDefault = float64(15000)
-	delayDeltaDefault   = 8
+	minBlockTimeDefault                        = float64(15000)
+	delayDeltaDefault                          = 8
+	lightNodeBlockFieldsAbsenceIntervalDefault = 1000
 )
 
 const (
@@ -97,6 +98,8 @@ type FunctionalitySettings struct {
 	MinXTNBuyBackPeriod     uint64               `json:"min_xtn_buy_back_period"`
 
 	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"`
+
+	LightNodeBlockFieldsAbsenceInterval uint64 `json:"light_node_block_fields_absence_interval"`
 }
 
 func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {
@@ -179,23 +182,25 @@ var (
 	StageNetSettings = mustLoadEmbeddedSettings(StageNet)
 	defaultSettings  = BlockchainSettings{
 		FunctionalitySettings: FunctionalitySettings{
-			MinBlockTime: minBlockTimeDefault,
-			DelayDelta:   delayDeltaDefault,
+			MinBlockTime:                        minBlockTimeDefault,
+			DelayDelta:                          delayDeltaDefault,
+			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
 		},
 	}
 	DefaultCustomSettings = BlockchainSettings{
 		Type: Custom,
 		FunctionalitySettings: FunctionalitySettings{
-			FeaturesVotingPeriod:       5000,
-			VotesForFeatureActivation:  4000,
-			MaxTxTimeBackOffset:        120 * 60000,
-			MaxTxTimeForwardOffset:     90 * 60000,
-			AddressSchemeCharacter:     proto.CustomNetScheme,
-			AverageBlockDelaySeconds:   60,
-			MaxBaseTarget:              math.MaxUint64,
-			MinUpdateAssetInfoInterval: 100000,
-			BlockRewardTerm:            100000,
-			BlockRewardTermAfter20:     50000,
+			FeaturesVotingPeriod:                5000,
+			VotesForFeatureActivation:           4000,
+			MaxTxTimeBackOffset:                 120 * 60000,
+			MaxTxTimeForwardOffset:              90 * 60000,
+			AddressSchemeCharacter:              proto.CustomNetScheme,
+			AverageBlockDelaySeconds:            60,
+			MaxBaseTarget:                       math.MaxUint64,
+			MinUpdateAssetInfoInterval:          100000,
+			BlockRewardTerm:                     100000,
+			BlockRewardTermAfter20:              50000,
+			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
 		},
 	}
 )
