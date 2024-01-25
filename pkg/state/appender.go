@@ -780,7 +780,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return ssErr
 	}
 	// clean up legacy state hash records with zero diffs
-	a.stor.balances.filterZeroDiffsSHOut(blockID)
+	a.txHandler.sa.filterZeroDiffsSHOut(blockID)
 	// TODO: check snapshot hash with the block snapshot hash if it exists
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, blockInfo.Height, blockID); shErr != nil {
 		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", blockInfo.Height)
@@ -916,8 +916,8 @@ func (a *txAppender) appendBlockWithSnapshot(params *appendBlockParams) error {
 	}
 
 	// clean up legacy state hash records with zero diffs
-	a.stor.balances.filterZeroDiffsSHOut(blockID)
-
+	a.txHandler.sa.filterZeroDiffsSHOut(blockID)
+	// TODO: check snapshot hash with the block snapshot hash if it exists
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
 		return errors.Wrapf(shErr, "failed to save block snapshot hash at height %d", currentBlockHeight)
 	}
