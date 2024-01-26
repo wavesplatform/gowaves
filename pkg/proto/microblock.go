@@ -6,11 +6,12 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 const (
@@ -29,9 +30,21 @@ type MicroBlock struct {
 	Transactions          Transactions
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
+	StateHash             *crypto.Digest // is nil before protocol version 1.5
 }
 
 type MicroblockTotalSig = crypto.Signature
+
+func (a *MicroBlock) GetStateHash() (crypto.Digest, bool) {
+	var (
+		sh      crypto.Digest
+		present = a.StateHash != nil
+	)
+	if present {
+		sh = *a.StateHash
+	}
+	return sh, present
+}
 
 func (a *MicroBlock) UnmarshalFromProtobuf(b []byte) error {
 	var pbMicroBlock g.SignedMicroBlock
@@ -69,6 +82,10 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 	if err != nil {
 		return nil, err
 	}
+	var stateHash []byte
+	if sh, present := a.GetStateHash(); present {
+		stateHash = sh.Bytes()
+	}
 	return &g.SignedMicroBlock{
 		MicroBlock: &g.MicroBlock{
 			Version:               int32(a.VersionField),
@@ -76,6 +93,7 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 			UpdatedBlockSignature: total,
 			SenderPublicKey:       a.SenderPK.Bytes(),
 			Transactions:          txs,
+			StateHash:             stateHash,
 		},
 		Signature:    sig,
 		TotalBlockId: a.TotalBlockID.Bytes(),
