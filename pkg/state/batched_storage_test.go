@@ -125,6 +125,8 @@ func genTestRecords(t *testing.T, ids []proto.BlockID) []testRecord {
 }
 
 func TestLastRecordByKeyWithRollback(t *testing.T) {
+	t.Parallel()
+
 	to := createBatchedStorage(t, testRecordSize)
 
 	ids := genRandBlockIds(t, size)
@@ -207,6 +209,8 @@ func TestLastRecordByKey(t *testing.T) {
 }
 
 func TestIterators(t *testing.T) {
+	t.Parallel()
+
 	to := createBatchedStorage(t, testRecordSize)
 
 	ids := genRandBlockIds(t, size)

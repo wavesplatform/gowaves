@@ -28,6 +28,9 @@ type blockSnapshotsApplier struct {
 
 	newLeases       []crypto.Digest
 	cancelledLeases map[crypto.Digest]struct{}
+
+	// used for legacy SH
+	balanceRecordsContext balanceRecordsContext
 }
 
 func (a *blockSnapshotsApplier) BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error {
@@ -83,12 +86,208 @@ func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
 
 func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
 	return blockSnapshotsApplier{
-		info:            info,
-		stor:            stor,
-		issuedAssets:    []crypto.Digest{},
-		scriptedAssets:  make(map[crypto.Digest]struct{}),
-		newLeases:       []crypto.Digest{},
-		cancelledLeases: make(map[crypto.Digest]struct{}),
+		info:                  info,
+		stor:                  stor,
+		issuedAssets:          []crypto.Digest{},
+		scriptedAssets:        make(map[crypto.Digest]struct{}),
+		newLeases:             []crypto.Digest{},
+		cancelledLeases:       make(map[crypto.Digest]struct{}),
+		balanceRecordsContext: newBalanceRecordsContext(),
+	}
+}
+
+type balanceRecordsContext struct {
+	// used for legacy state hashes to filter out statehash temporary records with 0 change in a block.
+	wavesBalanceRecords  wavesBalanceRecords
+	assetBalanceRecords  assetBalanceRecords
+	leasesBalanceRecords leaseBalanceRecords
+}
+
+func newBalanceRecordsContext() balanceRecordsContext {
+	return balanceRecordsContext{
+		wavesBalanceRecords:  wavesBalanceRecords{make(map[wavesBalanceKey]balanceRecordInBlock)},
+		assetBalanceRecords:  assetBalanceRecords{make(map[assetBalanceKey]balanceRecordInBlock)},
+		leasesBalanceRecords: leaseBalanceRecords{make(map[wavesBalanceKey]leaseRecordInBlock)},
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroWavesDiffRecords(blockID proto.BlockID) {
+	// comparing the final balance to the initial one
+	for key, balanceRecord := range a.balanceRecordsContext.wavesBalanceRecords.wavesRecords {
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.wavesHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				keyStr := string(key.bytes())
+				temporarySHRecords.remove(keyStr)
+				a.stor.balances.wavesHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroAssetDiffRecords(blockID proto.BlockID) {
+	// comparing the final balance to the initial one
+	for key, balanceRecord := range a.balanceRecordsContext.assetBalanceRecords.assetRecords {
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.assetsHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				keyStr := string(key.bytes())
+				temporarySHRecords.remove(keyStr)
+				a.stor.balances.assetsHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroLeasingDiffRecords(blockID proto.BlockID) {
+	// comparing the final balance to the initial one
+	for key, balanceRecord := range a.balanceRecordsContext.leasesBalanceRecords.leaseRecords {
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.leaseHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				keyStr := string(key.bytes())
+				temporarySHRecords.remove(keyStr)
+				a.stor.balances.leaseHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroDiffsSHOut(blockID proto.BlockID) {
+	a.filterZeroWavesDiffRecords(blockID)
+	a.filterZeroAssetDiffRecords(blockID)
+	a.filterZeroLeasingDiffRecords(blockID)
+
+	a.balanceRecordsContext.wavesBalanceRecords.reset()
+	a.balanceRecordsContext.assetBalanceRecords.reset()
+	a.balanceRecordsContext.leasesBalanceRecords.reset()
+}
+
+type balanceRecordInBlock struct {
+	initial int64
+	current int64
+}
+
+func (r balanceRecordInBlock) isDiffZero() bool {
+	return r.initial == r.current
+}
+
+type wavesBalanceRecords struct {
+	wavesRecords map[wavesBalanceKey]balanceRecordInBlock
+}
+
+func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.WavesAddress, balance int64) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
+	key := wavesBalanceKey{address: address.ID()}
+
+	prevRec, ok := a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key]
+	if ok {
+		prevRec.current = balance
+		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key] = prevRec
+	} else {
+		initialBalance, err := a.stor.balances.newestWavesBalance(address.ID())
+		if err != nil {
+			return errors.Wrapf(err,
+				"failed to gen initial balance for address %s", address.String())
+		}
+		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key] = balanceRecordInBlock{
+			initial: int64(initialBalance.balance), current: balance}
+	}
+	return nil
+}
+
+func (w *wavesBalanceRecords) reset() {
+	if len(w.wavesRecords) != 0 {
+		w.wavesRecords = make(map[wavesBalanceKey]balanceRecordInBlock)
+	}
+}
+
+type assetBalanceRecords struct {
+	assetRecords map[assetBalanceKey]balanceRecordInBlock
+}
+
+func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(
+	address proto.WavesAddress,
+	assetID proto.AssetID,
+	balance int64,
+) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
+	key := assetBalanceKey{address: address.ID(), asset: assetID}
+	prevRec, ok := a.balanceRecordsContext.assetBalanceRecords.assetRecords[key]
+	if ok {
+		prevRec.current = balance
+		a.balanceRecordsContext.assetBalanceRecords.assetRecords[key] = prevRec
+	} else {
+		initialBalance, err := a.stor.balances.newestAssetBalance(address.ID(), assetID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
+		}
+		a.balanceRecordsContext.assetBalanceRecords.assetRecords[key] = balanceRecordInBlock{
+			initial: int64(initialBalance), current: balance}
+	}
+	return nil
+}
+
+func (w *assetBalanceRecords) reset() {
+	if len(w.assetRecords) != 0 {
+		w.assetRecords = make(map[assetBalanceKey]balanceRecordInBlock)
+	}
+}
+
+type leaseRecordInBlock struct {
+	initialLeaseIn  int64
+	initialLeaseOut int64
+	currentLeaseIn  int64
+	currentLeaseOut int64
+}
+
+func (r leaseRecordInBlock) isDiffZero() bool {
+	return r.initialLeaseIn == r.currentLeaseIn && r.initialLeaseOut == r.currentLeaseOut
+}
+
+type leaseBalanceRecords struct {
+	leaseRecords map[wavesBalanceKey]leaseRecordInBlock
+}
+
+func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(
+	address proto.WavesAddress,
+	leaseIn int64,
+	leaseOut int64,
+) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
+	key := wavesBalanceKey{address: address.ID()}
+
+	prevLeaseInOut, ok := a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key]
+	if ok {
+		prevLeaseInOut.currentLeaseIn = leaseIn
+		prevLeaseInOut.currentLeaseOut = leaseOut
+		a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key] = prevLeaseInOut
+	} else {
+		initialBalance, err := a.stor.balances.newestWavesBalance(address.ID())
+		if err != nil {
+			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
+		}
+		a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key] = leaseRecordInBlock{
+			initialLeaseIn:  initialBalance.leaseIn,
+			initialLeaseOut: initialBalance.leaseOut,
+			currentLeaseIn:  leaseIn,
+			currentLeaseOut: leaseOut}
+	}
+	return nil
+}
+
+func (w *leaseBalanceRecords) reset() {
+	if len(w.leaseRecords) != 0 {
+		w.leaseRecords = make(map[wavesBalanceKey]leaseRecordInBlock)
 	}
 }
 
@@ -103,6 +302,7 @@ type snapshotApplierStorages struct {
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
 	leases            *leases
+	calculateHashes   bool
 }
 
 func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWriter) snapshotApplierStorages {
@@ -117,6 +317,7 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWr
 		ordersVolumes:     stor.ordersVolumes,
 		accountsDataStor:  stor.accountsDataStor,
 		leases:            stor.leases,
+		calculateHashes:   stor.calculateHashes,
 	}
 }
 
@@ -164,6 +365,11 @@ func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) 
 }
 
 func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
+	// for compatibility with the legacy state hashes
+	err := a.addWavesBalanceRecordLegacySH(snapshot.Address, int64(snapshot.Balance))
+	if err != nil {
+		return err
+	}
 	addrID := snapshot.Address.ID()
 	profile, err := a.stor.balances.newestWavesBalance(addrID)
 	if err != nil {
@@ -179,8 +385,12 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 }
 
 func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
+	err := a.addLeasesBalanceRecordLegacySH(snapshot.Address, int64(snapshot.LeaseIn), int64(snapshot.LeaseOut))
+	if err != nil {
+		return err
+	}
+
 	addrID := snapshot.Address.ID()
-	var err error
 	profile, err := a.stor.balances.newestWavesBalance(addrID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
@@ -196,9 +406,18 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSna
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot proto.AssetBalanceSnapshot) error {
-	addrID := snapshot.Address.ID()
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
-	return a.stor.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
+	// for compatibility with the legacy state hashes
+	err := a.addAssetBalanceRecordLegacySH(snapshot.Address, assetID, int64(snapshot.Balance))
+	if err != nil {
+		return err
+	}
+	addrID := snapshot.Address.ID()
+	err = a.stor.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to set asset balance profile for address %q", snapshot.Address.String())
+	}
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
