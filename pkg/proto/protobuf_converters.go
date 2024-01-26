@@ -1545,6 +1545,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		Transactions:          txs,
 		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
 		Signature:             c.signature(mb.Signature),
+		StateHash:             c.stateHash(mb.MicroBlock.StateHash),
 	}
 	if c.err != nil {
 		err := c.err
