@@ -83,3 +83,43 @@ func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.Addresses
 		diffDaoBalance.BalanceInWavesGo, diffDaoBalance.BalanceInWavesScala, diffXtnBalance.BalanceInWavesGo,
 		diffXtnBalance.BalanceInWavesScala), term
 }
+
+type GetTestData func(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
+	height uint64) testdata.RewardDistributionTestData[testdata.RewardDistributionExpectedValues]
+
+func GetRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
+	testdata GetTestData) {
+	// Get reward for 1 block.
+	rewardDistributions, term := GetBlockRewardDistribution(suite, addresses)
+	// Get expected results on current height
+	td := testdata(suite, addresses, utl.GetHeight(suite))
+	// Check results.
+	utl.TermCheck(suite.T(), td.Expected.Term, term.TermGo, term.TermScala)
+	utl.MinersSumDiffBalanceInWavesCheck(suite.T(), td.Expected.MinersSumDiffBalance,
+		rewardDistributions.MinersSumDiffBalance.BalanceInWavesGo,
+		rewardDistributions.MinersSumDiffBalance.BalanceInWavesScala)
+	utl.DaoDiffBalanceInWavesCheck(suite.T(), td.Expected.DaoDiffBalance,
+		rewardDistributions.DAODiffBalance.BalanceInWavesGo,
+		rewardDistributions.DAODiffBalance.BalanceInWavesScala)
+	utl.XtnBuyBackDiffBalanceInWavesCheck(suite.T(), td.Expected.XtnDiffBalance,
+		rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesGo,
+		rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesScala)
+}
+
+func GetRewardInfoAndChecks(suite *f.BaseSuite,
+	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]) {
+	rewardInfoGo, rewardInfoScala := utl.GetRewards(suite)
+	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
+	utl.NextCkeckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
+	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart,
+		rewardInfoScala.VotingIntervalStart)
+}
+
+func GetRewardInfoAtHeightAndChecks(suite *f.BaseSuite,
+	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues], height uint64) {
+	rewardInfoGo, rewardInfoScala := utl.GetRewardsAtHeight(suite, height)
+	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
+	utl.NextCkeckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
+	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart,
+		rewardInfoScala.VotingIntervalStart)
+}
