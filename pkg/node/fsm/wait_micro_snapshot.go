@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
@@ -18,16 +19,21 @@ import (
 type WaitMicroSnapshotState struct {
 	baseInfo                     BaseInfo
 	blocksCache                  blockStatesCache
+	timeoutTaskOutdated          chan<- struct{}
 	microBlockWaitingForSnapshot *proto.MicroBlock
 }
 
-func newWaitMicroSnapshotState(baseInfo BaseInfo, block *proto.MicroBlock, cache blockStatesCache) State {
+func newWaitMicroSnapshotState(baseInfo BaseInfo, micro *proto.MicroBlock, cache blockStatesCache) (State, tasks.Task) {
 	baseInfo.syncPeer.Clear()
-	return &WaitMicroSnapshotState{
+	timeoutTaskOutdated := make(chan struct{})
+	st := &WaitMicroSnapshotState{
 		baseInfo:                     baseInfo,
 		blocksCache:                  cache,
-		microBlockWaitingForSnapshot: block,
+		timeoutTaskOutdated:          timeoutTaskOutdated,
+		microBlockWaitingForSnapshot: micro,
 	}
+	task := tasks.NewMicroBlockSnapshotTimeoutTask(time.Minute, micro.TotalBlockID, timeoutTaskOutdated)
+	return st, task
 }
 
 func (a *WaitMicroSnapshotState) Errorf(err error) error {
@@ -58,6 +64,8 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 		case tasks.BlockSnapshot:
 			return a, nil, nil
 		case tasks.MicroBlockSnapshot:
+			a.microBlockWaitingForSnapshot = nil
+			a.timeoutTaskOutdated = nil
 			return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, a.Errorf(errors.Errorf(
 				"failed to get snapshot for microBlock '%s' - timeout", t.BlockID))
 		default:
@@ -88,6 +96,11 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 		metrics.FSMMicroBlockDeclined("ng", a.microBlockWaitingForSnapshot, err)
 		return a, nil, a.Errorf(err)
 	}
+	defer func() {
+		a.microBlockWaitingForSnapshot = nil
+		close(a.timeoutTaskOutdated)
+		a.timeoutTaskOutdated = nil
+	}()
 	zap.S().Named(logging.FSMNamespace).Debugf(
 		"[%s] Received snapshot for microblock '%s' successfully applied to state", a, block.BlockID(),
 	)
@@ -95,7 +108,6 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	a.blocksCache.AddBlockState(block)
 	a.blocksCache.AddSnapshot(block.BlockID(), snapshot)
 	a.baseInfo.scheduler.Reschedule()
-	a.microBlockWaitingForSnapshot = nil
 	// Notify all connected peers about new microblock, send them microblock inv network message
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
 		//TODO: We have to exclude from recipients peers that already have this microblock

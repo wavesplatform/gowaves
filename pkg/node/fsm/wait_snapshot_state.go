@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
@@ -17,16 +18,21 @@ import (
 type WaitSnapshotState struct {
 	baseInfo                BaseInfo
 	blocksCache             blockStatesCache
+	timeoutTaskOutdated     chan<- struct{}
 	blockWaitingForSnapshot *proto.Block
 }
 
-func newWaitSnapshotState(baseInfo BaseInfo, block *proto.Block, cache blockStatesCache) State {
+func newWaitSnapshotState(baseInfo BaseInfo, block *proto.Block, cache blockStatesCache) (State, tasks.Task) {
 	baseInfo.syncPeer.Clear()
-	return &WaitSnapshotState{
+	timeoutTaskOutdated := make(chan struct{})
+	st := &WaitSnapshotState{
 		baseInfo:                baseInfo,
 		blocksCache:             cache,
+		timeoutTaskOutdated:     timeoutTaskOutdated,
 		blockWaitingForSnapshot: block,
 	}
+	task := tasks.NewBlockSnapshotTimeoutTask(time.Minute, block.BlockID(), timeoutTaskOutdated)
+	return st, task
 }
 
 func (a *WaitSnapshotState) Errorf(err error) error {
@@ -56,6 +62,7 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 		switch t.SnapshotTaskType {
 		case tasks.BlockSnapshot:
 			a.blockWaitingForSnapshot = nil
+			a.timeoutTaskOutdated = nil
 			return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, a.Errorf(errors.Errorf(
 				"failed to get snapshot for block '%s' - timeout", t.BlockID))
 		case tasks.MicroBlockSnapshot:
@@ -89,6 +96,11 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		// metrics.FSMKeyBlockDeclined("ng", block, err)
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
 	}
+	defer func() {
+		a.blockWaitingForSnapshot = nil
+		close(a.timeoutTaskOutdated)
+		a.timeoutTaskOutdated = nil
+	}()
 
 	metrics.FSMKeyBlockApplied("ng", a.blockWaitingForSnapshot)
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Handle received key block message: block '%s' applied to state",
@@ -100,7 +112,6 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
-	a.blockWaitingForSnapshot = nil
 	return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, nil
 }
 

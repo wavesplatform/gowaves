@@ -178,7 +178,7 @@ func NewFuncTask(f func(ctx context.Context, output chan AsyncTask) error, taskT
 type SnapshotTimeoutTaskType int
 
 const (
-	BlockSnapshot SnapshotTimeoutTaskType = iota
+	BlockSnapshot SnapshotTimeoutTaskType = iota + 1
 	MicroBlockSnapshot
 )
 
@@ -191,19 +191,36 @@ func (SnapshotTimeoutTaskData) taskDataMarker() {}
 
 type SnapshotTimeoutTask struct {
 	timeout                 time.Duration
+	outdated                <-chan struct{}
 	SnapshotTimeoutTaskData SnapshotTimeoutTaskData
 }
 
-func NewSnapshotTimeoutTask(
+func NewBlockSnapshotTimeoutTask(
 	timeout time.Duration,
 	blockID proto.BlockID,
-	taskType SnapshotTimeoutTaskType,
+	outdated <-chan struct{},
 ) SnapshotTimeoutTask {
 	return SnapshotTimeoutTask{
-		timeout: timeout,
+		timeout:  timeout,
+		outdated: outdated,
 		SnapshotTimeoutTaskData: SnapshotTimeoutTaskData{
 			BlockID:          blockID,
-			SnapshotTaskType: taskType,
+			SnapshotTaskType: BlockSnapshot,
+		},
+	}
+}
+
+func NewMicroBlockSnapshotTimeoutTask(
+	timeout time.Duration,
+	blockID proto.BlockID,
+	outdated <-chan struct{},
+) SnapshotTimeoutTask {
+	return SnapshotTimeoutTask{
+		timeout:  timeout,
+		outdated: outdated,
+		SnapshotTimeoutTaskData: SnapshotTimeoutTaskData{
+			BlockID:          blockID,
+			SnapshotTaskType: MicroBlockSnapshot,
 		},
 	}
 }
@@ -213,14 +230,22 @@ func (SnapshotTimeoutTask) Type() int {
 }
 
 func (a SnapshotTimeoutTask) Run(ctx context.Context, output chan AsyncTask) error {
+	t := time.NewTimer(a.timeout)
+	defer func() {
+		if !t.Stop() {
+			<-t.C
+		}
+	}()
 	select {
 	case <-ctx.Done():
 		return ctx.Err()
-	case <-time.After(a.timeout):
+	case <-a.outdated:
+		return nil
+	case <-t.C:
 		SendAsyncTask(output, AsyncTask{
 			TaskType: a.Type(),
 			Data:     a.SnapshotTimeoutTaskData,
 		})
+		return nil
 	}
-	return nil
 }
