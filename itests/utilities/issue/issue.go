@@ -1,6 +1,7 @@
 package issue
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -130,18 +131,18 @@ func GetReissuableMatrix(suite *f.BaseSuite, casesCount int) [][]crypto.Digest {
 // getAssetsMatrix issues [len(issueVersions)][casesCount]crypto.Digests assets.
 func getAssetsMatrix(suite *f.BaseSuite, data testdata.IssueTestData[testdata.ExpectedValuesPositive],
 	issueVersions []byte, casesCount int) [][]crypto.Digest {
-	waitForTx := false
+	txIds := make(map[string]*crypto.Digest)
 	matrix := make([][]crypto.Digest, len(issueVersions))
 	for i := 0; i < len(issueVersions); i++ {
 		matrix[i] = make([]crypto.Digest, casesCount)
 		for j := 0; j < casesCount; j++ {
-			if i == len(issueVersions)-1 && j == casesCount-1 {
-				waitForTx = true
-			}
-			itx := SendWithTestData(suite, testdata.DataChangedTimestamp(&data), issueVersions[i], waitForTx)
+			itx := SendWithTestData(suite, testdata.DataChangedTimestamp(&data), issueVersions[i], false)
 			matrix[i][j] = itx.TxID
+			name := fmt.Sprintf("i: %d, j: %d", i, j)
+			txIds[name] = &itx.TxID
 		}
 	}
+	utl.GetTxIdsInBlockchain(suite, txIds)
 	return matrix
 }
 

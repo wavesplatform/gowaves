@@ -582,8 +582,8 @@ func GetActualDiffBalanceInAssets(suite *f.BaseSuite, address proto.WavesAddress
 }
 
 func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest) map[string]string {
-	timeout := 20 * time.Second
-	tick := timeout
+	tick := time.Second
+	timeout := 20 * tick
 	var (
 		ticker      = time.NewTicker(tick)
 		ctx, cancel = context.WithTimeout(context.Background(), timeout)
