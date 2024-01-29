@@ -766,7 +766,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			return errAppendTx
 		}
 		bs.AppendTxSnapshot(txSnapshots.regular)
-
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
 			return idErr
@@ -795,8 +794,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	// clean up legacy state hash records with zero diffs
-	a.stor.balances.filterZeroDiffsSHOut(blockID)
-
+	a.txHandler.sa.filterZeroDiffsSHOut(blockID)
+	// TODO: check snapshot hash with the block snapshot hash if it exists
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
 		return errors.Wrapf(shErr, "failed to save block snapshot hash at height %d", currentBlockHeight)
 	}
