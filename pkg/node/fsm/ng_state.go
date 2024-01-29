@@ -18,10 +18,8 @@ import (
 )
 
 type NGState struct {
-	baseInfo                     BaseInfo
-	blocksCache                  blockStatesCache
-	blockWaitingForSnapshot      *proto.Block
-	microBlockWaitingForSnapshot *proto.MicroBlock
+	baseInfo    BaseInfo
+	blocksCache blockStatesCache
 }
 
 func newNGState(baseInfo BaseInfo) State {
@@ -138,12 +136,6 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 }
 
 func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error) {
-	if a.blockWaitingForSnapshot != nil {
-		return a, nil, a.Errorf(errors.Errorf(
-			"skip block %s, waiting snapshot for block %s",
-			block.BlockID().String(),
-			a.blockWaitingForSnapshot.BlockID().String()))
-	}
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
@@ -230,12 +222,6 @@ func (a *NGState) MinedBlock(
 }
 
 func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async, error) {
-	if a.microBlockWaitingForSnapshot != nil {
-		return a, nil, a.Errorf(errors.Errorf(
-			"skip micro block %s, waiting snapshot for micro block %s",
-			micro.TotalBlockID.String(),
-			a.microBlockWaitingForSnapshot.TotalBlockID.String()))
-	}
 	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
 	if !a.baseInfo.enableLightMode {
 		block, err := a.checkAndAppendMicroBlock(micro, nil) // the TopBlock() is used here
@@ -247,10 +233,12 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 			"[%s] Received microblock '%s' (referencing '%s') successfully applied to state",
 			a, block.BlockID(), micro.Reference,
 		)
-		a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), micro, &proto.BlockSnapshot{})
+		a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), micro, nil)
 		a.blocksCache.AddBlockState(block)
 		return a, nil, nil
 	}
+	pe := extension.NewPeerExtension(p, a.baseInfo.scheme)
+	pe.AskMicroBlockSnapshot(micro.TotalBlockID)
 	st, timeoutTask := newWaitMicroSnapshotState(a.baseInfo, micro, a.blocksCache)
 	return st, tasks.Tasks(timeoutTask), nil
 }
@@ -376,7 +364,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 func (a *NGState) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (State, Async, error) {
 	metrics.MicroBlockInv(inv, p.Handshake().NodeName)
 	// TODO: add logs about microblock request
-	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID.Bytes(), a.baseInfo.enableLightMode)
+	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID.Bytes())
 	if existed {
 		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Microblock inv received: block '%s' already in cache",
 			a, inv.TotalBlockID)
@@ -432,12 +420,9 @@ func (c *blockStatesCache) GetSnapshot(blockID proto.BlockID) (*proto.BlockSnaps
 }
 
 func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseInfo) {
-	var ngSkipMessageList proto.PeerMessageIDs
-	if !info.enableLightMode {
-		ngSkipMessageList = append(ngSkipMessageList, []proto.PeerMessageID{
-			proto.ContentIDMicroBlockSnapshot,
-			proto.ContentIDBlockSnapshot,
-		}...)
+	var ngSkipMessageList = proto.PeerMessageIDs{
+		proto.ContentIDMicroBlockSnapshot,
+		proto.ContentIDBlockSnapshot,
 	}
 	fsm.Configure(NGStateName).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {

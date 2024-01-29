@@ -83,9 +83,6 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	blockID proto.BlockID,
 	snapshot proto.BlockSnapshot,
 ) (State, Async, error) {
-	if a.microBlockWaitingForSnapshot == nil {
-		return a, nil, nil
-	}
 	if a.microBlockWaitingForSnapshot.TotalBlockID != blockID {
 		return a, nil, a.Errorf(errors.Errorf(
 			"New snapshot doesn't match with microBlock %s", a.microBlockWaitingForSnapshot.TotalBlockID))
@@ -142,6 +139,8 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	if err != nil {
 		return nil, err
 	}
+	// TODO: check if light node feature activated + 1000 blocks
+	newBlock.StateHash = micro.StateHash
 	newBlock.BlockSignature = micro.TotalResBlockSigField
 	ok, err = newBlock.VerifySignature(a.baseInfo.scheme)
 	if err != nil {

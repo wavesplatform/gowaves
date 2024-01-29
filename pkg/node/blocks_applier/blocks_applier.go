@@ -61,7 +61,8 @@ func (a *innerBlocksApplier) apply(
 
 	deltaHeight := currentHeight - parentHeight
 	if deltaHeight > maxRollbackDeltaHeight { // max number that we can rollback
-		return 0, errors.Errorf("can't apply new blocks, rollback more than 100 blocks, %d", deltaHeight)
+		return 0, errors.Errorf(
+			"can't apply new blocks, rollback more than %d blocks, %d", maxRollbackDeltaHeight, deltaHeight)
 	}
 
 	// save previously added blocks. If new firstBlock failed to add, then return them back
@@ -160,7 +161,8 @@ func (a *innerBlocksApplier) applyWithSnapshots(
 
 	deltaHeight := currentHeight - parentHeight
 	if deltaHeight > maxRollbackDeltaHeight { // max number that we can rollback
-		return 0, errors.Errorf("can't apply new blocks, rollback more than 100 blocks, %d", deltaHeight)
+		return 0, errors.Errorf(
+			"can't apply new blocks, rollback more than %d blocks, %d", maxRollbackDeltaHeight, deltaHeight)
 	}
 
 	// save previously added blocks. If new firstBlock failed to add, then return them back
@@ -264,9 +266,9 @@ func (a *innerBlocksApplier) applyMicro(
 	_, err = storage.AddDeserializedBlocks([]*proto.Block{block})
 	if err != nil {
 		// return back saved blocks
-		_, err2 := storage.AddDeserializedBlocks([]*proto.Block{currentBlock})
-		if err2 != nil {
-			return 0, errors.Wrap(err2, "failed rollback block")
+		_, errAdd := storage.AddDeserializedBlocks([]*proto.Block{currentBlock})
+		if errAdd != nil {
+			return 0, errors.Wrap(errAdd, "failed rollback block")
 		}
 		return 0, errors.Wrapf(err, "failed apply new block '%s'", block.BlockID().String())
 	}
