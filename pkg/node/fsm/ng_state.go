@@ -233,7 +233,7 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 			"[%s] Received microblock '%s' (referencing '%s') successfully applied to state",
 			a, block.BlockID(), micro.Reference,
 		)
-		a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), micro, nil)
+		a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 		a.blocksCache.AddBlockState(block)
 		return a, nil, nil
 	}
@@ -285,7 +285,7 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to broadcast generated microblock"))
 	}
 
-	a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), micro, nil)
+	a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 	a.baseInfo.MicroBlockInvCache.Add(block.BlockID(), inv)
 
 	return a, tasks.Tasks(tasks.NewMineMicroTask(a.baseInfo.microblockInterval, block, rest, keyPair, vrf)), nil

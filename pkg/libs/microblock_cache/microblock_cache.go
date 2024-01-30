@@ -8,8 +8,8 @@ import (
 const microBlockCacheSize = 24
 
 type microBlockWithSnapshot struct {
-	microBlock *proto.MicroBlock
-	snapshot   *proto.BlockSnapshot
+	microBlock *proto.MicroBlock    // always not nil
+	snapshot   *proto.BlockSnapshot // can be nil
 }
 
 type MicroBlockCache struct {
@@ -20,6 +20,16 @@ func NewMicroBlockCache() *MicroBlockCache {
 	return &MicroBlockCache{
 		cache: fifo_cache.New(microBlockCacheSize),
 	}
+}
+
+func (a *MicroBlockCache) AddMicroBlock(
+	blockID proto.BlockID,
+	micro *proto.MicroBlock,
+) {
+	a.cache.Add2(blockID.Bytes(), &microBlockWithSnapshot{
+		microBlock: micro,
+		snapshot:   nil, // intentionally nil
+	})
 }
 
 func (a *MicroBlockCache) AddMicroBlockWithSnapshot(
@@ -46,7 +56,11 @@ func (a *MicroBlockCache) GetSnapshot(sig proto.BlockID) (*proto.BlockSnapshot, 
 	if !ok {
 		return nil, false
 	}
-	return rs.(*microBlockWithSnapshot).snapshot, true
+	var (
+		snapshot     = rs.(*microBlockWithSnapshot).snapshot
+		existInCache = snapshot != nil
+	)
+	return snapshot, existInCache
 }
 
 type MicroblockInvCache struct {

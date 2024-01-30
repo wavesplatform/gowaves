@@ -32,6 +32,7 @@ type BlocksApplier interface {
 }
 
 type MicroBlockCache interface {
+	AddMicroBlock(blockID proto.BlockID, micro *proto.MicroBlock)
 	AddMicroBlockWithSnapshot(blockID proto.BlockID, micro *proto.MicroBlock, snapshot *proto.BlockSnapshot)
 	GetBlock(sig proto.BlockID) (*proto.MicroBlock, bool)
 	GetSnapshot(sig proto.BlockID) (*proto.BlockSnapshot, bool)
