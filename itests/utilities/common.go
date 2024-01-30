@@ -660,14 +660,28 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 
 	suite.T().Log("Waiting for Tx appears in Blockchain")
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
-	txInfoRawGo, respGo, _ := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
-	suite.T().Logf("Tx Info Go after waiting: %s, Response Go: %s",
-		GetTransactionJsonOrErrMsg(txInfoRawGo), respGo.Status)
-	suite.T().Log(errors.Errorf("Errors after waiting: %s", errGo))
-	txInfoRawScala, respScala, _ := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
-	suite.T().Logf("Tx Info Scala after waiting: %s, Response Scala: %s",
-		GetTransactionJsonOrErrMsg(txInfoRawScala), respScala.Status)
-	suite.T().Log(errors.Errorf("Errors after waiting: %s", errScala))
+	if errGo != nil {
+		suite.T().Log(errors.Errorf("Errors after waiting: %s", errGo))
+	} else {
+		txInfoRawGo, respGo, goRqErr := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
+		if goRqErr != nil {
+			suite.T().Logf("Error on requesting Tx Info Go: %v", goRqErr)
+		} else {
+			suite.T().Logf("Tx Info Go after waiting: %s, Response Go: %s",
+				GetTransactionJsonOrErrMsg(txInfoRawGo), respGo.Status)
+		}
+	}
+	if errScala != nil {
+		suite.T().Log(errors.Errorf("Errors after waiting: %s", errScala))
+	} else {
+		txInfoRawScala, respScala, scalaRqErr := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
+		if scalaRqErr != nil {
+			suite.T().Logf("Error on requesting Tx Info Scala: %v", scalaRqErr)
+		} else {
+			suite.T().Logf("Tx Info Scala after waiting: %s, Response Scala: %s",
+				GetTransactionJsonOrErrMsg(txInfoRawScala), respScala.Status)
+		}
+	}
 	return NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
 }
 
@@ -686,14 +700,28 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 
 	suite.T().Log("Waiting for Tx appears in Blockchain")
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
-	txInfoRawGo, responseGo, _ := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
-	suite.T().Logf("Tx Info Go after waiting: %s, Response Go: %s",
-		GetTransactionJsonOrErrMsg(txInfoRawGo), responseGo.Status)
-	suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtGo))
-	txInfoRawScala, responseScala, _ := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
-	suite.T().Logf("Tx Info Scala after waiting: %s, Response Scala: %s",
-		GetTransactionJsonOrErrMsg(txInfoRawScala), responseScala.Status)
-	suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtScala))
+	if errWtGo != nil {
+		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtGo))
+	} else {
+		txInfoRawGo, responseGo, goRqErr := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
+		if goRqErr != nil {
+			suite.T().Logf("Error on requesting Tx Info Go: %v", goRqErr)
+		} else {
+			suite.T().Logf("Tx Info Go after waiting: %s, Response Go: %s",
+				GetTransactionJsonOrErrMsg(txInfoRawGo), responseGo.Status)
+		}
+	}
+	if errWtScala != nil {
+		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtScala))
+	} else {
+		txInfoRawScala, responseScala, scalaRqErr := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
+		if scalaRqErr != nil {
+			suite.T().Logf("Error on requesting Tx Info Scals: %v", scalaRqErr)
+		} else {
+			suite.T().Logf("Tx Info Scala after waiting: %s, Response Scala: %s",
+				GetTransactionJsonOrErrMsg(txInfoRawScala), responseScala.Status)
+		}
+	}
 	return NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
 }
 
