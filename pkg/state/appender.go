@@ -157,7 +157,7 @@ type appendBlockParams struct {
 	block, parent         *proto.BlockHeader
 	blockchainHeight      proto.Height
 	lastSnapshotStateHash crypto.Digest
-	snapshot              *proto.BlockSnapshot
+	optionalSnapshot      *proto.BlockSnapshot
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -614,36 +614,41 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	return snapshot, nil
 }
 
-func (a *txAppender) applySnapshotsInLightNode(
+func (a *txAppender) applySnapshotInLightNode(
 	params *appendBlockParams,
+	snapshot proto.BlockSnapshot,
 	stateHash crypto.Digest,
 	hasher *txSnapshotHasher,
-) (*proto.BlockSnapshot, crypto.Digest, error) {
+) (crypto.Digest, error) {
+	if len(snapshot.TxSnapshots) != len(params.transactions) { // sanity check
+		return crypto.Digest{}, errors.New("number of tx snapshots doesn't match number of transactions")
+	}
 	blockInfo, errBlockInfo := a.currentBlockInfo()
 	if errBlockInfo != nil {
-		return nil, crypto.Digest{}, errBlockInfo
+		return crypto.Digest{}, errBlockInfo
 	}
-	for i, txs := range params.snapshot.TxSnapshots {
-		txID, idErr := params.transactions[i].GetID(a.settings.AddressSchemeCharacter)
+	for i, txs := range snapshot.TxSnapshots {
+		tx := params.transactions[i]
+		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
-			return nil, crypto.Digest{}, idErr
+			return crypto.Digest{}, idErr
 		}
 		if len(txs) == 0 { // sanity check
-			return nil, crypto.Digest{}, errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
+			return crypto.Digest{}, errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
 		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, txs)
 		if shErr != nil {
-			return nil, crypto.Digest{}, errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
+			return crypto.Digest{}, errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
 				base58.Encode(txID), blockInfo.Height,
 			)
 		}
 		stateHash = txSh
 		regSnapshots := txSnapshot{regular: txs}
-		if err := regSnapshots.Apply(a.txHandler.sa, params.transactions[i], false); err != nil {
-			return nil, crypto.Digest{}, errors.Wrap(err, "failed to apply tx snapshot")
+		if err := regSnapshots.Apply(a.txHandler.sa, tx, false); err != nil {
+			return crypto.Digest{}, errors.Wrap(err, "failed to apply tx snapshot")
 		}
 	}
-	return params.snapshot, stateHash, nil
+	return stateHash, nil
 }
 
 func (a *txAppender) appendTxs(
@@ -651,26 +656,26 @@ func (a *txAppender) appendTxs(
 	info *checkerInfo,
 	stateHash crypto.Digest,
 	hasher *txSnapshotHasher,
-) (*proto.BlockSnapshot, crypto.Digest, error) {
+) (proto.BlockSnapshot, crypto.Digest, error) {
 	blockInfo, errBlockInfo := a.currentBlockInfo()
 	if errBlockInfo != nil {
-		return nil, crypto.Digest{}, errBlockInfo
+		return proto.BlockSnapshot{}, crypto.Digest{}, errBlockInfo
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
-		return nil, crypto.Digest{}, err
+		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
 	consensusImprovementsActivated, err := a.stor.features.newestIsActivated(int16(settings.ConsensusImprovements))
 	if err != nil {
-		return nil, crypto.Digest{}, err
+		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
 	blockRewardDistributionActivated, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
 	if err != nil {
-		return nil, crypto.Digest{}, err
+		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
 	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
 	if err != nil {
-		return nil, crypto.Digest{}, err
+		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
@@ -692,27 +697,28 @@ func (a *txAppender) appendTxs(
 	for _, tx := range params.transactions {
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
-			return nil, crypto.Digest{}, errAppendTx
+			return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
 		}
 		bs.AppendTxSnapshot(txSnapshots.regular)
 
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
-			return nil, crypto.Digest{}, idErr
+			return proto.BlockSnapshot{}, crypto.Digest{}, idErr
 		}
 
 		if len(txSnapshots.regular) == 0 { // sanity check
-			return nil, crypto.Digest{}, errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
+			return proto.BlockSnapshot{}, crypto.Digest{},
+				errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
 		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, txSnapshots.regular)
 		if shErr != nil {
-			return nil, crypto.Digest{}, errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
-				base58.Encode(txID), blockInfo.Height,
+			return proto.BlockSnapshot{}, crypto.Digest{}, errors.Wrapf(shErr,
+				"failed to calculate tx snapshot hash for txID %q at height %d", base58.Encode(txID), blockInfo.Height,
 			)
 		}
 		stateHash = txSh // update stateHash in order to accumulate state hashes into block snapshot hash
 	}
-	return &bs, stateHash, nil
+	return bs, stateHash, nil
 }
 
 func calculateInitialSnapshotStateHash(
@@ -768,11 +774,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
-	var blockSnapshots *proto.BlockSnapshot
-	if params.snapshot != nil {
-		blockSnapshots, stateHash, err = a.applySnapshotsInLightNode(params, stateHash, hasher)
+	var blockSnapshot proto.BlockSnapshot
+	if params.optionalSnapshot != nil {
+		blockSnapshot = *params.optionalSnapshot
+		stateHash, err = a.applySnapshotInLightNode(params, blockSnapshot, stateHash, hasher)
 	} else {
-		blockSnapshots, stateHash, err = a.appendTxs(params, checkerInfo, stateHash, hasher)
+		blockSnapshot, stateHash, err = a.appendTxs(params, checkerInfo, stateHash, hasher)
 	}
 	if err != nil {
 		return err
@@ -785,7 +792,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	blockID := params.block.BlockID()
-	if ssErr := a.stor.snapshots.saveSnapshots(blockID, currentBlockHeight, *blockSnapshots); ssErr != nil {
+	if ssErr := a.stor.snapshots.saveSnapshots(blockID, currentBlockHeight, blockSnapshot); ssErr != nil {
 		return ssErr
 	}
 	// clean up legacy state hash records with zero diffs
