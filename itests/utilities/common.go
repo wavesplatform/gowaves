@@ -689,11 +689,15 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 	txInfoRawGo, responseGo, _ := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
 	suite.T().Logf("Tx Info Go after waiting: %s, Response Go: %s",
 		GetTransactionJsonOrErrMsg(txInfoRawGo), responseGo.Status)
-	suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtGo))
+	if errWtGo != nil {
+		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtGo))
+	}
 	txInfoRawScala, responseScala, _ := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
 	suite.T().Logf("Tx Info Scala after waiting: %s, Response Scala: %s",
 		GetTransactionJsonOrErrMsg(txInfoRawScala), responseScala.Status)
-	suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtScala))
+	if errWtScala != nil {
+		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtScala))
+	}
 	return NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
 }
 
