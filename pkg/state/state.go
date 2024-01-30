@@ -346,9 +346,8 @@ func (n *newBlocks) current() (*proto.Block, *proto.BlockSnapshot, error) {
 			block            = n.blocks[pos]
 			optionalSnapshot *proto.BlockSnapshot
 		)
-		if len(n.snapshots) == len(n.blocks) { // return snapshot if it is set
+		if len(n.snapshots) == len(n.blocks) { // return block with snapshot if it is set
 			optionalSnapshot = n.snapshots[pos]
-			return block, optionalSnapshot, nil
 		}
 		return block, optionalSnapshot, nil
 	}
