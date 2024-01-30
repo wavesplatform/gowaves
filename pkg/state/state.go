@@ -626,7 +626,7 @@ func (s *stateManager) addGenesisBlock() error {
 }
 
 func (s *stateManager) applyPreActivatedFeatures(
-	features []int16, featuresActivationHeights []settings.FeatureActionHeight, blockID proto.BlockID,
+	features []int16, featuresActivationHeights map[int16]uint64, blockID proto.BlockID,
 ) error {
 	for _, featureID := range features {
 		approvalRequest := &approvedFeaturesRecord{1}
@@ -638,13 +638,13 @@ func (s *stateManager) applyPreActivatedFeatures(
 			return err
 		}
 	}
-	for _, fah := range featuresActivationHeights {
-		approvalRequest := &approvedFeaturesRecord{approvalHeight: fah.Height}
-		if err := s.stor.features.approveFeature(fah.ID, approvalRequest, blockID); err != nil {
+	for f, h := range featuresActivationHeights {
+		approvalRequest := &approvedFeaturesRecord{approvalHeight: h}
+		if err := s.stor.features.approveFeature(f, approvalRequest, blockID); err != nil {
 			return err
 		}
-		activationRequest := &activatedFeaturesRecord{activationHeight: fah.Height}
-		if err := s.stor.features.activateFeature(fah.ID, activationRequest, blockID); err != nil {
+		activationRequest := &activatedFeaturesRecord{activationHeight: h}
+		if err := s.stor.features.activateFeature(f, activationRequest, blockID); err != nil {
 			return err
 		}
 	}

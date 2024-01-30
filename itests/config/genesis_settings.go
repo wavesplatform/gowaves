@@ -263,9 +263,9 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	if err != nil {
 		return nil, nil, err
 	}
-	cfg.PreactivatedFeaturesAtHeights = make([]settings.FeatureActionHeight, len(preactivatedFeatures))
-	for i, f := range preactivatedFeatures {
-		cfg.PreactivatedFeaturesAtHeights[i] = settings.FeatureActionHeight{ID: f.Feature, Height: f.Height}
+	cfg.PreactivatedFeaturesAtHeights = make(map[int16]uint64, len(preactivatedFeatures))
+	for _, f := range preactivatedFeatures {
+		cfg.PreactivatedFeaturesAtHeights[f.Feature] = f.Height
 	}
 
 	return &config{
