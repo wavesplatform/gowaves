@@ -263,10 +263,12 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	if err != nil {
 		return nil, nil, err
 	}
-	cfg.PreactivatedFeaturesAtHeights = make([]settings.FeatureActionHeight, len(preactivatedFeatures))
-	for i, f := range preactivatedFeatures {
-		cfg.PreactivatedFeaturesAtHeights[i] = settings.FeatureActionHeight{ID: f.Feature, Height: f.Height}
+
+	featsAtHeights := make(map[uint64][]int16)
+	for _, f := range preactivatedFeatures {
+		featsAtHeights[f.Height] = append(featsAtHeights[f.Height], f.Feature)
 	}
+	cfg.PreactivatedFeaturesAtHeights = featsAtHeights
 
 	return &config{
 		BlockchainSettings: &cfg,

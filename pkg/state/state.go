@@ -482,17 +482,22 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	// 0 state height means that no blocks are found in state, so blockchain history is empty and we have to add genesis
 	if height == 0 {
 		// Assign unique block number for this block ID, add this number to the list of valid blocks
-		if err := state.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
+		genesisBlockID := settings.Genesis.BlockID()
+		if err := state.stateDB.addBlock(genesisBlockID); err != nil {
 			return nil, err
 		}
 		if err := state.addGenesisBlock(); err != nil {
 			return nil, errors.Wrap(err, "failed to apply/save genesis")
 		}
 		// We apply pre-activated features after genesis block, so they aren't active in genesis itself
-		if err := state.applyPreActivatedFeatures(settings.PreactivatedFeatures, settings.PreactivatedFeaturesAtHeights,
-			settings.Genesis.BlockID()); err != nil {
+		if err := state.applyPreActivatedFeatures(settings.PreactivatedFeatures, genesisBlockID, 1); err != nil {
 			return nil, errors.Wrap(err, "failed to apply pre-activated features")
 		}
+		// Flush all changes to the database.
+		if err := state.flush(); err != nil {
+			return nil, errors.Wrap(err, "failed to flush genesis block changes")
+		}
+		state.reset() // Reset the current state
 	}
 
 	// check the correct blockchain is being loaded
@@ -625,33 +630,29 @@ func (s *stateManager) addGenesisBlock() error {
 	return nil
 }
 
-func (s *stateManager) applyPreActivatedFeatures(
-	features []int16, featuresActivationHeights []settings.FeatureActionHeight, blockID proto.BlockID,
-) error {
+func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto.BlockID, height proto.Height) error {
 	for _, featureID := range features {
-		approvalRequest := &approvedFeaturesRecord{1}
-		if err := s.stor.features.approveFeature(featureID, approvalRequest, blockID); err != nil {
-			return err
+		featuresIsApproved, apprErr := s.stor.features.newestIsApproved(featureID)
+		if apprErr != nil {
+			return apprErr
 		}
-		activationRequest := &activatedFeaturesRecord{1}
-		if err := s.stor.features.activateFeature(featureID, activationRequest, blockID); err != nil {
-			return err
+		if !featuresIsApproved {
+			approvalRequest := &approvedFeaturesRecord{height}
+			if err := s.stor.features.approveFeature(featureID, approvalRequest, blockID); err != nil {
+				return err
+			}
+		}
+		featuresIsActivated, actErr := s.stor.features.newestIsActivated(featureID)
+		if actErr != nil {
+			return actErr
+		}
+		if !featuresIsActivated {
+			activationRequest := &activatedFeaturesRecord{height}
+			if err := s.stor.features.activateFeature(featureID, activationRequest, blockID); err != nil {
+				return err
+			}
 		}
 	}
-	for _, fah := range featuresActivationHeights {
-		approvalRequest := &approvedFeaturesRecord{approvalHeight: fah.Height}
-		if err := s.stor.features.approveFeature(fah.ID, approvalRequest, blockID); err != nil {
-			return err
-		}
-		activationRequest := &activatedFeaturesRecord{activationHeight: fah.Height}
-		if err := s.stor.features.activateFeature(fah.ID, activationRequest, blockID); err != nil {
-			return err
-		}
-	}
-	if err := s.flush(); err != nil {
-		return err
-	}
-	s.reset()
 	return nil
 }
 
@@ -1344,6 +1345,12 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		if rvErr := s.stor.features.resetVotes(nextBlock); rvErr != nil {
 			return rvErr
 		}
+	}
+	// Apply pre-activated features at the preconfigured height
+	nextBlockHeight := blockchainHeight + 1
+	feats := s.settings.PreactivatedFeaturesAtHeights[nextBlockHeight]
+	if fErr := s.applyPreActivatedFeatures(feats, nextBlock, nextBlockHeight); fErr != nil {
+		return fErr
 	}
 
 	needToRecalculate, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)

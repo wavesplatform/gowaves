@@ -45,12 +45,12 @@ type FeatureActionHeight struct {
 
 type FunctionalitySettings struct {
 	// Features.
-	FeaturesVotingPeriod              uint64                `json:"features_voting_period"`
-	VotesForFeatureActivation         uint64                `json:"votes_for_feature_activation"`
-	PreactivatedFeatures              []int16               `json:"preactivated_features"`
-	PreactivatedFeaturesAtHeights     []FeatureActionHeight `json:"preactivated_features_at_heights"`
-	DoubleFeaturesPeriodsAfterHeight  uint64                `json:"double_features_periods_after_height"`
-	SponsorshipSingleActivationPeriod bool                  `json:"sponsorship_single_activation_period"`
+	FeaturesVotingPeriod              uint64             `json:"features_voting_period"`
+	VotesForFeatureActivation         uint64             `json:"votes_for_feature_activation"`
+	PreactivatedFeatures              []int16            `json:"preactivated_features"`
+	PreactivatedFeaturesAtHeights     map[uint64][]int16 `json:"preactivated_features_at_heights"`
+	DoubleFeaturesPeriodsAfterHeight  uint64             `json:"double_features_periods_after_height"`
+	SponsorshipSingleActivationPeriod bool               `json:"sponsorship_single_activation_period"`
 
 	// Heights when some rules change.
 	GenerationBalanceDepthFrom50To1000AfterHeight uint64 `json:"generation_balance_depth_from_50_to_1000_after_height"`
