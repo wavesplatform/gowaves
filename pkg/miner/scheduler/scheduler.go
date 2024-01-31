@@ -6,6 +6,8 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -14,7 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/cancellable"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
-	"go.uber.org/zap"
 )
 
 type Emit struct {
@@ -41,24 +42,41 @@ type Default struct {
 }
 
 type internal interface {
-	schedule(state state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error)
+	schedule(
+		state state.StateInfo,
+		keyPairs []proto.KeyPair,
+		sets *settings.BlockchainSettings,
+		confirmedBlock *proto.Block,
+		confirmedBlockHeight uint64,
+	) ([]Emit, error)
 }
 
-type internalImpl struct {
-}
+type internalImpl struct{}
 
-func (a internalImpl) schedule(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+func (a internalImpl) schedule(
+	storage state.StateInfo,
+	keyPairs []proto.KeyPair,
+	sets *settings.BlockchainSettings,
+	confirmedBlock *proto.Block,
+	confirmedBlockHeight uint64,
+) ([]Emit, error) {
 	vrfActivated, err := storage.IsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get vrfActivated")
 	}
 	if vrfActivated {
-		return a.scheduleWithVrf(storage, keyPairs, schema, AverageBlockDelaySeconds, MinBlockTime, DelayDelta, confirmedBlock, confirmedBlockHeight)
+		return a.scheduleWithVrf(storage, keyPairs, sets, confirmedBlock, confirmedBlockHeight)
 	}
-	return a.scheduleWithoutVrf(storage, keyPairs, schema, AverageBlockDelaySeconds, MinBlockTime, DelayDelta, confirmedBlock, confirmedBlockHeight)
+	return a.scheduleWithoutVrf(storage, keyPairs, sets, confirmedBlock, confirmedBlockHeight)
 }
 
-func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+func (a internalImpl) scheduleWithVrf(
+	storage state.StateInfo,
+	keyPairs []proto.KeyPair,
+	sets *settings.BlockchainSettings,
+	confirmedBlock *proto.Block,
+	confirmedBlockHeight uint64,
+) ([]Emit, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParentHeight := confirmedBlockHeight - 2
@@ -81,7 +99,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 	pos := consensus.NXTPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
-			pos = consensus.NewFairPosCalculator(DelayDelta, MinBlockTime)
+			pos = consensus.NewFairPosCalculator(sets.DelayDelta, sets.MinBlockTime)
 		} else {
 			pos = consensus.FairPosCalculatorV1
 		}
@@ -92,6 +110,8 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 	}
 
 	heightForHit := pos.HeightForHit(confirmedBlockHeight)
+
+	startHeight, endHeight := sets.RangeForGeneratingBalanceByHeight(confirmedBlockHeight)
 
 	zap.S().Debugf("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d",
 		confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight,
@@ -129,16 +149,13 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 			continue
 		}
 
-		addr, err := keyPair.Addr(schema)
+		addr, err := keyPair.Addr(sets.AddressSchemeCharacter)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to schedule mining, failed to create address from PK: %v", err)
 			continue
 		}
-		var startHeight proto.Height = 1
-		if confirmedBlockHeight > 1000 {
-			startHeight = confirmedBlockHeight - 1000 + 1
-		}
-		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
+
+		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, endHeight)
 		if err != nil {
 			zap.S().Debugf(
 				"Scheduler: Failed to schedule mining for address %q, failed to calculate effective balance with startHeight=%d: %v",
@@ -153,7 +170,7 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 		}
 
 		baseTarget, err := pos.CalculateBaseTarget(
-			AverageBlockDelaySeconds,
+			sets.AverageBlockDelaySeconds,
 			confirmedBlockHeight,
 			confirmedBlock.BlockHeader.BaseTarget,
 			confirmedBlock.Timestamp,
@@ -180,7 +197,13 @@ func (a internalImpl) scheduleWithVrf(storage state.StateInfo, keyPairs []proto.
 	return out, nil
 }
 
-func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+func (a internalImpl) scheduleWithoutVrf(
+	storage state.StateInfo,
+	keyPairs []proto.KeyPair,
+	sets *settings.BlockchainSettings,
+	confirmedBlock *proto.Block,
+	confirmedBlockHeight uint64,
+) ([]Emit, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParentHeight := confirmedBlockHeight - 2
@@ -203,7 +226,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 	pos := consensus.NXTPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
-			pos = consensus.NewFairPosCalculator(DelayDelta, MinBlockTime)
+			pos = consensus.NewFairPosCalculator(sets.DelayDelta, sets.MinBlockTime)
 		} else {
 			pos = consensus.FairPosCalculatorV1
 		}
@@ -217,6 +240,8 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		zap.S().Errorf("Scheduler: Failed to get header by height %d for hit: %v", heightForHit, err)
 		return nil, err
 	}
+
+	startHeight, endHeight := sets.RangeForGeneratingBalanceByHeight(confirmedBlockHeight)
 
 	zap.S().Debugf("Scheduling generation on top of block (%d) '%s'", confirmedBlockHeight, confirmedBlock.BlockID().String())
 	zap.S().Debugf("  block timestamp: %d (%s)", confirmedBlock.Timestamp, common.UnixMillisToTime(int64(confirmedBlock.Timestamp)).String())
@@ -242,16 +267,13 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 			continue
 		}
 
-		addr, err := proto.NewAddressFromPublicKey(schema, pk)
+		addr, err := proto.NewAddressFromPublicKey(sets.AddressSchemeCharacter, pk)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to create new address from PK %q: %v", pk.String(), err)
 			continue
 		}
-		var startHeight proto.Height = 1
-		if confirmedBlockHeight > 1000 {
-			startHeight = confirmedBlockHeight - 1000 + 1
-		}
-		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, confirmedBlockHeight)
+
+		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, endHeight)
 		if err != nil {
 			zap.S().Debugf("Scheduler: Failed to get effective balance for address %q from startHeight=%d: %v",
 				addr.String(), startHeight, err,
@@ -268,7 +290,7 @@ func (a internalImpl) scheduleWithoutVrf(storage state.StateInfo, keyPairs []pro
 		}
 
 		baseTarget, err := pos.CalculateBaseTarget(
-			AverageBlockDelaySeconds,
+			sets.AverageBlockDelaySeconds,
 			confirmedBlockHeight,
 			confirmedBlock.BlockHeader.BaseTarget,
 			confirmedBlock.Timestamp,
@@ -395,7 +417,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 	}
 
 	rs, err := a.storage.MapR(func(info state.StateInfo) (i interface{}, err error) {
-		return a.internal.schedule(info, keyPairs, a.settings.AddressSchemeCharacter, a.settings.AverageBlockDelaySeconds, a.settings.MinBlockTime, a.settings.DelayDelta, confirmedBlock, confirmedBlockHeight)
+		return a.internal.schedule(info, keyPairs, a.settings, confirmedBlock, confirmedBlockHeight)
 	})
 	if err != nil {
 		zap.S().Errorf("Scheduler: Failed to schedule: %v", err)

@@ -161,6 +161,23 @@ func (f *FunctionalitySettings) XTNBuybackAddress(isXTNBuyBackCessationActivated
 	return proto.WavesAddress{}, false
 }
 
+func (f *FunctionalitySettings) RangeForGeneratingBalanceByHeight(height proto.Height) (uint64, uint64) {
+	// Depth for generating balance calculation (in number of blocks).
+	const (
+		firstDepth  = 50
+		secondDepth = 1000
+	)
+	depth := uint64(firstDepth)
+	if height >= f.GenerationBalanceDepthFrom50To1000AfterHeight {
+		depth = secondDepth
+	}
+	bottomLimit := height - depth + 1
+	if height < depth {
+		bottomLimit = 1
+	}
+	return bottomLimit, height
+}
+
 type BlockchainSettings struct {
 	FunctionalitySettings
 	Type    BlockchainType `json:"type"`

@@ -4,14 +4,22 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 type mockInternal struct {
 }
 
-func (a mockInternal) schedule(state state.StateInfo, keyPairs []proto.KeyPair, schema proto.Scheme, AverageBlockDelaySeconds uint64, MinBlockTime float64, DelayDelta uint64, confirmedBlock *proto.Block, confirmedBlockHeight uint64) ([]Emit, error) {
+func (a mockInternal) schedule(
+	state.StateInfo,
+	[]proto.KeyPair,
+	*settings.BlockchainSettings,
+	*proto.Block,
+	uint64,
+) ([]Emit, error) {
 	return nil, nil
 }
 
