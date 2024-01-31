@@ -13,9 +13,6 @@ import (
 )
 
 const (
-	// Depth for generating balance calculation (in number of blocks).
-	firstDepth  = 50
-	secondDepth = 1000
 	// Maximum forward offset (to the future) for block timestamps.
 	// In milliseconds.
 	maxTimeDrift = 100
@@ -116,18 +113,6 @@ func (cv *Validator) headerByHeight(height uint64) (*proto.BlockHeader, error) {
 	return &cv.headers[height-cv.startHeight-1], nil
 }
 
-func (cv *Validator) RangeForGeneratingBalanceByHeight(height uint64) (uint64, uint64) {
-	depth := uint64(firstDepth)
-	if height >= cv.settings.GenerationBalanceDepthFrom50To1000AfterHeight {
-		depth = secondDepth
-	}
-	bottomLimit := height - depth + 1
-	if height < depth {
-		bottomLimit = 1
-	}
-	return bottomLimit, height
-}
-
 func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) ([]byte, error) {
 	hs, _, _, _, err := cv.generateAndCheckNextHitSource(height, &header)
 	if err != nil {
@@ -223,7 +208,7 @@ func (cv *Validator) validateEffectiveBalance(header *proto.BlockHeader, balance
 }
 
 func (cv *Validator) generatingBalance(height uint64, addr proto.WavesAddress) (uint64, error) {
-	start, end := cv.RangeForGeneratingBalanceByHeight(height)
+	start, end := cv.settings.RangeForGeneratingBalanceByHeight(height)
 	balance, err := cv.state.NewestEffectiveBalance(proto.NewRecipientFromAddress(addr), start, end)
 	if err != nil {
 		return 0, err
