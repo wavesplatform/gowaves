@@ -981,7 +981,7 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error
 	if err != nil {
 		return 0, errs.Extend(err, "failed to get height")
 	}
-	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
+	start, end := s.settings.RangeForGeneratingBalanceByHeight(height)
 	return s.EffectiveBalance(account, start, end)
 }
 
@@ -990,7 +990,7 @@ func (s *stateManager) NewestGeneratingBalance(account proto.Recipient) (uint64,
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
+	start, end := s.settings.RangeForGeneratingBalanceByHeight(height)
 	return s.NewestEffectiveBalance(account, start, end)
 }
 
@@ -999,7 +999,7 @@ func (s *stateManager) newestGeneratingBalance(id proto.AddressID) (uint64, erro
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
+	start, end := s.settings.RangeForGeneratingBalanceByHeight(height)
 	effectiveBalance, err := s.stor.balances.newestMinEffectiveBalanceInRange(id, start, end)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
