@@ -17,8 +17,8 @@ const (
 	// In milliseconds.
 	maxTimeDrift = 100
 
-	minimalEffectiveBalanceForGenerator1 = uint64(1000000000000)
-	minimalEffectiveBalanceForGenerator2 = uint64(100000000000)
+	generatingBalanceForGenerator1 = uint64(1000000000000)
+	generatingBalanceForGenerator2 = uint64(100000000000)
 )
 
 // Invalid blocks that are already in blockchain.
@@ -38,7 +38,7 @@ func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 type stateInfoProvider interface {
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	NewestHitSourceAtHeight(height uint64) ([]byte, error)
-	NewestEffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
+	NewestGeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error)
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	NewestActivationHeight(featureID int16) (uint64, error)
 	NewestAccountHasScript(addr proto.WavesAddress) (bool, error)
@@ -187,7 +187,7 @@ func (cv *Validator) ValidateHeadersBatch(headers []proto.BlockHeader, startHeig
 	return nil
 }
 
-func (cv *Validator) validateEffectiveBalance(header *proto.BlockHeader, balance, height uint64) error {
+func (cv *Validator) validateGeneratingBalance(header *proto.BlockHeader, balance, height uint64) error {
 	if header.Timestamp < cv.settings.MinimalGeneratingBalanceCheckAfterTime {
 		return nil
 	}
@@ -196,24 +196,20 @@ func (cv *Validator) validateEffectiveBalance(header *proto.BlockHeader, balance
 		return err
 	}
 	if smallerGeneratingBalance {
-		if balance < minimalEffectiveBalanceForGenerator2 {
-			return errors.Errorf("generator's effective balance is less than required for generation: expected %d, found %d", minimalEffectiveBalanceForGenerator2, balance)
+		if balance < generatingBalanceForGenerator2 {
+			return errors.Errorf(
+				"generator's generating balance is less than required for generation: expected %d, found %d",
+				generatingBalanceForGenerator2, balance,
+			)
 		}
 		return nil
 	}
-	if balance < minimalEffectiveBalanceForGenerator1 {
-		return errors.Errorf("generator's effective balance is less than required for generation: expected %d, %d", minimalEffectiveBalanceForGenerator1, balance)
+	if balance < generatingBalanceForGenerator1 {
+		return errors.Errorf("generator's generating balance is less than required for generation: expected %d, %d",
+			generatingBalanceForGenerator1, balance,
+		)
 	}
 	return nil
-}
-
-func (cv *Validator) generatingBalance(height uint64, addr proto.WavesAddress) (uint64, error) {
-	start, end := cv.settings.RangeForGeneratingBalanceByHeight(height)
-	balance, err := cv.state.NewestEffectiveBalance(proto.NewRecipientFromAddress(addr), start, end)
-	if err != nil {
-		return 0, err
-	}
-	return balance, nil
 }
 
 func (cv *Validator) minerGeneratingBalance(height uint64, header *proto.BlockHeader) (uint64, error) {
@@ -221,7 +217,8 @@ func (cv *Validator) minerGeneratingBalance(height uint64, header *proto.BlockHe
 	if err != nil {
 		return 0, err
 	}
-	return cv.generatingBalance(height, minerAddr)
+	account := proto.NewRecipientFromAddress(minerAddr)
+	return cv.state.NewestGeneratingBalance(account, height)
 }
 
 func (cv *Validator) validBlockVersionAtHeight(blockchainHeight uint64) (proto.BlockVersion, error) {
@@ -390,7 +387,7 @@ func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, head
 	if !isVRF {
 		prevHitSource, err := cv.state.NewestHitSourceAtHeight(pos.HeightForHit(height))
 		if err != nil {
-			return errors.Wrap(err, "failed to validate generation signature")
+			return errors.Wrap(err, "failed to validate generation signature at height")
 		}
 		hitSource, err = gsp.HitSource(header.GeneratorPublicKey, prevHitSource)
 		if err != nil {
@@ -402,20 +399,20 @@ func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, head
 	}
 	parent, err := cv.headerByHeight(height)
 	if err != nil {
-		return errors.Errorf("failed to get parent by height: %v\n", err)
+		return errors.Wrapf(err, "failed to get parent by height %d", height)
 	}
-	effectiveBalance, err := cv.minerGeneratingBalance(height, header)
+	generatingBalance, err := cv.minerGeneratingBalance(height, header)
 	if err != nil {
-		return errors.Errorf("failed to get effective balance: %v\n", err)
+		return errors.Wrap(err, "failed to get effective balance")
 	}
-	if err := cv.validateEffectiveBalance(header, effectiveBalance, height); err != nil {
-		return errors.Errorf("invalid generating balance at height %d: %v\n", height, err)
+	if gbErr := cv.validateGeneratingBalance(header, generatingBalance, height); gbErr != nil {
+		return errors.Wrapf(gbErr, "invalid generating balance at height %d", height)
 	}
 	hit, err := GenHit(hitSource)
 	if err != nil {
 		return err
 	}
-	delay, err := pos.CalculateDelay(hit, parent.BaseTarget, effectiveBalance)
+	delay, err := pos.CalculateDelay(hit, parent.BaseTarget, generatingBalance)
 	if err != nil {
 		return errors.Wrap(err, "failed to calculate valid block delay")
 	}

@@ -27,7 +27,7 @@ type balancesTestObjects struct {
 
 func createBalances(t *testing.T) *balancesTestObjects {
 	stor := createStorageObjects(t, true)
-	balances, err := newBalances(stor.db, stor.hs, stor.entities.assets, proto.MainNetScheme, true)
+	balances, err := newBalances(stor.db, stor.hs, stor.entities.assets, stor.settings, true)
 	require.NoError(t, err)
 	return &balancesTestObjects{stor, balances}
 }
