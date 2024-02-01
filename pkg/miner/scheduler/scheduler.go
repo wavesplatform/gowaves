@@ -111,8 +111,6 @@ func (a internalImpl) scheduleWithVrf(
 
 	heightForHit := pos.HeightForHit(confirmedBlockHeight)
 
-	startHeight, endHeight := sets.RangeForGeneratingBalanceByHeight(confirmedBlockHeight)
-
 	zap.S().Debugf("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d",
 		confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight,
 	)
@@ -155,15 +153,14 @@ func (a internalImpl) scheduleWithVrf(
 			continue
 		}
 
-		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, endHeight)
+		generatingBalance, err := storage.GeneratingBalance(proto.NewRecipientFromAddress(addr), confirmedBlockHeight)
 		if err != nil {
-			zap.S().Debugf(
-				"Scheduler: Failed to schedule mining for address %q, failed to calculate effective balance with startHeight=%d: %v",
-				addr.String(), startHeight, err)
+			zap.S().Debugf("Scheduler: Failed to get generating balance for address %q on height=%d: %v",
+				addr.String(), confirmedBlockHeight, err)
 			continue
 		}
 
-		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
+		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, generatingBalance)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to schedule mining for address %q, failed to calculate delay: %v", addr.String(), err)
 			continue
@@ -241,8 +238,6 @@ func (a internalImpl) scheduleWithoutVrf(
 		return nil, err
 	}
 
-	startHeight, endHeight := sets.RangeForGeneratingBalanceByHeight(confirmedBlockHeight)
-
 	zap.S().Debugf("Scheduling generation on top of block (%d) '%s'", confirmedBlockHeight, confirmedBlock.BlockID().String())
 	zap.S().Debugf("  block timestamp: %d (%s)", confirmedBlock.Timestamp, common.UnixMillisToTime(int64(confirmedBlock.Timestamp)).String())
 	zap.S().Debugf("  block base target: %d", confirmedBlock.BaseTarget)
@@ -273,18 +268,18 @@ func (a internalImpl) scheduleWithoutVrf(
 			continue
 		}
 
-		effectiveBalance, err := storage.EffectiveBalance(proto.NewRecipientFromAddress(addr), startHeight, endHeight)
+		generatingBalance, err := storage.GeneratingBalance(proto.NewRecipientFromAddress(addr), confirmedBlockHeight)
 		if err != nil {
-			zap.S().Debugf("Scheduler: Failed to get effective balance for address %q from startHeight=%d: %v",
-				addr.String(), startHeight, err,
+			zap.S().Debugf("Scheduler: Failed to get generating balance for address %q on height=%d: %v",
+				addr.String(), confirmedBlockHeight, err,
 			)
 			continue
 		}
 
-		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, effectiveBalance)
+		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, generatingBalance)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to calculate delay for address %q with effective balance %d: %v",
-				addr, effectiveBalance, err,
+				addr, generatingBalance, err,
 			)
 			continue
 		}
@@ -304,7 +299,7 @@ func (a internalImpl) scheduleWithoutVrf(
 		ts := confirmedBlock.Timestamp + delay
 		zap.S().Debugf("  %s (%s): ", addr.String(), pk.String())
 		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
-		zap.S().Debugf("    Generation Balance: %d", int(effectiveBalance))
+		zap.S().Debugf("    Generation Balance: %d", int(generatingBalance))
 		zap.S().Debugf("    Delay: %d", int(delay))
 		zap.S().Debugf("    Timestamp: %d (%s)", int(ts), common.UnixMillisToTime(int64(ts)).String())
 		out = append(out, Emit{

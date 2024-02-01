@@ -187,10 +187,16 @@ type balances struct {
 	leaseHashes       map[proto.BlockID]crypto.Digest
 
 	calculateHashes bool
-	scheme          proto.Scheme
+	sets            *settings.BlockchainSettings
 }
 
-func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInfoGetter, scheme proto.Scheme, calcHashes bool) (*balances, error) {
+func newBalances(
+	db keyvalue.IterableKeyVal,
+	hs *historyStorage,
+	assets assetInfoGetter,
+	sets *settings.BlockchainSettings,
+	calcHashes bool,
+) (*balances, error) {
 	emptyHash, err := crypto.FastHash(nil)
 	if err != nil {
 		return nil, err
@@ -200,7 +206,7 @@ func newBalances(db keyvalue.IterableKeyVal, hs *historyStorage, assets assetInf
 		hs:                hs,
 		assets:            assets,
 		calculateHashes:   calcHashes,
-		scheme:            scheme,
+		sets:              sets,
 		emptyHash:         emptyHash,
 		wavesHashesState:  make(map[proto.BlockID]*stateForHashes),
 		wavesHashes:       make(map[proto.BlockID]crypto.Digest),
@@ -263,9 +269,9 @@ func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.Leas
 		if err := k.unmarshal(key); err != nil {
 			return nil, err
 		}
-		addr, err := k.address.ToWavesAddress(s.scheme)
-		if err != nil {
-			return nil, err
+		addr, waErr := k.address.ToWavesAddress(s.sets.AddressSchemeCharacter)
+		if waErr != nil {
+			return nil, waErr
 		}
 		zap.S().Infof("Resetting lease balance for %s", addr.String())
 		zeroLeaseBalanceSnapshots = append(zeroLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
@@ -305,9 +311,9 @@ func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 			if err := k.unmarshal(key); err != nil {
 				return nil, nil, err
 			}
-			wavesAddr, err := k.address.ToWavesAddress(s.scheme)
-			if err != nil {
-				return nil, nil, err
+			wavesAddr, waErr := k.address.ToWavesAddress(s.sets.AddressSchemeCharacter)
+			if waErr != nil {
+				return nil, nil, waErr
 			}
 			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d",
 				wavesAddr.String(), r.leaseOut, 0,
@@ -351,9 +357,9 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 			return nil, err
 		}
 		correctLeaseIn := int64(0)
-		wavesAddress, err := k.address.ToWavesAddress(s.scheme)
-		if err != nil {
-			return nil, err
+		wavesAddress, waErr := k.address.ToWavesAddress(s.sets.AddressSchemeCharacter)
+		if waErr != nil {
+			return nil, waErr
 		}
 		if leaseIn, ok := correctLeaseIns[wavesAddress]; ok {
 			correctLeaseIn = leaseIn
@@ -523,7 +529,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	return addressesNumber, nil
 }
 
-func (s *balances) minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, error) {
+func minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, error) {
 	minBalance := uint64(math.MaxUint64)
 	for _, recordBytes := range records {
 		var record wavesBalanceRecord
@@ -546,22 +552,48 @@ func (s *balances) minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, e
 	return minBalance, nil
 }
 
+func (s *balances) generatingBalance(addr proto.AddressID, height proto.Height) (uint64, error) {
+	startHeight, endHeight := s.sets.RangeForGeneratingBalanceByHeight(height)
+	gb, err := s.minEffectiveBalanceInRange(addr, startHeight, endHeight)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed get min effective balance; startHeight %d, endHeight %d",
+			startHeight, endHeight)
+	}
+	return gb, nil
+}
+
+func (s *balances) newestGeneratingBalance(addr proto.AddressID, height proto.Height) (uint64, error) {
+	startHeight, endHeight := s.sets.RangeForGeneratingBalanceByHeight(height)
+	gb, err := s.newestMinEffectiveBalanceInRange(addr, startHeight, endHeight)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed get newest min effective balance; startHeight %d, endHeight %d",
+			startHeight, endHeight)
+	}
+	return gb, nil
+}
+
+// minEffectiveBalanceInRange returns minimal effective balance in range [startHeight, endHeight].
+// IMPORTANT NOTE: this method returns saved on disk data, for the newest data use newestMinEffectiveBalanceInRange.
+// For getting the generating balance, use generatingBalance.
 func (s *balances) minEffectiveBalanceInRange(addr proto.AddressID, startHeight, endHeight uint64) (uint64, error) {
 	key := wavesBalanceKey{address: addr}
 	records, err := s.hs.entriesDataInHeightRange(key.bytes(), startHeight, endHeight)
 	if err != nil {
 		return 0, err
 	}
-	return s.minEffectiveBalanceInRangeCommon(records)
+	return minEffectiveBalanceInRangeCommon(records)
 }
 
+// newestMinEffectiveBalanceInRange returns minimal effective balance in range [startHeight, endHeight].
+// IMPORTANT NOTE: this method returns saved on disk data, for the newest data use minEffectiveBalanceInRange.
+// For getting the generating balance, use newestGeneratingBalance.
 func (s *balances) newestMinEffectiveBalanceInRange(addr proto.AddressID, startHeight, endHeight uint64) (uint64, error) {
 	key := wavesBalanceKey{address: addr}
 	records, err := s.hs.newestEntriesDataInHeightRange(key.bytes(), startHeight, endHeight)
 	if err != nil {
 		return 0, err
 	}
-	return s.minEffectiveBalanceInRangeCommon(records)
+	return minEffectiveBalanceInRangeCommon(records)
 }
 
 func (s *balances) assetBalanceFromRecordBytes(recordBytes []byte) (uint64, error) {
@@ -653,7 +685,7 @@ func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetI
 	if err != nil {
 		return err
 	}
-	wavesAddress, err := addr.ToWavesAddress(s.scheme)
+	wavesAddress, err := addr.ToWavesAddress(s.sets.AddressSchemeCharacter)
 	if err != nil {
 		return err
 	}
@@ -690,7 +722,7 @@ func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, 
 
 func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balance wavesValue,
 	blockID proto.BlockID, keyStr string, record wavesBalanceRecord) error {
-	wavesAddress, err := addr.ToWavesAddress(s.scheme)
+	wavesAddress, err := addr.ToWavesAddress(s.sets.AddressSchemeCharacter)
 	if err != nil {
 		return err
 	}
