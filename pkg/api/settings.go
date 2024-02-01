@@ -45,7 +45,7 @@ type RateLimiterOptions struct {
 func DefaultRunOptions() *RunOptions {
 	return &RunOptions{
 		RateLimiterOpts:      DefaultRateLimiterOptions(),
-		LogHttpRequestOpts:   false,
+		LogHttpRequestOpts:   true,
 		EnableHeartbeatRoute: true,
 		UseRealIPMiddleware:  true,
 		RequestIDMiddleware:  true,
