@@ -5,7 +5,9 @@ import (
 	"encoding/binary"
 	"io"
 	"math"
+	"sort"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -83,6 +85,37 @@ func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
 	}
 	r.balance = binary.BigEndian.Uint64(data[:8])
 	return nil
+}
+
+type heights []proto.Height
+
+func (h heights) Len() int { return len(h) }
+
+func (h heights) Less(i, j int) bool { return h[i] < h[j] }
+
+func (h heights) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+
+func (h heights) Last() proto.Height {
+	if len(h) == 0 {
+		return 0
+	}
+	return h[len(h)-1]
+}
+
+type challengedAddressRecord struct {
+	Heights heights `cbor:"0,keyasint"`
+}
+
+func (c *challengedAddressRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(c) }
+
+func (c *challengedAddressRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, c) }
+
+func (c *challengedAddressRecord) appendHeight(height proto.Height) {
+	prevLast := c.Heights.Last()
+	c.Heights = append(c.Heights, height)
+	if prevLast > height { // Heights are not sorted in ascending order.
+		sort.Sort(c.Heights)
+	}
 }
 
 type leaseBalanceRecordForHashes struct {
@@ -572,10 +605,99 @@ func (s *balances) newestGeneratingBalance(addr proto.AddressID, height proto.He
 	return gb, nil
 }
 
+// storeChallengeHeightForAddr stores the height of the block at which the address was challenged.
+func (s *balances) storeChallengeHeightForAddr(
+	challenged proto.AddressID,
+	height proto.Height,
+	blockID proto.BlockID,
+) error {
+	key := challengedAddressKey{address: challenged}
+	keyBytes := key.bytes()
+	recordBytes, err := s.hs.newestTopEntryData(keyBytes)
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) { // No record found, create new one.
+			r := challengedAddressRecord{Heights: []proto.Height{height}}
+			data, mErr := r.marshalBinary()
+			if mErr != nil {
+				return errors.Wrap(err, "failed to marshal record to binary data")
+			}
+			return s.hs.addNewEntry(challengedAddress, keyBytes, data, blockID)
+		}
+		return err
+	}
+	var r challengedAddressRecord
+	if uErr := r.unmarshalBinary(recordBytes); uErr != nil {
+		return errors.Wrap(err, "failed to unmarshal record from binary data")
+	}
+	r.appendHeight(height) // Append new height to the list.
+	recordBytes, err = r.marshalBinary()
+	if err != nil {
+		return errors.Wrap(err, "failed to marshal record to binary data")
+	}
+	return s.hs.addNewEntry(challengedAddress, keyBytes, recordBytes, blockID)
+}
+
+type entryDataGetter func(key []byte) ([]byte, error)
+
+func isChallengedAddressInRangeCommon(
+	getEntryData entryDataGetter,
+	addr proto.AddressID,
+	startHeight, endHeight proto.Height,
+) (bool, error) {
+	key := challengedAddressKey{address: addr}
+	recordBytes, err := getEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	var r challengedAddressRecord
+	if ubErr := r.unmarshalBinary(recordBytes); ubErr != nil {
+		return false, errors.Wrapf(ubErr, "failed to unmarshal entry data to %T", r)
+	}
+	// assume that heights are sorted in ascending order
+	for i := len(r.Heights) - 1; i >= 0; i-- { // iterate in reverse order
+		h := r.Heights[i]
+		if h < startHeight { // fast path: if h < startHeight, then all other heights are also less than startHeight
+			return false, nil
+		}
+		if startHeight <= h && h <= endHeight {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (s *balances) isChallengedAddressInRange(addr proto.AddressID, startHeight, endHeight proto.Height) (bool, error) {
+	return isChallengedAddressInRangeCommon(s.hs.topEntryData, addr, startHeight, endHeight)
+}
+
+func (s *balances) newestIsChallengedAddressInRange(
+	addr proto.AddressID,
+	startHeight, endHeight proto.Height,
+) (bool, error) {
+	return isChallengedAddressInRangeCommon(s.hs.newestTopEntryData, addr, startHeight, endHeight)
+}
+
 // minEffectiveBalanceInRange returns minimal effective balance in range [startHeight, endHeight].
+//
 // IMPORTANT NOTE: this method returns saved on disk data, for the newest data use newestMinEffectiveBalanceInRange.
+//
 // For getting the generating balance, use generatingBalance.
+//
+// If address is not challenged, then we can get the minimal effective balance.
+// Though if startHeight == endHeight and addr was a challenger at this height, then we still should return
+// its effective balance without a challenger bonus.
+// This is because the bonus is applied only to the generating balance at the given height.
 func (s *balances) minEffectiveBalanceInRange(addr proto.AddressID, startHeight, endHeight uint64) (uint64, error) {
+	isChallengedAddr, err := s.isChallengedAddressInRange(addr, startHeight, endHeight)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to check if address is challenged")
+	}
+	if isChallengedAddr { // Address is challenged, return 0 intentionally.
+		return 0, nil
+	}
 	key := wavesBalanceKey{address: addr}
 	records, err := s.hs.entriesDataInHeightRange(key.bytes(), startHeight, endHeight)
 	if err != nil {
@@ -585,9 +707,21 @@ func (s *balances) minEffectiveBalanceInRange(addr proto.AddressID, startHeight,
 }
 
 // newestMinEffectiveBalanceInRange returns minimal effective balance in range [startHeight, endHeight].
-// IMPORTANT NOTE: this method returns saved on disk data, for the newest data use minEffectiveBalanceInRange.
-// For getting the generating balance, use newestGeneratingBalance.
+//
+// For getting the newest generating balance, use newestGeneratingBalance.
+//
+// If address is not challenged, then we can get the minimal effective balance.
+// Though if startHeight == endHeight and addr was a challenger at this height, then we still should return
+// its effective balance without a challenger bonus.
+// This is because the bonus is applied only to the generating balance at the given height.
 func (s *balances) newestMinEffectiveBalanceInRange(addr proto.AddressID, startHeight, endHeight uint64) (uint64, error) {
+	isChallengedAddr, err := s.newestIsChallengedAddressInRange(addr, startHeight, endHeight)
+	if err != nil {
+		return 0, errors.Wrapf(err, "failed to check if address is challenged")
+	}
+	if isChallengedAddr { // Address is challenged, return 0 intentionally.
+		return 0, nil
+	}
 	key := wavesBalanceKey{address: addr}
 	records, err := s.hs.newestEntriesDataInHeightRange(key.bytes(), startHeight, endHeight)
 	if err != nil {
