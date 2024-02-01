@@ -44,6 +44,7 @@ const (
 	feeDistr
 	snapshots
 	patches
+	challengedAddress
 )
 
 type blockchainEntityProperties struct {
@@ -202,6 +203,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	patches: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	challengedAddress: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

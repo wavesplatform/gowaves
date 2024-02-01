@@ -1,6 +1,7 @@
 package state
 
 import (
+	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -203,20 +204,24 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	}
 }
 
+func generateBlocksWithIncreasingBalance(t *testing.T, to *balancesTestObjects, addr proto.AddressID, blocksCount int) {
+	for i := 1; i <= blocksCount; i++ {
+		blockID := genBlockId(byte(i))
+		to.stor.addBlock(t, blockID)
+		p := balanceProfile{uint64(i), 0, 0}
+		err := to.balances.setWavesBalance(addr, newWavesValueFromProfile(p), blockID)
+		require.NoError(t, err, "setWavesBalance() failed")
+	}
+}
+
 func TestMinBalanceInRange(t *testing.T) {
 	to := createBalances(t)
 
 	addr, err := proto.NewAddressFromString(addr0)
-	assert.NoError(t, err, "NewAddressFromString() failed")
-	for i := 1; i <= totalBlocksNumber; i++ {
-		blockID := genBlockId(byte(i))
-		to.stor.addBlock(t, blockID)
-		p := balanceProfile{uint64(i), 0, 0}
-		if err := to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(p), blockID); err != nil {
-			t.Fatalf("Faied to set waves balance: %v\n", err)
-		}
-	}
+	require.NoError(t, err, "NewAddressFromString() failed")
+	generateBlocksWithIncreasingBalance(t, to, addr.ID(), totalBlocksNumber)
 	to.stor.flush(t)
+
 	minBalance, err := to.balances.minEffectiveBalanceInRange(addr.ID(), 1, totalBlocksNumber)
 	if err != nil {
 		t.Fatalf("minEffectiveBalanceInRange(): %v\n", err)
@@ -230,6 +235,62 @@ func TestMinBalanceInRange(t *testing.T) {
 	}
 	if minBalance != 99 {
 		t.Errorf("Invalid minimum balance in range: need %d, got %d.", 99, minBalance)
+	}
+}
+
+func TestMinBalanceInRangeForChallengedAddress(t *testing.T) {
+	to := createBalances(t)
+
+	addr, err := proto.NewAddressFromString(addr0)
+	assert.NoError(t, err, "NewAddressFromString() failed")
+	addrID := addr.ID()
+	generateBlocksWithIncreasingBalance(t, to, addrID, totalBlocksNumber)
+
+	const (
+		challengeHeight1 = totalBlocksNumber / 4
+		challengeHeight2 = totalBlocksNumber / 2
+	)
+	err = to.balances.storeChallengeHeightForAddr(addrID, challengeHeight1, genBlockId(challengeHeight1))
+	require.NoError(t, err)
+	err = to.balances.storeChallengeHeightForAddr(addrID, challengeHeight2, genBlockId(challengeHeight2))
+	require.NoError(t, err)
+
+	to.stor.flush(t)
+
+	const (
+		firstBlock                = 1
+		lastBlockBeforeChallenge1 = challengeHeight1 - 1
+		firstBlockAfterChallenge1 = challengeHeight1 + 1
+		lastBlockBeforeChallenge2 = challengeHeight2 - 1
+		firstBlockAfterChallenge2 = challengeHeight2 + 1
+	)
+	tests := []struct {
+		startHeight     proto.Height
+		endHeight       proto.Height
+		expectedBalance uint64
+	}{
+		{firstBlock, totalBlocksNumber, 0},
+		// first challenge tests
+		{firstBlock, lastBlockBeforeChallenge1, 1},
+		{firstBlock, challengeHeight1, 0},
+		{firstBlock, firstBlockAfterChallenge1, 0},
+		{lastBlockBeforeChallenge1, firstBlockAfterChallenge1, 0},
+		{challengeHeight1, lastBlockBeforeChallenge2, 0},
+		{firstBlockAfterChallenge1, lastBlockBeforeChallenge2, firstBlockAfterChallenge1},
+		{lastBlockBeforeChallenge1, totalBlocksNumber, 0}, // challenges 1 and 2 included
+		// second challenge tests
+		{firstBlockAfterChallenge1, totalBlocksNumber, 0}, // challenge 2 included
+		{firstBlockAfterChallenge1, challengeHeight2, 0},
+		{lastBlockBeforeChallenge2, firstBlockAfterChallenge2, 0},
+		{challengeHeight2, totalBlocksNumber, 0},
+		{firstBlockAfterChallenge2, totalBlocksNumber, firstBlockAfterChallenge2},
+	}
+	for i, tc := range tests {
+		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			minBalance, mbErr := to.balances.minEffectiveBalanceInRange(addrID, tc.startHeight, tc.endHeight)
+			require.NoError(t, mbErr)
+			assert.Equal(t, tc.expectedBalance, minBalance)
+		})
 	}
 }
 
