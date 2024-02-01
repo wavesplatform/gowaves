@@ -27,8 +27,8 @@ var _ stateInfoProvider = &stateInfoProviderMock{}
 //			NewestActivationHeightFunc: func(featureID int16) (uint64, error) {
 //				panic("mock out the NewestActivationHeight method")
 //			},
-//			NewestEffectiveBalanceFunc: func(addr proto.Recipient, startHeight uint64, endHeight uint64) (uint64, error) {
-//				panic("mock out the NewestEffectiveBalance method")
+//			NewestGeneratingBalanceFunc: func(account proto.Recipient, height uint64) (uint64, error) {
+//				panic("mock out the NewestGeneratingBalance method")
 //			},
 //			NewestHitSourceAtHeightFunc: func(height uint64) ([]byte, error) {
 //				panic("mock out the NewestHitSourceAtHeight method")
@@ -52,8 +52,8 @@ type stateInfoProviderMock struct {
 	// NewestActivationHeightFunc mocks the NewestActivationHeight method.
 	NewestActivationHeightFunc func(featureID int16) (uint64, error)
 
-	// NewestEffectiveBalanceFunc mocks the NewestEffectiveBalance method.
-	NewestEffectiveBalanceFunc func(addr proto.Recipient, startHeight uint64, endHeight uint64) (uint64, error)
+	// NewestGeneratingBalanceFunc mocks the NewestGeneratingBalance method.
+	NewestGeneratingBalanceFunc func(account proto.Recipient, height uint64) (uint64, error)
 
 	// NewestHitSourceAtHeightFunc mocks the NewestHitSourceAtHeight method.
 	NewestHitSourceAtHeightFunc func(height uint64) ([]byte, error)
@@ -78,14 +78,12 @@ type stateInfoProviderMock struct {
 			// FeatureID is the featureID argument value.
 			FeatureID int16
 		}
-		// NewestEffectiveBalance holds details about calls to the NewestEffectiveBalance method.
-		NewestEffectiveBalance []struct {
-			// Addr is the addr argument value.
-			Addr proto.Recipient
-			// StartHeight is the startHeight argument value.
-			StartHeight uint64
-			// EndHeight is the endHeight argument value.
-			EndHeight uint64
+		// NewestGeneratingBalance holds details about calls to the NewestGeneratingBalance method.
+		NewestGeneratingBalance []struct {
+			// Account is the account argument value.
+			Account proto.Recipient
+			// Height is the height argument value.
+			Height uint64
 		}
 		// NewestHitSourceAtHeight holds details about calls to the NewestHitSourceAtHeight method.
 		NewestHitSourceAtHeight []struct {
@@ -103,7 +101,7 @@ type stateInfoProviderMock struct {
 	lockHeaderByHeight          sync.RWMutex
 	lockNewestAccountHasScript  sync.RWMutex
 	lockNewestActivationHeight  sync.RWMutex
-	lockNewestEffectiveBalance  sync.RWMutex
+	lockNewestGeneratingBalance sync.RWMutex
 	lockNewestHitSourceAtHeight sync.RWMutex
 	lockNewestIsActiveAtHeight  sync.RWMutex
 }
@@ -204,43 +202,39 @@ func (mock *stateInfoProviderMock) NewestActivationHeightCalls() []struct {
 	return calls
 }
 
-// NewestEffectiveBalance calls NewestEffectiveBalanceFunc.
-func (mock *stateInfoProviderMock) NewestEffectiveBalance(addr proto.Recipient, startHeight uint64, endHeight uint64) (uint64, error) {
-	if mock.NewestEffectiveBalanceFunc == nil {
-		panic("stateInfoProviderMock.NewestEffectiveBalanceFunc: method is nil but stateInfoProvider.NewestEffectiveBalance was just called")
+// NewestGeneratingBalance calls NewestGeneratingBalanceFunc.
+func (mock *stateInfoProviderMock) NewestGeneratingBalance(account proto.Recipient, height uint64) (uint64, error) {
+	if mock.NewestGeneratingBalanceFunc == nil {
+		panic("stateInfoProviderMock.NewestGeneratingBalanceFunc: method is nil but stateInfoProvider.NewestGeneratingBalance was just called")
 	}
 	callInfo := struct {
-		Addr        proto.Recipient
-		StartHeight uint64
-		EndHeight   uint64
+		Account proto.Recipient
+		Height  uint64
 	}{
-		Addr:        addr,
-		StartHeight: startHeight,
-		EndHeight:   endHeight,
+		Account: account,
+		Height:  height,
 	}
-	mock.lockNewestEffectiveBalance.Lock()
-	mock.calls.NewestEffectiveBalance = append(mock.calls.NewestEffectiveBalance, callInfo)
-	mock.lockNewestEffectiveBalance.Unlock()
-	return mock.NewestEffectiveBalanceFunc(addr, startHeight, endHeight)
+	mock.lockNewestGeneratingBalance.Lock()
+	mock.calls.NewestGeneratingBalance = append(mock.calls.NewestGeneratingBalance, callInfo)
+	mock.lockNewestGeneratingBalance.Unlock()
+	return mock.NewestGeneratingBalanceFunc(account, height)
 }
 
-// NewestEffectiveBalanceCalls gets all the calls that were made to NewestEffectiveBalance.
+// NewestGeneratingBalanceCalls gets all the calls that were made to NewestGeneratingBalance.
 // Check the length with:
 //
-//	len(mockedstateInfoProvider.NewestEffectiveBalanceCalls())
-func (mock *stateInfoProviderMock) NewestEffectiveBalanceCalls() []struct {
-	Addr        proto.Recipient
-	StartHeight uint64
-	EndHeight   uint64
+//	len(mockedstateInfoProvider.NewestGeneratingBalanceCalls())
+func (mock *stateInfoProviderMock) NewestGeneratingBalanceCalls() []struct {
+	Account proto.Recipient
+	Height  uint64
 } {
 	var calls []struct {
-		Addr        proto.Recipient
-		StartHeight uint64
-		EndHeight   uint64
+		Account proto.Recipient
+		Height  uint64
 	}
-	mock.lockNewestEffectiveBalance.RLock()
-	calls = mock.calls.NewestEffectiveBalance
-	mock.lockNewestEffectiveBalance.RUnlock()
+	mock.lockNewestGeneratingBalance.RLock()
+	calls = mock.calls.NewestGeneratingBalance
+	mock.lockNewestGeneratingBalance.RUnlock()
 	return calls
 }
 
