@@ -78,7 +78,7 @@ func (a internalImpl) prepareDataForSchedule(
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParentHeight := confirmedBlockHeight - 2
-		greatGrandParent, err := storage.BlockByHeight(greatGrandParentHeight)
+		greatGrandParent, err := storage.HeaderByHeight(greatGrandParentHeight)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to get blockID by height %d: %v", greatGrandParentHeight, err)
 			return 0, false, nil, err
