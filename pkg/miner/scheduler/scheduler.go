@@ -70,31 +70,28 @@ func (a internalImpl) schedule(
 	return a.scheduleWithoutVrf(storage, keyPairs, sets, confirmedBlock, confirmedBlockHeight)
 }
 
-func (a internalImpl) scheduleWithVrf(
+func (a internalImpl) prepareDataForSchedule(
 	storage state.StateInfo,
-	keyPairs []proto.KeyPair,
-	sets *settings.BlockchainSettings,
-	confirmedBlock *proto.Block,
 	confirmedBlockHeight uint64,
-) ([]Emit, error) {
+	sets *settings.BlockchainSettings,
+) (proto.Timestamp, bool, consensus.PosCalculator, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
 		greatGrandParentHeight := confirmedBlockHeight - 2
 		greatGrandParent, err := storage.BlockByHeight(greatGrandParentHeight)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to get blockID by height %d: %v", greatGrandParentHeight, err)
-			return nil, err
+			return 0, false, nil, err
 		}
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
 	}
-
 	fairPosActivated, err := storage.IsActiveAtHeight(int16(settings.FairPoS), confirmedBlockHeight)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed get fairPosActivated")
+		return 0, false, nil, errors.Wrap(err, "failed get fairPosActivated")
 	}
 	blockV5Activated, err := storage.IsActivated(int16(settings.BlockV5))
 	if err != nil {
-		return nil, errors.Wrap(err, "failed get blockV5Activated")
+		return 0, false, nil, errors.Wrap(err, "failed get blockV5Activated")
 	}
 	pos := consensus.NXTPosCalculator
 	if fairPosActivated {
@@ -104,12 +101,33 @@ func (a internalImpl) scheduleWithVrf(
 			pos = consensus.FairPosCalculatorV1
 		}
 	}
+	return greatGrandParentTimestamp, blockV5Activated, pos, nil
+}
+
+func (a internalImpl) scheduleWithVrf(
+	storage state.StateInfo,
+	keyPairs []proto.KeyPair,
+	sets *settings.BlockchainSettings,
+	confirmedBlock *proto.Block,
+	confirmedBlockHeight uint64,
+) ([]Emit, error) {
+	greatGrandParentTimestamp, blockV5Activated, pos, err := a.prepareDataForSchedule(storage, confirmedBlockHeight, sets)
+	if err != nil {
+		return nil, err
+	}
+
 	gsp := consensus.NXTGenerationSignatureProvider
 	if blockV5Activated {
 		gsp = consensus.VRFGenerationSignatureProvider
 	}
 
 	heightForHit := pos.HeightForHit(confirmedBlockHeight)
+
+	hitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
+	if err != nil {
+		zap.S().Errorf("Scheduler: Failed to get hit source at height %d: %v", heightForHit, err)
+		return nil, err
+	}
 
 	zap.S().Debugf("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d",
 		confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight,
@@ -118,11 +136,6 @@ func (a internalImpl) scheduleWithVrf(
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		sk := keyPair.Secret
-		hitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to get hit source at height %d: %v", heightForHit, err)
-			continue
-		}
 		genSig, err := gsp.GenerationSignature(sk, hitSourceAtHeight)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to schedule mining, can't get generation signature at height %d: %v",
@@ -201,32 +214,9 @@ func (a internalImpl) scheduleWithoutVrf(
 	confirmedBlock *proto.Block,
 	confirmedBlockHeight uint64,
 ) ([]Emit, error) {
-	var greatGrandParentTimestamp proto.Timestamp = 0
-	if confirmedBlockHeight > 2 {
-		greatGrandParentHeight := confirmedBlockHeight - 2
-		greatGrandParent, err := storage.BlockByHeight(greatGrandParentHeight)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to get blockID by height %d: %v", greatGrandParentHeight, err)
-			return nil, err
-		}
-		greatGrandParentTimestamp = greatGrandParent.Timestamp
-	}
-
-	fairPosActivated, err := storage.IsActiveAtHeight(int16(settings.FairPoS), confirmedBlockHeight)
+	greatGrandParentTimestamp, _, pos, err := a.prepareDataForSchedule(storage, confirmedBlockHeight, sets)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed get fairPosActivated")
-	}
-	blockV5Activated, err := storage.IsActivated(int16(settings.BlockV5))
-	if err != nil {
-		return nil, errors.Wrap(err, "failed get blockV5Activated")
-	}
-	pos := consensus.NXTPosCalculator
-	if fairPosActivated {
-		if blockV5Activated {
-			pos = consensus.NewFairPosCalculator(sets.DelayDelta, sets.MinBlockTime)
-		} else {
-			pos = consensus.FairPosCalculatorV1
-		}
+		return nil, err
 	}
 
 	gsp := consensus.NXTGenerationSignatureProvider
@@ -238,10 +228,14 @@ func (a internalImpl) scheduleWithoutVrf(
 		return nil, err
 	}
 
-	zap.S().Debugf("Scheduling generation on top of block (%d) '%s'", confirmedBlockHeight, confirmedBlock.BlockID().String())
-	zap.S().Debugf("  block timestamp: %d (%s)", confirmedBlock.Timestamp, common.UnixMillisToTime(int64(confirmedBlock.Timestamp)).String())
-	zap.S().Debugf("  block base target: %d", confirmedBlock.BaseTarget)
-	zap.S().Debug("Generation accounts:")
+	zap.S().Debugf("Scheduling generation on top of block (%d) '%s'\n"+
+		"  block timestamp: %d (%s)\n"+
+		"  block base target: %d\n"+
+		"Generation accounts:",
+		confirmedBlockHeight, confirmedBlock.BlockID().String(),
+		confirmedBlock.Timestamp, time.UnixMilli(int64(confirmedBlock.Timestamp)),
+		confirmedBlock.BaseTarget,
+	)
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		pk := keyPair.Public
