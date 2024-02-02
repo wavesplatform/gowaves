@@ -245,21 +245,24 @@ func TestMinBalanceInRange(t *testing.T) {
 	}
 }
 
-func TestMinBalanceInRangeForChallengedAddress(t *testing.T) {
+func TestBalancesChangesByStoredChallenge(t *testing.T) {
 	to := createBalances(t)
 
-	addr, err := proto.NewAddressFromString(addr0)
-	assert.NoError(t, err, "NewAddressFromString() failed")
-	addrID := addr.ID()
-	generateBlocksWithIncreasingBalance(t, to, totalBlocksNumber, addrID)
+	challenged, err := proto.NewAddressFromString(addr0)
+	require.NoError(t, err, "NewAddressFromString() failed")
+	challengedID := challenged.ID()
+	challenger, err := proto.NewAddressFromString(addr1)
+	require.NoError(t, err, "NewAddressFromString() failed")
+	challengerID := challenger.ID()
+	generateBlocksWithIncreasingBalance(t, to, totalBlocksNumber, challengedID, challengerID)
 
 	const (
 		challengeHeight1 = totalBlocksNumber / 4
 		challengeHeight2 = totalBlocksNumber / 2
 	)
-	err = to.balances.storeChallengeHeightForAddr(addrID, challengeHeight1, genBlockId(challengeHeight1))
+	err = to.balances.storeChallenge(challengerID, challengedID, challengeHeight1, genBlockId(challengeHeight1))
 	require.NoError(t, err)
-	err = to.balances.storeChallengeHeightForAddr(addrID, challengeHeight2, genBlockId(challengeHeight2))
+	err = to.balances.storeChallenge(challengerID, challengedID, challengeHeight2, genBlockId(challengeHeight2))
 	require.NoError(t, err)
 
 	to.stor.flush(t)
@@ -271,36 +274,108 @@ func TestMinBalanceInRangeForChallengedAddress(t *testing.T) {
 		lastBlockBeforeChallenge2 = challengeHeight2 - 1
 		firstBlockAfterChallenge2 = challengeHeight2 + 1
 	)
-	tests := []struct {
-		startHeight     proto.Height
-		endHeight       proto.Height
-		expectedBalance uint64
-	}{
-		{firstBlock, totalBlocksNumber, 0},
-		// first challenge tests
-		{challengeHeight1, challengeHeight1, 0},
-		{firstBlock, lastBlockBeforeChallenge1, 1},
-		{firstBlock, challengeHeight1, 0},
-		{firstBlock, firstBlockAfterChallenge1, 0},
-		{lastBlockBeforeChallenge1, firstBlockAfterChallenge1, 0},
-		{challengeHeight1, lastBlockBeforeChallenge2, 0},
-		{firstBlockAfterChallenge1, lastBlockBeforeChallenge2, firstBlockAfterChallenge1},
-		{lastBlockBeforeChallenge1, totalBlocksNumber, 0}, // challenges 1 and 2 included
-		// second challenge tests
-		{challengeHeight2, challengeHeight2, 0},
-		{firstBlockAfterChallenge1, totalBlocksNumber, 0}, // challenge 2 included
-		{firstBlockAfterChallenge1, challengeHeight2, 0},
-		{lastBlockBeforeChallenge2, firstBlockAfterChallenge2, 0},
-		{challengeHeight2, totalBlocksNumber, 0},
-		{firstBlockAfterChallenge2, totalBlocksNumber, firstBlockAfterChallenge2},
-	}
-	for i, tc := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-			minBalance, mbErr := to.balances.minEffectiveBalanceInRange(addrID, tc.startHeight, tc.endHeight)
-			require.NoError(t, mbErr)
-			assert.Equal(t, tc.expectedBalance, minBalance)
-		})
-	}
+	t.Run("minEffectiveBalanceInRange", func(t *testing.T) {
+		tests := []struct {
+			startHeight     proto.Height
+			endHeight       proto.Height
+			expectedBalance uint64
+			addr            proto.AddressID
+		}{
+			{firstBlock, totalBlocksNumber, 0, challengedID},
+			// first challenge tests
+			{challengeHeight1, challengeHeight1, 0, challengedID},
+			{firstBlock, lastBlockBeforeChallenge1, 1, challengedID},
+			{firstBlock, challengeHeight1, 0, challengedID},
+			{firstBlock, firstBlockAfterChallenge1, 0, challengedID},
+			{lastBlockBeforeChallenge1, firstBlockAfterChallenge1, 0, challengedID},
+			{challengeHeight1, lastBlockBeforeChallenge2, 0, challengedID},
+			{firstBlockAfterChallenge1, lastBlockBeforeChallenge2, firstBlockAfterChallenge1, challengedID},
+			{lastBlockBeforeChallenge1, totalBlocksNumber, 0, challengedID}, // challenges 1 and 2 included
+			// second challenge tests
+			{challengeHeight2, challengeHeight2, 0, challengedID},
+			{firstBlockAfterChallenge1, totalBlocksNumber, 0, challengedID}, // challenge 2 included
+			{firstBlockAfterChallenge1, challengeHeight2, 0, challengedID},
+			{lastBlockBeforeChallenge2, firstBlockAfterChallenge2, 0, challengedID},
+			{challengeHeight2, totalBlocksNumber, 0, challengedID},
+			{firstBlockAfterChallenge2, totalBlocksNumber, firstBlockAfterChallenge2, challengedID},
+			// challenger tests
+			{firstBlock, totalBlocksNumber, 1, challengerID},
+			{challengeHeight1, totalBlocksNumber, challengeHeight1, challengerID},
+			{challengeHeight2, totalBlocksNumber, challengeHeight2, challengerID},
+			{firstBlock, challengeHeight1, 1, challengerID},
+			{firstBlockAfterChallenge1, challengeHeight2, firstBlockAfterChallenge1, challengerID},
+			{challengeHeight1, challengeHeight1, challengeHeight1, challengerID}, // should be without bonus
+			{challengeHeight2, challengeHeight2, challengeHeight2, challengerID}, // should be without bonus
+		}
+		for i, tc := range tests {
+			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+				minBalance, mbErr := to.balances.minEffectiveBalanceInRange(tc.addr, tc.startHeight, tc.endHeight)
+				require.NoError(t, mbErr)
+				assert.Equal(t, tc.expectedBalance, minBalance)
+			})
+		}
+	})
+
+	t.Run("generatingBalance", func(t *testing.T) {
+		const generationBalanceDepthDiff = 49
+		start, end := to.stor.settings.RangeForGeneratingBalanceByHeight(100)
+		require.Equal(t, uint64(generationBalanceDepthDiff), end-start) // sanity check for the next test cases
+
+		tests := []struct {
+			height   proto.Height
+			addr     proto.AddressID
+			expected uint64
+		}{
+			// FOR CHALLENGER
+			{firstBlock, challengerID, 1},
+			// because lastBlockBeforeChallenge1 == generationBalanceDepthDiff, so we use the lowes value in the range
+			{lastBlockBeforeChallenge1, challengerID, 1},
+			// challengerGenBalance + challengedGenBalance = 1 + 1
+			{challengeHeight1, challengerID, 2 * (challengeHeight1 - generationBalanceDepthDiff)},
+			{firstBlockAfterChallenge1, challengerID, firstBlockAfterChallenge1 - generationBalanceDepthDiff},
+			{lastBlockBeforeChallenge2, challengerID, lastBlockBeforeChallenge2 - generationBalanceDepthDiff},
+			// challengerGenBalance + challengedGenBalance = 51 + 51
+			{challengeHeight2, challengerID, 2 * (challengeHeight2 - generationBalanceDepthDiff)},
+			{firstBlockAfterChallenge2, challengerID, firstBlockAfterChallenge2 - generationBalanceDepthDiff},
+			{totalBlocksNumber, challengerID, totalBlocksNumber - generationBalanceDepthDiff},
+			// FOR CHALLENGED
+			{firstBlock, challengedID, 1},
+			{lastBlockBeforeChallenge1, challengedID, 1},
+			{challengeHeight1, challengedID, 0},
+			{firstBlockAfterChallenge1, challengedID, 0},
+			{lastBlockBeforeChallenge1 + generationBalanceDepthDiff, challengedID, 0},
+			{lastBlockBeforeChallenge2, challengerID, lastBlockBeforeChallenge2 - generationBalanceDepthDiff},
+			{challengeHeight2, challengedID, 0},
+			{firstBlockAfterChallenge2, challengedID, 0},
+			{lastBlockBeforeChallenge2 + generationBalanceDepthDiff, challengedID, 0},
+			{totalBlocksNumber, challengedID, totalBlocksNumber - generationBalanceDepthDiff},
+		}
+		for i, tc := range tests {
+			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+				generatingBalance, gbErr := to.balances.generatingBalance(tc.addr, tc.height)
+				require.NoError(t, gbErr)
+				assert.Equal(t, tc.expected, generatingBalance)
+			})
+		}
+	})
+}
+
+func TestBalancesStoreSelfChallenge(t *testing.T) {
+	to := createBalances(t)
+
+	addr, err := proto.NewAddressFromString(addr0)
+	require.NoError(t, err, "NewAddressFromString() failed")
+	addrID := addr.ID()
+	generateBlocksWithIncreasingBalance(t, to, totalBlocksNumber, addrID)
+
+	const challengeHeight = totalBlocksNumber / 2
+	err = to.balances.storeChallenge(addrID, addrID, challengeHeight, genBlockId(challengeHeight))
+	require.EqualError(t, err, "challenger and challenged addresses are the same")
+
+	to.stor.flush(t)
+
+	err = to.balances.storeChallenge(addrID, addrID, challengeHeight, genBlockId(challengeHeight))
+	require.EqualError(t, err, "challenger and challenged addresses are the same")
 }
 
 func addTailInfoToAssetsState(a *assets, fullAssetID crypto.Digest) {
