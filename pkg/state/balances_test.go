@@ -204,13 +204,20 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 	}
 }
 
-func generateBlocksWithIncreasingBalance(t *testing.T, to *balancesTestObjects, addr proto.AddressID, blocksCount int) {
+func generateBlocksWithIncreasingBalance(
+	t *testing.T,
+	to *balancesTestObjects,
+	blocksCount int,
+	addressIDs ...proto.AddressID,
+) {
 	for i := 1; i <= blocksCount; i++ {
 		blockID := genBlockId(byte(i))
 		to.stor.addBlock(t, blockID)
 		p := balanceProfile{uint64(i), 0, 0}
-		err := to.balances.setWavesBalance(addr, newWavesValueFromProfile(p), blockID)
-		require.NoError(t, err, "setWavesBalance() failed")
+		for _, addr := range addressIDs {
+			err := to.balances.setWavesBalance(addr, newWavesValueFromProfile(p), blockID)
+			require.NoError(t, err, "setWavesBalance() failed")
+		}
 	}
 }
 
@@ -219,7 +226,7 @@ func TestMinBalanceInRange(t *testing.T) {
 
 	addr, err := proto.NewAddressFromString(addr0)
 	require.NoError(t, err, "NewAddressFromString() failed")
-	generateBlocksWithIncreasingBalance(t, to, addr.ID(), totalBlocksNumber)
+	generateBlocksWithIncreasingBalance(t, to, totalBlocksNumber, addr.ID())
 	to.stor.flush(t)
 
 	minBalance, err := to.balances.minEffectiveBalanceInRange(addr.ID(), 1, totalBlocksNumber)
@@ -244,7 +251,7 @@ func TestMinBalanceInRangeForChallengedAddress(t *testing.T) {
 	addr, err := proto.NewAddressFromString(addr0)
 	assert.NoError(t, err, "NewAddressFromString() failed")
 	addrID := addr.ID()
-	generateBlocksWithIncreasingBalance(t, to, addrID, totalBlocksNumber)
+	generateBlocksWithIncreasingBalance(t, to, totalBlocksNumber, addrID)
 
 	const (
 		challengeHeight1 = totalBlocksNumber / 4
@@ -271,6 +278,7 @@ func TestMinBalanceInRangeForChallengedAddress(t *testing.T) {
 	}{
 		{firstBlock, totalBlocksNumber, 0},
 		// first challenge tests
+		{challengeHeight1, challengeHeight1, 0},
 		{firstBlock, lastBlockBeforeChallenge1, 1},
 		{firstBlock, challengeHeight1, 0},
 		{firstBlock, firstBlockAfterChallenge1, 0},
@@ -279,6 +287,7 @@ func TestMinBalanceInRangeForChallengedAddress(t *testing.T) {
 		{firstBlockAfterChallenge1, lastBlockBeforeChallenge2, firstBlockAfterChallenge1},
 		{lastBlockBeforeChallenge1, totalBlocksNumber, 0}, // challenges 1 and 2 included
 		// second challenge tests
+		{challengeHeight2, challengeHeight2, 0},
 		{firstBlockAfterChallenge1, totalBlocksNumber, 0}, // challenge 2 included
 		{firstBlockAfterChallenge1, challengeHeight2, 0},
 		{lastBlockBeforeChallenge2, firstBlockAfterChallenge2, 0},

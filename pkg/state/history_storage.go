@@ -45,6 +45,7 @@ const (
 	snapshots
 	patches
 	challengedAddress
+	challengerAddress
 )
 
 type blockchainEntityProperties struct {
@@ -208,6 +209,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	challengedAddress: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	challengerAddress: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

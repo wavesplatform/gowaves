@@ -29,6 +29,7 @@ const (
 	snapshotStateHashKeySize = 1 + 8
 	snapshotKeySize          = 1 + 8
 	challengedAddressKeySize = 1 + proto.AddressIDSize
+	challengerAddressKeySize = 1 + proto.AddressIDSize + uint64Size
 )
 
 // Primary prefixes for storage keys
@@ -134,6 +135,7 @@ const (
 	patchKeyPrefix
 
 	challengedAddressKeyPrefix
+	challengerAddressKeyPrefix
 )
 
 var (
@@ -199,6 +201,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{patchKeyPrefix}, nil
 	case challengedAddress:
 		return []byte{challengedAddressKeyPrefix}, nil
+	case challengerAddress:
+		return []byte{challengerAddressKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -747,5 +751,18 @@ func (k *challengedAddressKey) bytes() []byte {
 	buf := make([]byte, challengedAddressKeySize)
 	buf[0] = challengedAddressKeyPrefix
 	copy(buf[1:], k.address[:])
+	return buf
+}
+
+type challengerAddressKey struct {
+	address proto.AddressID
+	height  proto.Height
+}
+
+func (k *challengerAddressKey) bytes() []byte {
+	buf := make([]byte, challengerAddressKeySize)
+	buf[0] = challengerAddressKeyPrefix
+	copy(buf[1:], k.address[:])
+	binary.BigEndian.PutUint64(buf[1+proto.AddressIDSize:], k.height)
 	return buf
 }
