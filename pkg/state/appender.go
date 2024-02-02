@@ -997,6 +997,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed get currentBlockInfo")
 	}
+	zap.S().Debugf("[APPENDER] Current block height %d", blockInfo.Height)
 	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
 	if err != nil {
 		return errs.Extend(err, "failed to check 'RideV5' is activated")

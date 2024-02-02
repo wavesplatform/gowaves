@@ -8,6 +8,7 @@ import (
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -1519,6 +1520,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	}
 	updateAllowedAt := lastUpdateHeight + tc.settings.MinUpdateAssetInfoInterval
 	blockHeight := info.blockchainHeight + 1
+	zap.S().Debugf("[CHECKER] Checking at height %d, allowed modification heigth id %d", blockHeight, updateAllowedAt)
 	if blockHeight < updateAllowedAt {
 		return out, errs.NewAssetUpdateInterval(fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight))
 	}
