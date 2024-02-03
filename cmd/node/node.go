@@ -568,7 +568,7 @@ func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) err
 		s.GrpcAddr = c.grpcAddr
 		s.WavesNetwork = proto.NetworkStrFromScheme(scheme)
 		s.Addresses = c.peerAddresses
-		if c.peerAddresses == "" {
+		if c.peerAddresses == "" && !c.disableOutgoingConnections {
 			s.Addresses = defaultPeers[c.blockchainType]
 		}
 		return nil
