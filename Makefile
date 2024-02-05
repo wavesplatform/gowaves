@@ -103,6 +103,8 @@ build-node-native:
 	@go build -o build/bin/native/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-amd64:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+build-node-linux-amd64-with-race:
+	@CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -race -o build/bin/linux-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-i386:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=386 go build -o build/bin/linux-i386/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-linux-arm:

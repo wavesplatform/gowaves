@@ -1,8 +1,8 @@
-FROM golang:1.21.6-alpine3.18 as builder
+FROM golang:1.21.6-alpine3.19 as builder
 LABEL wavesplatform-gowaves-itests-tmp=true
 WORKDIR /app
 
-RUN apk add --no-cache make
+RUN apk add --no-cache --update gcc g++ make
 
 COPY go.mod .
 COPY go.sum .
@@ -13,7 +13,7 @@ COPY Makefile .
 COPY cmd cmd
 COPY pkg pkg
 
-RUN make build-node-linux-amd64
+RUN make build-node-linux-amd64-with-race
 
 FROM alpine:3.19.1
 ENV TZ=Etc/UTC \

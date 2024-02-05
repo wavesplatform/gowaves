@@ -9,6 +9,7 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -57,6 +58,11 @@ func (a *OutgoingPeer) SendMessage(m proto.Message) error {
 		return err
 	}
 
+	const timeout = 3 * time.Second
+	err = a.conn.SetWriteDeadline(time.Now().Add(timeout))
+	if err != nil {
+		return errors.Errorf("failed to set write deadline: %v", err)
+	}
 	_, err = a.conn.Write(b)
 	if err != nil {
 		return errors.Wrapf(err, "failed to send message")

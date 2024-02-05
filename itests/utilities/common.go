@@ -635,10 +635,8 @@ func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transactio
 	t.Logf("Transaction bytes: %s", base64.StdEncoding.EncodeToString(bts))
 	if proto.IsProtobufTx(tx) {
 		return &proto.PBTransactionMessage{Transaction: bts}
-	} else {
-		return &proto.TransactionMessage{Transaction: bts}
 	}
-
+	return &proto.TransactionMessage{Transaction: bts}
 }
 
 func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme,
