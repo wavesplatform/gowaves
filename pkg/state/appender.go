@@ -997,11 +997,6 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed get currentBlockInfo")
 	}
-	// Function `currentBlockInfo` assumes that the block will be appended on the next height,
-	// which is not the case for UTX validation. So, we have to reduce the height by 1 if possible.
-	if blockInfo.Height > 1 {
-		blockInfo.Height--
-	}
 	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
 	if err != nil {
 		return errs.Extend(err, "failed to check 'RideV5' is activated")
@@ -1020,7 +1015,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		parentTimestamp:         parentTimestamp,
 		blockID:                 block.BlockID(),
 		blockVersion:            version,
-		blockchainHeight:        blockInfo.Height,
+		blockchainHeight:        blockInfo.Height - 1,
 		rideV5Activated:         rideV5Activated,
 		rideV6Activated:         rideV6Activated,
 		blockRewardDistribution: blockRewardDistribution,
