@@ -68,11 +68,7 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 }
 
 func (bs *BlockSnapshot) UnmarshalBinaryImport(data []byte, scheme Scheme) error {
-	if len(data) < uint32Size {
-		return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
-	}
-	snapshotsBytesSize := binary.BigEndian.Uint32(data[0:uint32Size])
-	data = data[uint32Size:] // skip size
+	snapshotsBytesSize := len(data)
 	var txSnapshots [][]AtomicSnapshot
 	for i := uint32(0); snapshotsBytesSize > 0; i++ {
 		if len(data) < uint32Size {
@@ -94,7 +90,10 @@ func (bs *BlockSnapshot) UnmarshalBinaryImport(data []byte, scheme Scheme) error
 		}
 		txSnapshots = append(txSnapshots, atomicTS)
 		data = data[oneSnapshotSize:]
-		snapshotsBytesSize = snapshotsBytesSize - oneSnapshotSize - uint32Size
+		snapshotsBytesSize = snapshotsBytesSize - int(oneSnapshotSize) - uint32Size
+	}
+	if snapshotsBytesSize != 0 { // check that all bytes were read
+		return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid snapshots size")
 	}
 	bs.TxSnapshots = txSnapshots
 	return nil
