@@ -4385,6 +4385,12 @@ const (
 
 func (s TransactionStatus) IsNotSucceeded() bool { return s != TransactionSucceeded }
 
+const (
+	txStatusSucceededJSON = "\"succeeded\""
+	txStatusFailedJSON    = "\"failed\""
+	txStatusElidedJSON    = "\"elided\""
+)
+
 func (s TransactionStatus) String() string {
 	switch s {
 	case TransactionSucceeded:
@@ -4396,4 +4402,31 @@ func (s TransactionStatus) String() string {
 	default:
 		return fmt.Sprintf("unknown(%d)", byte(s))
 	}
+}
+
+func (s TransactionStatus) MarshalJSON() ([]byte, error) {
+	switch s {
+	case TransactionSucceeded:
+		return []byte(txStatusSucceededJSON), nil
+	case TransactionFailed:
+		return []byte(txStatusFailedJSON), nil
+	case TransactionElided:
+		return []byte(txStatusElidedJSON), nil
+	default:
+		return nil, errors.Errorf("invalid tx status %s", s.String())
+	}
+}
+
+func (s *TransactionStatus) UnmarshalJSON(b []byte) error {
+	switch data := string(b); data {
+	case txStatusSucceededJSON:
+		*s = TransactionSucceeded
+	case txStatusFailedJSON:
+		*s = TransactionFailed
+	case txStatusElidedJSON:
+		*s = TransactionElided
+	default:
+		return errors.Errorf("invalid tx status JSON data %s", data)
+	}
+	return nil
 }
