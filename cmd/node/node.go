@@ -164,7 +164,8 @@ func (c *config) parse() {
 		"Log the operation of FSM. Turned off by default.")
 	flag.StringVar(&c.statePath, "state-path", "", "Path to node's state directory.")
 	flag.StringVar(&c.blockchainType, "blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet.")
-	flag.StringVar(&c.peerAddresses, "peers", "", "Addresses of peers to connect to.")
+	flag.StringVar(&c.peerAddresses, "peers", "",
+		"Forces the node to connect to the provided peers. Format: \"ip:port,...,ip:port\".")
 	flag.StringVar(&c.declAddr, "declared-address", "", "Address to listen on.")
 	flag.StringVar(&c.nodeName, "name", "gowaves", "Node name.")
 	flag.StringVar(&c.cfgPath, "cfg-path", "",
@@ -198,7 +199,8 @@ func (c *config) parse() {
 	flag.StringVar(&c.bindAddress, "bind-address", "",
 		"Bind address for incoming connections. If empty, will be same as declared address")
 	flag.BoolVar(&c.disableOutgoingConnections, "no-connections", false,
-		"Disable outgoing network connections to peers.")
+		"Disable outgoing network connections to known peers."+
+			"This flag DOES NOT disable outgoing connections to peers from the 'peers' option.")
 	flag.StringVar(&c.minerVoteFeatures, "vote", "", "Miner vote features.")
 	flag.BoolVar(&c.disableBloomFilter, "disable-bloom", false,
 		"Disable bloom filter. Less memory usage, but decrease performance.")
@@ -568,7 +570,7 @@ func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) err
 		s.GrpcAddr = c.grpcAddr
 		s.WavesNetwork = proto.NetworkStrFromScheme(scheme)
 		s.Addresses = c.peerAddresses
-		if c.peerAddresses == "" {
+		if c.peerAddresses == "" && !c.disableOutgoingConnections {
 			s.Addresses = defaultPeers[c.blockchainType]
 		}
 		return nil
