@@ -3,11 +3,13 @@ package miner
 import (
 	"errors"
 
+	"github.com/mr-tron/base58"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 const (
@@ -42,11 +44,13 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		// block changed, exit
 		return nil, nil, rest, StateChangedErr
 	}
+	zap.S().Debugf("[MICRO MINER] Top block ID '%s'", topBlock.BlockID())
 
 	height, err := a.state.Height()
 	if err != nil {
 		return nil, nil, rest, err
 	}
+	zap.S().Debugf("[MICRO MINER] Height %d", height)
 
 	parentTimestamp := topBlock.Timestamp
 	if height > 1 {
@@ -82,7 +86,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 				continue
 			}
 
-			// In miner we pack transactions from UTX into new block.
+			// In the miner we pack transactions from UTX into new block.
 			// We should accept failed transactions here.
 			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
 			if state.IsTxCommitmentError(err) {
@@ -118,10 +122,15 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		return nil, nil, rest, NoTransactionsErr
 	}
 
-	zap.S().Debugf("micro_miner top block sig %s", a.state.TopBlock().BlockSignature)
-
 	transactions := make([]proto.Transaction, len(appliedTransactions))
 	for i, appliedTx := range appliedTransactions {
+		if zap.S().Level() <= zap.DebugLevel {
+			if id, idErr := appliedTx.T.GetID(a.scheme); idErr != nil {
+				zap.S().Errorf("Failed to get transaction ID: %v", idErr)
+			} else {
+				zap.S().Debugf("[MICRO MINER] Appending transaction '%s'", base58.Encode(id))
+			}
+		}
 		transactions[i] = appliedTx.T
 	}
 	newTransactions := minedBlock.Transactions.Join(transactions)
