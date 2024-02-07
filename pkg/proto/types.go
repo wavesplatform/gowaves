@@ -4384,3 +4384,16 @@ const (
 )
 
 func (s TransactionStatus) IsNotSucceeded() bool { return s != TransactionSucceeded }
+
+func (s TransactionStatus) String() string {
+	switch s {
+	case TransactionSucceeded:
+		return "succeeded"
+	case TransactionFailed:
+		return "failed"
+	case TransactionElided:
+		return "elided"
+	default:
+		return fmt.Sprintf("unknown(%d)", byte(s))
+	}
+}
