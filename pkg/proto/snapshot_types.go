@@ -421,7 +421,7 @@ func (s *SponsorshipSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Sponsor
 
 type AliasSnapshot struct {
 	Address WavesAddress
-	Alias   Alias
+	Alias   string
 }
 
 func (s AliasSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAlias(s) }
@@ -429,7 +429,7 @@ func (s AliasSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAlias(s) }
 func (s AliasSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Alias, error) {
 	return &g.TransactionStateSnapshot_Alias{
 		Address: s.Address.Bytes(),
-		Alias:   s.Alias.Alias,
+		Alias:   s.Alias,
 	}, nil
 }
 
@@ -450,8 +450,11 @@ func (s *AliasSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapsho
 	if err != nil {
 		return err
 	}
+	if _, aErr := IsValidAliasString(p.Alias); aErr != nil {
+		return aErr
+	}
 	s.Address = addr
-	s.Alias = *NewAlias(scheme, p.Alias)
+	s.Alias = p.Alias
 	return nil
 }
 
