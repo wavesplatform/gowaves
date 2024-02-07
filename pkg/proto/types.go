@@ -83,6 +83,28 @@ func (a Bytes) WriteTo(w io.Writer) (int64, error) {
 	return int64(rs), err
 }
 
+type NonNullableSlice[T any] []T
+
+// MarshalJSON writes NonNullableSlice as JSON array.
+// If NonNullableSlice is empty or nil, it is written aways as empty JSON array.
+func (s NonNullableSlice[T]) MarshalJSON() ([]byte, error) {
+	if len(s) == 0 {
+		return []byte("[]"), nil
+	}
+	return json.Marshal([]T(s))
+}
+
+// UnmarshalJSON reads NonNullableSlice from JSON array or null.
+// If JSON array is empty or null, NonNullableSlice is set to nil.
+func (s *NonNullableSlice[T]) UnmarshalJSON(data []byte) error {
+	switch string(data) {
+	case jsonNull, "[]":
+		*s = nil
+		return nil
+	}
+	return json.Unmarshal(data, (*[]T)(s))
+}
+
 // B58Bytes represents bytes as Base58 string in JSON
 type B58Bytes []byte
 
@@ -4378,7 +4400,8 @@ func (s StateHashDebug) GetStateHash() *StateHash {
 type TransactionStatus byte
 
 const (
-	TransactionSucceeded TransactionStatus = iota + 1
+	unknownTransactionStatus TransactionStatus = iota
+	TransactionSucceeded
 	TransactionFailed
 	TransactionElided
 )
@@ -4399,6 +4422,8 @@ func (s TransactionStatus) String() string {
 		return "failed"
 	case TransactionElided:
 		return "elided"
+	case unknownTransactionStatus:
+		fallthrough // to default
 	default:
 		return fmt.Sprintf("unknown(%d)", byte(s))
 	}
@@ -4412,6 +4437,8 @@ func (s TransactionStatus) MarshalJSON() ([]byte, error) {
 		return []byte(txStatusFailedJSON), nil
 	case TransactionElided:
 		return []byte(txStatusElidedJSON), nil
+	case unknownTransactionStatus:
+		fallthrough // to default
 	default:
 		return nil, errors.Errorf("invalid tx status %s", s.String())
 	}
