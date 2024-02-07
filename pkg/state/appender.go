@@ -1091,7 +1091,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		parentTimestamp:         parentTimestamp,
 		blockID:                 block.BlockID(),
 		blockVersion:            version,
-		blockchainHeight:        blockInfo.Height,
+		blockchainHeight:        blockInfo.Height - 1,
 		rideV5Activated:         rideV5Activated,
 		rideV6Activated:         rideV6Activated,
 		blockRewardDistribution: blockRewardDistribution,
