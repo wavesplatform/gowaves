@@ -280,6 +280,9 @@ func (a *WavesAddress) UnmarshalJSON(value []byte) error {
 		return errors.Errorf("incorrect size of an WavesAddress %d, expected %d", l, WavesAddressSize)
 	}
 	copy(a[:], b)
+	if _, vErr := a.validVersionAndChecksum(); vErr != nil {
+		return errors.Wrap(vErr, "invalid WavesAddress")
+	}
 	return nil
 }
 
