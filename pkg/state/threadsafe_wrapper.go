@@ -236,7 +236,9 @@ func (a *ThreadSafeReadWrapper) TransactionByID(id []byte) (proto.Transaction, e
 	return a.s.TransactionByID(id)
 }
 
-func (a *ThreadSafeReadWrapper) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+func (a *ThreadSafeReadWrapper) TransactionByIDWithStatus(
+	id []byte,
+) (proto.Transaction, proto.TransactionStatus, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.TransactionByIDWithStatus(id)

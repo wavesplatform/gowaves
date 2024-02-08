@@ -80,11 +80,11 @@ func (mr *MockTransactionIteratorMockRecorder) Release() *gomock.Call {
 }
 
 // Transaction mocks base method.
-func (m *MockTransactionIterator) Transaction() (proto.Transaction, bool, error) {
+func (m *MockTransactionIterator) Transaction() (proto.Transaction, proto.TransactionStatus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Transaction")
 	ret0, _ := ret[0].(proto.Transaction)
-	ret1, _ := ret[1].(bool)
+	ret1, _ := ret[1].(proto.TransactionStatus)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
@@ -958,11 +958,11 @@ func (mr *MockStateInfoMockRecorder) TransactionByID(id interface{}) *gomock.Cal
 }
 
 // TransactionByIDWithStatus mocks base method.
-func (m *MockStateInfo) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+func (m *MockStateInfo) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
 	ret0, _ := ret[0].(proto.Transaction)
-	ret1, _ := ret[1].(bool)
+	ret1, _ := ret[1].(proto.TransactionStatus)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
@@ -2309,11 +2309,11 @@ func (mr *MockStateMockRecorder) TransactionByID(id interface{}) *gomock.Call {
 }
 
 // TransactionByIDWithStatus mocks base method.
-func (m *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+func (m *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
 	ret0, _ := ret[0].(proto.Transaction)
-	ret1, _ := ret[1].(bool)
+	ret1, _ := ret[1].(proto.TransactionStatus)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

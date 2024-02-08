@@ -209,7 +209,7 @@ func (h *txSnapshotHasher) ApplyAlias(snapshot proto.AliasSnapshot) error {
 	if _, err := buf.Write(snapshot.Address[:]); err != nil {
 		return err
 	}
-	if _, err := buf.WriteString(snapshot.Alias.Alias); err != nil { // we assume that string is valid UTF-8
+	if _, err := buf.WriteString(snapshot.Alias); err != nil { // we assume that string is valid UTF-8
 		return err
 	}
 

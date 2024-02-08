@@ -357,7 +357,7 @@ func GetTransferWithSponsorshipMaxValuesDataNegative(suite *f.BaseSuite, sponsor
 	assetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, assetId)
 	sponsoredAssetAmountRecipientSender := utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, RecipientSender).Address, sponsoredAssetId)
 	return map[string]TransferSponsoredTestData[TransferSponsoredExpectedValuesNegative]{
-		"Fee more than funds on the sponsor balance": NewTransferSponsoredTestData(
+		"Fee more than funds on the sponsorship balance": NewTransferSponsoredTestData(
 			1,
 			utl.GetAccount(suite, RecipientSender),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),
@@ -381,7 +381,7 @@ func GetTransferWithSponsorshipMaxValuesDataNegative(suite *f.BaseSuite, sponsor
 				ErrBrdCstGoMsg:            errBrdCstMsg,
 				ErrBrdCstScalaMsg:         "negative waves balance",
 			}),
-		"Fee in Waves from sponsor balance that out of long range": NewTransferSponsoredTestData(
+		"Fee in Waves from sponsorship balance that out of long range": NewTransferSponsoredTestData(
 			1,
 			utl.GetAccount(suite, RecipientSender),
 			proto.NewRecipientFromAddress(utl.GetAccount(suite, Recipient).Address),

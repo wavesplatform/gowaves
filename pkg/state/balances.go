@@ -168,7 +168,7 @@ func (ac *assetRecordForHashes) writeTo(w io.Writer) error {
 
 type assetInfoGetter interface {
 	assetInfo(assetID proto.AssetID) (*assetInfo, error)
-	newestAssetInfo(assetID proto.AssetID) (*assetInfo, error)
+	newestConstInfo(assetID proto.AssetID) (*assetConstInfo, error)
 }
 
 type balances struct {
@@ -596,6 +596,29 @@ func (s *balances) wavesBalance(addr proto.AddressID) (balanceProfile, error) {
 	return r.balanceProfile, nil
 }
 
+func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetID proto.AssetID,
+	balance uint64, blockID proto.BlockID, keyStr string) error {
+	info, err := s.assets.newestConstInfo(assetID)
+	if err != nil {
+		return err
+	}
+	wavesAddress, err := addr.ToWavesAddress(s.scheme)
+	if err != nil {
+		return err
+	}
+	fullAssetID := proto.ReconstructDigest(assetID, info.tail)
+	ac := &assetRecordForHashes{
+		addr:    &wavesAddress,
+		asset:   fullAssetID,
+		balance: balance,
+	}
+	if _, ok := s.assetsHashesState[blockID]; !ok {
+		s.assetsHashesState[blockID] = newStateForHashes()
+	}
+	s.assetsHashesState[blockID].set(keyStr, ac)
+	return nil
+}
+
 func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, balance uint64, blockID proto.BlockID) error {
 	key := assetBalanceKey{address: addr, asset: assetID}
 	keyBytes := key.bytes()
@@ -606,26 +629,42 @@ func (s *balances) setAssetBalance(addr proto.AddressID, assetID proto.AssetID, 
 		return err
 	}
 	if s.calculateHashes {
-		info, err := s.assets.newestAssetInfo(assetID)
-		if err != nil {
-			return err
+		shErr := s.calculateStateHashesAssetBalance(addr, assetID, balance, blockID, keyStr)
+		if shErr != nil {
+			return shErr
 		}
-		wavesAddress, err := addr.ToWavesAddress(s.scheme)
-		if err != nil {
-			return err
-		}
-		fullAssetID := proto.ReconstructDigest(assetID, info.tail)
-		ac := &assetRecordForHashes{
-			addr:    &wavesAddress,
-			asset:   fullAssetID,
-			balance: balance,
-		}
-		if _, ok := s.assetsHashesState[blockID]; !ok {
-			s.assetsHashesState[blockID] = newStateForHashes()
-		}
-		s.assetsHashesState[blockID].set(keyStr, ac)
 	}
 	return s.hs.addNewEntry(assetBalance, keyBytes, recordBytes, blockID)
+}
+
+func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balance wavesValue,
+	blockID proto.BlockID, keyStr string, record wavesBalanceRecord) error {
+	wavesAddress, err := addr.ToWavesAddress(s.scheme)
+	if err != nil {
+		return err
+	}
+	if balance.balanceChange {
+		wc := &wavesRecordForHashes{
+			addr:    &wavesAddress,
+			balance: record.balance,
+		}
+		if _, ok := s.wavesHashesState[blockID]; !ok {
+			s.wavesHashesState[blockID] = newStateForHashes()
+		}
+		s.wavesHashesState[blockID].set(keyStr, wc)
+	}
+	if balance.leaseChange {
+		lc := &leaseBalanceRecordForHashes{
+			addr:     &wavesAddress,
+			leaseIn:  record.leaseIn,
+			leaseOut: record.leaseOut,
+		}
+		if _, ok := s.leaseHashesState[blockID]; !ok {
+			s.leaseHashesState[blockID] = newStateForHashes()
+		}
+		s.leaseHashesState[blockID].set(keyStr, lc)
+	}
+	return nil
 }
 
 func (s *balances) setWavesBalance(addr proto.AddressID, balance wavesValue, blockID proto.BlockID) error {
@@ -638,30 +677,9 @@ func (s *balances) setWavesBalance(addr proto.AddressID, balance wavesValue, blo
 		return err
 	}
 	if s.calculateHashes {
-		wavesAddress, err := addr.ToWavesAddress(s.scheme)
-		if err != nil {
-			return err
-		}
-		if balance.balanceChange {
-			wc := &wavesRecordForHashes{
-				addr:    &wavesAddress,
-				balance: record.balance,
-			}
-			if _, ok := s.wavesHashesState[blockID]; !ok {
-				s.wavesHashesState[blockID] = newStateForHashes()
-			}
-			s.wavesHashesState[blockID].set(keyStr, wc)
-		}
-		if balance.leaseChange {
-			lc := &leaseBalanceRecordForHashes{
-				addr:     &wavesAddress,
-				leaseIn:  record.leaseIn,
-				leaseOut: record.leaseOut,
-			}
-			if _, ok := s.leaseHashesState[blockID]; !ok {
-				s.leaseHashesState[blockID] = newStateForHashes()
-			}
-			s.leaseHashesState[blockID].set(keyStr, lc)
+		shErr := s.calculateStateHashesWavesBalance(addr, balance, blockID, keyStr, record)
+		if shErr != nil {
+			return shErr
 		}
 	}
 	return s.hs.addNewEntry(wavesBalance, keyBytes, recordBytes, blockID)

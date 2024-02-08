@@ -11,6 +11,11 @@ import (
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/grpc/status"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
@@ -19,10 +24,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/grpc/status"
 )
 
 func TestGetTransactions(t *testing.T) {
@@ -59,7 +60,7 @@ func TestGetTransactions(t *testing.T) {
 	}
 	stream, err := cl.GetTransactions(ctx, req)
 	require.NoError(t, err)
-	correctRes, err := server.transactionToTransactionResponse(tx, true, false)
+	correctRes, err := server.transactionToTransactionResponse(tx, true, proto.TransactionSucceeded)
 	require.NoError(t, err)
 	res, err := stream.Recv()
 	require.NoError(t, err)
@@ -197,7 +198,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	}
 	stream, err := cl.GetUnconfirmed(ctx, req)
 	require.NoError(t, err)
-	correctRes, err := server.transactionToTransactionResponse(tx, false, false)
+	correctRes, err := server.transactionToTransactionResponse(tx, false, proto.TransactionSucceeded)
 	require.NoError(t, err)
 	res, err := stream.Recv()
 	require.NoError(t, err)

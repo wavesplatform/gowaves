@@ -55,6 +55,11 @@ type SameAliasExpectedValuesNegative struct {
 	_                            struct{}
 }
 
+type SameAliasExpectedValues struct {
+	Positive AliasExpectedValuesPositive
+	Negative AliasExpectedValuesNegative
+}
+
 func (a AliasExpectedValuesNegative) Positive() bool {
 	return false
 }

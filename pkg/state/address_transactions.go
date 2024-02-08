@@ -10,9 +10,10 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/starius/emsort"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const (
@@ -30,16 +31,13 @@ var (
 
 type txMeta struct {
 	offset uint64
-	failed bool
+	status proto.TransactionStatus
 }
 
 func (m *txMeta) bytes() []byte {
 	buf := make([]byte, txMetaSize)
 	binary.BigEndian.PutUint64(buf, m.offset)
-	buf[8] = 0
-	if m.failed {
-		buf[8] = 1
-	}
+	buf[8] = byte(m.status)
 	return buf
 }
 
@@ -48,8 +46,11 @@ func (m *txMeta) unmarshal(data []byte) error {
 		return errInvalidDataSize
 	}
 	m.offset = binary.BigEndian.Uint64(data)
-	if data[8] == 1 {
-		m.failed = true
+	switch s := proto.TransactionStatus(data[8]); s {
+	case proto.TransactionSucceeded, proto.TransactionFailed, proto.TransactionElided:
+		m.status = s
+	default:
+		return errors.Errorf("invalid tx status (%d)", s)
 	}
 	return nil
 }
@@ -64,21 +65,21 @@ func newTxIter(rw *blockReadWriter, iter *recordIterator) *txIter {
 	return &txIter{rw: rw, iter: iter}
 }
 
-func (i *txIter) Transaction() (proto.Transaction, bool, error) {
+func (i *txIter) Transaction() (proto.Transaction, proto.TransactionStatus, error) {
 	value, err := i.iter.currentRecord()
 	if err != nil {
-		return nil, false, err
+		return nil, 0, err
 	}
 	var meta txMeta
 	err = meta.unmarshal(value)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, err
 	}
 	tx, err := i.rw.readTransactionByOffset(meta.offset)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, err
 	}
-	return tx, meta.failed, nil
+	return tx, meta.status, nil
 }
 
 func (i *txIter) Next() bool {
@@ -204,7 +205,7 @@ func (at *addressTransactions) saveTxIdByAddress(addr proto.Address, txID []byte
 	if err != nil {
 		return err
 	}
-	meta := txMeta{info.offset, info.failed}
+	meta := txMeta{info.offset, info.txStatus}
 	binary.BigEndian.PutUint32(newRecord[pos:], blockNum)
 	pos += blockNumLen
 	copy(newRecord[pos:], meta.bytes())

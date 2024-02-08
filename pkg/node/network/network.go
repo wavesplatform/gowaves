@@ -150,13 +150,13 @@ func (n *Network) switchToNewPeerIfRequired() {
 	if n.isTimeToSwitchPeerWithMaxScore() {
 		// Node is getting close to the top of the blockchain, it's time to switch on a node with the highest
 		// score every time it updated.
-		if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer.peer); ok {
+		if np, ok := n.peers.CheckPeerWithMaxScore(n.syncPeer.GetPeer()); ok {
 			n.networkInfoCh <- ChangeSyncPeer{Peer: np}
 		}
 	} else {
 		// Node better continue synchronization with one node, switching to new node happens only if the larger
 		// group of nodes with the highest score appears.
-		if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer.peer); ok {
+		if np, ok := n.peers.CheckPeerInLargestScoreGroup(n.syncPeer.GetPeer()); ok {
 			n.networkInfoCh <- ChangeSyncPeer{Peer: np}
 		}
 	}

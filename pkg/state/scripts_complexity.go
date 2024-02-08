@@ -15,16 +15,16 @@ type estimationRecord struct {
 }
 
 func (e *estimationRecord) marshalBinary() ([]byte, error) {
-	type shadowed *estimationRecord
-	return cbor.Marshal(shadowed(e))
+	type shadowed estimationRecord
+	return cbor.Marshal((*shadowed)(e))
 }
 
 func (e *estimationRecord) unmarshalBinary(data []byte) error {
 	if len(data) == 0 {
 		return errors.New("empty binary data, estimation doesn't exist")
 	}
-	type shadowed *estimationRecord
-	return cbor.Unmarshal(data, shadowed(e))
+	type shadowed estimationRecord
+	return cbor.Unmarshal(data, (*shadowed)(e))
 }
 
 type scriptsComplexity struct {

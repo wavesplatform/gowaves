@@ -142,8 +142,8 @@ func GetReissueNFTData(suite *f.BaseSuite, assetID crypto.Digest) map[string]Rei
 	return t
 }
 
-func GetNotReissuableTestData(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueNotReissuableExpectedValuesNegative] {
-	var t = map[string]ReissueTestData[ReissueNotReissuableExpectedValuesNegative]{
+func GetNotReissuableTestData(suite *f.BaseSuite, assetID crypto.Digest) map[string]ReissueTestData[ReissueExpectedValuesNegative] {
+	var t = map[string]ReissueTestData[ReissueExpectedValuesNegative]{
 		"Reissue not reissuable token": NewReissueTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
@@ -152,20 +152,14 @@ func GetNotReissuableTestData(suite *f.BaseSuite, assetID crypto.Digest) map[str
 			utl.TestChainID,
 			100000,
 			false,
-			ReissueNotReissuableExpectedValuesNegative{
-				Positive: ReissueExpectedValuesPositive{
-					WavesDiffBalance: utl.MinTxFeeWaves,
-					AssetDiffBalance: 100000,
-				},
-				Negative: ReissueExpectedValuesNegative{
-					WavesDiffBalance:  0,
-					AssetDiffBalance:  0,
-					Reissuable:        false,
-					ErrGoMsg:          errMsg,
-					ErrScalaMsg:       errMsg,
-					ErrBrdCstGoMsg:    errBrdCstMsg,
-					ErrBrdCstScalaMsg: "Asset is not reissuable",
-				},
+			ReissueExpectedValuesNegative{
+				WavesDiffBalance:  0,
+				AssetDiffBalance:  0,
+				Reissuable:        false,
+				ErrGoMsg:          errMsg,
+				ErrScalaMsg:       errMsg,
+				ErrBrdCstGoMsg:    errBrdCstMsg,
+				ErrBrdCstScalaMsg: "Asset is not reissuable",
 			}),
 	}
 	return t

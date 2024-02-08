@@ -2,10 +2,12 @@ package state
 
 import (
 	"context"
+	"fmt"
 	"runtime"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -77,6 +79,18 @@ func TestVerifier(t *testing.T) {
 	blocks[len(blocks)/2] = backup
 	err = verifyBlocks(blocks, chans)
 	assert.NoError(t, err, "verifyBlocks() failed with valid blocks")
+	// Test self-challenged block.
+	chans = launchVerifier(ctx, runtime.NumCPU(), proto.TestNetScheme)
+	prevBlock := blocks[len(blocks)/2-1]
+	block := blocks[len(blocks)/2]
+	block.ChallengedHeader = &proto.ChallengedHeader{GeneratorPublicKey: block.GeneratorPublicKey}
+	err = verifyBlocks([]proto.Block{prevBlock, block}, chans)
+	assert.EqualError(t, err, fmt.Sprintf("State: handleTask: block '%s' is self-challenged", block.ID.String()),
+		"verifyBlocks() did not fail with self-challenged block",
+	)
+	//
+	// Test transactions
+	//
 	chans = launchVerifier(ctx, runtime.NumCPU(), proto.TestNetScheme)
 	// Test unsigned tx failure.
 	spk, err := crypto.NewPublicKeyFromBase58(testPK)
