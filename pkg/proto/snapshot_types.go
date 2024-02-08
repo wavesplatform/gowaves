@@ -107,7 +107,7 @@ func (s AssetBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 
 type DataEntriesSnapshot struct { // AccountData in pb
 	Address     WavesAddress
-	DataEntries []DataEntry
+	DataEntries DataEntries
 }
 
 func (s DataEntriesSnapshot) Apply(a SnapshotApplier) error { return a.ApplyDataEntries(s) }
