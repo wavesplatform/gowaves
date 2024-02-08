@@ -49,8 +49,8 @@ const (
 	ContentIDPBBlock                   PeerMessageID = 29
 	ContentIDPBMicroBlock              PeerMessageID = 30
 	ContentIDPBTransaction             PeerMessageID = 31
-	ContentIDGetBlockIds               PeerMessageID = 32
-	ContentIDBlockIds                  PeerMessageID = 33
+	ContentIDGetBlockIDs               PeerMessageID = 32
+	ContentIDBlockIDs                  PeerMessageID = 33
 	ContentIDGetBlockSnapshot          PeerMessageID = 34
 	ContentIDMicroBlockSnapshotRequest PeerMessageID = 35
 	ContentIDBlockSnapshot             PeerMessageID = 36
@@ -1811,9 +1811,9 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &PBMicroBlockMessage{}
 	case ContentIDPBTransaction:
 		m = &PBTransactionMessage{}
-	case ContentIDGetBlockIds:
+	case ContentIDGetBlockIDs:
 		m = &GetBlockIdsMessage{}
-	case ContentIDBlockIds:
+	case ContentIDBlockIDs:
 		m = &BlockIdsMessage{}
 	case ContentIDGetBlockSnapshot:
 		m = &GetBlockSnapshotMessage{}
@@ -1851,7 +1851,7 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 	var h Header
 	h.Length = maxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
-	h.ContentID = ContentIDGetBlockIds
+	h.ContentID = ContentIDGetBlockIDs
 	h.PayloadLength = uint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
@@ -1880,7 +1880,7 @@ func (m *GetBlockIdsMessage) UnmarshalBinary(data []byte) error {
 	if h.Magic != headerMagic {
 		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
-	if h.ContentID != ContentIDGetBlockIds {
+	if h.ContentID != ContentIDGetBlockIDs {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
@@ -1947,7 +1947,7 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 	var h Header
 	h.Length = maxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
-	h.ContentID = ContentIDBlockIds
+	h.ContentID = ContentIDBlockIDs
 	h.PayloadLength = uint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
@@ -1977,7 +1977,7 @@ func (m *BlockIdsMessage) UnmarshalBinary(data []byte) error {
 	if h.Magic != headerMagic {
 		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
-	if h.ContentID != ContentIDBlockIds {
+	if h.ContentID != ContentIDBlockIDs {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]

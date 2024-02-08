@@ -220,7 +220,7 @@ func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
 			Body: invBts,
 		}
 	)
-	info.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
+	info.peers.EachConnected(func(p peer.Peer, _ *proto.Score) {
 		p.SendMessage(msg)
 		cnt++
 	})

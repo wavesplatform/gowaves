@@ -110,7 +110,7 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDBlockIds,
+		proto.ContentIDBlockIDs,
 		proto.ContentIDBlockSnapshot,
 		proto.ContentIDMicroBlockSnapshot,
 		proto.ContentIDMicroBlockSnapshotRequest,
