@@ -3,6 +3,7 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -22,8 +23,8 @@ const (
 )
 
 type SnapshotAtHeight struct {
-	Height        proto.Height
-	BlockSnapshot proto.BlockSnapshot
+	Height        proto.Height        `json:"height"`
+	BlockSnapshot proto.BlockSnapshot `json:"blockSnapshot"`
 }
 
 func parseSnapshots(start, end uint64, snapshotsBody io.Reader, scheme proto.Scheme) []SnapshotAtHeight {
@@ -117,6 +118,9 @@ func main() {
 		end   = start + *nBlocks
 	)
 	blocksSnapshots := parseSnapshots(start, end, bufio.NewReaderSize(snapshotsBody, MB), ss.AddressSchemeCharacter)
-
-	zap.S().Infof("%+v", blocksSnapshots)
+	data, err := json.Marshal(blocksSnapshots)
+	if err != nil {
+		zap.S().Fatalf("failed to marshal blocksSnapshots: %v", err)
+	}
+	fmt.Println(string(data))
 }
