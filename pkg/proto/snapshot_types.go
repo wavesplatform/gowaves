@@ -1,6 +1,7 @@
 package proto
 
 import (
+	"encoding/json"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -16,8 +17,16 @@ type AtomicSnapshot interface {
 	AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error
 }
 type WavesBalanceSnapshot struct {
-	Address WavesAddress
-	Balance uint64
+	Address WavesAddress `json:"address"`
+	Balance uint64       `json:"balance"`
+}
+
+func (s WavesBalanceSnapshot) MarshalJSON() ([]byte, error) {
+	out := struct {
+		WavesBalanceSnapshot
+		Asset OptionalAsset `json:"asset"`
+	}{s, NewOptionalAssetWaves()}
+	return json.Marshal(out)
 }
 
 func (s WavesBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyWavesBalance(s) }
@@ -60,9 +69,9 @@ func (s *WavesBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 }
 
 type AssetBalanceSnapshot struct {
-	Address WavesAddress
-	AssetID crypto.Digest
-	Balance uint64
+	Address WavesAddress  `json:"address"`
+	AssetID crypto.Digest `json:"asset"`
+	Balance uint64        `json:"balance"`
 }
 
 func (s AssetBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetBalance(s) }
@@ -106,8 +115,8 @@ func (s AssetBalanceSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSn
 }
 
 type DataEntriesSnapshot struct { // AccountData in pb
-	Address     WavesAddress
-	DataEntries []DataEntry
+	Address     WavesAddress `json:"address"`
+	DataEntries DataEntries  `json:"data"`
 }
 
 func (s DataEntriesSnapshot) Apply(a SnapshotApplier) error { return a.ApplyDataEntries(s) }
@@ -151,9 +160,9 @@ func (s *DataEntriesSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateS
 }
 
 type AccountScriptSnapshot struct {
-	SenderPublicKey    crypto.PublicKey
-	Script             Script
-	VerifierComplexity uint64
+	SenderPublicKey    crypto.PublicKey `json:"publicKey"`
+	Script             Script           `json:"script"`
+	VerifierComplexity uint64           `json:"verifierComplexity"`
 }
 
 func (s AccountScriptSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAccountScript(s) }
@@ -199,8 +208,9 @@ func (s *AccountScriptSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Accou
 }
 
 type AssetScriptSnapshot struct {
-	AssetID crypto.Digest
-	Script  Script
+	AssetID crypto.Digest `json:"id"`
+	Script  Script        `json:"script"`
+	// json representation in scala node also has 'complexity' field, but it's always equal to 0, so it's omitted here
 }
 
 func (s AssetScriptSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetScript(s) }
@@ -240,9 +250,9 @@ func (s *AssetScriptSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetSc
 }
 
 type LeaseBalanceSnapshot struct {
-	Address  WavesAddress
-	LeaseIn  uint64
-	LeaseOut uint64
+	Address  WavesAddress `json:"address"`
+	LeaseIn  uint64       `json:"in"`
+	LeaseOut uint64       `json:"out"`
 }
 
 func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLeaseBalance(s) }
@@ -284,25 +294,13 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	return nil
 }
 
-type LeaseStateStatus interface{ leaseStateStatusMarker() }
-
-type LeaseStateStatusActive struct {
-	Amount    uint64
-	Sender    WavesAddress
-	Recipient WavesAddress
-}
-
-func (*LeaseStateStatusActive) leaseStateStatusMarker() {}
-
-type LeaseStatusCancelled struct{}
-
-func (*LeaseStatusCancelled) leaseStateStatusMarker() {}
-
 type NewLeaseSnapshot struct {
-	LeaseID       crypto.Digest
-	Amount        uint64
-	SenderPK      crypto.PublicKey
-	RecipientAddr WavesAddress
+	LeaseID       crypto.Digest    `json:"id"`
+	Amount        uint64           `json:"amount"`
+	SenderPK      crypto.PublicKey `json:"sender"`
+	RecipientAddr WavesAddress     `json:"recipient"`
+	// json representation in scala node also has 'height' and 'txId' fields,
+	// but they aren't important, so omitted
 }
 
 func (s NewLeaseSnapshot) Apply(a SnapshotApplier) error { return a.ApplyNewLease(s) }
@@ -351,7 +349,9 @@ func (s *NewLeaseSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnap
 }
 
 type CancelledLeaseSnapshot struct {
-	LeaseID crypto.Digest
+	LeaseID crypto.Digest `json:"id"`
+	// json representation in scala node also has 'height' and 'txId' fields,
+	// but they aren't important, so omitted
 }
 
 func (s CancelledLeaseSnapshot) Apply(a SnapshotApplier) error { return a.ApplyCancelledLease(s) }
@@ -382,8 +382,8 @@ func (s *CancelledLeaseSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Canc
 }
 
 type SponsorshipSnapshot struct {
-	AssetID         crypto.Digest
-	MinSponsoredFee uint64
+	AssetID         crypto.Digest `json:"id"`
+	MinSponsoredFee uint64        `json:"minSponsoredAssetFee"`
 }
 
 func (s SponsorshipSnapshot) Apply(a SnapshotApplier) error { return a.ApplySponsorship(s) }
@@ -420,8 +420,17 @@ func (s *SponsorshipSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Sponsor
 }
 
 type AliasSnapshot struct {
-	Address WavesAddress
-	Alias   Alias
+	Address WavesAddress `json:"address"`
+	Alias   string       `json:"alias"`
+}
+
+func (s *AliasSnapshot) UnmarshalJSON(bytes []byte) error {
+	type shadowed AliasSnapshot
+	if err := json.Unmarshal(bytes, (*shadowed)(s)); err != nil {
+		return err
+	}
+	_, err := IsValidAliasString(s.Alias)
+	return err
 }
 
 func (s AliasSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAlias(s) }
@@ -429,7 +438,7 @@ func (s AliasSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAlias(s) }
 func (s AliasSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Alias, error) {
 	return &g.TransactionStateSnapshot_Alias{
 		Address: s.Address.Bytes(),
-		Alias:   s.Alias.Alias,
+		Alias:   s.Alias,
 	}, nil
 }
 
@@ -450,16 +459,19 @@ func (s *AliasSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionStateSnapsho
 	if err != nil {
 		return err
 	}
+	if _, aErr := IsValidAliasString(p.Alias); aErr != nil {
+		return aErr
+	}
 	s.Address = addr
-	s.Alias = *NewAlias(scheme, p.Alias)
+	s.Alias = p.Alias
 	return nil
 }
 
 // FilledVolumeFeeSnapshot Filled Volume and Fee.
 type FilledVolumeFeeSnapshot struct { // OrderFill
-	OrderID      crypto.Digest
-	FilledVolume uint64
-	FilledFee    uint64
+	OrderID      crypto.Digest `json:"id"`
+	FilledVolume uint64        `json:"volume"`
+	FilledFee    uint64        `json:"fee"`
 }
 
 func (s FilledVolumeFeeSnapshot) Apply(a SnapshotApplier) error { return a.ApplyFilledVolumeAndFee(s) }
@@ -502,10 +514,10 @@ func (s *FilledVolumeFeeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_Ord
 }
 
 type NewAssetSnapshot struct {
-	AssetID         crypto.Digest
-	IssuerPublicKey crypto.PublicKey
-	Decimals        uint8
-	IsNFT           bool
+	AssetID         crypto.Digest    `json:"id"`
+	IssuerPublicKey crypto.PublicKey `json:"issuer"`
+	Decimals        uint8            `json:"decimals"`
+	IsNFT           bool             `json:"nft"`
 }
 
 func (s NewAssetSnapshot) Apply(a SnapshotApplier) error { return a.ApplyNewAsset(s) }
@@ -550,9 +562,9 @@ func (s *NewAssetSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_NewAsset) 
 }
 
 type AssetVolumeSnapshot struct { // AssetVolume in pb
-	AssetID       crypto.Digest
-	TotalQuantity big.Int // volume in protobuf
-	IsReissuable  bool
+	AssetID       crypto.Digest `json:"id"`
+	TotalQuantity big.Int       `json:"volume"` // volume in protobuf
+	IsReissuable  bool          `json:"isReissuable"`
 }
 
 func (s AssetVolumeSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetVolume(s) }
@@ -588,9 +600,10 @@ func (s *AssetVolumeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetVo
 }
 
 type AssetDescriptionSnapshot struct { // AssetNameAndDescription in pb
-	AssetID          crypto.Digest
-	AssetName        string
-	AssetDescription string
+	AssetID          crypto.Digest `json:"id"`
+	AssetName        string        `json:"name"`
+	AssetDescription string        `json:"description"`
+	// json representation in scala node also has 'lastUpdatedAt' field, but it's not important, so omitted
 }
 
 func (s AssetDescriptionSnapshot) Apply(a SnapshotApplier) error { return a.ApplyAssetDescription(s) }
@@ -626,7 +639,7 @@ func (s *AssetDescriptionSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_As
 }
 
 type TransactionStatusSnapshot struct {
-	Status TransactionStatus
+	Status TransactionStatus `json:"transactionStatus"` // this is not canonical json representation
 }
 
 func (s TransactionStatusSnapshot) Apply(a SnapshotApplier) error {
