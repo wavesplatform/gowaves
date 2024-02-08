@@ -600,7 +600,7 @@ func (sg *snapshotGenerator) generateSnapshotForCreateAliasTx(
 	}
 	aliasSnapshot := &proto.AliasSnapshot{
 		Address: senderAddr,
-		Alias:   alias,
+		Alias:   alias.Alias,
 	}
 	snapshot.regular = append(snapshot.regular, aliasSnapshot)
 	return snapshot, nil
