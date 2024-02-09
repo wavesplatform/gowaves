@@ -1395,11 +1395,11 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		}
 	}
 
-	needToRecalc, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)
+	needToRecalculate, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)
 	if err != nil {
 		return err
 	}
-	if needToRecalc { // one time action
+	if needToRecalculate { // one time action
 		if err := s.recalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight, lastBlock); err != nil {
 			return errors.Wrap(err, "failed to recalculate monetary policy votes")
 		}
