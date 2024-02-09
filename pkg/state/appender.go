@@ -639,6 +639,10 @@ func (a *txAppender) applySnapshotInLightNode(
 				base58.Encode(txID), blockInfo.Height,
 			)
 		}
+		// Count miner fee
+		if err := a.blockDiffer.countMinerFee(tx); err != nil {
+			return crypto.Digest{}, errors.Wrapf(err, "failed to count miner fee for txID %q", base58.Encode(txID))
+		}
 		stateHash = txSh
 		regSnapshots := txSnapshot{regular: txs}
 		if err := regSnapshots.Apply(a.txHandler.sa, tx, false); err != nil {
