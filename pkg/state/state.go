@@ -855,7 +855,7 @@ func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.Asse
 	// Retrieve the latest balance diff as for the moment of this function call.
 	key := assetBalanceKey{address: addr, asset: asset}
 	diff, err := s.appender.diffStorInvoke.latestDiffByKey(string(key.bytes()))
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// If there is no diff, old balance is the newest.
 		return balance, nil
 	} else if err != nil {
@@ -878,7 +878,7 @@ func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (balanceP
 	// Retrieve the latest balance diff as for the moment of this function call.
 	key := wavesBalanceKey{address: addr}
 	diff, err := s.appender.diffStorInvoke.latestDiffByKey(string(key.bytes()))
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// If there is no diff, old balance is the newest.
 		return profile, nil
 	} else if err != nil {
