@@ -421,7 +421,10 @@ func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot proto.AssetBalanceSna
 }
 
 func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
-	return a.stor.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, a.info.BlockID())
+	if _, err := proto.IsValidAliasString(snapshot.Alias); err != nil {
+		return errors.Wrapf(err, "invalid alias string %q", snapshot.Alias)
+	}
+	return a.stor.aliases.createAlias(snapshot.Alias, snapshot.Address, a.info.BlockID())
 }
 
 func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) error {
