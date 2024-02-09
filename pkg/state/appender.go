@@ -1060,8 +1060,9 @@ func (a *txAppender) handleFallible(
 	case proto.ExchangeTransaction:
 		applicationRes, err := a.handleExchange(tx, info)
 		return nil, applicationRes, err
+	default:
+		return nil, nil, errors.Errorf("transaction (%T) is not fallible", tx)
 	}
-	return nil, nil, errors.New("transaction is not fallible")
 }
 
 // For UTX validation.
