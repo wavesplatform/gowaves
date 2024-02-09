@@ -647,6 +647,7 @@ func (a *txAppender) applySnapshotInLightNode(
 		if err := regSnapshots.Apply(a.txHandler.sa, tx, false); err != nil {
 			return crypto.Digest{}, errors.Wrap(err, "failed to apply tx snapshot")
 		}
+		// TODO: In future we have to store the list of affected addresses for each transaction here.
 	}
 	return stateHash, nil
 }
