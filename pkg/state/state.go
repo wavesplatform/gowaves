@@ -398,16 +398,77 @@ type stateManager struct {
 	enableLightNode bool
 }
 
-func newStateManager( //nolint:funlen,gocognit
+func initDatabase(
+	dataDir, blockStorageDir string,
+	amend bool,
+	params StateParams,
+) (*keyvalue.KeyVal, keyvalue.Batch, *stateDB, bool, error) {
+	dbDir := filepath.Join(dataDir, keyvalueDir)
+	zap.S().Info("Initializing state database, will take up to few minutes...")
+	params.DbParams.BloomFilterParams.Store.WithPath(filepath.Join(blockStorageDir, "bloom"))
+	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
+	if err != nil {
+		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create db"))
+	}
+	zap.S().Info("Finished initializing database")
+	dbBatch, err := db.NewBatch()
+	if err != nil {
+		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create db batch"))
+	}
+	sdb, err := newStateDB(db, dbBatch, params)
+	if err != nil {
+		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create stateDB"))
+	}
+	if cErr := checkCompatibility(sdb, params); cErr != nil {
+		return nil, nil, nil, false, wrapErr(IncompatibilityError, cErr)
+	}
+	handledAmend, err := handleAmendFlag(sdb, amend)
+	if err != nil {
+		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to handle amend flag"))
+	}
+	return db, dbBatch, sdb, handledAmend, nil
+}
+
+func initGenesis(state *stateManager, height uint64, settings *settings.BlockchainSettings) error {
+	state.setGenesisBlock(&settings.Genesis)
+	// 0 state height means that no blocks are found in state, so blockchain history is empty and we have to add genesis
+	if height == 0 {
+		// Assign unique block number for this block ID, add this number to the list of valid blocks
+		if err := state.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
+			return err
+		}
+		if err := state.addGenesisBlock(); err != nil {
+			return errors.Wrap(err, "failed to apply/save genesis")
+		}
+		// We apply pre-activated features after genesis block, so they aren't active in genesis itself
+		if err := state.applyPreActivatedFeatures(settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
+			return errors.Wrap(err, "failed to apply pre-activated features")
+		}
+	}
+
+	// check the correct blockchain is being loaded
+	genesis, err := state.BlockByHeight(1)
+	if err != nil {
+		return errors.Wrap(err, "failed to get genesis block from state")
+	}
+	err = settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter)
+	if err != nil {
+		return errors.Wrap(err, "failed to generate genesis block id from config")
+	}
+	if !bytes.Equal(genesis.ID.Bytes(), settings.Genesis.ID.Bytes()) {
+		return errors.New("genesis blocks from state and config mismatch")
+	}
+	return nil
+}
+
+func newStateManager(
 	dataDir string,
 	amend bool,
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
 ) (*stateManager, error) {
-	// TODO(anton): fix lint
-	err := validateSettings(settings)
-	if err != nil {
+	if err := validateSettings(settings); err != nil {
 		return nil, err
 	}
 	if _, err := os.Stat(dataDir); errors.Is(err, fs.ErrNotExist) {
@@ -422,42 +483,23 @@ func newStateManager( //nolint:funlen,gocognit
 		}
 	}
 	// Initialize database.
-	dbDir := filepath.Join(dataDir, keyvalueDir)
-	zap.S().Info("Initializing state database, will take up to few minutes...")
-	params.DbParams.BloomFilterParams.Store.WithPath(filepath.Join(blockStorageDir, "bloom"))
-	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
+	db, dbBatch, sdb, handledAmend, err := initDatabase(dataDir, blockStorageDir, amend, params)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Wrap(err, "failed to create db"))
-	}
-	zap.S().Info("Finished initializing database")
-	dbBatch, err := db.NewBatch()
-	if err != nil {
-		return nil, wrapErr(Other, errors.Wrap(err, "failed to create db batch"))
-	}
-	stateDB, err := newStateDB(db, dbBatch, params)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Wrap(err, "failed to create stateDB"))
-	}
-	if err := checkCompatibility(stateDB, params); err != nil {
-		return nil, wrapErr(IncompatibilityError, err)
-	}
-	handledAmend, err := handleAmendFlag(stateDB, amend)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Wrap(err, "failed to handle amend flag"))
+		return nil, err
 	}
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(
 		blockStorageDir,
 		params.OffsetLen,
 		params.HeaderOffsetLen,
-		stateDB,
+		sdb,
 		settings.AddressSchemeCharacter,
 	)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
-	stateDB.setRw(rw)
-	hs, err := newHistoryStorage(db, dbBatch, stateDB, handledAmend)
+	sdb.setRw(rw)
+	hs, err := newHistoryStorage(db, dbBatch, sdb, handledAmend)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
 	}
@@ -472,19 +514,13 @@ func newStateManager( //nolint:funlen,gocognit
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        params.ProvideExtendedApi,
 	}
-	atx, err := newAddressTransactions(
-		db,
-		stateDB,
-		rw,
-		atxParams,
-		handledAmend,
-	)
+	atx, err := newAddressTransactions(db, sdb, rw, atxParams, handledAmend)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
 	}
 	state := &stateManager{
 		mu:                        &sync.RWMutex{},
-		stateDB:                   stateDB,
+		stateDB:                   sdb,
 		stor:                      stor,
 		rw:                        rw,
 		settings:                  settings,
@@ -495,11 +531,8 @@ func newStateManager( //nolint:funlen,gocognit
 	}
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
-	snapshotApplier := newBlockSnapshotsApplier(
-		nil,
-		newSnapshotApplierStorages(stor, rw),
-	)
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier)
+	snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, rw))
+	appender, err := newTxAppender(state, rw, stor, settings, sdb, atx, &snapshotApplier)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -510,35 +543,10 @@ func newStateManager( //nolint:funlen,gocognit
 	if err != nil {
 		return nil, err
 	}
-	state.setGenesisBlock(&settings.Genesis)
-	// 0 state height means that no blocks are found in state, so blockchain history is empty and we have to add genesis
-	if height == 0 {
-		// Assign unique block number for this block ID, add this number to the list of valid blocks
-		if err := state.stateDB.addBlock(settings.Genesis.BlockID()); err != nil {
-			return nil, err
-		}
-		if err := state.addGenesisBlock(); err != nil {
-			return nil, errors.Wrap(err, "failed to apply/save genesis")
-		}
-		// We apply pre-activated features after genesis block, so they aren't active in genesis itself
-		if err := state.applyPreActivatedFeatures(settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
-			return nil, errors.Wrap(err, "failed to apply pre-activated features")
-		}
-	}
 
-	// check the correct blockchain is being loaded
-	genesis, err := state.BlockByHeight(1)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get genesis block from state")
+	if gErr := initGenesis(state, height, settings); gErr != nil {
+		return nil, gErr
 	}
-	err = settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to generate genesis block id from config")
-	}
-	if !bytes.Equal(genesis.ID.Bytes(), settings.Genesis.ID.Bytes()) {
-		return nil, errors.Errorf("genesis blocks from state and config mismatch")
-	}
-
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
