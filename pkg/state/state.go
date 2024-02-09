@@ -35,8 +35,9 @@ const (
 var empty struct{}
 
 func wrapErr(stateErrorType ErrorType, err error) error {
-	switch err.(type) {
-	case StateError:
+	var stateError StateError
+	switch {
+	case errors.As(err, &stateError):
 		return err
 	default:
 		return NewStateError(stateErrorType, err)
