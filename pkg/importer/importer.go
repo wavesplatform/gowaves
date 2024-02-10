@@ -29,7 +29,8 @@ const (
 var errNoop = errors.New("noop")
 
 type State interface {
-	AddBlocks(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
+	AddBlocks(blocks [][]byte) error
+	AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	WavesAddressesNumber() (uint64, error)
 	WavesBalance(account proto.Recipient) (uint64, error)
 	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
@@ -273,7 +274,7 @@ func ApplyFromFile(
 			continue
 		}
 		start := time.Now()
-		if abErr := st.AddBlocks(blocks[:blocksIndex], blockSnapshots[:blocksIndex]); abErr != nil {
+		if abErr := st.AddBlocksWithSnapshots(blocks[:blocksIndex], blockSnapshots[:blocksIndex]); abErr != nil {
 			return abErr
 		}
 		reg.calculateSpeed(start)

@@ -282,20 +282,31 @@ func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Bloc
 
 func (a *MockStateManager) AddDeserializedBlocks(
 	blocks []*proto.Block,
+) (*proto.Block, error) {
+	var out *proto.Block
+	var err error
+	for _, b := range blocks {
+		if out, err = a.AddDeserializedBlock(b); err != nil {
+			return nil, err
+		}
+	}
+	return out, nil
+}
+
+func (a *MockStateManager) AddDeserializedBlocksWithSnapshots(
+	blocks []*proto.Block,
 	snapshots []*proto.BlockSnapshot,
 ) (*proto.Block, error) {
 	var out *proto.Block
 	var err error
-	if snapshots != nil && (len(blocks) != len(snapshots)) {
+	if len(blocks) != len(snapshots) {
 		panic("the numbers of snapshots doesn't match the number of blocks")
 	}
 	for i, b := range blocks {
 		if out, err = a.AddDeserializedBlock(b); err != nil {
 			return nil, err
 		}
-		if snapshots != nil {
-			a.snapshots = append(a.snapshots, snapshots[i])
-		}
+		a.snapshots = append(a.snapshots, snapshots[i])
 	}
 	return out, nil
 }

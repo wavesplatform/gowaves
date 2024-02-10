@@ -17,7 +17,7 @@ import (
 
 type InvRequester interface {
 	Add2Cache(id []byte) (existed bool)
-	Request(p types.MessageSender, id []byte, enableLightNode bool) (existed bool)
+	Request(p types.MessageSender, id []byte) (existed bool)
 }
 
 type IdleState struct {
@@ -68,6 +68,8 @@ func (a *IdleState) Task(task tasks.AsyncTask) (State, Async, error) {
 		return a, nil, nil
 	case tasks.MineMicro: // Do nothing
 		return a, nil, nil
+	case tasks.SnapshotTimeout:
+		return a, nil, nil
 	default:
 		return a, nil, a.Errorf(errors.Errorf(
 			"unexpected internal task '%d' with data '%+v' received by %s State",
@@ -108,7 +110,7 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDBlockIds,
+		proto.ContentIDBlockIDs,
 		proto.ContentIDBlockSnapshot,
 		proto.ContentIDMicroBlockSnapshot,
 		proto.ContentIDMicroBlockSnapshotRequest,

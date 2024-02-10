@@ -13,11 +13,12 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
+	"golang.org/x/crypto/sha3"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
-	"golang.org/x/crypto/sha3"
 )
 
 const (
@@ -279,6 +280,9 @@ func (a *WavesAddress) UnmarshalJSON(value []byte) error {
 		return errors.Errorf("incorrect size of an WavesAddress %d, expected %d", l, WavesAddressSize)
 	}
 	copy(a[:], b)
+	if _, vErr := a.validVersionAndChecksum(); vErr != nil {
+		return errors.Wrap(vErr, "invalid WavesAddress")
+	}
 	return nil
 }
 
@@ -571,6 +575,20 @@ func NewAlias(scheme byte, alias string) *Alias {
 	return &Alias{aliasVersion, scheme, alias}
 }
 
+func IsValidAliasString(a string) (bool, error) {
+	if l := len(a); l < AliasMinLength || l > AliasMaxLength {
+		return false, errs.NewTxValidationError(fmt.Sprintf(
+			"Alias '%s' length should be between %d and %d", a, AliasMinLength, AliasMaxLength,
+		))
+	}
+	if !correctAlphabet(a) {
+		return false, errs.NewTxValidationError(fmt.Sprintf(
+			"Alias should contain only following characters: %s", AliasAlphabet,
+		))
+	}
+	return true, nil
+}
+
 // Valid validates the Alias checking it length, version and symbols.
 func (a Alias) Valid(scheme Scheme) (bool, error) {
 	if v := a.Version; v != aliasVersion {
@@ -579,13 +597,7 @@ func (a Alias) Valid(scheme Scheme) (bool, error) {
 	if s := a.Scheme; s != scheme {
 		return false, errs.NewTxValidationError(fmt.Sprintf("invalid scheme %q, expected %q", s, scheme))
 	}
-	if l := len(a.Alias); l < AliasMinLength || l > AliasMaxLength {
-		return false, errs.NewTxValidationError(fmt.Sprintf("Alias '%s' length should be between %d and %d", a.Alias, AliasMinLength, AliasMaxLength))
-	}
-	if !correctAlphabet(a.Alias) {
-		return false, errs.NewTxValidationError(fmt.Sprintf("Alias should contain only following characters: %s", AliasAlphabet))
-	}
-	return true, nil
+	return IsValidAliasString(a.Alias)
 }
 
 func correctAlphabet(s string) bool {

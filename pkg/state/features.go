@@ -3,11 +3,13 @@ package state
 import (
 	"encoding/binary"
 	"errors"
+	"sync"
+
+	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"go.uber.org/zap"
 )
 
 const (
@@ -82,6 +84,7 @@ type features struct {
 	settings            *settings.BlockchainSettings
 	definedFeaturesInfo map[settings.Feature]settings.FeatureInfo
 	activationCache     map[settings.Feature]featureActivationState
+	mu                  sync.Mutex
 }
 
 func newFeatures(rw *blockReadWriter, db keyvalue.IterableKeyVal, hs *historyStorage, stg *settings.BlockchainSettings,
@@ -219,6 +222,8 @@ func (f *features) newestIsActivatedForNBlocks(featureID int16, n int) (bool, er
 }
 
 func (f *features) newestIsActivated(featureID int16) (bool, error) {
+	defer f.mu.Unlock()
+	f.mu.Lock()
 	if as, ok := f.activationCache[settings.Feature(featureID)]; ok {
 		return as.activated, nil
 	}
@@ -235,6 +240,8 @@ func (f *features) newestIsActivated(featureID int16) (bool, error) {
 }
 
 func (f *features) isActivated(featureID int16) (bool, error) {
+	defer f.mu.Unlock()
+	f.mu.Lock()
 	if as, ok := f.activationCache[settings.Feature(featureID)]; ok {
 		return as.activated, nil
 	}
@@ -309,6 +316,8 @@ func (f *features) activatedFeaturesRecord(featureID int16) (*activatedFeaturesR
 }
 
 func (f *features) newestActivationHeight(featureID int16) (uint64, error) {
+	defer f.mu.Unlock()
+	f.mu.Lock()
 	if as, ok := f.activationCache[settings.Feature(featureID)]; ok {
 		if as.activated {
 			return as.height, nil
@@ -324,6 +333,8 @@ func (f *features) newestActivationHeight(featureID int16) (uint64, error) {
 }
 
 func (f *features) activationHeight(featureID int16) (uint64, error) {
+	defer f.mu.Unlock()
+	f.mu.Lock()
 	if as, ok := f.activationCache[settings.Feature(featureID)]; ok {
 		if as.activated {
 			return as.height, nil
@@ -600,5 +611,7 @@ func (f *features) allFeatures() ([]int16, error) {
 }
 
 func (f *features) clearCache() {
+	f.mu.Lock()
 	f.activationCache = make(map[settings.Feature]featureActivationState)
+	f.mu.Unlock()
 }

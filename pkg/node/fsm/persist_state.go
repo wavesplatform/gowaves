@@ -76,7 +76,7 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDGetBlockIds,
+		proto.ContentIDGetBlockIDs,
 		proto.ContentIDBlockSnapshot,
 		proto.ContentIDMicroBlockSnapshot,
 		proto.ContentIDGetBlockSnapshot,

@@ -14,18 +14,25 @@ type BlocksApplier interface {
 	Apply(
 		state state.State,
 		block []*proto.Block,
-		snapshots []*proto.BlockSnapshot,
-		isLightNode bool,
 	) (proto.Height, error)
 	ApplyMicro(
 		state state.State,
 		block *proto.Block,
+	) (proto.Height, error)
+	ApplyWithSnapshots(
+		state state.State,
+		block []*proto.Block,
+		snapshots []*proto.BlockSnapshot,
+	) (proto.Height, error)
+	ApplyMicroWithSnapshots(
+		state state.State,
+		block *proto.Block,
 		snapshots *proto.BlockSnapshot,
-		isLightNode bool,
 	) (proto.Height, error)
 }
 
 type MicroBlockCache interface {
+	AddMicroBlock(blockID proto.BlockID, micro *proto.MicroBlock)
 	AddMicroBlockWithSnapshot(blockID proto.BlockID, micro *proto.MicroBlock, snapshot *proto.BlockSnapshot)
 	GetBlock(sig proto.BlockID) (*proto.MicroBlock, bool)
 	GetSnapshot(sig proto.BlockID) (*proto.BlockSnapshot, bool)

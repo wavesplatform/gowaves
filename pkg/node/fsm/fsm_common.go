@@ -208,3 +208,25 @@ func validateEventArgs(event stateless.Trigger, args ...interface{}) {
 		}
 	}
 }
+
+func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
+	invBts, err := inv.MarshalBinary()
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal binary '%T'", inv)
+	}
+	var (
+		cnt int
+		msg = &proto.MicroBlockInvMessage{
+			Body: invBts,
+		}
+	)
+	info.peers.EachConnected(func(p peer.Peer, _ *proto.Score) {
+		p.SendMessage(msg)
+		cnt++
+	})
+	info.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
+	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: blockID='%s', ref='%s'",
+		msg, cnt, inv.TotalBlockID, inv.Reference,
+	)
+	return nil
+}

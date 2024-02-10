@@ -1,6 +1,9 @@
+//go:build !smoke
+
 package itests
 
 import (
+	"fmt"
 	"net/http"
 	"testing"
 
@@ -8,8 +11,8 @@ import (
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
-	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
-	"github.com/wavesplatform/gowaves/itests/utilities/reissue_utilities"
+	"github.com/wavesplatform/gowaves/itests/utilities/issue"
+	"github.com/wavesplatform/gowaves/itests/utilities/reissue"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"golang.org/x/exp/maps"
 )
@@ -19,94 +22,64 @@ type ReissueTxApiSuite struct {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
-	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
+	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissuePositiveDataMatrix(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := reissue_utilities.BroadcastReissueTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
+				reissue.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
-	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
+	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissueMaxQuantityValue(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := reissue_utilities.BroadcastReissueTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
+				reissue.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
-	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
+	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetNotReissuableTestData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				//first tx should be successful
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := reissue_utilities.BroadcastReissueTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.Positive.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.Positive.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				tx1, _, _ := reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, true)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx1.TxID.String())
+				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx1, errMsg)
+				utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 
 				//second reissue tx should be failed because of reissuable=false
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset = reissue_utilities.BroadcastReissueTxAndGetBalances(
-					&suite.BaseSuite, testdata.ReissueDataChangedTimestamp(&td), v, !waitForTx)
-				errMsg = caseName + "Broadcast Reissue tx2:" + tx.TxID.String()
-				txIds[name] = &tx.TxID
-
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx,
-					errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.Negative.ErrBrdCstGoMsg, td.Expected.Negative.ErrBrdCstScalaMsg,
-					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.Negative.ErrGoMsg, td.Expected.Negative.ErrScalaMsg,
-					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.Negative.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.Negative.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				tx2, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					reissue.BroadcastReissueTxAndGetBalances(
+						&suite.BaseSuite, testdata.ReissueDataChangedTimestamp(&td), v, false)
+				errMsg = fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx2.TxID.String())
+				txIds[name] = &tx2.TxID
+				reissue.NegativeAPIChecks(suite.T(), tx2, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}
@@ -115,30 +88,20 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
-	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
+	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, nft, v, waitForTx)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, nft, v, true)
 		tdmatrix := testdata.GetReissueNFTData(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := reissue_utilities.BroadcastReissueTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-					tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
+				reissue.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}
@@ -147,12 +110,11 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
-	versions := reissue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
+	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
-		itx := issue_utilities.IssueBroadcastWithTestData(&suite.BaseSuite, reissuable, v, waitForTx)
+		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetReissueNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 		//TODO (ipereiaslavskaia) For v1 of reissue tx negative cases for chainID will be ignored
 		if v >= 2 {
@@ -161,20 +123,11 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := reissue_utilities.BroadcastReissueTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					reissue.BroadcastReissueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Reissue tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg, tx.WtErr.ErrWtGo,
-					tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetDiffBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Reissue tx: %s", caseName, tx.TxID.String())
+				reissue.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}

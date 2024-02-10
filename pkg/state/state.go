@@ -269,6 +269,7 @@ type newBlocks struct {
 	binary    bool
 	binBlocks [][]byte
 	blocks    []*proto.Block
+	snapshots []*proto.BlockSnapshot
 	curPos    int
 
 	rw       *blockReadWriter
@@ -307,6 +308,28 @@ func (n *newBlocks) setNew(blocks []*proto.Block) {
 	n.binary = false
 }
 
+func (n *newBlocks) setNewWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) error {
+	if len(blocks) != len(snapshots) {
+		return errors.New("the numbers of snapshots doesn't match the number of blocks")
+	}
+	n.reset()
+	n.blocks = blocks
+	n.snapshots = snapshots
+	n.binary = false
+	return nil
+}
+
+func (n *newBlocks) setNewBinaryWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	if len(blocks) != len(snapshots) {
+		return errors.New("the numbers of snapshots doesn't match the number of blocks")
+	}
+	n.reset()
+	n.binBlocks = blocks
+	n.snapshots = snapshots
+	n.binary = true
+	return nil
+}
+
 func (n *newBlocks) next() bool {
 	n.curPos++
 	if n.binary {
@@ -329,27 +352,36 @@ func (n *newBlocks) unmarshalBlock(block *proto.Block, blockBytes []byte) error 
 	return nil
 }
 
-func (n *newBlocks) current() (*proto.Block, error) {
+func (n *newBlocks) current() (*proto.Block, *proto.BlockSnapshot, error) {
 	if !n.binary {
 		if n.curPos > len(n.blocks) || n.curPos < 1 {
-			return nil, errors.New("bad current position")
+			return nil, nil, errors.New("bad current position")
 		}
-		return n.blocks[n.curPos-1], nil
+		var (
+			pos              = n.curPos - 1
+			block            = n.blocks[pos]
+			optionalSnapshot *proto.BlockSnapshot
+		)
+		if len(n.snapshots) == len(n.blocks) { // return block with snapshot if it is set
+			optionalSnapshot = n.snapshots[pos]
+		}
+		return block, optionalSnapshot, nil
 	}
 	if n.curPos > len(n.binBlocks) || n.curPos < 1 {
-		return nil, errors.New("bad current position")
+		return nil, nil, errors.New("bad current position")
 	}
 	blockBytes := n.binBlocks[n.curPos-1]
 	b := &proto.Block{}
 	if err := n.unmarshalBlock(b, blockBytes); err != nil {
-		return nil, err
+		return nil, nil, err
 	}
-	return b, nil
+	return b, nil, nil
 }
 
 func (n *newBlocks) reset() {
 	n.binBlocks = nil
 	n.blocks = nil
+	n.snapshots = nil
 	n.curPos = 0
 }
 
@@ -1087,20 +1119,11 @@ func (s *stateManager) addNewBlock(
 	block, parent *proto.Block,
 	chans *verifierChans,
 	blockchainHeight uint64,
-	snapshot *proto.BlockSnapshot,
+	optionalSnapshot *proto.BlockSnapshot,
 	lastSnapshotStateHash crypto.Digest,
 ) error {
 	blockHeight := blockchainHeight + 1
-	// Add score.
-	if err := s.stor.scores.appendBlockScore(block, blockHeight); err != nil {
-		return err
-	}
-	// Indicate new block for storage.
-	if err := s.rw.startBlock(block.BlockID()); err != nil {
-		return err
-	}
-	// Save block header to block storage.
-	if err := s.rw.writeBlockHeader(&block.BlockHeader); err != nil {
+	if err := s.beforeAppendBlock(block, blockHeight); err != nil {
 		return err
 	}
 	transactions := block.Transactions
@@ -1118,12 +1141,29 @@ func (s *stateManager) addNewBlock(
 		parent:                parentHeader,
 		blockchainHeight:      blockchainHeight,
 		lastSnapshotStateHash: lastSnapshotStateHash,
-		snapshot:              snapshot,
+		optionalSnapshot:      optionalSnapshot,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
 		return err
 	}
+	return s.afterAppendBlock(block, blockHeight)
+}
+
+func (s *stateManager) beforeAppendBlock(block *proto.Block, blockHeight proto.Height) error {
+	// Add score.
+	if err := s.stor.scores.appendBlockScore(block, blockHeight); err != nil {
+		return err
+	}
+	// Indicate new block for storage.
+	if err := s.rw.startBlock(block.BlockID()); err != nil {
+		return err
+	}
+	// Save block header to block storage.
+	return s.rw.writeBlockHeader(&block.BlockHeader)
+}
+
+func (s *stateManager) afterAppendBlock(block *proto.Block, blockHeight proto.Height) error {
 	// Let block storage know that the current block is over.
 	if err := s.rw.finishBlock(block.BlockID()); err != nil {
 		return err
@@ -1171,7 +1211,7 @@ func (s *stateManager) flush() error {
 
 func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	s.newBlocks.setNewBinary([][]byte{block})
-	rs, err := s.addBlocks(nil)
+	rs, err := s.addBlocks()
 	if err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
@@ -1181,9 +1221,9 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	return rs, nil
 }
 
-func (s *stateManager) AddDeserializedBlock(block *proto.Block, snapshot *proto.BlockSnapshot) (*proto.Block, error) {
+func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	s.newBlocks.setNew([]*proto.Block{block})
-	rs, err := s.addBlocks([]*proto.BlockSnapshot{snapshot})
+	rs, err := s.addBlocks()
 	if err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
@@ -1193,9 +1233,9 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block, snapshot *proto.
 	return rs, nil
 }
 
-func (s *stateManager) AddBlocks(blockBytes [][]byte, snapshots []*proto.BlockSnapshot) error {
+func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
-	if _, err := s.addBlocks(snapshots); err != nil {
+	if _, err := s.addBlocks(); err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
 		}
@@ -1204,15 +1244,41 @@ func (s *stateManager) AddBlocks(blockBytes [][]byte, snapshots []*proto.BlockSn
 	return nil
 }
 
+func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*proto.BlockSnapshot) error {
+	if err := s.newBlocks.setNewBinaryWithSnapshots(blockBytes, snapshots); err != nil {
+		return errors.Wrap(err, "failed to set new blocks with snapshots")
+	}
+	if _, err := s.addBlocks(); err != nil {
+		if snErr := s.rw.syncWithDb(); snErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", snErr)
+		}
+		return err
+	}
+	return nil
+}
+
 func (s *stateManager) AddDeserializedBlocks(
+	blocks []*proto.Block,
+) (*proto.Block, error) {
+	s.newBlocks.setNew(blocks)
+	lastBlock, err := s.addBlocks()
+	if err != nil {
+		if err = s.rw.syncWithDb(); err != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		}
+		return nil, err
+	}
+	return lastBlock, nil
+}
+
+func (s *stateManager) AddDeserializedBlocksWithSnapshots(
 	blocks []*proto.Block,
 	snapshots []*proto.BlockSnapshot,
 ) (*proto.Block, error) {
-	if s.enableLightNode && (len(blocks) != len(snapshots)) {
-		return nil, errors.New("the numbers of snapshots doesn't match the number of blocks")
+	if err := s.newBlocks.setNewWithSnapshots(blocks, snapshots); err != nil {
+		return nil, errors.Wrap(err, "failed to set new blocks with snapshots")
 	}
-	s.newBlocks.setNew(blocks)
-	lastBlock, err := s.addBlocks(snapshots)
+	lastBlock, err := s.addBlocks()
 	if err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
@@ -1485,15 +1551,7 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	return nil
 }
 
-func getSnapshotByIndIfNotNil(snapshots []*proto.BlockSnapshot, pos int) *proto.BlockSnapshot {
-	if len(snapshots) == 0 {
-		return nil
-	}
-	return snapshots[pos]
-}
-
-func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block, error) { //nolint:gocognit,funlen
-	// TODO: fix lint
+func (s *stateManager) addBlocks() (*proto.Block, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	defer func() {
@@ -1529,43 +1587,20 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 	pos := 0
 	for s.newBlocks.next() {
 		blockchainCurHeight := height + uint64(pos)
-		block, errCurBlock := s.newBlocks.current()
+		block, optionalSnapshot, errCurBlock := s.newBlocks.current()
 		if errCurBlock != nil {
 			return nil, wrapErr(DeserializationError, errCurBlock)
 		}
-		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err = s.stateDB.addBlock(block.BlockID()); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
-		// At some blockchain heights specific logic is performed.
-		// This includes voting for features, block rewards and so on.
-		if err = s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
-			return nil, wrapErr(ModificationError, err)
-		}
-		if vhErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); vhErr != nil {
-			return nil, vhErr
-		}
-		// Send block for signature verification, which works in separate goroutine.
-		task := &verifyTask{
-			taskType: verifyBlock,
-			parentID: lastAppliedBlock.BlockID(),
-			block:    block,
-		}
-		if err = chans.trySend(task); err != nil {
+
+		if err = s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight, chans); err != nil {
 			return nil, err
 		}
-		hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
-		if err != nil {
-			return nil, err
-		}
-		sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get newest snapshot state hash for height %d",
+
+		sh, errSh := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
+		if errSh != nil {
+			return nil, errors.Wrapf(errSh, "failed to get newest snapshot state hash for height %d",
 				blockchainCurHeight,
 			)
-		}
-		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
-			return nil, err
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		if addErr := s.addNewBlock(
@@ -1573,7 +1608,7 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 			lastAppliedBlock,
 			chans,
 			blockchainCurHeight,
-			getSnapshotByIndIfNotNil(snapshots, pos),
+			optionalSnapshot,
 			sh,
 		); addErr != nil {
 			return nil, addErr
@@ -1600,11 +1635,11 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		return nil, wrapErr(ModificationError, shErr)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
-	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
+	if err = s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
 	// After everything is validated, save all the changes to DB.
-	if err := s.flush(); err != nil {
+	if err = s.flush(); err != nil {
 		return nil, wrapErr(ModificationError, err)
 	}
 	zap.S().Infof(
@@ -1615,6 +1650,40 @@ func (s *stateManager) addBlocks(snapshots []*proto.BlockSnapshot) (*proto.Block
 		lastAppliedBlock.Timestamp,
 	)
 	return lastAppliedBlock, nil
+}
+
+func (s *stateManager) beforeAddingBlock(
+	block, lastAppliedBlock *proto.Block,
+	blockchainCurHeight proto.Height,
+	chans *verifierChans,
+) error {
+	// Assign unique block number for this block ID, add this number to the list of valid blocks.
+	if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
+		return wrapErr(ModificationError, blErr)
+	}
+	// At some blockchain heights specific logic is performed.
+	// This includes voting for features, block rewards and so on.
+	if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
+		return wrapErr(ModificationError, err)
+	}
+	if vhErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); vhErr != nil {
+		return vhErr
+	}
+	// Send block for signature verification, which works in separate goroutine.
+	task := &verifyTask{
+		taskType: verifyBlock,
+		parentID: lastAppliedBlock.BlockID(),
+		block:    block,
+	}
+	if err := chans.trySend(task); err != nil {
+		return err
+	}
+	hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
+	if err != nil {
+		return err
+	}
+
+	return s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs)
 }
 
 func (s *stateManager) checkRollbackHeight(height uint64) error {

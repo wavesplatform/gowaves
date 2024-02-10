@@ -54,7 +54,11 @@ func initHaltStateInFSM(_ *StateData, fsm *stateless.StateMachine, info BaseInfo
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDGetBlockIds,
+		proto.ContentIDGetBlockIDs,
+		proto.ContentIDBlockSnapshot,
+		proto.ContentIDGetBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshotRequest,
 	}
 	fsm.Configure(HaltStateName).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {

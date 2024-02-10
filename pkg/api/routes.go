@@ -75,6 +75,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/id/{id}", wrapper(a.BlockIDAt))
 			r.Get("/generators", wrapper(a.BlocksGenerators))
 			r.Get("/first", wrapper(a.BlocksFirst))
+			r.Get("/snapshot/at/{height:\\d+}", wrapper(a.BlocksSnapshotAt))
 		})
 
 		r.Route("/peers", func(r chi.Router) {

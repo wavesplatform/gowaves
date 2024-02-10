@@ -353,7 +353,7 @@ func GetUpdateAssetInfoNegativeDataMatrix(suite *f.BaseSuite, assetID crypto.Dig
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Try to update asset info from other account": NewUpdateAssetInfoTestData(
+		"Try to updateassetinfo asset info from other account": NewUpdateAssetInfoTestData(
 			utl.GetAccount(suite, utl.DefaultRecipientNotMiner),
 			assetID,
 			utl.RandStringBytes(10, utl.CommonSymbolSet),
@@ -613,7 +613,7 @@ func GetUpdateSmartAssetInfoNegativeDataMatrix(suite *f.BaseSuite, assetID crypt
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Try to update asset info from other account": NewUpdateAssetInfoTestData(
+		"Try to updateassetinfo asset info from other account": NewUpdateAssetInfoTestData(
 			utl.GetAccount(suite, utl.DefaultRecipientNotMiner),
 			assetID,
 			utl.RandStringBytes(10, utl.CommonSymbolSet),

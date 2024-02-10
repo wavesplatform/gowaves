@@ -313,6 +313,31 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) BlocksSnapshotAt(w http.ResponseWriter, r *http.Request) error {
+	// nickeskov: in this case id param must be non-zero length
+	s := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse 'height' url param")
+	}
+	blockSnapshot, err := a.state.SnapshotsAtHeight(height)
+	if err != nil {
+		if state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err, "BlocksSnapshotAt: failed to get block snapshot at height %d", height)
+	}
+
+	_ = json.Marshaler(blockSnapshot) // check that blockSnapshot implements json.Marshaler
+
+	err = trySendJson(w, blockSnapshot)
+	if err != nil {
+		return errors.Wrap(err,
+			"BlocksSnapshotAt: failed to marshal block snapshot to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
 func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) error {
 	type blockHeightResponse struct {
 		Height uint64 `json:"height"`

@@ -571,7 +571,7 @@ func TestDefaultCreateAliasSnapshot(t *testing.T) {
 			},
 			&proto.AliasSnapshot{
 				Address: testGlobal.senderInfo.addr,
-				Alias:   *proto.NewAlias(proto.TestNetScheme, "aliasForSender"),
+				Alias:   "aliasForSender",
 			},
 		},
 		internal: nil,
