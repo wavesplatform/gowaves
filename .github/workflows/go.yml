@@ -15,10 +15,10 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-      - name: Set up Go 1.20
+      - name: Set up Go 1.21
         uses: actions/setup-go@v5.0.0
         with:
-          go-version: 1.20.x
+          go-version: 1.21.x
           check-latest: true
           cache: false # don't save & restore build caches because golangci-lint action does it internally
       - name: Get dependencies
@@ -38,10 +38,10 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != 'wavesplatform/gowaves'
 
     steps:
-      - name: Set up Go 1.20
+      - name: Set up Go 1.21
         uses: actions/setup-go@v5.0.0
         with:
-          go-version: 1.20.x
+          go-version: 1.21.x
           check-latest: true
           cache: true
 
@@ -74,10 +74,10 @@ jobs:
     if: github.event_name == 'pull_request' && github.repository == 'wavesplatform/gowaves'
 
     steps:
-      - name: Set up Go 1.20
+      - name: Set up Go 1.21
         uses: actions/setup-go@v5.0.0
         with:
-          go-version: 1.20.x
+          go-version: 1.21.x
           check-latest: true
           cache: true
         id: go
