@@ -327,12 +327,11 @@ type blockSnapshotsApplierInfo struct {
 	stateActionsCounter *proto.StateActionsCounter
 }
 
-func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
-	counter *proto.StateActionsCounter) *blockSnapshotsApplierInfo {
+func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme) *blockSnapshotsApplierInfo {
 	return &blockSnapshotsApplierInfo{
 		ci:                  ci,
 		scheme:              scheme,
-		stateActionsCounter: counter,
+		stateActionsCounter: new(proto.StateActionsCounter),
 	}
 }
 

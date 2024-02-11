@@ -665,10 +665,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
-	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
 
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		stateActionsCounterInBlockValidation)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -1036,10 +1034,9 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
-	// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
-	issueCounterInBlock := new(proto.StateActionsCounter)
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		issueCounterInBlock)
+	// it's correct to use new proto.StateActionsCounter because there's no block exists,
+	// but this field is necessary in tx performer
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	appendTxArgs := &appendTxParams{

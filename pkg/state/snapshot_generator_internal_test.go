@@ -961,9 +961,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
 	assert.NoError(t, err)
 
-	issueCounterInBlock := new(proto.StateActionsCounter)
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
-		issueCounterInBlock)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
 	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
@@ -1098,9 +1096,7 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 	}, blockID0)
 	assert.NoError(t, err)
 
-	issueCounterInBlock := new(proto.StateActionsCounter)
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter,
-		issueCounterInBlock)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
 	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
@@ -1199,11 +1195,7 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
 	assert.NoError(t, err)
 
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(
-		info.checkerInfo,
-		to.state.settings.AddressSchemeCharacter,
-		new(proto.StateActionsCounter),
-	)
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
 	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	testData := invokeApplierTestData{

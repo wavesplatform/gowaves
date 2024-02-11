@@ -23,11 +23,7 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 	sets := *settings.MainNetSettings
 	stor := createStorageObjects(t, true)
 	snapshotApplier := newBlockSnapshotsApplier(
-		newBlockSnapshotsApplierInfo(
-			checkerInfo,
-			sets.AddressSchemeCharacter,
-			new(proto.StateActionsCounter),
-		),
+		newBlockSnapshotsApplierInfo(checkerInfo, sets.AddressSchemeCharacter),
 		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
 	th, err := newTransactionHandler(stor.settings.Genesis.BlockID(), stor.entities, &sets, &snapshotApplier)

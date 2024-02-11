@@ -37,11 +37,7 @@ func createCheckerTestObjectsWithStor(
 	stor *testStorageObjects,
 ) *checkerTestObjects {
 	snapshotApplier := newBlockSnapshotsApplier(
-		newBlockSnapshotsApplierInfo(
-			checkerInfo,
-			stor.settings.AddressSchemeCharacter,
-			new(proto.StateActionsCounter),
-		),
+		newBlockSnapshotsApplierInfo(checkerInfo, stor.settings.AddressSchemeCharacter),
 		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
 	genID := proto.NewBlockIDFromSignature(genSig)
