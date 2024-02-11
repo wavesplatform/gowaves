@@ -26,7 +26,10 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 		newBlockSnapshotsApplierInfo(checkerInfo, sets.AddressSchemeCharacter),
 		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
-	th, err := newTransactionHandler(stor.settings.Genesis.BlockID(), stor.entities, &sets, &snapshotApplier)
+	buildAPIData, err := stor.stateDB.stateStoresApiData()
+	require.NoError(t, err)
+	blockID := stor.settings.Genesis.BlockID()
+	th, err := newTransactionHandler(blockID, stor.entities, &sets, &snapshotApplier, buildAPIData)
 	require.NoError(t, err)
 	return &performerTestObjects{stor, th}
 }

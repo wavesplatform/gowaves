@@ -16,6 +16,7 @@ type internalSnapshotApplier interface {
 	ApplyAssetScriptComplexity(snapshot InternalAssetScriptComplexitySnapshot) error
 	ApplyNewLeaseInfo(snapshot InternalNewLeaseInfoSnapshot) error
 	ApplyCancelledLeaseInfo(snapshot InternalCancelledLeaseInfoSnapshot) error
+	ApplyScriptResult(snapshot InternalScripResultSnapshot) error
 }
 
 /*
@@ -70,4 +71,12 @@ type InternalCancelledLeaseInfoSnapshot struct {
 
 func (s InternalCancelledLeaseInfoSnapshot) ApplyInternal(a internalSnapshotApplier) error {
 	return a.ApplyCancelledLeaseInfo(s)
+}
+
+type InternalScripResultSnapshot struct {
+	ScriptResult *proto.ScriptResult
+}
+
+func (s InternalScripResultSnapshot) ApplyInternal(a internalSnapshotApplier) error {
+	return a.ApplyScriptResult(s)
 }

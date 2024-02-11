@@ -65,12 +65,16 @@ func newTxAppender(
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
 ) (*txAppender, error) {
+	buildAPIData, err := stateDB.stateStoresApiData()
+	if err != nil {
+		return nil, err
+	}
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier, buildAPIData)
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +94,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	buildApiData, err := stateDB.stateStoresApiData()
-	if err != nil {
-		return nil, err
-	}
-	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
+	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	return &txAppender{
 		sc:                sc,
@@ -110,7 +110,7 @@ func newTxAppender(
 		diffStor:          diffStor,
 		diffStorInvoke:    diffStorInvoke,
 		diffApplier:       diffApplier,
-		buildApiData:      buildApiData,
+		buildApiData:      buildAPIData,
 		ethTxKindResolver: ethKindResolver,
 	}, nil
 }

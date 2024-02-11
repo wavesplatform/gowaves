@@ -40,8 +40,10 @@ func createCheckerTestObjectsWithStor(
 		newBlockSnapshotsApplierInfo(checkerInfo, stor.settings.AddressSchemeCharacter),
 		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
+	buildAPIData, err := stor.stateDB.stateStoresApiData()
+	require.NoError(t, err)
 	genID := proto.NewBlockIDFromSignature(genSig)
-	th, err := newTransactionHandler(genID, stor.entities, stor.settings, &snapshotApplier)
+	th, err := newTransactionHandler(genID, stor.entities, stor.settings, &snapshotApplier, buildAPIData)
 	require.NoError(t, err)
 	return &checkerTestObjects{stor, th.tc, th}
 }

@@ -46,6 +46,8 @@ type transactionHandler struct {
 	sa extendedSnapshotApplier
 
 	funcs handles
+
+	buildAPIData bool
 }
 
 // TODO: see TODO on GetTypeInfo() in proto/transactions.go.
@@ -172,6 +174,7 @@ func newTransactionHandler(
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 	snapshotApplier extendedSnapshotApplier,
+	buildAPIData bool,
 ) (*transactionHandler, error) {
 	tc, err := newTransactionChecker(genesis, stor, settings)
 	if err != nil {
@@ -187,12 +190,13 @@ func newTransactionHandler(
 		return nil, err
 	}
 	return &transactionHandler{
-		tc:    tc,
-		tp:    sg,
-		td:    td,
-		tf:    tf,
-		sa:    snapshotApplier,
-		funcs: buildHandles(tc, sg, td, tf),
+		tc:           tc,
+		tp:           sg,
+		td:           td,
+		tf:           tf,
+		sa:           snapshotApplier,
+		funcs:        buildHandles(tc, sg, td, tf),
+		buildAPIData: buildAPIData,
 	}, nil
 }
 
@@ -233,19 +237,27 @@ func (h *transactionHandler) performTx(
 		if err != nil {
 			return txSnapshot{}, errors.Wrapf(err, "failed to perform and generate snapshots for tx %q", tx)
 		}
-		snapshot.regular = append(snapshot.regular,
-			&proto.TransactionStatusSnapshot{
-				Status: proto.TransactionSucceeded,
-			},
-		)
+		snapshot.regular = append(snapshot.regular, &proto.TransactionStatusSnapshot{
+			Status: proto.TransactionSucceeded,
+		})
 	} else {
 		failedChangesSnapshots, err := h.tp.generateBalancesSnapshot(balanceChanges)
 		if err != nil {
 			return txSnapshot{}, errors.Wrap(err, "failed to create snapshots from failed changes")
 		}
-		failedChangesSnapshots.regular = append(failedChangesSnapshots.regular,
-			&proto.TransactionStatusSnapshot{Status: proto.TransactionFailed})
+		failedChangesSnapshots.regular = append(failedChangesSnapshots.regular, &proto.TransactionStatusSnapshot{
+			Status: proto.TransactionFailed,
+		})
 		snapshot = failedChangesSnapshots
+	}
+	if h.buildAPIData && !validatingUTX && invocationRes != nil {
+		sr, err := toScriptResult(invocationRes)
+		if err != nil {
+			return txSnapshot{}, errors.Wrap(err, "failed to convert invocation result to script result")
+		}
+		snapshot.internal = append(snapshot.internal, &InternalScripResultSnapshot{
+			ScriptResult: sr,
+		})
 	}
 	if err := snapshot.Apply(h.sa, tx, validatingUTX); err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to apply transaction snapshot")
