@@ -24,7 +24,7 @@ type scriptEstimation struct {
 func (e *scriptEstimation) isPresent() bool { return e != nil }
 
 type txCheckFunc func(proto.Transaction, *checkerInfo) (txCheckerData, error)
-type txPerformFunc func(proto.Transaction, *performerInfo, *invocationResult, []balanceChanges) (txSnapshot, error)
+type txPerformFunc func(proto.Transaction, *performerInfo, []balanceChanges) (txSnapshot, error)
 type txCreateDiffFunc func(proto.Transaction, *differInfo) (txBalanceChanges, error)
 type txCountFeeFunc func(proto.Transaction, *feeDistribution) error
 
@@ -233,7 +233,7 @@ func (h *transactionHandler) performTx(
 	var snapshot txSnapshot
 	if applicationStatus {
 		var err error
-		snapshot, err = funcs.perform(tx, info, invocationRes, balanceChanges)
+		snapshot, err = funcs.perform(tx, info, balanceChanges)
 		if err != nil {
 			return txSnapshot{}, errors.Wrapf(err, "failed to perform and generate snapshots for tx %q", tx)
 		}
