@@ -12,13 +12,19 @@ import (
 	dc "github.com/ory/dockertest/v3/docker"
 )
 
-const (
-	dockerfilePath                 = "./../Dockerfile.gowaves-it"
-	dockerfilePathWithRaceDetector = "./../Dockerfile.gowaves-it.race"
-)
+const dockerfilePath = "./../Dockerfile.gowaves-it"
 const (
 	keepDanglingEnvKey     = "ITESTS_KEEP_DANGLING"
 	withRaceDetectorEnvKey = "ITESTS_WITH_RACE_DETECTOR"
+)
+
+const (
+	withRaceDetectorSuffixArgumentName = "WITH_RACE_SUFFIX"
+	additionalBuildDependenciesArgName = "ADDITIONAL_BUILD_DEPENDENCIES"
+)
+const (
+	withRaceDetectorSuffixArgumentValue     = "-with-race"
+	additionalRaceDetectorBuildDependencies = "musl-dev gcc"
 )
 
 func TestMain(m *testing.M) {
@@ -37,17 +43,28 @@ func TestMain(m *testing.M) {
 	if err := pool.Client.PullImage(dc.PullImageOptions{Repository: "wavesplatform/wavesnode", Tag: "latest"}, dc.AuthConfiguration{}); err != nil {
 		log.Fatalf("Failed to pull node image: %v", err)
 	}
-	dockerfile := dockerfilePath
+	var (
+		buildArgs                   []dc.BuildArg
+		additionalBuildDependencies string
+	)
 	if withRaceDetector {
-		dockerfile = dockerfilePathWithRaceDetector
+		buildArgs = append(buildArgs, dc.BuildArg{
+			Name: withRaceDetectorSuffixArgumentName, Value: withRaceDetectorSuffixArgumentValue,
+		})
+		additionalBuildDependencies += " " + additionalRaceDetectorBuildDependencies
 	}
-	dir, file := filepath.Split(filepath.Join(pwd, dockerfile))
+	if additionalBuildDependencies != "" {
+		buildArgs = append(buildArgs, dc.BuildArg{
+			Name: additionalBuildDependenciesArgName, Value: additionalBuildDependencies,
+		})
+	}
+	dir, file := filepath.Split(filepath.Join(pwd, dockerfilePath))
 	err = pool.Client.BuildImage(dc.BuildImageOptions{
 		Name:           "go-node",
 		Dockerfile:     file,
 		ContextDir:     dir,
 		OutputStream:   io.Discard,
-		BuildArgs:      nil,
+		BuildArgs:      buildArgs,
 		Platform:       "",
 		RmTmpContainer: true,
 	})
