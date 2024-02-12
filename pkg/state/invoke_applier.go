@@ -33,8 +33,6 @@ type invokeApplier struct {
 	blockDiffer    *blockDiffer
 	invokeDiffStor *diffStorageWrapped
 	diffApplier    *diffApplier
-
-	buildApiData bool
 }
 
 func newInvokeApplier(
@@ -46,7 +44,6 @@ func newInvokeApplier(
 	blockDiffer *blockDiffer,
 	diffStor *diffStorageWrapped,
 	diffApplier *diffApplier,
-	buildApiData bool,
 ) *invokeApplier {
 	return &invokeApplier{
 		state:          state,
@@ -57,7 +54,6 @@ func newInvokeApplier(
 		blockDiffer:    blockDiffer,
 		invokeDiffStor: diffStor,
 		diffApplier:    diffApplier,
-		buildApiData:   buildApiData,
 	}
 }
 
@@ -750,9 +746,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		var applicationRes *applicationResult
-		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-		return invocationRes, applicationRes, err
+		applicationRes := createApplicationResult(checkerData, invocationRes, failedChanges)
+		return invocationRes, applicationRes, nil
 	}
 	// Before RideV6 activation in the following cases the transaction is rejected:
 	// 1) Failing of transactions is not activated yet, reject everything
@@ -770,9 +765,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		var applicationRes *applicationResult
-		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-		return invocationRes, applicationRes, err
+		applicationRes := createApplicationResult(checkerData, invocationRes, failedChanges)
+		return invocationRes, applicationRes, nil
 
 	case ride.InternalInvocationError:
 		blockchainHeight := info.checkerInfo.blockchainHeight
@@ -787,9 +781,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		var applicationRes *applicationResult
-		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-		return invocationRes, applicationRes, err
+		applicationRes := createApplicationResult(checkerData, invocationRes, failedChanges)
+		return invocationRes, applicationRes, nil
 
 	case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
 		return nil, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
@@ -1064,8 +1057,8 @@ func (ia *invokeApplier) applyInvokeScript(
 		return nil, nil, err
 	}
 
-	applicationRes, err := ia.handleInvocationResult(scriptParams.txID, checkerData, info, invocationRes, balanceChanges)
-	return invocationRes, applicationRes, err
+	applicationRes := createApplicationResult(checkerData, invocationRes, balanceChanges)
+	return invocationRes, applicationRes, nil
 }
 
 type invocationResult struct {
@@ -1086,22 +1079,14 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	return sr, err
 }
 
-func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, checkerData txCheckerData,
-	info *fallibleValidationParams, res *invocationResult,
-	balanceChanges txBalanceChanges) (*applicationResult, error) {
-	if ia.buildApiData && !info.validatingUtx {
-		// Save invoke result for extended API.
-		res, err := toScriptResult(res)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to save script result")
-		}
-		if err := ia.stor.invokeResults.saveResult(txID, res, info.block.BlockID()); err != nil {
-			return nil, errors.Wrap(err, "failed to save script result")
-		}
-	}
+func createApplicationResult(
+	checkerData txCheckerData,
+	res *invocationResult,
+	balanceChanges txBalanceChanges,
+) *applicationResult {
 	// Total scripts invoked = scriptRuns + invocation itself.
 	totalScriptsInvoked := res.scriptRuns + 1
-	return newApplicationResult(!res.failed, totalScriptsInvoked, balanceChanges, checkerData), nil
+	return newApplicationResult(!res.failed, totalScriptsInvoked, balanceChanges, checkerData)
 }
 
 func (ia *invokeApplier) checkFullFee(tx proto.Transaction, scriptRuns, issuedAssetsCount uint64) error {
