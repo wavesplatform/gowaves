@@ -273,29 +273,31 @@ func newTransactionDiffer(stor *blockchainEntitiesStorage, settings *settings.Bl
 	return &transactionDiffer{stor, settings}, nil
 }
 
-func (td *transactionDiffer) calculateTxFee(txFee uint64) (uint64, error) {
+func (td *transactionDiffer) minerPayoutInWaves(diff txDiff, fee uint64, info *differInfo) error {
+	return td.doMinerPayoutAfterNG(diff, fee, info, proto.NewOptionalAssetWaves())
+}
+
+// doMinerPayoutAfterNG adds current fee part of given tx to txDiff.
+// It is used to add miner's payout to txDiff. Before NG activation it does nothing.
+func (td *transactionDiffer) doMinerPayoutAfterNG(
+	diff txDiff,
+	fee uint64,
+	info *differInfo,
+	feeAsset proto.OptionalAsset,
+) error {
+	if !info.hasMiner() { // no nothing if there's no miner
+		return nil
+	}
 	ngActivated, err := td.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 1)
 	if err != nil {
-		return 0, err
+		return err
 	}
-	return calculateCurrentBlockTxFee(txFee, ngActivated), nil
-}
-
-func (td *transactionDiffer) minerPayoutInWaves(diff txDiff, fee uint64, info *differInfo) error {
-	return td.minerPayout(diff, fee, info, proto.NewOptionalAssetWaves())
-}
-
-// minerPayout adds current fee part of given tx to txDiff.
-func (td *transactionDiffer) minerPayout(diff txDiff, fee uint64, info *differInfo, feeAsset proto.OptionalAsset) error {
-	if !info.hasMiner() { // no nothing if there's no miner
+	if !ngActivated { // no-op before NG activation
 		return nil
 	}
 	minerAddr := info.blockInfo.Generator
 	minerKey := byteKey(minerAddr.ID(), feeAsset)
-	minerBalanceDiff, err := td.calculateTxFee(fee)
-	if err != nil {
-		return err
-	}
+	minerBalanceDiff := calculateCurrentBlockTxFee(fee, ngActivated)
 	if err := diff.appendBalanceDiff(minerKey, newBalanceDiff(int64(minerBalanceDiff), 0, 0, false)); err != nil {
 		return err
 	}
@@ -376,10 +378,17 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceCha
 		return err
 	}
 	if !sponsorshipActivated { // payout miner in asset without sponsorship
-		if pErr := td.minerPayout(ch.diff, fee, info, feeAsset); pErr != nil {
+		if pErr := td.doMinerPayoutAfterNG(ch.diff, fee, info, feeAsset); pErr != nil {
 			return errors.Wrap(pErr, "failed to append miner payout")
 		}
 		return nil
+	}
+	ngActivated, err := td.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 1)
+	if err != nil {
+		return err
+	}
+	if !ngActivated { // no sponsorship handling before NG activation
+		return errors.New("sponsorship is activated, but NG is not")
 	}
 	// Sponsorship logic.
 	updateMinIntermediateBalance := false
@@ -1347,8 +1356,8 @@ func (td *transactionDiffer) createDiffSetAssetScriptWithProofs(transaction prot
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-		return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
+	if mpErr := td.minerPayoutInWaves(diff, tx.Fee, info); mpErr != nil {
+		return txBalanceChanges{}, errors.Wrap(mpErr, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
