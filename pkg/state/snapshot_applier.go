@@ -653,7 +653,7 @@ func (a *blockSnapshotsApplier) ApplyCancelledLeaseInfo(snapshot InternalCancell
 	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyScriptResult(snapshot InternalScripResultSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyScriptResult(snapshot InternalScriptResultSnapshot) error {
 	if !a.txSnapshotContext.initialized { // sanity check
 		return errors.New("failed to apply script result snapshot: transaction is not set")
 	}

@@ -255,7 +255,7 @@ func (h *transactionHandler) performTx(
 		if err != nil {
 			return txSnapshot{}, errors.Wrap(err, "failed to convert invocation result to script result")
 		}
-		snapshot.internal = append(snapshot.internal, &InternalScripResultSnapshot{
+		snapshot.internal = append(snapshot.internal, &InternalScriptResultSnapshot{
 			ScriptResult: sr,
 		})
 	}
