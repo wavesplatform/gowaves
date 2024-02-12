@@ -855,6 +855,9 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 		// TODO(nickeskov): which error it should send?
 		return &BadRequestError{err}
 	}
+	if height < 1 {
+		return apiErrs.BlockDoesNotExist
+	}
 	sh, err := a.state.SnapshotStateHashAtHeight(height)
 	if err != nil {
 		if state.IsNotFound(err) {
