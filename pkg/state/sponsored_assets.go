@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -239,9 +240,9 @@ func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
 			return false, err
 		}
 		// Sponsorship has double activation period.
-		curHeight := s.rw.recentHeight()
+		blockHeight := s.rw.addingBlockHeight()
 		sponsorshipTrueActivationHeight := height + s.settings.ActivationWindowSize(height)
-		sponsorshipActivated = curHeight >= sponsorshipTrueActivationHeight
+		sponsorshipActivated = blockHeight >= sponsorshipTrueActivationHeight
 	}
 	return sponsorshipActivated, nil
 }
