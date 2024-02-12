@@ -65,12 +65,16 @@ func newTxAppender(
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
 ) (*txAppender, error) {
+	buildAPIData, err := stateDB.stateStoresApiData()
+	if err != nil {
+		return nil, err
+	}
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier, buildAPIData)
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +94,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	buildApiData, err := stateDB.stateStoresApiData()
-	if err != nil {
-		return nil, err
-	}
-	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
+	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	return &txAppender{
 		sc:                sc,
@@ -110,7 +110,7 @@ func newTxAppender(
 		diffStor:          diffStor,
 		diffStorInvoke:    diffStorInvoke,
 		diffApplier:       diffApplier,
-		buildApiData:      buildApiData,
+		buildApiData:      buildAPIData,
 		ethTxKindResolver: ethKindResolver,
 	}, nil
 }
@@ -755,10 +755,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
-	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		stateActionsCounterInBlockValidation)
+
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
 		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
@@ -837,6 +837,9 @@ func (a *txAppender) createInitialDiffAndStateHash(
 	blockInfo *proto.BlockInfo,
 	hasher *txSnapshotHasher,
 ) (crypto.Digest, error) {
+	// Create miner balance diff.
+	// This adds 60% of prev block fees as very first balance diff of the current block
+	// in case NG is activated, or empty diff otherwise.
 	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent)
 	if err != nil {
 		return crypto.Digest{}, err
@@ -1112,10 +1115,9 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
-	// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
-	issueCounterInBlock := new(proto.StateActionsCounter)
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		issueCounterInBlock)
+	// it's correct to use new proto.StateActionsCounter because there's no block exists,
+	// but this field is necessary in tx performer
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	appendTxArgs := &appendTxParams{

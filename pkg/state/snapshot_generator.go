@@ -24,8 +24,9 @@ func newSnapshotGenerator(stor *blockchainEntitiesStorage, scheme proto.Scheme) 
 
 func (sg *snapshotGenerator) performGenesis(
 	transaction proto.Transaction,
-	_ *performerInfo, _ *invocationResult,
-	balanceChanges []balanceChanges) (txSnapshot, error) {
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	_, ok := transaction.(*proto.Genesis)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to genesis transaction")
@@ -33,8 +34,11 @@ func (sg *snapshotGenerator) performGenesis(
 	return sg.generateSnapshotForGenesisTx(balanceChanges)
 }
 
-func (sg *snapshotGenerator) performPayment(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performPayment(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	_, ok := transaction.(*proto.Payment)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to payment transaction")
@@ -42,8 +46,11 @@ func (sg *snapshotGenerator) performPayment(transaction proto.Transaction, _ *pe
 	return sg.generateSnapshotForPaymentTx(balanceChanges)
 }
 
-func (sg *snapshotGenerator) performTransferWithSig(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performTransferWithSig(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	_, ok := transaction.(*proto.TransferWithSig)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to transfer with sig transaction")
@@ -51,8 +58,11 @@ func (sg *snapshotGenerator) performTransferWithSig(transaction proto.Transactio
 	return sg.generateSnapshotForTransferTx(balanceChanges)
 }
 
-func (sg *snapshotGenerator) performTransferWithProofs(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performTransferWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	_, ok := transaction.(*proto.TransferWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to transfer with proofs transaction")
@@ -60,8 +70,11 @@ func (sg *snapshotGenerator) performTransferWithProofs(transaction proto.Transac
 	return sg.generateSnapshotForTransferTx(balanceChanges)
 }
 
-func (sg *snapshotGenerator) performIssueWithSig(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performIssueWithSig(
+	transaction proto.Transaction,
+	info *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.IssueWithSig)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to IssueWithSig transaction")
@@ -77,8 +90,11 @@ func (sg *snapshotGenerator) performIssueWithSig(transaction proto.Transaction, 
 	return sg.generateSnapshotForIssueTx(&tx.Issue, assetID, info, balanceChanges, nil, nil)
 }
 
-func (sg *snapshotGenerator) performIssueWithProofs(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performIssueWithProofs(
+	transaction proto.Transaction,
+	info *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.IssueWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to IssueWithProofs transaction")
@@ -95,8 +111,11 @@ func (sg *snapshotGenerator) performIssueWithProofs(transaction proto.Transactio
 	return sg.generateSnapshotForIssueTx(&tx.Issue, assetID, info, balanceChanges, se, tx.Script)
 }
 
-func (sg *snapshotGenerator) performReissueWithSig(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performReissueWithSig(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.ReissueWithSig)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to ReissueWithSig transaction")
@@ -104,8 +123,11 @@ func (sg *snapshotGenerator) performReissueWithSig(transaction proto.Transaction
 	return sg.generateSnapshotForReissueTx(tx.AssetID, tx.Reissuable, tx.Quantity, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performReissueWithProofs(transaction proto.Transaction,
-	_ *performerInfo, _ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performReissueWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.ReissueWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to ReissueWithProofs transaction")
@@ -113,8 +135,11 @@ func (sg *snapshotGenerator) performReissueWithProofs(transaction proto.Transact
 	return sg.generateSnapshotForReissueTx(tx.AssetID, tx.Reissuable, tx.Quantity, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performBurnWithSig(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performBurnWithSig(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.BurnWithSig)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to BurnWithSig transaction")
@@ -122,8 +147,11 @@ func (sg *snapshotGenerator) performBurnWithSig(transaction proto.Transaction, _
 	return sg.generateSnapshotForBurnTx(tx.AssetID, tx.Amount, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performBurnWithProofs(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performBurnWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.BurnWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to BurnWithProofs transaction")
@@ -131,8 +159,11 @@ func (sg *snapshotGenerator) performBurnWithProofs(transaction proto.Transaction
 	return sg.generateSnapshotForBurnTx(tx.AssetID, tx.Amount, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performExchange(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performExchange(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(proto.Exchange)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to Exchange transaction")
@@ -153,8 +184,11 @@ func (sg *snapshotGenerator) performExchange(transaction proto.Transaction, _ *p
 	return sg.generateSnapshotForExchangeTx(sellOrder, sellFee, buyOrder, buyFee, volume, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performLeaseWithSig(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performLeaseWithSig(
+	transaction proto.Transaction,
+	info *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseWithSig)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to LeaseWithSig transaction")
@@ -162,8 +196,11 @@ func (sg *snapshotGenerator) performLeaseWithSig(transaction proto.Transaction, 
 	return sg.generateSnapshotForLeaseTx(&tx.Lease, tx.ID, info, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performLeaseWithProofs(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performLeaseWithProofs(
+	transaction proto.Transaction,
+	info *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to LeaseWithProofs transaction")
@@ -171,8 +208,11 @@ func (sg *snapshotGenerator) performLeaseWithProofs(transaction proto.Transactio
 	return sg.generateSnapshotForLeaseTx(&tx.Lease, tx.ID, info, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performLeaseCancelWithSig(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performLeaseCancelWithSig(
+	transaction proto.Transaction,
+	info *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseCancelWithSig)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to LeaseCancelWithSig transaction")
@@ -185,8 +225,11 @@ func (sg *snapshotGenerator) performLeaseCancelWithSig(transaction proto.Transac
 	)
 }
 
-func (sg *snapshotGenerator) performLeaseCancelWithProofs(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performLeaseCancelWithProofs(
+	transaction proto.Transaction,
+	info *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.LeaseCancelWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
@@ -199,8 +242,11 @@ func (sg *snapshotGenerator) performLeaseCancelWithProofs(transaction proto.Tran
 	)
 }
 
-func (sg *snapshotGenerator) performCreateAliasWithSig(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performCreateAliasWithSig(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.CreateAliasWithSig)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to CreateAliasWithSig transaction")
@@ -208,8 +254,11 @@ func (sg *snapshotGenerator) performCreateAliasWithSig(transaction proto.Transac
 	return sg.generateSnapshotForCreateAliasTx(sg.scheme, tx.SenderPK, tx.Alias, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performCreateAliasWithProofs(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performCreateAliasWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.CreateAliasWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to CreateAliasWithProofs transaction")
@@ -217,8 +266,11 @@ func (sg *snapshotGenerator) performCreateAliasWithProofs(transaction proto.Tran
 	return sg.generateSnapshotForCreateAliasTx(sg.scheme, tx.SenderPK, tx.Alias, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performMassTransferWithProofs(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performMassTransferWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	_, ok := transaction.(*proto.MassTransferWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to CreateAliasWithProofs transaction")
@@ -226,8 +278,11 @@ func (sg *snapshotGenerator) performMassTransferWithProofs(transaction proto.Tra
 	return sg.generateSnapshotForMassTransferTx(balanceChanges)
 }
 
-func (sg *snapshotGenerator) performDataWithProofs(transaction proto.Transaction,
-	_ *performerInfo, _ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performDataWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.DataWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to DataWithProofs transaction")
@@ -239,8 +294,11 @@ func (sg *snapshotGenerator) performDataWithProofs(transaction proto.Transaction
 	return sg.generateSnapshotForDataTx(senderAddr, tx.Entries, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performSponsorshipWithProofs(transaction proto.Transaction, _ *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performSponsorshipWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.SponsorshipWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to SponsorshipWithProofs transaction")
@@ -248,8 +306,11 @@ func (sg *snapshotGenerator) performSponsorshipWithProofs(transaction proto.Tran
 	return sg.generateSnapshotForSponsorshipTx(tx.AssetID, tx.MinAssetFee, balanceChanges)
 }
 
-func (sg *snapshotGenerator) performSetScriptWithProofs(transaction proto.Transaction, info *performerInfo,
-	_ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performSetScriptWithProofs(
+	transaction proto.Transaction,
+	info *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.SetScriptWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to SetScriptWithProofs transaction")
@@ -267,8 +328,11 @@ func (sg *snapshotGenerator) performSetScriptWithProofs(transaction proto.Transa
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) performSetAssetScriptWithProofs(transaction proto.Transaction,
-	info *performerInfo, _ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performSetAssetScriptWithProofs(
+	transaction proto.Transaction,
+	info *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.SetAssetScriptWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to SetAssetScriptWithProofs transaction")
@@ -286,10 +350,11 @@ func (sg *snapshotGenerator) performSetAssetScriptWithProofs(transaction proto.T
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) performInvokeScriptWithProofs(transaction proto.Transaction,
+func (sg *snapshotGenerator) performInvokeScriptWithProofs(
+	transaction proto.Transaction,
 	info *performerInfo,
-	_ *invocationResult,
-	balanceChanges []balanceChanges) (txSnapshot, error) {
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to InvokeScriptWithProofs transaction")
@@ -298,17 +363,22 @@ func (sg *snapshotGenerator) performInvokeScriptWithProofs(transaction proto.Tra
 	return sg.generateSnapshotForInvokeScript(tx.ScriptRecipient, balanceChanges, se)
 }
 
-func (sg *snapshotGenerator) performInvokeExpressionWithProofs(transaction proto.Transaction,
-	_ *performerInfo, _ *invocationResult,
-	balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performInvokeExpressionWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	if _, ok := transaction.(*proto.InvokeExpressionTransactionWithProofs); !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to InvokeExpressionWithProofs transaction")
 	}
 	return sg.generateSnapshotForInvokeExpressionTx(balanceChanges)
 }
 
-func (sg *snapshotGenerator) performEthereumTransactionWithProofs(transaction proto.Transaction,
-	_ *performerInfo, _ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performEthereumTransactionWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	_, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to EthereumTransaction transaction")
@@ -316,8 +386,11 @@ func (sg *snapshotGenerator) performEthereumTransactionWithProofs(transaction pr
 	return sg.generateSnapshotForEthereumInvokeScriptTx(balanceChanges)
 }
 
-func (sg *snapshotGenerator) performUpdateAssetInfoWithProofs(transaction proto.Transaction,
-	_ *performerInfo, _ *invocationResult, balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) performUpdateAssetInfoWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	balanceChanges []balanceChanges,
+) (txSnapshot, error) {
 	tx, ok := transaction.(*proto.UpdateAssetInfoWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to UpdateAssetInfoWithProofs transaction")
