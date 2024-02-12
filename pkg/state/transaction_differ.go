@@ -287,6 +287,9 @@ func (td *transactionDiffer) minerPayoutInWaves(diff txDiff, fee uint64, info *d
 
 // minerPayout adds current fee part of given tx to txDiff.
 func (td *transactionDiffer) minerPayout(diff txDiff, fee uint64, info *differInfo, feeAsset proto.OptionalAsset) error {
+	if !info.hasMiner() { // no nothing if there's no miner
+		return nil
+	}
 	minerAddr := info.blockInfo.Generator
 	minerKey := byteKey(minerAddr.ID(), feeAsset)
 	minerBalanceDiff, err := td.calculateTxFee(fee)
@@ -341,10 +344,8 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr, tx.Recipient}
 	changes := newTxBalanceChanges(addresses, diff)
@@ -364,17 +365,19 @@ func recipientToAddress(recipient proto.Recipient, aliases *aliases) (proto.Wave
 }
 
 func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceChanges, fee uint64, feeAsset proto.OptionalAsset, info *differInfo) error {
+	if !feeAsset.Present { // fast path: Waves asset
+		if err := td.minerPayoutInWaves(ch.diff, fee, info); err != nil {
+			return errors.Wrap(err, "failed to append miner payout")
+		}
+		return nil
+	}
 	sponsorshipActivated, err := td.stor.sponsoredAssets.isSponsorshipActivated()
 	if err != nil {
 		return err
 	}
-	needToApplySponsorship := sponsorshipActivated && feeAsset.Present
-	if !needToApplySponsorship {
-		// No assets sponsorship.
-		if info.hasMiner() {
-			if err := td.minerPayout(ch.diff, fee, info, feeAsset); err != nil {
-				return errors.Wrap(err, "failed to append miner payout")
-			}
+	if !sponsorshipActivated { // payout miner in asset without sponsorship
+		if pErr := td.minerPayout(ch.diff, fee, info, feeAsset); pErr != nil {
+			return errors.Wrap(pErr, "failed to append miner payout")
 		}
 		return nil
 	}
@@ -413,10 +416,8 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceCha
 	// Sponsor is also added to list of modified addresses.
 	ch.appendAddr(issuerAddr)
 	// Miner payout using sponsorship.
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(ch.diff, feeInWaves, info); err != nil {
-			return errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(ch.diff, feeInWaves, info); pErr != nil {
+		return errors.Wrap(pErr, "failed to append miner payout")
 	}
 	return nil
 }
@@ -636,10 +637,8 @@ func (td *transactionDiffer) createDiffIssue(tx *proto.Issue, id []byte, info *d
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addrs := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addrs, diff)
@@ -688,10 +687,8 @@ func (td *transactionDiffer) createDiffReissue(tx *proto.Reissue, info *differIn
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addrs := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addrs, diff)
@@ -732,10 +729,8 @@ func (td *transactionDiffer) createDiffBurn(tx *proto.Burn, info *differInfo) (t
 	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addrs := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addrs, diff)
@@ -955,10 +950,8 @@ func (td *transactionDiffer) createDiffExchange(transaction proto.Transaction, i
 	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(-matcherFee, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.GetFee(), info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.GetFee(), info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 
 	txSenderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.GetSenderPK())
@@ -1035,11 +1028,10 @@ func (td *transactionDiffer) createDiffForExchangeFeeValidation(transaction prot
 	if err := diff.appendBalanceDiff(matcherFeeFromReceiverKey, newBalanceDiff(receiverFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.GetFee(), info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.GetFee(), info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
+
 	txSenderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
 		return txBalanceChanges{}, err
@@ -1068,10 +1060,8 @@ func (td *transactionDiffer) createFeeDiffExchange(transaction proto.Transaction
 	if err := diff.appendBalanceDiff(matcherKey.bytes(), newBalanceDiff(-matcherFee, 0, 0, true)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.GetFee(), info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.GetFee(), info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	txSenderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.GetSenderPK())
 	if err != nil {
@@ -1108,10 +1098,8 @@ func (td *transactionDiffer) createDiffLease(tx *proto.Lease, info *differInfo) 
 	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr, recipientAddr}
 	changes := newTxBalanceChanges(addresses, diff)
@@ -1160,10 +1148,8 @@ func (td *transactionDiffer) createDiffLeaseCancel(tx *proto.LeaseCancel, info *
 	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr, l.RecipientAddr}
 	changes := newTxBalanceChanges(addresses, diff)
@@ -1198,10 +1184,8 @@ func (td *transactionDiffer) createDiffCreateAlias(tx *proto.CreateAlias, info *
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
@@ -1268,10 +1252,8 @@ func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.
 		}
 		addresses[i+1] = recipientAddr
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	changes := newTxBalanceChanges(addresses, diff)
 	return changes, nil
@@ -1293,10 +1275,8 @@ func (td *transactionDiffer) createDiffDataWithProofs(transaction proto.Transact
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
@@ -1319,10 +1299,8 @@ func (td *transactionDiffer) createDiffSponsorshipWithProofs(transaction proto.T
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
@@ -1345,10 +1323,8 @@ func (td *transactionDiffer) createDiffSetScriptWithProofs(transaction proto.Tra
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if pErr := td.minerPayoutInWaves(diff, tx.Fee, info); pErr != nil {
+		return txBalanceChanges{}, errors.Wrap(pErr, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
@@ -1371,10 +1347,8 @@ func (td *transactionDiffer) createDiffSetAssetScriptWithProofs(transaction prot
 	if err := diff.appendBalanceDiff(senderFeeKey.bytes(), newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); err != nil {
 		return txBalanceChanges{}, err
 	}
-	if info.hasMiner() {
-		if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
-			return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
-		}
+	if err := td.minerPayoutInWaves(diff, tx.Fee, info); err != nil {
+		return txBalanceChanges{}, errors.Wrap(err, "failed to append miner payout")
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
