@@ -227,6 +227,8 @@ func (s *sponsoredAssets) wavesToSponsoredAsset(assetID proto.AssetID, wavesAmou
 }
 
 func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
+	// TODO: move this logic into features state
+	//  furthermore, all returning activation methods of feature state without height as an argument should be removed
 	featureActivated, err := s.features.newestIsActivated(int16(settings.FeeSponsorship))
 	if err != nil {
 		return false, err
