@@ -66,30 +66,30 @@ type blockchainEntitiesStorage struct {
 }
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
-	assets := newAssets(hs.db, hs.dbBatch, hs)
-	balances, err := newBalances(hs.db, hs, assets, sets.AddressSchemeCharacter, calcHashes)
+	asts := newAssets(hs.db, hs.dbBatch, hs)
+	bss, err := newBalances(hs.db, hs, asts, sets.AddressSchemeCharacter, calcHashes)
 	if err != nil {
 		return nil, err
 	}
-	scriptsStorage, err := newScriptsStorage(hs, sets.AddressSchemeCharacter, calcHashes)
+	ss, err := newScriptsStorage(hs, sets.AddressSchemeCharacter, calcHashes)
 	if err != nil {
 		return nil, err
 	}
-	features := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
+	fts := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
 	return &blockchainEntitiesStorage{
 		hs,
 		newAliases(hs, sets.AddressSchemeCharacter, calcHashes),
-		assets,
+		asts,
 		newLeases(hs, calcHashes),
 		newScores(hs),
 		newBlocksInfo(hs),
-		balances,
-		features,
+		bss,
+		fts,
 		newMonetaryPolicy(hs, sets),
 		newOrdersVolumes(hs),
 		newAccountsDataStorage(hs.db, hs.dbBatch, hs, calcHashes),
-		newSponsoredAssets(rw, features, hs, sets, calcHashes),
-		scriptsStorage,
+		newSponsoredAssets(rw, fts, hs, sets, calcHashes),
+		ss,
 		newScriptsComplexity(hs),
 		newInvokeResults(hs),
 		newStateHashes(hs),
@@ -252,8 +252,8 @@ func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
 		return false, errors.Wrap(err, "failed to get stored amend flag")
 	}
 	if !storedAmend && amend { // update if storedAmend == false and amend == true
-		if err := stateDB.updateAmendFlag(amend); err != nil {
-			return false, errors.Wrap(err, "failed to update amend flag")
+		if uErr := stateDB.updateAmendFlag(amend); uErr != nil {
+			return false, errors.Wrap(uErr, "failed to update amend flag")
 		}
 		storedAmend = amend
 	}
@@ -375,64 +375,64 @@ type stateManager struct {
 }
 
 func newStateManager(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (*stateManager, error) {
-	err := validateSettings(settings)
-	if err != nil {
-		return nil, err
+	vErr := validateSettings(settings)
+	if vErr != nil {
+		return nil, vErr
 	}
 	if _, err := os.Stat(dataDir); errors.Is(err, fs.ErrNotExist) {
-		if err := os.Mkdir(dataDir, 0750); err != nil {
-			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v", err))
+		if dErr := os.Mkdir(dataDir, 0750); dErr != nil {
+			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v", dErr))
 		}
 	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); errors.Is(err, fs.ErrNotExist) {
-		if err := os.Mkdir(blockStorageDir, 0750); err != nil {
-			return nil, wrapErr(Other, errors.Errorf("failed to create blocks directory: %v", err))
+		if dErr := os.Mkdir(blockStorageDir, 0750); dErr != nil {
+			return nil, wrapErr(Other, errors.Errorf("failed to create blocks directory: %v", dErr))
 		}
 	}
 	// Initialize database.
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	zap.S().Info("Initializing state database, will take up to few minutes...")
 	params.DbParams.BloomFilterParams.Store.WithPath(filepath.Join(blockStorageDir, "bloom"))
-	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Wrap(err, "failed to create db"))
+	db, kvErr := keyvalue.NewKeyVal(dbDir, params.DbParams)
+	if kvErr != nil {
+		return nil, wrapErr(Other, errors.Wrap(kvErr, "failed to create db"))
 	}
 	zap.S().Info("Finished initializing database")
-	dbBatch, err := db.NewBatch()
-	if err != nil {
-		return nil, wrapErr(Other, errors.Wrap(err, "failed to create db batch"))
+	dbBatch, bErr := db.NewBatch()
+	if bErr != nil {
+		return nil, wrapErr(Other, errors.Wrap(bErr, "failed to create db batch"))
 	}
-	stateDB, err := newStateDB(db, dbBatch, params)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Wrap(err, "failed to create stateDB"))
+	stDB, dbErr := newStateDB(db, dbBatch, params)
+	if dbErr != nil {
+		return nil, wrapErr(Other, errors.Wrap(dbErr, "failed to create stateDB"))
 	}
-	if err := checkCompatibility(stateDB, params); err != nil {
+	if err := checkCompatibility(stDB, params); err != nil {
 		return nil, wrapErr(IncompatibilityError, err)
 	}
-	handledAmend, err := handleAmendFlag(stateDB, amend)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Wrap(err, "failed to handle amend flag"))
+	handledAmend, fErr := handleAmendFlag(stDB, amend)
+	if fErr != nil {
+		return nil, wrapErr(Other, errors.Wrap(fErr, "failed to handle amend flag"))
 	}
 	// rw is storage for blocks.
-	rw, err := newBlockReadWriter(
+	rw, bwErr := newBlockReadWriter(
 		blockStorageDir,
 		params.OffsetLen,
 		params.HeaderOffsetLen,
-		stateDB,
+		stDB,
 		settings.AddressSchemeCharacter,
 	)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
+	if bwErr != nil {
+		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", bwErr))
 	}
-	stateDB.setRw(rw)
-	hs, err := newHistoryStorage(db, dbBatch, stateDB, handledAmend)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
+	stDB.setRw(rw)
+	hs, hErr := newHistoryStorage(db, dbBatch, stDB, handledAmend)
+	if hErr != nil {
+		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", hErr))
 	}
-	stor, err := newBlockchainEntitiesStorage(hs, settings, rw, params.BuildStateHashes)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
+	stor, eErr := newBlockchainEntitiesStorage(hs, settings, rw, params.BuildStateHashes)
+	if eErr != nil {
+		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", eErr))
 	}
 	atxParams := &addressTransactionsParams{
 		dir:                 blockStorageDir,
@@ -441,19 +441,19 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        params.ProvideExtendedApi,
 	}
-	atx, err := newAddressTransactions(
+	atx, nErr := newAddressTransactions(
 		db,
-		stateDB,
+		stDB,
 		rw,
 		atxParams,
 		handledAmend,
 	)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
+	if nErr != nil {
+		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", nErr))
 	}
 	state := &stateManager{
 		mu:                        &sync.RWMutex{},
-		stateDB:                   stateDB,
+		stateDB:                   stDB,
 		stor:                      stor,
 		rw:                        rw,
 		settings:                  settings,
@@ -467,16 +467,16 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 		nil,
 		newSnapshotApplierStorages(stor, rw),
 	)
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier)
-	if err != nil {
-		return nil, wrapErr(Other, err)
+	appender, apErr := newTxAppender(state, rw, stor, settings, stDB, atx, &snapshotApplier)
+	if apErr != nil {
+		return nil, wrapErr(Other, apErr)
 	}
 	state.appender = appender
 	state.cv = consensus.NewValidator(state, settings, params.Time)
 
-	height, err := state.Height()
-	if err != nil {
-		return nil, err
+	height, hErr := state.Height()
+	if hErr != nil {
+		return nil, hErr
 	}
 	state.setGenesisBlock(&settings.Genesis)
 	// 0 state height means that no blocks are found in state, so blockchain history is empty and we have to add genesis
@@ -489,18 +489,18 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 			return nil, errors.Wrap(err, "failed to apply/save genesis")
 		}
 		// We apply pre-activated features after genesis block, so they aren't active in genesis itself
-		if err := state.applyPreActivatedFeatures(settings.PreactivatedFeatures, settings.Genesis.BlockID()); err != nil {
+		if err := state.applyPreActivatedFeatures(settings.PreactivatedFeatures, settings.PreactivatedFeaturesAtHeights,
+			settings.Genesis.BlockID()); err != nil {
 			return nil, errors.Wrap(err, "failed to apply pre-activated features")
 		}
 	}
 
 	// check the correct blockchain is being loaded
-	genesis, err := state.BlockByHeight(1)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get genesis block from state")
+	genesis, bErr := state.BlockByHeight(1)
+	if bErr != nil {
+		return nil, errors.Wrap(bErr, "failed to get genesis block from state")
 	}
-	err = settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter)
-	if err != nil {
+	if err := settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter); err != nil {
 		return nil, errors.Wrap(err, "failed to generate genesis block id from config")
 	}
 	if !bytes.Equal(genesis.ID.Bytes(), settings.Genesis.ID.Bytes()) {
@@ -510,11 +510,11 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	if err := state.loadLastBlock(); err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	h, err := state.Height()
-	if err != nil {
-		return nil, wrapErr(Other, err)
+	height, hErr = state.Height()
+	if hErr != nil {
+		return nil, wrapErr(Other, hErr)
 	}
-	state.checkProtobufActivation(h + 1)
+	state.checkProtobufActivation(height + 1)
 	return state, nil
 }
 
@@ -608,24 +608,26 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 
-	if err := s.stor.prepareHashes(); err != nil {
-		return err
+	if phErr := s.stor.prepareHashes(); phErr != nil {
+		return phErr
 	}
-	if _, err := s.stor.putStateHash(nil, 1, s.genesis.BlockID()); err != nil {
-		return err
+	if _, psErr := s.stor.putStateHash(nil, 1, s.genesis.BlockID()); psErr != nil {
+		return psErr
 	}
 	if verifyError := chans.closeAndWait(); verifyError != nil {
 		return wrapErr(ValidationError, verifyError)
 	}
 
-	if err := s.flush(); err != nil {
-		return wrapErr(ModificationError, err)
+	if fErr := s.flush(); fErr != nil {
+		return wrapErr(ModificationError, fErr)
 	}
 	s.reset()
 	return nil
 }
 
-func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto.BlockID) error {
+func (s *stateManager) applyPreActivatedFeatures(
+	features []int16, featuresActivationHeights map[int16]uint64, blockID proto.BlockID,
+) error {
 	for _, featureID := range features {
 		approvalRequest := &approvedFeaturesRecord{1}
 		if err := s.stor.features.approveFeature(featureID, approvalRequest, blockID); err != nil {
@@ -633,6 +635,16 @@ func (s *stateManager) applyPreActivatedFeatures(features []int16, blockID proto
 		}
 		activationRequest := &activatedFeaturesRecord{1}
 		if err := s.stor.features.activateFeature(featureID, activationRequest, blockID); err != nil {
+			return err
+		}
+	}
+	for f, h := range featuresActivationHeights {
+		approvalRequest := &approvedFeaturesRecord{approvalHeight: h}
+		if err := s.stor.features.approveFeature(f, approvalRequest, blockID); err != nil {
+			return err
+		}
+		activationRequest := &activatedFeaturesRecord{activationHeight: h}
+		if err := s.stor.features.activateFeature(f, activationRequest, blockID); err != nil {
 			return err
 		}
 	}
@@ -823,7 +835,7 @@ func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.Asse
 	// Retrieve the latest balance diff as for the moment of this function call.
 	key := assetBalanceKey{address: addr, asset: asset}
 	diff, err := s.appender.diffStorInvoke.latestDiffByKey(string(key.bytes()))
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// If there is no diff, old balance is the newest.
 		return balance, nil
 	} else if err != nil {
@@ -846,7 +858,7 @@ func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (balanceP
 	// Retrieve the latest balance diff as for the moment of this function call.
 	key := wavesBalanceKey{address: addr}
 	diff, err := s.appender.diffStorInvoke.latestDiffByKey(string(key.bytes()))
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// If there is no diff, old balance is the newest.
 		return profile, nil
 	} else if err != nil {
@@ -953,7 +965,7 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 		return nil, wrapErr(RetrievalError, err)
 	}
 	var generating uint64 = 0
-	if gb, err := s.newestGeneratingBalance(id); err == nil {
+	if gb, gbErr := s.newestGeneratingBalance(id); gbErr == nil {
 		generating = gb
 	}
 	return &types.WavesBalanceProfile{
@@ -1047,8 +1059,8 @@ func (s *stateManager) addFeaturesVotes(block *proto.Block) error {
 		if approved {
 			continue
 		}
-		if err := s.stor.features.addVote(featureID, block.BlockID()); err != nil {
-			return err
+		if avErr := s.stor.features.addVote(featureID, block.BlockID()); avErr != nil {
+			return avErr
 		}
 	}
 	return nil
@@ -1154,8 +1166,8 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	s.newBlocks.setNewBinary([][]byte{block})
 	rs, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if sErr := s.rw.syncWithDb(); sErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", sErr)
 		}
 		return nil, err
 	}
@@ -1166,8 +1178,8 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 	s.newBlocks.setNew([]*proto.Block{block})
 	rs, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if sErr := s.rw.syncWithDb(); sErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", sErr)
 		}
 		return nil, err
 	}
@@ -1177,8 +1189,8 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
 	if _, err := s.addBlocks(); err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if sErr := s.rw.syncWithDb(); sErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", sErr)
 		}
 		return err
 	}
@@ -1189,8 +1201,8 @@ func (s *stateManager) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Bloc
 	s.newBlocks.setNew(blocks)
 	lastBlock, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if sErr := s.rw.syncWithDb(); sErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", sErr)
 		}
 		return nil, err
 	}
@@ -1311,8 +1323,8 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if cancelLeases {
-		if err := s.cancelLeases(blockchainHeight, lastBlock); err != nil {
-			return err
+		if clErr := s.cancelLeases(blockchainHeight, lastBlock); clErr != nil {
+			return clErr
 		}
 	}
 	resetStolenAliases, err := s.needToResetStolenAliases(blockchainHeight)
@@ -1321,26 +1333,26 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 	}
 	if resetStolenAliases {
 		// we're using nextBlock because it's a current block which we're going to apply
-		if err := s.stor.aliases.disableStolenAliases(nextBlock); err != nil {
-			return err
+		if dsaErr := s.stor.aliases.disableStolenAliases(nextBlock); dsaErr != nil {
+			return dsaErr
 		}
 	}
 	if s.needToFinishVotingPeriod(blockchainHeight) {
-		if err := s.finishVoting(blockchainHeight, lastBlock); err != nil {
-			return err
+		if fvErr := s.finishVoting(blockchainHeight, lastBlock); fvErr != nil {
+			return fvErr
 		}
-		if err := s.stor.features.resetVotes(nextBlock); err != nil {
-			return err
+		if rvErr := s.stor.features.resetVotes(nextBlock); rvErr != nil {
+			return rvErr
 		}
 	}
 
-	needToRecalc, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)
+	needToRecalculate, err := s.needToRecalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight)
 	if err != nil {
 		return err
 	}
-	if needToRecalc { // one time action
-		if err := s.recalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight, lastBlock); err != nil {
-			return errors.Wrap(err, "failed to recalculate monetary policy votes")
+	if needToRecalculate { // one time action
+		if rcErr := s.recalculateVotesAfterCappedRewardActivationInVotingPeriod(blockchainHeight, lastBlock); rcErr != nil {
+			return errors.Wrap(rcErr, "failed to recalculate monetary policy votes")
 		}
 	}
 
@@ -1413,22 +1425,24 @@ func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error 
 		if err != nil {
 			return err
 		}
-		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns, blockID); err != nil {
-			return err
+		if cilErr := s.stor.balances.cancelInvalidLeaseIns(leaseIns, blockID); cilErr != nil {
+			return cilErr
 		}
 	} else if rideV5Activated && height == rideV5Height {
 		changes, err := s.stor.leases.cancelLeasesToDisabledAliases(s.settings.AddressSchemeCharacter, height, blockID)
 		if err != nil {
 			return err
 		}
-		if err := s.stor.balances.cancelLeases(changes, blockID); err != nil {
-			return err
+		if clErr := s.stor.balances.cancelLeases(changes, blockID); clErr != nil {
+			return clErr
 		}
 	}
 	return nil
 }
 
-func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod(height proto.Height, lastBlockID proto.BlockID) error {
+func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod(
+	height proto.Height, lastBlockID proto.BlockID,
+) error {
 	start, end, err := s.blockRewardVotingPeriod(height)
 	if err != nil {
 		return err
@@ -1444,17 +1458,20 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	if err != nil {
 		return err
 	}
-	if err := s.stor.monetaryPolicy.resetBlockRewardVotes(lastBlockID); err != nil { // reset votes just to be sure that they're equal zero
-		return errors.Wrapf(err, "failed to reset block reward votes for block %q", lastBlockID.String())
+	// reset votes just to be sure that they're equal zero
+	if rbvErr := s.stor.monetaryPolicy.resetBlockRewardVotes(lastBlockID); rbvErr != nil {
+		return errors.Wrapf(rbvErr, "failed to reset block reward votes for block %q", lastBlockID.String())
 	}
 	for h := start; h <= height; h++ {
-		header, err := s.NewestHeaderByHeight(h)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get newest header by height %d", h)
+		header, hhErr := s.NewestHeaderByHeight(h)
+		if hhErr != nil {
+			return errors.Wrapf(hhErr, "failed to get newest header by height %d", h)
 		}
 		// rewrite rewardVotes on h == start and count votes for the rest heights
-		if err := s.stor.monetaryPolicy.vote(header.RewardVote, h, blockRewardActivationHeight, isCappedRewardsActivated, lastBlockID); err != nil {
-			return errors.Wrapf(err, "failed to add vote for monetary policy at height %d for block %q", height, lastBlockID.String())
+		if mpErr := s.stor.monetaryPolicy.vote(header.RewardVote, h, blockRewardActivationHeight,
+			isCappedRewardsActivated, lastBlockID); mpErr != nil {
+			return errors.Wrapf(mpErr, "failed to add vote for monetary policy at height %d for block %q",
+				height, lastBlockID.String())
 		}
 	}
 	return nil
@@ -1496,9 +1513,9 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	pos := 0
 	for s.newBlocks.next() {
 		blockchainCurHeight := height + uint64(pos)
-		block, err := s.newBlocks.current()
-		if err != nil {
-			return nil, wrapErr(DeserializationError, err)
+		block, cErr := s.newBlocks.current()
+		if cErr != nil {
+			return nil, wrapErr(DeserializationError, cErr)
 		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
@@ -1506,8 +1523,8 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		}
 		// At some blockchain heights specific logic is performed.
 		// This includes voting for features, block rewards and so on.
-		if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
-			return nil, wrapErr(ModificationError, err)
+		if haErr := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); haErr != nil {
+			return nil, wrapErr(ModificationError, haErr)
 		}
 		if vhErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); vhErr != nil {
 			return nil, vhErr
@@ -1518,21 +1535,21 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			parentID: lastAppliedBlock.BlockID(),
 			block:    block,
 		}
-		if err := chans.trySend(task); err != nil {
-			return nil, err
+		if tsErr := chans.trySend(task); tsErr != nil {
+			return nil, tsErr
 		}
-		hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
-		if err != nil {
-			return nil, err
+		hs, ghsErr := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
+		if ghsErr != nil {
+			return nil, ghsErr
 		}
-		sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
-		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get newest snapshot state hash for height %d",
+		sh, nsErr := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
+		if nsErr != nil {
+			return nil, errors.Wrapf(nsErr, "failed to get newest snapshot state hash for height %d",
 				blockchainCurHeight,
 			)
 		}
-		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
-			return nil, err
+		if ahsErr := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); ahsErr != nil {
+			return nil, ahsErr
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 		if addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, sh); addErr != nil {
@@ -1560,12 +1577,12 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, wrapErr(ModificationError, shErr)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
-	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
-		return nil, wrapErr(ValidationError, err)
+	if vhErr := s.cv.ValidateHeadersBatch(headers[:pos], height); vhErr != nil {
+		return nil, wrapErr(ValidationError, vhErr)
 	}
 	// After everything is validated, save all the changes to DB.
-	if err := s.flush(); err != nil {
-		return nil, wrapErr(ModificationError, err)
+	if fErr := s.flush(); fErr != nil {
+		return nil, wrapErr(ModificationError, fErr)
 	}
 	zap.S().Infof(
 		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
@@ -1654,11 +1671,11 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	if height < 1 || height > maxHeight {
 		return nil, wrapErr(InvalidInputError, errors.Errorf("ScoreAtHeight: %d height out of valid range [1, %d]", height, maxHeight))
 	}
-	score, err := s.stor.scores.score(height)
+	sc, err := s.stor.scores.score(height)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return score, nil
+	return sc, nil
 }
 
 func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
@@ -1688,11 +1705,11 @@ func (s *stateManager) CurrentScore() (*big.Int, error) {
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	score, err := s.stor.scores.score(height)
+	sc, err := s.stor.scores.score(height)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return score, nil
+	return sc, nil
 }
 
 func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
@@ -1770,11 +1787,11 @@ func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error
 }
 
 func (s *stateManager) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
-	aliases, err := s.stor.aliases.aliasesByAddr(addr)
+	als, err := s.stor.aliases.aliasesByAddr(addr)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return aliases, nil
+	return als, nil
 }
 
 func (s *stateManager) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
@@ -1838,11 +1855,11 @@ func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
 }
 
 func (s *stateManager) AllFeatures() ([]int16, error) {
-	features, err := s.stor.features.allFeatures()
+	fts, err := s.stor.features.allFeatures()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return features, nil
+	return fts, nil
 }
 
 func (s *stateManager) EstimatorVersion() (int, error) {
@@ -2185,13 +2202,13 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if isSponsored {
-		assetCost, err := s.stor.sponsoredAssets.newestAssetCost(assetID)
-		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+		assetCost, acErr := s.stor.sponsoredAssets.newestAssetCost(assetID)
+		if acErr != nil {
+			return nil, wrapErr(RetrievalError, acErr)
 		}
-		sponsorBalance, err := s.NewestWavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
-		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+		sponsorBalance, bErr := s.NewestWavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
+		if bErr != nil {
+			return nil, wrapErr(RetrievalError, bErr)
 		}
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
@@ -2201,9 +2218,9 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 		return nil, wrapErr(Other, err)
 	}
 	if isScripted {
-		scriptInfo, err := s.NewestScriptInfoByAsset(assetID)
-		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+		scriptInfo, siErr := s.NewestScriptInfoByAsset(assetID)
+		if siErr != nil {
+			return nil, wrapErr(RetrievalError, siErr)
 		}
 		res.ScriptInfo = *scriptInfo
 	}
@@ -2287,13 +2304,13 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if isSponsored {
-		assetCost, err := s.stor.sponsoredAssets.assetCost(assetID)
-		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+		assetCost, acErr := s.stor.sponsoredAssets.assetCost(assetID)
+		if acErr != nil {
+			return nil, wrapErr(RetrievalError, acErr)
 		}
-		sponsorBalance, err := s.WavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
-		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+		sponsorBalance, wbErr := s.WavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
+		if wbErr != nil {
+			return nil, wrapErr(RetrievalError, wbErr)
 		}
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
@@ -2303,9 +2320,9 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 		return nil, wrapErr(RetrievalError, err)
 	}
 	if isScripted {
-		scriptInfo, err := s.ScriptInfoByAsset(assetID)
-		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+		scriptInfo, siErr := s.ScriptInfoByAsset(assetID)
+		if siErr != nil {
+			return nil, wrapErr(RetrievalError, siErr)
 		}
 		res.ScriptInfo = *scriptInfo
 	}
@@ -2342,9 +2359,9 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 	}
 	infos := make([]*proto.FullAssetInfo, len(nfts))
 	for i, nft := range nfts {
-		info, err := s.FullAssetInfo(proto.AssetIDFromDigest(nft))
-		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+		info, faiErr := s.FullAssetInfo(proto.AssetIDFromDigest(nft))
+		if faiErr != nil {
+			return nil, wrapErr(RetrievalError, faiErr)
 		}
 		infos[i] = info
 	}
