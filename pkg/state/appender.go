@@ -367,15 +367,6 @@ func (a *txAppender) commitTxApplication(
 			errors.Wrapf(err, "failed to perform transaction %q", base58.Encode(txID)),
 		)
 	}
-
-	if !params.validatingUtx {
-		// TODO: snapshots for miner fee should be generated here, but not saved
-		//  They must be saved in snapshot applier
-		// Count tx fee.
-		if err := a.blockDiffer.countMinerFee(tx); err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
-		}
-	}
 	return snapshot, nil
 }
 
@@ -639,10 +630,6 @@ func (a *txAppender) applySnapshotInLightNode(
 				base58.Encode(txID), blockInfo.Height,
 			)
 		}
-		// Count miner fee
-		if err := a.blockDiffer.countMinerFee(tx); err != nil {
-			return crypto.Digest{}, errors.Wrapf(err, "failed to count miner fee for txID %q", base58.Encode(txID))
-		}
 		stateHash = txSh
 		regSnapshots := txSnapshot{regular: txs}
 		if err := regSnapshots.Apply(a.txHandler.sa, tx, false); err != nil {
@@ -788,6 +775,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrapf(errBlockSnapshotStateHashMismatch, "state hash mismatch; provided '%s', caluclated '%s'",
 			blockStateHash.String(), stateHash.String(),
 		)
+	}
+	// Count miner fees.
+	for i, tx := range params.transactions {
+		if fErr := a.blockDiffer.countMinerFee(tx); fErr != nil {
+			return errors.Wrapf(err, "failed to count miner fee for tx %d", i+1)
+		}
 	}
 
 	blockID := params.block.BlockID()
