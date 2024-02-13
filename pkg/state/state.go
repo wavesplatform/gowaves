@@ -2336,7 +2336,11 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	nfts, err := s.stor.balances.nftList(addr.ID(), limit, afterAssetID)
+	height, err := s.Height()
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	nfts, err := s.stor.balances.nftList(addr.ID(), limit, afterAssetID, height, s.stor.features)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
