@@ -36,30 +36,18 @@ func (r *speedRegulator) calculateNextMaxSizeAndDirection() (int, bool) {
 	switch {
 	case r.speed > r.prevSpeed && r.increasing:
 		maxSize += sizeAdjustment
-		// TODO: maxSize = min(maxSize, MaxTotalBatchSize)
-		if maxSize > MaxTotalBatchSize {
-			maxSize = MaxTotalBatchSize
-		}
+		maxSize = min(maxSize, MaxTotalBatchSize)
 	case r.speed > r.prevSpeed && !r.increasing:
 		maxSize -= sizeAdjustment
-		// TODO: maxSize = max(maxSize, initTotalBatchSize)
-		if maxSize < initTotalBatchSize {
-			maxSize = initTotalBatchSize
-		}
+		maxSize = max(maxSize, initTotalBatchSize)
 	case r.speed < r.prevSpeed && r.increasing:
 		increasing = false
 		maxSize -= sizeAdjustment
-		// TODO: maxSize = max(maxSize, initTotalBatchSize)
-		if maxSize < initTotalBatchSize {
-			maxSize = initTotalBatchSize
-		}
+		maxSize = max(maxSize, initTotalBatchSize)
 	case r.speed < r.prevSpeed && !r.increasing:
 		increasing = true
 		maxSize += sizeAdjustment
-		// TODO: maxSize = min(maxSize, MaxTotalBatchSize)
-		if maxSize > MaxTotalBatchSize {
-			maxSize = MaxTotalBatchSize
-		}
+		maxSize = min(maxSize, MaxTotalBatchSize)
 	}
 	return maxSize, increasing
 }
