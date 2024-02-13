@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"encoding/binary"
 	"hash"
-	"math/big"
 	"sort"
 
 	"github.com/pkg/errors"
@@ -12,6 +11,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -104,52 +104,6 @@ func writeBool(w *bytebufferpool.ByteBuffer, v bool) error {
 		b = 1
 	}
 	return w.WriteByte(b)
-}
-
-// bigIntToByteArray returns a byte array containing the two's-complement representation of this big.Int.
-// The byte array will be in big-endian byte-order: the most significant byte is in the zeroth element.
-// The array will contain the minimum number of bytes required to represent this big.Int,
-// including at least one sign bit.
-func bigIntToByteArray(n *big.Int) ([]byte, error) {
-	const (
-		byte00 = 0x00
-		byteFF = 0xff // 255 in decimal, all bits of a byte are set to 1
-		byte80 = 0x80 // 128 in decimal, the most significant bit of a byte is set to 1
-	)
-	if n == nil {
-		return nil, errors.New("nil big.Int")
-	}
-	switch sign := n.Sign(); {
-	case sign > 0:
-		bts := n.Bytes()
-		if len(bts) > 0 && bts[0]&byte80 != 0 {
-			// We'll have to pad this with 0x00 in order to stop it
-			// looking like a negative number.
-			return append([]byte{byte00}, bts...), nil
-		}
-		return bts, nil
-	case sign == 0:
-		return []byte{byte00}, nil
-	case sign < 0:
-		// A negative number has to be converted to two's-complement
-		// form. So we'll invert and subtract 1. If the
-		// most-significant-bit isn't set then we'll need to pad the
-		// beginning with 0xff in order to keep the number negative.
-		const byte01 = 0x01
-		bigOne := big.NewInt(byte01)
-		nMinus1 := new(big.Int).Neg(n)
-		nMinus1.Sub(nMinus1, bigOne)
-		bts := nMinus1.Bytes()
-		for i := range bts {
-			bts[i] ^= byteFF
-		}
-		if len(bts) == 0 || bts[0]&byte80 == 0 {
-			return append([]byte{byteFF}, bts...), nil
-		}
-		return bts, nil
-	default:
-		return nil, errors.New("unreachable point reached")
-	}
 }
 
 // Release releases the hasher and sets its state to default.
@@ -311,10 +265,7 @@ func (h *txSnapshotHasher) ApplyAssetDescription(snapshot proto.AssetDescription
 }
 
 func (h *txSnapshotHasher) ApplyAssetVolume(snapshot proto.AssetVolumeSnapshot) error {
-	totalQuantityBytes, err := bigIntToByteArray(&snapshot.TotalQuantity)
-	if err != nil {
-		return errors.Wrap(err, "failed to convert total quantity to a byte array")
-	}
+	totalQuantityBytes := common.Encode2CBigInt(&snapshot.TotalQuantity)
 	buf := bytebufferpool.Get()
 
 	// Asset reissuability: asset_id || is_reissuable || total_quantity
