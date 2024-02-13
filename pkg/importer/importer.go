@@ -78,6 +78,9 @@ func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, inc
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
 func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64) error {
+	if nBlocks < 2 { // 1 block is genesis, nothing to apply
+		return nil
+	}
 	blockchain, err := os.Open(blockchainPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v", err)
@@ -96,7 +99,7 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64)
 	prevSpeed := float64(0)
 	increasingSize := true
 	maxSize := initTotalBatchSize
-	for height := uint64(1); height <= nBlocks; height++ {
+	for height := uint64(2); height <= nBlocks; height++ {
 		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
 			return err
 		}
