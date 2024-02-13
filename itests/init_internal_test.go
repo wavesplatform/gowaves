@@ -19,12 +19,8 @@ const (
 )
 
 const (
-	withRaceDetectorSuffixArgumentName = "WITH_RACE_SUFFIX"
-	additionalBuildDependenciesArgName = "ADDITIONAL_BUILD_DEPENDENCIES"
-)
-const (
-	withRaceDetectorSuffixArgumentValue     = "-with-race"
-	additionalRaceDetectorBuildDependencies = "musl-dev gcc"
+	withRaceDetectorSuffixArgumentName  = "WITH_RACE_SUFFIX"
+	withRaceDetectorSuffixArgumentValue = "-with-race"
 )
 
 func TestMain(m *testing.M) {
@@ -43,19 +39,10 @@ func TestMain(m *testing.M) {
 	if err := pool.Client.PullImage(dc.PullImageOptions{Repository: "wavesplatform/wavesnode", Tag: "latest"}, dc.AuthConfiguration{}); err != nil {
 		log.Fatalf("Failed to pull node image: %v", err)
 	}
-	var (
-		buildArgs                   []dc.BuildArg
-		additionalBuildDependencies string
-	)
+	var buildArgs []dc.BuildArg
 	if withRaceDetector {
 		buildArgs = append(buildArgs, dc.BuildArg{
 			Name: withRaceDetectorSuffixArgumentName, Value: withRaceDetectorSuffixArgumentValue,
-		})
-		additionalBuildDependencies += " " + additionalRaceDetectorBuildDependencies
-	}
-	if additionalBuildDependencies != "" {
-		buildArgs = append(buildArgs, dc.BuildArg{
-			Name: additionalBuildDependenciesArgName, Value: additionalBuildDependencies,
 		})
 	}
 	dir, file := filepath.Split(filepath.Join(pwd, dockerfilePath))
