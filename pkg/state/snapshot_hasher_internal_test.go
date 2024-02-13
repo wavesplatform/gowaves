@@ -3,6 +3,8 @@ package state
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
+	"math/big"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -137,6 +139,13 @@ func TestTxSnapshotHasher(t *testing.T) {
 			expectedStateHashHex: "6502773294f32cc1702d374ffc1e67ee278cd63c5f00432f80f64a689fcb17f9",
 			transactionIDBase58:  "5gEi2kgbMSfUzdDXRKovEbEezq5ACpr8WTeafwkKQmHW",
 		},
+		{
+			testCaseName:         "asset_volume_two's_complement",
+			pbInBase64:           "MicKIOfYm9p3M/NiYXCvwCU3ho5eVFpwE5iekWev4QXhZMvuEAEaAcg=",
+			prevStateHashHex:     "6502773294f32cc1702d374ffc1e67ee278cd63c5f00432f80f64a689fcb17f9",
+			expectedStateHashHex: "b5f7e36556cb0d9a72bc9612be017a3cf174cfcb059d86c91621bfe7e8b74ff1",
+			transactionIDBase58:  "Gc2kPdPb1qrCPMy1Ga6SD5PDs2Equa6aazxhKjtDzrv1", // valid txID from testnet
+		},
 	}
 
 	hasher, hErr := newTxSnapshotHasherDefault()
@@ -233,6 +242,53 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 					b.Fatalf("expectedHash=%s  != actual=%s", expectedHash.Hex(), h.Hex())
 				}
 			}
+		})
+	}
+}
+
+func Test_bigIntToByteArray(t *testing.T) {
+	tests := []struct {
+		num      *big.Int
+		expected []int8
+	}{
+		{big.NewInt(0), []int8{0}},
+		{big.NewInt(1), []int8{1}},
+		{big.NewInt(-1), []int8{-1}},
+		{big.NewInt(127), []int8{127}},
+		{big.NewInt(-127), []int8{-127}},
+		{big.NewInt(128), []int8{0, -128}},
+		{big.NewInt(-128), []int8{-128}},
+		{big.NewInt(129), []int8{0, -127}},
+		{big.NewInt(-129), []int8{-1, 127}},
+		{big.NewInt(255), []int8{0, -1}},
+		{big.NewInt(-255), []int8{-1, 1}},
+		{big.NewInt(256), []int8{1, 0}},
+		{big.NewInt(-256), []int8{-1, 0}},
+		{big.NewInt(257), []int8{1, 1}},
+		{big.NewInt(-257), []int8{-2, -1}},
+		{big.NewInt(32767), []int8{127, -1}},
+		{big.NewInt(-32767), []int8{-128, 1}},
+		{big.NewInt(32768), []int8{0, -128, 0}},
+		{big.NewInt(-32768), []int8{-128, 0}},
+		{big.NewInt(32769), []int8{0, -128, 1}},
+		{big.NewInt(-32769), []int8{-1, 127, -1}},
+		{big.NewInt(65535), []int8{0, -1, -1}},
+		{big.NewInt(-65535), []int8{-1, 0, 1}},
+		{big.NewInt(65536), []int8{1, 0, 0}},
+		{big.NewInt(-65536), []int8{-1, 0, 0}},
+		{big.NewInt(65537), []int8{1, 0, 1}},
+		{big.NewInt(-65537), []int8{-2, -1, -1}},
+	}
+	for _, test := range tests {
+		name := fmt.Sprintf("number=%d", test.num)
+		t.Run(name, func(t *testing.T) {
+			expectedBytes := make([]byte, len(test.expected))
+			for i, v := range test.expected {
+				expectedBytes[i] = byte(v)
+			}
+			actual, err := bigIntToByteArray(test.num)
+			require.NoError(t, err)
+			assert.Equal(t, expectedBytes, actual)
 		})
 	}
 }
