@@ -2,7 +2,7 @@ FROM golang:1.22.0-alpine3.19 as builder
 LABEL wavesplatform-gowaves-itests-tmp=true
 WORKDIR /app
 
-RUN apk add --no-cache make
+RUN apk add --no-cache make musl-dev gcc
 
 COPY go.mod .
 COPY go.sum .
@@ -13,7 +13,8 @@ COPY Makefile .
 COPY cmd cmd
 COPY pkg pkg
 
-RUN make build-node-linux-amd64
+ARG WITH_RACE_SUFFIX=""
+RUN make build-node-linux-amd64${WITH_RACE_SUFFIX}
 
 FROM alpine:3.19.1
 ENV TZ=Etc/UTC \
