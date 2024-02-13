@@ -42,6 +42,7 @@ func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,
 			tail:     tail,
 			issuer:   issuer,
 			decimals: 2,
+			isNFT:    false,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(amount),
@@ -1122,6 +1123,7 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 			issuer:               testGlobal.recipientInfo.pk,
 			decimals:             0,
 			issueHeight:          0,
+			isNFT:                false,
 			issueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{

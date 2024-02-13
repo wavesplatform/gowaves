@@ -218,8 +218,8 @@ func (ia *invokeApplier) countIssuedAssets(actions []proto.ScriptAction) (uint64
 	for _, action := range actions {
 		switch a := action.(type) {
 		case *proto.IssueScriptAction:
-			assetParams := assetParams{a.Quantity, a.Decimals, a.Reissuable}
-			nft, err := isNFT(ia.stor.features, assetParams)
+			ap := assetParams{uint64(a.Quantity), uint32(a.Decimals), a.Reissuable}
+			nft, err := isNFT(ia.stor.features, ap)
 			if err != nil {
 				return 0, err
 			}
@@ -481,7 +481,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 		case *proto.IssueScriptAction:
 			// Create asset's info.
-			assetInfo := &assetInfo{
+			ai := &assetInfo{
 				assetConstInfo: assetConstInfo{
 					tail:        proto.DigestTail(a.ID),
 					issuer:      senderPK,
@@ -496,8 +496,13 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 					reissuable:               a.Reissuable,
 				},
 			}
+			if nftErr := ai.initIsNFTFlag(ia.stor.features); nftErr != nil {
+				return proto.DAppError, info.failedChanges,
+					errors.Wrapf(err, "failed to initialize isNFT flag for asset %s", a.ID.String())
+			}
+
 			id := proto.AssetIDFromDigest(a.ID)
-			ia.stor.assets.issueAssetUncertain(id, assetInfo)
+			ia.stor.assets.issueAssetUncertain(id, ai)
 			// Currently asset script is always empty.
 			// TODO: if this script is ever set, don't forget to
 			// also save complexity for it here using saveComplexityForAsset().

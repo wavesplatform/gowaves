@@ -449,6 +449,9 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 			reissuable:               tx.Reissuable,
 		},
 	}
+	if err := ai.initIsNFTFlag(sg.stor.features); err != nil {
+		return txSnapshot{}, errors.Wrapf(err, "failed to initialize NFT flag for issued asset %s", assetID.String())
+	}
 
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
 	if err != nil {
@@ -466,7 +469,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 		AssetID:         assetID,
 		IssuerPublicKey: senderPK,
 		Decimals:        ai.decimals,
-		IsNFT:           ai.isNFT(),
+		IsNFT:           ai.isNFT,
 	}
 	assetDescription := &proto.AssetDescriptionSnapshot{
 		AssetID:          assetID,
@@ -771,7 +774,7 @@ func generateSnapshotsFromAssetsUncertain(
 				AssetID:         fullAssetID,
 				IssuerPublicKey: infoAsset.assetInfo.issuer,
 				Decimals:        infoAsset.assetInfo.decimals,
-				IsNFT:           infoAsset.assetInfo.isNFT(),
+				IsNFT:           infoAsset.assetInfo.isNFT, // NFT flag is set in
 			}
 
 			assetDescription := &proto.AssetDescriptionSnapshot{

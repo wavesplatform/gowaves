@@ -48,8 +48,8 @@ type feeValidationParams struct {
 }
 
 type assetParams struct {
-	quantity   int64
-	decimals   int32
+	quantity   uint64
+	decimals   uint32
 	reissuable bool
 }
 
@@ -95,16 +95,16 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 	fee := baseFee
 	switch txType {
 	case proto.IssueTransaction:
-		var asset assetParams
+		var ap assetParams
 		switch itx := tx.(type) {
 		case *proto.IssueWithSig:
-			asset = assetParams{int64(itx.Quantity), int32(itx.Decimals), itx.Reissuable}
+			ap = assetParams{itx.Quantity, uint32(itx.Decimals), itx.Reissuable}
 		case *proto.IssueWithProofs:
-			asset = assetParams{int64(itx.Quantity), int32(itx.Decimals), itx.Reissuable}
+			ap = assetParams{itx.Quantity, uint32(itx.Decimals), itx.Reissuable}
 		default:
 			return 0, errors.New("failed to convert interface to Issue transaction")
 		}
-		nft, err := isNFT(params.stor.features, asset)
+		nft, err := isNFT(params.stor.features, ap)
 		if err != nil {
 			return 0, err
 		}

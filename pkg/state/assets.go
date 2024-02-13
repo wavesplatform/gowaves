@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -23,16 +24,23 @@ type assetInfo struct {
 	assetChangeableInfo
 }
 
-func (ai *assetInfo) isNFT() bool {
-	return ai.quantity.Uint64() == 1 && ai.decimals == 0 && !ai.reissuable
+func (ai *assetInfo) initIsNFTFlag(fs featuresState) error {
+	if !ai.quantity.IsUint64() {
+		ai.isNFT = false
+		return nil
+	}
+	ap := assetParams{ai.quantity.Uint64(), uint32(ai.decimals), ai.reissuable}
+	nft, err := isNFT(fs, ap)
+	if err != nil {
+		return err
+	}
+	ai.isNFT = nft
+	return nil
 }
 
 func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 	return ai.assetChangeableInfo.equal(&ai1.assetChangeableInfo) && (ai.assetConstInfo == ai1.assetConstInfo)
 }
-
-// assetConstInfoSize = len(digestTail) + len(issuerPK) + len(decimals_byte) + len(issueHeight_bytes)
-const assetConstInfoSize = proto.AssetIDTailSize + crypto.PublicKeySize + 1 + 8 + 8
 
 // assetConstInfo is part of asset info which is constant.
 type assetConstInfo struct {
@@ -40,53 +48,48 @@ type assetConstInfo struct {
 	issuer               crypto.PublicKey
 	decimals             uint8
 	issueHeight          proto.Height
+	isNFT                bool // isNFT flag must be initialized only once by calling assetInfo.initIsNFTFlag
 	issueSequenceInBlock uint32
 }
 
+type assetConstInfoRecord struct {
+	Tail                 [proto.AssetIDTailSize]byte `cbor:"0,keyasint,omitemtpy"`
+	Issuer               crypto.PublicKey            `cbor:"1,keyasint,omitemtpy"`
+	Decimals             uint8                       `cbor:"2,keyasint,omitemtpy"`
+	IssueHeight          proto.Height                `cbor:"3,keyasint,omitemtpy"`
+	IsNFT                bool                        `cbor:"4,keyasint,omitemtpy"`
+	IssueSequenceInBlock uint32                      `cbor:"5,keyasint,omitemtpy"`
+}
+
+func (r *assetConstInfoRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(r) }
+
+func (r *assetConstInfoRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, r) }
+
 func (ai *assetConstInfo) marshalBinary() (data []byte, err error) {
-	data = make([]byte, assetConstInfoSize)
-	res := data
-	// write digest tail
-	copy(res, ai.tail[:])
-	res = res[proto.AssetIDTailSize:]
-	// write issuer PK
-	if err := ai.issuer.WriteToBuf(res); err != nil {
-		return nil, err
+	r := assetConstInfoRecord{
+		Tail:                 ai.tail,
+		Issuer:               ai.issuer,
+		Decimals:             ai.decimals,
+		IssueHeight:          ai.issueHeight,
+		IsNFT:                ai.isNFT,
+		IssueSequenceInBlock: ai.issueSequenceInBlock,
 	}
-	res = res[crypto.PublicKeySize:]
-	// write info about decimals
-	res[0] = ai.decimals
-	res = res[1:]
-	//write issue height
-	binary.BigEndian.PutUint64(res, ai.issueHeight)
-	res = res[8:]
-	// write issue tx position in block
-	binary.BigEndian.PutUint32(res, ai.issueSequenceInBlock)
-	// return full data slice
-	return data, nil
+	return r.marshalBinary()
 }
 
 func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
-	if len(data) < assetConstInfoSize { // initial sanity check
-		return errors.Errorf("invalid data size: want %d, got %d", assetConstInfoSize, len(data))
-	}
-	// read digest tail
-	copy(ai.tail[:], data[:proto.AssetIDTailSize])
-	data = data[proto.AssetIDTailSize:]
-	// read issuer PK
-	err := ai.issuer.UnmarshalBinary(data[:crypto.PublicKeySize])
-	if err != nil {
+	var r assetConstInfoRecord
+	if err := r.unmarshalBinary(data); err != nil {
 		return err
 	}
-	data = data[crypto.PublicKeySize:]
-	// read asset decimals
-	ai.decimals = data[0]
-	data = data[1:]
-	// read issue height
-	ai.issueHeight = binary.BigEndian.Uint64(data)
-	data = data[8:]
-	// read issue tx position in block
-	ai.issueSequenceInBlock = binary.BigEndian.Uint32(data)
+	*ai = assetConstInfo{
+		tail:                 r.Tail,
+		issuer:               r.Issuer,
+		decimals:             r.Decimals,
+		issueHeight:          r.IssueHeight,
+		isNFT:                r.IsNFT,
+		issueSequenceInBlock: r.IssueSequenceInBlock,
+	}
 	return nil
 }
 

@@ -440,6 +440,7 @@ func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) e
 			issuer:               snapshot.IssuerPublicKey,
 			decimals:             snapshot.Decimals,
 			issueHeight:          height,
+			isNFT:                snapshot.IsNFT,
 			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{},

@@ -129,6 +129,7 @@ func TestPerformIssueWithSig(t *testing.T) {
 			issuer:               tx.SenderPK,
 			decimals:             tx.Decimals,
 			issueHeight:          1,
+			isNFT:                false,
 			issueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
@@ -161,6 +162,7 @@ func TestPerformIssueWithProofs(t *testing.T) {
 			issuer:               tx.SenderPK,
 			decimals:             tx.Decimals,
 			issueHeight:          1,
+			isNFT:                false,
 			issueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{

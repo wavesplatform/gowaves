@@ -312,6 +312,7 @@ func defaultNFT(tail [proto.AssetIDTailSize]byte) *assetInfo {
 			tail:     tail,
 			issuer:   testGlobal.issuerInfo.pk,
 			decimals: 0,
+			isNFT:    true,
 		},
 		assetChangeableInfo{
 			quantity:                 *big.NewInt(1),

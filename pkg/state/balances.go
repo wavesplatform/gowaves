@@ -434,13 +434,13 @@ func (s *balances) nftList(addr proto.AddressID, limit uint64, afterAssetID *pro
 		if err := k.unmarshal(keyBytes); err != nil {
 			return nil, err
 		}
-		assetInfo, err := s.assets.assetInfo(k.asset)
-		if err != nil {
-			return nil, err
+		ai, aiErr := s.assets.assetInfo(k.asset)
+		if aiErr != nil {
+			return nil, aiErr
 		}
-		nft := assetInfo.isNFT()
+		nft := ai.isNFT
 		if nft {
-			res = append(res, proto.ReconstructDigest(k.asset, assetInfo.tail))
+			res = append(res, proto.ReconstructDigest(k.asset, ai.tail))
 		}
 	}
 	return res, nil
