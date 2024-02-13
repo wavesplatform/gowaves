@@ -7,6 +7,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -226,6 +227,8 @@ func (s *sponsoredAssets) wavesToSponsoredAsset(assetID proto.AssetID, wavesAmou
 }
 
 func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
+	// TODO: move this logic into features state
+	//  furthermore, all returning activation methods of feature state without height as an argument should be removed
 	featureActivated, err := s.features.newestIsActivated(int16(settings.FeeSponsorship))
 	if err != nil {
 		return false, err
@@ -239,9 +242,9 @@ func (s *sponsoredAssets) isSponsorshipActivated() (bool, error) {
 			return false, err
 		}
 		// Sponsorship has double activation period.
-		curHeight := s.rw.recentHeight()
+		blockHeight := s.rw.addingBlockHeight()
 		sponsorshipTrueActivationHeight := height + s.settings.ActivationWindowSize(height)
-		sponsorshipActivated = curHeight >= sponsorshipTrueActivationHeight
+		sponsorshipActivated = blockHeight >= sponsorshipTrueActivationHeight
 	}
 	return sponsorshipActivated, nil
 }
