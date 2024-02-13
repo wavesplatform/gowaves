@@ -34,7 +34,7 @@ type invokeApplier struct {
 	invokeDiffStor *diffStorageWrapped
 	diffApplier    *diffApplier
 
-	buildApiData bool
+	buildAPIData bool
 }
 
 func newInvokeApplier(
@@ -46,7 +46,7 @@ func newInvokeApplier(
 	blockDiffer *blockDiffer,
 	diffStor *diffStorageWrapped,
 	diffApplier *diffApplier,
-	buildApiData bool,
+	buildAPIData bool,
 ) *invokeApplier {
 	return &invokeApplier{
 		state:          state,
@@ -57,7 +57,7 @@ func newInvokeApplier(
 		blockDiffer:    blockDiffer,
 		invokeDiffStor: diffStor,
 		diffApplier:    diffApplier,
-		buildApiData:   buildApiData,
+		buildAPIData:   buildAPIData,
 	}
 }
 
@@ -1089,14 +1089,14 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, checkerData txCheckerData,
 	info *fallibleValidationParams, res *invocationResult,
 	balanceChanges txBalanceChanges) (*applicationResult, error) {
-	if ia.buildApiData && !info.validatingUtx {
+	if ia.buildAPIData && !info.validatingUtx {
 		// Save invoke result for extended API.
-		res, err := toScriptResult(res)
+		r, err := toScriptResult(res)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to save script result")
 		}
-		if err := ia.stor.invokeResults.saveResult(txID, res, info.block.BlockID()); err != nil {
-			return nil, errors.Wrap(err, "failed to save script result")
+		if sErr := ia.stor.invokeResults.saveResult(txID, r, info.block.BlockID()); sErr != nil {
+			return nil, errors.Wrap(sErr, "failed to save script result")
 		}
 	}
 	// Total scripts invoked = scriptRuns + invocation itself.

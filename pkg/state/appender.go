@@ -90,11 +90,11 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	buildApiData, err := stateDB.stateStoresApiData()
+	buildAPIData, err := stateDB.stateStoresApiData()
 	if err != nil {
 		return nil, err
 	}
-	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
+	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildAPIData)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	return &txAppender{
 		sc:                sc,
@@ -110,7 +110,7 @@ func newTxAppender(
 		diffStor:          diffStor,
 		diffStorInvoke:    diffStorInvoke,
 		diffApplier:       diffApplier,
-		buildApiData:      buildApiData,
+		buildApiData:      buildAPIData,
 		ethTxKindResolver: ethKindResolver,
 	}, nil
 }
