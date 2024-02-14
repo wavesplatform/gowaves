@@ -49,6 +49,7 @@ func run() error {
 		search         bool
 		showHelp       bool
 		showVersion    bool
+		onlyLegacy     bool
 	)
 
 	logging.SetupLogger(zapcore.InfoLevel)
@@ -62,6 +63,7 @@ func run() error {
 	flag.BoolVar(&search, "search", false, "Search for the topmost equal state hashes")
 	flag.BoolVar(&showHelp, "help", false, "Show usage information and exit")
 	flag.BoolVar(&showVersion, "version", false, "Print version information and quit")
+	flag.BoolVar(&onlyLegacy, "legacy", false, "Compare only legacy state hashes")
 	flag.Parse()
 
 	if showHelp {
@@ -120,7 +122,7 @@ func run() error {
 		return err
 	}
 	if compare {
-		if cmpErr := compareAtHeight(st, c, 1); cmpErr != nil {
+		if cmpErr := compareAtHeight(st, c, 1, onlyLegacy); cmpErr != nil {
 			return cmpErr
 		}
 	}
@@ -140,16 +142,16 @@ func run() error {
 	}
 	zap.S().Infof("State hash at height %d:\n%s", height, stateHashToString(lsh))
 	if compare {
-		ok, rsh, err := compareWithRemote(lsh, c, height)
-		if err != nil {
-			zap.S().Errorf("Failed to compare: %v", err)
-			return err
+		ok, rsh, cmpErr := compareWithRemote(lsh, c, height, onlyLegacy)
+		if cmpErr != nil {
+			zap.S().Errorf("Failed to compare: %v", cmpErr)
+			return cmpErr
 		}
 		if !ok {
 			zap.S().Warnf("[NOT OK] State hashes are different")
 			zap.S().Infof("Remote state hash at height %d:\n%s", height, stateHashToString(rsh))
 			if search {
-				if sErr := searchLastEqualStateLash(c, st, height); sErr != nil {
+				if sErr := searchLastEqualStateLash(c, st, height, onlyLegacy); sErr != nil {
 					return sErr
 				}
 			}
@@ -178,7 +180,7 @@ func createClient(node string) (*client.Client, error) {
 	return c, nil
 }
 
-func compareAtHeight(st state.StateInfo, c *client.Client, h uint64) error {
+func compareAtHeight(st state.StateInfo, c *client.Client, h uint64, onlyLegacy bool) error {
 	rsh, err := getRemoteStateHash(c, h)
 	if err != nil {
 		zap.S().Errorf("Failed to get remote state hash at height %d: %v", h, err)
@@ -189,7 +191,7 @@ func compareAtHeight(st state.StateInfo, c *client.Client, h uint64) error {
 		zap.S().Errorf("Failed to get local state hash at %d: %v", h, err)
 		return err
 	}
-	_, err = compareStateHashes(lsh, rsh)
+	_, err = compareStateHashes(lsh, rsh, onlyLegacy)
 	if err != nil {
 		zap.S().Errorf("State hashes at height %d are different: %v", h, err)
 		return err
@@ -197,8 +199,8 @@ func compareAtHeight(st state.StateInfo, c *client.Client, h uint64) error {
 	return nil
 }
 
-func searchLastEqualStateLash(c *client.Client, st state.State, height proto.Height) error {
-	h, err := findLastEqualStateHashes(c, st, height)
+func searchLastEqualStateLash(c *client.Client, st state.State, height proto.Height, onlyLegacy bool) error {
+	h, err := findLastEqualStateHashes(c, st, height, onlyLegacy)
 	if err != nil {
 		zap.S().Errorf("Failed to find equal hashes: %v", err)
 		return err
@@ -219,7 +221,7 @@ func searchLastEqualStateLash(c *client.Client, st state.State, height proto.Hei
 	return nil
 }
 
-func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64) (uint64, error) {
+func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64, onlyLegacy bool) (uint64, error) {
 	var err error
 	var r uint64
 	var lsh, rsh *proto.StateHashDebug
@@ -234,9 +236,9 @@ func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64) (ui
 		if err != nil {
 			return middle, err
 		}
-		ok, err := compareStateHashes(lsh, rsh)
-		if err != nil {
-			return middle, err
+		ok, cmpErr := compareStateHashes(lsh, rsh, onlyLegacy)
+		if cmpErr != nil {
+			return middle, cmpErr
 		}
 		if !ok {
 			stop = middle - 1
@@ -257,19 +259,28 @@ func stateHashToString(sh *proto.StateHashDebug) string {
 	return string(js)
 }
 
-func compareStateHashes(sh1, sh2 *proto.StateHashDebug) (bool, error) {
+func compareStateHashes(sh1, sh2 *proto.StateHashDebug, onlyLegacy bool) (bool, error) {
 	if sh1.BlockID != sh2.BlockID {
 		return false, errors.Errorf("different block IDs: '%s' != '%s'", sh1.BlockID.String(), sh2.BlockID.String())
 	}
-	return sh1.SumHash == sh2.SumHash && sh1.SnapshotHash == sh2.SnapshotHash, nil
+	legacyEqual := sh1.SumHash == sh2.SumHash
+	if onlyLegacy {
+		return legacyEqual, nil
+	}
+	return legacyEqual && sh1.SnapshotHash == sh2.SnapshotHash, nil
 }
 
-func compareWithRemote(sh *proto.StateHashDebug, c *client.Client, h uint64) (bool, *proto.StateHashDebug, error) {
+func compareWithRemote(
+	sh *proto.StateHashDebug,
+	c *client.Client,
+	h uint64,
+	onlyLegacy bool,
+) (bool, *proto.StateHashDebug, error) {
 	rsh, err := getRemoteStateHash(c, h)
 	if err != nil {
 		return false, nil, err
 	}
-	ok, err := compareStateHashes(sh, rsh)
+	ok, err := compareStateHashes(sh, rsh, onlyLegacy)
 	return ok, rsh, err
 }
 
