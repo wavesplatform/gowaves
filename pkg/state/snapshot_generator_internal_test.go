@@ -998,6 +998,13 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
 	assert.NoError(t, err)
 
+	// activate ReducedNFTFee feature for NFT flag = true
+	// though because asset issued as reissuable [Issue("Asset", "", 1, 0, true, unit, 0)] it can't be NFT anyway
+	// so NFT flag will be false
+	// With [Reissue(assetId, 1, false)] asset will be non-reissuable, but it's still not NFT, because asset has been
+	// issued as reissuable
+	to.activateFeature(t, int16(settings.ReducedNFTFee))
+
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
 	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
@@ -1063,7 +1070,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 				AssetID:         assetID,
 				IssuerPublicKey: testGlobal.recipientInfo.pk,
 				Decimals:        0,
-				IsNFT:           true,
+				IsNFT:           false, // see comment above
 			},
 		},
 		internal: nil,
