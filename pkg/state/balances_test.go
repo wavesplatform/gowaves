@@ -204,7 +204,7 @@ func addTailInfoToAssetsState(a *assets, fullAssetID crypto.Digest) {
 	shortAssetID := proto.AssetIDFromDigest(fullAssetID)
 	// add digest tail info for correct state hash calculation
 	wrappedAssetInfo := wrappedUncertainInfo{
-		assetInfo:     assetInfo{assetConstInfo: assetConstInfo{tail: proto.DigestTail(fullAssetID)}},
+		assetInfo:     assetInfo{assetConstInfo: assetConstInfo{Tail: proto.DigestTail(fullAssetID)}},
 		wasJustIssued: false,
 	}
 	a.uncertainAssetInfo[shortAssetID] = wrappedAssetInfo

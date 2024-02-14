@@ -24,17 +24,19 @@ type assetInfo struct {
 	assetChangeableInfo
 }
 
+// initIsNFTFlag initializes IsNFT flag of assetConstInfo.
+// IsNFT flag must be initialized only once at asset issuing moment by calling this method.
 func (ai *assetInfo) initIsNFTFlag(fs featuresState) error {
 	if !ai.quantity.IsInt64() {
-		ai.isNFT = false
+		ai.IsNFT = false
 		return nil
 	}
-	ap := assetParams{ai.quantity.Int64(), int32(ai.decimals), ai.reissuable}
+	ap := assetParams{ai.quantity.Int64(), int32(ai.Decimals), ai.reissuable}
 	nft, err := isNFT(fs, ap)
 	if err != nil {
 		return err
 	}
-	ai.isNFT = nft
+	ai.IsNFT = nft
 	return nil
 }
 
@@ -44,15 +46,6 @@ func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 
 // assetConstInfo is part of asset info which is constant.
 type assetConstInfo struct {
-	tail                 [proto.AssetIDTailSize]byte
-	issuer               crypto.PublicKey
-	decimals             uint8
-	issueHeight          proto.Height
-	isNFT                bool // isNFT flag must be initialized only once by calling assetInfo.initIsNFTFlag
-	issueSequenceInBlock uint32
-}
-
-type assetConstInfoRecord struct {
 	Tail                 [proto.AssetIDTailSize]byte `cbor:"0,keyasint,omitemtpy"`
 	Issuer               crypto.PublicKey            `cbor:"1,keyasint,omitemtpy"`
 	Decimals             uint8                       `cbor:"2,keyasint,omitemtpy"`
@@ -61,37 +54,9 @@ type assetConstInfoRecord struct {
 	IssueSequenceInBlock uint32                      `cbor:"5,keyasint,omitemtpy"`
 }
 
-func (r *assetConstInfoRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(r) }
+func (ai *assetConstInfo) marshalBinary() ([]byte, error) { return cbor.Marshal(ai) }
 
-func (r *assetConstInfoRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, r) }
-
-func (ai *assetConstInfo) marshalBinary() (data []byte, err error) {
-	r := assetConstInfoRecord{
-		Tail:                 ai.tail,
-		Issuer:               ai.issuer,
-		Decimals:             ai.decimals,
-		IssueHeight:          ai.issueHeight,
-		IsNFT:                ai.isNFT,
-		IssueSequenceInBlock: ai.issueSequenceInBlock,
-	}
-	return r.marshalBinary()
-}
-
-func (ai *assetConstInfo) unmarshalBinary(data []byte) error {
-	var r assetConstInfoRecord
-	if err := r.unmarshalBinary(data); err != nil {
-		return err
-	}
-	*ai = assetConstInfo{
-		tail:                 r.Tail,
-		issuer:               r.Issuer,
-		decimals:             r.Decimals,
-		issueHeight:          r.IssueHeight,
-		isNFT:                r.IsNFT,
-		issueSequenceInBlock: r.IssueSequenceInBlock,
-	}
-	return nil
-}
+func (ai *assetConstInfo) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, ai) }
 
 // assetChangeableInfo is part of asset info which can change.
 type assetChangeableInfo struct {

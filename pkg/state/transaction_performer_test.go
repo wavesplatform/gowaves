@@ -125,12 +125,12 @@ func TestPerformIssueWithSig(t *testing.T) {
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(*tx.ID),
-			issuer:               tx.SenderPK,
-			decimals:             tx.Decimals,
-			issueHeight:          1,
-			isNFT:                false,
-			issueSequenceInBlock: 1,
+			Tail:                 proto.DigestTail(*tx.ID),
+			Issuer:               tx.SenderPK,
+			Decimals:             tx.Decimals,
+			IssueHeight:          1,
+			IsNFT:                false,
+			IssueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -158,12 +158,12 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(*tx.ID),
-			issuer:               tx.SenderPK,
-			decimals:             tx.Decimals,
-			issueHeight:          1,
-			isNFT:                false,
-			issueSequenceInBlock: 1,
+			Tail:                 proto.DigestTail(*tx.ID),
+			Issuer:               tx.SenderPK,
+			Decimals:             tx.Decimals,
+			IssueHeight:          1,
+			IsNFT:                false,
+			IssueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),

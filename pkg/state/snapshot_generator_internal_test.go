@@ -39,10 +39,10 @@ func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,
 	name string) *assetInfo {
 	return &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     tail,
-			issuer:   issuer,
-			decimals: 2,
-			isNFT:    false,
+			Tail:     tail,
+			Issuer:   issuer,
+			Decimals: 2,
+			IsNFT:    false,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(amount),
@@ -1126,12 +1126,12 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 	assetID := proto.AssetIDFromDigest(asset)
 	err = to.state.stor.assets.issueAsset(assetID, &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(asset),
-			issuer:               testGlobal.recipientInfo.pk,
-			decimals:             0,
-			issueHeight:          0,
-			isNFT:                false,
-			issueSequenceInBlock: 1,
+			Tail:                 proto.DigestTail(asset),
+			Issuer:               testGlobal.recipientInfo.pk,
+			Decimals:             0,
+			IssueHeight:          0,
+			IsNFT:                false,
+			IssueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(10),

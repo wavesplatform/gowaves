@@ -476,12 +476,12 @@ func collectNFTs(
 		if aiErr != nil {
 			return nil, aiErr
 		}
-		if blockV5Activated && ai.issueHeight < reducedNFTFeeActivationHeight {
+		if blockV5Activated && ai.IssueHeight < reducedNFTFeeActivationHeight {
 			continue // after feature 15 activation we return only NFTs which are issued after feature 13 activation
 		}
-		nft := ai.isNFT
+		nft := ai.IsNFT
 		if nft {
-			res = append(res, proto.ReconstructDigest(k.asset, ai.tail))
+			res = append(res, proto.ReconstructDigest(k.asset, ai.Tail))
 		}
 	}
 	return res, nil
@@ -647,7 +647,7 @@ func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetI
 	if err != nil {
 		return err
 	}
-	fullAssetID := proto.ReconstructDigest(assetID, info.tail)
+	fullAssetID := proto.ReconstructDigest(assetID, info.Tail)
 	ac := &assetRecordForHashes{
 		addr:    &wavesAddress,
 		asset:   fullAssetID,
