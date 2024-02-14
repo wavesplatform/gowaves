@@ -4370,12 +4370,13 @@ func (s *StateHash) toStateHashJS() stateHashJS {
 
 type StateHashDebug struct {
 	stateHashJS
-	Height  uint64 `json:"height,omitempty"`
-	Version string `json:"version,omitempty"`
+	Height       uint64        `json:"height,omitempty"`
+	Version      string        `json:"version,omitempty"`
+	SnapshotHash crypto.Digest `json:"snapshotHash"`
 }
 
-func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashDebug {
-	return StateHashDebug{s.toStateHashJS(), h, v}
+func NewStateHashJSDebug(s StateHash, h uint64, v string, snapshotStateHash crypto.Digest) StateHashDebug {
+	return StateHashDebug{s.toStateHashJS(), h, v, snapshotStateHash}
 }
 
 func (s StateHashDebug) GetStateHash() *StateHash {
