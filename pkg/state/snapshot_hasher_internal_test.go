@@ -137,6 +137,13 @@ func TestTxSnapshotHasher(t *testing.T) {
 			expectedStateHashHex: "6502773294f32cc1702d374ffc1e67ee278cd63c5f00432f80f64a689fcb17f9",
 			transactionIDBase58:  "5gEi2kgbMSfUzdDXRKovEbEezq5ACpr8WTeafwkKQmHW",
 		},
+		{
+			testCaseName:         "asset_volume_two's_complement",
+			pbInBase64:           "MicKIOfYm9p3M/NiYXCvwCU3ho5eVFpwE5iekWev4QXhZMvuEAEaAcg=",
+			prevStateHashHex:     "6502773294f32cc1702d374ffc1e67ee278cd63c5f00432f80f64a689fcb17f9",
+			expectedStateHashHex: "b5f7e36556cb0d9a72bc9612be017a3cf174cfcb059d86c91621bfe7e8b74ff1",
+			transactionIDBase58:  "Gc2kPdPb1qrCPMy1Ga6SD5PDs2Equa6aazxhKjtDzrv1", // valid txID from testnet
+		},
 	}
 
 	hasher, hErr := newTxSnapshotHasherDefault()

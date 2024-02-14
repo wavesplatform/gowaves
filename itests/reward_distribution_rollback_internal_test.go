@@ -52,7 +52,7 @@ func (suite *RewardDistributionAPIRollbackAfterF19Suite) Test_NODE859() {
 		activationH19 := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution, utl.GetHeight(&suite.BaseSuite))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRollbackAfterF19TestData)
-		utl.WaitForHeight(&suite.BaseSuite, uint64(activationH19+4))
+		utl.WaitForHeight(&suite.BaseSuite, uint64(activationH19+3))
 		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH19+1), true)
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRollbackAfterF19TestData)
@@ -106,7 +106,7 @@ func (suite *RewardDistributionAPIRollbackAfterF20Suite) Test_NODE861() {
 		activationH20 := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.CappedRewards, utl.GetHeight(&suite.BaseSuite))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRollbackAfterF20TestData)
-		utl.WaitForHeight(&suite.BaseSuite, uint64(activationH20+4))
+		utl.WaitForHeight(&suite.BaseSuite, uint64(activationH20+3))
 		utl.GetRollbackToHeight(&suite.BaseSuite, uint64(activationH20+1), true)
 		utl.GetActivationOfFeatures(&suite.BaseSuite,
 			settings.BlockReward, settings.BlockRewardDistribution, settings.CappedRewards)

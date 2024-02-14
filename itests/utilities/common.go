@@ -495,16 +495,21 @@ func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureID settings.Feature, 
 
 func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID settings.Feature) uint64 {
 	var waitingBlocks uint64
-	votingPeriod := suite.Cfg.BlockchainSettings.ActivationWindowSize(height)
+	activationWindowSize := suite.Cfg.BlockchainSettings.ActivationWindowSize(height)
+	votingPeriod := suite.Cfg.BlockchainSettings.FeaturesVotingPeriod
 	status, err := GetFeatureBlockchainStatus(suite, featureID, height)
 	require.NoError(suite.T(), err)
 	switch status {
 	case FeatureStatusActivated:
 		waitingBlocks = 0
 	case FeatureStatusApproved:
-		waitingBlocks = votingPeriod - (height - (height/votingPeriod)*votingPeriod)
+		waitingBlocks = activationWindowSize - (height - (height/votingPeriod)*votingPeriod)
 	case FeatureStatusUndefined:
-		waitingBlocks = 2*votingPeriod - (height - (height/votingPeriod)*votingPeriod)
+		if (votingPeriod == 1) && (height == 1) {
+			waitingBlocks = 1 + 2*activationWindowSize - (height - (height/votingPeriod)*votingPeriod)
+		} else {
+			waitingBlocks = 2*activationWindowSize - (height - (height/votingPeriod)*votingPeriod)
+		}
 	default:
 		suite.FailNow("Status is unknown")
 	}
