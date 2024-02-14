@@ -218,7 +218,7 @@ func (ia *invokeApplier) countIssuedAssets(actions []proto.ScriptAction) (uint64
 	for _, action := range actions {
 		switch a := action.(type) {
 		case *proto.IssueScriptAction:
-			ap := assetParams{uint64(a.Quantity), uint32(a.Decimals), a.Reissuable}
+			ap := assetParams{a.Quantity, a.Decimals, a.Reissuable}
 			nft, err := isNFT(ia.stor.features, ap)
 			if err != nil {
 				return 0, err

@@ -25,11 +25,11 @@ type assetInfo struct {
 }
 
 func (ai *assetInfo) initIsNFTFlag(fs featuresState) error {
-	if !ai.quantity.IsUint64() {
+	if !ai.quantity.IsInt64() {
 		ai.isNFT = false
 		return nil
 	}
-	ap := assetParams{ai.quantity.Uint64(), uint32(ai.decimals), ai.reissuable}
+	ap := assetParams{ai.quantity.Int64(), int32(ai.decimals), ai.reissuable}
 	nft, err := isNFT(fs, ap)
 	if err != nil {
 		return err

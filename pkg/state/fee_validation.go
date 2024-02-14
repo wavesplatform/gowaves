@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"math"
 
 	"github.com/pkg/errors"
 
@@ -48,8 +49,8 @@ type feeValidationParams struct {
 }
 
 type assetParams struct {
-	quantity   uint64
-	decimals   uint32
+	quantity   int64
+	decimals   int32
 	reissuable bool
 }
 
@@ -98,9 +99,15 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		var ap assetParams
 		switch itx := tx.(type) {
 		case *proto.IssueWithSig:
-			ap = assetParams{itx.Quantity, uint32(itx.Decimals), itx.Reissuable}
+			if itx.Quantity > math.MaxInt64 {
+				return 0, errors.New("quantity is too big")
+			}
+			ap = assetParams{int64(itx.Quantity), int32(itx.Decimals), itx.Reissuable}
 		case *proto.IssueWithProofs:
-			ap = assetParams{itx.Quantity, uint32(itx.Decimals), itx.Reissuable}
+			if itx.Quantity > math.MaxInt64 {
+				return 0, errors.New("quantity is too big")
+			}
+			ap = assetParams{int64(itx.Quantity), int32(itx.Decimals), itx.Reissuable}
 		default:
 			return 0, errors.New("failed to convert interface to Issue transaction")
 		}
