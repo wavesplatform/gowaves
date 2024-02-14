@@ -11,6 +11,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -264,7 +265,7 @@ func (h *txSnapshotHasher) ApplyAssetDescription(snapshot proto.AssetDescription
 }
 
 func (h *txSnapshotHasher) ApplyAssetVolume(snapshot proto.AssetVolumeSnapshot) error {
-	totalQuantityBytes := snapshot.TotalQuantity.Bytes() // here the number is represented in big-endian form
+	totalQuantityBytes := common.Encode2CBigInt(&snapshot.TotalQuantity)
 	buf := bytebufferpool.Get()
 
 	// Asset reissuability: asset_id || is_reissuable || total_quantity
