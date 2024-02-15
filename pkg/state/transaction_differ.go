@@ -389,7 +389,7 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceCha
 		return err
 	}
 	// Append issuer asset balance diff.
-	issuerAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, assetInfo.issuer)
+	issuerAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, assetInfo.Issuer)
 	if err != nil {
 		return err
 	}
@@ -792,7 +792,7 @@ func (td *transactionDiffer) orderAssetDecimals(transaction proto.Transaction, p
 			if err != nil {
 				return 0, err
 			}
-			return int(info.decimals), nil
+			return int(info.Decimals), nil
 		}
 		// Waves in pair, return 8
 		return 8, nil
