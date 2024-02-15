@@ -209,7 +209,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 
 	assetInfo, err := txAppend.stor.assets.newestAssetInfo(*assetID)
 	require.NoError(t, err)
-	fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
+	fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.Tail)
 	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID), erc20arguments)
 	applRes, err := txAppend.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)

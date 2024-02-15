@@ -436,10 +436,10 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 	senderPK := tx.SenderPK
 	ai := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:        proto.DigestTail(assetID),
-			issuer:      senderPK,
-			decimals:    tx.Decimals,
-			issueHeight: blockHeight,
+			Tail:        proto.DigestTail(assetID),
+			Issuer:      senderPK,
+			Decimals:    tx.Decimals,
+			IssueHeight: blockHeight,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -448,6 +448,9 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 			lastNameDescChangeHeight: blockHeight,
 			reissuable:               tx.Reissuable,
 		},
+	}
+	if err := ai.initIsNFTFlag(sg.stor.features); err != nil {
+		return txSnapshot{}, errors.Wrapf(err, "failed to initialize NFT flag for issued asset %s", assetID.String())
 	}
 
 	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
@@ -465,8 +468,8 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 	issueStaticInfoSnapshot := &proto.NewAssetSnapshot{
 		AssetID:         assetID,
 		IssuerPublicKey: senderPK,
-		Decimals:        ai.decimals,
-		IsNFT:           ai.isNFT(),
+		Decimals:        ai.Decimals,
+		IsNFT:           ai.IsNFT,
 	}
 	assetDescription := &proto.AssetDescriptionSnapshot{
 		AssetID:          assetID,
@@ -764,14 +767,14 @@ func generateSnapshotsFromAssetsUncertain(
 ) []proto.AtomicSnapshot {
 	var atomicSnapshots []proto.AtomicSnapshot
 	for assetID, infoAsset := range assetsUncertain {
-		fullAssetID := proto.ReconstructDigest(assetID, infoAsset.assetInfo.tail)
+		fullAssetID := proto.ReconstructDigest(assetID, infoAsset.assetInfo.Tail)
 		// order of snapshots here is important: static info snapshot should be first
 		if infoAsset.wasJustIssued {
 			issueStaticInfoSnapshot := &proto.NewAssetSnapshot{
 				AssetID:         fullAssetID,
-				IssuerPublicKey: infoAsset.assetInfo.issuer,
-				Decimals:        infoAsset.assetInfo.decimals,
-				IsNFT:           infoAsset.assetInfo.isNFT(),
+				IssuerPublicKey: infoAsset.assetInfo.Issuer,
+				Decimals:        infoAsset.assetInfo.Decimals,
+				IsNFT:           infoAsset.assetInfo.IsNFT, // NFT flag is set in
 			}
 
 			assetDescription := &proto.AssetDescriptionSnapshot{
@@ -953,7 +956,7 @@ func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) 
 			if !uncertainInfo.wasJustIssued {
 				continue
 			}
-			justIssuedAssets[key.asset] = uncertainInfo.assetInfo.tail
+			justIssuedAssets[key.asset] = uncertainInfo.assetInfo.Tail
 		}
 	}
 	assetsUncertain := sg.stor.assets.uncertainAssetInfo
@@ -1236,7 +1239,7 @@ func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
 					key.asset.String(),
 				)
 			}
-			assetIDTail = constInfo.tail
+			assetIDTail = constInfo.Tail
 		}
 		newBalance := proto.AssetBalanceSnapshot{
 			Address: key.address,

@@ -2222,15 +2222,15 @@ func (s *stateManager) NewestAssetConstInfo(assetID proto.AssetID) (*proto.Asset
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
 	return &proto.AssetConstInfo{
-		ID:          proto.ReconstructDigest(assetID, info.tail),
-		IssueHeight: info.issueHeight,
+		ID:          proto.ReconstructDigest(assetID, info.Tail),
+		IssueHeight: info.IssueHeight,
 		Issuer:      issuer,
-		Decimals:    info.decimals,
+		Decimals:    info.Decimals,
 	}, nil
 }
 
@@ -2243,7 +2243,7 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	if !info.quantity.IsUint64() {
 		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
 	}
-	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2257,13 +2257,13 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	}
 	return &proto.AssetInfo{
 		AssetConstInfo: proto.AssetConstInfo{
-			ID:          proto.ReconstructDigest(assetID, info.tail),
-			IssueHeight: info.issueHeight,
+			ID:          proto.ReconstructDigest(assetID, info.Tail),
+			IssueHeight: info.IssueHeight,
 			Issuer:      issuer,
-			Decimals:    info.decimals,
+			Decimals:    info.Decimals,
 		},
 		Quantity:        info.quantity.Uint64(),
-		IssuerPublicKey: info.issuer,
+		IssuerPublicKey: info.Issuer,
 
 		Reissuable: info.reissuable,
 		Scripted:   scripted,
@@ -2345,7 +2345,7 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 	if !info.quantity.IsUint64() {
 		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
 	}
-	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2359,13 +2359,13 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 	}
 	return &proto.AssetInfo{
 		AssetConstInfo: proto.AssetConstInfo{
-			ID:          proto.ReconstructDigest(assetID, info.tail),
-			IssueHeight: info.issueHeight,
+			ID:          proto.ReconstructDigest(assetID, info.Tail),
+			IssueHeight: info.IssueHeight,
 			Issuer:      issuer,
-			Decimals:    info.decimals,
+			Decimals:    info.Decimals,
 		},
 		Quantity:        info.quantity.Uint64(),
-		IssuerPublicKey: info.issuer,
+		IssuerPublicKey: info.Issuer,
 
 		Reissuable: info.reissuable,
 		Scripted:   scripted,
@@ -2435,7 +2435,7 @@ func (s *stateManager) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.Enri
 	}
 	res := &proto.EnrichedFullAssetInfo{
 		FullAssetInfo:   *fa,
-		SequenceInBlock: constInfo.issueSequenceInBlock,
+		SequenceInBlock: constInfo.IssueSequenceInBlock,
 	}
 	return res, nil
 }
@@ -2445,7 +2445,11 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	nfts, err := s.stor.balances.nftList(addr.ID(), limit, afterAssetID)
+	height, err := s.Height()
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	nfts, err := s.stor.balances.nftList(addr.ID(), limit, afterAssetID, height, s.stor.features)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}

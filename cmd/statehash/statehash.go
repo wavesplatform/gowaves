@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"flag"
 	"fmt"
@@ -48,6 +49,7 @@ func run() error {
 		search         bool
 		showHelp       bool
 		showVersion    bool
+		onlyLegacy     bool
 	)
 
 	logging.SetupLogger(zapcore.InfoLevel)
@@ -61,6 +63,7 @@ func run() error {
 	flag.BoolVar(&search, "search", false, "Search for the topmost equal state hashes")
 	flag.BoolVar(&showHelp, "help", false, "Show usage information and exit")
 	flag.BoolVar(&showVersion, "version", false, "Print version information and quit")
+	flag.BoolVar(&onlyLegacy, "legacy", false, "Compare only legacy state hashes")
 	flag.Parse()
 
 	if showHelp {
@@ -108,47 +111,23 @@ func run() error {
 		zap.S().Errorf("Failed to open state at '%s': %v", statePath, err)
 		return err
 	}
-	defer func() {
+	defer func(st state.StateModifier) {
 		if err := st.Close(); err != nil {
 			zap.S().Fatalf("Failed to close State: %v", err)
 		}
-	}()
+	}(st)
 
-	var c *client.Client
+	c, err := createClient(node)
+	if err != nil {
+		return err
+	}
 	if compare {
-		if node == "" || len(strings.Fields(node)) > 1 {
-			zap.S().Errorf("Invalid node's URL '%s'", node)
-			return errors.New("invalid node")
-		}
-		node, err := checkAndUpdateURL(node)
-		if err != nil {
-			zap.S().Errorf("Incorrect node's URL: %s", err.Error())
-			return err
-		}
-		c, err = client.NewClient(client.Options{BaseUrl: node, Client: &http.Client{}})
-		if err != nil {
-			zap.S().Errorf("Failed to create client for URL '%s': %s", node, err)
-			return err
-		}
-		rsh, err := getRemoteStateHash(c, 1)
-		if err != nil {
-			zap.S().Errorf("Failed to get remote state hash at height 1: %v", err)
-			return err
-		}
-		lsh, err := st.LegacyStateHashAtHeight(1)
-		if err != nil {
-			zap.S().Errorf("Failed to get local state hash at 1: %v", err)
-			return err
-
-		}
-		_, err = compareStateHashes(lsh, rsh)
-		if err != nil {
-			zap.S().Errorf("State hashes at height 1 are different: %v", err)
-			return err
+		if cmpErr := compareAtHeight(st, c, 1, onlyLegacy); cmpErr != nil {
+			return cmpErr
 		}
 	}
 
-	if height == 0 {
+	if height == 0 { // determine the topmost height
 		h, err := st.Height()
 		if err != nil {
 			zap.S().Errorf("Failed to get current blockchain height: %v", err)
@@ -156,40 +135,25 @@ func run() error {
 		}
 		height = h
 	}
-	lsh, err := st.LegacyStateHashAtHeight(height)
+	lsh, err := getLocalStateHash(st, height)
 	if err != nil {
 		zap.S().Errorf("Failed to get state hash at %d: %v", height, err)
 		return err
 	}
 	zap.S().Infof("State hash at height %d:\n%s", height, stateHashToString(lsh))
 	if compare {
-		ok, rsh, err := compareWithRemote(lsh, c, height)
-		if err != nil {
-			zap.S().Errorf("Failed to compare: %v", err)
-			return err
+		ok, rsh, cmpErr := compareWithRemote(lsh, c, height, onlyLegacy)
+		if cmpErr != nil {
+			zap.S().Errorf("Failed to compare: %v", cmpErr)
+			return cmpErr
 		}
 		if !ok {
 			zap.S().Warnf("[NOT OK] State hashes are different")
 			zap.S().Infof("Remote state hash at height %d:\n%s", height, stateHashToString(rsh))
 			if search {
-				h, err := findLastEqualStateHashes(c, st, height)
-				if err != nil {
-					zap.S().Errorf("Failed to find equal hashes: %v", err)
-					return err
+				if sErr := searchLastEqualStateLash(c, st, height, onlyLegacy); sErr != nil {
+					return sErr
 				}
-				zap.S().Infof("State hashes are equal at height %d", h)
-				lsh, err = st.LegacyStateHashAtHeight(h + 1)
-				if err != nil {
-					zap.S().Errorf("Failed to get state hash at %d: %v", h+1, err)
-					return err
-				}
-				zap.S().Infof("Local state hash at height %d:\n%s", h+1, stateHashToString(lsh))
-				rsh, err = getRemoteStateHash(c, h+1)
-				if err != nil {
-					zap.S().Errorf("Failed to get remote state hash at height 1: %v", err)
-					return err
-				}
-				zap.S().Infof("Remote state hash at height %d:\n%s", h+1, stateHashToString(rsh))
 			}
 			return nil
 		}
@@ -198,14 +162,73 @@ func run() error {
 	return nil
 }
 
-func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64) (uint64, error) {
+func createClient(node string) (*client.Client, error) {
+	if node == "" || len(strings.Fields(node)) > 1 {
+		zap.S().Errorf("Invalid node's URL '%s'", node)
+		return nil, errors.New("invalid node")
+	}
+	node, err := checkAndUpdateURL(node)
+	if err != nil {
+		zap.S().Errorf("Incorrect node's URL: %s", err.Error())
+		return nil, err
+	}
+	c, err := client.NewClient(client.Options{BaseUrl: node, Client: &http.Client{}})
+	if err != nil {
+		zap.S().Errorf("Failed to create client for URL '%s': %s", node, err)
+		return nil, err
+	}
+	return c, nil
+}
+
+func compareAtHeight(st state.StateInfo, c *client.Client, h uint64, onlyLegacy bool) error {
+	rsh, err := getRemoteStateHash(c, h)
+	if err != nil {
+		zap.S().Errorf("Failed to get remote state hash at height %d: %v", h, err)
+		return err
+	}
+	lsh, err := getLocalStateHash(st, h)
+	if err != nil {
+		zap.S().Errorf("Failed to get local state hash at %d: %v", h, err)
+		return err
+	}
+	_, err = compareStateHashes(lsh, rsh, onlyLegacy)
+	if err != nil {
+		zap.S().Errorf("State hashes at height %d are different: %v", h, err)
+		return err
+	}
+	return nil
+}
+
+func searchLastEqualStateLash(c *client.Client, st state.State, height proto.Height, onlyLegacy bool) error {
+	h, err := findLastEqualStateHashes(c, st, height, onlyLegacy)
+	if err != nil {
+		zap.S().Errorf("Failed to find equal hashes: %v", err)
+		return err
+	}
+	zap.S().Infof("State hashes are equal at height %d", h)
+	lsh, err := getLocalStateHash(st, h+1)
+	if err != nil {
+		zap.S().Errorf("Failed to get state hash at %d: %v", h+1, err)
+		return err
+	}
+	zap.S().Infof("Local state hash at height %d:\n%s", h+1, stateHashToString(lsh))
+	rsh, err := getRemoteStateHash(c, h+1)
+	if err != nil {
+		zap.S().Errorf("Failed to get remote state hash at height 1: %v", err)
+		return err
+	}
+	zap.S().Infof("Remote state hash at height %d:\n%s", h+1, stateHashToString(rsh))
+	return nil
+}
+
+func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64, onlyLegacy bool) (uint64, error) {
 	var err error
 	var r uint64
-	var lsh, rsh *proto.StateHash
+	var lsh, rsh *proto.StateHashDebug
 	var start uint64 = 1
 	for start <= stop {
 		middle := (start + stop) / 2
-		lsh, err = st.LegacyStateHashAtHeight(middle)
+		lsh, err = getLocalStateHash(st, middle)
 		if err != nil {
 			return middle, err
 		}
@@ -213,9 +236,9 @@ func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64) (ui
 		if err != nil {
 			return middle, err
 		}
-		ok, err := compareStateHashes(lsh, rsh)
-		if err != nil {
-			return middle, err
+		ok, cmpErr := compareStateHashes(lsh, rsh, onlyLegacy)
+		if cmpErr != nil {
+			return middle, cmpErr
 		}
 		if !ok {
 			stop = middle - 1
@@ -228,36 +251,61 @@ func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64) (ui
 	return r, nil
 }
 
-func stateHashToString(sh *proto.StateHash) string {
-	js, err := sh.MarshalJSON()
+func stateHashToString(sh *proto.StateHashDebug) string {
+	js, err := json.Marshal(sh)
 	if err != nil {
 		zap.S().Fatalf("Failed to render state hash to text: %v", err)
 	}
 	return string(js)
 }
 
-func compareStateHashes(sh1, sh2 *proto.StateHash) (bool, error) {
+func compareStateHashes(sh1, sh2 *proto.StateHashDebug, onlyLegacy bool) (bool, error) {
 	if sh1.BlockID != sh2.BlockID {
 		return false, fmt.Errorf("different block IDs: '%s' != '%s'", sh1.BlockID.String(), sh2.BlockID.String())
 	}
-	return sh1.SumHash == sh2.SumHash, nil
+	legacyEqual := sh1.SumHash == sh2.SumHash
+	if onlyLegacy {
+		return legacyEqual, nil
+	}
+	return legacyEqual && sh1.SnapshotHash == sh2.SnapshotHash, nil
 }
 
-func compareWithRemote(sh *proto.StateHash, c *client.Client, h uint64) (bool, *proto.StateHash, error) {
+func compareWithRemote(
+	sh *proto.StateHashDebug,
+	c *client.Client,
+	h uint64,
+	onlyLegacy bool,
+) (bool, *proto.StateHashDebug, error) {
 	rsh, err := getRemoteStateHash(c, h)
 	if err != nil {
 		return false, nil, err
 	}
-	ok, err := compareStateHashes(sh, rsh)
+	ok, err := compareStateHashes(sh, rsh, onlyLegacy)
 	return ok, rsh, err
 }
 
-func getRemoteStateHash(c *client.Client, h uint64) (*proto.StateHash, error) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
-	sh, _, err := c.Debug.StateHash(ctx, h)
-	return sh, err
+func getRemoteStateHash(c *client.Client, h uint64) (*proto.StateHashDebug, error) {
+	sh, _, err := c.Debug.StateHashDebug(context.Background(), h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get state hash at %d height: %w", h, err)
+	}
+	return sh, nil
 }
+
+func getLocalStateHash(st state.StateInfo, h uint64) (*proto.StateHashDebug, error) {
+	const localVersion = "local"
+	lsh, err := st.LegacyStateHashAtHeight(h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get legacy state hash at %d height: %w", h, err)
+	}
+	snapSH, err := st.SnapshotStateHashAtHeight(h)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get snapshot state hash at %d height: %w", h, err)
+	}
+	shd := proto.NewStateHashJSDebug(*lsh, h, localVersion, snapSH)
+	return &shd, nil
+}
+
 func showUsage() {
 	_, _ = fmt.Fprintf(os.Stderr, "\nUsage of statehash %s\n", version)
 	flag.PrintDefaults()
@@ -272,7 +320,7 @@ func checkAndUpdateURL(s string) (string, error) {
 		u, err = url.Parse("//" + s)
 	}
 	if err != nil {
-		return "", fmt.Errorf("failed to parse URL '%s': %v", s, err)
+		return "", fmt.Errorf("failed to parse URL '%s': %w", s, err)
 	}
 	if u.Scheme == "" {
 		u.Scheme = "http"
