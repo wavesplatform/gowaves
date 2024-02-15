@@ -667,6 +667,20 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
 
+	blockInfo, err := a.currentBlockInfo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
+	}
+
+	currentBlockHeight := blockInfo.Height
+
+	if len(params.fixSnapshots) > 0 { // add snapshots in the context of the last applied block
+		fix := txSnapshot{regular: params.fixSnapshots}
+		if fErr := fix.ApplyFixSnapshot(a.txHandler.sa); fErr != nil {
+			return errors.Wrapf(fErr, "failed to apply fix snapshots at height %d", currentBlockHeight)
+		}
+	}
+	// Set new applier info with applying block context.
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	// Create miner balance diff.
@@ -682,17 +696,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
-
-	if fs := params.fixSnapshots; len(fs) > 0 {
-		initialSnapshot.regular = append(fs, initialSnapshot.regular...) // put fix snapshots before regular snapshots
-	}
-
-	blockInfo, err := a.currentBlockInfo()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
-	}
-
-	currentBlockHeight := blockInfo.Height
 
 	hasher, err := newTxSnapshotHasherDefault()
 	if err != nil {
@@ -715,13 +718,18 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrap(err, "failed to apply an initial snapshot")
 	}
 
+	// hash block initial snapshot and fix snapshot in the context of the applying block
+	snapshotsToHash := initialSnapshot.regular
+	if len(params.fixSnapshots) > 0 {
+		snapshotsToHash = append(snapshotsToHash, params.fixSnapshots...)
+	}
 	// get initial snapshot hash for block
 	stateHash, err := calculateInitialSnapshotStateHash(
 		hasher,
 		hasParent,
 		currentBlockHeight,
 		params.lastSnapshotStateHash, // previous block state hash
-		initialSnapshot.regular,
+		snapshotsToHash,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",

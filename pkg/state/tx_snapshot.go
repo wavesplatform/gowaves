@@ -24,6 +24,10 @@ type txSnapshot struct {
 	internal []internalSnapshot
 }
 
+func (ts txSnapshot) ApplyFixSnapshot(a extendedSnapshotApplier) error {
+	return ts.Apply(a, nil, false)
+}
+
 func (ts txSnapshot) Apply(a extendedSnapshotApplier, tx proto.Transaction, validatingUTX bool) error {
 	if err := a.BeforeTxSnapshotApply(tx, validatingUTX); err != nil {
 		return errors.Wrapf(err, "failed to execute before tx snapshot apply hook")
