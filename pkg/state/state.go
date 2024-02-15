@@ -1388,7 +1388,7 @@ func (s *stateManager) generateCancelLeasesSnapshots(blockchainHeight uint64) ([
 	}
 	// prepare info about features activation
 	dataTxActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DataTransaction), blockchainHeight)
-	dataTxHeight := uint64(0)
+	var dataTxHeight uint64
 	if dataTxActivated {
 		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.DataTransaction))
 		if err != nil {
@@ -1397,7 +1397,7 @@ func (s *stateManager) generateCancelLeasesSnapshots(blockchainHeight uint64) ([
 		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
 	}
 	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), blockchainHeight)
-	var rideV5Height uint64 = 0
+	var rideV5Height uint64
 	if rideV5Activated {
 		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.RideV5))
 		if err != nil {
@@ -1405,24 +1405,16 @@ func (s *stateManager) generateCancelLeasesSnapshots(blockchainHeight uint64) ([
 		}
 		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
 	}
-	return s.generateLeasesCancellationWithNewBalancesSnapshots(
-		blockchainHeight,
-		dataTxActivated,
-		dataTxHeight,
-		rideV5Activated,
-		rideV5Height,
-	)
+	return s.generateLeasesCancellationWithNewBalancesSnapshots(blockchainHeight, dataTxHeight, rideV5Height)
 }
 
 func (s *stateManager) generateLeasesCancellationWithNewBalancesSnapshots(
 	blockchainHeight uint64,
-	dataTxActivated bool,
 	dataTxHeight uint64, // the height when DataTransaction feature is activated, equals 0 if the feature is not activated
-	rideV5Activated bool,
 	rideV5Height uint64, // the height when RideV5 feature is activated, equals 0 if the feature is not activated
 ) ([]proto.AtomicSnapshot, error) {
-	switch {
-	case blockchainHeight == s.settings.ResetEffectiveBalanceAtHeight:
+	switch blockchainHeight {
+	case s.settings.ResetEffectiveBalanceAtHeight:
 		scheme := s.settings.AddressSchemeCharacter
 		cancelledLeasesSnapshots, err := s.stor.leases.generateCancelledLeaseSnapshots(scheme, nil)
 		if err != nil {
@@ -1433,7 +1425,7 @@ func (s *stateManager) generateLeasesCancellationWithNewBalancesSnapshots(
 			return nil, err
 		}
 		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, zeroLeaseBalancesSnapshots), nil
-	case blockchainHeight == s.settings.BlockVersion3AfterHeight:
+	case s.settings.BlockVersion3AfterHeight:
 		leaseBalanceSnapshots, overflowAddresses, err := s.stor.balances.generateLeaseBalanceSnapthosForLeaseOverflows()
 		if err != nil {
 			return nil, err
@@ -1444,7 +1436,7 @@ func (s *stateManager) generateLeasesCancellationWithNewBalancesSnapshots(
 			return nil, err
 		}
 		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, leaseBalanceSnapshots), nil
-	case dataTxActivated && blockchainHeight == dataTxHeight:
+	case dataTxHeight:
 		leaseIns, err := s.stor.leases.validLeaseIns()
 		if err != nil {
 			return nil, err
@@ -1454,7 +1446,7 @@ func (s *stateManager) generateLeasesCancellationWithNewBalancesSnapshots(
 			return nil, err
 		}
 		return joinCancelledLeasesAndLeaseBalances(nil, validLeaseBalances), nil
-	case rideV5Activated && blockchainHeight == rideV5Height:
+	case rideV5Height:
 		scheme := s.settings.AddressSchemeCharacter
 		cancelledLeasesSnapshots, changes, err := s.stor.leases.cancelLeasesToDisabledAliases(scheme)
 		if err != nil {
