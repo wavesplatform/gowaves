@@ -39,9 +39,10 @@ func defaultAssetInfoTransfer(tail [12]byte, reissuable bool,
 	name string) *assetInfo {
 	return &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     tail,
-			issuer:   issuer,
-			decimals: 2,
+			Tail:     tail,
+			Issuer:   issuer,
+			Decimals: 2,
+			IsNFT:    false,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(amount),
@@ -997,6 +998,13 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
 	assert.NoError(t, err)
 
+	// activate ReducedNFTFee feature for NFT flag = true
+	// though because asset issued as reissuable [Issue("Asset", "", 1, 0, true, unit, 0)] it can't be NFT anyway
+	// so NFT flag will be false
+	// With [Reissue(assetId, 1, false)] asset will be non-reissuable, but it's still not NFT, because asset has been
+	// issued as reissuable
+	to.activateFeature(t, int16(settings.ReducedNFTFee))
+
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
 	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
@@ -1062,7 +1070,7 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 				AssetID:         assetID,
 				IssuerPublicKey: testGlobal.recipientInfo.pk,
 				Decimals:        0,
-				IsNFT:           true,
+				IsNFT:           false, // see comment above
 			},
 		},
 		internal: nil,
@@ -1118,11 +1126,12 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 	assetID := proto.AssetIDFromDigest(asset)
 	err = to.state.stor.assets.issueAsset(assetID, &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(asset),
-			issuer:               testGlobal.recipientInfo.pk,
-			decimals:             0,
-			issueHeight:          0,
-			issueSequenceInBlock: 1,
+			Tail:                 proto.DigestTail(asset),
+			Issuer:               testGlobal.recipientInfo.pk,
+			Decimals:             0,
+			IssueHeight:          0,
+			IsNFT:                false,
+			IssueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(10),
