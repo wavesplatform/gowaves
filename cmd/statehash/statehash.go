@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"net/http"
@@ -11,7 +12,6 @@ import (
 	"runtime"
 	"strings"
 
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -261,7 +261,7 @@ func stateHashToString(sh *proto.StateHashDebug) string {
 
 func compareStateHashes(sh1, sh2 *proto.StateHashDebug, onlyLegacy bool) (bool, error) {
 	if sh1.BlockID != sh2.BlockID {
-		return false, errors.Errorf("different block IDs: '%s' != '%s'", sh1.BlockID.String(), sh2.BlockID.String())
+		return false, fmt.Errorf("different block IDs: '%s' != '%s'", sh1.BlockID.String(), sh2.BlockID.String())
 	}
 	legacyEqual := sh1.SumHash == sh2.SumHash
 	if onlyLegacy {
@@ -287,7 +287,7 @@ func compareWithRemote(
 func getRemoteStateHash(c *client.Client, h uint64) (*proto.StateHashDebug, error) {
 	sh, _, err := c.Debug.StateHashDebug(context.Background(), h)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get state hash at %d height", h)
+		return nil, fmt.Errorf("failed to get state hash at %d height: %w", h, err)
 	}
 	return sh, nil
 }
@@ -296,11 +296,11 @@ func getLocalStateHash(st state.StateInfo, h uint64) (*proto.StateHashDebug, err
 	const localVersion = "local"
 	lsh, err := st.LegacyStateHashAtHeight(h)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get legacy state hash at %d height", h)
+		return nil, fmt.Errorf("failed to get legacy state hash at %d height: %w", h, err)
 	}
 	snapSH, err := st.SnapshotStateHashAtHeight(h)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get snapshot state hash at %d height", h)
+		return nil, fmt.Errorf("failed to get snapshot state hash at %d height: %w", h, err)
 	}
 	shd := proto.NewStateHashJSDebug(*lsh, h, localVersion, snapSH)
 	return &shd, nil
@@ -320,13 +320,13 @@ func checkAndUpdateURL(s string) (string, error) {
 		u, err = url.Parse("//" + s)
 	}
 	if err != nil {
-		return "", errors.Errorf("failed to parse URL '%s': %v", s, err)
+		return "", fmt.Errorf("failed to parse URL '%s': %w", s, err)
 	}
 	if u.Scheme == "" {
 		u.Scheme = "http"
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return "", errors.Errorf("unsupported URL scheme '%s'", u.Scheme)
+		return "", fmt.Errorf("unsupported URL scheme '%s'", u.Scheme)
 	}
 	return u.String(), nil
 }
