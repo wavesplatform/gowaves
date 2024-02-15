@@ -596,7 +596,7 @@ func (s *stateManager) addGenesisBlock() error {
 
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	if err := s.addNewBlock(s.genesis, nil, chans, 0, initSH); err != nil {
+	if err := s.addNewBlock(s.genesis, nil, chans, 0, nil, initSH); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
@@ -1070,6 +1070,7 @@ func (s *stateManager) addNewBlock(
 	block, parent *proto.Block,
 	chans *verifierChans,
 	blockchainHeight uint64,
+	fixSnapshots []proto.AtomicSnapshot,
 	lastSnapshotStateHash crypto.Digest,
 ) error {
 	blockHeight := blockchainHeight + 1
@@ -1099,6 +1100,7 @@ func (s *stateManager) addNewBlock(
 		block:                 &block.BlockHeader,
 		parent:                parentHeader,
 		blockchainHeight:      blockchainHeight,
+		fixSnapshots:          fixSnapshots,
 		lastSnapshotStateHash: lastSnapshotStateHash,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
@@ -1304,27 +1306,36 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
-// TODO what to do with stolen aliases in snapshots?
-func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
+func (s *stateManager) doBlockchainFixActionIfNeeded(
+	blockchainHeight uint64,
+	lastBlock, nextBlock proto.BlockID,
+) ([]proto.AtomicSnapshot, error) {
+	var fixSnapshots []proto.AtomicSnapshot
 	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if cancelLeases {
-		if err := s.cancelLeases(blockchainHeight, lastBlock); err != nil {
-			return err
+		clErr := s.cancelLeases(blockchainHeight, lastBlock) // TODO: should return atomic snapshots
+		if clErr != nil {
+			return nil, clErr
 		}
+		// TODO: fixSnapshots must be initialized here
 	}
 	resetStolenAliases, err := s.needToResetStolenAliases(blockchainHeight)
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if resetStolenAliases {
 		// we're using nextBlock because it's a current block which we're going to apply
-		if err := s.stor.aliases.disableStolenAliases(nextBlock); err != nil {
-			return err
+		if dsaErr := s.stor.aliases.disableStolenAliases(nextBlock); dsaErr != nil {
+			return nil, dsaErr
 		}
 	}
+	return fixSnapshots, nil
+}
+
+func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
 	if s.needToFinishVotingPeriod(blockchainHeight) {
 		if err := s.finishVoting(blockchainHeight, lastBlock); err != nil {
 			return err
@@ -1504,6 +1515,15 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
 			return nil, wrapErr(ModificationError, blErr)
 		}
+		// Generate blockchain fix snapshots if needed.
+		fixSnapshots, faErr := s.doBlockchainFixActionIfNeeded(
+			blockchainCurHeight,
+			lastAppliedBlock.BlockID(),
+			block.BlockID(),
+		)
+		if faErr != nil {
+			return nil, errors.Wrapf(faErr, "failed to do blockchain fix action at height %d", blockchainCurHeight)
+		}
 		// At some blockchain heights specific logic is performed.
 		// This includes voting for features, block rewards and so on.
 		if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
@@ -1535,7 +1555,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, err
 		}
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, sh); addErr != nil {
+		if addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, fixSnapshots, sh); addErr != nil {
 			return nil, addErr
 		}
 

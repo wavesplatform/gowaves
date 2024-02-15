@@ -156,6 +156,7 @@ type appendBlockParams struct {
 	chans                 *verifierChans
 	block, parent         *proto.BlockHeader
 	blockchainHeight      proto.Height
+	fixSnapshots          []proto.AtomicSnapshot
 	lastSnapshotStateHash crypto.Digest
 }
 
@@ -680,6 +681,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardDiff.balancesChanges())
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
+	}
+
+	if fs := params.fixSnapshots; len(fs) > 0 {
+		initialSnapshot.regular = append(fs, initialSnapshot.regular...) // put fix snapshots before regular snapshots
 	}
 
 	blockInfo, err := a.currentBlockInfo()
