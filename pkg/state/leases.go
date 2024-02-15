@@ -110,7 +110,7 @@ func (l *leases) generateCancelledLeaseSnapshots(
 			return nil, errors.Wrap(err, "failed to unmarshal lease")
 		}
 		toCancel := true
-		if bySenders != nil {
+		if len(bySenders) != 0 { // if is not empty, we need to check if the sender is in the set
 			sender, addrErr := proto.NewAddressFromPublicKey(scheme, record.SenderPK)
 			if addrErr != nil {
 				return nil, errors.Wrapf(addrErr, "failed to build address from PK %q", record.SenderPK)
