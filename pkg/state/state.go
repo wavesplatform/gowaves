@@ -1308,7 +1308,7 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 
 func (s *stateManager) doBlockchainFixActionIfNeeded(
 	blockchainHeight uint64,
-	lastBlock, nextBlock proto.BlockID,
+	nextBlock proto.BlockID,
 ) ([]proto.AtomicSnapshot, error) {
 	var fixSnapshots []proto.AtomicSnapshot
 	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
@@ -1316,7 +1316,7 @@ func (s *stateManager) doBlockchainFixActionIfNeeded(
 		return nil, err
 	}
 	if cancelLeases {
-		fixes, clErr := s.cancelLeases(blockchainHeight, lastBlock)
+		fixes, clErr := s.generateCancelLeasesSnapshots(blockchainHeight)
 		if clErr != nil {
 			return nil, clErr
 		}
@@ -1379,7 +1379,7 @@ func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID,
 	return s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID, height)
 }
 
-func (s *stateManager) cancelLeases(blockchainHeight uint64, blockID proto.BlockID) ([]proto.AtomicSnapshot, error) {
+func (s *stateManager) generateCancelLeasesSnapshots(blockchainHeight uint64) ([]proto.AtomicSnapshot, error) {
 	// Move balance diffs from diffStorage to historyStorage.
 	// It must be done before lease cancellation, because
 	// lease cancellation iterates through historyStorage.
@@ -1405,56 +1405,89 @@ func (s *stateManager) cancelLeases(blockchainHeight uint64, blockID proto.Block
 		}
 		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
 	}
-	return s.doLeasesCancellation(blockchainHeight, blockID, dataTxActivated, dataTxHeight, rideV5Activated, rideV5Height)
+	return s.generateLeasesCancellationWithNewBalancesSnapshots(
+		blockchainHeight,
+		dataTxActivated,
+		dataTxHeight,
+		rideV5Activated,
+		rideV5Height,
+	)
 }
 
-func (s *stateManager) doLeasesCancellation(
+func (s *stateManager) generateLeasesCancellationWithNewBalancesSnapshots(
 	blockchainHeight uint64,
-	blockID proto.BlockID,
 	dataTxActivated bool,
-	dataTxHeight uint64,
+	dataTxHeight uint64, // the height when DataTransaction feature is activated, equals 0 if the feature is not activated
 	rideV5Activated bool,
-	rideV5Height uint64,
+	rideV5Height uint64, // the height when RideV5 feature is activated, equals 0 if the feature is not activated
 ) ([]proto.AtomicSnapshot, error) {
-	// TODO: return fix snapshots here
 	switch {
 	case blockchainHeight == s.settings.ResetEffectiveBalanceAtHeight:
-		if err := s.stor.leases.cancelLeases(s.settings.AddressSchemeCharacter, nil, blockID); err != nil {
+		scheme := s.settings.AddressSchemeCharacter
+		cancelledLeasesSnapshots, err := s.stor.leases.generateCancelledLeaseSnapshots(scheme, nil)
+		if err != nil {
 			return nil, err
 		}
-		if err := s.stor.balances.cancelAllLeases(blockID); err != nil {
+		zeroLeaseBalancesSnapshots, err := s.stor.balances.generateZeroLeaseBalanceSnapshotsForAllLeases()
+		if err != nil {
 			return nil, err
 		}
+		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, zeroLeaseBalancesSnapshots), nil
 	case blockchainHeight == s.settings.BlockVersion3AfterHeight:
-		overflowAddresses, ovErr := s.stor.balances.cancelLeaseOverflows(blockID)
-		if ovErr != nil {
-			return nil, ovErr
-		}
-		if err := s.stor.leases.cancelLeases(s.settings.AddressSchemeCharacter, overflowAddresses, blockID); err != nil {
+		leaseBalanceSnapshots, overflowAddresses, err := s.stor.balances.generateLeaseBalanceSnapthosForLeaseOverflows()
+		if err != nil {
 			return nil, err
 		}
+		scheme := s.settings.AddressSchemeCharacter
+		cancelledLeasesSnapshots, err := s.stor.leases.generateCancelledLeaseSnapshots(scheme, overflowAddresses)
+		if err != nil {
+			return nil, err
+		}
+		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, leaseBalanceSnapshots), nil
 	case dataTxActivated && blockchainHeight == dataTxHeight:
 		leaseIns, err := s.stor.leases.validLeaseIns()
 		if err != nil {
 			return nil, err
 		}
-		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns, blockID); err != nil {
-			return nil, err
-		}
-	case rideV5Activated && blockchainHeight == rideV5Height:
-		changes, err := s.stor.leases.cancelLeasesToDisabledAliases(
-			s.settings.AddressSchemeCharacter,
-			blockchainHeight,
-			blockID,
-		)
+		validLeaseBalances, err := s.stor.balances.generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(leaseIns)
 		if err != nil {
 			return nil, err
 		}
-		if err := s.stor.balances.cancelLeases(changes, blockID); err != nil {
+		return joinCancelledLeasesAndLeaseBalances(nil, validLeaseBalances), nil
+	case rideV5Activated && blockchainHeight == rideV5Height:
+		scheme := s.settings.AddressSchemeCharacter
+		cancelledLeasesSnapshots, changes, err := s.stor.leases.cancelLeasesToDisabledAliases(scheme)
+		if err != nil {
 			return nil, err
 		}
+		leaseBalanceSnapshots, err := s.stor.balances.generateLeaseBalanceSnapshotsWithProvidedChanges(changes)
+		if err != nil {
+			return nil, err
+		}
+		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, leaseBalanceSnapshots), nil
+	default:
+		return nil, nil
 	}
-	return nil, nil
+}
+
+func joinCancelledLeasesAndLeaseBalances(
+	cancelledLeases []proto.CancelledLeaseSnapshot,
+	leaseBalancesSnapshots []proto.LeaseBalanceSnapshot,
+) []proto.AtomicSnapshot {
+	l := len(cancelledLeases) + len(leaseBalancesSnapshots)
+	if l == 0 {
+		return nil
+	}
+	res := make([]proto.AtomicSnapshot, 0, l)
+	for i := range cancelledLeases {
+		cl := &cancelledLeases[i]
+		res = append(res, cl)
+	}
+	for i := range leaseBalancesSnapshots {
+		lbs := &leaseBalancesSnapshots[i]
+		res = append(res, lbs)
+	}
+	return res
 }
 
 func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod(height proto.Height, lastBlockID proto.BlockID) error {
@@ -1534,11 +1567,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, wrapErr(ModificationError, blErr)
 		}
 		// Generate blockchain fix snapshots if needed.
-		fixSnapshots, faErr := s.doBlockchainFixActionIfNeeded(
-			blockchainCurHeight,
-			lastAppliedBlock.BlockID(),
-			block.BlockID(),
-		)
+		fixSnapshots, faErr := s.doBlockchainFixActionIfNeeded(blockchainCurHeight, block.BlockID())
 		if faErr != nil {
 			return nil, errors.Wrapf(faErr, "failed to do blockchain fix action at height %d", blockchainCurHeight)
 		}
