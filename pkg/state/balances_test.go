@@ -5,8 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -202,7 +204,7 @@ func addTailInfoToAssetsState(a *assets, fullAssetID crypto.Digest) {
 	shortAssetID := proto.AssetIDFromDigest(fullAssetID)
 	// add digest tail info for correct state hash calculation
 	wrappedAssetInfo := wrappedUncertainInfo{
-		assetInfo:     assetInfo{assetConstInfo: assetConstInfo{tail: proto.DigestTail(fullAssetID)}},
+		assetInfo:     assetInfo{assetConstInfo: assetConstInfo{Tail: proto.DigestTail(fullAssetID)}},
 		wasJustIssued: false,
 	}
 	a.uncertainAssetInfo[shortAssetID] = wrappedAssetInfo
@@ -284,7 +286,25 @@ func TestNftList(t *testing.T) {
 	err = to.stor.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), asset, blockID0)
 	assert.NoError(t, err)
 	to.stor.flush(t)
-	nfts, err := to.balances.nftList(addr.ID(), 1, nil)
+
+	var (
+		height = to.stor.rw.recentHeight()
+		feats  = to.stor.entities.features
+	)
+	nfts, err := to.balances.nftList(addr.ID(), 1, nil, height, feats)
 	assert.NoError(t, err)
 	assert.Equal(t, []crypto.Digest{assetID}, nfts)
+
+	to.stor.activateFeature(t, int16(settings.ReducedNFTFee))
+
+	nfts, err = to.balances.nftList(addr.ID(), 1, nil, height, feats)
+	assert.NoError(t, err)
+	assert.Equal(t, []crypto.Digest{assetID}, nfts)
+
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+
+	nfts, err = to.balances.nftList(addr.ID(), 1, nil, height, feats)
+	assert.NoError(t, err)
+	assert.Equal(t, []crypto.Digest(nil), nfts)
+
 }

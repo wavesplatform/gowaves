@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -116,7 +117,7 @@ func TestUpdateAssetInfo(t *testing.T) {
 	resAsset, err = to.assets.assetInfo(id)
 	assert.NoError(t, err, "failed to get asset info")
 	assert.Equal(t, asset, resAsset)
-	assert.Equal(t, assetID, proto.ReconstructDigest(id, resAsset.tail))
+	assert.Equal(t, assetID, proto.ReconstructDigest(id, resAsset.Tail))
 }
 
 func TestNewestLastUpdateHeight(t *testing.T) {
@@ -212,11 +213,11 @@ func TestAssetsUncertain(t *testing.T) {
 
 func TestAssetConstInfoRoundTrip(t *testing.T) {
 	expectedInfo := assetConstInfo{
-		tail:                 [12]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
-		issuer:               crypto.PublicKey{1, 2, 3, 4, 5, 6, 7},
-		decimals:             8,
-		issueHeight:          100500,
-		issueSequenceInBlock: 42,
+		Tail:                 [12]byte{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12},
+		Issuer:               crypto.PublicKey{1, 2, 3, 4, 5, 6, 7},
+		Decimals:             8,
+		IssueHeight:          100500,
+		IssueSequenceInBlock: 42,
 	}
 	data, err := expectedInfo.marshalBinary()
 	assert.NoError(t, err)
