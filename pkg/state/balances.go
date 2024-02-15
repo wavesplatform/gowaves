@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -391,7 +392,32 @@ func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, bloc
 	return nil
 }
 
-func (s *balances) nftList(addr proto.AddressID, limit uint64, afterAssetID *proto.AssetID) ([]crypto.Digest, error) {
+type reducedFeaturesState interface {
+	isActivatedAtHeight(featureID int16, height uint64) bool
+	activationHeight(featureID int16) (uint64, error)
+}
+
+// nftList returns list of NFTs for the given address.
+// Since activation of feature #15 this method returns only tokens that are issued
+// as NFT (amount: 1, decimal places: 0, reissuable: false) after activation of feature #13.
+// Before activation of feature #15 the method returned all the assets that are issued as NFT.
+func (s *balances) nftList(
+	addr proto.AddressID,
+	limit uint64,
+	afterAssetID *proto.AssetID, // optional parameter
+	height proto.Height,
+	feats reducedFeaturesState,
+) ([]crypto.Digest, error) {
+	blockV5Activated := feats.isActivatedAtHeight(int16(settings.BlockV5), height)
+	reducedNFTFeeActivationHeight := uint64(math.MaxUint64) // init with max value if feature is not activated
+	if feats.isActivatedAtHeight(int16(settings.ReducedNFTFee), height) {
+		var err error
+		reducedNFTFeeActivationHeight, err = feats.activationHeight(int16(settings.ReducedNFTFee))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get activation height for ReducedNFTFee feature")
+		}
+	}
+
 	key := assetBalanceKey{address: addr}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.addressPrefix())
 	if err != nil {
@@ -407,16 +433,28 @@ func (s *balances) nftList(addr proto.AddressID, limit uint64, afterAssetID *pro
 	var k assetBalanceKey
 	if afterAssetID != nil {
 		// Iterate until `afterAssetID` asset is found.
+		target := *afterAssetID
 		for iter.Next() {
 			keyBytes := keyvalue.SafeKey(iter)
 			if err := k.unmarshal(keyBytes); err != nil {
 				return nil, err
 			}
-			if k.asset == *afterAssetID {
+			if k.asset == target {
 				break
 			}
 		}
 	}
+	return collectNFTs(iter, s.assets, k, limit, blockV5Activated, reducedNFTFeeActivationHeight)
+}
+
+func collectNFTs(
+	iter *topEntryIterator,
+	assets assetInfoGetter,
+	k assetBalanceKey,
+	limit uint64,
+	blockV5Activated bool,
+	reducedNFTFeeActivationHeight uint64,
+) ([]crypto.Digest, error) {
 	var r assetBalanceRecord
 	var res []crypto.Digest
 	for iter.Next() {
@@ -434,13 +472,16 @@ func (s *balances) nftList(addr proto.AddressID, limit uint64, afterAssetID *pro
 		if err := k.unmarshal(keyBytes); err != nil {
 			return nil, err
 		}
-		assetInfo, err := s.assets.assetInfo(k.asset)
-		if err != nil {
-			return nil, err
+		ai, aiErr := assets.assetInfo(k.asset)
+		if aiErr != nil {
+			return nil, aiErr
 		}
-		nft := assetInfo.isNFT()
+		if blockV5Activated && ai.IssueHeight < reducedNFTFeeActivationHeight {
+			continue // after feature 15 activation we return only NFTs which are issued after feature 13 activation
+		}
+		nft := ai.IsNFT
 		if nft {
-			res = append(res, proto.ReconstructDigest(k.asset, assetInfo.tail))
+			res = append(res, proto.ReconstructDigest(k.asset, ai.Tail))
 		}
 	}
 	return res, nil
@@ -606,7 +647,7 @@ func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetI
 	if err != nil {
 		return err
 	}
-	fullAssetID := proto.ReconstructDigest(assetID, info.tail)
+	fullAssetID := proto.ReconstructDigest(assetID, info.Tail)
 	ac := &assetRecordForHashes{
 		addr:    &wavesAddress,
 		asset:   fullAssetID,

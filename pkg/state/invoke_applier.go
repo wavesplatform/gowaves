@@ -218,8 +218,8 @@ func (ia *invokeApplier) countIssuedAssets(actions []proto.ScriptAction) (uint64
 	for _, action := range actions {
 		switch a := action.(type) {
 		case *proto.IssueScriptAction:
-			assetParams := assetParams{a.Quantity, a.Decimals, a.Reissuable}
-			nft, err := isNFT(ia.stor.features, assetParams)
+			ap := assetParams{a.Quantity, a.Decimals, a.Reissuable}
+			nft, err := isNFT(ia.stor.features, ap)
 			if err != nil {
 				return 0, err
 			}
@@ -481,12 +481,12 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 		case *proto.IssueScriptAction:
 			// Create asset's info.
-			assetInfo := &assetInfo{
+			ai := &assetInfo{
 				assetConstInfo: assetConstInfo{
-					tail:        proto.DigestTail(a.ID),
-					issuer:      senderPK,
-					decimals:    uint8(a.Decimals),
-					issueHeight: info.blockInfo.Height,
+					Tail:        proto.DigestTail(a.ID),
+					Issuer:      senderPK,
+					Decimals:    uint8(a.Decimals),
+					IssueHeight: info.blockInfo.Height,
 				},
 				assetChangeableInfo: assetChangeableInfo{
 					quantity:                 *big.NewInt(a.Quantity),
@@ -496,8 +496,13 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 					reissuable:               a.Reissuable,
 				},
 			}
+			if nftErr := ai.initIsNFTFlag(ia.stor.features); nftErr != nil {
+				return proto.DAppError, info.failedChanges,
+					errors.Wrapf(err, "failed to initialize isNFT flag for asset %s", a.ID.String())
+			}
+
 			id := proto.AssetIDFromDigest(a.ID)
-			ia.stor.assets.issueAssetUncertain(id, assetInfo)
+			ia.stor.assets.issueAssetUncertain(id, ai)
 			// Currently asset script is always empty.
 			// TODO: if this script is ever set, don't forget to
 			// also save complexity for it here using saveComplexityForAsset().
@@ -527,7 +532,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			if assetInfo.issuer != senderPK {
+			if assetInfo.Issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 			}
 			if !assetInfo.reissuable {
@@ -578,7 +583,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			if !burnAnyTokensEnabled && assetInfo.issuer != senderPK {
+			if !burnAnyTokensEnabled && assetInfo.Issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.New("asset was issued by other address")
 			}
 			quantityDiff := big.NewInt(a.Quantity)
@@ -629,7 +634,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if !sponsorshipActivated {
 				return proto.DAppError, info.failedChanges, errors.New("sponsorship has not been activated yet")
 			}
-			if assetInfo.issuer != senderPK {
+			if assetInfo.Issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
 			}
 

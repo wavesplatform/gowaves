@@ -436,11 +436,12 @@ func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) e
 
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(snapshot.AssetID),
-			issuer:               snapshot.IssuerPublicKey,
-			decimals:             snapshot.Decimals,
-			issueHeight:          height,
-			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
+			Tail:                 proto.DigestTail(snapshot.AssetID),
+			Issuer:               snapshot.IssuerPublicKey,
+			Decimals:             snapshot.Decimals,
+			IssueHeight:          height,
+			IsNFT:                snapshot.IsNFT,
+			IssueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{},
 	}
