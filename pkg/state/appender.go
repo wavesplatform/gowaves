@@ -779,7 +779,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Count miner fees.
 	for i, tx := range params.transactions {
 		if fErr := a.blockDiffer.countMinerFee(tx); fErr != nil {
-			return errors.Wrapf(err, "failed to count miner fee for tx %d", i+1)
+			return errors.Wrapf(fErr, "failed to count miner fee for tx %d", i+1)
 		}
 	}
 
