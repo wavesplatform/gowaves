@@ -367,6 +367,13 @@ func (a *txAppender) commitTxApplication(
 			errors.Wrapf(err, "failed to perform transaction %q", base58.Encode(txID)),
 		)
 	}
+
+	if !params.validatingUtx {
+		// Count tx fee. This should not affect transaction execution. It only accumulates miner fee.
+		if err := a.blockDiffer.countMinerFee(tx); err != nil {
+			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
+		}
+	}
 	return snapshot, nil
 }
 
@@ -683,13 +690,10 @@ func (a *txAppender) appendTxs(
 		validatingUtx:                    false,
 		currentMinerPK:                   params.block.GeneratorPublicKey,
 	}
-	for i, tx := range params.transactions {
+	for _, tx := range params.transactions {
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
 			return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
-		}
-		if fErr := a.blockDiffer.countMinerFee(tx); fErr != nil {
-			return proto.BlockSnapshot{}, crypto.Digest{}, errors.Wrapf(fErr, "failed to count miner fee for tx %d", i+1)
 		}
 		bs.AppendTxSnapshot(txSnapshots.regular)
 
