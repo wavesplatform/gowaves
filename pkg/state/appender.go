@@ -635,6 +635,9 @@ func (a *txAppender) applySnapshotInLightNode(
 		if err := regSnapshots.Apply(a.txHandler.sa, tx, false); err != nil {
 			return crypto.Digest{}, errors.Wrap(err, "failed to apply tx snapshot")
 		}
+		if fErr := a.blockDiffer.countMinerFee(tx); fErr != nil {
+			return crypto.Digest{}, errors.Wrapf(fErr, "failed to count miner fee for tx %d", i+1)
+		}
 		// TODO: In future we have to store the list of affected addresses for each transaction here.
 	}
 	return stateHash, nil
@@ -680,10 +683,13 @@ func (a *txAppender) appendTxs(
 		validatingUtx:                    false,
 		currentMinerPK:                   params.block.GeneratorPublicKey,
 	}
-	for _, tx := range params.transactions {
+	for i, tx := range params.transactions {
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
 			return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
+		}
+		if fErr := a.blockDiffer.countMinerFee(tx); fErr != nil {
+			return proto.BlockSnapshot{}, crypto.Digest{}, errors.Wrapf(fErr, "failed to count miner fee for tx %d", i+1)
 		}
 		bs.AppendTxSnapshot(txSnapshots.regular)
 
@@ -775,12 +781,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrapf(errBlockSnapshotStateHashMismatch, "state hash mismatch; provided '%s', caluclated '%s'",
 			blockStateHash.String(), stateHash.String(),
 		)
-	}
-	// Count miner fees.
-	for i, tx := range params.transactions {
-		if fErr := a.blockDiffer.countMinerFee(tx); fErr != nil {
-			return errors.Wrapf(fErr, "failed to count miner fee for tx %d", i+1)
-		}
 	}
 
 	blockID := params.block.BlockID()
