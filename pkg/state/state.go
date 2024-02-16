@@ -1306,10 +1306,10 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
-func (s *stateManager) doBlockchainFixActionIfNeeded(
-	blockchainHeight uint64,
-	nextBlock proto.BlockID,
-) ([]proto.AtomicSnapshot, error) {
+// generateBlockchainFixSnapshotsIfNeeded generates snapshots for blockchain fixes if needed.
+// The changes should be applied in the end of the block processing in the context of the last applied block.
+// Though the atomic snapshots must be hashed with initial snapshot of the next block.
+func (s *stateManager) generateBlockchainFixSnapshotsIfNeeded(blockchainHeight uint64) ([]proto.AtomicSnapshot, error) {
 	var fixSnapshots []proto.AtomicSnapshot
 	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
@@ -1322,20 +1322,20 @@ func (s *stateManager) doBlockchainFixActionIfNeeded(
 		}
 		fixSnapshots = fixes
 	}
-	resetStolenAliases, err := s.needToResetStolenAliases(blockchainHeight)
-	if err != nil {
-		return nil, err
-	}
-	if resetStolenAliases {
-		// we're using nextBlock because it's a current block which we're going to apply
-		if dsaErr := s.stor.aliases.disableStolenAliases(nextBlock); dsaErr != nil {
-			return nil, dsaErr
-		}
-	}
 	return fixSnapshots, nil
 }
 
 func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
+	resetStolenAliases, err := s.needToResetStolenAliases(blockchainHeight)
+	if err != nil {
+		return err
+	}
+	if resetStolenAliases {
+		// we're using nextBlock because it's a current block which we're going to apply
+		if dsaErr := s.stor.aliases.disableStolenAliases(nextBlock); dsaErr != nil {
+			return dsaErr
+		}
+	}
 	if s.needToFinishVotingPeriod(blockchainHeight) {
 		if err := s.finishVoting(blockchainHeight, lastBlock); err != nil {
 			return err
@@ -1559,12 +1559,13 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, wrapErr(ModificationError, blErr)
 		}
 		// Generate blockchain fix snapshots if needed.
-		fixSnapshots, faErr := s.doBlockchainFixActionIfNeeded(blockchainCurHeight, block.BlockID())
+		fixSnapshots, faErr := s.generateBlockchainFixSnapshotsIfNeeded(blockchainCurHeight)
 		if faErr != nil {
 			return nil, errors.Wrapf(faErr, "failed to do blockchain fix action at height %d", blockchainCurHeight)
 		}
 		// At some blockchain heights specific logic is performed.
 		// This includes voting for features, block rewards and so on.
+		// It also disables stolen aliases.
 		if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
 		}
