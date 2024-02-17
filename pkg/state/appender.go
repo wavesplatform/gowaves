@@ -152,12 +152,12 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 }
 
 type appendBlockParams struct {
-	transactions          []proto.Transaction
-	chans                 *verifierChans
-	block, parent         *proto.BlockHeader
-	blockchainHeight      proto.Height
-	fixSnapshots          []proto.AtomicSnapshot
-	lastSnapshotStateHash crypto.Digest
+	transactions              []proto.Transaction
+	chans                     *verifierChans
+	block, parent             *proto.BlockHeader
+	blockchainHeight          proto.Height
+	fixSnapshotsToInitialHash []proto.AtomicSnapshot
+	lastSnapshotStateHash     crypto.Digest
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -635,6 +635,27 @@ func calculateInitialSnapshotStateHash(
 	return calculateTxSnapshotStateHash(h, txID, blockHeight, prevHash, txSnapshot)
 }
 
+func (a *txAppender) appendFixSnapshots(fixSnapshots []proto.AtomicSnapshot, blockID proto.BlockID) error {
+	if len(fixSnapshots) == 0 { // no changes, nothing to do
+		return nil
+	}
+	ai := a.txHandler.sa.ApplierInfo()
+	if ai == nil { // sanity check
+		return errors.New("applier info is not set")
+	}
+	if ai.BlockID() != blockID { // sanity check
+		return errors.Errorf(
+			"applier info block ID doesn't match the block ID: expected %s, actual %s",
+			blockID.String(), ai.BlockID().String(),
+		)
+	}
+	fix := txSnapshot{regular: fixSnapshots}
+	if err := fix.ApplyFixSnapshot(a.txHandler.sa); err != nil {
+		return errors.Wrapf(err, "failed to apply fix snapshot at block %s", blockID)
+	}
+	return nil
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
 	defer func() {
@@ -667,19 +688,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
 
-	blockInfo, err := a.currentBlockInfo()
-	if err != nil {
-		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
-	}
-
-	currentBlockHeight := blockInfo.Height
-
-	if len(params.fixSnapshots) > 0 { // add snapshots in the context of the last applied block
-		fix := txSnapshot{regular: params.fixSnapshots}
-		if fErr := fix.ApplyFixSnapshot(a.txHandler.sa); fErr != nil {
-			return errors.Wrapf(fErr, "failed to apply fix snapshots at height %d", currentBlockHeight)
-		}
-	}
 	// Set new applier info with applying block context.
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
@@ -696,6 +704,13 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
+
+	blockInfo, err := a.currentBlockInfo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
+	}
+
+	currentBlockHeight := blockInfo.Height
 
 	hasher, err := newTxSnapshotHasherDefault()
 	if err != nil {
@@ -720,8 +735,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 	// hash block initial snapshot and fix snapshot in the context of the applying block
 	snapshotsToHash := initialSnapshot.regular
-	if len(params.fixSnapshots) > 0 {
-		snapshotsToHash = append(snapshotsToHash, params.fixSnapshots...)
+	if len(params.fixSnapshotsToInitialHash) > 0 {
+		snapshotsToHash = append(snapshotsToHash, params.fixSnapshotsToInitialHash...)
 	}
 	// get initial snapshot hash for block
 	stateHash, err := calculateInitialSnapshotStateHash(

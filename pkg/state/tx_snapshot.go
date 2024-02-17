@@ -11,8 +11,18 @@ type snapshotApplierHooks interface {
 	AfterTxSnapshotApply() error
 }
 
+type extendedSnapshotApplierInfo interface {
+	BlockID() proto.BlockID
+	BlockchainHeight() proto.Height
+	CurrentBlockHeight() proto.Height
+	EstimatorVersion() int
+	Scheme() proto.Scheme
+	StateActionsCounter() *proto.StateActionsCounter
+}
+
 type extendedSnapshotApplier interface {
-	SetApplierInfo(info *blockSnapshotsApplierInfo)
+	ApplierInfo() extendedSnapshotApplierInfo
+	SetApplierInfo(info extendedSnapshotApplierInfo)
 	filterZeroDiffsSHOut(blockID proto.BlockID)
 	proto.SnapshotApplier
 	internalSnapshotApplier

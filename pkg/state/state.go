@@ -62,6 +62,7 @@ type blockchainEntitiesStorage struct {
 	stateHashes       *stateHashes
 	hitSources        *hitSources
 	snapshots         *snapshotsAtHeight
+	patches           *patchesStorage
 	calculateHashes   bool
 }
 
@@ -95,6 +96,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newStateHashes(hs),
 		newHitSources(hs),
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
+		newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		calcHashes,
 	}, nil
 }
@@ -1070,7 +1072,7 @@ func (s *stateManager) addNewBlock(
 	block, parent *proto.Block,
 	chans *verifierChans,
 	blockchainHeight uint64,
-	fixSnapshots []proto.AtomicSnapshot,
+	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
 	lastSnapshotStateHash crypto.Digest,
 ) error {
 	blockHeight := blockchainHeight + 1
@@ -1095,13 +1097,13 @@ func (s *stateManager) addNewBlock(
 		parentHeader = &parent.BlockHeader
 	}
 	params := &appendBlockParams{
-		transactions:          transactions,
-		chans:                 chans,
-		block:                 &block.BlockHeader,
-		parent:                parentHeader,
-		blockchainHeight:      blockchainHeight,
-		fixSnapshots:          fixSnapshots,
-		lastSnapshotStateHash: lastSnapshotStateHash,
+		transactions:              transactions,
+		chans:                     chans,
+		block:                     &block.BlockHeader,
+		parent:                    parentHeader,
+		blockchainHeight:          blockchainHeight,
+		fixSnapshotsToInitialHash: fixSnapshotsToInitialHash,
+		lastSnapshotStateHash:     lastSnapshotStateHash,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
@@ -1306,21 +1308,29 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
-// generateBlockchainFixSnapshotsIfNeeded generates snapshots for blockchain fixes if needed.
+// doBlockchainFixIfNeeded generates snapshots for blockchain fixes if needed and applies them.
 // The changes should be applied in the end of the block processing in the context of the last applied block.
 // Though the atomic snapshots must be hashed with initial snapshot of the next block.
-func (s *stateManager) generateBlockchainFixSnapshotsIfNeeded(blockchainHeight uint64) ([]proto.AtomicSnapshot, error) {
-	var fixSnapshots []proto.AtomicSnapshot
-	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
+func (s *stateManager) doBlockchainFixIfNeeded(
+	blockchainHeight uint64,
+	justAppliedBlock proto.BlockID,
+) ([]proto.AtomicSnapshot, error) {
+	nextBlockchainHeight := blockchainHeight + 1
+	cancelLeases, err := s.needToCancelLeases(nextBlockchainHeight)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to check if leases should be cancelled for block %s",
+			justAppliedBlock.String(),
+		)
 	}
-	if cancelLeases {
-		fixes, clErr := s.generateCancelLeasesSnapshots(blockchainHeight)
-		if clErr != nil {
-			return nil, clErr
-		}
-		fixSnapshots = fixes
+	if !cancelLeases { // no need to generate snapshots
+		return nil, nil
+	}
+	fixSnapshots, err := s.generateCancelLeasesSnapshots(nextBlockchainHeight)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate fix snapshots for block %s", justAppliedBlock.String())
+	}
+	if fixErr := s.appender.appendFixSnapshots(fixSnapshots, justAppliedBlock); fixErr != nil {
+		return nil, errors.Wrapf(fixErr, "failed to apply fix snapshots for block %s", justAppliedBlock.String())
 	}
 	return fixSnapshots, nil
 }
@@ -1514,6 +1524,47 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	return nil
 }
 
+type blockchainPatch struct {
+	initialized  bool
+	fixSnapshots []proto.AtomicSnapshot
+}
+
+func (p *blockchainPatch) isInitialized() bool {
+	return p.initialized
+}
+
+func (p *blockchainPatch) reset() {
+	p.fixSnapshots = nil
+	p.initialized = false
+}
+
+func (p *blockchainPatch) take() []proto.AtomicSnapshot {
+	r := p.fixSnapshots
+	p.reset()
+	return r
+}
+
+func (p *blockchainPatch) initializeWith(fixSnapshots []proto.AtomicSnapshot) {
+	p.fixSnapshots = fixSnapshots
+	p.initialized = true
+}
+
+func (p *blockchainPatch) store(blockID proto.BlockID, stor *patchesStorage) error {
+	if !p.isInitialized() {
+		return errors.Errorf("blockchainPatch is not initialized for block %q", blockID.String())
+	}
+	return stor.savePatch(blockID, p.fixSnapshots)
+}
+
+func (p *blockchainPatch) load(blockID proto.BlockID, stor *patchesStorage) error {
+	patch, err := stor.newestPatch(blockID)
+	if err != nil {
+		return err
+	}
+	p.initializeWith(patch)
+	return nil
+}
+
 func (s *stateManager) addBlocks() (*proto.Block, error) {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -1546,7 +1597,10 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	// Launch verifier that checks signatures of blocks and transactions.
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	var ids []proto.BlockID
+	var (
+		ids   []proto.BlockID
+		patch blockchainPatch
+	)
 	pos := 0
 	for s.newBlocks.next() {
 		blockchainCurHeight := height + uint64(pos)
@@ -1557,11 +1611,6 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
 		if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
 			return nil, wrapErr(ModificationError, blErr)
-		}
-		// Generate blockchain fix snapshots if needed.
-		fixSnapshots, faErr := s.generateBlockchainFixSnapshotsIfNeeded(blockchainCurHeight)
-		if faErr != nil {
-			return nil, errors.Wrapf(faErr, "failed to do blockchain fix action at height %d", blockchainCurHeight)
 		}
 		// At some blockchain heights specific logic is performed.
 		// This includes voting for features, block rewards and so on.
@@ -1594,8 +1643,15 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
 			return nil, err
 		}
+		if !patch.isInitialized() {
+			if lErr := patch.load(block.BlockID(), s.stor.patches); lErr != nil {
+				return nil, wrapErr(RetrievalError, lErr)
+			}
+		}
+		fixSnapshotsToInitialHash := patch.take()
 		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, fixSnapshots, sh); addErr != nil {
+		addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, fixSnapshotsToInitialHash, sh)
+		if addErr != nil {
 			return nil, addErr
 		}
 
@@ -1604,6 +1660,20 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			// we have to check that protobuf will be activated on next block
 			s.checkProtobufActivation(blockchainCurHeight + 2)
 		}
+
+		// Generate blockchain fixes if needed and apply them.
+		newFixSnapshots, faErr := s.doBlockchainFixIfNeeded(blockchainCurHeight, block.BlockID())
+		if faErr != nil {
+			return nil, errors.Wrapf(faErr, "failed to do blockchain fix action at height %d", blockchainCurHeight)
+		}
+		patch.initializeWith(newFixSnapshots) // store newFixSnapshots in patch
+		if sErr := patch.store(block.BlockID(), s.stor.patches); sErr != nil {
+			return nil, wrapErr(ModificationError, errors.Wrapf(sErr, "failed to store blockchain patch for block %s",
+				block.BlockID().String()),
+			)
+		}
+
+		// Prepare for the next iteration.
 		headers[pos] = block.BlockHeader
 		pos++
 		ids = append(ids, block.BlockID())

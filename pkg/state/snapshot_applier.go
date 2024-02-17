@@ -20,7 +20,7 @@ type txSnapshotContext struct {
 func (c txSnapshotContext) initialized() bool { return c.applyingTx != nil }
 
 type blockSnapshotsApplier struct {
-	info *blockSnapshotsApplierInfo
+	info extendedSnapshotApplierInfo
 	stor snapshotApplierStorages
 
 	txSnapshotContext txSnapshotContext
@@ -363,7 +363,11 @@ func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCoun
 	return s.stateActionsCounter
 }
 
-func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) {
+func (a *blockSnapshotsApplier) ApplierInfo() extendedSnapshotApplierInfo {
+	return a.info
+}
+
+func (a *blockSnapshotsApplier) SetApplierInfo(info extendedSnapshotApplierInfo) {
 	a.info = info
 }
 
