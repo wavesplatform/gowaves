@@ -1312,11 +1312,10 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 // The changes should be applied in the end of the block processing in the context of the last applied block.
 // Though the atomic snapshots must be hashed with initial snapshot of the next block.
 func (s *stateManager) doBlockchainFixIfNeeded(
-	blockchainHeight uint64,
+	blockchainHeight proto.Height,
 	justAppliedBlock proto.BlockID,
 ) ([]proto.AtomicSnapshot, error) {
-	nextBlockchainHeight := blockchainHeight + 1
-	cancelLeases, err := s.needToCancelLeases(nextBlockchainHeight)
+	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to check if leases should be cancelled for block %s",
 			justAppliedBlock.String(),
@@ -1325,7 +1324,7 @@ func (s *stateManager) doBlockchainFixIfNeeded(
 	if !cancelLeases { // no need to generate snapshots
 		return nil, nil
 	}
-	fixSnapshots, err := s.generateCancelLeasesSnapshots(nextBlockchainHeight)
+	fixSnapshots, err := s.generateCancelLeasesSnapshots(blockchainHeight)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate fix snapshots for block %s", justAppliedBlock.String())
 	}
@@ -1654,17 +1653,20 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if addErr != nil {
 			return nil, addErr
 		}
+		blockchainCurHeight++ // we've just added a new block, so we have a new height
 
-		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {
+		if s.needToFinishVotingPeriod(blockchainCurHeight) {
 			// If we need to finish voting period on the next block (h+1) then
 			// we have to check that protobuf will be activated on next block
-			s.checkProtobufActivation(blockchainCurHeight + 2)
+			s.checkProtobufActivation(blockchainCurHeight + 1)
 		}
 
 		// Generate blockchain fixes if needed and apply them.
 		newFixSnapshots, faErr := s.doBlockchainFixIfNeeded(blockchainCurHeight, block.BlockID())
 		if faErr != nil {
-			return nil, errors.Wrapf(faErr, "failed to do blockchain fix action at height %d", blockchainCurHeight)
+			return nil, errors.Wrapf(faErr, "failed to do blockchain fix action at block %s",
+				block.BlockID().String(),
+			)
 		}
 		patch.initializeWith(newFixSnapshots) // store newFixSnapshots in patch
 		if sErr := patch.store(block.BlockID(), s.stor.patches); sErr != nil {
