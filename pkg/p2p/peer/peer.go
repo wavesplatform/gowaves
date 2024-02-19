@@ -28,9 +28,14 @@ type Parent struct {
 	SkipMessageList *messages.SkipMessageList
 }
 
-func NewParent() Parent {
+func NewParent(enableLightNode bool) Parent {
+	messageChSize := 100
+	if enableLightNode {
+		// because in light node we send block and snapshot request messages
+		messageChSize = 200
+	}
 	return Parent{
-		MessageCh:       make(chan ProtoMessage, 100),
+		MessageCh:       make(chan ProtoMessage, messageChSize),
 		InfoCh:          make(chan InfoMessage, 100),
 		SkipMessageList: &messages.SkipMessageList{},
 	}

@@ -182,10 +182,7 @@ func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error)
 	if err != nil {
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
 	}
-	if !a.baseInfo.enableLightMode {
-		return a.applyBlocksWithSnapshots(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal)
-	}
-	return a, nil, nil
+	return a.applyBlocksWithSnapshots(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal)
 }
 
 func (a *SyncState) BlockSnapshot(
@@ -196,6 +193,7 @@ func (a *SyncState) BlockSnapshot(
 	if !p.Equal(a.conf.peerSyncWith) {
 		return a, nil, nil
 	}
+	zap.S().Named(logging.FSMNamespace).Debugf("[Sync][%s] Received snapshot for block %s", p.ID(), blockID.String())
 	internal, err := a.internal.SetSnapshot(blockID, &snapshot)
 	if err != nil {
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)

@@ -29,7 +29,7 @@ func TestHandleStopContext(t *testing.T) {
 		<-time.After(1 * time.Millisecond)
 		cancel()
 	}()
-	parent := NewParent()
+	parent := NewParent(false)
 	remote := NewRemote()
 	peer := &mockPeer{CloseFunc: func() error { return nil }}
 	err := Handle(ctx, peer, parent, remote)
@@ -44,7 +44,7 @@ func TestHandleStopContext(t *testing.T) {
 func TestHandleReceive(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	remote := NewRemote()
-	parent := NewParent()
+	parent := NewParent(false)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {
@@ -69,7 +69,7 @@ func TestHandleReceive(t *testing.T) {
 func TestHandleError(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	remote := NewRemote()
-	parent := NewParent()
+	parent := NewParent(false)
 	var wg sync.WaitGroup
 	wg.Add(1)
 	go func() {

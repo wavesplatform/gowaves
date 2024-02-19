@@ -421,7 +421,7 @@ func main() {
 		return
 	}
 	utx := utxpool.New(uint64(1024*mb), utxValidator, cfg)
-	parent := peer.NewParent()
+	parent := peer.NewParent(nc.enableLightMode)
 
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxInt32))
 	if err != nil {
