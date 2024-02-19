@@ -225,7 +225,8 @@ func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 	return nil
 }
 
-// TxSnapshotsFromProtobuf Unmarshalling order (don't change it if it is not necessary, order is important):
+// TxSnapshotsFromProtobufWithoutTxStatus Unmarshalling order
+// (don't change it if it is not necessary, order is important):
 // NewAsset
 // AssetVolume
 // AssetDescription
@@ -239,8 +240,10 @@ func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 // AccountScript
 // DataEntries
 // Sponsorships
-// TxStatus.
-func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+func TxSnapshotsFromProtobufWithoutTxStatus(
+	scheme Scheme,
+	txSnapshotProto *g.TransactionStateSnapshot,
+) ([]AtomicSnapshot, error) {
 	var txSnapshots []AtomicSnapshot
 	err := newAssetFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
@@ -291,6 +294,16 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 		return nil, err
 	}
 	err = sponsorshipFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	return txSnapshots, nil
+}
+
+// TxSnapshotsFromProtobuf deserializes protobuf message into AtomicSnapshot slice.
+// The TransactionStatusSnapshot is the last element of the slice.
+func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+	txSnapshots, err := TxSnapshotsFromProtobufWithoutTxStatus(scheme, txSnapshotProto)
 	if err != nil {
 		return nil, err
 	}

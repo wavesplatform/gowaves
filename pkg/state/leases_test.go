@@ -33,6 +33,14 @@ func createLease(t *testing.T, senderPK crypto.PublicKey, id crypto.Digest) *lea
 	}
 }
 
+func cancelledLeaseIDsMap(snaps []proto.CancelledLeaseSnapshot) map[crypto.Digest]struct{} {
+	res := make(map[crypto.Digest]struct{}, len(snaps))
+	for _, s := range snaps {
+		res[s.LeaseID] = struct{}{}
+	}
+	return res
+}
+
 func TestCancelLeases(t *testing.T) {
 	to := createLeases(t)
 
@@ -51,16 +59,18 @@ func TestCancelLeases(t *testing.T) {
 		err = to.leases.addLeasing(leaseID, r, blockID0)
 		assert.NoError(t, err, "failed to add leasing")
 	}
+	scheme := to.stor.settings.AddressSchemeCharacter
 	// Cancel one lease by sender and check.
 	badSenderPK := leasings[0].senderPK
-	badSender, err := proto.NewAddressFromPublicKey(to.stor.settings.AddressSchemeCharacter, badSenderPK)
+	badSender, err := proto.NewAddressFromPublicKey(scheme, badSenderPK)
 	assert.NoError(t, err)
 	sendersToCancel := make(map[proto.WavesAddress]struct{})
-	var empty struct{}
-	sendersToCancel[badSender] = empty
-	err = to.leases.cancelLeases(to.stor.settings.AddressSchemeCharacter, sendersToCancel, blockID0)
-	assert.NoError(t, err, "cancelLeases() failed")
+	sendersToCancel[badSender] = struct{}{}
+	cancelledLeaseSnapshots, err := to.leases.generateCancelledLeaseSnapshots(scheme, sendersToCancel)
+	assert.NoError(t, err, "generateCancelledLeaseSnapshots() failed")
 	to.stor.flush(t)
+
+	leasesToCancel := cancelledLeaseIDsMap(cancelledLeaseSnapshots)
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
@@ -68,27 +78,35 @@ func TestCancelLeases(t *testing.T) {
 		assert.NoError(t, err, "failed to get leasing")
 		active, err := to.leases.isActive(leaseID)
 		assert.NoError(t, err)
+
+		// status should be active because we didn't cancel it, but generated a cancelled lease snapshot
+		assert.Equal(t, true, active)
+		assert.Equal(t, leasing.isActive(), true, "cancelled leasing with different sender")
 		if l.senderPK == badSenderPK {
-			assert.Equal(t, false, active)
-			assert.Equal(t, leasing.isActive(), false, "did not cancel leasing by sender")
+			assert.Contains(t, leasesToCancel, leaseID)
 		} else {
-			assert.Equal(t, true, active)
-			assert.Equal(t, leasing.isActive(), true, "cancelled leasing with different sender")
+			assert.NotContains(t, leasesToCancel, leaseID)
 		}
 	}
 	// Cancel all the leases and check.
-	err = to.leases.cancelLeases(to.stor.settings.AddressSchemeCharacter, nil, blockID0)
-	assert.NoError(t, err, "cancelLeases() failed")
+	cancelledLeaseSnapshots, err = to.leases.generateCancelledLeaseSnapshots(scheme, nil)
+	assert.NoError(t, err, "generateCancelledLeaseSnapshots() failed")
 	to.stor.flush(t)
+
+	leasesToCancel = cancelledLeaseIDsMap(cancelledLeaseSnapshots)
 	for _, l := range leasings {
 		leaseID, err := crypto.NewDigestFromBytes(bytes.Repeat([]byte{l.leaseIDByte}, crypto.DigestSize))
 		assert.NoError(t, err, "failed to create digest from bytes")
 		leasing, err := to.leases.leasingInfo(leaseID)
 		assert.NoError(t, err, "failed to get leasing")
-		assert.Equal(t, leasing.isActive(), false, "did not cancel all the leasings")
+
+		// status should be active because we didn't cancel it, but generated a cancelled lease snapshot
+		assert.Equal(t, leasing.isActive(), true, "did not cancel all the leasings")
 		active, err := to.leases.isActive(leaseID)
 		assert.NoError(t, err)
-		assert.Equal(t, false, active)
+		assert.Equal(t, true, active)
+
+		assert.Contains(t, leasesToCancel, leaseID)
 	}
 }
 
