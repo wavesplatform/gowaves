@@ -58,10 +58,25 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 	to := createBlockDiffer(t)
 
 	block, _ := genBlocks(t, to)
+	minerAddr, err := proto.NewAddressFromPublicKey(to.stor.settings.AddressSchemeCharacter, block.GeneratorPublicKey)
+	require.NoError(t, err)
+	expected := txDiff{}
+	for _, tx := range block.Transactions {
+		var (
+			fee        = tx.GetFee()
+			txFeeAsset = tx.GetFeeAsset()
+		)
+		minerKey := byteKey(minerAddr.ID(), txFeeAsset)
+		minerBalanceDiff := fee // ng is not activated, so miner gets all the fee
+		bd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, false)
+		bd.blockID = block.BlockID() // set blockID for balance diff
+		bdErr := expected.appendBalanceDiff(minerKey, bd)
+		require.NoError(t, bdErr)
+	}
 	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block.BlockHeader, true, block.Transactions)
 	require.NoError(t, err, "createMinerAndRewardDiff() failed")
 	// Empty miner diff before NG activation.
-	assert.Equal(t, txDiff{}, minerDiff)
+	assert.Equal(t, expected, minerDiff)
 }
 
 func TestCreateBlockDiffNg(t *testing.T) {
