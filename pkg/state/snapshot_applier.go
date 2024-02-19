@@ -12,14 +12,15 @@ import (
 )
 
 type txSnapshotContext struct {
-	initialized   bool
 	validatingUTX bool
 	txApplied     bool
 	applyingTx    proto.Transaction
 }
 
+func (c txSnapshotContext) initialized() bool { return c.applyingTx != nil }
+
 type blockSnapshotsApplier struct {
-	info *blockSnapshotsApplierInfo
+	info extendedSnapshotApplierInfo
 	stor snapshotApplierStorages
 
 	txSnapshotContext txSnapshotContext
@@ -36,7 +37,6 @@ type blockSnapshotsApplier struct {
 
 func (a *blockSnapshotsApplier) BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error {
 	a.txSnapshotContext = txSnapshotContext{
-		initialized:   true,
 		validatingUTX: validatingUTX,
 		txApplied:     false,
 		applyingTx:    tx,
@@ -363,7 +363,11 @@ func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCoun
 	return s.stateActionsCounter
 }
 
-func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) {
+func (a *blockSnapshotsApplier) ApplierInfo() extendedSnapshotApplierInfo {
+	return a.info
+}
+
+func (a *blockSnapshotsApplier) SetApplierInfo(info extendedSnapshotApplierInfo) {
 	a.info = info
 }
 
@@ -562,7 +566,7 @@ func (a *blockSnapshotsApplier) ApplyCancelledLease(snapshot proto.CancelledLeas
 }
 
 func (a *blockSnapshotsApplier) ApplyTransactionsStatus(snapshot proto.TransactionStatusSnapshot) error {
-	if !a.txSnapshotContext.initialized { // sanity check
+	if !a.txSnapshotContext.initialized() { // sanity check
 		return errors.New("failed to apply transaction status snapshot: transaction is not set")
 	}
 	if a.txSnapshotContext.txApplied { // sanity check
@@ -655,7 +659,7 @@ func (a *blockSnapshotsApplier) ApplyCancelledLeaseInfo(snapshot InternalCancell
 }
 
 func (a *blockSnapshotsApplier) ApplyScriptResult(snapshot InternalScriptResultSnapshot) error {
-	if !a.txSnapshotContext.initialized { // sanity check
+	if !a.txSnapshotContext.initialized() { // sanity check
 		return errors.New("failed to apply script result snapshot: transaction is not set")
 	}
 	if a.txSnapshotContext.validatingUTX { // no-op for UTX validation

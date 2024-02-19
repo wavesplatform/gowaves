@@ -84,14 +84,13 @@ func newLeases(hs *historyStorage, calcHashes bool) *leases {
 	}
 }
 
-func (l *leases) cancelLeases(
+func (l *leases) generateCancelledLeaseSnapshots(
 	scheme proto.Scheme,
 	bySenders map[proto.WavesAddress]struct{},
-	blockID proto.BlockID,
-) error {
+) ([]proto.CancelledLeaseSnapshot, error) {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease)
 	if err != nil {
-		return errors.Errorf("failed to create key iterator to cancel leases: %v", err)
+		return nil, errors.Wrapf(err, "failed to create key iterator to cancel leases")
 	}
 	defer func() {
 		leaseIter.Release()
@@ -100,6 +99,7 @@ func (l *leases) cancelLeases(
 		}
 	}()
 
+	var leasesToCancel []proto.CancelledLeaseSnapshot
 	// Iterate all the leases.
 	zap.S().Info("Started to cancel leases")
 	for leaseIter.Next() {
@@ -107,13 +107,13 @@ func (l *leases) cancelLeases(
 		leaseBytes := keyvalue.SafeValue(leaseIter)
 		record := new(leasing)
 		if err = record.unmarshalBinary(leaseBytes); err != nil {
-			return errors.Wrap(err, "failed to unmarshal lease")
+			return nil, errors.Wrap(err, "failed to unmarshal lease")
 		}
 		toCancel := true
-		if bySenders != nil {
+		if len(bySenders) != 0 { // if is not empty, we need to check if the sender is in the set
 			sender, addrErr := proto.NewAddressFromPublicKey(scheme, record.SenderPK)
 			if addrErr != nil {
-				return errors.Wrapf(addrErr, "failed to build address from PK %q", record.SenderPK)
+				return nil, errors.Wrapf(addrErr, "failed to build address from PK %q", record.SenderPK)
 			}
 			_, toCancel = bySenders[sender]
 		}
@@ -121,40 +121,41 @@ func (l *leases) cancelLeases(
 			// Cancel lease.
 			var k leaseKey
 			if err := k.unmarshal(key); err != nil {
-				return errors.Wrap(err, "failed to unmarshal lease key")
+				return nil, errors.Wrap(err, "failed to unmarshal lease key")
 			}
 			zap.S().Infof("State: cancelling lease %s", k.leaseID.String())
-			record.Status = LeaseCancelled
-			if err := l.addLeasing(k.leaseID, record, blockID); err != nil {
-				return errors.Wrap(err, "failed to save lease to storage")
-			}
+			leasesToCancel = append(leasesToCancel, proto.CancelledLeaseSnapshot{
+				LeaseID: k.leaseID,
+			})
 		}
 	}
 	zap.S().Info("Finished to cancel leases")
-	return nil
+	return leasesToCancel, nil
 }
 
-func (l *leases) cancelLeasesToDisabledAliases(scheme proto.Scheme, height proto.Height, blockID proto.BlockID) (map[proto.WavesAddress]balanceDiff, error) {
+func (l *leases) cancelLeasesToDisabledAliases(
+	scheme proto.Scheme,
+) ([]proto.CancelledLeaseSnapshot, map[proto.WavesAddress]balanceDiff, error) {
 	if scheme != proto.MainNetScheme { // no-op
-		return nil, nil
+		return nil, nil, nil
 	}
 	zap.S().Info("Started cancelling leases to disabled aliases")
 	leasesToCancelMainnet := leasesToDisabledAliasesMainnet()
+	cancelledLeasesSnapshots := make([]proto.CancelledLeaseSnapshot, 0, len(leasesToCancelMainnet))
 	changes := make(map[proto.WavesAddress]balanceDiff, len(leasesToCancelMainnet))
 	for _, leaseID := range leasesToCancelMainnet {
 		record, err := l.newestLeasingInfo(leaseID)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to get newest leasing info by id %q", leaseID.String())
+			return nil, nil, errors.Wrapf(err, "failed to get newest leasing info by id %q", leaseID.String())
 		}
 		zap.S().Infof("State: canceling lease %s", leaseID)
-		record.Status = LeaseCancelled
-		record.CancelHeight = height
-		if err := l.addLeasing(leaseID, record, blockID); err != nil {
-			return nil, errors.Wrapf(err, "failed to save leasing %q to storage", leaseID)
-		}
+		cancelledLeasesSnapshots = append(cancelledLeasesSnapshots, proto.CancelledLeaseSnapshot{
+			LeaseID: leaseID,
+		})
+		// calculate balance changes
 		senderAddr, err := proto.NewAddressFromPublicKey(scheme, record.SenderPK)
 		if err != nil {
-			return nil, errors.Wrapf(err, "failed to build address for PK %q", record.SenderPK)
+			return nil, nil, errors.Wrapf(err, "failed to build address for PK %q", record.SenderPK)
 		}
 		if diff, ok := changes[senderAddr]; ok {
 			diff.leaseOut += -int64(record.Amount)
@@ -170,9 +171,11 @@ func (l *leases) cancelLeasesToDisabledAliases(scheme proto.Scheme, height proto
 		}
 	}
 	zap.S().Info("Finished cancelling leases to disabled aliases")
-	return changes, nil
+	return cancelledLeasesSnapshots, changes, nil
 }
 
+// validLeaseIns returns a map of active leases by recipient address with correct leaseIn values.
+// This function should not generate any fix snapshots, it just returns the map with valid leaseIn values.
 func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 	leaseIter, err := l.hs.newNewestTopEntryIterator(lease)
 	if err != nil {

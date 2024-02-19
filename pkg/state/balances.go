@@ -235,49 +235,7 @@ func (s *balances) leaseHashAt(blockID proto.BlockID) crypto.Digest {
 	return hash
 }
 
-func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
-	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
-		}
-	}()
-
-	for iter.Next() {
-		key := keyvalue.SafeKey(iter)
-		recordBytes := keyvalue.SafeValue(iter)
-		var r wavesBalanceRecord
-		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return err
-		}
-		if r.leaseIn == 0 && r.leaseOut == 0 {
-			// Empty lease balance, no need to reset.
-			continue
-		}
-		var k wavesBalanceKey
-		if err := k.unmarshal(key); err != nil {
-			return err
-		}
-		addr, err := k.address.ToWavesAddress(s.scheme)
-		if err != nil {
-			return err
-		}
-		zap.S().Infof("Resetting lease balance for %s", addr.String())
-		r.leaseOut = 0
-		r.leaseIn = 0
-		val := wavesValue{leaseChange: true, profile: r.balanceProfile}
-		if err := s.setWavesBalance(k.address, val, blockID); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesAddress]struct{}, error) {
+func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.LeaseBalanceSnapshot, error) {
 	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
 	if err != nil {
 		return nil, err
@@ -289,7 +247,7 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesA
 		}
 	}()
 
-	overflowedAddresses := make(map[proto.WavesAddress]struct{})
+	var zeroLeaseBalanceSnapshots []proto.LeaseBalanceSnapshot
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
@@ -297,33 +255,34 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesA
 		if err := r.unmarshalBinary(recordBytes); err != nil {
 			return nil, err
 		}
-		if int64(r.balance) < r.leaseOut {
-			var k wavesBalanceKey
-			if err := k.unmarshal(key); err != nil {
-				return nil, err
-			}
-			wavesAddr, err := k.address.ToWavesAddress(s.scheme)
-			if err != nil {
-				return nil, err
-			}
-			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d",
-				wavesAddr.String(), r.leaseOut, 0,
-			)
-			overflowedAddresses[wavesAddr] = empty
-			r.leaseOut = 0
-			val := wavesValue{leaseChange: true, profile: r.balanceProfile}
-			if err := s.setWavesBalance(k.address, val, blockID); err != nil {
-				return nil, err
-			}
+		if r.leaseIn == 0 && r.leaseOut == 0 {
+			// Empty lease balance, no need to reset.
+			continue
 		}
+		var k wavesBalanceKey
+		if err := k.unmarshal(key); err != nil {
+			return nil, err
+		}
+		addr, err := k.address.ToWavesAddress(s.scheme)
+		if err != nil {
+			return nil, err
+		}
+		zap.S().Infof("Resetting lease balance for %s", addr.String())
+		zeroLeaseBalanceSnapshots = append(zeroLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
+			Address:  addr,
+			LeaseIn:  0,
+			LeaseOut: 0,
+		})
 	}
-	return overflowedAddresses, err
+	return zeroLeaseBalanceSnapshots, nil
 }
 
-func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]int64, blockID proto.BlockID) error {
+func (s *balances) generateLeaseBalanceSnapthosForLeaseOverflows() (
+	[]proto.LeaseBalanceSnapshot, map[proto.WavesAddress]struct{}, error,
+) {
 	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	defer func() {
 		iter.Release()
@@ -332,22 +291,69 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]
 		}
 	}()
 
+	var leaseBalanceSnapshots []proto.LeaseBalanceSnapshot
+	overflowedAddresses := make(map[proto.WavesAddress]struct{})
+	for iter.Next() {
+		key := keyvalue.SafeKey(iter)
+		recordBytes := keyvalue.SafeValue(iter)
+		var r wavesBalanceRecord
+		if err := r.unmarshalBinary(recordBytes); err != nil {
+			return nil, nil, err
+		}
+		if int64(r.balance) < r.leaseOut {
+			var k wavesBalanceKey
+			if err := k.unmarshal(key); err != nil {
+				return nil, nil, err
+			}
+			wavesAddr, err := k.address.ToWavesAddress(s.scheme)
+			if err != nil {
+				return nil, nil, err
+			}
+			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d",
+				wavesAddr.String(), r.leaseOut, 0,
+			)
+			overflowedAddresses[wavesAddr] = struct{}{}
+			leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
+				Address:  wavesAddr,
+				LeaseIn:  uint64(r.leaseIn),
+				LeaseOut: 0,
+			})
+		}
+	}
+	return leaseBalanceSnapshots, overflowedAddresses, err
+}
+
+func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
+	correctLeaseIns map[proto.WavesAddress]int64,
+) ([]proto.LeaseBalanceSnapshot, error) {
+	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	var correctLeaseBalanceSnapshots []proto.LeaseBalanceSnapshot
 	zap.S().Infof("Started to cancel invalid leaseIns")
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
 		var r wavesBalanceRecord
 		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return err
+			return nil, err
 		}
 		var k wavesBalanceKey
 		if err := k.unmarshal(key); err != nil {
-			return err
+			return nil, err
 		}
 		correctLeaseIn := int64(0)
 		wavesAddress, err := k.address.ToWavesAddress(s.scheme)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if leaseIn, ok := correctLeaseIns[wavesAddress]; ok {
 			correctLeaseIn = leaseIn
@@ -356,40 +362,44 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]
 			zap.S().Infof("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.",
 				wavesAddress.String(), r.leaseIn, correctLeaseIn,
 			)
-			r.leaseIn = correctLeaseIn
-			val := wavesValue{leaseChange: true, profile: r.balanceProfile}
-			if err := s.setWavesBalance(k.address, val, blockID); err != nil {
-				return err
-			}
+			correctLeaseBalanceSnapshots = append(correctLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
+				Address:  wavesAddress,
+				LeaseIn:  uint64(correctLeaseIn),
+				LeaseOut: uint64(r.leaseOut),
+			})
 		}
 	}
 	zap.S().Infof("Finished to cancel invalid leaseIns")
-	return nil
+	return correctLeaseBalanceSnapshots, nil
 }
 
-func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, blockID proto.BlockID) error {
+func (s *balances) generateLeaseBalanceSnapshotsWithProvidedChanges(
+	changes map[proto.WavesAddress]balanceDiff,
+) ([]proto.LeaseBalanceSnapshot, error) {
 	zap.S().Infof("Updating balances for cancelled leases")
+	leaseBalanceSnapshots := make([]proto.LeaseBalanceSnapshot, 0, len(changes))
 	for a, bd := range changes {
 		k := wavesBalanceKey{address: a.ID()}
 		r, err := s.newestWavesRecord(k.bytes())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		profile := r.balanceProfile
 		newProfile, err := bd.applyTo(profile)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		val := wavesValue{leaseChange: true, profile: newProfile}
-		if err := s.setWavesBalance(a.ID(), val, blockID); err != nil {
-			return err
-		}
+		leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
+			Address:  a,
+			LeaseIn:  uint64(newProfile.leaseIn),
+			LeaseOut: uint64(newProfile.leaseOut),
+		})
 		zap.S().Infof("Balance of %s changed from (B: %d, LIn: %d, LOut: %d) to (B: %d, lIn: %d, lOut: %d)",
 			a.String(), profile.balance, profile.leaseIn, profile.leaseOut,
 			newProfile.balance, newProfile.leaseIn, newProfile.leaseOut)
 	}
 	zap.S().Infof("Finished to update balances")
-	return nil
+	return leaseBalanceSnapshots, nil
 }
 
 type reducedFeaturesState interface {
