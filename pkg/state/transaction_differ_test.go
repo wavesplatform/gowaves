@@ -295,16 +295,19 @@ func createNFTIssueWithProofs(t *testing.T) *proto.IssueWithProofs {
 func TestCreateDiffIssueWithProofs(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
+	to.stor.addBlock(t, blockID0) // act as genesis block
+	to.stor.activateFeature(t, int16(settings.NG))
 
 	tx := createIssueWithProofs(t, 1000)
 	ch, err := to.td.createDiffIssueWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffIssueWithProofs() failed")
 
 	issuedKey := byteKey(testGlobal.senderInfo.addr.ID(), *proto.NewOptionalAssetFromDigest(*tx.ID))
+	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
 		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, false),
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(minerFee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
