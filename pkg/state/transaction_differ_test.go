@@ -413,15 +413,17 @@ func createBurnWithProofs(t *testing.T) *proto.BurnWithProofs {
 func TestCreateDiffBurnWithProofs(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
+	to.stor.addBlock(t, blockID0) // act as genesis block
+	to.stor.activateFeature(t, int16(settings.NG))
 
 	tx := createBurnWithProofs(t)
 	ch, err := to.td.createDiffBurnWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffBurnWithProofs() failed")
-
+	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
 		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
 		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:      newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:      newBalanceDiff(int64(minerFee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
