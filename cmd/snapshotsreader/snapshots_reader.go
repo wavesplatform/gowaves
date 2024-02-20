@@ -112,15 +112,15 @@ func main() {
 			zap.S().Fatalf("failed to close snapshots file, %v", clErr)
 		}
 	}(snapshotsBody)
-	const MB = 1 << 20
+	const mb = 1 << 20
 	var (
 		start = *blocksStart
 		end   = start + *nBlocks
 	)
-	blocksSnapshots := parseSnapshots(start, end, bufio.NewReaderSize(snapshotsBody, MB), ss.AddressSchemeCharacter)
+	blocksSnapshots := parseSnapshots(start, end, bufio.NewReaderSize(snapshotsBody, mb), ss.AddressSchemeCharacter)
 	data, err := json.Marshal(blocksSnapshots)
 	if err != nil {
 		zap.S().Fatalf("failed to marshal blocksSnapshots: %v", err)
 	}
-	fmt.Println(string(data))
+	fmt.Println(string(data)) //nolint:forbidigo // it's a command-line tool
 }
