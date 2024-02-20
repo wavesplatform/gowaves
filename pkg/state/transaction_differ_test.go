@@ -1346,14 +1346,17 @@ func createUpdateAssetInfoForAssetWithProofs(t *testing.T, assetID crypto.Digest
 func TestCreateDiffUpdateAssetInfoWithProofs(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
+	to.stor.addBlock(t, blockID0) // act as genesis block
+	to.stor.activateFeature(t, int16(settings.NG))
 
 	tx := createUpdateAssetInfoWithProofs(t)
 	ch, err := to.td.createDiffUpdateAssetInfoWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffUpdateAssetInfoWithProofs() failed")
 
+	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
 		testGlobal.senderInfo.assetKeys[1]: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.minerInfo.assetKeys[1]:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.assetKeys[1]:  newBalanceDiff(int64(minerFee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
