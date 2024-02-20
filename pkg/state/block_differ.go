@@ -160,6 +160,7 @@ func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {
 
 func (d *blockDiffer) doMinerPayoutBeforeNG(
 	diff txDiff,
+	blockTimestamp uint64,
 	minerAddr proto.WavesAddress,
 	transactions []proto.Transaction,
 ) error {
@@ -170,6 +171,10 @@ func (d *blockDiffer) doMinerPayoutBeforeNG(
 	if ngActivated { // no-op after NG activation
 		return nil
 	}
+	updateMinIntermediateBalance := false
+	if blockTimestamp >= d.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
 	for i, tx := range transactions {
 		var (
 			fee      = tx.GetFee()
@@ -177,7 +182,7 @@ func (d *blockDiffer) doMinerPayoutBeforeNG(
 		)
 		minerKey := byteKey(minerAddr.ID(), feeAsset)
 		minerBalanceDiff := calculateCurrentBlockTxFee(fee, ngActivated)
-		nd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, false)
+		nd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, updateMinIntermediateBalance)
 		if err := diff.appendBalanceDiff(minerKey, nd); err != nil {
 			return errors.Wrapf(err, "failed to append balance diff for miner on %d-th transaction", i+1)
 		}
@@ -210,7 +215,7 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 		if err != nil {
 			return txDiff{}, err
 		}
-		if mpErr := d.doMinerPayoutBeforeNG(minerDiff, minerAddr, transactions); mpErr != nil {
+		if mpErr := d.doMinerPayoutBeforeNG(minerDiff, blockHeader.Timestamp, minerAddr, transactions); mpErr != nil {
 			return txDiff{}, errors.Wrap(err, "failed to count miner payout")
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, blockHeader)

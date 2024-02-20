@@ -61,6 +61,10 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 	minerAddr, err := proto.NewAddressFromPublicKey(to.stor.settings.AddressSchemeCharacter, block.GeneratorPublicKey)
 	require.NoError(t, err)
 	expected := txDiff{}
+	updateMinIntermediateBalance := false
+	if block.Timestamp >= to.stor.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
 	for _, tx := range block.Transactions {
 		var (
 			fee        = tx.GetFee()
@@ -68,7 +72,7 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 		)
 		minerKey := byteKey(minerAddr.ID(), txFeeAsset)
 		minerBalanceDiff := fee // ng is not activated, so miner gets all the fee
-		bd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, false)
+		bd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, updateMinIntermediateBalance)
 		bd.blockID = block.BlockID() // set blockID for balance diff
 		bdErr := expected.appendBalanceDiff(minerKey, bd)
 		require.NoError(t, bdErr)
