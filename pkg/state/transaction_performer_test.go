@@ -23,14 +23,13 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 	sets := *settings.MainNetSettings
 	stor := createStorageObjects(t, true)
 	snapshotApplier := newBlockSnapshotsApplier(
-		newBlockSnapshotsApplierInfo(
-			checkerInfo,
-			sets.AddressSchemeCharacter,
-			new(proto.StateActionsCounter),
-		),
+		newBlockSnapshotsApplierInfo(checkerInfo, sets.AddressSchemeCharacter),
 		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
-	th, err := newTransactionHandler(stor.settings.Genesis.BlockID(), stor.entities, &sets, &snapshotApplier)
+	buildAPIData, err := stor.stateDB.stateStoresApiData()
+	require.NoError(t, err)
+	blockID := stor.settings.Genesis.BlockID()
+	th, err := newTransactionHandler(blockID, stor.entities, &sets, &snapshotApplier, buildAPIData)
 	require.NoError(t, err)
 	return &performerTestObjects{stor, th}
 }
@@ -126,11 +125,12 @@ func TestPerformIssueWithSig(t *testing.T) {
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(*tx.ID),
-			issuer:               tx.SenderPK,
-			decimals:             tx.Decimals,
-			issueHeight:          1,
-			issueSequenceInBlock: 1,
+			Tail:                 proto.DigestTail(*tx.ID),
+			Issuer:               tx.SenderPK,
+			Decimals:             tx.Decimals,
+			IssueHeight:          1,
+			IsNFT:                false,
+			IssueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),
@@ -158,11 +158,12 @@ func TestPerformIssueWithProofs(t *testing.T) {
 	to.stor.flush(t)
 	expectedAssetInfo := assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(*tx.ID),
-			issuer:               tx.SenderPK,
-			decimals:             tx.Decimals,
-			issueHeight:          1,
-			issueSequenceInBlock: 1,
+			Tail:                 proto.DigestTail(*tx.ID),
+			Issuer:               tx.SenderPK,
+			Decimals:             tx.Decimals,
+			IssueHeight:          1,
+			IsNFT:                false,
+			IssueSequenceInBlock: 1,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(int64(tx.Quantity)),

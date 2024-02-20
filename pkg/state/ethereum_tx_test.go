@@ -75,16 +75,17 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Sma
 	}
 
 	snapshotApplier := newBlockSnapshotsApplier(
-		newBlockSnapshotsApplierInfo(
-			params.checkerInfo,
-			blockchainSettings.AddressSchemeCharacter,
-			new(proto.StateActionsCounter),
-		),
+		newBlockSnapshotsApplierInfo(params.checkerInfo, blockchainSettings.AddressSchemeCharacter),
 		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
 
-	txHandler, err := newTransactionHandler(genBlockId('1'), &store, blockchainSettings, &snapshotApplier)
-	assert.NoError(t, err)
+	buildAPIData, err := stor.stateDB.stateStoresApiData()
+	require.NoError(t, err)
+
+	blockID := genBlockId('1')
+	txHandler, err := newTransactionHandler(blockID, &store, blockchainSettings, &snapshotApplier, buildAPIData)
+	require.NoError(t, err)
+
 	blockchainEntitiesStor := blockchainEntitiesStorage{scriptsStorage: storage}
 	txAppender := txAppender{
 		txHandler:         txHandler,
@@ -208,7 +209,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 
 	assetInfo, err := txAppend.stor.assets.newestAssetInfo(*assetID)
 	require.NoError(t, err)
-	fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.tail)
+	fullAssetID := proto.ReconstructDigest(*assetID, assetInfo.Tail)
 	tx.TxKind = proto.NewEthereumTransferAssetsErc20TxKind(*decodedData, *proto.NewOptionalAssetFromDigest(fullAssetID), erc20arguments)
 	applRes, err := txAppend.handleDefaultTransaction(&tx, appendTxParams, false)
 	assert.NoError(t, err)

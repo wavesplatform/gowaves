@@ -33,8 +33,6 @@ type invokeApplier struct {
 	blockDiffer    *blockDiffer
 	invokeDiffStor *diffStorageWrapped
 	diffApplier    *diffApplier
-
-	buildApiData bool
 }
 
 func newInvokeApplier(
@@ -46,7 +44,6 @@ func newInvokeApplier(
 	blockDiffer *blockDiffer,
 	diffStor *diffStorageWrapped,
 	diffApplier *diffApplier,
-	buildApiData bool,
 ) *invokeApplier {
 	return &invokeApplier{
 		state:          state,
@@ -57,7 +54,6 @@ func newInvokeApplier(
 		blockDiffer:    blockDiffer,
 		invokeDiffStor: diffStor,
 		diffApplier:    diffApplier,
-		buildApiData:   buildApiData,
 	}
 }
 
@@ -222,8 +218,8 @@ func (ia *invokeApplier) countIssuedAssets(actions []proto.ScriptAction) (uint64
 	for _, action := range actions {
 		switch a := action.(type) {
 		case *proto.IssueScriptAction:
-			assetParams := assetParams{a.Quantity, a.Decimals, a.Reissuable}
-			nft, err := isNFT(ia.stor.features, assetParams)
+			ap := assetParams{a.Quantity, a.Decimals, a.Reissuable}
+			nft, err := isNFT(ia.stor.features, ap)
 			if err != nil {
 				return 0, err
 			}
@@ -485,12 +481,12 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 		case *proto.IssueScriptAction:
 			// Create asset's info.
-			assetInfo := &assetInfo{
+			ai := &assetInfo{
 				assetConstInfo: assetConstInfo{
-					tail:        proto.DigestTail(a.ID),
-					issuer:      senderPK,
-					decimals:    uint8(a.Decimals),
-					issueHeight: info.blockInfo.Height,
+					Tail:        proto.DigestTail(a.ID),
+					Issuer:      senderPK,
+					Decimals:    uint8(a.Decimals),
+					IssueHeight: info.blockInfo.Height,
 				},
 				assetChangeableInfo: assetChangeableInfo{
 					quantity:                 *big.NewInt(a.Quantity),
@@ -500,8 +496,13 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 					reissuable:               a.Reissuable,
 				},
 			}
+			if nftErr := ai.initIsNFTFlag(ia.stor.features); nftErr != nil {
+				return proto.DAppError, info.failedChanges,
+					errors.Wrapf(err, "failed to initialize isNFT flag for asset %s", a.ID.String())
+			}
+
 			id := proto.AssetIDFromDigest(a.ID)
-			ia.stor.assets.issueAssetUncertain(id, assetInfo)
+			ia.stor.assets.issueAssetUncertain(id, ai)
 			// Currently asset script is always empty.
 			// TODO: if this script is ever set, don't forget to
 			// also save complexity for it here using saveComplexityForAsset().
@@ -531,7 +532,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			if assetInfo.issuer != senderPK {
+			if assetInfo.Issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 			}
 			if !assetInfo.reissuable {
@@ -582,7 +583,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
-			if !burnAnyTokensEnabled && assetInfo.issuer != senderPK {
+			if !burnAnyTokensEnabled && assetInfo.Issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.New("asset was issued by other address")
 			}
 			quantityDiff := big.NewInt(a.Quantity)
@@ -633,7 +634,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if !sponsorshipActivated {
 				return proto.DAppError, info.failedChanges, errors.New("sponsorship has not been activated yet")
 			}
-			if assetInfo.issuer != senderPK {
+			if assetInfo.Issuer != senderPK {
 				return proto.DAppError, info.failedChanges, errors.Errorf("asset %s was not issued by this DApp", a.AssetID.String())
 			}
 
@@ -750,9 +751,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		var applicationRes *applicationResult
-		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-		return invocationRes, applicationRes, err
+		applicationRes := createApplicationResult(checkerData, invocationRes, failedChanges)
+		return invocationRes, applicationRes, nil
 	}
 	// Before RideV6 activation in the following cases the transaction is rejected:
 	// 1) Failing of transactions is not activated yet, reject everything
@@ -770,9 +770,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		var applicationRes *applicationResult
-		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-		return invocationRes, applicationRes, err
+		applicationRes := createApplicationResult(checkerData, invocationRes, failedChanges)
+		return invocationRes, applicationRes, nil
 
 	case ride.InternalInvocationError:
 		blockchainHeight := info.checkerInfo.blockchainHeight
@@ -787,9 +786,8 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 			)
 		}
 		invocationRes := &invocationResult{failed: true, code: proto.DAppError, text: err.Error()}
-		var applicationRes *applicationResult
-		applicationRes, err = ia.handleInvocationResult(txID, checkerData, info, invocationRes, failedChanges)
-		return invocationRes, applicationRes, err
+		applicationRes := createApplicationResult(checkerData, invocationRes, failedChanges)
+		return invocationRes, applicationRes, nil
 
 	case ride.Undefined, ride.EvaluationFailure: // Unhandled or evaluator error
 		return nil, nil, errors.Wrapf(err, "invocation of transaction '%s' failed", txID.String())
@@ -1064,8 +1062,8 @@ func (ia *invokeApplier) applyInvokeScript(
 		return nil, nil, err
 	}
 
-	applicationRes, err := ia.handleInvocationResult(scriptParams.txID, checkerData, info, invocationRes, balanceChanges)
-	return invocationRes, applicationRes, err
+	applicationRes := createApplicationResult(checkerData, invocationRes, balanceChanges)
+	return invocationRes, applicationRes, nil
 }
 
 type invocationResult struct {
@@ -1086,22 +1084,14 @@ func toScriptResult(ir *invocationResult) (*proto.ScriptResult, error) {
 	return sr, err
 }
 
-func (ia *invokeApplier) handleInvocationResult(txID crypto.Digest, checkerData txCheckerData,
-	info *fallibleValidationParams, res *invocationResult,
-	balanceChanges txBalanceChanges) (*applicationResult, error) {
-	if ia.buildApiData && !info.validatingUtx {
-		// Save invoke result for extended API.
-		res, err := toScriptResult(res)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to save script result")
-		}
-		if err := ia.stor.invokeResults.saveResult(txID, res, info.block.BlockID()); err != nil {
-			return nil, errors.Wrap(err, "failed to save script result")
-		}
-	}
+func createApplicationResult(
+	checkerData txCheckerData,
+	res *invocationResult,
+	balanceChanges txBalanceChanges,
+) *applicationResult {
 	// Total scripts invoked = scriptRuns + invocation itself.
 	totalScriptsInvoked := res.scriptRuns + 1
-	return newApplicationResult(!res.failed, totalScriptsInvoked, balanceChanges, checkerData), nil
+	return newApplicationResult(!res.failed, totalScriptsInvoked, balanceChanges, checkerData)
 }
 
 func (ia *invokeApplier) checkFullFee(tx proto.Transaction, scriptRuns, issuedAssetsCount uint64) error {

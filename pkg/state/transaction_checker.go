@@ -607,7 +607,7 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 	if err != nil {
 		return err
 	}
-	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+	if !bytes.Equal(assetInfo.Issuer[:], tx.SenderPK[:]) {
 		return errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	if info.currentTimestamp <= tc.settings.InvalidReissueInSameBlockUntilTime {
@@ -688,7 +688,7 @@ func (tc *transactionChecker) checkBurn(tx *proto.Burn, info *checkerInfo) error
 	if err != nil {
 		return err
 	}
-	if !burnAnyTokensEnabled && !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+	if !burnAnyTokensEnabled && !bytes.Equal(assetInfo.Issuer[:], tx.SenderPK[:]) {
 		return errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	// Check burn amount.
@@ -1241,7 +1241,7 @@ func (tc *transactionChecker) checkSponsorshipWithProofs(transaction proto.Trans
 	if err != nil {
 		return out, err
 	}
-	if assetInfo.issuer != tx.SenderPK {
+	if assetInfo.Issuer != tx.SenderPK {
 		return out, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	isSmart, err := tc.stor.scriptsStorage.newestIsSmartAsset(id)
@@ -1306,7 +1306,7 @@ func (tc *transactionChecker) checkSetAssetScriptWithProofs(transaction proto.Tr
 		return out, errs.Extend(err, "check fee")
 	}
 
-	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+	if !bytes.Equal(assetInfo.Issuer[:], tx.SenderPK[:]) {
 		return out, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 
@@ -1510,7 +1510,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	if err != nil {
 		return out, errs.NewUnknownAsset(fmt.Sprintf("unknown asset %s", tx.AssetID.String()))
 	}
-	if !bytes.Equal(assetInfo.issuer[:], tx.SenderPK[:]) {
+	if !bytes.Equal(assetInfo.Issuer[:], tx.SenderPK[:]) {
 		return out, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
 	lastUpdateHeight, err := tc.stor.assets.newestLastUpdateHeight(id)

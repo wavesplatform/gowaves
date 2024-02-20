@@ -65,12 +65,16 @@ func newTxAppender(
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
 ) (*txAppender, error) {
+	buildAPIData, err := stateDB.stateStoresApiData()
+	if err != nil {
+		return nil, err
+	}
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier, buildAPIData)
 	if err != nil {
 		return nil, err
 	}
@@ -90,11 +94,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	buildApiData, err := stateDB.stateStoresApiData()
-	if err != nil {
-		return nil, err
-	}
-	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
+	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	return &txAppender{
 		sc:                sc,
@@ -110,7 +110,7 @@ func newTxAppender(
 		diffStor:          diffStor,
 		diffStorInvoke:    diffStorInvoke,
 		diffApplier:       diffApplier,
-		buildApiData:      buildApiData,
+		buildApiData:      buildAPIData,
 		ethTxKindResolver: ethKindResolver,
 	}, nil
 }
@@ -152,11 +152,12 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 }
 
 type appendBlockParams struct {
-	transactions          []proto.Transaction
-	chans                 *verifierChans
-	block, parent         *proto.BlockHeader
-	blockchainHeight      proto.Height
-	lastSnapshotStateHash crypto.Digest
+	transactions              []proto.Transaction
+	chans                     *verifierChans
+	block, parent             *proto.BlockHeader
+	blockchainHeight          proto.Height
+	fixSnapshotsToInitialHash []proto.AtomicSnapshot
+	lastSnapshotStateHash     crypto.Digest
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -634,6 +635,27 @@ func calculateInitialSnapshotStateHash(
 	return calculateTxSnapshotStateHash(h, txID, blockHeight, prevHash, txSnapshot)
 }
 
+func (a *txAppender) appendFixSnapshots(fixSnapshots []proto.AtomicSnapshot, blockID proto.BlockID) error {
+	if len(fixSnapshots) == 0 { // no changes, nothing to do
+		return nil
+	}
+	ai := a.txHandler.sa.ApplierInfo()
+	if ai == nil { // sanity check
+		return errors.New("applier info is not set")
+	}
+	if ai.BlockID() != blockID { // sanity check
+		return errors.Errorf(
+			"applier info block ID doesn't match the block ID: expected %s, actual %s",
+			blockID.String(), ai.BlockID().String(),
+		)
+	}
+	fix := txSnapshot{regular: fixSnapshots}
+	if err := fix.ApplyFixSnapshot(a.txHandler.sa); err != nil {
+		return errors.Wrapf(err, "failed to apply fix snapshot at block %s", blockID)
+	}
+	return nil
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
 	defer func() {
@@ -665,10 +687,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
-	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
 
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		stateActionsCounterInBlockValidation)
+	// Set new applier info with applying block context.
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block
@@ -712,13 +733,18 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrap(err, "failed to apply an initial snapshot")
 	}
 
+	// hash block initial snapshot and fix snapshot in the context of the applying block
+	snapshotsToHash := initialSnapshot.regular
+	if len(params.fixSnapshotsToInitialHash) > 0 {
+		snapshotsToHash = append(snapshotsToHash, params.fixSnapshotsToInitialHash...)
+	}
 	// get initial snapshot hash for block
 	stateHash, err := calculateInitialSnapshotStateHash(
 		hasher,
 		hasParent,
 		currentBlockHeight,
 		params.lastSnapshotStateHash, // previous block state hash
-		initialSnapshot.regular,
+		snapshotsToHash,
 	)
 	if err != nil {
 		return errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
@@ -1036,10 +1062,9 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
-	// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
-	issueCounterInBlock := new(proto.StateActionsCounter)
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		issueCounterInBlock)
+	// it's correct to use new proto.StateActionsCounter because there's no block exists,
+	// but this field is necessary in tx performer
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	appendTxArgs := &appendTxParams{

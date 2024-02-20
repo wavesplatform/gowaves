@@ -6,7 +6,9 @@ import (
 
 	"github.com/ericlagergren/decimal"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/math"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 var (
@@ -438,7 +440,8 @@ func bigIntToBytes(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "bigIntToBytes")
 	}
 	i := new(big.Int).Set(v.v)
-	return rideByteVector(encode2CBigInt(i)), nil
+	r := common.Encode2CBigInt(i)
+	return rideByteVector(r), nil
 }
 
 func bytesToBigInt(_ environment, args ...rideType) (rideType, error) {
@@ -449,7 +452,7 @@ func bytesToBigInt(_ environment, args ...rideType) (rideType, error) {
 	if l := len(bts); l > 64 { // No more than 64 bytes can be converted to BigInt, max size of BigInt value is 512 bit.
 		return nil, errors.Errorf("bytesToBigInt: bytes array is too long (%d) for a BigInt", l)
 	}
-	r := decode2CBigInt(bts)
+	r := common.Decode2CBigInt(bts)
 	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("bytesToBigInt: %s result is out of range", r.String())
 	}
@@ -483,7 +486,7 @@ func bytesToBigIntLim(_ environment, args ...rideType) (rideType, error) {
 	if end > l {
 		end = l
 	}
-	r := decode2CBigInt(bts[offset:end])
+	r := common.Decode2CBigInt(bts[offset:end])
 	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("bytesToBigIntLim: %s result is out of range", r.String())
 	}
@@ -624,55 +627,4 @@ func toBigIntSlice(list rideList) (bigIntSlice, error) {
 		items[i] = new(big.Int).Set(item.v)
 	}
 	return items, nil
-}
-
-// decode2CBigInt decodes two's complement representation of BigInt from bytes slice
-func decode2CBigInt(bytes []byte) *big.Int {
-	r := new(big.Int)
-	if len(bytes) > 0 && bytes[0]&0x80 == 0x80 { // Decode a negative number
-		notBytes := make([]byte, len(bytes))
-		for i := range notBytes {
-			notBytes[i] = ^bytes[i]
-		}
-		r.SetBytes(notBytes)
-		r.Add(r, math.OneBigInt)
-		r.Neg(r)
-		return r
-	}
-	r.SetBytes(bytes)
-	return r
-}
-
-// encode2CBigInt encodes BigInt into a two's compliment representation
-func encode2CBigInt(n *big.Int) []byte {
-	if n.Sign() < 0 {
-		// Convert negative number into two's complement form
-		// Subtract 1 and invert
-		// If the most-significant-bit isn't set then we'll need to pad the beginning with 0xff in order to keep the number negative
-		nMinus1 := new(big.Int).Neg(n)
-		nMinus1.Sub(nMinus1, math.OneBigInt)
-		bytes := nMinus1.Bytes()
-		for i := range bytes {
-			bytes[i] ^= 0xff
-		}
-		if l := len(bytes); l == 0 || bytes[0]&0x80 == 0 {
-			return padBytes(0xff, bytes)
-		}
-		return bytes
-	} else if n.Sign() == 0 { // Zero is written as a single 0 zero rather than no bytes
-		return []byte{0x00}
-	} else {
-		bytes := n.Bytes()
-		if len(bytes) > 0 && bytes[0]&0x80 != 0 { // We'll have to pad this with 0x00 in order to stop it looking like a negative number
-			return padBytes(0x00, bytes)
-		}
-		return bytes
-	}
-}
-
-func padBytes(p byte, bytes []byte) []byte {
-	r := make([]byte, len(bytes)+1)
-	r[0] = p
-	copy(r[1:], bytes)
-	return r
 }

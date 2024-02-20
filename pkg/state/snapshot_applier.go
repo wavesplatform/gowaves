@@ -12,13 +12,15 @@ import (
 )
 
 type txSnapshotContext struct {
-	initialized   bool
 	validatingUTX bool
+	txApplied     bool
 	applyingTx    proto.Transaction
 }
 
+func (c txSnapshotContext) initialized() bool { return c.applyingTx != nil }
+
 type blockSnapshotsApplier struct {
-	info *blockSnapshotsApplierInfo
+	info extendedSnapshotApplierInfo
 	stor snapshotApplierStorages
 
 	txSnapshotContext txSnapshotContext
@@ -35,8 +37,8 @@ type blockSnapshotsApplier struct {
 
 func (a *blockSnapshotsApplier) BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error {
 	a.txSnapshotContext = txSnapshotContext{
-		initialized:   true,
 		validatingUTX: validatingUTX,
+		txApplied:     false,
 		applyingTx:    tx,
 	}
 	a.issuedAssets = []crypto.Digest{}
@@ -298,6 +300,7 @@ type snapshotApplierStorages struct {
 	assets            *assets
 	scriptsStorage    scriptStorageState
 	scriptsComplexity *scriptsComplexity
+	invokeResults     *invokeResults
 	sponsoredAssets   *sponsoredAssets
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
@@ -313,6 +316,7 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWr
 		assets:            stor.assets,
 		scriptsStorage:    stor.scriptsStorage,
 		scriptsComplexity: stor.scriptsComplexity,
+		invokeResults:     stor.invokeResults,
 		sponsoredAssets:   stor.sponsoredAssets,
 		ordersVolumes:     stor.ordersVolumes,
 		accountsDataStor:  stor.accountsDataStor,
@@ -327,12 +331,11 @@ type blockSnapshotsApplierInfo struct {
 	stateActionsCounter *proto.StateActionsCounter
 }
 
-func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
-	counter *proto.StateActionsCounter) *blockSnapshotsApplierInfo {
+func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme) *blockSnapshotsApplierInfo {
 	return &blockSnapshotsApplierInfo{
 		ci:                  ci,
 		scheme:              scheme,
-		stateActionsCounter: counter,
+		stateActionsCounter: new(proto.StateActionsCounter),
 	}
 }
 
@@ -360,7 +363,11 @@ func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCoun
 	return s.stateActionsCounter
 }
 
-func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) {
+func (a *blockSnapshotsApplier) ApplierInfo() extendedSnapshotApplierInfo {
+	return a.info
+}
+
+func (a *blockSnapshotsApplier) SetApplierInfo(info extendedSnapshotApplierInfo) {
 	a.info = info
 }
 
@@ -433,11 +440,12 @@ func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) e
 
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(snapshot.AssetID),
-			issuer:               snapshot.IssuerPublicKey,
-			decimals:             snapshot.Decimals,
-			issueHeight:          height,
-			issueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
+			Tail:                 proto.DigestTail(snapshot.AssetID),
+			Issuer:               snapshot.IssuerPublicKey,
+			Decimals:             snapshot.Decimals,
+			IssueHeight:          height,
+			IsNFT:                snapshot.IsNFT,
+			IssueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{},
 	}
@@ -558,8 +566,11 @@ func (a *blockSnapshotsApplier) ApplyCancelledLease(snapshot proto.CancelledLeas
 }
 
 func (a *blockSnapshotsApplier) ApplyTransactionsStatus(snapshot proto.TransactionStatusSnapshot) error {
-	if !a.txSnapshotContext.initialized { // sanity check
+	if !a.txSnapshotContext.initialized() { // sanity check
 		return errors.New("failed to apply transaction status snapshot: transaction is not set")
+	}
+	if a.txSnapshotContext.txApplied { // sanity check
+		return errors.New("failed to apply transaction status snapshot: transaction status is already applied")
 	}
 	var (
 		status        = snapshot.Status
@@ -585,7 +596,7 @@ func (a *blockSnapshotsApplier) ApplyTransactionsStatus(snapshot proto.Transacti
 			base58.Encode(txID), validatingUTX,
 		)
 	}
-	a.txSnapshotContext = txSnapshotContext{} // reset to default because transaction status should be applied only once
+	a.txSnapshotContext.txApplied = true // set to true because transaction status should be applied only once
 	return nil
 }
 
@@ -645,4 +656,22 @@ func (a *blockSnapshotsApplier) ApplyCancelledLeaseInfo(snapshot InternalCancell
 	l.CancelHeight = snapshot.CancelHeight
 	l.CancelTransactionID = snapshot.CancelTransactionID
 	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
+}
+
+func (a *blockSnapshotsApplier) ApplyScriptResult(snapshot InternalScriptResultSnapshot) error {
+	if !a.txSnapshotContext.initialized() { // sanity check
+		return errors.New("failed to apply script result snapshot: transaction is not set")
+	}
+	if a.txSnapshotContext.validatingUTX { // no-op for UTX validation
+		return nil
+	}
+	txIDBytes, err := a.txSnapshotContext.applyingTx.GetID(a.info.Scheme())
+	if err != nil {
+		return errors.Wrap(err, "failed to get tx ID")
+	}
+	invokeID, err := crypto.NewDigestFromBytes(txIDBytes) // txID here must be a digest
+	if err != nil {
+		return errors.Wrap(err, "failed to create invoke ID from tx ID")
+	}
+	return a.stor.invokeResults.saveResult(invokeID, snapshot.ScriptResult, a.info.BlockID())
 }

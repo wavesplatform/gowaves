@@ -37,15 +37,13 @@ func createCheckerTestObjectsWithStor(
 	stor *testStorageObjects,
 ) *checkerTestObjects {
 	snapshotApplier := newBlockSnapshotsApplier(
-		newBlockSnapshotsApplierInfo(
-			checkerInfo,
-			stor.settings.AddressSchemeCharacter,
-			new(proto.StateActionsCounter),
-		),
+		newBlockSnapshotsApplierInfo(checkerInfo, stor.settings.AddressSchemeCharacter),
 		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
+	buildAPIData, err := stor.stateDB.stateStoresApiData()
+	require.NoError(t, err)
 	genID := proto.NewBlockIDFromSignature(genSig)
-	th, err := newTransactionHandler(genID, stor.entities, stor.settings, &snapshotApplier)
+	th, err := newTransactionHandler(genID, stor.entities, stor.settings, &snapshotApplier, buildAPIData)
 	require.NoError(t, err)
 	return &checkerTestObjects{stor, th.tc, th}
 }
@@ -240,7 +238,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueWithSig(t, 1000)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	_, err := to.tc.checkReissueWithSig(tx, info)
@@ -263,7 +261,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	_, err = to.tc.checkReissueWithSig(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	tx.Reissuable = false
 	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
@@ -283,7 +281,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueWithProofs(t, 1000)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 
@@ -312,7 +310,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	_, err = to.tc.checkReissueWithProofs(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	tx.Reissuable = false
 	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
@@ -331,7 +329,7 @@ func TestCheckBurnWithSig(t *testing.T) {
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithSig(t)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	_, err := to.tc.checkBurnWithSig(tx, info)
 	assert.NoError(t, err, "checkBurnWithSig failed with valid burn tx")
@@ -365,7 +363,7 @@ func TestCheckBurnWithProofs(t *testing.T) {
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithProofs(t)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	_, err := to.tc.checkBurnWithProofs(tx, info)
 	assert.Error(t, err, "checkBurnWithProofs did not fail prior to SmartAccounts activation")
@@ -834,7 +832,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 
 	tx := createSponsorshipWithProofs(t, 1000)
 	assetInfo := to.stor.createAsset(t, tx.AssetID)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	_, err := to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.Error(t, err, "checkSponsorshipWithProofs did not fail prior to feature activation")
@@ -861,7 +859,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.NoError(t, err, "checkSponsorshipWithProofs failed with valid Sponsorship tx")
 
@@ -1376,7 +1374,7 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	tx := createSetAssetScriptWithProofs(t)
 
 	assetInfo := defaultAssetInfo(proto.DigestTail(tx.AssetID), true)
-	assetInfo.issuer = tx.SenderPK
+	assetInfo.Issuer = tx.SenderPK
 	to.stor.createAssetUsingInfo(t, tx.AssetID, assetInfo)
 
 	// Must fail on non-smart assets.
@@ -1455,7 +1453,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	// heights are not messed up in this test.
 	assetInfo := to.stor.createAssetUsingRandomBlock(t, tx.AssetID)
 	to.stor.createAsset(t, tx.FeeAsset.ID)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	info.blockchainHeight = 100001
 
@@ -1480,7 +1478,7 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	info.blockchainHeight = 99999
 	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)

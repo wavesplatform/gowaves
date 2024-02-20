@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.20
+go 1.21
 
 require (
 	filippo.io/edwards25519 v1.1.0
@@ -13,7 +13,7 @@ require (
 	github.com/coocood/freecache v1.2.4
 	github.com/elliotchance/orderedmap/v2 v2.2.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
-	github.com/fxamacker/cbor/v2 v2.5.0
+	github.com/fxamacker/cbor/v2 v2.6.0
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/go-test/deep v1.1.0
 	github.com/golang/mock v1.6.0
@@ -48,7 +48,7 @@ require (
 	golang.org/x/exp v0.0.0-20230817173708-d852ddb80c63
 	golang.org/x/sync v0.6.0
 	golang.org/x/sys v0.17.0
-	google.golang.org/grpc v1.61.0
+	google.golang.org/grpc v1.61.1
 	google.golang.org/protobuf v1.32.0
 	gopkg.in/natefinch/lumberjack.v2 v2.2.1
 	moul.io/zapfilter v1.7.0

@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -234,49 +235,7 @@ func (s *balances) leaseHashAt(blockID proto.BlockID) crypto.Digest {
 	return hash
 }
 
-func (s *balances) cancelAllLeases(blockID proto.BlockID) error {
-	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
-	if err != nil {
-		return err
-	}
-	defer func() {
-		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
-		}
-	}()
-
-	for iter.Next() {
-		key := keyvalue.SafeKey(iter)
-		recordBytes := keyvalue.SafeValue(iter)
-		var r wavesBalanceRecord
-		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return err
-		}
-		if r.leaseIn == 0 && r.leaseOut == 0 {
-			// Empty lease balance, no need to reset.
-			continue
-		}
-		var k wavesBalanceKey
-		if err := k.unmarshal(key); err != nil {
-			return err
-		}
-		addr, err := k.address.ToWavesAddress(s.scheme)
-		if err != nil {
-			return err
-		}
-		zap.S().Infof("Resetting lease balance for %s", addr.String())
-		r.leaseOut = 0
-		r.leaseIn = 0
-		val := wavesValue{leaseChange: true, profile: r.balanceProfile}
-		if err := s.setWavesBalance(k.address, val, blockID); err != nil {
-			return err
-		}
-	}
-	return nil
-}
-
-func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesAddress]struct{}, error) {
+func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.LeaseBalanceSnapshot, error) {
 	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
 	if err != nil {
 		return nil, err
@@ -288,7 +247,7 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesA
 		}
 	}()
 
-	overflowedAddresses := make(map[proto.WavesAddress]struct{})
+	var zeroLeaseBalanceSnapshots []proto.LeaseBalanceSnapshot
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
@@ -296,33 +255,34 @@ func (s *balances) cancelLeaseOverflows(blockID proto.BlockID) (map[proto.WavesA
 		if err := r.unmarshalBinary(recordBytes); err != nil {
 			return nil, err
 		}
-		if int64(r.balance) < r.leaseOut {
-			var k wavesBalanceKey
-			if err := k.unmarshal(key); err != nil {
-				return nil, err
-			}
-			wavesAddr, err := k.address.ToWavesAddress(s.scheme)
-			if err != nil {
-				return nil, err
-			}
-			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d",
-				wavesAddr.String(), r.leaseOut, 0,
-			)
-			overflowedAddresses[wavesAddr] = empty
-			r.leaseOut = 0
-			val := wavesValue{leaseChange: true, profile: r.balanceProfile}
-			if err := s.setWavesBalance(k.address, val, blockID); err != nil {
-				return nil, err
-			}
+		if r.leaseIn == 0 && r.leaseOut == 0 {
+			// Empty lease balance, no need to reset.
+			continue
 		}
+		var k wavesBalanceKey
+		if err := k.unmarshal(key); err != nil {
+			return nil, err
+		}
+		addr, err := k.address.ToWavesAddress(s.scheme)
+		if err != nil {
+			return nil, err
+		}
+		zap.S().Infof("Resetting lease balance for %s", addr.String())
+		zeroLeaseBalanceSnapshots = append(zeroLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
+			Address:  addr,
+			LeaseIn:  0,
+			LeaseOut: 0,
+		})
 	}
-	return overflowedAddresses, err
+	return zeroLeaseBalanceSnapshots, nil
 }
 
-func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]int64, blockID proto.BlockID) error {
+func (s *balances) generateLeaseBalanceSnapthosForLeaseOverflows() (
+	[]proto.LeaseBalanceSnapshot, map[proto.WavesAddress]struct{}, error,
+) {
 	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
 	if err != nil {
-		return err
+		return nil, nil, err
 	}
 	defer func() {
 		iter.Release()
@@ -331,22 +291,69 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]
 		}
 	}()
 
+	var leaseBalanceSnapshots []proto.LeaseBalanceSnapshot
+	overflowedAddresses := make(map[proto.WavesAddress]struct{})
+	for iter.Next() {
+		key := keyvalue.SafeKey(iter)
+		recordBytes := keyvalue.SafeValue(iter)
+		var r wavesBalanceRecord
+		if err := r.unmarshalBinary(recordBytes); err != nil {
+			return nil, nil, err
+		}
+		if int64(r.balance) < r.leaseOut {
+			var k wavesBalanceKey
+			if err := k.unmarshal(key); err != nil {
+				return nil, nil, err
+			}
+			wavesAddr, err := k.address.ToWavesAddress(s.scheme)
+			if err != nil {
+				return nil, nil, err
+			}
+			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d",
+				wavesAddr.String(), r.leaseOut, 0,
+			)
+			overflowedAddresses[wavesAddr] = struct{}{}
+			leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
+				Address:  wavesAddr,
+				LeaseIn:  uint64(r.leaseIn),
+				LeaseOut: 0,
+			})
+		}
+	}
+	return leaseBalanceSnapshots, overflowedAddresses, err
+}
+
+func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
+	correctLeaseIns map[proto.WavesAddress]int64,
+) ([]proto.LeaseBalanceSnapshot, error) {
+	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)
+	if err != nil {
+		return nil, err
+	}
+	defer func() {
+		iter.Release()
+		if err := iter.Error(); err != nil {
+			zap.S().Fatalf("Iterator error: %v", err)
+		}
+	}()
+
+	var correctLeaseBalanceSnapshots []proto.LeaseBalanceSnapshot
 	zap.S().Infof("Started to cancel invalid leaseIns")
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
 		var r wavesBalanceRecord
 		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return err
+			return nil, err
 		}
 		var k wavesBalanceKey
 		if err := k.unmarshal(key); err != nil {
-			return err
+			return nil, err
 		}
 		correctLeaseIn := int64(0)
 		wavesAddress, err := k.address.ToWavesAddress(s.scheme)
 		if err != nil {
-			return err
+			return nil, err
 		}
 		if leaseIn, ok := correctLeaseIns[wavesAddress]; ok {
 			correctLeaseIn = leaseIn
@@ -355,43 +362,72 @@ func (s *balances) cancelInvalidLeaseIns(correctLeaseIns map[proto.WavesAddress]
 			zap.S().Infof("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.",
 				wavesAddress.String(), r.leaseIn, correctLeaseIn,
 			)
-			r.leaseIn = correctLeaseIn
-			val := wavesValue{leaseChange: true, profile: r.balanceProfile}
-			if err := s.setWavesBalance(k.address, val, blockID); err != nil {
-				return err
-			}
+			correctLeaseBalanceSnapshots = append(correctLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
+				Address:  wavesAddress,
+				LeaseIn:  uint64(correctLeaseIn),
+				LeaseOut: uint64(r.leaseOut),
+			})
 		}
 	}
 	zap.S().Infof("Finished to cancel invalid leaseIns")
-	return nil
+	return correctLeaseBalanceSnapshots, nil
 }
 
-func (s *balances) cancelLeases(changes map[proto.WavesAddress]balanceDiff, blockID proto.BlockID) error {
+func (s *balances) generateLeaseBalanceSnapshotsWithProvidedChanges(
+	changes map[proto.WavesAddress]balanceDiff,
+) ([]proto.LeaseBalanceSnapshot, error) {
 	zap.S().Infof("Updating balances for cancelled leases")
+	leaseBalanceSnapshots := make([]proto.LeaseBalanceSnapshot, 0, len(changes))
 	for a, bd := range changes {
 		k := wavesBalanceKey{address: a.ID()}
 		r, err := s.newestWavesRecord(k.bytes())
 		if err != nil {
-			return err
+			return nil, err
 		}
 		profile := r.balanceProfile
 		newProfile, err := bd.applyTo(profile)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		val := wavesValue{leaseChange: true, profile: newProfile}
-		if err := s.setWavesBalance(a.ID(), val, blockID); err != nil {
-			return err
-		}
+		leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
+			Address:  a,
+			LeaseIn:  uint64(newProfile.leaseIn),
+			LeaseOut: uint64(newProfile.leaseOut),
+		})
 		zap.S().Infof("Balance of %s changed from (B: %d, LIn: %d, LOut: %d) to (B: %d, lIn: %d, lOut: %d)",
 			a.String(), profile.balance, profile.leaseIn, profile.leaseOut,
 			newProfile.balance, newProfile.leaseIn, newProfile.leaseOut)
 	}
 	zap.S().Infof("Finished to update balances")
-	return nil
+	return leaseBalanceSnapshots, nil
 }
 
-func (s *balances) nftList(addr proto.AddressID, limit uint64, afterAssetID *proto.AssetID) ([]crypto.Digest, error) {
+type reducedFeaturesState interface {
+	isActivatedAtHeight(featureID int16, height uint64) bool
+	activationHeight(featureID int16) (uint64, error)
+}
+
+// nftList returns list of NFTs for the given address.
+// Since activation of feature #15 this method returns only tokens that are issued
+// as NFT (amount: 1, decimal places: 0, reissuable: false) after activation of feature #13.
+// Before activation of feature #15 the method returned all the assets that are issued as NFT.
+func (s *balances) nftList(
+	addr proto.AddressID,
+	limit uint64,
+	afterAssetID *proto.AssetID, // optional parameter
+	height proto.Height,
+	feats reducedFeaturesState,
+) ([]crypto.Digest, error) {
+	blockV5Activated := feats.isActivatedAtHeight(int16(settings.BlockV5), height)
+	reducedNFTFeeActivationHeight := uint64(math.MaxUint64) // init with max value if feature is not activated
+	if feats.isActivatedAtHeight(int16(settings.ReducedNFTFee), height) {
+		var err error
+		reducedNFTFeeActivationHeight, err = feats.activationHeight(int16(settings.ReducedNFTFee))
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to get activation height for ReducedNFTFee feature")
+		}
+	}
+
 	key := assetBalanceKey{address: addr}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.addressPrefix())
 	if err != nil {
@@ -407,16 +443,28 @@ func (s *balances) nftList(addr proto.AddressID, limit uint64, afterAssetID *pro
 	var k assetBalanceKey
 	if afterAssetID != nil {
 		// Iterate until `afterAssetID` asset is found.
+		target := *afterAssetID
 		for iter.Next() {
 			keyBytes := keyvalue.SafeKey(iter)
 			if err := k.unmarshal(keyBytes); err != nil {
 				return nil, err
 			}
-			if k.asset == *afterAssetID {
+			if k.asset == target {
 				break
 			}
 		}
 	}
+	return collectNFTs(iter, s.assets, k, limit, blockV5Activated, reducedNFTFeeActivationHeight)
+}
+
+func collectNFTs(
+	iter *topEntryIterator,
+	assets assetInfoGetter,
+	k assetBalanceKey,
+	limit uint64,
+	blockV5Activated bool,
+	reducedNFTFeeActivationHeight uint64,
+) ([]crypto.Digest, error) {
 	var r assetBalanceRecord
 	var res []crypto.Digest
 	for iter.Next() {
@@ -434,13 +482,16 @@ func (s *balances) nftList(addr proto.AddressID, limit uint64, afterAssetID *pro
 		if err := k.unmarshal(keyBytes); err != nil {
 			return nil, err
 		}
-		assetInfo, err := s.assets.assetInfo(k.asset)
-		if err != nil {
-			return nil, err
+		ai, aiErr := assets.assetInfo(k.asset)
+		if aiErr != nil {
+			return nil, aiErr
 		}
-		nft := assetInfo.isNFT()
+		if blockV5Activated && ai.IssueHeight < reducedNFTFeeActivationHeight {
+			continue // after feature 15 activation we return only NFTs which are issued after feature 13 activation
+		}
+		nft := ai.IsNFT
 		if nft {
-			res = append(res, proto.ReconstructDigest(k.asset, assetInfo.tail))
+			res = append(res, proto.ReconstructDigest(k.asset, ai.Tail))
 		}
 	}
 	return res, nil
@@ -606,7 +657,7 @@ func (s *balances) calculateStateHashesAssetBalance(addr proto.AddressID, assetI
 	if err != nil {
 		return err
 	}
-	fullAssetID := proto.ReconstructDigest(assetID, info.tail)
+	fullAssetID := proto.ReconstructDigest(assetID, info.Tail)
 	ac := &assetRecordForHashes{
 		addr:    &wavesAddress,
 		asset:   fullAssetID,

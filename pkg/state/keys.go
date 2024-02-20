@@ -127,8 +127,10 @@ const (
 
 	// Hit source data.
 	hitSourceKeyPrefix
-
+	// Block snapshots storage.
 	snapshotsKeyPrefix
+	// Blockchain patches storage.
+	patchKeyPrefix
 )
 
 var (
@@ -190,6 +192,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{rewardChangesKeyPrefix}, nil
 	case snapshots:
 		return []byte{snapshotsKeyPrefix}, nil
+	case patches:
+		return []byte{patchKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -715,5 +719,17 @@ func (k *snapshotsKey) bytes() []byte {
 	buf := make([]byte, snapshotKeySize)
 	buf[0] = snapshotsKeyPrefix
 	binary.BigEndian.PutUint64(buf[1:], k.height)
+	return buf
+}
+
+type patchKey struct {
+	blockID proto.BlockID
+}
+
+func (k *patchKey) bytes() []byte {
+	idBytes := k.blockID.Bytes()
+	buf := make([]byte, 1+len(idBytes))
+	buf[0] = patchKeyPrefix
+	copy(buf[1:], idBytes)
 	return buf
 }
