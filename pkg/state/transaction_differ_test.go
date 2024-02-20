@@ -1267,6 +1267,8 @@ func createInvokeScriptWithProofs(t *testing.T, pmts proto.ScriptPayments, fc pr
 func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
+	to.stor.addBlock(t, blockID0) // act as genesis block
+	to.stor.activateFeature(t, int16(settings.NG))
 
 	feeConst, ok := feeConstants[proto.InvokeScriptTransaction]
 	assert.Equal(t, ok, true)
@@ -1297,6 +1299,7 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 
 	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(feeShortAssetID, tx.Fee)
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
+	minerFee := calculateCurrentBlockTxFee(feeInWaves, true) // NG is activated
 	recipientAssetDiff := balanceDiff{
 		balance:                      int64(totalAssetAmount),
 		updateMinIntermediateBalance: true,
@@ -1309,7 +1312,7 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 		testGlobal.recipientInfo.wavesKey:     newBalanceDiff(int64(totalWavesAmount), 0, 0, true),
 		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, true),
 		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
-		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(feeInWaves), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(minerFee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
