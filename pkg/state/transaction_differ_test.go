@@ -65,23 +65,43 @@ func createPayment(t *testing.T) *proto.Payment {
 
 func TestCreateDiffPayment(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
-	to := createDifferTestObjects(t, checkerInfo)
-
+	ddi := defaultDifferInfo()
 	tx := createPayment(t)
-	ch, err := to.td.createDiffPayment(tx, defaultDifferInfo())
-	assert.NoError(t, err, "createDiffPayment() failed")
-
-	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
-		testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
-		testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
-	}
-	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
 		testGlobal.senderInfo.addr:    empty,
 		testGlobal.recipientInfo.addr: empty,
 	}
-	assert.Equal(t, correctAddrs, ch.addrs)
+	t.Run("BeforeNG", func(t *testing.T) {
+		to := createDifferTestObjects(t, checkerInfo)
+		ch, err := to.td.createDiffPayment(tx, ddi)
+		assert.NoError(t, err, "createDiffPayment() failed")
+
+		correctDiff := txDiff{
+			testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
+			testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+			// No key-value for miner because NG is not activated
+			// Fee should be paid once at the beginning of the block for all transactions
+			// See doMinerPayoutBeforeNG() in block_differ.go
+		}
+		assert.Equal(t, correctDiff, ch.diff)
+		assert.Equal(t, correctAddrs, ch.addrs)
+	})
+	t.Run("AfterNG", func(t *testing.T) {
+		to := createDifferTestObjects(t, checkerInfo)
+		to.stor.activateFeature(t, int16(settings.NG))
+		to.stor.addBlock(t, blockID0) // act as genesis block
+
+		ch, err := to.td.createDiffPayment(tx, defaultDifferInfo())
+		assert.NoError(t, err, "createDiffPayment() failed")
+		feePart := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
+		correctDiff := txDiff{
+			testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
+			testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+			testGlobal.minerInfo.wavesKey:     newBalanceDiff(int64(feePart), 0, 0, false),
+		}
+		assert.Equal(t, correctDiff, ch.diff)
+		assert.Equal(t, correctAddrs, ch.addrs)
+	})
 }
 
 func createTransferWithSig(t *testing.T) *proto.TransferWithSig {
