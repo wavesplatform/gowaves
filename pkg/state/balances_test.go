@@ -72,17 +72,28 @@ func TestCancelAllLeases(t *testing.T) {
 		err = to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
-	err := to.balances.cancelAllLeases(blockID1)
-	assert.NoError(t, err, "cancelAllLeases() failed")
+	zeroLeaseBalanceSnapshots, err := to.balances.generateZeroLeaseBalanceSnapshotsForAllLeases()
+	assert.NoError(t, err, "generateZeroLeaseBalanceSnapshotsForAllLeases() failed")
 	to.stor.flush(t)
+
+	expected := make(map[proto.WavesAddress]proto.LeaseBalanceSnapshot, len(zeroLeaseBalanceSnapshots))
+	for _, s := range zeroLeaseBalanceSnapshots {
+		expected[s.Address] = s
+	}
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		profile, err := to.balances.wavesBalance(addr.ID())
 		assert.NoError(t, err, "wavesBalance() failed")
-		assert.Equal(t, profile.balance, tc.profile.balance)
-		assert.Equal(t, profile.leaseIn, int64(0))
-		assert.Equal(t, profile.leaseOut, int64(0))
+		assert.Equal(t, tc.profile.balance, profile.balance)
+		assert.Equal(t, tc.profile.leaseIn, profile.leaseIn)
+		assert.Equal(t, tc.profile.leaseOut, profile.leaseOut)
+		// check that lease balance snapshot is zero and is included in the list
+		s, ok := expected[addr]
+		assert.True(t, ok, "did not find lease balance snapshot")
+		assert.Equal(t, addr, s.Address)
+		assert.Equal(t, uint64(0), s.LeaseIn)
+		assert.Equal(t, uint64(0), s.LeaseOut)
 	}
 }
 
@@ -107,9 +118,14 @@ func TestCancelLeaseOverflows(t *testing.T) {
 		err = to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
-	overflows, err := to.balances.cancelLeaseOverflows(blockID1)
-	assert.NoError(t, err, "cancelLeaseOverflows() failed")
+	leaseBalanceSnapshots, overflows, err := to.balances.generateLeaseBalanceSnapthosForLeaseOverflows()
+	assert.NoError(t, err, "generateLeaseBalanceSnapthosForLeaseOverflows() failed")
 	to.stor.flush(t)
+
+	expected := make(map[proto.WavesAddress]proto.LeaseBalanceSnapshot, len(leaseBalanceSnapshots))
+	for _, lb := range leaseBalanceSnapshots {
+		expected[lb.Address] = lb
+	}
 	overflowsCount := 0
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
@@ -118,14 +134,16 @@ func TestCancelLeaseOverflows(t *testing.T) {
 		assert.NoError(t, err, "wavesBalance() failed")
 		assert.Equal(t, profile.balance, tc.profile.balance)
 		assert.Equal(t, profile.leaseIn, tc.profile.leaseIn)
+		// profile.leaseOut should not be changed because we've just generated lease balance snapshot
+		assert.Equal(t, tc.profile.leaseOut, profile.leaseOut)
 		if uint64(tc.profile.leaseOut) > tc.profile.balance {
-			assert.Equal(t, profile.leaseOut, int64(0))
-			if _, ok := overflows[addr]; !ok {
-				t.Errorf("did not include overflowed address to the list")
-			}
+			assert.Contains(t, overflows, addr, "did not include overflowed address to the list")
 			overflowsCount++
-		} else {
-			assert.Equal(t, profile.leaseOut, tc.profile.leaseOut)
+			snap, ok := expected[addr]
+			assert.True(t, ok, "did not find lease balance snapshot")
+			assert.Equal(t, addr, snap.Address)
+			assert.Equal(t, uint64(0), snap.LeaseOut)
+			assert.Equal(t, uint64(tc.profile.leaseIn), snap.LeaseIn)
 		}
 	}
 	assert.Equal(t, len(overflows), overflowsCount)
@@ -155,17 +173,33 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 		assert.NoError(t, err, "setWavesBalance() failed")
 		leaseIns[addr] = tc.validLeaseIn
 	}
-	err := to.balances.cancelInvalidLeaseIns(leaseIns, blockID1)
-	assert.NoError(t, err, "cancelInvalidLeaseIns() failed")
+	leaseBalanceSnapshots, err := to.balances.generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(leaseIns)
+	assert.NoError(t, err, "generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns() failed")
 	to.stor.flush(t)
+
+	expected := make(map[proto.WavesAddress]proto.LeaseBalanceSnapshot, len(leaseBalanceSnapshots))
+	for _, lb := range leaseBalanceSnapshots {
+		expected[lb.Address] = lb
+	}
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		profile, err := to.balances.wavesBalance(addr.ID())
 		assert.NoError(t, err, "wavesBalance() failed")
-		assert.Equal(t, profile.balance, tc.profile.balance)
-		assert.Equal(t, profile.leaseIn, tc.validLeaseIn)
-		assert.Equal(t, profile.leaseOut, tc.profile.leaseOut)
+
+		assert.Equal(t, tc.profile.balance, profile.balance)
+		assert.Equal(t, tc.profile.leaseIn, profile.leaseIn) // should not be changed
+		assert.Equal(t, tc.profile.leaseOut, profile.leaseOut)
+
+		if tc.validLeaseIn == tc.profile.leaseIn {
+			assert.NotContains(t, expected, addr, "should not include address to the list")
+		} else {
+			snap, ok := expected[addr]
+			assert.True(t, ok, "did not find lease balance snapshot")
+			assert.Equal(t, addr, snap.Address)
+			assert.Equal(t, uint64(tc.validLeaseIn), snap.LeaseIn)
+			assert.Equal(t, uint64(tc.profile.leaseOut), snap.LeaseOut)
+		}
 	}
 }
 

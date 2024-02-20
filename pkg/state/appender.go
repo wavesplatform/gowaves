@@ -152,12 +152,13 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 }
 
 type appendBlockParams struct {
-	transactions          []proto.Transaction
-	chans                 *verifierChans
-	block, parent         *proto.BlockHeader
-	blockchainHeight      proto.Height
-	lastSnapshotStateHash crypto.Digest
-	optionalSnapshot      *proto.BlockSnapshot
+	transactions              []proto.Transaction
+	chans                     *verifierChans
+	block, parent             *proto.BlockHeader
+	blockchainHeight          proto.Height
+	fixSnapshotsToInitialHash []proto.AtomicSnapshot
+	lastSnapshotStateHash     crypto.Digest
+	optionalSnapshot          *proto.BlockSnapshot
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -369,9 +370,7 @@ func (a *txAppender) commitTxApplication(
 	}
 
 	if !params.validatingUtx {
-		// TODO: snapshots for miner fee should be generated here, but not saved
-		//  They must be saved in snapshot applier
-		// Count tx fee.
+		// Count tx fee. This should not affect transaction execution. It only accumulates miner fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
 		}
@@ -616,16 +615,13 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 
 func (a *txAppender) applySnapshotInLightNode(
 	params *appendBlockParams,
+	blockInfo *proto.BlockInfo,
 	snapshot proto.BlockSnapshot,
 	stateHash crypto.Digest,
 	hasher *txSnapshotHasher,
 ) (crypto.Digest, error) {
 	if len(snapshot.TxSnapshots) != len(params.transactions) { // sanity check
 		return crypto.Digest{}, errors.New("number of tx snapshots doesn't match number of transactions")
-	}
-	blockInfo, errBlockInfo := a.currentBlockInfo()
-	if errBlockInfo != nil {
-		return crypto.Digest{}, errBlockInfo
 	}
 	for i, txs := range snapshot.TxSnapshots {
 		tx := params.transactions[i]
@@ -647,6 +643,10 @@ func (a *txAppender) applySnapshotInLightNode(
 		if err := regSnapshots.Apply(a.txHandler.sa, tx, false); err != nil {
 			return crypto.Digest{}, errors.Wrap(err, "failed to apply tx snapshot")
 		}
+		if fErr := a.blockDiffer.countMinerFee(tx); fErr != nil {
+			return crypto.Digest{}, errors.Wrapf(fErr, "failed to count miner fee for tx %d", i+1)
+		}
+		// TODO: In future we have to store the list of affected addresses for each transaction here.
 	}
 	return stateHash, nil
 }
@@ -654,13 +654,10 @@ func (a *txAppender) applySnapshotInLightNode(
 func (a *txAppender) appendTxs(
 	params *appendBlockParams,
 	info *checkerInfo,
+	blockInfo *proto.BlockInfo,
 	stateHash crypto.Digest,
 	hasher *txSnapshotHasher,
 ) (proto.BlockSnapshot, crypto.Digest, error) {
-	blockInfo, errBlockInfo := a.currentBlockInfo()
-	if errBlockInfo != nil {
-		return proto.BlockSnapshot{}, crypto.Digest{}, errBlockInfo
-	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return proto.BlockSnapshot{}, crypto.Digest{}, err
@@ -741,6 +738,27 @@ func calculateInitialSnapshotStateHash(
 	return calculateTxSnapshotStateHash(h, txID, blockHeight, prevHash, txSnapshot)
 }
 
+func (a *txAppender) appendFixSnapshots(fixSnapshots []proto.AtomicSnapshot, blockID proto.BlockID) error {
+	if len(fixSnapshots) == 0 { // no changes, nothing to do
+		return nil
+	}
+	ai := a.txHandler.sa.ApplierInfo()
+	if ai == nil { // sanity check
+		return errors.New("applier info is not set")
+	}
+	if ai.BlockID() != blockID { // sanity check
+		return errors.Errorf(
+			"applier info block ID doesn't match the block ID: expected %s, actual %s",
+			blockID.String(), ai.BlockID().String(),
+		)
+	}
+	fix := txSnapshot{regular: fixSnapshots}
+	if err := fix.ApplyFixSnapshot(a.txHandler.sa); err != nil {
+		return errors.Wrapf(err, "failed to apply fix snapshot at block %s", blockID)
+	}
+	return nil
+}
+
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Reset block complexity counter.
 	defer func() {
@@ -777,9 +795,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	var blockSnapshot proto.BlockSnapshot
 	if params.optionalSnapshot != nil {
 		blockSnapshot = *params.optionalSnapshot
-		stateHash, err = a.applySnapshotInLightNode(params, blockSnapshot, stateHash, hasher)
+		stateHash, err = a.applySnapshotInLightNode(params, blockInfo, blockSnapshot, stateHash, hasher)
 	} else {
-		blockSnapshot, stateHash, err = a.appendTxs(params, checkerInfo, stateHash, hasher)
+		blockSnapshot, stateHash, err = a.appendTxs(params, checkerInfo, blockInfo, stateHash, hasher)
 	}
 	if err != nil {
 		return err
@@ -868,13 +886,18 @@ func (a *txAppender) createInitialDiffAndStateHash(
 		return crypto.Digest{}, errors.Wrap(err, "failed to apply an initial snapshot")
 	}
 
+	// hash block initial snapshot and fix snapshot in the context of the applying block
+	snapshotsToHash := initialSnapshot.regular
+	if len(params.fixSnapshotsToInitialHash) > 0 {
+		snapshotsToHash = append(snapshotsToHash, params.fixSnapshotsToInitialHash...)
+	}
 	// get initial snapshot hash for block
 	stateHash, err := calculateInitialSnapshotStateHash(
 		hasher,
 		hasParent,
 		currentBlockHeight,
 		params.lastSnapshotStateHash, // previous block state hash
-		initialSnapshot.regular,
+		snapshotsToHash,
 	)
 	if err != nil {
 		return crypto.Digest{}, errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
@@ -1060,8 +1083,9 @@ func (a *txAppender) handleFallible(
 	case proto.ExchangeTransaction:
 		applicationRes, err := a.handleExchange(tx, info)
 		return nil, applicationRes, err
+	default:
+		return nil, nil, errors.Errorf("transaction (%T) is not fallible", tx)
 	}
-	return nil, nil, errors.New("transaction is not fallible")
 }
 
 // For UTX validation.

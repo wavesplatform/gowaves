@@ -225,13 +225,14 @@ func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 	return nil
 }
 
-// TxSnapshotsFromProtobuf Unmarshalling order (how in proto schemas):
-// WavesBalances and AssetBalances
-// LeaseBalances
+// TxSnapshotsFromProtobufWithoutTxStatus Unmarshalling order
+// (don't change it if it is not necessary, order is important):
 // NewAsset
 // AssetVolume
 // AssetDescription
 // AssetScript
+// WavesBalances and AssetBalances
+// LeaseBalances
 // Alias
 // FilledVolumes
 // NewLeases
@@ -239,18 +240,12 @@ func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 // AccountScript
 // DataEntries
 // Sponsorships
-// TxStatus.
-func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+func TxSnapshotsFromProtobufWithoutTxStatus(
+	scheme Scheme,
+	txSnapshotProto *g.TransactionStateSnapshot,
+) ([]AtomicSnapshot, error) {
 	var txSnapshots []AtomicSnapshot
-	err := balancesFromProto(scheme, txSnapshotProto, &txSnapshots)
-	if err != nil {
-		return nil, err
-	}
-	err = leaseBalancesFromProto(scheme, txSnapshotProto, &txSnapshots)
-	if err != nil {
-		return nil, err
-	}
-	err = newAssetFromProto(txSnapshotProto, &txSnapshots)
+	err := newAssetFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -263,6 +258,14 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 		return nil, err
 	}
 	err = assetScriptFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = balancesFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = leaseBalancesFromProto(scheme, txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -291,6 +294,16 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 		return nil, err
 	}
 	err = sponsorshipFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	return txSnapshots, nil
+}
+
+// TxSnapshotsFromProtobuf deserializes protobuf message into AtomicSnapshot slice.
+// The TransactionStatusSnapshot is the last element of the slice.
+func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+	txSnapshots, err := TxSnapshotsFromProtobufWithoutTxStatus(scheme, txSnapshotProto)
 	if err != nil {
 		return nil, err
 	}
