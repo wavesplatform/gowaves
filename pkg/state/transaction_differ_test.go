@@ -195,7 +195,7 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	correctDiff := txDiff{
 		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
 		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, true),
-		testGlobal.minerInfo.assetKeys[0]:     newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		// No key-value for miner because NG is not activated
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -209,17 +209,27 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	assert.Error(t, err, "createDiffTransferWithProofs() did not fail with unsponsored asset")
 	err = to.stor.entities.sponsoredAssets.sponsorAsset(feeFullAssetID, 10, blockID0)
 	assert.NoError(t, err, "sponsorAsset() failed")
+
+	// without NG activation
+	_, err = to.td.createDiffTransferWithProofs(tx, defaultDifferInfo())
+	assert.EqualError(t, err, "sponsorship is activated, but NG is not")
+
+	// with NG activation
+	to.stor.addBlock(t, blockID0) // act as genesis block
+	to.stor.activateFeature(t, int16(settings.NG))
+
 	ch, err = to.td.createDiffTransferWithProofs(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffTransferWithProofs() failed with valid sponsored asset")
 
 	feeInWaves, err := to.stor.entities.sponsoredAssets.sponsoredAssetToWaves(feeShortAssetID, tx.Fee)
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
+	minerFee := calculateCurrentBlockTxFee(feeInWaves, true) // NG is activated
 	correctDiff = txDiff{
 		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
 		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, true),
 		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, true),
 		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
-		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(feeInWaves), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(minerFee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs = map[proto.WavesAddress]struct{}{
