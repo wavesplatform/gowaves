@@ -1025,14 +1025,17 @@ func createCreateAliasWithSig(t *testing.T) *proto.CreateAliasWithSig {
 func TestCreateDiffCreateAliasWithSig(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
+	to.stor.addBlock(t, blockID0) // act as genesis block
+	to.stor.activateFeature(t, int16(settings.NG))
 
 	tx := createCreateAliasWithSig(t)
 	ch, err := to.td.createDiffCreateAliasWithSig(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffCreateAliasWithSig failed")
 
+	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
 		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:  newBalanceDiff(int64(minerFee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
