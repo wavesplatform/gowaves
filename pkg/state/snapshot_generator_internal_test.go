@@ -1223,11 +1223,11 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 	to.setScript(t, testGlobal.recipientInfo.addr, dAppInfo.pk, scriptBytes)
 
 	amount := uint64(1000)
-	startBalance := amount + invokeFee + 1
+	startBalance := amount + 1
 
 	wavesBalSender := wavesValue{
 		profile: balanceProfile{
-			balance: startBalance,
+			balance: startBalance + invokeFee,
 		},
 		leaseChange:   false,
 		balanceChange: false,
@@ -1270,7 +1270,7 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 		regular: []proto.AtomicSnapshot{
 			&proto.WavesBalanceSnapshot{
 				Address: testGlobal.minerInfo.addr,
-				Balance: 1001001,
+				Balance: startBalance + calculateCurrentBlockTxFee(invokeFee, true), // because ng is activated
 			},
 			&proto.WavesBalanceSnapshot{
 				Address: testGlobal.senderInfo.addr,
