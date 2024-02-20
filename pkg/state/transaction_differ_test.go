@@ -808,6 +808,8 @@ func TestCreateDiffExchangeV3WithProofsWithMixedOrders(t *testing.T) {
 func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
+	to.stor.addBlock(t, blockID0) // act as genesis block
+	to.stor.activateFeature(t, int16(settings.NG))
 
 	to.stor.createAssetWithDecimals(t, testGlobal.asset0.asset.ID, 0)
 	to.stor.createAssetWithDecimals(t, testGlobal.asset1.asset.ID, 8)
@@ -846,6 +848,7 @@ func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 	ch3, err := to.td.createDiffExchange(tx3mo, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
 
+	minerFee := calculateCurrentBlockTxFee(tx3o4.Fee, true) // NG is activated
 	priceAmount := price * amount
 	correctDiff := txDiff{
 		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(amount), 0, 0, false),
@@ -854,7 +857,7 @@ func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(amount), 0, 0, false),
 		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(priceAmount), 0, 0, false),
 		testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx3o4.BuyMatcherFee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(tx3o4.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(minerFee), 0, 0, false),
 		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx3o4.Fee), 0, 0, false),
 		testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx3o4.SellMatcherFee+tx3o4.BuyMatcherFee), 0, 0, false),
 	}
