@@ -518,11 +518,13 @@ func createUnorderedExchangeWithProofs(t *testing.T, v int) *proto.ExchangeWithP
 func TestCreateDiffExchangeWithProofs(t *testing.T) {
 	checkerInfo := defaultCheckerInfo()
 	to := createDifferTestObjects(t, checkerInfo)
+	to.stor.addBlock(t, blockID0) // act as genesis block
+	to.stor.activateFeature(t, int16(settings.NG))
 
 	tx := createExchangeWithProofs(t)
 	ch, err := to.td.createDiffExchange(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffExchange() failed")
-
+	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	price := tx.Price * tx.Amount / priceConstant
 	correctDiff := txDiff{
 		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
@@ -531,7 +533,7 @@ func TestCreateDiffExchangeWithProofs(t *testing.T) {
 		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Amount), 0, 0, false),
 		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(price), 0, 0, false),
 		testGlobal.senderInfo.wavesKey:        newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
-		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(tx.Fee), 0, 0, false),
+		testGlobal.minerInfo.wavesKey:         newBalanceDiff(int64(minerFee), 0, 0, false),
 		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
