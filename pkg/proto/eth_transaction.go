@@ -280,6 +280,10 @@ func (tx *EthereumTransaction) GetFee() uint64 {
 	return tx.Gas()
 }
 
+func (tx *EthereumTransaction) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (tx *EthereumTransaction) GetTimestamp() uint64 {
 	return tx.Nonce()
 }

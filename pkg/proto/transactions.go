@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -194,6 +195,7 @@ type Transaction interface {
 	GetID(scheme Scheme) ([]byte, error)
 	GetSender(scheme Scheme) (Address, error)
 	GetFee() uint64
+	GetFeeAsset() OptionalAsset
 	GetTimestamp() uint64
 
 	// Validate checks that all transaction fields are valid.
@@ -516,6 +518,10 @@ func (tx Genesis) GetFee() uint64 {
 	return 0
 }
 
+func (tx Genesis) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (tx Genesis) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
@@ -764,6 +770,10 @@ func (tx *Payment) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx Payment) GetFee() uint64 {
 	return tx.Fee
+}
+
+func (tx Payment) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
 }
 
 func (tx Payment) GetTimestamp() uint64 {
@@ -1026,6 +1036,10 @@ func (i Issue) GetFee() uint64 {
 	return i.Fee
 }
 
+func (i Issue) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (i Issue) GetTimestamp() uint64 {
 	return i.Timestamp
 }
@@ -1151,6 +1165,10 @@ func (tr Transfer) GetSender(scheme Scheme) (Address, error) {
 
 func (tr Transfer) GetFee() uint64 {
 	return tr.Fee
+}
+
+func (tr Transfer) GetFeeAsset() OptionalAsset {
+	return tr.FeeAsset
 }
 
 func (tr Transfer) GetTimestamp() uint64 {
@@ -1354,6 +1372,10 @@ func (r Reissue) GetFee() uint64 {
 	return r.Fee
 }
 
+func (r Reissue) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (r Reissue) GetTimestamp() uint64 {
 	return r.Timestamp
 }
@@ -1441,6 +1463,10 @@ func (b Burn) GetSender(scheme Scheme) (Address, error) {
 
 func (b Burn) GetFee() uint64 {
 	return b.Fee
+}
+
+func (b Burn) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
 }
 
 func (b Burn) GetTimestamp() uint64 {
@@ -1539,6 +1565,10 @@ func (l Lease) GetSender(scheme Scheme) (Address, error) {
 
 func (l Lease) GetFee() uint64 {
 	return l.Fee
+}
+
+func (l Lease) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
 }
 
 func (l Lease) GetTimestamp() uint64 {
@@ -1646,6 +1676,10 @@ func (lc LeaseCancel) GetFee() uint64 {
 	return lc.Fee
 }
 
+func (lc LeaseCancel) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (lc LeaseCancel) GetTimestamp() uint64 {
 	return lc.Timestamp
 }
@@ -1714,6 +1748,10 @@ func (ca CreateAlias) GetSender(scheme Scheme) (Address, error) {
 
 func (ca CreateAlias) GetFee() uint64 {
 	return ca.Fee
+}
+
+func (ca CreateAlias) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
 }
 
 func (ca CreateAlias) GetTimestamp() uint64 {

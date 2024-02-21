@@ -8,6 +8,7 @@ import (
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
@@ -1127,8 +1128,13 @@ func (tx ExchangeWithSig) GetBuyMatcherFee() uint64 {
 func (tx ExchangeWithSig) GetSellMatcherFee() uint64 {
 	return tx.SellMatcherFee
 }
+
 func (tx ExchangeWithSig) GetFee() uint64 {
 	return tx.Fee
+}
+
+func (tx ExchangeWithSig) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
 }
 
 func (tx ExchangeWithSig) GetTimestamp() uint64 {
