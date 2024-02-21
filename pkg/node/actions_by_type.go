@@ -322,6 +322,7 @@ func BlockSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm
 	if err != nil {
 		return nil, err
 	}
+	zap.S().Named(logging.NetworkNamespace).Debugf("Snapshot for block '%s' received", blockID.String())
 	return fsm.BlockSnapshot(mess.ID, blockID, blockSnapshot)
 }
 
