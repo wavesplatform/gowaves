@@ -8,6 +8,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type snapshotGenerator struct {
@@ -1201,13 +1202,25 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			return nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
 		if diffAmount.balance != 0 {
-			newBalance := proto.WavesBalanceSnapshot{
-				Address: wavesAddress,
-				Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
+			newBalance, bErr := common.AddInt(int64(fullBalance.balance), diffAmount.balance) // sum & sanity check
+			if bErr != nil {
+				return nil, nil, errors.Wrapf(bErr,
+					"failed to calculate waves balance for addr %q: failed to add %d to %d",
+					wavesAddress.String(), diffAmount.balance, fullBalance.balance,
+				)
 			}
-			wavesBalances = append(wavesBalances, newBalance)
+			if newBalance < 0 { // sanity check
+				return nil, nil, errors.Errorf("negative waves balance for addr %q", wavesAddress.String())
+			}
+			newBalanceSnapshot := proto.WavesBalanceSnapshot{
+				Address: wavesAddress,
+				Balance: uint64(newBalance),
+			}
+			wavesBalances = append(wavesBalances, newBalanceSnapshot)
 		}
 		if diffAmount.leaseIn != 0 || diffAmount.leaseOut != 0 {
+			// Don't check for overflow & negative leaseIn/leaseOut because overflowed addresses
+			// See `balances.generateLeaseBalanceSnapshotsForLeaseOverflows` for details
 			newLeaseBalance := proto.LeaseBalanceSnapshot{
 				Address:  wavesAddress,
 				LeaseIn:  uint64(fullBalance.leaseIn + diffAmount.leaseIn),
@@ -1241,12 +1254,22 @@ func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
 			}
 			assetIDTail = constInfo.Tail
 		}
-		newBalance := proto.AssetBalanceSnapshot{
-			Address: key.address,
-			AssetID: key.asset.Digest(assetIDTail),
-			Balance: uint64(int64(balance) + diffAmount),
+		fullAssetID := key.asset.Digest(assetIDTail)
+		newBalance, err := common.AddInt(int64(balance), diffAmount) // sum & sanity check
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to calculate asset %q balance: failed to add %d to %d",
+				fullAssetID.String(), diffAmount, balance,
+			)
 		}
-		assetBalances = append(assetBalances, newBalance)
+		if newBalance < 0 { // sanity check
+			return nil, errors.Errorf("negative asset %q balance %d", fullAssetID.String(), newBalance)
+		}
+		newBalanceSnapshot := proto.AssetBalanceSnapshot{
+			Address: key.address,
+			AssetID: fullAssetID,
+			Balance: uint64(newBalance),
+		}
+		assetBalances = append(assetBalances, newBalanceSnapshot)
 	}
 	return assetBalances, nil
 }

@@ -277,7 +277,7 @@ func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.Leas
 	return zeroLeaseBalanceSnapshots, nil
 }
 
-func (s *balances) generateLeaseBalanceSnapthosForLeaseOverflows() (
+func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 	[]proto.LeaseBalanceSnapshot, map[proto.WavesAddress]struct{}, error,
 ) {
 	iter, err := s.hs.newNewestTopEntryIterator(wavesBalance)

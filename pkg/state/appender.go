@@ -692,9 +692,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	// Create miner balance diff.
-	// This adds 60% of prev block fees as very first balance diff of the current block
-	// in case NG is activated, or empty diff otherwise.
-	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent)
+	// This adds 60% of prev block fees as very first balance diff of the current block in case NG is activated.
+	// Before NG activation it adds all transactions fees to the miner's balance.
+	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent, params.transactions)
 	if err != nil {
 		return err
 	}
