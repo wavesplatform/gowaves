@@ -1435,7 +1435,7 @@ func (s *stateManager) generateLeasesCancellationWithNewBalancesSnapshots(
 		}
 		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, zeroLeaseBalancesSnapshots), nil
 	case s.settings.BlockVersion3AfterHeight:
-		leaseBalanceSnapshots, overflowAddresses, err := s.stor.balances.generateLeaseBalanceSnapthosForLeaseOverflows()
+		leaseBalanceSnapshots, overflowAddresses, err := s.stor.balances.generateLeaseBalanceSnapshotsForLeaseOverflows()
 		if err != nil {
 			return nil, err
 		}
