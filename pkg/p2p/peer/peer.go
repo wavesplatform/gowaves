@@ -41,7 +41,7 @@ func NewParent(enableLightNode bool) Parent {
 	}
 	return Parent{
 		MessageCh:       make(chan ProtoMessage, messageChSize),
-		InfoCh:          make(chan InfoMessage, chSizeInLightMode),
+		InfoCh:          make(chan InfoMessage, messageChSize),
 		SkipMessageList: &messages.SkipMessageList{},
 	}
 }
