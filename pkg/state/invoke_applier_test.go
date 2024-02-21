@@ -37,9 +37,13 @@ type invokeApplierTestObjects struct {
 func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
 	state, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
-	err = state.stateDB.addBlock(blockID0)
-	assert.NoError(t, err)
 	to := &invokeApplierTestObjects{state}
+	randGenesisBlockID := genRandBlockId(t)
+	to.addBlock(t, randGenesisBlockID)
+
+	to.prepareBlock(t, blockID0) // height here is 2
+
+	to.activateFeature(t, int16(settings.NG))
 	to.activateFeature(t, int16(settings.SmartAccounts))
 	to.activateFeature(t, int16(settings.Ride4DApps))
 	t.Cleanup(func() {
@@ -47,6 +51,22 @@ func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
 		assert.NoError(t, to.state.Close(), "state.Close() failed")
 	})
 	return to
+}
+
+// prepareBlock makes test block officially valid (but only after batch is flushed).
+func (to *invokeApplierTestObjects) prepareBlock(t *testing.T, blockID proto.BlockID) {
+	// Assign unique block number for this block ID, add this number to the list of valid blocks.
+	err := to.state.stateDB.addBlock(blockID)
+	assert.NoError(t, err, "stateDB.addBlock() failed")
+}
+
+// addBlock prepares, starts and finishes fake block.
+func (to *invokeApplierTestObjects) addBlock(t *testing.T, blockID proto.BlockID) {
+	to.prepareBlock(t, blockID)
+	err := to.state.rw.startBlock(blockID)
+	assert.NoError(t, err, "startBlock() failed")
+	err = to.state.rw.finishBlock(blockID)
+	assert.NoError(t, err, "finishBlock() failed")
 }
 
 func (to *invokeApplierTestObjects) cleanup() {

@@ -118,8 +118,8 @@ func TestCancelLeaseOverflows(t *testing.T) {
 		err = to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID)
 		assert.NoError(t, err, "setWavesBalance() failed")
 	}
-	leaseBalanceSnapshots, overflows, err := to.balances.generateLeaseBalanceSnapthosForLeaseOverflows()
-	assert.NoError(t, err, "generateLeaseBalanceSnapthosForLeaseOverflows() failed")
+	leaseBalanceSnapshots, overflows, err := to.balances.generateLeaseBalanceSnapshotsForLeaseOverflows()
+	assert.NoError(t, err, "generateLeaseBalanceSnapshotsForLeaseOverflows() failed")
 	to.stor.flush(t)
 
 	expected := make(map[proto.WavesAddress]proto.LeaseBalanceSnapshot, len(leaseBalanceSnapshots))

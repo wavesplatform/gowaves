@@ -1395,8 +1395,13 @@ func (tx ExchangeWithProofs) GetBuyMatcherFee() uint64 {
 func (tx ExchangeWithProofs) GetSellMatcherFee() uint64 {
 	return tx.SellMatcherFee
 }
+
 func (tx ExchangeWithProofs) GetFee() uint64 {
 	return tx.Fee
+}
+
+func (tx ExchangeWithProofs) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
 }
 
 func (tx ExchangeWithProofs) GetTimestamp() uint64 {
@@ -2748,6 +2753,10 @@ func (tx MassTransferWithProofs) GetFee() uint64 {
 	return tx.Fee
 }
 
+func (tx MassTransferWithProofs) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (tx MassTransferWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
@@ -3132,6 +3141,10 @@ func (tx DataWithProofs) GetFee() uint64 {
 	return tx.Fee
 }
 
+func (tx DataWithProofs) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (tx DataWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
@@ -3514,6 +3527,10 @@ func (tx SetScriptWithProofs) GetFee() uint64 {
 	return tx.Fee
 }
 
+func (tx SetScriptWithProofs) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (tx SetScriptWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
@@ -3808,6 +3825,10 @@ func (tx SponsorshipWithProofs) GetFee() uint64 {
 	return tx.Fee
 }
 
+func (tx SponsorshipWithProofs) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
+}
+
 func (tx SponsorshipWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
@@ -4093,6 +4114,10 @@ func (tx *SetAssetScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx SetAssetScriptWithProofs) GetFee() uint64 {
 	return tx.Fee
+}
+
+func (tx SetAssetScriptWithProofs) GetFeeAsset() OptionalAsset {
+	return NewOptionalAssetWaves()
 }
 
 func (tx SetAssetScriptWithProofs) GetTimestamp() uint64 {
@@ -4401,6 +4426,10 @@ func (tx *InvokeScriptWithProofs) GetID(scheme Scheme) ([]byte, error) {
 
 func (tx InvokeScriptWithProofs) GetFee() uint64 {
 	return tx.Fee
+}
+
+func (tx InvokeScriptWithProofs) GetFeeAsset() OptionalAsset {
+	return tx.FeeAsset
 }
 
 func (tx InvokeScriptWithProofs) GetTimestamp() uint64 {
@@ -4780,6 +4809,10 @@ func (tx UpdateAssetInfoWithProofs) GetFee() uint64 {
 	return tx.Fee
 }
 
+func (tx UpdateAssetInfoWithProofs) GetFeeAsset() OptionalAsset {
+	return tx.FeeAsset
+}
+
 func (tx UpdateAssetInfoWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
@@ -4992,6 +5025,10 @@ func (tx InvokeExpressionTransactionWithProofs) GetSender(scheme Scheme) (Addres
 
 func (tx InvokeExpressionTransactionWithProofs) GetFee() uint64 {
 	return tx.Fee
+}
+
+func (tx InvokeExpressionTransactionWithProofs) GetFeeAsset() OptionalAsset {
+	return tx.FeeAsset
 }
 
 func (tx InvokeExpressionTransactionWithProofs) GetTimestamp() uint64 {

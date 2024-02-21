@@ -95,6 +95,10 @@ func (a transaction) GetFee() uint64 {
 	return a.fee
 }
 
+func (a transaction) GetFeeAsset() proto.OptionalAsset {
+	return proto.NewOptionalAssetWaves()
+}
+
 func (a transaction) GetSenderPK() crypto.PublicKey {
 	panic("not implemented")
 }
