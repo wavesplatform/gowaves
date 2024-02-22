@@ -71,23 +71,24 @@ const (
 	createAliasLen = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
 
 	// Max allowed versions of transactions.
+	MaxUncheckedTransactionVersion       = 127
 	MaxGenesisTransactionVersion         = 2
 	MaxPaymentTransactionVersion         = 2
-	MaxTransferTransactionVersion        = 127
-	MaxIssueTransactionVersion           = 127
-	MaxReissueTransactionVersion         = 127
-	MaxBurnTransactionVersion            = 127
-	MaxExchangeTransactionVersion        = 127
-	MaxLeaseTransactionVersion           = 127
-	MaxLeaseCancelTransactionVersion     = 127
-	MaxCreateAliasTransactionVersion     = 127
-	MaxMassTransferTransactionVersion    = 127
-	MaxDataTransactionVersion            = 127
-	MaxSetScriptTransactionVersion       = 127
-	MaxSponsorshipTransactionVersion     = 127
-	MaxSetAssetScriptTransactionVersion  = 127
-	MaxInvokeScriptTransactionVersion    = 127
-	MaxUpdateAssetInfoTransactionVersion = 127
+	MaxTransferTransactionVersion        = 3
+	MaxIssueTransactionVersion           = 3
+	MaxReissueTransactionVersion         = 3
+	MaxBurnTransactionVersion            = 3
+	MaxExchangeTransactionVersion        = 3
+	MaxLeaseTransactionVersion           = 3
+	MaxLeaseCancelTransactionVersion     = 3
+	MaxCreateAliasTransactionVersion     = 3
+	MaxMassTransferTransactionVersion    = 2
+	MaxDataTransactionVersion            = 2
+	MaxSetScriptTransactionVersion       = 2
+	MaxSponsorshipTransactionVersion     = 2
+	MaxSetAssetScriptTransactionVersion  = 2
+	MaxInvokeScriptTransactionVersion    = 2
+	MaxUpdateAssetInfoTransactionVersion = 1
 
 	MinFee              = 100_000
 	MinFeeScriptedAsset = 400_000
@@ -181,6 +182,12 @@ func (a TransactionTypeInfo) String() string {
 	return sb.String()
 }
 
+// TransactionValidationParams contains parameters for transaction validation.
+type TransactionValidationParams struct {
+	Scheme       Scheme
+	CheckVersion bool
+}
+
 // Transaction is a set of common transaction functions.
 type Transaction interface {
 	// Getters which are common for all transactions.
@@ -201,7 +208,7 @@ type Transaction interface {
 	// Validate checks that all transaction fields are valid.
 	// This includes ranges checks, and sanity checks specific for each transaction type:
 	// for example, negative amounts for transfers.
-	Validate(scheme Scheme) (Transaction, error)
+	Validate(params TransactionValidationParams) (Transaction, error)
 
 	// GenerateID sets transaction ID.
 	// For most transactions ID is hash of transaction body.
@@ -532,7 +539,7 @@ func NewUnsignedGenesis(recipient WavesAddress, amount, timestamp uint64) *Genes
 }
 
 // Validate checks the validity of transaction parameters and it's signature.
-func (tx *Genesis) Validate(scheme Scheme) (Transaction, error) {
+func (tx *Genesis) Validate(params TransactionValidationParams) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
 	}
@@ -542,7 +549,7 @@ func (tx *Genesis) Validate(scheme Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Amount) {
 		return tx, errors.New("amount is too big")
 	}
-	if ok, err := tx.Recipient.Valid(scheme); !ok {
+	if ok, err := tx.Recipient.Valid(params.Scheme); !ok {
 		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
 	return tx, nil
@@ -785,7 +792,7 @@ func NewUnsignedPayment(senderPK crypto.PublicKey, recipient WavesAddress, amoun
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *Payment) Validate(_ Scheme) (Transaction, error) {
+func (tx *Payment) Validate(_ TransactionValidationParams) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Payment transaction", tx.Version)
 	}

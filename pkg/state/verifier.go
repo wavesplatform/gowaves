@@ -41,17 +41,21 @@ func (ch *verifierChans) closeAndWait() error {
 }
 
 type verifyTask struct {
-	taskType    verifyTaskType
-	parentID    proto.BlockID
-	block       *proto.Block
-	tx          proto.Transaction
-	checkTxSig  bool
-	checkOrder1 bool
-	checkOrder2 bool
+	taskType     verifyTaskType
+	parentID     proto.BlockID
+	block        *proto.Block
+	tx           proto.Transaction
+	checkTxSig   bool
+	checkOrder1  bool
+	checkOrder2  bool
+	checkVersion bool
 }
 
-func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, scheme proto.Scheme) error {
-	if _, err := tx.Validate(scheme); err != nil {
+// TODO: Resolve lint issues
+func checkTx( //nolint:funlen,gocognit,gocyclo,cyclop // Will be fixed in future commits.
+	tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, params proto.TransactionValidationParams,
+) error {
+	if _, err := tx.Validate(params); err != nil {
 		return errs.Extend(err, "invalid tx data")
 	}
 	if !checkTxSig {
@@ -60,129 +64,129 @@ func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, sc
 	switch t := tx.(type) {
 	case *proto.Genesis:
 	case *proto.Payment:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("payment tx signature verification failed")
 		}
 	case *proto.TransferWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errs.NewTxValidationError("transfer tx signature verification failed")
 		}
 	case *proto.TransferWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errs.NewTxValidationError("transfer tx signature verification failed")
 		}
 	case *proto.IssueWithSig:
-		if ok, err := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, err := t.Verify(params.Scheme, t.SenderPK); !ok {
 			if err != nil {
 				return errs.Extend(err, "issue tx signature verification failed")
 			}
 			return errors.New("issue tx signature verification failed")
 		}
 	case *proto.IssueWithProofs:
-		if ok, err := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, err := t.Verify(params.Scheme, t.SenderPK); !ok {
 			if err != nil {
 				return errs.Extend(err, "issue tx signature verification failed")
 			}
 			return errors.New("issue tx signature verification failed")
 		}
 	case *proto.ReissueWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("reissue tx signature verification failed")
 		}
 	case *proto.ReissueWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("reissue tx signature verification failed")
 		}
 	case *proto.BurnWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("burn tx signature verification failed")
 		}
 	case *proto.BurnWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("burn tx signature verification failed")
 		}
 	case *proto.ExchangeWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("exchange tx signature verification failed")
 		}
 		if checkOrder1 {
-			if ok, _ := t.Order1.Verify(scheme); !ok {
+			if ok, _ := t.Order1.Verify(params.Scheme); !ok {
 				return errors.New("first order signature verification failed")
 			}
 		}
 		if checkOrder2 {
-			if ok, _ := t.Order2.Verify(scheme); !ok {
+			if ok, _ := t.Order2.Verify(params.Scheme); !ok {
 				return errors.New("second order signature verification failed")
 			}
 		}
 	case *proto.ExchangeWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("exchange tx signature verification failed")
 		}
 		if checkOrder1 {
-			if ok, _ := t.Order1.Verify(scheme); !ok {
+			if ok, _ := t.Order1.Verify(params.Scheme); !ok {
 				return errors.New("first order signature verification failed")
 			}
 		}
 		if checkOrder2 {
-			if ok, _ := t.Order2.Verify(scheme); !ok {
+			if ok, _ := t.Order2.Verify(params.Scheme); !ok {
 				return errors.New("second order signature verification failed")
 			}
 		}
 	case *proto.LeaseWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("lease tx signature verification failed")
 		}
 	case *proto.LeaseWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("lease tx signature verification failed")
 		}
 	case *proto.LeaseCancelWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("leasecancel tx signature verification failed")
 		}
 	case *proto.LeaseCancelWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("leasecancel tx signature verification failed")
 		}
 	case *proto.CreateAliasWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("createalias tx signature verification failed")
 		}
 	case *proto.CreateAliasWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("createalias tx signature verification failed")
 		}
 	case *proto.SponsorshipWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("sponsorship tx signature verification failed")
 		}
 	case *proto.MassTransferWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errs.NewTxValidationError("masstransfer tx signature verification failed")
 		}
 	case *proto.DataWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("data tx signature verification failed")
 		}
 	case *proto.SetScriptWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("setscript tx signature verification failed")
 		}
 	case *proto.SetAssetScriptWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("setassetscript tx signature verification failed")
 		}
 	case *proto.InvokeScriptWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("invokescript tx signature verification failed")
 		}
 	case *proto.InvokeExpressionTransactionWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("InvokeExpression tx signature verification failed")
 		}
 	case *proto.UpdateAssetInfoWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
+		if ok, _ := t.Verify(params.Scheme, t.SenderPK); !ok {
 			return errors.New("updateassetinfo tx signature verification failed")
 		}
 	case *proto.EthereumTransaction:
@@ -226,7 +230,8 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 				task.block.TransactionsRoot.String(), task.block.ID.String())
 		}
 	case verifyTx:
-		if err := checkTx(task.tx, task.checkTxSig, task.checkOrder1, task.checkOrder2, scheme); err != nil {
+		params := proto.TransactionValidationParams{Scheme: scheme, CheckVersion: task.checkVersion}
+		if err := checkTx(task.tx, task.checkTxSig, task.checkOrder1, task.checkOrder2, params); err != nil {
 			txID, txIdErr := task.tx.GetID(scheme)
 			if txIdErr != nil {
 				return errors.Wrap(txIdErr, "failed to get transaction ID")

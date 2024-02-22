@@ -187,8 +187,9 @@ func NewUnsignedIssueWithProofs(v byte, senderPK crypto.PublicKey, name, descrip
 	return &IssueWithProofs{Type: IssueTransaction, Version: v, Script: script, Issue: i}
 }
 
-func (tx *IssueWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 2 || tx.Version > MaxIssueTransactionVersion {
+func (tx *IssueWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxIssueTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
 	}
 	ok, err := tx.Issue.Valid()
@@ -522,11 +523,12 @@ func NewUnsignedTransferWithProofs(v byte, senderPK crypto.PublicKey, amountAsse
 	return &TransferWithProofs{Type: TransferTransaction, Version: v, Transfer: t}
 }
 
-func (tx *TransferWithProofs) Validate(scheme Scheme) (Transaction, error) {
-	if tx.Version < 2 || tx.Version > MaxTransferTransactionVersion {
+func (tx *TransferWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxTransferTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
 	}
-	ok, err := tx.Transfer.Valid(scheme)
+	ok, err := tx.Transfer.Valid(params.Scheme)
 	if !ok {
 		return tx, err
 	}
@@ -831,8 +833,9 @@ func NewUnsignedReissueWithProofs(v byte, senderPK crypto.PublicKey, assetID cry
 	return &ReissueWithProofs{Type: ReissueTransaction, Version: v, Reissue: r}
 }
 
-func (tx *ReissueWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 2 || tx.Version > MaxReissueTransactionVersion {
+func (tx *ReissueWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxReissueTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for ReissueWithProofs", tx.Version)
 	}
 	ok, err := tx.Reissue.Valid()
@@ -1080,8 +1083,9 @@ func NewUnsignedBurnWithProofs(v byte, senderPK crypto.PublicKey, assetID crypto
 	return &BurnWithProofs{Type: BurnTransaction, Version: v, Burn: b}
 }
 
-func (tx *BurnWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 2 || tx.Version > MaxBurnTransactionVersion {
+func (tx *BurnWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxBurnTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for BurnWithProofs", tx.Version)
 	}
 	ok, err := tx.Burn.Valid()
@@ -1424,8 +1428,10 @@ func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMa
 	}
 }
 
-func (tx *ExchangeWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 2 || tx.Version > MaxExchangeTransactionVersion {
+// TODO: Resolve lint issues
+func (tx *ExchangeWithProofs) Validate(params TransactionValidationParams) (Transaction, error) { //nolint:funlen,gocognit,gocyclo,lll,cyclop // Will be fixed in future commits.
+	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxExchangeTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
 	}
 	ok, err := tx.Order1.Valid()
@@ -1855,11 +1861,12 @@ type LeaseWithProofs struct {
 	Lease
 }
 
-func (tx *LeaseWithProofs) Validate(scheme Scheme) (Transaction, error) {
-	if tx.Version < 2 || tx.Version > MaxLeaseTransactionVersion {
+func (tx *LeaseWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxLeaseTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
 	}
-	ok, err := tx.Lease.Valid(scheme)
+	ok, err := tx.Lease.Valid(params.Scheme)
 	if !ok {
 		return tx, err
 	}
@@ -2215,8 +2222,9 @@ func NewUnsignedLeaseCancelWithProofs(v byte, senderPK crypto.PublicKey, leaseID
 	return &LeaseCancelWithProofs{Type: LeaseCancelTransaction, Version: v, LeaseCancel: lc}
 }
 
-func (tx *LeaseCancelWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 2 || tx.Version > MaxLeaseCancelTransactionVersion {
+func (tx *LeaseCancelWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxLeaseCancelTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
 	}
 	ok, err := tx.LeaseCancel.Valid()
@@ -2348,11 +2356,12 @@ type CreateAliasWithProofs struct {
 	CreateAlias
 }
 
-func (tx *CreateAliasWithProofs) Validate(scheme Scheme) (Transaction, error) {
-	if tx.Version < 2 || tx.Version > MaxCreateAliasTransactionVersion {
+func (tx *CreateAliasWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxCreateAliasTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
 	}
-	ok, err := tx.CreateAlias.Valid(scheme)
+	ok, err := tx.CreateAlias.Valid(params.Scheme)
 	if !ok {
 		return tx, err
 	}
@@ -2766,8 +2775,9 @@ func NewUnsignedMassTransferWithProofs(v byte, senderPK crypto.PublicKey, asset 
 	return &MassTransferWithProofs{Type: MassTransferTransaction, Version: v, SenderPK: senderPK, Asset: asset, Transfers: transfers, Fee: fee, Timestamp: timestamp, Attachment: attachment}
 }
 
-func (tx *MassTransferWithProofs) Validate(scheme Scheme) (Transaction, error) {
-	if tx.Version < 1 || tx.Version > MaxMassTransferTransactionVersion {
+func (tx *MassTransferWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 1 || params.CheckVersion && tx.Version > MaxMassTransferTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for MassTransferWithProofs", tx.Version)
 	}
 	if len(tx.Transfers) > maxTransfers {
@@ -2788,7 +2798,7 @@ func (tx *MassTransferWithProofs) Validate(scheme Scheme) (Transaction, error) {
 		if !validJVMLong(total) {
 			return tx, errors.New("sum of amounts of transfers and transaction fee is bigger than JVM long")
 		}
-		if ok, err := t.Recipient.Valid(scheme); !ok {
+		if ok, err := t.Recipient.Valid(params.Scheme); !ok {
 			return tx, errors.Wrap(err, "invalid recipient")
 		}
 	}
@@ -3161,8 +3171,9 @@ func NewUnsignedDataWithProofs(v byte, senderPK crypto.PublicKey, fee, timestamp
 	return &DataWithProofs{Type: DataTransaction, Version: v, SenderPK: senderPK, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *DataWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 1 || tx.Version > MaxDataTransactionVersion {
+func (tx *DataWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 1 || params.CheckVersion && tx.Version > MaxDataTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for DataWithProofs", tx.Version)
 	}
 	if len(tx.Entries) > maxEntries {
@@ -3540,8 +3551,9 @@ func NewUnsignedSetScriptWithProofs(v byte, senderPK crypto.PublicKey, script []
 	return &SetScriptWithProofs{Type: SetScriptTransaction, Version: v, SenderPK: senderPK, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 1 || tx.Version > MaxSetScriptTransactionVersion {
+func (tx *SetScriptWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 1 || params.CheckVersion && tx.Version > MaxSetScriptTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SetScriptWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
@@ -3846,8 +3858,9 @@ func NewUnsignedSponsorshipWithProofs(v byte, senderPK crypto.PublicKey, assetID
 	return &SponsorshipWithProofs{Type: SponsorshipTransaction, Version: v, SenderPK: senderPK, AssetID: assetID, MinAssetFee: minAssetFee, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SponsorshipWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 1 || tx.Version > MaxSponsorshipTransactionVersion {
+func (tx *SponsorshipWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 1 || params.CheckVersion && tx.Version > MaxSponsorshipTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SponsorshipWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
@@ -4137,8 +4150,9 @@ func NewUnsignedSetAssetScriptWithProofs(v byte, senderPK crypto.PublicKey, asse
 	return &SetAssetScriptWithProofs{Type: SetAssetScriptTransaction, Version: v, SenderPK: senderPK, AssetID: assetID, Script: script, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *SetAssetScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 1 || tx.Version > MaxSetAssetScriptTransactionVersion {
+func (tx *SetAssetScriptWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 1 || params.CheckVersion && tx.Version > MaxSetAssetScriptTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for SetAssetScriptWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
@@ -4459,8 +4473,9 @@ func NewUnsignedInvokeScriptWithProofs(v byte, senderPK crypto.PublicKey, script
 	}
 }
 
-func (tx *InvokeScriptWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
+func (tx *InvokeScriptWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 1 || params.CheckVersion && tx.Version > MaxInvokeScriptTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for InvokeScriptWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
@@ -4817,8 +4832,9 @@ func (tx UpdateAssetInfoWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func (tx *UpdateAssetInfoWithProofs) Validate(_ Scheme) (Transaction, error) {
-	if tx.Version < 1 || tx.Version > MaxUpdateAssetInfoTransactionVersion {
+func (tx *UpdateAssetInfoWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
+	if tx.Version < 1 || params.CheckVersion && tx.Version > MaxUpdateAssetInfoTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for UpdateAssetInfoWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
@@ -5035,9 +5051,10 @@ func (tx InvokeExpressionTransactionWithProofs) GetTimestamp() uint64 {
 	return tx.Timestamp
 }
 
-func (tx *InvokeExpressionTransactionWithProofs) Validate(_ Scheme) (Transaction, error) {
+func (tx *InvokeExpressionTransactionWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
 	//TODO: Check specification on size check of InvokeExpression transaction
-	if tx.Version < 1 || tx.Version > MaxInvokeScriptTransactionVersion {
+	if tx.Version < 1 || params.CheckVersion && tx.Version > MaxInvokeScriptTransactionVersion ||
+		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for InvokeExpressionWithProofs", tx.Version)
 	}
 	if l := len(tx.Expression); l > MaxContractScriptSizeV1V5 {

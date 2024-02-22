@@ -390,7 +390,11 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 	if checkSequentially := params.validatingUtx; checkSequentially {
 		// In UTX it is not very useful to check signatures in separate goroutines,
 		// because they have to be checked in each validateNextTx() anyway.
-		return checkTx(tx, checkTxSig, checkOrder1, checkOrder2, a.settings.AddressSchemeCharacter)
+		vp := proto.TransactionValidationParams{
+			Scheme:       a.settings.AddressSchemeCharacter,
+			CheckVersion: params.lightNodeActivated,
+		}
+		return checkTx(tx, checkTxSig, checkOrder1, checkOrder2, vp)
 	}
 	// Send transaction for validation of transaction's data correctness (using tx.Validate() method)
 	// and simple cryptographic signature verification (using tx.Verify() and PK).

@@ -317,15 +317,14 @@ func (tx *EthereumTransaction) Verify() (*EthereumPublicKey, error) {
 
 // Validate performs basic checks for EthereumTransaction according to the specification
 // This method doesn't include signature verification. Use Verify method for signature verification
-func (tx *EthereumTransaction) Validate(scheme Scheme) (Transaction, error) {
+func (tx *EthereumTransaction) Validate(params TransactionValidationParams) (Transaction, error) {
 	// same chainID
-	if tx.ChainId().Cmp(big.NewInt(int64(scheme))) != 0 {
+	if tx.ChainId().Cmp(big.NewInt(int64(params.Scheme))) != 0 {
 		// TODO: introduce new error type for scheme validation
 		txChainID := tx.ChainId().Uint64()
 		return tx, errs.NewTxValidationError(fmt.Sprintf(
 			"Address belongs to another network: expected: %d(%c), actual: %d(%c)",
-			scheme, scheme,
-			txChainID, txChainID,
+			params.Scheme, params.Scheme, txChainID, txChainID,
 		))
 	}
 	// accept only EthereumLegacyTxType (this check doesn't exist in scala)
