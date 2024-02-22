@@ -61,8 +61,7 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 		}
 		switch t.SnapshotTaskType {
 		case tasks.BlockSnapshot:
-			a.blockWaitingForSnapshot = nil
-			a.timeoutTaskOutdated = nil
+			defer a.cleanupBeforeTransition()
 			return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, a.Errorf(errors.Errorf(
 				"failed to get snapshot for block '%s' - timeout", t.BlockID))
 		case tasks.MicroBlockSnapshot:
@@ -96,11 +95,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		// metrics.FSMKeyBlockDeclined("ng", block, err)
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
 	}
-	defer func() {
-		a.blockWaitingForSnapshot = nil
-		close(a.timeoutTaskOutdated)
-		a.timeoutTaskOutdated = nil
-	}()
+	defer a.cleanupBeforeTransition()
 
 	metrics.FSMKeyBlockApplied("ng", a.blockWaitingForSnapshot)
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Handle received key block message: block '%s' applied to state",
@@ -113,6 +108,14 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 	return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, nil
+}
+
+func (a *WaitSnapshotState) cleanupBeforeTransition() {
+	a.blockWaitingForSnapshot = nil
+	if a.timeoutTaskOutdated != nil {
+		close(a.timeoutTaskOutdated)
+		a.timeoutTaskOutdated = nil
+	}
 }
 
 func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseInfo) {

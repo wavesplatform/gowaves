@@ -64,8 +64,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 		case tasks.BlockSnapshot:
 			return a, nil, nil
 		case tasks.MicroBlockSnapshot:
-			a.microBlockWaitingForSnapshot = nil
-			a.timeoutTaskOutdated = nil
+			defer a.cleanupBeforeTransition()
 			return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, a.Errorf(errors.Errorf(
 				"failed to get snapshot for microBlock '%s' - timeout", t.BlockID))
 		default:
@@ -93,11 +92,8 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 		metrics.FSMMicroBlockDeclined("ng", a.microBlockWaitingForSnapshot, err)
 		return a, nil, a.Errorf(err)
 	}
-	defer func() {
-		a.microBlockWaitingForSnapshot = nil
-		close(a.timeoutTaskOutdated)
-		a.timeoutTaskOutdated = nil
-	}()
+	defer a.cleanupBeforeTransition()
+
 	zap.S().Named(logging.FSMNamespace).Debugf(
 		"[%s] Received snapshot for microblock '%s' successfully applied to state", a, block.BlockID(),
 	)
@@ -113,6 +109,14 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 		}
 	}
 	return a, nil, nil
+}
+
+func (a *WaitMicroSnapshotState) cleanupBeforeTransition() {
+	a.microBlockWaitingForSnapshot = nil
+	if a.timeoutTaskOutdated != nil {
+		close(a.timeoutTaskOutdated)
+		a.timeoutTaskOutdated = nil
+	}
 }
 
 func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
