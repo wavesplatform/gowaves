@@ -1428,8 +1428,7 @@ func NewUnsignedExchangeWithProofs(v byte, buy, sell Order, price, amount, buyMa
 	}
 }
 
-// TODO: Resolve lint issues
-func (tx *ExchangeWithProofs) Validate(params TransactionValidationParams) (Transaction, error) { //nolint:funlen,gocognit,gocyclo,lll,cyclop // Will be fixed in future commits.
+func (tx *ExchangeWithProofs) Validate(params TransactionValidationParams) (Transaction, error) {
 	if tx.Version < 2 || params.CheckVersion && tx.Version > MaxExchangeTransactionVersion ||
 		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for ExchangeWithProofs transaction", tx.Version)
@@ -1441,15 +1440,6 @@ func (tx *ExchangeWithProofs) Validate(params TransactionValidationParams) (Tran
 	ok, err = tx.Order2.Valid()
 	if !ok {
 		return tx, errors.Wrap(err, "invalid second order")
-	}
-	if (tx.Order1.GetOrderType() == Buy && tx.Order2.GetOrderType() != Sell) || (tx.Order1.GetOrderType() == Sell && tx.Order2.GetOrderType() != Buy) {
-		return tx, errors.New("incorrect combination of orders types")
-	}
-	if tx.Order2.GetMatcherPK() != tx.Order1.GetMatcherPK() {
-		return tx, errors.New("unmatched matcher's public keys")
-	}
-	if tx.Order2.GetAssetPair() != tx.Order1.GetAssetPair() {
-		return tx, errors.New("different asset pairs")
 	}
 	if tx.Amount == 0 {
 		return tx, errors.New("amount should be positive")
@@ -1463,23 +1453,6 @@ func (tx *ExchangeWithProofs) Validate(params TransactionValidationParams) (Tran
 	if !validJVMLong(tx.Price) {
 		return tx, errors.New("price is too big")
 	}
-	bo, err := tx.GetBuyOrder()
-	if err != nil {
-		return tx, err
-	}
-	so, err := tx.GetSellOrder()
-	if err != nil {
-		return tx, err
-	}
-	if tx.Version < 3 && (tx.Price > bo.GetPrice() || tx.Price < so.GetPrice()) {
-		if tx.Price > bo.GetPrice() {
-			return tx, errors.Errorf("invalid price: tx.Price %d > bo.GetPrice() %d", tx.Price, bo.GetPrice())
-		}
-		if tx.Price < so.GetPrice() {
-			return tx, errors.Errorf("invalid price: tx.Price %d < so.GetPrice() %d", tx.Price, so.GetPrice())
-		}
-		panic("unreachable")
-	}
 	if tx.Fee == 0 {
 		return tx, errors.New("fee should be positive")
 	}
@@ -1492,19 +1465,50 @@ func (tx *ExchangeWithProofs) Validate(params TransactionValidationParams) (Tran
 	if !validJVMLong(tx.SellMatcherFee) {
 		return tx, errors.New("sell matcher's fee is too big")
 	}
-	if tx.Order1.GetExpiration() < tx.Timestamp {
-		return tx, errors.New("invalid first order expiration")
-	}
-	if tx.Order1.GetExpiration()-tx.Timestamp > MaxOrderTTL {
-		return tx, errors.New("first order expiration should be earlier than 30 days")
-	}
-	if tx.Order2.GetExpiration() < tx.Timestamp {
-		return tx, errors.New("invalid second order expiration")
-	}
-	if tx.Order2.GetExpiration()-tx.Timestamp > MaxOrderTTL {
-		return tx, errors.New("second order expiration should be earlier than 30 days")
+	if err = tx.checkOrders(); err != nil {
+		return tx, err
 	}
 	return tx, nil
+}
+
+func (tx *ExchangeWithProofs) checkOrders() error {
+	if (tx.Order1.GetOrderType() == Buy && tx.Order2.GetOrderType() != Sell) ||
+		(tx.Order1.GetOrderType() == Sell && tx.Order2.GetOrderType() != Buy) {
+		return errors.New("incorrect combination of orders types")
+	}
+	if tx.Order2.GetMatcherPK() != tx.Order1.GetMatcherPK() {
+		return errors.New("unmatched matcher's public keys")
+	}
+	if tx.Order2.GetAssetPair() != tx.Order1.GetAssetPair() {
+		return errors.New("different asset pairs")
+	}
+	bo, err := tx.GetBuyOrder()
+	if err != nil {
+		return err
+	}
+	so, err := tx.GetSellOrder()
+	if err != nil {
+		return err
+	}
+	if tx.Version < 3 && tx.Price > bo.GetPrice() {
+		return errors.Errorf("invalid price: tx.Price %d > bo.GetPrice() %d", tx.Price, bo.GetPrice())
+	}
+	if tx.Version < 3 && tx.Price < so.GetPrice() {
+		return errors.Errorf("invalid price: tx.Price %d < so.GetPrice() %d", tx.Price, so.GetPrice())
+	}
+	if tx.Order1.GetExpiration() < tx.Timestamp {
+		return errors.New("invalid first order expiration")
+	}
+	if tx.Order1.GetExpiration()-tx.Timestamp > MaxOrderTTL {
+		return errors.New("first order expiration should be earlier than 30 days")
+	}
+	if tx.Order2.GetExpiration() < tx.Timestamp {
+		return errors.New("invalid second order expiration")
+	}
+	if tx.Order2.GetExpiration()-tx.Timestamp > MaxOrderTTL {
+		return errors.New("second order expiration should be earlier than 30 days")
+	}
+	return nil
 }
 
 func (tx *ExchangeWithProofs) marshalAsOrderV1(order Order) ([]byte, error) {

@@ -1157,8 +1157,7 @@ func NewUnsignedExchangeWithSig(buy, sell *OrderV1, price, amount, buyMatcherFee
 	}
 }
 
-// TODO: Resolve lint issues
-func (tx *ExchangeWithSig) Validate(_ TransactionValidationParams) (Transaction, error) { //nolint:gocognit
+func (tx *ExchangeWithSig) Validate(_ TransactionValidationParams) (Transaction, error) {
 	if tx.Version != 1 {
 		return tx, errors.Errorf("unexpected version %d for ExchangeWithSig", tx.Version)
 	}
@@ -1169,18 +1168,6 @@ func (tx *ExchangeWithSig) Validate(_ TransactionValidationParams) (Transaction,
 	ok, err = tx.Order2.Valid()
 	if !ok {
 		return tx, errors.Wrap(err, "invalid sell order")
-	}
-	if tx.Order1.OrderType != Buy {
-		return tx, errors.New("incorrect order type of buy order")
-	}
-	if tx.Order2.OrderType != Sell {
-		return tx, errors.New("incorrect order type of sell order")
-	}
-	if tx.Order2.MatcherPK != tx.Order1.MatcherPK {
-		return tx, errors.New("unmatched matcher's public keys")
-	}
-	if tx.Order2.AssetPair != tx.Order1.AssetPair {
-		return tx, errors.New("different asset pairs")
 	}
 	if tx.Amount == 0 {
 		return tx, errors.New("amount should be positive")
@@ -1194,15 +1181,6 @@ func (tx *ExchangeWithSig) Validate(_ TransactionValidationParams) (Transaction,
 	if !validJVMLong(tx.Price) {
 		return tx, errors.New("price is too big")
 	}
-	if tx.Price > tx.Order1.Price || tx.Price < tx.Order2.Price {
-		if tx.Price > tx.Order1.Price {
-			return tx, errors.Errorf("invalid price: tx.Price %d > tx.Order1.Price %d", tx.Price, tx.Order1.Price)
-		}
-		if tx.Price < tx.Order2.Price {
-			return tx, errors.Errorf("invalid price: tx.Price %d < tx.Order2.Price %d", tx.Price, tx.Order2.Price)
-		}
-		panic("unreachable")
-	}
 	if tx.Fee == 0 {
 		return tx, errors.New("fee should be positive")
 	}
@@ -1215,19 +1193,44 @@ func (tx *ExchangeWithSig) Validate(_ TransactionValidationParams) (Transaction,
 	if !validJVMLong(tx.SellMatcherFee) {
 		return tx, errors.New("sell matcher's fee is too big")
 	}
-	if tx.Order1.Expiration < tx.Timestamp {
-		return tx, errors.New("invalid buy order expiration")
-	}
-	if tx.Order1.Expiration-tx.Timestamp > MaxOrderTTL {
-		return tx, errors.New("buy order expiration should be earlier than 30 days")
-	}
-	if tx.Order2.Expiration < tx.Timestamp {
-		return tx, errors.New("invalid sell order expiration")
-	}
-	if tx.Order2.Expiration-tx.Timestamp > MaxOrderTTL {
-		return tx, errors.New("sell order expiration should be earlier than 30 days")
+	if err = tx.checkOrders(); err != nil {
+		return tx, err
 	}
 	return tx, nil
+}
+
+func (tx *ExchangeWithSig) checkOrders() error {
+	if tx.Order1.OrderType != Buy {
+		return errors.New("incorrect order type of buy order")
+	}
+	if tx.Order2.OrderType != Sell {
+		return errors.New("incorrect order type of sell order")
+	}
+	if tx.Order2.MatcherPK != tx.Order1.MatcherPK {
+		return errors.New("unmatched matcher's public keys")
+	}
+	if tx.Order2.AssetPair != tx.Order1.AssetPair {
+		return errors.New("different asset pairs")
+	}
+	if tx.Price > tx.Order1.Price {
+		return errors.Errorf("invalid price: tx.Price %d > tx.Order1.Price %d", tx.Price, tx.Order1.Price)
+	}
+	if tx.Price < tx.Order2.Price {
+		return errors.Errorf("invalid price: tx.Price %d < tx.Order2.Price %d", tx.Price, tx.Order2.Price)
+	}
+	if tx.Order1.Expiration < tx.Timestamp {
+		return errors.New("invalid buy order expiration")
+	}
+	if tx.Order1.Expiration-tx.Timestamp > MaxOrderTTL {
+		return errors.New("buy order expiration should be earlier than 30 days")
+	}
+	if tx.Order2.Expiration < tx.Timestamp {
+		return errors.New("invalid sell order expiration")
+	}
+	if tx.Order2.Expiration-tx.Timestamp > MaxOrderTTL {
+		return errors.New("sell order expiration should be earlier than 30 days")
+	}
+	return nil
 }
 
 func (tx *ExchangeWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
