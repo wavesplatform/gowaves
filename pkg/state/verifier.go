@@ -62,10 +62,12 @@ func checkTx(
 		return nil
 	}
 	switch t := tx.(type) {
-	case *proto.ExchangeWithSig:
-		return verifyExchangeTransactionWithSig(t, params.Scheme, checkOrder1, checkOrder2)
-	case *proto.ExchangeWithProofs:
-		return verifyExchangeTransactionWithProofs(t, params.Scheme, checkOrder1, checkOrder2)
+	case proto.Exchange: // special case for ExchangeTransaction
+		var ( // compile-time interface checks
+			_ proto.Exchange = (*proto.ExchangeWithProofs)(nil)
+			_ proto.Exchange = (*proto.ExchangeWithSig)(nil)
+		)
+		return verifyExchangeTransaction(t, params.Scheme, checkOrder1, checkOrder2)
 	case *proto.EthereumTransaction:
 		if _, err := t.Verify(); err != nil {
 			return errs.NewTxValidationError("EthereumTransaction transaction signature verification failed")
@@ -76,40 +78,20 @@ func checkTx(
 	return nil
 }
 
-func verifyExchangeTransactionWithSig(tx *proto.ExchangeWithSig, sch proto.Scheme, chOrd1, chOrd2 bool) error {
-	if ok, err := tx.Verify(sch, tx.SenderPK); !ok {
+func verifyExchangeTransaction(tx proto.Exchange, sch proto.Scheme, chOrd1, chOrd2 bool) error {
+	if ok, err := tx.Verify(sch, tx.GetSenderPK()); !ok {
 		if err != nil {
 			return errs.Extend(err, "Exchange transaction signature verification failed")
 		}
 		return errs.NewTxValidationError("Exchange tx signature verification failed")
 	}
 	if chOrd1 {
-		if ok, _ := tx.Order1.Verify(sch); !ok {
+		if ok, _ := tx.GetOrder1().Verify(sch); !ok {
 			return errs.NewTxValidationError("first Order signature verification failed")
 		}
 	}
 	if chOrd2 {
-		if ok, _ := tx.Order2.Verify(sch); !ok {
-			return errs.NewTxValidationError("second Order signature verification failed")
-		}
-	}
-	return nil
-}
-
-func verifyExchangeTransactionWithProofs(tx *proto.ExchangeWithProofs, sch proto.Scheme, chOrd1, chOrd2 bool) error {
-	if ok, err := tx.Verify(sch, tx.SenderPK); !ok {
-		if err != nil {
-			return errs.Extend(err, "Exchange transaction signature verification failed")
-		}
-		return errs.NewTxValidationError("Exchange tx signature verification failed")
-	}
-	if chOrd1 {
-		if ok, _ := tx.Order1.Verify(sch); !ok {
-			return errs.NewTxValidationError("first Order signature verification failed")
-		}
-	}
-	if chOrd2 {
-		if ok, _ := tx.Order2.Verify(sch); !ok {
+		if ok, _ := tx.GetOrder2().Verify(sch); !ok {
 			return errs.NewTxValidationError("second Order signature verification failed")
 		}
 	}
