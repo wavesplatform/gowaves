@@ -41,7 +41,7 @@ func (a *WaitMicroSnapshotState) Errorf(err error) error {
 }
 
 func (a *WaitMicroSnapshotState) String() string {
-	return WaitSnapshotStateName
+	return WaitMicroSnapshotStateName
 }
 
 func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
@@ -49,7 +49,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		zap.S().Named(logging.FSMNamespace).Debug("[WaitSnapshot] Requesting peers")
+		zap.S().Named(logging.FSMNamespace).Debug("[WaitMicroSnapshot] Requesting peers")
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro:
@@ -105,10 +105,10 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
 		//TODO: We have to exclude from recipients peers that already have this microblock
 		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
-			return a, nil, a.Errorf(errors.Wrap(err, "failed to handle microblock message"))
+			return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, a.Errorf(errors.Wrap(err, "failed to handle microblock message"))
 		}
 	}
-	return a, nil, nil
+	return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, nil
 }
 
 func (a *WaitMicroSnapshotState) cleanupBeforeTransition() {
