@@ -163,6 +163,8 @@ func TestMicroBlockV5VerifySignatureWithFilledStateHash(t *testing.T) {
 	micro := new(MicroBlock)
 	err = micro.UnmarshalFromProtobuf(b)
 	require.NoError(t, err)
+	_, present := micro.GetStateHash()
+	require.True(t, present)
 	ok, err := micro.VerifySignature(StageNetScheme)
 	require.NoError(t, err)
 	assert.True(t, ok)
