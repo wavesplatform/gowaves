@@ -62,6 +62,10 @@ func (tx IssueWithSig) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
 }
 
+func (tx IssueWithSig) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx IssueWithSig) GetVersion() byte {
 	return tx.Version
 }
@@ -295,6 +299,10 @@ func (tx TransferWithSig) BinarySize() int {
 
 func (tx TransferWithSig) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
+}
+
+func (tx TransferWithSig) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx TransferWithSig) GetVersion() byte {
@@ -593,6 +601,10 @@ func (tx ReissueWithSig) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
 }
 
+func (tx ReissueWithSig) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx ReissueWithSig) GetVersion() byte {
 	return tx.Version
 }
@@ -830,6 +842,10 @@ func (tx BurnWithSig) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
 }
 
+func (tx BurnWithSig) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx BurnWithSig) GetVersion() byte {
 	return tx.Version
 }
@@ -1050,6 +1066,10 @@ func (tx ExchangeWithSig) BinarySize() int {
 
 func (tx ExchangeWithSig) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
+}
+
+func (tx ExchangeWithSig) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx ExchangeWithSig) GetVersion() byte {
@@ -1537,6 +1557,10 @@ func (tx LeaseWithSig) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
 }
 
+func (tx LeaseWithSig) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx LeaseWithSig) GetVersion() byte {
 	return tx.Version
 }
@@ -1772,6 +1796,10 @@ func (tx LeaseCancelWithSig) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
 }
 
+func (tx LeaseCancelWithSig) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx LeaseCancelWithSig) GetVersion() byte {
 	return tx.Version
 }
@@ -1997,6 +2025,10 @@ func (tx CreateAliasWithSig) BinarySize() int {
 
 func (tx CreateAliasWithSig) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
+}
+
+func (tx CreateAliasWithSig) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx CreateAliasWithSig) GetVersion() byte {

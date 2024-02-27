@@ -135,6 +135,10 @@ func (tx IssueWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx IssueWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx IssueWithProofs) GetVersion() byte {
 	return tx.Version
 }
@@ -471,8 +475,16 @@ func (tx TransferWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx TransferWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx TransferWithProofs) GetVersion() byte {
 	return tx.Version
+}
+
+func (tx TransferWithProofs) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
 }
 
 func (tx *TransferWithProofs) GenerateID(scheme Scheme) error {
@@ -783,6 +795,10 @@ func (tx ReissueWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx ReissueWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx ReissueWithProofs) GetVersion() byte {
 	return tx.Version
 }
@@ -1032,6 +1048,10 @@ func (tx *BurnWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransaction,
 
 func (tx BurnWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx BurnWithProofs) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx BurnWithProofs) GetVersion() byte {
@@ -1309,6 +1329,10 @@ func (tx *ExchangeWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTransact
 
 func (tx ExchangeWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx ExchangeWithProofs) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx ExchangeWithProofs) GetVersion() byte {
@@ -1945,6 +1969,10 @@ func (tx LeaseWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx LeaseWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx LeaseWithProofs) GetVersion() byte {
 	return tx.Version
 }
@@ -2176,6 +2204,10 @@ func (tx *LeaseCancelWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTrans
 
 func (tx LeaseCancelWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx LeaseCancelWithProofs) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx LeaseCancelWithProofs) GetVersion() byte {
@@ -2435,6 +2467,10 @@ func (tx *CreateAliasWithProofs) ToProtobufSigned(scheme Scheme) (*g.SignedTrans
 
 func (tx CreateAliasWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx CreateAliasWithProofs) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx CreateAliasWithProofs) GetVersion() byte {
@@ -2715,6 +2751,10 @@ func (tx MassTransferWithProofs) HasRecipient(rcp Recipient) bool {
 
 func (tx MassTransferWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx MassTransferWithProofs) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx MassTransferWithProofs) GetVersion() byte {
@@ -3114,6 +3154,10 @@ func (tx DataWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx DataWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx DataWithProofs) GetVersion() byte {
 	return tx.Version
 }
@@ -3501,6 +3545,10 @@ func (tx SetScriptWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx SetScriptWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx SetScriptWithProofs) GetVersion() byte {
 	return tx.Version
 }
@@ -3800,6 +3848,10 @@ func (tx SponsorshipWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx SponsorshipWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx SponsorshipWithProofs) GetVersion() byte {
 	return tx.Version
 }
@@ -4090,6 +4142,10 @@ func (tx SetAssetScriptWithProofs) BinarySize() int {
 
 func (tx SetAssetScriptWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx SetAssetScriptWithProofs) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx SetAssetScriptWithProofs) GetVersion() byte {
@@ -4419,6 +4475,10 @@ func (tx *InvokeScriptWithProofs) MerkleBytes(scheme Scheme) ([]byte, error) {
 
 func (tx InvokeScriptWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
+}
+
+func (tx InvokeScriptWithProofs) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx InvokeScriptWithProofs) GetVersion() byte {
@@ -4803,6 +4863,10 @@ func (tx UpdateAssetInfoWithProofs) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx UpdateAssetInfoWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx UpdateAssetInfoWithProofs) GetVersion() byte {
 	return tx.Version
 }
@@ -5026,6 +5090,10 @@ func (tx InvokeExpressionTransactionWithProofs) GetTypeInfo() TransactionTypeInf
 	return TransactionTypeInfo{tx.Type, Proof}
 }
 
+func (tx InvokeExpressionTransactionWithProofs) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx InvokeExpressionTransactionWithProofs) GetVersion() byte {
 	return tx.Version
 }
@@ -5041,6 +5109,10 @@ func (tx *InvokeExpressionTransactionWithProofs) GetID(scheme Scheme) ([]byte, e
 
 func (tx InvokeExpressionTransactionWithProofs) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
+}
+
+func (tx InvokeExpressionTransactionWithProofs) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
 }
 
 func (tx InvokeExpressionTransactionWithProofs) GetFee() uint64 {

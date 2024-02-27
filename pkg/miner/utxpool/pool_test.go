@@ -87,6 +87,10 @@ func (transaction) GetTypeInfo() proto.TransactionTypeInfo {
 	panic("not implemented")
 }
 
+func (transaction) GetType() proto.TransactionType {
+	panic("not implemented")
+}
+
 func (transaction) GetVersion() byte {
 	panic("not implemented")
 }

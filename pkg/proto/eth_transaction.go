@@ -257,6 +257,10 @@ func (tx *EthereumTransaction) GetTypeInfo() TransactionTypeInfo {
 	}
 }
 
+func (tx *EthereumTransaction) GetType() TransactionType {
+	return EthereumMetamaskTransaction
+}
+
 func (tx *EthereumTransaction) GetVersion() byte {
 	// EthereumTransaction version always should be 1
 	return 1

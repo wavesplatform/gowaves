@@ -18,31 +18,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-type TransactionType byte
-
-// All transaction types supported.
-const (
-	GenesisTransaction          TransactionType = iota + 1 // 1 - Genesis transaction
-	PaymentTransaction                                     // 2 - Payment transaction
-	IssueTransaction                                       // 3 - Issue transaction
-	TransferTransaction                                    // 4 - Transfer transaction
-	ReissueTransaction                                     // 5 - Reissue transaction
-	BurnTransaction                                        // 6 - Burn transaction
-	ExchangeTransaction                                    // 7 - Exchange transaction
-	LeaseTransaction                                       // 8 - Lease transaction
-	LeaseCancelTransaction                                 // 9 - LeaseCancel transaction
-	CreateAliasTransaction                                 // 10 - CreateAlias transaction
-	MassTransferTransaction                                // 11 - MassTransfer transaction
-	DataTransaction                                        // 12 - Data transaction
-	SetScriptTransaction                                   // 13 - SetScript transaction
-	SponsorshipTransaction                                 // 14 - Sponsorship transaction
-	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
-	InvokeScriptTransaction                                // 16 - InvokeScript transaction
-	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
-	EthereumMetamaskTransaction                            // 18 - EthereumMetamaskTransaction is a transaction which is received from metamask
-	InvokeExpressionTransaction                            // 19 - InvokeExpressionTransaction
-)
-
 // TxFailureReason indicates Transactions failure reasons.
 type TxFailureReason byte
 
@@ -198,6 +173,7 @@ type Transaction interface {
 	// This is temporary workaround until we have the same struct for both
 	// Signature and Proofs transactions.
 	GetTypeInfo() TransactionTypeInfo
+	GetType() TransactionType
 	GetVersion() byte
 	GetID(scheme Scheme) ([]byte, error)
 	GetSender(scheme Scheme) (Address, error)
@@ -474,6 +450,10 @@ func (tx Genesis) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
 }
 
+func (tx Genesis) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx Genesis) GetVersion() byte {
 	return tx.Version
 }
@@ -741,6 +721,10 @@ func (tx Payment) BinarySize() int {
 
 func (tx Payment) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
+}
+
+func (tx Payment) GetType() TransactionType {
+	return tx.Type
 }
 
 func (tx Payment) GetVersion() byte {

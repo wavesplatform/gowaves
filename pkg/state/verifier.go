@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -52,6 +53,52 @@ type verifyTask struct {
 	checkVersion bool
 }
 
+type selfVerifier interface {
+	GetSenderPK() crypto.PublicKey
+	GetType() proto.TransactionType
+	Verify(scheme proto.Scheme, pk crypto.PublicKey) (bool, error)
+}
+
+var ( // compile-time interface checks
+	_ proto.Exchange = (*proto.ExchangeWithProofs)(nil)
+	_ proto.Exchange = (*proto.ExchangeWithSig)(nil)
+	_ selfVerifier   = (*proto.ExchangeWithProofs)(nil)
+	_ selfVerifier   = (*proto.ExchangeWithSig)(nil)
+	_ selfVerifier   = (*proto.TransferWithProofs)(nil)
+	_ selfVerifier   = (*proto.IssueWithProofs)(nil)
+	_ selfVerifier   = (*proto.ReissueWithProofs)(nil)
+	_ selfVerifier   = (*proto.BurnWithProofs)(nil)
+	_ selfVerifier   = (*proto.LeaseWithProofs)(nil)
+	_ selfVerifier   = (*proto.LeaseCancelWithProofs)(nil)
+	_ selfVerifier   = (*proto.CreateAliasWithProofs)(nil)
+	_ selfVerifier   = (*proto.SponsorshipWithProofs)(nil)
+	_ selfVerifier   = (*proto.MassTransferWithProofs)(nil)
+	_ selfVerifier   = (*proto.DataWithProofs)(nil)
+	_ selfVerifier   = (*proto.SetScriptWithProofs)(nil)
+	_ selfVerifier   = (*proto.SetAssetScriptWithProofs)(nil)
+	_ selfVerifier   = (*proto.InvokeScriptWithProofs)(nil)
+	_ selfVerifier   = (*proto.InvokeExpressionTransactionWithProofs)(nil)
+	_ selfVerifier   = (*proto.UpdateAssetInfoWithProofs)(nil)
+	_ selfVerifier   = (*proto.Payment)(nil)
+	_ selfVerifier   = (*proto.TransferWithSig)(nil)
+	_ selfVerifier   = (*proto.IssueWithSig)(nil)
+	_ selfVerifier   = (*proto.ReissueWithSig)(nil)
+	_ selfVerifier   = (*proto.BurnWithSig)(nil)
+	_ selfVerifier   = (*proto.LeaseWithSig)(nil)
+	_ selfVerifier   = (*proto.LeaseCancelWithSig)(nil)
+	_ selfVerifier   = (*proto.CreateAliasWithSig)(nil)
+)
+
+func verifyTransactionSignature(sv selfVerifier, scheme proto.Scheme) error {
+	if ok, err := sv.Verify(scheme, sv.GetSenderPK()); !ok {
+		if err != nil {
+			return errs.Extend(err, fmt.Sprintf("%s signature verification failed", sv.GetType().String()))
+		}
+		return errs.NewTxValidationError(fmt.Sprintf("%s signature verification failed", sv.GetType().String()))
+	}
+	return nil
+}
+
 func checkTx(
 	tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, params proto.TransactionValidationParams,
 ) error {
@@ -62,18 +109,18 @@ func checkTx(
 		return nil
 	}
 	switch t := tx.(type) {
+	case *proto.Genesis:
+		return nil
 	case proto.Exchange: // special case for ExchangeTransaction
-		var ( // compile-time interface checks
-			_ proto.Exchange = (*proto.ExchangeWithProofs)(nil)
-			_ proto.Exchange = (*proto.ExchangeWithSig)(nil)
-		)
 		return verifyExchangeTransaction(t, params.Scheme, checkOrder1, checkOrder2)
 	case *proto.EthereumTransaction:
 		if _, err := t.Verify(); err != nil {
 			return errs.NewTxValidationError("EthereumTransaction transaction signature verification failed")
 		}
+	case selfVerifier:
+		return verifyTransactionSignature(t, params.Scheme)
 	default:
-		return verifyTransactionsWithProofs(tx, params.Scheme)
+		return errors.New("unknown transaction type")
 	}
 	return nil
 }
@@ -96,78 +143,6 @@ func verifyExchangeTransaction(tx proto.Exchange, sch proto.Scheme, chOrd1, chOr
 		}
 	}
 	return nil
-}
-
-func verifyTransaction(vf func() (bool, error), name string) error {
-	if ok, err := vf(); !ok {
-		if err != nil {
-			return errs.Extend(err, fmt.Sprintf("%s transaction signature verification failed", name))
-		}
-		return errs.NewTxValidationError(fmt.Sprintf("%s transaction signature verification failed", name))
-	}
-	return nil
-}
-
-func verifyTransactionsWithProofs(tx proto.Transaction, scheme proto.Scheme) error {
-	switch t := tx.(type) {
-	case *proto.TransferWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Transfer")
-	case *proto.IssueWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Issue")
-	case *proto.ReissueWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Reissue")
-	case *proto.BurnWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Burn")
-	case *proto.LeaseWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Lease")
-	case *proto.LeaseCancelWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "LeaseCancel")
-	case *proto.CreateAliasWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "CreateAlias")
-	case *proto.SponsorshipWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Sponsorship")
-	case *proto.MassTransferWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "MassTransfer")
-	case *proto.DataWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Data")
-	case *proto.SetScriptWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "SetScript")
-	case *proto.SetAssetScriptWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "SetAssetScript")
-	case *proto.InvokeScriptWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "InvokeScript")
-	case *proto.InvokeExpressionTransactionWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "InvokeExpression")
-	case *proto.UpdateAssetInfoWithProofs:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "UpdateAssetInfo")
-	default:
-		return verifyTransactionsWithSignatures(tx, scheme)
-	}
-}
-
-func verifyTransactionsWithSignatures(tx proto.Transaction, scheme proto.Scheme) error {
-	switch t := tx.(type) {
-	case *proto.Genesis:
-		return nil
-	case *proto.Payment:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Payment")
-	case *proto.TransferWithSig:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Transfer")
-	case *proto.IssueWithSig:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Issue")
-	case *proto.ReissueWithSig:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Reissue")
-	case *proto.BurnWithSig:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Burn")
-	case *proto.LeaseWithSig:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "Lease")
-	case *proto.LeaseCancelWithSig:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "LeaseCancel")
-	case *proto.CreateAliasWithSig:
-		return verifyTransaction(func() (bool, error) { return t.Verify(scheme, t.SenderPK) }, "CreateAlias")
-	default:
-		return errors.New("unknown transaction type")
-	}
 }
 
 func handleTask(task *verifyTask, scheme proto.Scheme) error {
