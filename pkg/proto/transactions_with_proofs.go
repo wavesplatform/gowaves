@@ -5039,6 +5039,10 @@ func (tx *InvokeExpressionTransactionWithProofs) GetID(scheme Scheme) ([]byte, e
 	return tx.ID.Bytes(), nil
 }
 
+func (tx InvokeExpressionTransactionWithProofs) GetSenderPK() crypto.PublicKey {
+	return tx.SenderPK
+}
+
 func (tx InvokeExpressionTransactionWithProofs) GetSender(scheme Scheme) (Address, error) {
 	return NewAddressFromPublicKey(scheme, tx.SenderPK)
 }
