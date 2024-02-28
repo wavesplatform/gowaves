@@ -105,7 +105,8 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
 		//TODO: We have to exclude from recipients peers that already have this microblock
 		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
-			return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, a.Errorf(errors.Wrap(err, "failed to handle microblock message"))
+			return newNGStateWithCache(a.baseInfo, a.blocksCache), nil,
+				a.Errorf(errors.Wrap(err, "failed to handle microblock message"))
 		}
 	}
 	return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, nil
@@ -205,7 +206,7 @@ func initWaitMicroSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachi
 		proto.ContentIDBlockSnapshot,
 	}
 	fsm.Configure(WaitMicroSnapshotStateName). //nolint:dupl // it's state setup
-							OnEntry(func(_ context.Context, _ ...interface{}) error {
+		OnEntry(func(_ context.Context, _ ...interface{}) error {
 			info.skipMessageList.SetList(waitSnapshotSkipMessageList)
 			return nil
 		}).
