@@ -2,6 +2,7 @@ package ride
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
@@ -103,6 +104,8 @@ func newTreeEstimatorV1(tree *ast.Tree) (*treeEstimatorV1, error) {
 		r.scope = newEstimationScopeV1(ConstantsV6, CatalogueV6)
 	case ast.LibV7:
 		r.scope = newEstimationScopeV1(ConstantsV7, CatalogueV7)
+	case ast.LibV8:
+		r.scope = newEstimationScopeV1(ConstantsV8, CatalogueV8)
 	default:
 		return nil, errors.Errorf("unsupported library version %d", tree.LibVersion)
 	}

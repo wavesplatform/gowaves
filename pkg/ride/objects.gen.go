@@ -1701,7 +1701,7 @@ func (o rideLease) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-type rideOrder struct {
+type rideOrderV1 struct {
 	assetPair         rideType
 	orderType         rideType
 	matcherFeeAssetId rideType
@@ -1718,8 +1718,8 @@ type rideOrder struct {
 	sender            rideAddress
 }
 
-func newRideOrder(assetPair rideType, orderType rideType, matcherFeeAssetId rideType, proofs rideList, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, matcherPublicKey rideByteVector, amount rideInt, timestamp rideInt, expiration rideInt, matcherFee rideInt, price rideInt, sender rideAddress) rideOrder {
-	return rideOrder{
+func newRideOrderV1(assetPair rideType, orderType rideType, matcherFeeAssetId rideType, proofs rideList, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, matcherPublicKey rideByteVector, amount rideInt, timestamp rideInt, expiration rideInt, matcherFee rideInt, price rideInt, sender rideAddress) rideOrderV1 {
+	return rideOrderV1{
 		assetPair:         assetPair,
 		orderType:         orderType,
 		matcherFeeAssetId: matcherFeeAssetId,
@@ -1737,12 +1737,12 @@ func newRideOrder(assetPair rideType, orderType rideType, matcherFeeAssetId ride
 	}
 }
 
-func (o rideOrder) instanceOf() string {
+func (o rideOrderV1) instanceOf() string {
 	return "Order"
 }
 
-func (o rideOrder) eq(other rideType) bool {
-	if oo, ok := other.(rideOrder); ok {
+func (o rideOrderV1) eq(other rideType) bool {
+	if oo, ok := other.(rideOrderV1); ok {
 		if !o.assetPair.eq(oo.assetPair) {
 			return false
 		}
@@ -1790,7 +1790,7 @@ func (o rideOrder) eq(other rideType) bool {
 	return false
 }
 
-func (o rideOrder) get(prop string) (rideType, error) {
+func (o rideOrderV1) get(prop string) (rideType, error) {
 	switch prop {
 	case "$instance":
 		return rideString("Order"), nil
@@ -1827,11 +1827,11 @@ func (o rideOrder) get(prop string) (rideType, error) {
 	}
 }
 
-func (o rideOrder) copy() rideType {
-	return newRideOrder(o.assetPair, o.orderType, o.matcherFeeAssetId, o.proofs, o.bodyBytes, o.id, o.senderPublicKey, o.matcherPublicKey, o.amount, o.timestamp, o.expiration, o.matcherFee, o.price, o.sender)
+func (o rideOrderV1) copy() rideType {
+	return newRideOrderV1(o.assetPair, o.orderType, o.matcherFeeAssetId, o.proofs, o.bodyBytes, o.id, o.senderPublicKey, o.matcherPublicKey, o.amount, o.timestamp, o.expiration, o.matcherFee, o.price, o.sender)
 }
 
-func (o rideOrder) lines() []string {
+func (o rideOrderV1) lines() []string {
 	r := make([]string, 0, 16)
 	r = append(r, "Order(")
 	r = append(r, fieldLines("assetPair", o.assetPair.lines())...)
@@ -1852,16 +1852,188 @@ func (o rideOrder) lines() []string {
 	return r
 }
 
-func (o rideOrder) String() string {
+func (o rideOrderV1) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
-func (o rideOrder) setProofs(proofs rideList) rideProven {
+func (o rideOrderV1) setProofs(proofs rideList) rideProven {
 	o.proofs = proofs
 	return o
 }
 
-func (o rideOrder) getProofs() rideList {
+func (o rideOrderV1) getProofs() rideList {
+	return o.proofs
+}
+
+type rideOrderV8 struct {
+	assetPair         rideType
+	orderType         rideType
+	matcherFeeAssetId rideType
+	proofs            rideList
+	bodyBytes         rideByteVector
+	id                rideByteVector
+	senderPublicKey   rideByteVector
+	matcherPublicKey  rideByteVector
+	attachment        rideType
+	amount            rideInt
+	timestamp         rideInt
+	expiration        rideInt
+	matcherFee        rideInt
+	price             rideInt
+	sender            rideAddress
+}
+
+func newRideOrderV8(assetPair rideType, orderType rideType, matcherFeeAssetId rideType, proofs rideList, bodyBytes rideByteVector, id rideByteVector, senderPublicKey rideByteVector, matcherPublicKey rideByteVector, attachment rideType, amount rideInt, timestamp rideInt, expiration rideInt, matcherFee rideInt, price rideInt, sender rideAddress) rideOrderV8 {
+	return rideOrderV8{
+		assetPair:         assetPair,
+		orderType:         orderType,
+		matcherFeeAssetId: matcherFeeAssetId,
+		proofs:            proofs,
+		bodyBytes:         bodyBytes,
+		id:                id,
+		senderPublicKey:   senderPublicKey,
+		matcherPublicKey:  matcherPublicKey,
+		attachment:        attachment,
+		amount:            amount,
+		timestamp:         timestamp,
+		expiration:        expiration,
+		matcherFee:        matcherFee,
+		price:             price,
+		sender:            sender,
+	}
+}
+
+func (o rideOrderV8) instanceOf() string {
+	return "Order"
+}
+
+func (o rideOrderV8) eq(other rideType) bool {
+	if oo, ok := other.(rideOrderV8); ok {
+		if !o.assetPair.eq(oo.assetPair) {
+			return false
+		}
+		if !o.orderType.eq(oo.orderType) {
+			return false
+		}
+		if !o.matcherFeeAssetId.eq(oo.matcherFeeAssetId) {
+			return false
+		}
+		if !o.proofs.eq(oo.proofs) {
+			return false
+		}
+		if !o.bodyBytes.eq(oo.bodyBytes) {
+			return false
+		}
+		if !o.id.eq(oo.id) {
+			return false
+		}
+		if !o.senderPublicKey.eq(oo.senderPublicKey) {
+			return false
+		}
+		if !o.matcherPublicKey.eq(oo.matcherPublicKey) {
+			return false
+		}
+		if !o.attachment.eq(oo.attachment) {
+			return false
+		}
+		if !o.amount.eq(oo.amount) {
+			return false
+		}
+		if !o.timestamp.eq(oo.timestamp) {
+			return false
+		}
+		if !o.expiration.eq(oo.expiration) {
+			return false
+		}
+		if !o.matcherFee.eq(oo.matcherFee) {
+			return false
+		}
+		if !o.price.eq(oo.price) {
+			return false
+		}
+		if !o.sender.eq(oo.sender) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideOrderV8) get(prop string) (rideType, error) {
+	switch prop {
+	case "$instance":
+		return rideString("Order"), nil
+	case "assetPair":
+		return o.assetPair, nil
+	case "orderType":
+		return o.orderType, nil
+	case "matcherFeeAssetId":
+		return o.matcherFeeAssetId, nil
+	case "proofs":
+		return o.proofs, nil
+	case "bodyBytes":
+		return o.bodyBytes, nil
+	case "id":
+		return o.id, nil
+	case "senderPublicKey":
+		return o.senderPublicKey, nil
+	case "matcherPublicKey":
+		return o.matcherPublicKey, nil
+	case "attachment":
+		return o.attachment, nil
+	case "amount":
+		return o.amount, nil
+	case "timestamp":
+		return o.timestamp, nil
+	case "expiration":
+		return o.expiration, nil
+	case "matcherFee":
+		return o.matcherFee, nil
+	case "price":
+		return o.price, nil
+	case "sender":
+		return o.sender, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideOrderV8) copy() rideType {
+	return newRideOrderV8(o.assetPair, o.orderType, o.matcherFeeAssetId, o.proofs, o.bodyBytes, o.id, o.senderPublicKey, o.matcherPublicKey, o.attachment, o.amount, o.timestamp, o.expiration, o.matcherFee, o.price, o.sender)
+}
+
+func (o rideOrderV8) lines() []string {
+	r := make([]string, 0, 17)
+	r = append(r, "Order(")
+	r = append(r, fieldLines("assetPair", o.assetPair.lines())...)
+	r = append(r, fieldLines("timestamp", o.timestamp.lines())...)
+	r = append(r, fieldLines("bodyBytes", o.bodyBytes.lines())...)
+	r = append(r, fieldLines("amount", o.amount.lines())...)
+	r = append(r, fieldLines("matcherFeeAssetId", o.matcherFeeAssetId.lines())...)
+	r = append(r, fieldLines("id", o.id.lines())...)
+	r = append(r, fieldLines("senderPublicKey", o.senderPublicKey.lines())...)
+	r = append(r, fieldLines("matcherPublicKey", o.matcherPublicKey.lines())...)
+	r = append(r, fieldLines("sender", o.sender.lines())...)
+	r = append(r, fieldLines("orderType", o.orderType.lines())...)
+	r = append(r, fieldLines("proofs", o.proofs.lines())...)
+	r = append(r, fieldLines("expiration", o.expiration.lines())...)
+	r = append(r, fieldLines("matcherFee", o.matcherFee.lines())...)
+	r = append(r, fieldLines("price", o.price.lines())...)
+	r = append(r, fieldLines("attachment", o.attachment.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideOrderV8) String() string {
+	return strings.Join(o.lines(), "\n")
+}
+
+func (o rideOrderV8) setProofs(proofs rideList) rideProven {
+	o.proofs = proofs
+	return o
+}
+
+func (o rideOrderV8) getProofs() rideList {
 	return o.proofs
 }
 

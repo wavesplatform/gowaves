@@ -625,7 +625,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 		c.err = errors.New("empty order")
 		return nil
 	}
-	orderVersion := c.byte(o.Version)
+	orderVersion := OrderVersion(c.byte(o.Version))
 	priceMode, err := c.orderPriceMode(o.PriceMode)
 	if err != nil {
 		c.err = err
@@ -689,6 +689,7 @@ func (c *ProtobufConverter) extractOrder(o *g.Order) Order {
 			OrderBody:       body,
 			MatcherFeeAsset: c.extractOptionalAsset(o.MatcherFee),
 			PriceMode:       priceMode,
+			Attachment:      c.attachment(o.Attachment),
 		}
 		if sig, ok := o.Sender.(*g.Order_Eip712Signature); ok {
 			ethOrder := EthereumOrderV4{
