@@ -8,6 +8,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	defaultChSize     = 100
+	chSizeInLightMode = defaultChSize * 2
+)
+
 type Remote struct {
 	ToCh   chan []byte
 	FromCh chan *bytebufferpool.ByteBuffer
@@ -16,8 +21,8 @@ type Remote struct {
 
 func NewRemote() Remote {
 	return Remote{
-		ToCh:   make(chan []byte, 100),
-		FromCh: make(chan *bytebufferpool.ByteBuffer, 100),
+		ToCh:   make(chan []byte, chSizeInLightMode),
+		FromCh: make(chan *bytebufferpool.ByteBuffer, chSizeInLightMode),
 		ErrCh:  make(chan error, 10),
 	}
 }
@@ -29,14 +34,14 @@ type Parent struct {
 }
 
 func NewParent(enableLightNode bool) Parent {
-	messageChSize := 100
+	messageChSize := defaultChSize
 	if enableLightNode {
 		// because in light node we send block and snapshot request messages
-		messageChSize = 200
+		messageChSize = chSizeInLightMode
 	}
 	return Parent{
 		MessageCh:       make(chan ProtoMessage, messageChSize),
-		InfoCh:          make(chan InfoMessage, 100),
+		InfoCh:          make(chan InfoMessage, messageChSize),
 		SkipMessageList: &messages.SkipMessageList{},
 	}
 }

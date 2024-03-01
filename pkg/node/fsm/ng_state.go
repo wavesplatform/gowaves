@@ -26,7 +26,7 @@ func newNGState(baseInfo BaseInfo) State {
 	baseInfo.syncPeer.Clear()
 	return &NGState{
 		baseInfo:    baseInfo,
-		blocksCache: blockStatesCache{blockStates: map[proto.BlockID]proto.Block{}},
+		blocksCache: newBlockStatesCache(),
 	}
 }
 
@@ -219,7 +219,7 @@ func (a *NGState) MinedBlock(
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
-	a.blocksCache = blockStatesCache{blockStates: map[proto.BlockID]proto.Block{}}
+	a.blocksCache = newBlockStatesCache()
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
 
@@ -387,6 +387,13 @@ func (a *NGState) Halt() (State, Async, error) {
 type blockStatesCache struct {
 	blockStates map[proto.BlockID]proto.Block
 	snapshots   map[proto.BlockID]proto.BlockSnapshot
+}
+
+func newBlockStatesCache() blockStatesCache {
+	return blockStatesCache{
+		blockStates: map[proto.BlockID]proto.Block{},
+		snapshots:   map[proto.BlockID]proto.BlockSnapshot{},
+	}
 }
 
 func (c *blockStatesCache) AddBlockState(block *proto.Block) {

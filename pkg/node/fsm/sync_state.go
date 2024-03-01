@@ -320,9 +320,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		proto.ContentIDMicroBlockSnapshotRequest,
 	}
 	if !info.enableLightMode {
-		syncSkipMessageList = append(syncSkipMessageList, []proto.PeerMessageID{
-			proto.ContentIDBlockSnapshot,
-		}...)
+		syncSkipMessageList = append(syncSkipMessageList, proto.ContentIDBlockSnapshot)
 	}
 	fsm.Configure(SyncStateName).
 		Ignore(MicroBlockEvent).

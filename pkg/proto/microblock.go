@@ -219,6 +219,12 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 	// Write transactions bytes
 	s.Bytes(txsBuf.Bytes())
 	s.Bytes(a.SenderPK.Bytes())
+	// Write state hash if it's present
+	var stateHash []byte
+	if sh, present := a.GetStateHash(); present {
+		stateHash = sh.Bytes()
+	}
+	s.Bytes(stateHash)
 	return s.N(), nil
 }
 

@@ -97,12 +97,13 @@ func (a *BaseInfo) CleanUtx() {
 
 // States.
 const (
-	IdleStateName         = "Idle"
-	NGStateName           = "NG"
-	WaitSnapshotStateName = "WaitSnapshotLight"
-	PersistStateName      = "Persist"
-	SyncStateName         = "Sync"
-	HaltStateName         = "Halt"
+	IdleStateName              = "Idle"
+	NGStateName                = "NG"
+	WaitSnapshotStateName      = "WaitSnapshot"
+	WaitMicroSnapshotStateName = "WaitMicroSnapshot"
+	PersistStateName           = "Persist"
+	SyncStateName              = "Sync"
+	HaltStateName              = "Halt"
 )
 
 // Events.
