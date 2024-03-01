@@ -146,7 +146,8 @@ func run() error {
 		return err
 	}
 
-	defer c.setupLogger()()
+	logSync := c.setupLogger()
+	defer logSync()
 
 	zap.S().Infof("Gowaves Importer version: %s", versioning.Version)
 

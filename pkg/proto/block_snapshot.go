@@ -332,6 +332,9 @@ func (bs *BlockSnapshot) UnmarshalBinaryImport(data []byte, scheme Scheme) error
 	}
 	snapshotsBytesSize := binary.BigEndian.Uint32(data[0:uint32Size])
 	data = data[uint32Size:] // skip size
+	if snapshotsBytesSize != uint32(len(data)) {
+		return errors.Errorf("invalid snapshots data size")
+	}
 	var txSnapshots [][]AtomicSnapshot
 	for i := uint32(0); snapshotsBytesSize > 0; i++ {
 		if len(data) < uint32Size {
@@ -353,7 +356,7 @@ func (bs *BlockSnapshot) UnmarshalBinaryImport(data []byte, scheme Scheme) error
 		}
 		txSnapshots = append(txSnapshots, atomicTS)
 		data = data[oneSnapshotSize:]
-		snapshotsBytesSize = snapshotsBytesSize - oneSnapshotSize - uint32Size
+		snapshotsBytesSize -= oneSnapshotSize + uint32Size
 	}
 	bs.TxSnapshots = txSnapshots
 	return nil
