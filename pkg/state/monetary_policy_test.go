@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -209,14 +210,13 @@ func TestRewardAtHeight(t *testing.T) {
 	}
 }
 
-func TestTotalWavesAmountAtHeight(t *testing.T) {
+func TestTotalWavesAmountAtHeightWithRewardsAtGenesis(t *testing.T) {
 	sets := settings.MainNetSettings
 	mo, storage := createTestObjects(t, sets)
 
 	const (
 		blockRewardActivationHeight = uint64(1)
 		initialReward               = uint64(600000000)
-		newReward                   = initialReward + 1000000000
 		initialAmount               = uint64(1000000000)
 		rewardIncrement             = uint64(100000000)
 	)
@@ -237,11 +237,14 @@ func TestTotalWavesAmountAtHeight(t *testing.T) {
 		require.NoError(t, err)
 	}
 
-	tests := []struct {
+	for _, test := range []struct {
 		height              proto.Height
 		expectedTotalAmount uint64
 	}{
+		{1, initialAmount},
+		{2, initialAmount + initialReward},
 		{4, initialAmount + initialReward*3},
+		{5, initialAmount + initialReward*3 + initialReward + rewardIncrement},
 		{8, initialAmount + initialReward*3 + (initialReward+rewardIncrement)*4},
 		{12, initialAmount +
 			initialReward*3 +
@@ -261,12 +264,75 @@ func TestTotalWavesAmountAtHeight(t *testing.T) {
 			(initialReward+3*rewardIncrement)*5 +
 			(initialReward+2*rewardIncrement)*2,
 		},
-	}
-
-	for _, test := range tests {
+	} {
 		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight)
 		require.NoError(t, err)
-		assert.Equal(t, test.expectedTotalAmount, reward)
+		assert.Equal(t, int(test.expectedTotalAmount), int(reward), "Error at height %d", test.height)
+	}
+}
+
+func TestTotalWavesAmountAtHeight(t *testing.T) {
+	sets := settings.MainNetSettings
+	mo, storage := createTestObjects(t, sets)
+
+	const (
+		blockRewardActivationHeight = uint64(10)
+		initialReward               = uint64(600000000)
+		initialAmount               = uint64(1000000000)
+		rewardIncrement             = uint64(100000000)
+	)
+
+	rewardsChanges := []struct {
+		height    proto.Height
+		newReward uint64
+	}{
+		{15, initialReward + rewardIncrement},
+		{20, initialReward + 2*rewardIncrement},
+		{25, initialReward + 3*rewardIncrement},
+		{30, initialReward + 2*rewardIncrement},
+	}
+	ids := genRandBlockIds(t, len(rewardsChanges))
+	for i, rewardChange := range rewardsChanges {
+		storage.addBlock(t, ids[i])
+		err := mo.saveNewRewardChange(rewardChange.newReward, rewardChange.height, ids[i])
+		require.NoError(t, err)
+	}
+
+	for _, test := range []struct {
+		height              proto.Height
+		expectedTotalAmount uint64
+	}{
+		{2, initialAmount},
+		{4, initialAmount},
+		{9, initialAmount},
+		{10, initialAmount + initialReward},
+		{14, initialAmount + 5*initialReward},
+		{15, initialAmount + 5*initialReward + initialReward + rewardIncrement},
+		{19, initialAmount + 5*initialReward + 5*(initialReward+rewardIncrement)},
+		{20, initialAmount + 5*initialReward + 5*(initialReward+rewardIncrement) +
+			initialReward + 2*rewardIncrement,
+		},
+		{24, initialAmount + 5*initialReward + 5*(initialReward+rewardIncrement) +
+			5*(initialReward+2*rewardIncrement),
+		},
+		{25, initialAmount + 5*initialReward + 5*(initialReward+rewardIncrement) +
+			5*(initialReward+2*rewardIncrement) + initialReward + 3*rewardIncrement,
+		},
+		{29, initialAmount + 5*initialReward + 5*(initialReward+rewardIncrement) +
+			5*(initialReward+2*rewardIncrement) + 5*(initialReward+3*rewardIncrement),
+		},
+		{30, initialAmount + 5*initialReward + 5*(initialReward+rewardIncrement) +
+			5*(initialReward+2*rewardIncrement) + 5*(initialReward+3*rewardIncrement) +
+			initialReward + 2*rewardIncrement,
+		},
+		{33, initialAmount + 5*initialReward + 5*(initialReward+rewardIncrement) +
+			5*(initialReward+2*rewardIncrement) + 5*(initialReward+3*rewardIncrement) +
+			4*(initialReward+2*rewardIncrement),
+		},
+	} {
+		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight)
+		require.NoError(t, err)
+		assert.Equal(t, int(test.expectedTotalAmount), int(reward), "Error at height %d", test.height)
 	}
 }
 
