@@ -267,7 +267,7 @@ func TestTotalWavesAmountAtHeightWithRewardsAtGenesis(t *testing.T) {
 	} {
 		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight)
 		require.NoError(t, err)
-		assert.Equal(t, int(test.expectedTotalAmount), int(reward), fmt.Sprintf("Error at height %d", test.height))
+		assert.Equal(t, int(test.expectedTotalAmount), int(reward), "Error at height %d", test.height)
 	}
 }
 
@@ -332,7 +332,7 @@ func TestTotalWavesAmountAtHeight(t *testing.T) {
 	} {
 		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight)
 		require.NoError(t, err)
-		assert.Equal(t, int(test.expectedTotalAmount), int(reward), fmt.Sprintf("Error at height %d", test.height))
+		assert.Equal(t, int(test.expectedTotalAmount), int(reward), "Error at height %d", test.height)
 	}
 }
 
