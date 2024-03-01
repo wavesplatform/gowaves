@@ -263,11 +263,6 @@ func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
 	return storedAmend, nil
 }
 
-type newSnapshots struct {
-	curPos         int
-	blockSnapshots []*proto.BlockSnapshot
-}
-
 type newBlocks struct {
 	binary    bool
 	binBlocks [][]byte
@@ -411,8 +406,7 @@ type stateManager struct {
 	// Specifies how many goroutines will be run for verification of transactions and blocks signatures.
 	verificationGoroutinesNum int
 
-	newBlocks    *newBlocks
-	newSnapshots *newSnapshots
+	newBlocks *newBlocks
 
 	enableLightNode bool
 }
@@ -546,7 +540,6 @@ func newStateManager(
 		atx:                       atx,
 		verificationGoroutinesNum: params.VerificationGoroutinesNum,
 		newBlocks:                 newNewBlocks(rw, settings),
-		newSnapshots:              &newSnapshots{curPos: 0, blockSnapshots: nil},
 		enableLightNode:           enableLightNode,
 	}
 	// Set fields which depend on state.
