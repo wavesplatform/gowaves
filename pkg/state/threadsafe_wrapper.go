@@ -435,6 +435,12 @@ func (a *ThreadSafeWriteWrapper) AddBlocks(blocks [][]byte) error {
 	return a.s.AddBlocks(blocks)
 }
 
+func (a *ThreadSafeWriteWrapper) AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	a.lock()
+	defer a.unlock()
+	return a.s.AddBlocksWithSnapshots(blocks, snapshots)
+}
+
 func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(
 	blocks []*proto.Block,
 ) (*proto.Block, error) {

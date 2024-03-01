@@ -1100,6 +1100,20 @@ func (mr *MockStateModifierMockRecorder) AddBlocks(blocks interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddBlocks), blocks)
 }
 
+// AddBlocksWithSnapshots mocks base method.
+func (m *MockStateModifier) AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlocksWithSnapshots", blocks, snapshots)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddBlocksWithSnapshots indicates an expected call of AddBlocksWithSnapshots.
+func (mr *MockStateModifierMockRecorder) AddBlocksWithSnapshots(blocks, snapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocksWithSnapshots", reflect.TypeOf((*MockStateModifier)(nil).AddBlocksWithSnapshots), blocks, snapshots)
+}
+
 // AddDeserializedBlock mocks base method.
 func (m *MockStateModifier) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
@@ -1371,6 +1385,20 @@ func (m *MockState) AddBlocks(blocks [][]byte) error {
 func (mr *MockStateMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockState)(nil).AddBlocks), blocks)
+}
+
+// AddBlocksWithSnapshots mocks base method.
+func (m *MockState) AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlocksWithSnapshots", blocks, snapshots)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddBlocksWithSnapshots indicates an expected call of AddBlocksWithSnapshots.
+func (mr *MockStateMockRecorder) AddBlocksWithSnapshots(blocks, snapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocksWithSnapshots", reflect.TypeOf((*MockState)(nil).AddBlocksWithSnapshots), blocks, snapshots)
 }
 
 // AddDeserializedBlock mocks base method.

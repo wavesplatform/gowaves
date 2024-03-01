@@ -1,11 +1,9 @@
 package importer
 
 import (
-	"encoding/binary"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -19,20 +17,29 @@ const (
 
 	initTotalBatchSize = 5 * MiB
 	sizeAdjustment     = 1 * MiB
+	uint32Size         = 4
 
-	MaxTotalBatchSize               = 20 * MiB
-	MaxTotalBatchSizeForNetworkSync = 6 * MiB
-	MaxBlocksBatchSize              = 50000
-	MaxBlockSize                    = 2 * MiB
+	MaxTotalBatchSize  = 20 * MiB
+	MaxBlocksBatchSize = 50000
+	MaxBlockSize       = 2 * MiB
 )
+
+var errNoop = errors.New("noop")
 
 type State interface {
 	AddBlocks(blocks [][]byte) error
+	AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	WavesAddressesNumber() (uint64, error)
 	WavesBalance(account proto.Recipient) (uint64, error)
 	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
 	ShouldPersistAddressTransactions() (bool, error)
 	PersistAddressTransactions() error
+}
+
+type Importer interface {
+	SkipToHeight(uint64) error
+	Import(uint64) error
+	Close() error
 }
 
 func maybePersistTxs(st State) error {
@@ -47,94 +54,24 @@ func maybePersistTxs(st State) error {
 	return nil
 }
 
-func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, increasingSize bool) (int, bool) {
-	if speed > prevSpeed && increasingSize {
-		maxSize += sizeAdjustment
-		if maxSize > MaxTotalBatchSize {
-			maxSize = MaxTotalBatchSize
-		}
-	} else if speed > prevSpeed && !increasingSize {
-		maxSize -= sizeAdjustment
-		if maxSize < initTotalBatchSize {
-			maxSize = initTotalBatchSize
-		}
-	} else if speed < prevSpeed && increasingSize {
-		increasingSize = false
-		maxSize -= sizeAdjustment
-		if maxSize < initTotalBatchSize {
-			maxSize = initTotalBatchSize
-		}
-	} else if speed < prevSpeed && !increasingSize {
-		increasingSize = true
-		maxSize += sizeAdjustment
-		if maxSize > MaxTotalBatchSize {
-			maxSize = MaxTotalBatchSize
-		}
-	}
-	return maxSize, increasingSize
-}
-
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
-func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64) error {
-	blockchain, err := os.Open(blockchainPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
+func ApplyFromFile(scheme proto.Scheme, st State, blockchainPath string, nBlocks, startHeight uint64) error {
+	imp, err := NewBlocksImporter(scheme, st, blockchainPath)
 	if err != nil {
-		return errors.Errorf("failed to open blockchain file: %v", err)
+		return err
 	}
-
 	defer func() {
-		if err := blockchain.Close(); err != nil {
-			zap.S().Fatalf("Failed to close blockchain file: %v", err)
+		if clErr := imp.Close(); clErr != nil {
+			zap.S().Fatalf("Failed to close importer: %v", clErr)
 		}
 	}()
-	sb := make([]byte, 4)
-	var blocks [MaxBlocksBatchSize][]byte
-	blocksIndex := 0
-	readPos := int64(0)
-	totalSize := 0
-	prevSpeed := float64(0)
-	increasingSize := true
-	maxSize := initTotalBatchSize
-	for height := uint64(1); height <= nBlocks; height++ {
-		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
-			return err
-		}
-		size := binary.BigEndian.Uint32(sb)
-		if size > MaxBlockSize || size == 0 {
-			return errors.New("corrupted blockchain file: invalid block size")
-		}
-		totalSize += int(size)
-		readPos += 4
-		if height < startHeight {
-			readPos += int64(size)
-			continue
-		}
-		block := make([]byte, size)
-		if _, err := blockchain.ReadAt(block, readPos); err != nil {
-			return err
-		}
-		readPos += int64(size)
-		blocks[blocksIndex] = block
-		blocksIndex++
-		if (totalSize < maxSize) && (blocksIndex != MaxBlocksBatchSize) && (height != nBlocks) {
-			continue
-		}
-		start := time.Now()
-		if err := st.AddBlocks(blocks[:blocksIndex]); err != nil {
-			return err
-		}
-		elapsed := time.Since(start)
-		speed := float64(totalSize) / float64(elapsed)
-		maxSize, increasingSize = calculateNextMaxSizeAndDirection(maxSize, speed, prevSpeed, increasingSize)
-		prevSpeed = speed
-		totalSize = 0
-		blocksIndex = 0
-		if err := maybePersistTxs(st); err != nil {
-			return err
-		}
+	err = imp.SkipToHeight(startHeight)
+	if err != nil {
+		return err
 	}
-	return nil
+	return imp.Import(nBlocks)
 }
 
 func CheckBalances(st State, balancesPath string) error {
