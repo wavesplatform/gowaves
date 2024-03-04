@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"os"
+	"path/filepath"
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
@@ -250,7 +251,7 @@ func configureMemProfile(memProfilePath string) error {
 	if memProfilePath == "" {
 		return nil
 	}
-	f, err := os.Create(memProfilePath)
+	f, err := os.Create(filepath.Clean(memProfilePath))
 	if err != nil {
 		return fmt.Errorf("failed to create memory profile: %w", err)
 	}
@@ -269,7 +270,7 @@ func configureMemProfile(memProfilePath string) error {
 func configureBlockchainSettings(blockchainType, cfgPath string) (*settings.BlockchainSettings, error) {
 	var ss *settings.BlockchainSettings
 	if strings.ToLower(blockchainType) == "custom" && cfgPath != "" {
-		f, err := os.Open(cfgPath)
+		f, err := os.Open(filepath.Clean(cfgPath))
 		if err != nil {
 			return nil, fmt.Errorf("failed to open custom blockchain settings: %w", err)
 		}

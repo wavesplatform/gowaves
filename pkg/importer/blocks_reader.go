@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 )
 
 type blocksReader struct {
@@ -13,7 +14,7 @@ type blocksReader struct {
 }
 
 func newBlocksReader(blockchainPath string) (*blocksReader, error) {
-	f, err := os.Open(blockchainPath)
+	f, err := os.Open(filepath.Clean(blockchainPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open blocks file: %w", err)
 	}

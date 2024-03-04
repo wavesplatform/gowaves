@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"path/filepath"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -16,7 +17,7 @@ type snapshotsReader struct {
 }
 
 func newSnapshotsReader(scheme proto.Scheme, snapshotsPath string) (*snapshotsReader, error) {
-	f, err := os.Open(snapshotsPath)
+	f, err := os.Open(filepath.Clean(snapshotsPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open snapshots file: %w", err)
 	}
