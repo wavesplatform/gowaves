@@ -37,9 +37,13 @@ type invokeApplierTestObjects struct {
 func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
 	state, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings)
 	assert.NoError(t, err, "newStateManager() failed")
-	err = state.stateDB.addBlock(blockID0)
-	assert.NoError(t, err)
 	to := &invokeApplierTestObjects{state}
+	randGenesisBlockID := genRandBlockId(t)
+	to.addBlock(t, randGenesisBlockID)
+
+	to.prepareBlock(t, blockID0) // height here is 2
+
+	to.activateFeature(t, int16(settings.NG))
 	to.activateFeature(t, int16(settings.SmartAccounts))
 	to.activateFeature(t, int16(settings.Ride4DApps))
 	t.Cleanup(func() {
@@ -47,6 +51,22 @@ func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
 		assert.NoError(t, to.state.Close(), "state.Close() failed")
 	})
 	return to
+}
+
+// prepareBlock makes test block officially valid (but only after batch is flushed).
+func (to *invokeApplierTestObjects) prepareBlock(t *testing.T, blockID proto.BlockID) {
+	// Assign unique block number for this block ID, add this number to the list of valid blocks.
+	err := to.state.stateDB.addBlock(blockID)
+	assert.NoError(t, err, "stateDB.addBlock() failed")
+}
+
+// addBlock prepares, starts and finishes fake block.
+func (to *invokeApplierTestObjects) addBlock(t *testing.T, blockID proto.BlockID) {
+	to.prepareBlock(t, blockID)
+	err := to.state.rw.startBlock(blockID)
+	assert.NoError(t, err, "startBlock() failed")
+	err = to.state.rw.finishBlock(blockID)
+	assert.NoError(t, err, "finishBlock() failed")
 }
 
 func (to *invokeApplierTestObjects) cleanup() {
@@ -686,7 +706,8 @@ func TestFailedApplyInvokeScript(t *testing.T) {
 	info := to.fallibleValidationParams(t)
 	info.acceptFailed = true
 	info.blockV5Activated = true
-	info.checkerInfo.height = 3_000_000 // We have to move height forward here because MainNet settings are used and height must be more than 2792473
+	// We have to move height forward here because MainNet settings are used and height must be more than 2792473
+	info.checkerInfo.blockchainHeight = 3_000_000
 	to.setDApp(t, "ride4_asset.base64", testGlobal.recipientInfo)
 
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)
@@ -756,7 +777,7 @@ func TestFailedInvokeApplicationComplexity(t *testing.T) {
 	infoAfter.acceptFailed = true
 	infoAfter.blockV5Activated = true
 	infoAfter.rideV5Activated = true
-	infoAfter.checkerInfo.height = 2_800_000
+	infoAfter.checkerInfo.blockchainHeight = 2_800_000
 
 	to.setDApp(t, "ride5_recursive_invoke.base64", testGlobal.recipientInfo)
 
@@ -841,7 +862,7 @@ func TestFailedInvokeApplicationComplexityAfterRideV6(t *testing.T) {
 	info.acceptFailed = true
 	info.blockV5Activated = true
 	info.rideV5Activated = true
-	info.checkerInfo.height = 2_800_000
+	info.checkerInfo.blockchainHeight = 2_800_000
 	info.rideV6Activated = true
 
 	to.setDApp(t, "ride5_recursive_invoke.base64", testGlobal.recipientInfo)
@@ -1101,7 +1122,7 @@ func TestFailRejectOnThrow(t *testing.T) {
 	info.acceptFailed = true
 	info.blockV5Activated = true
 	info.rideV5Activated = true
-	info.checkerInfo.height = 2_800_000
+	info.checkerInfo.blockchainHeight = 2_800_000
 
 	to.setDApp(t, "ride5_fail_on_throw.base64", testGlobal.recipientInfo)
 	to.setAndCheckInitialWavesBalance(t, testGlobal.senderInfo.addr, invokeFee*3)

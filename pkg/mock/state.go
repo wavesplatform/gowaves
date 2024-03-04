@@ -80,11 +80,11 @@ func (mr *MockTransactionIteratorMockRecorder) Release() *gomock.Call {
 }
 
 // Transaction mocks base method.
-func (m *MockTransactionIterator) Transaction() (proto.Transaction, bool, error) {
+func (m *MockTransactionIterator) Transaction() (proto.Transaction, proto.TransactionStatus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "Transaction")
 	ret0, _ := ret[0].(proto.Transaction)
-	ret1, _ := ret[1].(bool)
+	ret1, _ := ret[1].(proto.TransactionStatus)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
@@ -568,6 +568,21 @@ func (mr *MockStateInfoMockRecorder) IsAssetExist(assetID interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAssetExist", reflect.TypeOf((*MockStateInfo)(nil).IsAssetExist), assetID)
 }
 
+// LegacyStateHashAtHeight mocks base method.
+func (m *MockStateInfo) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LegacyStateHashAtHeight", height)
+	ret0, _ := ret[0].(*proto.StateHash)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LegacyStateHashAtHeight indicates an expected call of LegacyStateHashAtHeight.
+func (mr *MockStateInfoMockRecorder) LegacyStateHashAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LegacyStateHashAtHeight", reflect.TypeOf((*MockStateInfo)(nil).LegacyStateHashAtHeight), height)
+}
+
 // MapR mocks base method.
 func (m *MockStateInfo) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
 	m.ctrl.T.Helper()
@@ -868,6 +883,21 @@ func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersistAddressTransactions))
 }
 
+// SnapshotStateHashAtHeight mocks base method.
+func (m *MockStateInfo) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotStateHashAtHeight", height)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SnapshotStateHashAtHeight indicates an expected call of SnapshotStateHashAtHeight.
+func (mr *MockStateInfoMockRecorder) SnapshotStateHashAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotStateHashAtHeight", reflect.TypeOf((*MockStateInfo)(nil).SnapshotStateHashAtHeight), height)
+}
+
 // SnapshotsAtHeight mocks base method.
 func (m *MockStateInfo) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
 	m.ctrl.T.Helper()
@@ -881,21 +911,6 @@ func (m *MockStateInfo) SnapshotsAtHeight(height proto.Height) (proto.BlockSnaps
 func (mr *MockStateInfoMockRecorder) SnapshotsAtHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotsAtHeight", reflect.TypeOf((*MockStateInfo)(nil).SnapshotsAtHeight), height)
-}
-
-// StateHashAtHeight mocks base method.
-func (m *MockStateInfo) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StateHashAtHeight", height)
-	ret0, _ := ret[0].(*proto.StateHash)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// StateHashAtHeight indicates an expected call of StateHashAtHeight.
-func (mr *MockStateInfoMockRecorder) StateHashAtHeight(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateHashAtHeight", reflect.TypeOf((*MockStateInfo)(nil).StateHashAtHeight), height)
 }
 
 // TopBlock mocks base method.
@@ -943,11 +958,11 @@ func (mr *MockStateInfoMockRecorder) TransactionByID(id interface{}) *gomock.Cal
 }
 
 // TransactionByIDWithStatus mocks base method.
-func (m *MockStateInfo) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+func (m *MockStateInfo) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
 	ret0, _ := ret[0].(proto.Transaction)
-	ret1, _ := ret[1].(bool)
+	ret1, _ := ret[1].(proto.TransactionStatus)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }
@@ -1822,6 +1837,21 @@ func (mr *MockStateMockRecorder) IsAssetExist(assetID interface{}) *gomock.Call 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAssetExist", reflect.TypeOf((*MockState)(nil).IsAssetExist), assetID)
 }
 
+// LegacyStateHashAtHeight mocks base method.
+func (m *MockState) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LegacyStateHashAtHeight", height)
+	ret0, _ := ret[0].(*proto.StateHash)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LegacyStateHashAtHeight indicates an expected call of LegacyStateHashAtHeight.
+func (mr *MockStateMockRecorder) LegacyStateHashAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LegacyStateHashAtHeight", reflect.TypeOf((*MockState)(nil).LegacyStateHashAtHeight), height)
+}
+
 // Map mocks base method.
 func (m *MockState) Map(arg0 func(state.NonThreadSafeState) error) error {
 	m.ctrl.T.Helper()
@@ -2190,6 +2220,21 @@ func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
 }
 
+// SnapshotStateHashAtHeight mocks base method.
+func (m *MockState) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotStateHashAtHeight", height)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SnapshotStateHashAtHeight indicates an expected call of SnapshotStateHashAtHeight.
+func (mr *MockStateMockRecorder) SnapshotStateHashAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotStateHashAtHeight", reflect.TypeOf((*MockState)(nil).SnapshotStateHashAtHeight), height)
+}
+
 // SnapshotsAtHeight mocks base method.
 func (m *MockState) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
 	m.ctrl.T.Helper()
@@ -2217,21 +2262,6 @@ func (m *MockState) StartProvidingExtendedAPI() error {
 func (mr *MockStateMockRecorder) StartProvidingExtendedAPI() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StartProvidingExtendedAPI", reflect.TypeOf((*MockState)(nil).StartProvidingExtendedAPI))
-}
-
-// StateHashAtHeight mocks base method.
-func (m *MockState) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "StateHashAtHeight", height)
-	ret0, _ := ret[0].(*proto.StateHash)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// StateHashAtHeight indicates an expected call of StateHashAtHeight.
-func (mr *MockStateMockRecorder) StateHashAtHeight(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "StateHashAtHeight", reflect.TypeOf((*MockState)(nil).StateHashAtHeight), height)
 }
 
 // TopBlock mocks base method.
@@ -2279,11 +2309,11 @@ func (mr *MockStateMockRecorder) TransactionByID(id interface{}) *gomock.Call {
 }
 
 // TransactionByIDWithStatus mocks base method.
-func (m *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+func (m *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "TransactionByIDWithStatus", id)
 	ret0, _ := ret[0].(proto.Transaction)
-	ret1, _ := ret[1].(bool)
+	ret1, _ := ret[1].(proto.TransactionStatus)
 	ret2, _ := ret[2].(error)
 	return ret0, ret1, ret2
 }

@@ -59,7 +59,7 @@ func TestGetTransactions(t *testing.T) {
 	}
 	stream, err := cl.GetTransactions(ctx, req)
 	require.NoError(t, err)
-	correctRes, err := server.transactionToTransactionResponse(tx, true, false)
+	correctRes, err := server.transactionToTransactionResponse(tx, true, proto.TransactionSucceeded)
 	require.NoError(t, err)
 	res, err := stream.Recv()
 	require.NoError(t, err)
@@ -195,7 +195,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	}
 	stream, err := cl.GetUnconfirmed(ctx, req)
 	require.NoError(t, err)
-	correctRes, err := server.transactionToTransactionResponse(tx, false, false)
+	correctRes, err := server.transactionToTransactionResponse(tx, false, proto.TransactionSucceeded)
 	require.NoError(t, err)
 	res, err := stream.Recv()
 	require.NoError(t, err)

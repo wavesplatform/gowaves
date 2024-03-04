@@ -62,6 +62,7 @@ type blockchainEntitiesStorage struct {
 	stateHashes       *stateHashes
 	hitSources        *hitSources
 	snapshots         *snapshotsAtHeight
+	patches           *patchesStorage
 	calculateHashes   bool
 }
 
@@ -95,6 +96,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newStateHashes(hs),
 		newHitSources(hs),
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
+		newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		calcHashes,
 	}, nil
 }
@@ -117,7 +119,7 @@ func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64,
 	if err := sh.GenerateSumHash(prevHash); err != nil {
 		return nil, err
 	}
-	if err := s.stateHashes.saveStateHash(sh, height); err != nil {
+	if err := s.stateHashes.saveLegacyStateHash(sh, height); err != nil {
 		return nil, err
 	}
 	return sh, nil
@@ -145,7 +147,7 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	return nil
 }
 
-func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
+func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
 	if !s.calculateHashes {
 		return nil
 	}
@@ -156,7 +158,7 @@ func (s *blockchainEntitiesStorage) handleStateHashes(blockchainHeight uint64, b
 	if err := s.prepareHashes(); err != nil {
 		return err
 	}
-	prevHash, err := s.stateHashes.stateHash(blockchainHeight)
+	prevHash, err := s.stateHashes.legacyStateHash(blockchainHeight)
 	if err != nil {
 		return err
 	}
@@ -465,10 +467,9 @@ func newStateManager(dataDir string, amend bool, params StateParams, settings *s
 	// Consensus validator is needed to check block headers.
 	snapshotApplier := newBlockSnapshotsApplier(
 		nil,
-		newSnapshotApplierStorages(stor),
+		newSnapshotApplierStorages(stor, rw),
 	)
-	snapshotGen := newSnapshotGenerator(stor, settings.AddressSchemeCharacter)
-	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier, &snapshotGen)
+	appender, err := newTxAppender(state, rw, stor, settings, stateDB, atx, &snapshotApplier)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -589,18 +590,26 @@ func (s *stateManager) Map(func(State) error) error {
 func (s *stateManager) addGenesisBlock() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
+
+	initSH, shErr := crypto.FastHash(nil) // zero/initial snapshot state hash according to the specification
+	if shErr != nil {
+		return shErr
+	}
+
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	if err := s.addNewBlock(s.genesis, nil, chans, 0); err != nil {
+	if err := s.addNewBlock(s.genesis, nil, chans, 0, nil, initSH); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
 		return err
 	}
 
-	if err := s.appender.applyAllDiffs(); err != nil {
+	err := s.appender.diffApplier.validateBalancesChanges(s.appender.diffStor.allChanges())
+	if err != nil {
 		return err
 	}
+
 	if err := s.stor.prepareHashes(); err != nil {
 		return err
 	}
@@ -743,9 +752,13 @@ func (s *stateManager) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, er
 	if err != nil {
 		return nil, err
 	}
+	sender, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, leaseFromStore.SenderPK)
+	if err != nil {
+		return nil, err
+	}
 	leaseInfo := proto.LeaseInfo{
-		Sender:      leaseFromStore.Sender,
-		Recipient:   leaseFromStore.Recipient,
+		Sender:      sender,
+		Recipient:   leaseFromStore.RecipientAddr,
 		IsActive:    leaseFromStore.isActive(),
 		LeaseAmount: leaseFromStore.Amount,
 	}
@@ -1055,8 +1068,14 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, isCappedRewardsActivated, block.BlockID())
 }
 
-func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierChans, height uint64) error {
-	blockHeight := height + 1
+func (s *stateManager) addNewBlock(
+	block, parent *proto.Block,
+	chans *verifierChans,
+	blockchainHeight uint64,
+	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
+	lastSnapshotStateHash crypto.Digest,
+) error {
+	blockHeight := blockchainHeight + 1
 	// Add score.
 	if err := s.stor.scores.appendBlockScore(block, blockHeight); err != nil {
 		return err
@@ -1078,11 +1097,13 @@ func (s *stateManager) addNewBlock(block, parent *proto.Block, chans *verifierCh
 		parentHeader = &parent.BlockHeader
 	}
 	params := &appendBlockParams{
-		transactions: transactions,
-		chans:        chans,
-		block:        &block.BlockHeader,
-		parent:       parentHeader,
-		height:       height,
+		transactions:              transactions,
+		chans:                     chans,
+		block:                     &block.BlockHeader,
+		parent:                    parentHeader,
+		blockchainHeight:          blockchainHeight,
+		fixSnapshotsToInitialHash: fixSnapshotsToInitialHash,
+		lastSnapshotStateHash:     lastSnapshotStateHash,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
@@ -1287,25 +1308,41 @@ func (s *stateManager) needToCancelLeases(blockchainHeight uint64) (bool, error)
 	}
 }
 
-// TODO what to do with stolen aliases in snapshots?
-func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
+// doBlockchainFixIfNeeded generates snapshots for blockchain fixes if needed and applies them.
+// The changes should be applied in the end of the block processing in the context of the last applied block.
+// Though the atomic snapshots must be hashed with initial snapshot of the next block.
+func (s *stateManager) doBlockchainFixIfNeeded(
+	blockchainHeight proto.Height,
+	justAppliedBlock proto.BlockID,
+) ([]proto.AtomicSnapshot, error) {
 	cancelLeases, err := s.needToCancelLeases(blockchainHeight)
 	if err != nil {
-		return err
+		return nil, errors.Wrapf(err, "failed to check if leases should be cancelled for block %s",
+			justAppliedBlock.String(),
+		)
 	}
-	if cancelLeases {
-		if err := s.cancelLeases(blockchainHeight, lastBlock); err != nil {
-			return err
-		}
+	if !cancelLeases { // no need to generate snapshots
+		return nil, nil
 	}
+	fixSnapshots, err := s.generateCancelLeasesSnapshots(blockchainHeight)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to generate fix snapshots for block %s", justAppliedBlock.String())
+	}
+	if fixErr := s.appender.appendFixSnapshots(fixSnapshots, justAppliedBlock); fixErr != nil {
+		return nil, errors.Wrapf(fixErr, "failed to apply fix snapshots for block %s", justAppliedBlock.String())
+	}
+	return fixSnapshots, nil
+}
+
+func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock, nextBlock proto.BlockID) error {
 	resetStolenAliases, err := s.needToResetStolenAliases(blockchainHeight)
 	if err != nil {
 		return err
 	}
 	if resetStolenAliases {
 		// we're using nextBlock because it's a current block which we're going to apply
-		if err := s.stor.aliases.disableStolenAliases(nextBlock); err != nil {
-			return err
+		if dsaErr := s.stor.aliases.disableStolenAliases(nextBlock); dsaErr != nil {
+			return dsaErr
 		}
 	}
 	if s.needToFinishVotingPeriod(blockchainHeight) {
@@ -1351,64 +1388,107 @@ func (s *stateManager) updateBlockReward(lastBlockID, nextBlockID proto.BlockID,
 	return s.stor.monetaryPolicy.updateBlockReward(lastBlockID, nextBlockID, height)
 }
 
-func (s *stateManager) cancelLeases(height uint64, blockID proto.BlockID) error {
+func (s *stateManager) generateCancelLeasesSnapshots(blockchainHeight uint64) ([]proto.AtomicSnapshot, error) {
 	// Move balance diffs from diffStorage to historyStorage.
 	// It must be done before lease cancellation, because
 	// lease cancellation iterates through historyStorage.
 	if err := s.appender.moveChangesToHistoryStorage(); err != nil {
-		return err
+		return nil, err
 	}
-	dataTxActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DataTransaction), height)
-	dataTxHeight := uint64(0)
+	// prepare info about features activation
+	dataTxActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DataTransaction), blockchainHeight)
+	var dataTxHeight uint64
 	if dataTxActivated {
 		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.DataTransaction))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(height)
+		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
 	}
-	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), height)
-	var rideV5Height uint64 = 0
+	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), blockchainHeight)
+	var rideV5Height uint64
 	if rideV5Activated {
 		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.RideV5))
 		if err != nil {
-			return err
+			return nil, err
 		}
-		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(height)
+		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(blockchainHeight)
 	}
-	if height == s.settings.ResetEffectiveBalanceAtHeight {
-		if err := s.stor.leases.cancelLeases(nil, blockID); err != nil {
-			return err
-		}
-		if err := s.stor.balances.cancelAllLeases(blockID); err != nil {
-			return err
-		}
-	} else if height == s.settings.BlockVersion3AfterHeight {
-		overflowAddresses, err := s.stor.balances.cancelLeaseOverflows(blockID)
+	return s.generateLeasesCancellationWithNewBalancesSnapshots(blockchainHeight, dataTxHeight, rideV5Height)
+}
+
+func (s *stateManager) generateLeasesCancellationWithNewBalancesSnapshots(
+	blockchainHeight uint64,
+	dataTxHeight uint64, // the height when DataTransaction feature is activated, equals 0 if the feature is not activated
+	rideV5Height uint64, // the height when RideV5 feature is activated, equals 0 if the feature is not activated
+) ([]proto.AtomicSnapshot, error) {
+	switch blockchainHeight {
+	case s.settings.ResetEffectiveBalanceAtHeight:
+		scheme := s.settings.AddressSchemeCharacter
+		cancelledLeasesSnapshots, err := s.stor.leases.generateCancelledLeaseSnapshots(scheme, nil)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if err := s.stor.leases.cancelLeases(overflowAddresses, blockID); err != nil {
-			return err
+		zeroLeaseBalancesSnapshots, err := s.stor.balances.generateZeroLeaseBalanceSnapshotsForAllLeases()
+		if err != nil {
+			return nil, err
 		}
-	} else if dataTxActivated && height == dataTxHeight {
+		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, zeroLeaseBalancesSnapshots), nil
+	case s.settings.BlockVersion3AfterHeight:
+		leaseBalanceSnapshots, overflowAddresses, err := s.stor.balances.generateLeaseBalanceSnapshotsForLeaseOverflows()
+		if err != nil {
+			return nil, err
+		}
+		scheme := s.settings.AddressSchemeCharacter
+		cancelledLeasesSnapshots, err := s.stor.leases.generateCancelledLeaseSnapshots(scheme, overflowAddresses)
+		if err != nil {
+			return nil, err
+		}
+		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, leaseBalanceSnapshots), nil
+	case dataTxHeight:
 		leaseIns, err := s.stor.leases.validLeaseIns()
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if err := s.stor.balances.cancelInvalidLeaseIns(leaseIns, blockID); err != nil {
-			return err
-		}
-	} else if rideV5Activated && height == rideV5Height {
-		changes, err := s.stor.leases.cancelLeasesToDisabledAliases(s.settings.AddressSchemeCharacter, height, blockID)
+		validLeaseBalances, err := s.stor.balances.generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(leaseIns)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		if err := s.stor.balances.cancelLeases(changes, blockID); err != nil {
-			return err
+		return joinCancelledLeasesAndLeaseBalances(nil, validLeaseBalances), nil
+	case rideV5Height:
+		scheme := s.settings.AddressSchemeCharacter
+		cancelledLeasesSnapshots, changes, err := s.stor.leases.cancelLeasesToDisabledAliases(scheme)
+		if err != nil {
+			return nil, err
 		}
+		leaseBalanceSnapshots, err := s.stor.balances.generateLeaseBalanceSnapshotsWithProvidedChanges(changes)
+		if err != nil {
+			return nil, err
+		}
+		return joinCancelledLeasesAndLeaseBalances(cancelledLeasesSnapshots, leaseBalanceSnapshots), nil
+	default:
+		return nil, nil
 	}
-	return nil
+}
+
+func joinCancelledLeasesAndLeaseBalances(
+	cancelledLeases []proto.CancelledLeaseSnapshot,
+	leaseBalancesSnapshots []proto.LeaseBalanceSnapshot,
+) []proto.AtomicSnapshot {
+	l := len(cancelledLeases) + len(leaseBalancesSnapshots)
+	if l == 0 {
+		return nil
+	}
+	res := make([]proto.AtomicSnapshot, 0, l)
+	for i := range cancelledLeases {
+		cl := &cancelledLeases[i]
+		res = append(res, cl)
+	}
+	for i := range leaseBalancesSnapshots {
+		lbs := &leaseBalancesSnapshots[i]
+		res = append(res, lbs)
+	}
+	return res
 }
 
 func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod(height proto.Height, lastBlockID proto.BlockID) error {
@@ -1440,6 +1520,47 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 			return errors.Wrapf(err, "failed to add vote for monetary policy at height %d for block %q", height, lastBlockID.String())
 		}
 	}
+	return nil
+}
+
+type blockchainPatch struct {
+	initialized  bool
+	fixSnapshots []proto.AtomicSnapshot
+}
+
+func (p *blockchainPatch) isInitialized() bool {
+	return p.initialized
+}
+
+func (p *blockchainPatch) reset() {
+	p.fixSnapshots = nil
+	p.initialized = false
+}
+
+func (p *blockchainPatch) take() []proto.AtomicSnapshot {
+	r := p.fixSnapshots
+	p.reset()
+	return r
+}
+
+func (p *blockchainPatch) initializeWith(fixSnapshots []proto.AtomicSnapshot) {
+	p.fixSnapshots = fixSnapshots
+	p.initialized = true
+}
+
+func (p *blockchainPatch) store(blockID proto.BlockID, stor *patchesStorage) error {
+	if !p.isInitialized() {
+		return errors.Errorf("blockchainPatch is not initialized for block %q", blockID.String())
+	}
+	return stor.savePatch(blockID, p.fixSnapshots)
+}
+
+func (p *blockchainPatch) load(blockID proto.BlockID, stor *patchesStorage) error {
+	patch, err := stor.newestPatch(blockID)
+	if err != nil {
+		return err
+	}
+	p.initializeWith(patch)
 	return nil
 }
 
@@ -1475,7 +1596,10 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	// Launch verifier that checks signatures of blocks and transactions.
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	var ids []proto.BlockID
+	var (
+		ids   []proto.BlockID
+		patch blockchainPatch
+	)
 	pos := 0
 	for s.newBlocks.next() {
 		blockchainCurHeight := height + uint64(pos)
@@ -1483,17 +1607,18 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err != nil {
 			return nil, wrapErr(DeserializationError, err)
 		}
-		if err := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); err != nil {
-			return nil, err
-		}
 		// Assign unique block number for this block ID, add this number to the list of valid blocks.
-		if err := s.stateDB.addBlock(block.BlockID()); err != nil {
-			return nil, wrapErr(ModificationError, err)
+		if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
+			return nil, wrapErr(ModificationError, blErr)
 		}
 		// At some blockchain heights specific logic is performed.
 		// This includes voting for features, block rewards and so on.
+		// It also disables stolen aliases.
 		if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
 			return nil, wrapErr(ModificationError, err)
+		}
+		if vhErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); vhErr != nil {
+			return nil, vhErr
 		}
 		// Send block for signature verification, which works in separate goroutine.
 		task := &verifyTask{
@@ -1508,19 +1633,49 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		if err != nil {
 			return nil, err
 		}
+		sh, err := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
+		if err != nil {
+			return nil, errors.Wrapf(err, "failed to get newest snapshot state hash for height %d",
+				blockchainCurHeight,
+			)
+		}
 		if err := s.stor.hitSources.appendBlockHitSource(block, blockchainCurHeight+1, hs); err != nil {
 			return nil, err
 		}
-		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		if err := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight); err != nil {
-			return nil, err
+		if !patch.isInitialized() {
+			if lErr := patch.load(block.BlockID(), s.stor.patches); lErr != nil {
+				return nil, wrapErr(RetrievalError, lErr)
+			}
 		}
+		fixSnapshotsToInitialHash := patch.take()
+		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
+		addErr := s.addNewBlock(block, lastAppliedBlock, chans, blockchainCurHeight, fixSnapshotsToInitialHash, sh)
+		if addErr != nil {
+			return nil, addErr
+		}
+		blockchainCurHeight++ // we've just added a new block, so we have a new height
 
-		if s.needToFinishVotingPeriod(blockchainCurHeight + 1) {
+		if s.needToFinishVotingPeriod(blockchainCurHeight) {
 			// If we need to finish voting period on the next block (h+1) then
 			// we have to check that protobuf will be activated on next block
-			s.checkProtobufActivation(blockchainCurHeight + 2)
+			s.checkProtobufActivation(blockchainCurHeight + 1)
 		}
+
+		// Generate blockchain fixes if needed and apply them.
+		newFixSnapshots, faErr := s.doBlockchainFixIfNeeded(blockchainCurHeight, block.BlockID())
+		if faErr != nil {
+			return nil, errors.Wrapf(faErr, "failed to do blockchain fix action at block %s",
+				block.BlockID().String(),
+			)
+		}
+		patch.initializeWith(newFixSnapshots) // store newFixSnapshots in patch
+		if sErr := patch.store(block.BlockID(), s.stor.patches); sErr != nil {
+			return nil, wrapErr(ModificationError, errors.Wrapf(sErr, "failed to store blockchain patch for block %s",
+				block.BlockID().String()),
+			)
+		}
+
+		// Prepare for the next iteration.
 		headers[pos] = block.BlockHeader
 		pos++
 		ids = append(ids, block.BlockID())
@@ -1532,15 +1687,9 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, wrapErr(ValidationError, verifyError)
 	}
 
-	// Apply all the balance diffs accumulated from this blocks batch.
-	// This also validates diffs for negative balances.
-	if err := s.appender.applyAllDiffs(); err != nil {
-		return nil, err
-	}
-
-	// Retrieve and store state hashes for each of new blocks.
-	if err := s.stor.handleStateHashes(height, ids); err != nil {
-		return nil, wrapErr(ModificationError, err)
+	// Retrieve and store legacy state hashes for each of new blocks.
+	if shErr := s.stor.handleLegacyStateHashes(height, ids); shErr != nil {
+		return nil, wrapErr(ModificationError, shErr)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
 	if err := s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
@@ -2010,14 +2159,14 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 }
 
 // NewestTransactionByID returns transaction by given ID. This function must be used only in Ride evaluator.
-// WARNING! Function returns error if a transaction exists but failed.
+// WARNING! Function returns error if a transaction exists but failed or elided.
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
-	tx, failed, err := s.rw.readNewestTransaction(id)
+	tx, status, err := s.rw.readNewestTransaction(id)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	if failed {
-		return nil, wrapErr(RetrievalError, errors.New("failed transaction"))
+	if status.IsNotSucceeded() {
+		return nil, wrapErr(RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
 	}
 	return tx, nil
 }
@@ -2030,23 +2179,23 @@ func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 	return tx, nil
 }
 
-func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
-	tx, failed, err := s.rw.readTransaction(id)
+func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
+	tx, status, err := s.rw.readTransaction(id)
 	if err != nil {
-		return nil, false, wrapErr(RetrievalError, err)
+		return nil, 0, wrapErr(RetrievalError, err)
 	}
-	return tx, failed, nil
+	return tx, status, nil
 }
 
 // NewestTransactionHeightByID returns transaction's height by given ID. This function must be used only in Ride evaluator.
 // WARNING! Function returns error if a transaction exists but failed.
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
-	txHeight, failed, err := s.rw.newestTransactionHeightByID(id)
+	txHeight, status, err := s.rw.newestTransactionHeightByID(id)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	if failed {
-		return 0, wrapErr(RetrievalError, errors.New("failed transaction"))
+	if status.IsNotSucceeded() {
+		return 0, wrapErr(RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
 	}
 	return txHeight, nil
 }
@@ -2096,15 +2245,15 @@ func (s *stateManager) NewestAssetConstInfo(assetID proto.AssetID) (*proto.Asset
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
 	return &proto.AssetConstInfo{
-		ID:          proto.ReconstructDigest(assetID, info.tail),
-		IssueHeight: info.issueHeight,
+		ID:          proto.ReconstructDigest(assetID, info.Tail),
+		IssueHeight: info.IssueHeight,
 		Issuer:      issuer,
-		Decimals:    info.decimals,
+		Decimals:    info.Decimals,
 	}, nil
 }
 
@@ -2117,7 +2266,7 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	if !info.quantity.IsUint64() {
 		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
 	}
-	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2131,13 +2280,13 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	}
 	return &proto.AssetInfo{
 		AssetConstInfo: proto.AssetConstInfo{
-			ID:          proto.ReconstructDigest(assetID, info.tail),
-			IssueHeight: info.issueHeight,
+			ID:          proto.ReconstructDigest(assetID, info.Tail),
+			IssueHeight: info.IssueHeight,
 			Issuer:      issuer,
-			Decimals:    info.decimals,
+			Decimals:    info.Decimals,
 		},
 		Quantity:        info.quantity.Uint64(),
-		IssuerPublicKey: info.issuer,
+		IssuerPublicKey: info.Issuer,
 
 		Reissuable: info.reissuable,
 		Scripted:   scripted,
@@ -2219,7 +2368,7 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 	if !info.quantity.IsUint64() {
 		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
 	}
-	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.issuer)
+	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -2233,13 +2382,13 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 	}
 	return &proto.AssetInfo{
 		AssetConstInfo: proto.AssetConstInfo{
-			ID:          proto.ReconstructDigest(assetID, info.tail),
-			IssueHeight: info.issueHeight,
+			ID:          proto.ReconstructDigest(assetID, info.Tail),
+			IssueHeight: info.IssueHeight,
 			Issuer:      issuer,
-			Decimals:    info.decimals,
+			Decimals:    info.Decimals,
 		},
 		Quantity:        info.quantity.Uint64(),
-		IssuerPublicKey: info.issuer,
+		IssuerPublicKey: info.Issuer,
 
 		Reissuable: info.reissuable,
 		Scripted:   scripted,
@@ -2309,7 +2458,7 @@ func (s *stateManager) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.Enri
 	}
 	res := &proto.EnrichedFullAssetInfo{
 		FullAssetInfo:   *fa,
-		SequenceInBlock: constInfo.issueSequenceInBlock,
+		SequenceInBlock: constInfo.IssueSequenceInBlock,
 	}
 	return res, nil
 }
@@ -2319,7 +2468,11 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	nfts, err := s.stor.balances.nftList(addr.ID(), limit, afterAssetID)
+	height, err := s.Height()
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	nfts, err := s.stor.balances.nftList(addr.ID(), limit, afterAssetID, height, s.stor.features)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -2475,7 +2628,7 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	return provides, nil
 }
 
-func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
 		return nil, wrapErr(Other, err)
@@ -2483,9 +2636,17 @@ func (s *stateManager) StateHashAtHeight(height uint64) (*proto.StateHash, error
 	if !hasData {
 		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for state hashes"))
 	}
-	sh, err := s.stor.stateHashes.stateHash(height)
+	sh, err := s.stor.stateHashes.legacyStateHash(height)
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
+	}
+	return sh, nil
+}
+
+func (s *stateManager) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
+	sh, err := s.stor.stateHashes.snapshotStateHash(height)
+	if err != nil {
+		return crypto.Digest{}, wrapErr(RetrievalError, err)
 	}
 	return sh, nil
 }

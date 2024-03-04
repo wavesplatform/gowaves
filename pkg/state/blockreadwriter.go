@@ -8,10 +8,11 @@ import (
 	"sync"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const (
@@ -20,18 +21,16 @@ const (
 )
 
 type txInfo struct {
-	height uint64
-	offset uint64
-	failed bool
+	height   uint64
+	offset   uint64
+	txStatus proto.TransactionStatus
 }
 
 func (i *txInfo) bytes() []byte {
 	buf := make([]byte, txInfoSize)
 	binary.BigEndian.PutUint64(buf[:8], i.height)
 	binary.BigEndian.PutUint64(buf[8:16], i.offset)
-	if i.failed {
-		buf[16] = 1
-	}
+	buf[16] = byte(i.txStatus)
 	return buf
 }
 
@@ -41,8 +40,11 @@ func (i *txInfo) unmarshal(data []byte) error {
 	}
 	i.height = binary.BigEndian.Uint64(data[:8])
 	i.offset = binary.BigEndian.Uint64(data[8:16])
-	if data[16] == 1 {
-		i.failed = true
+	switch s := proto.TransactionStatus(data[16]); s {
+	case proto.TransactionSucceeded, proto.TransactionFailed, proto.TransactionElided:
+		i.txStatus = s
+	default:
+		return errors.Errorf("invalid tx status (%d)", s)
 	}
 	return nil
 }
@@ -316,30 +318,34 @@ func (rw *blockReadWriter) marshalTransaction(tx proto.Transaction) ([]byte, err
 	return txBytesTotal, nil
 }
 
-func (rw *blockReadWriter) writeTranasctionToMemImpl(tx proto.Transaction, txID []byte, failed bool) {
+func (rw *blockReadWriter) writeTranasctionToMemImpl(
+	tx proto.Transaction,
+	txID []byte,
+	status proto.TransactionStatus,
+) {
 	info := &txInfoWithTx{
 		tx: tx,
 		txInfo: txInfo{
-			height: rw.height + 1,
-			offset: rw.blockchainLen,
-			failed: failed,
+			height:   rw.height + 1,
+			offset:   rw.blockchainLen,
+			txStatus: status,
 		},
 	}
 	rw.rtx.appendTx(txID, info)
 }
 
-func (rw *blockReadWriter) writeTransactionToMem(tx proto.Transaction, failed bool) error {
+func (rw *blockReadWriter) writeTransactionToMem(tx proto.Transaction, status proto.TransactionStatus) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	txID, err := tx.GetID(rw.scheme)
 	if err != nil {
 		return err
 	}
-	rw.writeTranasctionToMemImpl(tx, txID, failed)
+	rw.writeTranasctionToMemImpl(tx, txID, status)
 	return nil
 }
 
-func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, failed bool) error {
+func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, status proto.TransactionStatus) error {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	txID, err := tx.GetID(rw.scheme)
@@ -347,10 +353,10 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, failed bool) e
 		return err
 	}
 	// Save transaction to local storage.
-	rw.writeTranasctionToMemImpl(tx, txID, failed)
+	rw.writeTranasctionToMemImpl(tx, txID, status)
 	// Write transaction information to DB batch.
 	key := txInfoKey{txID: txID}
-	val := txInfo{offset: rw.blockchainLen, failed: failed, height: rw.height + 1}
+	val := txInfo{offset: rw.blockchainLen, txStatus: status, height: rw.height + 1}
 	rw.dbBatch.Put(key.bytes(), val.bytes())
 	// Update length of blockchain.
 	txBytes, err := rw.marshalTransaction(tx)
@@ -379,7 +385,7 @@ func (rw *blockReadWriter) marshalHeader(h *proto.BlockHeader) ([]byte, error) {
 	// Put addl info that is missing in Protobuf.
 	headerBytes := make([]byte, 8+len(protoBytes))
 	binary.BigEndian.PutUint32(headerBytes[:4], uint32(h.TransactionCount))
-	binary.BigEndian.PutUint32(headerBytes[4:8], uint32(h.TransactionBlockLength))
+	binary.BigEndian.PutUint32(headerBytes[4:8], h.TransactionBlockLength)
 	copy(headerBytes[8:], protoBytes)
 	return headerBytes, nil
 }
@@ -515,22 +521,22 @@ func (rw *blockReadWriter) recentHeight() uint64 {
 	return rw.height
 }
 
-func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, bool, error) {
+func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, proto.TransactionStatus, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	info, err := rw.rtx.txInfoById(txID)
 	if err == nil {
-		return info.height, info.failed, nil
+		return info.height, info.txStatus, nil
 	}
 	return rw.transactionHeightByID(txID)
 }
 
-func (rw *blockReadWriter) transactionHeightByID(txID []byte) (uint64, bool, error) {
+func (rw *blockReadWriter) transactionHeightByID(txID []byte) (uint64, proto.TransactionStatus, error) {
 	info, err := rw.transactionInfoByID(txID)
 	if err != nil {
-		return 0, false, err
+		return 0, 0, err
 	}
-	return info.height, info.failed, nil
+	return info.height, info.txStatus, nil
 }
 
 func (rw *blockReadWriter) transactionInfoByID(txID []byte) (txInfo, error) {
@@ -568,29 +574,29 @@ func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
 	return binary.BigEndian.Uint32(sizeBytes), nil
 }
 
-func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, bool, error) {
+func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	info, err := rw.rtx.txInfoById(txID)
 	if err != nil {
 		return rw.readTransactionImpl(txID)
 	}
-	return info.tx, info.failed, nil
+	return info.tx, info.txStatus, nil
 }
 
-func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, bool, error) {
+func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
 	return rw.readTransactionImpl(txID)
 }
 
-func (rw *blockReadWriter) readTransactionImpl(txID []byte) (proto.Transaction, bool, error) {
+func (rw *blockReadWriter) readTransactionImpl(txID []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	info, err := rw.transactionInfoByID(txID)
 	if err != nil {
-		return nil, false, err
+		return nil, 0, err
 	}
 	tx, err := rw.readTransactionByOffsetImpl(info.offset)
-	return tx, info.failed, err
+	return tx, info.txStatus, err
 }
 
 func (rw *blockReadWriter) readTransactionByOffset(offset uint64) (proto.Transaction, error) {

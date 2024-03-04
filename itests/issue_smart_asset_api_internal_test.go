@@ -1,14 +1,16 @@
+//go:build !smoke
+
 package itests
 
 import (
-	"net/http"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
-	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
+	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -17,55 +19,37 @@ type IssueSmartAssetApiSuite struct {
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
-	versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
-	waitForTx := true
+	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveAssetScriptData(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
-				errMsg := caseName + "Broadcast Issue smart asset tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
-
-				assetDetailsGo, assetDetailsScala := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
-				utl.AssetScriptCheck(suite.T(), td.Script, assetDetailsGo.Script.ScriptBytes, assetDetailsScala.Script.ScriptBytes,
-					errMsg)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					issue.BroadcastIssueTxAndGetBalances(&suite.BaseSuite, td, v, true)
+				assetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, tx.TxID)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Issue smart asset tx: %s", caseName, tx.TxID.String())
+				issue.SmartAssetPositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
+					assetDetails.AssetInfoGo.Script.ScriptBytes, assetDetails.AssetInfoScala.Script.ScriptBytes, errMsg)
 			})
 		}
 	}
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
-	versions := issue_utilities.GetVersionsSmartAsset(&suite.BaseSuite)
-	waitForTx := true
+	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		tdmatrix := testdata.GetNegativeAssetScriptData(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					issue.BroadcastIssueTxAndGetBalances(&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Issue smart asset tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
-					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Issue smart asset tx: %s", caseName, tx.TxID.String())
+				issue.SmartAssetNegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset,
+					errMsg)
 			})
 		}
 	}

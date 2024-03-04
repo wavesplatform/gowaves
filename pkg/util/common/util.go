@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math/big"
 	"os/user"
 	"path/filepath"
 	"strconv"
@@ -177,4 +178,69 @@ func ReplaceInvalidUtf8Chars(s string) string {
 		b.WriteRune(v)
 	}
 	return b.String()
+}
+
+const (
+	byte0x00 = 0x00
+	byte0x01 = 0x01
+	byte0x80 = 0x80
+	byte0xff = 0xff
+)
+
+// Decode2CBigInt decodes two's complement representation of BigInt from bytes slice.
+func Decode2CBigInt(bytes []byte) *big.Int {
+	r := new(big.Int)
+	if len(bytes) > 0 && bytes[0]&byte0x80 == byte0x80 { // Decode a negative number
+		notBytes := make([]byte, len(bytes))
+		for i := range notBytes {
+			notBytes[i] = ^bytes[i]
+		}
+		bigOne := big.NewInt(byte0x01)
+		r.SetBytes(notBytes)
+		r.Add(r, bigOne)
+		r.Neg(r)
+		return r
+	}
+	r.SetBytes(bytes)
+	return r
+}
+
+// Encode2CBigInt encodes BigInt into a two's complement representation.
+func Encode2CBigInt(n *big.Int) []byte {
+	switch sign := n.Sign(); {
+	case sign > 0:
+		bts := n.Bytes()
+		if len(bts) > 0 && bts[0]&byte0x80 != 0 {
+			// We'll have to pad this with 0x00 in order to stop it looking like a negative number
+			return padBytes(byte0x00, bts)
+		}
+		return bts
+	case sign == 0: // Zero is written as a single 0 zero rather than no bytes
+		return []byte{byte0x00}
+	case sign < 0:
+		// Convert negative number into two's complement form
+		// Subtract 1 and invert
+		// If the most-significant-bit isn't set then we'll need to pad the beginning
+		// with 0xff in order to keep the number negative
+		bigOne := big.NewInt(byte0x01)
+		nMinus1 := new(big.Int).Neg(n)
+		nMinus1.Sub(nMinus1, bigOne)
+		bts := nMinus1.Bytes()
+		for i := range bts {
+			bts[i] ^= byte0xff
+		}
+		if l := len(bts); l == 0 || bts[0]&byte0x80 == 0 {
+			return padBytes(byte0xff, bts)
+		}
+		return bts
+	default:
+		panic("unreachable point reached")
+	}
+}
+
+func padBytes(p byte, bytes []byte) []byte {
+	r := make([]byte, len(bytes)+1)
+	r[0] = p
+	copy(r[1:], bytes)
+	return r
 }

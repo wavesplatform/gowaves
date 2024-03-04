@@ -310,6 +310,31 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) BlocksSnapshotAt(w http.ResponseWriter, r *http.Request) error {
+	// nickeskov: in this case id param must be non-zero length
+	s := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "failed to parse 'height' url param")
+	}
+	blockSnapshot, err := a.state.SnapshotsAtHeight(height)
+	if err != nil {
+		if state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err, "BlocksSnapshotAt: failed to get block snapshot at height %d", height)
+	}
+
+	_ = json.Marshaler(blockSnapshot) // check that blockSnapshot implements json.Marshaler
+
+	err = trySendJson(w, blockSnapshot)
+	if err != nil {
+		return errors.Wrap(err,
+			"BlocksSnapshotAt: failed to marshal block snapshot to JSON and write to ResponseWriter")
+	}
+	return nil
+}
+
 func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) error {
 	type blockHeightResponse struct {
 		Height uint64 `json:"height"`
@@ -751,11 +776,16 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 }
 
 func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
-	stateHash, err := a.state.StateHashAtHeight(height)
+	stateHash, err := a.state.LegacyStateHashAtHeight(height)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get state hash at height %d", height)
 	}
-	stateHashDebug := proto.NewStateHashJSDebug(*stateHash, height, a.app.version().Version)
+	snapshotStateHash, err := a.state.SnapshotStateHashAtHeight(height)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get snapshot state hash at height %d", height)
+	}
+	version := a.app.version().Version
+	stateHashDebug := proto.NewStateHashJSDebug(*stateHash, height, version, snapshotStateHash)
 	return &stateHashDebug, nil
 }
 
@@ -766,8 +796,14 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 		// TODO(nickeskov): which error it should send?
 		return apiErrs.ErrInvalidHeight
 	}
+	if height < 1 {
+		return apiErrs.BlockDoesNotExist
+	}
 	stateHashDebug, err := a.stateHashDebug(height)
 	if err != nil {
+		if state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
 		return errors.Wrap(err, "failed to get state hash debug")
 	}
 
@@ -782,12 +818,45 @@ func (a *NodeApi) stateHashLast(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get last height")
 	}
-	stateHashDebug, err := a.stateHashDebug(height - 1)
+	h := height - 1
+	if h < 1 {
+		return apiErrs.BlockDoesNotExist
+	}
+	stateHashDebug, err := a.stateHashDebug(h)
 	if err != nil {
+		if state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
 		return errors.Wrap(err, "failed to get last state hash")
 	}
 	if err := trySendJson(w, stateHashDebug); err != nil {
 		return errors.Wrap(err, "stateHash")
+	}
+	return nil
+}
+
+func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		// TODO(nickeskov): which error it should send?
+		return &BadRequestError{err}
+	}
+	if height < 1 {
+		return apiErrs.BlockDoesNotExist
+	}
+	sh, err := a.state.SnapshotStateHashAtHeight(height)
+	if err != nil {
+		if state.IsNotFound(err) {
+			return apiErrs.BlockDoesNotExist
+		}
+		return errors.Wrapf(err, "failed to get snapshot state hash at height %d", height)
+	}
+	type out struct {
+		StateHash proto.HexBytes `json:"stateHash"`
+	}
+	if sendErr := trySendJson(w, out{StateHash: sh.Bytes()}); sendErr != nil {
+		return errors.Wrap(sendErr, "snapshotStateHash")
 	}
 	return nil
 }

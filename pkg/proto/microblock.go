@@ -30,9 +30,21 @@ type MicroBlock struct {
 	Transactions          Transactions
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
+	StateHash             *crypto.Digest // is nil before protocol version 1.5
 }
 
 type MicroblockTotalSig = crypto.Signature
+
+func (a *MicroBlock) GetStateHash() (crypto.Digest, bool) {
+	var (
+		sh      crypto.Digest
+		present = a.StateHash != nil
+	)
+	if present {
+		sh = *a.StateHash
+	}
+	return sh, present
+}
 
 func (a *MicroBlock) UnmarshalFromProtobuf(b []byte) error {
 	var pbMicroBlock g.SignedMicroBlock
@@ -70,6 +82,10 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 	if err != nil {
 		return nil, err
 	}
+	var stateHash []byte
+	if sh, present := a.GetStateHash(); present {
+		stateHash = sh.Bytes()
+	}
 	return &g.SignedMicroBlock{
 		MicroBlock: &g.MicroBlock{
 			Version:               int32(a.VersionField),
@@ -77,6 +93,7 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 			UpdatedBlockSignature: total,
 			SenderPublicKey:       a.SenderPK.Bytes(),
 			Transactions:          txs,
+			StateHash:             stateHash,
 		},
 		Signature:    sig,
 		TotalBlockId: a.TotalBlockID.Bytes(),
@@ -202,6 +219,12 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 	// Write transactions bytes
 	s.Bytes(txsBuf.Bytes())
 	s.Bytes(a.SenderPK.Bytes())
+	// Write state hash if it's present
+	var stateHash []byte
+	if sh, present := a.GetStateHash(); present {
+		stateHash = sh.Bytes()
+	}
+	s.Bytes(stateHash)
 	return s.N(), nil
 }
 

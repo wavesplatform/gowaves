@@ -2,9 +2,10 @@ package proto
 
 import (
 	"github.com/pkg/errors"
+	protobuf "google.golang.org/protobuf/proto"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
@@ -92,10 +93,10 @@ func leaseBalancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSn
 	return nil
 }
 
-func staticAssetFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, assetStatic := range txSnapshotProto.AssetStatics {
-		var sn StaticAssetInfoSnapshot
-		err := sn.FromProtobuf(assetStatic)
+func newAssetFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, newAsset := range txSnapshotProto.AssetStatics {
+		var sn NewAssetSnapshot
+		err := sn.FromProtobuf(newAsset)
 		if err != nil {
 			return err
 		}
@@ -116,7 +117,7 @@ func assetVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 	return nil
 }
 
-func assetDescrFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+func assetDescriptionFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
 	for _, assetNameAndDescr := range txSnapshotProto.AssetNamesAndDescriptions {
 		var sn AssetDescriptionSnapshot
 		err := sn.FromProtobuf(assetNameAndDescr)
@@ -129,7 +130,7 @@ func assetDescrFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]Ato
 }
 
 func assetScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, assetScript := range txSnapshotProto.AssetScripts {
+	if assetScript := txSnapshotProto.AssetScripts; assetScript != nil {
 		var sn AssetScriptSnapshot
 		err := sn.FromProtobuf(assetScript)
 		if err != nil {
@@ -141,7 +142,7 @@ func assetScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 }
 
 func aliasFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, alias := range txSnapshotProto.Aliases {
+	if alias := txSnapshotProto.Aliases; alias != nil {
 		var sn AliasSnapshot
 		err := sn.FromProtobuf(scheme, alias)
 		if err != nil {
@@ -164,10 +165,22 @@ func filledVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]A
 	return nil
 }
 
-func leaseStateFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, leaseState := range txSnapshotProto.LeaseStates {
-		var sn LeaseStateSnapshot
-		err := sn.FromProtobuf(scheme, leaseState)
+func newLeaseFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, newLease := range txSnapshotProto.NewLeases {
+		var sn NewLeaseSnapshot
+		err := sn.FromProtobuf(scheme, newLease)
+		if err != nil {
+			return err
+		}
+		*res = append(*res, sn)
+	}
+	return nil
+}
+
+func cancelledLeaseFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	for _, cancelledLease := range txSnapshotProto.CancelledLeases {
+		var sn CancelledLeaseSnapshot
+		err := sn.FromProtobuf(cancelledLease)
 		if err != nil {
 			return err
 		}
@@ -177,7 +190,7 @@ func leaseStateFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnaps
 }
 
 func accountScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, accountScript := range txSnapshotProto.AccountScripts {
+	if accountScript := txSnapshotProto.AccountScripts; accountScript != nil {
 		var sn AccountScriptSnapshot
 		err := sn.FromProtobuf(accountScript)
 		if err != nil {
@@ -212,21 +225,24 @@ func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 	return nil
 }
 
-// TxSnapshotsFromProtobuf Unmarshalling order (how in proto schemas):
+// TxSnapshotsFromProtobufWithoutTxStatus Unmarshalling order (how in proto schemas):
 // WavesBalances and AssetBalances
 // LeaseBalances
-// StaticAsset
+// NewAsset
 // AssetVolume
 // AssetDescription
-// AssetScripts
-// Aliases
+// AssetScript
+// Alias
 // FilledVolumes
-// LeaseStates
-// AccountScripts
+// NewLeases
+// CancelledLeases
+// AccountScript
 // DataEntries
 // Sponsorships
-// TxStatus.
-func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+func TxSnapshotsFromProtobufWithoutTxStatus(
+	scheme Scheme,
+	txSnapshotProto *g.TransactionStateSnapshot,
+) ([]AtomicSnapshot, error) {
 	var txSnapshots []AtomicSnapshot
 	err := balancesFromProto(scheme, txSnapshotProto, &txSnapshots)
 	if err != nil {
@@ -236,7 +252,7 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = staticAssetFromProto(txSnapshotProto, &txSnapshots)
+	err = newAssetFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -244,7 +260,7 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = assetDescrFromProto(txSnapshotProto, &txSnapshots)
+	err = assetDescriptionFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -260,7 +276,11 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	err = leaseStateFromProto(scheme, txSnapshotProto, &txSnapshots)
+	err = newLeaseFromProto(scheme, txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	err = cancelledLeaseFromProto(txSnapshotProto, &txSnapshots)
 	if err != nil {
 		return nil, err
 	}
@@ -273,6 +293,16 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 		return nil, err
 	}
 	err = sponsorshipFromProto(txSnapshotProto, &txSnapshots)
+	if err != nil {
+		return nil, err
+	}
+	return txSnapshots, nil
+}
+
+// TxSnapshotsFromProtobuf deserializes protobuf message into AtomicSnapshot slice.
+// The TransactionStatusSnapshot is the last element of the slice.
+func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot) ([]AtomicSnapshot, error) {
+	txSnapshots, err := TxSnapshotsFromProtobufWithoutTxStatus(scheme, txSnapshotProto)
 	if err != nil {
 		return nil, err
 	}
@@ -707,7 +737,7 @@ func (c *ProtobufConverter) attachment(att []byte) Attachment {
 	return att
 }
 
-func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEntry {
+func (c *ProtobufConverter) entry(entry *g.DataEntry) DataEntry {
 	if c.err != nil {
 		return nil
 	}
@@ -717,21 +747,23 @@ func (c *ProtobufConverter) entry(entry *g.DataTransactionData_DataEntry) DataEn
 	}
 	var e DataEntry
 	switch t := entry.Value.(type) {
-	case *g.DataTransactionData_DataEntry_IntValue:
+	case *g.DataEntry_IntValue:
 		e = &IntegerDataEntry{Key: entry.Key, Value: t.IntValue}
-	case *g.DataTransactionData_DataEntry_BoolValue:
+	case *g.DataEntry_BoolValue:
 		e = &BooleanDataEntry{Key: entry.Key, Value: t.BoolValue}
-	case *g.DataTransactionData_DataEntry_BinaryValue:
+	case *g.DataEntry_BinaryValue:
 		e = &BinaryDataEntry{Key: entry.Key, Value: t.BinaryValue}
-	case *g.DataTransactionData_DataEntry_StringValue:
+	case *g.DataEntry_StringValue:
 		e = &StringDataEntry{Key: entry.Key, Value: t.StringValue}
-	default: // No value means DeleteDataEntry
+	case nil:
 		e = &DeleteDataEntry{Key: entry.Key}
+	default:
+		c.err = errors.Errorf("unknown data entry value type (%T)", entry.Value)
 	}
 	return e
 }
 
-func (c *ProtobufConverter) Entry(entry *g.DataTransactionData_DataEntry) (DataEntry, error) {
+func (c *ProtobufConverter) Entry(entry *g.DataEntry) (DataEntry, error) {
 	e := c.entry(entry)
 	if c.err != nil {
 		err := c.err
@@ -752,7 +784,7 @@ func (c *ProtobufConverter) script(script []byte) Script {
 	return res
 }
 
-func (c *ProtobufConverter) entries(entries []*g.DataTransactionData_DataEntry) DataEntries {
+func (c *ProtobufConverter) entries(entries []*g.DataEntry) DataEntries {
 	if c.err != nil {
 		return nil
 	}
@@ -1525,6 +1557,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		Transactions:          txs,
 		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
 		Signature:             c.signature(mb.Signature),
+		StateHash:             c.stateHash(mb.MicroBlock.StateHash),
 	}
 	if c.err != nil {
 		err := c.err
@@ -1587,6 +1620,42 @@ func (c *ProtobufConverter) consensus(header *g.Block_Header) NxtConsensus {
 	}
 }
 
+func (c *ProtobufConverter) challengedHeader(pbCh *g.Block_Header_ChallengedHeader) *ChallengedHeader {
+	if c.err != nil { // error case
+		return nil
+	}
+	if pbCh == nil { // valid case, pb challenged header can be empty
+		return nil
+	}
+	return &ChallengedHeader{
+		Timestamp: uint64(pbCh.Timestamp),
+		NxtConsensus: NxtConsensus{
+			GenSignature: pbCh.GenerationSignature,
+			BaseTarget:   c.uint64(pbCh.BaseTarget),
+		},
+		Features:           c.features(pbCh.FeatureVotes),
+		GeneratorPublicKey: c.publicKey(pbCh.Generator),
+		RewardVote:         pbCh.RewardVote,
+		StateHash:          c.digest(pbCh.StateHash),
+		BlockSignature:     c.signature(pbCh.HeaderSignature),
+	}
+}
+
+func (c *ProtobufConverter) stateHash(stateHashBytes []byte) *crypto.Digest {
+	if c.err != nil { // error case
+		return nil
+	}
+	if len(stateHashBytes) == 0 { // can be empty
+		return nil
+	}
+	sh, err := crypto.NewDigestFromBytes(stateHashBytes)
+	if err != nil {
+		c.err = err
+		return nil
+	}
+	return &sh
+}
+
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 	if block == nil {
 		return BlockHeader{}, errors.New("empty block")
@@ -1610,6 +1679,8 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 		GeneratorPublicKey:   c.publicKey(block.Header.Generator),
 		BlockSignature:       c.signature(block.Signature),
 		TransactionsRoot:     block.Header.TransactionsRoot,
+		StateHash:            c.stateHash(block.Header.StateHash),
+		ChallengedHeader:     c.challengedHeader(block.Header.ChallengedHeader),
 	}
 	if c.err != nil {
 		err := c.err

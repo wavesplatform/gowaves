@@ -4,13 +4,14 @@ import (
 	"context"
 
 	"github.com/pkg/errors"
+	"google.golang.org/grpc/codes"
+	"google.golang.org/grpc/status"
+	"google.golang.org/protobuf/types/known/wrapperspb"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"google.golang.org/grpc/codes"
-	"google.golang.org/grpc/status"
-	"google.golang.org/protobuf/types/known/wrapperspb"
 )
 
 func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalancesServer) error {
@@ -180,7 +181,7 @@ type getActiveLeasesHandler struct {
 	s   *Server
 }
 
-func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ bool) error {
+func (h *getActiveLeasesHandler) handle(tx proto.Transaction, _ proto.TransactionStatus) error {
 	var id []byte
 	var sender proto.WavesAddress
 	var recipient proto.Recipient

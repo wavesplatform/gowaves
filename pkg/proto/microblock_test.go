@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -152,6 +153,19 @@ func TestMicroBlockV5VerifySignature(t *testing.T) {
 	err = micro.UnmarshalFromProtobuf(b)
 	require.NoError(t, err)
 	ok, err := micro.VerifySignature('T')
+	require.NoError(t, err)
+	assert.True(t, ok)
+}
+
+func TestMicroBlockV5VerifySignatureWithFilledStateHash(t *testing.T) {
+	b, err := base64.StdEncoding.DecodeString("CqIDCAUSIOk/LLkzAI1fKhFkEpSLKSTpQbL0mbZ0MfqD+fPosnzqGkBicWtO7M/qZMDCefUpa/cFwtFaLzjGA7umJ0A/C+op5PlTM0fHl6TNzNGKPHTBUWRBda3KdTzfs1crhf3MMCkHIiBwUsMLcs1y9+uFb8o4smXf5Z8IgXE9nDOO7wjJvVYfJCr1ARJA54FMEFCehlwooxG7oai66tSarbLABgVpg1/6vvnjuatF/5Hw2b6xImQ8AkEHPRlQfaG7lnWiJhxKCz2DEQXLCQqwAQhTEiDccMcuB9sSU7lrzTHdWHMPLXzY0fjRIqS5pnIg6y/7NxoEEKDCHiCIiKTH3jEoAqIHegoWChSdehPEUYH4VAnEEKfxeXrM8DevhhJgAQkBAAAAC2FwcGVuZEJsb2NrAAAAAgEAAAAgLfHmO80M5E9Zxq9HifKAmTsoWJBaNklsTc+J5hKQiz0BAAAAIB7q/lbnRFXHsf8Cz6or7P6nhNFxwwq/K5rWrgtxxH9LMiD3SCw4ghE0v3CGnerhAqfzxjpIECncD+QPE22N77bjMhJAcWZaiEE9TS/8NzaMTPvEalv5sp3aMdqo2XlZs+xbGHb+4RmRdTGjU1jgAqt+ZDmz3ZjSYfrXsNy9LUowzEjQDBogvnp/dU93K1XLzUmjnQMTz4Jcz1bXWSnH/bsbLJNe3HY=") //nolint:lll
+	require.NoError(t, err)
+	micro := new(MicroBlock)
+	err = micro.UnmarshalFromProtobuf(b)
+	require.NoError(t, err)
+	_, present := micro.GetStateHash()
+	require.True(t, present)
+	ok, err := micro.VerifySignature(StageNetScheme)
 	require.NoError(t, err)
 	assert.True(t, ok)
 }

@@ -2,13 +2,18 @@ package server
 
 import (
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	"go.uber.org/zap"
 )
 
-func (s *Server) transactionToTransactionResponse(tx proto.Transaction, confirmed, failed bool) (*g.TransactionResponse, error) {
+func (s *Server) transactionToTransactionResponse(
+	tx proto.Transaction,
+	confirmed bool,
+	status proto.TransactionStatus,
+) (*g.TransactionResponse, error) {
 	id, err := tx.GetID(s.scheme)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get tx ID")
@@ -22,10 +27,15 @@ func (s *Server) transactionToTransactionResponse(tx proto.Transaction, confirme
 	if !confirmed {
 		return res, nil
 	}
-	if failed {
-		res.ApplicationStatus = g.ApplicationStatus_SCRIPT_EXECUTION_FAILED
-	} else {
+	switch status {
+	case proto.TransactionSucceeded:
 		res.ApplicationStatus = g.ApplicationStatus_SUCCEEDED
+	case proto.TransactionFailed:
+		res.ApplicationStatus = g.ApplicationStatus_SCRIPT_EXECUTION_FAILED
+	case proto.TransactionElided:
+		res.ApplicationStatus = g.ApplicationStatus_ELIDED
+	default:
+		return nil, errors.Errorf("invalid tx status (%d)", status)
 	}
 	height, err := s.state.TransactionHeightByID(id)
 	if err != nil {
@@ -45,7 +55,7 @@ func (s *Server) newStateIterator(sender, recipient *proto.WavesAddress) (state.
 }
 
 type filterFunc = func(tx proto.Transaction) bool
-type handleFunc = func(tx proto.Transaction, failed bool) error
+type handleFunc = func(tx proto.Transaction, status proto.TransactionStatus) error
 
 func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, filter filterFunc, handle handleFunc) error {
 	defer func() {
@@ -56,15 +66,15 @@ func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, fi
 	}()
 	for iter.Next() {
 		// Get and send transactions one-by-one.
-		tx, failed, err := iter.Transaction()
+		tx, status, err := iter.Transaction()
 		if err != nil {
 			return errors.Wrap(err, "iterator.Transaction() failed")
 		}
 		if !filter(tx) {
 			continue
 		}
-		if err := handle(tx, failed); err != nil {
-			return errors.Wrap(err, "handle() failed")
+		if hErr := handle(tx, status); hErr != nil {
+			return errors.Wrap(hErr, "handle() failed")
 		}
 	}
 	if err := iter.Error(); err != nil {

@@ -236,7 +236,9 @@ func (a *ThreadSafeReadWrapper) TransactionByID(id []byte) (proto.Transaction, e
 	return a.s.TransactionByID(id)
 }
 
-func (a *ThreadSafeReadWrapper) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+func (a *ThreadSafeReadWrapper) TransactionByIDWithStatus(
+	id []byte,
+) (proto.Transaction, proto.TransactionStatus, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.TransactionByIDWithStatus(id)
@@ -338,10 +340,16 @@ func (a *ThreadSafeReadWrapper) ProvidesStateHashes() (bool, error) {
 	return a.s.ProvidesStateHashes()
 }
 
-func (a *ThreadSafeReadWrapper) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
+func (a *ThreadSafeReadWrapper) LegacyStateHashAtHeight(height uint64) (*proto.StateHash, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.StateHashAtHeight(height)
+	return a.s.LegacyStateHashAtHeight(height)
+}
+
+func (a *ThreadSafeReadWrapper) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.SnapshotStateHashAtHeight(height)
 }
 
 func (a *ThreadSafeReadWrapper) ProvidesExtendedApi() (bool, error) {

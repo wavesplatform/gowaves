@@ -1,14 +1,16 @@
+//go:build !smoke
+
 package itests
 
 import (
-	"net/http"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
-	"github.com/wavesplatform/gowaves/itests/utilities/issue_utilities"
+	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -17,47 +19,36 @@ type IssueTxApiSuite struct {
 }
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
-	versions := issue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
+	versions := issue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, waitForTx)
-				errMsg := caseName + "Broadcast Issue tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
-				utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					issue.BroadcastIssueTxAndGetBalances(
+						&suite.BaseSuite, td, v, true)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Issue tx: %s", caseName, tx.TxID.String())
+				issue.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}
 }
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
-	versions := issue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
+	versions := issue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
 				for j := 0; j < 2; j++ {
-					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(&suite.BaseSuite,
-						testdata.DataChangedTimestamp(&td), v, waitForTx)
-					errMsg := caseName + "Broadcast Issue tx:" + tx.TxID.String()
-
-					utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, tx, errMsg)
-					utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-					utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-						actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-					utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-						actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+						issue.BroadcastIssueTxAndGetBalances(
+							&suite.BaseSuite, testdata.DataChangedTimestamp(&td), v, true)
+					errMsg := fmt.Sprintf("Case: %s; Broadcast Issue tx: %s", caseName, tx.TxID.String())
+					issue.PositiveAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves,
+						actualDiffBalanceInAsset, errMsg)
 				}
 			})
 		}
@@ -65,28 +56,19 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 }
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
-	versions := issue_utilities.GetVersions(&suite.BaseSuite)
-	waitForTx := true
+	versions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
 		tdmatrix := testdata.GetNegativeDataMatrix(&suite.BaseSuite)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := issue_utilities.BroadcastIssueTxAndGetBalances(
-					&suite.BaseSuite, td, v, !waitForTx)
+				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
+					issue.BroadcastIssueTxAndGetBalances(
+						&suite.BaseSuite, td, v, false)
 				txIds[name] = &tx.TxID
-				errMsg := caseName + "Broadcast Issue tx:" + tx.TxID.String()
-
-				utl.StatusCodesCheck(suite.T(), http.StatusInternalServerError, http.StatusBadRequest, tx, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
-					tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala, errMsg)
-				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
-					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
-					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
-				utl.AssetDiffBalanceCheck(suite.T(), td.Expected.AssetBalance, actualDiffBalanceInAsset.BalanceInAssetGo,
-					actualDiffBalanceInAsset.BalanceInAssetScala, errMsg)
+				errMsg := fmt.Sprintf("Case: %s; Broadcast Issue tx: %s", caseName, tx.TxID.String())
+				issue.NegativeAPIChecks(suite.T(), tx, td, actualDiffBalanceInWaves, actualDiffBalanceInAsset, errMsg)
 			})
 		}
 	}

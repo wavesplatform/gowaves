@@ -1,6 +1,9 @@
 package state
 
 import (
+	stderrs "errors"
+
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -8,26 +11,49 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride"
 )
 
-type blockSnapshotsApplier struct {
-	info *blockSnapshotsApplierInfo
-	stor snapshotApplierStorages
-
-	issuedAssets   map[crypto.Digest]struct{}
-	scriptedAssets map[crypto.Digest]struct{}
+type txSnapshotContext struct {
+	validatingUTX bool
+	txApplied     bool
+	applyingTx    proto.Transaction
 }
 
-func (a *blockSnapshotsApplier) BeforeTxSnapshotApply() error {
-	if len(a.issuedAssets) != 0 {
-		a.issuedAssets = make(map[crypto.Digest]struct{})
+func (c txSnapshotContext) initialized() bool { return c.applyingTx != nil }
+
+type blockSnapshotsApplier struct {
+	info extendedSnapshotApplierInfo
+	stor snapshotApplierStorages
+
+	txSnapshotContext txSnapshotContext
+
+	issuedAssets   []crypto.Digest
+	scriptedAssets map[crypto.Digest]struct{}
+
+	newLeases       []crypto.Digest
+	cancelledLeases map[crypto.Digest]struct{}
+
+	// used for legacy SH
+	balanceRecordsContext balanceRecordsContext
+}
+
+func (a *blockSnapshotsApplier) BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error {
+	a.txSnapshotContext = txSnapshotContext{
+		validatingUTX: validatingUTX,
+		txApplied:     false,
+		applyingTx:    tx,
 	}
+	a.issuedAssets = []crypto.Digest{}
 	if len(a.scriptedAssets) != 0 {
 		a.scriptedAssets = make(map[crypto.Digest]struct{})
+	}
+	a.newLeases = []crypto.Digest{}
+	if len(a.cancelledLeases) != 0 {
+		a.cancelledLeases = make(map[crypto.Digest]struct{})
 	}
 	return nil
 }
 
 func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
-	for assetID := range a.issuedAssets {
+	for _, assetID := range a.issuedAssets {
 		if _, ok := a.scriptedAssets[assetID]; ok { // don't set an empty script for scripted assets or script updates
 			continue
 		}
@@ -35,48 +61,267 @@ func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
 			AssetID: assetID,
 			Script:  proto.Script{},
 		}
-		// need for compatibility with old state hashes
+		// need for compatibility with legacy state hashes
 		// for issued asset without script we have to apply empty asset script snapshot
 		err := emptyAssetScriptSnapshot.Apply(a)
 		if err != nil {
 			return errors.Wrapf(err, "failed to apply empty asset scipt snapshot for asset %q", assetID)
 		}
 	}
+	for _, leaseID := range a.newLeases { // need for compatibility with legacy state hashes
+		if _, ok := a.cancelledLeases[leaseID]; ok { // skip cancelled leases
+			continue
+		}
+		if err := a.stor.leases.pushStateHash(leaseID, true, a.info.BlockID()); err != nil {
+			return errors.Wrapf(err, "failed to push state hash for new lease %q", leaseID)
+		}
+	}
+	for cancelledLeaseID := range a.cancelledLeases {
+		if err := a.stor.leases.pushStateHash(cancelledLeaseID, false, a.info.BlockID()); err != nil {
+			return errors.Wrapf(err, "failed to push state hash for cancelled lease %q", cancelledLeaseID)
+		}
+	}
+
+	a.txSnapshotContext = txSnapshotContext{} // reset to default
 	return nil
 }
 
 func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotApplierStorages) blockSnapshotsApplier {
 	return blockSnapshotsApplier{
-		info:           info,
-		stor:           stor,
-		issuedAssets:   make(map[crypto.Digest]struct{}),
-		scriptedAssets: make(map[crypto.Digest]struct{}),
+		info:                  info,
+		stor:                  stor,
+		issuedAssets:          []crypto.Digest{},
+		scriptedAssets:        make(map[crypto.Digest]struct{}),
+		newLeases:             []crypto.Digest{},
+		cancelledLeases:       make(map[crypto.Digest]struct{}),
+		balanceRecordsContext: newBalanceRecordsContext(),
+	}
+}
+
+type balanceRecordsContext struct {
+	// used for legacy state hashes to filter out statehash temporary records with 0 change in a block.
+	wavesBalanceRecords  wavesBalanceRecords
+	assetBalanceRecords  assetBalanceRecords
+	leasesBalanceRecords leaseBalanceRecords
+}
+
+func newBalanceRecordsContext() balanceRecordsContext {
+	return balanceRecordsContext{
+		wavesBalanceRecords:  wavesBalanceRecords{make(map[wavesBalanceKey]balanceRecordInBlock)},
+		assetBalanceRecords:  assetBalanceRecords{make(map[assetBalanceKey]balanceRecordInBlock)},
+		leasesBalanceRecords: leaseBalanceRecords{make(map[wavesBalanceKey]leaseRecordInBlock)},
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroWavesDiffRecords(blockID proto.BlockID) {
+	// comparing the final balance to the initial one
+	for key, balanceRecord := range a.balanceRecordsContext.wavesBalanceRecords.wavesRecords {
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.wavesHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				keyStr := string(key.bytes())
+				temporarySHRecords.remove(keyStr)
+				a.stor.balances.wavesHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroAssetDiffRecords(blockID proto.BlockID) {
+	// comparing the final balance to the initial one
+	for key, balanceRecord := range a.balanceRecordsContext.assetBalanceRecords.assetRecords {
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.assetsHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				keyStr := string(key.bytes())
+				temporarySHRecords.remove(keyStr)
+				a.stor.balances.assetsHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroLeasingDiffRecords(blockID proto.BlockID) {
+	// comparing the final balance to the initial one
+	for key, balanceRecord := range a.balanceRecordsContext.leasesBalanceRecords.leaseRecords {
+		if balanceRecord.isDiffZero() { // this means the diff is 0 in block
+			temporarySHRecords, ok := a.stor.balances.leaseHashesState[blockID]
+			if ok && temporarySHRecords != nil {
+				keyStr := string(key.bytes())
+				temporarySHRecords.remove(keyStr)
+				a.stor.balances.leaseHashesState[blockID] = temporarySHRecords
+			}
+		}
+	}
+}
+
+func (a *blockSnapshotsApplier) filterZeroDiffsSHOut(blockID proto.BlockID) {
+	a.filterZeroWavesDiffRecords(blockID)
+	a.filterZeroAssetDiffRecords(blockID)
+	a.filterZeroLeasingDiffRecords(blockID)
+
+	a.balanceRecordsContext.wavesBalanceRecords.reset()
+	a.balanceRecordsContext.assetBalanceRecords.reset()
+	a.balanceRecordsContext.leasesBalanceRecords.reset()
+}
+
+type balanceRecordInBlock struct {
+	initial int64
+	current int64
+}
+
+func (r balanceRecordInBlock) isDiffZero() bool {
+	return r.initial == r.current
+}
+
+type wavesBalanceRecords struct {
+	wavesRecords map[wavesBalanceKey]balanceRecordInBlock
+}
+
+func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.WavesAddress, balance int64) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
+	key := wavesBalanceKey{address: address.ID()}
+
+	prevRec, ok := a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key]
+	if ok {
+		prevRec.current = balance
+		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key] = prevRec
+	} else {
+		initialBalance, err := a.stor.balances.newestWavesBalance(address.ID())
+		if err != nil {
+			return errors.Wrapf(err,
+				"failed to gen initial balance for address %s", address.String())
+		}
+		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key] = balanceRecordInBlock{
+			initial: int64(initialBalance.balance), current: balance}
+	}
+	return nil
+}
+
+func (w *wavesBalanceRecords) reset() {
+	if len(w.wavesRecords) != 0 {
+		w.wavesRecords = make(map[wavesBalanceKey]balanceRecordInBlock)
+	}
+}
+
+type assetBalanceRecords struct {
+	assetRecords map[assetBalanceKey]balanceRecordInBlock
+}
+
+func (a *blockSnapshotsApplier) addAssetBalanceRecordLegacySH(
+	address proto.WavesAddress,
+	assetID proto.AssetID,
+	balance int64,
+) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
+	key := assetBalanceKey{address: address.ID(), asset: assetID}
+	prevRec, ok := a.balanceRecordsContext.assetBalanceRecords.assetRecords[key]
+	if ok {
+		prevRec.current = balance
+		a.balanceRecordsContext.assetBalanceRecords.assetRecords[key] = prevRec
+	} else {
+		initialBalance, err := a.stor.balances.newestAssetBalance(address.ID(), assetID)
+		if err != nil {
+			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
+		}
+		a.balanceRecordsContext.assetBalanceRecords.assetRecords[key] = balanceRecordInBlock{
+			initial: int64(initialBalance), current: balance}
+	}
+	return nil
+}
+
+func (w *assetBalanceRecords) reset() {
+	if len(w.assetRecords) != 0 {
+		w.assetRecords = make(map[assetBalanceKey]balanceRecordInBlock)
+	}
+}
+
+type leaseRecordInBlock struct {
+	initialLeaseIn  int64
+	initialLeaseOut int64
+	currentLeaseIn  int64
+	currentLeaseOut int64
+}
+
+func (r leaseRecordInBlock) isDiffZero() bool {
+	return r.initialLeaseIn == r.currentLeaseIn && r.initialLeaseOut == r.currentLeaseOut
+}
+
+type leaseBalanceRecords struct {
+	leaseRecords map[wavesBalanceKey]leaseRecordInBlock
+}
+
+func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(
+	address proto.WavesAddress,
+	leaseIn int64,
+	leaseOut int64,
+) error {
+	if !a.stor.calculateHashes {
+		return nil
+	}
+
+	key := wavesBalanceKey{address: address.ID()}
+
+	prevLeaseInOut, ok := a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key]
+	if ok {
+		prevLeaseInOut.currentLeaseIn = leaseIn
+		prevLeaseInOut.currentLeaseOut = leaseOut
+		a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key] = prevLeaseInOut
+	} else {
+		initialBalance, err := a.stor.balances.newestWavesBalance(address.ID())
+		if err != nil {
+			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
+		}
+		a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key] = leaseRecordInBlock{
+			initialLeaseIn:  initialBalance.leaseIn,
+			initialLeaseOut: initialBalance.leaseOut,
+			currentLeaseIn:  leaseIn,
+			currentLeaseOut: leaseOut}
+	}
+	return nil
+}
+
+func (w *leaseBalanceRecords) reset() {
+	if len(w.leaseRecords) != 0 {
+		w.leaseRecords = make(map[wavesBalanceKey]leaseRecordInBlock)
 	}
 }
 
 type snapshotApplierStorages struct {
+	rw                *blockReadWriter
 	balances          *balances
 	aliases           *aliases
 	assets            *assets
 	scriptsStorage    scriptStorageState
 	scriptsComplexity *scriptsComplexity
+	invokeResults     *invokeResults
 	sponsoredAssets   *sponsoredAssets
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
 	leases            *leases
+	calculateHashes   bool
 }
 
-func newSnapshotApplierStorages(stor *blockchainEntitiesStorage) snapshotApplierStorages {
+func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWriter) snapshotApplierStorages {
 	return snapshotApplierStorages{
+		rw:                rw,
 		balances:          stor.balances,
 		aliases:           stor.aliases,
 		assets:            stor.assets,
 		scriptsStorage:    stor.scriptsStorage,
 		scriptsComplexity: stor.scriptsComplexity,
+		invokeResults:     stor.invokeResults,
 		sponsoredAssets:   stor.sponsoredAssets,
 		ordersVolumes:     stor.ordersVolumes,
 		accountsDataStor:  stor.accountsDataStor,
 		leases:            stor.leases,
+		calculateHashes:   stor.calculateHashes,
 	}
 }
 
@@ -86,12 +331,11 @@ type blockSnapshotsApplierInfo struct {
 	stateActionsCounter *proto.StateActionsCounter
 }
 
-func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme,
-	counter *proto.StateActionsCounter) *blockSnapshotsApplierInfo {
+func newBlockSnapshotsApplierInfo(ci *checkerInfo, scheme proto.Scheme) *blockSnapshotsApplierInfo {
 	return &blockSnapshotsApplierInfo{
 		ci:                  ci,
 		scheme:              scheme,
-		stateActionsCounter: counter,
+		stateActionsCounter: new(proto.StateActionsCounter),
 	}
 }
 
@@ -99,8 +343,12 @@ func (s blockSnapshotsApplierInfo) BlockID() proto.BlockID {
 	return s.ci.blockID
 }
 
-func (s blockSnapshotsApplierInfo) Height() proto.Height {
-	return s.ci.height
+func (s blockSnapshotsApplierInfo) BlockchainHeight() proto.Height {
+	return s.ci.blockchainHeight
+}
+
+func (s blockSnapshotsApplierInfo) CurrentBlockHeight() proto.Height {
+	return s.BlockchainHeight() + 1
 }
 
 func (s blockSnapshotsApplierInfo) EstimatorVersion() int {
@@ -115,11 +363,20 @@ func (s blockSnapshotsApplierInfo) StateActionsCounter() *proto.StateActionsCoun
 	return s.stateActionsCounter
 }
 
-func (a *blockSnapshotsApplier) SetApplierInfo(info *blockSnapshotsApplierInfo) {
+func (a *blockSnapshotsApplier) ApplierInfo() extendedSnapshotApplierInfo {
+	return a.info
+}
+
+func (a *blockSnapshotsApplier) SetApplierInfo(info extendedSnapshotApplierInfo) {
 	a.info = info
 }
 
 func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {
+	// for compatibility with the legacy state hashes
+	err := a.addWavesBalanceRecordLegacySH(snapshot.Address, int64(snapshot.Balance))
+	if err != nil {
+		return err
+	}
 	addrID := snapshot.Address.ID()
 	profile, err := a.stor.balances.newestWavesBalance(addrID)
 	if err != nil {
@@ -135,8 +392,12 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 }
 
 func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
+	err := a.addLeasesBalanceRecordLegacySH(snapshot.Address, int64(snapshot.LeaseIn), int64(snapshot.LeaseOut))
+	if err != nil {
+		return err
+	}
+
 	addrID := snapshot.Address.ID()
-	var err error
 	profile, err := a.stor.balances.newestWavesBalance(addrID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
@@ -152,26 +413,39 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSna
 }
 
 func (a *blockSnapshotsApplier) ApplyAssetBalance(snapshot proto.AssetBalanceSnapshot) error {
-	addrID := snapshot.Address.ID()
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
-	return a.stor.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
+	// for compatibility with the legacy state hashes
+	err := a.addAssetBalanceRecordLegacySH(snapshot.Address, assetID, int64(snapshot.Balance))
+	if err != nil {
+		return err
+	}
+	addrID := snapshot.Address.ID()
+	err = a.stor.balances.setAssetBalance(addrID, assetID, snapshot.Balance, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to set asset balance profile for address %q", snapshot.Address.String())
+	}
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyAlias(snapshot proto.AliasSnapshot) error {
-	return a.stor.aliases.createAlias(snapshot.Alias.Alias, snapshot.Address, a.info.BlockID())
+	if _, err := proto.IsValidAliasString(snapshot.Alias); err != nil {
+		return errors.Wrapf(err, "invalid alias string %q", snapshot.Alias)
+	}
+	return a.stor.aliases.createAlias(snapshot.Alias, snapshot.Address, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyNewAsset(snapshot proto.NewAssetSnapshot) error {
 	assetID := proto.AssetIDFromDigest(snapshot.AssetID)
-	height := a.info.Height() + 1
+	height := a.info.CurrentBlockHeight()
 
 	assetFullInfo := &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:                 proto.DigestTail(snapshot.AssetID),
-			issuer:               snapshot.IssuerPublicKey,
-			decimals:             snapshot.Decimals,
-			issueHeight:          height,
-			issueSequenceInBlock: a.info.stateActionsCounter.NextIssueActionNumber(),
+			Tail:                 proto.DigestTail(snapshot.AssetID),
+			Issuer:               snapshot.IssuerPublicKey,
+			Decimals:             snapshot.Decimals,
+			IssueHeight:          height,
+			IsNFT:                snapshot.IsNFT,
+			IssueSequenceInBlock: a.info.StateActionsCounter().NextIssueActionNumber(),
 		},
 		assetChangeableInfo: assetChangeableInfo{},
 	}
@@ -179,7 +453,7 @@ func (a *blockSnapshotsApplier) ApplyStaticAssetInfo(snapshot proto.StaticAssetI
 	if err != nil {
 		return errors.Wrapf(err, "failed to issue asset %q", snapshot.AssetID.String())
 	}
-	a.issuedAssets[snapshot.AssetID] = struct{}{}
+	a.issuedAssets = append(a.issuedAssets, snapshot.AssetID)
 	return nil
 }
 
@@ -187,7 +461,7 @@ func (a *blockSnapshotsApplier) ApplyAssetDescription(snapshot proto.AssetDescri
 	change := &assetInfoChange{
 		newName:        snapshot.AssetName,
 		newDescription: snapshot.AssetDescription,
-		newHeight:      snapshot.ChangeHeight,
+		newHeight:      a.info.CurrentBlockHeight(),
 	}
 	return a.stor.assets.updateAssetInfo(snapshot.AssetID, change, a.info.BlockID())
 }
@@ -262,30 +536,68 @@ func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot proto.DataEntriesSnaps
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseState(snapshot proto.LeaseStateSnapshot) error {
-	switch status := snapshot.Status.(type) {
-	case *proto.LeaseStateStatusActive:
-		l := &leasing{
-			Sender:    status.Sender,
-			Recipient: status.Recipient,
-			Amount:    status.Amount,
-			Status:    LeaseActive,
-		}
-		return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
-	case *proto.LeaseStatusCancelled:
-		l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
-		if err != nil {
-			return errors.Wrapf(err, "failed to get leasing info by id '%s' for cancelling", snapshot.LeaseID)
-		}
-		l.Status = LeaseCancelled
-		return a.stor.leases.addLeasing(snapshot.LeaseID, l, a.info.BlockID())
-	default:
-		return errors.Errorf("invalid lease state snapshot status (%T)", status)
+func (a *blockSnapshotsApplier) ApplyNewLease(snapshot proto.NewLeaseSnapshot) error {
+	l := &leasing{
+		SenderPK:      snapshot.SenderPK,
+		RecipientAddr: snapshot.RecipientAddr,
+		Amount:        snapshot.Amount,
+		Status:        LeaseActive,
 	}
+	err := a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to apply new lease %q", snapshot.LeaseID)
+	}
+	a.newLeases = append(a.newLeases, snapshot.LeaseID)
+	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyTransactionsStatus(_ proto.TransactionStatusSnapshot) error {
-	return nil // no-op
+func (a *blockSnapshotsApplier) ApplyCancelledLease(snapshot proto.CancelledLeaseSnapshot) error {
+	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get leasing info by id '%s' for cancelling", snapshot.LeaseID)
+	}
+	l.Status = LeaseCancelled
+	err = a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to cancel lease %q", snapshot.LeaseID)
+	}
+	a.cancelledLeases[snapshot.LeaseID] = struct{}{}
+	return nil
+}
+
+func (a *blockSnapshotsApplier) ApplyTransactionsStatus(snapshot proto.TransactionStatusSnapshot) error {
+	if !a.txSnapshotContext.initialized() { // sanity check
+		return errors.New("failed to apply transaction status snapshot: transaction is not set")
+	}
+	if a.txSnapshotContext.txApplied { // sanity check
+		return errors.New("failed to apply transaction status snapshot: transaction status is already applied")
+	}
+	var (
+		status        = snapshot.Status
+		tx            = a.txSnapshotContext.applyingTx
+		validatingUTX = a.txSnapshotContext.validatingUTX
+	)
+	var err error
+	if validatingUTX {
+		// Save transaction to in-mem storage.
+		err = a.stor.rw.writeTransactionToMem(tx, status)
+	} else {
+		// Save transaction to in-mem storage and persistent storage.
+		err = a.stor.rw.writeTransaction(tx, status)
+	}
+	if err != nil {
+		txID, idErr := tx.GetID(a.info.Scheme())
+		if idErr != nil {
+			return errors.Wrapf(stderrs.Join(err, idErr),
+				"failed to write transaction to storage, validatingUTX=%t", validatingUTX,
+			)
+		}
+		return errors.Wrapf(err, "failed to write transaction %q to storage, validatingUTX=%t",
+			base58.Encode(txID), validatingUTX,
+		)
+	}
+	a.txSnapshotContext.txApplied = true // set to true because transaction status should be applied only once
+	return nil
 }
 
 func (a *blockSnapshotsApplier) ApplyDAppComplexity(snapshot InternalDAppComplexitySnapshot) error {
@@ -326,7 +638,7 @@ func (a *blockSnapshotsApplier) ApplyAssetScriptComplexity(snapshot InternalAsse
 	return nil
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseStateActiveInfo(snapshot InternalLeaseStateActiveInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyNewLeaseInfo(snapshot InternalNewLeaseInfoSnapshot) error {
 	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding active info", snapshot.LeaseID)
@@ -336,7 +648,7 @@ func (a *blockSnapshotsApplier) ApplyLeaseStateActiveInfo(snapshot InternalLease
 	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
 }
 
-func (a *blockSnapshotsApplier) ApplyLeaseStateCancelInfo(snapshot InternalLeaseStateCancelInfoSnapshot) error {
+func (a *blockSnapshotsApplier) ApplyCancelledLeaseInfo(snapshot InternalCancelledLeaseInfoSnapshot) error {
 	l, err := a.stor.leases.newestLeasingInfo(snapshot.LeaseID)
 	if err != nil {
 		return errors.Wrapf(err, "failed to get leasing info by id '%s' for adding cancel info", snapshot.LeaseID)
@@ -344,4 +656,22 @@ func (a *blockSnapshotsApplier) ApplyLeaseStateCancelInfo(snapshot InternalLease
 	l.CancelHeight = snapshot.CancelHeight
 	l.CancelTransactionID = snapshot.CancelTransactionID
 	return a.stor.leases.rawWriteLeasing(snapshot.LeaseID, l, a.info.BlockID())
+}
+
+func (a *blockSnapshotsApplier) ApplyScriptResult(snapshot InternalScriptResultSnapshot) error {
+	if !a.txSnapshotContext.initialized() { // sanity check
+		return errors.New("failed to apply script result snapshot: transaction is not set")
+	}
+	if a.txSnapshotContext.validatingUTX { // no-op for UTX validation
+		return nil
+	}
+	txIDBytes, err := a.txSnapshotContext.applyingTx.GetID(a.info.Scheme())
+	if err != nil {
+		return errors.Wrap(err, "failed to get tx ID")
+	}
+	invokeID, err := crypto.NewDigestFromBytes(txIDBytes) // txID here must be a digest
+	if err != nil {
+		return errors.Wrap(err, "failed to create invoke ID from tx ID")
+	}
+	return a.stor.invokeResults.saveResult(invokeID, snapshot.ScriptResult, a.info.BlockID())
 }

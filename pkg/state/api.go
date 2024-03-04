@@ -22,7 +22,7 @@ import (
 // Release() must be called after using iterator.
 // Error() should return nil if iterating was successful.
 type TransactionIterator interface {
-	Transaction() (proto.Transaction, bool, error)
+	Transaction() (proto.Transaction, proto.TransactionStatus, error)
 	Next() bool
 	Release()
 	Error() error
@@ -88,7 +88,7 @@ type StateInfo interface {
 
 	// Transactions.
 	TransactionByID(id []byte) (proto.Transaction, error)
-	TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error)
+	TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error)
 	TransactionHeightByID(id []byte) (uint64, error)
 	// NewAddrTransactionsIterator() returns iterator to iterate all transactions that affected
 	// given address.
@@ -120,7 +120,8 @@ type StateInfo interface {
 	ProvidesStateHashes() (bool, error)
 
 	// State hashes.
-	StateHashAtHeight(height uint64) (*proto.StateHash, error)
+	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
+	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)

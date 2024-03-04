@@ -5,9 +5,10 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
+
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"golang.org/x/sync/errgroup"
 )
 
 type verifyTaskType byte
@@ -200,6 +201,12 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 		// Check parent.
 		if task.parentID != task.block.Parent {
 			return errors.Errorf("incorrect parent: want: %s, have: %s", task.parentID.String(), task.block.Parent.String())
+		}
+		// Deny self-challenged blocks.
+		if ch, ok := task.block.GetChallengedHeader(); ok {
+			if task.block.GeneratorPublicKey == ch.GeneratorPublicKey {
+				return errors.Errorf("State: handleTask: block '%s' is self-challenged", task.block.ID.String())
+			}
 		}
 		// Check block signature and transactions root hash if applied.
 		validSig, err := task.block.VerifySignature(scheme)

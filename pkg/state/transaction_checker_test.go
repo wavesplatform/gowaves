@@ -22,30 +22,30 @@ var (
 )
 
 type checkerTestObjects struct {
-	stor                *testStorageObjects
-	tc                  *transactionChecker
-	tp                  *transactionPerformer
-	stateActionsCounter *proto.StateActionsCounter
+	stor *testStorageObjects
+	tc   *transactionChecker
+	th   *transactionHandler
 }
 
 func createCheckerTestObjects(t *testing.T, checkerInfo *checkerInfo) *checkerTestObjects {
-	stor := createStorageObjects(t, true)
-	tc, err := newTransactionChecker(proto.NewBlockIDFromSignature(genSig), stor.entities, settings.MainNetSettings)
-	require.NoError(t, err, "newTransactionChecker() failed")
+	return createCheckerTestObjectsWithStor(t, checkerInfo, createStorageObjects(t, true))
+}
 
-	actionsCounter := new(proto.StateActionsCounter)
+func createCheckerTestObjectsWithStor(
+	t *testing.T,
+	checkerInfo *checkerInfo,
+	stor *testStorageObjects,
+) *checkerTestObjects {
 	snapshotApplier := newBlockSnapshotsApplier(
-		newBlockSnapshotsApplierInfo(
-			checkerInfo,
-			settings.MainNetSettings.AddressSchemeCharacter,
-			actionsCounter,
-		),
-		newSnapshotApplierStorages(stor.entities),
+		newBlockSnapshotsApplierInfo(checkerInfo, stor.settings.AddressSchemeCharacter),
+		newSnapshotApplierStorages(stor.entities, stor.rw),
 	)
-	snapshotGen := newSnapshotGenerator(stor.entities, settings.MainNetSettings.AddressSchemeCharacter)
-
-	tp := newTransactionPerformer(stor.entities, settings.MainNetSettings, &snapshotGen, &snapshotApplier)
-	return &checkerTestObjects{stor, tc, tp, actionsCounter}
+	buildAPIData, err := stor.stateDB.stateStoresApiData()
+	require.NoError(t, err)
+	genID := proto.NewBlockIDFromSignature(genSig)
+	th, err := newTransactionHandler(genID, stor.entities, stor.settings, &snapshotApplier, buildAPIData)
+	require.NoError(t, err)
+	return &checkerTestObjects{stor, th.tc, th}
 }
 
 func defaultCheckerInfo() *checkerInfo {
@@ -54,7 +54,7 @@ func defaultCheckerInfo() *checkerInfo {
 		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
 		blockID:          blockID0,
 		blockVersion:     1,
-		height:           100500,
+		blockchainHeight: 100500,
 	}
 }
 
@@ -72,7 +72,7 @@ func TestCheckGenesis(t *testing.T) {
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.EqualError(t, err, "genesis transaction on non zero height")
 
-	info.height = 0
+	info.blockchainHeight = 0
 	_, err = to.tc.checkGenesis(tx, info)
 	assert.NoError(t, err, "checkGenesis failed in non-initialisation mode")
 
@@ -87,10 +87,10 @@ func TestCheckPayment(t *testing.T) {
 
 	tx := createPayment(t)
 
-	info.height = settings.MainNetSettings.BlockVersion3AfterHeight
+	info.blockchainHeight = settings.MainNetSettings.BlockVersion3AfterHeight
 	_, err := to.tc.checkPayment(tx, info)
 	assert.Error(t, err, "checkPayment accepted payment tx after Block v3 height")
-	info.height = 10
+	info.blockchainHeight = 10
 	_, err = to.tc.checkPayment(tx, info)
 	assert.NoError(t, err, "checkPayment failed with valid payment tx")
 
@@ -238,7 +238,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueWithSig(t, 1000)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 	_, err := to.tc.checkReissueWithSig(tx, info)
@@ -261,10 +261,10 @@ func TestCheckReissueWithSig(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	_, err = to.tc.checkReissueWithSig(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	tx.Reissuable = false
-	_, err = to.tp.performReissueWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performReissueWithSig failed")
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
@@ -281,7 +281,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 
 	tx := createReissueWithProofs(t, 1000)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
 
@@ -310,10 +310,10 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	_, err = to.tc.checkReissueWithProofs(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	tx.Reissuable = false
-	_, err = to.tp.performReissueWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performReissueWithProofs failed")
 	to.stor.addBlock(t, blockID0)
 	to.stor.flush(t)
@@ -329,7 +329,7 @@ func TestCheckBurnWithSig(t *testing.T) {
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithSig(t)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	_, err := to.tc.checkBurnWithSig(tx, info)
 	assert.NoError(t, err, "checkBurnWithSig failed with valid burn tx")
@@ -363,7 +363,7 @@ func TestCheckBurnWithProofs(t *testing.T) {
 
 	assetInfo := to.stor.createAsset(t, testGlobal.asset0.asset.ID)
 	tx := createBurnWithProofs(t)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	_, err := to.tc.checkBurnWithProofs(tx, info)
 	assert.Error(t, err, "checkBurnWithProofs did not fail prior to SmartAccounts activation")
@@ -646,7 +646,7 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 	assert.Error(t, err, "checkLeaseCancelWithSig did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performLeaseWithSig(leaseTx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.th.performTx(leaseTx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performLeaseWithSig failed")
 	to.stor.flush(t)
 
@@ -675,7 +675,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkLeaseCancelWithProofs did not fail when cancelling nonexistent lease")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performLeaseWithProofs(leaseTx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.th.performTx(leaseTx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performLeaseWithProofs failed")
 	to.stor.flush(t)
 
@@ -691,7 +691,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
 	assert.NoError(t, err, "checkLeaseCancelWithProofs failed with valid leaseCancel tx")
-	_, err = to.tp.performLeaseCancelWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performLeaseCancelWithProofs() failed")
 
 	_, err = to.tc.checkLeaseCancelWithProofs(tx, info)
@@ -708,7 +708,7 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 	assert.NoError(t, err, "checkCreateAliasWithSig failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performCreateAliasWithSig(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performCreateAliasWithSig failed")
 	to.stor.flush(t)
 
@@ -736,7 +736,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	assert.NoError(t, err, "checkCreateAliasWithProofs failed with valid createAlias tx")
 
 	to.stor.addBlock(t, blockID0)
-	_, err = to.tp.performCreateAliasWithProofs(tx, defaultPerformerInfo(to.stateActionsCounter), nil, nil)
+	_, err = to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
 	assert.NoError(t, err, "performCreateAliasWithProofs failed")
 	to.stor.flush(t)
 
@@ -832,7 +832,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 
 	tx := createSponsorshipWithProofs(t, 1000)
 	assetInfo := to.stor.createAsset(t, tx.AssetID)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
 	_, err := to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.Error(t, err, "checkSponsorshipWithProofs did not fail prior to feature activation")
@@ -859,7 +859,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.NoError(t, err, "checkSponsorshipWithProofs failed with valid Sponsorship tx")
 
@@ -1374,7 +1374,7 @@ func TestCheckSetAssetScriptWithProofs(t *testing.T) {
 	tx := createSetAssetScriptWithProofs(t)
 
 	assetInfo := defaultAssetInfo(proto.DigestTail(tx.AssetID), true)
-	assetInfo.issuer = tx.SenderPK
+	assetInfo.Issuer = tx.SenderPK
 	to.stor.createAssetUsingInfo(t, tx.AssetID, assetInfo)
 
 	// Must fail on non-smart assets.
@@ -1453,9 +1453,9 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	// heights are not messed up in this test.
 	assetInfo := to.stor.createAssetUsingRandomBlock(t, tx.AssetID)
 	to.stor.createAsset(t, tx.FeeAsset.ID)
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
-	info.height = 100001
+	info.blockchainHeight = 100001
 
 	// Check fail prior to activation.
 	_, err := to.tc.checkUpdateAssetInfoWithProofs(tx, info)
@@ -1478,11 +1478,13 @@ func TestCheckUpdateAssetInfoWithProofs(t *testing.T) {
 	tx.SenderPK = testGlobal.recipientInfo.pk
 	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)
 	assert.EqualError(t, err, "asset was issued by other address")
-	tx.SenderPK = assetInfo.issuer
+	tx.SenderPK = assetInfo.Issuer
 
-	info.height = 99999
+	info.blockchainHeight = 99999
 	_, err = to.tc.checkUpdateAssetInfoWithProofs(tx, info)
-	correctError := fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), 1+to.tc.settings.MinUpdateAssetInfoInterval, info.height+1)
+	correctError := fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d",
+		tx.AssetID.String(), 1+to.tc.settings.MinUpdateAssetInfoInterval, info.blockchainHeight+1,
+	)
 	assert.EqualError(t, err, correctError)
 }
 

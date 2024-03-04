@@ -75,6 +75,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/id/{id}", wrapper(a.BlockIDAt))
 			r.Get("/generators", wrapper(a.BlocksGenerators))
 			r.Get("/first", wrapper(a.BlocksFirst))
+			r.Get("/snapshot/at/{height:\\d+}", wrapper(a.BlocksSnapshotAt))
 		})
 
 		r.Route("/peers", func(r chi.Router) {
@@ -88,6 +89,9 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			rAuth := r.With(checkAuthMiddleware)
 
 			rAuth.Post("/load", wrapper(WalletLoadKeys(a.app)))
+		})
+		r.Route("/debug", func(r chi.Router) {
+			r.Get("/snapshotStateHash/{height:\\d+}", wrapper(a.snapshotStateHash))
 		})
 
 		r.Get("/miner/info", wrapper(a.GoMinerInfo))

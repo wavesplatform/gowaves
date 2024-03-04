@@ -14,6 +14,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+var errBlockSnapshotStateHashMismatch = errors.New("block snapshot state hash differs from the calculated one")
+
 type blockInfoProvider interface {
 	NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error)
 }
@@ -62,14 +64,17 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
-	snapshotGenerator *snapshotGenerator,
 ) (*txAppender, error) {
+	buildAPIData, err := stateDB.stateStoresApiData()
+	if err != nil {
+		return nil, err
+	}
 	sc, err := newScriptCaller(state, stor, settings)
 	if err != nil {
 		return nil, err
 	}
 	genesis := settings.Genesis
-	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotGenerator, snapshotApplier)
+	txHandler, err := newTransactionHandler(genesis.BlockID(), stor, settings, snapshotApplier, buildAPIData)
 	if err != nil {
 		return nil, err
 	}
@@ -89,11 +94,7 @@ func newTxAppender(
 	if err != nil {
 		return nil, err
 	}
-	buildApiData, err := stateDB.stateStoresApiData()
-	if err != nil {
-		return nil, err
-	}
-	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier, buildApiData)
+	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	return &txAppender{
 		sc:                sc,
@@ -109,7 +110,7 @@ func newTxAppender(
 		diffStor:          diffStor,
 		diffStorInvoke:    diffStorInvoke,
 		diffApplier:       diffApplier,
-		buildApiData:      buildApiData,
+		buildApiData:      buildAPIData,
 		ethTxKindResolver: ethKindResolver,
 	}, nil
 }
@@ -151,10 +152,12 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 }
 
 type appendBlockParams struct {
-	transactions  []proto.Transaction
-	chans         *verifierChans
-	block, parent *proto.BlockHeader
-	height        uint64
+	transactions              []proto.Transaction
+	chans                     *verifierChans
+	block, parent             *proto.BlockHeader
+	blockchainHeight          proto.Height
+	fixSnapshotsToInitialHash []proto.AtomicSnapshot
+	lastSnapshotStateHash     crypto.Digest
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -342,43 +345,37 @@ func (a *txAppender) commitTxApplication(
 	if err = a.diffStor.saveTxDiff(applicationRes.changes.diff); err != nil {
 		return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
 	}
-	currentMinerAddress := proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK)
+	var (
+		pi = newPerformerInfo(
+			params.checkerInfo.blockchainHeight,
+			params.checkerInfo.blockID,
+			proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, params.currentMinerPK),
+			applicationRes.checkerData,
+		)
+		applicationStatus = applicationRes.status
+	)
 
-	var snapshot txSnapshot
-	if applicationRes.status {
-		// We only perform tx in case it has not failed.
-		performerInfo := &performerInfo{
-			height:              params.checkerInfo.height,
-			blockID:             params.checkerInfo.blockID,
-			currentMinerAddress: currentMinerAddress,
-			checkerData:         applicationRes.checkerData,
-			stateActionsCounter: params.stateActionsCounterInBlock,
-		}
-		snapshot, err = a.txHandler.performTx(tx, performerInfo, invocationRes, applicationRes.changes.diff)
-		if err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to perform: %v", err))
-		}
+	balanceChanges := applicationRes.changes.diff.balancesChanges()
+	err = a.diffApplier.validateBalancesChanges(balanceChanges)
+	if err != nil {
+		return txSnapshot{}, err
 	}
-	if params.validatingUtx {
-		// Save transaction to in-mem storage.
-		if err = a.rw.writeTransactionToMem(tx, !applicationRes.status); err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError,
-				errors.Errorf("failed to write transaction to in mem stor: %v", err),
-			)
-		}
-	} else {
+	a.diffStor.reset()
+	snapshot, err := a.txHandler.performTx(tx, pi, params.validatingUtx, invocationRes, applicationStatus, balanceChanges)
+	if err != nil {
+		return txSnapshot{}, wrapErr(TxCommitmentError,
+			errors.Wrapf(err, "failed to perform transaction %q", base58.Encode(txID)),
+		)
+	}
+
+	if !params.validatingUtx {
+		// TODO: snapshots for miner fee should be generated here, but not saved
+		//  They must be saved in snapshot applier
 		// Count tx fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
 			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
 		}
-		// Save transaction to storage.
-		if err = a.rw.writeTransaction(tx, !applicationRes.status); err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError,
-				errors.Errorf("failed to write transaction to storage: %v", err),
-			)
-		}
 	}
-	// TODO: transaction status snapshot has to be appended here
 	return snapshot, nil
 }
 
@@ -422,7 +419,6 @@ type appendTxParams struct {
 	blockRewardDistributionActivated bool
 	invokeExpressionActivated        bool // TODO: check feature naming
 	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
-	stateActionsCounterInBlock       *proto.StateActionsCounter
 	currentMinerPK                   crypto.PublicKey
 }
 
@@ -479,7 +475,7 @@ func (a *txAppender) handleEthTx(
 		if err != nil {
 			return nil, nil, false, errors.Wrapf(err,
 				"failed to handle ethereum transaction (type %s) with id %s, on height %d",
-				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
+				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.blockchainHeight+1)
 		}
 		// In UTX balances are always validated.
 		needToValidateBalanceDiff = params.validatingUtx
@@ -493,7 +489,7 @@ func (a *txAppender) handleEthTx(
 		if err != nil {
 			return nil, nil, false, errors.Wrapf(err,
 				"failed to handle ethereum invoke script transaction (type %s) with id %s, on height %d",
-				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.height+1)
+				ethTx.TxKind.String(), ethTx.ID.String(), params.checkerInfo.blockchainHeight+1)
 		}
 	default:
 		return nil, nil, false, errors.Errorf("Undefined ethereum transaction kind %T", ethTx.TxKind)
@@ -604,7 +600,6 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	}
 
 	// invocationResult may be empty if it was not an Invoke Transaction
-
 	snapshot, err := a.commitTxApplication(tx, params, invocationResult, applicationRes)
 
 	if err != nil {
@@ -620,27 +615,45 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	return snapshot, nil
 }
 
-// rewards and 60% of the fee to the previous miner.
-func (a *txAppender) createInitialBlockSnapshot(minerAndRewardDiff txDiff) (txSnapshot, error) {
-	addrWavesBalanceDiff, _, err := balanceDiffFromTxDiff(minerAndRewardDiff, a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
-	}
-	// add miner address to the diff
-	var snapshot txSnapshot
-	for wavesAddress, diffAmount := range addrWavesBalanceDiff {
-		var fullBalance balanceProfile
-		fullBalance, err = a.stor.balances.newestWavesBalance(wavesAddress.ID())
-		if err != nil {
-			return txSnapshot{}, errors.Wrap(err, "failed to receive sender's waves balance")
+func calculateInitialSnapshotStateHash(
+	h *txSnapshotHasher,
+	blockHasParent bool,
+	blockHeight proto.Height,
+	prevHash crypto.Digest,
+	txSnapshot []proto.AtomicSnapshot,
+) (crypto.Digest, error) {
+	if !blockHasParent { // processing genesis block
+		if len(txSnapshot) != 0 { // sanity check
+			return crypto.Digest{}, errors.New("initial block snapshot for genesis block must be empty")
 		}
-		newBalance := &proto.WavesBalanceSnapshot{
-			Address: wavesAddress,
-			Balance: uint64(int64(fullBalance.balance) + diffAmount.balance),
-		}
-		snapshot.regular = append(snapshot.regular, newBalance)
+		return prevHash, nil // return prevHash state hash as initial state hash
 	}
-	return snapshot, nil
+	if len(txSnapshot) == 0 {
+		return prevHash, nil // return prevHash state hash as initial state hash
+	}
+	var txID []byte // txID is necessary only for txStatus atomic snapshot; init snapshot can't have such message
+	return calculateTxSnapshotStateHash(h, txID, blockHeight, prevHash, txSnapshot)
+}
+
+func (a *txAppender) appendFixSnapshots(fixSnapshots []proto.AtomicSnapshot, blockID proto.BlockID) error {
+	if len(fixSnapshots) == 0 { // no changes, nothing to do
+		return nil
+	}
+	ai := a.txHandler.sa.ApplierInfo()
+	if ai == nil { // sanity check
+		return errors.New("applier info is not set")
+	}
+	if ai.BlockID() != blockID { // sanity check
+		return errors.Errorf(
+			"applier info block ID doesn't match the block ID: expected %s, actual %s",
+			blockID.String(), ai.BlockID().String(),
+		)
+	}
+	fix := txSnapshot{regular: fixSnapshots}
+	if err := fix.ApplyFixSnapshot(a.txHandler.sa); err != nil {
+		return errors.Wrapf(err, "failed to apply fix snapshot at block %s", blockID)
+	}
+	return nil
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
@@ -665,7 +678,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		currentTimestamp:        params.block.Timestamp,
 		blockID:                 params.block.BlockID(),
 		blockVersion:            params.block.Version,
-		height:                  params.height,
+		blockchainHeight:        params.blockchainHeight,
 		rideV5Activated:         rideV5Activated,
 		rideV6Activated:         rideV6Activated,
 		blockRewardDistribution: blockRewardDistribution,
@@ -674,35 +687,71 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
-	stateActionsCounterInBlockValidation := new(proto.StateActionsCounter)
 
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		stateActionsCounterInBlockValidation)
-	a.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	// Set new applier info with applying block context.
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
+	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	// Create miner balance diff.
-	// This adds 60% of prev block fees as very first balance diff of the current block
-	// in case NG is activated, or empty diff otherwise.
-	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent)
+	// This adds 60% of prev block fees as very first balance diff of the current block in case NG is activated.
+	// Before NG activation it adds all transactions fees to the miner's balance.
+	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent, params.transactions)
 	if err != nil {
 		return err
 	}
+
 	// create the initial snapshot
-	_, err = a.createInitialBlockSnapshot(minerAndRewardDiff)
+	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardDiff.balancesChanges())
 	if err != nil {
 		return errors.Wrap(err, "failed to create initial snapshot")
 	}
 
-	// TODO apply this snapshot when balances are refatored
-	// err = initialSnapshot.Apply(&snapshotApplier)
+	blockInfo, err := a.currentBlockInfo()
+	if err != nil {
+		return errors.Wrapf(err, "failed to get current block info, blockchain height is %d", params.blockchainHeight)
+	}
+
+	currentBlockHeight := blockInfo.Height
+
+	hasher, err := newTxSnapshotHasherDefault()
+	if err != nil {
+		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
+	}
+	defer hasher.Release()
 
 	// Save miner diff first (for validation)
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
 		return err
 	}
-	blockInfo, err := a.currentBlockInfo()
+	err = a.diffApplier.validateBalancesChanges(minerAndRewardDiff.balancesChanges())
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to validate miner reward changes")
 	}
+	a.diffStor.reset()
+
+	err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
+	if err != nil {
+		return errors.Wrap(err, "failed to apply an initial snapshot")
+	}
+
+	// hash block initial snapshot and fix snapshot in the context of the applying block
+	snapshotsToHash := initialSnapshot.regular
+	if len(params.fixSnapshotsToInitialHash) > 0 {
+		snapshotsToHash = append(snapshotsToHash, params.fixSnapshotsToInitialHash...)
+	}
+	// get initial snapshot hash for block
+	stateHash, err := calculateInitialSnapshotStateHash(
+		hasher,
+		hasParent,
+		currentBlockHeight,
+		params.lastSnapshotStateHash, // previous block state hash
+		snapshotsToHash,
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
+			params.block.BlockID(), currentBlockHeight,
+		)
+	}
+
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return err
@@ -720,7 +769,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return err
 	}
 	// Check and append transactions.
-	var blockSnapshots proto.BlockSnapshot
+	var bs proto.BlockSnapshot
 
 	for _, tx := range params.transactions {
 		appendTxArgs := &appendTxParams{
@@ -736,18 +785,47 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 			blockRewardDistributionActivated: blockRewardDistributionActivated,
 			invokeExpressionActivated:        invokeExpressionActivated,
 			validatingUtx:                    false,
-			stateActionsCounterInBlock:       stateActionsCounterInBlockValidation,
 			currentMinerPK:                   params.block.GeneratorPublicKey,
 		}
 		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
 		if errAppendTx != nil {
 			return errAppendTx
 		}
-		blockSnapshots.AppendTxSnapshot(txSnapshots.regular)
+		bs.AppendTxSnapshot(txSnapshots.regular)
+		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
+		if idErr != nil {
+			return idErr
+		}
+
+		if len(txSnapshots.regular) == 0 { // sanity check
+			return errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
+		}
+		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, currentBlockHeight, stateHash, txSnapshots.regular)
+		if shErr != nil {
+			return errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
+				base58.Encode(txID), currentBlockHeight,
+			)
+		}
+		stateHash = txSh // update stateHash in order to accumulate state hashes into block snapshot hash
 	}
-	if err = a.stor.snapshots.saveSnapshots(params.block.BlockID(), params.height, blockSnapshots); err != nil {
-		return err
+	// check whether the calculated snapshot state hash equals with the provided one
+	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
+		return errors.Wrapf(errBlockSnapshotStateHashMismatch, "state hash mismatch; provided '%s', caluclated '%s'",
+			blockStateHash.String(), stateHash.String(),
+		)
 	}
+	blockID := params.block.BlockID()
+	if ssErr := a.stor.snapshots.saveSnapshots(blockID, currentBlockHeight, bs); ssErr != nil {
+		return errors.Wrapf(ssErr, "failed to save block snapshots at height %d", currentBlockHeight)
+	}
+
+	// clean up legacy state hash records with zero diffs
+	a.txHandler.sa.filterZeroDiffsSHOut(blockID)
+	// TODO: check snapshot hash with the block snapshot hash if it exists
+	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
+		return errors.Wrapf(shErr, "failed to save block snapshot hash at height %d", currentBlockHeight)
+	}
+
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	return a.blockDiffer.saveCurFeeDistr(params.block)
@@ -963,7 +1041,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		parentTimestamp:         parentTimestamp,
 		blockID:                 block.BlockID(),
 		blockVersion:            version,
-		height:                  blockInfo.Height,
+		blockchainHeight:        blockInfo.Height - 1,
 		rideV5Activated:         rideV5Activated,
 		rideV6Activated:         rideV6Activated,
 		blockRewardDistribution: blockRewardDistribution,
@@ -984,10 +1062,10 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
 	}
-	issueCounterInBlock := new(proto.StateActionsCounter)
-	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter,
-		issueCounterInBlock)
-	a.txHandler.tp.snapshotApplier.SetApplierInfo(snapshotApplierInfo)
+	// it's correct to use new proto.StateActionsCounter because there's no block exists,
+	// but this field is necessary in tx performer
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
+	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true
@@ -1002,8 +1080,6 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
 		invokeExpressionActivated:        invokeExpressionActivated,
 		validatingUtx:                    true,
-		// it's correct to use new counter because there's no block exists, but this field is necessary in tx performer
-		stateActionsCounterInBlock: issueCounterInBlock,
 	}
 	_, err = a.appendTx(tx, appendTxArgs)
 	return err

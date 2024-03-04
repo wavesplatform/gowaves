@@ -133,12 +133,11 @@ func defaultDifferInfo() *differInfo {
 
 func defaultAppendTxParams() *appendTxParams {
 	return &appendTxParams{
-		checkerInfo:                defaultCheckerInfo(),
-		blockInfo:                  defaultBlockInfo(),
-		block:                      defaultBlock(),
-		acceptFailed:               false,
-		validatingUtx:              false,
-		stateActionsCounterInBlock: new(proto.StateActionsCounter),
+		checkerInfo:   defaultCheckerInfo(),
+		blockInfo:     defaultBlockInfo(),
+		block:         defaultBlock(),
+		acceptFailed:  false,
+		validatingUtx: false,
 	}
 }
 
@@ -310,9 +309,10 @@ func defaultTestKeyValParams() keyvalue.KeyValParams {
 func defaultNFT(tail [proto.AssetIDTailSize]byte) *assetInfo {
 	return &assetInfo{
 		assetConstInfo{
-			tail:     tail,
-			issuer:   testGlobal.issuerInfo.pk,
-			decimals: 0,
+			Tail:     tail,
+			Issuer:   testGlobal.issuerInfo.pk,
+			Decimals: 0,
+			IsNFT:    true,
 		},
 		assetChangeableInfo{
 			quantity:                 *big.NewInt(1),
@@ -327,9 +327,9 @@ func defaultNFT(tail [proto.AssetIDTailSize]byte) *assetInfo {
 func defaultAssetInfo(tail [12]byte, reissuable bool) *assetInfo {
 	return &assetInfo{
 		assetConstInfo: assetConstInfo{
-			tail:     tail,
-			issuer:   testGlobal.issuerInfo.pk,
-			decimals: 2,
+			Tail:     tail,
+			Issuer:   testGlobal.issuerInfo.pk,
+			Decimals: 2,
 		},
 		assetChangeableInfo: assetChangeableInfo{
 			quantity:                 *big.NewInt(10000000),
@@ -403,7 +403,7 @@ func (s *testStorageObjects) addRealBlock(t *testing.T, block *proto.Block) {
 	err = s.rw.writeBlockHeader(&block.BlockHeader)
 	assert.NoError(t, err, "writeBlockHeader() failed")
 	for _, tx := range block.Transactions {
-		err = s.rw.writeTransaction(tx, false)
+		err = s.rw.writeTransaction(tx, proto.TransactionSucceeded)
 		assert.NoError(t, err, "writeTransaction() failed")
 	}
 	err = s.rw.finishBlock(blockID)
@@ -474,7 +474,7 @@ func (s *testStorageObjects) createAssetWithDecimals(t *testing.T, assetID crypt
 	s.addBlock(t, blockID0)
 	assetInfo := defaultAssetInfo(proto.DigestTail(assetID), true)
 	require.True(t, decimals >= 0)
-	assetInfo.decimals = uint8(decimals)
+	assetInfo.Decimals = uint8(decimals)
 	err := s.entities.assets.issueAsset(proto.AssetIDFromDigest(assetID), assetInfo, blockID0)
 	assert.NoError(t, err, "issueAsset() failed")
 	s.flush(t)

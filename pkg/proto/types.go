@@ -63,7 +63,9 @@ const (
 	MaxAssetScriptActionsV3                  = 30
 	base64EncodingSizeLimit                  = 1024
 	base64EncodingPrefix                     = "base64:"
+	uint16Size                               = 2
 	uint32Size                               = 4
+	uint64Size                               = 8
 )
 
 type Timestamp = uint64
@@ -79,6 +81,28 @@ type Bytes []byte
 func (a Bytes) WriteTo(w io.Writer) (int64, error) {
 	rs, err := w.Write(a)
 	return int64(rs), err
+}
+
+type NonNullableSlice[T any] []T
+
+// MarshalJSON writes NonNullableSlice as JSON array.
+// If NonNullableSlice is empty or nil, it is written aways as empty JSON array.
+func (s NonNullableSlice[T]) MarshalJSON() ([]byte, error) {
+	if len(s) == 0 {
+		return []byte("[]"), nil
+	}
+	return json.Marshal([]T(s))
+}
+
+// UnmarshalJSON reads NonNullableSlice from JSON array or null.
+// If JSON array is empty or null, NonNullableSlice is set to nil.
+func (s *NonNullableSlice[T]) UnmarshalJSON(data []byte) error {
+	switch string(data) {
+	case jsonNull, "[]":
+		*s = nil
+		return nil
+	}
+	return json.Unmarshal(data, (*[]T)(s))
 }
 
 // B58Bytes represents bytes as Base58 string in JSON
@@ -2241,13 +2265,16 @@ type DataEntry interface {
 	MarshalValue() ([]byte, error)
 	UnmarshalValue([]byte) error
 
+	MarshaledValueSize() int
+	WriteValueTo(w io.Writer) error
+
 	MarshalBinary() ([]byte, error)
 	UnmarshalBinary([]byte) error
 	Valid(forbidEmptyKey, utf16KeyLen bool) error
 	BinarySize() int
 	PayloadSize() int
 
-	ToProtobuf() *g.DataTransactionData_DataEntry
+	ToProtobuf() *g.DataEntry
 }
 
 var bytesToDataEntry = map[DataValueType]reflect.Type{
@@ -2282,10 +2309,10 @@ type IntegerDataEntry struct {
 	Value int64
 }
 
-func (e IntegerDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e IntegerDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
-		Value: &g.DataTransactionData_DataEntry_IntValue{IntValue: e.Value},
+		Value: &g.DataEntry_IntValue{IntValue: e.Value},
 	}
 }
 
@@ -2328,14 +2355,30 @@ func (e IntegerDataEntry) PayloadSize() int {
 	return len(e.Key) + 8 // 8 == sizeof(int64)
 }
 
+func (e *IntegerDataEntry) MarshaledValueSize() int {
+	return 1 + uint64Size
+}
+
 // MarshalValue marshals the integer data entry value in its bytes representation.
 func (e IntegerDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+8)
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataInteger)
 	pos++
 	binary.BigEndian.PutUint64(buf[pos:], uint64(e.Value))
 	return buf, nil
+}
+
+func (e *IntegerDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataInteger)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataInteger)
+	}
+	var value [uint64Size]byte
+	binary.BigEndian.PutUint64(value[:], uint64(e.Value))
+	if _, err := w.Write(value[:]); err != nil {
+		return errors.Wrap(err, "failed to write integer data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads binary representation of integer data entry value to the structure.
@@ -2413,10 +2456,10 @@ type BooleanDataEntry struct {
 	Value bool
 }
 
-func (e BooleanDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e BooleanDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
-		Value: &g.DataTransactionData_DataEntry_BoolValue{BoolValue: e.Value},
+		Value: &g.DataEntry_BoolValue{BoolValue: e.Value},
 	}
 }
 
@@ -2459,14 +2502,28 @@ func (e BooleanDataEntry) PayloadSize() int {
 	return len(e.Key) + 1 // 1 == sizeof(bool)
 }
 
+func (e *BooleanDataEntry) MarshaledValueSize() int {
+	return 1 + 1
+}
+
 // MarshalValue writes a byte representation of the boolean data entry value.
 func (e BooleanDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+1)
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataBoolean)
 	pos++
 	PutBool(buf[pos:], e.Value)
 	return buf, nil
+}
+
+func (e *BooleanDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataBoolean)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataBoolean)
+	}
+	if err := WriteBool(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write boolean data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads a byte representation of the data entry value.
@@ -2548,10 +2605,10 @@ type BinaryDataEntry struct {
 	Value []byte
 }
 
-func (e BinaryDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e BinaryDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
-		Value: &g.DataTransactionData_DataEntry_BinaryValue{BinaryValue: e.Value},
+		Value: &g.DataEntry_BinaryValue{BinaryValue: e.Value},
 	}
 }
 
@@ -2597,16 +2654,30 @@ func (e BinaryDataEntry) PayloadSize() int {
 	return len(e.Key) + len(e.Value)
 }
 
+func (e *BinaryDataEntry) MarshaledValueSize() int {
+	return 1 + 2 + len(e.Value)
+}
+
 // MarshalValue writes an entry value to its byte representation.
 func (e BinaryDataEntry) MarshalValue() ([]byte, error) {
 	pos := 0
-	buf := make([]byte, 1+2+len(e.Value))
+	buf := make([]byte, e.MarshaledValueSize())
 	buf[pos] = byte(DataBinary)
 	pos++
 	if err := PutBytesWithUInt16Len(buf[pos:], e.Value); err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BinaryDataEntry value")
 	}
 	return buf, nil
+}
+
+func (e *BinaryDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataBinary)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataBinary)
+	}
+	if err := WriteBytesWithUInt16Len(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write binary data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads an entry value from a binary representation.
@@ -2688,10 +2759,10 @@ type StringDataEntry struct {
 	Value string
 }
 
-func (e StringDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e StringDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
-		Value: &g.DataTransactionData_DataEntry_StringValue{StringValue: e.Value},
+		Value: &g.DataEntry_StringValue{StringValue: e.Value},
 	}
 }
 
@@ -2737,14 +2808,28 @@ func (e StringDataEntry) PayloadSize() int {
 	return len(e.Key) + len(e.Value)
 }
 
+func (e *StringDataEntry) MarshaledValueSize() int {
+	return 1 + 2 + len(e.Value)
+}
+
 // MarshalValue converts the data entry value to its byte representation.
 func (e StringDataEntry) MarshalValue() ([]byte, error) {
-	buf := make([]byte, 1+2+len(e.Value))
+	buf := make([]byte, e.MarshaledValueSize())
 	pos := 0
 	buf[pos] = byte(DataString)
 	pos++
 	PutStringWithUInt16Len(buf[pos:], e.Value)
 	return buf, nil
+}
+
+func (e *StringDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataString)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataString)
+	}
+	if err := WriteStringWithUInt16Len(w, e.Value); err != nil {
+		return errors.Wrap(err, "failed to write string data entry value")
+	}
+	return nil
 }
 
 // UnmarshalValue reads StringDataEntry value from bytes.
@@ -2825,8 +2910,8 @@ type DeleteDataEntry struct {
 	Key string
 }
 
-func (e DeleteDataEntry) ToProtobuf() *g.DataTransactionData_DataEntry {
-	return &g.DataTransactionData_DataEntry{
+func (e DeleteDataEntry) ToProtobuf() *g.DataEntry {
+	return &g.DataEntry{
 		Key:   e.Key,
 		Value: nil,
 	}
@@ -2871,9 +2956,20 @@ func (e DeleteDataEntry) PayloadSize() int {
 	return 0 // this entry doesn't have any payload
 }
 
+func (e *DeleteDataEntry) MarshaledValueSize() int {
+	return 1
+}
+
 // MarshalValue converts the data entry value to its byte representation.
 func (e DeleteDataEntry) MarshalValue() ([]byte, error) {
 	return []byte{byte(DataDelete)}, nil
+}
+
+func (e *DeleteDataEntry) WriteValueTo(w io.Writer) error {
+	if err := WriteByte(w, byte(DataDelete)); err != nil {
+		return errors.Wrapf(err, "failed to write data entry type (%d)", DataDelete)
+	}
+	return nil
 }
 
 // UnmarshalValue checks DeleteDataEntry value type is set.
@@ -4274,12 +4370,13 @@ func (s *StateHash) toStateHashJS() stateHashJS {
 
 type StateHashDebug struct {
 	stateHashJS
-	Height  uint64 `json:"height,omitempty"`
-	Version string `json:"version,omitempty"`
+	Height       uint64        `json:"height,omitempty"`
+	Version      string        `json:"version,omitempty"`
+	SnapshotHash crypto.Digest `json:"snapshotHash"`
 }
 
-func NewStateHashJSDebug(s StateHash, h uint64, v string) StateHashDebug {
-	return StateHashDebug{s.toStateHashJS(), h, v}
+func NewStateHashJSDebug(s StateHash, h uint64, v string, snapshotStateHash crypto.Digest) StateHashDebug {
+	return StateHashDebug{s.toStateHashJS(), h, v, snapshotStateHash}
 }
 
 func (s StateHashDebug) GetStateHash() *StateHash {
@@ -4304,7 +4401,60 @@ func (s StateHashDebug) GetStateHash() *StateHash {
 type TransactionStatus byte
 
 const (
-	TransactionSucceeded TransactionStatus = iota
+	unknownTransactionStatus TransactionStatus = iota
+	TransactionSucceeded
 	TransactionFailed
 	TransactionElided
 )
+
+func (s TransactionStatus) IsNotSucceeded() bool { return s != TransactionSucceeded }
+
+const (
+	txStatusSucceededJSON = "\"succeeded\""
+	txStatusFailedJSON    = "\"failed\""
+	txStatusElidedJSON    = "\"elided\""
+)
+
+func (s TransactionStatus) String() string {
+	switch s {
+	case TransactionSucceeded:
+		return "succeeded"
+	case TransactionFailed:
+		return "failed"
+	case TransactionElided:
+		return "elided"
+	case unknownTransactionStatus:
+		fallthrough // to default
+	default:
+		return fmt.Sprintf("unknown(%d)", byte(s))
+	}
+}
+
+func (s TransactionStatus) MarshalJSON() ([]byte, error) {
+	switch s {
+	case TransactionSucceeded:
+		return []byte(txStatusSucceededJSON), nil
+	case TransactionFailed:
+		return []byte(txStatusFailedJSON), nil
+	case TransactionElided:
+		return []byte(txStatusElidedJSON), nil
+	case unknownTransactionStatus:
+		fallthrough // to default
+	default:
+		return nil, errors.Errorf("invalid tx status %s", s.String())
+	}
+}
+
+func (s *TransactionStatus) UnmarshalJSON(b []byte) error {
+	switch data := string(b); data {
+	case txStatusSucceededJSON:
+		*s = TransactionSucceeded
+	case txStatusFailedJSON:
+		*s = TransactionFailed
+	case txStatusElidedJSON:
+		*s = TransactionElided
+	default:
+		return errors.Errorf("invalid tx status JSON data %s", data)
+	}
+	return nil
+}

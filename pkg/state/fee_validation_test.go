@@ -65,22 +65,22 @@ func TestAccountHasVerifierAfterRollbackFilterFalse(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := defaultPerformerInfo(to.stateActionsCounter)
+	txPerformerInfo := defaultPerformerInfo()
 	txPerformerInfo.blockID = blockID2
 	info.blockID = blockID2 // the block from checker info is used by snapshot applier to apply a tx
 	txPerformerInfo.checkerData = checkerData
 
-	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
+	_, err = to.th.performTx(tx, txPerformerInfo, false, nil, true, nil)
 
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
-	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
+	hasVerifier, err := to.stor.entities.scriptsStorage.newestAccountHasVerifier(address)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
 
 	to.stor.fullRollbackBlockClearCache(t, blockID1)
 
-	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
+	hasVerifier, err = to.stor.entities.scriptsStorage.newestAccountHasVerifier(address)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have not a verifier after rollback") // the filter is false, so the script will be returned
 }
@@ -103,15 +103,15 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 	address, err := proto.NewAddressFromPublicKey(to.tc.settings.AddressSchemeCharacter, tx.SenderPK)
 	assert.NoError(t, err, "failed to receive an address from public key")
 
-	txPerformerInfo := defaultPerformerInfo(to.stateActionsCounter)
+	txPerformerInfo := defaultPerformerInfo()
 	txPerformerInfo.blockID = blockID2
 	info.blockID = blockID2 // the block from checker info is used by snapshot applier to apply a tx
 	txPerformerInfo.checkerData.scriptEstimation = &scriptEstimation{}
-	_, err = to.tp.performSetScriptWithProofs(tx, txPerformerInfo, nil, nil)
+	_, err = to.th.performTx(tx, txPerformerInfo, false, nil, true, nil)
 
 	assert.NoError(t, err, "performSetScriptWithProofs failed with valid SetScriptWithProofs tx")
 
-	hasVerifier, err := to.tp.stor.scriptsStorage.newestAccountHasVerifier(address)
+	hasVerifier, err := to.stor.entities.scriptsStorage.newestAccountHasVerifier(address)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.True(t, hasVerifier, "a script must have a verifier after setting script")
 
@@ -119,7 +119,8 @@ func TestAccountDoesNotHaveScriptAfterRollbackFilterTrue(t *testing.T) {
 
 	to.stor.fullRollbackBlockClearCache(t, blockID1)
 
-	hasVerifier, err = to.tp.stor.scriptsStorage.newestAccountHasVerifier(address) // if cache is cleared, the script must have not been found
+	// if cache is cleared, the script must have not been found
+	hasVerifier, err = to.stor.entities.scriptsStorage.newestAccountHasVerifier(address)
 	assert.NoError(t, err, "failed to check whether script has a verifier")
 	assert.False(t, hasVerifier, "a script must have not a verifier after rollback")
 }

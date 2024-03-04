@@ -158,6 +158,38 @@ func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {
 	return nil
 }
 
+func (d *blockDiffer) doMinerPayoutBeforeNG(
+	diff txDiff,
+	blockTimestamp uint64,
+	minerAddr proto.WavesAddress,
+	transactions []proto.Transaction,
+) error {
+	ngActivated, fErr := d.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 1)
+	if fErr != nil {
+		return fErr
+	}
+	if ngActivated { // no-op after NG activation
+		return nil
+	}
+	updateMinIntermediateBalance := false
+	if blockTimestamp >= d.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
+	for i, tx := range transactions {
+		var (
+			fee      = tx.GetFee()
+			feeAsset = tx.GetFeeAsset()
+		)
+		minerKey := byteKey(minerAddr.ID(), feeAsset)
+		minerBalanceDiff := calculateCurrentBlockTxFee(fee, ngActivated)
+		nd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, updateMinIntermediateBalance)
+		if err := diff.appendBalanceDiff(minerKey, nd); err != nil {
+			return errors.Wrapf(err, "failed to append balance diff for miner on %d-th transaction", i+1)
+		}
+	}
+	return nil
+}
+
 func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	// Save fee distribution to DB.
 	if err := d.stor.blocksInfo.saveFeeDistribution(block.BlockID(), &d.curDistr); err != nil {
@@ -170,18 +202,25 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	return nil
 }
 
-func (d *blockDiffer) createMinerAndRewardDiff(block *proto.BlockHeader, hasParent bool) (txDiff, error) {
+func (d *blockDiffer) createMinerAndRewardDiff(
+	blockHeader *proto.BlockHeader,
+	hasParent bool,
+	transactions []proto.Transaction,
+) (txDiff, error) {
 	var err error
 	var minerDiff txDiff
 	var minerAddr proto.WavesAddress
 	if hasParent {
-		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(block.Parent, block.GeneratorPublicKey)
+		minerDiff, minerAddr, err = d.createPrevBlockMinerFeeDiff(blockHeader.Parent, blockHeader.GeneratorPublicKey)
 		if err != nil {
 			return txDiff{}, err
 		}
-		d.appendBlockInfoToTxDiff(minerDiff, block)
+		if mpErr := d.doMinerPayoutBeforeNG(minerDiff, blockHeader.Timestamp, minerAddr, transactions); mpErr != nil {
+			return txDiff{}, errors.Wrap(err, "failed to count miner payout")
+		}
+		d.appendBlockInfoToTxDiff(minerDiff, blockHeader)
 	}
-	err = d.addBlockReward(minerDiff, minerAddr.ID(), block)
+	err = d.addBlockReward(minerDiff, minerAddr.ID(), blockHeader)
 	if err != nil {
 		return txDiff{}, err
 	}
