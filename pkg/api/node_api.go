@@ -839,8 +839,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	s := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
-		// TODO(nickeskov): which error it should send?
-		return &BadRequestError{err}
+		return apiErrs.ErrInvalidHeight
 	}
 	if height < 1 {
 		return apiErrs.BlockDoesNotExist

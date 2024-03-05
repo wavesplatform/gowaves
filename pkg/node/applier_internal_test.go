@@ -133,7 +133,7 @@ func TestApply_ValidBlockWithRollback(t *testing.T) {
 func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	bm, block1, block2 := blocksMap()
 	ms := &MockState{
-		BlockFunc: func(blockID proto.BlockID) (*proto.Block, error) {
+		BlockFunc: func(_ proto.BlockID) (*proto.Block, error) {
 			return nil, proto.ErrNotFound
 		},
 		AddDeserializedBlocksFunc: func(blocks []*proto.Block) (*proto.Block, error) {

@@ -750,7 +750,7 @@ func (n *Network) onAnnounceScore(_ context.Context, _ ...any) error {
 		msg = &proto.ScoreMessage{Score: score.Bytes()}
 		cnt int
 	)
-	n.peers.EachConnected(func(peer peer.Peer, score *proto.Score) {
+	n.peers.EachConnected(func(peer peer.Peer, _ *proto.Score) {
 		peer.SendMessage(msg)
 		cnt++
 	})

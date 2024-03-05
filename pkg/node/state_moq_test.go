@@ -128,6 +128,9 @@ var _ state.State = &MockState{}
 //			IsAssetExistFunc: func(assetID proto.AssetID) (bool, error) {
 //				panic("mock out the IsAssetExist method")
 //			},
+//			LegacyStateHashAtHeightFunc: func(height uint64) (*proto.StateHash, error) {
+//				panic("mock out the LegacyStateHashAtHeight method")
+//			},
 //			MapFunc: func(fn func(state state.State) error) error {
 //				panic("mock out the Map method")
 //			},
@@ -203,14 +206,14 @@ var _ state.State = &MockState{}
 //			ShouldPersistAddressTransactionsFunc: func() (bool, error) {
 //				panic("mock out the ShouldPersistAddressTransactions method")
 //			},
+//			SnapshotStateHashAtHeightFunc: func(height uint64) (crypto.Digest, error) {
+//				panic("mock out the SnapshotStateHashAtHeight method")
+//			},
 //			SnapshotsAtHeightFunc: func(height uint64) (proto.BlockSnapshot, error) {
 //				panic("mock out the SnapshotsAtHeight method")
 //			},
 //			StartProvidingExtendedAPIFunc: func() error {
 //				panic("mock out the StartProvidingExtendedAPI method")
-//			},
-//			StateHashAtHeightFunc: func(height uint64) (*proto.StateHash, error) {
-//				panic("mock out the StateHashAtHeight method")
 //			},
 //			TopBlockFunc: func() *proto.Block {
 //				panic("mock out the TopBlock method")
@@ -221,7 +224,7 @@ var _ state.State = &MockState{}
 //			TransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
 //				panic("mock out the TransactionByID method")
 //			},
-//			TransactionByIDWithStatusFunc: func(id []byte) (proto.Transaction, bool, error) {
+//			TransactionByIDWithStatusFunc: func(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
 //				panic("mock out the TransactionByIDWithStatus method")
 //			},
 //			TransactionHeightByIDFunc: func(id []byte) (uint64, error) {
@@ -357,6 +360,9 @@ type MockState struct {
 	// IsAssetExistFunc mocks the IsAssetExist method.
 	IsAssetExistFunc func(assetID proto.AssetID) (bool, error)
 
+	// LegacyStateHashAtHeightFunc mocks the LegacyStateHashAtHeight method.
+	LegacyStateHashAtHeightFunc func(height uint64) (*proto.StateHash, error)
+
 	// MapFunc mocks the Map method.
 	MapFunc func(fn func(state state.State) error) error
 
@@ -432,14 +438,14 @@ type MockState struct {
 	// ShouldPersistAddressTransactionsFunc mocks the ShouldPersistAddressTransactions method.
 	ShouldPersistAddressTransactionsFunc func() (bool, error)
 
+	// SnapshotStateHashAtHeightFunc mocks the SnapshotStateHashAtHeight method.
+	SnapshotStateHashAtHeightFunc func(height uint64) (crypto.Digest, error)
+
 	// SnapshotsAtHeightFunc mocks the SnapshotsAtHeight method.
 	SnapshotsAtHeightFunc func(height uint64) (proto.BlockSnapshot, error)
 
 	// StartProvidingExtendedAPIFunc mocks the StartProvidingExtendedAPI method.
 	StartProvidingExtendedAPIFunc func() error
-
-	// StateHashAtHeightFunc mocks the StateHashAtHeight method.
-	StateHashAtHeightFunc func(height uint64) (*proto.StateHash, error)
 
 	// TopBlockFunc mocks the TopBlock method.
 	TopBlockFunc func() *proto.Block
@@ -451,7 +457,7 @@ type MockState struct {
 	TransactionByIDFunc func(id []byte) (proto.Transaction, error)
 
 	// TransactionByIDWithStatusFunc mocks the TransactionByIDWithStatus method.
-	TransactionByIDWithStatusFunc func(id []byte) (proto.Transaction, bool, error)
+	TransactionByIDWithStatusFunc func(id []byte) (proto.Transaction, proto.TransactionStatus, error)
 
 	// TransactionHeightByIDFunc mocks the TransactionHeightByID method.
 	TransactionHeightByIDFunc func(id []byte) (uint64, error)
@@ -649,6 +655,11 @@ type MockState struct {
 			// AssetID is the assetID argument value.
 			AssetID proto.AssetID
 		}
+		// LegacyStateHashAtHeight holds details about calls to the LegacyStateHashAtHeight method.
+		LegacyStateHashAtHeight []struct {
+			// Height is the height argument value.
+			Height uint64
+		}
 		// Map holds details about calls to the Map method.
 		Map []struct {
 			// Fn is the fn argument value.
@@ -778,6 +789,11 @@ type MockState struct {
 		// ShouldPersistAddressTransactions holds details about calls to the ShouldPersistAddressTransactions method.
 		ShouldPersistAddressTransactions []struct {
 		}
+		// SnapshotStateHashAtHeight holds details about calls to the SnapshotStateHashAtHeight method.
+		SnapshotStateHashAtHeight []struct {
+			// Height is the height argument value.
+			Height uint64
+		}
 		// SnapshotsAtHeight holds details about calls to the SnapshotsAtHeight method.
 		SnapshotsAtHeight []struct {
 			// Height is the height argument value.
@@ -785,11 +801,6 @@ type MockState struct {
 		}
 		// StartProvidingExtendedAPI holds details about calls to the StartProvidingExtendedAPI method.
 		StartProvidingExtendedAPI []struct {
-		}
-		// StateHashAtHeight holds details about calls to the StateHashAtHeight method.
-		StateHashAtHeight []struct {
-			// Height is the height argument value.
-			Height uint64
 		}
 		// TopBlock holds details about calls to the TopBlock method.
 		TopBlock []struct {
@@ -888,6 +899,7 @@ type MockState struct {
 	lockIsApproved                       sync.RWMutex
 	lockIsApprovedAtHeight               sync.RWMutex
 	lockIsAssetExist                     sync.RWMutex
+	lockLegacyStateHashAtHeight          sync.RWMutex
 	lockMap                              sync.RWMutex
 	lockMapR                             sync.RWMutex
 	lockNFTList                          sync.RWMutex
@@ -913,9 +925,9 @@ type MockState struct {
 	lockScriptInfoByAccount              sync.RWMutex
 	lockScriptInfoByAsset                sync.RWMutex
 	lockShouldPersistAddressTransactions sync.RWMutex
+	lockSnapshotStateHashAtHeight        sync.RWMutex
 	lockSnapshotsAtHeight                sync.RWMutex
 	lockStartProvidingExtendedAPI        sync.RWMutex
-	lockStateHashAtHeight                sync.RWMutex
 	lockTopBlock                         sync.RWMutex
 	lockTotalWavesAmount                 sync.RWMutex
 	lockTransactionByID                  sync.RWMutex
@@ -2039,6 +2051,38 @@ func (mock *MockState) IsAssetExistCalls() []struct {
 	return calls
 }
 
+// LegacyStateHashAtHeight calls LegacyStateHashAtHeightFunc.
+func (mock *MockState) LegacyStateHashAtHeight(height uint64) (*proto.StateHash, error) {
+	if mock.LegacyStateHashAtHeightFunc == nil {
+		panic("MockState.LegacyStateHashAtHeightFunc: method is nil but State.LegacyStateHashAtHeight was just called")
+	}
+	callInfo := struct {
+		Height uint64
+	}{
+		Height: height,
+	}
+	mock.lockLegacyStateHashAtHeight.Lock()
+	mock.calls.LegacyStateHashAtHeight = append(mock.calls.LegacyStateHashAtHeight, callInfo)
+	mock.lockLegacyStateHashAtHeight.Unlock()
+	return mock.LegacyStateHashAtHeightFunc(height)
+}
+
+// LegacyStateHashAtHeightCalls gets all the calls that were made to LegacyStateHashAtHeight.
+// Check the length with:
+//
+//	len(mockedState.LegacyStateHashAtHeightCalls())
+func (mock *MockState) LegacyStateHashAtHeightCalls() []struct {
+	Height uint64
+} {
+	var calls []struct {
+		Height uint64
+	}
+	mock.lockLegacyStateHashAtHeight.RLock()
+	calls = mock.calls.LegacyStateHashAtHeight
+	mock.lockLegacyStateHashAtHeight.RUnlock()
+	return calls
+}
+
 // Map calls MapFunc.
 func (mock *MockState) Map(fn func(state state.State) error) error {
 	if mock.MapFunc == nil {
@@ -2842,6 +2886,38 @@ func (mock *MockState) ShouldPersistAddressTransactionsCalls() []struct {
 	return calls
 }
 
+// SnapshotStateHashAtHeight calls SnapshotStateHashAtHeightFunc.
+func (mock *MockState) SnapshotStateHashAtHeight(height uint64) (crypto.Digest, error) {
+	if mock.SnapshotStateHashAtHeightFunc == nil {
+		panic("MockState.SnapshotStateHashAtHeightFunc: method is nil but State.SnapshotStateHashAtHeight was just called")
+	}
+	callInfo := struct {
+		Height uint64
+	}{
+		Height: height,
+	}
+	mock.lockSnapshotStateHashAtHeight.Lock()
+	mock.calls.SnapshotStateHashAtHeight = append(mock.calls.SnapshotStateHashAtHeight, callInfo)
+	mock.lockSnapshotStateHashAtHeight.Unlock()
+	return mock.SnapshotStateHashAtHeightFunc(height)
+}
+
+// SnapshotStateHashAtHeightCalls gets all the calls that were made to SnapshotStateHashAtHeight.
+// Check the length with:
+//
+//	len(mockedState.SnapshotStateHashAtHeightCalls())
+func (mock *MockState) SnapshotStateHashAtHeightCalls() []struct {
+	Height uint64
+} {
+	var calls []struct {
+		Height uint64
+	}
+	mock.lockSnapshotStateHashAtHeight.RLock()
+	calls = mock.calls.SnapshotStateHashAtHeight
+	mock.lockSnapshotStateHashAtHeight.RUnlock()
+	return calls
+}
+
 // SnapshotsAtHeight calls SnapshotsAtHeightFunc.
 func (mock *MockState) SnapshotsAtHeight(height uint64) (proto.BlockSnapshot, error) {
 	if mock.SnapshotsAtHeightFunc == nil {
@@ -2898,38 +2974,6 @@ func (mock *MockState) StartProvidingExtendedAPICalls() []struct {
 	mock.lockStartProvidingExtendedAPI.RLock()
 	calls = mock.calls.StartProvidingExtendedAPI
 	mock.lockStartProvidingExtendedAPI.RUnlock()
-	return calls
-}
-
-// StateHashAtHeight calls StateHashAtHeightFunc.
-func (mock *MockState) StateHashAtHeight(height uint64) (*proto.StateHash, error) {
-	if mock.StateHashAtHeightFunc == nil {
-		panic("MockState.StateHashAtHeightFunc: method is nil but State.StateHashAtHeight was just called")
-	}
-	callInfo := struct {
-		Height uint64
-	}{
-		Height: height,
-	}
-	mock.lockStateHashAtHeight.Lock()
-	mock.calls.StateHashAtHeight = append(mock.calls.StateHashAtHeight, callInfo)
-	mock.lockStateHashAtHeight.Unlock()
-	return mock.StateHashAtHeightFunc(height)
-}
-
-// StateHashAtHeightCalls gets all the calls that were made to StateHashAtHeight.
-// Check the length with:
-//
-//	len(mockedState.StateHashAtHeightCalls())
-func (mock *MockState) StateHashAtHeightCalls() []struct {
-	Height uint64
-} {
-	var calls []struct {
-		Height uint64
-	}
-	mock.lockStateHashAtHeight.RLock()
-	calls = mock.calls.StateHashAtHeight
-	mock.lockStateHashAtHeight.RUnlock()
 	return calls
 }
 
@@ -3025,7 +3069,7 @@ func (mock *MockState) TransactionByIDCalls() []struct {
 }
 
 // TransactionByIDWithStatus calls TransactionByIDWithStatusFunc.
-func (mock *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, bool, error) {
+func (mock *MockState) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	if mock.TransactionByIDWithStatusFunc == nil {
 		panic("MockState.TransactionByIDWithStatusFunc: method is nil but State.TransactionByIDWithStatus was just called")
 	}
