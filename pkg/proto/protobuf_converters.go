@@ -69,14 +69,14 @@ func balancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapsho
 			if err != nil {
 				return err
 			}
-			*res = append(*res, sn)
+			*res = append(*res, &sn)
 		} else {
 			var sn AssetBalanceSnapshot
 			err := sn.FromProtobuf(scheme, balance)
 			if err != nil {
 				return err
 			}
-			*res = append(*res, sn)
+			*res = append(*res, &sn)
 		}
 	}
 	return nil
@@ -88,7 +88,7 @@ func leaseBalancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSn
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -100,7 +100,7 @@ func newAssetFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]Atomi
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -112,7 +112,7 @@ func assetVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -124,7 +124,7 @@ func assetDescriptionFromProto(txSnapshotProto *g.TransactionStateSnapshot, res 
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -136,7 +136,7 @@ func assetScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -148,7 +148,7 @@ func aliasFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, 
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -160,7 +160,7 @@ func filledVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]A
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -172,7 +172,7 @@ func newLeaseFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapsho
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -184,7 +184,7 @@ func cancelledLeaseFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -196,7 +196,7 @@ func accountScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -208,7 +208,7 @@ func dataEntryFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapsh
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -220,7 +220,7 @@ func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]At
 		if err != nil {
 			return err
 		}
-		*res = append(*res, sn)
+		*res = append(*res, &sn)
 	}
 	return nil
 }
@@ -311,7 +311,7 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	txSnapshots = append(txSnapshots, sn)
+	txSnapshots = append(txSnapshots, &sn)
 	return txSnapshots, nil
 }
 
