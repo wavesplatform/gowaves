@@ -16,7 +16,7 @@ func (bs *BlockSnapshot) AppendTxSnapshot(txSnapshot []AtomicSnapshot) {
 	bs.TransactionsSnapshots = append(bs.TransactionsSnapshots, txSnapshot)
 }
 
-// Equal function assumes that TransactionsSnapshots are in same other in both original and other instances.
+// Equal function assumes that TransactionsSnapshots are in same order in both original and other instances.
 func (bs BlockSnapshot) Equal(other BlockSnapshot) (bool, error) {
 	if len(bs.TransactionsSnapshots) != len(other.TransactionsSnapshots) {
 		return false, nil
