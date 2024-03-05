@@ -3,6 +3,7 @@ package proto
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"math/big"
 	"reflect"
 	"sort"
@@ -16,6 +17,7 @@ import (
 type AtomicSnapshot interface {
 	Apply(SnapshotApplier) error
 	Equal(otherSnapshot AtomicSnapshot) (bool, error)
+	String() string
 	AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error
 }
 type WavesBalanceSnapshot struct {
@@ -37,6 +39,10 @@ func (s WavesBalanceSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) 
 		return false, errors.Errorf("expected WavesBalanceSnapshot, received %s", reflect.TypeOf(otherSnapshot))
 	}
 	return s.Address == other.Address && s.Balance == other.Balance, nil
+}
+
+func (s WavesBalanceSnapshot) String() string {
+	return fmt.Sprintf("WavesBalanceSnapshot{Address: %s, Balance: %d}", s.Address.String(), s.Balance)
 }
 
 func (s WavesBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyWavesBalance(s) }
@@ -92,6 +98,11 @@ func (s AssetBalanceSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) 
 		return false, errors.Errorf("expected AssetBalanceSnapshot, received %s", reflect.TypeOf(otherSnapshot))
 	}
 	return s.Address == other.Address && s.AssetID == other.AssetID && s.Balance == other.Balance, nil
+}
+
+func (s AssetBalanceSnapshot) String() string {
+	return fmt.Sprintf("AssetBalanceSnapshot{Address: %s, AssetID: %s, Balance: %d}",
+		s.Address.String(), s.AssetID.String(), s.Balance)
 }
 
 func (s AssetBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Balance, error) {
@@ -157,6 +168,10 @@ func (s DataEntriesSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) {
 	return true, nil
 }
 
+func (s DataEntriesSnapshot) String() string {
+	return fmt.Sprintf("DataEntriesSnapshot{Address: %s, DataEntries: %s}", s.Address.String(), s.DataEntries.String())
+}
+
 func (s DataEntriesSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AccountData, error) {
 	entries := make([]*g.DataEntry, 0, len(s.DataEntries))
 	for _, e := range s.DataEntries {
@@ -211,6 +226,11 @@ func (s AccountScriptSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error)
 
 	return s.SenderPublicKey == other.SenderPublicKey &&
 		bytes.Equal(s.Script, other.Script) && s.VerifierComplexity == other.VerifierComplexity, nil
+}
+
+func (s AccountScriptSnapshot) String() string {
+	return fmt.Sprintf("AccountScriptSnapshot{SenderPublicKey: %s, Script: %x, VerifierComplexity: %d}",
+		s.SenderPublicKey.String(), s.Script.String(), s.VerifierComplexity)
 }
 
 func (s AccountScriptSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AccountScript, error) {
@@ -269,6 +289,10 @@ func (s AssetScriptSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) {
 	return s.AssetID == other.AssetID && bytes.Equal(s.Script, other.Script), nil
 }
 
+func (s AssetScriptSnapshot) String() string {
+	return fmt.Sprintf("AssetScriptSnapshot{AssetID: %s, Script: %x}", s.AssetID.String(), s.Script.String())
+}
+
 func (s AssetScriptSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AssetScript, error) {
 	return &g.TransactionStateSnapshot_AssetScript{
 		AssetId: s.AssetID.Bytes(),
@@ -317,6 +341,11 @@ func (s LeaseBalanceSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) 
 		return false, errors.Errorf("expected LeaseBalanceSnapshot, received %s", reflect.TypeOf(otherSnapshot))
 	}
 	return s.Address == other.Address && s.LeaseIn == other.LeaseIn && s.LeaseOut == other.LeaseOut, nil
+}
+
+func (s LeaseBalanceSnapshot) String() string {
+	return fmt.Sprintf("LeaseBalanceSnapshot{Address: %s, LeaseIn: %d, LeaseOut: %d}",
+		s.Address.String(), s.LeaseIn, s.LeaseOut)
 }
 
 func (s LeaseBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_LeaseBalance, error) {
@@ -378,6 +407,11 @@ func (s NewLeaseSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) {
 		s.RecipientAddr == other.RecipientAddr, nil
 }
 
+func (s NewLeaseSnapshot) String() string {
+	return fmt.Sprintf("NewLeaseSnapshot{LeaseID: %s, Amount: %d, SenderPK: %s, RecipientAddr: %s}",
+		s.LeaseID.String(), s.Amount, s.SenderPK.String(), s.RecipientAddr.String())
+}
+
 func (s NewLeaseSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_NewLease, error) {
 	return &g.TransactionStateSnapshot_NewLease{
 		LeaseId:          s.LeaseID.Bytes(),
@@ -437,6 +471,10 @@ func (s CancelledLeaseSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error
 	return s.LeaseID == other.LeaseID, nil
 }
 
+func (s CancelledLeaseSnapshot) String() string {
+	return fmt.Sprintf("CancelledLeaseSnapshot{LeaseID: %s}", s.LeaseID.String())
+}
+
 func (s CancelledLeaseSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_CancelledLease, error) {
 	return &g.TransactionStateSnapshot_CancelledLease{
 		LeaseId: s.LeaseID.Bytes(),
@@ -475,6 +513,10 @@ func (s SponsorshipSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) {
 		return false, errors.Errorf("expected SponsorshipSnapshot, received %s", reflect.TypeOf(otherSnapshot))
 	}
 	return s.AssetID == other.AssetID && s.MinSponsoredFee == other.MinSponsoredFee, nil
+}
+
+func (s SponsorshipSnapshot) String() string {
+	return fmt.Sprintf("SponsorshipSnapshot{AssetID: %s, MinSponsoredFee: %d}", s.AssetID.String(), s.MinSponsoredFee)
 }
 
 func (s SponsorshipSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Sponsorship, error) {
@@ -532,6 +574,10 @@ func (s AliasSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) {
 	return s.Address == other.Address && s.Alias == other.Alias, nil
 }
 
+func (s AliasSnapshot) String() string {
+	return fmt.Sprintf("AliasSnapshot{Address: %s, Alias: %s}", s.Address.String(), s.Alias)
+}
+
 func (s AliasSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_Alias, error) {
 	return &g.TransactionStateSnapshot_Alias{
 		Address: s.Address.Bytes(),
@@ -579,6 +625,11 @@ func (s FilledVolumeFeeSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, erro
 		return false, errors.Errorf("expected FilledVolumeFeeSnapshot, received %s", reflect.TypeOf(otherSnapshot))
 	}
 	return s.OrderID == other.OrderID && s.FilledVolume == other.FilledVolume && s.FilledFee == other.FilledFee, nil
+}
+
+func (s FilledVolumeFeeSnapshot) String() string {
+	return fmt.Sprintf("FilledVolumeFeeSnapshot{OrderID: %s, FilledVolume: %d, FilledFee: %d}",
+		s.OrderID.String(), s.FilledVolume, s.FilledFee)
 }
 
 func (s FilledVolumeFeeSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_OrderFill, error) {
@@ -634,6 +685,11 @@ func (s NewAssetSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) {
 	}
 	return s.AssetID == other.AssetID && s.IssuerPublicKey == other.IssuerPublicKey &&
 		s.Decimals == other.Decimals && s.IsNFT == other.IsNFT, nil
+}
+
+func (s NewAssetSnapshot) String() string {
+	return fmt.Sprintf("NewAssetSnapshot{AssetID: %s, IssuerPublicKey: %s, Decimals: %d, IsNFT: %t}",
+		s.AssetID.String(), s.IssuerPublicKey.String(), s.Decimals, s.IsNFT)
 }
 
 func (s NewAssetSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_NewAsset, error) {
@@ -692,6 +748,11 @@ func (s AssetVolumeSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, error) {
 		s.TotalQuantity.Cmp(&other.TotalQuantity) == 0 && s.IsReissuable == other.IsReissuable, nil
 }
 
+func (s AssetVolumeSnapshot) String() string {
+	return fmt.Sprintf("AssetVolumeSnapshot{AssetID: %s, TotalQuantity: %s, IsReissuable: %t}",
+		s.AssetID.String(), s.TotalQuantity.String(), s.IsReissuable)
+}
+
 func (s AssetVolumeSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AssetVolume, error) {
 	return &g.TransactionStateSnapshot_AssetVolume{
 		AssetId:    s.AssetID.Bytes(),
@@ -740,6 +801,11 @@ func (s AssetDescriptionSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, err
 		s.AssetDescription == other.AssetDescription, nil
 }
 
+func (s AssetDescriptionSnapshot) String() string {
+	return fmt.Sprintf("AssetDescriptionSnapshot{AssetID: %s, AssetName: %s, AssetDescription: %s}",
+		s.AssetID.String(), s.AssetName, s.AssetDescription)
+}
+
 func (s AssetDescriptionSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AssetNameAndDescription, error) {
 	return &g.TransactionStateSnapshot_AssetNameAndDescription{
 		AssetId:     s.AssetID.Bytes(),
@@ -786,6 +852,10 @@ func (s TransactionStatusSnapshot) Equal(otherSnapshot AtomicSnapshot) (bool, er
 	return s.Status == other.Status, nil
 }
 
+func (s TransactionStatusSnapshot) String() string {
+	return fmt.Sprintf("TransactionStatusSnapshot{Status: %s}", s.Status.String())
+}
+
 func (s *TransactionStatusSnapshot) FromProtobuf(p g.TransactionStatus) error {
 	switch p {
 	case g.TransactionStatus_SUCCEEDED:
@@ -819,7 +889,7 @@ type TxSnapshot []AtomicSnapshot
 func (a TxSnapshot) Len() int      { return len(a) }
 func (a TxSnapshot) Swap(i, j int) { a[i], a[j] = a[j], a[i] }
 func (a TxSnapshot) Less(i, j int) bool {
-	return reflect.TypeOf(a[i]).String() < reflect.TypeOf(a[j]).String()
+	return a[i].String() < a[j].String()
 }
 
 func (a TxSnapshot) Equal(other TxSnapshot) (bool, error) {

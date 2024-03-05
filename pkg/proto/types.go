@@ -3114,6 +3114,15 @@ func (e DataEntries) PayloadSize() int {
 	return pl
 }
 
+func (e DataEntries) String() string {
+	var resStr string
+	for _, entry := range e {
+		entryStr := entry.GetKey() + entry.GetValueType().String()
+		resStr += entryStr
+	}
+	return resStr
+}
+
 // BinarySize returns summary binary size of all entries.
 func (e DataEntries) BinarySize() int {
 	bs := 0
