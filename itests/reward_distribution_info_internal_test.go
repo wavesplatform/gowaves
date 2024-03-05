@@ -71,7 +71,8 @@ func (suite *RewardDistributionAPIRewardInfoAtHeightPreactivatedSuite) Test_NODE
 	suite.Run(node856, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution,
 			settings.CappedRewards)
-		reward.GetRewardInfoAtHeightAndChecks(&suite.BaseSuite, td, utl.GetHeight(&suite.BaseSuite))
+		reward.GetRewardInfoAtHeightAndChecks(&suite.BaseSuite, td, uint64(utl.GetFeatureActivationHeight(
+			&suite.BaseSuite, settings.CappedRewards, utl.GetHeight(&suite.BaseSuite))+1))
 	})
 }
 
@@ -91,9 +92,11 @@ func (suite *RewardDistributionAPIRewardInfoAtHeightSupportedSuite) Test_NODE856
 	tdAfter20 := testdata.GetRewardInfoApiAfterSupported20TestData(&suite.BaseSuite)
 	suite.Run(node856, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution)
-		reward.GetRewardInfoAtHeightAndChecks(&suite.BaseSuite, tdBefore20, utl.GetHeight(&suite.BaseSuite))
+		reward.GetRewardInfoAtHeightAndChecks(&suite.BaseSuite, tdBefore20, uint64(utl.GetFeatureActivationHeight(
+			&suite.BaseSuite, settings.BlockRewardDistribution, utl.GetHeight(&suite.BaseSuite))+1))
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.CappedRewards)
-		reward.GetRewardInfoAtHeightAndChecks(&suite.BaseSuite, tdAfter20, utl.GetHeight(&suite.BaseSuite))
+		reward.GetRewardInfoAtHeightAndChecks(&suite.BaseSuite, tdAfter20, uint64(utl.GetFeatureActivationHeight(
+			&suite.BaseSuite, settings.CappedRewards, utl.GetHeight(&suite.BaseSuite))))
 	})
 }
 

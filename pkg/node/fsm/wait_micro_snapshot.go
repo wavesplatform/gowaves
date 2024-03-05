@@ -86,13 +86,13 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 		return a, nil, a.Errorf(errors.Errorf(
 			"New snapshot doesn't match with microBlock %s", a.microBlockWaitingForSnapshot.TotalBlockID))
 	}
+	defer a.cleanupBeforeTransition()
 	// the TopBlock() is used here
 	block, err := a.checkAndAppendMicroBlock(a.microBlockWaitingForSnapshot, &snapshot)
 	if err != nil {
 		metrics.FSMMicroBlockDeclined("ng", a.microBlockWaitingForSnapshot, err)
-		return a, nil, a.Errorf(err)
+		return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, a.Errorf(err)
 	}
-	defer a.cleanupBeforeTransition()
 
 	zap.S().Named(logging.FSMNamespace).Debugf(
 		"[%s] Received snapshot for microblock '%s' successfully applied to state", a, block.BlockID(),

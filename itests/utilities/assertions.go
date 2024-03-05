@@ -33,14 +33,14 @@ func TxInfoCheck(t *testing.T, errGo, errScala error, args ...interface{}) {
 
 func WavesDiffBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args ...interface{}) {
 	errMsg := makeErrorMessage("Difference balance in Waves mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
 func AssetDiffBalanceCheck(t *testing.T, expected, actualGo, actualScala int64, args ...interface{}) {
 	errMsg := makeErrorMessage("Asset balance mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
 func AddressByAliasCheck(t *testing.T, expected, actualGo, actualScala []byte, args ...interface{}) {
@@ -77,38 +77,38 @@ func ErrorMessageCheck(t *testing.T, expectedErrGo, expectedErrScala string, act
 func MinersSumDiffBalanceInWavesCheck(t *testing.T, expected int64, actualGo, actualScala int64,
 	args ...interface{}) {
 	errMsg := makeErrorMessage("Miners Sum Diff Balance mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
 func DaoDiffBalanceInWavesCheck(t *testing.T, expected int64, actualGo, actualScala int64,
 	args ...interface{}) {
 	errMsg := makeErrorMessage("Dao Diff Balance mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
 func XtnBuyBackDiffBalanceInWavesCheck(t *testing.T, expected int64, actualGo, actualScala int64,
 	args ...interface{}) {
 	errMsg := makeErrorMessage("Xtn buy back Diff Balance mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
 func TermCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
 	errMsg := makeErrorMessage("Terms are mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
 func VotingIntervalStartCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
 	errMsg := makeErrorMessage("VotingIntervalStart parameters are mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
-func NextCkeckParameterCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
+func NextCheckParameterCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
 	errMsg := makeErrorMessage("NextChecks are mismatch", args...)
-	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
-	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }

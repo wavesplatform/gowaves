@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
@@ -34,8 +35,8 @@ func applyBlocks(t *testing.T, blocks []proto.Block, st State, scheme proto.Sche
 		if blocksIndex != blocksBatchSize && height != blocksNumber {
 			continue
 		}
-		if err := st.AddBlocks(blocksBatch[:blocksIndex]); err != nil {
-			return err
+		if aErr := st.AddBlocks(blocksBatch[:blocksIndex]); aErr != nil {
+			return aErr
 		}
 		blocksIndex = 0
 	}

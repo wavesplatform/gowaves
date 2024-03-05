@@ -152,6 +152,7 @@ type StateModifier interface {
 	AddDeserializedBlock(block *proto.Block) (*proto.Block, error)
 	// AddBlocks adds batch of new blocks to state.
 	AddBlocks(blocks [][]byte) error
+	AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	// AddDeserializedBlocks marshals blocks to binary and calls AddBlocks.
 	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
@@ -263,6 +264,8 @@ type StateParams struct {
 	ProvideExtendedApi bool
 	// BuildStateHashes enables building and storing state hashes by height.
 	BuildStateHashes bool
+
+	LightNodeMode bool
 }
 
 func DefaultStateParams() StateParams {

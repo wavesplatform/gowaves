@@ -110,7 +110,7 @@ func GetRewardInfoAndChecks(suite *f.BaseSuite,
 	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]) {
 	rewardInfoGo, rewardInfoScala := utl.GetRewards(suite)
 	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
-	utl.NextCkeckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
+	utl.NextCheckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
 	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart,
 		rewardInfoScala.VotingIntervalStart)
 }
@@ -119,7 +119,7 @@ func GetRewardInfoAtHeightAndChecks(suite *f.BaseSuite,
 	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues], height uint64) {
 	rewardInfoGo, rewardInfoScala := utl.GetRewardsAtHeight(suite, height)
 	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
-	utl.NextCkeckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
+	utl.NextCheckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
 	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart,
 		rewardInfoScala.VotingIntervalStart)
 }

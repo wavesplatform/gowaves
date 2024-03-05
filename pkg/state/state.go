@@ -317,6 +317,17 @@ func (n *newBlocks) setNewWithSnapshots(blocks []*proto.Block, snapshots []*prot
 	return nil
 }
 
+func (n *newBlocks) setNewBinaryWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	if len(blocks) != len(snapshots) {
+		return errors.New("the numbers of snapshots doesn't match the number of blocks")
+	}
+	n.reset()
+	n.binBlocks = blocks
+	n.snapshots = snapshots
+	n.binary = true
+	return nil
+}
+
 func (n *newBlocks) next() bool {
 	n.curPos++
 	if n.binary {
@@ -1233,6 +1244,19 @@ func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 	if _, err := s.addBlocks(); err != nil {
 		if err := s.rw.syncWithDb(); err != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		}
+		return err
+	}
+	return nil
+}
+
+func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*proto.BlockSnapshot) error {
+	if err := s.newBlocks.setNewBinaryWithSnapshots(blockBytes, snapshots); err != nil {
+		return errors.Wrap(err, "failed to set new blocks with snapshots")
+	}
+	if _, err := s.addBlocks(); err != nil {
+		if snErr := s.rw.syncWithDb(); snErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", snErr)
 		}
 		return err
 	}
