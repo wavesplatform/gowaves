@@ -10,6 +10,7 @@ import (
 	"io"
 	"math/big"
 	"reflect"
+	"sort"
 	"strconv"
 	"strings"
 	"time"
@@ -2303,6 +2304,27 @@ func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
 	return entry, nil
 }
 
+func CompareDataEntry(a, b DataEntry) bool {
+	if a.GetKey() != b.GetKey() || a.GetValueType() != b.GetValueType() {
+		return false
+	}
+
+	switch a.GetValueType() {
+	case DataInteger:
+		return a.(*IntegerDataEntry).Value == b.(*IntegerDataEntry).Value
+	case DataBoolean:
+		return a.(*BooleanDataEntry).Value == b.(*BooleanDataEntry).Value
+	case DataBinary:
+		return bytes.Equal(a.(*BinaryDataEntry).Value, b.(*BinaryDataEntry).Value)
+	case DataString:
+		return a.(*StringDataEntry).Value == b.(*StringDataEntry).Value
+	case DataDelete:
+		return true
+	default:
+		return false
+	}
+}
+
 // IntegerDataEntry stores int64 value.
 type IntegerDataEntry struct {
 	Key   string
@@ -3136,6 +3158,30 @@ func (e *DataEntries) UnmarshalJSON(data []byte) error {
 	}
 	*e = entries
 	return nil
+}
+
+// Equal compares two DataEntries slices and returns true if they are equal.
+func (e DataEntries) Equal(other DataEntries) (bool, error) {
+	if len(e) != len(other) {
+		return false, nil
+	}
+
+	SortDataEntries(e)
+	SortDataEntries(other)
+
+	for i := range e {
+		if !CompareDataEntry(e[i], other[i]) {
+			return false, nil
+		}
+	}
+	return true, nil
+}
+
+// SortDataEntries sorts DataEntries slice by entry keys.
+func SortDataEntries(entries []DataEntry) {
+	sort.Slice(entries, func(i, j int) bool {
+		return entries[i].GetKey() < entries[j].GetKey()
+	})
 }
 
 const scriptPrefix = "base64:"

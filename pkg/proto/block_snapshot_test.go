@@ -325,7 +325,7 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
 	}
 
 	// Test marshalling and unmarshalling txSnapshotJSON.
-	bs := proto.BlockSnapshot{TxSnapshots: [][]proto.AtomicSnapshot{
+	bs := proto.BlockSnapshot{TransactionsSnapshots: []proto.TxSnapshot{
 		succeededTxSnap,
 		failedTxSnap,
 		elidedTxSnap,
@@ -337,18 +337,18 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
 	var unmBs proto.BlockSnapshot
 	err = json.Unmarshal(data, &unmBs)
 	require.NoError(t, err)
-	assert.Len(t, unmBs.TxSnapshots, len(bs.TxSnapshots))
-	for i := range bs.TxSnapshots {
-		assert.ElementsMatch(t, bs.TxSnapshots[i], unmBs.TxSnapshots[i])
+	assert.Len(t, unmBs.TransactionsSnapshots, len(bs.TransactionsSnapshots))
+	for i := range bs.TransactionsSnapshots {
+		assert.ElementsMatch(t, bs.TransactionsSnapshots[i], unmBs.TransactionsSnapshots[i])
 	}
 
 	// Test empty BlockSnapshot.
-	data, err = json.Marshal(proto.BlockSnapshot{TxSnapshots: [][]proto.AtomicSnapshot{}})
+	data, err = json.Marshal(proto.BlockSnapshot{TransactionsSnapshots: []proto.TxSnapshot{}})
 	require.NoError(t, err)
 	assert.Equal(t, "[]", string(data))
 
 	// Test BlockSnapshot with nil txSnapshots.
-	data, err = json.Marshal(proto.BlockSnapshot{TxSnapshots: nil})
+	data, err = json.Marshal(proto.BlockSnapshot{TransactionsSnapshots: nil})
 	require.NoError(t, err)
 	assert.Equal(t, "[]", string(data))
 
@@ -356,6 +356,173 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
 	var unmEmptyBs proto.BlockSnapshot
 	err = json.Unmarshal(data, &unmEmptyBs)
 	require.NoError(t, err)
-	assert.Len(t, unmEmptyBs.TxSnapshots, 0)
-	assert.Nil(t, unmEmptyBs.TxSnapshots)
+	assert.Len(t, unmEmptyBs.TransactionsSnapshots, 0)
+	assert.Nil(t, unmEmptyBs.TransactionsSnapshots)
+}
+
+// TestBlockSnapshotEqual tests the comparison of two BlockSnapshot instances.
+func TestBlockSnapshotEqual(t *testing.T) {
+	addr1, _ := proto.NewAddressFromString("3P9o3uwx3fWZz3b53g53ARUk9sFoPW6z7HA")
+	addr2, _ := proto.NewAddressFromString("3P9o3uwx3fWZz3b5aaaaaaaaaaFoPW6z7HB")
+	assetID1 := crypto.MustDigestFromBase58("BrjV5AB5S7qN5tLQFbU5tpLj5qeozfVvPxEpDkmmhNP")
+	assetID2 := crypto.MustDigestFromBase58("5Zv8JLH8TTvq9iCo6HtB2K7CGpTJt6JTj5yvXaDVrxEJ")
+	publicKey1, _ := crypto.NewPublicKeyFromBase58("5TBjL2VdL1XmXq5dC4SYMeH5sVCGmMTeBNNYqWCuEXMn")
+	leaseID1 := crypto.MustDigestFromBase58("FjnZ7aY8iqVpZc4M4uPFuDzMB6YShYd4cNmRfQP1p4Su")
+
+	// Setup test cases
+	tests := []struct {
+		name           string
+		blockSnapshotA proto.BlockSnapshot
+		blockSnapshotB proto.BlockSnapshot
+		wantEqual      bool
+	}{
+		{
+			name: "equal snapshots with single transaction",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.WavesBalanceSnapshot{Address: addr1, Balance: 100}},
+				},
+			},
+			blockSnapshotB: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.WavesBalanceSnapshot{Address: addr1, Balance: 100}},
+				},
+			},
+			wantEqual: true,
+		},
+		{
+			name: "different snapshots with single transaction",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.WavesBalanceSnapshot{Address: addr1, Balance: 100}},
+				},
+			},
+			blockSnapshotB: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.WavesBalanceSnapshot{Address: addr2, Balance: 100}},
+				},
+			},
+			wantEqual: false,
+		},
+		{
+			name: "equal snapshots with multiple transactions",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.WavesBalanceSnapshot{Address: addr1, Balance: 100}},
+					{&proto.AssetBalanceSnapshot{Address: addr2, AssetID: assetID1, Balance: 200}},
+				},
+			},
+			blockSnapshotB: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.WavesBalanceSnapshot{Address: addr1, Balance: 100}},
+					{&proto.AssetBalanceSnapshot{Address: addr2, AssetID: assetID1, Balance: 200}},
+				},
+			},
+			wantEqual: true,
+		},
+		{
+			name: "snapshots with different asset balances",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.AssetBalanceSnapshot{Address: addr1, AssetID: assetID1, Balance: 300}},
+				},
+			},
+			blockSnapshotB: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.AssetBalanceSnapshot{Address: addr1, AssetID: assetID2, Balance: 300}},
+				},
+			},
+			wantEqual: false,
+		},
+		{
+			name: "snapshots with new lease and cancelled lease snapshots",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.NewLeaseSnapshot{LeaseID: leaseID1, Amount: 1000, SenderPK: publicKey1, RecipientAddr: addr1}},
+					{&proto.CancelledLeaseSnapshot{LeaseID: leaseID1}},
+				},
+			},
+			wantEqual: false,
+		},
+		{
+			name: "snapshots with equal AssetVolumeSnapshot",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.AssetVolumeSnapshot{AssetID: assetID1, TotalQuantity: *big.NewInt(1000), IsReissuable: true}},
+				},
+			},
+			blockSnapshotB: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.AssetVolumeSnapshot{AssetID: assetID1, TotalQuantity: *big.NewInt(1000), IsReissuable: true}},
+				},
+			},
+			wantEqual: true,
+		},
+		{
+			name: "snapshots with different AssetVolumeSnapshot reissuability",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.AssetVolumeSnapshot{AssetID: assetID1, TotalQuantity: *big.NewInt(1000), IsReissuable: true}},
+				},
+			},
+			blockSnapshotB: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.AssetVolumeSnapshot{AssetID: assetID1, TotalQuantity: *big.NewInt(1000), IsReissuable: false}},
+				},
+			},
+			wantEqual: false,
+		},
+		{
+			name: "snapshots with equal DataEntriesSnapshot",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.DataEntriesSnapshot{Address: addr1, DataEntries: proto.DataEntries{
+						&proto.IntegerDataEntry{Key: "key1", Value: 100},
+						&proto.BooleanDataEntry{Key: "key2", Value: true},
+					}}},
+				},
+			},
+			blockSnapshotB: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.DataEntriesSnapshot{Address: addr1, DataEntries: proto.DataEntries{
+						&proto.IntegerDataEntry{Key: "key1", Value: 100},
+						&proto.BooleanDataEntry{Key: "key2", Value: true},
+					}}},
+				},
+			},
+			wantEqual: true,
+		},
+		{
+			name: "snapshots with different DataEntriesSnapshot",
+			blockSnapshotA: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.DataEntriesSnapshot{Address: addr1, DataEntries: proto.DataEntries{
+						&proto.IntegerDataEntry{Key: "key1", Value: 100},
+						&proto.BooleanDataEntry{Key: "key2", Value: true},
+					}}},
+				},
+			},
+			blockSnapshotB: proto.BlockSnapshot{
+				TransactionsSnapshots: []proto.TxSnapshot{
+					{&proto.DataEntriesSnapshot{Address: addr1, DataEntries: proto.DataEntries{
+						&proto.IntegerDataEntry{Key: "key1", Value: 200}, // Different value
+						&proto.BooleanDataEntry{Key: "key2", Value: true},
+					}}},
+				},
+			},
+			wantEqual: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			equal, err := tt.blockSnapshotA.Equal(tt.blockSnapshotB)
+			if err != nil {
+				t.Errorf("Error comparing snapshots: %v", err)
+			}
+			if equal != tt.wantEqual {
+				t.Errorf("Expected snapshots to be equal: %v, got: %v", tt.wantEqual, equal)
+			}
+		})
+	}
 }

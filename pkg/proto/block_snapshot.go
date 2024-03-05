@@ -3,23 +3,39 @@ package proto
 import (
 	"encoding/binary"
 	"encoding/json"
-
 	"github.com/pkg/errors"
 
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
 type BlockSnapshot struct {
-	TxSnapshots [][]AtomicSnapshot
+	TransactionsSnapshots []TxSnapshot
 }
 
 func (bs *BlockSnapshot) AppendTxSnapshot(txSnapshot []AtomicSnapshot) {
-	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshot)
+	bs.TransactionsSnapshots = append(bs.TransactionsSnapshots, txSnapshot)
+}
+
+// Equal function assumes that TransactionsSnapshots are in same other in both original and other instances.
+func (bs BlockSnapshot) Equal(other BlockSnapshot) (bool, error) {
+	if len(bs.TransactionsSnapshots) != len(other.TransactionsSnapshots) {
+		return false, nil
+	}
+	for i, txSnapshot := range bs.TransactionsSnapshots {
+		equal, err := txSnapshot.Equal(other.TransactionsSnapshots[i])
+		if err != nil {
+			return false, err
+		}
+		if !equal {
+			return false, nil
+		}
+	}
+	return true, nil
 }
 
 func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
-	result := binary.BigEndian.AppendUint32([]byte{}, uint32(len(bs.TxSnapshots)))
-	for _, ts := range bs.TxSnapshots {
+	result := binary.BigEndian.AppendUint32([]byte{}, uint32(len(bs.TransactionsSnapshots)))
+	for _, ts := range bs.TransactionsSnapshots {
 		var res g.TransactionStateSnapshot
 		for _, atomicSnapshot := range ts {
 			if err := atomicSnapshot.AppendToProtobuf(&res); err != nil {
@@ -42,7 +58,7 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 	}
 	txSnCnt := binary.BigEndian.Uint32(data[0:uint32Size])
 	data = data[uint32Size:]
-	var txSnapshots [][]AtomicSnapshot
+	var txSnapshots []TxSnapshot
 	for i := uint32(0); i < txSnCnt; i++ {
 		if len(data) < uint32Size {
 			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
@@ -64,16 +80,16 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 		txSnapshots = append(txSnapshots, atomicTS)
 		data = data[tsBytesLen:]
 	}
-	bs.TxSnapshots = txSnapshots
+	bs.TransactionsSnapshots = txSnapshots
 	return nil
 }
 
 func (bs BlockSnapshot) MarshalJSON() ([]byte, error) {
-	if len(bs.TxSnapshots) == 0 {
+	if len(bs.TransactionsSnapshots) == 0 {
 		return []byte("[]"), nil
 	}
-	res := make([]txSnapshotJSON, 0, len(bs.TxSnapshots))
-	for _, txSnapshot := range bs.TxSnapshots {
+	res := make([]txSnapshotJSON, 0, len(bs.TransactionsSnapshots))
+	for _, txSnapshot := range bs.TransactionsSnapshots {
 		var js txSnapshotJSON
 		for _, snapshot := range txSnapshot {
 			if err := snapshot.Apply(&js); err != nil {
@@ -91,10 +107,10 @@ func (bs *BlockSnapshot) UnmarshalJSON(bytes []byte) error {
 		return err
 	}
 	if len(blockSnapshotJSON) == 0 {
-		bs.TxSnapshots = nil
+		bs.TransactionsSnapshots = nil
 		return nil
 	}
-	res := make([][]AtomicSnapshot, 0, len(blockSnapshotJSON))
+	res := make([]TxSnapshot, 0, len(blockSnapshotJSON))
 	for _, js := range blockSnapshotJSON {
 		txSnapshot, err := js.toTransactionSnapshot()
 		if err != nil {
@@ -102,7 +118,7 @@ func (bs *BlockSnapshot) UnmarshalJSON(bytes []byte) error {
 		}
 		res = append(res, txSnapshot)
 	}
-	bs.TxSnapshots = res
+	bs.TransactionsSnapshots = res
 	return nil
 }
 
