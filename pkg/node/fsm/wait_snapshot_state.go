@@ -77,7 +77,7 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 }
 
 func (a *WaitSnapshotState) BlockSnapshot(
-	peer peer.Peer,
+	_ peer.Peer,
 	blockID proto.BlockID,
 	snapshot proto.BlockSnapshot,
 ) (State, Async, error) {
@@ -86,6 +86,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 			errors.Errorf("new snapshot doesn't match with block %s", a.blockWaitingForSnapshot.BlockID()))
 	}
 
+	defer a.cleanupBeforeTransition()
 	_, err := a.baseInfo.blocksApplier.ApplyWithSnapshots(
 		a.baseInfo.storage,
 		[]*proto.Block{a.blockWaitingForSnapshot},
@@ -93,9 +94,9 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	)
 	if err != nil {
 		// metrics.FSMKeyBlockDeclined("ng", block, err)
-		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
+		return newNGStateWithCache(a.baseInfo, a.blocksCache),
+			nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", a.blockWaitingForSnapshot.BlockID()))
 	}
-	defer a.cleanupBeforeTransition()
 
 	metrics.FSMKeyBlockApplied("ng", a.blockWaitingForSnapshot)
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Handle received key block message: block '%s' applied to state",
