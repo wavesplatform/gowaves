@@ -218,7 +218,7 @@ func (t SimpleType) Equal(other Type) bool {
 	if o, ok := other.(SimpleType); ok {
 		return t.Type == o.Type
 	}
-	return false
+	return other.Equal(AnyType)
 }
 
 func (t SimpleType) String() string {
@@ -590,33 +590,14 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 		SimpleType{"DataTransaction"},
 	}}
 	res[ast.LibV7]["Transaction"] = res[ast.LibV6]["Transaction"]
+	res[ast.LibV8]["Transaction"] = res[ast.LibV7]["Transaction"]
 }
 
 func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {
-	res := map[ast.LibraryVersion]map[string]Type{
-		ast.LibV1: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV2: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV3: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV4: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV5: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV6: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
-		ast.LibV7: {
-			"Transaction": UnionType{Types: []Type{}},
-		},
+	res := make(map[ast.LibraryVersion]map[string]Type)
+	for v := ast.LibV1; v <= ast.CurrentMaxLibraryVersion(); v++ {
+		res[v] = map[string]Type{"Transaction": UnionType{Types: []Type{}}}
 	}
-
 	f, err := embedFS.ReadFile("ride_objects.json")
 	if err != nil {
 		panic(err)

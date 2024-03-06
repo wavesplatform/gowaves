@@ -18,6 +18,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const (
@@ -119,7 +120,12 @@ func tryBroadcastTransaction(
 			}
 		}()
 	}
-	if _, err = t.Validate(baseInfo.scheme); err != nil {
+	lightNodeActivated, err := baseInfo.storage.IsActivated(int16(settings.LightNode))
+	if err != nil {
+		return fsm, nil, errors.Wrap(err, "failed to check if LightNode feature is activated")
+	}
+	params := proto.TransactionValidationParams{Scheme: baseInfo.scheme, CheckVersion: lightNodeActivated}
+	if _, err = t.Validate(params); err != nil {
 		err = errors.Wrap(err, "failed to validate transaction")
 		if p != nil {
 			baseInfo.peers.AddToBlackList(p, time.Now(), err.Error())

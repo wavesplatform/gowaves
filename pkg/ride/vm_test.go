@@ -11,6 +11,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -198,7 +199,8 @@ func TestFunctions(t *testing.T) {
 	// }
 	envWithExchangeTX := &mockRideEnvironment{
 		transactionFunc: func() rideType {
-			obj, err := exchangeWithProofsToObject('W', exchange)
+			var obj rideExchangeTransaction
+			obj, err = exchangeWithProofsToObject(ast.LibV6, 'W', exchange)
 			if err != nil {
 				panic(err)
 			}

@@ -47,9 +47,9 @@ func transactionToObject(env reducedReadOnlyEnv, tx proto.Transaction) (rideType
 	case *proto.BurnWithProofs:
 		return burnWithProofsToObject(scheme, transaction)
 	case *proto.ExchangeWithSig:
-		return exchangeWithSigToObject(scheme, transaction)
+		return exchangeWithSigToObject(ver, scheme, transaction)
 	case *proto.ExchangeWithProofs:
-		return exchangeWithProofsToObject(scheme, transaction)
+		return exchangeWithProofsToObject(ver, scheme, transaction)
 	case *proto.LeaseWithSig:
 		return leaseWithSigToObject(scheme, transaction)
 	case *proto.LeaseWithProofs:
@@ -265,7 +265,7 @@ func transferWithSigToObject(scheme byte, tx *proto.TransferWithSig) (rideType, 
 	}
 	return newRideTransferTransaction(
 		optionalAsset(tx.AmountAsset),
-		rideByteVector(body),
+		body,
 		optionalAsset(tx.FeeAsset),
 		rideInt(tx.Version),
 		rideByteVector(tx.Attachment),
@@ -291,7 +291,7 @@ func transferWithProofsToObject(scheme byte, tx *proto.TransferWithProofs) (ride
 	}
 	return newRideTransferTransaction(
 		optionalAsset(tx.AmountAsset),
-		rideByteVector(body),
+		body,
 		optionalAsset(tx.FeeAsset),
 		rideInt(tx.Version),
 		rideByteVector(tx.Attachment),
@@ -316,7 +316,7 @@ func reissueWithSigToObject(scheme byte, tx *proto.ReissueWithSig) (rideType, er
 		return nil, EvaluationFailure.Wrap(err, "reissueWithSigToObject")
 	}
 	return newRideReissueTransaction(
-		rideByteVector(body),
+		body,
 		signatureToProofs(tx.Signature),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -340,7 +340,7 @@ func reissueWithProofsToObject(scheme byte, tx *proto.ReissueWithProofs) (rideRe
 		return rideReissueTransaction{}, EvaluationFailure.Wrap(err, "reissueWithProofsToObject")
 	}
 	return newRideReissueTransaction(
-		rideByteVector(body),
+		body,
 		proofs(tx.Proofs),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -364,7 +364,7 @@ func burnWithSigToObject(scheme byte, tx *proto.BurnWithSig) (rideType, error) {
 		return nil, EvaluationFailure.Wrap(err, "burnWithSigToObject")
 	}
 	return newRideBurnTransaction(
-		rideByteVector(body),
+		body,
 		signatureToProofs(tx.Signature),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -387,7 +387,7 @@ func burnWithProofsToObject(scheme byte, tx *proto.BurnWithProofs) (rideBurnTran
 		return rideBurnTransaction{}, EvaluationFailure.Wrap(err, "burnWithProofsToObject")
 	}
 	return newRideBurnTransaction(
-		rideByteVector(body),
+		body,
 		proofs(tx.Proofs),
 		common.Dup(tx.SenderPK.Bytes()),
 		tx.AssetID.Bytes(),
@@ -414,35 +414,57 @@ func orderType(orderType proto.OrderType) rideType {
 	panic("invalid orderType")
 }
 
-func orderToObject(scheme proto.Scheme, o proto.Order) (rideOrder, error) {
+func orderToObject(ver ast.LibraryVersion, scheme proto.Scheme, o proto.Order) (rideType, error) {
 	id, err := o.GetID()
 	if err != nil {
-		return rideOrder{}, EvaluationFailure.Wrap(err, "orderToObject")
+		return nil, EvaluationFailure.Wrap(err, "orderToObject")
 	}
 	senderAddr, err := o.GetSender(scheme)
 	if err != nil {
-		return rideOrder{}, EvaluationFailure.Wrap(err, "failed to execute 'orderToObject' func, failed to get sender of order")
+		return nil, EvaluationFailure.Wrap(err, "failed to execute 'orderToObject' func, failed to get sender of order")
 	}
 	// note that in ride we use only proto.WavesAddress addresses
 	senderWavesAddr, err := senderAddr.ToWavesAddress(scheme)
 	if err != nil {
-		return rideOrder{}, EvaluationFailure.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
+		return nil, EvaluationFailure.Wrapf(err, "failed to transform (%T) address type to WavesAddress type", senderAddr)
 	}
 	var body []byte
 	// we should leave bodyBytes empty only for proto.EthereumOrderV4
 	if _, ok := o.(*proto.EthereumOrderV4); !ok {
 		body, err = proto.MarshalOrderBody(scheme, o)
 		if err != nil {
-			return rideOrder{}, EvaluationFailure.Wrap(err, "orderToObject")
+			return nil, EvaluationFailure.Wrap(err, "orderToObject")
 		}
 	}
 	p, err := o.GetProofs()
 	if err != nil {
-		return rideOrder{}, EvaluationFailure.Wrap(err, "orderToObject")
+		return nil, EvaluationFailure.Wrap(err, "orderToObject")
 	}
 	matcherPk := o.GetMatcherPK()
 	pair := o.GetAssetPair()
-	return newRideOrder(
+	if ver < ast.LibV8 {
+		return newRideOrderV1(
+			assetPairToObject(pair.AmountAsset, pair.PriceAsset),
+			orderType(o.GetOrderType()),
+			optionalAsset(o.GetMatcherFeeAsset()),
+			proofs(p),
+			body,
+			id,
+			common.Dup(o.GetSenderPKBytes()),
+			common.Dup(matcherPk.Bytes()),
+			rideInt(o.GetAmount()),
+			rideInt(o.GetTimestamp()),
+			rideInt(o.GetExpiration()),
+			rideInt(o.GetMatcherFee()),
+			rideInt(o.GetPrice()),
+			rideAddress(senderWavesAddr),
+		), nil
+	}
+	var att rideType = rideUnit{}
+	if o.GetAttachment().Size() > 0 {
+		att = rideByteVector(o.GetAttachment().Bytes())
+	}
+	return newRideOrderV8(
 		assetPairToObject(pair.AmountAsset, pair.PriceAsset),
 		orderType(o.GetOrderType()),
 		optionalAsset(o.GetMatcherFeeAsset()),
@@ -451,6 +473,7 @@ func orderToObject(scheme proto.Scheme, o proto.Order) (rideOrder, error) {
 		id,
 		common.Dup(o.GetSenderPKBytes()),
 		common.Dup(matcherPk.Bytes()),
+		att,
 		rideInt(o.GetAmount()),
 		rideInt(o.GetTimestamp()),
 		rideInt(o.GetExpiration()),
@@ -460,12 +483,12 @@ func orderToObject(scheme proto.Scheme, o proto.Order) (rideOrder, error) {
 	), nil
 }
 
-func exchangeWithSigToObject(scheme byte, tx *proto.ExchangeWithSig) (rideType, error) {
-	buy, err := orderToObject(scheme, tx.Order1)
+func exchangeWithSigToObject(ver ast.LibraryVersion, scheme byte, tx *proto.ExchangeWithSig) (rideType, error) {
+	buy, err := orderToObject(ver, scheme, tx.Order1)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "exchangeWithSigToObject")
 	}
-	sell, err := orderToObject(scheme, tx.Order2)
+	sell, err := orderToObject(ver, scheme, tx.Order2)
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "exchangeWithSigToObject")
 	}
@@ -495,12 +518,16 @@ func exchangeWithSigToObject(scheme byte, tx *proto.ExchangeWithSig) (rideType, 
 	), nil
 }
 
-func exchangeWithProofsToObject(scheme byte, tx *proto.ExchangeWithProofs) (rideExchangeTransaction, error) {
-	buy, err := orderToObject(scheme, tx.Order1)
+func exchangeWithProofsToObject(
+	ver ast.LibraryVersion,
+	scheme byte,
+	tx *proto.ExchangeWithProofs,
+) (rideExchangeTransaction, error) {
+	buy, err := orderToObject(ver, scheme, tx.Order1)
 	if err != nil {
 		return rideExchangeTransaction{}, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
 	}
-	sell, err := orderToObject(scheme, tx.Order2)
+	sell, err := orderToObject(ver, scheme, tx.Order2)
 	if err != nil {
 		return rideExchangeTransaction{}, EvaluationFailure.Wrap(err, "exchangeWithProofsToObject")
 	}
