@@ -26,8 +26,8 @@ func Test_patchesStorage(t *testing.T) {
 	to.addBlock(t, fistBlockID)
 
 	patch := []proto.AtomicSnapshot{
-		proto.WavesBalanceSnapshot{Address: addr, Balance: 100500},
-		proto.AssetBalanceSnapshot{Address: addr, AssetID: assetID, Balance: 100500},
+		&proto.WavesBalanceSnapshot{Address: addr, Balance: 100500},
+		&proto.AssetBalanceSnapshot{Address: addr, AssetID: assetID, Balance: 100500},
 	}
 
 	patchesStor := newPatchesStorage(to.hs, to.settings.AddressSchemeCharacter)
