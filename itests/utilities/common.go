@@ -879,16 +879,8 @@ func GetRewardsInfoGo(suite *f.BaseSuite) *client.RewardInfo {
 	return suite.Clients.GoClients.HttpClient.Rewards(suite.T())
 }
 
-func GetCurrentRewardGo(suite *f.BaseSuite) uint64 {
-	return GetRewardsInfoGo(suite).CurrentReward
-}
-
 func GetRewardsInfoScala(suite *f.BaseSuite) *client.RewardInfo {
 	return suite.Clients.ScalaClients.HttpClient.Rewards(suite.T())
-}
-
-func GetCurrentRewardScala(suite *f.BaseSuite) uint64 {
-	return GetRewardsInfoScala(suite).CurrentReward
 }
 
 func GetRewardsInfo(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo) {
