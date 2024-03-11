@@ -2,8 +2,9 @@ package utilities
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"github.com/stretchr/testify/assert"
 )
