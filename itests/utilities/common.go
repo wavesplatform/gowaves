@@ -895,18 +895,6 @@ func GetRewardsInfo(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo)
 	return GetRewardsInfoGo(suite), GetRewardsInfoScala(suite)
 }
 
-func GetCurrentReward(suite *f.BaseSuite) uint64 {
-	var currentReward uint64
-	currentRewardGo := GetCurrentRewardGo(suite)
-	currentRewardScala := GetCurrentRewardScala(suite)
-	if currentRewardGo == currentRewardScala {
-		currentReward = currentRewardGo
-	} else {
-		suite.FailNow("Current reward is different")
-	}
-	return currentReward
-}
-
 // GetRewardsInfo get response from /blockchain/rewards/{height}.
 func GetRewardsInfoAtHeightGo(suite *f.BaseSuite, height uint64) *client.RewardInfo {
 	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height)
@@ -982,10 +970,6 @@ func NewRewardTerm(termGo, termScala uint64) RewardTerm {
 		TermGo:    termGo,
 		TermScala: termScala,
 	}
-}
-
-func GetVotes(suite *f.BaseSuite) {
-
 }
 
 func GetXtnBuybackPeriodCfg(suite *f.BaseSuite) uint64 {
