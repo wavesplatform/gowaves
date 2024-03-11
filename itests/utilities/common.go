@@ -340,7 +340,7 @@ func GetTotalWavesAmountGo(suite *f.BaseSuite) uint64 {
 	var totalWavesAmount uint64
 	addresses := GetAddressesOfAvailableAccounts(suite)
 	for _, address := range addresses {
-		totalWavesAmount = totalWavesAmount + uint64(GetAvailableBalanceInWavesGo(suite, address))
+		totalWavesAmount += uint64(GetAvailableBalanceInWavesGo(suite, address))
 	}
 	return totalWavesAmount
 }
@@ -349,7 +349,7 @@ func GetTotalWavesAmountScala(suite *f.BaseSuite) uint64 {
 	var totalWavesAmount uint64
 	addresses := GetAddressesOfAvailableAccounts(suite)
 	for _, address := range addresses {
-		totalWavesAmount = totalWavesAmount + uint64(GetAvailableBalanceInWavesScala(suite, address))
+		totalWavesAmount += uint64(GetAvailableBalanceInWavesScala(suite, address))
 	}
 	return totalWavesAmount
 }

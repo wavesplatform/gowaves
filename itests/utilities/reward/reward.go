@@ -106,7 +106,8 @@ func GetRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.Addre
 		rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesScala)
 }
 
-type GetTestDataForRewardInfo func(suite *f.BaseSuite) testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]
+type GetTestDataForRewardInfo func(
+	suite *f.BaseSuite) testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]
 
 func GetRewardInfoAndChecks(suite *f.BaseSuite, testdata GetTestDataForRewardInfo) {
 	rewardInfoGo, rewardInfoScala := utl.GetRewardsInfo(suite)
