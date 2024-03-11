@@ -318,6 +318,52 @@ func GetAccount(suite *f.BaseSuite, i int) config.AccountInfo {
 	return suite.Cfg.Accounts[i]
 }
 
+func GetAddressesOfAvailableAccounts(suite *f.BaseSuite) []proto.WavesAddress {
+	accounts := suite.Cfg.Accounts
+	var addresses []proto.WavesAddress
+	daoAddress, xtnAddress := GetDaoAndXtnAddresses(suite)
+	if daoAddress != nil {
+		addresses = append(addresses, *daoAddress)
+	}
+	if xtnAddress != nil {
+		addresses = append(addresses, *xtnAddress)
+	}
+	for _, account := range accounts {
+		if account.Address != *daoAddress && account.Address != *xtnAddress {
+			addresses = append(addresses, account.Address)
+		}
+	}
+	return addresses
+}
+
+func GetTotalWavesAmountGo(suite *f.BaseSuite) uint64 {
+	var totalWavesAmount uint64
+	addresses := GetAddressesOfAvailableAccounts(suite)
+	for _, address := range addresses {
+		totalWavesAmount = totalWavesAmount + uint64(GetAvailableBalanceInWavesGo(suite, address))
+	}
+	return totalWavesAmount
+}
+
+func GetTotalWavesAmountScala(suite *f.BaseSuite) uint64 {
+	var totalWavesAmount uint64
+	addresses := GetAddressesOfAvailableAccounts(suite)
+	for _, address := range addresses {
+		totalWavesAmount = totalWavesAmount + uint64(GetAvailableBalanceInWavesScala(suite, address))
+	}
+	return totalWavesAmount
+}
+
+func GetTotalWavesAmount(suite *f.BaseSuite) uint64 {
+	var totalWavesAmount uint64
+	totalWavesAmountGo := GetTotalWavesAmountGo(suite)
+	totalWavesAmountScala := GetTotalWavesAmountScala(suite)
+	if totalWavesAmountGo == totalWavesAmountScala {
+		totalWavesAmount = totalWavesAmountGo
+	}
+	return totalWavesAmount
+}
+
 func MustGetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) config.AccountInfo {
 	for _, account := range suite.Cfg.Accounts {
 		if account.Address.Equal(address) {
@@ -423,8 +469,7 @@ func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, fID 
 	return status, err
 }
 
-func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, featureID settings.Feature) (int32, error) {
-	var err error
+func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, featureID settings.Feature) int32 {
 	var activationHeight int32
 	activationHeight = -1
 	for _, feature := range statusResponse.GetFeatures() {
@@ -433,10 +478,7 @@ func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, feat
 			break
 		}
 	}
-	if activationHeight == -1 {
-		err = errors.Errorf("Feature with Id %d not found", featureID)
-	}
-	return activationHeight, err
+	return activationHeight
 }
 
 func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureID settings.Feature, h uint64) string {
@@ -454,30 +496,35 @@ func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureID settings.Feat
 }
 
 func GetFeatureActivationHeightGo(suite *f.BaseSuite, featureID settings.Feature, height uint64) int32 {
-	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureID)
-	require.NoError(suite.T(), err)
-	return activationHeight
+	return getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureID)
 }
 
 func GetFeatureActivationHeightScala(suite *f.BaseSuite, featureID settings.Feature, height uint64) int32 {
-	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureID)
-	require.NoError(suite.T(), err)
-	return activationHeight
+	return getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureID)
 }
 
 func GetFeatureActivationHeight(suite *f.BaseSuite, featureID settings.Feature, height uint64) int32 {
 	var err error
 	var activationHeight int32
-	activationHeight = -1
 	activationHeightGo := GetFeatureActivationHeightGo(suite, featureID, height)
 	activationHeightScala := GetFeatureActivationHeightScala(suite, featureID, height)
 	if activationHeightGo == activationHeightScala && activationHeightGo > -1 {
 		activationHeight = activationHeightGo
 	} else {
-		err = errors.New("Activation Height from Go and Scala is different")
+		err = errors.New("Activation Height from Go and Scala is different or feature not found")
 	}
 	require.NoError(suite.T(), err)
 	return activationHeight
+}
+
+func isFeatureActivated(suite *f.BaseSuite, featureID settings.Feature, height uint64) bool {
+	isActivated := false
+	hGo := GetFeatureActivationHeightGo(suite, featureID, height)
+	hScala := GetFeatureActivationHeightScala(suite, featureID, height)
+	if hGo > -1 && hScala > -1 {
+		isActivated = true
+	}
+	return isActivated
 }
 
 func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureID settings.Feature, height uint64) (string, error) {
@@ -819,44 +866,72 @@ func GetRewardTermAfter20Cfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
 
-// GetRewards get response from /blockchain/rewards.
-func GetRewardsGo(suite *f.BaseSuite) *client.RewardInfo {
+func GetIncrementCfg(suite *f.BaseSuite) uint64 {
+	return suite.Cfg.BlockchainSettings.BlockRewardIncrement
+}
+
+func GetVotingIntervalCfg(suite *f.BaseSuite) uint64 {
+	return suite.Cfg.BlockchainSettings.BlockRewardVotingPeriod
+}
+
+// GetRewardsInfo get response from /blockchain/rewards.
+func GetRewardsInfoGo(suite *f.BaseSuite) *client.RewardInfo {
 	return suite.Clients.GoClients.HttpClient.Rewards(suite.T())
 }
 
-func GetRewardsScala(suite *f.BaseSuite) *client.RewardInfo {
+func GetCurrentRewardGo(suite *f.BaseSuite) uint64 {
+	return GetRewardsInfoGo(suite).CurrentReward
+}
+
+func GetRewardsInfoScala(suite *f.BaseSuite) *client.RewardInfo {
 	return suite.Clients.ScalaClients.HttpClient.Rewards(suite.T())
 }
 
-func GetRewards(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo) {
-	return GetRewardsGo(suite), GetRewardsScala(suite)
+func GetCurrentRewardScala(suite *f.BaseSuite) uint64 {
+	return GetRewardsInfoScala(suite).CurrentReward
 }
 
-// GetRewards get response from /blockchain/rewards/{height}.
-func GetRewardsAtHeightGo(suite *f.BaseSuite, height uint64) *client.RewardInfo {
+func GetRewardsInfo(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo) {
+	return GetRewardsInfoGo(suite), GetRewardsInfoScala(suite)
+}
+
+func GetCurrentReward(suite *f.BaseSuite) uint64 {
+	var currentReward uint64
+	currentRewardGo := GetCurrentRewardGo(suite)
+	currentRewardScala := GetCurrentRewardScala(suite)
+	if currentRewardGo == currentRewardScala {
+		currentReward = currentRewardGo
+	} else {
+		suite.FailNow("Current reward is different")
+	}
+	return currentReward
+}
+
+// GetRewardsInfo get response from /blockchain/rewards/{height}.
+func GetRewardsInfoAtHeightGo(suite *f.BaseSuite, height uint64) *client.RewardInfo {
 	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height)
 }
 
-func GetRewardsAtHeightScala(suite *f.BaseSuite, height uint64) *client.RewardInfo {
+func GetRewardsInfoAtHeightScala(suite *f.BaseSuite, height uint64) *client.RewardInfo {
 	return suite.Clients.ScalaClients.HttpClient.RewardsAtHeight(suite.T(), height)
 }
 
-func GetRewardsAtHeight(suite *f.BaseSuite, height uint64) (*client.RewardInfo, *client.RewardInfo) {
-	return GetRewardsAtHeightGo(suite, height), GetRewardsAtHeightScala(suite, height)
+func GetRewardsInfoAtHeight(suite *f.BaseSuite, height uint64) (*client.RewardInfo, *client.RewardInfo) {
+	return GetRewardsInfoAtHeightGo(suite, height), GetRewardsInfoAtHeightScala(suite, height)
 }
 
-func GetCurrentRewardGo(suite *f.BaseSuite, height uint64) uint64 {
+func GetCurrentRewardAtHeightGo(suite *f.BaseSuite, height uint64) uint64 {
 	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height).CurrentReward
 }
 
-func GetCurrentRewardScala(suite *f.BaseSuite, height uint64) uint64 {
+func GetCurrentRewardAtHeightScala(suite *f.BaseSuite, height uint64) uint64 {
 	return suite.Clients.ScalaClients.HttpClient.RewardsAtHeight(suite.T(), height).CurrentReward
 }
 
-func GetCurrentReward(suite *f.BaseSuite, height uint64) uint64 {
+func GetCurrentRewardAtHeight(suite *f.BaseSuite, height uint64) uint64 {
 	var currentReward uint64
-	currentRewardGo := GetCurrentRewardGo(suite, height)
-	currentRewardScala := GetCurrentRewardScala(suite, height)
+	currentRewardGo := GetCurrentRewardAtHeightGo(suite, height)
+	currentRewardScala := GetCurrentRewardAtHeightScala(suite, height)
 	if currentRewardGo == currentRewardScala {
 		currentReward = currentRewardGo
 	} else {
@@ -866,11 +941,11 @@ func GetCurrentReward(suite *f.BaseSuite, height uint64) uint64 {
 }
 
 func GetRewardTermAtHeightGo(suite *f.BaseSuite, height uint64) uint64 {
-	return GetRewardsAtHeightGo(suite, height).Term
+	return GetRewardsInfoAtHeightGo(suite, height).Term
 }
 
 func GetRewardTermAtHeightScala(suite *f.BaseSuite, height uint64) uint64 {
-	return GetRewardsAtHeightScala(suite, height).Term
+	return GetRewardsInfoAtHeightScala(suite, height).Term
 }
 
 func GetRewardTermAtHeight(suite *f.BaseSuite, height uint64) RewardTerm {
@@ -879,6 +954,22 @@ func GetRewardTermAtHeight(suite *f.BaseSuite, height uint64) RewardTerm {
 	suite.T().Logf("Go: Reward Term: %d, Scala: Reward Term: %d, height: %d",
 		termGo, termScala, height)
 	return NewRewardTerm(termGo, termScala)
+}
+
+func GetDaoAndXtnAddresses(suite *f.BaseSuite) (*proto.WavesAddress, *proto.WavesAddress) {
+	var daoAddress, xtnAddress *proto.WavesAddress
+	isBlockRewardDistributionActivated := isFeatureActivated(suite, settings.BlockRewardDistribution, GetHeight(suite))
+	isXtnBuybackCessationActivated := isFeatureActivated(suite, settings.XTNBuyBackCessation, GetHeight(suite))
+	currentRewardAddresses := suite.Cfg.BlockchainSettings.CurrentRewardAddresses(isXtnBuybackCessationActivated)
+	if isBlockRewardDistributionActivated && len(currentRewardAddresses) > 0 {
+		if dao, ok := suite.Cfg.BlockchainSettings.DAOAddress(isXtnBuybackCessationActivated); ok {
+			daoAddress = &dao
+		}
+		if xtn, ok := suite.Cfg.BlockchainSettings.XTNBuybackAddress(isXtnBuybackCessationActivated); ok {
+			xtnAddress = &xtn
+		}
+	}
+	return daoAddress, xtnAddress
 }
 
 type RewardTerm struct {
@@ -891,6 +982,10 @@ func NewRewardTerm(termGo, termScala uint64) RewardTerm {
 		TermGo:    termGo,
 		TermScala: termScala,
 	}
+}
+
+func GetVotes(suite *f.BaseSuite) {
+
 }
 
 func GetXtnBuybackPeriodCfg(suite *f.BaseSuite) uint64 {

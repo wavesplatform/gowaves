@@ -2,6 +2,7 @@ package utilities
 
 import (
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -95,6 +96,20 @@ func XtnBuyBackDiffBalanceInWavesCheck(t *testing.T, expected int64, actualGo, a
 	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
+func TotalWavesAmountCheck(t *testing.T, expected uint64, actualGo, actualScala uint64,
+	args ...interface{}) {
+	errMsg := makeErrorMessage("totalWavesAmount mismatch", args...)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
+}
+
+func MinIncrementCheck(t *testing.T, expected uint64, actualGo, actualScala uint64,
+	args ...interface{}) {
+	errMsg := makeErrorMessage("min increment mismatch", args...)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
+}
+
 func TermCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
 	errMsg := makeErrorMessage("Terms are mismatch", args...)
 	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
@@ -107,8 +122,34 @@ func VotingIntervalStartCheck(t *testing.T, expected uint64, actualGo, actualSca
 	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
+func VotingIntervalCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
+	errMsg := makeErrorMessage("VotingInterval parameters are mismatch", args...)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
+}
+
+func VotesCheck(t *testing.T, expected uint32, actualGo, actualScala uint32, args ...interface{}) {
+	errMsg := makeErrorMessage("Votes parameters are mismatch", args...)
+	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
+	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
+}
+
 func NextCheckParameterCheck(t *testing.T, expected uint64, actualGo, actualScala uint64, args ...interface{}) {
 	errMsg := makeErrorMessage("NextChecks are mismatch", args...)
 	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
 	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
+}
+
+func DaoAddressCheck(t *testing.T, expected *proto.WavesAddress, actualGo, actualScala *proto.WavesAddress,
+	args ...interface{}) {
+	errMsg := makeErrorMessage("dao addresses are mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}
+
+func XtnAddressCheck(t *testing.T, expected *proto.WavesAddress, actualGo, actualScala *proto.WavesAddress,
+	args ...interface{}) {
+	errMsg := makeErrorMessage("xtn addresses are mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }
