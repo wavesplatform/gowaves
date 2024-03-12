@@ -244,3 +244,30 @@ func padBytes(p byte, bytes []byte) []byte {
 	copy(r[1:], bytes)
 	return r
 }
+
+type IntChange[T constraints.Integer] struct {
+	present bool
+	value   T
+}
+
+func NewIntChange[T constraints.Integer](v T) IntChange[T] {
+	return IntChange[T]{
+		present: v != 0, // zero change can't be considered as present
+		value:   v,
+	}
+}
+
+func (v IntChange[T]) Value() T { return v.value }
+
+func (v IntChange[T]) Present() bool { return v.present }
+
+func (v IntChange[T]) Add(other IntChange[T]) (IntChange[T], error) {
+	r, err := AddInt(v.Value(), other.Value())
+	if err != nil {
+		return IntChange[T]{}, err
+	}
+	return IntChange[T]{
+		present: v.Present() || other.Present(), // if one of the values has been present, the result is present
+		value:   r,
+	}, nil
+}
