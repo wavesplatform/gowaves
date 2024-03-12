@@ -73,6 +73,7 @@ type StateInfo interface {
 	ApprovalHeight(featureID int16) (proto.Height, error)
 	AllFeatures() ([]int16, error)
 	EstimatorVersion() (int, error)
+	IsActiveLightNodeNewBlocksFields() (bool, error)
 
 	// Aliases.
 	AddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
@@ -122,6 +123,7 @@ type StateInfo interface {
 	// State hashes.
 	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
 	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
+	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)

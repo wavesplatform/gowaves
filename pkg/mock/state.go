@@ -298,6 +298,21 @@ func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockStateInfo)(nil).BlockchainSettings))
 }
 
+// CreateNextSnapshotHash mocks base method.
+func (m *MockStateInfo) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateNextSnapshotHash", block)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNextSnapshotHash indicates an expected call of CreateNextSnapshotHash.
+func (mr *MockStateInfoMockRecorder) CreateNextSnapshotHash(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNextSnapshotHash", reflect.TypeOf((*MockStateInfo)(nil).CreateNextSnapshotHash), block)
+}
+
 // CurrentScore mocks base method.
 func (m *MockStateInfo) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -521,6 +536,21 @@ func (m *MockStateInfo) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 func (mr *MockStateInfoMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLeasing", reflect.TypeOf((*MockStateInfo)(nil).IsActiveLeasing), leaseID)
+}
+
+// IsActiveLightNodeNewBlocksFields mocks base method.
+func (m *MockStateInfo) IsActiveLightNodeNewBlocksFields() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActiveLightNodeNewBlocksFields")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsActiveLightNodeNewBlocksFields indicates an expected call of IsActiveLightNodeNewBlocksFields.
+func (mr *MockStateInfoMockRecorder) IsActiveLightNodeNewBlocksFields() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLightNodeNewBlocksFields", reflect.TypeOf((*MockStateInfo)(nil).IsActiveLightNodeNewBlocksFields))
 }
 
 // IsApproved mocks base method.
@@ -1625,6 +1655,21 @@ func (mr *MockStateMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockState)(nil).Close))
 }
 
+// CreateNextSnapshotHash mocks base method.
+func (m *MockState) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateNextSnapshotHash", block)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNextSnapshotHash indicates an expected call of CreateNextSnapshotHash.
+func (mr *MockStateMockRecorder) CreateNextSnapshotHash(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNextSnapshotHash", reflect.TypeOf((*MockState)(nil).CreateNextSnapshotHash), block)
+}
+
 // CurrentScore mocks base method.
 func (m *MockState) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -1848,6 +1893,21 @@ func (m *MockState) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 func (mr *MockStateMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLeasing", reflect.TypeOf((*MockState)(nil).IsActiveLeasing), leaseID)
+}
+
+// IsActiveLightNodeNewBlocksFields mocks base method.
+func (m *MockState) IsActiveLightNodeNewBlocksFields() (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActiveLightNodeNewBlocksFields")
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsActiveLightNodeNewBlocksFields indicates an expected call of IsActiveLightNodeNewBlocksFields.
+func (mr *MockStateMockRecorder) IsActiveLightNodeNewBlocksFields() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLightNodeNewBlocksFields", reflect.TypeOf((*MockState)(nil).IsActiveLightNodeNewBlocksFields))
 }
 
 // IsApproved mocks base method.

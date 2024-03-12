@@ -416,7 +416,7 @@ type appendTxParams struct {
 	rideV6Activated                  bool
 	consensusImprovementsActivated   bool
 	blockRewardDistributionActivated bool
-	invokeExpressionActivated        bool // TODO: check feature naming
+	lightNodeActivated               bool
 	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
 	currentMinerPK                   crypto.PublicKey
 }
@@ -670,7 +670,7 @@ func (a *txAppender) appendTxs(
 	if err != nil {
 		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
-	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
 		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
@@ -687,7 +687,7 @@ func (a *txAppender) appendTxs(
 		rideV6Activated:                  info.rideV6Activated,
 		consensusImprovementsActivated:   consensusImprovementsActivated,
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
-		invokeExpressionActivated:        invokeExpressionActivated,
+		lightNodeActivated:               lightNodeActivated,
 		validatingUtx:                    false,
 		currentMinerPK:                   params.block.GeneratorPublicKey,
 	}
@@ -788,7 +788,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	defer hasher.Release()
 
-	stateHash, err := a.createInitialDiffAndStateHash(params, hasParent, blockInfo, hasher)
+	stateHash, err := a.createInitialDiffAndStateHash(params, hasParent, blockInfo.Height, hasher)
 	if err != nil {
 		return err
 	}
@@ -852,7 +852,7 @@ func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo,
 func (a *txAppender) createInitialDiffAndStateHash(
 	params *appendBlockParams,
 	hasParent bool,
-	blockInfo *proto.BlockInfo,
+	currentBlockHeight proto.Height,
 	hasher *txSnapshotHasher,
 ) (crypto.Digest, error) {
 	// Create miner balance diff.
@@ -868,8 +868,6 @@ func (a *txAppender) createInitialDiffAndStateHash(
 	if err != nil {
 		return crypto.Digest{}, errors.Wrap(err, "failed to create initial snapshot")
 	}
-
-	currentBlockHeight := blockInfo.Height
 
 	// Save miner diff first (for validation)
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
@@ -1023,6 +1021,15 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 			scriptsRuns++
 		}
 	}
+	// check attachment in order
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
+	if err != nil {
+		return nil, err
+	}
+	if !lightNodeActivated &&
+		(exchange.GetOrder1().GetAttachment().Size() != 0 || exchange.GetOrder2().GetAttachment().Size() != 0) {
+		return nil, errors.New("Attachment field for orders is not supported yet")
+	}
 	// Validate transaction, orders and extract smart assets.
 	checkerData, err := a.txHandler.checkTx(tx, info.checkerInfo)
 	if err != nil {
@@ -1135,9 +1142,9 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
 	}
-	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
+		return errs.Extend(err, "failed to check 'Light Node' is activated")
 	}
 	// it's correct to use new proto.StateActionsCounter because there's no block exists,
 	// but this field is necessary in tx performer
@@ -1155,7 +1162,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		rideV6Activated:                  rideV6Activated,
 		consensusImprovementsActivated:   consensusImprovementsActivated,
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
-		invokeExpressionActivated:        invokeExpressionActivated,
+		lightNodeActivated:               lightNodeActivated,
 		validatingUtx:                    true,
 	}
 	_, err = a.appendTx(tx, appendTxArgs)
@@ -1163,6 +1170,21 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return proto.NewInfoMsg(err)
 	}
 	return nil
+}
+
+func (a *txAppender) createNextSnapshotHash(
+	block *proto.BlockHeader,
+	currentHeight proto.Height,
+	prevSH crypto.Digest,
+) (crypto.Digest, error) {
+	hasher, err := newTxSnapshotHasherDefault()
+	if err != nil {
+		return crypto.Digest{},
+			errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentHeight)
+	}
+	defer hasher.Release()
+	params := &appendBlockParams{block: block, lastSnapshotStateHash: prevSH}
+	return a.createInitialDiffAndStateHash(params, true, currentHeight+1, hasher)
 }
 
 func (a *txAppender) reset() {

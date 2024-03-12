@@ -10,6 +10,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -432,7 +433,7 @@ type environment interface {
 	rideV6Activated() bool
 	consensusImprovementsActivated() bool
 	blockRewardDistributionActivated() bool
-	invokeExpressionActivated() bool // TODO: check naming
+	lightNodeActivated() bool
 	internalPaymentsValidationHeight() uint64
 	maxDataEntriesSize() int
 	isProtobufTx() bool

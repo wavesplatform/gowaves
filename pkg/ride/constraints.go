@@ -4,6 +4,7 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
@@ -24,7 +25,7 @@ func MaxChainInvokeComplexityByVersion(version ast.LibraryVersion) (uint32, erro
 		return maxChainInvokeComplexityV3V4, nil
 	case ast.LibV5:
 		return maxChainInvokeComplexityV5, nil
-	case ast.LibV6, ast.LibV7:
+	case ast.LibV6, ast.LibV7, ast.LibV8:
 		return maxChainInvokeComplexityV6, nil
 	default:
 		return 0, errors.Errorf("unsupported library version %d", version)

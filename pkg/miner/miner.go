@@ -2,7 +2,6 @@ package miner
 
 import (
 	"context"
-
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -65,7 +64,18 @@ func (a *MicroblockMiner) MineKeyBlock(
 		return nil, proto.MiningLimits{}, err
 	}
 	b := bi.(*proto.Block)
-
+	lightNodeNewBlockActivated, err := a.state.IsActiveLightNodeNewBlocksFields()
+	if err != nil {
+		return nil, proto.MiningLimits{}, err
+	}
+	if lightNodeNewBlockActivated {
+		sh, errSH := a.state.CreateNextSnapshotHash(b)
+		if errSH != nil {
+			return nil, proto.MiningLimits{}, errors.Wrapf(errSH,
+				"failed to create snapshot hash for block %s", b.ID.String())
+		}
+		b.StateHash = &sh
+	}
 	activated, err := a.state.IsActivated(int16(settings.RideV5))
 	if err != nil {
 		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated",

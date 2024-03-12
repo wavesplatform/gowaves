@@ -389,29 +389,124 @@ func TestFailOnInvocationInVerifier(t *testing.T) {
 }
 
 func TestScope(t *testing.T) {
-	src := `
-		{-# STDLIB_VERSION 5 #-}
+	for _, test := range []struct {
+		source      string
+		estimation  int
+		estimations map[string]int
+	}{
+		{`
+		{-# STDLIB_VERSION 6 #-}
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
-
 		let a = {
-  			func bar(i: Int) = i
-  			bar(1)
+			func bar(i: Int) = i
+			bar(1)
 		}
 		let b = {
-  			func bar(i: Int) = i
-  			bar(a)
+			func bar(i: Int) = i
+			bar(a)
 		}
+		@Callable(i)
+		func empty() = [IntegerEntry("empty", 0)]
+		@Callable(i)
+		func aa() = [IntegerEntry("a", a)]
+		@Callable(i)
+		func bb() = [IntegerEntry("b", b)]
+		`,
+			0, map[string]int{"empty": 3, "aa": 3 + 1, "bb": 3 + 2},
+		},
+		{`
+		{-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		let a = {
+			func bar(i: Int) = i
+			bar(1)
+		}
+		let b = {
+			let c = {
+		 		let d = {
+		   		func bar(i: Int) = i
+		   		bar(a)
+		 		}
+		 		func bar(i: Int) = i
+		 		bar(d)
+			}
+			func bar(i: Int) = i
+			bar(c)
+		}
+		let e = {
+			func bar(i: Int) = i
+			bar(b)
+		}
+		@Callable(i)
+		func aa() = [IntegerEntry("a", a)]
+		@Callable(i)
+		func bb() = [IntegerEntry("b", b)]
+		@Callable(i)
+		func ee() = [IntegerEntry("e", e)]
+		`,
+			0, map[string]int{"aa": 3 + 1, "bb": 3 + 4, "ee": 3 + 5},
+		},
+		{`
+		{-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		let l = []
+		let a = {
+			func foo(fooAcc: Int, i: Int) = fooAcc + i
+			FOLD<1>(l, 0, foo)
+		}
+		let b = {
+			func bar(barAcc: Int, i: Int) = barAcc + i
+			FOLD<1>(l, a, bar)
+		}
+		@Callable(i)
+		func aa() = [IntegerEntry("a", a)]
+		@Callable(i)
+		func bb() = [IntegerEntry("b", b)]
+		`,
+			0, map[string]int{"aa": 3 + 8, "bb": 3 + 16},
+		},
+		{`
+		{-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		let a = 1 + 1 + 1
+		let b = a + 1 + 1
+		let c = b + a + 1
+		
+		@Callable(i)
+		func aa() = [IntegerEntry("a", a)]
+		@Callable(i)
+		func bb() = [IntegerEntry("b", b)]
+		@Callable(i)
+		func cc() = [IntegerEntry("c", c)]
+		`,
+			0, map[string]int{"aa": 3 + 2, "bb": 3 + 4, "cc": 3 + 6},
+		},
+		{`{-# STDLIB_VERSION 6 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		let a = groth16Verify(base58'', base58'', base58'')
+		func f(a: Boolean) = a
 		@Verifier(tx)
-		func verify() = a == b
-`
-	tree, errs := ridec.CompileToTree(src)
-	require.Empty(t, errs)
+		func verify() = f(true)`,
+			2701, nil,
+		},
+	} {
+		tree, errs := ridec.CompileToTree(test.source)
+		require.Empty(t, errs, test.source)
 
-	est, err := EstimateTree(tree, 3)
-	assert.NoError(t, err)
-	assert.Equal(t, 7, est.Estimation)
-	est, err = EstimateTree(tree, 4)
-	assert.NoError(t, err)
-	assert.Equal(t, 3, est.Estimation)
+		est, err := EstimateTree(tree, 4)
+		assert.NoError(t, err, test.source)
+		if test.estimation > 0 {
+			assert.Equal(t, test.estimation, est.Estimation)
+		}
+		for fn, ee := range test.estimations {
+			ae, ok := est.Functions[fn]
+			require.True(t, ok)
+			assert.Equal(t, ee, ae, test.source)
+		}
+	}
 }

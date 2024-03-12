@@ -115,7 +115,7 @@ func (p *astParser) addError(token token32, format string, args ...any) {
 }
 
 func (p *astParser) loadBuildInVarsToStackByVersion() {
-	resVars := make(map[string]s.Variable, 0)
+	resVars := make(map[string]s.Variable)
 	ver := int(p.tree.LibVersion)
 	for i := 0; i < ver; i++ {
 		for _, v := range s.Vars().Vars[i].Append {
@@ -136,7 +136,7 @@ func (p *astParser) loadBuildInVarsToStackByVersion() {
 			Type: txType,
 		})
 	}
-	if p.tree.LibVersion >= ast.LibV4 && p.tree.LibVersion <= ast.LibV7 {
+	if p.tree.LibVersion >= ast.LibV4 && p.tree.LibVersion <= ast.CurrentMaxLibraryVersion() {
 		if p.scriptType == assetScript {
 			p.stack.pushVariable(s.Variable{
 				Name: "this",
@@ -912,6 +912,8 @@ func (p *astParser) ruleListGroupOpAtomHandler(node *node32) (ast.Node, s.Type) 
 				p.addError(curNode.token32, "Unexpected types for '++' operator '%s' and '%s'", varType, nextVarType)
 				return nil, nil
 			}
+		default:
+			panic("unhandled default case")
 		}
 		expr = ast.NewFunctionCallNode(funcId, []ast.Node{expr, nextExpr})
 		curNode = curNode.next
@@ -1714,7 +1716,7 @@ func (p *astParser) loadMeta(name string, argsTypes []s.Type) error {
 	switch p.tree.LibVersion {
 	case ast.LibV1, ast.LibV2, ast.LibV3, ast.LibV4, ast.LibV5:
 		return p.loadMetaBeforeV6(name, argsTypes)
-	case ast.LibV6, ast.LibV7:
+	case ast.LibV6, ast.LibV7, ast.LibV8:
 		return p.loadMetaV6(name, argsTypes)
 	}
 	return nil
@@ -1846,7 +1848,7 @@ func (p *astParser) ruleAnnotatedFunc(node *node32) {
 			if !s.CallableRetV4.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(curNode.token32, "CallableFunc must return %s,but return %s", s.CallableRetV4.String(), retType.String())
 			}
-		case ast.LibV5, ast.LibV6, ast.LibV7:
+		case ast.LibV5, ast.LibV6, ast.LibV7, ast.LibV8:
 			if !s.CallableRetV5.EqualWithEntry(retType) && !s.ThrowType.Equal(retType) {
 				p.addError(curNode.token32, "CallableFunc must return %s, but return %s", s.CallableRetV5.String(), retType.String())
 			}
@@ -2357,12 +2359,19 @@ func (p *astParser) ruleFoldMacroHandler(node *node32) (ast.Node, s.Type) {
 	}
 	curNode = skipToNextRule(curNode.next)
 	arr, arrVarType := p.ruleExprHandler(curNode)
-	var elemType s.Type
-	if l, ok := arrVarType.(s.ListType); !ok {
-		p.addError(curNode.token32, "First argument of fold must be List, but '%s' found", arrVarType.String())
+	if arr == nil {
+		p.addError(curNode.token32, "Undefined first argument of FOLD macros")
 		return nil, nil
-	} else {
-		elemType = l.Type
+	}
+	l, ok := arrVarType.(s.ListType)
+	if !ok {
+		p.addError(curNode.token32, "First argument of FOLD macros must be List, but '%s' found",
+			arrVarType.String())
+		return nil, nil
+	}
+	elemType := l.Type
+	if elemType == nil { // If the type of elements is unknown, set it to Any.
+		elemType = s.AnyType
 	}
 	curNode = skipToNextRule(curNode.next)
 	start, startVarType := p.ruleExprHandler(curNode)
