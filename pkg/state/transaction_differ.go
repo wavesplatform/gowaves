@@ -50,9 +50,9 @@ type balanceDiff struct {
 	// Balance change.
 	balance int64
 	// LeaseIn change.
-	leaseIn int64
+	leaseIn common.IntChange[int64]
 	// LeaseOut change.
-	leaseOut int64
+	leaseOut common.IntChange[int64]
 	blockID  proto.BlockID
 }
 
@@ -60,8 +60,8 @@ func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalan
 	diff := balanceDiff{
 		updateMinIntermediateBalance: updateMinIntermediateBalance,
 		balance:                      balance,
-		leaseIn:                      leaseIn,
-		leaseOut:                     leaseOut,
+		leaseIn:                      common.NewIntChange(leaseIn),
+		leaseOut:                     common.NewIntChange(leaseOut),
 	}
 	if updateMinIntermediateBalance {
 		diff.minBalance = balance
@@ -98,12 +98,12 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 	if newBalance < 0 {
 		return balanceProfile{}, errors.New("negative result balance (Attempt to transfer unavailable funds)")
 	}
-	newLeaseIn, err := common.AddInt(diff.leaseIn, profile.leaseIn)
+	newLeaseIn, err := common.AddInt(diff.leaseIn.Value(), profile.leaseIn)
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add leaseIn and leaseIn diff: %v", err)
 	}
 	// Check leasing change.
-	newLeaseOut, err := common.AddInt(diff.leaseOut, profile.leaseOut)
+	newLeaseOut, err := common.AddInt(diff.leaseOut.Value(), profile.leaseOut)
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add leaseOut and leaseOut diff: %v", err)
 	}
@@ -145,10 +145,10 @@ func (diff *balanceDiff) addCommon(prevDiff *balanceDiff) error {
 	if diff.balance, err = common.AddInt(diff.balance, prevDiff.balance); err != nil {
 		return errors.Errorf("failed to add balance diffs: %v\n", err)
 	}
-	if diff.leaseIn, err = common.AddInt(diff.leaseIn, prevDiff.leaseIn); err != nil {
+	if diff.leaseIn, err = diff.leaseIn.Add(prevDiff.leaseIn); err != nil {
 		return errors.Errorf("failed to add LeaseIn diffs: %v\n", err)
 	}
-	if diff.leaseOut, err = common.AddInt(diff.leaseOut, prevDiff.leaseOut); err != nil {
+	if diff.leaseOut, err = diff.leaseOut.Add(prevDiff.leaseOut); err != nil {
 		return errors.Errorf("failed to add LeaseOut diffs: %v\n", err)
 	}
 	return nil

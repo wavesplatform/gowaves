@@ -4,7 +4,9 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func createBlockDiff(blockID proto.BlockID) blockDiff {
@@ -12,8 +14,13 @@ func createBlockDiff(blockID proto.BlockID) blockDiff {
 		minerDiff: txDiff{testGlobal.minerInfo.wavesKey: balanceDiff{minBalance: 60, balance: 60, blockID: blockID}},
 		txDiffs: []txDiff{
 			{
-				testGlobal.minerInfo.wavesKey:     balanceDiff{minBalance: 20, balance: 20, blockID: blockID},
-				testGlobal.recipientInfo.wavesKey: balanceDiff{minBalance: -50, balance: -50, leaseOut: 200, blockID: blockID},
+				testGlobal.minerInfo.wavesKey: balanceDiff{minBalance: 20, balance: 20, blockID: blockID},
+				testGlobal.recipientInfo.wavesKey: balanceDiff{
+					minBalance: -50,
+					balance:    -50,
+					leaseOut:   common.NewIntChange[int64](200),
+					blockID:    blockID,
+				},
 			},
 			{
 				testGlobal.minerInfo.wavesKey:     balanceDiff{minBalance: 20, balance: 20, blockID: blockID},
@@ -34,7 +41,12 @@ func TestSaveBlockDiff(t *testing.T) {
 		[]byte(testGlobal.minerInfo.wavesKey),
 		[]balanceDiff{minerTotalDiff},
 	}
-	recipientTotalDiff := balanceDiff{minBalance: -50, balance: 450, leaseOut: 200, blockID: blockID0}
+	recipientTotalDiff := balanceDiff{
+		minBalance: -50,
+		balance:    450,
+		leaseOut:   common.NewIntChange[int64](200),
+		blockID:    blockID0,
+	}
 	recipientChange := balanceChanges{
 		[]byte(testGlobal.recipientInfo.wavesKey),
 		[]balanceDiff{recipientTotalDiff},
@@ -54,7 +66,12 @@ func TestSaveBlockDiff(t *testing.T) {
 		[]byte(testGlobal.minerInfo.wavesKey),
 		[]balanceDiff{minerTotalDiff, minerTotalDiff1},
 	}
-	recipientTotalDiff1 := balanceDiff{minBalance: -50, balance: 900, leaseOut: 400, blockID: blockID1}
+	recipientTotalDiff1 := balanceDiff{
+		minBalance: -50,
+		balance:    900,
+		leaseOut:   common.NewIntChange[int64](400),
+		blockID:    blockID1,
+	}
 	recipientChange = balanceChanges{
 		[]byte(testGlobal.recipientInfo.wavesKey),
 		[]balanceDiff{recipientTotalDiff, recipientTotalDiff1},

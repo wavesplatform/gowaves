@@ -1150,7 +1150,7 @@ func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(change balanceDiff, a
 
 func (sg *snapshotGenerator) addWavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme proto.Scheme,
 	addrWavesBalanceDiff addressWavesBalanceDiff) error {
-	if change.balance == 0 && change.leaseOut == 0 && change.leaseIn == 0 {
+	if change.balance == 0 && !change.leaseOut.Present() && !change.leaseIn.Present() {
 		return nil
 	}
 	wavesBalanceK := &wavesBalanceKey{}
@@ -1226,13 +1226,13 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			}
 			wavesBalances = append(wavesBalances, newBalanceSnapshot)
 		}
-		if diffAmount.leaseIn != 0 || diffAmount.leaseOut != 0 {
+		if diffAmount.leaseIn.Present() || diffAmount.leaseOut.Present() {
 			// Don't check for overflow & negative leaseIn/leaseOut because overflowed addresses
 			// See `balances.generateLeaseBalanceSnapshotsForLeaseOverflows` for details
 			newLeaseBalance := proto.LeaseBalanceSnapshot{
 				Address:  wavesAddress,
-				LeaseIn:  uint64(fullBalance.leaseIn + diffAmount.leaseIn),
-				LeaseOut: uint64(fullBalance.leaseOut + diffAmount.leaseOut),
+				LeaseIn:  uint64(fullBalance.leaseIn + diffAmount.leaseIn.Value()),
+				LeaseOut: uint64(fullBalance.leaseOut + diffAmount.leaseOut.Value()),
 			}
 			leaseBalances = append(leaseBalances, newLeaseBalance)
 		}
