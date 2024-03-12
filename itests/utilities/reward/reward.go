@@ -130,6 +130,8 @@ func GetRewardInfoAndChecks(suite *f.BaseSuite, testdata GetTestDataForRewardInf
 func GetRewardInfoAtHeightAndChecks(suite *f.BaseSuite, testdata GetTestDataForRewardInfo, height uint64) {
 	rewardInfoGo, rewardInfoScala := utl.GetRewardsInfoAtHeight(suite, height)
 	td := testdata(suite)
+	utl.TotalWavesAmountCheck(suite.T(), td.Expected.TotalWavesAmount, rewardInfoGo.TotalWavesAmount,
+		rewardInfoScala.TotalWavesAmount)
 	utl.MinIncrementCheck(suite.T(), td.Expected.MinIncrement, rewardInfoGo.MinIncrement, rewardInfoScala.MinIncrement)
 	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
 	utl.NextCheckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
