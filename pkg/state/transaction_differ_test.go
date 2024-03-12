@@ -1301,9 +1301,9 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
 	minerFee := calculateCurrentBlockTxFee(feeInWaves, true) // NG is activated
 	recipientAssetDiff := balanceDiff{
-		balance:                      int64(totalAssetAmount),
+		balance:                      ich(int64(totalAssetAmount)),
 		updateMinIntermediateBalance: true,
-		minBalance:                   int64(paymentAmount0),
+		minBalance:                   ich(int64(paymentAmount0)),
 	}
 	correctDiff := txDiff{
 		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Fee+totalAssetAmount), 0, 0, true),

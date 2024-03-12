@@ -31,7 +31,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	// Test applying valid change.
-	diff := balanceDiff{balance: 100, blockID: blockID0}
+	diff := balanceDiff{balance: ich(100), blockID: blockID0}
 	changes := []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
@@ -40,9 +40,9 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	to.stor.flush(t)
 	profile, err := to.stor.entities.balances.wavesBalance(testGlobal.senderInfo.addr.ID())
 	assert.NoError(t, err, "wavesBalance() failed")
-	assert.Equal(t, diff.balance, int64(profile.balance))
+	assert.Equal(t, diff.balance.Value(), int64(profile.balance))
 	// Test applying invalid balance change.
-	diff = balanceDiff{balance: -101, blockID: blockID0}
+	diff = balanceDiff{balance: ich(-101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
@@ -74,7 +74,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	err = to.applier.applyBalancesChanges(changes)
 	assert.Error(t, err, "applyBalancesChanges() did not fail when spending leased money")
 	// Spending leased money leads to error.
-	diff = balanceDiff{balance: -101, blockID: blockID0}
+	diff = balanceDiff{balance: ich(-101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
@@ -87,7 +87,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	// Test applying valid change.
-	diff := balanceDiff{balance: 100, blockID: blockID0}
+	diff := balanceDiff{balance: ich(100), blockID: blockID0}
 	changes := []balanceChanges{
 		{[]byte(testGlobal.senderInfo.assetKeys[0]), []balanceDiff{diff}},
 	}
@@ -99,9 +99,9 @@ func TestDiffApplierWithAssets(t *testing.T) {
 		proto.AssetIDFromDigest(testGlobal.asset0.assetID),
 	)
 	assert.NoError(t, err, "assetBalance() failed")
-	assert.Equal(t, diff.balance, int64(balance))
+	assert.Equal(t, diff.balance.Value(), int64(balance))
 	// Test applying invalid balance change.
-	diff = balanceDiff{balance: -101, blockID: blockID0}
+	diff = balanceDiff{balance: ich(-101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.assetKeys[0]), []balanceDiff{diff}},
 	}

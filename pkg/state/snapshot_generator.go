@@ -1131,7 +1131,7 @@ func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 
 func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(change balanceDiff, assetKey []byte, scheme proto.Scheme,
 	addrAssetBalanceDiff addressAssetBalanceDiff) error {
-	if change.balance == 0 {
+	if !change.balance.Present() {
 		return nil
 	}
 	assetBalanceK := &assetBalanceKey{}
@@ -1144,13 +1144,13 @@ func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(change balanceDiff, a
 		return errors.Wrap(cnvrtErr, "failed to convert address id to waves address")
 	}
 	assetBalKey := assetBalanceDiffKey{address: address, asset: asset}
-	addrAssetBalanceDiff[assetBalKey] = change.balance
+	addrAssetBalanceDiff[assetBalKey] = change.balance.Value()
 	return nil
 }
 
 func (sg *snapshotGenerator) addWavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme proto.Scheme,
 	addrWavesBalanceDiff addressWavesBalanceDiff) error {
-	if change.balance == 0 && !change.leaseOut.Present() && !change.leaseIn.Present() {
+	if !change.balance.Present() && !change.leaseOut.Present() && !change.leaseIn.Present() {
 		return nil
 	}
 	wavesBalanceK := &wavesBalanceKey{}
@@ -1209,12 +1209,12 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
-		if diffAmount.balance != 0 {
-			newBalance, bErr := common.AddInt(int64(fullBalance.balance), diffAmount.balance) // sum & sanity check
+		if diffAmount.balance.Present() {
+			newBalance, bErr := common.AddInt(int64(fullBalance.balance), diffAmount.balance.Value())
 			if bErr != nil {
 				return nil, nil, errors.Wrapf(bErr,
 					"failed to calculate waves balance for addr %q: failed to add %d to %d",
-					wavesAddress.String(), diffAmount.balance, fullBalance.balance,
+					wavesAddress.String(), diffAmount.balance.Value(), fullBalance.balance,
 				)
 			}
 			if newBalance < 0 { // sanity check
