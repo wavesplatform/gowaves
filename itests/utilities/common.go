@@ -358,8 +358,9 @@ func GetTotalWavesAmount(suite *f.BaseSuite) uint64 {
 	var totalWavesAmount uint64
 	totalWavesAmountGo := GetTotalWavesAmountGo(suite)
 	totalWavesAmountScala := GetTotalWavesAmountScala(suite)
-	if totalWavesAmountGo == totalWavesAmountScala {
-		totalWavesAmount = totalWavesAmountGo
+	totalWavesAmount = totalWavesAmountScala
+	if totalWavesAmountGo != totalWavesAmountScala {
+		require.FailNow(suite.T(), "total Waves amount Go and total Waves amount Scala are not equal")
 	}
 	return totalWavesAmount
 }
