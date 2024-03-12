@@ -162,8 +162,15 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	if err != nil {
 		return nil, err
 	}
-	// TODO: check if light node feature activated + 1000 blocks
-	newBlock.StateHash = micro.StateHash
+
+	ok, err = a.baseInfo.storage.IsActiveLightNodeNewBlocksFields()
+	if err != nil {
+		return nil, a.Errorf(err)
+	}
+	if ok {
+		newBlock.StateHash = micro.StateHash
+	}
+
 	newBlock.BlockSignature = micro.TotalResBlockSigField
 	ok, err = newBlock.VerifySignature(a.baseInfo.scheme)
 	if err != nil {

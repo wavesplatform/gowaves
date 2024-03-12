@@ -793,7 +793,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	defer hasher.Release()
 
-	stateHash, err := a.createInitialDiffAndStateHash(params, hasParent, blockInfo, hasher)
+	stateHash, err := a.createInitialDiffAndStateHash(params, hasParent, blockInfo.Height, hasher)
 	if err != nil {
 		return err
 	}
@@ -857,7 +857,7 @@ func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo,
 func (a *txAppender) createInitialDiffAndStateHash(
 	params *appendBlockParams,
 	hasParent bool,
-	blockInfo *proto.BlockInfo,
+	currentBlockHeight proto.Height,
 	hasher *txSnapshotHasher,
 ) (crypto.Digest, error) {
 	// Create miner balance diff.
@@ -873,8 +873,6 @@ func (a *txAppender) createInitialDiffAndStateHash(
 	if err != nil {
 		return crypto.Digest{}, errors.Wrap(err, "failed to create initial snapshot")
 	}
-
-	currentBlockHeight := blockInfo.Height
 
 	// Save miner diff first (for validation)
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
@@ -1177,6 +1175,21 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		return proto.NewInfoMsg(err)
 	}
 	return nil
+}
+
+func (a *txAppender) createNextSnapshotHash(
+	block *proto.BlockHeader,
+	currentHeight proto.Height,
+	prevSH crypto.Digest,
+) (crypto.Digest, error) {
+	hasher, err := newTxSnapshotHasherDefault()
+	if err != nil {
+		return crypto.Digest{},
+			errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentHeight)
+	}
+	defer hasher.Release()
+	params := &appendBlockParams{block: block, lastSnapshotStateHash: prevSH}
+	return a.createInitialDiffAndStateHash(params, true, currentHeight+1, hasher)
 }
 
 func (a *txAppender) reset() {

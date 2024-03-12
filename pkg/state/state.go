@@ -2000,6 +2000,37 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 	return nil
 }
 
+func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	curHeight, err := s.Height()
+	if err != nil {
+		return crypto.Digest{}, err
+	}
+	prevSH, err := s.stor.stateHashes.newestSnapshotStateHash(curHeight)
+	if err != nil {
+		return crypto.Digest{}, err
+	}
+	return s.appender.createNextSnapshotHash(&block.BlockHeader, curHeight, prevSH)
+}
+
+func (s *stateManager) IsActiveLightNodeNewBlocksFields() (bool, error) {
+	activated, err := s.IsActivated(int16(settings.LightNode))
+	if err != nil {
+		return false, err
+	}
+	if !activated {
+		return false, nil
+	}
+	activationHeight, err := s.ActivationHeight(int16(settings.LightNode))
+	if err != nil {
+		return false, err
+	}
+	currentHeight, err := s.Height()
+	if err != nil {
+		return false, err
+	}
+	return currentHeight >= activationHeight+s.settings.LightNodeBlockFieldsAbsenceInterval, nil
+}
+
 func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias)
 	if err != nil {

@@ -11,6 +11,7 @@ import (
 	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
@@ -269,4 +270,12 @@ func processScoreAfterApplyingOrReturnToNG(
 		}
 	}
 	return newNGStateWithCache(baseInfo, cache), nil, nil
+}
+
+func getTopBlockSnapshotHash(info BaseInfo) (crypto.Digest, error) {
+	h, err := info.storage.Height()
+	if err != nil {
+		return crypto.Digest{}, err
+	}
+	return info.storage.SnapshotStateHashAtHeight(h)
 }

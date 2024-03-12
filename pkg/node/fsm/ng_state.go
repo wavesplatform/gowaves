@@ -295,7 +295,17 @@ func (a *NGState) mineMicro(
 	if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to broadcast generated microblock"))
 	}
-
+	ok, err := a.baseInfo.storage.IsActiveLightNodeNewBlocksFields()
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+	if ok {
+		sh, errSh := getTopBlockSnapshotHash(a.baseInfo)
+		if errSh != nil {
+			return a, nil, a.Errorf(errSh)
+		}
+		micro.StateHash = &sh
+	}
 	a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 	a.baseInfo.MicroBlockInvCache.Add(block.BlockID(), inv)
 

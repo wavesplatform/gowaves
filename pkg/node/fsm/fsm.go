@@ -235,6 +235,7 @@ func (f *FSM) PeerError(p peer.Peer, e error) (Async, error) {
 
 func (f *FSM) Score(p peer.Peer, score *proto.Score) (Async, error) {
 	asyncRes := &Async{}
+	f.fsm.Firing()
 	err := f.fsm.Fire(ScoreEvent, asyncRes, p, score)
 	return *asyncRes, err
 }
