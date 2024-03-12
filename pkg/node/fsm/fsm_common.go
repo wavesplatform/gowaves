@@ -230,3 +230,25 @@ func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
 	)
 	return nil
 }
+
+func processScoreAfterApplyingOrReturnToNG(
+	state State,
+	baseInfo BaseInfo,
+	scores []ReceivedScore,
+	cache blockStatesCache,
+) (State, Async, error) {
+	for _, s := range scores {
+		if err := baseInfo.peers.UpdateScore(s.Peer, s.Score); err != nil {
+			return state, nil, state.Errorf(proto.NewInfoMsg(err))
+		}
+		nodeScore, err := baseInfo.storage.CurrentScore()
+		if err != nil {
+			return state, nil, state.Errorf(err)
+		}
+		if s.Score.Cmp(nodeScore) == 1 {
+			// received score is larger than local score
+			return syncWithNewPeer(state, baseInfo, s.Peer)
+		}
+	}
+	return newNGStateWithCache(baseInfo, cache), nil, nil
+}

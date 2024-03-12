@@ -20,6 +20,13 @@ type WaitSnapshotState struct {
 	blocksCache             blockStatesCache
 	timeoutTaskOutdated     chan<- struct{}
 	blockWaitingForSnapshot *proto.Block
+
+	receivedScores []ReceivedScore
+}
+
+type ReceivedScore struct {
+	Peer  peer.Peer
+	Score *proto.Score
 }
 
 func newWaitSnapshotState(baseInfo BaseInfo, block *proto.Block, cache blockStatesCache) (State, tasks.Task) {
@@ -30,6 +37,7 @@ func newWaitSnapshotState(baseInfo BaseInfo, block *proto.Block, cache blockStat
 		blocksCache:             cache,
 		timeoutTaskOutdated:     timeoutTaskOutdated,
 		blockWaitingForSnapshot: block,
+		receivedScores:          nil,
 	}
 	task := tasks.NewBlockSnapshotTimeoutTask(time.Minute, block.BlockID(), timeoutTaskOutdated)
 	return st, task
@@ -62,8 +70,9 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 		switch t.SnapshotTaskType {
 		case tasks.BlockSnapshot:
 			defer a.cleanupBeforeTransition()
-			return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, a.Errorf(errors.Errorf(
-				"failed to get snapshot for block '%s' - timeout", t.BlockID))
+			zap.S().Errorf("%v", a.Errorf(errors.Errorf(
+				"failed to get snapshot for block '%s' - timeout", t.BlockID)))
+			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		case tasks.MicroBlockSnapshot:
 			return a, nil, nil
 		default:
@@ -74,6 +83,12 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 			"unexpected internal task '%d' with data '%+v' received by %s State",
 			task.TaskType, task.Data, a.String()))
 	}
+}
+
+func (a *WaitSnapshotState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
+	metrics.FSMScore("ng", score, p.Handshake().NodeName)
+	a.receivedScores = append(a.receivedScores, ReceivedScore{Peer: p, Score: score})
+	return a, nil, nil
 }
 
 func (a *WaitSnapshotState) BlockSnapshot(
@@ -93,9 +108,8 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		[]*proto.BlockSnapshot{&snapshot},
 	)
 	if err != nil {
-		// metrics.FSMKeyBlockDeclined("ng", block, err)
-		return newNGStateWithCache(a.baseInfo, a.blocksCache),
-			nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", a.blockWaitingForSnapshot.BlockID()))
+		zap.S().Errorf("%v", a.Errorf(errors.Wrapf(err, "failed to apply block %s", a.blockWaitingForSnapshot.BlockID())))
+		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 
 	metrics.FSMKeyBlockApplied("ng", a.blockWaitingForSnapshot)
@@ -108,7 +122,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
-	return newNGStateWithCache(a.baseInfo, a.blocksCache), nil, nil
+	return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 }
 
 func (a *WaitSnapshotState) cleanupBeforeTransition() {
@@ -127,7 +141,6 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 		proto.ContentIDSignatures,
 		proto.ContentIDGetBlock,
 		proto.ContentIDBlock,
-		proto.ContentIDScore,
 		proto.ContentIDTransaction,
 		proto.ContentIDInvMicroblock,
 		proto.ContentIDCheckpoint,
@@ -143,7 +156,6 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 			info.skipMessageList.SetList(waitSnapshotSkipMessageList)
 			return nil
 		}).
-		Ignore(ScoreEvent).
 		Ignore(BlockEvent).
 		Ignore(MinedBlockEvent).
 		Ignore(BlockIDsEvent).
@@ -177,5 +189,14 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 					args[1].(proto.BlockID),
 					args[2].(proto.BlockSnapshot),
 				)
+			})).
+		PermitDynamic(ScoreEvent,
+			createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+				a, ok := state.State.(*WaitSnapshotState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*WaitSnapshotState'", state.State))
+				}
+				return a.Score(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Score))
 			}))
 }
