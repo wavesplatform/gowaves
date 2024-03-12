@@ -151,8 +151,8 @@ func TestEthereumTransferWaves(t *testing.T) {
 	recipient, err := recipientEth.ToWavesAddress(proto.TestNetScheme)
 	assert.NoError(t, err)
 	recipientKey := byteKey(recipient.ID(), wavesAsset)
-	senderBalance := applRes.changes.diff[string(senderKey)].balance
-	recipientBalance := applRes.changes.diff[string(recipientKey)].balance
+	senderBalance := applRes.changes.diff[string(senderKey)].balance.Value()
+	recipientBalance := applRes.changes.diff[string(recipientKey)].balance.Value()
 	assert.Equal(t, senderBalance, int64(-200000))
 	assert.Equal(t, recipientBalance, int64(100000))
 
@@ -228,9 +228,9 @@ func TestEthereumTransferAssets(t *testing.T) {
 	recipient, err := ethRecipientAddress.ToWavesAddress(proto.TestNetScheme)
 	assert.NoError(t, err)
 	recipientKey := byteKey(recipient.ID(), *proto.NewOptionalAssetFromDigest(fullAssetID))
-	senderWavesBalance := applRes.changes.diff[string(senderWavesKey)].balance
-	senderBalance := applRes.changes.diff[string(senderKey)].balance
-	recipientBalance := applRes.changes.diff[string(recipientKey)].balance
+	senderWavesBalance := applRes.changes.diff[string(senderWavesKey)].balance.Value()
+	senderBalance := applRes.changes.diff[string(senderKey)].balance.Value()
+	recipientBalance := applRes.changes.diff[string(recipientKey)].balance.Value()
 	assert.Equal(t, senderWavesBalance, int64(-100000))
 	assert.Equal(t, senderBalance, int64(-20947030000000))
 	assert.Equal(t, recipientBalance, int64(20947030000000))
