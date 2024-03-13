@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+	"golang.org/x/exp/constraints"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -424,15 +425,15 @@ type assetBalanceDiffKey struct {
 type addressAssetBalanceDiff map[assetBalanceDiffKey]int64
 
 func (sg *snapshotGenerator) generateSnapshotForGenesisTx(balanceChanges []balanceChanges) (txSnapshot, error) {
-	return sg.generateBalancesSnapshot(balanceChanges)
+	return sg.generateBalancesSnapshot(balanceChanges, false)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForPaymentTx(balanceChanges []balanceChanges) (txSnapshot, error) {
-	return sg.generateBalancesSnapshot(balanceChanges)
+	return sg.generateBalancesSnapshot(balanceChanges, false)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForTransferTx(balanceChanges []balanceChanges) (txSnapshot, error) {
-	return sg.generateBalancesSnapshot(balanceChanges)
+	return sg.generateBalancesSnapshot(balanceChanges, false)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForIssueTx(
@@ -465,7 +466,11 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 		return txSnapshot{}, errors.Wrapf(err, "failed to initialize NFT flag for issued asset %s", assetID.String())
 	}
 
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(
+		balanceChanges,
+		sg.scheme,
+		false, // it's not an invoke tx, it's an issue tx
+	)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
@@ -511,19 +516,23 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 		}
 		snapshot.regular = append(snapshot.regular, assetScriptSnapshot)
 	}
-	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff, justIssuedAssets)
+	balancesSnaps, err := sg.generateBalancesAtomicSnapshots(
+		addrWavesBalanceDiff,
+		addrAssetBalanceDiff,
+		justIssuedAssets,
+		false, // it's not an invoke tx, it's an issue tx
+	)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
-	for i := range wavesBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &wavesBalancesSnapshot[i])
+	for i := range balancesSnaps.wavesBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.wavesBalancesSnapshot[i])
 	}
-	for i := range leaseBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &leaseBalancesSnapshot[i])
+	for i := range balancesSnaps.leaseBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.leaseBalancesSnapshot[i])
 	}
-	for i := range assetBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &assetBalancesSnapshot[i])
+	for i := range balancesSnaps.assetBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.assetBalancesSnapshot[i])
 	}
 
 	return snapshot, nil
@@ -544,7 +553,7 @@ func (sg *snapshotGenerator) generateSnapshotForReissueTx(
 	}
 	resQuantity := assetInfo.quantity.Add(&assetInfo.quantity, quantityDiff)
 
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -571,7 +580,7 @@ func (sg *snapshotGenerator) generateSnapshotForBurnTx(assetID crypto.Digest, ne
 	}
 	resQuantity := assetInfo.quantity.Sub(&assetInfo.quantity, quantityDiff)
 
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -587,7 +596,7 @@ func (sg *snapshotGenerator) generateSnapshotForBurnTx(assetID crypto.Digest, ne
 func (sg *snapshotGenerator) generateSnapshotForExchangeTx(sellOrder proto.Order, sellFee uint64,
 	buyOrder proto.Order, buyFee uint64, volume uint64,
 	balanceChanges []balanceChanges) (txSnapshot, error) {
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -629,7 +638,7 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseTx(
 	} else {
 		recipientAddr = *addr
 	}
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -658,7 +667,7 @@ func (sg *snapshotGenerator) generateSnapshotForLeaseCancelTx(
 	balanceChanges []balanceChanges,
 ) (txSnapshot, error) {
 	var err error
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
@@ -685,7 +694,7 @@ func (sg *snapshotGenerator) generateSnapshotForCreateAliasTx(
 	if err != nil {
 		return txSnapshot{}, err
 	}
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, err
 	}
@@ -698,12 +707,12 @@ func (sg *snapshotGenerator) generateSnapshotForCreateAliasTx(
 }
 
 func (sg *snapshotGenerator) generateSnapshotForMassTransferTx(balanceChanges []balanceChanges) (txSnapshot, error) {
-	return sg.generateBalancesSnapshot(balanceChanges)
+	return sg.generateBalancesSnapshot(balanceChanges, false)
 }
 
 func (sg *snapshotGenerator) generateSnapshotForDataTx(senderAddress proto.WavesAddress,
 	entries []proto.DataEntry, balanceChanges []balanceChanges) (txSnapshot, error) {
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, err
 	}
@@ -717,7 +726,7 @@ func (sg *snapshotGenerator) generateSnapshotForDataTx(senderAddress proto.Waves
 
 func (sg *snapshotGenerator) generateSnapshotForSponsorshipTx(assetID crypto.Digest,
 	minAssetFee uint64, balanceChanges []balanceChanges) (txSnapshot, error) {
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, err
 	}
@@ -731,7 +740,7 @@ func (sg *snapshotGenerator) generateSnapshotForSponsorshipTx(assetID crypto.Dig
 
 func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.PublicKey, script proto.Script,
 	scriptEstimation scriptEstimation, balanceChanges []balanceChanges) (txSnapshot, error) {
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, err
 	}
@@ -760,7 +769,7 @@ func (sg *snapshotGenerator) generateSnapshotForSetScriptTx(senderPK crypto.Publ
 
 func (sg *snapshotGenerator) generateSnapshotForSetAssetScriptTx(assetID crypto.Digest, script proto.Script,
 	balanceChanges []balanceChanges, scriptEstimation scriptEstimation) (txSnapshot, error) {
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, err
 	}
@@ -958,7 +967,11 @@ type justIssuedAssetsIDsToTails map[proto.AssetID][proto.AssetIDTailSize]byte //
 
 func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) (txSnapshot, error) {
 	var snapshot txSnapshot
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(
+		balanceChanges,
+		sg.scheme,
+		true, // it's an invoke tx
+	)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
@@ -1002,19 +1015,23 @@ func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) 
 	sponsoredAssetsSnapshots := generateSnapshotsFromSponsoredAssetsUncertain(sponsoredAssetsUncertain)
 	snapshot.regular = append(snapshot.regular, sponsoredAssetsSnapshots...)
 
-	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff, justIssuedAssets)
+	balancesSnaps, err := sg.generateBalancesAtomicSnapshots(
+		addrWavesBalanceDiff,
+		addrAssetBalanceDiff,
+		justIssuedAssets,
+		true, // it's an invoke tx
+	)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
-	for i := range wavesBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &wavesBalancesSnapshot[i])
+	for i := range balancesSnaps.wavesBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.wavesBalancesSnapshot[i])
 	}
-	for i := range leaseBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &leaseBalancesSnapshot[i])
+	for i := range balancesSnaps.leaseBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.leaseBalancesSnapshot[i])
 	}
-	for i := range assetBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &assetBalancesSnapshot[i])
+	for i := range balancesSnaps.assetBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.assetBalancesSnapshot[i])
 	}
 	return snapshot, nil
 }
@@ -1030,7 +1047,7 @@ func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(
 	assetDescription string,
 	balanceChanges []balanceChanges,
 ) (txSnapshot, error) {
-	snapshot, err := sg.generateBalancesSnapshot(balanceChanges)
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
 	if err != nil {
 		return txSnapshot{}, err
 	}
@@ -1063,75 +1080,125 @@ func (sg *snapshotGenerator) generateOrderAtomicSnapshot(orderID []byte,
 }
 
 func (sg *snapshotGenerator) createInitialBlockSnapshot(minerAndRewardChanges []balanceChanges) (txSnapshot, error) {
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(minerAndRewardChanges, sg.scheme)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(
+		minerAndRewardChanges,
+		sg.scheme,
+		false, // it's not an invoke tx
+	)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
 	var snapshot txSnapshot
-	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff, nil)
+	balancesSnaps, err := sg.generateBalancesAtomicSnapshots(
+		addrWavesBalanceDiff,
+		addrAssetBalanceDiff,
+		nil,
+		false, // it's not an invoke tx
+	)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
-	for i := range wavesBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &wavesBalancesSnapshot[i])
+	for i := range balancesSnaps.wavesBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.wavesBalancesSnapshot[i])
 	}
-	for i := range leaseBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &leaseBalancesSnapshot[i])
+	for i := range balancesSnaps.leaseBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.leaseBalancesSnapshot[i])
 	}
-	for i := range assetBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &assetBalancesSnapshot[i])
+	for i := range balancesSnaps.assetBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.assetBalancesSnapshot[i])
 	}
 	return snapshot, nil
 }
 
-func (sg *snapshotGenerator) generateBalancesSnapshot(balanceChanges []balanceChanges) (txSnapshot, error) {
+func (sg *snapshotGenerator) generateBalancesSnapshot(
+	balanceChanges []balanceChanges,
+	txIsSuccessfulInvoke bool,
+) (txSnapshot, error) {
 	var snapshot txSnapshot
-	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(balanceChanges, sg.scheme)
+	addrWavesBalanceDiff, addrAssetBalanceDiff, err := sg.balanceDiffFromTxDiff(
+		balanceChanges,
+		sg.scheme,
+		txIsSuccessfulInvoke,
+	)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to create balance diff from tx diff")
 	}
-	wavesBalancesSnapshot, assetBalancesSnapshot, leaseBalancesSnapshot, err :=
-		sg.generateBalancesAtomicSnapshots(addrWavesBalanceDiff, addrAssetBalanceDiff, nil)
+	balancesSnaps, err := sg.generateBalancesAtomicSnapshots(
+		addrWavesBalanceDiff,
+		addrAssetBalanceDiff,
+		nil,
+		txIsSuccessfulInvoke,
+	)
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to build a snapshot from a genesis transaction")
 	}
-	for i := range wavesBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &wavesBalancesSnapshot[i])
+	for i := range balancesSnaps.wavesBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.wavesBalancesSnapshot[i])
 	}
-	for i := range leaseBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &leaseBalancesSnapshot[i])
+	for i := range balancesSnaps.leaseBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.leaseBalancesSnapshot[i])
 	}
-	for i := range assetBalancesSnapshot {
-		snapshot.regular = append(snapshot.regular, &assetBalancesSnapshot[i])
+	for i := range balancesSnaps.assetBalancesSnapshot {
+		snapshot.regular = append(snapshot.regular, &balancesSnaps.assetBalancesSnapshot[i])
 	}
 	return snapshot, nil
+}
+
+type balancesSnapshots struct {
+	wavesBalancesSnapshot []proto.WavesBalanceSnapshot
+	assetBalancesSnapshot []proto.AssetBalanceSnapshot
+	leaseBalancesSnapshot []proto.LeaseBalanceSnapshot
 }
 
 func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 	addrWavesBalanceDiff addressWavesBalanceDiff,
-	addrAssetBalanceDiff addressAssetBalanceDiff, justIssuedAssets justIssuedAssetsIDsToTails) (
-	[]proto.WavesBalanceSnapshot,
-	[]proto.AssetBalanceSnapshot,
-	[]proto.LeaseBalanceSnapshot, error) {
-	wavesBalanceSnapshot, leaseBalanceSnapshot, err := sg.wavesBalanceSnapshotFromBalanceDiff(addrWavesBalanceDiff)
+	addrAssetBalanceDiff addressAssetBalanceDiff,
+	justIssuedAssets justIssuedAssetsIDsToTails,
+	txIsSuccessfulInvoke bool,
+) (
+	balancesSnapshots,
+	error,
+) {
+	wavesBalanceSnapshot, leaseBalanceSnapshot, err := sg.wavesBalanceSnapshotFromBalanceDiff(
+		addrWavesBalanceDiff,
+		txIsSuccessfulInvoke,
+	)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to construct waves balance snapshot")
+		return balancesSnapshots{}, errors.Wrap(err, "failed to construct waves balance snapshot")
 	}
 	if len(addrAssetBalanceDiff) == 0 {
-		return wavesBalanceSnapshot, nil, leaseBalanceSnapshot, nil
+		return balancesSnapshots{
+			wavesBalancesSnapshot: wavesBalanceSnapshot,
+			assetBalancesSnapshot: nil,
+			leaseBalancesSnapshot: leaseBalanceSnapshot,
+		}, nil
 	}
 
 	assetBalanceSnapshot, err := sg.assetBalanceSnapshotFromBalanceDiff(addrAssetBalanceDiff, justIssuedAssets)
 	if err != nil {
-		return nil, nil, nil, errors.Wrap(err, "failed to construct asset balance snapshot")
+		return balancesSnapshots{}, errors.Wrap(err, "failed to construct asset balance snapshot")
 	}
-	return wavesBalanceSnapshot, assetBalanceSnapshot, leaseBalanceSnapshot, nil
+	return balancesSnapshots{
+		wavesBalancesSnapshot: wavesBalanceSnapshot,
+		assetBalancesSnapshot: assetBalanceSnapshot,
+		leaseBalancesSnapshot: leaseBalanceSnapshot,
+	}, nil
 }
 
-func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(change balanceDiff, assetKey []byte, scheme proto.Scheme,
-	addrAssetBalanceDiff addressAssetBalanceDiff) error {
-	if !change.balance.Present() {
+func isAccountableBalanceChange[T constraints.Integer](txIsSuccessfulInvoke bool, v common.IntChange[T]) bool {
+	// for invoke tx we need to take into account all the changes, even if they are zero
+	// for other transactions we must ignore zero changes
+	return v.Present() && (txIsSuccessfulInvoke || v.Value() != 0)
+}
+
+func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(
+	change balanceDiff,
+	assetKey []byte,
+	scheme proto.Scheme,
+	addrAssetBalanceDiff addressAssetBalanceDiff,
+	txIsSuccessfulInvoke bool,
+) error {
+	if !isAccountableBalanceChange(txIsSuccessfulInvoke, change.balance) {
 		return nil
 	}
 	assetBalanceK := &assetBalanceKey{}
@@ -1148,9 +1215,23 @@ func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(change balanceDiff, a
 	return nil
 }
 
-func (sg *snapshotGenerator) addWavesBalanceDiffFromTxDiff(change balanceDiff, wavesKey []byte, scheme proto.Scheme,
-	addrWavesBalanceDiff addressWavesBalanceDiff) error {
-	if !change.balance.Present() && !change.leaseOut.Present() && !change.leaseIn.Present() {
+func isAccountableBalanceChanges[T constraints.Integer](txIsSuccessfulInvoke bool, v ...common.IntChange[T]) bool {
+	for _, change := range v {
+		if isAccountableBalanceChange(txIsSuccessfulInvoke, change) {
+			return true
+		}
+	}
+	return false
+}
+
+func (sg *snapshotGenerator) addWavesBalanceDiffFromTxDiff(
+	change balanceDiff,
+	wavesKey []byte,
+	scheme proto.Scheme,
+	addrWavesBalanceDiff addressWavesBalanceDiff,
+	txIsSuccessfulInvoke bool,
+) error {
+	if !isAccountableBalanceChanges(txIsSuccessfulInvoke, change.balance, change.leaseOut, change.leaseIn) {
 		return nil
 	}
 	wavesBalanceK := &wavesBalanceKey{}
@@ -1165,8 +1246,11 @@ func (sg *snapshotGenerator) addWavesBalanceDiffFromTxDiff(change balanceDiff, w
 	return nil
 }
 
-func (sg *snapshotGenerator) balanceDiffFromTxDiff(balanceChanges []balanceChanges,
-	scheme proto.Scheme) (addressWavesBalanceDiff, addressAssetBalanceDiff, error) {
+func (sg *snapshotGenerator) balanceDiffFromTxDiff(
+	balanceChanges []balanceChanges,
+	scheme proto.Scheme,
+	txIsSuccessfulInvoke bool,
+) (addressWavesBalanceDiff, addressAssetBalanceDiff, error) {
 	addrAssetBalanceDiff := make(addressAssetBalanceDiff)
 	addrWavesBalanceDiff := make(addressWavesBalanceDiff)
 	for _, balanceChange := range balanceChanges {
@@ -1178,13 +1262,13 @@ func (sg *snapshotGenerator) balanceDiffFromTxDiff(balanceChanges []balanceChang
 		switch len(balanceChange.key) {
 		case wavesBalanceKeySize:
 			err := sg.addWavesBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key,
-				scheme, addrWavesBalanceDiff)
+				scheme, addrWavesBalanceDiff, txIsSuccessfulInvoke)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "failed to add waves balance from tx diff")
 			}
 		case assetBalanceKeySize:
 			err := sg.addAssetBalanceDiffFromTxDiff(balanceChange.balanceDiffs[0], balanceChange.key,
-				scheme, addrAssetBalanceDiff)
+				scheme, addrAssetBalanceDiff, txIsSuccessfulInvoke)
 			if err != nil {
 				return nil, nil, errors.Wrap(err, "failed to add asset balance from tx diff")
 			}
@@ -1199,7 +1283,9 @@ func (sg *snapshotGenerator) balanceDiffFromTxDiff(balanceChanges []balanceChang
 
 // from txDiff and fees. no validation needed at this point.
 func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
-	diff addressWavesBalanceDiff) ([]proto.WavesBalanceSnapshot, []proto.LeaseBalanceSnapshot, error) {
+	diff addressWavesBalanceDiff,
+	txIsSuccessfulInvoke bool,
+) ([]proto.WavesBalanceSnapshot, []proto.LeaseBalanceSnapshot, error) {
 	var wavesBalances []proto.WavesBalanceSnapshot
 	var leaseBalances []proto.LeaseBalanceSnapshot
 	// add miner address to the diff
@@ -1209,7 +1295,7 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 		if err != nil {
 			return nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
-		if diffAmount.balance.Present() {
+		if isAccountableBalanceChange(txIsSuccessfulInvoke, diffAmount.balance) {
 			newBalance, bErr := common.AddInt(int64(fullBalance.balance), diffAmount.balance.Value())
 			if bErr != nil {
 				return nil, nil, errors.Wrapf(bErr,
@@ -1226,7 +1312,7 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			}
 			wavesBalances = append(wavesBalances, newBalanceSnapshot)
 		}
-		if diffAmount.leaseIn.Present() || diffAmount.leaseOut.Present() {
+		if isAccountableBalanceChanges(txIsSuccessfulInvoke, diffAmount.leaseIn, diffAmount.leaseOut) {
 			// Don't check for overflow & negative leaseIn/leaseOut because overflowed addresses
 			// See `balances.generateLeaseBalanceSnapshotsForLeaseOverflows` for details
 			newLeaseBalance := proto.LeaseBalanceSnapshot{
@@ -1248,6 +1334,7 @@ func (sg *snapshotGenerator) assetBalanceSnapshotFromBalanceDiff(
 	// add miner address to the diff
 
 	for key, diffAmount := range diff {
+		// no need to do skip-check because it's already checked in `addAssetBalanceDiffFromTxDiff`
 		balance, balErr := sg.stor.balances.newestAssetBalance(key.address.ID(), key.asset)
 		if balErr != nil {
 			return nil, errors.Wrapf(balErr, "failed to receive sender's %q waves balance", key.address.String())
