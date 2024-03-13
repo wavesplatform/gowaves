@@ -241,7 +241,9 @@ func (h *transactionHandler) performTx(
 			Status: proto.TransactionSucceeded,
 		})
 	} else {
-		failedChangesSnapshots, err := h.tp.generateBalancesSnapshot(balanceChanges)
+		// here doesn't matter if tx is invoke or not, because we don't need to generate script results for failed tx
+		// even if it's invoke
+		failedChangesSnapshots, err := h.tp.generateBalancesSnapshot(balanceChanges, false)
 		if err != nil {
 			return txSnapshot{}, errors.Wrap(err, "failed to create snapshots from failed changes")
 		}
