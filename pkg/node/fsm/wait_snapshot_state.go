@@ -15,6 +15,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	snapshotTimeout = 30
+)
+
 type WaitSnapshotState struct {
 	baseInfo                BaseInfo
 	blocksCache             blockStatesCache
@@ -39,7 +43,7 @@ func newWaitSnapshotState(baseInfo BaseInfo, block *proto.Block, cache blockStat
 		blockWaitingForSnapshot: block,
 		receivedScores:          nil,
 	}
-	task := tasks.NewBlockSnapshotTimeoutTask(time.Minute, block.BlockID(), timeoutTaskOutdated)
+	task := tasks.NewBlockSnapshotTimeoutTask(time.Second*snapshotTimeout, block.BlockID(), timeoutTaskOutdated)
 	return st, task
 }
 
@@ -131,6 +135,7 @@ func (a *WaitSnapshotState) cleanupBeforeTransition() {
 		close(a.timeoutTaskOutdated)
 		a.timeoutTaskOutdated = nil
 	}
+	a.receivedScores = nil
 }
 
 func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseInfo) {

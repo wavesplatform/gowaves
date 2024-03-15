@@ -239,15 +239,22 @@ func processScoreAfterApplyingOrReturnToNG(
 ) (State, Async, error) {
 	for _, s := range scores {
 		if err := baseInfo.peers.UpdateScore(s.Peer, s.Score); err != nil {
-			return state, nil, state.Errorf(proto.NewInfoMsg(err))
+			zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", proto.NewInfoMsg(err))
+			continue
 		}
 		nodeScore, err := baseInfo.storage.CurrentScore()
 		if err != nil {
-			return state, nil, state.Errorf(err)
+			zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", proto.NewInfoMsg(err))
+			continue
 		}
 		if s.Score.Cmp(nodeScore) == 1 {
 			// received score is larger than local score
-			return syncWithNewPeer(state, baseInfo, s.Peer)
+			newS, task, errS := syncWithNewPeer(state, baseInfo, s.Peer)
+			if newS.String() != SyncStateName {
+				zap.S().Errorf("%v", state.Errorf(errS))
+				continue
+			}
+			return newS, task, errS
 		}
 	}
 	return newNGStateWithCache(baseInfo, cache), nil, nil

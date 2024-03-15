@@ -16,6 +16,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
+const (
+	microSnapshotTimeout = 15
+)
+
 type WaitMicroSnapshotState struct {
 	baseInfo                     BaseInfo
 	blocksCache                  blockStatesCache
@@ -34,7 +38,8 @@ func newWaitMicroSnapshotState(baseInfo BaseInfo, micro *proto.MicroBlock, cache
 		timeoutTaskOutdated:          timeoutTaskOutdated,
 		microBlockWaitingForSnapshot: micro,
 	}
-	task := tasks.NewMicroBlockSnapshotTimeoutTask(time.Minute, micro.TotalBlockID, timeoutTaskOutdated)
+	task := tasks.NewMicroBlockSnapshotTimeoutTask(time.Second*microSnapshotTimeout,
+		micro.TotalBlockID, timeoutTaskOutdated)
 	return st, task
 }
 
@@ -128,6 +133,7 @@ func (a *WaitMicroSnapshotState) cleanupBeforeTransition() {
 		close(a.timeoutTaskOutdated)
 		a.timeoutTaskOutdated = nil
 	}
+	a.receivedScores = nil
 }
 
 func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
