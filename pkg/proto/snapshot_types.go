@@ -16,6 +16,7 @@ type AtomicSnapshot interface {
 	   because balances diffs are applied later in the block. */
 	AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error
 }
+
 type WavesBalanceSnapshot struct {
 	Address WavesAddress `json:"address"`
 	Balance uint64       `json:"balance"`

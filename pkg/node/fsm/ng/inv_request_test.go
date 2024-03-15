@@ -26,5 +26,4 @@ func TestInvRequesterImpl_Request(t *testing.T) {
 
 	n.Request(buf, proto.NewBlockIDFromSignature(crypto.Signature{}).Bytes())
 	require.Equal(t, 1, len(buf.messages))
-
 }

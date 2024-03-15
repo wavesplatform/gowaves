@@ -68,6 +68,8 @@ func (a *IdleState) Task(task tasks.AsyncTask) (State, Async, error) {
 		return a, nil, nil
 	case tasks.MineMicro: // Do nothing
 		return a, nil, nil
+	case tasks.SnapshotTimeout:
+		return a, nil, nil
 	default:
 		return a, nil, a.Errorf(errors.Errorf(
 			"unexpected internal task '%d' with data '%+v' received by %s State",
@@ -108,7 +110,10 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDBlockIds,
+		proto.ContentIDBlockIDs,
+		proto.ContentIDBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshotRequest,
 	}
 	fsm.Configure(IdleStateName).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
@@ -122,6 +127,8 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		Ignore(StopSyncEvent).
 		Ignore(ChangeSyncPeerEvent).
 		Ignore(StopMiningEvent).
+		Ignore(BlockSnapshotEvent).
+		Ignore(MicroBlockSnapshotEvent).
 		PermitDynamic(StartMiningEvent,
 			createPermitDynamicCallback(StartMiningEvent, state, func(args ...interface{}) (State, Async, error) {
 				a, ok := state.State.(*IdleState)

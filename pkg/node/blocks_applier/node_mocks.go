@@ -15,6 +15,7 @@ func notFound() state.StateError {
 
 type MockStateManager struct {
 	state           []*proto.Block
+	snapshots       []*proto.BlockSnapshot
 	id2Block        map[proto.BlockID]*proto.Block
 	Peers_          []proto.TCPAddr
 	blockIDToHeight map[proto.BlockID]proto.Height
@@ -117,6 +118,9 @@ func (a *MockStateManager) RollbackToHeight(height uint64) error {
 		block := a.state[len(a.state)-1]
 		a.state = a.state[:len(a.state)-1]
 		delete(a.blockIDToHeight, block.BlockID())
+		if len(a.snapshots) != 0 {
+			a.snapshots = a.snapshots[:len(a.snapshots)-1]
+		}
 	}
 	return nil
 }
@@ -275,13 +279,34 @@ func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Bloc
 	a.blockIDToHeight[block.BlockID()] = proto.Height(len(a.state))
 	return block, nil
 }
-func (a *MockStateManager) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+
+func (a *MockStateManager) AddDeserializedBlocks(
+	blocks []*proto.Block,
+) (*proto.Block, error) {
 	var out *proto.Block
 	var err error
 	for _, b := range blocks {
 		if out, err = a.AddDeserializedBlock(b); err != nil {
 			return nil, err
 		}
+	}
+	return out, nil
+}
+
+func (a *MockStateManager) AddDeserializedBlocksWithSnapshots(
+	blocks []*proto.Block,
+	snapshots []*proto.BlockSnapshot,
+) (*proto.Block, error) {
+	var out *proto.Block
+	var err error
+	if len(blocks) != len(snapshots) {
+		panic("the numbers of snapshots doesn't match the number of blocks")
+	}
+	for i, b := range blocks {
+		if out, err = a.AddDeserializedBlock(b); err != nil {
+			return nil, err
+		}
+		a.snapshots = append(a.snapshots, snapshots[i])
 	}
 	return out, nil
 }
@@ -336,4 +361,11 @@ func (a *MockStateManager) StartProvidingExtendedApi() error {
 
 func (a *MockStateManager) HitSourceAtHeight(_ proto.Height) ([]byte, error) {
 	panic("not implemented")
+}
+
+func (a *MockStateManager) SnapshotsAtHeight(h proto.Height) (proto.BlockSnapshot, error) {
+	if h > proto.Height(len(a.snapshots)) {
+		return proto.BlockSnapshot{}, notFound()
+	}
+	return *a.snapshots[h-1], nil
 }

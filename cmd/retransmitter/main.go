@@ -131,7 +131,7 @@ func main() {
 		return
 	}
 
-	parent := peer.NewParent()
+	parent := peer.NewParent(false)
 	spawner := retransmit.NewPeerSpawner(skipUselessMessages, parent, wavesNetwork, declAddr)
 	scheme := schemes[wavesNetwork]
 	behaviour := retransmit.NewBehaviour(knownPeers, spawner, scheme)

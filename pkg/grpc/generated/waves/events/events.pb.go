@@ -1146,12 +1146,11 @@ type StateUpdate_AssetDetails struct {
 	LastUpdated     int32                                     `protobuf:"varint,11,opt,name=last_updated,json=lastUpdated,proto3" json:"last_updated,omitempty"`
 	SequenceInBlock int32                                     `protobuf:"varint,12,opt,name=sequence_in_block,json=sequenceInBlock,proto3" json:"sequence_in_block,omitempty"`
 	IssueHeight     int32                                     `protobuf:"varint,13,opt,name=issue_height,json=issueHeight,proto3" json:"issue_height,omitempty"`
-	//
-	//Related to a past behavior in the blockchain when it was possible to reissue
-	//assets so that the total volume became more then int64 max value.
-	//This field represents accurate volume even for those assets.
-	//Can be ignored if the target system does not need such accuracy.
-	//Encoding: like Java BigInteger, https://docs.oracle.com/javase/7/docs/api/java/math/BigInteger.html#toByteArray()
+	// Related to a past behavior in the blockchain when it was possible to reissue
+	// assets so that the total volume became more then int64 max value.
+	// This field represents accurate volume even for those assets.
+	// Can be ignored if the target system does not need such accuracy.
+	// Encoding: like Java BigInteger, https://docs.oracle.com/javase/7/docs/api/java/math/BigInteger.html#toByteArray()
 	SafeVolume []byte `protobuf:"bytes,20,opt,name=safe_volume,json=safeVolume,proto3" json:"safe_volume,omitempty"`
 }
 
@@ -1565,10 +1564,9 @@ type TransactionMetadata_ExchangeMetadata struct {
 	sizeCache     protoimpl.SizeCache
 	unknownFields protoimpl.UnknownFields
 
-	//
-	//Fields starting with `order_*` represent order metadata.
-	//Each of them is a collection of exactly 2 elements.
-	//Element indexes correspond to their parent order indexes in the exchange transaction.
+	// Fields starting with `order_*` represent order metadata.
+	// Each of them is a collection of exactly 2 elements.
+	// Element indexes correspond to their parent order indexes in the exchange transaction.
 	OrderIds              [][]byte `protobuf:"bytes,1,rep,name=order_ids,json=orderIds,proto3" json:"order_ids,omitempty"`
 	OrderSenderAddresses  [][]byte `protobuf:"bytes,2,rep,name=order_sender_addresses,json=orderSenderAddresses,proto3" json:"order_sender_addresses,omitempty"`
 	OrderSenderPublicKeys [][]byte `protobuf:"bytes,3,rep,name=order_sender_public_keys,json=orderSenderPublicKeys,proto3" json:"order_sender_public_keys,omitempty"`

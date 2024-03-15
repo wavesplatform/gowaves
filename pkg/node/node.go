@@ -47,10 +47,12 @@ type Node struct {
 	services           services.Services
 	microblockInterval time.Duration
 	obsolescence       time.Duration
+	enableLightMode    bool
 }
 
 func NewNode(
 	services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration,
+	enableLightMode bool,
 ) *Node {
 	if bindAddr.Empty() {
 		bindAddr = declAddr
@@ -64,6 +66,7 @@ func NewNode(
 		utx:                services.UtxPool,
 		services:           services,
 		microblockInterval: microblockInterval,
+		enableLightMode:    enableLightMode,
 	}
 }
 
@@ -148,7 +151,7 @@ func (a *Node) Run(
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
 	// TODO: Consider using context `ctx` in FSM, for now FSM works in the background context.
-	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer)
+	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer, a.enableLightMode)
 	if err != nil {
 		zap.S().Errorf("Failed to create FSM: %v", err)
 		return

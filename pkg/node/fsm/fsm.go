@@ -27,8 +27,24 @@ type Async []tasks.Task
 
 type BlocksApplier interface {
 	BlockExists(state storage.State, block *proto.Block) (bool, error)
-	Apply(state storage.State, block []*proto.Block) (proto.Height, error)
-	ApplyMicro(state storage.State, block *proto.Block) (proto.Height, error)
+	Apply(
+		state storage.State,
+		block []*proto.Block,
+	) (proto.Height, error)
+	ApplyMicro(
+		state storage.State,
+		block *proto.Block,
+	) (proto.Height, error)
+	ApplyWithSnapshots(
+		state storage.State,
+		block []*proto.Block,
+		snapshots []*proto.BlockSnapshot,
+	) (proto.Height, error)
+	ApplyMicroWithSnapshots(
+		state storage.State,
+		block *proto.Block,
+		snapshots *proto.BlockSnapshot,
+	) (proto.Height, error)
 }
 
 type BaseInfo struct {
@@ -63,6 +79,8 @@ type BaseInfo struct {
 	skipMessageList *messages.SkipMessageList
 
 	syncPeer *network.SyncPeer
+
+	enableLightMode bool
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -79,11 +97,13 @@ func (a *BaseInfo) CleanUtx() {
 
 // States.
 const (
-	IdleStateName    = "Idle"
-	NGStateName      = "NG"
-	PersistStateName = "Persist"
-	SyncStateName    = "Sync"
-	HaltStateName    = "Halt"
+	IdleStateName              = "Idle"
+	NGStateName                = "NG"
+	WaitSnapshotStateName      = "WaitSnapshot"
+	WaitMicroSnapshotStateName = "WaitMicroSnapshot"
+	PersistStateName           = "Persist"
+	SyncStateName              = "Sync"
+	HaltStateName              = "Halt"
 )
 
 // Events.
@@ -101,10 +121,12 @@ const (
 	TransactionEvent   = "Transaction"
 	HaltEvent          = "Halt"
 
-	StopSyncEvent       = "StopSync"
-	StopMiningEvent     = "StopMining"
-	StartMiningEvent    = "StartMining"
-	ChangeSyncPeerEvent = "ChangeSyncPeer"
+	StopSyncEvent           = "StopSync"
+	StopMiningEvent         = "StopMining"
+	StartMiningEvent        = "StartMining"
+	ChangeSyncPeerEvent     = "ChangeSyncPeer"
+	BlockSnapshotEvent      = "BlockSnapshotEvent"
+	MicroBlockSnapshotEvent = "MicroBlockSnapshotEvent"
 )
 
 type FSM struct {
@@ -127,6 +149,7 @@ func NewFSM(
 	services services.Services,
 	microblockInterval, obsolescence time.Duration,
 	syncPeer *network.SyncPeer,
+	enableLightMode bool,
 ) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
@@ -158,6 +181,7 @@ func NewFSM(
 
 		skipMessageList: services.SkipMessageList,
 		syncPeer:        syncPeer,
+		enableLightMode: enableLightMode,
 	}
 
 	info.scheduler.Reschedule()
@@ -187,6 +211,8 @@ func NewFSM(
 	initNGStateInFSM(state, fsm, info)
 	initPersistStateInFSM(state, fsm, info)
 	initSyncStateInFSM(state, fsm, info)
+	initWaitMicroSnapshotStateInFSM(state, fsm, info)
+	initWaitSnapshotStateInFSM(state, fsm, info)
 
 	return &FSM{
 		fsm:      fsm,
@@ -288,5 +314,17 @@ func (f *FSM) StartMining() (Async, error) {
 func (f *FSM) ChangeSyncPeer(p peer.Peer) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(ChangeSyncPeerEvent, asyncRes, p)
+	return *asyncRes, err
+}
+
+func (f *FSM) BlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(BlockSnapshotEvent, asyncRes, p, blockID, snapshots)
+	return *asyncRes, err
+}
+
+func (f *FSM) MicroBlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(MicroBlockSnapshotEvent, asyncRes, p, blockID, snapshots)
 	return *asyncRes, err
 }
