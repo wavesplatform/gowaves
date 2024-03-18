@@ -193,6 +193,10 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 	return diff.addCommon(prevDiff)
 }
 
+func (diff *balanceDiff) isZero() bool {
+	return diff.balance.Value() == 0 && diff.leaseIn.Value() == 0 && diff.leaseOut.Value() == 0
+}
+
 type differInfo struct {
 	blockInfo *proto.BlockInfo
 }
@@ -262,6 +266,11 @@ func (diff txDiff) appendBalanceDiffStr(key string, balanceDiff balanceDiff) err
 
 func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error {
 	return diff.appendBalanceDiffStr(string(key), balanceDiff)
+}
+
+func (diff txDiff) getByKey(key []byte) (balanceDiff, bool) {
+	d, ok := diff[string(key)]
+	return d, ok
 }
 
 func (diff txDiff) removeByKey(key []byte) {
@@ -406,8 +415,8 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(
 	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
-	shortAssetID := proto.AssetIDFromDigest(feeAsset.ID)
-	assetInfo, err := td.stor.assets.newestAssetInfo(shortAssetID)
+	feeAssetID := proto.AssetIDFromDigest(feeAsset.ID)
+	assetInfo, err := td.stor.assets.newestAssetInfo(feeAssetID)
 	if err != nil {
 		return err
 	}
@@ -419,27 +428,48 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(
 	issuerAddrID := issuerAddr.ID()
 	issuerAssetKey := byteKey(issuerAddrID, feeAsset)
 
-	// Append issuer asset balance diff for invoke tx only if transaction sender is not the issuer/sponsor.
+	issuerAssetBalanceDiff := int64(fee)
+	issuerDiff := newBalanceDiff(issuerAssetBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	if dErr := ch.diff.appendBalanceDiff(issuerAssetKey, issuerDiff); dErr != nil {
+		return dErr
+	}
+	// Append issuer asset balance diff for invoke tx only if transaction sender is not the issuer/sponsor
+	// and asset is used only for fee.
 	// This check is important for balance snapshots generation in snapshotGenerator, don't remove it.
 	if txIsInvoke && issuerAddr == txSender {
-		ch.diff.removeByKey(issuerAssetKey) // issuer's balance diff by fee asset MUST NOT be added to the invoke diff
-	} else { // regular case, tx is not invoke or sender is not the issuer
-		issuerAssetBalanceDiff := int64(fee)
-		issuerDiff := newBalanceDiff(issuerAssetBalanceDiff, 0, 0, updateMinIntermediateBalance)
-		if dErr := ch.diff.appendBalanceDiff(issuerAssetKey, issuerDiff); dErr != nil {
-			return dErr
+		sponsorResultDiff, ok := ch.diff.getByKey(issuerAssetKey)
+		if !ok {
+			return errors.Errorf("BUG! CREATE REPORT: failed to find sponsor=%q asset=%q balance diff",
+				issuerAddr.String(), feeAsset.String(),
+			)
+		}
+		if sponsorResultDiff.isZero() { // result diff is empty, then it's used only for fee
+			ch.diff.removeByKey(issuerAssetKey) // in this case issuer's balance diff MUST not be added to the invoke diff
 		}
 	}
+	return td.convertSponsorAssetToWavesAndDoPayout(ch, feeAssetID, fee, updateMinIntermediateBalance, issuerAddr, info)
+}
 
+func (td *transactionDiffer) convertSponsorAssetToWavesAndDoPayout(
+	ch *txBalanceChanges,
+	feeAssetID proto.AssetID,
+	fee uint64,
+	updateMinIntermediateBalance bool,
+	issuerAddr proto.WavesAddress,
+	info *differInfo,
+) error {
 	// Append issuer Waves balance diff.
-	feeInWaves, err := td.stor.sponsoredAssets.sponsoredAssetToWaves(shortAssetID, fee)
+	feeInWaves, err := td.stor.sponsoredAssets.sponsoredAssetToWaves(feeAssetID, fee)
 	if err != nil {
 		return err
 	}
+	issuerAddrID := issuerAddr.ID()
 	issuerWavesKey := (&wavesBalanceKey{issuerAddrID}).bytes()
 	issuerWavesBalanceDiff := -int64(feeInWaves)
-	if err := ch.diff.appendBalanceDiff(issuerWavesKey, newBalanceDiff(issuerWavesBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-		return err
+	issuerWavesDiff := newBalanceDiff(issuerWavesBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	dErr := ch.diff.appendBalanceDiff(issuerWavesKey, issuerWavesDiff)
+	if dErr != nil {
+		return dErr
 	}
 	// Sponsor is also added to list of modified addresses.
 	ch.appendAddr(issuerAddr)
