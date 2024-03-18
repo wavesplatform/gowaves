@@ -388,12 +388,22 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 		case *proto.TransferScriptAction:
 			// Perform transfers.
-			recipientAddress := a.Recipient.Address()
-			totalChanges.appendAddr(*recipientAddress)
 			assetExists := ia.stor.assets.newestAssetExists(a.Asset)
 			if !assetExists {
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
+			recipientAddress, rErr := recipientToAddress(a.Recipient, ia.stor.aliases)
+			if rErr != nil {
+				return proto.DAppError, info.failedChanges, errors.Wrapf(rErr,
+					"failed to resolve address of recipient %q", a.Recipient.String(),
+				)
+			}
+			// Self-payment causes no changes, should be ignored.
+			// This check is important for balances snapshots generation in snapshotGenerator, don't remove it.
+			if senderAddress == recipientAddress {
+				continue
+			}
+			totalChanges.appendAddr(recipientAddress)
 			var isSmartAsset bool
 			if a.Asset.Present {
 				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID))
@@ -432,12 +442,22 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 		case *proto.AttachedPaymentScriptAction:
 			// Perform transfers.
-			recipientAddress := a.Recipient.Address()
-			totalChanges.appendAddr(*recipientAddress)
 			assetExists := ia.stor.assets.newestAssetExists(a.Asset)
-			if !assetExists {
+			if !assetExists { // check asset existence
 				return proto.DAppError, info.failedChanges, errors.New("invalid asset in transfer")
 			}
+			recipientAddress, rErr := recipientToAddress(a.Recipient, ia.stor.aliases)
+			if rErr != nil {
+				return proto.DAppError, info.failedChanges, errors.Wrapf(rErr,
+					"failed to resolve address of recipient %q", a.Recipient.String(),
+				)
+			}
+			// Self-payment causes no changes, should be ignored.
+			// This check is important for balances snapshots generation in snapshotGenerator, don't remove it.
+			if senderAddress == recipientAddress {
+				continue
+			}
+			totalChanges.appendAddr(recipientAddress)
 			var isSmartAsset bool
 			if a.Asset.Present {
 				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID))
