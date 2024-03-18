@@ -797,6 +797,10 @@ func (ws *WrappedState) ApplyToState(
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply attached payment")
 			}
+			// Self-payment causes no changes, can be ignored.
+			if senderAddress == recipient {
+				continue
+			}
 			// No balance validation done below
 			if a.Asset.Present { // Update asset balance
 				if err := ws.diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); err != nil {
@@ -822,6 +826,10 @@ func (ws *WrappedState) ApplyToState(
 			recipient, err := ws.NewestRecipientToAddress(a.Recipient)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to apply transfer action")
+			}
+			// Self-payment causes no changes, can be ignored.
+			if senderAddress == recipient {
+				continue
 			}
 			if a.Asset.Present { // Update asset balance
 				if err := ws.diff.assetTransfer(senderAddress.ID(), recipient.ID(), a.Asset.ID, a.Amount); err != nil {
