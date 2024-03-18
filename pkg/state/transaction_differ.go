@@ -1364,6 +1364,38 @@ func (td *transactionDiffer) createDiffSetAssetScriptWithProofs(transaction prot
 	return changes, nil
 }
 
+func updateDiffByPayment(
+	diff txDiff,
+	sender, scriptAddrID proto.AddressID,
+	payment proto.ScriptPayment,
+	updateMinIntermediateBalance bool,
+) error {
+	// No need to update balance if sender and recipient are the same.
+	// This check is important for balances snapshots generation in snapshotGenerator, don't remove it.
+	if sender.Equal(scriptAddrID) {
+		return nil
+	}
+
+	var (
+		senderPaymentKey  = byteKey(sender, payment.Asset)
+		senderBalanceDiff = -int64(payment.Amount)
+		senderDiff        = newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	)
+	if err := diff.appendBalanceDiff(senderPaymentKey, senderDiff); err != nil {
+		return errors.Wrapf(err, "failed to append sender balance diff by payment %s", payment.Asset.String())
+	}
+
+	var (
+		receiverKey         = byteKey(scriptAddrID, payment.Asset)
+		receiverBalanceDiff = int64(payment.Amount)
+		receiverDiff        = newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	)
+	if err := diff.appendBalanceDiff(receiverKey, receiverDiff); err != nil {
+		return errors.Wrapf(err, "failed to append receiver balance diff by payment %s", payment.Asset.String())
+	}
+	return nil
+}
+
 func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {
@@ -1393,23 +1425,18 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 	}
 	scriptAddrID := scriptAddr.ID()
 
+	// Append payment diffs.
+	for _, sp := range tx.Payments {
+		pErr := updateDiffByPayment(diff, senderAddrID, scriptAddrID, sp, updateMinIntermediateBalance)
+		if pErr != nil {
+			return txBalanceChanges{}, pErr
+		}
+	}
+
 	addresses := []proto.WavesAddress{senderAddr, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
 	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
 		return txBalanceChanges{}, err
-	}
-	// Append payment diffs.
-	for _, payment := range tx.Payments {
-		senderPaymentKey := byteKey(senderAddrID, payment.Asset)
-		senderBalanceDiff := -int64(payment.Amount)
-		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
-		}
-		receiverKey := byteKey(scriptAddrID, payment.Asset)
-		receiverBalanceDiff := int64(payment.Amount)
-		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
-		}
 	}
 	return changes, nil
 }
@@ -1476,22 +1503,19 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	}
 	scriptAddrID := scriptAddr.ID()
 
-	addresses := []proto.WavesAddress{senderAddress, scriptAddr}
-	changes := newTxBalanceChanges(addresses, diff)
-
 	for _, p := range payments {
-		optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
-		senderPaymentKey := byteKey(senderAddrID, optAsset)
-		senderBalanceDiff := -p.Amount
-		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
+		sp := proto.ScriptPayment{
+			Amount: uint64(p.Amount),
+			Asset:  proto.NewOptionalAsset(p.PresentAssetID, p.AssetID),
 		}
-		receiverKey := byteKey(scriptAddrID, optAsset)
-		receiverBalanceDiff := p.Amount
-		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
+		pErr := updateDiffByPayment(diff, senderAddrID, scriptAddrID, sp, updateMinIntermediateBalance)
+		if pErr != nil {
+			return txBalanceChanges{}, pErr
 		}
 	}
+
+	addresses := []proto.WavesAddress{senderAddress, scriptAddr}
+	changes := newTxBalanceChanges(addresses, diff)
 	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
 		return txBalanceChanges{}, err
 	}
