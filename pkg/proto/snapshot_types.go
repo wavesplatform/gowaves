@@ -280,15 +280,8 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	if err != nil {
 		return err
 	}
-	var c ProtobufConverter
-	in := c.uint64(p.In)
-	if c.err != nil {
-		return c.err
-	}
-	out := c.uint64(p.Out)
-	if c.err != nil {
-		return c.err
-	}
+	in := uint64(p.In)
+	out := uint64(p.Out)
 	s.Address = addr
 	s.LeaseIn = in
 	s.LeaseOut = out
