@@ -1188,7 +1188,7 @@ func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 func isAccountableBalanceChange[T constraints.Integer](txIsSuccessfulInvoke bool, v common.IntChange[T]) bool {
 	// for invoke tx we need to take into account all the changes, even if they are zero
 	// for other transactions we must ignore zero changes
-	return v.Present() && (txIsSuccessfulInvoke || v.Value() != 0)
+	return v.Present() && txIsSuccessfulInvoke || v.IsAccountable()
 }
 
 func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(

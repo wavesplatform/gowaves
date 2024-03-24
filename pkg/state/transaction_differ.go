@@ -193,7 +193,7 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 	return diff.addCommon(prevDiff)
 }
 
-func (diff *balanceDiff) isZero() bool {
+func (diff *balanceDiff) isZero() bool { // TODO: should be turned into isAccountable?
 	return diff.balance.Value() == 0 && diff.leaseIn.Value() == 0 && diff.leaseOut.Value() == 0
 }
 
@@ -292,6 +292,7 @@ func (td *transactionDiffer) minerPayoutInWaves(diff txDiff, fee uint64, info *d
 
 // doMinerPayoutAfterNG adds current fee part of given tx to txDiff.
 // It is used to add miner's payout to txDiff. Before NG activation it does nothing.
+// Note that this function forces snapshot generation for even zero miner balance diff. This is intended behavior.
 func (td *transactionDiffer) doMinerPayoutAfterNG(
 	diff txDiff,
 	fee uint64,
@@ -310,11 +311,13 @@ func (td *transactionDiffer) doMinerPayoutAfterNG(
 	}
 	minerAddr := info.blockInfo.Generator
 	minerKey := byteKey(minerAddr.ID(), feeAsset)
-	minerBalanceDiff := calculateCurrentBlockTxFee(fee, ngActivated)
-	if err := diff.appendBalanceDiff(minerKey, newBalanceDiff(int64(minerBalanceDiff), 0, 0, false)); err != nil {
-		return err
-	}
-	return nil
+	minerBalanceDiffValue := calculateCurrentBlockTxFee(fee, ngActivated)
+
+	minerBalanceDiff := newBalanceDiff(int64(minerBalanceDiffValue), 0, 0, false)
+	// Miner's balance diff is always forced for snapshot generation after NG activation.
+	minerBalanceDiff.balance = minerBalanceDiff.balance.ToForced()
+
+	return diff.appendBalanceDiff(minerKey, minerBalanceDiff)
 }
 
 func (td *transactionDiffer) createDiffGenesis(transaction proto.Transaction, _ *differInfo) (txBalanceChanges, error) {
