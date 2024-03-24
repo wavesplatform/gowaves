@@ -193,8 +193,8 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 	return diff.addCommon(prevDiff)
 }
 
-func (diff *balanceDiff) isZero() bool { // TODO: should be turned into isAccountable?
-	return diff.balance.Value() == 0 && diff.leaseIn.Value() == 0 && diff.leaseOut.Value() == 0
+func (diff *balanceDiff) isAccountable() bool {
+	return diff.balance.IsAccountable() || diff.leaseIn.IsAccountable() || diff.leaseOut.IsAccountable()
 }
 
 type differInfo struct {
@@ -446,7 +446,7 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(
 				issuerAddr.String(), feeAsset.String(),
 			)
 		}
-		if sponsorResultDiff.isZero() { // result diff is empty, then it's used only for fee
+		if !sponsorResultDiff.isAccountable() { // result diff is not accountable, then it's used only for fee
 			ch.diff.removeByKey(issuerAssetKey) // in this case issuer's balance diff MUST not be added to the invoke diff
 		}
 	}
