@@ -140,6 +140,8 @@ type StateInfo interface {
 
 	// Snapshots
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
+	// Patches
+	PatchAtHeight(height proto.Height) ([]proto.AtomicSnapshot, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

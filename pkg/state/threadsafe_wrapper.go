@@ -340,6 +340,12 @@ func (a *ThreadSafeReadWrapper) ProvidesStateHashes() (bool, error) {
 	return a.s.ProvidesStateHashes()
 }
 
+func (a *ThreadSafeReadWrapper) PatchAtHeight(height proto.Height) ([]proto.AtomicSnapshot, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.PatchAtHeight(height)
+}
+
 func (a *ThreadSafeReadWrapper) LegacyStateHashAtHeight(height uint64) (*proto.StateHash, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

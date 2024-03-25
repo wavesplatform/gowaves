@@ -92,6 +92,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		})
 		r.Route("/debug", func(r chi.Router) {
 			r.Get("/snapshotStateHash/{height:\\d+}", wrapper(a.snapshotStateHash))
+			r.Get("/patch/{height:\\d+}", wrapper(a.patchAtHeight))
 		})
 
 		r.Get("/miner/info", wrapper(a.GoMinerInfo))

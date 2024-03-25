@@ -2613,6 +2613,14 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	return provides, nil
 }
 
+func (s *stateManager) PatchAtHeight(height proto.Height) ([]proto.AtomicSnapshot, error) {
+	blockID, err := s.rw.blockIDByHeight(height)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return s.stor.patches.patch(blockID)
+}
+
 func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
