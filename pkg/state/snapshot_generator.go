@@ -380,11 +380,22 @@ func (sg *snapshotGenerator) performEthereumTransactionWithProofs(
 	_ *performerInfo,
 	balanceChanges []balanceChanges,
 ) (txSnapshot, error) {
-	_, ok := transaction.(*proto.EthereumTransaction)
+	ethTx, ok := transaction.(*proto.EthereumTransaction)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to EthereumTransaction transaction")
 	}
-	return sg.generateSnapshotForEthereumInvokeScriptTx(balanceChanges)
+	kind, err := proto.GuessEthereumTransactionKindType(ethTx.Data())
+	if err != nil {
+		return txSnapshot{}, errors.Wrap(err, "failed to guess ethereum tx kind")
+	}
+	switch kind {
+	case proto.EthereumTransferWavesKindType, proto.EthereumTransferAssetsKindType:
+		return sg.generateSnapshotForTransferTx(balanceChanges) // like regular transfer
+	case proto.EthereumInvokeKindType:
+		return sg.snapshotForInvoke(balanceChanges) // like invoke script
+	default:
+		return txSnapshot{}, errors.Errorf("unexpected ethereum tx kind (%d)", kind)
+	}
 }
 
 func (sg *snapshotGenerator) performUpdateAssetInfoWithProofs(
@@ -1007,12 +1018,6 @@ func (sg *snapshotGenerator) snapshotForInvoke(balanceChanges []balanceChanges) 
 
 func (sg *snapshotGenerator) generateSnapshotForInvokeExpressionTx(
 	balanceChanges []balanceChanges) (txSnapshot, error) {
-	return sg.snapshotForInvoke(balanceChanges)
-}
-
-func (sg *snapshotGenerator) generateSnapshotForEthereumInvokeScriptTx(
-	balanceChanges []balanceChanges,
-) (txSnapshot, error) {
 	return sg.snapshotForInvoke(balanceChanges)
 }
 
