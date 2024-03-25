@@ -788,6 +788,38 @@ func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) patchAtHeight(w http.ResponseWriter, r *http.Request) error {
+	s := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(s, 10, 64)
+	if err != nil {
+		return &BadRequestError{err}
+	}
+	if height < 1 {
+		return apiErrs.BlockDoesNotExist
+	}
+	currHeight, err := a.state.Height()
+	if err != nil {
+		return errors.Wrap(err, "failed to get current height")
+	}
+	if height > currHeight {
+		return apiErrs.BlockDoesNotExist
+	}
+	patch, err := a.app.state.PatchAtHeight(height)
+	if err != nil {
+		return errors.Wrapf(err, "failed to get patch at height %d", height)
+	}
+	bs := proto.BlockSnapshot{
+		TxSnapshots: [][]proto.AtomicSnapshot{
+			append(patch, proto.TransactionStatusSnapshot{Status: proto.TransactionSucceeded}),
+		},
+	}
+
+	if jsErr := trySendJson(w, bs); jsErr != nil {
+		return errors.Wrap(jsErr, "patchAtHeight")
+	}
+	return nil
+}
+
 func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
 	stateHash, err := a.state.LegacyStateHashAtHeight(height)
 	if err != nil {

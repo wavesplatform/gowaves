@@ -658,6 +658,21 @@ func (mr *MockStateInfoMockRecorder) NewestScriptBytesByAccount(account interfac
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptBytesByAccount", reflect.TypeOf((*MockStateInfo)(nil).NewestScriptBytesByAccount), account)
 }
 
+// PatchAtHeight mocks base method.
+func (m *MockStateInfo) PatchAtHeight(height proto.Height) ([]proto.AtomicSnapshot, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PatchAtHeight", height)
+	ret0, _ := ret[0].([]proto.AtomicSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PatchAtHeight indicates an expected call of PatchAtHeight.
+func (mr *MockStateInfoMockRecorder) PatchAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PatchAtHeight", reflect.TypeOf((*MockStateInfo)(nil).PatchAtHeight), height)
+}
+
 // ProvidesExtendedApi mocks base method.
 func (m *MockStateInfo) ProvidesExtendedApi() (bool, error) {
 	m.ctrl.T.Helper()
@@ -1939,6 +1954,21 @@ func (m *MockState) NewestScriptBytesByAccount(account proto.Recipient) (proto.S
 func (mr *MockStateMockRecorder) NewestScriptBytesByAccount(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestScriptBytesByAccount", reflect.TypeOf((*MockState)(nil).NewestScriptBytesByAccount), account)
+}
+
+// PatchAtHeight mocks base method.
+func (m *MockState) PatchAtHeight(height proto.Height) ([]proto.AtomicSnapshot, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PatchAtHeight", height)
+	ret0, _ := ret[0].([]proto.AtomicSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PatchAtHeight indicates an expected call of PatchAtHeight.
+func (mr *MockStateMockRecorder) PatchAtHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PatchAtHeight", reflect.TypeOf((*MockState)(nil).PatchAtHeight), height)
 }
 
 // PersistAddressTransactions mocks base method.

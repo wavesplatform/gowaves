@@ -54,6 +54,22 @@ func (ps *patchesStorage) savePatch(blockID proto.BlockID, fixSnapshots []proto.
 	return ps.hs.addNewEntry(patches, key.bytes(), data, blockID)
 }
 
+func (ps *patchesStorage) patch(blockID proto.BlockID) ([]proto.AtomicSnapshot, error) {
+	key := patchKey{blockID}
+	data, err := ps.hs.topEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) { // No patches for this block.
+			return nil, nil
+		}
+		return nil, err
+	}
+	var pr patchRecord
+	if ubErr := pr.unmarshalBinary(ps.scheme, data); ubErr != nil {
+		return nil, ubErr
+	}
+	return pr.fixSnapshots, nil
+}
+
 func (ps *patchesStorage) newestPatch(blockID proto.BlockID) ([]proto.AtomicSnapshot, error) {
 	key := patchKey{blockID}
 	data, err := ps.hs.newestTopEntryData(key.bytes())
