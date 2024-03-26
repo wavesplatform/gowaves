@@ -9,7 +9,7 @@ func GetRewardDistributionAfterF14Before19TestData(suite *f.BaseSuite, addresses
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermCfg(suite),
@@ -21,7 +21,7 @@ func GetRewardDistributionAfterF14Before19TestData(suite *f.BaseSuite, addresses
 // NODE - 858.
 func GetRollbackBeforeF19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -37,7 +37,7 @@ func GetRollbackBeforeF19TestData(suite *f.BaseSuite, addresses AddressesForDist
 // NODE - 859.
 func GetRollbackAfterF19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -56,7 +56,7 @@ func GetRollbackBeforeF20TestData(suite *f.BaseSuite, addresses AddressesForDist
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -70,7 +70,7 @@ func GetRollbackAfterF20TestData(suite *f.BaseSuite, addresses AddressesForDistr
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -84,7 +84,7 @@ func GetRollbackBeforeF21TestData(suite *f.BaseSuite, addresses AddressesForDist
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),

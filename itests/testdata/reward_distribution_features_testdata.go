@@ -89,7 +89,7 @@ func GetRewardIncreaseDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForD
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -105,7 +105,7 @@ func GetRewardUnchangedDaoXtnTestData(suite *f.BaseSuite, addresses AddressesFor
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -118,7 +118,7 @@ func GetRewardUnchangedDaoXtnTestData(suite *f.BaseSuite, addresses AddressesFor
 // NODE - 816
 func GetRewardDecreaseDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -138,7 +138,7 @@ func GetRewardIncreaseDaoTestData(suite *f.BaseSuite, addresses AddressesForDist
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -154,7 +154,7 @@ func GetRewardUnchangedXtnTestData(suite *f.BaseSuite, addresses AddressesForDis
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - MaxAddressReward,
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -167,7 +167,7 @@ func GetRewardUnchangedXtnTestData(suite *f.BaseSuite, addresses AddressesForDis
 // NODE - 818
 func GetRewardDecreaseXtnTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -184,7 +184,7 @@ func GetRewardDecreaseXtnTestData(suite *f.BaseSuite, addresses AddressesForDist
 // NODE - 818
 func GetRewardDecreaseDaoTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -204,7 +204,7 @@ func GetReward2WUnchangedDaoXtnTestData(suite *f.BaseSuite, addresses AddressesF
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -220,7 +220,7 @@ func GetRewardMinersTestData(suite *f.BaseSuite, addresses AddressesForDistribut
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -236,7 +236,7 @@ func GetRewardDaoXtnWithout19TestData(suite *f.BaseSuite, addresses AddressesFor
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -260,7 +260,7 @@ func GetRewardIncreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSui
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -272,7 +272,7 @@ func GetRewardIncreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuit
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -288,7 +288,7 @@ func GetRewardIncreaseXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite,
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - MaxAddressReward,
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -300,7 +300,7 @@ func GetRewardIncreaseXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, 
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -316,7 +316,7 @@ func GetRewardUnchangedDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSu
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - 2*MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -328,7 +328,7 @@ func GetRewardUnchangedDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSui
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - MaxAddressReward,
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)) - MaxAddressReward,
 			DaoDiffBalance:       MaxAddressReward,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -341,7 +341,7 @@ func GetRewardUnchangedDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSui
 // NODE - 826
 func GetRewardDecreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -354,7 +354,7 @@ func GetRewardDecreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSui
 
 func GetRewardDecreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -371,7 +371,7 @@ func GetRewardDecreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuit
 // NODE - 826
 func GetRewardDecreaseXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -387,7 +387,7 @@ func GetRewardDecreaseXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, 
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -403,7 +403,7 @@ func GetReward2WUnchangedDaoXtnCeaseXTNBuybackTestData(suite *f.BaseSuite, addre
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -419,7 +419,7 @@ func GetReward5W2MinersIncreaseCeaseXTNBuybackTestData(suite *f.BaseSuite, addre
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
@@ -432,7 +432,7 @@ func GetReward5W2MinersIncreaseCeaseXTNBuybackTestData(suite *f.BaseSuite, addre
 // NODE - 830
 func GetRewardDaoXtnBeforePeriodWithout20TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -445,7 +445,7 @@ func GetRewardDaoXtnBeforePeriodWithout20TestData(suite *f.BaseSuite, addresses 
 
 func GetRewardDaoXtnAfterPeriodWithout20TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := int64(utl.GetCurrentRewardAtHeight(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -465,7 +465,7 @@ func GetRewardDaoXtnWithout19And20TestData(suite *f.BaseSuite, addresses Address
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: int64(utl.GetCurrentRewardAtHeight(suite, height)),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermCfg(suite),
