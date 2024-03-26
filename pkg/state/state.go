@@ -1643,7 +1643,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, err
 		}
 		if !patch.isInitialized() {
-			if lErr := patch.load(block.BlockID(), s.stor.patches); lErr != nil {
+			if lErr := patch.load(lastAppliedBlock.BlockID(), s.stor.patches); lErr != nil {
 				return nil, wrapErr(RetrievalError, lErr)
 			}
 		}
