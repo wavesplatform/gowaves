@@ -1331,10 +1331,16 @@ func (s *stateManager) generateBlockchainFix(
 	if !cancelLeases { // no need to generate snapshots
 		return nil, nil
 	}
+	zap.S().Infof("Generating fix snapshots for the block %s and its height %d",
+		applyingBlockID.String(), applyingBlockHeight,
+	)
 	fixSnapshots, err := s.generateCancelLeasesSnapshots(applyingBlockHeight)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate fix snapshots for block %s", applyingBlockID.String())
 	}
+	zap.S().Infof("Generated fix snapshots count is %d for the block %s and its height %d",
+		len(fixSnapshots), applyingBlockID.String(), applyingBlockHeight,
+	)
 	return fixSnapshots, nil
 }
 
