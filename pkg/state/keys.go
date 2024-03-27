@@ -28,6 +28,7 @@ const (
 	legacyStateHashKeySize   = 1 + 8
 	snapshotStateHashKeySize = 1 + 8
 	snapshotKeySize          = 1 + 8
+	rewardVotesKeySize       = 1 + 8
 )
 
 // Primary prefixes for storage keys
@@ -731,5 +732,16 @@ func (k *patchKey) bytes() []byte {
 	buf := make([]byte, 1+len(idBytes))
 	buf[0] = patchKeyPrefix
 	copy(buf[1:], idBytes)
+	return buf
+}
+
+type rewardVotesKey struct {
+	height uint64
+}
+
+func (k *rewardVotesKey) bytes() []byte {
+	buf := make([]byte, rewardVotesKeySize)
+	buf[0] = rewardVotesKeyPrefix
+	binary.BigEndian.PutUint64(buf[1:], k.height)
 	return buf
 }
