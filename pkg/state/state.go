@@ -1268,28 +1268,33 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 	return false, nil
 }
 
+// featureActivationHeightForHeight returns the height at which the feature is activated.
+// If the feature is not activated at the given height, it returns 0.
+func (s *stateManager) featureActivationHeightForHeight(f settings.Feature, h proto.Height) (proto.Height, error) {
+	featureIsActivatedAtHeight := s.stor.features.newestIsActivatedAtHeight(int16(f), h)
+	if !featureIsActivatedAtHeight { // feature is not activated at the given height, return 0
+		return 0, nil
+	}
+	approvalHeight, err := s.stor.features.newestApprovalHeight(int16(f))
+	if err != nil {
+		return 0, err
+	}
+	featureHeight := approvalHeight + s.settings.ActivationWindowSize(h) // calculate feature activation height
+	return featureHeight, nil
+}
+
 func (s *stateManager) needToCancelLeases(blockHeight uint64) (bool, error) {
 	if s.settings.Type == settings.Custom {
 		// No need to cancel leases in custom blockchains.
 		return false, nil
 	}
-	dataTxActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DataTransaction), blockHeight)
-	var dataTxHeight uint64
-	if dataTxActivated {
-		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.DataTransaction))
-		if err != nil {
-			return false, err
-		}
-		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(blockHeight)
+	dataTxHeight, err := s.featureActivationHeightForHeight(settings.DataTransaction, blockHeight)
+	if err != nil {
+		return false, err
 	}
-	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), blockHeight)
-	var rideV5Height uint64
-	if rideV5Activated {
-		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.RideV5))
-		if err != nil {
-			return false, err
-		}
-		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(blockHeight)
+	rideV5Height, err := s.featureActivationHeightForHeight(settings.RideV5, blockHeight)
+	if err != nil {
+		return false, err
 	}
 	switch blockHeight {
 	case s.settings.ResetEffectiveBalanceAtHeight:
@@ -1422,23 +1427,13 @@ func (s *stateManager) generateCancelLeasesSnapshots(blockHeight uint64) ([]prot
 		return nil, err
 	}
 	// prepare info about features activation
-	dataTxActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DataTransaction), blockHeight)
-	var dataTxHeight uint64
-	if dataTxActivated {
-		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.DataTransaction))
-		if err != nil {
-			return nil, err
-		}
-		dataTxHeight = approvalHeight + s.settings.ActivationWindowSize(blockHeight)
+	dataTxHeight, err := s.featureActivationHeightForHeight(settings.DataTransaction, blockHeight)
+	if err != nil {
+		return nil, err
 	}
-	rideV5Activated := s.stor.features.newestIsActivatedAtHeight(int16(settings.RideV5), blockHeight)
-	var rideV5Height uint64
-	if rideV5Activated {
-		approvalHeight, err := s.stor.features.newestApprovalHeight(int16(settings.RideV5))
-		if err != nil {
-			return nil, err
-		}
-		rideV5Height = approvalHeight + s.settings.ActivationWindowSize(blockHeight)
+	rideV5Height, err := s.featureActivationHeightForHeight(settings.RideV5, blockHeight)
+	if err != nil {
+		return nil, err
 	}
 	return s.generateLeasesCancellationWithNewBalancesSnapshots(blockHeight, dataTxHeight, rideV5Height)
 }
