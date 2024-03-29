@@ -302,6 +302,9 @@ func (td *transactionDiffer) doMinerPayoutAfterNG(
 	if !info.hasMiner() { // no nothing if there's no miner
 		return nil
 	}
+	if fee == 0 {
+		return errors.Errorf("failed to add miner payout to the diff, fee value in asset '%s' is 0 ", feeAsset.String())
+	}
 	ngActivated, err := td.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 1)
 	if err != nil {
 		return err
@@ -312,6 +315,16 @@ func (td *transactionDiffer) doMinerPayoutAfterNG(
 	minerAddr := info.blockInfo.Generator
 	minerKey := byteKey(minerAddr.ID(), feeAsset)
 	minerBalanceDiffValue := calculateCurrentBlockTxFee(fee, ngActivated)
+
+	// extremely rare case, but still possible because of rounding
+	// for example see mainnet transaction with ID "5BK9HPKmSkxoMdqvDzneb2UaW2NzDRjoMpMvQWfB4NcK" (ID in base58 encoding)
+	if minerBalanceDiffValue == 0 {
+		if _, ok := diff.getByKey(minerKey); !ok { // check if miner balance diff is already in transaction diff
+			return nil // we must not force snapshot generation for miner if there's no miner balance diff
+		}
+		// miner balance diff is already in transaction diff, so we must force snapshot generation for miner
+		// even if result miner fee value is 0
+	}
 
 	minerBalanceDiff := newBalanceDiff(int64(minerBalanceDiffValue), 0, 0, false)
 	// Miner's balance diff is always forced for snapshot generation after NG activation.
