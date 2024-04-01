@@ -531,7 +531,7 @@ func (sg *snapshotGenerator) generateSnapshotForIssueTx(
 
 func (sg *snapshotGenerator) generateSnapshotForReissueTx(
 	assetID crypto.Digest,
-	isReissuable bool,
+	isReissuableFromTx bool,
 	quantity uint64,
 	balanceChanges []balanceChanges,
 ) (txSnapshot, error) {
@@ -548,6 +548,9 @@ func (sg *snapshotGenerator) generateSnapshotForReissueTx(
 	if err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to generate a snapshot based on transaction's diffs")
 	}
+	// We should combine reissuable flag from the transaction and from the storage.
+	// For more info see 'settings.FunctionalitySettings.CanReissueNonReissueablePeriod'
+	isReissuable := isReissuableFromTx && assetInfo.reissuable
 	assetReissuability := &proto.AssetVolumeSnapshot{
 		AssetID:       assetID,
 		TotalQuantity: *resQuantity,
