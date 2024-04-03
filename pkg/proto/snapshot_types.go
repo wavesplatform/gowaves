@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/json"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -567,7 +568,7 @@ func (s AssetVolumeSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AssetVolu
 	return &g.TransactionStateSnapshot_AssetVolume{
 		AssetId:    s.AssetID.Bytes(),
 		Reissuable: s.IsReissuable,
-		Volume:     s.TotalQuantity.Bytes(),
+		Volume:     common.Encode2CBigInt(&s.TotalQuantity),
 	}, nil
 }
 
@@ -588,7 +589,7 @@ func (s *AssetVolumeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetVo
 	}
 
 	s.AssetID = assetID
-	s.TotalQuantity.SetBytes(p.Volume)
+	s.TotalQuantity = *common.Decode2CBigInt(p.Volume)
 	s.IsReissuable = p.Reissuable
 	return nil
 }
