@@ -17,6 +17,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -1877,6 +1878,7 @@ func TestEthereumOrderV4_VerifyFromJSONWithLeadingPKZeroes(t *testing.T) {
 }
 
 func TestEthereumOrderV4_UnmarshalJSON(t *testing.T) {
+	//nolint:lll
 	tests := []struct {
 		scheme             Scheme
 		jsonOrder          string
@@ -1941,6 +1943,35 @@ func TestEthereumOrderV4_UnmarshalJSON(t *testing.T) {
 			orderBodyBase58:    "AqRtygFPj6Dru5d3Pc49tBwT1HHrFCvRBoG5AcaBu5aG9KtRUr9dCJznkh3PjVKRU5fHpEcLzTjELSWMitAHt31R2geb1ZQ1XZwp1gcR8HVV5Nzc6rqQUPw3FGJwKA6vXRSy6R5g6s4hxSuPDaZieFdyZ2rgbZ8BPYSyuG8K3kUJ7iBTK1i7bhmLd2Usb4XHCAJR4MAArQmBGZHz74xXvS",
 			orderIDBase58:      "8274Mc8WiNQdP3YhinBGkEX79AcZe5th51DJCTW8rEUZ",
 			eip712SignatureHex: "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
+		},
+		{
+			scheme: TestNetScheme, // taken from testnet tx 992yYpK6M5viXiHcbZshE9iczaKyYXM2DX6HDZk8TE1S
+			jsonOrder: `
+				{
+					"version": 4,
+					"id": "94syx42gegn8HXK7s3hFii4KFxxfLepgprJbc5eicseq",
+					"sender": "3NAwHNM4bit7zTdQvixGoyWjvu9tbMxVx7z",
+					"senderPublicKey": "5gJT98dYcM6VPKGp1AM8jKwqi9VHkpmfqgotMirNiG8ZPbLRN4qHXMR14fwHhrdaaaDZDmK9rSRweMQhTuLb1BrV",
+					"matcherPublicKey": "7oeqv1MBNFpAZqV68VhUWcceemnhkqFus3ayFJqX6nNV",
+					"assetPair": {
+					  "amountAsset": "56BWjKYmRs2jQz8vu7aXw7YMFebgTEvKQKtoD7o3Y2Ze",
+					  "priceAsset": null
+					},
+					"orderType": "sell",
+					"amount": 10000,
+					"price": 10000,
+					"timestamp": 1654102940663,
+					"expiration": 1655542940663,
+					"matcherFee": 300000,
+					"signature": "",
+					"proofs": [],
+					"matcherFeeAssetId": null,
+					"eip712Signature": "0xc95509f78a317a01e39c9fbf5a7541f04b47181ac46a3e12a31c0489d14bddd54cb71b13554b1acae37ffecc936bd448db604d2796a94c812482133e343a9d0e1b",
+					"priceMode": "assetDecimals"
+				  }`,
+			orderBodyBase58:    "H5AvS2D9QQmL7qSidrRVY5g1FT8jdbD9j34mjA3MntwMiwiAJfMNsvTjmYhXWNbs11v9kaPpKhjq4G8ciooLdQHMedc6SGkrZoifBeJpWeaTPJ2Zwh4vL4KvXJxefdMp4yyED1s3QFiC8BGkQqXrMhyf6cPzRBTZPt63f4CFrMPity79HKqerhJFcWhVK82SApDgYFLVkCATidtqWZBe2iTyeg9YDFWEsKXUdmewK",
+			orderIDBase58:      "94syx42gegn8HXK7s3hFii4KFxxfLepgprJbc5eicseq",
+			eip712SignatureHex: "0xc95509f78a317a01e39c9fbf5a7541f04b47181ac46a3e12a31c0489d14bddd54cb71b13554b1acae37ffecc936bd448db604d2796a94c812482133e343a9d0e1b",
 		},
 	}
 	for _, tc := range tests {

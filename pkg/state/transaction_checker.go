@@ -610,11 +610,7 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 	if !bytes.Equal(assetInfo.Issuer[:], tx.SenderPK[:]) {
 		return errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
-	if info.currentTimestamp <= tc.settings.InvalidReissueInSameBlockUntilTime {
-		// Due to bugs in existing blockchain it is valid to reissue non-reissuable asset in this time period.
-		return nil
-	}
-	if (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeStart) && (info.currentTimestamp <= tc.settings.ReissueBugWindowTimeEnd) {
+	if tc.settings.CanReissueNonReissueablePeriod(info.currentTimestamp) {
 		// Due to bugs in existing blockchain it is valid to reissue non-reissuable asset in this time period.
 		return nil
 	}
