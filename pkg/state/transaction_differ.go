@@ -69,6 +69,15 @@ func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalan
 	return diff
 }
 
+// newMinerFeeForcedBalanceDiff creates balanceDiff for miner fee.
+// Miner's balance diff is always forced for snapshot generation.
+func newMinerFeeForcedBalanceDiff(balance int64, updateMinIntermediateBalance bool) balanceDiff {
+	// leaseIn and leaseOut are always 0 for fee miner diff.
+	diff := newBalanceDiff(balance, 0, 0, updateMinIntermediateBalance)
+	diff.balance = diff.balance.ToForced()
+	return diff
+}
+
 // spendableBalanceDiff() returns the difference of spendable balance which given diff produces.
 //func (diff *balanceDiff) spendableBalanceDiff() int64 {
 //	return diff.balance - diff.leaseOut
@@ -326,11 +335,14 @@ func (td *transactionDiffer) doMinerPayoutAfterNG(
 		// even if result miner fee value is 0
 	}
 
-	minerBalanceDiff := newBalanceDiff(int64(minerBalanceDiffValue), 0, 0, false)
-	// Miner's balance diff is always forced for snapshot generation after NG activation.
-	minerBalanceDiff.balance = minerBalanceDiff.balance.ToForced()
-
-	return diff.appendBalanceDiff(minerKey, minerBalanceDiff)
+	updateMinIntermediateBalance := false
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
+	// Miner's balance diff is always forced for snapshot generation.
+	minerBalanceDiffForced := newMinerFeeForcedBalanceDiff(int64(minerBalanceDiffValue), updateMinIntermediateBalance)
+	// Add forced miner's fee balance diff to txDiff.
+	return diff.appendBalanceDiff(minerKey, minerBalanceDiffForced)
 }
 
 func (td *transactionDiffer) createDiffGenesis(transaction proto.Transaction, _ *differInfo) (txBalanceChanges, error) {
