@@ -185,7 +185,7 @@ func (d *blockDiffer) doMinerPayoutBeforeNG(
 		)
 		minerKey := byteKey(minerAddr.ID(), feeAsset)
 		minerBalanceDiff := calculateCurrentBlockTxFee(fee, ngActivated)
-		nd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, updateMinIntermediateBalance)
+		nd := newMinerFeeForcedBalanceDiff(int64(minerBalanceDiff), updateMinIntermediateBalance)
 		if err := diff.appendBalanceDiff(minerKey, nd); err != nil {
 			return errors.Wrapf(err, "failed to append balance diff for miner on %d-th transaction", i+1)
 		}
