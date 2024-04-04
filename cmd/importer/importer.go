@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
 	"runtime"
 	"runtime/debug"
 	"runtime/pprof"
@@ -140,13 +143,24 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("Failed to get current height: %v", err)
 	}
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	start := time.Now()
-	if err := importer.ApplyFromFile(st, *blockchainPath, uint64(*nBlocks), height); err != nil {
-		height, err1 := st.Height()
-		if err1 != nil {
-			zap.S().Fatalf("Failed to get current height: %v", err1)
+	applyErr := importer.ApplyFromFile(ctx, st, *blockchainPath, uint64(*nBlocks), height)
+	if applyErr != nil {
+		currentHeight, hErr := st.Height()
+		if hErr != nil {
+			zap.S().Fatalf("Failed to get current height: %v", hErr)
 		}
-		zap.S().Fatalf("Failed to apply blocks after height %d: %v", height, err)
+		switch {
+		case errors.Is(applyErr, context.Canceled):
+			zap.S().Infof("Interrupted by user, height %d", currentHeight)
+		case errors.Is(applyErr, io.EOF):
+			zap.S().Info("End of blockchain file reached, height %d", currentHeight)
+		default:
+			zap.S().Fatalf("Failed to apply blocks after height %d: %v", currentHeight, applyErr)
+		}
 	}
 	elapsed := time.Since(start)
 	zap.S().Infof("Import took %s", elapsed)
