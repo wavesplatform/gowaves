@@ -2,13 +2,13 @@ package proto
 
 import (
 	"encoding/json"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"math/big"
 
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type AtomicSnapshot interface {
