@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
 
 type blockDiff struct {
@@ -77,7 +78,8 @@ func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistributio
 	wavesKey := wavesBalanceKey{addr}
 	wavesDiff := distr.totalWavesFees - distr.currentWavesBlockFees
 	if wavesDiff != 0 {
-		if err := diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: int64(wavesDiff)}); err != nil {
+		err := diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: internal.NewIntChange(int64(wavesDiff))})
+		if err != nil {
 			return txDiff{}, err
 		}
 	}
@@ -88,7 +90,8 @@ func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistributio
 		}
 		assetKey := byteKey(addr, *proto.NewOptionalAssetFromDigest(asset))
 		assetDiff := totalFee - curFee
-		if err := diff.appendBalanceDiff(assetKey, balanceDiff{balance: int64(assetDiff)}); err != nil {
+		err := diff.appendBalanceDiff(assetKey, balanceDiff{balance: internal.NewIntChange(int64(assetDiff))})
+		if err != nil {
 			return txDiff{}, err
 		}
 	}
@@ -182,7 +185,7 @@ func (d *blockDiffer) doMinerPayoutBeforeNG(
 		)
 		minerKey := byteKey(minerAddr.ID(), feeAsset)
 		minerBalanceDiff := calculateCurrentBlockTxFee(fee, ngActivated)
-		nd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, updateMinIntermediateBalance)
+		nd := newMinerFeeForcedBalanceDiff(int64(minerBalanceDiff), updateMinIntermediateBalance)
 		if err := diff.appendBalanceDiff(minerKey, nd); err != nil {
 			return errors.Wrapf(err, "failed to append balance diff for miner on %d-th transaction", i+1)
 		}
