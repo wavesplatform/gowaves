@@ -162,7 +162,7 @@ func parseNodesList(nodes string) []string {
 func dialEndpoints(endpoints []string) ([]*g.ClientConn, error) {
 	r := make([]*g.ClientConn, len(endpoints))
 	for i, e := range endpoints {
-		c, err := g.Dial(e, g.WithTransportCredentials(insecure.NewCredentials()))
+		c, err := g.NewClient(e, g.WithTransportCredentials(insecure.NewCredentials()))
 		if err != nil {
 			return nil, err
 		}
