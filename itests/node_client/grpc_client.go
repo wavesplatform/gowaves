@@ -25,7 +25,7 @@ type GrpcClient struct {
 }
 
 func NewGrpcClient(t *testing.T, port string) *GrpcClient {
-	conn, err := grpc.Dial(d.Localhost+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(d.Localhost+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NoError(t, err, "failed to dial grpc")
 	return &GrpcClient{conn: conn, timeout: 30 * time.Second}
 }

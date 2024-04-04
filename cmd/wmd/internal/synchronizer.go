@@ -7,15 +7,16 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/credentials/insecure"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/credentials/insecure"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 type Synchronizer struct {
@@ -31,7 +32,7 @@ type Synchronizer struct {
 }
 
 func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme byte, matchers []crypto.PublicKey, node string, interval time.Duration, lag int, symbols *data.Symbols) (*Synchronizer, error) {
-	conn, err := grpc.Dial(node, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(node, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
