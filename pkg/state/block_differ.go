@@ -8,7 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
 
 type blockDiff struct {
@@ -78,7 +78,7 @@ func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistributio
 	wavesKey := wavesBalanceKey{addr}
 	wavesDiff := distr.totalWavesFees - distr.currentWavesBlockFees
 	if wavesDiff != 0 {
-		err := diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: common.NewIntChange(int64(wavesDiff))})
+		err := diff.appendBalanceDiff(wavesKey.bytes(), balanceDiff{balance: internal.NewIntChange(int64(wavesDiff))})
 		if err != nil {
 			return txDiff{}, err
 		}
@@ -90,7 +90,7 @@ func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistributio
 		}
 		assetKey := byteKey(addr, *proto.NewOptionalAssetFromDigest(asset))
 		assetDiff := totalFee - curFee
-		err := diff.appendBalanceDiff(assetKey, balanceDiff{balance: common.NewIntChange(int64(assetDiff))})
+		err := diff.appendBalanceDiff(assetKey, balanceDiff{balance: internal.NewIntChange(int64(assetDiff))})
 		if err != nil {
 			return txDiff{}, err
 		}

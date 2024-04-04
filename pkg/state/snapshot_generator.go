@@ -9,6 +9,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -1185,7 +1186,7 @@ func (sg *snapshotGenerator) generateBalancesAtomicSnapshots(
 	}, nil
 }
 
-func isAccountableBalanceChange[T constraints.Integer](txIsSuccessfulInvoke bool, v common.IntChange[T]) bool {
+func isAccountableBalanceChange[T constraints.Integer](txIsSuccessfulInvoke bool, v internal.IntChange[T]) bool {
 	// for invoke tx we need to take into account all the changes, even if they are zero
 	// for other transactions we must ignore zero changes
 	return v.Present() && txIsSuccessfulInvoke || v.IsAccountable()
@@ -1215,7 +1216,7 @@ func (sg *snapshotGenerator) addAssetBalanceDiffFromTxDiff(
 	return nil
 }
 
-func isAccountableBalanceChanges[T constraints.Integer](txIsSuccessfulInvoke bool, v ...common.IntChange[T]) bool {
+func isAccountableBalanceChanges[T constraints.Integer](txIsSuccessfulInvoke bool, v ...internal.IntChange[T]) bool {
 	for _, change := range v {
 		if isAccountableBalanceChange(txIsSuccessfulInvoke, change) {
 			return true

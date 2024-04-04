@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -46,25 +47,25 @@ type balanceDiff struct {
 	allowLeasedTransfer          bool
 	updateMinIntermediateBalance bool
 	// Min intermediate balance change.
-	minBalance common.IntChange[int64]
+	minBalance internal.IntChange[int64]
 	// Balance change.
-	balance common.IntChange[int64]
+	balance internal.IntChange[int64]
 	// LeaseIn change.
-	leaseIn common.IntChange[int64]
+	leaseIn internal.IntChange[int64]
 	// LeaseOut change.
-	leaseOut common.IntChange[int64]
+	leaseOut internal.IntChange[int64]
 	blockID  proto.BlockID
 }
 
 func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalance bool) balanceDiff {
 	diff := balanceDiff{
 		updateMinIntermediateBalance: updateMinIntermediateBalance,
-		balance:                      common.NewIntChange(balance),
-		leaseIn:                      common.NewIntChange(leaseIn),
-		leaseOut:                     common.NewIntChange(leaseOut),
+		balance:                      internal.NewIntChange(balance),
+		leaseIn:                      internal.NewIntChange(leaseIn),
+		leaseOut:                     internal.NewIntChange(leaseOut),
 	}
 	if updateMinIntermediateBalance {
-		diff.minBalance = common.NewIntChange(balance)
+		diff.minBalance = internal.NewIntChange(balance)
 	}
 	return diff
 }

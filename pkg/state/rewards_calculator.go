@@ -5,7 +5,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
 
 // XTNByuBack and WavesDAO addresses count.
@@ -41,11 +41,11 @@ func (c *rewardCalculator) applyToDiff(diff txDiff, addr proto.AddressID, height
 	return c.performCalculation(
 		func(r uint64) error {
 			key := wavesBalanceKey{addr}
-			return diff.appendBalanceDiff(key.bytes(), balanceDiff{balance: common.NewIntChange(int64(r))})
+			return diff.appendBalanceDiff(key.bytes(), balanceDiff{balance: internal.NewIntChange(int64(r))})
 		},
 		func(a proto.WavesAddress, r uint64) error {
 			key := wavesBalanceKey{a.ID()}
-			return diff.appendBalanceDiff(key.bytes(), balanceDiff{balance: common.NewIntChange(int64(r))})
+			return diff.appendBalanceDiff(key.bytes(), balanceDiff{balance: internal.NewIntChange(int64(r))})
 		},
 		height, reward)
 }

@@ -6,10 +6,10 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
 
-func ich(v int64) common.IntChange[int64] { return common.NewIntChange[int64](v) }
+func ich(v int64) internal.IntChange[int64] { return internal.NewIntChange[int64](v) }
 
 func createBlockDiff(blockID proto.BlockID) blockDiff {
 	return blockDiff{
