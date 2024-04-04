@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"context"
 	"encoding/binary"
 	"encoding/json"
 	"os"
@@ -77,7 +78,15 @@ func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, inc
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
-func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64) error {
+func ApplyFromFile( //nolint:gocognit // This function is refactored in another PR, see #1290
+	ctx context.Context,
+	st State,
+	blockchainPath string,
+	nBlocks, startHeight uint64,
+) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	blockchain, err := os.Open(blockchainPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
 	if err != nil {
 		return errors.Errorf("failed to open blockchain file: %v", err)
@@ -97,6 +106,9 @@ func ApplyFromFile(st State, blockchainPath string, nBlocks, startHeight uint64)
 	increasingSize := true
 	maxSize := initTotalBatchSize
 	for height := uint64(1); height <= nBlocks; height++ {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
 			return err
 		}
