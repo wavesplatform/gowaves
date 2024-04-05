@@ -8,15 +8,16 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
-func MarshalToProtobufDeterministic(pb protobuf.Message) ([]byte, error) {
-	b, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(pb)
-	if err != nil {
-		return nil, err
+type vtStrictMarshaler interface {
+	SizeVT() int
+	MarshalVTStrict() ([]byte, error)
+}
+
+func MarshalToProtobufDeterministic(pb vtStrictMarshaler) ([]byte, error) {
+	if l := pb.SizeVT(); l > 10*1024*1024 {
+		return nil, errors.Errorf("failed to marshal protobuf message with len %d, marshaled value exceeds 10MB limit", l)
 	}
-	if len(b) > 10*1024*1024 {
-		return nil, errors.New("failed to marshal protobuf message, marshaled value exceeds 10MB limit")
-	}
-	return b, nil
+	return pb.MarshalVTStrict()
 }
 
 func MarshalTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error) {

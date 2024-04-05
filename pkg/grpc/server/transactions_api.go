@@ -74,6 +74,14 @@ func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsA
 	return nil
 }
 
+func (s *Server) GetTransactionSnapshots(
+	req *g.TransactionSnapshotsRequest,
+	srv g.TransactionsApi_GetTransactionSnapshotsServer,
+) error {
+	unimplementedServer := g.UnimplementedTransactionsApiServer{} // TODO: implement GetTransactionSnapshots
+	return unimplementedServer.GetTransactionSnapshots(req, srv)
+}
+
 type getStateChangesHandler struct {
 	srv g.TransactionsApi_GetStateChangesServer
 	s   *Server
