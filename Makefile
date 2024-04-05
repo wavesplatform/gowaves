@@ -14,7 +14,7 @@ export GO111MODULE=on
 
 all: vendor vetcheck fmtcheck gotest mod-clean build-node-native
 
-ci: vendor vetcheck fmtcheck release-node gotest-race-coverage mod-clean
+ci: vendor vetcheck fmtcheck release-node build-importer-native gotest-race-coverage mod-clean
 
 ver:
 	@echo Building version: $(VERSION)
@@ -131,13 +131,13 @@ dist-node: release-node build-node-mainnet-amd64-deb-package build-node-testnet-
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/node_$(VERSION)_macOS-amd64.tar.gz ./node*
 
 build-importer-native:
-	@go build -o build/bin/native/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+	@go build -pgo=importer.pgo -o build/bin/native/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-linux:
-	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -pgo=importer.pgo -o build/bin/linux-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-darwin:
-	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -pgo=importer.pgo -o build/bin/darwin-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-windows:
-	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/importer.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -pgo=importer.pgo -o build/bin/windows-amd64/importer.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 
 release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
 
