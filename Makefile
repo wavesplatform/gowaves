@@ -14,7 +14,7 @@ export GO111MODULE=on
 
 all: vendor vetcheck fmtcheck gotest mod-clean build-node-native
 
-ci: vendor vetcheck fmtcheck release-node gotest-race-coverage mod-clean
+ci: vendor vetcheck fmtcheck release-node build-importer-native gotest-race-coverage mod-clean
 
 ver:
 	@echo Building version: $(VERSION)
