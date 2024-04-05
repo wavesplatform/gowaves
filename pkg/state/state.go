@@ -1422,7 +1422,20 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 }
 
 func (s *stateManager) updateBlockReward(lastBlockID proto.BlockID, height proto.Height) error {
-	return s.stor.monetaryPolicy.updateBlockReward(lastBlockID, height)
+	blockRewardActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return err
+	}
+	isCappedRewardsActivated, err := s.stor.features.newestIsActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return err
+	}
+	return s.stor.monetaryPolicy.updateBlockReward(
+		lastBlockID,
+		height,
+		blockRewardActivationHeight,
+		isCappedRewardsActivated,
+	)
 }
 
 func (s *stateManager) generateCancelLeasesSnapshots(blockHeight uint64) ([]proto.AtomicSnapshot, error) {
@@ -2669,7 +2682,15 @@ func (s *stateManager) RewardAtHeight(height proto.Height) (uint64, error) {
 }
 
 func (s *stateManager) RewardVotes(height proto.Height) (proto.RewardVotes, error) {
-	v, err := s.stor.monetaryPolicy.votes(height)
+	activation, err := s.stor.features.activationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return proto.RewardVotes{}, err
+	}
+	isCappedRewardsActivated, err := s.stor.features.isActivated(int16(settings.CappedRewards))
+	if err != nil {
+		return proto.RewardVotes{}, err
+	}
+	v, err := s.stor.monetaryPolicy.votes(height, activation, isCappedRewardsActivated)
 	if err != nil {
 		return proto.RewardVotes{}, err
 	}
