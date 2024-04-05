@@ -16,7 +16,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	protobuf "google.golang.org/protobuf/proto"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -3523,7 +3522,7 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					pbConverter        ProtobufConverter
 					unmarshaledPBOrder pb.Order
 				)
-				require.NoError(t, protobuf.Unmarshal(orderBytes, &unmarshaledPBOrder))
+				require.NoError(t, unmarshaledPBOrder.UnmarshalVT(orderBytes))
 				unmarshaledOrder := pbConverter.extractOrder(&unmarshaledPBOrder)
 				require.NoError(t, pbConverter.err)
 				return unmarshaledOrder
@@ -5170,7 +5169,7 @@ func TestDataWithProofsSizeLimit(t *testing.T) {
 
 		// Test protobuf payload size
 		payload := tx.ProtoPayload()
-		marshaledPayload, err := protobuf.MarshalOptions{Deterministic: true}.Marshal(payload)
+		marshaledPayload, err := payload.MarshalVTStrict()
 		assert.NoError(t, err)
 		marshaledPayloadSize := tx.ProtoPayloadSize()
 		assert.NoError(t, err)
