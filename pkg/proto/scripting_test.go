@@ -182,9 +182,9 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		if msg, err := test.ToProtobuf(); assert.NoError(t, err) {
 			if b, err := MarshalToProtobufDeterministic(msg); assert.NoError(t, err) {
 				in := &g.InvokeScriptResult{}
-				if err := in.UnmarshalVT(b); assert.NoError(t, err) {
+				if unmrshlErr := in.UnmarshalVT(b); assert.NoError(t, unmrshlErr) {
 					sr := ScriptResult{}
-					if err := sr.FromProtobuf('W', in); assert.NoError(t, err) {
+					if prtbfErr := sr.FromProtobuf('W', in); assert.NoError(t, prtbfErr) {
 						assert.EqualValues(t, test, sr, fmt.Sprintf("#%d", i+1))
 					}
 				}
