@@ -735,13 +735,19 @@ func (k *patchKey) bytes() []byte {
 	return buf
 }
 
-type rewardVotesKey struct {
-	height uint64
+type rewardVotesPackKey struct {
+	height proto.Height
 }
 
-func (k *rewardVotesKey) bytes() []byte {
+func (k *rewardVotesPackKey) bytes() []byte {
+	const packStep = 1000
+	var ( // compile-time checks
+		_ = [packStep - rewardVotesRecordsPackMaxSize]struct{}{}
+		_ = [rewardVotesRecordsPackMaxSize - packStep]struct{}{}
+	)
 	buf := make([]byte, rewardVotesKeySize)
 	buf[0] = rewardVotesKeyPrefix
-	binary.BigEndian.PutUint64(buf[1:], k.height)
+	packNumKey := k.height / packStep
+	binary.BigEndian.PutUint64(buf[1:], packNumKey)
 	return buf
 }

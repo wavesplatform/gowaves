@@ -157,8 +157,7 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	rewardVotes: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   rewardVotesRecordSize + 4,
+		fixedSize:    false,
 	},
 	invokeResult: {
 		needToFilter: true,

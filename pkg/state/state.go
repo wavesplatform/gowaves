@@ -2694,7 +2694,7 @@ func (s *stateManager) RewardVotes(height proto.Height) (proto.RewardVotes, erro
 	if err != nil {
 		return proto.RewardVotes{}, err
 	}
-	return proto.RewardVotes{Increase: v.increase, Decrease: v.decrease}, nil
+	return proto.RewardVotes{Increase: uint32(v.Increase), Decrease: uint32(v.Decrease)}, nil
 }
 
 func (s *stateManager) getInitialTotalWavesAmount() uint64 {

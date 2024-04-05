@@ -1,44 +1,74 @@
 package state
 
 import (
-	"encoding/binary"
+	"cmp"
+	"slices"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
-	rewardVotesRecordSize = 4 + 4
+	rewardVotesRecordsPackMaxSize = 1000 // one rewardVotesRecord should contain no more than 1000 votes records
 )
 
-func zeroVotesRecord() rewardVotesRecord { return rewardVotesRecord{0, 0} }
+func zeroVotesRecord() rewardVotesPair { return rewardVotesPair{0, 0} }
 
 func rewardChangesKeyBytes() []byte {
 	return []byte{rewardChangesKeyPrefix}
 }
 
+type rewardVotesPair struct {
+	Increase uint16 `cbor:"0,keyasint,omitempty"`
+	Decrease uint16 `cbor:"1,keyasint,omitempty"`
+}
+
 type rewardVotesRecord struct {
-	increase uint32
-	decrease uint32
+	Height proto.Height    `cbor:"0,keyasint,omitempty"`
+	Votes  rewardVotesPair `cbor:"1,keyasint,omitempty"`
 }
 
-func (r *rewardVotesRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, rewardVotesRecordSize)
-	binary.BigEndian.PutUint32(res, r.increase)
-	binary.BigEndian.PutUint32(res[4:], r.decrease)
-	return res, nil
+type rewardVotesPack struct {
+	Records []rewardVotesRecord `cbor:"0,keyasint"`
 }
 
-func (r *rewardVotesRecord) unmarshalBinary(data []byte) error {
-	if len(data) != rewardVotesRecordSize {
-		return errInvalidDataSize
+func (r *rewardVotesPack) AppendVotesPair(height proto.Height, votes rewardVotesPair) error {
+	if l := len(r.Records); l > 0 {
+		if last := r.Records[l-1]; last.Height >= height { // increasing order is required
+			return errors.Errorf("height %d of the new record must be greater than the height %d of the last record",
+				height, last.Height,
+			)
+		}
+		if l >= rewardVotesRecordsPackMaxSize { // sanity check
+			return errors.Errorf("votes records pack must contain no more than %d records",
+				rewardVotesRecordsPackMaxSize,
+			)
+		}
 	}
-	r.increase = binary.BigEndian.Uint32(data[:4])
-	r.decrease = binary.BigEndian.Uint32(data[4:])
+	r.Records = append(r.Records, rewardVotesRecord{Height: height, Votes: votes})
 	return nil
+}
+
+func (r *rewardVotesPack) VotesAtHeight(height proto.Height) (rewardVotesPair, bool) {
+	i, found := slices.BinarySearchFunc(r.Records, height, func(r rewardVotesRecord, target proto.Height) int {
+		return cmp.Compare(r.Height, target)
+	})
+	if !found {
+		return zeroVotesRecord(), false
+	}
+	return r.Records[i].Votes, true
+}
+
+func (r *rewardVotesPack) marshalBinary() ([]byte, error) {
+	return cbor.Marshal(r)
+}
+
+func (r *rewardVotesPack) unmarshalBinary(data []byte) error {
+	return cbor.Unmarshal(data, r)
 }
 
 type monetaryPolicy struct {
@@ -64,52 +94,76 @@ func (m *monetaryPolicy) reward() (uint64, error) {
 	return rewardsChanges[len(rewardsChanges)-1].Reward, nil
 }
 
+func (m *monetaryPolicy) newestRewardVotesPack(height proto.Height) (rewardVotesPack, error) {
+	key := rewardVotesPackKey{height: height}
+	var votesPack rewardVotesPack
+	recordBytes, err := m.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		return votesPack, err
+	}
+	if err = votesPack.unmarshalBinary(recordBytes); err != nil {
+		return votesPack, err
+	}
+	return votesPack, nil
+}
+
+func (m *monetaryPolicy) rewardVotesPack(height proto.Height) (rewardVotesPack, error) {
+	key := rewardVotesPackKey{height: height}
+	var votesPack rewardVotesPack
+	recordBytes, err := m.hs.topEntryData(key.bytes())
+	if err != nil {
+		return votesPack, err
+	}
+	if err = votesPack.unmarshalBinary(recordBytes); err != nil {
+		return votesPack, err
+	}
+	return votesPack, nil
+}
+
 func (m *monetaryPolicy) newestVotes(
 	height proto.Height,
 	blockRewardActivationHeight proto.Height,
 	isCappedRewardsActive bool,
-) (rewardVotesRecord, error) {
+) (rewardVotesPair, error) {
 	start, end := m.blockRewardVotingPeriod(height, blockRewardActivationHeight, isCappedRewardsActive)
 	if !isBlockRewardVotingPeriod(start, end, height) { // voting is not started, do nothing
 		return zeroVotesRecord(), nil
 	}
-	key := rewardVotesKey{height: height}
-	var votesRecord rewardVotesRecord
-	recordBytes, err := m.hs.newestTopEntryData(key.bytes())
-	if isNotFoundInHistoryOrDBErr(err) {
-		return votesRecord, nil
-	}
+	votesPack, err := m.newestRewardVotesPack(height)
 	if err != nil {
-		return votesRecord, err
+		if isNotFoundInHistoryOrDBErr(err) {
+			return zeroVotesRecord(), nil
+		}
+		return rewardVotesPair{}, err
 	}
-	if err = votesRecord.unmarshalBinary(recordBytes); err != nil {
-		return votesRecord, err
+	votesPair, found := votesPack.VotesAtHeight(height)
+	if !found {
+		return zeroVotesRecord(), nil
 	}
-	return votesRecord, nil
+	return votesPair, nil
 }
 
 func (m *monetaryPolicy) votes(
 	height proto.Height,
 	blockRewardActivationHeight proto.Height,
 	isCappedRewardsActive bool,
-) (rewardVotesRecord, error) {
+) (rewardVotesPair, error) {
 	start, end := m.blockRewardVotingPeriod(height, blockRewardActivationHeight, isCappedRewardsActive)
 	if !isBlockRewardVotingPeriod(start, end, height) { // voting is not started, do nothing
 		return zeroVotesRecord(), nil
 	}
-	key := rewardVotesKey{height: height}
-	var votesRecord rewardVotesRecord
-	recordBytes, err := m.hs.topEntryData(key.bytes())
-	if isNotFoundInHistoryOrDBErr(err) {
-		return votesRecord, nil
-	}
+	votesPack, err := m.rewardVotesPack(height)
 	if err != nil {
-		return votesRecord, err
+		if isNotFoundInHistoryOrDBErr(err) {
+			return zeroVotesRecord(), nil
+		}
+		return rewardVotesPair{}, err
 	}
-	if err = votesRecord.unmarshalBinary(recordBytes); err != nil {
-		return votesRecord, err
+	votesPair, found := votesPack.VotesAtHeight(height)
+	if !found {
+		return zeroVotesRecord(), nil
 	}
-	return votesRecord, nil
+	return votesPair, nil
 }
 
 func (m *monetaryPolicy) vote(
@@ -123,30 +177,56 @@ func (m *monetaryPolicy) vote(
 	if !isBlockRewardVotingPeriod(start, end, height) { // voting is not started, do nothing
 		return nil // no need to save anything, because voting is not started
 	}
-	if desired < 0 { // there is no vote, nothing to count
-		return m.saveVotes(zeroVotesRecord(), blockID, height)
+	if desired < 0 { // there is no vote, nothing to count, so also nothing to save
+		return nil
 	}
 	target := uint64(desired)
 	current, err := m.reward()
 	if err != nil {
 		return err
 	}
-	rec, err := m.newestVotes(height-1, blockRewardActivationHeight, isCappedRewardsActive)
+	prevHeight := height - 1
+	votesPack, err := m.newestRewardVotesPack(prevHeight)
 	if err != nil {
-		return err
+		if isNotFoundInHistoryOrDBErr(err) {
+			votesPack = rewardVotesPack{} // no votes yet
+		} else {
+			return err // some other error
+		}
+	}
+	rec, found := votesPack.VotesAtHeight(prevHeight)
+	if !found {
+		rec = zeroVotesRecord()
 	}
 	switch {
 	case target > current:
-		rec.increase++
+		inc, incErr := common.AddInt(rec.Increase, 1)
+		if incErr != nil {
+			return errors.Wrapf(incErr, "failed to increment votes for increasing reward for block '%s' at height '%d'",
+				blockID.String(), height,
+			)
+		}
+		rec.Increase = inc
 	case target < current:
-		rec.decrease++
+		dec, decErr := common.AddInt(rec.Decrease, 1)
+		if decErr != nil {
+			return errors.Wrapf(decErr, "failed to increment votes for decreasing reward for block '%s' at height '%d'",
+				blockID.String(), height,
+			)
+		}
+		rec.Decrease = dec
 	}
-	return m.saveVotes(rec, blockID, height)
+	if addErr := votesPack.AppendVotesPair(height, rec); addErr != nil {
+		return errors.Wrapf(addErr, "failed to append votes for block '%s' at height '%d'",
+			blockID.String(), height,
+		)
+	}
+	return m.saveVotesPack(votesPack, blockID, height)
 }
 
-func (m *monetaryPolicy) saveVotes(votes rewardVotesRecord, blockID proto.BlockID, height proto.Height) error {
-	key := rewardVotesKey{height: height}
-	recordBytes, err := votes.marshalBinary()
+func (m *monetaryPolicy) saveVotesPack(pack rewardVotesPack, blockID proto.BlockID, height proto.Height) error {
+	key := rewardVotesPackKey{height: height}
+	recordBytes, err := pack.marshalBinary()
 	if err != nil {
 		return err
 	}
@@ -167,11 +247,11 @@ func (m *monetaryPolicy) updateBlockReward(
 	if err != nil {
 		return err
 	}
-	threshold := uint32(m.settings.BlockRewardVotingThreshold())
+	threshold := m.settings.BlockRewardVotingThreshold()
 	switch {
-	case votes.increase >= threshold:
+	case uint64(votes.Increase) >= threshold:
 		reward += m.settings.BlockRewardIncrement
-	case votes.decrease >= threshold:
+	case uint64(votes.Decrease) >= threshold:
 		reward -= m.settings.BlockRewardIncrement
 	default:
 		return nil // nothing to do, reward remains the same
