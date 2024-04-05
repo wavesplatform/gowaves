@@ -64,10 +64,26 @@ func (m *monetaryPolicy) reward() (uint64, error) {
 	return rewardsChanges[len(rewardsChanges)-1].Reward, nil
 }
 
-func (m *monetaryPolicy) votes(height proto.Height) (rewardVotesRecord, error) {
+func (m *monetaryPolicy) newestVotes(height proto.Height) (rewardVotesRecord, error) {
 	key := rewardVotesKey{height: height}
 	var votesRecord rewardVotesRecord
 	recordBytes, err := m.hs.newestTopEntryData(key.bytes())
+	if isNotFoundInHistoryOrDBErr(err) {
+		return votesRecord, nil
+	}
+	if err != nil {
+		return votesRecord, err
+	}
+	if err = votesRecord.unmarshalBinary(recordBytes); err != nil {
+		return votesRecord, err
+	}
+	return votesRecord, nil
+}
+
+func (m *monetaryPolicy) votes(height proto.Height) (rewardVotesRecord, error) {
+	key := rewardVotesKey{height: height}
+	var votesRecord rewardVotesRecord
+	recordBytes, err := m.hs.topEntryData(key.bytes())
 	if isNotFoundInHistoryOrDBErr(err) {
 		return votesRecord, nil
 	}
@@ -93,7 +109,7 @@ func (m *monetaryPolicy) vote(desired int64, height, activation proto.Height, is
 	if err != nil {
 		return err
 	}
-	rec, err := m.votes(height - 1)
+	rec, err := m.newestVotes(height - 1)
 	if err != nil {
 		return err
 	}
@@ -116,7 +132,7 @@ func (m *monetaryPolicy) saveVotes(votes rewardVotesRecord, blockID proto.BlockI
 }
 
 func (m *monetaryPolicy) updateBlockReward(lastBlockID proto.BlockID, height proto.Height) error {
-	votes, err := m.votes(height)
+	votes, err := m.newestVotes(height)
 	if err != nil {
 		return err
 	}
