@@ -189,6 +189,7 @@ type Order struct {
 	PriceMode        Order_PriceMode `protobuf:"varint,14,opt,name=price_mode,json=priceMode,proto3,enum=waves.Order_PriceMode" json:"price_mode,omitempty"`
 	Attachment       []byte          `protobuf:"bytes,15,opt,name=attachment,proto3" json:"attachment,omitempty"`
 	// Types that are assignable to Sender:
+	//
 	//	*Order_SenderPublicKey
 	//	*Order_Eip712Signature
 	Sender isOrder_Sender `protobuf_oneof:"sender"`

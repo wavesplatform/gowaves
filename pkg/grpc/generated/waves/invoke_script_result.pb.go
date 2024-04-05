@@ -777,6 +777,7 @@ type InvokeScriptResult_Call_Argument struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Value:
+	//
 	//	*InvokeScriptResult_Call_Argument_IntegerValue
 	//	*InvokeScriptResult_Call_Argument_BinaryValue
 	//	*InvokeScriptResult_Call_Argument_StringValue

@@ -26,6 +26,7 @@ type Recipient struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Recipient:
+	//
 	//	*Recipient_PublicKeyHash
 	//	*Recipient_Alias
 	Recipient isRecipient_Recipient `protobuf_oneof:"recipient"`

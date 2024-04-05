@@ -26,6 +26,7 @@ type SignedTransaction struct {
 	unknownFields protoimpl.UnknownFields
 
 	// Types that are assignable to Transaction:
+	//
 	//	*SignedTransaction_WavesTransaction
 	//	*SignedTransaction_EthereumTransaction
 	Transaction isSignedTransaction_Transaction `protobuf_oneof:"transaction"`
@@ -119,6 +120,7 @@ type Transaction struct {
 	Timestamp       int64   `protobuf:"varint,4,opt,name=timestamp,proto3" json:"timestamp,omitempty"`
 	Version         int32   `protobuf:"varint,5,opt,name=version,proto3" json:"version,omitempty"`
 	// Types that are assignable to Data:
+	//
 	//	*Transaction_Genesis
 	//	*Transaction_Payment
 	//	*Transaction_Issue
@@ -679,6 +681,7 @@ type DataEntry struct {
 
 	Key string `protobuf:"bytes,1,opt,name=key,proto3" json:"key,omitempty"`
 	// Types that are assignable to Value:
+	//
 	//	*DataEntry_IntValue
 	//	*DataEntry_BoolValue
 	//	*DataEntry_BinaryValue
