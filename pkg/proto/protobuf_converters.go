@@ -2,8 +2,6 @@ package proto
 
 import (
 	"github.com/pkg/errors"
-	protobuf "google.golang.org/protobuf/proto"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
@@ -37,12 +35,13 @@ func MarshalSignedTxDeterministic(tx Transaction, scheme Scheme) ([]byte, error)
 }
 
 func TxFromProtobuf(data []byte) (Transaction, error) {
-	var pbTx g.Transaction
-	if err := protobuf.Unmarshal(data, &pbTx); err != nil {
+	var pbTx = &g.Transaction{}
+	err := pbTx.UnmarshalVT(data)
+	if err != nil {
 		return nil, err
 	}
 	var c ProtobufConverter
-	res, err := c.Transaction(&pbTx)
+	res, err := c.Transaction(pbTx)
 	if err != nil {
 		return nil, err
 	}
@@ -50,12 +49,13 @@ func TxFromProtobuf(data []byte) (Transaction, error) {
 }
 
 func SignedTxFromProtobuf(data []byte) (Transaction, error) {
-	var pbTx g.SignedTransaction
-	if err := protobuf.Unmarshal(data, &pbTx); err != nil {
+	var pbTx = &g.SignedTransaction{}
+	err := pbTx.UnmarshalVT(data)
+	if err != nil {
 		return nil, err
 	}
 	var c ProtobufConverter
-	res, err := c.SignedTransaction(&pbTx)
+	res, err := c.SignedTransaction(pbTx)
 	if err != nil {
 		return nil, err
 	}

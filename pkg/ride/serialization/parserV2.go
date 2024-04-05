@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	g "github.com/wavesplatform/gowaves/pkg/ride/meta/generated"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 func newParserV2(r *bytes.Reader, id [32]byte, header scriptHeader) *parser {
@@ -62,7 +61,8 @@ func readMetaV2(p *parser) (meta.DApp, error) {
 		return meta.DApp{}, err
 	}
 	pbMeta := new(g.DAppMeta)
-	if err := protobuf.Unmarshal(b, pbMeta); err != nil {
+	err = pbMeta.UnmarshalVT(b)
+	if err != nil {
 		return meta.DApp{}, err
 	}
 	m, err := meta.Convert(pbMeta)
