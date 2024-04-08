@@ -573,7 +573,9 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 
 	amount, err := proto.EthereumWeiToWavelet(tx.Value())
 	if err != nil {
-		return txBalanceChanges{}, errors.Wrapf(err, "failed to convert amount from ethreum transaction (big int) to int64. value is %s", tx.Value().String())
+		return txBalanceChanges{}, errors.Wrapf(err,
+			"failed to convert amount from ethereum transaction (big int) to int64. value is %s",
+			tx.Value().String())
 	}
 
 	senderAmountKey := byteKey(senderAddress.ID(), wavesAsset)
