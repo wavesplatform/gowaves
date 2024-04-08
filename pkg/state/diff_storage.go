@@ -2,6 +2,8 @@ package state
 
 import (
 	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
 
 // balanceChanges is a full collection of changes for given key.
@@ -225,7 +227,7 @@ func (s *diffStorageWrapped) latestDiffByKey(key string) (balanceDiff, error) {
 	if diff, err := s.invokeDiffsStor.latestDiffByKey(key); err == nil {
 		// Found diff in invoke storage, return from there.
 		// `minBalance` field should be ignored, since it isn't correct in invoke storage.
-		diff.minBalance = 0
+		diff.minBalance = internal.NewIntChange[int64](0)
 		return diff, nil
 	}
 	// Not found, return diff from main diff stor.

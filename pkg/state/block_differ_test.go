@@ -72,7 +72,7 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 		)
 		minerKey := byteKey(minerAddr.ID(), txFeeAsset)
 		minerBalanceDiff := fee // ng is not activated, so miner gets all the fee
-		bd := newBalanceDiff(int64(minerBalanceDiff), 0, 0, updateMinIntermediateBalance)
+		bd := newMinerFeeForcedBalanceDiff(int64(minerBalanceDiff), updateMinIntermediateBalance)
 		bd.blockID = block.BlockID() // set blockID for balance diff
 		bdErr := expected.appendBalanceDiff(minerKey, bd)
 		require.NoError(t, bdErr)

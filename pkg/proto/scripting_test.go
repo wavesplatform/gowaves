@@ -8,7 +8,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	pb "google.golang.org/protobuf/proto"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -183,9 +182,9 @@ func TestScriptResultBinaryRoundTrip(t *testing.T) {
 		if msg, err := test.ToProtobuf(); assert.NoError(t, err) {
 			if b, err := MarshalToProtobufDeterministic(msg); assert.NoError(t, err) {
 				in := &g.InvokeScriptResult{}
-				if err := pb.Unmarshal(b, in); assert.NoError(t, err) {
+				if unmrshlErr := in.UnmarshalVT(b); assert.NoError(t, unmrshlErr) {
 					sr := ScriptResult{}
-					if err := sr.FromProtobuf('W', in); assert.NoError(t, err) {
+					if prtbfErr := sr.FromProtobuf('W', in); assert.NoError(t, prtbfErr) {
 						assert.EqualValues(t, test, sr, fmt.Sprintf("#%d", i+1))
 					}
 				}

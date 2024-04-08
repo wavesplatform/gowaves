@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -46,26 +47,35 @@ type balanceDiff struct {
 	allowLeasedTransfer          bool
 	updateMinIntermediateBalance bool
 	// Min intermediate balance change.
-	minBalance int64
+	minBalance internal.IntChange[int64]
 	// Balance change.
-	balance int64
+	balance internal.IntChange[int64]
 	// LeaseIn change.
-	leaseIn int64
+	leaseIn internal.IntChange[int64]
 	// LeaseOut change.
-	leaseOut int64
+	leaseOut internal.IntChange[int64]
 	blockID  proto.BlockID
 }
 
 func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalance bool) balanceDiff {
 	diff := balanceDiff{
 		updateMinIntermediateBalance: updateMinIntermediateBalance,
-		balance:                      balance,
-		leaseIn:                      leaseIn,
-		leaseOut:                     leaseOut,
+		balance:                      internal.NewIntChange(balance),
+		leaseIn:                      internal.NewIntChange(leaseIn),
+		leaseOut:                     internal.NewIntChange(leaseOut),
 	}
 	if updateMinIntermediateBalance {
-		diff.minBalance = balance
+		diff.minBalance = internal.NewIntChange(balance)
 	}
+	return diff
+}
+
+// newMinerFeeForcedBalanceDiff creates balanceDiff for miner fee.
+// Miner's balance diff is always forced for snapshot generation.
+func newMinerFeeForcedBalanceDiff(balance int64, updateMinIntermediateBalance bool) balanceDiff {
+	// leaseIn and leaseOut are always 0 for fee miner diff.
+	diff := newBalanceDiff(balance, 0, 0, updateMinIntermediateBalance)
+	diff.balance = diff.balance.ToForced()
 	return diff
 }
 
@@ -79,7 +89,7 @@ func newBalanceDiff(balance, leaseIn, leaseOut int64, updateMinIntermediateBalan
 // It also checks that it is legitimate to apply this diff to the profile (negative balances / overflows).
 func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error) {
 	// Check min intermediate change.
-	minBalance, err := common.AddInt(diff.minBalance, int64(profile.balance))
+	minBalance, err := common.AddInt(diff.minBalance.Value(), int64(profile.balance))
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add balance and min balance diff: %v", err)
 	}
@@ -87,23 +97,23 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 		return balanceProfile{}, errors.Errorf(
 			"negative intermediate balance (Attempt to transfer unavailable funds): balance is %d; diff is: %d\n",
 			profile.balance,
-			diff.minBalance,
+			diff.minBalance.Value(),
 		)
 	}
 	// Check main balance diff.
-	newBalance, err := common.AddInt(diff.balance, int64(profile.balance))
+	newBalance, err := common.AddInt(diff.balance.Value(), int64(profile.balance))
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add balance and balance diff: %v", err)
 	}
 	if newBalance < 0 {
 		return balanceProfile{}, errors.New("negative result balance (Attempt to transfer unavailable funds)")
 	}
-	newLeaseIn, err := common.AddInt(diff.leaseIn, profile.leaseIn)
+	newLeaseIn, err := common.AddInt(diff.leaseIn.Value(), profile.leaseIn)
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add leaseIn and leaseIn diff: %v", err)
 	}
 	// Check leasing change.
-	newLeaseOut, err := common.AddInt(diff.leaseOut, profile.leaseOut)
+	newLeaseOut, err := common.AddInt(diff.leaseOut.Value(), profile.leaseOut)
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add leaseOut and leaseOut diff: %v", err)
 	}
@@ -121,7 +131,7 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 // applyToAssetBalance() is similar to applyTo() but does not deal with leasing.
 func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 	// Check min intermediate change.
-	minBalance, err := common.AddInt(diff.minBalance, int64(balance))
+	minBalance, err := common.AddInt(diff.minBalance.Value(), int64(balance))
 	if err != nil {
 		return 0, errors.Errorf("failed to add balance and min balance diff: %v\n", err)
 	}
@@ -129,7 +139,7 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 		return 0, errors.New("negative intermediate asset balance (Attempt to transfer unavailable funds)")
 	}
 	// Check main balance diff.
-	newBalance, err := common.AddInt(diff.balance, int64(balance))
+	newBalance, err := common.AddInt(diff.balance.Value(), int64(balance))
 	if err != nil {
 		return 0, errors.Errorf("failed to add balance and balance diff: %v\n", err)
 	}
@@ -142,13 +152,13 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 // addCommon() sums fields of any diffs.
 func (diff *balanceDiff) addCommon(prevDiff *balanceDiff) error {
 	var err error
-	if diff.balance, err = common.AddInt(diff.balance, prevDiff.balance); err != nil {
+	if diff.balance, err = diff.balance.Add(prevDiff.balance); err != nil {
 		return errors.Errorf("failed to add balance diffs: %v\n", err)
 	}
-	if diff.leaseIn, err = common.AddInt(diff.leaseIn, prevDiff.leaseIn); err != nil {
+	if diff.leaseIn, err = diff.leaseIn.Add(prevDiff.leaseIn); err != nil {
 		return errors.Errorf("failed to add LeaseIn diffs: %v\n", err)
 	}
-	if diff.leaseOut, err = common.AddInt(diff.leaseOut, prevDiff.leaseOut); err != nil {
+	if diff.leaseOut, err = diff.leaseOut.Add(prevDiff.leaseOut); err != nil {
 		return errors.Errorf("failed to add LeaseOut diffs: %v\n", err)
 	}
 	return nil
@@ -161,13 +171,13 @@ func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 		// If updateMinIntermediateBalance is true, this tx may produce negative intermediate changes.
 		// It is only true for few tx types: Payment, Transfer, MassTransfer, InvokeScript.
 		// Add current diff to previous minBalance (aka intermediate change) to get newMinBalance.
-		newMinBalance, err := common.AddInt(diff.balance, prevDiff.minBalance)
+		newMinBalance, err := diff.balance.Add(prevDiff.minBalance)
 		if err != nil {
 			return errors.Errorf("failed to update min balance diff: %v\n", err)
 		}
 		// Copy previous minBalance at first.
 		diff.minBalance = prevDiff.minBalance
-		if newMinBalance < diff.minBalance {
+		if newMinBalance.Value() < diff.minBalance.Value() {
 			// newMinBalance is less than previous minBalance, so we should use it.
 			// This is basically always the case when diff.balance < 0.
 			diff.minBalance = newMinBalance
@@ -180,17 +190,21 @@ func (diff *balanceDiff) addInsideTx(prevDiff *balanceDiff) error {
 // It also makes sure that minimum intermediate change gets updated properly.
 func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 	// Add previous cumulative diff to tx diff's minBalance to make it correspond to cumulative block diff.
-	newMinBalance, err := common.AddInt(diff.minBalance, prevDiff.balance)
+	newMinBalance, err := diff.minBalance.Add(prevDiff.balance)
 	if err != nil {
 		return errors.Errorf("failed to update min balance diff: %v\n", err)
 	}
 	// Copy previous minBalance at first.
 	diff.minBalance = prevDiff.minBalance
-	if newMinBalance < diff.minBalance {
+	if newMinBalance.Value() < diff.minBalance.Value() {
 		// newMinBalance is less than previous minBalance, so we should use it.
 		diff.minBalance = newMinBalance
 	}
 	return diff.addCommon(prevDiff)
+}
+
+func (diff *balanceDiff) isAccountable() bool {
+	return diff.balance.IsAccountable() || diff.leaseIn.IsAccountable() || diff.leaseOut.IsAccountable()
 }
 
 type differInfo struct {
@@ -264,6 +278,15 @@ func (diff txDiff) appendBalanceDiff(key []byte, balanceDiff balanceDiff) error 
 	return diff.appendBalanceDiffStr(string(key), balanceDiff)
 }
 
+func (diff txDiff) getByKey(key []byte) (balanceDiff, bool) {
+	d, ok := diff[string(key)]
+	return d, ok
+}
+
+func (diff txDiff) removeByKey(key []byte) {
+	delete(diff, string(key))
+}
+
 type transactionDiffer struct {
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
@@ -279,6 +302,7 @@ func (td *transactionDiffer) minerPayoutInWaves(diff txDiff, fee uint64, info *d
 
 // doMinerPayoutAfterNG adds current fee part of given tx to txDiff.
 // It is used to add miner's payout to txDiff. Before NG activation it does nothing.
+// Note that this function forces snapshot generation for even zero miner balance diff. This is intended behavior.
 func (td *transactionDiffer) doMinerPayoutAfterNG(
 	diff txDiff,
 	fee uint64,
@@ -287,6 +311,9 @@ func (td *transactionDiffer) doMinerPayoutAfterNG(
 ) error {
 	if !info.hasMiner() { // no nothing if there's no miner
 		return nil
+	}
+	if fee == 0 {
+		return errors.Errorf("failed to add miner payout to the diff, fee value in asset '%s' is 0 ", feeAsset.String())
 	}
 	ngActivated, err := td.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 1)
 	if err != nil {
@@ -297,11 +324,26 @@ func (td *transactionDiffer) doMinerPayoutAfterNG(
 	}
 	minerAddr := info.blockInfo.Generator
 	minerKey := byteKey(minerAddr.ID(), feeAsset)
-	minerBalanceDiff := calculateCurrentBlockTxFee(fee, ngActivated)
-	if err := diff.appendBalanceDiff(minerKey, newBalanceDiff(int64(minerBalanceDiff), 0, 0, false)); err != nil {
-		return err
+	minerBalanceDiffValue := calculateCurrentBlockTxFee(fee, ngActivated)
+
+	// extremely rare case, but still possible because of rounding
+	// for example see mainnet transaction with ID "5BK9HPKmSkxoMdqvDzneb2UaW2NzDRjoMpMvQWfB4NcK" (ID in base58 encoding)
+	if minerBalanceDiffValue == 0 {
+		if _, ok := diff.getByKey(minerKey); !ok { // check if miner balance diff is already in transaction diff
+			return nil // we must not force snapshot generation for miner if there's no miner balance diff
+		}
+		// miner balance diff is already in transaction diff, so we must force snapshot generation for miner
+		// even if result miner fee value is 0
 	}
-	return nil
+
+	updateMinIntermediateBalance := false
+	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
+		updateMinIntermediateBalance = true
+	}
+	// Miner's balance diff is always forced for snapshot generation.
+	minerBalanceDiffForced := newMinerFeeForcedBalanceDiff(int64(minerBalanceDiffValue), updateMinIntermediateBalance)
+	// Add forced miner's fee balance diff to txDiff.
+	return diff.appendBalanceDiff(minerKey, minerBalanceDiffForced)
 }
 
 func (td *transactionDiffer) createDiffGenesis(transaction proto.Transaction, _ *differInfo) (txBalanceChanges, error) {
@@ -366,7 +408,14 @@ func recipientToAddress(recipient proto.Recipient, aliases *aliases) (proto.Wave
 	return addr, nil
 }
 
-func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceChanges, fee uint64, feeAsset proto.OptionalAsset, info *differInfo) error {
+func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(
+	ch *txBalanceChanges,
+	txIsInvoke bool,
+	txSender proto.WavesAddress,
+	fee uint64,
+	feeAsset proto.OptionalAsset,
+	info *differInfo,
+) error {
 	if !feeAsset.Present { // fast path: Waves asset
 		if err := td.minerPayoutInWaves(ch.diff, fee, info); err != nil {
 			return errors.Wrap(err, "failed to append miner payout")
@@ -395,8 +444,8 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceCha
 	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
 		updateMinIntermediateBalance = true
 	}
-	shortAssetID := proto.AssetIDFromDigest(feeAsset.ID)
-	assetInfo, err := td.stor.assets.newestAssetInfo(shortAssetID)
+	feeAssetID := proto.AssetIDFromDigest(feeAsset.ID)
+	assetInfo, err := td.stor.assets.newestAssetInfo(feeAssetID)
 	if err != nil {
 		return err
 	}
@@ -406,21 +455,50 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(ch *txBalanceCha
 		return err
 	}
 	issuerAddrID := issuerAddr.ID()
-
 	issuerAssetKey := byteKey(issuerAddrID, feeAsset)
+
 	issuerAssetBalanceDiff := int64(fee)
-	if err := ch.diff.appendBalanceDiff(issuerAssetKey, newBalanceDiff(issuerAssetBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-		return err
+	issuerDiff := newBalanceDiff(issuerAssetBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	if dErr := ch.diff.appendBalanceDiff(issuerAssetKey, issuerDiff); dErr != nil {
+		return dErr
 	}
+	// Append issuer asset balance diff for invoke tx only if transaction sender is not the issuer/sponsor
+	// and asset is used only for fee.
+	// This check is important for balance snapshots generation in snapshotGenerator, don't remove it.
+	if txIsInvoke && issuerAddr == txSender {
+		sponsorResultDiff, ok := ch.diff.getByKey(issuerAssetKey)
+		if !ok {
+			return errors.Errorf("BUG! CREATE REPORT: failed to find sponsor=%q asset=%q balance diff",
+				issuerAddr.String(), feeAsset.String(),
+			)
+		}
+		if !sponsorResultDiff.isAccountable() { // result diff is not accountable, then it's used only for fee
+			ch.diff.removeByKey(issuerAssetKey) // in this case issuer's balance diff MUST not be added to the invoke diff
+		}
+	}
+	return td.convertSponsorAssetToWavesAndDoPayout(ch, feeAssetID, fee, updateMinIntermediateBalance, issuerAddr, info)
+}
+
+func (td *transactionDiffer) convertSponsorAssetToWavesAndDoPayout(
+	ch *txBalanceChanges,
+	feeAssetID proto.AssetID,
+	fee uint64,
+	updateMinIntermediateBalance bool,
+	issuerAddr proto.WavesAddress,
+	info *differInfo,
+) error {
 	// Append issuer Waves balance diff.
-	feeInWaves, err := td.stor.sponsoredAssets.sponsoredAssetToWaves(shortAssetID, fee)
+	feeInWaves, err := td.stor.sponsoredAssets.sponsoredAssetToWaves(feeAssetID, fee)
 	if err != nil {
 		return err
 	}
+	issuerAddrID := issuerAddr.ID()
 	issuerWavesKey := (&wavesBalanceKey{issuerAddrID}).bytes()
 	issuerWavesBalanceDiff := -int64(feeInWaves)
-	if err := ch.diff.appendBalanceDiff(issuerWavesKey, newBalanceDiff(issuerWavesBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-		return err
+	issuerWavesDiff := newBalanceDiff(issuerWavesBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	dErr := ch.diff.appendBalanceDiff(issuerWavesKey, issuerWavesDiff)
+	if dErr != nil {
+		return dErr
 	}
 	// Sponsor is also added to list of modified addresses.
 	ch.appendAddr(issuerAddr)
@@ -466,8 +544,9 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 	}
 	addrs := []proto.WavesAddress{senderAddr, recipientAddr}
 	changes := newTxBalanceChanges(addrs, diff)
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
-		return txBalanceChanges{}, err
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddr, tx.Fee, tx.FeeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -515,9 +594,13 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 	}
 	addrs := []proto.WavesAddress{senderAddress, recipientAddress}
 	changes := newTxBalanceChanges(addrs, diff)
-
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
-		return txBalanceChanges{}, err
+	var (
+		fee      = tx.GetFee()
+		feeAsset = tx.GetFeeAsset()
+	)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddress, fee, feeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -583,8 +666,13 @@ func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransacti
 	}
 	addrs := []proto.WavesAddress{senderAddress, etc20TransferRecipient}
 	changes := newTxBalanceChanges(addrs, diff)
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
-		return txBalanceChanges{}, err
+	var (
+		fee      = tx.GetFee()
+		feeAsset = tx.GetFeeAsset()
+	)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddress, fee, feeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -1364,6 +1452,38 @@ func (td *transactionDiffer) createDiffSetAssetScriptWithProofs(transaction prot
 	return changes, nil
 }
 
+func updateDiffByPayment(
+	diff txDiff,
+	sender, scriptAddrID proto.AddressID,
+	payment proto.ScriptPayment,
+	updateMinIntermediateBalance bool,
+) error {
+	// No need to update balance if sender and recipient are the same.
+	// This check is important for balances snapshots generation in snapshotGenerator, don't remove it.
+	if sender.Equal(scriptAddrID) {
+		return nil
+	}
+
+	var (
+		senderPaymentKey  = byteKey(sender, payment.Asset)
+		senderBalanceDiff = -int64(payment.Amount)
+		senderDiff        = newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	)
+	if err := diff.appendBalanceDiff(senderPaymentKey, senderDiff); err != nil {
+		return errors.Wrapf(err, "failed to append sender balance diff by payment %s", payment.Asset.String())
+	}
+
+	var (
+		receiverKey         = byteKey(scriptAddrID, payment.Asset)
+		receiverBalanceDiff = int64(payment.Amount)
+		receiverDiff        = newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	)
+	if err := diff.appendBalanceDiff(receiverKey, receiverDiff); err != nil {
+		return errors.Wrapf(err, "failed to append receiver balance diff by payment %s", payment.Asset.String())
+	}
+	return nil
+}
+
 func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.Transaction, info *differInfo) (txBalanceChanges, error) {
 	tx, ok := transaction.(*proto.InvokeScriptWithProofs)
 	if !ok {
@@ -1393,23 +1513,19 @@ func (td *transactionDiffer) createDiffInvokeScriptWithProofs(transaction proto.
 	}
 	scriptAddrID := scriptAddr.ID()
 
+	// Append payment diffs.
+	for _, sp := range tx.Payments {
+		pErr := updateDiffByPayment(diff, senderAddrID, scriptAddrID, sp, updateMinIntermediateBalance)
+		if pErr != nil {
+			return txBalanceChanges{}, pErr
+		}
+	}
+
 	addresses := []proto.WavesAddress{senderAddr, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
-		return txBalanceChanges{}, err
-	}
-	// Append payment diffs.
-	for _, payment := range tx.Payments {
-		senderPaymentKey := byteKey(senderAddrID, payment.Asset)
-		senderBalanceDiff := -int64(payment.Amount)
-		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
-		}
-		receiverKey := byteKey(scriptAddrID, payment.Asset)
-		receiverBalanceDiff := int64(payment.Amount)
-		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
-		}
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddr, tx.Fee, tx.FeeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -1439,8 +1555,9 @@ func (td *transactionDiffer) createDiffInvokeExpressionWithProofs(transaction pr
 
 	addresses := []proto.WavesAddress{senderAddr, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
-		return txBalanceChanges{}, err
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddr, tx.Fee, tx.FeeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -1476,24 +1593,26 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	}
 	scriptAddrID := scriptAddr.ID()
 
-	addresses := []proto.WavesAddress{senderAddress, scriptAddr}
-	changes := newTxBalanceChanges(addresses, diff)
-
 	for _, p := range payments {
-		optAsset := proto.NewOptionalAsset(p.PresentAssetID, p.AssetID)
-		senderPaymentKey := byteKey(senderAddrID, optAsset)
-		senderBalanceDiff := -p.Amount
-		if err := diff.appendBalanceDiff(senderPaymentKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
+		sp := proto.ScriptPayment{
+			Amount: uint64(p.Amount),
+			Asset:  proto.NewOptionalAsset(p.PresentAssetID, p.AssetID),
 		}
-		receiverKey := byteKey(scriptAddrID, optAsset)
-		receiverBalanceDiff := p.Amount
-		if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
-			return txBalanceChanges{}, err
+		pErr := updateDiffByPayment(diff, senderAddrID, scriptAddrID, sp, updateMinIntermediateBalance)
+		if pErr != nil {
+			return txBalanceChanges{}, pErr
 		}
 	}
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
-		return txBalanceChanges{}, err
+
+	addresses := []proto.WavesAddress{senderAddress, scriptAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+	var (
+		fee      = tx.GetFee()
+		feeAsset = tx.GetFeeAsset()
+	)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddress, fee, feeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -1518,8 +1637,13 @@ func (td *transactionDiffer) createFeeDiffInvokeExpressionWithProofs(transaction
 
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
-		return txBalanceChanges{}, err
+	var (
+		fee      = tx.GetFee()
+		feeAsset = tx.GetFeeAsset()
+	)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddr, fee, feeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -1546,8 +1670,9 @@ func (td *transactionDiffer) createFeeDiffInvokeScriptWithProofs(transaction pro
 	}
 	addresses := []proto.WavesAddress{senderAddr, scriptAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
-		return txBalanceChanges{}, err
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddr, tx.Fee, tx.FeeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -1580,9 +1705,13 @@ func (td *transactionDiffer) createFeeDiffEthereumInvokeScriptWithProofs(transac
 
 	addresses := []proto.WavesAddress{senderAddress, scriptAddress}
 	changes := newTxBalanceChanges(addresses, diff)
-
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.GetFee(), proto.NewOptionalAssetWaves(), info); err != nil {
-		return txBalanceChanges{}, err
+	var (
+		fee      = tx.GetFee()
+		feeAsset = tx.GetFeeAsset()
+	)
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, true, senderAddress, fee, feeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }
@@ -1605,8 +1734,9 @@ func (td *transactionDiffer) createDiffUpdateAssetInfoWithProofs(transaction pro
 	}
 	addresses := []proto.WavesAddress{senderAddr}
 	changes := newTxBalanceChanges(addresses, diff)
-	if err := td.payoutMinerWithSponsorshipHandling(&changes, tx.Fee, tx.FeeAsset, info); err != nil {
-		return txBalanceChanges{}, err
+	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddr, tx.Fee, tx.FeeAsset, info)
+	if spErr != nil {
+		return txBalanceChanges{}, spErr
 	}
 	return changes, nil
 }

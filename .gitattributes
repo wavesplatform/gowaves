@@ -4,3 +4,4 @@
 # endings, and so they are checked in with CRLF endings.
 *.bat text eol=crlf
 *.cmd text eol=crlf
+importer.pgo -text
