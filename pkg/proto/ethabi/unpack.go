@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -438,7 +439,7 @@ func toDataType(index int, t Type, output []byte) (_ DataType, slotsReadTotal in
 		slotsReadTotal += 1
 		if len(slot) == 0 {
 			return nil, 0, errors.Errorf(
-				"invalid etherum address size, expected %d, actual %d",
+				"invalid ethereum address size, expected %d, actual %d",
 				EthereumAddressSize, len(slot),
 			)
 		}
