@@ -63,22 +63,45 @@ func SignedTxFromProtobuf(data []byte) (Transaction, error) {
 	return res, nil
 }
 
+func wavesAndAssetsSnapshotsCount(protobufBalanceSnapshots []*g.TransactionStateSnapshot_Balance) (uint, uint) {
+	var (
+		wavesBalancesCount  uint
+		assetsBalancesCount uint
+	)
+	for _, snapshot := range protobufBalanceSnapshots {
+		if len(snapshot.Amount.AssetId) == 0 {
+			wavesBalancesCount++
+		} else {
+			assetsBalancesCount++
+		}
+	}
+	return wavesBalancesCount, assetsBalancesCount
+}
+
 func balancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
+	var (
+		wavesBalancesCount, assetsBalancesCount = wavesAndAssetsSnapshotsCount(txSnapshotProto.Balances)
+		wavesBalanceSnapshots                   = make([]WavesBalanceSnapshot, wavesBalancesCount)
+		assetBalanceSnapshots                   = make([]AssetBalanceSnapshot, assetsBalancesCount)
+		wavesIndex, assetsIndex                 uint
+	)
 	for _, balance := range txSnapshotProto.Balances {
 		if len(balance.Amount.AssetId) == 0 {
-			var sn WavesBalanceSnapshot
+			sn := &wavesBalanceSnapshots[wavesIndex]
 			err := sn.FromProtobuf(scheme, balance)
 			if err != nil {
 				return err
 			}
-			*res = append(*res, &sn)
+			*res = append(*res, sn)
+			wavesIndex++
 		} else {
-			var sn AssetBalanceSnapshot
+			sn := &assetBalanceSnapshots[assetsIndex]
 			err := sn.FromProtobuf(scheme, balance)
 			if err != nil {
 				return err
 			}
-			*res = append(*res, &sn)
+			*res = append(*res, sn)
+			assetsIndex++
 		}
 	}
 	return nil
