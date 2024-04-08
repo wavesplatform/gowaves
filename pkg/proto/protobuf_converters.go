@@ -2,6 +2,7 @@ package proto
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
@@ -62,168 +63,244 @@ func SignedTxFromProtobuf(data []byte) (Transaction, error) {
 	return res, nil
 }
 
-func balancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, balance := range txSnapshotProto.Balances {
-		if len(balance.Amount.AssetId) == 0 {
-			var sn WavesBalanceSnapshot
-			err := sn.FromProtobuf(scheme, balance)
-			if err != nil {
-				return err
-			}
-			*res = append(*res, sn)
+func wavesAndAssetsSnapshotsCount(protobufBalanceSnapshots []*g.TransactionStateSnapshot_Balance) (uint, uint) {
+	var (
+		wavesBalancesCount  uint
+		assetsBalancesCount uint
+	)
+	for _, snapshot := range protobufBalanceSnapshots {
+		if len(snapshot.Amount.AssetId) == 0 {
+			wavesBalancesCount++
 		} else {
-			var sn AssetBalanceSnapshot
-			err := sn.FromProtobuf(scheme, balance)
-			if err != nil {
-				return err
-			}
-			*res = append(*res, sn)
+			assetsBalancesCount++
 		}
 	}
-	return nil
+	return wavesBalancesCount, assetsBalancesCount
 }
-func leaseBalancesFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, lBalance := range txSnapshotProto.LeaseBalances {
-		var sn LeaseBalanceSnapshot
+
+func appendBalancesFromProto(
+	res []AtomicSnapshot,
+	scheme Scheme,
+	balances []*g.TransactionStateSnapshot_Balance,
+) ([]AtomicSnapshot, error) {
+	var (
+		wavesBalancesCount, assetsBalancesCount = wavesAndAssetsSnapshotsCount(balances)
+		wavesBalanceSnapshots                   = make([]WavesBalanceSnapshot, wavesBalancesCount)
+		assetBalanceSnapshots                   = make([]AssetBalanceSnapshot, assetsBalancesCount)
+		wavesIndex, assetsIndex                 uint
+	)
+	for _, balance := range balances {
+		if len(balance.Amount.AssetId) == 0 {
+			sn := &wavesBalanceSnapshots[wavesIndex]
+			err := sn.FromProtobuf(scheme, balance)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, sn)
+			wavesIndex++
+		} else {
+			sn := &assetBalanceSnapshots[assetsIndex]
+			err := sn.FromProtobuf(scheme, balance)
+			if err != nil {
+				return nil, err
+			}
+			res = append(res, sn)
+			assetsIndex++
+		}
+	}
+	return res, nil
+}
+func appendLeaseBalancesFromProto(
+	res []AtomicSnapshot,
+	scheme Scheme,
+	leaseBalances []*g.TransactionStateSnapshot_LeaseBalance,
+) ([]AtomicSnapshot, error) {
+	leaseBalanceSnapshots := make([]LeaseBalanceSnapshot, len(leaseBalances))
+	for i, lBalance := range leaseBalances {
+		sn := &leaseBalanceSnapshots[i]
 		err := sn.FromProtobuf(scheme, lBalance)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
-func newAssetFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, newAsset := range txSnapshotProto.AssetStatics {
-		var sn NewAssetSnapshot
+func appendNewAssetFromProto(
+	res []AtomicSnapshot,
+	newAssets []*g.TransactionStateSnapshot_NewAsset,
+) ([]AtomicSnapshot, error) {
+	newAssetSnapshots := make([]NewAssetSnapshot, len(newAssets))
+	for i, newAsset := range newAssets {
+		sn := &newAssetSnapshots[i]
 		err := sn.FromProtobuf(newAsset)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
-func assetVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, assetVolume := range txSnapshotProto.AssetVolumes {
-		var sn AssetVolumeSnapshot
+func appendAssetVolumeFromProto(
+	res []AtomicSnapshot,
+	assetVolumes []*g.TransactionStateSnapshot_AssetVolume,
+) ([]AtomicSnapshot, error) {
+	assetVolumeSnapshots := make([]AssetVolumeSnapshot, len(assetVolumes))
+	for i, assetVolume := range assetVolumes {
+		sn := &assetVolumeSnapshots[i]
 		err := sn.FromProtobuf(assetVolume)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
-func assetDescriptionFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, assetNameAndDescr := range txSnapshotProto.AssetNamesAndDescriptions {
-		var sn AssetDescriptionSnapshot
-		err := sn.FromProtobuf(assetNameAndDescr)
+func appendAssetDescriptionFromProto(
+	res []AtomicSnapshot,
+	assetNamesAndDescriptions []*g.TransactionStateSnapshot_AssetNameAndDescription,
+) ([]AtomicSnapshot, error) {
+	assetDescriptionSnapshots := make([]AssetDescriptionSnapshot, len(assetNamesAndDescriptions))
+	for i, assetNameAndDescription := range assetNamesAndDescriptions {
+		sn := &assetDescriptionSnapshots[i]
+		err := sn.FromProtobuf(assetNameAndDescription)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
-func assetScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	if assetScript := txSnapshotProto.AssetScripts; assetScript != nil {
+func appendAssetScriptFromProto(
+	res []AtomicSnapshot,
+	assetScript *g.TransactionStateSnapshot_AssetScript,
+) ([]AtomicSnapshot, error) {
+	if assetScript != nil {
 		var sn AssetScriptSnapshot
 		err := sn.FromProtobuf(assetScript)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, &sn)
 	}
-	return nil
+	return res, nil
 }
 
-func aliasFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	if alias := txSnapshotProto.Aliases; alias != nil {
+func appendAliasFromProto(
+	res []AtomicSnapshot,
+	scheme Scheme,
+	alias *g.TransactionStateSnapshot_Alias,
+) ([]AtomicSnapshot, error) {
+	if alias != nil {
 		var sn AliasSnapshot
 		err := sn.FromProtobuf(scheme, alias)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, &sn)
 	}
-	return nil
+	return res, nil
 }
 
-func filledVolumeFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, orderFill := range txSnapshotProto.OrderFills {
-		var sn FilledVolumeFeeSnapshot
+func appendFilledVolumeFromProto(
+	res []AtomicSnapshot,
+	orderFills []*g.TransactionStateSnapshot_OrderFill,
+) ([]AtomicSnapshot, error) {
+	orderFillsSnapshots := make([]FilledVolumeFeeSnapshot, len(orderFills))
+	for i, orderFill := range orderFills {
+		sn := &orderFillsSnapshots[i]
 		err := sn.FromProtobuf(orderFill)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
-func newLeaseFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, newLease := range txSnapshotProto.NewLeases {
-		var sn NewLeaseSnapshot
+func appendNewLeaseFromProto(
+	res []AtomicSnapshot,
+	scheme Scheme,
+	newLeases []*g.TransactionStateSnapshot_NewLease,
+) ([]AtomicSnapshot, error) {
+	newLeaseSnapshots := make([]NewLeaseSnapshot, len(newLeases))
+	for i, newLease := range newLeases {
+		sn := &newLeaseSnapshots[i]
 		err := sn.FromProtobuf(scheme, newLease)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
-func cancelledLeaseFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, cancelledLease := range txSnapshotProto.CancelledLeases {
-		var sn CancelledLeaseSnapshot
+func appendCancelledLeaseFromProto(
+	res []AtomicSnapshot,
+	cancelledLeases []*g.TransactionStateSnapshot_CancelledLease,
+) ([]AtomicSnapshot, error) {
+	cancelledLeasesSnapshots := make([]CancelledLeaseSnapshot, len(cancelledLeases))
+	for i, cancelledLease := range cancelledLeases {
+		sn := &cancelledLeasesSnapshots[i]
 		err := sn.FromProtobuf(cancelledLease)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
-func accountScriptFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	if accountScript := txSnapshotProto.AccountScripts; accountScript != nil {
+func appendAccountScriptFromProto(
+	res []AtomicSnapshot,
+	accountScript *g.TransactionStateSnapshot_AccountScript,
+) ([]AtomicSnapshot, error) {
+	if accountScript != nil {
 		var sn AccountScriptSnapshot
 		err := sn.FromProtobuf(accountScript)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, &sn)
 	}
-	return nil
+	return res, nil
 }
 
-func dataEntryFromProto(scheme Scheme, txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, accountData := range txSnapshotProto.AccountData {
-		var sn DataEntriesSnapshot
+func appendDataEntriesFromProto(
+	res []AtomicSnapshot,
+	scheme Scheme,
+	accountDataEntries []*g.TransactionStateSnapshot_AccountData,
+) ([]AtomicSnapshot, error) {
+	accountDataSnapshots := make([]DataEntriesSnapshot, len(accountDataEntries))
+	for i, accountData := range accountDataEntries {
+		sn := &accountDataSnapshots[i]
 		err := sn.FromProtobuf(scheme, accountData)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
-func sponsorshipFromProto(txSnapshotProto *g.TransactionStateSnapshot, res *[]AtomicSnapshot) error {
-	for _, sponsorship := range txSnapshotProto.Sponsorships {
-		var sn SponsorshipSnapshot
+func appendSponsorshipFromProto(
+	res []AtomicSnapshot,
+	sponsorships []*g.TransactionStateSnapshot_Sponsorship,
+) ([]AtomicSnapshot, error) {
+	sponsorshipSnapshots := make([]SponsorshipSnapshot, len(sponsorships))
+	for i, sponsorship := range sponsorships {
+		sn := &sponsorshipSnapshots[i]
 		err := sn.FromProtobuf(sponsorship)
 		if err != nil {
-			return err
+			return nil, err
 		}
-		*res = append(*res, sn)
+		res = append(res, sn)
 	}
-	return nil
+	return res, nil
 }
 
 // TxSnapshotsFromProtobufWithoutTxStatus Unmarshalling order (how in proto schemas):
@@ -244,56 +321,59 @@ func TxSnapshotsFromProtobufWithoutTxStatus(
 	scheme Scheme,
 	txSnapshotProto *g.TransactionStateSnapshot,
 ) ([]AtomicSnapshot, error) {
-	var txSnapshots []AtomicSnapshot
-	err := balancesFromProto(scheme, txSnapshotProto, &txSnapshots)
+	var (
+		txSnapshots []AtomicSnapshot
+		err         error
+	)
+	txSnapshots, err = appendBalancesFromProto(txSnapshots, scheme, txSnapshotProto.Balances)
 	if err != nil {
 		return nil, err
 	}
-	err = leaseBalancesFromProto(scheme, txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendLeaseBalancesFromProto(txSnapshots, scheme, txSnapshotProto.LeaseBalances)
 	if err != nil {
 		return nil, err
 	}
-	err = newAssetFromProto(txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendNewAssetFromProto(txSnapshots, txSnapshotProto.AssetStatics)
 	if err != nil {
 		return nil, err
 	}
-	err = assetVolumeFromProto(txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendAssetVolumeFromProto(txSnapshots, txSnapshotProto.AssetVolumes)
 	if err != nil {
 		return nil, err
 	}
-	err = assetDescriptionFromProto(txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendAssetDescriptionFromProto(txSnapshots, txSnapshotProto.AssetNamesAndDescriptions)
 	if err != nil {
 		return nil, err
 	}
-	err = assetScriptFromProto(txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendAssetScriptFromProto(txSnapshots, txSnapshotProto.AssetScripts)
 	if err != nil {
 		return nil, err
 	}
-	err = aliasFromProto(scheme, txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendAliasFromProto(txSnapshots, scheme, txSnapshotProto.Aliases)
 	if err != nil {
 		return nil, err
 	}
-	err = filledVolumeFromProto(txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendFilledVolumeFromProto(txSnapshots, txSnapshotProto.OrderFills)
 	if err != nil {
 		return nil, err
 	}
-	err = newLeaseFromProto(scheme, txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendNewLeaseFromProto(txSnapshots, scheme, txSnapshotProto.NewLeases)
 	if err != nil {
 		return nil, err
 	}
-	err = cancelledLeaseFromProto(txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendCancelledLeaseFromProto(txSnapshots, txSnapshotProto.CancelledLeases)
 	if err != nil {
 		return nil, err
 	}
-	err = accountScriptFromProto(txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendAccountScriptFromProto(txSnapshots, txSnapshotProto.AccountScripts)
 	if err != nil {
 		return nil, err
 	}
-	err = dataEntryFromProto(scheme, txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendDataEntriesFromProto(txSnapshots, scheme, txSnapshotProto.AccountData)
 	if err != nil {
 		return nil, err
 	}
-	err = sponsorshipFromProto(txSnapshotProto, &txSnapshots)
+	txSnapshots, err = appendSponsorshipFromProto(txSnapshots, txSnapshotProto.Sponsorships)
 	if err != nil {
 		return nil, err
 	}
@@ -312,7 +392,7 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	if err != nil {
 		return nil, err
 	}
-	txSnapshots = append(txSnapshots, sn)
+	txSnapshots = append(txSnapshots, &sn)
 	return txSnapshots, nil
 }
 
