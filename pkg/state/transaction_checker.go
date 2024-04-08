@@ -433,7 +433,9 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 		res, err := proto.EthereumWeiToWavelet(tx.Value())
 		if err != nil {
-			return out, errors.Errorf("failed to convert wei amount from ethreum transaction to wavelets. value is %s", tx.Value().String())
+			return out, errors.Errorf(
+				"failed to convert wei amount from ethereum transaction to wavelets. value is %s",
+				tx.Value().String())
 		}
 		if res == 0 {
 			return out, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
