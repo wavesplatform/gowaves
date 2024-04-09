@@ -256,6 +256,20 @@ func (mr *MockGrpcHandlersMockRecorder) GetStatuses(arg0, arg1 interface{}) *gom
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetStatuses", reflect.TypeOf((*MockGrpcHandlers)(nil).GetStatuses), arg0, arg1)
 }
 
+// GetTransactionSnapshots mocks base method.
+func (m *MockGrpcHandlers) GetTransactionSnapshots(arg0 *grpc.TransactionSnapshotsRequest, arg1 grpc.TransactionsApi_GetTransactionSnapshotsServer) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetTransactionSnapshots", arg0, arg1)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// GetTransactionSnapshots indicates an expected call of GetTransactionSnapshots.
+func (mr *MockGrpcHandlersMockRecorder) GetTransactionSnapshots(arg0, arg1 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTransactionSnapshots", reflect.TypeOf((*MockGrpcHandlers)(nil).GetTransactionSnapshots), arg0, arg1)
+}
+
 // GetTransactions mocks base method.
 func (m *MockGrpcHandlers) GetTransactions(arg0 *grpc.TransactionsRequest, arg1 grpc.TransactionsApi_GetTransactionsServer) error {
 	m.ctrl.T.Helper()

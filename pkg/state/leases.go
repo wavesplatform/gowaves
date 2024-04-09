@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
 
 type LeaseStatus byte
@@ -158,13 +159,25 @@ func (l *leases) cancelLeasesToDisabledAliases(
 			return nil, nil, errors.Wrapf(err, "failed to build address for PK %q", record.SenderPK)
 		}
 		if diff, ok := changes[senderAddr]; ok {
-			diff.leaseOut += -int64(record.Amount)
+			newLeaseOut, loErr := diff.leaseOut.Add(internal.NewIntChange(-int64(record.Amount)))
+			if loErr != nil {
+				return nil, nil, errors.Wrapf(loErr, "failed to add leaseOut change for address %q",
+					senderAddr.String(),
+				)
+			}
+			diff.leaseOut = newLeaseOut
 			changes[senderAddr] = diff
 		} else {
 			changes[senderAddr] = newBalanceDiff(0, 0, -int64(record.Amount), false)
 		}
 		if diff, ok := changes[record.RecipientAddr]; ok {
-			diff.leaseIn += -int64(record.Amount)
+			newLeaseIn, liErr := diff.leaseIn.Add(internal.NewIntChange(-int64(record.Amount)))
+			if liErr != nil {
+				return nil, nil, errors.Wrapf(liErr, "failed to add leaseIn change for address %q",
+					record.RecipientAddr.String(),
+				)
+			}
+			diff.leaseIn = newLeaseIn
 			changes[record.RecipientAddr] = diff
 		} else {
 			changes[record.RecipientAddr] = newBalanceDiff(0, -int64(record.Amount), 0, false)

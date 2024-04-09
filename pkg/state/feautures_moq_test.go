@@ -48,6 +48,9 @@ var _ featuresState = &mockFeaturesState{}
 //			finishVotingFunc: func(curHeight uint64, blockID proto.BlockID) error {
 //				panic("mock out the finishVoting method")
 //			},
+//			isActivatedFunc: func(featureID int16) (bool, error) {
+//				panic("mock out the isActivated method")
+//			},
 //			isActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
 //				panic("mock out the isActivatedAtHeight method")
 //			},
@@ -114,6 +117,9 @@ type mockFeaturesState struct {
 
 	// finishVotingFunc mocks the finishVoting method.
 	finishVotingFunc func(curHeight uint64, blockID proto.BlockID) error
+
+	// isActivatedFunc mocks the isActivated method.
+	isActivatedFunc func(featureID int16) (bool, error)
 
 	// isActivatedAtHeightFunc mocks the isActivatedAtHeight method.
 	isActivatedAtHeightFunc func(featureID int16, height uint64) bool
@@ -207,6 +213,11 @@ type mockFeaturesState struct {
 			// BlockID is the blockID argument value.
 			BlockID proto.BlockID
 		}
+		// isActivated holds details about calls to the isActivated method.
+		isActivated []struct {
+			// FeatureID is the featureID argument value.
+			FeatureID int16
+		}
 		// isActivatedAtHeight holds details about calls to the isActivatedAtHeight method.
 		isActivatedAtHeight []struct {
 			// FeatureID is the featureID argument value.
@@ -276,6 +287,7 @@ type mockFeaturesState struct {
 	lockfeatureVotes                sync.RWMutex
 	lockfeatureVotesAtHeight        sync.RWMutex
 	lockfinishVoting                sync.RWMutex
+	lockisActivated                 sync.RWMutex
 	lockisActivatedAtHeight         sync.RWMutex
 	lockisApproved                  sync.RWMutex
 	lockisApprovedAtHeight          sync.RWMutex
@@ -623,6 +635,38 @@ func (mock *mockFeaturesState) finishVotingCalls() []struct {
 	mock.lockfinishVoting.RLock()
 	calls = mock.calls.finishVoting
 	mock.lockfinishVoting.RUnlock()
+	return calls
+}
+
+// isActivated calls isActivatedFunc.
+func (mock *mockFeaturesState) isActivated(featureID int16) (bool, error) {
+	if mock.isActivatedFunc == nil {
+		panic("mockFeaturesState.isActivatedFunc: method is nil but featuresState.isActivated was just called")
+	}
+	callInfo := struct {
+		FeatureID int16
+	}{
+		FeatureID: featureID,
+	}
+	mock.lockisActivated.Lock()
+	mock.calls.isActivated = append(mock.calls.isActivated, callInfo)
+	mock.lockisActivated.Unlock()
+	return mock.isActivatedFunc(featureID)
+}
+
+// isActivatedCalls gets all the calls that were made to isActivated.
+// Check the length with:
+//
+//	len(mockedfeaturesState.isActivatedCalls())
+func (mock *mockFeaturesState) isActivatedCalls() []struct {
+	FeatureID int16
+} {
+	var calls []struct {
+		FeatureID int16
+	}
+	mock.lockisActivated.RLock()
+	calls = mock.calls.isActivated
+	mock.lockisActivated.RUnlock()
 	return calls
 }
 

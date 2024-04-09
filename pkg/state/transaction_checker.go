@@ -451,7 +451,9 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 		res, err := proto.EthereumWeiToWavelet(tx.Value())
 		if err != nil {
-			return out, errors.Errorf("failed to convert wei amount from ethreum transaction to wavelets. value is %s", tx.Value().String())
+			return out, errors.Errorf(
+				"failed to convert wei amount from ethereum transaction to wavelets. value is %s",
+				tx.Value().String())
 		}
 		if res == 0 {
 			return out, errors.New("the amount of ethereum transfer waves is 0, which is forbidden")
@@ -628,11 +630,7 @@ func (tc *transactionChecker) checkReissue(tx *proto.Reissue, info *checkerInfo)
 	if !bytes.Equal(assetInfo.Issuer[:], tx.SenderPK[:]) {
 		return errs.NewAssetIssuedByOtherAddress("asset was issued by other address")
 	}
-	if info.currentTimestamp <= tc.settings.InvalidReissueInSameBlockUntilTime {
-		// Due to bugs in existing blockchain it is valid to reissue non-reissuable asset in this time period.
-		return nil
-	}
-	if (info.currentTimestamp >= tc.settings.ReissueBugWindowTimeStart) && (info.currentTimestamp <= tc.settings.ReissueBugWindowTimeEnd) {
+	if tc.settings.CanReissueNonReissueablePeriod(info.currentTimestamp) {
 		// Due to bugs in existing blockchain it is valid to reissue non-reissuable asset in this time period.
 		return nil
 	}

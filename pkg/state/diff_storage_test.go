@@ -4,21 +4,50 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
+
+func ich(v int64) internal.IntChange[int64] { return internal.NewIntChange[int64](v) }
 
 func createBlockDiff(blockID proto.BlockID) blockDiff {
 	return blockDiff{
-		minerDiff: txDiff{testGlobal.minerInfo.wavesKey: balanceDiff{minBalance: 60, balance: 60, blockID: blockID}},
+		minerDiff: txDiff{testGlobal.minerInfo.wavesKey: balanceDiff{
+			minBalance: ich(60),
+			balance:    ich(60),
+			blockID:    blockID,
+		}},
 		txDiffs: []txDiff{
 			{
-				testGlobal.minerInfo.wavesKey:     balanceDiff{minBalance: 20, balance: 20, blockID: blockID},
-				testGlobal.recipientInfo.wavesKey: balanceDiff{minBalance: -50, balance: -50, leaseOut: 200, blockID: blockID},
+				testGlobal.minerInfo.wavesKey: balanceDiff{
+					minBalance: ich(20),
+					balance:    ich(20),
+					blockID:    blockID,
+				},
+				testGlobal.recipientInfo.wavesKey: balanceDiff{
+					minBalance: ich(-50),
+					balance:    ich(-50),
+					leaseOut:   ich(200),
+					blockID:    blockID,
+				},
 			},
 			{
-				testGlobal.minerInfo.wavesKey:     balanceDiff{minBalance: 20, balance: 20, blockID: blockID},
-				testGlobal.recipientInfo.wavesKey: balanceDiff{minBalance: 500, balance: 500, blockID: blockID},
-				testGlobal.senderInfo.wavesKey:    balanceDiff{minBalance: -550, balance: -550, blockID: blockID},
+				testGlobal.minerInfo.wavesKey: balanceDiff{
+					minBalance: ich(20),
+					balance:    ich(20),
+					blockID:    blockID,
+				},
+				testGlobal.recipientInfo.wavesKey: balanceDiff{
+					minBalance: ich(500),
+					balance:    ich(500),
+					blockID:    blockID,
+				},
+				testGlobal.senderInfo.wavesKey: balanceDiff{
+					minBalance: ich(-550),
+					balance:    ich(-550),
+					blockID:    blockID,
+				},
 			},
 		},
 	}
@@ -29,17 +58,22 @@ func TestSaveBlockDiff(t *testing.T) {
 	assert.NoError(t, err, "newDiffStorage() failed")
 	err = diffStor.saveBlockDiff(createBlockDiff(blockID0))
 	assert.NoError(t, err, "saveBlockDiff() failed")
-	minerTotalDiff := balanceDiff{minBalance: 60, balance: 100, blockID: blockID0}
+	minerTotalDiff := balanceDiff{minBalance: ich(60), balance: ich(100), blockID: blockID0}
 	minerChange := balanceChanges{
 		[]byte(testGlobal.minerInfo.wavesKey),
 		[]balanceDiff{minerTotalDiff},
 	}
-	recipientTotalDiff := balanceDiff{minBalance: -50, balance: 450, leaseOut: 200, blockID: blockID0}
+	recipientTotalDiff := balanceDiff{
+		minBalance: ich(-50),
+		balance:    ich(450),
+		leaseOut:   ich(200),
+		blockID:    blockID0,
+	}
 	recipientChange := balanceChanges{
 		[]byte(testGlobal.recipientInfo.wavesKey),
 		[]balanceDiff{recipientTotalDiff},
 	}
-	senderTotalDiff := balanceDiff{minBalance: -550, balance: -550, blockID: blockID0}
+	senderTotalDiff := balanceDiff{minBalance: ich(-550), balance: ich(-550), blockID: blockID0}
 	senderChange := balanceChanges{
 		[]byte(testGlobal.senderInfo.wavesKey),
 		[]balanceDiff{senderTotalDiff},
@@ -49,17 +83,22 @@ func TestSaveBlockDiff(t *testing.T) {
 	// Add another block diff to inspect how diffs are appended.
 	err = diffStor.saveBlockDiff(createBlockDiff(blockID1))
 	assert.NoError(t, err, "saveBlockDiff() failed")
-	minerTotalDiff1 := balanceDiff{minBalance: 60, balance: 200, blockID: blockID1}
+	minerTotalDiff1 := balanceDiff{minBalance: ich(60), balance: ich(200), blockID: blockID1}
 	minerChange = balanceChanges{
 		[]byte(testGlobal.minerInfo.wavesKey),
 		[]balanceDiff{minerTotalDiff, minerTotalDiff1},
 	}
-	recipientTotalDiff1 := balanceDiff{minBalance: -50, balance: 900, leaseOut: 400, blockID: blockID1}
+	recipientTotalDiff1 := balanceDiff{
+		minBalance: ich(-50),
+		balance:    ich(900),
+		leaseOut:   ich(400),
+		blockID:    blockID1,
+	}
 	recipientChange = balanceChanges{
 		[]byte(testGlobal.recipientInfo.wavesKey),
 		[]balanceDiff{recipientTotalDiff, recipientTotalDiff1},
 	}
-	senderTotalDiff1 := balanceDiff{minBalance: -1100, balance: -1100, blockID: blockID1}
+	senderTotalDiff1 := balanceDiff{minBalance: ich(-1100), balance: ich(-1100), blockID: blockID1}
 	senderChange = balanceChanges{
 		[]byte(testGlobal.senderInfo.wavesKey),
 		[]balanceDiff{senderTotalDiff, senderTotalDiff1},

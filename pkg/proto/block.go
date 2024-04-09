@@ -10,7 +10,6 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
-	protobuf "google.golang.org/protobuf/proto"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -659,12 +658,13 @@ func (b *Block) Marshaller() Marshaller {
 }
 
 func (b *Block) UnmarshalFromProtobuf(data []byte) error {
-	var pbBlock g.Block
-	if err := protobuf.Unmarshal(data, &pbBlock); err != nil {
+	var pbBlock = &g.Block{}
+	err := pbBlock.UnmarshalVT(data)
+	if err != nil {
 		return err
 	}
 	var c ProtobufConverter
-	res, err := c.Block(&pbBlock)
+	res, err := c.Block(pbBlock)
 	if err != nil {
 		return err
 	}

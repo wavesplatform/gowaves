@@ -4,6 +4,7 @@ import "github.com/wavesplatform/gowaves/pkg/proto"
 
 //go:generate moq -out feautures_moq_test.go . featuresState:mockFeaturesState
 type featuresState interface {
+	isActivated(featureID int16) (bool, error)
 	newestIsActivated(featureID int16) (bool, error)
 	approveFeature(featureID int16, r *approvedFeaturesRecord, blockID proto.BlockID) error
 	activateFeature(featureID int16, r *activatedFeaturesRecord, blockID proto.BlockID) error
