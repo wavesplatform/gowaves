@@ -304,6 +304,7 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		}
 		return newNGState(a.baseInfo), nil, nil
 	}
+	a.internal.AskBlocksIDs(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
 	return newSyncState(baseInfo, conf, internal), nil, nil
 }
 

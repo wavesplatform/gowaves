@@ -109,9 +109,12 @@ func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Snapshots, Eof) {
 		bs, ss := a.orderedBlocks.PopAll(a.isLightNode)
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, false, a.isLightNode), bs, ss, true
 	}
-	p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
 	bs, ss := a.orderedBlocks.PopAll(a.isLightNode)
 	return NewInternal(a.orderedBlocks, a.respondedSignatures, true, a.isLightNode), bs, ss, false
+}
+
+func (a Internal) AskBlocksIDs(p peerExtension) {
+	p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
 }
 
 func (a Internal) AvailableCount() int {
