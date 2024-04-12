@@ -683,54 +683,54 @@ func leaseConstructor(_ environment, args_ ...rideType) (rideType, error) {
 	return newRideLease(recipient, amount, nonce), nil
 }
 
-func orderConstructor(_ environment, args_ ...rideType) (rideType, error) {
+func orderV1Constructor(_ environment, args_ ...rideType) (rideType, error) {
 	if err := checkArgs(args_, 14); err != nil {
-		return nil, errors.Wrap(err, "orderConstructor")
+		return nil, errors.Wrap(err, "orderV1Constructor")
 	}
 
 	id, ok := args_[0].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for id", args_[0].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for id", args_[0].instanceOf())
 	}
 
 	matcherPublicKey, ok := args_[1].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for matcherPublicKey", args_[1].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for matcherPublicKey", args_[1].instanceOf())
 	}
 
 	assetPair, ok := args_[2].(rideType)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for assetPair", args_[2].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for assetPair", args_[2].instanceOf())
 	}
 
 	orderType, ok := args_[3].(rideType)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for orderType", args_[3].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for orderType", args_[3].instanceOf())
 	}
 
 	price, ok := args_[4].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for price", args_[4].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for price", args_[4].instanceOf())
 	}
 
 	amount, ok := args_[5].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for amount", args_[5].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for amount", args_[5].instanceOf())
 	}
 
 	timestamp, ok := args_[6].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for timestamp", args_[6].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for timestamp", args_[6].instanceOf())
 	}
 
 	expiration, ok := args_[7].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for expiration", args_[7].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for expiration", args_[7].instanceOf())
 	}
 
 	matcherFee, ok := args_[8].(rideInt)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for matcherFee", args_[8].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for matcherFee", args_[8].instanceOf())
 	}
 
 	var matcherFeeAssetId rideType
@@ -738,38 +738,135 @@ func orderConstructor(_ environment, args_ ...rideType) (rideType, error) {
 	case rideByteVector, rideUnit:
 		matcherFeeAssetId = v
 	default:
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for matcherFeeAssetId", args_[9].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for matcherFeeAssetId", args_[9].instanceOf())
 	}
 
 	sender, ok := args_[10].(rideAddress)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for sender", args_[10].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for sender", args_[10].instanceOf())
 	}
 
 	senderPublicKey, ok := args_[11].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for senderPublicKey", args_[11].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for senderPublicKey", args_[11].instanceOf())
 	}
 
 	bodyBytes, ok := args_[12].(rideByteVector)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for bodyBytes", args_[12].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for bodyBytes", args_[12].instanceOf())
 	}
 
 	proofs, ok := args_[13].(rideList)
 	if !ok {
-		return nil, errors.Errorf("orderConstructor: unexpected type '%s' for proofs", args_[13].instanceOf())
+		return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' for proofs", args_[13].instanceOf())
 	}
 	// checks for list elements
 	for _, el := range proofs {
 		switch te := el.(type) {
 		case rideByteVector:
 		default:
-			return nil, errors.Errorf("orderConstructor: unexpected type '%s' in proofs list", te.instanceOf())
+			return nil, errors.Errorf("orderV1Constructor: unexpected type '%s' in proofs list", te.instanceOf())
 		}
 	}
 
-	return newRideOrder(assetPair, orderType, matcherFeeAssetId, proofs, bodyBytes, id, senderPublicKey, matcherPublicKey, amount, timestamp, expiration, matcherFee, price, sender), nil
+	return newRideOrderV1(assetPair, orderType, matcherFeeAssetId, proofs, bodyBytes, id, senderPublicKey, matcherPublicKey, amount, timestamp, expiration, matcherFee, price, sender), nil
+}
+
+func orderV8Constructor(_ environment, args_ ...rideType) (rideType, error) {
+	if err := checkArgs(args_, 15); err != nil {
+		return nil, errors.Wrap(err, "orderV8Constructor")
+	}
+
+	id, ok := args_[0].(rideByteVector)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for id", args_[0].instanceOf())
+	}
+
+	matcherPublicKey, ok := args_[1].(rideByteVector)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for matcherPublicKey", args_[1].instanceOf())
+	}
+
+	assetPair, ok := args_[2].(rideType)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for assetPair", args_[2].instanceOf())
+	}
+
+	orderType, ok := args_[3].(rideType)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for orderType", args_[3].instanceOf())
+	}
+
+	price, ok := args_[4].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for price", args_[4].instanceOf())
+	}
+
+	amount, ok := args_[5].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for amount", args_[5].instanceOf())
+	}
+
+	timestamp, ok := args_[6].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for timestamp", args_[6].instanceOf())
+	}
+
+	expiration, ok := args_[7].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for expiration", args_[7].instanceOf())
+	}
+
+	matcherFee, ok := args_[8].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for matcherFee", args_[8].instanceOf())
+	}
+
+	var matcherFeeAssetId rideType
+	switch v := args_[9].(type) {
+	case rideByteVector, rideUnit:
+		matcherFeeAssetId = v
+	default:
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for matcherFeeAssetId", args_[9].instanceOf())
+	}
+
+	sender, ok := args_[10].(rideAddress)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for sender", args_[10].instanceOf())
+	}
+
+	senderPublicKey, ok := args_[11].(rideByteVector)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for senderPublicKey", args_[11].instanceOf())
+	}
+
+	bodyBytes, ok := args_[12].(rideByteVector)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for bodyBytes", args_[12].instanceOf())
+	}
+
+	proofs, ok := args_[13].(rideList)
+	if !ok {
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for proofs", args_[13].instanceOf())
+	}
+	// checks for list elements
+	for _, el := range proofs {
+		switch te := el.(type) {
+		case rideByteVector:
+		default:
+			return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' in proofs list", te.instanceOf())
+		}
+	}
+
+	var attachment rideType
+	switch v := args_[14].(type) {
+	case rideByteVector, rideUnit:
+		attachment = v
+	default:
+		return nil, errors.Errorf("orderV8Constructor: unexpected type '%s' for attachment", args_[14].instanceOf())
+	}
+
+	return newRideOrderV8(assetPair, orderType, matcherFeeAssetId, proofs, bodyBytes, id, senderPublicKey, matcherPublicKey, attachment, amount, timestamp, expiration, matcherFee, price, sender), nil
 }
 
 func reissueConstructor(_ environment, args_ ...rideType) (rideType, error) {

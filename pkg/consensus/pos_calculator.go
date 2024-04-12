@@ -6,15 +6,17 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const (
+	HitSize       = 8
+	MinBaseTarget = 9
+
 	nxtPosHeightDiffForHit  = 0
 	fairPosHeightDiffForHit = 100
-	hitSize                 = 8
-	MinBaseTarget           = 9
 
 	// Nxt values.
 	minBlockDelaySeconds = 53
@@ -29,10 +31,6 @@ const (
 )
 
 type Hit = big.Int
-
-var (
-	maxSignature = bytes.Repeat([]byte{0xff}, hitSize)
-)
 
 var (
 	NXTPosCalculator    = PosCalculator(&nxtPosCalculator{})
@@ -136,8 +134,8 @@ func (p *vrfGenerationSignatureProvider) VerifyGenerationSignature(pk crypto.Pub
 }
 
 func GenHit(source []byte) (*Hit, error) {
-	s := [hitSize]byte{}
-	copy(s[:], source[:hitSize])
+	s := [HitSize]byte{}
+	copy(s[:], source[:HitSize])
 	for i, j := 0, len(s)-1; i < j; i, j = i+1, j-1 {
 		s[i], s[j] = s[j], s[i]
 	}
@@ -219,10 +217,8 @@ type fairPosCalculator struct {
 }
 
 func (calc *fairPosCalculator) CalculateDelay(hit *Hit, confirmedTarget types.BaseTarget, balance uint64) (uint64, error) {
-	var maxHit big.Int
-	maxHit.SetBytes(maxSignature)
 	var maxHitFloat big.Float
-	maxHitFloat.SetInt(&maxHit)
+	maxHitFloat.SetUint64(math.MaxUint64)
 	var hitFloat big.Float
 	hitFloat.SetInt(hit)
 	var quo big.Float

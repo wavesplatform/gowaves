@@ -18,31 +18,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-type TransactionType byte
-
-// All transaction types supported.
-const (
-	GenesisTransaction          TransactionType = iota + 1 // 1 - Genesis transaction
-	PaymentTransaction                                     // 2 - Payment transaction
-	IssueTransaction                                       // 3 - Issue transaction
-	TransferTransaction                                    // 4 - Transfer transaction
-	ReissueTransaction                                     // 5 - Reissue transaction
-	BurnTransaction                                        // 6 - Burn transaction
-	ExchangeTransaction                                    // 7 - Exchange transaction
-	LeaseTransaction                                       // 8 - Lease transaction
-	LeaseCancelTransaction                                 // 9 - LeaseCancel transaction
-	CreateAliasTransaction                                 // 10 - CreateAlias transaction
-	MassTransferTransaction                                // 11 - MassTransfer transaction
-	DataTransaction                                        // 12 - Data transaction
-	SetScriptTransaction                                   // 13 - SetScript transaction
-	SponsorshipTransaction                                 // 14 - Sponsorship transaction
-	SetAssetScriptTransaction                              // 15 - SetAssetScript transaction
-	InvokeScriptTransaction                                // 16 - InvokeScript transaction
-	UpdateAssetInfoTransaction                             // 17 - UpdateAssetInfoTransaction
-	EthereumMetamaskTransaction                            // 18 - EthereumMetamaskTransaction is a transaction which is received from metamask
-	InvokeExpressionTransaction                            // 19 - InvokeExpressionTransaction
-)
-
 // TxFailureReason indicates Transactions failure reasons.
 type TxFailureReason byte
 
@@ -71,23 +46,24 @@ const (
 	createAliasLen = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
 
 	// Max allowed versions of transactions.
+	MaxUncheckedTransactionVersion       = 127
 	MaxGenesisTransactionVersion         = 2
 	MaxPaymentTransactionVersion         = 2
-	MaxTransferTransactionVersion        = 127
-	MaxIssueTransactionVersion           = 127
-	MaxReissueTransactionVersion         = 127
-	MaxBurnTransactionVersion            = 127
-	MaxExchangeTransactionVersion        = 127
-	MaxLeaseTransactionVersion           = 127
-	MaxLeaseCancelTransactionVersion     = 127
-	MaxCreateAliasTransactionVersion     = 127
-	MaxMassTransferTransactionVersion    = 127
-	MaxDataTransactionVersion            = 127
-	MaxSetScriptTransactionVersion       = 127
-	MaxSponsorshipTransactionVersion     = 127
-	MaxSetAssetScriptTransactionVersion  = 127
-	MaxInvokeScriptTransactionVersion    = 127
-	MaxUpdateAssetInfoTransactionVersion = 127
+	MaxTransferTransactionVersion        = 3
+	MaxIssueTransactionVersion           = 3
+	MaxReissueTransactionVersion         = 3
+	MaxBurnTransactionVersion            = 3
+	MaxExchangeTransactionVersion        = 3
+	MaxLeaseTransactionVersion           = 3
+	MaxLeaseCancelTransactionVersion     = 3
+	MaxCreateAliasTransactionVersion     = 3
+	MaxMassTransferTransactionVersion    = 2
+	MaxDataTransactionVersion            = 2
+	MaxSetScriptTransactionVersion       = 2
+	MaxSponsorshipTransactionVersion     = 2
+	MaxSetAssetScriptTransactionVersion  = 2
+	MaxInvokeScriptTransactionVersion    = 2
+	MaxUpdateAssetInfoTransactionVersion = 1
 
 	MinFee              = 100_000
 	MinFeeScriptedAsset = 400_000
@@ -181,6 +157,12 @@ func (a TransactionTypeInfo) String() string {
 	return sb.String()
 }
 
+// TransactionValidationParams contains parameters for transaction validation.
+type TransactionValidationParams struct {
+	Scheme       Scheme
+	CheckVersion bool
+}
+
 // Transaction is a set of common transaction functions.
 type Transaction interface {
 	// Getters which are common for all transactions.
@@ -191,6 +173,7 @@ type Transaction interface {
 	// This is temporary workaround until we have the same struct for both
 	// Signature and Proofs transactions.
 	GetTypeInfo() TransactionTypeInfo
+	GetType() TransactionType
 	GetVersion() byte
 	GetID(scheme Scheme) ([]byte, error)
 	GetSender(scheme Scheme) (Address, error)
@@ -201,7 +184,7 @@ type Transaction interface {
 	// Validate checks that all transaction fields are valid.
 	// This includes ranges checks, and sanity checks specific for each transaction type:
 	// for example, negative amounts for transfers.
-	Validate(scheme Scheme) (Transaction, error)
+	Validate(params TransactionValidationParams) (Transaction, error)
 
 	// GenerateID sets transaction ID.
 	// For most transactions ID is hash of transaction body.
@@ -467,6 +450,10 @@ func (tx Genesis) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
 }
 
+func (tx Genesis) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx Genesis) GetVersion() byte {
 	return tx.Version
 }
@@ -532,7 +519,7 @@ func NewUnsignedGenesis(recipient WavesAddress, amount, timestamp uint64) *Genes
 }
 
 // Validate checks the validity of transaction parameters and it's signature.
-func (tx *Genesis) Validate(scheme Scheme) (Transaction, error) {
+func (tx *Genesis) Validate(params TransactionValidationParams) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxGenesisTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Genesis transaction", tx.Version)
 	}
@@ -542,7 +529,7 @@ func (tx *Genesis) Validate(scheme Scheme) (Transaction, error) {
 	if !validJVMLong(tx.Amount) {
 		return tx, errors.New("amount is too big")
 	}
-	if ok, err := tx.Recipient.Valid(scheme); !ok {
+	if ok, err := tx.Recipient.Valid(params.Scheme); !ok {
 		return tx, errors.Wrapf(err, "invalid recipient address '%s'", tx.Recipient.String())
 	}
 	return tx, nil
@@ -736,6 +723,10 @@ func (tx Payment) GetTypeInfo() TransactionTypeInfo {
 	return TransactionTypeInfo{tx.Type, Signature}
 }
 
+func (tx Payment) GetType() TransactionType {
+	return tx.Type
+}
+
 func (tx Payment) GetVersion() byte {
 	return tx.Version
 }
@@ -785,7 +776,7 @@ func NewUnsignedPayment(senderPK crypto.PublicKey, recipient WavesAddress, amoun
 	return &Payment{Type: PaymentTransaction, Version: 1, SenderPK: senderPK, Recipient: recipient, Amount: amount, Fee: fee, Timestamp: timestamp}
 }
 
-func (tx *Payment) Validate(_ Scheme) (Transaction, error) {
+func (tx *Payment) Validate(_ TransactionValidationParams) (Transaction, error) {
 	if tx.Version < 1 || tx.Version > MaxPaymentTransactionVersion {
 		return tx, errors.Errorf("bad version %d for Payment transaction", tx.Version)
 	}
@@ -1249,10 +1240,7 @@ func (tr *Transfer) marshalBinary() ([]byte, error) {
 	p += 8
 	copy(buf[p:], rb)
 	p += rl
-	attBytes, err := att.Bytes()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to marshal Transfer body")
-	}
+	attBytes := att.Bytes()
 	if err := PutBytesWithUInt16Len(buf[p:], attBytes); err != nil {
 		return nil, errors.Wrap(err, "failed to marshal Transfer body")
 	}
@@ -1520,6 +1508,7 @@ func (b *Burn) UnmarshalBinary(data []byte) error {
 type Exchange interface {
 	GetID(scheme Scheme) ([]byte, error)
 	GetSenderPK() crypto.PublicKey
+	Verify(scheme Scheme, pk crypto.PublicKey) (bool, error)
 	GetBuyOrder() (Order, error)
 	GetSellOrder() (Order, error)
 	GetOrder1() Order

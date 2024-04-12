@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"math"
 	"math/big"
 	"strconv"
 	"strings"
@@ -1531,6 +1532,38 @@ func TestHashScriptAtAddress(t *testing.T) {
 			default:
 				assert.Fail(t, "unexpected result type")
 			}
+		}
+	}
+}
+
+func TestCalculateDelay(t *testing.T) {
+	addr := proto.WavesAddress(bytes.Repeat([]byte{0x01}, 26))
+	vrf := crypto.MustDigestFromBase58("5AFgQTfL1GhVUZr64N6tkmF8usX9QZsPcJbZmsX32VgK")
+	te := &mockRideEnvironment{
+		blockFunc: func() rideType {
+			return rideBlockInfoV7{baseTarget: 142244892, vrf: rideByteVector(vrf.Bytes())}
+		},
+	}
+
+	for _, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideAddressLike([]byte{}), rideInt(1)}, false, rideInt(1418883)},
+		{[]rideType{rideAddress(addr), rideInt(math.MaxInt32)}, false, rideInt(70064)},
+		{[]rideType{rideAddress(addr), rideInt(math.MaxInt32 * 100_000)}, false, rideInt(1)},
+		{[]rideType{rideAddress(addr), rideInt(math.MaxInt32 * 200_000)}, false, rideInt(0)},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideString("x")}, true, nil},
+	} {
+		r, err := calculateDelay(te, test.args...)
+		if test.fail {
+			assert.Error(t, err)
+		} else {
+			require.NoError(t, err)
+			assert.Equal(t, test.r, r)
 		}
 	}
 }

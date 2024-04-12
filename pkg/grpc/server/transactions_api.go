@@ -15,6 +15,7 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/iterators"
 )
@@ -230,7 +231,12 @@ func (s *Server) Broadcast(ctx context.Context, tx *pb.SignedTransaction) (out *
 	if err != nil {
 		return nil, apiError(err)
 	}
-	t, err = t.Validate(s.scheme)
+	lightNodeActivated, err := s.state.IsActivated(int16(settings.LightNode))
+	if err != nil {
+		return nil, apiError(err)
+	}
+	vp := proto.TransactionValidationParams{Scheme: s.scheme, CheckVersion: lightNodeActivated}
+	t, err = t.Validate(vp)
 	if err != nil {
 		return nil, apiError(err)
 	}

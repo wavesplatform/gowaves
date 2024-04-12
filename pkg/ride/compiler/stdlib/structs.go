@@ -196,6 +196,7 @@ func mustLoadObjects() map[ast.LibraryVersion]ObjectsSignatures {
 		ast.LibV5: {map[string]ObjectInfo{}},
 		ast.LibV6: {map[string]ObjectInfo{}},
 		ast.LibV7: {map[string]ObjectInfo{}},
+		ast.LibV8: {map[string]ObjectInfo{}},
 	}
 	for _, obj := range s.Objects {
 		sort.SliceStable(obj.Actions, func(i, j int) bool {
