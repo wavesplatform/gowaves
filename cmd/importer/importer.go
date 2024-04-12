@@ -1,10 +1,13 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"flag"
 	"fmt"
+	"io"
 	"os"
+	"os/signal"
 	"path/filepath"
 	"runtime"
 	"runtime/debug"
@@ -188,24 +191,34 @@ func run() error {
 	}
 	defer impClose()
 
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer cancel()
+
 	height, err := st.Height()
 	if err != nil {
 		return fmt.Errorf("failed to get current height: %w", err)
 	}
 	if height > 1 {
 		zap.S().Infof("Skipping to height %d", height)
-		if skErr := imp.SkipToHeight(height); skErr != nil {
+		if skErr := imp.SkipToHeight(ctx, height); skErr != nil {
 			return fmt.Errorf("failed to skip to state height: %w", skErr)
 		}
 	}
 
 	start := time.Now()
-	if impErr := imp.Import(uint64(c.nBlocks)); impErr != nil {
-		h, hErr := st.Height()
+	if impErr := imp.Import(ctx, uint64(c.nBlocks)); impErr != nil {
+		currentHeight, hErr := st.Height()
 		if hErr != nil {
-			return fmt.Errorf("failed to get current height: %w", hErr)
+			zap.S().Fatalf("Failed to get current height: %v", hErr)
 		}
-		return fmt.Errorf("failed to apply blocks after height %d: %w", h, impErr)
+		switch {
+		case errors.Is(impErr, context.Canceled):
+			zap.S().Infof("Interrupted by user, height %d", currentHeight)
+		case errors.Is(impErr, io.EOF):
+			zap.S().Info("End of blockchain file reached, height %d", currentHeight)
+		default:
+			zap.S().Fatalf("Failed to apply blocks after height %d: %v", currentHeight, impErr)
+		}
 	}
 	elapsed := time.Since(start)
 	zap.S().Infof("Import took %s", elapsed)

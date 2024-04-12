@@ -387,18 +387,23 @@ func (a *txAppender) verifyWavesTxSigAndData(tx proto.Transaction, params *appen
 		return err
 	}
 	if checkSequentially := params.validatingUtx; checkSequentially {
+		vp := proto.TransactionValidationParams{
+			Scheme:       a.settings.AddressSchemeCharacter,
+			CheckVersion: params.lightNodeActivated,
+		}
 		// In UTX it is not very useful to check signatures in separate goroutines,
 		// because they have to be checked in each validateNextTx() anyway.
-		return checkTx(tx, checkTxSig, checkOrder1, checkOrder2, a.settings.AddressSchemeCharacter)
+		return checkTx(tx, checkTxSig, checkOrder1, checkOrder2, vp)
 	}
 	// Send transaction for validation of transaction's data correctness (using tx.Validate() method)
 	// and simple cryptographic signature verification (using tx.Verify() and PK).
 	task := &verifyTask{
-		taskType:    verifyTx,
-		tx:          tx,
-		checkTxSig:  checkTxSig,
-		checkOrder1: checkOrder1,
-		checkOrder2: checkOrder2,
+		taskType:     verifyTx,
+		tx:           tx,
+		checkTxSig:   checkTxSig,
+		checkOrder1:  checkOrder1,
+		checkOrder2:  checkOrder2,
+		checkVersion: params.lightNodeActivated,
 	}
 	return params.chans.trySend(task)
 }
@@ -416,7 +421,7 @@ type appendTxParams struct {
 	rideV6Activated                  bool
 	consensusImprovementsActivated   bool
 	blockRewardDistributionActivated bool
-	invokeExpressionActivated        bool // TODO: check feature naming
+	lightNodeActivated               bool
 	validatingUtx                    bool // if validatingUtx == false then chans MUST be initialized with non nil value
 	currentMinerPK                   crypto.PublicKey
 }
@@ -670,7 +675,7 @@ func (a *txAppender) appendTxs(
 	if err != nil {
 		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
-	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
 		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
@@ -687,7 +692,7 @@ func (a *txAppender) appendTxs(
 		rideV6Activated:                  info.rideV6Activated,
 		consensusImprovementsActivated:   consensusImprovementsActivated,
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
-		invokeExpressionActivated:        invokeExpressionActivated,
+		lightNodeActivated:               lightNodeActivated,
 		validatingUtx:                    false,
 		currentMinerPK:                   params.block.GeneratorPublicKey,
 	}
@@ -1023,6 +1028,15 @@ func (a *txAppender) handleExchange(tx proto.Transaction, info *fallibleValidati
 			scriptsRuns++
 		}
 	}
+	// check attachment in order
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
+	if err != nil {
+		return nil, err
+	}
+	if !lightNodeActivated &&
+		(exchange.GetOrder1().GetAttachment().Size() != 0 || exchange.GetOrder2().GetAttachment().Size() != 0) {
+		return nil, errors.New("Attachment field for orders is not supported yet")
+	}
 	// Validate transaction, orders and extract smart assets.
 	checkerData, err := a.txHandler.checkTx(tx, info.checkerInfo)
 	if err != nil {
@@ -1135,9 +1149,9 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	if err != nil {
 		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
 	}
-	invokeExpressionActivated, err := a.stor.features.newestIsActivated(int16(settings.InvokeExpression))
+	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'InvokeExpression' is activated") // TODO: check feature naming in err message
+		return errs.Extend(err, "failed to check 'Light Node' is activated")
 	}
 	// it's correct to use new proto.StateActionsCounter because there's no block exists,
 	// but this field is necessary in tx performer
@@ -1155,7 +1169,7 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		rideV6Activated:                  rideV6Activated,
 		consensusImprovementsActivated:   consensusImprovementsActivated,
 		blockRewardDistributionActivated: blockRewardDistributionActivated,
-		invokeExpressionActivated:        invokeExpressionActivated,
+		lightNodeActivated:               lightNodeActivated,
 		validatingUtx:                    true,
 	}
 	_, err = a.appendTx(tx, appendTxArgs)

@@ -1498,3 +1498,104 @@ func TestCheckInvokeExpressionWithProofs(t *testing.T) {
 	_, err := to.tc.checkInvokeScriptWithProofs(tx, info)
 	assert.Error(t, err, "checkInvokeExpressionWithProofs did not fail prior to feature InvokeExpression activation")
 }
+
+func TestScriptActivation(t *testing.T) {
+	uptoRide4DApps := []settings.Feature{settings.Ride4DApps}
+	uptoBlockV5 := []settings.Feature{settings.Ride4DApps, settings.BlockV5}
+	uptoRideV5 := []settings.Feature{settings.Ride4DApps, settings.BlockV5, settings.RideV5}
+	uptoRideV6 := []settings.Feature{settings.Ride4DApps, settings.BlockV5, settings.RideV5, settings.RideV6}
+	uptoBlockRewardDistribution := []settings.Feature{settings.Ride4DApps, settings.BlockV5, settings.RideV5,
+		settings.RideV6, settings.BlockRewardDistribution}
+	uptoLightNode := []settings.Feature{settings.Ride4DApps, settings.BlockV5, settings.RideV5,
+		settings.RideV6, settings.BlockRewardDistribution, settings.LightNode}
+	tests := []struct {
+		libVersion ast.LibraryVersion
+		active     []settings.Feature
+		valid      bool
+	}{
+		{libVersion: ast.LibV1, active: nil, valid: true},
+		{libVersion: ast.LibV2, active: nil, valid: true},
+		{libVersion: ast.LibV3, active: nil, valid: false},
+		{libVersion: ast.LibV4, active: nil, valid: false},
+		{libVersion: ast.LibV5, active: nil, valid: false},
+		{libVersion: ast.LibV6, active: nil, valid: false},
+		{libVersion: ast.LibV7, active: nil, valid: false},
+		{libVersion: ast.LibV8, active: nil, valid: false},
+
+		{libVersion: ast.LibV1, active: uptoRide4DApps, valid: true},
+		{libVersion: ast.LibV2, active: uptoRide4DApps, valid: true},
+		{libVersion: ast.LibV3, active: uptoRide4DApps, valid: true},
+		{libVersion: ast.LibV4, active: uptoRide4DApps, valid: false},
+		{libVersion: ast.LibV5, active: uptoRide4DApps, valid: false},
+		{libVersion: ast.LibV6, active: uptoRide4DApps, valid: false},
+		{libVersion: ast.LibV7, active: uptoRide4DApps, valid: false},
+		{libVersion: ast.LibV8, active: uptoRide4DApps, valid: false},
+
+		{libVersion: ast.LibV1, active: uptoBlockV5, valid: true},
+		{libVersion: ast.LibV2, active: uptoBlockV5, valid: true},
+		{libVersion: ast.LibV3, active: uptoBlockV5, valid: true},
+		{libVersion: ast.LibV4, active: uptoBlockV5, valid: true},
+		{libVersion: ast.LibV5, active: uptoBlockV5, valid: false},
+		{libVersion: ast.LibV6, active: uptoBlockV5, valid: false},
+		{libVersion: ast.LibV7, active: uptoBlockV5, valid: false},
+		{libVersion: ast.LibV8, active: uptoBlockV5, valid: false},
+
+		{libVersion: ast.LibV1, active: uptoRideV5, valid: true},
+		{libVersion: ast.LibV2, active: uptoRideV5, valid: true},
+		{libVersion: ast.LibV3, active: uptoRideV5, valid: true},
+		{libVersion: ast.LibV4, active: uptoRideV5, valid: true},
+		{libVersion: ast.LibV5, active: uptoRideV5, valid: true},
+		{libVersion: ast.LibV6, active: uptoRideV5, valid: false},
+		{libVersion: ast.LibV7, active: uptoRideV5, valid: false},
+		{libVersion: ast.LibV8, active: uptoRideV5, valid: false},
+
+		{libVersion: ast.LibV1, active: uptoRideV6, valid: true},
+		{libVersion: ast.LibV2, active: uptoRideV6, valid: true},
+		{libVersion: ast.LibV3, active: uptoRideV6, valid: true},
+		{libVersion: ast.LibV4, active: uptoRideV6, valid: true},
+		{libVersion: ast.LibV5, active: uptoRideV6, valid: true},
+		{libVersion: ast.LibV6, active: uptoRideV6, valid: true},
+		{libVersion: ast.LibV7, active: uptoRideV6, valid: false},
+		{libVersion: ast.LibV8, active: uptoRideV6, valid: false},
+
+		{libVersion: ast.LibV1, active: uptoBlockRewardDistribution, valid: true},
+		{libVersion: ast.LibV2, active: uptoBlockRewardDistribution, valid: true},
+		{libVersion: ast.LibV3, active: uptoBlockRewardDistribution, valid: true},
+		{libVersion: ast.LibV4, active: uptoBlockRewardDistribution, valid: true},
+		{libVersion: ast.LibV5, active: uptoBlockRewardDistribution, valid: true},
+		{libVersion: ast.LibV6, active: uptoBlockRewardDistribution, valid: true},
+		{libVersion: ast.LibV7, active: uptoBlockRewardDistribution, valid: true},
+		{libVersion: ast.LibV8, active: uptoBlockRewardDistribution, valid: false},
+
+		{libVersion: ast.LibV1, active: uptoLightNode, valid: false},
+		{libVersion: ast.LibV2, active: uptoLightNode, valid: false},
+		{libVersion: ast.LibV3, active: uptoLightNode, valid: false},
+		{libVersion: ast.LibV4, active: uptoLightNode, valid: true},
+		{libVersion: ast.LibV5, active: uptoLightNode, valid: true},
+		{libVersion: ast.LibV6, active: uptoLightNode, valid: true},
+		{libVersion: ast.LibV7, active: uptoLightNode, valid: true},
+		{libVersion: ast.LibV8, active: uptoLightNode, valid: true},
+	}
+	for i, test := range tests {
+		mfs := &mockFeaturesState{
+			newestIsActivatedFunc: func(featureID int16) (bool, error) {
+				for _, f := range test.active {
+					if int16(f) == featureID {
+						return true, nil
+					}
+				}
+				return false, nil
+			},
+		}
+		stor := &blockchainEntitiesStorage{features: mfs}
+		checker, err := newTransactionChecker(proto.BlockID{}, stor, settings.TestNetSettings)
+		require.NoError(t, err)
+		blockV2 := test.libVersion >= ast.LibV3
+		_, err = checker.scriptActivation(test.libVersion, blockV2)
+		if test.valid {
+			assert.NoError(t, err, "test case %d", i)
+		} else {
+			assert.Error(t, err, "test case %d", i)
+		}
+	}
+}

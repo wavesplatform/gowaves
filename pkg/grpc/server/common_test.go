@@ -104,7 +104,7 @@ func createTestNetWallet(t *testing.T) types.EmbeddedWallet {
 }
 
 func connectAutoClose(t *testing.T, addr string) *grpc.ClientConn {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err, "grpc.Dial() failed")
 	t.Cleanup(func() {
 		require.NoError(t, conn.Close())

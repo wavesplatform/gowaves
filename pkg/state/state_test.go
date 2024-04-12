@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"fmt"
 	"math/big"
 	"path/filepath"
@@ -125,7 +126,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	assert.NoError(t, err, "readBlocksFromTestPath() failed")
 	last := blocks[len(blocks)-1]
 	txs := last.Transactions
-	err = importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, height, 1)
+	err = importer.ApplyFromFile(context.Background(), proto.MainNetScheme, manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	err = validateTxs(manager, last.Timestamp, txs)
 	assert.NoError(t, err, "validateTxs() failed")
@@ -188,7 +189,8 @@ func TestStateRollback(t *testing.T) {
 			t.Fatalf("Height(): %v\n", hErr)
 		}
 		if tc.nextHeight > height {
-			if aErr := importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, tc.nextHeight-1, height); aErr != nil {
+			if aErr := importer.ApplyFromFile(
+				context.Background(), proto.MainNetScheme, manager, blocksPath, tc.nextHeight-1, height); aErr != nil {
 				t.Fatalf("Failed to import: %v\n", aErr)
 			}
 		} else {
@@ -224,12 +226,14 @@ func TestStateIntegrated(t *testing.T) {
 	// Test what happens in case of failure: we add blocks starting from wrong height.
 	// State should be rolled back to previous state and ready to use after.
 	wrongStartHeight := uint64(100)
-	if aErr := importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, blocksToImport,
+	ctx := context.Background()
+
+	if aErr := importer.ApplyFromFile(ctx, proto.MainNetScheme, manager, blocksPath, blocksToImport,
 		wrongStartHeight); aErr == nil {
 		t.Errorf("Import starting from wrong height must fail but it doesn't.")
 	}
 	// Test normal import.
-	if aErr := importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, blocksToImport,
+	if aErr := importer.ApplyFromFile(ctx, proto.MainNetScheme, manager, blocksPath, blocksToImport,
 		1); aErr != nil {
 		t.Fatalf("Failed to import: %v\n", aErr)
 	}
@@ -300,7 +304,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	assert.Equal(t, true, approved)
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, height, 1)
+	err = importer.ApplyFromFile(context.Background(), proto.MainNetScheme, manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	// Check activation and approval heights.
 	activationHeight, err := manager.ActivationHeight(featureID)
@@ -318,7 +322,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, height, 1)
+	err = importer.ApplyFromFile(context.Background(), proto.MainNetScheme, manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	// Now validate tx with ID which is already in the state.
 	tx := existingGenesisTx(t)
@@ -337,7 +341,7 @@ func TestTransactionByID(t *testing.T) {
 
 	// Apply blocks.
 	height := uint64(75)
-	err = importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, height, 1)
+	err = importer.ApplyFromFile(context.Background(), proto.MainNetScheme, manager, blocksPath, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 
 	// Retrieve existing MainNet genesis tx by its ID.
@@ -366,7 +370,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	assert.Equal(t, genesis, manager.TopBlock())
 
 	height := proto.Height(100)
-	err = importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, height-1, 1)
+	err = importer.ApplyFromFile(context.Background(), proto.MainNetScheme, manager, blocksPath, height-1, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 
 	correct, err := manager.BlockByHeight(height)
@@ -412,7 +416,7 @@ func TestStateHashAtHeight(t *testing.T) {
 
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	err = importer.ApplyFromFile(proto.MainNetScheme, manager, blocksPath, 9499, 1)
+	err = importer.ApplyFromFile(context.Background(), proto.MainNetScheme, manager, blocksPath, 9499, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
 	stateHash, err := manager.LegacyStateHashAtHeight(9500)
 	assert.NoError(t, err, "LegacyStateHashAtHeight failed")

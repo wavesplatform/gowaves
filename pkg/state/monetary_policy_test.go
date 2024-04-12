@@ -36,58 +36,68 @@ func TestRewardVotesRecord(t *testing.T) {
 }
 
 func TestAddVote(t *testing.T) {
+	const (
+		blockRewardActivationHeight = 0
+		isCappedRewardsActivated    = false
+	)
 	mo, storage := createTestObjects(t, settings.MainNetSettings)
 
+	h := proto.Height(99001)
 	storage.addBlock(t, blockID0)
-	err := mo.vote(700000000, 99001, 0, false, blockID0)
+	err := mo.vote(700000000, h, blockRewardActivationHeight, isCappedRewardsActivated, blockID0)
 	require.NoError(t, err)
-	votes, err := mo.votes()
+	votes, err := mo.newestVotes(h, blockRewardActivationHeight, isCappedRewardsActivated)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1), votes.increase)
 	assert.Equal(t, uint32(0), votes.decrease)
 	storage.flush(t)
-	votes, err = mo.votes()
+	votes, err = mo.newestVotes(h, blockRewardActivationHeight, isCappedRewardsActivated)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1), votes.increase)
 	assert.Equal(t, uint32(0), votes.decrease)
 
+	h++
 	storage.addBlock(t, blockID1)
-	err = mo.vote(500000000, 99002, 0, false, blockID1)
+	err = mo.vote(500000000, h, blockRewardActivationHeight, isCappedRewardsActivated, blockID1)
 	require.NoError(t, err)
-	votes, err = mo.votes()
+	votes, err = mo.newestVotes(h, blockRewardActivationHeight, isCappedRewardsActivated)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1), votes.increase)
 	assert.Equal(t, uint32(1), votes.decrease)
 	storage.flush(t)
-	votes, err = mo.votes()
+	votes, err = mo.newestVotes(h, blockRewardActivationHeight, isCappedRewardsActivated)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1), votes.increase)
 	assert.Equal(t, uint32(1), votes.decrease)
 }
 
 func TestRollbackVote(t *testing.T) {
+	const (
+		blockRewardActivationHeight = 0
+		isCappedRewardsActivated    = false
+	)
 	mo, storage := createTestObjects(t, settings.MainNetSettings)
-
+	h := proto.Height(99001)
 	storage.addBlock(t, blockID0)
-	err := mo.vote(700000000, 99001, 0, false, blockID0)
+	err := mo.vote(700000000, h, blockRewardActivationHeight, isCappedRewardsActivated, blockID0)
 	require.NoError(t, err)
-	votes, err := mo.votes()
+	votes, err := mo.newestVotes(h, blockRewardActivationHeight, isCappedRewardsActivated)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1), votes.increase)
 	assert.Equal(t, uint32(0), votes.decrease)
 	storage.flush(t)
-	votes, err = mo.votes()
+	votes, err = mo.newestVotes(h, blockRewardActivationHeight, isCappedRewardsActivated)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(1), votes.increase)
 	assert.Equal(t, uint32(0), votes.decrease)
 
 	storage.rollbackBlock(t, blockID0)
-	votes, err = mo.votes()
+	votes, err = mo.newestVotes(h-1, blockRewardActivationHeight, isCappedRewardsActivated)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(0), votes.increase)
 	assert.Equal(t, uint32(0), votes.decrease)
 	storage.flush(t)
-	votes, err = mo.votes()
+	votes, err = mo.newestVotes(h-1, blockRewardActivationHeight, isCappedRewardsActivated)
 	require.NoError(t, err)
 	assert.Equal(t, uint32(0), votes.increase)
 	assert.Equal(t, uint32(0), votes.decrease)
@@ -148,7 +158,7 @@ func TestFinishRewardVoting(t *testing.T) {
 		storage.addBlock(t, id)
 		err := mo.vote(step.vote, h, blockRewardActivationHeight, step.isCappedRewardsActivated, id)
 		require.NoError(t, err, msg)
-		votes, err := mo.votes()
+		votes, err := mo.newestVotes(h, blockRewardActivationHeight, step.isCappedRewardsActivated)
 		require.NoError(t, err, msg)
 		assert.Equal(t, step.increase, votes.increase, "increase: "+msg)
 		assert.Equal(t, step.decrease, votes.decrease, "decrease: "+msg)
@@ -160,7 +170,7 @@ func TestFinishRewardVoting(t *testing.T) {
 		if h == end {
 			nextID := ids[i+1]
 			storage.prepareBlock(t, nextID)
-			err = mo.updateBlockReward(id, nextID, h)
+			err = mo.updateBlockReward(id, h, blockRewardActivationHeight, step.isCappedRewardsActivated)
 			require.NoError(t, err)
 		}
 	}

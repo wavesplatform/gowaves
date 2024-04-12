@@ -5,7 +5,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	pb "google.golang.org/protobuf/proto"
 )
 
 type invokeResultRecord struct {
@@ -17,12 +16,13 @@ func (r *invokeResultRecord) marshalBinary() ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	return pb.Marshal(msg)
+	return msg.MarshalVTStrict()
 }
 
 func (r *invokeResultRecord) unmarshalBinary(scheme byte, data []byte) error {
 	msg := new(g.InvokeScriptResult)
-	if err := pb.Unmarshal(data, msg); err != nil {
+	err := msg.UnmarshalVT(data)
+	if err != nil {
 		return err
 	}
 	var res proto.ScriptResult

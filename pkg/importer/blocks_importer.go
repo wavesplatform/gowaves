@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"context"
 	"fmt"
 	"time"
 
@@ -25,12 +26,15 @@ func NewBlocksImporter(scheme proto.Scheme, st State, blocksPath string) (*Block
 	return &BlocksImporter{scheme: scheme, st: st, br: br, reg: newSpeedRegulator()}, nil
 }
 
-func (imp *BlocksImporter) SkipToHeight(height proto.Height) error {
+func (imp *BlocksImporter) SkipToHeight(ctx context.Context, height proto.Height) error {
 	imp.h = uint64(1)
 	if height < imp.h {
 		return fmt.Errorf("invalid initial height: %d", height)
 	}
 	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if imp.h == height {
 			return nil
 		}
@@ -44,10 +48,13 @@ func (imp *BlocksImporter) SkipToHeight(height proto.Height) error {
 	}
 }
 
-func (imp *BlocksImporter) Import(number uint64) error {
+func (imp *BlocksImporter) Import(ctx context.Context, number uint64) error {
 	var blocks [MaxBlocksBatchSize][]byte
 	index := uint64(0)
 	for height := imp.h; height <= number; height++ {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		size, err := imp.br.readSize()
 		if err != nil {
 			return fmt.Errorf("failed to import: %w", err)

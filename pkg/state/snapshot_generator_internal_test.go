@@ -1201,7 +1201,7 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 		{-# CONTENT_TYPE DAPP #-}
 		{-# SCRIPT_TYPE ACCOUNT #-}
 		
-		let addr = Address(base58'3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh')
+		let addr = Address(base58'3PD8uesEwWoKu63ujwbJXeJdk7jygdimJST')
 		
 		@Callable(i)
 		func call() = {
@@ -1209,9 +1209,8 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 			let leaseID = calculateLeaseId(lease)
 			[lease, LeaseCancel(leaseID)]
 		}`
-		calculatedLeaseID  = "G5XogVoQWp9DYLJ6cLxN3TGinj6Ps8tf9tzjbF3RtcFe"
 		leaseAmount        = 1000000
-		leaseRecipientAddr = "3N186hYM5PFwGdkVUsLJaBvpPEECrSj5CJh"
+		leaseRecipientAddr = "3PD8uesEwWoKu63ujwbJXeJdk7jygdimJST"
 	)
 	scriptBytes, errs := compiler.Compile(script, false, true)
 	require.NoError(t, errors.Join(errs...))
@@ -1265,7 +1264,8 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 	)
 	assert.NoError(t, err, "failed to perform invoke script tx")
 
-	lID := crypto.MustDigestFromBase58(calculatedLeaseID)
+	lRcpAddr := proto.MustAddressFromString(leaseRecipientAddr)
+	lID := proto.GenerateLeaseScriptActionID(proto.NewRecipientFromAddress(lRcpAddr), leaseAmount, 0, *tx.ID)
 	expectedSnapshot := txSnapshot{
 		regular: []proto.AtomicSnapshot{
 			&proto.WavesBalanceSnapshot{
@@ -1280,9 +1280,11 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 				LeaseID:       lID,
 				Amount:        leaseAmount,
 				SenderPK:      dAppInfo.pk,
-				RecipientAddr: proto.MustAddressFromString(leaseRecipientAddr),
+				RecipientAddr: lRcpAddr,
 			},
 			&proto.CancelledLeaseSnapshot{LeaseID: lID},
+			&proto.LeaseBalanceSnapshot{LeaseIn: 0, LeaseOut: 0, Address: lRcpAddr},
+			&proto.LeaseBalanceSnapshot{LeaseIn: 0, LeaseOut: 0, Address: dAppInfo.addr},
 		},
 		internal: []internalSnapshot{
 			&InternalNewLeaseInfoSnapshot{

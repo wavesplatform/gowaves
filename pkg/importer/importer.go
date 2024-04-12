@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"context"
 	"encoding/json"
 	"os"
 	"path/filepath"
@@ -37,8 +38,8 @@ type State interface {
 }
 
 type Importer interface {
-	SkipToHeight(uint64) error
-	Import(uint64) error
+	SkipToHeight(context.Context, uint64) error
+	Import(context.Context, uint64) error
 	Close() error
 }
 
@@ -57,7 +58,16 @@ func maybePersistTxs(st State) error {
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
-func ApplyFromFile(scheme proto.Scheme, st State, blockchainPath string, nBlocks, startHeight uint64) error {
+func ApplyFromFile(
+	ctx context.Context,
+	scheme proto.Scheme,
+	st State,
+	blockchainPath string,
+	nBlocks, startHeight uint64,
+) error {
+	if ctx == nil {
+		ctx = context.Background()
+	}
 	imp, err := NewBlocksImporter(scheme, st, blockchainPath)
 	if err != nil {
 		return err
@@ -67,11 +77,11 @@ func ApplyFromFile(scheme proto.Scheme, st State, blockchainPath string, nBlocks
 			zap.S().Fatalf("Failed to close importer: %v", clErr)
 		}
 	}()
-	err = imp.SkipToHeight(startHeight)
+	err = imp.SkipToHeight(ctx, startHeight)
 	if err != nil {
 		return err
 	}
-	return imp.Import(nBlocks)
+	return imp.Import(ctx, nBlocks)
 }
 
 func CheckBalances(st State, balancesPath string) error {

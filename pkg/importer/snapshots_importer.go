@@ -1,6 +1,7 @@
 package importer
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"time"
@@ -31,12 +32,15 @@ func NewSnapshotsImporter(scheme proto.Scheme, st State, blocksPath, snapshotsPa
 	return &SnapshotsImporter{scheme: scheme, st: st, br: br, sr: sr, reg: newSpeedRegulator()}, nil
 }
 
-func (imp *SnapshotsImporter) SkipToHeight(height proto.Height) error {
+func (imp *SnapshotsImporter) SkipToHeight(ctx context.Context, height proto.Height) error {
 	imp.h = uint64(1)
 	if height < imp.h {
 		return fmt.Errorf("invalid initial height: %d", height)
 	}
 	for {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		if imp.h == height {
 			return nil
 		}
@@ -55,11 +59,14 @@ func (imp *SnapshotsImporter) SkipToHeight(height proto.Height) error {
 	}
 }
 
-func (imp *SnapshotsImporter) Import(number uint64) error {
+func (imp *SnapshotsImporter) Import(ctx context.Context, number uint64) error {
 	var blocks [MaxBlocksBatchSize][]byte
 	var snapshots [MaxBlocksBatchSize]*proto.BlockSnapshot
 	index := 0
 	for count := imp.h; count <= number; count++ {
+		if ctx.Err() != nil {
+			return ctx.Err()
+		}
 		// reading snapshots
 		snapshot, err := imp.sr.readSnapshot()
 		if err != nil && !errors.Is(err, errNoop) {
