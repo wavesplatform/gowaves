@@ -25,7 +25,7 @@ const (
 	CappedRewards           // 20
 	XTNBuyBackCessation     // 21
 	LightNode               // 22
-	InvokeExpression        // 22
+	InvokeExpression        // 23
 )
 
 type FeatureInfo struct {
