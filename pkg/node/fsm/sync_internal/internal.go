@@ -98,7 +98,7 @@ type peerExtension interface {
 	AskBlocksIDs(id []proto.BlockID)
 }
 
-func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Snapshots, Eof) {
+func (a Internal) Blocks() (Internal, Blocks, Snapshots, Eof) {
 	if a.waitingForSignatures {
 		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.isLightNode), nil, nil, false
 	}

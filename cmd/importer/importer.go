@@ -211,14 +211,7 @@ func run() error {
 		if hErr != nil {
 			zap.S().Fatalf("Failed to get current height: %v", hErr)
 		}
-		switch {
-		case errors.Is(impErr, context.Canceled):
-			zap.S().Infof("Interrupted by user, height %d", currentHeight)
-		case errors.Is(impErr, io.EOF):
-			zap.S().Info("End of blockchain file reached, height %d", currentHeight)
-		default:
-			zap.S().Fatalf("Failed to apply blocks after height %d: %v", currentHeight, impErr)
-		}
+		handleError(impErr, currentHeight)
 	}
 	elapsed := time.Since(start)
 	zap.S().Infof("Import took %s", elapsed)
@@ -235,6 +228,17 @@ func run() error {
 	}
 
 	return nil
+}
+
+func handleError(err error, height uint64) {
+	switch {
+	case errors.Is(err, context.Canceled):
+		zap.S().Infof("Interrupted by user, height %d", height)
+	case errors.Is(err, io.EOF):
+		zap.S().Info("End of blockchain file reached, height %d", height)
+	default:
+		zap.S().Fatalf("Failed to apply blocks after height %d: %v", height, err)
+	}
 }
 
 func selectImporter(c cfg, ss *settings.BlockchainSettings, st importer.State) (importer.Importer, func(), error) {

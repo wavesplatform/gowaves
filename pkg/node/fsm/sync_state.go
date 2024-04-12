@@ -38,14 +38,6 @@ func (c conf) Now(tm types.Time) conf {
 	}
 }
 
-type noopWrapper struct{}
-
-func (noopWrapper) AskBlocksIDs([]proto.BlockID) {}
-
-func (noopWrapper) AskBlock(proto.BlockID) {}
-
-func (noopWrapper) AskBlockSnapshot(proto.BlockID) {}
-
 type SyncState struct {
 	baseInfo BaseInfo
 	conf     conf
@@ -73,7 +65,7 @@ func (a *SyncState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 }
 
 func (a *SyncState) StopSync() (State, Async, error) {
-	_, blocks, snapshots, _ := a.internal.Blocks(noopWrapper{})
+	_, blocks, snapshots, _ := a.internal.Blocks()
 	if len(blocks) > 0 {
 		var err error
 		if a.baseInfo.enableLightMode {
@@ -250,7 +242,7 @@ func (a *SyncState) changePeerIfRequired() (peer.Peer, bool) {
 func (a *SyncState) applyBlocksWithSnapshots(
 	baseInfo BaseInfo, conf conf, internal sync_internal.Internal,
 ) (State, Async, error) {
-	internal, blocks, snapshots, eof := internal.Blocks(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
+	internal, blocks, snapshots, eof := internal.Blocks()
 	if len(blocks) == 0 {
 		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")
 		return newSyncState(baseInfo, conf, internal), nil, nil
