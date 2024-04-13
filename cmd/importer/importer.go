@@ -235,7 +235,7 @@ func handleError(err error, height uint64) {
 	case errors.Is(err, context.Canceled):
 		zap.S().Infof("Interrupted by user, height %d", height)
 	case errors.Is(err, io.EOF):
-		zap.S().Info("End of blockchain file reached, height %d", height)
+		zap.S().Infof("End of blockchain file reached, height %d", height)
 	default:
 		zap.S().Fatalf("Failed to apply blocks after height %d: %v", height, err)
 	}

@@ -387,7 +387,7 @@ func main() {
 
 	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode)
 	if err != nil {
-		zap.S().Error("Failed to initialize node's state: %v", err)
+		zap.S().Errorf("Failed to initialize node's state: %v", err)
 		return
 	}
 
