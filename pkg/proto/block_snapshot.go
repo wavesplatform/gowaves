@@ -69,15 +69,16 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 }
 
 func (bs BlockSnapshot) ToProtobuf() ([]*g.TransactionStateSnapshot, error) {
-	res := make([]*g.TransactionStateSnapshot, 0, len(bs.TxSnapshots))
-	for _, ts := range bs.TxSnapshots {
-		var tsProto g.TransactionStateSnapshot
+	data := make([]g.TransactionStateSnapshot, len(bs.TxSnapshots))
+	res := make([]*g.TransactionStateSnapshot, len(bs.TxSnapshots))
+	for i, ts := range bs.TxSnapshots {
+		tsProto := &data[i]
 		for _, atomicSnapshot := range ts {
-			if err := atomicSnapshot.AppendToProtobuf(&tsProto); err != nil {
+			if err := atomicSnapshot.AppendToProtobuf(tsProto); err != nil {
 				return nil, errors.Wrap(err, "failed to marshall TransactionSnapshot to proto")
 			}
 		}
-		res = append(res, &tsProto)
+		res[i] = tsProto
 	}
 	return res, nil
 }
