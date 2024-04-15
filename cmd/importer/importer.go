@@ -185,24 +185,21 @@ func run() error {
 		}
 	}()
 
-	imp, impClose, err := selectImporter(c, ss, st)
+	imp, err := selectImporter(c, ss, st)
 	if err != nil {
 		return fmt.Errorf("failed to create importer: %w", err)
 	}
-	defer impClose()
+	defer func() {
+		if clErr := imp.Close(); clErr != nil {
+			zap.S().Errorf("Failed to close (%T) importer: %v", imp, clErr)
+		}
+	}()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	height, err := st.Height()
-	if err != nil {
-		return fmt.Errorf("failed to get current height: %w", err)
-	}
-	if height > 1 {
-		zap.S().Infof("Skipping to height %d", height)
-		if skErr := imp.SkipToHeight(ctx, height); skErr != nil {
-			return fmt.Errorf("failed to skip to state height: %w", skErr)
-		}
+	if skipErr := skipToCurrentBlockchainHeight(ctx, st, imp); skipErr != nil {
+		return skipErr
 	}
 
 	start := time.Now()
@@ -230,6 +227,20 @@ func run() error {
 	return nil
 }
 
+func skipToCurrentBlockchainHeight(ctx context.Context, st state.State, imp importer.Importer) error {
+	height, err := st.Height()
+	if err != nil {
+		return fmt.Errorf("failed to get current height: %w", err)
+	}
+	if height > 1 {
+		zap.S().Infof("Skipping to height %d", height)
+		if skErr := imp.SkipToHeight(ctx, height); skErr != nil {
+			return fmt.Errorf("failed to skip to state height: %w", skErr)
+		}
+	}
+	return nil
+}
+
 func handleError(err error, height uint64) {
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -241,27 +252,19 @@ func handleError(err error, height uint64) {
 	}
 }
 
-func selectImporter(c cfg, ss *settings.BlockchainSettings, st importer.State) (importer.Importer, func(), error) {
+func selectImporter(c cfg, ss *settings.BlockchainSettings, st importer.State) (importer.Importer, error) {
 	if c.lightNodeMode {
 		imp, err := importer.NewSnapshotsImporter(ss.AddressSchemeCharacter, st, c.blockchainPath, c.snapshotsPath)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to create snapshots importer: %w", err)
+			return nil, fmt.Errorf("failed to create snapshots importer: %w", err)
 		}
-		return imp, func() {
-			if clErr := imp.Close(); clErr != nil {
-				zap.S().Errorf("Failed to close snapshots importer: %v", clErr)
-			}
-		}, nil
+		return imp, nil
 	}
 	imp, err := importer.NewBlocksImporter(ss.AddressSchemeCharacter, st, c.blockchainPath)
 	if err != nil {
-		return nil, nil, fmt.Errorf("failed to create blocks importer: %w", err)
+		return nil, fmt.Errorf("failed to create blocks importer: %w", err)
 	}
-	return imp, func() {
-		if clErr := imp.Close(); clErr != nil {
-			zap.S().Errorf("Failed to close blocks importer: %v", clErr)
-		}
-	}, nil
+	return imp, nil
 }
 
 func configureMemProfile(memProfilePath string) error {
