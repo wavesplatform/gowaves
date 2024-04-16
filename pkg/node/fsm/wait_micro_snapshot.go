@@ -184,9 +184,9 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	if errSAtH != nil {
 		return nil, errSAtH
 	}
-	for _, sn := range snapshot.TxSnapshots {
-		topBlockSnapshots.AppendTxSnapshot(sn)
-	}
+
+	topBlockSnapshots.AppendTxSnapshots(snapshot.TxSnapshots)
+
 	snapshotsToApply = &topBlockSnapshots
 	err = a.baseInfo.storage.Map(func(state state.State) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicroWithSnapshots(state, newBlock, snapshotsToApply)
