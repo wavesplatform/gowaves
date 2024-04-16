@@ -405,7 +405,7 @@ func BlockSnapshotFromProtobuf(scheme Scheme, blockSnapshot []*g.TransactionStat
 		if err != nil {
 			return BlockSnapshot{}, err
 		}
-		res.TxSnapshots = append(res.TxSnapshots, txSnapshots)
+		res.AppendTxSnapshot(txSnapshots)
 	}
 	return res, nil
 }

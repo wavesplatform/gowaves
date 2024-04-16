@@ -17,6 +17,10 @@ func (bs *BlockSnapshot) AppendTxSnapshot(txSnapshot []AtomicSnapshot) {
 	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshot)
 }
 
+func (bs *BlockSnapshot) AppendTxSnapshots(txSnapshots [][]AtomicSnapshot) {
+	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshots...)
+}
+
 func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
 	result := binary.BigEndian.AppendUint32([]byte{}, uint32(len(bs.TxSnapshots)))
 	for _, ts := range bs.TxSnapshots {
