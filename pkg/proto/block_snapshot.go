@@ -17,6 +17,10 @@ func (bs *BlockSnapshot) AppendTxSnapshot(txSnapshot []AtomicSnapshot) {
 	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshot)
 }
 
+func (bs *BlockSnapshot) AppendTxSnapshots(txSnapshots [][]AtomicSnapshot) {
+	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshots...)
+}
+
 func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
 	result := binary.BigEndian.AppendUint32([]byte{}, uint32(len(bs.TxSnapshots)))
 	for _, ts := range bs.TxSnapshots {
@@ -66,6 +70,21 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 	}
 	bs.TxSnapshots = txSnapshots
 	return nil
+}
+
+func (bs BlockSnapshot) ToProtobuf() ([]*g.TransactionStateSnapshot, error) {
+	data := make([]g.TransactionStateSnapshot, len(bs.TxSnapshots))
+	res := make([]*g.TransactionStateSnapshot, len(bs.TxSnapshots))
+	for i, ts := range bs.TxSnapshots {
+		tsProto := &data[i]
+		for _, atomicSnapshot := range ts {
+			if err := atomicSnapshot.AppendToProtobuf(tsProto); err != nil {
+				return nil, errors.Wrap(err, "failed to marshall TransactionSnapshot to proto")
+			}
+		}
+		res[i] = tsProto
+	}
+	return res, nil
 }
 
 func (bs BlockSnapshot) MarshalJSON() ([]byte, error) {
@@ -309,5 +328,41 @@ func (s *txSnapshotJSON) ApplyTransactionsStatus(snapshot TransactionStatusSnaps
 		return errors.New("transaction status already set")
 	}
 	s.ApplicationStatus = snapshot.Status
+	return nil
+}
+
+func (bs *BlockSnapshot) UnmarshalBinaryImport(data []byte, scheme Scheme) error {
+	if len(data) < uint32Size {
+		return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
+	}
+	snapshotsBytesSize := binary.BigEndian.Uint32(data[0:uint32Size])
+	data = data[uint32Size:] // skip size
+	if snapshotsBytesSize != uint32(len(data)) {
+		return errors.Errorf("invalid snapshots data size")
+	}
+	var txSnapshots [][]AtomicSnapshot
+	for i := uint32(0); snapshotsBytesSize > 0; i++ {
+		if len(data) < uint32Size {
+			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
+		}
+		oneSnapshotSize := binary.BigEndian.Uint32(data[0:uint32Size])
+		var tsProto g.TransactionStateSnapshot
+		data = data[uint32Size:] // skip size
+		if uint32(len(data)) < oneSnapshotSize {
+			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid snapshot size")
+		}
+		err := tsProto.UnmarshalVT(data[0:oneSnapshotSize])
+		if err != nil {
+			return err
+		}
+		atomicTS, err := TxSnapshotsFromProtobuf(scheme, &tsProto)
+		if err != nil {
+			return err
+		}
+		txSnapshots = append(txSnapshots, atomicTS)
+		data = data[oneSnapshotSize:]
+		snapshotsBytesSize -= oneSnapshotSize + uint32Size
+	}
+	bs.TxSnapshots = txSnapshots
 	return nil
 }

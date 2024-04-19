@@ -65,8 +65,8 @@ func TestGenesisBinarySize(t *testing.T) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
 			err = tx.Sign(MainNetScheme, sk)
 			assert.Nil(t, err)
-			_, err := tx.Validate(MainNetScheme)
-			assert.Nil(t, err)
+			_, vErr := tx.Validate(TransactionValidationParams{Scheme: MainNetScheme})
+			assert.Nil(t, vErr)
 			txBytes, err := tx.MarshalBinary(MainNetScheme)
 			assert.Nil(t, err)
 			assert.Equal(t, len(txBytes), tx.BinarySize())
@@ -92,8 +92,8 @@ func TestGenesisFromMainNet(t *testing.T) {
 		id, _ := base58.Decode(tc.sig)
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			_, err := tx.Validate(MainNetScheme)
-			assert.Nil(t, err)
+			_, vErr := tx.Validate(TransactionValidationParams{Scheme: MainNetScheme})
+			assert.Nil(t, vErr)
 			if err := tx.GenerateSigID(MainNetScheme); assert.NoError(t, err) {
 				assert.Equal(t, id, tx.ID[:])
 				assert.Equal(t, tc.amount, tx.Amount)
@@ -129,8 +129,8 @@ func TestGenesisProtobufRoundTrip(t *testing.T) {
 	for _, tc := range tests {
 		if rcp, err := NewAddressFromString(tc.recipient); assert.NoError(t, err) {
 			tx := NewUnsignedGenesis(rcp, tc.amount, tc.timestamp)
-			_, err := tx.Validate(MainNetScheme)
-			assert.Nil(t, err)
+			_, vErr := tx.Validate(TransactionValidationParams{Scheme: MainNetScheme})
+			assert.Nil(t, vErr)
 			err = tx.GenerateID(MainNetScheme)
 			assert.Nil(t, err)
 			b, err := tx.MarshalToProtobuf(MainNetScheme)
@@ -174,7 +174,7 @@ func TestGenesisValidations(t *testing.T) {
 		addr, err := addressFromString(tc.address)
 		require.NoError(t, err)
 		tx := NewUnsignedGenesis(addr, tc.amount, 0)
-		_, err = tx.Validate(tc.scheme)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: tc.scheme})
 		if tc.err != "" {
 			assert.EqualError(t, err, tc.err)
 		} else {
@@ -384,7 +384,7 @@ func TestPaymentValidations(t *testing.T) {
 		addr, err := addressFromString(tc.address)
 		require.NoError(t, err)
 		tx := NewUnsignedPayment(spk, addr, tc.amount, tc.fee, 0)
-		_, err = tx.Validate(TestNetScheme)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -453,8 +453,8 @@ func TestIssueWithSigValidations(t *testing.T) {
 		spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		if assert.NoError(t, err) {
 			tx := NewUnsignedIssueWithSig(spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, 0, tc.fee)
-			_, err := tx.Validate(TestNetScheme)
-			assert.EqualError(t, err, tc.err)
+			_, vErr := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
+			assert.EqualError(t, vErr, tc.err)
 		}
 	}
 }
@@ -631,7 +631,7 @@ func TestIssueWithProofsValidations(t *testing.T) {
 	for _, tc := range tests {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedIssueWithProofs(2, spk, tc.name, tc.desc, tc.quantity, tc.decimals, false, []byte{}, 0, tc.fee)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -869,7 +869,7 @@ func TestTransferWithSigValidations(t *testing.T) {
 		require.NoError(t, err)
 		att := []byte(tc.att)
 		tx := NewUnsignedTransferWithSig(spk, *a, *a, 0, tc.amount, tc.fee, rcp, att)
-		_, err = tx.Validate(TestNetScheme)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
 	}
 }
@@ -1178,7 +1178,7 @@ func TestTransferWithProofsValidations(t *testing.T) {
 			require.NoError(t, err)
 			att := []byte(tc.att)
 			tx := NewUnsignedTransferWithProofs(2, spk, tc.amountAsset, tc.feeAsset, 0, tc.amount, tc.fee, rcp, att)
-			_, err = tx.Validate(TestNetScheme)
+			_, err = tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 			if tc.err != "" {
 				assert.EqualError(t, err, tc.err, "No expected error '%s'", tc.err)
 			} else {
@@ -1575,7 +1575,7 @@ func TestReissueWithSigValidations(t *testing.T) {
 		aid, err := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		require.NoError(t, err)
 		tx := NewUnsignedReissueWithSig(spk, aid, tc.quantity, false, 0, tc.fee)
-		_, err = tx.Validate(TestNetScheme)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -1775,7 +1775,7 @@ func TestReissueWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedReissueWithProofs(2, spk, aid, tc.quantity, false, 0, tc.fee)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -1982,7 +1982,7 @@ func TestBurnWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedBurnWithSig(spk, aid, tc.amount, 0, tc.fee)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -2162,7 +2162,7 @@ func TestBurnWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		aid, _ := crypto.NewDigestFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedBurnWithProofs(2, spk, aid, tc.amount, 0, tc.fee)
-		_, err := tx.Validate(tc.chain)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: tc.chain})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -2390,7 +2390,7 @@ func TestExchangeWithSigValidations(t *testing.T) {
 	}
 	for _, tc := range tests {
 		tx := NewUnsignedExchangeWithSig(&tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.Error(t, err)
 		assert.Regexp(t, tc.err, err.Error(), fmt.Sprintf("expected: %s", tc.err))
 	}
@@ -2407,18 +2407,46 @@ func newSignedOrderV1(t *testing.T, sender, matcher crypto.PublicKey, amountAsse
 	return *o
 }
 
-func newSignedOrderV4(t *testing.T, sender, matcher crypto.PublicKey, amountAsset, priceAsset OptionalAsset, ot OrderType, price, amount, ts, exp, fee uint64, sID, sSig string, priceMode OrderPriceMode) OrderV4 {
+func newSignedOrderV4(t *testing.T,
+	sender, matcher crypto.PublicKey,
+	amountAsset, priceAsset OptionalAsset,
+	ot OrderType,
+	price, amount, ts, exp, fee uint64,
+	sID, sSig string,
+	priceMode OrderPriceMode,
+	attachment Attachment,
+) OrderV4 {
 	id, err := crypto.NewDigestFromBase58(sID)
 	require.NoError(t, err)
 	sig, err := crypto.NewSignatureFromBase58(sSig)
 	require.NoError(t, err)
-	o := NewUnsignedOrderV4(sender, matcher, amountAsset, priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode)
+	o := NewUnsignedOrderV4(
+		sender,
+		matcher,
+		amountAsset,
+		priceAsset,
+		ot,
+		price,
+		amount,
+		ts,
+		exp,
+		fee,
+		OptionalAsset{},
+		priceMode,
+		attachment,
+	)
 	o.ID = &id
 	o.Proofs = NewProofsFromSignature(&sig)
 	return *o
 }
 
-func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPKBase58, amountAssetBase58, priceAssetBase58 string, ot OrderType, price, amount, ts, exp, fee uint64, priceMode OrderPriceMode) EthereumOrderV4 {
+func newEthereumOrderV4(t *testing.T,
+	ethSenderPKHex, ethSignatureHex, matcherPKBase58, amountAssetBase58, priceAssetBase58 string,
+	ot OrderType,
+	price, amount, ts, exp, fee uint64,
+	priceMode OrderPriceMode,
+	attachment Attachment,
+) EthereumOrderV4 {
 	var (
 		err       error
 		ethSender EthereumPublicKey
@@ -2440,7 +2468,21 @@ func newEthereumOrderV4(t *testing.T, ethSenderPKHex, ethSignatureHex, matcherPK
 	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
 	require.NoError(t, err)
 
-	ethereumOrderV4 := NewUnsignedEthereumOrderV4(&ethSender, matcher, *amountAsset, *priceAsset, ot, price, amount, ts, exp, fee, OptionalAsset{}, priceMode)
+	ethereumOrderV4 := NewUnsignedEthereumOrderV4(
+		&ethSender,
+		matcher,
+		*amountAsset,
+		*priceAsset,
+		ot,
+		price,
+		amount,
+		ts,
+		exp,
+		fee,
+		OptionalAsset{},
+		priceMode,
+		attachment,
+	)
 	ethereumOrderV4.Eip712Signature = ethSig
 	return *ethereumOrderV4
 }
@@ -2759,30 +2801,60 @@ func TestExchangeWithProofsValidations(t *testing.T) {
 		ts      uint64
 		err     string
 	}{
-		{sbo1, sso0, 123, 456, 789, 987, 654, 111, "invalid first order: price is too big"},
-		{sbo0, sso1, 123, 456, 789, 987, 654, 111, "invalid second order: price is too big"},
-		{sbo0, sso0, 0, 456, 789, 987, 654, 111, "price should be positive"},
-		{sbo0, sso0, math.MaxInt64 + 1, 456, 789, 987, 654, 111, "price is too big"},
-		{sbo0, sso0, 950000000, 0, 789, 987, 654, 111, "amount should be positive"},
-		{sbo0, sso0, 950000000, math.MaxInt64 + 1, 789, 987, 654, 111, "amount is too big"},
-		{sbo0, sso0, 950000000, 456, math.MaxInt64 + 1, 987, 654, 111, "buy matcher's fee is too big"},
-		{sbo0, sso0, 950000000, 456, 789, math.MaxInt64 + 1, 654, 111, "sell matcher's fee is too big"},
-		{sbo0, sso0, 950000000, 456, 789, 987, 0, 111, "fee should be positive"},
-		{sbo0, sso0, 950000000, 456, 789, 987, math.MaxInt64 + 1, 111, "fee is too big"},
-		{sso0, sso0, 950000000, 456, 789, 987, 654, 111, "incorrect combination of orders types"},
-		{sbo0, sbo0, 950000000, 456, 789, 987, 654, 111, "incorrect combination of orders types"},
-		{sbo0, sso2, 950000000, 456, 789, 987, 654, 111, "unmatched matcher's public keys"},
-		{sbo2, sso0, 950000000, 456, 789, 987, 654, 111, "different asset pairs"},
-		{sbo0, sso0, 890000000, 456, 789, 987, 654, 111, "invalid price"},
-		{sbo0, sso0, 1010000000, 456, 789, 987, 654, 111, "invalid price"},
-		{sbo0, sso0, 950000000, 456, 789, 987, 654, 1, "first order expiration should be earlier than 30 days"},
-		{sbo0, sso0, 950000000, 456, 789, 987, 654, 11, "second order expiration should be earlier than 30 days"},
-		{sbo0, sso0, 950000000, 456, 789, 987, 654, MaxOrderTTL + 15, "invalid first order expiration"},
-		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10, "invalid second order expiration"},
+		{sbo1, sso0, 123, 456, 789, 987, 654, 111,
+			"invalid first order: price is too big"},
+		{sbo0, sso1, 123, 456, 789, 987, 654, 111,
+			"invalid second order: price is too big"},
+		{sbo0, sso0, 0, 456, 789, 987, 654, 111,
+			"price should be positive"},
+		{sbo0, sso0, math.MaxInt64 + 1, 456, 789, 987, 654, 111,
+			"price is too big"},
+		{sbo0, sso0, 950000000, 0, 789, 987, 654, 111,
+			"amount should be positive"},
+		{sbo0, sso0, 950000000, math.MaxInt64 + 1, 789, 987, 654, 111,
+			"amount is too big"},
+		{sbo0, sso0, 950000000, 456, math.MaxInt64 + 1, 987, 654, 111,
+			"buy matcher's fee is too big"},
+		{sbo0, sso0, 950000000, 456, 789, math.MaxInt64 + 1, 654, 111,
+			"sell matcher's fee is too big"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 0, 111,
+			"fee should be positive"},
+		{sbo0, sso0, 950000000, 456, 789, 987, math.MaxInt64 + 1, 111,
+			"fee is too big"},
+		{sso0, sso0, 950000000, 456, 789, 987, 654, 111,
+			"incorrect combination of orders types"},
+		{sbo0, sbo0, 950000000, 456, 789, 987, 654, 111,
+			"incorrect combination of orders types"},
+		{sbo0, sso2, 950000000, 456, 789, 987, 654, 111,
+			"unmatched matcher's public keys"},
+		{sbo2, sso0, 950000000, 456, 789, 987, 654, 111,
+			"different asset pairs"},
+		{sbo0, sso0, 890000000, 456, 789, 987, 654, 111,
+			"invalid price"},
+		{sbo0, sso0, 1010000000, 456, 789, 987, 654, 111,
+			"invalid price"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, 1,
+			"first order expiration should be earlier than 30 days"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, 11,
+			"second order expiration should be earlier than 30 days"},
+		{sbo0, sso0, 950000000, 456, 789, 987, 654, MaxOrderTTL + 15,
+			"invalid first order expiration"},
+		{sbo0, sso3, 950000000, 456, 789, 987, 654, MaxOrderTTL + 10,
+			"invalid second order expiration"},
 	}
 	for _, tc := range tests {
-		tx := NewUnsignedExchangeWithProofs(2, &tc.buy, &tc.sell, tc.price, tc.amount, tc.buyFee, tc.sellFee, tc.fee, tc.ts)
-		_, err := tx.Validate(TestNetScheme)
+		tx := NewUnsignedExchangeWithProofs(
+			2,
+			&tc.buy,
+			&tc.sell,
+			tc.price,
+			tc.amount,
+			tc.buyFee,
+			tc.sellFee,
+			tc.fee,
+			tc.ts,
+		)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.Error(t, err)
 		assert.Regexp(t, tc.err, err, fmt.Sprintf("expected error: %s", tc.err))
 	}
@@ -2794,10 +2866,50 @@ func TestExchangeV3PriceValidation(t *testing.T) {
 	mpk, _ := crypto.NewPublicKeyFromBase58("BvJEWY79uQEFetuyiZAF5U4yjPioMj9J6ZrF9uTNfe3E")
 	aa, _ := NewOptionalAssetFromString("3JmaWyFqWo8YSA8x3DXCBUW7veesxacvKx19dMv7wTMg")
 	pa, _ := NewOptionalAssetFromString("25FEqEjRkqK6yCkiT7Lz6SAYz7gUFCtxfCChnrVFD5AT")
-	sbo := newSignedOrderV4(t, buySender, mpk, *aa, *pa, Buy, 1000000, 800000000, 1624445095222, 1626950695222, 300000, "3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX", "3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR", OrderPriceModeDefault)
-	sso := newSignedOrderV4(t, sellSender, mpk, *aa, *pa, Sell, 1000000, 800000000, 1624445095267, 1626950695267, 300000, "81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX", "4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU", OrderPriceModeDefault)
-	tx := NewUnsignedExchangeWithProofs(3, &sbo, &sso, 100000000, 800000000, 100, 100, 300000, 1624445095293)
-	_, err := tx.Validate(TestNetScheme)
+	sbo := newSignedOrderV4(t,
+		buySender,
+		mpk,
+		*aa,
+		*pa,
+		Buy,
+		1000000,
+		800000000,
+		1624445095222,
+		1626950695222,
+		300000,
+		"3fdNTCQ7o2TvN8eDV3m7J9aSLxcUitwN2SMZpn1irSXX",
+		"3aKUz8boZingH8r18grL8Rst5RyGVnESaQtuEoV5piUnvJKNf67xFwFpPpmfiuAuud1AAzj94xYNw1MKkmJaBicR",
+		OrderPriceModeDefault,
+		Attachment{},
+	)
+	sso := newSignedOrderV4(t,
+		sellSender,
+		mpk,
+		*aa,
+		*pa,
+		Sell,
+		1000000,
+		800000000,
+		1624445095267,
+		1626950695267,
+		300000,
+		"81Xc8YP1Ev2bqvSLgN5k3ent6Fr7rnEdCg8x2DH5twqX",
+		"4VQmM6QB8yaQ1AChNNkVH5EvVKenS8YG7YqXK9SsjWAnjJm5xvd48kW2akwcEbhgzqqGMDtS2AmeGSfpEcHEMYGU",
+		OrderPriceModeDefault,
+		Attachment{},
+	)
+	tx := NewUnsignedExchangeWithProofs(
+		3,
+		&sbo,
+		&sso,
+		100000000,
+		800000000,
+		100,
+		100,
+		300000,
+		1624445095293,
+	)
+	_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 	assert.NoError(t, err)
 }
 
@@ -3401,7 +3513,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"proofs": [
 					  "2FekVM3s2CUf79uaG92MqdzyCzr9dhrG4jtXzbAQNxW3B9LGWwtFmMdgHCVuKWqhdAgUfV6PTsZwDxFKrejeT4vu"
 					],
-					"matcherFeeAssetId": null
+					"matcherFeeAssetId": null,
+					"attachment": null
 				  },
 				  "order2": {
 					"version": 4,
@@ -3423,7 +3536,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"proofs": [],
 					"matcherFeeAssetId": null,
 					"eip712Signature": "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
-					"priceMode": null
+					"priceMode": null,
+					"attachment": null
 				  },
 				  "amount": 1,
 				  "price": 100,
@@ -3472,7 +3586,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"proofs": [],
 					"matcherFeeAssetId": null,
 					"eip712Signature": "0x0a897d382e4e4a066e1d98e5c3c1051864a557c488571ff71e036c0f5a2c7204274cb293cd4aa7ad40f8c2f650e1a2770ecca6aa14a1da883388fa3b5b9fa8b71c",
-					"priceMode": null
+					"priceMode": null,
+					"attachment": null
 				  },
 				  "order2": {
 					"version": 4,
@@ -3494,7 +3609,8 @@ func TestExchangeWithProofsWithEthereumOrdersRoundTrip(t *testing.T) {
 					"proofs": [],
 					"matcherFeeAssetId": null,
 					"eip712Signature": "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
-					"priceMode": null
+					"priceMode": null,
+					"attachment": null
 				  },
 				  "amount": 1,
 				  "price": 100,
@@ -3621,7 +3737,7 @@ func TestLeaseWithSigValidations(t *testing.T) {
 		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
 		tx := NewUnsignedLeaseWithSig(tc.senderPk, rcp, tc.amount, tc.fee, 0)
-		_, err = tx.Validate(TestNetScheme)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -3830,7 +3946,7 @@ func TestLeaseWithProofsValidations(t *testing.T) {
 		rcp, err := recipientFromString(tc.recipient)
 		require.NoError(t, err)
 		tx := NewUnsignedLeaseWithProofs(2, tc.senderPK, rcp, tc.amount, tc.fee, 0)
-		_, err = tx.Validate(TestNetScheme)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4030,7 +4146,7 @@ func TestLeaseCancelWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		tx := NewUnsignedLeaseCancelWithSig(spk, l, tc.fee, 0)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4209,7 +4325,7 @@ func TestLeaseCancelWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		l, _ := crypto.NewDigestFromBase58(tc.lease)
 		tx := NewUnsignedLeaseCancelWithProofs(2, spk, l, tc.fee, 0)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4392,7 +4508,7 @@ func TestCreateAliasWithSigValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		a := NewAlias('W', tc.alias)
 		tx := NewUnsignedCreateAliasWithSig(spk, *a, tc.fee, 0)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4608,7 +4724,7 @@ func TestCreateAliasWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		a := NewAlias(TestNetScheme, tc.alias)
 		tx := NewUnsignedCreateAliasWithProofs(2, spk, *a, tc.fee, 0)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -4853,7 +4969,7 @@ func TestMassTransferWithProofsValidations(t *testing.T) {
 		a, _ := NewOptionalAssetFromString(tc.asset)
 		att := []byte(tc.attachment)
 		tx := NewUnsignedMassTransferWithProofs(1, spk, *a, tc.transfers, tc.fee, 0, att)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5101,7 +5217,7 @@ func TestDataWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		tx := NewUnsignedDataWithProofs(1, spk, tc.fee, 0)
 		tx.Entries = tc.entries
-		_, err = tx.Validate(TestNetScheme)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.Error(t, err, "#%d", i) //, tc.err, fmt.Sprintf("expected: %s", tc.err))
 		//assert.EqualError(t, err, tc.err, fmt.Sprintf("expected: %s", tc.err))
 		assert.Regexp(t, tc.err, err.Error(), "#%d", i)
@@ -5114,13 +5230,13 @@ func TestDataWithProofsDeleteValidation(t *testing.T) {
 	de := &DeleteDataEntry{Key: "key"}
 	tx1 := NewUnsignedDataWithProofs(1, spk, MinFee, 67890)
 	tx1.Entries = DataEntries{de}
-	_, err = tx1.Validate(TestNetScheme)
+	_, err = tx1.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 	msg := "delete supported only for protobuf transaction"
 	assert.EqualError(t, err, msg, fmt.Sprintf("expected: %s", msg))
 
 	tx2 := NewUnsignedDataWithProofs(2, spk, MinFee, 67890)
 	tx2.Entries = DataEntries{de}
-	_, err = tx2.Validate(TestNetScheme)
+	_, err = tx2.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 	assert.NoError(t, err)
 }
 
@@ -5510,7 +5626,7 @@ func TestSetScriptWithProofsValidations(t *testing.T) {
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		s, _ := base58.Decode(tc.script)
 		tx := NewUnsignedSetScriptWithProofs(1, spk, s, tc.fee, 0)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5699,7 +5815,7 @@ func TestSponsorshipWithProofsValidations(t *testing.T) {
 		a, err := crypto.NewDigestFromBase58("8Nwjd2tcQWff3S9WAhBa7vLRNpNnigWqrTbahvyfMVrU")
 		require.NoError(t, err)
 		tx := NewUnsignedSponsorshipWithProofs(1, spk, a, tc.minAssetFee, tc.fee, 0)
-		_, err = tx.Validate(TestNetScheme)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -5887,7 +6003,7 @@ func TestSetAssetScriptWithProofsValidations(t *testing.T) {
 		a, _ := crypto.NewDigestFromBase58("J8shEVBrQ4BLqsuYw5j6vQGCFJGMLBxr5nu2XvUWFEAR")
 		s, _ := base58.Decode(tc.script)
 		tx := NewUnsignedSetAssetScriptWithProofs(1, spk, a, s, tc.fee, 0)
-		_, err := tx.Validate(TestNetScheme)
+		_, err := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
 		assert.EqualError(t, err, tc.err)
 	}
 }
@@ -6109,8 +6225,8 @@ func TestInvokeScriptWithProofsValidations(t *testing.T) {
 		ad, _ := NewAddressFromString("3MrDis17gyNSusZDg8Eo1PuFnm5SQMda3gu")
 		fc := NewFunctionCall(tc.name, tc.args)
 		tx := NewUnsignedInvokeScriptWithProofs(tc.version, spk, NewRecipientFromAddress(ad), fc, tc.sps, *a2, tc.fee, 12345)
-		_, err := tx.Validate(TestNetScheme)
-		assert.EqualError(t, err, tc.err)
+		_, vErr := tx.Validate(TransactionValidationParams{Scheme: TestNetScheme})
+		assert.EqualError(t, vErr, tc.err)
 	}
 }
 
@@ -6396,7 +6512,7 @@ func TestUpdateAssetInfoWithProofsValidations(t *testing.T) {
 		require.NoError(t, err)
 		spk, _ := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 		tx := NewUnsignedUpdateAssetInfoWithProofs(tc.version, aid, spk, tc.name, tc.description, 12345, *tc.feeAsset, tc.fee)
-		_, err = tx.Validate(tc.chain)
+		_, err = tx.Validate(TransactionValidationParams{Scheme: tc.chain})
 		if !tc.valid {
 			assert.Equal(t, tc.err.Error(), err.Error())
 		}

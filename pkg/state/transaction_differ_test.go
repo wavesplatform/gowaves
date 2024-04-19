@@ -568,12 +568,40 @@ func createExchangeWithProofsWithMixedOrders(t *testing.T, txVersion byte, buyIn
 		require.NoError(t, err, "boV3.Sign() failed")
 		bo = boV3
 	case orderV4:
-		boV4 := proto.NewUnsignedOrderV4(testGlobal.senderInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, buyInfo.price, buyInfo.amount, 0, 0, 3, *testGlobal.asset2.asset, proto.OrderPriceModeDefault)
+		boV4 := proto.NewUnsignedOrderV4(
+			testGlobal.senderInfo.pk,
+			testGlobal.matcherInfo.pk,
+			*testGlobal.asset0.asset,
+			*testGlobal.asset1.asset,
+			proto.Buy,
+			buyInfo.price,
+			buyInfo.amount,
+			0,
+			0,
+			3,
+			*testGlobal.asset2.asset,
+			proto.OrderPriceModeDefault,
+			proto.Attachment{},
+		)
 		err := boV4.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 		require.NoError(t, err, "boV4.Sign() failed")
 		bo = boV4
 	case ethereumOrderV4:
-		eboV4 := proto.NewUnsignedEthereumOrderV4(&testGlobal.senderEthInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Buy, buyInfo.price, buyInfo.amount, 0, 0, 3, *testGlobal.asset2.asset, proto.OrderPriceModeDefault)
+		eboV4 := proto.NewUnsignedEthereumOrderV4(
+			&testGlobal.senderEthInfo.pk,
+			testGlobal.matcherInfo.pk,
+			*testGlobal.asset0.asset,
+			*testGlobal.asset1.asset,
+			proto.Buy,
+			buyInfo.price,
+			buyInfo.amount,
+			0,
+			0,
+			3,
+			*testGlobal.asset2.asset,
+			proto.OrderPriceModeDefault,
+			proto.Attachment{},
+		)
 		err := eboV4.EthereumSign(proto.TestNetScheme, &testGlobal.senderEthInfo.sk)
 		require.NoError(t, err, "eboV4.EthereumSign() failed")
 		bo = eboV4
@@ -585,17 +613,57 @@ func createExchangeWithProofsWithMixedOrders(t *testing.T, txVersion byte, buyIn
 	var so proto.Order
 	switch sellInfo.orderBuildTypeID {
 	case orderV3:
-		soV3 := proto.NewUnsignedOrderV3(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset)
+		soV3 := proto.NewUnsignedOrderV3(
+			testGlobal.recipientInfo.pk,
+			testGlobal.matcherInfo.pk,
+			*testGlobal.asset0.asset,
+			*testGlobal.asset1.asset,
+			proto.Sell,
+			sellInfo.price,
+			sellInfo.amount,
+			0,
+			0,
+			3,
+			*testGlobal.asset2.asset,
+		)
 		err := soV3.Sign(proto.TestNetScheme, testGlobal.recipientInfo.sk)
 		require.NoError(t, err, "soV3.Sign() failed")
 		so = soV3
 	case orderV4:
-		soV4 := proto.NewUnsignedOrderV4(testGlobal.recipientInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset, proto.OrderPriceModeDefault)
+		soV4 := proto.NewUnsignedOrderV4(
+			testGlobal.recipientInfo.pk,
+			testGlobal.matcherInfo.pk,
+			*testGlobal.asset0.asset,
+			*testGlobal.asset1.asset,
+			proto.Sell,
+			sellInfo.price,
+			sellInfo.amount,
+			0,
+			0,
+			3,
+			*testGlobal.asset2.asset,
+			proto.OrderPriceModeDefault,
+			proto.Attachment{},
+		)
 		err := soV4.Sign(proto.TestNetScheme, testGlobal.recipientInfo.sk)
 		require.NoError(t, err, "soV4.Sign() failed")
 		so = soV4
 	case ethereumOrderV4:
-		esoV4 := proto.NewUnsignedEthereumOrderV4(&testGlobal.recipientEthInfo.pk, testGlobal.matcherInfo.pk, *testGlobal.asset0.asset, *testGlobal.asset1.asset, proto.Sell, sellInfo.price, sellInfo.amount, 0, 0, 3, *testGlobal.asset2.asset, proto.OrderPriceModeDefault)
+		esoV4 := proto.NewUnsignedEthereumOrderV4(
+			&testGlobal.recipientEthInfo.pk,
+			testGlobal.matcherInfo.pk,
+			*testGlobal.asset0.asset,
+			*testGlobal.asset1.asset,
+			proto.Sell,
+			sellInfo.price,
+			sellInfo.amount,
+			0,
+			0,
+			3,
+			*testGlobal.asset2.asset,
+			proto.OrderPriceModeDefault,
+			proto.Attachment{},
+		)
 		err := esoV4.EthereumSign(proto.TestNetScheme, &testGlobal.recipientEthInfo.sk)
 		require.NoError(t, err, "esoV4.EthereumSign() failed")
 		so = esoV4

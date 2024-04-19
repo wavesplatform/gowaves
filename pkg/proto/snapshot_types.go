@@ -8,6 +8,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type AtomicSnapshot interface {
@@ -16,6 +17,7 @@ type AtomicSnapshot interface {
 	   because balances diffs are applied later in the block. */
 	AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error
 }
+
 type WavesBalanceSnapshot struct {
 	Address WavesAddress `json:"address"`
 	Balance uint64       `json:"balance"`
@@ -279,15 +281,8 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	if err != nil {
 		return err
 	}
-	var c ProtobufConverter
-	in := c.uint64(p.In)
-	if c.err != nil {
-		return c.err
-	}
-	out := c.uint64(p.Out)
-	if c.err != nil {
-		return c.err
-	}
+	in := uint64(p.In)
+	out := uint64(p.Out)
 	s.Address = addr
 	s.LeaseIn = in
 	s.LeaseOut = out
@@ -573,7 +568,7 @@ func (s AssetVolumeSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_AssetVolu
 	return &g.TransactionStateSnapshot_AssetVolume{
 		AssetId:    s.AssetID.Bytes(),
 		Reissuable: s.IsReissuable,
-		Volume:     s.TotalQuantity.Bytes(),
+		Volume:     common.Encode2CBigInt(&s.TotalQuantity),
 	}, nil
 }
 
@@ -594,7 +589,7 @@ func (s *AssetVolumeSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_AssetVo
 	}
 
 	s.AssetID = assetID
-	s.TotalQuantity.SetBytes(p.Volume)
+	s.TotalQuantity = *common.Decode2CBigInt(p.Volume)
 	s.IsReissuable = p.Reissuable
 	return nil
 }

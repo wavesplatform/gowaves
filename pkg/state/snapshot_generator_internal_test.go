@@ -121,7 +121,7 @@ func TestDefaultTransferWavesAndAssetSnapshot(t *testing.T) {
 	to.stor.flush(t)
 }
 
-// TODO send only txBalanceChanges to perfomer
+// TODO send only txBalanceChanges to performer
 
 func TestDefaultIssueTransactionSnapshot(t *testing.T) {
 	to := createSnapshotGeneratorTestObjects(t)

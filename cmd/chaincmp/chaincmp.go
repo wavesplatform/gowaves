@@ -96,7 +96,7 @@ func run() error {
 	for i, u := range other {
 		u, err = checkAndUpdateURL(u)
 		if err != nil {
-			zap.S().Error("Incorrect reference's URL: %s", err.Error())
+			zap.S().Errorf("Incorrect reference's URL: %s", err.Error())
 			return errInvalidParameters
 		}
 		other[i] = u

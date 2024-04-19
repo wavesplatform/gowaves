@@ -15,6 +15,7 @@ const (
 	AskPeers
 	MineMicro
 	PersistComplete
+	SnapshotTimeout
 )
 
 // SendAsyncTask sends task into channel with overflow check.
@@ -171,5 +172,80 @@ func NewFuncTask(f func(ctx context.Context, output chan AsyncTask) error, taskT
 	return funcTask{
 		f:     f,
 		_type: taskType,
+	}
+}
+
+type SnapshotTimeoutTaskType int
+
+const (
+	BlockSnapshot SnapshotTimeoutTaskType = iota + 1
+	MicroBlockSnapshot
+)
+
+type SnapshotTimeoutTaskData struct {
+	BlockID          proto.BlockID
+	SnapshotTaskType SnapshotTimeoutTaskType
+}
+
+func (SnapshotTimeoutTaskData) taskDataMarker() {}
+
+type SnapshotTimeoutTask struct {
+	timeout                 time.Duration
+	outdated                <-chan struct{}
+	SnapshotTimeoutTaskData SnapshotTimeoutTaskData
+}
+
+func NewBlockSnapshotTimeoutTask(
+	timeout time.Duration,
+	blockID proto.BlockID,
+	outdated <-chan struct{},
+) SnapshotTimeoutTask {
+	return SnapshotTimeoutTask{
+		timeout:  timeout,
+		outdated: outdated,
+		SnapshotTimeoutTaskData: SnapshotTimeoutTaskData{
+			BlockID:          blockID,
+			SnapshotTaskType: BlockSnapshot,
+		},
+	}
+}
+
+func NewMicroBlockSnapshotTimeoutTask(
+	timeout time.Duration,
+	blockID proto.BlockID,
+	outdated <-chan struct{},
+) SnapshotTimeoutTask {
+	return SnapshotTimeoutTask{
+		timeout:  timeout,
+		outdated: outdated,
+		SnapshotTimeoutTaskData: SnapshotTimeoutTaskData{
+			BlockID:          blockID,
+			SnapshotTaskType: MicroBlockSnapshot,
+		},
+	}
+}
+
+func (SnapshotTimeoutTask) Type() int {
+	return SnapshotTimeout
+}
+
+func (a SnapshotTimeoutTask) Run(ctx context.Context, output chan AsyncTask) error {
+	t := time.NewTimer(a.timeout)
+	defer func() {
+		if !t.Stop() {
+			<-t.C
+		}
+	}()
+	select {
+	case <-ctx.Done():
+		return ctx.Err()
+	case <-a.outdated:
+		return nil
+	case <-t.C:
+		SendAsyncTask(output, AsyncTask{
+			TaskType: a.Type(),
+			Data:     a.SnapshotTimeoutTaskData,
+		})
+		return nil
 	}
 }

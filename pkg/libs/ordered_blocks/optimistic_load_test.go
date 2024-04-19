@@ -23,34 +23,38 @@ func makeBlock(sig crypto.Signature) *proto.Block {
 func TestOrderedBlocks(t *testing.T) {
 	o := ordered_blocks.NewOrderedBlocks()
 	o.Add(proto.NewBlockIDFromSignature(sig1))
-	require.Len(t, o.PopAll(), 0)
+	b, _ := o.PopAll(false)
+	require.Len(t, b, 0)
 
+	b, _ = o.PopAll(false)
 	o.Add(proto.NewBlockIDFromSignature(sig2))
-	require.Len(t, o.PopAll(), 0)
+	require.Len(t, b, 0)
 
 	// second block arrived first, no sequence right now
 	o.SetBlock(makeBlock(sig2))
-	require.Len(t, o.PopAll(), 0)
+	b, _ = o.PopAll(false)
+	require.Len(t, b, 0)
 	//require.Equal(t, 0, o.ReceivedCount())
 
 	// finally arrived first block, so seq contains 2 blocks
 	o.SetBlock(makeBlock(sig1))
 	//require.Equal(t, 2, o.ReceivedCount())
-	require.Len(t, o.PopAll(), 2)
+	b, _ = o.PopAll(false)
+	require.Len(t, b, 2)
 }
 
 func TestOrderedBlocks_AvailableCount(t *testing.T) {
 	o := ordered_blocks.NewOrderedBlocks()
 	o.Add(proto.NewBlockIDFromSignature(sig1))
 	o.Add(proto.NewBlockIDFromSignature(sig2))
-	require.Equal(t, 0, o.ReceivedCount())
+	require.Equal(t, 0, o.ReceivedCount(false))
 
 	o.SetBlock(makeBlock(sig1))
-	require.Equal(t, 1, o.ReceivedCount())
+	require.Equal(t, 1, o.ReceivedCount(false))
 
 	o.SetBlock(makeBlock(sig2))
-	require.Equal(t, 2, o.ReceivedCount())
+	require.Equal(t, 2, o.ReceivedCount(false))
 
-	o.PopAll()
-	require.Equal(t, 0, o.ReceivedCount())
+	o.PopAll(false)
+	require.Equal(t, 0, o.ReceivedCount(false))
 }

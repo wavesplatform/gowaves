@@ -407,7 +407,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		env.rideV6Activated(),
 		env.consensusImprovementsActivated(),
 		env.blockRewardDistributionActivated(),
-		env.invokeExpressionActivated(),
+		env.lightNodeActivated(),
 	)
 	if err != nil {
 		return false, err
@@ -1036,7 +1036,7 @@ type EvaluationEnvironment struct {
 	isRideV6Activated                  bool
 	isConsensusImprovementsActivated   bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
 	isBlockRewardDistributionActivated bool // isBlockRewardDistributionActivated => nodeVersion >= 1.4.16
-	isInvokeExpressionActivated        bool // isInvokeExpressionActivated => nodeVersion >= 1.5.0
+	isLightNodeActivated               bool // isLightNodeActivated => nodeVersion >= 1.5.0
 	isProtobufTransaction              bool
 	mds                                int
 	cc                                 complexityCalculator
@@ -1051,7 +1051,7 @@ func bytesSizeCheckV3V6(l int) bool {
 }
 
 func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64,
-	blockV5, rideV6, consensusImprovements, blockRewardDistribution, invokeExpression bool,
+	blockV5, rideV6, consensusImprovements, blockRewardDistribution, lightNode bool,
 ) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
 	if err != nil {
@@ -1067,7 +1067,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		isBlockV5Activated:                 blockV5,
 		isRideV6Activated:                  rideV6,
 		isBlockRewardDistributionActivated: blockRewardDistribution,
-		isInvokeExpressionActivated:        invokeExpression,
+		isLightNodeActivated:               lightNode,
 		isConsensusImprovementsActivated:   consensusImprovements,
 		cc:                                 newComplexityCalculatorByRideV6Activation(rideV6),
 	}, nil
@@ -1135,8 +1135,8 @@ func (e *EvaluationEnvironment) blockRewardDistributionActivated() bool {
 	return e.isBlockRewardDistributionActivated
 }
 
-func (e *EvaluationEnvironment) invokeExpressionActivated() bool {
-	return e.isInvokeExpressionActivated
+func (e *EvaluationEnvironment) lightNodeActivated() bool {
+	return e.isLightNodeActivated
 }
 
 func (e *EvaluationEnvironment) rideV6Activated() bool {
@@ -1237,8 +1237,8 @@ func (e *EvaluationEnvironment) SetTransaction(tx proto.Transaction) error {
 	return nil
 }
 
-func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order) error {
-	obj, err := orderToObject(e.sch, order)
+func (e *EvaluationEnvironment) SetTransactionFromOrder(order proto.Order, v ast.LibraryVersion) error {
+	obj, err := orderToObject(v, e.sch, order)
 	if err != nil {
 		return err
 	}
