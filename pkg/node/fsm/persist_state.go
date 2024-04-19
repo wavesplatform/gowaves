@@ -76,7 +76,11 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDGetBlockIds,
+		proto.ContentIDGetBlockIDs,
+		proto.ContentIDBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshot,
+		proto.ContentIDGetBlockSnapshot,
+		proto.ContentIDMicroBlockSnapshotRequest,
 	}
 	fsm.Configure(PersistStateName).
 		Ignore(BlockEvent).
@@ -88,6 +92,8 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 		Ignore(StartMiningEvent).
 		Ignore(ChangeSyncPeerEvent).
 		Ignore(StopSyncEvent).
+		Ignore(BlockSnapshotEvent).
+		Ignore(MicroBlockSnapshotEvent).
 		OnEntry(func(ctx context.Context, args ...interface{}) error {
 			info.skipMessageList.SetList(persistSkipMessageList)
 			return nil

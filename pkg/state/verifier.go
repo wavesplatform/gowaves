@@ -2,11 +2,13 @@ package state
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -41,17 +43,66 @@ func (ch *verifierChans) closeAndWait() error {
 }
 
 type verifyTask struct {
-	taskType    verifyTaskType
-	parentID    proto.BlockID
-	block       *proto.Block
-	tx          proto.Transaction
-	checkTxSig  bool
-	checkOrder1 bool
-	checkOrder2 bool
+	taskType     verifyTaskType
+	parentID     proto.BlockID
+	block        *proto.Block
+	tx           proto.Transaction
+	checkTxSig   bool
+	checkOrder1  bool
+	checkOrder2  bool
+	checkVersion bool
 }
 
-func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, scheme proto.Scheme) error {
-	if _, err := tx.Validate(scheme); err != nil {
+type selfVerifier interface {
+	GetSenderPK() crypto.PublicKey
+	GetType() proto.TransactionType
+	Verify(scheme proto.Scheme, pk crypto.PublicKey) (bool, error)
+}
+
+var ( // compile-time interface checks
+	_ proto.Exchange = (*proto.ExchangeWithProofs)(nil)
+	_ proto.Exchange = (*proto.ExchangeWithSig)(nil)
+	_ selfVerifier   = (*proto.ExchangeWithProofs)(nil)
+	_ selfVerifier   = (*proto.ExchangeWithSig)(nil)
+	_ selfVerifier   = (*proto.TransferWithProofs)(nil)
+	_ selfVerifier   = (*proto.IssueWithProofs)(nil)
+	_ selfVerifier   = (*proto.ReissueWithProofs)(nil)
+	_ selfVerifier   = (*proto.BurnWithProofs)(nil)
+	_ selfVerifier   = (*proto.LeaseWithProofs)(nil)
+	_ selfVerifier   = (*proto.LeaseCancelWithProofs)(nil)
+	_ selfVerifier   = (*proto.CreateAliasWithProofs)(nil)
+	_ selfVerifier   = (*proto.SponsorshipWithProofs)(nil)
+	_ selfVerifier   = (*proto.MassTransferWithProofs)(nil)
+	_ selfVerifier   = (*proto.DataWithProofs)(nil)
+	_ selfVerifier   = (*proto.SetScriptWithProofs)(nil)
+	_ selfVerifier   = (*proto.SetAssetScriptWithProofs)(nil)
+	_ selfVerifier   = (*proto.InvokeScriptWithProofs)(nil)
+	_ selfVerifier   = (*proto.InvokeExpressionTransactionWithProofs)(nil)
+	_ selfVerifier   = (*proto.UpdateAssetInfoWithProofs)(nil)
+	_ selfVerifier   = (*proto.Payment)(nil)
+	_ selfVerifier   = (*proto.TransferWithSig)(nil)
+	_ selfVerifier   = (*proto.IssueWithSig)(nil)
+	_ selfVerifier   = (*proto.ReissueWithSig)(nil)
+	_ selfVerifier   = (*proto.BurnWithSig)(nil)
+	_ selfVerifier   = (*proto.LeaseWithSig)(nil)
+	_ selfVerifier   = (*proto.LeaseCancelWithSig)(nil)
+	_ selfVerifier   = (*proto.CreateAliasWithSig)(nil)
+)
+
+func verifyTransactionSignature(sv selfVerifier, scheme proto.Scheme) error {
+	if ok, err := sv.Verify(scheme, sv.GetSenderPK()); !ok {
+		if err != nil {
+			return errs.Extend(err, fmt.Sprintf("%s signature verification failed", sv.GetType().String()))
+		}
+		return errs.NewTxValidationError(fmt.Sprintf("%s signature verification failed", sv.GetType().String()))
+	}
+	return nil
+}
+
+func checkTx(
+	tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, params proto.TransactionValidationParams,
+) error {
+	if _, err := tx.Validate(params); err != nil {
 		return errs.Extend(err, "invalid tx data")
 	}
 	if !checkTxSig {
@@ -59,138 +110,37 @@ func checkTx(tx proto.Transaction, checkTxSig, checkOrder1, checkOrder2 bool, sc
 	}
 	switch t := tx.(type) {
 	case *proto.Genesis:
-	case *proto.Payment:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("payment tx signature verification failed")
-		}
-	case *proto.TransferWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errs.NewTxValidationError("transfer tx signature verification failed")
-		}
-	case *proto.TransferWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errs.NewTxValidationError("transfer tx signature verification failed")
-		}
-	case *proto.IssueWithSig:
-		if ok, err := t.Verify(scheme, t.SenderPK); !ok {
-			if err != nil {
-				return errs.Extend(err, "issue tx signature verification failed")
-			}
-			return errors.New("issue tx signature verification failed")
-		}
-	case *proto.IssueWithProofs:
-		if ok, err := t.Verify(scheme, t.SenderPK); !ok {
-			if err != nil {
-				return errs.Extend(err, "issue tx signature verification failed")
-			}
-			return errors.New("issue tx signature verification failed")
-		}
-	case *proto.ReissueWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("reissue tx signature verification failed")
-		}
-	case *proto.ReissueWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("reissue tx signature verification failed")
-		}
-	case *proto.BurnWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("burn tx signature verification failed")
-		}
-	case *proto.BurnWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("burn tx signature verification failed")
-		}
-	case *proto.ExchangeWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("exchange tx signature verification failed")
-		}
-		if checkOrder1 {
-			if ok, _ := t.Order1.Verify(scheme); !ok {
-				return errors.New("first order signature verification failed")
-			}
-		}
-		if checkOrder2 {
-			if ok, _ := t.Order2.Verify(scheme); !ok {
-				return errors.New("second order signature verification failed")
-			}
-		}
-	case *proto.ExchangeWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("exchange tx signature verification failed")
-		}
-		if checkOrder1 {
-			if ok, _ := t.Order1.Verify(scheme); !ok {
-				return errors.New("first order signature verification failed")
-			}
-		}
-		if checkOrder2 {
-			if ok, _ := t.Order2.Verify(scheme); !ok {
-				return errors.New("second order signature verification failed")
-			}
-		}
-	case *proto.LeaseWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("lease tx signature verification failed")
-		}
-	case *proto.LeaseWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("lease tx signature verification failed")
-		}
-	case *proto.LeaseCancelWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("leasecancel tx signature verification failed")
-		}
-	case *proto.LeaseCancelWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("leasecancel tx signature verification failed")
-		}
-	case *proto.CreateAliasWithSig:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("createalias tx signature verification failed")
-		}
-	case *proto.CreateAliasWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("createalias tx signature verification failed")
-		}
-	case *proto.SponsorshipWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("sponsorship tx signature verification failed")
-		}
-	case *proto.MassTransferWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errs.NewTxValidationError("masstransfer tx signature verification failed")
-		}
-	case *proto.DataWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("data tx signature verification failed")
-		}
-	case *proto.SetScriptWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("setscript tx signature verification failed")
-		}
-	case *proto.SetAssetScriptWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("setassetscript tx signature verification failed")
-		}
-	case *proto.InvokeScriptWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("invokescript tx signature verification failed")
-		}
-	case *proto.InvokeExpressionTransactionWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("InvokeExpression tx signature verification failed")
-		}
-	case *proto.UpdateAssetInfoWithProofs:
-		if ok, _ := t.Verify(scheme, t.SenderPK); !ok {
-			return errors.New("updateassetinfo tx signature verification failed")
-		}
+		return nil
+	case proto.Exchange: // special case for ExchangeTransaction
+		return verifyExchangeTransaction(t, params.Scheme, checkOrder1, checkOrder2)
 	case *proto.EthereumTransaction:
 		if _, err := t.Verify(); err != nil {
-			return errors.New("ethereumtransaction tx signature verification failed")
+			return errs.NewTxValidationError("EthereumTransaction transaction signature verification failed")
 		}
+	case selfVerifier:
+		return verifyTransactionSignature(t, params.Scheme)
 	default:
 		return errors.New("unknown transaction type")
+	}
+	return nil
+}
+
+func verifyExchangeTransaction(tx proto.Exchange, sch proto.Scheme, chOrd1, chOrd2 bool) error {
+	if ok, err := tx.Verify(sch, tx.GetSenderPK()); !ok {
+		if err != nil {
+			return errs.Extend(err, "Exchange transaction signature verification failed")
+		}
+		return errs.NewTxValidationError("Exchange tx signature verification failed")
+	}
+	if chOrd1 {
+		if ok, _ := tx.GetOrder1().Verify(sch); !ok {
+			return errs.NewTxValidationError("first Order signature verification failed")
+		}
+	}
+	if chOrd2 {
+		if ok, _ := tx.GetOrder2().Verify(sch); !ok {
+			return errs.NewTxValidationError("second Order signature verification failed")
+		}
 	}
 	return nil
 }
@@ -226,7 +176,8 @@ func handleTask(task *verifyTask, scheme proto.Scheme) error {
 				task.block.TransactionsRoot.String(), task.block.ID.String())
 		}
 	case verifyTx:
-		if err := checkTx(task.tx, task.checkTxSig, task.checkOrder1, task.checkOrder2, scheme); err != nil {
+		params := proto.TransactionValidationParams{Scheme: scheme, CheckVersion: task.checkVersion}
+		if err := checkTx(task.tx, task.checkTxSig, task.checkOrder1, task.checkOrder2, params); err != nil {
 			txID, txIdErr := task.tx.GetID(scheme)
 			if txIdErr != nil {
 				return errors.Wrap(txIdErr, "failed to get transaction ID")

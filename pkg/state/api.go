@@ -152,8 +152,10 @@ type StateModifier interface {
 	AddDeserializedBlock(block *proto.Block) (*proto.Block, error)
 	// AddBlocks adds batch of new blocks to state.
 	AddBlocks(blocks [][]byte) error
+	AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	// AddDeserializedBlocks marshals blocks to binary and calls AddBlocks.
 	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
+	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 	// Rollback functionality.
 	RollbackToHeight(height proto.Height) error
 	RollbackTo(removalEdge proto.BlockID) error
@@ -200,8 +202,14 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	s, err := newStateManager(dataDir, amend, params, settings)
+func NewState(
+	dataDir string,
+	amend bool,
+	params StateParams,
+	settings *settings.BlockchainSettings,
+	enableLightNode bool,
+) (State, error) {
+	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

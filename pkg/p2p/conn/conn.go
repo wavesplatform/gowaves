@@ -17,7 +17,9 @@ import (
 )
 
 const (
-	maxMessageSize              = 2 << (10 * 2)
+	KiB                         = 1024
+	MiB                         = KiB * KiB
+	maxMessageSize              = 100 * MiB
 	maxConnIODurationPerMessage = 15 * time.Second
 	MaxConnIdleIODuration       = 5 * time.Minute
 )
