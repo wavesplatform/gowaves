@@ -58,7 +58,8 @@ const (
 )
 
 func ProtocolVersion() Version {
-	return NewVersion(1, 5, 0) //nolint:gomnd // it's version number
+	const major, minor, patch = 1, 5, 0
+	return NewVersion(major, minor, patch)
 }
 
 type Message interface {
