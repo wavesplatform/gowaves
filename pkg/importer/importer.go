@@ -59,6 +59,19 @@ type ImportParams struct {
 	LightNodeMode                 bool
 }
 
+func (i ImportParams) validate() error {
+	if i.Schema == 0 {
+		return errors.New("scheme/chainID is empty")
+	}
+	if i.BlockchainPath == "" {
+		return errors.New("blockchain path is empty")
+	}
+	if i.LightNodeMode && i.SnapshotsPath == "" {
+		return errors.New("snapshots path is empty")
+	}
+	return nil
+}
+
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
@@ -89,6 +102,9 @@ func ApplyFromFile(
 }
 
 func selectImporter(params ImportParams, state State) (Importer, error) {
+	if err := params.validate(); err != nil { // sanity check
+		return nil, errors.Wrap(err, "invalid import params")
+	}
 	if params.LightNodeMode {
 		imp, err := NewSnapshotsImporter(params.Schema, state, params.BlockchainPath, params.SnapshotsPath)
 		if err != nil {
