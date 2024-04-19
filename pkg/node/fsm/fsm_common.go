@@ -256,11 +256,16 @@ func processScoreAfterApplyingOrReturnToNG(
 		if s.Score.Cmp(nodeScore) == 1 {
 			// received score is larger than local score
 			newS, task, errS := syncWithNewPeer(state, baseInfo, s.Peer)
-			if newS == nil || newS.String() != SyncStateName {
+			if errS != nil {
 				zap.S().Errorf("%v", state.Errorf(errS))
 				continue
 			}
-			return newS, task, errS
+			if newSName := newS.String(); newSName != SyncStateName { // sanity check
+				return newS, task, errors.Errorf("unexpected state %q after sync with peer, want %q",
+					newSName, SyncStateName,
+				)
+			}
+			return newS, task, nil
 		}
 	}
 	return newNGStateWithCache(baseInfo, cache), nil, nil
