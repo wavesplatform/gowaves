@@ -2,7 +2,6 @@ package importer
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"time"
 
@@ -69,7 +68,7 @@ func (imp *SnapshotsImporter) Import(ctx context.Context, number uint64) error {
 		}
 		// reading snapshots
 		snapshot, err := imp.sr.readSnapshot()
-		if err != nil && !errors.Is(err, errNoop) {
+		if err != nil {
 			return err
 		}
 		snapshots[index] = snapshot

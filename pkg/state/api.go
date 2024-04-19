@@ -264,8 +264,6 @@ type StateParams struct {
 	ProvideExtendedApi bool
 	// BuildStateHashes enables building and storing state hashes by height.
 	BuildStateHashes bool
-
-	LightNodeMode bool
 }
 
 func DefaultStateParams() StateParams {

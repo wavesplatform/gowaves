@@ -57,8 +57,9 @@ const (
 	ContentIDMicroBlockSnapshot        PeerMessageID = 37
 )
 
-// ProtocolVersion TODO: change to 1.5.0
-var ProtocolVersion = NewVersion(1, 4, 0)
+func ProtocolVersion() Version {
+	return NewVersion(1, 5, 0) //nolint:gomnd // it's version number
+}
 
 type Message interface {
 	io.ReaderFrom

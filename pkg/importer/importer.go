@@ -25,8 +25,6 @@ const (
 	MaxBlockSize       = 2 * MiB
 )
 
-var errNoop = errors.New("noop")
-
 type State interface {
 	AddBlocks(blocks [][]byte) error
 	AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
@@ -55,33 +53,52 @@ func maybePersistTxs(st State) error {
 	return nil
 }
 
+type ImportParams struct {
+	Schema                        proto.Scheme
+	BlockchainPath, SnapshotsPath string
+	LightNodeMode                 bool
+}
+
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
 func ApplyFromFile(
 	ctx context.Context,
-	scheme proto.Scheme,
-	st State,
-	blockchainPath string,
+	params ImportParams,
+	state State,
 	nBlocks, startHeight uint64,
 ) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	imp, err := NewBlocksImporter(scheme, st, blockchainPath)
+	imp, err := selectImporter(params, state)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create importer")
 	}
 	defer func() {
 		if clErr := imp.Close(); clErr != nil {
 			zap.S().Fatalf("Failed to close importer: %v", clErr)
 		}
 	}()
-	err = imp.SkipToHeight(ctx, startHeight)
-	if err != nil {
-		return err
+	if err = imp.SkipToHeight(ctx, startHeight); err != nil {
+		return errors.Wrap(err, "failed to skip to state height")
 	}
 	return imp.Import(ctx, nBlocks)
+}
+
+func selectImporter(params ImportParams, state State) (Importer, error) {
+	if params.LightNodeMode {
+		imp, err := NewSnapshotsImporter(params.Schema, state, params.BlockchainPath, params.SnapshotsPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create snapshots importer")
+		}
+		return imp, nil
+	}
+	imp, err := NewBlocksImporter(params.Schema, state, params.BlockchainPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create blocks importer")
+	}
+	return imp, nil
 }
 
 func CheckBalances(st State, balancesPath string) error {

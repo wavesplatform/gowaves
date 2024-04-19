@@ -16,7 +16,7 @@ import (
 )
 
 const (
-	snapshotTimeout = 30
+	snapshotTimeout = 30 * time.Second
 )
 
 type WaitSnapshotState struct {
@@ -43,7 +43,7 @@ func newWaitSnapshotState(baseInfo BaseInfo, block *proto.Block, cache blockStat
 		blockWaitingForSnapshot: block,
 		receivedScores:          nil,
 	}
-	task := tasks.NewBlockSnapshotTimeoutTask(time.Second*snapshotTimeout, block.BlockID(), timeoutTaskOutdated)
+	task := tasks.NewBlockSnapshotTimeoutTask(snapshotTimeout, block.BlockID(), timeoutTaskOutdated)
 	return st, task
 }
 
@@ -60,7 +60,7 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		zap.S().Named(logging.FSMNamespace).Debug("[WaitSnapshot] Requesting peers")
+		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Requesting peers", a)
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro:
@@ -75,7 +75,7 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 		case tasks.BlockSnapshot:
 			defer a.cleanupBeforeTransition()
 			zap.S().Errorf("%v", a.Errorf(errors.Errorf(
-				"failed to get snapshot for block '%s' - timeout", t.BlockID)))
+				"Failed to get snapshot for block '%s' - timeout", t.BlockID)))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		case tasks.MicroBlockSnapshot:
 			return a, nil, nil
@@ -91,7 +91,9 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 
 func (a *WaitSnapshotState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 	metrics.FSMScore("ng", score, p.Handshake().NodeName)
-	a.receivedScores = append(a.receivedScores, ReceivedScore{Peer: p, Score: score})
+	if len(a.receivedScores) < scoresSliceMaxSize {
+		a.receivedScores = append(a.receivedScores, ReceivedScore{Peer: p, Score: score})
+	}
 	return a, nil, nil
 }
 
@@ -112,7 +114,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		[]*proto.BlockSnapshot{&snapshot},
 	)
 	if err != nil {
-		zap.S().Errorf("%v", a.Errorf(errors.Wrapf(err, "failed to apply block %s", a.blockWaitingForSnapshot.BlockID())))
+		zap.S().Errorf("%v", a.Errorf(errors.Wrapf(err, "Failed to apply block %s", a.blockWaitingForSnapshot.BlockID())))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 

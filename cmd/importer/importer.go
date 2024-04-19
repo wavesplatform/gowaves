@@ -112,7 +112,6 @@ func (c *cfg) params(maxFDs int) state.StateParams {
 	params.StoreExtendedApiData = c.buildDataForExtendedAPI
 	params.BuildStateHashes = c.buildStateHashes
 	params.ProvideExtendedApi = false // We do not need to provide any APIs during import.
-	params.LightNodeMode = c.lightNodeMode
 	return params
 }
 
@@ -185,25 +184,23 @@ func run() error {
 		}
 	}()
 
-	imp, err := selectImporter(c, ss, st)
+	height, err := st.Height()
 	if err != nil {
-		return fmt.Errorf("failed to create importer: %w", err)
+		return fmt.Errorf("failed to get current height: %w", err)
 	}
-	defer func() {
-		if clErr := imp.Close(); clErr != nil {
-			zap.S().Errorf("Failed to close (%T) importer: %v", imp, clErr)
-		}
-	}()
 
 	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
 	defer cancel()
 
-	if skipErr := skipToCurrentBlockchainHeight(ctx, st, imp); skipErr != nil {
-		return skipErr
+	params := importer.ImportParams{
+		Schema:         ss.AddressSchemeCharacter,
+		BlockchainPath: c.blockchainPath,
+		SnapshotsPath:  c.snapshotsPath,
+		LightNodeMode:  c.lightNodeMode,
 	}
 
 	start := time.Now()
-	if impErr := imp.Import(ctx, uint64(c.nBlocks)); impErr != nil {
+	if impErr := importer.ApplyFromFile(ctx, params, st, uint64(c.nBlocks), height); impErr != nil {
 		currentHeight, hErr := st.Height()
 		if hErr != nil {
 			zap.S().Fatalf("Failed to get current height: %v", hErr)
@@ -227,20 +224,6 @@ func run() error {
 	return nil
 }
 
-func skipToCurrentBlockchainHeight(ctx context.Context, st state.State, imp importer.Importer) error {
-	height, err := st.Height()
-	if err != nil {
-		return fmt.Errorf("failed to get current height: %w", err)
-	}
-	if height > 1 {
-		zap.S().Infof("Skipping to height %d", height)
-		if skErr := imp.SkipToHeight(ctx, height); skErr != nil {
-			return fmt.Errorf("failed to skip to state height: %w", skErr)
-		}
-	}
-	return nil
-}
-
 func handleError(err error, height uint64) {
 	switch {
 	case errors.Is(err, context.Canceled):
@@ -250,21 +233,6 @@ func handleError(err error, height uint64) {
 	default:
 		zap.S().Fatalf("Failed to apply blocks after height %d: %v", height, err)
 	}
-}
-
-func selectImporter(c cfg, ss *settings.BlockchainSettings, st importer.State) (importer.Importer, error) {
-	if c.lightNodeMode {
-		imp, err := importer.NewSnapshotsImporter(ss.AddressSchemeCharacter, st, c.blockchainPath, c.snapshotsPath)
-		if err != nil {
-			return nil, fmt.Errorf("failed to create snapshots importer: %w", err)
-		}
-		return imp, nil
-	}
-	imp, err := importer.NewBlocksImporter(ss.AddressSchemeCharacter, st, c.blockchainPath)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create blocks importer: %w", err)
-	}
-	return imp, nil
 }
 
 func configureMemProfile(memProfilePath string) error {

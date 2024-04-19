@@ -429,7 +429,7 @@ func main() {
 		return
 	}
 	peerSpawnerImpl := peers.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, nc.nodeName,
-		nodeNonce.Uint64(), proto.ProtocolVersion)
+		nodeNonce.Uint64(), proto.ProtocolVersion())
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(nc.statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
@@ -447,7 +447,7 @@ func main() {
 		peerSpawnerImpl,
 		peerStorage,
 		int(nc.limitAllConnections/2),
-		proto.ProtocolVersion,
+		proto.ProtocolVersion(),
 		conf.WavesNetwork,
 		!nc.disableOutgoingConnections,
 		nc.newConnectionsLimit,

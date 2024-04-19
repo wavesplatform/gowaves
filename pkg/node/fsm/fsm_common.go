@@ -256,7 +256,7 @@ func processScoreAfterApplyingOrReturnToNG(
 		if s.Score.Cmp(nodeScore) == 1 {
 			// received score is larger than local score
 			newS, task, errS := syncWithNewPeer(state, baseInfo, s.Peer)
-			if newS.String() != SyncStateName {
+			if newS == nil || newS.String() != SyncStateName {
 				zap.S().Errorf("%v", state.Errorf(errS))
 				continue
 			}

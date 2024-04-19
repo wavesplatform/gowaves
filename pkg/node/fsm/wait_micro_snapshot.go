@@ -17,7 +17,8 @@ import (
 )
 
 const (
-	microSnapshotTimeout = 15
+	microSnapshotTimeout = 15 * time.Second
+	scoresSliceMaxSize   = 10000
 )
 
 type WaitMicroSnapshotState struct {
@@ -38,8 +39,7 @@ func newWaitMicroSnapshotState(baseInfo BaseInfo, micro *proto.MicroBlock, cache
 		timeoutTaskOutdated:          timeoutTaskOutdated,
 		microBlockWaitingForSnapshot: micro,
 	}
-	task := tasks.NewMicroBlockSnapshotTimeoutTask(time.Second*microSnapshotTimeout,
-		micro.TotalBlockID, timeoutTaskOutdated)
+	task := tasks.NewMicroBlockSnapshotTimeoutTask(microSnapshotTimeout, micro.TotalBlockID, timeoutTaskOutdated)
 	return st, task
 }
 
@@ -56,7 +56,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		zap.S().Named(logging.FSMNamespace).Debug("[WaitMicroSnapshot] Requesting peers")
+		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Requesting peers", a)
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro:
@@ -72,8 +72,8 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 			return a, nil, nil
 		case tasks.MicroBlockSnapshot:
 			defer a.cleanupBeforeTransition()
-			zap.S().Errorf("%v", a.Errorf(errors.Errorf(
-				"failed to get snapshot for microBlock '%s' - timeout", t.BlockID)))
+			zap.S().Named(logging.FSMNamespace).Errorf("%v", a.Errorf(errors.Errorf(
+				"Failed to get snapshot for microBlock '%s' - timeout", t.BlockID)))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		default:
 			return a, nil, a.Errorf(errors.New("undefined Snapshot Task type"))
@@ -87,7 +87,9 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 
 func (a *WaitMicroSnapshotState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 	metrics.FSMScore("ng", score, p.Handshake().NodeName)
-	a.receivedScores = append(a.receivedScores, ReceivedScore{Peer: p, Score: score})
+	if len(a.receivedScores) < scoresSliceMaxSize {
+		a.receivedScores = append(a.receivedScores, ReceivedScore{Peer: p, Score: score})
+	}
 	return a, nil, nil
 }
 
@@ -120,7 +122,7 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
 		//TODO: We have to exclude from recipients peers that already have this microblock
 		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
-			zap.S().Errorf("%v", a.Errorf(errors.Wrap(err, "failed to handle micro block message")))
+			zap.S().Errorf("%v", a.Errorf(errors.Wrap(err, "Failed to handle micro block message")))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		}
 	}

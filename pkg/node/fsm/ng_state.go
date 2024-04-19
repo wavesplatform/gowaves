@@ -114,23 +114,31 @@ func (a *NGState) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) error {
 	blockFromCache, okB := a.blocksCache.Get(parentID)
 	snapshotFromCache, okS := a.blocksCache.GetSnapshot(parentID)
-	if okB && okS {
-		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Re-applying block '%s' from cache",
-			a, blockFromCache.ID.String())
-		previousBlockID := blockFromCache.Parent
-		err := a.baseInfo.storage.RollbackTo(previousBlockID)
-		if err != nil {
-			return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
-				previousBlockID.String(), blockFromCache.ID.String())
+	if !okB && !okS {
+		// no blocks in cache
+		return nil
+	}
+	if !okS || !okB {
+		if !okS {
+			return a.Errorf(errors.Errorf("snapshot for block %s doesn't exist in cache", parentID.String()))
 		}
-		_, err = a.baseInfo.blocksApplier.ApplyWithSnapshots(
-			a.baseInfo.storage,
-			[]*proto.Block{blockFromCache},
-			[]*proto.BlockSnapshot{snapshotFromCache},
-		)
-		if err != nil {
-			return errors.Wrapf(err, "failed to apply cached block %q", blockFromCache.ID.String())
-		}
+		return a.Errorf(errors.Errorf("block %s doesn't existin cache", parentID.String()))
+	}
+	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Re-applying block '%s' from cache",
+		a, blockFromCache.ID.String())
+	previousBlockID := blockFromCache.Parent
+	err := a.baseInfo.storage.RollbackTo(previousBlockID)
+	if err != nil {
+		return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
+			previousBlockID.String(), blockFromCache.ID.String())
+	}
+	_, err = a.baseInfo.blocksApplier.ApplyWithSnapshots(
+		a.baseInfo.storage,
+		[]*proto.Block{blockFromCache},
+		[]*proto.BlockSnapshot{snapshotFromCache},
+	)
+	if err != nil {
+		return errors.Wrapf(err, "failed to apply cached block %q", blockFromCache.ID.String())
 	}
 	return nil
 }
@@ -157,8 +165,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 				return a, nil, a.Errorf(err)
 			}
 		} else {
-			var blockFromCache *proto.Block
-			if blockFromCache, ok = a.blocksCache.Get(block.Parent); ok {
+			if blockFromCache, okGet := a.blocksCache.Get(block.Parent); okGet {
 				zap.S().Named(logging.FSMNamespace).Debugf("[%s] Re-applying block '%s' from cache",
 					a, blockFromCache.ID.String())
 				if err = a.rollbackToStateFromCache(blockFromCache); err != nil {
@@ -367,7 +374,6 @@ func (a *NGState) checkAndAppendMicroBlock(
 
 func (a *NGState) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (State, Async, error) {
 	metrics.MicroBlockInv(inv, p.Handshake().NodeName)
-	// TODO: add logs about microblock request
 	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID.Bytes())
 	if existed {
 		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Microblock inv received: block '%s' already in cache",

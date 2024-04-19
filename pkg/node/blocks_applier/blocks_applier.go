@@ -1,6 +1,7 @@
 package blocks_applier
 
 import (
+	stderrors "errors"
 	"math/big"
 
 	"github.com/pkg/errors"
@@ -83,7 +84,9 @@ func (a *innerBlocksApplier) apply(
 		if err2 != nil {
 			return 0, errors.Wrap(err2, "failed rollback deserialized blocks")
 		}
-		return 0, errors.Wrapf(err, "failed add deserialized blocks, first block id %s", blocks[0].BlockID().String())
+
+		return 0, errors.Wrapf(stderrors.Join(err, err2),
+			"failed add deserialized blocks, first block id %s", blocks[0].BlockID().String())
 	}
 	return parentHeight + proto.Height(len(blocks)), nil
 }
@@ -183,7 +186,8 @@ func (a *innerBlocksApplier) applyWithSnapshots(
 		if errDeserialized != nil {
 			return 0, errors.Wrap(errDeserialized, "failed rollback deserialized blocks")
 		}
-		return 0, errors.Wrapf(err, "failed add deserialized blocks, first block id %s", blocks[0].BlockID().String())
+		return 0, errors.Wrapf(stderrors.Join(err, errDeserialized),
+			"failed add deserialized blocks, first block id %s", blocks[0].BlockID().String())
 	}
 	return parentHeight + proto.Height(len(blocks)), nil
 }
@@ -270,7 +274,8 @@ func (a *innerBlocksApplier) applyMicro(
 		if errAdd != nil {
 			return 0, errors.Wrap(errAdd, "failed rollback block")
 		}
-		return 0, errors.Wrapf(err, "failed apply new block '%s'", block.BlockID().String())
+		return 0, errors.Wrapf(stderrors.Join(err, errAdd),
+			"failed apply new block '%s'", block.BlockID().String())
 	}
 	return currentHeight, nil
 }
@@ -327,7 +332,8 @@ func (a *innerBlocksApplier) applyMicroWithSnapshot(
 		if errAdd != nil {
 			return 0, errors.Wrap(errAdd, "failed rollback block")
 		}
-		return 0, errors.Wrapf(err, "failed apply new block '%s'", block.BlockID().String())
+		return 0, errors.Wrapf(stderrors.Join(err, errAdd),
+			"failed apply new block '%s'", block.BlockID().String())
 	}
 	return currentHeight, nil
 }
