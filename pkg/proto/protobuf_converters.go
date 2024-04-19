@@ -303,13 +303,14 @@ func appendSponsorshipFromProto(
 	return res, nil
 }
 
-// TxSnapshotsFromProtobufWithoutTxStatus Unmarshalling order (how in proto schemas):
-// WavesBalances and AssetBalances
-// LeaseBalances
+// TxSnapshotsFromProtobufWithoutTxStatus Unmarshalling order
+// (don't change it if it is not necessary, order is important):
 // NewAsset
 // AssetVolume
 // AssetDescription
 // AssetScript
+// WavesBalances and AssetBalances
+// LeaseBalances
 // Alias
 // FilledVolumes
 // NewLeases
@@ -325,14 +326,6 @@ func TxSnapshotsFromProtobufWithoutTxStatus(
 		txSnapshots []AtomicSnapshot
 		err         error
 	)
-	txSnapshots, err = appendBalancesFromProto(txSnapshots, scheme, txSnapshotProto.Balances)
-	if err != nil {
-		return nil, err
-	}
-	txSnapshots, err = appendLeaseBalancesFromProto(txSnapshots, scheme, txSnapshotProto.LeaseBalances)
-	if err != nil {
-		return nil, err
-	}
 	txSnapshots, err = appendNewAssetFromProto(txSnapshots, txSnapshotProto.AssetStatics)
 	if err != nil {
 		return nil, err
@@ -346,6 +339,14 @@ func TxSnapshotsFromProtobufWithoutTxStatus(
 		return nil, err
 	}
 	txSnapshots, err = appendAssetScriptFromProto(txSnapshots, txSnapshotProto.AssetScripts)
+	if err != nil {
+		return nil, err
+	}
+	txSnapshots, err = appendBalancesFromProto(txSnapshots, scheme, txSnapshotProto.Balances)
+	if err != nil {
+		return nil, err
+	}
+	txSnapshots, err = appendLeaseBalancesFromProto(txSnapshots, scheme, txSnapshotProto.LeaseBalances)
 	if err != nil {
 		return nil, err
 	}
@@ -394,6 +395,19 @@ func TxSnapshotsFromProtobuf(scheme Scheme, txSnapshotProto *g.TransactionStateS
 	}
 	txSnapshots = append(txSnapshots, &sn)
 	return txSnapshots, nil
+}
+
+func BlockSnapshotFromProtobuf(scheme Scheme, blockSnapshot []*g.TransactionStateSnapshot) (BlockSnapshot, error) {
+	res := BlockSnapshot{TxSnapshots: make([][]AtomicSnapshot, 0, len(blockSnapshot))}
+	for _, ts := range blockSnapshot {
+		var txSnapshots []AtomicSnapshot
+		txSnapshots, err := TxSnapshotsFromProtobuf(scheme, ts)
+		if err != nil {
+			return BlockSnapshot{}, err
+		}
+		res.AppendTxSnapshot(txSnapshots)
+	}
+	return res, nil
 }
 
 type ProtobufConverter struct {

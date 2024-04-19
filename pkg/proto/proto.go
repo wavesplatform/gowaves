@@ -12,6 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
 )
@@ -33,26 +34,33 @@ type (
 
 // Constants for message IDs
 const (
-	ContentIDGetPeers          PeerMessageID = 0x1
-	ContentIDPeers             PeerMessageID = 0x2
-	ContentIDGetSignatures     PeerMessageID = 0x14
-	ContentIDSignatures        PeerMessageID = 0x15
-	ContentIDGetBlock          PeerMessageID = 0x16
-	ContentIDBlock             PeerMessageID = 0x17
-	ContentIDScore             PeerMessageID = 0x18
-	ContentIDTransaction       PeerMessageID = 0x19
-	ContentIDInvMicroblock     PeerMessageID = 0x1A
-	ContentIDCheckpoint        PeerMessageID = 0x64
-	ContentIDMicroblockRequest PeerMessageID = 27
-	ContentIDMicroblock        PeerMessageID = 28
-	ContentIDPBBlock           PeerMessageID = 29
-	ContentIDPBMicroBlock      PeerMessageID = 30
-	ContentIDPBTransaction     PeerMessageID = 31
-	ContentIDGetBlockIds       PeerMessageID = 32
-	ContentIDBlockIds          PeerMessageID = 33
+	ContentIDGetPeers                  PeerMessageID = 0x1
+	ContentIDPeers                     PeerMessageID = 0x2
+	ContentIDGetSignatures             PeerMessageID = 0x14
+	ContentIDSignatures                PeerMessageID = 0x15
+	ContentIDGetBlock                  PeerMessageID = 0x16
+	ContentIDBlock                     PeerMessageID = 0x17
+	ContentIDScore                     PeerMessageID = 0x18
+	ContentIDTransaction               PeerMessageID = 0x19
+	ContentIDInvMicroblock             PeerMessageID = 0x1A
+	ContentIDCheckpoint                PeerMessageID = 0x64
+	ContentIDMicroblockRequest         PeerMessageID = 27
+	ContentIDMicroblock                PeerMessageID = 28
+	ContentIDPBBlock                   PeerMessageID = 29
+	ContentIDPBMicroBlock              PeerMessageID = 30
+	ContentIDPBTransaction             PeerMessageID = 31
+	ContentIDGetBlockIDs               PeerMessageID = 32
+	ContentIDBlockIDs                  PeerMessageID = 33
+	ContentIDGetBlockSnapshot          PeerMessageID = 34
+	ContentIDMicroBlockSnapshotRequest PeerMessageID = 35
+	ContentIDBlockSnapshot             PeerMessageID = 36
+	ContentIDMicroBlockSnapshot        PeerMessageID = 37
 )
 
-var ProtocolVersion = NewVersion(1, 4, 0)
+func ProtocolVersion() Version {
+	const major, minor, patch = 1, 5, 0
+	return NewVersion(major, minor, patch)
+}
 
 type Message interface {
 	io.ReaderFrom
@@ -1805,10 +1813,18 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &PBMicroBlockMessage{}
 	case ContentIDPBTransaction:
 		m = &PBTransactionMessage{}
-	case ContentIDGetBlockIds:
+	case ContentIDGetBlockIDs:
 		m = &GetBlockIdsMessage{}
-	case ContentIDBlockIds:
+	case ContentIDBlockIDs:
 		m = &BlockIdsMessage{}
+	case ContentIDGetBlockSnapshot:
+		m = &GetBlockSnapshotMessage{}
+	case ContentIDMicroBlockSnapshotRequest:
+		m = &MicroBlockSnapshotRequestMessage{}
+	case ContentIDBlockSnapshot:
+		m = &BlockSnapshotMessage{}
+	case ContentIDMicroBlockSnapshot:
+		m = &MicroBlockSnapshotMessage{}
 	default:
 		return nil, errors.Errorf(
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
@@ -1837,7 +1853,7 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 	var h Header
 	h.Length = maxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
-	h.ContentID = ContentIDGetBlockIds
+	h.ContentID = ContentIDGetBlockIDs
 	h.PayloadLength = uint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
@@ -1866,7 +1882,7 @@ func (m *GetBlockIdsMessage) UnmarshalBinary(data []byte) error {
 	if h.Magic != headerMagic {
 		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
-	if h.ContentID != ContentIDGetBlockIds {
+	if h.ContentID != ContentIDGetBlockIDs {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
@@ -1933,7 +1949,7 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 	var h Header
 	h.Length = maxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
-	h.ContentID = ContentIDBlockIds
+	h.ContentID = ContentIDBlockIDs
 	h.PayloadLength = uint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
@@ -1963,7 +1979,7 @@ func (m *BlockIdsMessage) UnmarshalBinary(data []byte) error {
 	if h.Magic != headerMagic {
 		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
 	}
-	if h.ContentID != ContentIDBlockIds {
+	if h.ContentID != ContentIDBlockIDs {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
@@ -2043,4 +2059,234 @@ type MiningLimits struct {
 	MaxScriptsComplexityInBlock int
 	ClassicAmountOfTxsInBlock   int
 	MaxTxsSizeInBytes           int
+}
+
+func buildHeader(body []byte, messID PeerMessageID) (Header, error) {
+	var h Header
+	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
+	h.Magic = headerMagic
+	h.ContentID = messID
+	h.PayloadLength = uint32(len(body))
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return Header{}, err
+	}
+	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
+	return h, nil
+}
+
+type GetBlockSnapshotMessage struct {
+	BlockID BlockID
+}
+
+func (m *GetBlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
+}
+
+func (m *GetBlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
+}
+
+func (m *GetBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
+	return parsePacket(data, ContentIDGetBlockSnapshot, "GetBlockSnapshotMessage", func(payload []byte) error {
+		blockID, err := NewBlockIDFromBytes(payload)
+		if err != nil {
+			return err
+		}
+		m.BlockID = blockID
+		return nil
+	})
+}
+
+func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
+	body := m.BlockID.Bytes()
+	h, err := buildHeader(body, ContentIDGetBlockSnapshot)
+	if err != nil {
+		return nil, err
+	}
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	body = append(hdr, body...)
+	return body, nil
+}
+
+type BlockSnapshotMessage struct {
+	Bytes []byte
+}
+
+func (m *BlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
+}
+
+func (m *BlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
+}
+
+func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < maxHeaderLength {
+		return errors.New("BlockSnapshotMessage UnmarshalBinary: invalid data size")
+	}
+	var h Header
+
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	}
+	if h.ContentID != ContentIDBlockSnapshot {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	m.Bytes = make([]byte, h.PayloadLength)
+	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.PayloadLength])
+	return nil
+}
+
+func (m *BlockSnapshotMessage) MarshalBinary() ([]byte, error) {
+	body := m.Bytes
+
+	h, err := buildHeader(body, ContentIDBlockSnapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	body = append(hdr, body...)
+	return body, nil
+}
+
+type MicroBlockSnapshotMessage struct {
+	Bytes []byte
+}
+
+func (m *MicroBlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
+}
+
+func (m *MicroBlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
+}
+
+func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
+	if len(data) < maxHeaderLength {
+		return errors.New("MicroBlockSnapshotMessage UnmarshalBinary: invalid data size")
+	}
+	var h Header
+
+	if err := h.UnmarshalBinary(data); err != nil {
+		return err
+	}
+	if h.Magic != headerMagic {
+		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	}
+	if h.ContentID != ContentIDMicroBlockSnapshot {
+		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	}
+	m.Bytes = make([]byte, h.PayloadLength)
+	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.PayloadLength])
+	return nil
+}
+
+func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
+	body := m.Bytes
+
+	h, err := buildHeader(body, ContentIDMicroBlockSnapshot)
+	if err != nil {
+		return nil, err
+	}
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	body = append(hdr, body...)
+	return body, nil
+}
+
+type MicroBlockSnapshotRequestMessage struct {
+	BlockIDBytes []byte
+}
+
+func (m *MicroBlockSnapshotRequestMessage) ReadFrom(r io.Reader) (int64, error) {
+	packet, nn, err := readPacket(r)
+	if err != nil {
+		return nn, err
+	}
+
+	return nn, m.UnmarshalBinary(packet)
+}
+
+func (m *MicroBlockSnapshotRequestMessage) WriteTo(w io.Writer) (int64, error) {
+	buf, err := m.MarshalBinary()
+	if err != nil {
+		return 0, err
+	}
+	nn, err := w.Write(buf)
+	n := int64(nn)
+	return n, err
+}
+
+func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
+	return parsePacket(
+		data,
+		ContentIDMicroBlockSnapshotRequest,
+		"MicroBlockSnapshotRequestMessage",
+		func(payload []byte) error {
+			m.BlockIDBytes = payload
+			return nil
+		})
+}
+
+func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
+	body := m.BlockIDBytes
+
+	h, err := buildHeader(body, ContentIDMicroBlockSnapshotRequest)
+	if err != nil {
+		return nil, err
+	}
+
+	hdr, err := h.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	body = append(hdr, body...)
+	return body, nil
 }

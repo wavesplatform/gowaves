@@ -35,7 +35,7 @@ type invokeApplierTestObjects struct {
 }
 
 func createInvokeApplierTestObjects(t *testing.T) *invokeApplierTestObjects {
-	state, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings)
+	state, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings, false)
 	assert.NoError(t, err, "newStateManager() failed")
 	to := &invokeApplierTestObjects{state}
 	randGenesisBlockID := genRandBlockId(t)

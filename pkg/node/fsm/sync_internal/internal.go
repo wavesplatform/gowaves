@@ -10,6 +10,7 @@ import (
 )
 
 type Blocks []*proto.Block
+type Snapshots []*proto.BlockSnapshot
 type Eof = bool
 type BlockApplied bool
 
@@ -19,24 +20,36 @@ var UnexpectedBlockErr = proto.NewInfoMsg(errors.New("unexpected block"))
 type PeerExtension interface {
 	AskBlocksIDs(id []proto.BlockID)
 	AskBlock(id proto.BlockID)
+	AskBlockSnapshot(id proto.BlockID)
 }
 
 type Internal struct {
 	respondedSignatures  *signatures.BlockIDs
 	orderedBlocks        *ordered_blocks.OrderedBlocks
 	waitingForSignatures bool
+	isLightNode          bool
 }
 
-func InternalFromLastSignatures(p extension.PeerExtension, signatures *signatures.ReverseOrdering) Internal {
+func InternalFromLastSignatures(
+	p extension.PeerExtension,
+	signatures *signatures.ReverseOrdering,
+	isLightNode bool,
+) Internal {
 	p.AskBlocksIDs(signatures.BlockIDS())
-	return NewInternal(ordered_blocks.NewOrderedBlocks(), signatures, true)
+	return NewInternal(ordered_blocks.NewOrderedBlocks(), signatures, true, isLightNode)
 }
 
-func NewInternal(orderedBlocks *ordered_blocks.OrderedBlocks, respondedSignatures *signatures.ReverseOrdering, waitingForSignatures bool) Internal {
+func NewInternal(
+	orderedBlocks *ordered_blocks.OrderedBlocks,
+	respondedSignatures *signatures.ReverseOrdering,
+	waitingForSignatures bool,
+	isLightNode bool,
+) Internal {
 	return Internal{
 		respondedSignatures:  respondedSignatures,
 		orderedBlocks:        orderedBlocks,
 		waitingForSignatures: waitingForSignatures,
+		isLightNode:          isLightNode,
 	}
 }
 
@@ -52,10 +65,13 @@ func (a Internal) BlockIDs(p PeerExtension, ids []proto.BlockID) (Internal, erro
 		newIDs = append(newIDs, id)
 		if a.orderedBlocks.Add(id) {
 			p.AskBlock(id)
+			if a.isLightNode {
+				p.AskBlockSnapshot(id)
+			}
 		}
 	}
 	respondedSignatures := signatures.NewSignatures(newIDs...).Revert()
-	return NewInternal(a.orderedBlocks, respondedSignatures, false), nil
+	return NewInternal(a.orderedBlocks, respondedSignatures, false, a.isLightNode), nil
 }
 
 func (a Internal) WaitingForSignatures() bool {
@@ -70,26 +86,39 @@ func (a Internal) Block(block *proto.Block) (Internal, error) {
 	return a, nil
 }
 
+func (a Internal) SetSnapshot(blockID proto.BlockID, snapshot *proto.BlockSnapshot) (Internal, error) {
+	if !a.orderedBlocks.Contains(blockID) {
+		return a, UnexpectedBlockErr
+	}
+	a.orderedBlocks.SetSnapshot(blockID, snapshot)
+	return a, nil
+}
+
 type peerExtension interface {
 	AskBlocksIDs(id []proto.BlockID)
 }
 
-func (a Internal) Blocks(p peerExtension) (Internal, Blocks, Eof) {
+func (a Internal) Blocks() (Internal, Blocks, Snapshots, Eof) {
 	if a.waitingForSignatures {
-		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures), nil, false
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.isLightNode), nil, nil, false
 	}
-	if a.orderedBlocks.RequestedCount() > a.orderedBlocks.ReceivedCount() {
-		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures), nil, false
+	if a.orderedBlocks.RequestedCount() > a.orderedBlocks.ReceivedCount(a.isLightNode) {
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, a.waitingForSignatures, a.isLightNode), nil, nil, false
 	}
 	if a.orderedBlocks.RequestedCount() < 100 {
-		return NewInternal(a.orderedBlocks, a.respondedSignatures, false), a.orderedBlocks.PopAll(), true
+		bs, ss := a.orderedBlocks.PopAll(a.isLightNode)
+		return NewInternal(a.orderedBlocks, a.respondedSignatures, false, a.isLightNode), bs, ss, true
 	}
+	bs, ss := a.orderedBlocks.PopAll(a.isLightNode)
+	return NewInternal(a.orderedBlocks, a.respondedSignatures, true, a.isLightNode), bs, ss, false
+}
+
+func (a Internal) AskBlocksIDs(p peerExtension) {
 	p.AskBlocksIDs(a.respondedSignatures.BlockIDS())
-	return NewInternal(a.orderedBlocks, a.respondedSignatures, true), a.orderedBlocks.PopAll(), false
 }
 
 func (a Internal) AvailableCount() int {
-	return a.orderedBlocks.ReceivedCount()
+	return a.orderedBlocks.ReceivedCount(a.isLightNode)
 }
 
 func (a Internal) RequestedCount() int {

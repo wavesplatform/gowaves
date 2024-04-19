@@ -5,8 +5,9 @@ import (
 	"flag"
 	"os"
 
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 var (
@@ -28,7 +29,7 @@ func main() {
 		zap.S().Fatal("please, provide scheme-byte argument")
 	}
 	if len(*schemeByte) != 1 {
-		zap.S().Fatal("invalid scheme-byte argument %q", *schemeByte)
+		zap.S().Fatalf("invalid scheme-byte argument %q", *schemeByte)
 	}
 	scheme := []byte(*schemeByte)[0]
 	switch *command {

@@ -15,10 +15,14 @@ import (
 type noopWrapper struct {
 }
 
-func (noopWrapper) AskBlocksIDs(id []proto.BlockID) {
+func (noopWrapper) AskBlocksIDs(_ []proto.BlockID) {
 }
 
-func (noopWrapper) AskBlock(id proto.BlockID) {
+func (noopWrapper) AskBlock(_ proto.BlockID) {
+}
+
+func (noopWrapper) AskBlockSnapshot(_ proto.BlockID) {
+
 }
 
 var sig1 = crypto.MustSignatureFromBase58("5syuWANDSgk8KyPxq2yQs2CYV23QfnrBoZMSv2LaciycxDYfBw6cLA2SqVnonnh1nFiFumzTgy2cPETnE7ZaZg5P")
@@ -37,14 +41,14 @@ func TestSigFSM_Signatures(t *testing.T) {
 	sigs := signatures.NewSignatures()
 
 	t.Run("error on receive unexpected signatures", func(t *testing.T) {
-		fsm := NewInternal(or, sigs, false)
+		fsm := NewInternal(or, sigs, false, false)
 		rs2, err := fsm.BlockIDs(nil, blocksFromSigs(sig1, sig2))
 		require.Equal(t, NoSignaturesExpectedErr, err)
 		require.NotNil(t, rs2)
 	})
 
 	t.Run("successful receive signatures", func(t *testing.T) {
-		fsm := NewInternal(or, sigs, true)
+		fsm := NewInternal(or, sigs, true, false)
 		rs2, err := fsm.BlockIDs(noopWrapper{}, blocksFromSigs(sig1, sig2))
 		require.NoError(t, err)
 		require.NotNil(t, rs2)
@@ -63,7 +67,7 @@ func block(sig crypto.Signature) *proto.Block {
 func TestSigFSM_Block(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
-	fsm := NewInternal(or, sigs, true)
+	fsm := NewInternal(or, sigs, true, false)
 	fsm, _ = fsm.BlockIDs(noopWrapper{}, blocksFromSigs(sig1, sig2))
 
 	fsm, _ = fsm.Block(block(sig1))
@@ -71,13 +75,13 @@ func TestSigFSM_Block(t *testing.T) {
 	require.Equal(t, 2, fsm.AvailableCount())
 
 	// no panic, cause `nearEnd` is True
-	_, blocks, _ := fsm.Blocks(nil)
+	_, blocks, _, _ := fsm.Blocks()
 	require.Equal(t, 2, len(blocks))
 }
 
 func TestSigFSM_BlockGetSignatures(t *testing.T) {
 	or := ordered_blocks.NewOrderedBlocks()
 	sigs := signatures.NewSignatures()
-	_, bs, _ := NewInternal(or, sigs, false).Blocks(nil)
+	_, bs, _, _ := NewInternal(or, sigs, false, false).Blocks()
 	require.Nil(t, bs)
 }

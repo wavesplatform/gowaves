@@ -66,6 +66,16 @@ func eventArgsTypes(event stateless.Trigger) []reflect.Type {
 			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(),
 			reflect.TypeOf((*proto.Transaction)(nil)).Elem(),
 		}
+	case BlockSnapshotEvent:
+		return []reflect.Type{
+			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(proto.BlockID{}),
+			reflect.TypeOf(proto.BlockSnapshot{}),
+		}
+	case MicroBlockSnapshotEvent:
+		return []reflect.Type{
+			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(proto.BlockID{}),
+			reflect.TypeOf(proto.BlockSnapshot{}),
+		}
 	default:
 		return nil
 	}
@@ -77,7 +87,11 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 	if err != nil {
 		return state, nil, err
 	}
-	internal := sync_internal.InternalFromLastSignatures(extension.NewPeerExtension(p, baseInfo.scheme), lastSignatures)
+	internal := sync_internal.InternalFromLastSignatures(
+		extension.NewPeerExtension(p, baseInfo.scheme),
+		lastSignatures,
+		baseInfo.enableLightMode,
+	)
 	c := conf{
 		peerSyncWith: p,
 		timeout:      defaultSyncTimeout,
@@ -199,4 +213,60 @@ func validateEventArgs(event stateless.Trigger, args ...interface{}) {
 			)
 		}
 	}
+}
+
+func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
+	invBts, err := inv.MarshalBinary()
+	if err != nil {
+		return errors.Wrapf(err, "failed to marshal binary '%T'", inv)
+	}
+	var (
+		cnt int
+		msg = &proto.MicroBlockInvMessage{
+			Body: invBts,
+		}
+	)
+	info.peers.EachConnected(func(p peer.Peer, _ *proto.Score) {
+		p.SendMessage(msg)
+		cnt++
+	})
+	info.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
+	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: blockID='%s', ref='%s'",
+		msg, cnt, inv.TotalBlockID, inv.Reference,
+	)
+	return nil
+}
+
+func processScoreAfterApplyingOrReturnToNG(
+	state State,
+	baseInfo BaseInfo,
+	scores []ReceivedScore,
+	cache blockStatesCache,
+) (State, Async, error) {
+	for _, s := range scores {
+		if err := baseInfo.peers.UpdateScore(s.Peer, s.Score); err != nil {
+			zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", proto.NewInfoMsg(err))
+			continue
+		}
+		nodeScore, err := baseInfo.storage.CurrentScore()
+		if err != nil {
+			zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", proto.NewInfoMsg(err))
+			continue
+		}
+		if s.Score.Cmp(nodeScore) == 1 {
+			// received score is larger than local score
+			newS, task, errS := syncWithNewPeer(state, baseInfo, s.Peer)
+			if errS != nil {
+				zap.S().Errorf("%v", state.Errorf(errS))
+				continue
+			}
+			if newSName := newS.String(); newSName != SyncStateName { // sanity check
+				return newS, task, errors.Errorf("unexpected state %q after sync with peer, want %q",
+					newSName, SyncStateName,
+				)
+			}
+			return newS, task, nil
+		}
+	}
+	return newNGStateWithCache(baseInfo, cache), nil, nil
 }

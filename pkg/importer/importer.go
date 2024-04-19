@@ -2,11 +2,9 @@ package importer
 
 import (
 	"context"
-	"encoding/binary"
 	"encoding/json"
 	"os"
 	"path/filepath"
-	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -20,20 +18,27 @@ const (
 
 	initTotalBatchSize = 5 * MiB
 	sizeAdjustment     = 1 * MiB
+	uint32Size         = 4
 
-	MaxTotalBatchSize               = 20 * MiB
-	MaxTotalBatchSizeForNetworkSync = 6 * MiB
-	MaxBlocksBatchSize              = 50000
-	MaxBlockSize                    = 2 * MiB
+	MaxTotalBatchSize  = 20 * MiB
+	MaxBlocksBatchSize = 50000
+	MaxBlockSize       = 2 * MiB
 )
 
 type State interface {
 	AddBlocks(blocks [][]byte) error
+	AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	WavesAddressesNumber() (uint64, error)
 	WavesBalance(account proto.Recipient) (uint64, error)
 	AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error)
 	ShouldPersistAddressTransactions() (bool, error)
 	PersistAddressTransactions() error
+}
+
+type Importer interface {
+	SkipToHeight(context.Context, uint64) error
+	Import(context.Context, uint64) error
+	Close() error
 }
 
 func maybePersistTxs(st State) error {
@@ -48,105 +53,70 @@ func maybePersistTxs(st State) error {
 	return nil
 }
 
-func calculateNextMaxSizeAndDirection(maxSize int, speed, prevSpeed float64, increasingSize bool) (int, bool) {
-	if speed > prevSpeed && increasingSize {
-		maxSize += sizeAdjustment
-		if maxSize > MaxTotalBatchSize {
-			maxSize = MaxTotalBatchSize
-		}
-	} else if speed > prevSpeed && !increasingSize {
-		maxSize -= sizeAdjustment
-		if maxSize < initTotalBatchSize {
-			maxSize = initTotalBatchSize
-		}
-	} else if speed < prevSpeed && increasingSize {
-		increasingSize = false
-		maxSize -= sizeAdjustment
-		if maxSize < initTotalBatchSize {
-			maxSize = initTotalBatchSize
-		}
-	} else if speed < prevSpeed && !increasingSize {
-		increasingSize = true
-		maxSize += sizeAdjustment
-		if maxSize > MaxTotalBatchSize {
-			maxSize = MaxTotalBatchSize
-		}
+type ImportParams struct {
+	Schema                        proto.Scheme
+	BlockchainPath, SnapshotsPath string
+	LightNodeMode                 bool
+}
+
+func (i ImportParams) validate() error {
+	if i.Schema == 0 {
+		return errors.New("scheme/chainID is empty")
 	}
-	return maxSize, increasingSize
+	if i.BlockchainPath == "" {
+		return errors.New("blockchain path is empty")
+	}
+	if i.LightNodeMode && i.SnapshotsPath == "" {
+		return errors.New("snapshots path is empty")
+	}
+	return nil
 }
 
 // ApplyFromFile reads blocks from blockchainPath, applying them from height startHeight and until nBlocks+1.
 // Setting optimize to true speeds up the import, but it is only safe when importing blockchain from scratch
 // when no rollbacks are possible at all.
-func ApplyFromFile( //nolint:gocognit // This function is refactored in another PR, see #1290
+func ApplyFromFile(
 	ctx context.Context,
-	st State,
-	blockchainPath string,
+	params ImportParams,
+	state State,
 	nBlocks, startHeight uint64,
 ) error {
 	if ctx == nil {
 		ctx = context.Background()
 	}
-	blockchain, err := os.Open(blockchainPath) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
+	imp, err := selectImporter(params, state)
 	if err != nil {
-		return errors.Errorf("failed to open blockchain file: %v", err)
+		return errors.Wrap(err, "failed to create importer")
 	}
-
 	defer func() {
-		if err := blockchain.Close(); err != nil {
-			zap.S().Fatalf("Failed to close blockchain file: %v", err)
+		if clErr := imp.Close(); clErr != nil {
+			zap.S().Fatalf("Failed to close importer: %v", clErr)
 		}
 	}()
-	sb := make([]byte, 4)
-	var blocks [MaxBlocksBatchSize][]byte
-	blocksIndex := 0
-	readPos := int64(0)
-	totalSize := 0
-	prevSpeed := float64(0)
-	increasingSize := true
-	maxSize := initTotalBatchSize
-	for height := uint64(1); height <= nBlocks; height++ {
-		if ctx.Err() != nil {
-			return ctx.Err()
-		}
-		if _, err := blockchain.ReadAt(sb, readPos); err != nil {
-			return err
-		}
-		size := binary.BigEndian.Uint32(sb)
-		if size > MaxBlockSize || size == 0 {
-			return errors.New("corrupted blockchain file: invalid block size")
-		}
-		totalSize += int(size)
-		readPos += 4
-		if height < startHeight {
-			readPos += int64(size)
-			continue
-		}
-		block := make([]byte, size)
-		if _, err := blockchain.ReadAt(block, readPos); err != nil {
-			return err
-		}
-		readPos += int64(size)
-		blocks[blocksIndex] = block
-		blocksIndex++
-		if (totalSize < maxSize) && (blocksIndex != MaxBlocksBatchSize) && (height != nBlocks) {
-			continue
-		}
-		start := time.Now()
-		if err := st.AddBlocks(blocks[:blocksIndex]); err != nil {
-			return err
-		}
-		elapsed := time.Since(start)
-		speed := float64(totalSize) / float64(elapsed)
-		maxSize, increasingSize = calculateNextMaxSizeAndDirection(maxSize, speed, prevSpeed, increasingSize)
-		prevSpeed = speed
-		totalSize = 0
-		blocksIndex = 0
-		if err := maybePersistTxs(st); err != nil {
-			return err
-		}
+	zap.S().Infof("Skipping to height %d", startHeight)
+	if err = imp.SkipToHeight(ctx, startHeight); err != nil {
+		return errors.Wrap(err, "failed to skip to state height")
 	}
-	return nil
+	zap.S().Infof("Start importing %d blocks", nBlocks)
+	return imp.Import(ctx, nBlocks)
+}
+
+func selectImporter(params ImportParams, state State) (Importer, error) {
+	if err := params.validate(); err != nil { // sanity check
+		return nil, errors.Wrap(err, "invalid import params")
+	}
+	if params.LightNodeMode {
+		imp, err := NewSnapshotsImporter(params.Schema, state, params.BlockchainPath, params.SnapshotsPath)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to create snapshots importer")
+		}
+		return imp, nil
+	}
+	imp, err := NewBlocksImporter(params.Schema, state, params.BlockchainPath)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create blocks importer")
+	}
+	return imp, nil
 }
 
 func CheckBalances(st State, balancesPath string) error {
