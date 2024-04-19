@@ -80,9 +80,11 @@ func ApplyFromFile(
 			zap.S().Fatalf("Failed to close importer: %v", clErr)
 		}
 	}()
+	zap.S().Infof("Skipping to height %d", startHeight)
 	if err = imp.SkipToHeight(ctx, startHeight); err != nil {
 		return errors.Wrap(err, "failed to skip to state height")
 	}
+	zap.S().Infof("Start importing %d blocks", nBlocks)
 	return imp.Import(ctx, nBlocks)
 }
 
