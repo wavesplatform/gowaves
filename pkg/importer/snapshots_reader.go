@@ -2,7 +2,6 @@ package importer
 
 import (
 	"encoding/binary"
-	"errors"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -25,6 +24,7 @@ func newSnapshotsReader(scheme proto.Scheme, snapshotsPath string) (*snapshotsRe
 }
 
 func (sr *snapshotsReader) readSize() (uint32, error) {
+	const sanityMaxBlockSnapshotSize = 100 * MiB
 	buf := make([]byte, uint32Size)
 	n, err := sr.f.ReadAt(buf, sr.pos)
 	if err != nil {
@@ -32,8 +32,8 @@ func (sr *snapshotsReader) readSize() (uint32, error) {
 	}
 	sr.pos += int64(n)
 	size := binary.BigEndian.Uint32(buf)
-	if size == 0 {
-		return 0, errors.New("corrupted snapshots file: invalid snapshot size")
+	if size > sanityMaxBlockSnapshotSize { // dont check for 0 size because it is valid
+		return 0, fmt.Errorf("block snapshot size %d is too big", size)
 	}
 	return size, nil
 }

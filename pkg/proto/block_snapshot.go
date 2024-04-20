@@ -72,6 +72,45 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 	return nil
 }
 
+// UnmarshalBinaryImport unmarshals block snapshot from binary data.
+// It does not read block snapshot size from the data.
+// It reads snapshots until the end of the data.
+func (bs *BlockSnapshot) UnmarshalBinaryImport(data []byte, scheme Scheme) error {
+	var (
+		txSnapshots        [][]AtomicSnapshot
+		snapshotsBytesSize = uint32(len(data))
+	)
+	for snapshotsBytesSize > 0 {
+		if len(data) < uint32Size {
+			return errors.Errorf("BlockSnapshot UnmarshalBinaryImport: invalid data size")
+		}
+		oneSnapshotSize := binary.BigEndian.Uint32(data[0:uint32Size])
+		var tsProto g.TransactionStateSnapshot
+		data = data[uint32Size:]
+		if uint32(len(data)) < oneSnapshotSize {
+			return errors.Errorf("BlockSnapshot UnmarshalBinaryImport: invalid snapshot size")
+		}
+		err := tsProto.UnmarshalVT(data[0:oneSnapshotSize])
+		if err != nil {
+			return err
+		}
+		atomicTS, err := TxSnapshotsFromProtobuf(scheme, &tsProto)
+		if err != nil {
+			return err
+		}
+		txSnapshots = append(txSnapshots, atomicTS)
+		data = data[oneSnapshotSize:]
+		snapshotsBytesSize -= oneSnapshotSize + uint32Size
+	}
+	if snapshotsBytesSize != 0 { // check that all bytes were read
+		return errors.Errorf("BlockSnapshot UnmarshalBinaryImport: invalid data size, not all bytes were read, remaining %d",
+			snapshotsBytesSize,
+		)
+	}
+	bs.TxSnapshots = txSnapshots
+	return nil
+}
+
 func (bs BlockSnapshot) ToProtobuf() ([]*g.TransactionStateSnapshot, error) {
 	data := make([]g.TransactionStateSnapshot, len(bs.TxSnapshots))
 	res := make([]*g.TransactionStateSnapshot, len(bs.TxSnapshots))
@@ -328,41 +367,5 @@ func (s *txSnapshotJSON) ApplyTransactionsStatus(snapshot TransactionStatusSnaps
 		return errors.New("transaction status already set")
 	}
 	s.ApplicationStatus = snapshot.Status
-	return nil
-}
-
-func (bs *BlockSnapshot) UnmarshalBinaryImport(data []byte, scheme Scheme) error {
-	if len(data) < uint32Size {
-		return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
-	}
-	snapshotsBytesSize := binary.BigEndian.Uint32(data[0:uint32Size])
-	data = data[uint32Size:] // skip size
-	if snapshotsBytesSize != uint32(len(data)) {
-		return errors.Errorf("invalid snapshots data size")
-	}
-	var txSnapshots [][]AtomicSnapshot
-	for i := uint32(0); snapshotsBytesSize > 0; i++ {
-		if len(data) < uint32Size {
-			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
-		}
-		oneSnapshotSize := binary.BigEndian.Uint32(data[0:uint32Size])
-		var tsProto g.TransactionStateSnapshot
-		data = data[uint32Size:] // skip size
-		if uint32(len(data)) < oneSnapshotSize {
-			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid snapshot size")
-		}
-		err := tsProto.UnmarshalVT(data[0:oneSnapshotSize])
-		if err != nil {
-			return err
-		}
-		atomicTS, err := TxSnapshotsFromProtobuf(scheme, &tsProto)
-		if err != nil {
-			return err
-		}
-		txSnapshots = append(txSnapshots, atomicTS)
-		data = data[oneSnapshotSize:]
-		snapshotsBytesSize -= oneSnapshotSize + uint32Size
-	}
-	bs.TxSnapshots = txSnapshots
 	return nil
 }
