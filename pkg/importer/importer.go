@@ -97,7 +97,11 @@ func ApplyFromFile(
 	if err = imp.SkipToHeight(ctx, startHeight); err != nil {
 		return errors.Wrap(err, "failed to skip to state height")
 	}
-	zap.S().Infof("Start importing %d blocks", nBlocks)
+	if params.LightNodeMode {
+		zap.S().Infof("Start importing %d blocks in light mode", nBlocks)
+	} else {
+		zap.S().Infof("Start importing %d blocks in full mode", nBlocks)
+	}
 	return imp.Import(ctx, nBlocks)
 }
 
