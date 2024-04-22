@@ -76,6 +76,11 @@ func (a *MicroblockMiner) MineKeyBlock(
 				"failed to create snapshot initial snapshot hash for key block %s", b.ID.String())
 		}
 		b.StateHash = &sh
+		// Regenerate block ID with filled state hash field.
+		if genErr := b.GenerateBlockID(a.services.Scheme); genErr != nil {
+			return nil, proto.MiningLimits{}, errors.Wrap(genErr,
+				"failed to regenerate key block ID with filled state hash field")
+		}
 	}
 	activated, err := a.state.IsActivated(int16(settings.RideV5))
 	if err != nil {
