@@ -2001,15 +2001,30 @@ func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, pa
 }
 
 func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
-	curHeight, err := s.Height()
+	blockchainHeight, err := s.Height()
 	if err != nil {
 		return crypto.Digest{}, err
 	}
-	prevSH, err := s.stor.stateHashes.newestSnapshotStateHash(curHeight)
+	lastSnapshotStateHash, err := s.stor.stateHashes.snapshotStateHash(blockchainHeight)
 	if err != nil {
 		return crypto.Digest{}, err
 	}
-	return s.appender.createNextSnapshotHash(&block.BlockHeader, curHeight, prevSH)
+	blockHeight := blockchainHeight + 1
+	// Generate blockchain fix snapshots for the given block.
+	fixSnapshots, gbfErr := s.generateBlockchainFix(blockHeight, block.BlockID())
+	if gbfErr != nil {
+		return crypto.Digest{}, errors.Wrapf(gbfErr, "failed to generate blockchain fix snapshots at block %s",
+			block.BlockID().String(),
+		)
+	}
+	if len(fixSnapshots) != 0 {
+		zap.S().Infof(
+			"Last fix snapshots has been generated for the snapshot hash calculation of the block %s with height %d",
+			block.BlockID().String(),
+			blockHeight,
+		)
+	}
+	return s.appender.createNextSnapshotHash(block, blockHeight, lastSnapshotStateHash, fixSnapshots)
 }
 
 func (s *stateManager) IsActiveLightNodeNewBlocksFields() (bool, error) {

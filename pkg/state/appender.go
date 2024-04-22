@@ -793,7 +793,15 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	defer hasher.Release()
 
-	stateHash, err := a.createInitialDiffAndStateHash(params, hasParent, blockInfo.Height, hasher)
+	createInitHashParams := initialDiffAndStateHashParams{
+		blockHeader:               params.block,
+		hasParent:                 hasParent,
+		transactions:              params.transactions,
+		lastSnapshotStateHash:     params.lastSnapshotStateHash,
+		fixSnapshotsToInitialHash: params.fixSnapshotsToInitialHash,
+		currentBlockHeight:        currentBlockHeight,
+	}
+	stateHash, err := a.createInitialDiffAndStateHash(createInitHashParams, hasher)
 	if err != nil {
 		return err
 	}
@@ -854,16 +862,27 @@ func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo,
 	return checkerInfo, nil
 }
 
+type initialDiffAndStateHashParams struct {
+	blockHeader               *proto.BlockHeader
+	hasParent                 bool
+	transactions              []proto.Transaction
+	lastSnapshotStateHash     crypto.Digest
+	fixSnapshotsToInitialHash []proto.AtomicSnapshot
+	currentBlockHeight        proto.Height
+}
+
 func (a *txAppender) createInitialDiffAndStateHash(
-	params *appendBlockParams,
-	hasParent bool,
-	currentBlockHeight proto.Height,
+	params initialDiffAndStateHashParams,
 	hasher *txSnapshotHasher,
 ) (crypto.Digest, error) {
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block in case NG is activated.
 	// Before NG activation it adds all transactions fees to the miner's balance.
-	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(params.block, hasParent, params.transactions)
+	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(
+		params.blockHeader,
+		params.hasParent,
+		params.transactions,
+	)
 	if err != nil {
 		return crypto.Digest{}, err
 	}
@@ -897,14 +916,14 @@ func (a *txAppender) createInitialDiffAndStateHash(
 	// get initial snapshot hash for block
 	stateHash, err := calculateInitialSnapshotStateHash(
 		hasher,
-		hasParent,
-		currentBlockHeight,
+		params.hasParent,
+		params.currentBlockHeight,
 		params.lastSnapshotStateHash, // previous block state hash
 		snapshotsToHash,
 	)
 	if err != nil {
 		return crypto.Digest{}, errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
-			params.block.BlockID(), currentBlockHeight,
+			params.blockHeader.BlockID(), params.currentBlockHeight,
 		)
 	}
 	return stateHash, nil
@@ -1178,18 +1197,26 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 }
 
 func (a *txAppender) createNextSnapshotHash(
-	block *proto.BlockHeader,
-	currentHeight proto.Height,
-	prevSH crypto.Digest,
+	block *proto.Block,
+	blockHeight proto.Height,
+	lastSnapshotStateHash crypto.Digest,
+	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
 ) (crypto.Digest, error) {
 	hasher, err := newTxSnapshotHasherDefault()
 	if err != nil {
 		return crypto.Digest{},
-			errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentHeight)
+			errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", blockHeight)
 	}
 	defer hasher.Release()
-	params := &appendBlockParams{block: block, lastSnapshotStateHash: prevSH}
-	return a.createInitialDiffAndStateHash(params, true, currentHeight+1, hasher)
+	params := initialDiffAndStateHashParams{
+		blockHeader:               &block.BlockHeader,
+		hasParent:                 true, // always true because only genesis block has no parent
+		transactions:              block.Transactions,
+		lastSnapshotStateHash:     lastSnapshotStateHash,
+		fixSnapshotsToInitialHash: fixSnapshotsToInitialHash,
+		currentBlockHeight:        blockHeight,
+	}
+	return a.createInitialDiffAndStateHash(params, hasher)
 }
 
 func (a *txAppender) reset() {

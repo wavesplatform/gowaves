@@ -2,6 +2,7 @@ package miner
 
 import (
 	"context"
+
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
@@ -72,7 +73,7 @@ func (a *MicroblockMiner) MineKeyBlock(
 		sh, errSH := a.state.CreateNextSnapshotHash(b)
 		if errSH != nil {
 			return nil, proto.MiningLimits{}, errors.Wrapf(errSH,
-				"failed to create snapshot hash for block %s", b.ID.String())
+				"failed to create snapshot initial snapshot hash for key block %s", b.ID.String())
 		}
 		b.StateHash = &sh
 	}
