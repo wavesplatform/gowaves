@@ -388,12 +388,6 @@ func (a *ThreadSafeReadWrapper) SnapshotsAtHeight(height proto.Height) (proto.Bl
 	return a.s.SnapshotsAtHeight(height)
 }
 
-func (a *ThreadSafeReadWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.CreateNextSnapshotHash(block)
-}
-
 func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -425,6 +419,12 @@ func (a *ThreadSafeWriteWrapper) ValidateNextTx(_ proto.Transaction, _, _ uint64
 
 func (a *ThreadSafeWriteWrapper) ResetValidationList() {
 	panic("invalid ResetValidationList usage")
+}
+
+func (a *ThreadSafeWriteWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	a.lock()
+	defer a.unlock()
+	return a.s.CreateNextSnapshotHash(block)
 }
 
 func (a *ThreadSafeWriteWrapper) AddBlock(block []byte) (*proto.Block, error) {
