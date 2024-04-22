@@ -153,12 +153,17 @@ func (cv *Validator) ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight p
 	return blockHeight >= newBlockFieldsAllowedHeight, nil
 }
 
-func (cv *Validator) ValidateHeaderBeforeBlockApplying(newestHeader *proto.BlockHeader, height proto.Height) error {
-	blockHeight := height + 1
+func (cv *Validator) ValidateHeaderBeforeBlockApplying(
+	newestHeader *proto.BlockHeader,
+	blockchainHeight proto.Height,
+) error {
+	blockHeight := blockchainHeight + 1
 	if err := cv.validateMinerAccount(newestHeader, blockHeight); err != nil {
 		return errors.Wrap(err, "miner account validation failed")
 	}
-	// TODO: add consensus validation about StateHash and ChallengedHeader fields (protocol version 1.5)
+	if err := cv.validateLightNodeBlockFields(newestHeader, blockHeight); err != nil {
+		return errors.Wrap(err, "light node block fields validation failed")
+	}
 	return nil
 }
 
@@ -284,6 +289,22 @@ func (cv *Validator) validateMinerAccount(block *proto.BlockHeader, blockHeight 
 	}
 	if !rideV6Activated && blockMinerHasScript {
 		return errors.New("mining with scripted account isn't allowed before feature 17 (RideV6) activation")
+	}
+	return nil
+}
+
+func (cv *Validator) validateLightNodeBlockFields(blockHeader *proto.BlockHeader, blockHeight proto.Height) error {
+	newFieldsShouldBeIncluded, err := cv.ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight)
+	if err != nil {
+		return errors.Wrap(err, "failed to check if new block fields should be included")
+	}
+	_, hasStateHash := blockHeader.GetStateHash()
+	_, hasChallengedHeader := blockHeader.GetChallengedHeader()
+	if !newFieldsShouldBeIncluded && (hasStateHash || hasChallengedHeader) {
+		return errors.Errorf("new block fields of light node feature are not allowed at block height %d", blockHeight)
+	}
+	if newFieldsShouldBeIncluded && !hasStateHash { // don't check challenged header, because it is not required
+		return errors.Errorf("new block fields of light node feature should be included at block height %d", blockHeight)
 	}
 	return nil
 }
