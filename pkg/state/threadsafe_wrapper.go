@@ -394,10 +394,10 @@ func (a *ThreadSafeReadWrapper) CreateNextSnapshotHash(block *proto.Block) (cryp
 	return a.s.CreateNextSnapshotHash(block)
 }
 
-func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields() (bool, error) {
+func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.IsActiveLightNodeNewBlocksFields()
+	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
 }
 
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {

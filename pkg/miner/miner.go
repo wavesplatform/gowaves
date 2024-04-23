@@ -65,7 +65,14 @@ func (a *MicroblockMiner) MineKeyBlock(
 		return nil, proto.MiningLimits{}, err
 	}
 	b := bi.(*proto.Block)
-	lightNodeNewBlockActivated, err := a.state.IsActiveLightNodeNewBlocksFields()
+
+	blockchainHeight, err := a.state.Height()
+	if err != nil {
+		return nil, proto.MiningLimits{}, errors.Wrap(err, "failed to get blockchain height")
+	}
+	// Key block it's a new block for the blockchain, so height should be increased by 1.
+	newBlockHeight := blockchainHeight + 1
+	lightNodeNewBlockActivated, err := a.state.IsActiveLightNodeNewBlocksFields(newBlockHeight)
 	if err != nil {
 		return nil, proto.MiningLimits{}, err
 	}

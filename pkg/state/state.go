@@ -2027,23 +2027,8 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 	return s.appender.createNextSnapshotHash(block, blockHeight, lastSnapshotStateHash, fixSnapshots)
 }
 
-func (s *stateManager) IsActiveLightNodeNewBlocksFields() (bool, error) {
-	activated, err := s.IsActivated(int16(settings.LightNode))
-	if err != nil {
-		return false, err
-	}
-	if !activated {
-		return false, nil
-	}
-	activationHeight, err := s.ActivationHeight(int16(settings.LightNode))
-	if err != nil {
-		return false, err
-	}
-	currentHeight, err := s.Height()
-	if err != nil {
-		return false, err
-	}
-	return currentHeight >= activationHeight+s.settings.LightNodeBlockFieldsAbsenceInterval, nil
+func (s *stateManager) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {
+	return s.cv.ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight)
 }
 
 func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {

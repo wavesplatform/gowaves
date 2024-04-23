@@ -539,18 +539,18 @@ func (mr *MockStateInfoMockRecorder) IsActiveLeasing(leaseID interface{}) *gomoc
 }
 
 // IsActiveLightNodeNewBlocksFields mocks base method.
-func (m *MockStateInfo) IsActiveLightNodeNewBlocksFields() (bool, error) {
+func (m *MockStateInfo) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsActiveLightNodeNewBlocksFields")
+	ret := m.ctrl.Call(m, "IsActiveLightNodeNewBlocksFields", blockHeight)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // IsActiveLightNodeNewBlocksFields indicates an expected call of IsActiveLightNodeNewBlocksFields.
-func (mr *MockStateInfoMockRecorder) IsActiveLightNodeNewBlocksFields() *gomock.Call {
+func (mr *MockStateInfoMockRecorder) IsActiveLightNodeNewBlocksFields(blockHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLightNodeNewBlocksFields", reflect.TypeOf((*MockStateInfo)(nil).IsActiveLightNodeNewBlocksFields))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLightNodeNewBlocksFields", reflect.TypeOf((*MockStateInfo)(nil).IsActiveLightNodeNewBlocksFields), blockHeight)
 }
 
 // IsApproved mocks base method.
@@ -1896,18 +1896,18 @@ func (mr *MockStateMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Ca
 }
 
 // IsActiveLightNodeNewBlocksFields mocks base method.
-func (m *MockState) IsActiveLightNodeNewBlocksFields() (bool, error) {
+func (m *MockState) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IsActiveLightNodeNewBlocksFields")
+	ret := m.ctrl.Call(m, "IsActiveLightNodeNewBlocksFields", blockHeight)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // IsActiveLightNodeNewBlocksFields indicates an expected call of IsActiveLightNodeNewBlocksFields.
-func (mr *MockStateMockRecorder) IsActiveLightNodeNewBlocksFields() *gomock.Call {
+func (mr *MockStateMockRecorder) IsActiveLightNodeNewBlocksFields(blockHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLightNodeNewBlocksFields", reflect.TypeOf((*MockState)(nil).IsActiveLightNodeNewBlocksFields))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLightNodeNewBlocksFields", reflect.TypeOf((*MockState)(nil).IsActiveLightNodeNewBlocksFields), blockHeight)
 }
 
 // IsApproved mocks base method.

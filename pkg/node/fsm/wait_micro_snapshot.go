@@ -163,7 +163,13 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 		return nil, err
 	}
 
-	ok, err = a.baseInfo.storage.IsActiveLightNodeNewBlocksFields()
+	blockchainHeight, err := a.baseInfo.storage.Height()
+	if err != nil {
+		return nil, a.Errorf(errors.Wrap(err, "failed to get blockchain height"))
+	}
+	// here the blockchainHeight is equal to lastBlockHeight because we are appending a microblock to the last block
+	lastBlockHeight := blockchainHeight
+	ok, err = a.baseInfo.storage.IsActiveLightNodeNewBlocksFields(lastBlockHeight)
 	if err != nil {
 		return nil, a.Errorf(err)
 	}

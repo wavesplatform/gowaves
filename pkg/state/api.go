@@ -73,7 +73,7 @@ type StateInfo interface {
 	ApprovalHeight(featureID int16) (proto.Height, error)
 	AllFeatures() ([]int16, error)
 	EstimatorVersion() (int, error)
-	IsActiveLightNodeNewBlocksFields() (bool, error)
+	IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error)
 
 	// Aliases.
 	AddrByAlias(alias proto.Alias) (proto.WavesAddress, error)

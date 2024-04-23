@@ -295,7 +295,14 @@ func (a *NGState) mineMicro(
 	if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to broadcast generated microblock"))
 	}
-	ok, err := a.baseInfo.storage.IsActiveLightNodeNewBlocksFields()
+
+	blockchainHeight, err := a.baseInfo.storage.Height()
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrap(err, "failed to get blockchain height"))
+	}
+	// here the blockchainHeight is equal to lastBlockHeight because we are appending a microblock to the last block
+	lastBlockHeight := blockchainHeight
+	ok, err := a.baseInfo.storage.IsActiveLightNodeNewBlocksFields(lastBlockHeight)
 	if err != nil {
 		return a, nil, a.Errorf(err)
 	}
