@@ -2056,6 +2056,14 @@ func (s *stateManager) IsActiveAtHeight(featureID int16, height proto.Height) (b
 	return s.stor.features.isActivatedAtHeight(featureID, height), nil
 }
 
+func (s *stateManager) NewestActivationHeight(featureID int16) (uint64, error) {
+	height, err := s.stor.features.newestActivationHeight(featureID)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return height, nil
+}
+
 func (s *stateManager) ActivationHeight(featureID int16) (uint64, error) {
 	height, err := s.stor.features.activationHeight(featureID)
 	if err != nil {

@@ -42,6 +42,7 @@ type stateInfoProvider interface {
 	NewestHitSourceAtHeight(height uint64) ([]byte, error)
 	NewestEffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
+	NewestActivationHeight(featureID int16) (uint64, error)
 	NewestAccountHasScript(addr proto.WavesAddress) (bool, error)
 }
 
@@ -132,6 +133,24 @@ func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) 
 		return nil, err
 	}
 	return hs, nil
+}
+
+// ShouldIncludeNewBlockFieldsOfLightNodeFeature checks if new block fields
+// can be included after LightNode feature activation in the context of current state.
+func (cv *Validator) ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight proto.Height) (bool, error) {
+	activated, err := cv.state.NewestIsActiveAtHeight(int16(settings.LightNode), blockHeight)
+	if err != nil {
+		return false, err
+	}
+	if !activated {
+		return false, nil
+	}
+	activationHeight, err := cv.state.NewestActivationHeight(int16(settings.LightNode))
+	if err != nil {
+		return false, err
+	}
+	newBlockFieldsAllowedHeight := activationHeight + cv.settings.LightNodeBlockFieldsAbsenceInterval
+	return blockHeight >= newBlockFieldsAllowedHeight, nil
 }
 
 func (cv *Validator) ValidateHeaderBeforeBlockApplying(newestHeader *proto.BlockHeader, height proto.Height) error {
