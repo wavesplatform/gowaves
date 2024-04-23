@@ -37,11 +37,13 @@ func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 	return false
 }
 
+//go:generate moq -out validator_moq_test.go . stateInfoProvider
 type stateInfoProvider interface {
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	NewestHitSourceAtHeight(height uint64) ([]byte, error)
 	NewestEffectiveBalance(addr proto.Recipient, startHeight, endHeight uint64) (uint64, error)
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
+	NewestActivationHeight(featureID int16) (uint64, error)
 	NewestAccountHasScript(addr proto.WavesAddress) (bool, error)
 }
 
@@ -134,12 +136,35 @@ func (cv *Validator) GenerateHitSource(height uint64, header proto.BlockHeader) 
 	return hs, nil
 }
 
-func (cv *Validator) ValidateHeaderBeforeBlockApplying(newestHeader *proto.BlockHeader, height proto.Height) error {
-	blockHeight := height + 1
+// ShouldIncludeNewBlockFieldsOfLightNodeFeature checks if new block fields
+// can be included after LightNode feature activation in the context of current state.
+func (cv *Validator) ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight proto.Height) (bool, error) {
+	activated, err := cv.state.NewestIsActiveAtHeight(int16(settings.LightNode), blockHeight)
+	if err != nil {
+		return false, err
+	}
+	if !activated {
+		return false, nil
+	}
+	activationHeight, err := cv.state.NewestActivationHeight(int16(settings.LightNode))
+	if err != nil {
+		return false, err
+	}
+	newBlockFieldsAllowedHeight := activationHeight + cv.settings.LightNodeBlockFieldsAbsenceInterval
+	return blockHeight >= newBlockFieldsAllowedHeight, nil
+}
+
+func (cv *Validator) ValidateHeaderBeforeBlockApplying(
+	newestHeader *proto.BlockHeader,
+	blockchainHeight proto.Height,
+) error {
+	blockHeight := blockchainHeight + 1
 	if err := cv.validateMinerAccount(newestHeader, blockHeight); err != nil {
 		return errors.Wrap(err, "miner account validation failed")
 	}
-	// TODO: add consensus validation about StateHash and ChallengedHeader fields (protocol version 1.5)
+	if err := cv.validateLightNodeBlockFields(newestHeader, blockHeight); err != nil {
+		return errors.Wrap(err, "light node block fields validation failed")
+	}
 	return nil
 }
 
@@ -265,6 +290,22 @@ func (cv *Validator) validateMinerAccount(block *proto.BlockHeader, blockHeight 
 	}
 	if !rideV6Activated && blockMinerHasScript {
 		return errors.New("mining with scripted account isn't allowed before feature 17 (RideV6) activation")
+	}
+	return nil
+}
+
+func (cv *Validator) validateLightNodeBlockFields(blockHeader *proto.BlockHeader, blockHeight proto.Height) error {
+	newFieldsShouldBeIncluded, err := cv.ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight)
+	if err != nil {
+		return errors.Wrap(err, "failed to check if new block fields should be included")
+	}
+	_, hasStateHash := blockHeader.GetStateHash()
+	_, hasChallengedHeader := blockHeader.GetChallengedHeader()
+	if !newFieldsShouldBeIncluded && (hasStateHash || hasChallengedHeader) {
+		return errors.Errorf("new block fields of light node feature are not allowed at block height %d", blockHeight)
+	}
+	if newFieldsShouldBeIncluded && !hasStateHash { // don't check challenged header, because it is not required
+		return errors.Errorf("new block fields of light node feature should be included at block height %d", blockHeight)
 	}
 	return nil
 }
