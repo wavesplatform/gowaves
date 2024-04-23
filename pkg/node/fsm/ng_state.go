@@ -307,7 +307,7 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(err)
 	}
 	if ok {
-		sh, errSh := getTopBlockSnapshotHash(a.baseInfo)
+		sh, errSh := a.baseInfo.storage.SnapshotStateHashAtHeight(lastBlockHeight)
 		if errSh != nil {
 			return a, nil, a.Errorf(errSh)
 		}
