@@ -55,6 +55,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BlockRewardDistribution:         {true, "Block Reward Distribution"},
 	CappedRewards:                   {true, "Capped XTN Buy-back and DAO Amounts"},
 	XTNBuyBackCessation:             {true, "XTN Buy-back Cessation"},
-	LightNode:                       {true, "Light Node"},
+	LightNode:                       {false, "Light Node"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
