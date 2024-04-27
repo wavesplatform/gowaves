@@ -801,9 +801,13 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		fixSnapshotsToInitialHash: params.fixSnapshotsToInitialHash,
 		currentBlockHeight:        currentBlockHeight,
 	}
-	stateHash, err := a.createInitialDiffAndStateHash(createInitHashParams, hasher, true)
+	initialSnapshot, stateHash, err := a.createInitialDiffAndStateHash(createInitHashParams, hasher)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to create initial diff and state hash at height %d", currentBlockHeight)
+	}
+	// apply generated initial snapshot to the state
+	if applyErr := initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa); applyErr != nil {
+		return errors.Wrapf(applyErr, "failed to apply an initial snapshot at height %d", currentBlockHeight)
 	}
 	var blockSnapshot proto.BlockSnapshot
 	if params.optionalSnapshot != nil {
@@ -871,11 +875,13 @@ type initialDiffAndStateHashParams struct {
 	currentBlockHeight        proto.Height
 }
 
+// createInitialDiffAndStateHash creates the initial diff and state hash for the block.
+// It DOES NOT apply the initial snapshot to the state.
+// The diff changes will be cleared after this function.
 func (a *txAppender) createInitialDiffAndStateHash(
 	params initialDiffAndStateHashParams,
 	hasher *txSnapshotHasher,
-	needApplyInitialSnapshots bool,
-) (crypto.Digest, error) {
+) (txSnapshot, crypto.Digest, error) {
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block in case NG is activated.
 	// Before NG activation it adds all transactions fees to the miner's balance.
@@ -885,31 +891,24 @@ func (a *txAppender) createInitialDiffAndStateHash(
 		params.transactions,
 	)
 	if err != nil {
-		return crypto.Digest{}, err
+		return txSnapshot{}, crypto.Digest{}, err
 	}
 
 	// create the initial snapshot
 	initialSnapshot, err := a.txHandler.tp.createInitialBlockSnapshot(minerAndRewardDiff.balancesChanges())
 	if err != nil {
-		return crypto.Digest{}, errors.Wrap(err, "failed to create initial snapshot")
+		return txSnapshot{}, crypto.Digest{}, errors.Wrap(err, "failed to create initial snapshot")
 	}
 
 	// Save miner diff first (for validation)
 	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
-		return crypto.Digest{}, err
+		return txSnapshot{}, crypto.Digest{}, err
 	}
 	err = a.diffApplier.validateBalancesChanges(minerAndRewardDiff.balancesChanges())
 	if err != nil {
-		return crypto.Digest{}, errors.Wrap(err, "failed to validate miner reward changes")
+		return txSnapshot{}, crypto.Digest{}, errors.Wrap(err, "failed to validate miner reward changes")
 	}
-	a.diffStor.reset()
-
-	if needApplyInitialSnapshots {
-		err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
-		if err != nil {
-			return crypto.Digest{}, errors.Wrap(err, "failed to apply an initial snapshot")
-		}
-	}
+	a.diffStor.reset() // clear diff changes
 
 	// hash block initial snapshot and fix snapshot in the context of the applying block
 	snapshotsToHash := initialSnapshot.regular
@@ -925,11 +924,12 @@ func (a *txAppender) createInitialDiffAndStateHash(
 		snapshotsToHash,
 	)
 	if err != nil {
-		return crypto.Digest{}, errors.Wrapf(err, "failed to calculate initial snapshot hash for blockID %q at height %d",
+		return txSnapshot{}, crypto.Digest{}, errors.Wrapf(err,
+			"failed to calculate initial snapshot hash for blockID %q at height %d",
 			params.blockHeader.BlockID(), params.currentBlockHeight,
 		)
 	}
-	return stateHash, nil
+	return initialSnapshot, stateHash, nil
 }
 
 // used only in tests now. All diffs are applied in snapshotApplier.
@@ -1225,7 +1225,11 @@ func (a *txAppender) createNextSnapshotHash(
 		fixSnapshotsToInitialHash: fixSnapshotsToInitialHash,
 		currentBlockHeight:        blockHeight,
 	}
-	return a.createInitialDiffAndStateHash(params, hasher, false)
+	_, initSh, err := a.createInitialDiffAndStateHash(params, hasher)
+	if err != nil {
+		return crypto.Digest{}, errors.Wrapf(err, "failed to create next snapshot hash, block height is %d", blockHeight)
+	}
+	return initSh, nil
 }
 
 func (a *txAppender) reset() {
