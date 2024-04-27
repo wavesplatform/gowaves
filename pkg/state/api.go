@@ -141,12 +141,6 @@ type StateInfo interface {
 
 	// Snapshots
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
-	SnapshotStateHash(
-		height proto.Height,
-		initSh crypto.Digest,
-		txs []proto.Transaction,
-		txSnapshots [][]proto.AtomicSnapshot,
-	) (crypto.Digest, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

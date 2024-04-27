@@ -394,17 +394,6 @@ func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight pro
 	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
 }
 
-func (a *ThreadSafeReadWrapper) SnapshotStateHash(
-	height proto.Height,
-	initSh crypto.Digest,
-	txs []proto.Transaction,
-	txSnapshots [][]proto.AtomicSnapshot,
-) (crypto.Digest, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.SnapshotStateHash(height, initSh, txs, txSnapshots)
-}
-
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,

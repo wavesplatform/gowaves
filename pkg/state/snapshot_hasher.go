@@ -6,6 +6,7 @@ import (
 	"hash"
 	"sort"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 
@@ -18,6 +19,40 @@ const (
 	uint32Size = 4 // must be equal sizeof(uint32)
 	uint64Size = 8 // must be equal sizeof(uint64)
 )
+
+func CalculateSnapshotStateHash(
+	scheme proto.Scheme,
+	height proto.Height,
+	initSh crypto.Digest,
+	txs []proto.Transaction,
+	txSnapshots [][]proto.AtomicSnapshot,
+) (crypto.Digest, error) {
+	if len(txs) != len(txSnapshots) { // sanity check
+		return crypto.Digest{}, errors.Errorf("different number of transactions (%d) and tx snapshots (%d)",
+			len(txs), len(txSnapshots),
+		)
+	}
+	hasher, err := newTxSnapshotHasherDefault()
+	if err != nil {
+		return crypto.Digest{}, errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", height)
+	}
+	defer hasher.Release()
+	curSh := initSh
+	for i, ts := range txSnapshots {
+		id, errID := txs[i].GetID(scheme)
+		if errID != nil {
+			return crypto.Digest{}, errors.Wrapf(errID, "failed to get transaction ID")
+		}
+		txSh, shErr := calculateTxSnapshotStateHash(hasher, id, height, curSh, ts)
+		if shErr != nil {
+			return crypto.Digest{}, errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
+				base58.Encode(id), height,
+			)
+		}
+		curSh = txSh
+	}
+	return curSh, nil
+}
 
 type hashEntry struct {
 	_    struct{}

@@ -136,7 +136,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		}
 		transactions[i] = appliedTx.T
 	}
-	sh, err := a.state.SnapshotStateHash(height, *minedBlock.StateHash, transactions, txSnapshots)
+	sh, err := state.CalculateSnapshotStateHash(a.scheme, height, *minedBlock.StateHash, transactions, txSnapshots)
 	if err != nil {
 		return nil, nil, rest, err
 	}

@@ -898,21 +898,6 @@ func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersistAddressTransactions))
 }
 
-// SnapshotStateHash mocks base method.
-func (m *MockStateInfo) SnapshotStateHash(height proto.Height, initSh crypto.Digest, txs []proto.Transaction, txSnapshots [][]proto.AtomicSnapshot) (crypto.Digest, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SnapshotStateHash", height, initSh, txs, txSnapshots)
-	ret0, _ := ret[0].(crypto.Digest)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SnapshotStateHash indicates an expected call of SnapshotStateHash.
-func (mr *MockStateInfoMockRecorder) SnapshotStateHash(height, initSh, txs, txSnapshots interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotStateHash", reflect.TypeOf((*MockStateInfo)(nil).SnapshotStateHash), height, initSh, txs, txSnapshots)
-}
-
 // SnapshotStateHashAtHeight mocks base method.
 func (m *MockStateInfo) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
 	m.ctrl.T.Helper()
@@ -2353,21 +2338,6 @@ func (m *MockState) ShouldPersistAddressTransactions() (bool, error) {
 func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
-}
-
-// SnapshotStateHash mocks base method.
-func (m *MockState) SnapshotStateHash(height proto.Height, initSh crypto.Digest, txs []proto.Transaction, txSnapshots [][]proto.AtomicSnapshot) (crypto.Digest, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SnapshotStateHash", height, initSh, txs, txSnapshots)
-	ret0, _ := ret[0].(crypto.Digest)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SnapshotStateHash indicates an expected call of SnapshotStateHash.
-func (mr *MockStateMockRecorder) SnapshotStateHash(height, initSh, txs, txSnapshots interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotStateHash", reflect.TypeOf((*MockState)(nil).SnapshotStateHash), height, initSh, txs, txSnapshots)
 }
 
 // SnapshotStateHashAtHeight mocks base method.
