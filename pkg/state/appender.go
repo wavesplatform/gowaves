@@ -801,7 +801,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		fixSnapshotsToInitialHash: params.fixSnapshotsToInitialHash,
 		currentBlockHeight:        currentBlockHeight,
 	}
-	stateHash, err := a.createInitialDiffAndStateHash(createInitHashParams, hasher)
+	stateHash, err := a.createInitialDiffAndStateHash(createInitHashParams, hasher, true)
 	if err != nil {
 		return err
 	}
@@ -874,6 +874,7 @@ type initialDiffAndStateHashParams struct {
 func (a *txAppender) createInitialDiffAndStateHash(
 	params initialDiffAndStateHashParams,
 	hasher *txSnapshotHasher,
+	needApplyInitialSnapshots bool,
 ) (crypto.Digest, error) {
 	// Create miner balance diff.
 	// This adds 60% of prev block fees as very first balance diff of the current block in case NG is activated.
@@ -903,9 +904,11 @@ func (a *txAppender) createInitialDiffAndStateHash(
 	}
 	a.diffStor.reset()
 
-	err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
-	if err != nil {
-		return crypto.Digest{}, errors.Wrap(err, "failed to apply an initial snapshot")
+	if needApplyInitialSnapshots {
+		err = initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa)
+		if err != nil {
+			return crypto.Digest{}, errors.Wrap(err, "failed to apply an initial snapshot")
+		}
 	}
 
 	// hash block initial snapshot and fix snapshot in the context of the applying block
@@ -1120,28 +1123,34 @@ func (a *txAppender) handleFallible(
 }
 
 // For UTX validation.
-func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, version proto.BlockVersion, acceptFailed bool) error {
+func (a *txAppender) validateNextTx(
+	tx proto.Transaction,
+	currentTimestamp,
+	parentTimestamp uint64,
+	version proto.BlockVersion,
+	acceptFailed bool,
+) ([]proto.AtomicSnapshot, error) {
 	// TODO: Doesn't work correctly if miner doesn't work in NG mode.
 	// In this case it returns the last block instead of what is being mined.
 	block, err := a.currentBlock()
 	if err != nil {
-		return errs.Extend(err, "failed get currentBlock")
+		return nil, errs.Extend(err, "failed get currentBlock")
 	}
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
-		return errs.Extend(err, "failed get currentBlockInfo")
+		return nil, errs.Extend(err, "failed get currentBlockInfo")
 	}
 	rideV5Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV5))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'RideV5' is activated")
+		return nil, errs.Extend(err, "failed to check 'RideV5' is activated")
 	}
 	rideV6Activated, err := a.stor.features.newestIsActivated(int16(settings.RideV6))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'RideV6' is activated")
+		return nil, errs.Extend(err, "failed to check 'RideV6' is activated")
 	}
 	blockRewardDistribution, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
+		return nil, errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
 	}
 	blockInfo.Timestamp = currentTimestamp
 	checkerInfo := &checkerInfo{
@@ -1156,19 +1165,19 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	}
 	blockV5Activated, err := a.stor.features.newestIsActivated(int16(settings.BlockV5))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'BlockV5' is activated")
+		return nil, errs.Extend(err, "failed to check 'BlockV5' is activated")
 	}
 	consensusImprovementsActivated, err := a.stor.features.newestIsActivated(int16(settings.ConsensusImprovements))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'ConsensusImprovements' is activated")
+		return nil, errs.Extend(err, "failed to check 'ConsensusImprovements' is activated")
 	}
 	blockRewardDistributionActivated, err := a.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
+		return nil, errs.Extend(err, "failed to check 'BlockRewardDistribution' is activated")
 	}
 	lightNodeActivated, err := a.stor.features.newestIsActivated(int16(settings.LightNode))
 	if err != nil {
-		return errs.Extend(err, "failed to check 'Light Node' is activated")
+		return nil, errs.Extend(err, "failed to check 'Light Node' is activated")
 	}
 	// it's correct to use new proto.StateActionsCounter because there's no block exists,
 	// but this field is necessary in tx performer
@@ -1189,11 +1198,11 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 		lightNodeActivated:               lightNodeActivated,
 		validatingUtx:                    true,
 	}
-	_, err = a.appendTx(tx, appendTxArgs)
+	snapshot, err := a.appendTx(tx, appendTxArgs)
 	if err != nil {
-		return proto.NewInfoMsg(err)
+		return nil, proto.NewInfoMsg(err)
 	}
-	return nil
+	return snapshot.regular, nil
 }
 
 func (a *txAppender) createNextSnapshotHash(
@@ -1216,7 +1225,7 @@ func (a *txAppender) createNextSnapshotHash(
 		fixSnapshotsToInitialHash: fixSnapshotsToInitialHash,
 		currentBlockHeight:        blockHeight,
 	}
-	return a.createInitialDiffAndStateHash(params, hasher)
+	return a.createInitialDiffAndStateHash(params, hasher, false)
 }
 
 func (a *txAppender) reset() {

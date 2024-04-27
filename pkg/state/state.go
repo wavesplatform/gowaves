@@ -1993,11 +1993,14 @@ func (s *stateManager) ResetValidationList() {
 }
 
 // ValidateNextTx function must be used for UTX validation only.
-func (s *stateManager) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, v proto.BlockVersion, acceptFailed bool) error {
-	if err := s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, acceptFailed); err != nil {
-		return err
-	}
-	return nil
+func (s *stateManager) ValidateNextTx(
+	tx proto.Transaction,
+	currentTimestamp,
+	parentTimestamp uint64,
+	v proto.BlockVersion,
+	acceptFailed bool,
+) ([]proto.AtomicSnapshot, error) {
+	return s.appender.validateNextTx(tx, currentTimestamp, parentTimestamp, v, acceptFailed)
 }
 
 func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
@@ -2887,6 +2890,34 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 
 func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
 	return s.stor.snapshots.getSnapshots(height)
+}
+
+func (s *stateManager) SnapshotStateHash(
+	height proto.Height,
+	initSh crypto.Digest,
+	txs []proto.Transaction,
+	txSnapshots [][]proto.AtomicSnapshot,
+) (crypto.Digest, error) {
+	hasher, err := newTxSnapshotHasherDefault()
+	if err != nil {
+		return crypto.Digest{}, errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", height)
+	}
+	defer hasher.Release()
+	curSh := initSh
+	for i, ts := range txSnapshots {
+		id, errID := txs[i].GetID(s.settings.AddressSchemeCharacter)
+		if errID != nil {
+			return crypto.Digest{}, errors.Wrapf(errID, "failed to get transaction ID")
+		}
+		txSh, shErr := calculateTxSnapshotStateHash(hasher, id, height, curSh, ts)
+		if shErr != nil {
+			return crypto.Digest{}, errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
+				base58.Encode(id), height,
+			)
+		}
+		curSh = txSh
+	}
+	return curSh, nil
 }
 
 func (s *stateManager) Close() error {

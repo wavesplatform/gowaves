@@ -67,6 +67,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 	var appliedTransactions []*types.TransactionWithBytes
 	var inapplicable []*types.TransactionWithBytes
+	var txSnapshots [][]proto.AtomicSnapshot
 
 	_ = a.state.Map(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
@@ -88,8 +89,8 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 			// In the miner we pack transactions from UTX into new block.
 			// We should accept failed transactions here.
-			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
-			if state.IsTxCommitmentError(err) {
+			snapshot, errVal := s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
+			if state.IsTxCommitmentError(errVal) {
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.
 				s.ResetValidationList()
@@ -98,9 +99,10 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 					_ = a.utx.AddWithBytes(appliedTx.T, appliedTx.B)
 				}
 				appliedTransactions = nil
+				txSnapshots = nil
 				continue
 			}
-			if err != nil {
+			if errVal != nil {
 				inapplicable = append(inapplicable, t)
 				continue
 			}
@@ -108,6 +110,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			txCount += 1
 			binSize += len(binTr) + transactionLenBytes
 			appliedTransactions = append(appliedTransactions, t)
+			txSnapshots = append(txSnapshots, snapshot)
 		}
 		return nil
 	})
@@ -133,6 +136,10 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		}
 		transactions[i] = appliedTx.T
 	}
+	sh, err := a.state.SnapshotStateHash(height, *minedBlock.StateHash, transactions, txSnapshots)
+	if err != nil {
+		return nil, nil, rest, err
+	}
 	newTransactions := minedBlock.Transactions.Join(transactions)
 
 	newBlock, err := proto.CreateBlock(
@@ -145,6 +152,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		minedBlock.Features,
 		minedBlock.RewardVote,
 		a.scheme,
+		&sh,
 	)
 	if err != nil {
 		return nil, nil, rest, err

@@ -898,6 +898,21 @@ func (mr *MockStateInfoMockRecorder) ShouldPersistAddressTransactions() *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockStateInfo)(nil).ShouldPersistAddressTransactions))
 }
 
+// SnapshotStateHash mocks base method.
+func (m *MockStateInfo) SnapshotStateHash(height proto.Height, initSh crypto.Digest, txs []proto.Transaction, txSnapshots [][]proto.AtomicSnapshot) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotStateHash", height, initSh, txs, txSnapshots)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SnapshotStateHash indicates an expected call of SnapshotStateHash.
+func (mr *MockStateInfoMockRecorder) SnapshotStateHash(height, initSh, txs, txSnapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotStateHash", reflect.TypeOf((*MockStateInfo)(nil).SnapshotStateHash), height, initSh, txs, txSnapshots)
+}
+
 // SnapshotStateHashAtHeight mocks base method.
 func (m *MockStateInfo) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
 	m.ctrl.T.Helper()
@@ -1300,11 +1315,12 @@ func (mr *MockStateModifierMockRecorder) TxValidation(arg0 interface{}) *gomock.
 }
 
 // ValidateNextTx mocks base method.
-func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
+func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].([]proto.AtomicSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx.
@@ -1337,11 +1353,12 @@ func (m *MockTxValidation) EXPECT() *MockTxValidationMockRecorder {
 }
 
 // ValidateNextTx mocks base method.
-func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
+func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].([]proto.AtomicSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx.
@@ -2338,6 +2355,21 @@ func (mr *MockStateMockRecorder) ShouldPersistAddressTransactions() *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ShouldPersistAddressTransactions", reflect.TypeOf((*MockState)(nil).ShouldPersistAddressTransactions))
 }
 
+// SnapshotStateHash mocks base method.
+func (m *MockState) SnapshotStateHash(height proto.Height, initSh crypto.Digest, txs []proto.Transaction, txSnapshots [][]proto.AtomicSnapshot) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SnapshotStateHash", height, initSh, txs, txSnapshots)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SnapshotStateHash indicates an expected call of SnapshotStateHash.
+func (mr *MockStateMockRecorder) SnapshotStateHash(height, initSh, txs, txSnapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SnapshotStateHash", reflect.TypeOf((*MockState)(nil).SnapshotStateHash), height, initSh, txs, txSnapshots)
+}
+
 // SnapshotStateHashAtHeight mocks base method.
 func (m *MockState) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
 	m.ctrl.T.Helper()
@@ -2472,11 +2504,12 @@ func (mr *MockStateMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
 }
 
 // ValidateNextTx mocks base method.
-func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
+func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].([]proto.AtomicSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx.

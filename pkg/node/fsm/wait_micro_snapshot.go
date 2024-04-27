@@ -158,23 +158,9 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	}
 	newTrs := top.Transactions.Join(micro.Transactions)
 	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus,
-		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme)
+		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash)
 	if err != nil {
 		return nil, err
-	}
-
-	blockchainHeight, err := a.baseInfo.storage.Height()
-	if err != nil {
-		return nil, a.Errorf(errors.Wrap(err, "failed to get blockchain height"))
-	}
-	// here the blockchainHeight is equal to lastBlockHeight because we are appending a microblock to the last block
-	lastBlockHeight := blockchainHeight
-	ok, err = a.baseInfo.storage.IsActiveLightNodeNewBlocksFields(lastBlockHeight)
-	if err != nil {
-		return nil, a.Errorf(err)
-	}
-	if ok {
-		newBlock.StateHash = micro.StateHash
 	}
 
 	newBlock.BlockSignature = micro.TotalResBlockSigField

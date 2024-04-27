@@ -52,7 +52,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 			if t == nil {
 				break
 			}
-			err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+			_, err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
 			if state.IsTxCommitmentError(err) {
 				// This should not happen in practice.
 				// Reset state, return applied transactions to UTX.

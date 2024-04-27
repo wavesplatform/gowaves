@@ -394,6 +394,17 @@ func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight pro
 	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
 }
 
+func (a *ThreadSafeReadWrapper) SnapshotStateHash(
+	height proto.Height,
+	initSh crypto.Digest,
+	txs []proto.Transaction,
+	txSnapshots [][]proto.AtomicSnapshot,
+) (crypto.Digest, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.SnapshotStateHash(height, initSh, txs, txSnapshots)
+}
+
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,
@@ -413,7 +424,12 @@ func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) err
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) ValidateNextTx(_ proto.Transaction, _, _ uint64, _ proto.BlockVersion, _ bool) error {
+func (a *ThreadSafeWriteWrapper) ValidateNextTx(
+	_ proto.Transaction,
+	_, _ uint64,
+	_ proto.BlockVersion,
+	_ bool,
+) ([]proto.AtomicSnapshot, error) {
 	panic("Invalid ValidateNextTx usage on thread safe wrapper. Should call TxValidation")
 }
 

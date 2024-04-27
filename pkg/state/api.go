@@ -141,6 +141,12 @@ type StateInfo interface {
 
 	// Snapshots
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
+	SnapshotStateHash(
+		height proto.Height,
+		initSh crypto.Digest,
+		txs []proto.Transaction,
+		txSnapshots [][]proto.AtomicSnapshot,
+	) (crypto.Digest, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -168,7 +174,12 @@ type StateModifier interface {
 	// that were added using ValidateNextTx() until you call ResetValidationList().
 	// Returns TxCommitmentError or other state error or nil.
 	// When TxCommitmentError is returned, state MUST BE cleared using ResetValidationList().
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
+	ValidateNextTx(
+		tx proto.Transaction,
+		currentTimestamp, parentTimestamp uint64,
+		blockVersion proto.BlockVersion,
+		acceptFailed bool,
+	) ([]proto.AtomicSnapshot, error)
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 
@@ -193,7 +204,12 @@ type StateModifier interface {
 type NonThreadSafeState = State
 
 type TxValidation interface {
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
+	ValidateNextTx(
+		tx proto.Transaction,
+		currentTimestamp, parentTimestamp uint64,
+		blockVersion proto.BlockVersion,
+		acceptFailed bool,
+	) ([]proto.AtomicSnapshot, error)
 }
 
 type State interface {
