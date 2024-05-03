@@ -123,6 +123,8 @@ type StateInfo interface {
 	// State hashes.
 	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
 	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
+	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
+	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
@@ -176,9 +178,6 @@ type StateModifier interface {
 	) ([]proto.AtomicSnapshot, error)
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
-
-	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
-	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Func internally calls ResetValidationList.
 	TxValidation(func(validation TxValidation) error) error

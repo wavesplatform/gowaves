@@ -1431,6 +1431,7 @@ func (s *stateManager) needToCancelLeases(blockHeight uint64) (bool, error) {
 func (s *stateManager) generateBlockchainFix(
 	applyingBlockHeight proto.Height,
 	applyingBlockID proto.BlockID,
+	readOnly bool, // if true, then no changes will be applied and any in memory changes synced to DB
 ) ([]proto.AtomicSnapshot, error) {
 	cancelLeases, err := s.needToCancelLeases(applyingBlockHeight)
 	if err != nil {
@@ -1444,7 +1445,7 @@ func (s *stateManager) generateBlockchainFix(
 	zap.S().Infof("Generating fix snapshots for the block %s and its height %d",
 		applyingBlockID.String(), applyingBlockHeight,
 	)
-	fixSnapshots, err := s.generateCancelLeasesSnapshots(applyingBlockHeight)
+	fixSnapshots, err := s.generateCancelLeasesSnapshots(applyingBlockHeight, readOnly)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate fix snapshots for block %s", applyingBlockID.String())
 	}
@@ -1548,12 +1549,19 @@ func (s *stateManager) updateBlockReward(lastBlockID proto.BlockID, height proto
 	)
 }
 
-func (s *stateManager) generateCancelLeasesSnapshots(blockHeight uint64) ([]proto.AtomicSnapshot, error) {
-	// Move balance diffs from diffStorage to historyStorage.
-	// It must be done before lease cancellation, because
-	// lease cancellation iterates through historyStorage.
-	if err := s.appender.moveChangesToHistoryStorage(); err != nil {
-		return nil, err
+// generateCancelLeasesSnapshots generates snapshots for lease cancellation blockchain fixes.
+// If readOnly is true, then no changes will be applied and any in memory changes synced to DB.
+func (s *stateManager) generateCancelLeasesSnapshots(
+	blockHeight uint64,
+	readOnly bool,
+) ([]proto.AtomicSnapshot, error) {
+	if !readOnly {
+		// Move balance diffs from diffStorage to historyStorage.
+		// It must be done before lease cancellation, because
+		// lease cancellation iterates through historyStorage.
+		if err := s.appender.moveChangesToHistoryStorage(); err != nil {
+			return nil, err
+		}
 	}
 	// prepare info about features activation
 	dataTxHeight, err := s.featureActivationHeightForHeight(settings.DataTransaction, blockHeight)
@@ -1724,7 +1732,7 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		}
 
 		// Generate blockchain fix snapshots for the applying block.
-		fixSnapshots, gbfErr := s.generateBlockchainFix(blockchainCurHeight+1, block.BlockID())
+		fixSnapshots, gbfErr := s.generateBlockchainFix(blockchainCurHeight+1, block.BlockID(), false)
 		if gbfErr != nil {
 			return nil, errors.Wrapf(gbfErr, "failed to generate blockchain fix snapshots at block %s",
 				block.BlockID().String(),
@@ -2004,6 +2012,8 @@ func (s *stateManager) ValidateNextTx(
 }
 
 func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	const readOnly = true
+
 	blockchainHeight, err := s.Height()
 	if err != nil {
 		return crypto.Digest{}, err
@@ -2013,8 +2023,9 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 		return crypto.Digest{}, err
 	}
 	blockHeight := blockchainHeight + 1
-	// Generate blockchain fix snapshots for the given block.
-	fixSnapshots, gbfErr := s.generateBlockchainFix(blockHeight, block.BlockID())
+	// Generate blockchain fix snapshots for the given block in read only mode because all
+	// changes has been already applied in the context of the last applied block.
+	fixSnapshots, gbfErr := s.generateBlockchainFix(blockHeight, block.BlockID(), readOnly)
 	if gbfErr != nil {
 		return crypto.Digest{}, errors.Wrapf(gbfErr, "failed to generate blockchain fix snapshots at block %s",
 			block.BlockID().String(),
@@ -2027,7 +2038,7 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 			blockHeight,
 		)
 	}
-	return s.appender.createNextSnapshotHash(block, blockHeight, lastSnapshotStateHash, fixSnapshots)
+	return s.appender.createNextSnapshotHash(block, blockHeight, lastSnapshotStateHash, fixSnapshots, readOnly)
 }
 
 func (s *stateManager) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {

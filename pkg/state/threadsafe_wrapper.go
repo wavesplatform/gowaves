@@ -352,6 +352,12 @@ func (a *ThreadSafeReadWrapper) SnapshotStateHashAtHeight(height proto.Height) (
 	return a.s.SnapshotStateHashAtHeight(height)
 }
 
+func (a *ThreadSafeReadWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CreateNextSnapshotHash(block)
+}
+
 func (a *ThreadSafeReadWrapper) ProvidesExtendedApi() (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -424,12 +430,6 @@ func (a *ThreadSafeWriteWrapper) ValidateNextTx(
 
 func (a *ThreadSafeWriteWrapper) ResetValidationList() {
 	panic("invalid ResetValidationList usage")
-}
-
-func (a *ThreadSafeWriteWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
-	a.lock()
-	defer a.unlock()
-	return a.s.CreateNextSnapshotHash(block)
 }
 
 func (a *ThreadSafeWriteWrapper) AddBlock(block []byte) (*proto.Block, error) {

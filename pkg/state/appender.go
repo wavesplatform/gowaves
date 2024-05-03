@@ -800,6 +800,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		lastSnapshotStateHash:     params.lastSnapshotStateHash,
 		fixSnapshotsToInitialHash: params.fixSnapshotsToInitialHash,
 		currentBlockHeight:        currentBlockHeight,
+		readOnly:                  false,
 	}
 	initialSnapshot, stateHash, err := a.createInitialDiffAndStateHash(createInitHashParams, hasher)
 	if err != nil {
@@ -873,6 +874,7 @@ type initialDiffAndStateHashParams struct {
 	lastSnapshotStateHash     crypto.Digest
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot
 	currentBlockHeight        proto.Height
+	readOnly                  bool
 }
 
 // createInitialDiffAndStateHash creates the initial diff and state hash for the block.
@@ -900,15 +902,27 @@ func (a *txAppender) createInitialDiffAndStateHash(
 		return txSnapshot{}, crypto.Digest{}, errors.Wrap(err, "failed to create initial snapshot")
 	}
 
+	// TODO: is it necesary to perform here any actions with diff storage??
+	ds := a.diffStor
+	if params.readOnly {
+		// Create the temporary one just to validate the miner reward diff.
+		tmpDiffStop, dsErr := newDiffStorage()
+		if dsErr != nil {
+			return txSnapshot{}, crypto.Digest{}, errors.Wrap(dsErr,
+				"failed to create temporary diff storage for validation",
+			)
+		}
+		ds = tmpDiffStop
+	}
 	// Save miner diff first (for validation)
-	if err = a.diffStor.saveTxDiff(minerAndRewardDiff); err != nil {
+	if err = ds.saveTxDiff(minerAndRewardDiff); err != nil {
 		return txSnapshot{}, crypto.Digest{}, err
 	}
 	err = a.diffApplier.validateBalancesChanges(minerAndRewardDiff.balancesChanges())
 	if err != nil {
 		return txSnapshot{}, crypto.Digest{}, errors.Wrap(err, "failed to validate miner reward changes")
 	}
-	a.diffStor.reset() // clear diff changes
+	ds.reset() // clear diff changes
 
 	// hash block initial snapshot and fix snapshot in the context of the applying block
 	snapshotsToHash := initialSnapshot.regular
@@ -1210,6 +1224,7 @@ func (a *txAppender) createNextSnapshotHash(
 	blockHeight proto.Height,
 	lastSnapshotStateHash crypto.Digest,
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
+	readOnly bool,
 ) (crypto.Digest, error) {
 	hasher, err := newTxSnapshotHasherDefault()
 	if err != nil {
@@ -1224,6 +1239,7 @@ func (a *txAppender) createNextSnapshotHash(
 		lastSnapshotStateHash:     lastSnapshotStateHash,
 		fixSnapshotsToInitialHash: fixSnapshotsToInitialHash,
 		currentBlockHeight:        blockHeight,
+		readOnly:                  readOnly,
 	}
 	_, initSh, err := a.createInitialDiffAndStateHash(params, hasher)
 	if err != nil {

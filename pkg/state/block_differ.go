@@ -37,6 +37,10 @@ func newBlockDiffer(handler *transactionHandler, stor *blockchainEntitiesStorage
 	}, nil
 }
 
+// prevBlockFeeDistr returns fee distribution for the previous block.
+// If the previous block is the same as the previous block in the blockDiffer,
+// it returns the distribution from the blockDiffer.
+// This method does not modify the blockDiffer itself and the state.
 func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID) (*feeDistribution, error) {
 	ngActivated, err := d.stor.features.newestIsActivatedForNBlocks(int16(settings.NG), 2)
 	if err != nil {
@@ -56,6 +60,8 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID) (*feeDistributi
 	return d.stor.blocksInfo.feeDistribution(prevBlock)
 }
 
+// appendBlockInfoToBalanceDiff appends block ID and allowLeasedTransfer flag to balanceDiff.
+// This method does not modify blockDiffer itself, but modifies balanceDiff.
 func (d *blockDiffer) appendBlockInfoToBalanceDiff(diff *balanceDiff, block *proto.BlockHeader) {
 	allowLeasedTransfer := true
 	if block.Timestamp >= d.settings.AllowLeasedBalanceTransferUntilTime {
@@ -65,6 +71,8 @@ func (d *blockDiffer) appendBlockInfoToBalanceDiff(diff *balanceDiff, block *pro
 	diff.blockID = block.BlockID()
 }
 
+// appendBlockInfoToTxDiff appends block ID and allowLeasedTransfer flag to all balanceDiffs in txDiff.
+// This method does not modify blockDiffer itself, but modifies txDiff.
 func (d *blockDiffer) appendBlockInfoToTxDiff(diff txDiff, block *proto.BlockHeader) {
 	for key := range diff {
 		balanceDiff := diff[key]
@@ -73,7 +81,7 @@ func (d *blockDiffer) appendBlockInfoToTxDiff(diff txDiff, block *proto.BlockHea
 	}
 }
 
-func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistribution) (txDiff, error) {
+func txDiffFromFees(addr proto.AddressID, distr *feeDistribution) (txDiff, error) {
 	diff := newTxDiff()
 	wavesKey := wavesBalanceKey{addr}
 	wavesDiff := distr.totalWavesFees - distr.currentWavesBlockFees
@@ -98,6 +106,8 @@ func (d *blockDiffer) txDiffFromFees(addr proto.AddressID, distr *feeDistributio
 	return diff, nil
 }
 
+// createPrevBlockMinerFeeDiff creates txDiff for the miner of the previous block.
+// This method does not modify the state.
 func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, minerPK crypto.PublicKey) (txDiff, proto.WavesAddress, error) {
 	feeDistr, err := d.prevBlockFeeDistr(prevBlockID)
 	if err != nil {
@@ -107,7 +117,7 @@ func (d *blockDiffer) createPrevBlockMinerFeeDiff(prevBlockID proto.BlockID, min
 	if err != nil {
 		return txDiff{}, proto.WavesAddress{}, err
 	}
-	diff, err := d.txDiffFromFees(minerAddr.ID(), feeDistr)
+	diff, err := txDiffFromFees(minerAddr.ID(), feeDistr)
 	if err != nil {
 		return txDiff{}, minerAddr, err
 	}
@@ -161,6 +171,9 @@ func (d *blockDiffer) countMinerFee(tx proto.Transaction) error {
 	return nil
 }
 
+// doMinerPayoutBeforeNG calculates miner payout for the block before NG activation.
+// This method does not modify the state.
+// All changes are appended to the passed txDiff.
 func (d *blockDiffer) doMinerPayoutBeforeNG(
 	diff txDiff,
 	blockTimestamp uint64,
@@ -205,6 +218,8 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 	return nil
 }
 
+// createMinerAndRewardDiff creates txDiff for the miner of the block and adds block reward.
+// This method MUST NOT modify the state.
 func (d *blockDiffer) createMinerAndRewardDiff(
 	blockHeader *proto.BlockHeader,
 	hasParent bool,
@@ -230,6 +245,9 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 	return minerDiff, nil
 }
 
+// addBlockReward adds block reward to the miner's balance.
+// This method does not modify the state.
+// All changes are applied to the passed txDiff.
 func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *proto.BlockHeader) error {
 	activated, err := d.stor.features.newestIsActivated(int16(settings.BlockReward))
 	if err != nil {
