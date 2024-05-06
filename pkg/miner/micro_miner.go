@@ -6,6 +6,7 @@ import (
 	"github.com/mr-tron/base58"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -136,10 +137,24 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		}
 		transactions[i] = appliedTx.T
 	}
-	sh, err := state.CalculateSnapshotStateHash(a.scheme, height, *minedBlock.StateHash, transactions, txSnapshots)
+	lightNodeNewBlockActivated, err := a.state.IsActiveLightNodeNewBlocksFields(height)
 	if err != nil {
 		return nil, nil, rest, err
 	}
+
+	var sh crypto.Digest
+	if lightNodeNewBlockActivated {
+		prevSh, ok := minedBlock.GetStateHash()
+		if !ok {
+			return nil, nil, rest, errors.New("mined block should have a state hash field")
+		}
+		newSh, errSh := state.CalculateSnapshotStateHash(a.scheme, height, prevSh, transactions, txSnapshots)
+		if errSh != nil {
+			return nil, nil, rest, errSh
+		}
+		sh = newSh
+	}
+
 	newTransactions := minedBlock.Transactions.Join(transactions)
 
 	newBlock, err := proto.CreateBlock(

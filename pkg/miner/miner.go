@@ -83,6 +83,11 @@ func (a *MicroblockMiner) MineKeyBlock(
 				"failed to create snapshot initial snapshot hash for key block %s", b.ID.String())
 		}
 		b.StateHash = &sh
+		// Resign block
+		if err = b.Sign(a.services.Scheme, k.Secret); err != nil {
+			return nil, proto.MiningLimits{}, errors.Wrap(err,
+				"failed to resign key block filled state hash field")
+		}
 		// Regenerate block ID with filled state hash field.
 		if genErr := b.GenerateBlockID(a.services.Scheme); genErr != nil {
 			return nil, proto.MiningLimits{}, errors.Wrap(genErr,
