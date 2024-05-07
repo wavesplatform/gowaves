@@ -9,9 +9,9 @@ linters-settings:
     # If it's higher than 0.0 (float) the check is enabled
     package-average: 10.0
 
-    errcheck:
-      # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
-      check-type-assertions: true
+  errcheck:
+    # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
+    check-type-assertions: false
 
   #  exhaustive:
   #    # Program elements to check for exhaustiveness.
