@@ -551,6 +551,7 @@ func main() {
 		srv, srvErr := server.NewServer(svs)
 		if srvErr != nil {
 			zap.S().Errorf("Failed to create gRPC server: %v", srvErr)
+			return
 		}
 		go func() {
 			if runErr := srv.Run(ctx, conf.GrpcAddr, grpcAPIRunOptsFromCLIFlags(nc)); runErr != nil {
