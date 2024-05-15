@@ -604,7 +604,10 @@ func (s *balances) generatingBalance(addr proto.AddressID, height proto.Height) 
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed get challenger bonus at height %d", height)
 	}
-	r := gb + bonus // TODO: what about overflow?
+	r, err := common.AddInt(gb, bonus)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to add generating balance and bonus")
+	}
 	return r, nil
 }
 
@@ -619,7 +622,10 @@ func (s *balances) newestGeneratingBalance(addr proto.AddressID, height proto.He
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed get newest challenger bonus at height %d", height)
 	}
-	r := gb + bonus // TODO: what about overflow?
+	r, err := common.AddInt(gb, bonus)
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to add generating balance and bonus")
+	}
 	return r, nil
 }
 
