@@ -955,7 +955,7 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 	if err != nil {
 		return nil, errs.Extend(err, "failed to get waves balance")
 	}
-	effective, err := profile.effectiveBalance()
+	effective, err := profile.effectiveBalanceUnchecked()
 	if err != nil {
 		return nil, errs.Extend(err, "failed to get effective balance")
 	}
@@ -966,6 +966,13 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 	generating, err := s.GeneratingBalance(account, height)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to get generating balance")
+	}
+	if generating == 0 { // we need to check for challenged addresses only if generating balance is 0
+		chEffective, effErr := profile.effectiveBalance(s.stor.balances.isChallengedAddress, addr.ID(), height)
+		if effErr != nil {
+			return nil, errs.Extend(effErr, "failed to get checked effective balance")
+		}
+		effective = chEffective
 	}
 	return &proto.FullWavesBalance{
 		Regular:    profile.balance,
@@ -986,7 +993,7 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	effective, err := profile.effectiveBalance()
+	effective, err := profile.effectiveBalanceUnchecked()
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
@@ -997,6 +1004,13 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	var generating uint64
 	if gb, gbErr := s.NewestGeneratingBalance(account, height); gbErr == nil {
 		generating = gb
+	}
+	if generating == 0 { // we need to check for challenged addresses only if generating balance is 0
+		chEffective, effErr := profile.effectiveBalance(s.stor.balances.newestIsChallengedAddress, addr.ID(), height)
+		if effErr != nil {
+			return nil, wrapErr(RetrievalError, effErr)
+		}
+		effective = chEffective
 	}
 	return &proto.FullWavesBalance{
 		Regular:    profile.balance,
@@ -1021,11 +1035,20 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 	if gb, gbErr := s.stor.balances.newestGeneratingBalance(id, height); gbErr == nil {
 		generating = gb
 	}
+	var challenged bool
+	if generating == 0 { // fast path: we need to check for challenged addresses only if generating balance is 0
+		ch, chErr := s.stor.balances.newestIsChallengedAddress(id, height)
+		if chErr != nil {
+			return nil, wrapErr(RetrievalError, chErr)
+		}
+		challenged = ch
+	}
 	return &types.WavesBalanceProfile{
 		Balance:    profile.balance,
 		LeaseIn:    profile.leaseIn,
 		LeaseOut:   profile.leaseOut,
 		Generating: generating,
+		Challenged: challenged,
 	}, nil
 }
 
