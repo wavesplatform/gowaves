@@ -35,12 +35,31 @@ type balanceProfile struct {
 	leaseOut int64
 }
 
-func (bp *balanceProfile) effectiveBalance() (uint64, error) {
+// effectiveBalanceUnchecked returns effective balance without checking for account challenging.
+// The function MUST be used ONLY in the context where account challenging IS CHECKED.
+func (bp *balanceProfile) effectiveBalanceUnchecked() (uint64, error) {
 	val, err := common.AddInt(int64(bp.balance), bp.leaseIn)
 	if err != nil {
 		return 0, err
 	}
 	return uint64(val - bp.leaseOut), nil
+}
+
+type challengedChecker func(proto.AddressID, proto.Height) (bool, error)
+
+func (bp *balanceProfile) effectiveBalance(
+	challengedCheck challengedChecker, // Function to check if the account is challenged.
+	addrID proto.AddressID, // Address ID of the current balanceProfile.
+	currentHeight proto.Height, // Current height.
+) (uint64, error) {
+	challenged, err := challengedCheck(addrID, currentHeight)
+	if err != nil {
+		return 0, err
+	}
+	if challenged {
+		return 0, nil // Challenged account has 0 effective balance.
+	}
+	return bp.effectiveBalanceUnchecked()
 }
 
 func (bp *balanceProfile) spendableBalance() uint64 {
@@ -577,7 +596,7 @@ func minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, error) {
 		if err := record.unmarshalBinary(recordBytes); err != nil {
 			return 0, err
 		}
-		effectiveBal, err := record.effectiveBalance()
+		effectiveBal, err := record.effectiveBalanceUnchecked()
 		if err != nil {
 			return 0, err
 		}
@@ -701,6 +720,8 @@ func (s *balances) storeChallengeHeightForAddr(
 
 type entryDataGetter func(key []byte) ([]byte, error)
 
+// isChallengedAddressInRangeCommon checks if the address was challenged in the given range of heights.
+// startHeight and endHeight are inclusive.
 func isChallengedAddressInRangeCommon(
 	getEntryData entryDataGetter,
 	addr proto.AddressID,
@@ -759,11 +780,27 @@ func (s *balances) isChallengedAddressInRange(addr proto.AddressID, startHeight,
 	return isChallengedAddressInRangeCommon(s.hs.topEntryData, addr, startHeight, endHeight)
 }
 
+func (s *balances) isChallengedAddress(addr proto.AddressID, height proto.Height) (bool, error) {
+	var (
+		startHeight = height
+		endHeight   = startHeight // we're checking only one height, so the heights are the same
+	)
+	return s.isChallengedAddressInRange(addr, startHeight, endHeight)
+}
+
 func (s *balances) newestIsChallengedAddressInRange(
 	addr proto.AddressID,
 	startHeight, endHeight proto.Height,
 ) (bool, error) {
 	return isChallengedAddressInRangeCommon(s.hs.newestTopEntryData, addr, startHeight, endHeight)
+}
+
+func (s *balances) newestIsChallengedAddress(addr proto.AddressID, height proto.Height) (bool, error) {
+	var (
+		startHeight = height
+		endHeight   = startHeight // we're checking only one height, so the heights are the same
+	)
+	return s.newestIsChallengedAddressInRange(addr, startHeight, endHeight)
 }
 
 // minEffectiveBalanceInRange returns minimal effective balance in range [startHeight, endHeight].
