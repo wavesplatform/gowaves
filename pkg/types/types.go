@@ -43,6 +43,7 @@ type WavesBalanceProfile struct {
 	LeaseIn    int64
 	LeaseOut   int64
 	Generating uint64
+	Challenged bool // if Challenged true, the account considered as challenged at the current height.
 }
 
 // SmartState is a part of state used by smart contracts.
