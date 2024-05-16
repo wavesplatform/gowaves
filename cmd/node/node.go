@@ -510,9 +510,9 @@ func main() {
 				zap.S().Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
 				return
 			}
-			if err = peerManager.AddAddress(ctx, tcpAddr); err != nil {
+			if pErr := peerManager.AddAddress(ctx, tcpAddr); pErr != nil {
 				// That means that we have problems with peers storage
-				zap.S().Errorf("Failed to add addres into know peers storage: %v", err)
+				zap.S().Errorf("Failed to add addres into know peers storage: %v", pErr)
 				return
 			}
 		}
@@ -527,8 +527,8 @@ func main() {
 	webApi := api.NewNodeApi(app, st, n)
 	go func() {
 		zap.S().Infof("Starting node HTTP API on '%v'", conf.HttpAddr)
-		if err = api.Run(ctx, conf.HttpAddr, webApi, apiRunOptsFromCLIFlags(nc)); err != nil {
-			zap.S().Errorf("Failed to start API: %v", err)
+		if runErr := api.Run(ctx, conf.HttpAddr, webApi, apiRunOptsFromCLIFlags(nc)); runErr != nil {
+			zap.S().Errorf("Failed to start API: %v", runErr)
 		}
 	}()
 
@@ -548,15 +548,14 @@ func main() {
 	}()
 
 	if nc.enableGrpcAPI {
-		var srv *server.Server
-		srv, err = server.NewServer(svs)
-		if err != nil {
-			zap.S().Errorf("Failed to create gRPC server: %v", err)
+		srv, srvErr := server.NewServer(svs)
+		if srvErr != nil {
+			zap.S().Errorf("Failed to create gRPC server: %v", srvErr)
+			return
 		}
 		go func() {
-			err = srv.Run(ctx, conf.GrpcAddr, grpcAPIRunOptsFromCLIFlags(nc))
-			if err != nil {
-				zap.S().Errorf("grpcServer.Run(): %v", err)
+			if runErr := srv.Run(ctx, conf.GrpcAddr, grpcAPIRunOptsFromCLIFlags(nc)); runErr != nil {
+				zap.S().Errorf("grpcServer.Run(): %v", runErr)
 			}
 		}()
 	}

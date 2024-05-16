@@ -6,16 +6,17 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/keepalive"
+	"google.golang.org/grpc/reflection"
+
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/keepalive"
-	"google.golang.org/grpc/reflection"
 )
 
 const (
@@ -91,9 +92,9 @@ func (s *Server) Run(ctx context.Context, address string, opts *RunOptions) erro
 	}
 
 	defer func(conn net.Listener) {
-		err := conn.Close()
-		if err != nil {
-			zap.S().Errorf("Failed to close gRPC server connection: %v", err)
+		clErr := conn.Close()
+		if clErr != nil && !errors.Is(clErr, net.ErrClosed) {
+			zap.S().Errorf("Failed to close gRPC server connection: %v", clErr)
 		}
 	}(conn)
 
