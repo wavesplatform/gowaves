@@ -1006,7 +1006,9 @@ func TestDefaultInvokeScriptSnapshot(t *testing.T) {
 	to.activateFeature(t, int16(settings.ReducedNFTFee))
 
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
-	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	cleanup := to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	defer cleanup()
+
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
 
@@ -1144,7 +1146,8 @@ func TestNoExtraStaticAssetInfoSnapshot(t *testing.T) {
 	assert.NoError(t, err)
 
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
-	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	cleanup := to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	defer cleanup()
 
 	fc := proto.NewFunctionCall("call", []proto.Argument{})
 	testData := invokeApplierTestData{
@@ -1244,7 +1247,8 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 	assert.NoError(t, err)
 
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
-	to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	cleanup := to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	defer cleanup()
 
 	testData := invokeApplierTestData{
 		payments: []proto.ScriptPayment{},
