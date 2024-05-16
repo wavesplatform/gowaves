@@ -99,7 +99,8 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 
 	if _, err := handshake.ReadFrom(c); err != nil {
 		addr := a.params.Address.String()
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to read handshake with addr %q: %v", a.params.Address.String(), err)
+		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to read handshake with addr %q: %v",
+			a.params.Address.String(), err)
 		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to read handshake with addr %q", addr)
 	}
 	select {
