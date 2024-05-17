@@ -367,8 +367,11 @@ func (a *blockSnapshotsApplier) ApplierInfo() extendedSnapshotApplierInfo {
 	return a.info
 }
 
-func (a *blockSnapshotsApplier) SetApplierInfo(info extendedSnapshotApplierInfo) {
+func (a *blockSnapshotsApplier) SetApplierInfo(info extendedSnapshotApplierInfo) func() {
 	a.info = info
+	return func() {
+		a.filterZeroDiffsSHOut(info.BlockID()) // clean up legacy state hash records with zero diffs
+	}
 }
 
 func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSnapshot) error {

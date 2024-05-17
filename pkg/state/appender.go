@@ -780,7 +780,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
-	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	cleanup := a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	defer cleanup()
 
 	blockInfo, err := a.currentBlockInfo()
 	if err != nil {
@@ -818,8 +819,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if ssErr := a.stor.snapshots.saveSnapshots(blockID, currentBlockHeight, blockSnapshot); ssErr != nil {
 		return ssErr
 	}
-	// clean up legacy state hash records with zero diffs
-	a.txHandler.sa.filterZeroDiffsSHOut(blockID)
 
 	if shErr := a.stor.stateHashes.saveSnapshotStateHash(stateHash, currentBlockHeight, blockID); shErr != nil {
 		return errors.Wrapf(shErr, "failed to save block shasnpt hash at height %d", currentBlockHeight)
@@ -1156,7 +1155,8 @@ func (a *txAppender) validateNextTx(tx proto.Transaction, currentTimestamp, pare
 	// it's correct to use new proto.StateActionsCounter because there's no block exists,
 	// but this field is necessary in tx performer
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
-	a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	cleanup := a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	defer cleanup()
 
 	appendTxArgs := &appendTxParams{
 		chans:                            nil, // nil because validatingUtx == true
