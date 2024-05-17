@@ -88,7 +88,7 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 
 	if _, err := handshake.WriteTo(c); err != nil {
 		addr := a.params.Address.String()
-		zap.S().Infof("Failed to send handshake with addr %q: %v", addr, err)
+		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to send handshake with addr %q: %v", addr, err)
 		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to send handshake with addr %q", addr)
 	}
 	select {
@@ -99,7 +99,8 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 
 	if _, err := handshake.ReadFrom(c); err != nil {
 		addr := a.params.Address.String()
-		zap.S().Infof("Failed to read handshake with addr %q: %v", a.params.Address.String(), err)
+		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to read handshake with addr %q: %v",
+			a.params.Address.String(), err)
 		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to read handshake with addr %q", addr)
 	}
 	select {
