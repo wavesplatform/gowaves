@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/user"
 	"path/filepath"
+	"regexp"
 	"strings"
 
 	"github.com/mr-tron/base58"
@@ -153,6 +154,12 @@ func ReadWallet(walletPath string) (wallet.Wallet, []byte, error) {
 	return wlt, pass, nil
 }
 
+var reASCII = regexp.MustCompile(`^[\x20-\x7E]+$`)
+
+func isASCII(s []byte) bool {
+	return reASCII.Match(s)
+}
+
 func showWallet(walletPath string, scheme proto.Scheme) error {
 	walletPath, err := getWalletPath(walletPath)
 	if err != nil {
@@ -167,21 +174,21 @@ func showWallet(walletPath string, scheme proto.Scheme) error {
 		return errors.Errorf("failed to read the wallet, %v", err)
 	}
 
-	for i, s := range wlt.AccountSeeds() {
-		accountSeedDigest, err := crypto.NewDigestFromBytes(s)
-		if err != nil {
-			return errors.Wrap(err, "failed to receive digest from account seed bytes")
-		}
-		pk, sk, address, err := generateOnAccountSeed(accountSeedDigest, scheme)
-		if err != nil {
-			return errors.Wrap(err, "failed to receive wallet's credentials")
+	for i, accountSeedBytes := range wlt.AccountSeeds() {
+		pk, sk, address, genErr := generateOnAccountSeed(accountSeedBytes, scheme)
+		if genErr != nil {
+			return errors.Wrap(genErr, "failed to receive wallet's credentials")
 		}
 		fmt.Println()
-		fmt.Printf("Account number: %d\n", i)
-		fmt.Printf("Account seed:   %s\n", accountSeedDigest.String())
-		fmt.Printf("Public Key:     %s\n", pk.String())
-		fmt.Printf("Secret Key:     %s\n", sk.String())
-		fmt.Printf("Address:        %s\n", address.String())
+		fmt.Printf("Account number:         %d\n", i)
+		fmt.Printf("Address:                %s\n", address.String())
+		fmt.Printf("Public Key:             %s\n", pk.String())
+		fmt.Printf("Secret Key:             %s\n", sk.String())
+		if isASCII(accountSeedBytes) { // check if the account seed is a valid ASCII text
+			fmt.Printf("Account seed:           %s\n", string(accountSeedBytes))
+		} else {
+			fmt.Printf("Account seed in base58: %s\n", base58.Encode(accountSeedBytes))
+		}
 	}
 	return nil
 }
@@ -213,15 +220,18 @@ func generateOnSeedPhrase(seedPhrase string, n int, scheme byte) (crypto.Digest,
 	if err != nil {
 		return crypto.Digest{}, crypto.PublicKey{}, crypto.SecretKey{}, nil, errors.Wrap(err, "failed to generate account seed")
 	}
-	pk, sk, a, err := generateOnAccountSeed(accountSeed, scheme)
+	pk, sk, a, err := generateOnAccountSeed(accountSeed.Bytes(), scheme)
 	if err != nil {
 		return crypto.Digest{}, crypto.PublicKey{}, crypto.SecretKey{}, nil, err
 	}
 	return accountSeed, pk, sk, a, nil
 }
 
-func generateOnAccountSeed(accountSeed crypto.Digest, scheme proto.Scheme) (crypto.PublicKey, crypto.SecretKey, proto.Address, error) {
-	sk, pk, err := crypto.GenerateKeyPair(accountSeed.Bytes())
+func generateOnAccountSeed(
+	accountSeedBytes []byte, // can be any bytes sequence
+	scheme proto.Scheme,
+) (crypto.PublicKey, crypto.SecretKey, proto.Address, error) {
+	sk, pk, err := crypto.GenerateKeyPair(accountSeedBytes)
 	if err != nil {
 		return crypto.PublicKey{}, crypto.SecretKey{}, nil, errors.Wrap(err, "failed to generate key pair")
 	}
@@ -310,7 +320,7 @@ func generateWalletCredentials(
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to decode base58-encoded account seed")
 		}
-		pk, sk, address, err := generateOnAccountSeed(accountSeed, scheme)
+		pk, sk, address, err := generateOnAccountSeed(accountSeed.Bytes(), scheme)
 		if err != nil {
 			return nil, err
 		}
