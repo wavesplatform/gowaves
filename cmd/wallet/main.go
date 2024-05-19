@@ -180,14 +180,14 @@ func showWallet(walletPath string, scheme proto.Scheme) error {
 			return errors.Wrap(genErr, "failed to receive wallet's credentials")
 		}
 		fmt.Println()
-		fmt.Printf("Account number:         %d\n", i)
-		fmt.Printf("Address:                %s\n", address.String())
-		fmt.Printf("Public Key:             %s\n", pk.String())
-		fmt.Printf("Secret Key:             %s\n", sk.String())
-		if isASCII(accountSeedBytes) { // check if the account seed is a valid ASCII text
-			fmt.Printf("Account seed:           %s\n", string(accountSeedBytes))
+		fmt.Printf("Account number:         %d\n", i)                //nolint:forbidigo
+		fmt.Printf("Address:                %s\n", address.String()) //nolint:forbidigo
+		fmt.Printf("Public Key:             %s\n", pk.String())      //nolint:forbidigo
+		fmt.Printf("Secret Key:             %s\n", sk.String())      //nolint:forbidigo
+		if isASCII(accountSeedBytes) {                               // check if the account seed is a valid ASCII text
+			fmt.Printf("Account seed:           %s\n", string(accountSeedBytes)) //nolint:forbidigo
 		} else {
-			fmt.Printf("Account seed in base58: %s\n", base58.Encode(accountSeedBytes))
+			fmt.Printf("Account seed in base58: %s\n", base58.Encode(accountSeedBytes)) //nolint:forbidigo
 		}
 	}
 	return nil
