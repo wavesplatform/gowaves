@@ -142,7 +142,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		return nil, nil, rest, err
 	}
 
-	var sh crypto.Digest
+	var sh *crypto.Digest
 	if lightNodeNewBlockActivated {
 		prevSh, ok := minedBlock.GetStateHash()
 		if !ok {
@@ -152,7 +152,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		if errSh != nil {
 			return nil, nil, rest, errSh
 		}
-		sh = newSh
+		sh = &newSh
 	}
 
 	newTransactions := minedBlock.Transactions.Join(transactions)
@@ -167,7 +167,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		minedBlock.Features,
 		minedBlock.RewardVote,
 		a.scheme,
-		&sh,
+		sh,
 	)
 	if err != nil {
 		return nil, nil, rest, err
