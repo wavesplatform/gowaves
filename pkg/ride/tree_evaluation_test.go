@@ -5377,7 +5377,7 @@ func TestInvokePaymentsCheckBeforeAndAfterInvokeScriptTxActivation(t *testing.T)
 		env := prepareEnv().withLightNodeActivated()
 		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 		assert.Nil(t, res)
-		assert.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -4900000000")
+		assert.EqualError(t, err, "gotcha") // no check BEFORE invocation, only after
 	})
 }
 

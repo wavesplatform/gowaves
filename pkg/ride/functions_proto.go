@@ -269,12 +269,6 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return err
 	}
-	lightNodeActivated := env.lightNodeActivated()
-	if lightNodeActivated { // Check payments result balances here AFTER Light Node activation
-		if err := checkPaymentsAfterApplication(); err != nil {
-			return nil, err
-		}
-	}
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
@@ -304,10 +298,8 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipientAddr, fn, arguments)
 	}
 
-	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
-		if err := checkPaymentsAfterApplication(); err != nil {
-			return nil, err
-		}
+	if pErr := checkPaymentsAfterApplication(); pErr != nil { // Check payments result balances here
+		return nil, pErr
 	}
 
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
