@@ -1,5 +1,5 @@
 run:
-  timeout: 20m
+  timeout: 10m
 
 linters-settings:
   cyclop:
