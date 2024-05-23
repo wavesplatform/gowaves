@@ -5857,3 +5857,101 @@ func TestGlobalDeclarationScopesEvaluation(t *testing.T) {
 	}
 	assert.Equal(t, expectedResult, sr)
 }
+
+func TestEvaluatorComplexityPaymentsCheck(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	assetID, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+	asset := &proto.FullAssetInfo{
+		AssetInfo: proto.AssetInfo{
+			AssetConstInfo: proto.AssetConstInfo{
+				ID:       assetID,
+				Issuer:   sender.address(),
+				Decimals: 1,
+			},
+			Quantity: 100500,
+		},
+		Name:        "a-test",
+		Description: "description a-test",
+	}
+
+	src1 := fmt.Sprintf(`
+			{-# STDLIB_VERSION 7 #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			
+			@Callable(i)
+			func f1(bigComplexity: Boolean, error: Boolean, doubleInvoke: Boolean) = {
+			  strict dApp = Address(base58'%[1]s')
+			  strict c = if (doubleInvoke) then dApp.invoke("f2", [bigComplexity, error], []) else 0
+			  strict r = dApp.invoke("f2", [bigComplexity, error], [AttachedPayment(base58'%[2]s', 123)])
+			  []
+			}
+		`,
+		dApp2.address().String(), assetID.String(),
+	)
+	src2 := `
+			{-# STDLIB_VERSION 7 #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+
+			@Callable(i)
+			func f2(bigComplexity: Boolean, error: Boolean) = {
+			  strict c = if (bigComplexity) then {
+				sigVerify(base58'', base58'', base58'') || 
+				sigVerify(base58'', base58'', base58'') ||
+				sigVerify(base58'', base58'', base58'') ||
+				sigVerify(base58'', base58'', base58'') ||
+				sigVerify(base58'', base58'', base58'') ||
+				sigVerify(base58'', base58'', base58'')
+			  } else 0
+			  strict e = if (error) then throw("custom error") else 0
+			  []
+			}
+		`
+
+	tree1, errs := ridec.CompileToTree(src1)
+	require.Empty(t, errs)
+	tree2, errs := ridec.CompileToTree(src2)
+	require.Empty(t, errs)
+
+	createEnv := func(t *testing.T) *testEnv {
+		return newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(ast.LibV7, 52000).
+			withBlockV5Activated().withProtobufTx().withRideV6Activated().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(dApp1).withDApp(dApp1).withSender(sender).
+			withAdditionalDApp(dApp2).withTree(dApp2, tree2).
+			withInvocation("f1", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+			withAsset(asset).
+			withAssetBalance(dApp1, assetID, 10).
+			withAssetBalance(sender, assetID, 0).
+			withAssetBalance(dApp2, assetID, 0).
+			withWrappedState()
+	}
+	t.Run("first", func(t *testing.T) {
+		env := createEnv(t)
+		rideEnv := env.toEnv()
+		res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
+			&proto.BooleanArgument{Value: true},
+			&proto.BooleanArgument{Value: false},
+			&proto.BooleanArgument{Value: false},
+		}))
+		assert.Error(t, callErr)
+		assert.Nil(t, res)
+		assert.Equal(t, 1164, rideEnv.complexityCalculator().complexity())
+	})
+	t.Run("second", func(t *testing.T) {
+		env := createEnv(t)
+		rideEnv := env.toEnv()
+		res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
+			&proto.BooleanArgument{Value: true},
+			&proto.BooleanArgument{Value: false},
+			&proto.BooleanArgument{Value: true},
+		}))
+		assert.Error(t, callErr)
+		assert.Nil(t, res)
+		assert.Equal(t, 2323, rideEnv.complexityCalculator().complexity())
+	})
+}
