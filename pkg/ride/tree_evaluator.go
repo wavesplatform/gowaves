@@ -273,7 +273,7 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 			nc, e.env.complexityCalculator().limit())
 	}
 	defer func() {
-		e.env.complexityCalculator().addNativeFunctionComplexity(cost)
+		e.env.complexityCalculator().addNativeFunctionComplexity(name, cost)
 	}()
 	r, err := f(e.env, args...)
 	if err != nil {
@@ -285,7 +285,7 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (rideType, error) {
 	initialComplexity := e.env.complexityCalculator().complexity()
 	defer func() {
-		e.env.complexityCalculator().addAdditionalUserFunctionComplexity(initialComplexity)
+		e.env.complexityCalculator().addAdditionalUserFunctionComplexity(name, initialComplexity)
 	}()
 	uf, cl, found := e.s.userFunction(name)
 	if !found {

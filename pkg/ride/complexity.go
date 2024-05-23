@@ -1,6 +1,8 @@
 package ride
 
 import (
+	"log/slog"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
@@ -10,9 +12,9 @@ type complexityCalculator interface {
 	complexity() int
 	limit() int
 	testNativeFunctionComplexity(int) (bool, int)
-	addNativeFunctionComplexity(int)
+	addNativeFunctionComplexity(string, int)
 	testAdditionalUserFunctionComplexity(int) (bool, int)
-	addAdditionalUserFunctionComplexity(int)
+	addAdditionalUserFunctionComplexity(string, int)
 	testConditionalComplexity() (bool, int)
 	addConditionalComplexity()
 	testReferenceComplexity() (bool, int)
@@ -62,11 +64,16 @@ func (cc *complexityCalculatorV1) testNativeFunctionComplexity(fc int) (bool, in
 	return nc <= cc.l, nc
 }
 
-func (cc *complexityCalculatorV1) addNativeFunctionComplexity(fc int) {
+func (cc *complexityCalculatorV1) addNativeFunctionComplexity(name string, fc int) {
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
 		cc.o = true
 	}
+	slog.Debug("addNativeFunctionComplexityV1",
+		slog.String("name", name),
+		slog.Int("fc", fc),
+		slog.Int("sum", nc),
+	)
 	cc.c = nc
 }
 
@@ -74,7 +81,7 @@ func (cc *complexityCalculatorV1) testAdditionalUserFunctionComplexity(int) (boo
 	return true, cc.c
 }
 
-func (cc *complexityCalculatorV1) addAdditionalUserFunctionComplexity(int) {}
+func (cc *complexityCalculatorV1) addAdditionalUserFunctionComplexity(string, int) {}
 
 func (cc *complexityCalculatorV1) testOne() (bool, int) {
 	nc, err := common.AddInt(cc.c, 1)
@@ -98,6 +105,7 @@ func (cc *complexityCalculatorV1) testConditionalComplexity() (bool, int) {
 
 func (cc *complexityCalculatorV1) addConditionalComplexity() {
 	cc.addOne()
+	slog.Debug("addConditionalComplexityV1", slog.Int("sum", cc.c))
 }
 
 func (cc *complexityCalculatorV1) testReferenceComplexity() (bool, int) {
@@ -106,6 +114,7 @@ func (cc *complexityCalculatorV1) testReferenceComplexity() (bool, int) {
 
 func (cc *complexityCalculatorV1) addReferenceComplexity() {
 	cc.addOne()
+	slog.Debug("addReferenceComplexityV1", slog.Int("sum", cc.c))
 }
 
 func (cc *complexityCalculatorV1) testPropertyComplexity() (bool, int) {
@@ -114,6 +123,7 @@ func (cc *complexityCalculatorV1) testPropertyComplexity() (bool, int) {
 
 func (cc *complexityCalculatorV1) addPropertyComplexity() {
 	cc.addOne()
+	slog.Debug("addPropertyComplexityV1", slog.Int("sum", cc.c))
 }
 
 func (cc *complexityCalculatorV1) setLimit(limit uint32) {
@@ -146,11 +156,16 @@ func (cc *complexityCalculatorV2) testNativeFunctionComplexity(fc int) (bool, in
 	return nc <= cc.l, nc
 }
 
-func (cc *complexityCalculatorV2) addNativeFunctionComplexity(fc int) {
+func (cc *complexityCalculatorV2) addNativeFunctionComplexity(name string, fc int) {
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
 		cc.o = true
 	}
+	slog.Debug("addNativeFunctionComplexityV2",
+		slog.String("name", name),
+		slog.Int("fc", fc),
+		slog.Int("sum", nc),
+	)
 	cc.c = nc
 }
 
@@ -168,7 +183,7 @@ func (cc *complexityCalculatorV2) testAdditionalUserFunctionComplexity(ic int) (
 	return nc <= cc.l, nc
 }
 
-func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity(ic int) {
+func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity(name string, ic int) {
 	// The condition is opposite to the previous function because if complexity was spent in the user function
 	// we don't have to add additional 1.
 	if ic != cc.c {
@@ -178,6 +193,7 @@ func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity(ic int) {
 	if err != nil {
 		cc.o = true
 	}
+	slog.Debug("addAdditionalUserFunctionComplexityV2", slog.String("name", name), slog.Int("sum", nc))
 	cc.c = nc
 }
 
