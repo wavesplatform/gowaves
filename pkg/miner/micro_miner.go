@@ -195,6 +195,9 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		TotalResBlockSigField: newBlock.BlockSignature,
 		TotalBlockID:          newBlock.BlockID(),
 	}
+	if lightNodeNewBlockActivated {
+		micro.StateHash = sh
+	}
 
 	err = micro.Sign(a.scheme, sk)
 	if err != nil {
