@@ -1,4 +1,4 @@
-FROM golang:1.22.3-alpine3.19 as builder
+FROM golang:1.22.3-alpine3.20 as builder
 LABEL wavesplatform-gowaves-itests-tmp=true
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY pkg pkg
 ARG WITH_RACE_SUFFIX=""
 RUN make build-node-linux-amd64${WITH_RACE_SUFFIX}
 
-FROM alpine:3.19.1
+FROM alpine:3.20.0
 ENV TZ=Etc/UTC \
     APP_USER=gowaves
 
