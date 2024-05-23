@@ -5920,6 +5920,7 @@ func TestEvaluatorComplexityPaymentsCheck(t *testing.T) {
 	createEnv := func(t *testing.T) *testEnv {
 		return newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(ast.LibV7, 52000).
 			withBlockV5Activated().withProtobufTx().withRideV6Activated().
+			withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().withLightNodeActivated().
 			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
 			withThis(dApp1).withDApp(dApp1).withSender(sender).
 			withAdditionalDApp(dApp2).withTree(dApp2, tree2).
@@ -5940,7 +5941,7 @@ func TestEvaluatorComplexityPaymentsCheck(t *testing.T) {
 		}))
 		assert.Error(t, callErr)
 		assert.Nil(t, res)
-		assert.Equal(t, 1164, rideEnv.complexityCalculator().complexity())
+		assert.Equal(t, 82, rideEnv.complexityCalculator().complexity())
 	})
 	t.Run("second", func(t *testing.T) {
 		env := createEnv(t)
@@ -5952,6 +5953,6 @@ func TestEvaluatorComplexityPaymentsCheck(t *testing.T) {
 		}))
 		assert.Error(t, callErr)
 		assert.Nil(t, res)
-		assert.Equal(t, 2323, rideEnv.complexityCalculator().complexity())
+		assert.Equal(t, 1241, rideEnv.complexityCalculator().complexity())
 	})
 }
