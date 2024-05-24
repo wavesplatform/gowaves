@@ -5907,10 +5907,6 @@ func TestEvaluatorComplexityPaymentsCheck(t *testing.T) {
 			func f2(bigComplexity: Boolean, error: Boolean) = {
 			  strict c = if (bigComplexity) then {
 				sigVerify(base58'', base58'', base58'') || 
-				sigVerify(base58'', base58'', base58'') ||
-				sigVerify(base58'', base58'', base58'') ||
-				sigVerify(base58'', base58'', base58'') ||
-				sigVerify(base58'', base58'', base58'') ||
 				sigVerify(base58'', base58'', base58'')
 			  } else 0
 			  strict e = if (error) then throw("custom error") else 0
@@ -5959,6 +5955,6 @@ func TestEvaluatorComplexityPaymentsCheck(t *testing.T) {
 		}))
 		assert.Error(t, callErr)
 		assert.Nil(t, res)
-		assert.Equal(t, 1241, rideEnv.complexityCalculator().complexity())
+		assert.Equal(t, 521, rideEnv.complexityCalculator().complexity())
 	})
 }
