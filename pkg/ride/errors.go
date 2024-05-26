@@ -97,7 +97,7 @@ func EvaluationErrorSpentComplexity(err error) int {
 	return 0
 }
 
-func EvaluationErrorPush(err error, format string, args ...interface{}) error {
+func EvaluationErrorPushf(err error, format string, args ...interface{}) error {
 	var target evaluationError
 	if errors.As(err, &target) {
 		target.PushCallStackf(format, args...) // change the internal error, wrapped hierarchy is not affected

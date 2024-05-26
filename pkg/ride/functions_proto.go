@@ -301,7 +301,9 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	res, err := invokeFunctionFromDApp(env, tree, fn, arguments)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipientAddr, fn, arguments)
+		return nil, EvaluationErrorPushf(err, "%s at '%s' function %s with arguments %v",
+			invocation.name(), recipientAddr, fn, arguments,
+		)
 	}
 
 	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
