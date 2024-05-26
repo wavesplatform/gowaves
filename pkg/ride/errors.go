@@ -13,6 +13,7 @@ const (
 	InternalInvocationError
 	EvaluationFailure
 	ComplexityLimitExceed
+	NegativeBalanceAfterPayment // special error type for unusual scala node behaviour
 )
 
 type EvaluationError uint
@@ -26,6 +27,14 @@ type evaluationError interface {
 
 	SetComplexity(complexity int)
 	PushCallStackf(format string, args ...interface{})
+}
+
+func newEvaluationError(t EvaluationError, err error) evaluationError {
+	evErr := implEvaluationError{errorType: t, originalError: err}
+	if t == NegativeBalanceAfterPayment { // wrap the error
+		return &doubledComplexityImplEvaluationError{evErr}
+	}
+	return &evErr
 }
 
 type implEvaluationError struct {
@@ -57,12 +66,16 @@ func (e *implEvaluationError) PushCallStackf(format string, args ...interface{})
 	e.reverseCallStack = append(e.reverseCallStack, fmt.Sprintf(format, args...))
 }
 
+type doubledComplexityImplEvaluationError struct{ implEvaluationError }
+
+func (e *doubledComplexityImplEvaluationError) SpentComplexity() int { return e.spentComplexity * 2 }
+
 func (e EvaluationError) New(msg string) error {
-	return &implEvaluationError{errorType: e, originalError: errors.New(msg)}
+	return newEvaluationError(e, errors.New(msg))
 }
 
 func (e EvaluationError) Errorf(msg string, args ...interface{}) error {
-	return &implEvaluationError{errorType: e, originalError: errors.Errorf(msg, args...)}
+	return newEvaluationError(e, errors.Errorf(msg, args...))
 }
 
 func (e EvaluationError) Wrap(err error, msg string) error {
@@ -70,7 +83,7 @@ func (e EvaluationError) Wrap(err error, msg string) error {
 }
 
 func (e EvaluationError) Wrapf(err error, msg string, args ...interface{}) error {
-	return &implEvaluationError{errorType: e, originalError: errors.Wrapf(err, msg, args...)}
+	return newEvaluationError(e, errors.Wrapf(err, msg, args...))
 }
 
 func GetEvaluationErrorType(err error) EvaluationError {
