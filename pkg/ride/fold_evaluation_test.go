@@ -6,11 +6,12 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
-func evaluateFold(t *testing.T, code string) {
+func evaluateFold(t *testing.T, code string, expectedError string) {
 	src, err := base64.StdEncoding.DecodeString(code)
 	require.NoError(t, err)
 
@@ -21,8 +22,6 @@ func evaluateFold(t *testing.T, code string) {
 	env := newTestEnv(t).withComplexityLimit(ast.LibV5, 26000).toEnv()
 	_, err = CallVerifier(env, tree)
 	require.Error(t, err)
-	foldId := "450"
-	expectedError := EvaluationFailure.Errorf("failed to find system function '%s'", foldId).Error()
 	require.EqualError(t, err, expectedError)
 }
 
@@ -37,7 +36,8 @@ func TestNotExistNativeFoldString(t *testing.T) {
 		fold_20([1,2,3,4,5,6,7,8,9,10,11,12,13], "0", sum) == "(((((((((((((0+1)+2)+3)+4)+5)+6)+7)+8)+9)+10)+11)+12)+13)"
 	*/
 	code := "BgEKAQNzdW0CAWEBYgkArAICCQCsAgIJAKwCAgkArAICAgEoBQFhAgErCQCkAwEFAWICASkJAAACCQDCAwMJAMwIAgABCQDMCAIAAgkAzAgCAAMJAMwIAgAECQDMCAIABQkAzAgCAAYJAMwIAgAHCQDMCAIACAkAzAgCAAkJAMwIAgAKCQDMCAIACwkAzAgCAAwJAMwIAgANBQNuaWwCATACA3N1bQI5KCgoKCgoKCgoKCgoKDArMSkrMikrMykrNCkrNSkrNikrNykrOCkrOSkrMTApKzExKSsxMikrMTMpW4xQtQ=="
-	evaluateFold(t, code)
+	expectedError := "failed to evaluate block after declaration of function 'sum': failed to call system function '0': failed to materialize argument 1: failed to find system function '450'" //nolint:lll
+	evaluateFold(t, code, expectedError)
 }
 
 func TestNotExistNativeFoldSum(t *testing.T) {
@@ -51,5 +51,6 @@ func TestNotExistNativeFoldSum(t *testing.T) {
 		fold_20([1,2,3,4,5,6,7,8,9,10,11,12,13], 0, sum) == 91
 	*/
 	code := "BgEKAQNzdW0CAWEBYgkAZAIFAWEFAWIJAAACCQDCAwMJAMwIAgABCQDMCAIAAgkAzAgCAAMJAMwIAgAECQDMCAIABQkAzAgCAAYJAMwIAgAHCQDMCAIACAkAzAgCAAkJAMwIAgAKCQDMCAIACwkAzAgCAAwJAMwIAgANBQNuaWwAAAIDc3VtAFtN86UP"
-	evaluateFold(t, code)
+	expectedError := "failed to evaluate block after declaration of function 'sum': failed to call system function '0': failed to materialize argument 1: failed to find system function '450'" //nolint:lll
+	evaluateFold(t, code, expectedError)
 }
