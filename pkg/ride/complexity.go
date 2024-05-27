@@ -9,6 +9,7 @@ type complexityCalculator interface {
 	overflow() bool
 	complexity() int
 	limit() int
+	clone() complexityCalculator
 	testNativeFunctionComplexity(int) (bool, int)
 	addNativeFunctionComplexity(int)
 	testAdditionalUserFunctionComplexity(int) (bool, int)
@@ -52,6 +53,14 @@ func (cc *complexityCalculatorV1) complexity() int {
 
 func (cc *complexityCalculatorV1) limit() int {
 	return cc.l
+}
+
+func (cc *complexityCalculatorV1) clone() complexityCalculator {
+	return &complexityCalculatorV1{
+		o: cc.o,
+		c: cc.c,
+		l: cc.l,
+	}
 }
 
 func (cc *complexityCalculatorV1) testNativeFunctionComplexity(fc int) (bool, int) {
@@ -136,6 +145,14 @@ func (cc *complexityCalculatorV2) complexity() int {
 
 func (cc *complexityCalculatorV2) limit() int {
 	return cc.l
+}
+
+func (cc *complexityCalculatorV2) clone() complexityCalculator {
+	return &complexityCalculatorV2{
+		o: cc.o,
+		c: cc.c,
+		l: cc.l,
+	}
 }
 
 func (cc *complexityCalculatorV2) testNativeFunctionComplexity(fc int) (bool, int) {

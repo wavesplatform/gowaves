@@ -117,6 +117,35 @@ func (i *reentrantInvocation) blocklist() bool {
 	return false
 }
 
+type paymentsAfterApplicationChecker struct {
+	errT     EvaluationError
+	internal struct {
+		checked   bool
+		resultErr error
+	}
+}
+
+func (c *paymentsAfterApplicationChecker) Check(
+	invocation invocation,
+	env environment,
+	ws *WrappedState,
+	callerAddress rideAddress,
+	attachedPayments proto.ScriptPayments,
+) error {
+	if c.internal.checked { // Avoid double check
+		return c.internal.resultErr
+	}
+	err := ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
+	if err != nil {
+		if GetEvaluationErrorType(err) == Undefined {
+			err = c.errT.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+		}
+	}
+	c.internal.checked = true
+	c.internal.resultErr = err
+	return err
+}
+
 func performInvoke(invocation invocation, env environment, args ...rideType) (rideType, error) {
 	ws, ok := env.state().(*WrappedState)
 	if !ok {
@@ -262,17 +291,18 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return nil, err
 	}
-	checkPaymentsAfterApplication := func(errT EvaluationError) error {
-		err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
-		if err != nil && GetEvaluationErrorType(err) == Undefined {
-			err = errT.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
-		}
-		return err
-	}
-	lightNodeActivated := env.lightNodeActivated()
-	if lightNodeActivated { // Check payments result balances here AFTER Light Node activation
-		if pErr := checkPaymentsAfterApplication(NegativeBalanceAfterPayment); pErr != nil {
-			return nil, pErr
+
+	var (
+		paymentsChecker        = paymentsAfterApplicationChecker{errT: InternalInvocationError}
+		paymentsCheckErrAction = func() {} // no-op by default
+	)
+	if env.lightNodeActivated() {
+		paymentsChecker = paymentsAfterApplicationChecker{errT: NegativeBalanceAfterPayment}
+		if pErr := paymentsChecker.Check(invocation, env, ws, callerAddress, attachedPayments); pErr != nil {
+			complexityCalcClone := env.complexityCalculator().clone() // clone calculator before the invoke call
+			paymentsCheckErrAction = func() {
+				env.setComplexityCalculator(complexityCalcClone) // restore complexity calculator
+			}
 		}
 	}
 
@@ -306,10 +336,9 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		)
 	}
 
-	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
-		if pErr := checkPaymentsAfterApplication(InternalInvocationError); pErr != nil {
-			return nil, pErr
-		}
+	if pErr := paymentsChecker.Check(invocation, env, ws, callerAddress, attachedPayments); pErr != nil {
+		paymentsCheckErrAction()
+		return nil, pErr
 	}
 
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)

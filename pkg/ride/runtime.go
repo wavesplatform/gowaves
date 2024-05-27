@@ -438,4 +438,5 @@ type environment interface {
 	maxDataEntriesSize() int
 	isProtobufTx() bool
 	complexityCalculator() complexityCalculator
+	setComplexityCalculator(cc complexityCalculator)
 }

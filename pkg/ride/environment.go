@@ -1356,3 +1356,7 @@ func (e *EvaluationEnvironment) isProtobufTx() bool {
 func (e *EvaluationEnvironment) complexityCalculator() complexityCalculator {
 	return e.cc
 }
+
+func (e *EvaluationEnvironment) setComplexityCalculator(cc complexityCalculator) {
+	e.cc = cc
+}

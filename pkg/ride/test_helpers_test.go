@@ -370,6 +370,9 @@ func (e *testEnv) withComplexityLimit(v ast.LibraryVersion, limit int) *testEnv 
 	e.me.complexityCalculatorFunc = func() complexityCalculator {
 		return cc
 	}
+	e.me.setComplexityCalculatorFunc = func(newCC complexityCalculator) {
+		cc = newCC
+	}
 	return e
 }
 
