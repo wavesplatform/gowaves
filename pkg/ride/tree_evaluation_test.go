@@ -5840,6 +5840,8 @@ func TestGlobalDeclarationScopesEvaluation(t *testing.T) {
 
 // TestEvaluatorComplexityFailedPaymentsCheck checks special behavior of scala node in intermediate balances check after
 // payments application before light node activation and after.
+//
+// Transaction on MainNet which has revealed the issue: '12x6G3QFLU48YmPfsZzV9Keei5idEapTtEyqjaNoi2CZ'.
 func TestEvaluatorComplexityFailedPaymentsCheck(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
