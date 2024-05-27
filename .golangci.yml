@@ -12,8 +12,6 @@ linters-settings:
   errcheck:
     # Report about not checking of errors in type assertions: `a := b.(MyStruct)`.
     check-type-assertions: false
-    # TODO: Remove following line when version 1.58.3 is released.
-    ignore: ""
 
   #  exhaustive:
   #    # Program elements to check for exhaustiveness.

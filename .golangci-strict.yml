@@ -29,8 +29,6 @@ linters-settings:
     # Such cases aren't reported by default.
     # Default: false
     check-type-assertions: true
-    # TODO: Remove following line when version 1.58.3 is released.
-    ignore: ""
 
   exhaustive:
     # Program elements to check for exhaustiveness.
@@ -176,12 +174,6 @@ linters-settings:
     # Otherwise, only methods that take `*testing.T`, `*testing.B`, and `testing.TB` as arguments are checked.
     # Default: false
     all: true
-
-    # TODO: Remove following lines when version 1.58.3 is released.
-  gosec:
-    excludes:
-      - G601
-      - G113
 
 linters:
   disable-all: true
