@@ -114,6 +114,7 @@ func EvaluationErrorPushf(err error, format string, args ...interface{}) error {
 	var target evaluationError
 	if errors.As(err, &target) {
 		target.PushCallStackf(format, args...) // change the internal error, wrapped hierarchy is not affected
+		return err                             // return the original error with updated call stack
 	}
 	return errors.Wrapf(err, format, args...)
 }
@@ -122,6 +123,7 @@ func EvaluationErrorSetComplexity(err error, complexity int) error {
 	var target evaluationError
 	if errors.As(err, &target) {
 		target.SetComplexity(complexity) // change the internal error, wrapped hierarchy is not affected
+		return err                       // return the original error with updated complexity
 	}
 	return err
 }
