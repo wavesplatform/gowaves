@@ -262,17 +262,17 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return nil, err
 	}
-	checkPaymentsAfterApplication := func() error {
+	checkPaymentsAfterApplication := func(errT EvaluationError) error {
 		err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
 		if err != nil && GetEvaluationErrorType(err) == Undefined {
-			err = InternalInvocationError.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+			err = errT.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
 		}
 		return err
 	}
 	lightNodeActivated := env.lightNodeActivated()
 	if lightNodeActivated { // Check payments result balances here AFTER Light Node activation
-		if err := checkPaymentsAfterApplication(); err != nil {
-			return nil, err
+		if pErr := checkPaymentsAfterApplication(NegativeBalanceAfterPayment); pErr != nil {
+			return nil, pErr
 		}
 	}
 
@@ -301,12 +301,14 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	res, err := invokeFunctionFromDApp(env, tree, fn, arguments)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "%s at '%s' function %s with arguments %v", invocation.name(), recipientAddr, fn, arguments)
+		return nil, EvaluationErrorPushf(err, "%s at '%s' function %s with arguments %v",
+			invocation.name(), recipientAddr, fn, arguments,
+		)
 	}
 
 	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
-		if err := checkPaymentsAfterApplication(); err != nil {
-			return nil, err
+		if pErr := checkPaymentsAfterApplication(InternalInvocationError); pErr != nil {
+			return nil, pErr
 		}
 	}
 
