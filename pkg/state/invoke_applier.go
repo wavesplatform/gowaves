@@ -779,7 +779,7 @@ func (ia *invokeApplier) handleInvokeFunctionError(
 	// 2) The error is ride.InternalInvocationError and correct fail/reject behaviour is activated
 	// 3) The spent complexity is less than limit
 	switch ride.GetEvaluationErrorType(err) {
-	case ride.UserError, ride.RuntimeError, ride.ComplexityLimitExceed:
+	case ride.UserError, ride.RuntimeError, ride.ComplexityLimitExceed, ride.NegativeBalanceAfterPayment:
 		// Usual script error produced by user code or system functions.
 		// We reject transaction if spent complexity is less than limit.
 		if !info.acceptFailed || isCheap { // Reject transaction if no failed transactions or the transaction is cheap
