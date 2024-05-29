@@ -244,6 +244,7 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 		)
 		a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 		a.blocksCache.AddBlockState(block)
+		a.baseInfo.scheduler.Reschedule()
 		return a, nil, nil
 	}
 	defer func() {
