@@ -5,7 +5,6 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
@@ -346,7 +345,7 @@ func TestOnEdgeComplexity1(t *testing.T) {
 		withTree(dApp, tree).withWrappedState().toEnv()
 
 	r, err := CallFunction(env, tree, proto.NewFunctionCall("foo", proto.Arguments{proto.NewIntegerArgument(52)}))
-	require.EqualError(t, err, "failed to evaluate block after declaration of variable 'complexInt1': failed to evaluate block after declaration of variable 'complexInt2': evaluation complexity 52001 exceeds the limit 52000") //nolint:lll
+	require.EqualError(t, err, "evaluation complexity 52001 exceeds the limit 52000")
 	assert.Equal(t, GetEvaluationErrorType(err), ComplexityLimitExceed)
 	assert.Nil(t, r)
 	assert.Equal(t, 52000, EvaluationErrorSpentComplexity(err))
@@ -380,7 +379,7 @@ func TestOnEdgeComplexity2(t *testing.T) {
 		withInvocation("foo").withDataEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
 		withTree(dApp, tree).withWrappedState().toEnv()
 	r, err := CallFunction(env, tree, proto.NewFunctionCall("foo", proto.Arguments{proto.NewIntegerArgument(52)}))
-	require.EqualError(t, err, "failed to evaluate block after declaration of variable 'result': evaluation complexity 52001 exceeds the limit 52000") //nolint:lll
+	require.EqualError(t, err, "evaluation complexity 52001 exceeds the limit 52000")
 	assert.Equal(t, GetEvaluationErrorType(err), ComplexityLimitExceed)
 	assert.Nil(t, r)
 	assert.Equal(t, 52000, EvaluationErrorSpentComplexity(err))
@@ -574,5 +573,5 @@ func TestComplexityOverflow(t *testing.T) {
 		withWrappedState()
 
 	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
-	require.EqualError(t, err, "failed to evaluate block after declaration of variable 'a': failed to evaluate block after declaration of variable 'b': failed to evaluate block after declaration of variable 'c': failed to evaluate block after declaration of variable 'd': failed to evaluate block after declaration of variable 'e': failed to evaluate block after declaration of variable 'f': failed to evaluate block after declaration of variable 'g': failed to estimate the condition of if: failed to call system function '0': failed to materialize argument 1: failed to evaluate expression of scope value 'g': failed to call system function '1020': invoke at '3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1' function \"call\" with arguments []: failed to evaluate block after declaration of variable 'a': failed to evaluate block after declaration of variable 'b': failed to evaluate block after declaration of variable 'c': failed to evaluate block after declaration of variable 'd': failed to evaluate block after declaration of variable 'e': failed to evaluate block after declaration of variable 'f': failed to evaluate block after declaration of variable 'g': failed to evaluate block after declaration of variable 'h': failed to evaluate block after declaration of variable 'ii': failed to evaluate block after declaration of variable 'j': failed to estimate the condition of if: failed to call system function '0': failed to materialize argument 1: failed to evaluate expression of scope value 'j': evaluation complexity 26149 exceeds the limit 26000") //nolint:lll
+	require.EqualError(t, err, "evaluation complexity 26149 exceeds the limit 26000")
 }
