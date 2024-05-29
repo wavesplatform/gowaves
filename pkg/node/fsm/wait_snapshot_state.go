@@ -126,6 +126,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	a.blocksCache.AddBlockState(a.blockWaitingForSnapshot)
 	a.blocksCache.AddSnapshot(blockID, snapshot)
 	a.baseInfo.scheduler.Reschedule()
+	a.baseInfo.actions.SendBlock(a.blockWaitingForSnapshot)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 	return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)

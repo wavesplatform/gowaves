@@ -193,6 +193,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
+	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
@@ -245,6 +246,13 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 		a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 		a.blocksCache.AddBlockState(block)
 		a.baseInfo.scheduler.Reschedule()
+		// Notify all connected peers about new microblock, send them microblock inv network message
+		if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
+			//TODO: We have to exclude from recipients peers that already have this microblock
+			if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
+				return a, nil, a.Errorf(errors.Wrap(err, "failed to handle microblock message"))
+			}
+		}
 		return a, nil, nil
 	}
 	defer func() {
