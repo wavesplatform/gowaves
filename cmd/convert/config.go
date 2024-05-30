@@ -27,10 +27,13 @@ func (c *config) parse() error {
 		scheme, privateKey, in, out string
 	)
 	flag.StringVar(&scheme, "scheme", "W", "Network scheme byte. Defaults to 'W' (MainNet).")
-	flag.BoolVar(&c.toJSON, "to-json", false, "Convert transaction to JSON representation. Sign the transaction if private key is provided.")
-	flag.BoolVar(&c.toBinary, "to-binary", false, "Convert transaction to binary representation. Sign the transaction if private key is provided.")
-	flag.BoolVar(&c.base64, "base64", false, "Use Base64 as binary transaction encoding.")
-	flag.StringVar(&privateKey, "private-key", "", "Private key to sign transaction with. Please, provide Base58 string representation.")
+	flag.BoolVar(&c.toJSON, "to-json", false,
+		"Convert the transaction to JSON representation. Sign the transaction if a private key is provided.")
+	flag.BoolVar(&c.toBinary, "to-binary", false,
+		"Convert the transaction to binary representation. Sign the transaction if a private key is provided.")
+	flag.BoolVar(&c.base64, "base64", false, "Use Base64 as the binary transaction encoding.")
+	flag.StringVar(&privateKey, "private-key", "",
+		"Private key to sign the transaction. Please provide the key in Base58 string.")
 	flag.StringVar(&in, "in", "", "Input file path.")
 	flag.StringVar(&out, "out", "", "Output file path.")
 	flag.Parse()
@@ -43,7 +46,7 @@ func (c *config) parse() error {
 	if len(privateKey) != 0 {
 		sk, err := crypto.NewSecretKeyFromBase58(privateKey)
 		if err != nil {
-			return fmt.Errorf("failed to parse private key: %v", err)
+			return fmt.Errorf("failed to parse private key: %w", err)
 		}
 		c.sk = &sk
 	}

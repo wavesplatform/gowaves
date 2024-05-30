@@ -33,45 +33,55 @@ func run() error {
 	}
 	switch detectDataType(data) {
 	case inputJSON:
-		tx, txErr := fromJSON(data, cfg)
-		if txErr != nil {
-			return err
-		}
-		tx, sErr := sign(tx, cfg)
-		if sErr != nil {
-			return sErr
-		}
-		if cfg.toJSON {
-			jErr := toJSON(tx, cfg)
-			if jErr != nil {
-				return jErr
-			}
-			return nil
-		}
-		bErr := toBinary(tx, cfg)
-		if bErr != nil {
-			return bErr
-		}
+		return handleJSON(data, cfg)
 	case inputBinary:
-		tx, txErr := fromBinary(data, cfg)
-		if txErr != nil {
-			return txErr
+		return handleBinary(data, cfg)
+	}
+	return nil
+}
+
+func handleJSON(data []byte, cfg config) error {
+	tx, rErr := fromJSON(data, cfg)
+	if rErr != nil {
+		return rErr
+	}
+	tx, sErr := sign(tx, cfg)
+	if sErr != nil {
+		return sErr
+	}
+	if cfg.toJSON {
+		wErr := toJSON(tx, cfg)
+		if wErr != nil {
+			return wErr
 		}
-		tx, sErr := sign(tx, cfg)
-		if sErr != nil {
-			return sErr
+		return nil
+	}
+	wErr := toBinary(tx, cfg)
+	if wErr != nil {
+		return wErr
+	}
+	return nil
+}
+
+func handleBinary(data []byte, cfg config) error {
+	tx, rErr := fromBinary(data, cfg)
+	if rErr != nil {
+		return rErr
+	}
+	tx, sErr := sign(tx, cfg)
+	if sErr != nil {
+		return sErr
+	}
+	if cfg.toBinary {
+		wErr := toBinary(tx, cfg)
+		if wErr != nil {
+			return wErr
 		}
-		if cfg.toBinary {
-			bErr := toBinary(tx, cfg)
-			if bErr != nil {
-				return bErr
-			}
-			return nil
-		}
-		jErr := toJSON(tx, cfg)
-		if jErr != nil {
-			return jErr
-		}
+		return nil
+	}
+	wErr := toJSON(tx, cfg)
+	if wErr != nil {
+		return wErr
 	}
 	return nil
 }
