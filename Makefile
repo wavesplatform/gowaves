@@ -180,6 +180,12 @@ build-compiler-windows:
 
 release-compiler: ver build-compiler-linux build-compiler-darwin build-compiler-windows
 
+dist-compiler: release-compiler
+	@mkdir -p build/dist
+	@cd ./build/; zip -j ./dist/compiler_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/compiler*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_Linux-amd64.tar.gz ./compiler*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_macOS-amd64.tar.gz ./compiler*
+
 build-statehash-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/statehash ./cmd/statehash
 build-statehash-darwin:
@@ -189,11 +195,20 @@ build-statehash-windows:
 
 release-statehash: ver build-statehash-linux build-statehash-darwin build-statehash-windows
 
-dist-compiler: release-compiler
+build-convert-linux:
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/convert ./cmd/convert
+build-convert-darwin:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/convert ./cmd/convert
+build-convert-windows:
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/convert.exe ./cmd/convert
+
+release-convert: ver build-convert-linux build-convert-darwin build-convert-windows
+
+dist-convert: release-convert
 	@mkdir -p build/dist
-	@cd ./build/; zip -j ./dist/compiler_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/compiler*
-	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_Linux-amd64.tar.gz ./compiler*
-	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_macOS-amd64.tar.gz ./compiler*
+	@cd ./build/; zip -j ./dist/convert_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/convert*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/convert_$(VERSION)_Linux-amd64.tar.gz ./convert*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/convert_$(VERSION)_macOS-amd64.tar.gz ./convert*
 
 dist: clean dist-chaincmp dist-importer dist-node dist-wallet dist-compiler
 
