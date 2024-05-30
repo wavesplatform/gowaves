@@ -248,7 +248,7 @@ func (e *treeEvaluator) materializeArguments(arguments []ast.Node) ([]rideType, 
 	for i, arg := range arguments {
 		a, err := e.walk(arg)
 		if err != nil {
-			return nil, EvaluationErrorPush(err, "failed to materialize argument %d", i+1)
+			return nil, EvaluationErrorPushf(err, "failed to materialize argument %d", i+1)
 		}
 		args[i] = a
 	}
@@ -266,7 +266,7 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 	}
 	args, err := e.materializeArguments(arguments)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
+		return nil, EvaluationErrorPushf(err, "failed to call system function '%s'", name)
 	}
 	if ok, nc := e.env.complexityCalculator().testNativeFunctionComplexity(cost); !ok {
 		return nil, ComplexityLimitExceed.Errorf("evaluation complexity %d exceeds the limit %d",
@@ -277,7 +277,7 @@ func (e *treeEvaluator) evaluateNativeFunction(name string, arguments []ast.Node
 	}()
 	r, err := f(e.env, args...)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "failed to call system function '%s'", name)
+		return nil, EvaluationErrorPushf(err, "failed to call system function '%s'", name)
 	}
 	return r, nil
 }
@@ -305,7 +305,7 @@ func (e *treeEvaluator) evaluateUserFunction(name string, args []rideType) (ride
 
 	r, err := e.walk(uf.Body)
 	if err != nil {
-		return nil, EvaluationErrorPush(err, "failed to evaluate function '%s' body", name)
+		return nil, EvaluationErrorPushf(err, "failed to evaluate function '%s' body", name)
 	}
 	e.s.cs = e.s.cs[:len(e.s.cs)-1]
 	e.s.cl = tmp
@@ -344,7 +344,7 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		}()
 		ce, err := e.walk(n.Condition)
 		if err != nil {
-			return nil, EvaluationErrorPush(err, "failed to estimate the condition of if")
+			return nil, EvaluationErrorPushf(err, "failed to estimate the condition of if")
 		}
 		cr, ok := ce.(rideBoolean)
 		if !ok {
@@ -361,7 +361,7 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		e.s.pushExpression(id, n.Expression)
 		r, err := e.walk(n.Block)
 		if err != nil {
-			return nil, EvaluationErrorPush(err, "failed to evaluate block after declaration of variable '%s'", id)
+			return nil, EvaluationErrorPushf(err, "failed to evaluate block after declaration of variable '%s'", id)
 		}
 		e.s.popValue()
 		return r, nil
@@ -388,7 +388,7 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 			}
 			r, err := e.walk(v.expression)
 			if err != nil {
-				return nil, EvaluationErrorPush(err, "failed to evaluate expression of scope value '%s'", id)
+				return nil, EvaluationErrorPushf(err, "failed to evaluate expression of scope value '%s'", id)
 			}
 			e.s.updateValue(f, p, id, r)
 			return r, nil
@@ -400,11 +400,11 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		e.s.pushUserFunction(n)
 		r, err := e.walk(n.Block)
 		if err != nil {
-			return nil, EvaluationErrorPush(err, "failed to evaluate block after declaration of function '%s'", id)
+			return nil, EvaluationErrorPushf(err, "failed to evaluate block after declaration of function '%s'", id)
 		}
 		err = e.s.popUserFunction()
 		if err != nil {
-			return nil, EvaluationErrorPush(err, "failed to evaluate declaration of function '%s'", id)
+			return nil, EvaluationErrorPushf(err, "failed to evaluate declaration of function '%s'", id)
 		}
 		return r, nil
 
@@ -420,7 +420,7 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 			}
 			args, err := e.materializeArguments(n.Arguments)
 			if err != nil {
-				return nil, EvaluationErrorPush(err, "failed to evaluate function '%s' body", name)
+				return nil, EvaluationErrorPushf(err, "failed to evaluate function '%s' body", name)
 			}
 			return e.evaluateUserFunction(name, args)
 		default:
@@ -438,12 +438,12 @@ func (e *treeEvaluator) walk(node ast.Node) (rideType, error) {
 		name := n.Name
 		obj, err := e.walk(n.Object)
 		if err != nil {
-			return nil, EvaluationErrorPush(err, "failed to evaluate an object to get property '%s' on it", name)
+			return nil, EvaluationErrorPushf(err, "failed to evaluate an object to get property '%s' on it", name)
 		}
 		v, err := obj.get(name)
 
 		if err != nil {
-			return nil, EvaluationErrorPush(err, "failed to get property '%s'", name)
+			return nil, EvaluationErrorPushf(err, "failed to get property '%s'", name)
 		}
 		return v, nil
 

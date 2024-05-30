@@ -5857,3 +5857,186 @@ func TestGlobalDeclarationScopesEvaluation(t *testing.T) {
 	}
 	assert.Equal(t, expectedResult, sr)
 }
+
+// TestEvaluatorComplexityFailedPaymentsCheck checks special behavior of scala node in intermediate balances check after
+// payments application before light node activation and after.
+//
+// Transaction on MainNet which has revealed the issue: '12x6G3QFLU48YmPfsZzV9Keei5idEapTtEyqjaNoi2CZ'.
+func TestEvaluatorComplexityFailedPaymentsCheck(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	assetID, err := crypto.NewDigestFromBase58("BXBUNddxTGTQc3G4qHYn5E67SBwMj18zLncUr871iuRD")
+	require.NoError(t, err)
+	asset := &proto.FullAssetInfo{
+		AssetInfo: proto.AssetInfo{
+			AssetConstInfo: proto.AssetConstInfo{
+				ID:       assetID,
+				Issuer:   sender.address(),
+				Decimals: 1,
+			},
+			Quantity: 100500,
+		},
+		Name:        "a-test",
+		Description: "description a-test",
+	}
+
+	src1 := fmt.Sprintf(`
+			{-# STDLIB_VERSION 7 #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+
+			@Callable(i)
+			func f1(bigComplexity: Boolean, error: Boolean, doubleInvoke: Boolean) = {
+			  strict dApp = Address(base58'%[1]s')
+			  strict c = if (doubleInvoke) then dApp.invoke("f2", [bigComplexity, error], []) else 0
+			  strict r = dApp.invoke("f2", [bigComplexity, error], [AttachedPayment(base58'%[2]s', 123)])
+			  []
+			}
+		`,
+		dApp2.address().String(), assetID.String(),
+	)
+	src2 := `
+			{-# STDLIB_VERSION 7 #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+
+			@Callable(i)
+			func f2(bigComplexity: Boolean, error: Boolean) = {
+			  strict c = if (bigComplexity) then {
+				sigVerify(base58'', base58'', base58'') || 
+				sigVerify(base58'', base58'', base58'')
+			  } else 0
+			  strict e = if (error) then throw("custom error") else 0
+			  []
+			}
+		`
+
+	tree1, errs := ridec.CompileToTree(src1)
+	require.Empty(t, errs)
+	tree2, errs := ridec.CompileToTree(src2)
+	require.Empty(t, errs)
+
+	createEnv := func(t *testing.T) *testEnv {
+		return newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(ast.LibV7, 52000).
+			withBlockV5Activated().withProtobufTx().withRideV6Activated().
+			withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(dApp1).withDApp(dApp1).withSender(sender).
+			withAdditionalDApp(dApp2).withTree(dApp2, tree2).
+			withInvocation("f1", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+			withAsset(asset).
+			withAssetBalance(dApp1, assetID, 10).
+			withAssetBalance(sender, assetID, 0).
+			withAssetBalance(dApp2, assetID, 0).
+			withWrappedState()
+	}
+	t.Run("one-invoke_before_light_node", func(t *testing.T) {
+		env := createEnv(t)
+		rideEnv := env.toEnv()
+		res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
+			&proto.BooleanArgument{Value: true},
+			&proto.BooleanArgument{Value: false},
+			&proto.BooleanArgument{Value: false},
+		}))
+		assert.Error(t, callErr)
+		assert.Nil(t, res)
+		const expected = 444
+		assert.Equal(t, expected, rideEnv.complexityCalculator().complexity())
+		assert.Equal(t, expected, EvaluationErrorSpentComplexity(callErr))
+		assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(callErr))
+	})
+	t.Run("one-invoke_after_light_node", func(t *testing.T) {
+		env := createEnv(t).withLightNodeActivated()
+		rideEnv := env.toEnv()
+		res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
+			&proto.BooleanArgument{Value: true},
+			&proto.BooleanArgument{Value: false},
+			&proto.BooleanArgument{Value: false},
+		}))
+		assert.Error(t, callErr)
+		assert.Nil(t, res)
+		const expected = 82
+		assert.Equal(t, expected, rideEnv.complexityCalculator().complexity())
+		assert.Equal(t, expected*2, EvaluationErrorSpentComplexity(callErr))
+		assert.Equal(t, NegativeBalanceAfterPayment, GetEvaluationErrorType(callErr))
+	})
+	t.Run("one-invoke-throw", func(t *testing.T) {
+		doTest := func(t *testing.T, env *testEnv, calcComplexity, errComplexity int, errT EvaluationError) {
+			rideEnv := env.toEnv()
+			res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
+				&proto.BooleanArgument{Value: false},
+				&proto.BooleanArgument{Value: true},
+				&proto.BooleanArgument{Value: false},
+			}))
+			assert.Error(t, callErr)
+			assert.Nil(t, res)
+			assert.Equal(t, calcComplexity, rideEnv.complexityCalculator().complexity())
+			assert.Equal(t, errComplexity, EvaluationErrorSpentComplexity(callErr))
+			assert.Equal(t, errT, GetEvaluationErrorType(callErr))
+		}
+
+		t.Run("before_light_node", func(t *testing.T) {
+			env := createEnv(t)
+			doTest(t, env, 84, 84, UserError) // successfully throws custom error
+		})
+		t.Run("after_light_node", func(t *testing.T) {
+			env := createEnv(t).withLightNodeActivated()
+			doTest(t, env, 82, 164, NegativeBalanceAfterPayment) // fails by negative balance
+			// FIXME: in scala node behaviour is the same, as in the 'before_light_node' case
+		})
+	})
+	t.Run("double-invoke_before_light_node", func(t *testing.T) {
+		env := createEnv(t)
+		rideEnv := env.toEnv()
+		res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
+			&proto.BooleanArgument{Value: true},
+			&proto.BooleanArgument{Value: false},
+			&proto.BooleanArgument{Value: true},
+		}))
+		assert.Error(t, callErr)
+		assert.Nil(t, res)
+		const expected = 883
+		assert.Equal(t, expected, rideEnv.complexityCalculator().complexity())
+		assert.Equal(t, expected, EvaluationErrorSpentComplexity(callErr))
+		assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(callErr))
+	})
+	t.Run("double-invoke_before_light_node", func(t *testing.T) {
+		env := createEnv(t).withLightNodeActivated()
+		rideEnv := env.toEnv()
+		res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
+			&proto.BooleanArgument{Value: true},
+			&proto.BooleanArgument{Value: false},
+			&proto.BooleanArgument{Value: true},
+		}))
+		assert.Error(t, callErr)
+		assert.Nil(t, res)
+		const expected = 521
+		assert.Equal(t, expected, rideEnv.complexityCalculator().complexity())
+		assert.Equal(t, expected*2, EvaluationErrorSpentComplexity(callErr))
+		assert.Equal(t, NegativeBalanceAfterPayment, GetEvaluationErrorType(callErr))
+	})
+	t.Run("double-invoke-throw", func(t *testing.T) {
+		doTest := func(t *testing.T, env *testEnv, expectedComplexity int) {
+			rideEnv := env.toEnv()
+			res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
+				&proto.BooleanArgument{Value: false},
+				&proto.BooleanArgument{Value: true},
+				&proto.BooleanArgument{Value: true},
+			}))
+			assert.Error(t, callErr)
+			assert.Nil(t, res)
+			assert.Equal(t, expectedComplexity, rideEnv.complexityCalculator().complexity())
+			assert.Equal(t, expectedComplexity, EvaluationErrorSpentComplexity(callErr))
+			assert.Equal(t, UserError, GetEvaluationErrorType(callErr))
+		}
+		t.Run("before_light_node", func(t *testing.T) {
+			env := createEnv(t)
+			doTest(t, env, 81) // successfully throws custom error in first invoke
+		})
+		t.Run("after_light_node", func(t *testing.T) {
+			env := createEnv(t).withLightNodeActivated()
+			doTest(t, env, 81) // successfully throws custom error in first invoke
+		})
+	})
+}
