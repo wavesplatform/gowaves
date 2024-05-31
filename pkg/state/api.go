@@ -73,6 +73,7 @@ type StateInfo interface {
 	ApprovalHeight(featureID int16) (proto.Height, error)
 	AllFeatures() ([]int16, error)
 	EstimatorVersion() (int, error)
+	IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error)
 
 	// Aliases.
 	AddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
@@ -122,6 +123,8 @@ type StateInfo interface {
 	// State hashes.
 	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
 	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
+	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
+	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
@@ -167,7 +170,12 @@ type StateModifier interface {
 	// that were added using ValidateNextTx() until you call ResetValidationList().
 	// Returns TxCommitmentError or other state error or nil.
 	// When TxCommitmentError is returned, state MUST BE cleared using ResetValidationList().
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
+	ValidateNextTx(
+		tx proto.Transaction,
+		currentTimestamp, parentTimestamp uint64,
+		blockVersion proto.BlockVersion,
+		acceptFailed bool,
+	) ([]proto.AtomicSnapshot, error)
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 
@@ -189,7 +197,12 @@ type StateModifier interface {
 type NonThreadSafeState = State
 
 type TxValidation interface {
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
+	ValidateNextTx(
+		tx proto.Transaction,
+		currentTimestamp, parentTimestamp uint64,
+		blockVersion proto.BlockVersion,
+		acceptFailed bool,
+	) ([]proto.AtomicSnapshot, error)
 }
 
 type State interface {

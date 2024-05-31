@@ -193,6 +193,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
+	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
@@ -233,7 +234,7 @@ func (a *NGState) MinedBlock(
 func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async, error) {
 	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
 	if !a.baseInfo.enableLightMode {
-		block, err := a.checkAndAppendMicroBlock(micro, nil) // the TopBlock() is used here
+		block, err := a.checkAndAppendMicroBlock(micro) // the TopBlock() is used here
 		if err != nil {
 			metrics.FSMMicroBlockDeclined("ng", micro, err)
 			return a, nil, a.Errorf(err)
@@ -244,6 +245,14 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 		)
 		a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 		a.blocksCache.AddBlockState(block)
+		a.baseInfo.scheduler.Reschedule()
+		// Notify all connected peers about new microblock, send them microblock inv network message
+		if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
+			//TODO: We have to exclude from recipients peers that already have this microblock
+			if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
+				return a, nil, a.Errorf(errors.Wrap(err, "failed to handle microblock message"))
+			}
+		}
 		return a, nil, nil
 	}
 	defer func() {
@@ -296,6 +305,23 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to broadcast generated microblock"))
 	}
 
+	blockchainHeight, err := a.baseInfo.storage.Height()
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrap(err, "failed to get blockchain height"))
+	}
+	// here the blockchainHeight is equal to lastBlockHeight because we are appending a microblock to the last block
+	lastBlockHeight := blockchainHeight
+	ok, err := a.baseInfo.storage.IsActiveLightNodeNewBlocksFields(lastBlockHeight)
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+	if ok {
+		sh, errSh := a.baseInfo.storage.SnapshotStateHashAtHeight(lastBlockHeight)
+		if errSh != nil {
+			return a, nil, a.Errorf(errSh)
+		}
+		micro.StateHash = &sh
+	}
 	a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 	a.baseInfo.MicroBlockInvCache.Add(block.BlockID(), inv)
 
@@ -305,7 +331,6 @@ func (a *NGState) mineMicro(
 // checkAndAppendMicroBlock checks that microblock is appendable and appends it.
 func (a *NGState) checkAndAppendMicroBlock(
 	micro *proto.MicroBlock,
-	snapshot *proto.BlockSnapshot,
 ) (*proto.Block, error) {
 	top := a.baseInfo.storage.TopBlock()  // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
@@ -323,7 +348,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 	}
 	newTrs := top.Transactions.Join(micro.Transactions)
 	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus,
-		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme)
+		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash)
 	if err != nil {
 		return nil, err
 	}
@@ -339,30 +364,10 @@ func (a *NGState) checkAndAppendMicroBlock(
 	if err != nil {
 		return nil, errors.Wrap(err, "NGState microBlockByID: failed generate block id")
 	}
-	snapshotsToApply := snapshot
-	if snapshot != nil {
-		h, errBToH := a.baseInfo.storage.BlockIDToHeight(top.BlockID())
-		if errBToH != nil {
-			return nil, errBToH
-		}
-		topBlockSnapshots, errSAtH := a.baseInfo.storage.SnapshotsAtHeight(h)
-		if errSAtH != nil {
-			return nil, errSAtH
-		}
-
-		topBlockSnapshots.AppendTxSnapshots(snapshot.TxSnapshots)
-
-		snapshotsToApply = &topBlockSnapshots
-		err = a.baseInfo.storage.Map(func(state state.State) error {
-			_, er := a.baseInfo.blocksApplier.ApplyMicroWithSnapshots(state, newBlock, snapshotsToApply)
-			return er
-		})
-	} else {
-		err = a.baseInfo.storage.Map(func(state state.State) error {
-			_, er := a.baseInfo.blocksApplier.ApplyMicro(state, newBlock)
-			return er
-		})
-	}
+	err = a.baseInfo.storage.Map(func(state state.State) error {
+		_, er := a.baseInfo.blocksApplier.ApplyMicro(state, newBlock)
+		return er
+	})
 
 	if err != nil {
 		metrics.FSMMicroBlockDeclined("ng", micro, err)

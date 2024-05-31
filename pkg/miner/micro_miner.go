@@ -6,6 +6,7 @@ import (
 	"github.com/mr-tron/base58"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -67,6 +68,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 	var appliedTransactions []*types.TransactionWithBytes
 	var inapplicable []*types.TransactionWithBytes
+	var txSnapshots [][]proto.AtomicSnapshot
 
 	_ = a.state.Map(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
@@ -88,8 +90,8 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 			// In the miner we pack transactions from UTX into new block.
 			// We should accept failed transactions here.
-			err = s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
-			if state.IsTxCommitmentError(err) {
+			snapshot, errVal := s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
+			if state.IsTxCommitmentError(errVal) {
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.
 				s.ResetValidationList()
@@ -98,9 +100,10 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 					_ = a.utx.AddWithBytes(appliedTx.T, appliedTx.B)
 				}
 				appliedTransactions = nil
+				txSnapshots = nil
 				continue
 			}
-			if err != nil {
+			if errVal != nil {
 				inapplicable = append(inapplicable, t)
 				continue
 			}
@@ -108,6 +111,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			txCount += 1
 			binSize += len(binTr) + transactionLenBytes
 			appliedTransactions = append(appliedTransactions, t)
+			txSnapshots = append(txSnapshots, snapshot)
 		}
 		return nil
 	})
@@ -133,6 +137,24 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		}
 		transactions[i] = appliedTx.T
 	}
+	lightNodeNewBlockActivated, err := a.state.IsActiveLightNodeNewBlocksFields(height)
+	if err != nil {
+		return nil, nil, rest, err
+	}
+
+	var sh *crypto.Digest
+	if lightNodeNewBlockActivated {
+		prevSh, ok := minedBlock.GetStateHash()
+		if !ok {
+			return nil, nil, rest, errors.New("mined block should have a state hash field")
+		}
+		newSh, errSh := state.CalculateSnapshotStateHash(a.scheme, height, prevSh, transactions, txSnapshots)
+		if errSh != nil {
+			return nil, nil, rest, errSh
+		}
+		sh = &newSh
+	}
+
 	newTransactions := minedBlock.Transactions.Join(transactions)
 
 	newBlock, err := proto.CreateBlock(
@@ -145,6 +167,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		minedBlock.Features,
 		minedBlock.RewardVote,
 		a.scheme,
+		sh,
 	)
 	if err != nil {
 		return nil, nil, rest, err
@@ -171,6 +194,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		Reference:             a.state.TopBlock().BlockID(),
 		TotalResBlockSigField: newBlock.BlockSignature,
 		TotalBlockID:          newBlock.BlockID(),
+		StateHash:             sh,
 	}
 
 	err = micro.Sign(a.scheme, sk)

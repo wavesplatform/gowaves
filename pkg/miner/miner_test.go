@@ -32,6 +32,7 @@ func TestMineMicroblock(t *testing.T) {
 		nil,
 		-1,
 		proto.TestNetScheme,
+		nil,
 	)
 	require.NoError(t, err)
 	err = keyBlock.Sign(proto.TestNetScheme, keyPair.Secret)
@@ -57,6 +58,7 @@ func createMicroBlock(keyBlock *proto.Block, tr proto.Transactions, keyPair prot
 		blockApplyOn.Features,
 		blockApplyOn.RewardVote,
 		scheme,
+		nil,
 	)
 	if err != nil {
 		return nil, err

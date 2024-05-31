@@ -66,6 +66,34 @@ func (a *MicroblockMiner) MineKeyBlock(
 	}
 	b := bi.(*proto.Block)
 
+	blockchainHeight, err := a.state.Height()
+	if err != nil {
+		return nil, proto.MiningLimits{}, errors.Wrap(err, "failed to get blockchain height")
+	}
+	// Key block it's a new block for the blockchain, so height should be increased by 1.
+	newBlockHeight := blockchainHeight + 1
+	lightNodeNewBlockActivated, err := a.state.IsActiveLightNodeNewBlocksFields(newBlockHeight)
+	if err != nil {
+		return nil, proto.MiningLimits{}, err
+	}
+	if lightNodeNewBlockActivated {
+		sh, errSH := a.state.CreateNextSnapshotHash(b)
+		if errSH != nil {
+			return nil, proto.MiningLimits{}, errors.Wrapf(errSH,
+				"failed to create initial snapshot hash for key block %s", b.ID.String())
+		}
+		b.StateHash = &sh
+		// Resign block
+		if err = b.Sign(a.services.Scheme, k.Secret); err != nil {
+			return nil, proto.MiningLimits{}, errors.Wrap(err,
+				"failed to resign key block with filled state hash field")
+		}
+		// Regenerate block ID with filled state hash field.
+		if genErr := b.GenerateBlockID(a.services.Scheme); genErr != nil {
+			return nil, proto.MiningLimits{}, errors.Wrap(genErr,
+				"failed to regenerate key block ID with filled state hash field")
+		}
+	}
 	activated, err := a.state.IsActivated(int16(settings.RideV5))
 	if err != nil {
 		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated",
