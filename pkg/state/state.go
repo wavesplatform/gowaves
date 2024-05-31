@@ -2012,8 +2012,6 @@ func (s *stateManager) ValidateNextTx(
 }
 
 func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
-	const readOnly = true
-
 	blockchainHeight, err := s.Height()
 	if err != nil {
 		return crypto.Digest{}, err
@@ -2025,7 +2023,7 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 	blockHeight := blockchainHeight + 1
 	// Generate blockchain fix snapshots for the given block in read only mode because all
 	// changes has been already applied in the context of the last applied block.
-	fixSnapshots, gbfErr := s.generateBlockchainFix(blockHeight, block.BlockID(), readOnly)
+	fixSnapshots, gbfErr := s.generateBlockchainFix(blockHeight, block.BlockID(), true)
 	if gbfErr != nil {
 		return crypto.Digest{}, errors.Wrapf(gbfErr, "failed to generate blockchain fix snapshots at block %s",
 			block.BlockID().String(),
@@ -2038,7 +2036,7 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 			blockHeight,
 		)
 	}
-	return s.appender.createNextSnapshotHash(block, blockHeight, lastSnapshotStateHash, fixSnapshots, readOnly)
+	return s.appender.createNextSnapshotHash(block, blockHeight, lastSnapshotStateHash, fixSnapshots)
 }
 
 func (s *stateManager) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {

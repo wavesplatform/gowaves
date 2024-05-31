@@ -801,7 +801,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		lastSnapshotStateHash:     params.lastSnapshotStateHash,
 		fixSnapshotsToInitialHash: params.fixSnapshotsToInitialHash,
 		currentBlockHeight:        currentBlockHeight,
-		readOnly:                  false,
 	}
 	initialSnapshot, stateHash, err := a.createInitialDiffAndStateHash(createInitHashParams, hasher)
 	if err != nil {
@@ -873,7 +872,6 @@ type initialDiffAndStateHashParams struct {
 	lastSnapshotStateHash     crypto.Digest
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot
 	currentBlockHeight        proto.Height
-	readOnly                  bool
 }
 
 // createInitialDiffAndStateHash creates the initial diff and state hash for the block.
@@ -1218,7 +1216,6 @@ func (a *txAppender) createNextSnapshotHash(
 	blockHeight proto.Height,
 	lastSnapshotStateHash crypto.Digest,
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
-	readOnly bool,
 ) (crypto.Digest, error) {
 	hasher, err := newTxSnapshotHasherDefault()
 	if err != nil {
@@ -1233,7 +1230,6 @@ func (a *txAppender) createNextSnapshotHash(
 		lastSnapshotStateHash:     lastSnapshotStateHash,
 		fixSnapshotsToInitialHash: fixSnapshotsToInitialHash,
 		currentBlockHeight:        blockHeight,
-		readOnly:                  readOnly,
 	}
 	_, initSh, err := a.createInitialDiffAndStateHash(params, hasher)
 	if err != nil {
