@@ -901,27 +901,21 @@ func (a *txAppender) createInitialDiffAndStateHash(
 		return txSnapshot{}, crypto.Digest{}, errors.Wrap(err, "failed to create initial snapshot")
 	}
 
-	// TODO: is it necesary to perform here any actions with diff storage??
-	ds := a.diffStor
-	if params.readOnly {
-		// Create the temporary one just to validate the miner reward diff.
-		tmpDiffStop, dsErr := newDiffStorage()
-		if dsErr != nil {
-			return txSnapshot{}, crypto.Digest{}, errors.Wrap(dsErr,
-				"failed to create temporary diff storage for validation",
-			)
-		}
-		ds = tmpDiffStop
+	tmpDiffStop, dsErr := newDiffStorage()
+	if dsErr != nil {
+		return txSnapshot{}, crypto.Digest{}, errors.Wrap(dsErr,
+			"failed to create temporary diff storage for validation",
+		)
 	}
 	// Save miner diff first (for validation)
-	if err = ds.saveTxDiff(minerAndRewardDiff); err != nil {
+	if err = tmpDiffStop.saveTxDiff(minerAndRewardDiff); err != nil {
 		return txSnapshot{}, crypto.Digest{}, err
 	}
 	err = a.diffApplier.validateBalancesChanges(minerAndRewardDiff.balancesChanges())
 	if err != nil {
 		return txSnapshot{}, crypto.Digest{}, errors.Wrap(err, "failed to validate miner reward changes")
 	}
-	ds.reset() // clear diff changes
+	tmpDiffStop.reset() // clear diff changes
 
 	// hash block initial snapshot and fix snapshot in the context of the applying block
 	snapshotsToHash := initialSnapshot.regular
