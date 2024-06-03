@@ -1242,12 +1242,47 @@ func (s *stateManager) beforeAppendBlock(block *proto.Block, blockHeight proto.H
 	if err := s.stor.scores.appendBlockScore(block, blockHeight); err != nil {
 		return err
 	}
+	// Handle challenged header if it exists.
+	// Light node fields check performed in ValidateHeaderBeforeBlockApplying.
+	if chErr := s.handleChallengedHeaderIfExists(block, blockHeight); chErr != nil {
+		return chErr
+	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockID()); err != nil {
 		return err
 	}
 	// Save block header to block storage.
 	return s.rw.writeBlockHeader(&block.BlockHeader)
+}
+
+func (s *stateManager) handleChallengedHeaderIfExists(block *proto.Block, blockHeight proto.Height) error {
+	challengedHeader, ok := block.GetChallengedHeader()
+	if !ok { // nothing to do, no challenge to handle
+		return nil
+	}
+	var (
+		scheme  = s.settings.AddressSchemeCharacter
+		blockID = block.BlockID()
+	)
+	challenger, err := proto.NewAddressFromPublicKey(scheme, block.GeneratorPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create challenger address from public key '%s'",
+			challengedHeader.GeneratorPublicKey.String(),
+		)
+	}
+	challenged, err := proto.NewAddressFromPublicKey(scheme, challengedHeader.GeneratorPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create challenged address from public key '%s'",
+			challengedHeader.GeneratorPublicKey.String(),
+		)
+	}
+	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockHeight, blockID); chErr != nil {
+		return errors.Wrapf(chErr,
+			"failed to store challenge for block '%s' at height %d with challenger '%s' and challenged '%s'",
+			blockID.String(), blockHeight, challenger.String(), challenged.String(),
+		)
+	}
+	return nil
 }
 
 func (s *stateManager) afterAppendBlock(block *proto.Block, blockHeight proto.Height) error {
