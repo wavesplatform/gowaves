@@ -298,6 +298,21 @@ func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockStateInfo)(nil).BlockchainSettings))
 }
 
+// CreateNextSnapshotHash mocks base method.
+func (m *MockStateInfo) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateNextSnapshotHash", block)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNextSnapshotHash indicates an expected call of CreateNextSnapshotHash.
+func (mr *MockStateInfoMockRecorder) CreateNextSnapshotHash(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNextSnapshotHash", reflect.TypeOf((*MockStateInfo)(nil).CreateNextSnapshotHash), block)
+}
+
 // CurrentScore mocks base method.
 func (m *MockStateInfo) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -521,6 +536,21 @@ func (m *MockStateInfo) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 func (mr *MockStateInfoMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLeasing", reflect.TypeOf((*MockStateInfo)(nil).IsActiveLeasing), leaseID)
+}
+
+// IsActiveLightNodeNewBlocksFields mocks base method.
+func (m *MockStateInfo) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActiveLightNodeNewBlocksFields", blockHeight)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsActiveLightNodeNewBlocksFields indicates an expected call of IsActiveLightNodeNewBlocksFields.
+func (mr *MockStateInfoMockRecorder) IsActiveLightNodeNewBlocksFields(blockHeight interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLightNodeNewBlocksFields", reflect.TypeOf((*MockStateInfo)(nil).IsActiveLightNodeNewBlocksFields), blockHeight)
 }
 
 // IsApproved mocks base method.
@@ -1100,6 +1130,20 @@ func (mr *MockStateModifierMockRecorder) AddBlocks(blocks interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddBlocks), blocks)
 }
 
+// AddBlocksWithSnapshots mocks base method.
+func (m *MockStateModifier) AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlocksWithSnapshots", blocks, snapshots)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddBlocksWithSnapshots indicates an expected call of AddBlocksWithSnapshots.
+func (mr *MockStateModifierMockRecorder) AddBlocksWithSnapshots(blocks, snapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocksWithSnapshots", reflect.TypeOf((*MockStateModifier)(nil).AddBlocksWithSnapshots), blocks, snapshots)
+}
+
 // AddDeserializedBlock mocks base method.
 func (m *MockStateModifier) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
@@ -1128,6 +1172,21 @@ func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block) (*proto
 func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks)
+}
+
+// AddDeserializedBlocksWithSnapshots mocks base method.
+func (m *MockStateModifier) AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddDeserializedBlocksWithSnapshots", blocks, snapshots)
+	ret0, _ := ret[0].(*proto.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddDeserializedBlocksWithSnapshots indicates an expected call of AddDeserializedBlocksWithSnapshots.
+func (mr *MockStateModifierMockRecorder) AddDeserializedBlocksWithSnapshots(blocks, snapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocksWithSnapshots", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocksWithSnapshots), blocks, snapshots)
 }
 
 // Close mocks base method.
@@ -1241,11 +1300,12 @@ func (mr *MockStateModifierMockRecorder) TxValidation(arg0 interface{}) *gomock.
 }
 
 // ValidateNextTx mocks base method.
-func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
+func (m *MockStateModifier) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].([]proto.AtomicSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx.
@@ -1278,11 +1338,12 @@ func (m *MockTxValidation) EXPECT() *MockTxValidationMockRecorder {
 }
 
 // ValidateNextTx mocks base method.
-func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
+func (m *MockTxValidation) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].([]proto.AtomicSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx.
@@ -1358,6 +1419,20 @@ func (mr *MockStateMockRecorder) AddBlocks(blocks interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocks", reflect.TypeOf((*MockState)(nil).AddBlocks), blocks)
 }
 
+// AddBlocksWithSnapshots mocks base method.
+func (m *MockState) AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddBlocksWithSnapshots", blocks, snapshots)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddBlocksWithSnapshots indicates an expected call of AddBlocksWithSnapshots.
+func (mr *MockStateMockRecorder) AddBlocksWithSnapshots(blocks, snapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddBlocksWithSnapshots", reflect.TypeOf((*MockState)(nil).AddBlocksWithSnapshots), blocks, snapshots)
+}
+
 // AddDeserializedBlock mocks base method.
 func (m *MockState) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
@@ -1386,6 +1461,21 @@ func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, 
 func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks)
+}
+
+// AddDeserializedBlocksWithSnapshots mocks base method.
+func (m *MockState) AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddDeserializedBlocksWithSnapshots", blocks, snapshots)
+	ret0, _ := ret[0].(*proto.Block)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddDeserializedBlocksWithSnapshots indicates an expected call of AddDeserializedBlocksWithSnapshots.
+func (mr *MockStateMockRecorder) AddDeserializedBlocksWithSnapshots(blocks, snapshots interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocksWithSnapshots", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocksWithSnapshots), blocks, snapshots)
 }
 
 // AddrByAlias mocks base method.
@@ -1565,6 +1655,21 @@ func (m *MockState) Close() error {
 func (mr *MockStateMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockState)(nil).Close))
+}
+
+// CreateNextSnapshotHash mocks base method.
+func (m *MockState) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateNextSnapshotHash", block)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNextSnapshotHash indicates an expected call of CreateNextSnapshotHash.
+func (mr *MockStateMockRecorder) CreateNextSnapshotHash(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNextSnapshotHash", reflect.TypeOf((*MockState)(nil).CreateNextSnapshotHash), block)
 }
 
 // CurrentScore mocks base method.
@@ -1790,6 +1895,21 @@ func (m *MockState) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 func (mr *MockStateMockRecorder) IsActiveLeasing(leaseID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLeasing", reflect.TypeOf((*MockState)(nil).IsActiveLeasing), leaseID)
+}
+
+// IsActiveLightNodeNewBlocksFields mocks base method.
+func (m *MockState) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IsActiveLightNodeNewBlocksFields", blockHeight)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IsActiveLightNodeNewBlocksFields indicates an expected call of IsActiveLightNodeNewBlocksFields.
+func (mr *MockStateMockRecorder) IsActiveLightNodeNewBlocksFields(blockHeight interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsActiveLightNodeNewBlocksFields", reflect.TypeOf((*MockState)(nil).IsActiveLightNodeNewBlocksFields), blockHeight)
 }
 
 // IsApproved mocks base method.
@@ -2354,11 +2474,12 @@ func (mr *MockStateMockRecorder) TxValidation(arg0 interface{}) *gomock.Call {
 }
 
 // ValidateNextTx mocks base method.
-func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
+func (m *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "ValidateNextTx", tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
-	ret0, _ := ret[0].(error)
-	return ret0
+	ret0, _ := ret[0].([]proto.AtomicSnapshot)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // ValidateNextTx indicates an expected call of ValidateNextTx.

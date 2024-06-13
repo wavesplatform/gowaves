@@ -10,6 +10,7 @@ import (
 
 const (
 	defaultChannelSize = 100
+	lightModeChannelSize = 2 *defaultChannelSize
 	errorChannelSize   = 10
 )
 
@@ -21,8 +22,8 @@ type Remote struct {
 
 func NewRemote() Remote {
 	return Remote{
-		ToCh:   make(chan []byte, defaultChannelSize),
-		FromCh: make(chan *bytebufferpool.ByteBuffer, defaultChannelSize),
+		ToCh:   make(chan []byte, lightModeChannelSize),
+		FromCh: make(chan *bytebufferpool.ByteBuffer, lightModeChannelSize),
 		ErrCh:  make(chan error, errorChannelSize),
 	}
 }
@@ -35,12 +36,17 @@ type Parent struct {
 	SkipMessageList   *messages.SkipMessageList
 }
 
-func NewParent() Parent {
+func NewParent(enableLightNode bool) Parent {
+	channelSize := defaultChannelSize
+	if enableLightNode {
+		// because in light node we send block and snapshot request messages
+		channelSize = lightModeChannelSize
+	}
 	return Parent{
-		NetworkMessagesCh: make(chan ProtoMessage, defaultChannelSize),
-		NodeMessagesCh:    make(chan ProtoMessage, defaultChannelSize),
-		HistoryMessagesCh: make(chan ProtoMessage, defaultChannelSize),
-		NotificationsCh:   make(chan Notification, defaultChannelSize),
+		NetworkMessagesCh: make(chan ProtoMessage, channelSize),
+		NodeMessagesCh:    make(chan ProtoMessage, channelSize),
+		HistoryMessagesCh: make(chan ProtoMessage, channelSize),
+		NotificationsCh:   make(chan Notification, channelSize),
 		SkipMessageList:   &messages.SkipMessageList{},
 	}
 }

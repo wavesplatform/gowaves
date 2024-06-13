@@ -17,6 +17,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -1773,7 +1774,7 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 		ts                     uint64
 		exp                    uint64
 		fee                    uint64
-		prideMode              OrderPriceMode
+		priceMode              OrderPriceMode
 	}{
 		{true, 5, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x05c8d63b42b3eb072e16efe40c448d5c7719a5ca84f6f04fff5467032186d9bb222943527e054b979ec037a665323bdaa3f9f299bc90e617fbe9c55c54a73b941b", "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA", "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6", "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA", Buy, 1000000000, 107300, 105, 1330 + MaxOrderTTL, 3, OrderPriceModeFixedDecimals},
 		{true, 4, "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af", "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726", "0x33499f53db48be48c622245ba19af8135a241b5e6a6ad950380f612c112189782860ebbf42a1f8a1e55264700b4b143cb25f6e6b45168cbd7703252cec0a6f5c1c", "26fbBp3oU3yZCGAdGwhiT8wveSjQS4JJbvG1JA88Vpsi", "4PUkX4Se2fYX2TKeuZuxhXNpws5LtKPrtxTY91MTXH1S", "5vBKp4b44cSHvPcPrCpHMZYf8DvRVwKsKXsQas63vQRA", Sell, 100540000000, 64100, 10, 1056 + MaxOrderTTL, 3, OrderPriceModeAssetDecimals},
@@ -1807,7 +1808,8 @@ func TestEthereumOrderV4_VerifyAndSig(t *testing.T) {
 			tc.ts,
 			tc.exp,
 			tc.fee,
-			tc.prideMode,
+			tc.priceMode,
+			Attachment{},
 		)
 		// verify check with invalid senderPK
 		valid, err := order.Verify(tc.scheme)
@@ -1877,6 +1879,7 @@ func TestEthereumOrderV4_VerifyFromJSONWithLeadingPKZeroes(t *testing.T) {
 }
 
 func TestEthereumOrderV4_UnmarshalJSON(t *testing.T) {
+	//nolint:lll
 	tests := []struct {
 		scheme             Scheme
 		jsonOrder          string
@@ -1941,6 +1944,35 @@ func TestEthereumOrderV4_UnmarshalJSON(t *testing.T) {
 			orderBodyBase58:    "AqRtygFPj6Dru5d3Pc49tBwT1HHrFCvRBoG5AcaBu5aG9KtRUr9dCJznkh3PjVKRU5fHpEcLzTjELSWMitAHt31R2geb1ZQ1XZwp1gcR8HVV5Nzc6rqQUPw3FGJwKA6vXRSy6R5g6s4hxSuPDaZieFdyZ2rgbZ8BPYSyuG8K3kUJ7iBTK1i7bhmLd2Usb4XHCAJR4MAArQmBGZHz74xXvS",
 			orderIDBase58:      "8274Mc8WiNQdP3YhinBGkEX79AcZe5th51DJCTW8rEUZ",
 			eip712SignatureHex: "0x6c4385dd5f6f1200b4d0630c9076104f34c801c16a211e505facfd743ba242db4429b966ffa8d2a9aff9037dafda78cfc8f7c5ef1c94493f5954bc7ebdb649281b",
+		},
+		{
+			scheme: TestNetScheme, // taken from testnet tx 992yYpK6M5viXiHcbZshE9iczaKyYXM2DX6HDZk8TE1S
+			jsonOrder: `
+				{
+					"version": 4,
+					"id": "94syx42gegn8HXK7s3hFii4KFxxfLepgprJbc5eicseq",
+					"sender": "3NAwHNM4bit7zTdQvixGoyWjvu9tbMxVx7z",
+					"senderPublicKey": "5gJT98dYcM6VPKGp1AM8jKwqi9VHkpmfqgotMirNiG8ZPbLRN4qHXMR14fwHhrdaaaDZDmK9rSRweMQhTuLb1BrV",
+					"matcherPublicKey": "7oeqv1MBNFpAZqV68VhUWcceemnhkqFus3ayFJqX6nNV",
+					"assetPair": {
+					  "amountAsset": "56BWjKYmRs2jQz8vu7aXw7YMFebgTEvKQKtoD7o3Y2Ze",
+					  "priceAsset": null
+					},
+					"orderType": "sell",
+					"amount": 10000,
+					"price": 10000,
+					"timestamp": 1654102940663,
+					"expiration": 1655542940663,
+					"matcherFee": 300000,
+					"signature": "",
+					"proofs": [],
+					"matcherFeeAssetId": null,
+					"eip712Signature": "0xc95509f78a317a01e39c9fbf5a7541f04b47181ac46a3e12a31c0489d14bddd54cb71b13554b1acae37ffecc936bd448db604d2796a94c812482133e343a9d0e1b",
+					"priceMode": "assetDecimals"
+				  }`,
+			orderBodyBase58:    "H5AvS2D9QQmL7qSidrRVY5g1FT8jdbD9j34mjA3MntwMiwiAJfMNsvTjmYhXWNbs11v9kaPpKhjq4G8ciooLdQHMedc6SGkrZoifBeJpWeaTPJ2Zwh4vL4KvXJxefdMp4yyED1s3QFiC8BGkQqXrMhyf6cPzRBTZPt63f4CFrMPity79HKqerhJFcWhVK82SApDgYFLVkCATidtqWZBe2iTyeg9YDFWEsKXUdmewK",
+			orderIDBase58:      "94syx42gegn8HXK7s3hFii4KFxxfLepgprJbc5eicseq",
+			eip712SignatureHex: "0xc95509f78a317a01e39c9fbf5a7541f04b47181ac46a3e12a31c0489d14bddd54cb71b13554b1acae37ffecc936bd448db604d2796a94c812482133e343a9d0e1b",
 		},
 	}
 	for _, tc := range tests {
@@ -2027,7 +2059,7 @@ func TestOrderPriceMode_ToProtobuf(t *testing.T) {
 
 func TestOrderPriceMode_Valid(t *testing.T) {
 	tests := []struct {
-		orderVersion byte
+		orderVersion OrderVersion
 		mode         OrderPriceMode
 		valid        bool
 	}{
@@ -2101,4 +2133,115 @@ func TestStateHashDebutUnmarshalJSON(t *testing.T) {
 		assert.Equal(t, test.h, int(shd.Height))
 		assert.Equal(t, sh, shd.GetStateHash())
 	}
+}
+
+func TestAttachmentInOrder(t *testing.T) {
+	const (
+		seed        = "3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc"
+		matcher     = "7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy"
+		amountAsset = "8LQW8f7P5d5PZM7GtZEBgaqRPGSzS3DfPuiXrURJ4AJS"
+		priceAsset  = "2bkjzFqTMM3cQpbgGYKE8r7J73SrXFH8YfxFBRBterLt"
+	)
+	s, err := base58.Decode(seed)
+	require.NoError(t, err)
+	_, pk, err := crypto.GenerateKeyPair(s)
+	require.NoError(t, err)
+	mpk := crypto.MustPublicKeyFromBase58(matcher)
+	aa, err := NewOptionalAssetFromString(amountAsset)
+	require.NoError(t, err)
+	pa, err := NewOptionalAssetFromString(priceAsset)
+	require.NoError(t, err)
+	ts := uint64(time.Now().UnixMilli())
+	oV4 := OrderV4{
+		Version:         4,
+		MatcherFeeAsset: OptionalAsset{},
+		PriceMode:       OrderPriceModeDefault,
+		OrderBody: OrderBody{
+			SenderPK:  pk,
+			MatcherPK: mpk,
+			AssetPair: AssetPair{
+				AmountAsset: *aa,
+				PriceAsset:  *pa,
+			},
+			OrderType:  Sell,
+			Price:      uint64(100),
+			Amount:     uint64(1000),
+			Timestamp:  ts,
+			Expiration: ts + 100*1000,
+			MatcherFee: uint64(10),
+		},
+	}
+	for _, test := range []struct {
+		att  Attachment
+		fail bool
+		msg  string
+	}{
+		{make([]byte, 0), false, ""},
+		{make([]byte, MaxAttachmentSize), false, ""},
+		{make([]byte, MaxAttachmentSize+1), true, "attachment size should be <= 1024 bytes, got 1025"},
+	} {
+		oV4.Attachment = test.att
+		ok, errValid := oV4.Valid()
+		if test.fail {
+			assert.Error(t, errValid)
+			assert.False(t, ok)
+		} else {
+			assert.NoError(t, errValid)
+			assert.True(t, ok)
+		}
+	}
+}
+
+func TestRecoverSignerPKForEthOrderWithAndWithoutAttachment(t *testing.T) {
+	const (
+		scheme Scheme = 5
+
+		ethSenderPKHex         = "0xd07059fbd0269ea7cb23792201f3f0834c152d503399ae83e7dbc5ee512ebdef22b459d1423a92d2a2906ba24a50b58435e5d236b4f5a820f3be23a191b412af" //nolint:lll
+		ethSenderSKHex         = "0x5d7ee7f7ca3e71e37b7a2d713fb25d50d694480ee27f3d79a1ce1801dc9c5726"
+		matcherPublicKeyBase58 = "6fb8H3bKujzno1x15Ggqgrnhsco6NVWr3e5htGGBBCyA"
+		amountAssetBase58      = "6Xqvv5kNtdNDn53foQg9sz8MfaPjxcvaftpLG59qnkD6"
+		priceAssetBase58       = "6KPVaF7fn3gw1r4Ee87jAnmaZ7GdFy2DN7cdNmx5ywMA"
+	)
+
+	ethSender, err := NewEthereumPublicKeyFromHexString(ethSenderPKHex)
+	require.NoError(t, err)
+	matcher, err := crypto.NewPublicKeyFromBase58(matcherPublicKeyBase58)
+	require.NoError(t, err)
+	amountAsset, err := NewOptionalAssetFromString(amountAssetBase58)
+	require.NoError(t, err)
+	priceAsset, err := NewOptionalAssetFromString(priceAssetBase58)
+	require.NoError(t, err)
+
+	createOrder := func(att Attachment) *EthereumOrderV4 {
+		order := NewUnsignedEthereumOrderV4(
+			&ethSender,
+			matcher,
+			*amountAsset,
+			*priceAsset,
+			Buy,
+			100,
+			100,
+			100,
+			100,
+			100,
+			OptionalAsset{},
+			OrderPriceModeFixedDecimals,
+			att,
+		)
+		secretKey, errPK := crypto.ECDSAPrivateKeyFromHexString(ethSenderSKHex)
+		require.NoError(t, errPK)
+		err = order.EthereumSign(scheme, (*EthereumPrivateKey)(secretKey))
+		require.NoError(t, err)
+		return order
+	}
+
+	orderWithAttachment := createOrder([]byte{1, 2, 3})
+	orderWithoutAttachment := createOrder(Attachment{})
+
+	err = orderWithAttachment.GenerateSenderPK(scheme)
+	require.NoError(t, err)
+	err = orderWithoutAttachment.GenerateSenderPK(scheme)
+	require.NoError(t, err)
+
+	require.Equal(t, orderWithoutAttachment.SenderPK.inner.String(), orderWithAttachment.SenderPK.inner.String())
 }

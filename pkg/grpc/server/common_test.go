@@ -86,7 +86,7 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) state.State {
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, sets)
+	st, err := state.NewState(dataDir, true, params, sets, false)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, st.Close())
@@ -104,7 +104,7 @@ func createTestNetWallet(t *testing.T) types.EmbeddedWallet {
 }
 
 func connectAutoClose(t *testing.T, addr string) *grpc.ClientConn {
-	conn, err := grpc.Dial(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(addr, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err, "grpc.Dial() failed")
 	t.Cleanup(func() {
 		require.NoError(t, conn.Close())
@@ -120,7 +120,7 @@ func withAutoCancel(t *testing.T, ctx context.Context) context.Context {
 
 func newTestState(t *testing.T, amend bool, params state.StateParams, settings *settings.BlockchainSettings) state.State {
 	dataDir := t.TempDir()
-	st, err := state.NewState(dataDir, amend, params, settings)
+	st, err := state.NewState(dataDir, amend, params, settings, false)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, st.Close())

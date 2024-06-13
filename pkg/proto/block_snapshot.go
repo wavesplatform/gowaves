@@ -17,6 +17,10 @@ func (bs *BlockSnapshot) AppendTxSnapshot(txSnapshot []AtomicSnapshot) {
 	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshot)
 }
 
+func (bs *BlockSnapshot) AppendTxSnapshots(txSnapshots [][]AtomicSnapshot) {
+	bs.TxSnapshots = append(bs.TxSnapshots, txSnapshots...)
+}
+
 func (bs BlockSnapshot) MarshallBinary() ([]byte, error) {
 	result := binary.BigEndian.AppendUint32([]byte{}, uint32(len(bs.TxSnapshots)))
 	for _, ts := range bs.TxSnapshots {
@@ -66,6 +70,60 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 	}
 	bs.TxSnapshots = txSnapshots
 	return nil
+}
+
+// UnmarshalBinaryImport unmarshals block snapshot from binary data.
+// It does not read block snapshot size from the data.
+// It reads snapshots until the end of the data.
+func (bs *BlockSnapshot) UnmarshalBinaryImport(data []byte, scheme Scheme) error {
+	var (
+		txSnapshots        [][]AtomicSnapshot
+		snapshotsBytesSize = uint32(len(data))
+	)
+	for snapshotsBytesSize > 0 {
+		if len(data) < uint32Size {
+			return errors.Errorf("BlockSnapshot UnmarshalBinaryImport: invalid data size")
+		}
+		oneSnapshotSize := binary.BigEndian.Uint32(data[0:uint32Size])
+		var tsProto g.TransactionStateSnapshot
+		data = data[uint32Size:]
+		if uint32(len(data)) < oneSnapshotSize {
+			return errors.Errorf("BlockSnapshot UnmarshalBinaryImport: invalid snapshot size")
+		}
+		err := tsProto.UnmarshalVT(data[0:oneSnapshotSize])
+		if err != nil {
+			return err
+		}
+		atomicTS, err := TxSnapshotsFromProtobuf(scheme, &tsProto)
+		if err != nil {
+			return err
+		}
+		txSnapshots = append(txSnapshots, atomicTS)
+		data = data[oneSnapshotSize:]
+		snapshotsBytesSize -= oneSnapshotSize + uint32Size
+	}
+	if snapshotsBytesSize != 0 { // check that all bytes were read
+		return errors.Errorf("BlockSnapshot UnmarshalBinaryImport: invalid data size, not all bytes were read, remaining %d",
+			snapshotsBytesSize,
+		)
+	}
+	bs.TxSnapshots = txSnapshots
+	return nil
+}
+
+func (bs BlockSnapshot) ToProtobuf() ([]*g.TransactionStateSnapshot, error) {
+	data := make([]g.TransactionStateSnapshot, len(bs.TxSnapshots))
+	res := make([]*g.TransactionStateSnapshot, len(bs.TxSnapshots))
+	for i, ts := range bs.TxSnapshots {
+		tsProto := &data[i]
+		for _, atomicSnapshot := range ts {
+			if err := atomicSnapshot.AppendToProtobuf(tsProto); err != nil {
+				return nil, errors.Wrap(err, "failed to marshall TransactionSnapshot to proto")
+			}
+		}
+		res[i] = tsProto
+	}
+	return res, nil
 }
 
 func (bs BlockSnapshot) MarshalJSON() ([]byte, error) {

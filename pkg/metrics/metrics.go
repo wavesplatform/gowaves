@@ -11,9 +11,10 @@ import (
 
 	influx "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const (
@@ -475,7 +476,7 @@ func (r *reporter) run(ctx context.Context) {
 			rep = nil
 			err := r.c.Close()
 			if err != nil {
-				zap.S().Warn("Failed to close connection to InfluxDB: %v", err)
+				zap.S().Warnf("Failed to close connection to InfluxDB: %v", err)
 			}
 			return
 		case <-ticker.C:
@@ -537,7 +538,7 @@ func parseURL(s string) (influx.HTTPConfig, string, error) {
 func reportBlock(t tags, f fields) {
 	p, err := influx.NewPoint("block", t, f, time.Now())
 	if err != nil {
-		zap.S().Warn("Failed to create metrics point 'block': %v", err)
+		zap.S().Warnf("Failed to create metrics point 'block': %v", err)
 		return
 	}
 	rep.in <- p
@@ -546,7 +547,7 @@ func reportBlock(t tags, f fields) {
 func reportFSM(t tags, f fields) {
 	p, err := influx.NewPoint("fsm", t, f, time.Now())
 	if err != nil {
-		zap.S().Warn("Failed to create metrics point 'fsm': %v", err)
+		zap.S().Warnf("Failed to create metrics point 'fsm': %v", err)
 		return
 	}
 	rep.in <- p

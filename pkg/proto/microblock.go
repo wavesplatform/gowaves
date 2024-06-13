@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
-	protobuf "google.golang.org/protobuf/proto"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -47,12 +46,12 @@ func (a *MicroBlock) GetStateHash() (crypto.Digest, bool) {
 }
 
 func (a *MicroBlock) UnmarshalFromProtobuf(b []byte) error {
-	var pbMicroBlock g.SignedMicroBlock
-	if err := protobuf.Unmarshal(b, &pbMicroBlock); err != nil {
+	var pbMicroBlock = &g.SignedMicroBlock{}
+	if err := pbMicroBlock.UnmarshalVT(b); err != nil {
 		return errors.Wrap(err, "SignedMicroBlock: failed to unmarshal")
 	}
 	var c ProtobufConverter
-	res, err := c.MicroBlock(&pbMicroBlock)
+	res, err := c.MicroBlock(pbMicroBlock)
 	if err != nil {
 		return errors.Wrap(err, "ProtobufConverter")
 	}

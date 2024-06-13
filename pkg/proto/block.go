@@ -10,7 +10,6 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
-	protobuf "google.golang.org/protobuf/proto"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -659,12 +658,13 @@ func (b *Block) Marshaller() Marshaller {
 }
 
 func (b *Block) UnmarshalFromProtobuf(data []byte) error {
-	var pbBlock g.Block
-	if err := protobuf.Unmarshal(data, &pbBlock); err != nil {
+	var pbBlock = &g.Block{}
+	err := pbBlock.UnmarshalVT(data)
+	if err != nil {
 		return err
 	}
 	var c ProtobufConverter
-	res, err := c.Block(&pbBlock)
+	res, err := c.Block(pbBlock)
 	if err != nil {
 		return err
 	}
@@ -834,7 +834,18 @@ func (b *Block) transactionsRoot(scheme Scheme) ([]byte, error) {
 	return tree.Root().Bytes(), nil
 }
 
-func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockID, publicKey crypto.PublicKey, nxtConsensus NxtConsensus, version BlockVersion, features []int16, rewardVote int64, scheme Scheme) (*Block, error) {
+func CreateBlock(
+	transactions Transactions,
+	timestamp Timestamp,
+	parentID BlockID,
+	publicKey crypto.PublicKey,
+	nxtConsensus NxtConsensus,
+	version BlockVersion,
+	features []int16,
+	rewardVote int64,
+	scheme Scheme,
+	stateHash *crypto.Digest,
+) (*Block, error) {
 	consensusLength := nxtConsensus.BinarySize()
 	b := &Block{
 		BlockHeader: BlockHeader{
@@ -848,6 +859,7 @@ func CreateBlock(transactions Transactions, timestamp Timestamp, parentID BlockI
 			NxtConsensus:         nxtConsensus,
 			TransactionCount:     transactions.Count(),
 			GeneratorPublicKey:   publicKey,
+			StateHash:            stateHash,
 		},
 		Transactions: transactions,
 	}

@@ -73,6 +73,7 @@ type StateInfo interface {
 	ApprovalHeight(featureID int16) (proto.Height, error)
 	AllFeatures() ([]int16, error)
 	EstimatorVersion() (int, error)
+	IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error)
 
 	// Aliases.
 	AddrByAlias(alias proto.Alias) (proto.WavesAddress, error)
@@ -122,6 +123,8 @@ type StateInfo interface {
 	// State hashes.
 	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
 	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
+	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
+	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
@@ -152,8 +155,10 @@ type StateModifier interface {
 	AddDeserializedBlock(block *proto.Block) (*proto.Block, error)
 	// AddBlocks adds batch of new blocks to state.
 	AddBlocks(blocks [][]byte) error
+	AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	// AddDeserializedBlocks marshals blocks to binary and calls AddBlocks.
 	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
+	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 	// Rollback functionality.
 	RollbackToHeight(height proto.Height) error
 	RollbackTo(removalEdge proto.BlockID) error
@@ -165,7 +170,12 @@ type StateModifier interface {
 	// that were added using ValidateNextTx() until you call ResetValidationList().
 	// Returns TxCommitmentError or other state error or nil.
 	// When TxCommitmentError is returned, state MUST BE cleared using ResetValidationList().
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
+	ValidateNextTx(
+		tx proto.Transaction,
+		currentTimestamp, parentTimestamp uint64,
+		blockVersion proto.BlockVersion,
+		acceptFailed bool,
+	) ([]proto.AtomicSnapshot, error)
 	// ResetValidationList() resets the validation list, so you can ValidateNextTx() from scratch after calling it.
 	ResetValidationList()
 
@@ -187,7 +197,12 @@ type StateModifier interface {
 type NonThreadSafeState = State
 
 type TxValidation interface {
-	ValidateNextTx(tx proto.Transaction, currentTimestamp, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
+	ValidateNextTx(
+		tx proto.Transaction,
+		currentTimestamp, parentTimestamp uint64,
+		blockVersion proto.BlockVersion,
+		acceptFailed bool,
+	) ([]proto.AtomicSnapshot, error)
 }
 
 //go:generate moq -out ../node/state_moq_test.go -pkg node . State:MockState
@@ -202,8 +217,14 @@ type State interface {
 // and state will try to sync and use it in this case.
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
-func NewState(dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings) (State, error) {
-	s, err := newStateManager(dataDir, amend, params, settings)
+func NewState(
+	dataDir string,
+	amend bool,
+	params StateParams,
+	settings *settings.BlockchainSettings,
+	enableLightNode bool,
+) (State, error) {
+	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

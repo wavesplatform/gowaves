@@ -49,6 +49,7 @@ type Node struct {
 	microblockInterval time.Duration
 	obsolescence       time.Duration
 	reward             int64
+	enableLightMode    bool
 
 	// TODO: scheduler types.Scheduler
 	tm        types.Time
@@ -74,7 +75,7 @@ func NewNode(
 	broadcastCh <-chan *messages.BroadcastTransaction,
 	scheme proto.Scheme, microblockInterval, obsolescence time.Duration,
 	utx types.UtxPool, skipList *messages.SkipMessageList, tm types.Time, st state.State, applier *Applier,
-	reward int64,
+	reward int64, enableLightMode bool,
 ) (*Node, <-chan network.Command) {
 	commandsCh := make(chan network.Command, defaultChannelSize)
 	n := &Node{
@@ -87,6 +88,7 @@ func NewNode(
 		microblockInterval: microblockInterval,
 		obsolescence:       obsolescence,
 		reward:             reward,
+		enableLightMode:    enableLightMode,
 		utx:                utx,
 		skipList:           skipList,
 		tm:                 tm,

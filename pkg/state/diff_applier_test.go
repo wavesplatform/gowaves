@@ -5,8 +5,10 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
 
 type diffApplierTestObjects struct {
@@ -29,7 +31,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	// Test applying valid change.
-	diff := balanceDiff{balance: 100, blockID: blockID0}
+	diff := balanceDiff{balance: ich(100), blockID: blockID0}
 	changes := []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
@@ -38,23 +40,23 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	to.stor.flush(t)
 	profile, err := to.stor.entities.balances.wavesBalance(testGlobal.senderInfo.addr.ID())
 	assert.NoError(t, err, "wavesBalance() failed")
-	assert.Equal(t, diff.balance, int64(profile.balance))
+	assert.Equal(t, diff.balance.Value(), int64(profile.balance))
 	// Test applying invalid balance change.
-	diff = balanceDiff{balance: -101, blockID: blockID0}
+	diff = balanceDiff{balance: ich(-101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
 	err = to.applier.applyBalancesChanges(changes)
 	assert.Error(t, err, "applyBalancesChanges() did not fail with balance change leading to negative balance")
 	// Test applying invalid leasing change.
-	diff = balanceDiff{leaseOut: 101, blockID: blockID0}
+	diff = balanceDiff{leaseOut: internal.NewIntChange[int64](101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
 	err = to.applier.applyBalancesChanges(changes)
 	assert.Error(t, err, "applyBalancesChanges() did not fail with leasing change leading to negative balance")
 	// Valid leasing change.
-	diff = balanceDiff{leaseIn: 10, blockID: blockID0}
+	diff = balanceDiff{leaseIn: internal.NewIntChange[int64](10), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
@@ -63,16 +65,16 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	to.stor.flush(t)
 	profile, err = to.stor.entities.balances.wavesBalance(testGlobal.senderInfo.addr.ID())
 	assert.NoError(t, err, "wavesBalance() failed")
-	assert.Equal(t, diff.leaseIn, profile.leaseIn)
+	assert.Equal(t, diff.leaseIn.Value(), profile.leaseIn)
 	// Test that leasing leased money leads to error.
-	diff = balanceDiff{leaseOut: 101, blockID: blockID0}
+	diff = balanceDiff{leaseOut: internal.NewIntChange[int64](101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
 	err = to.applier.applyBalancesChanges(changes)
 	assert.Error(t, err, "applyBalancesChanges() did not fail when spending leased money")
 	// Spending leased money leads to error.
-	diff = balanceDiff{balance: -101, blockID: blockID0}
+	diff = balanceDiff{balance: ich(-101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},
 	}
@@ -85,7 +87,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 
 	to.stor.addBlock(t, blockID0)
 	// Test applying valid change.
-	diff := balanceDiff{balance: 100, blockID: blockID0}
+	diff := balanceDiff{balance: ich(100), blockID: blockID0}
 	changes := []balanceChanges{
 		{[]byte(testGlobal.senderInfo.assetKeys[0]), []balanceDiff{diff}},
 	}
@@ -97,9 +99,9 @@ func TestDiffApplierWithAssets(t *testing.T) {
 		proto.AssetIDFromDigest(testGlobal.asset0.assetID),
 	)
 	assert.NoError(t, err, "assetBalance() failed")
-	assert.Equal(t, diff.balance, int64(balance))
+	assert.Equal(t, diff.balance.Value(), int64(balance))
 	// Test applying invalid balance change.
-	diff = balanceDiff{balance: -101, blockID: blockID0}
+	diff = balanceDiff{balance: ich(-101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.assetKeys[0]), []balanceDiff{diff}},
 	}

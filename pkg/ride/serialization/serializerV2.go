@@ -6,7 +6,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	protobuf "google.golang.org/protobuf/proto"
 )
 
 func serializeDAppV2(s *serializer, tree *ast.Tree) error {
@@ -70,7 +69,7 @@ func writeMetaV2(s *serializer, m meta.DApp) error {
 	if err != nil {
 		return err
 	}
-	mb, err := protobuf.Marshal(pbMeta)
+	mb, err := pbMeta.MarshalVTStrict()
 	if err != nil {
 		return err
 	}

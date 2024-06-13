@@ -22,8 +22,7 @@ type extendedSnapshotApplierInfo interface {
 
 type extendedSnapshotApplier interface {
 	ApplierInfo() extendedSnapshotApplierInfo
-	SetApplierInfo(info extendedSnapshotApplierInfo)
-	filterZeroDiffsSHOut(blockID proto.BlockID)
+	SetApplierInfo(info extendedSnapshotApplierInfo) (cleanup func())
 	proto.SnapshotApplier
 	internalSnapshotApplier
 	snapshotApplierHooks

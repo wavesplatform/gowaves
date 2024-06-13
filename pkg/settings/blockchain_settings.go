@@ -118,6 +118,12 @@ func (f *FunctionalitySettings) ActivationWindowSize(height uint64) uint64 {
 	}
 }
 
+func (f *FunctionalitySettings) CanReissueNonReissueablePeriod(currentTimestamp uint64) bool {
+	// Due to bugs in existing blockchain it is valid to reissue non-reissuable asset in this time period.
+	return currentTimestamp <= f.InvalidReissueInSameBlockUntilTime ||
+		(currentTimestamp >= f.ReissueBugWindowTimeStart) && (currentTimestamp <= f.ReissueBugWindowTimeEnd)
+}
+
 func (f *FunctionalitySettings) CurrentBlockRewardTerm(isCappedRewardActivated bool) uint64 {
 	if isCappedRewardActivated {
 		return f.BlockRewardTermAfter20

@@ -352,6 +352,12 @@ func (a *ThreadSafeReadWrapper) SnapshotStateHashAtHeight(height proto.Height) (
 	return a.s.SnapshotStateHashAtHeight(height)
 }
 
+func (a *ThreadSafeReadWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CreateNextSnapshotHash(block)
+}
+
 func (a *ThreadSafeReadWrapper) ProvidesExtendedApi() (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -388,6 +394,12 @@ func (a *ThreadSafeReadWrapper) SnapshotsAtHeight(height proto.Height) (proto.Bl
 	return a.s.SnapshotsAtHeight(height)
 }
 
+func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height) (bool, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
+}
+
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,
@@ -407,7 +419,12 @@ func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) err
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) ValidateNextTx(_ proto.Transaction, _, _ uint64, _ proto.BlockVersion, _ bool) error {
+func (a *ThreadSafeWriteWrapper) ValidateNextTx(
+	_ proto.Transaction,
+	_, _ uint64,
+	_ proto.BlockVersion,
+	_ bool,
+) ([]proto.AtomicSnapshot, error) {
 	panic("Invalid ValidateNextTx usage on thread safe wrapper. Should call TxValidation")
 }
 
@@ -421,7 +438,9 @@ func (a *ThreadSafeWriteWrapper) AddBlock(block []byte) (*proto.Block, error) {
 	return a.s.AddBlock(block)
 }
 
-func (a *ThreadSafeWriteWrapper) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
+func (a *ThreadSafeWriteWrapper) AddDeserializedBlock(
+	block *proto.Block,
+) (*proto.Block, error) {
 	a.lock()
 	defer a.unlock()
 	return a.s.AddDeserializedBlock(block)
@@ -433,10 +452,27 @@ func (a *ThreadSafeWriteWrapper) AddBlocks(blocks [][]byte) error {
 	return a.s.AddBlocks(blocks)
 }
 
-func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (a *ThreadSafeWriteWrapper) AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	a.lock()
+	defer a.unlock()
+	return a.s.AddBlocksWithSnapshots(blocks, snapshots)
+}
+
+func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(
+	blocks []*proto.Block,
+) (*proto.Block, error) {
 	a.lock()
 	defer a.unlock()
 	return a.s.AddDeserializedBlocks(blocks)
+}
+
+func (a *ThreadSafeWriteWrapper) AddDeserializedBlocksWithSnapshots(
+	blocks []*proto.Block,
+	snapshots []*proto.BlockSnapshot,
+) (*proto.Block, error) {
+	a.lock()
+	defer a.unlock()
+	return a.s.AddDeserializedBlocksWithSnapshots(blocks, snapshots)
 }
 
 func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height) error {

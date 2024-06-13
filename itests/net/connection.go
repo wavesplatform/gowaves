@@ -84,11 +84,11 @@ func NewNodeConnections(p *d.Ports) (NodeConnections, error) {
 }
 
 func establishConnections(p *d.Ports) (NodeConnections, error) {
-	goCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Go.BindPort, proto.ProtocolVersion, "wavesL")
+	goCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Go.BindPort, proto.ProtocolVersion(), "wavesL")
 	if err != nil {
 		return NodeConnections{}, errors.Wrap(err, "failed to create connection to go node")
 	}
-	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion, "wavesL")
+	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion(), "wavesL")
 	if err != nil {
 		if closeErr := goCon.Close(); closeErr != nil {
 			err = errors.Wrap(err, closeErr.Error())

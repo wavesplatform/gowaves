@@ -103,6 +103,7 @@ type config struct {
 	newConnectionsLimit        int
 	disableNTP                 bool
 	microblockInterval         time.Duration
+	enableLightMode            bool
 }
 
 func (c *config) logParameters() {
@@ -138,6 +139,7 @@ func (c *config) logParameters() {
 	zap.S().Debugf("enable-metamask: %t", c.enableMetaMaskAPI)
 	zap.S().Debugf("disable-ntp: %t", c.disableNTP)
 	zap.S().Debugf("microblock-interval: %s", c.microblockInterval)
+	zap.S().Debugf("enable-light-mode: %t", c.enableLightMode)
 }
 
 func (c *config) parse() {
@@ -231,6 +233,8 @@ func (c *config) parse() {
 		"Disable NTP synchronization. Useful when running the node in a docker container.")
 	flag.DurationVar(&c.microblockInterval, "microblock-interval", defaultMicroblockInterval,
 		"Interval between microblocks.")
+	flag.BoolVar(&c.enableLightMode, "enable-light-mode", false,
+		"Start node in light mode")
 	flag.Parse()
 	c.logLevel = *l
 }
@@ -380,9 +384,9 @@ func main() {
 	params.Time = ntpTime
 	params.DbParams.BloomFilterParams.Disable = nc.disableBloomFilter
 
-	unsafeState, err := state.NewUnsafeState(path, true, params, cfg)
+	unsafeState, err := state.NewUnsafeState(path, true, params, cfg, nc.enableLightMode)
 	if err != nil {
-		zap.S().Error("Failed to initialize node's state: %v", err)
+		zap.S().Errorf("Failed to initialize node's state: %v", err)
 		return
 	}
 	st := state.NewThreadSafeState(unsafeState)
@@ -417,7 +421,7 @@ func main() {
 		return
 	}
 	utx := utxpool.New(uint64(1024*mb), utxValidator, cfg)
-	parent := peer.NewParent()
+	parent := peer.NewParent(nc.enableLightMode)
 
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxInt32))
 	if err != nil {
@@ -425,7 +429,7 @@ func main() {
 		return
 	}
 	peerSpawnerImpl := peers.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, nc.nodeName,
-		nodeNonce.Uint64(), proto.ProtocolVersion)
+		nodeNonce.Uint64(), proto.ProtocolVersion())
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(nc.statePath, time.Now())
 	if err != nil {
 		zap.S().Errorf("Failed to open or create peers storage: %v", err)
@@ -443,7 +447,7 @@ func main() {
 		peerSpawnerImpl,
 		peerStorage,
 		int(nc.limitAllConnections/2),
-		proto.ProtocolVersion,
+		proto.ProtocolVersion(),
 		conf.WavesNetwork,
 		!nc.disableOutgoingConnections,
 		nc.newConnectionsLimit,
@@ -480,7 +484,7 @@ func main() {
 		peerManager, st, cfg.AddressSchemeCharacter, nc.minPeersMining, bindAddr, declAddr)
 	hst := node.NewHistory(parent.HistoryMessagesCh, cfg.AddressSchemeCharacter, st)
 	n, cmdCh := node.NewNode(parent.NodeMessagesCh, notificationsCh, broadcastCh, cfg.AddressSchemeCharacter,
-		nc.microblockInterval, nc.obsolescencePeriod, utx, parent.SkipMessageList, ntpTime, st, applier, reward)
+		nc.microblockInterval, nc.obsolescencePeriod, utx, parent.SkipMessageList, ntpTime, st, applier, reward, nc.enableLightMode)
 	ntw.SetCommandChannel(cmdCh)
 
 	ntw.Run(ctx)
@@ -496,9 +500,9 @@ func main() {
 				zap.S().Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
 				return
 			}
-			if err = peerManager.AddAddress(ctx, tcpAddr); err != nil {
+			if pErr := peerManager.AddAddress(ctx, tcpAddr); pErr != nil {
 				// That means that we have problems with peers storage
-				zap.S().Errorf("Failed to add addres into know peers storage: %v", err)
+				zap.S().Errorf("Failed to add addres into know peers storage: %v", pErr)
 				return
 			}
 		}
@@ -507,8 +511,8 @@ func main() {
 	webAPI := api.NewNodeAPI(app, st)
 	go func() {
 		zap.S().Infof("Starting node HTTP API on '%v'", conf.HttpAddr)
-		if err = api.Run(ctx, conf.HttpAddr, webAPI, apiRunOptsFromCLIFlags(nc)); err != nil {
-			zap.S().Errorf("Failed to start API: %v", err)
+		if runErr := api.Run(ctx, conf.HttpAddr, webAPI, apiRunOptsFromCLIFlags(nc)); runErr != nil {
+			zap.S().Errorf("Failed to start API: %v", runErr)
 		}
 	}()
 
@@ -528,15 +532,14 @@ func main() {
 	}()
 
 	if nc.enableGrpcAPI {
-		var srv *server.Server
-		srv, err = server.NewServer(app)
-		if err != nil {
-			zap.S().Errorf("Failed to create gRPC server: %v", err)
+		srv, srvErr := server.NewServer(app)
+		if srvErr != nil {
+			zap.S().Errorf("Failed to create gRPC server: %v", srvErr)
+			return
 		}
 		go func() {
-			err = srv.Run(ctx, conf.GrpcAddr, grpcAPIRunOptsFromCLIFlags(nc))
-			if err != nil {
-				zap.S().Errorf("grpcServer.Run(): %v", err)
+			if runErr := srv.Run(ctx, conf.GrpcAddr, grpcAPIRunOptsFromCLIFlags(nc)); runErr != nil {
+				zap.S().Errorf("grpcServer.Run(): %v", runErr)
 			}
 		}()
 	}

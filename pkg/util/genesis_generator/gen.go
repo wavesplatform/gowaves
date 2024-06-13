@@ -41,7 +41,7 @@ func RecreateGenesisBlock(scheme proto.Scheme, transactions []GenesisTransaction
 func newGenesisBlock(scheme proto.Scheme, transactions proto.Transactions, baseTarget, timestamp proto.Timestamp) (*proto.Block, error) {
 	consensus := proto.NxtConsensus{BaseTarget: baseTarget, GenSignature: genesisGenSignature}
 	block, err := proto.CreateBlock(transactions, timestamp, genesisBlockParent, genesisKeyPair.Public, consensus,
-		proto.GenesisBlockVersion, nil, 0, scheme)
+		proto.GenesisBlockVersion, nil, 0, scheme, nil)
 	if err != nil {
 		return nil, err
 	}
