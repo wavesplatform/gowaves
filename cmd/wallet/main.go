@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"flag"
 	"fmt"
+	"io"
 	"io/fs"
 	"log"
 	"os"
@@ -160,6 +161,44 @@ func isASCII(s []byte) bool {
 	return reASCII.Match(s)
 }
 
+func printUserMessage(
+	w io.Writer,
+	i int,
+	pk crypto.PublicKey,
+	sk crypto.SecretKey,
+	address proto.Address,
+	accountSeedBytes []byte,
+) error {
+	_, err := fmt.Fprintf(w, "Account number:         %d\n", i)
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(w, "Address:                %s\n", address.String())
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(w, "Public Key:             %s\n", pk.String())
+	if err != nil {
+		return err
+	}
+	_, err = fmt.Fprintf(w, "Secret Key:             %s\n", sk.String())
+	if err != nil {
+		return err
+	}
+	if isASCII(accountSeedBytes) {
+		_, err = fmt.Fprintf(w, "Account seed:           %s\n", string(accountSeedBytes))
+		if err != nil {
+			return err
+		}
+	} else {
+		_, err = fmt.Fprintf(w, "Account seed in base58: %s\n", base58.Encode(accountSeedBytes))
+		if err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
 func showWallet(walletPath string, scheme proto.Scheme) error {
 	walletPath, err := getWalletPath(walletPath)
 	if err != nil {
@@ -180,14 +219,9 @@ func showWallet(walletPath string, scheme proto.Scheme) error {
 			return errors.Wrap(genErr, "failed to receive wallet's credentials")
 		}
 		fmt.Println()
-		fmt.Printf("Account number:         %d\n", i)                //nolint:forbidigo
-		fmt.Printf("Address:                %s\n", address.String()) //nolint:forbidigo
-		fmt.Printf("Public Key:             %s\n", pk.String())      //nolint:forbidigo
-		fmt.Printf("Secret Key:             %s\n", sk.String())      //nolint:forbidigo
-		if isASCII(accountSeedBytes) {                               // check if the account seed is a valid ASCII text
-			fmt.Printf("Account seed:           %s\n", string(accountSeedBytes)) //nolint:forbidigo
-		} else {
-			fmt.Printf("Account seed in base58: %s\n", base58.Encode(accountSeedBytes)) //nolint:forbidigo
+		pErr := printUserMessage(os.Stdout, i, pk, sk, address, accountSeedBytes)
+		if pErr != nil {
+			return errors.Wrap(pErr, "failed to print the user message")
 		}
 	}
 	return nil
