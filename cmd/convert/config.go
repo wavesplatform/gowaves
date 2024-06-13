@@ -34,8 +34,8 @@ func (c *config) parse() error {
 	flag.BoolVar(&c.base64, "base64", false, "Use Base64 as the binary transaction encoding.")
 	flag.StringVar(&privateKey, "private-key", "",
 		"Private key to sign the transaction. Please provide the key in Base58 string.")
-	flag.StringVar(&in, "in", "", "Input file path.")
-	flag.StringVar(&out, "out", "", "Output file path.")
+	flag.StringVar(&in, "in", "", "Input file path. Defaults to empty string. If empty, reads from STDIN.")
+	flag.StringVar(&out, "out", "", "Output file path. Defaults to empty string. If empty, writes to STDOUT.")
 	flag.Parse()
 
 	if len(scheme) != 1 {

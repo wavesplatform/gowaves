@@ -17,9 +17,9 @@ It can also be used to sign unsigned transactions while transforming their repre
   -private-key string
         Private key to sign the transaction. Please provide the key in Base58 string.
   -in string
-        Input file path.
+        Input file path. Defaults to empty string. If empty, reads from STDIN.
   -out string
-        Output file path.
+        Output file path. Defaults to empty string. If empty, writes to STDOUT.
 ```
 ## Conversion to the same format
 
@@ -36,7 +36,7 @@ For example, the transaction converted from a file can be piped to `curl`.
 ./convert -private-key <private key base58> -to-json -in <transaction file> | curl -X POST -H 'accept: application/json' -H 'Content-Type: application/json' --data-binary @- 'https://nodes-testnet.wavesnodes.com/transactions/broadcast' 
 ```
 
-The source transaction for converstion can be read from STDIN.
+The source transaction for conversion can be read from STDIN.
 ```bash
 ./convert -base64 < <Base64 transaction file>
 ```

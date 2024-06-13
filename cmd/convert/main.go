@@ -12,6 +12,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const inputFileSizeLimit = 10 * 1024 * 1024
+
 func main() {
 	log.SetOutput(os.Stderr)
 	if err := run(); err != nil {
@@ -27,17 +29,14 @@ func run() error {
 	}
 	defer cfg.close()
 
-	data, err := io.ReadAll(cfg.in)
+	data, err := io.ReadAll(io.LimitReader(cfg.in, inputFileSizeLimit))
 	if err != nil {
 		return fmt.Errorf("failed to read input: %w", err)
 	}
-	switch detectDataType(data) {
-	case inputJSON:
+	if json.Valid(data) {
 		return handleJSON(data, cfg)
-	case inputBinary:
-		return handleBinary(data, cfg)
 	}
-	return nil
+	return handleBinary(data, cfg)
 }
 
 func handleJSON(data []byte, cfg config) error {
@@ -50,17 +49,9 @@ func handleJSON(data []byte, cfg config) error {
 		return sErr
 	}
 	if cfg.toJSON {
-		wErr := toJSON(tx, cfg)
-		if wErr != nil {
-			return wErr
-		}
-		return nil
+		return toJSON(tx, cfg)
 	}
-	wErr := toBinary(tx, cfg)
-	if wErr != nil {
-		return wErr
-	}
-	return nil
+	return toBinary(tx, cfg)
 }
 
 func handleBinary(data []byte, cfg config) error {
@@ -73,17 +64,9 @@ func handleBinary(data []byte, cfg config) error {
 		return sErr
 	}
 	if cfg.toBinary {
-		wErr := toBinary(tx, cfg)
-		if wErr != nil {
-			return wErr
-		}
-		return nil
+		return toBinary(tx, cfg)
 	}
-	wErr := toJSON(tx, cfg)
-	if wErr != nil {
-		return wErr
-	}
-	return nil
+	return toJSON(tx, cfg)
 }
 
 func sign(tx proto.Transaction, cfg config) (proto.Transaction, error) {
@@ -129,7 +112,7 @@ func toBinary(tx proto.Transaction, cfg config) error {
 	var w = cfg.out
 	if cfg.base64 {
 		w = base64.NewEncoder(base64.StdEncoding, cfg.out)
-		defer func(w io.WriteCloser) {
+		defer func(w io.Closer) {
 			if clErr := w.Close(); clErr != nil {
 				log.Printf("failed to close Base64 encoder: %v", clErr)
 			}
@@ -163,14 +146,10 @@ func fromBinary(data []byte, cfg config) (proto.Transaction, error) {
 }
 
 func capitalize(str string) string {
+	if len(str) == 0 {
+		return str
+	}
 	runes := []rune(str)
 	runes[0] = unicode.ToUpper(runes[0])
 	return string(runes)
-}
-
-func detectDataType(input []byte) input {
-	if json.Valid(input) {
-		return inputJSON
-	}
-	return inputBinary
 }
