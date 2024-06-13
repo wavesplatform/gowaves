@@ -31,7 +31,8 @@ type transactionPerformer interface {
 	performInvokeExpressionWithProofs(proto.Transaction, *performerInfo, []balanceChanges) (txSnapshot, error)
 	performEthereumTransactionWithProofs(proto.Transaction, *performerInfo, []balanceChanges) (txSnapshot, error)
 	performUpdateAssetInfoWithProofs(proto.Transaction, *performerInfo, []balanceChanges) (txSnapshot, error)
-
+	// createInitialBlockSnapshot creates an initial snapshot that should be used before applying first tx in a block.
+	// This method must not modify the state and any other data.
 	createInitialBlockSnapshot(minerAndRewardChanges []balanceChanges) (txSnapshot, error)
 	// used for creating snapshots from failed changes
 	generateBalancesSnapshot(balanceChanges []balanceChanges, txIsSuccessfulInvoke bool) (txSnapshot, error)

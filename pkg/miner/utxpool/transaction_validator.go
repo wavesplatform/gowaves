@@ -39,7 +39,8 @@ func (a *ValidatorImpl) Validate(tx proto.Transaction) error {
 		return errors.New("state outdated, transaction not accepted")
 	}
 	return a.state.TxValidation(func(validation state.TxValidation) error {
-		return validation.ValidateNextTx(tx, uint64(now.UnixMilli()), lastBlock.Timestamp, lastBlock.Version, false)
+		_, err := validation.ValidateNextTx(tx, uint64(now.UnixMilli()), lastBlock.Timestamp, lastBlock.Version, false)
+		return err
 	})
 }
 

@@ -50,6 +50,8 @@ func newMonetaryPolicy(hs *historyStorage, settings *settings.BlockchainSettings
 	return &monetaryPolicy{hs: hs, settings: settings}
 }
 
+// reward returns the current reward.
+// If there are no reward changes, returns the initial reward from settings.
 func (m *monetaryPolicy) reward() (uint64, error) {
 	rewardsChanges, err := m.getRewardChanges()
 	if err != nil {
