@@ -1,107 +1,155 @@
 package main
 
 import (
+	"encoding/base64"
 	"encoding/json"
-	"flag"
+	"fmt"
+	"io"
+	"log"
 	"os"
-
-	"go.uber.org/zap"
+	"unicode"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-var (
-	command    = flag.String("command", "", "Command which will be executed. Values: 'json' - convert from json to binary, 'bytes' - convert from binary to json.")
-	file       = flag.String("file", "", "From file.")
-	schemeByte = flag.String("scheme-byte", "", "Network scheme.")
-)
-
-func init() {
-	logger, _ := zap.NewDevelopment()
-	zap.ReplaceGlobals(logger)
-}
+const inputFileSizeLimit = 10 * 1024 * 1024
 
 func main() {
-	if *file == "" {
-		zap.S().Fatal("please, provide file argument")
-	}
-	if *schemeByte == "" {
-		zap.S().Fatal("please, provide scheme-byte argument")
-	}
-	if len(*schemeByte) != 1 {
-		zap.S().Fatalf("invalid scheme-byte argument %q", *schemeByte)
-	}
-	scheme := []byte(*schemeByte)[0]
-	switch *command {
-	case "json":
-		if err := serveJson(*file, scheme); err != nil {
-			zap.S().Fatalf("failed to serveJSON: %v", err)
-		}
-	case "bytes":
-		if err := serveBinary(*file, scheme); err != nil {
-			zap.S().Fatalf("failed to serveBinary: %v", err)
-		}
-	case "":
-		zap.S().Fatal("please, provide command argument")
-	default:
-		zap.S().Fatalf("invalid command %q", *command)
-
+	log.SetOutput(os.Stderr)
+	if err := run(); err != nil {
+		log.Println(capitalize(err.Error()))
+		os.Exit(1)
 	}
 }
 
-func serveJson(pathToJSON string, scheme proto.Scheme) error {
-	b, err := inputBytes(pathToJSON)
-	if err != nil {
-		return err
+func run() error {
+	cfg := config{}
+	if cfgErr := cfg.parse(); cfgErr != nil {
+		return cfgErr
 	}
+	defer cfg.close()
 
+	data, err := io.ReadAll(io.LimitReader(cfg.in, inputFileSizeLimit))
+	if err != nil {
+		return fmt.Errorf("failed to read input: %w", err)
+	}
+	if json.Valid(data) {
+		return handleJSON(data, cfg)
+	}
+	return handleBinary(data, cfg)
+}
+
+func handleJSON(data []byte, cfg config) error {
+	tx, rErr := fromJSON(data, cfg)
+	if rErr != nil {
+		return rErr
+	}
+	tx, sErr := sign(tx, cfg)
+	if sErr != nil {
+		return sErr
+	}
+	if cfg.toJSON {
+		return toJSON(tx, cfg)
+	}
+	return toBinary(tx, cfg)
+}
+
+func handleBinary(data []byte, cfg config) error {
+	tx, rErr := fromBinary(data, cfg)
+	if rErr != nil {
+		return rErr
+	}
+	tx, sErr := sign(tx, cfg)
+	if sErr != nil {
+		return sErr
+	}
+	if cfg.toBinary {
+		return toBinary(tx, cfg)
+	}
+	return toJSON(tx, cfg)
+}
+
+func sign(tx proto.Transaction, cfg config) (proto.Transaction, error) {
+	if cfg.sk != nil {
+		if err := tx.Sign(cfg.scheme, *cfg.sk); err != nil {
+			return nil, fmt.Errorf("failed to sign transaction: %w", err)
+		}
+	}
+	return tx, nil
+}
+
+func fromJSON(data []byte, cfg config) (proto.Transaction, error) {
 	tt := proto.TransactionTypeVersion{}
-	err = json.Unmarshal(b, &tt)
-	if err != nil {
-		return err
+	if err := json.Unmarshal(data, &tt); err != nil {
+		return nil, fmt.Errorf("failed read transaction from JSON: %w", err)
 	}
-
-	realType, err := proto.GuessTransactionType(&tt)
+	tx, err := proto.GuessTransactionType(&tt)
 	if err != nil {
-		return err
+		return nil, fmt.Errorf("failed read transaction from JSON: %w", err)
 	}
-
-	err = proto.UnmarshalTransactionFromJSON(b, scheme, realType)
-	if err != nil {
-		return err
+	if umErr := proto.UnmarshalTransactionFromJSON(data, cfg.scheme, tx); umErr != nil {
+		return nil, fmt.Errorf("failed read transaction from JSON: %w", err)
 	}
-
-	bts, err := realType.MarshalBinary(scheme)
-	if err != nil {
-		return err
-	}
-	_, err = os.Stdout.Write(bts)
-	return err
+	return tx, nil
 }
 
-func serveBinary(pathToBinary string, scheme proto.Scheme) error {
-	b, err := inputBytes(pathToBinary)
+func toJSON(tx proto.Transaction, cfg config) error {
+	js, err := json.Marshal(tx)
 	if err != nil {
 		return err
 	}
-
-	trans, err := proto.BytesToTransaction(b, scheme)
-	if err != nil {
-		return err
+	if _, wErr := cfg.out.Write(js); wErr != nil {
+		return fmt.Errorf("failed to write transaction: %w", wErr)
 	}
-
-	js, err := json.Marshal(trans)
-	if err != nil {
-		return err
-	}
-	_, err = os.Stdout.Write(js)
-	return err
+	return nil
 }
 
-func inputBytes(path string) ([]byte, error) {
-	data, err := os.ReadFile(path) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
+func toBinary(tx proto.Transaction, cfg config) error {
+	bts, err := proto.MarshalTx(cfg.scheme, tx)
 	if err != nil {
-		return nil, err
+		return fmt.Errorf("failed to serialize transaction: %w", err)
 	}
-	return data, nil
+	var w = cfg.out
+	if cfg.base64 {
+		w = base64.NewEncoder(base64.StdEncoding, cfg.out)
+		defer func(w io.Closer) {
+			if clErr := w.Close(); clErr != nil {
+				log.Printf("failed to close Base64 encoder: %v", clErr)
+			}
+		}(w)
+	}
+	if _, wErr := w.Write(bts); wErr != nil {
+		return fmt.Errorf("failed to write transaction: %w", wErr)
+	}
+	return nil
+}
+
+func fromBinary(data []byte, cfg config) (proto.Transaction, error) {
+	var bts []byte
+	if cfg.base64 {
+		bts = make([]byte, base64.StdEncoding.DecodedLen(len(data)))
+		cnt, err := base64.StdEncoding.Decode(bts, data)
+		if err != nil {
+			return nil, fmt.Errorf("failed to decode from Base64: %w", err)
+		}
+		bts = bts[:cnt]
+	} else {
+		bts = data
+	}
+	tx, err := proto.SignedTxFromProtobuf(bts)
+	if err != nil {
+		if tx, err = proto.BytesToTransaction(bts, cfg.scheme); err != nil {
+			return nil, fmt.Errorf("failed to read transaction from binary: %w", err)
+		}
+	}
+	return tx, nil
+}
+
+func capitalize(str string) string {
+	if len(str) == 0 {
+		return str
+	}
+	runes := []rune(str)
+	runes[0] = unicode.ToUpper(runes[0])
+	return string(runes)
 }
