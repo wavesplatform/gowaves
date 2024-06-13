@@ -6,7 +6,7 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
-func getAddressesBalances(suite *f.BaseSuite,
+func getAddressesWavesBalances(suite *f.BaseSuite,
 	addresses testdata.AddressesForDistribution) (utl.BalanceInWaves, utl.BalanceInWaves, utl.BalanceInWaves) {
 	var balanceMiner1Go, balanceMiner1Scala, balanceMiner2Go, balanceMiner2Scala,
 		balanceDaoGo, balanceDaoScala, balanceXtnGo, balanceXtnScala int64
@@ -66,13 +66,13 @@ func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.Addresses
 	// Get balances in waves before block applied.
 	suite.T().Log("Balances before applied block: ")
 	initHeight := utl.GetHeight(suite)
-	initSumMinersBalance, initDaoBalance, initXtnBalance := getAddressesBalances(suite, addresses)
+	initSumMinersBalance, initDaoBalance, initXtnBalance := getAddressesWavesBalances(suite, addresses)
 	// Wait for 1 block.
 	utl.WaitForNewHeight(suite)
 	// Get balances after block applied.
 	suite.T().Log("Balances after applied block: ")
 	currentHeight := utl.GetHeight(suite)
-	currentSumMinersBalance, currentDaoBalance, currentXtnBalance := getAddressesBalances(suite, addresses)
+	currentSumMinersBalance, currentDaoBalance, currentXtnBalance := getAddressesWavesBalances(suite, addresses)
 	term := utl.GetRewardTermAtHeight(suite, currentHeight)
 	// Get diff balances.
 	suite.T().Log("Diff Balances: ")
@@ -106,20 +106,41 @@ func GetRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.Addre
 		rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesScala)
 }
 
-func GetRewardInfoAndChecks(suite *f.BaseSuite,
-	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]) {
-	rewardInfoGo, rewardInfoScala := utl.GetRewards(suite)
+type GetTestDataForRewardInfo func(
+	suite *f.BaseSuite) testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]
+
+func GetRewardInfoAndChecks(suite *f.BaseSuite, testdata GetTestDataForRewardInfo) {
+	rewardInfoGo, rewardInfoScala := utl.GetRewardsInfo(suite)
+	td := testdata(suite)
+	utl.TotalWavesAmountCheck(suite.T(), td.Expected.TotalWavesAmount, rewardInfoGo.TotalWavesAmount,
+		rewardInfoScala.TotalWavesAmount)
+	utl.MinIncrementCheck(suite.T(), td.Expected.MinIncrement, rewardInfoGo.MinIncrement, rewardInfoScala.MinIncrement)
 	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
 	utl.NextCheckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
 	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart,
 		rewardInfoScala.VotingIntervalStart)
+	utl.VotingIntervalCheck(suite.T(), td.Expected.VotingInterval, rewardInfoGo.VotingInterval,
+		rewardInfoScala.VotingInterval)
+	utl.VotesCheck(suite.T(), td.Expected.Votes.Increase, rewardInfoGo.Votes.Increase, rewardInfoScala.Votes.Increase)
+	utl.DaoAddressCheck(suite.T(), td.Expected.DaoAddress, rewardInfoGo.DAOAddress, rewardInfoScala.DAOAddress)
+	utl.XtnAddressCheck(suite.T(), td.Expected.XtnAddress, rewardInfoGo.XTNBuybackAddress,
+		rewardInfoScala.XTNBuybackAddress)
 }
 
-func GetRewardInfoAtHeightAndChecks(suite *f.BaseSuite,
-	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues], height uint64) {
-	rewardInfoGo, rewardInfoScala := utl.GetRewardsAtHeight(suite, height)
+func GetRewardInfoAtHeightAndChecks(suite *f.BaseSuite, testdata GetTestDataForRewardInfo, height uint64) {
+	rewardInfoGo, rewardInfoScala := utl.GetRewardsInfoAtHeight(suite, height)
+	td := testdata(suite)
+	utl.TotalWavesAmountCheck(suite.T(), td.Expected.TotalWavesAmount, rewardInfoGo.TotalWavesAmount,
+		rewardInfoScala.TotalWavesAmount)
+	utl.MinIncrementCheck(suite.T(), td.Expected.MinIncrement, rewardInfoGo.MinIncrement, rewardInfoScala.MinIncrement)
 	utl.TermCheck(suite.T(), td.Expected.Term, rewardInfoGo.Term, rewardInfoScala.Term)
 	utl.NextCheckParameterCheck(suite.T(), td.Expected.NextCheck, rewardInfoGo.NextCheck, rewardInfoScala.NextCheck)
 	utl.VotingIntervalStartCheck(suite.T(), td.Expected.VotingIntervalStart, rewardInfoGo.VotingIntervalStart,
 		rewardInfoScala.VotingIntervalStart)
+	utl.VotingIntervalCheck(suite.T(), td.Expected.VotingInterval, rewardInfoGo.VotingInterval,
+		rewardInfoScala.VotingInterval)
+	utl.VotesCheck(suite.T(), td.Expected.Votes.Increase, rewardInfoGo.Votes.Increase, rewardInfoScala.Votes.Increase)
+	utl.DaoAddressCheck(suite.T(), td.Expected.DaoAddress, rewardInfoGo.DAOAddress, rewardInfoScala.DAOAddress)
+	utl.XtnAddressCheck(suite.T(), td.Expected.XtnAddress, rewardInfoGo.XTNBuybackAddress,
+		rewardInfoScala.XTNBuybackAddress)
 }
