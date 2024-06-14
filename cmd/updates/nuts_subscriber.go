@@ -2,6 +2,7 @@ package updates
 
 import (
 	"github.com/nats-io/nats.go"
+	"github.com/wavesplatform/gowaves/pkg/blockchainupdates"
 	"log"
 	"runtime"
 )
@@ -14,7 +15,7 @@ func main() {
 	}
 	defer nc.Close()
 
-	for _, topic := range topics {
+	for _, topic := range blockchainupdates.Topics {
 		_, err = nc.Subscribe(topic, func(msg *nats.Msg) {
 			log.Printf("Received on %s: %s\n", msg.Subject, string(msg.Data))
 		})
