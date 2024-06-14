@@ -63,51 +63,52 @@ var defaultPeers = map[string]string{
 }
 
 type config struct {
-	logLevel                   zapcore.Level
-	logDevelopment             bool
-	logNetwork                 bool
-	logNetworkData             bool
-	logFSM                     bool
-	statePath                  string
-	blockchainType             string
-	peerAddresses              string
-	declAddr                   string
-	nodeName                   string
-	cfgPath                    string
-	apiAddr                    string
-	apiKey                     string
-	apiMaxConnections          int
-	rateLimiterOptions         string
-	grpcAddr                   string
-	grpcAPIMaxConnections      int
-	enableMetaMaskAPI          bool
-	enableMetaMaskAPILog       bool
-	enableGrpcAPI              bool
-	blackListResidenceTime     time.Duration
-	buildExtendedAPI           bool
-	serveExtendedAPI           bool
-	buildStateHashes           bool
-	bindAddress                string
-	disableOutgoingConnections bool
-	minerVoteFeatures          string
-	disableBloomFilter         bool
-	reward                     string
-	obsolescencePeriod         time.Duration
-	walletPath                 string
-	walletPassword             string
-	limitAllConnections        uint
-	minPeersMining             int
-	disableMiner               bool
-	profiler                   bool
-	prometheus                 string
-	metricsID                  int
-	metricsURL                 string
-	dropPeers                  bool
-	dbFileDescriptors          int
-	newConnectionsLimit        int
-	disableNTP                 bool
-	microblockInterval         time.Duration
-	enableLightMode            bool
+	logLevel                      zapcore.Level
+	logDevelopment                bool
+	logNetwork                    bool
+	logNetworkData                bool
+	logFSM                        bool
+	statePath                     string
+	blockchainType                string
+	peerAddresses                 string
+	declAddr                      string
+	nodeName                      string
+	cfgPath                       string
+	apiAddr                       string
+	apiKey                        string
+	apiMaxConnections             int
+	rateLimiterOptions            string
+	grpcAddr                      string
+	grpcAPIMaxConnections         int
+	enableMetaMaskAPI             bool
+	enableMetaMaskAPILog          bool
+	enableGrpcAPI                 bool
+	blackListResidenceTime        time.Duration
+	buildExtendedAPI              bool
+	serveExtendedAPI              bool
+	buildStateHashes              bool
+	bindAddress                   string
+	disableOutgoingConnections    bool
+	minerVoteFeatures             string
+	disableBloomFilter            bool
+	reward                        string
+	obsolescencePeriod            time.Duration
+	walletPath                    string
+	walletPassword                string
+	limitAllConnections           uint
+	minPeersMining                int
+	disableMiner                  bool
+	profiler                      bool
+	prometheus                    string
+	metricsID                     int
+	metricsURL                    string
+	dropPeers                     bool
+	dbFileDescriptors             int
+	newConnectionsLimit           int
+	disableNTP                    bool
+	microblockInterval            time.Duration
+	enableLightMode               bool
+	enableBlockchainUpdatesPlugin bool
 }
 
 func (c *config) logParameters() {
@@ -144,6 +145,7 @@ func (c *config) logParameters() {
 	zap.S().Debugf("disable-ntp: %t", c.disableNTP)
 	zap.S().Debugf("microblock-interval: %s", c.microblockInterval)
 	zap.S().Debugf("enable-light-mode: %t", c.enableLightMode)
+	zap.S().Debugf("enable-blockchain-updates-plugin: %t", c.enableBlockchainUpdatesPlugin)
 }
 
 func (c *config) parse() {
@@ -237,6 +239,9 @@ func (c *config) parse() {
 		"Interval between microblocks.")
 	flag.BoolVar(&c.enableLightMode, "enable-light-mode", false,
 		"Start node in light mode")
+
+	flag.BoolVar(&c.enableBlockchainUpdatesPlugin, "enable-blockchain-updates", false,
+		"Turn on blockchain updates plugin")
 	flag.Parse()
 	c.logLevel = *l
 }
@@ -385,6 +390,12 @@ func main() {
 	params.Time = ntpTime
 	params.DbParams.BloomFilterParams.Disable = nc.disableBloomFilter
 
+	if nc.enableBlockchainUpdatesPlugin {
+		// updatesChannel := make(chan interface{})
+		// runBlockchainUpdatesPublisher(updatesChannel)
+	}
+
+	// Send updatesChannel into BlockchainSettings. Write updates into this channel
 	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode)
 	if err != nil {
 		zap.S().Errorf("Failed to initialize node's state: %v", err)
