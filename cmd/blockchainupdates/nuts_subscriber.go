@@ -1,4 +1,4 @@
-package updates
+package blockchainupdates
 
 import (
 	"github.com/nats-io/nats.go"
