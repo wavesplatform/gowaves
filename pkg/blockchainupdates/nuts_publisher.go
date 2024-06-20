@@ -4,13 +4,34 @@ import (
 	"context"
 	"fmt"
 	"github.com/nats-io/nats.go"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
 )
 
-func runBlockchainUpdatesPublisher(updatesChannel chan interface{}) {
+type BUpdatesInfo struct {
+	Height      uint64
+	VRF         proto.B58Bytes
+	BlockID     proto.BlockID
+	BlockHeader *proto.BlockHeader
+}
+
+type BUpdatesExtensionState struct {
+	currentState  *BUpdatesInfo
+	previousState *BUpdatesInfo // this information is what was just published
+}
+
+func NewBUpdatesExtensionState() *BUpdatesExtensionState {
+	return &BUpdatesExtensionState{}
+}
+
+func (bu *BUpdatesExtensionState) hasStateChanged() {
+
+}
+
+func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(updatesChannel <-chan BUpdatesInfo) {
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
 		log.Fatal(err)
@@ -20,7 +41,7 @@ func runBlockchainUpdatesPublisher(updatesChannel chan interface{}) {
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer done()
 
-	func(ctx context.Context, updatesChannel chan interface{}) {
+	func(ctx context.Context, updatesChannel <-chan BUpdatesInfo) {
 		for {
 			select {
 			case <-updatesChannel:

@@ -106,7 +106,7 @@ func run() error {
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
 
-	st, err := state.NewState(statePath, false, params, ss, false)
+	st, err := state.NewState(statePath, false, params, ss, false, nil)
 	if err != nil {
 		zap.S().Errorf("Failed to open state at '%s': %v", statePath, err)
 		return err

@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/blockchainupdates"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -54,6 +55,13 @@ type txAppender struct {
 	// buildApiData flag indicates that additional data for API is built when
 	// appending transactions.
 	buildApiData bool
+
+	bUpdatesExtension *BlockchainUpdatesExtension
+}
+
+type BlockchainUpdatesExtension struct {
+	EnableBlockchainUpdatesPlugin bool
+	BUpdatesChannel               chan<- blockchainupdates.BUpdatesInfo
 }
 
 func newTxAppender(
@@ -64,6 +72,7 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
+	bUpdatesExtension *BlockchainUpdatesExtension,
 ) (*txAppender, error) {
 	buildAPIData, err := stateDB.stateStoresApiData()
 	if err != nil {
@@ -112,6 +121,7 @@ func newTxAppender(
 		diffApplier:       diffApplier,
 		buildApiData:      buildAPIData,
 		ethTxKindResolver: ethKindResolver,
+		bUpdatesExtension: bUpdatesExtension,
 	}, nil
 }
 
@@ -820,6 +830,15 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+
+	// write updates into the updatesChannel here
+	// TODO possibly run it in a goroutine? make sure goroutines run in order?
+	if a.bUpdatesExtension != nil {
+		if a.bUpdatesExtension.EnableBlockchainUpdatesPlugin {
+			a.updateBlockchainUpdateInfo(blockInfo, params.block)
+		}
+	}
+
 	// check whether the calculated snapshot state hash equals with the provided one
 	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
 		return errors.Wrapf(errBlockSnapshotStateHashMismatch, "state hash mismatch; provided '%s', caluclated '%s'",
@@ -838,6 +857,17 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	return a.blockDiffer.saveCurFeeDistr(params.block)
+}
+
+func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader) {
+	bUpdatesInfo := blockchainupdates.BUpdatesInfo{
+		Height:      blockInfo.Height,
+		VRF:         blockInfo.VRF,
+		BlockID:     blockHeader.BlockID(),
+		BlockHeader: blockHeader,
+	}
+
+	a.bUpdatesExtension.BUpdatesChannel <- bUpdatesInfo
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {

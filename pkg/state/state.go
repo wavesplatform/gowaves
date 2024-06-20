@@ -497,6 +497,7 @@ func newStateManager(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
+	bUpdatesExtension *BlockchainUpdatesExtension,
 ) (*stateManager, error) {
 	if err := validateSettings(settings); err != nil {
 		return nil, err
@@ -562,7 +563,7 @@ func newStateManager(
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
 	snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, rw))
-	appender, err := newTxAppender(state, rw, stor, settings, sdb, atx, &snapshotApplier)
+	appender, err := newTxAppender(state, rw, stor, settings, sdb, atx, &snapshotApplier, bUpdatesExtension)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}

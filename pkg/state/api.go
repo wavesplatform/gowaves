@@ -221,8 +221,9 @@ func NewState(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
+	bUpdatesExtension *BlockchainUpdatesExtension,
 ) (State, error) {
-	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode)
+	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode, bUpdatesExtension)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/blockchainupdates"
 	"math"
 	"math/big"
 	"net/http"
@@ -390,13 +391,21 @@ func main() {
 	params.Time = ntpTime
 	params.DbParams.BloomFilterParams.Disable = nc.disableBloomFilter
 
+	var bUpdatesExtension *state.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
-		// updatesChannel := make(chan interface{})
-		// runBlockchainUpdatesPublisher(updatesChannel)
+		updatesChannel := make(chan blockchainupdates.BUpdatesInfo)
+		bUpdatesExtensionState := blockchainupdates.NewBUpdatesExtensionState()
+
+		bUpdatesExtension = &state.BlockchainUpdatesExtension{
+			EnableBlockchainUpdatesPlugin: true,
+			BUpdatesChannel:               updatesChannel,
+		}
+
+		bUpdatesExtensionState.RunBlockchainUpdatesPublisher(updatesChannel)
 	}
 
 	// Send updatesChannel into BlockchainSettings. Write updates into this channel
-	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode)
+	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode, bUpdatesExtension)
 	if err != nil {
 		zap.S().Errorf("Failed to initialize node's state: %v", err)
 		return
