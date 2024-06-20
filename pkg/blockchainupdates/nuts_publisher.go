@@ -44,7 +44,14 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(updatesChannel <
 	func(ctx context.Context, updatesChannel <-chan BUpdatesInfo) {
 		for {
 			select {
-			case <-updatesChannel:
+			case updates := <-updatesChannel:
+				// update current state
+
+				// compare the current state to the previous state
+
+				// if there is any diff, send the update
+
+				fmt.Println(updates.Height)
 				var msg string
 				// Publish blockchain updates
 				topic := block_updates
