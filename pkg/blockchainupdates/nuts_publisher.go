@@ -6,9 +6,6 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"log"
-	"os"
-	"os/signal"
-	"syscall"
 )
 
 type BUpdatesInfo struct {
@@ -31,15 +28,12 @@ func (bu *BUpdatesExtensionState) hasStateChanged() {
 
 }
 
-func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(updatesChannel <-chan BUpdatesInfo) {
+func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo) {
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
 		log.Fatal(err)
 	}
 	defer nc.Close()
-
-	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer done()
 
 	func(ctx context.Context, updatesChannel <-chan BUpdatesInfo) {
 		for {
@@ -66,6 +60,4 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(updatesChannel <
 			}
 		}
 	}(ctx, updatesChannel)
-	<-ctx.Done()
-
 }

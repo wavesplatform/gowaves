@@ -401,7 +401,7 @@ func main() {
 			BUpdatesChannel:               updatesChannel,
 		}
 
-		bUpdatesExtensionState.RunBlockchainUpdatesPublisher(updatesChannel)
+		bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel)
 	}
 
 	// Send updatesChannel into BlockchainSettings. Write updates into this channel
