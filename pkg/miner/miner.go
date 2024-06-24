@@ -85,12 +85,12 @@ func (a *MicroblockMiner) MineKeyBlock(
 		}
 		b.StateHash = &sh
 		// Resign block
-		if err = b.Sign(a.services.Scheme, k.Secret); err != nil {
+		if err = b.Sign(a.scheme, k.Secret); err != nil {
 			return nil, proto.MiningLimits{}, errors.Wrap(err,
 				"failed to resign key block with filled state hash field")
 		}
 		// Regenerate block ID with filled state hash field.
-		if genErr := b.GenerateBlockID(a.services.Scheme); genErr != nil {
+		if genErr := b.GenerateBlockID(a.scheme); genErr != nil {
 			return nil, proto.MiningLimits{}, errors.Wrap(genErr,
 				"failed to regenerate key block ID with filled state hash field")
 		}

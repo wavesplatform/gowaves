@@ -32,11 +32,17 @@ var _ state.State = &MockState{}
 //			AddBlocksFunc: func(blocks [][]byte) error {
 //				panic("mock out the AddBlocks method")
 //			},
+//			AddBlocksWithSnapshotsFunc: func(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+//				panic("mock out the AddBlocksWithSnapshots method")
+//			},
 //			AddDeserializedBlockFunc: func(block *proto.Block) (*proto.Block, error) {
 //				panic("mock out the AddDeserializedBlock method")
 //			},
 //			AddDeserializedBlocksFunc: func(blocks []*proto.Block) (*proto.Block, error) {
 //				panic("mock out the AddDeserializedBlocks method")
+//			},
+//			AddDeserializedBlocksWithSnapshotsFunc: func(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
+//				panic("mock out the AddDeserializedBlocksWithSnapshots method")
 //			},
 //			AddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
 //				panic("mock out the AddrByAlias method")
@@ -73,6 +79,9 @@ var _ state.State = &MockState{}
 //			},
 //			CloseFunc: func() error {
 //				panic("mock out the Close method")
+//			},
+//			CreateNextSnapshotHashFunc: func(block *proto.Block) (crypto.Digest, error) {
+//				panic("mock out the CreateNextSnapshotHash method")
 //			},
 //			CurrentScoreFunc: func() (*big.Int, error) {
 //				panic("mock out the CurrentScore method")
@@ -118,6 +127,9 @@ var _ state.State = &MockState{}
 //			},
 //			IsActiveLeasingFunc: func(leaseID crypto.Digest) (bool, error) {
 //				panic("mock out the IsActiveLeasing method")
+//			},
+//			IsActiveLightNodeNewBlocksFieldsFunc: func(blockHeight uint64) (bool, error) {
+//				panic("mock out the IsActiveLightNodeNewBlocksFields method")
 //			},
 //			IsApprovedFunc: func(featureID int16) (bool, error) {
 //				panic("mock out the IsApproved method")
@@ -233,7 +245,7 @@ var _ state.State = &MockState{}
 //			TxValidationFunc: func(fn func(validation state.TxValidation) error) error {
 //				panic("mock out the TxValidation method")
 //			},
-//			ValidateNextTxFunc: func(tx proto.Transaction, currentTimestamp uint64, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
+//			ValidateNextTxFunc: func(tx proto.Transaction, currentTimestamp uint64, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error) {
 //				panic("mock out the ValidateNextTx method")
 //			},
 //			VotesNumFunc: func(featureID int16) (uint64, error) {
@@ -264,11 +276,17 @@ type MockState struct {
 	// AddBlocksFunc mocks the AddBlocks method.
 	AddBlocksFunc func(blocks [][]byte) error
 
+	// AddBlocksWithSnapshotsFunc mocks the AddBlocksWithSnapshots method.
+	AddBlocksWithSnapshotsFunc func(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
+
 	// AddDeserializedBlockFunc mocks the AddDeserializedBlock method.
 	AddDeserializedBlockFunc func(block *proto.Block) (*proto.Block, error)
 
 	// AddDeserializedBlocksFunc mocks the AddDeserializedBlocks method.
 	AddDeserializedBlocksFunc func(blocks []*proto.Block) (*proto.Block, error)
+
+	// AddDeserializedBlocksWithSnapshotsFunc mocks the AddDeserializedBlocksWithSnapshots method.
+	AddDeserializedBlocksWithSnapshotsFunc func(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 
 	// AddrByAliasFunc mocks the AddrByAlias method.
 	AddrByAliasFunc func(alias proto.Alias) (proto.WavesAddress, error)
@@ -305,6 +323,9 @@ type MockState struct {
 
 	// CloseFunc mocks the Close method.
 	CloseFunc func() error
+
+	// CreateNextSnapshotHashFunc mocks the CreateNextSnapshotHash method.
+	CreateNextSnapshotHashFunc func(block *proto.Block) (crypto.Digest, error)
 
 	// CurrentScoreFunc mocks the CurrentScore method.
 	CurrentScoreFunc func() (*big.Int, error)
@@ -350,6 +371,9 @@ type MockState struct {
 
 	// IsActiveLeasingFunc mocks the IsActiveLeasing method.
 	IsActiveLeasingFunc func(leaseID crypto.Digest) (bool, error)
+
+	// IsActiveLightNodeNewBlocksFieldsFunc mocks the IsActiveLightNodeNewBlocksFields method.
+	IsActiveLightNodeNewBlocksFieldsFunc func(blockHeight uint64) (bool, error)
 
 	// IsApprovedFunc mocks the IsApproved method.
 	IsApprovedFunc func(featureID int16) (bool, error)
@@ -466,7 +490,7 @@ type MockState struct {
 	TxValidationFunc func(fn func(validation state.TxValidation) error) error
 
 	// ValidateNextTxFunc mocks the ValidateNextTx method.
-	ValidateNextTxFunc func(tx proto.Transaction, currentTimestamp uint64, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error
+	ValidateNextTxFunc func(tx proto.Transaction, currentTimestamp uint64, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error)
 
 	// VotesNumFunc mocks the VotesNum method.
 	VotesNumFunc func(featureID int16) (uint64, error)
@@ -497,6 +521,13 @@ type MockState struct {
 			// Blocks is the blocks argument value.
 			Blocks [][]byte
 		}
+		// AddBlocksWithSnapshots holds details about calls to the AddBlocksWithSnapshots method.
+		AddBlocksWithSnapshots []struct {
+			// Blocks is the blocks argument value.
+			Blocks [][]byte
+			// Snapshots is the snapshots argument value.
+			Snapshots []*proto.BlockSnapshot
+		}
 		// AddDeserializedBlock holds details about calls to the AddDeserializedBlock method.
 		AddDeserializedBlock []struct {
 			// Block is the block argument value.
@@ -506,6 +537,13 @@ type MockState struct {
 		AddDeserializedBlocks []struct {
 			// Blocks is the blocks argument value.
 			Blocks []*proto.Block
+		}
+		// AddDeserializedBlocksWithSnapshots holds details about calls to the AddDeserializedBlocksWithSnapshots method.
+		AddDeserializedBlocksWithSnapshots []struct {
+			// Blocks is the blocks argument value.
+			Blocks []*proto.Block
+			// Snapshots is the snapshots argument value.
+			Snapshots []*proto.BlockSnapshot
 		}
 		// AddrByAlias holds details about calls to the AddrByAlias method.
 		AddrByAlias []struct {
@@ -562,6 +600,11 @@ type MockState struct {
 		}
 		// Close holds details about calls to the Close method.
 		Close []struct {
+		}
+		// CreateNextSnapshotHash holds details about calls to the CreateNextSnapshotHash method.
+		CreateNextSnapshotHash []struct {
+			// Block is the block argument value.
+			Block *proto.Block
 		}
 		// CurrentScore holds details about calls to the CurrentScore method.
 		CurrentScore []struct {
@@ -637,6 +680,11 @@ type MockState struct {
 		IsActiveLeasing []struct {
 			// LeaseID is the leaseID argument value.
 			LeaseID crypto.Digest
+		}
+		// IsActiveLightNodeNewBlocksFields holds details about calls to the IsActiveLightNodeNewBlocksFields method.
+		IsActiveLightNodeNewBlocksFields []struct {
+			// BlockHeight is the blockHeight argument value.
+			BlockHeight uint64
 		}
 		// IsApproved holds details about calls to the IsApproved method.
 		IsApproved []struct {
@@ -864,81 +912,85 @@ type MockState struct {
 			Account proto.Recipient
 		}
 	}
-	lockActivationHeight                 sync.RWMutex
-	lockAddBlock                         sync.RWMutex
-	lockAddBlocks                        sync.RWMutex
-	lockAddDeserializedBlock             sync.RWMutex
-	lockAddDeserializedBlocks            sync.RWMutex
-	lockAddrByAlias                      sync.RWMutex
-	lockAliasesByAddr                    sync.RWMutex
-	lockAllFeatures                      sync.RWMutex
-	lockApprovalHeight                   sync.RWMutex
-	lockAssetBalance                     sync.RWMutex
-	lockAssetInfo                        sync.RWMutex
-	lockAssetIsSponsored                 sync.RWMutex
-	lockBlock                            sync.RWMutex
-	lockBlockByHeight                    sync.RWMutex
-	lockBlockIDToHeight                  sync.RWMutex
-	lockBlockchainSettings               sync.RWMutex
-	lockClose                            sync.RWMutex
-	lockCurrentScore                     sync.RWMutex
-	lockEffectiveBalance                 sync.RWMutex
-	lockEnrichedFullAssetInfo            sync.RWMutex
-	lockEstimatorVersion                 sync.RWMutex
-	lockFullAssetInfo                    sync.RWMutex
-	lockFullWavesBalance                 sync.RWMutex
-	lockHeader                           sync.RWMutex
-	lockHeaderByHeight                   sync.RWMutex
-	lockHeight                           sync.RWMutex
-	lockHeightToBlockID                  sync.RWMutex
-	lockHitSourceAtHeight                sync.RWMutex
-	lockInvokeResultByID                 sync.RWMutex
-	lockIsActivated                      sync.RWMutex
-	lockIsActiveAtHeight                 sync.RWMutex
-	lockIsActiveLeasing                  sync.RWMutex
-	lockIsApproved                       sync.RWMutex
-	lockIsApprovedAtHeight               sync.RWMutex
-	lockIsAssetExist                     sync.RWMutex
-	lockLegacyStateHashAtHeight          sync.RWMutex
-	lockMap                              sync.RWMutex
-	lockMapR                             sync.RWMutex
-	lockNFTList                          sync.RWMutex
-	lockNewAddrTransactionsIterator      sync.RWMutex
-	lockNewestScriptByAccount            sync.RWMutex
-	lockNewestScriptBytesByAccount       sync.RWMutex
-	lockPersistAddressTransactions       sync.RWMutex
-	lockProvidesExtendedApi              sync.RWMutex
-	lockProvidesStateHashes              sync.RWMutex
-	lockResetValidationList              sync.RWMutex
-	lockRetrieveBinaryEntry              sync.RWMutex
-	lockRetrieveBooleanEntry             sync.RWMutex
-	lockRetrieveEntries                  sync.RWMutex
-	lockRetrieveEntry                    sync.RWMutex
-	lockRetrieveIntegerEntry             sync.RWMutex
-	lockRetrieveStringEntry              sync.RWMutex
-	lockRewardAtHeight                   sync.RWMutex
-	lockRewardVotes                      sync.RWMutex
-	lockRollbackTo                       sync.RWMutex
-	lockRollbackToHeight                 sync.RWMutex
-	lockScoreAtHeight                    sync.RWMutex
-	lockScriptBasicInfoByAccount         sync.RWMutex
-	lockScriptInfoByAccount              sync.RWMutex
-	lockScriptInfoByAsset                sync.RWMutex
-	lockShouldPersistAddressTransactions sync.RWMutex
-	lockSnapshotStateHashAtHeight        sync.RWMutex
-	lockSnapshotsAtHeight                sync.RWMutex
-	lockStartProvidingExtendedAPI        sync.RWMutex
-	lockTopBlock                         sync.RWMutex
-	lockTotalWavesAmount                 sync.RWMutex
-	lockTransactionByID                  sync.RWMutex
-	lockTransactionByIDWithStatus        sync.RWMutex
-	lockTransactionHeightByID            sync.RWMutex
-	lockTxValidation                     sync.RWMutex
-	lockValidateNextTx                   sync.RWMutex
-	lockVotesNum                         sync.RWMutex
-	lockVotesNumAtHeight                 sync.RWMutex
-	lockWavesAddressesNumber             sync.RWMutex
-	lockWavesBalance                     sync.RWMutex
+	lockActivationHeight                   sync.RWMutex
+	lockAddBlock                           sync.RWMutex
+	lockAddBlocks                          sync.RWMutex
+	lockAddBlocksWithSnapshots             sync.RWMutex
+	lockAddDeserializedBlock               sync.RWMutex
+	lockAddDeserializedBlocks              sync.RWMutex
+	lockAddDeserializedBlocksWithSnapshots sync.RWMutex
+	lockAddrByAlias                        sync.RWMutex
+	lockAliasesByAddr                      sync.RWMutex
+	lockAllFeatures                        sync.RWMutex
+	lockApprovalHeight                     sync.RWMutex
+	lockAssetBalance                       sync.RWMutex
+	lockAssetInfo                          sync.RWMutex
+	lockAssetIsSponsored                   sync.RWMutex
+	lockBlock                              sync.RWMutex
+	lockBlockByHeight                      sync.RWMutex
+	lockBlockIDToHeight                    sync.RWMutex
+	lockBlockchainSettings                 sync.RWMutex
+	lockClose                              sync.RWMutex
+	lockCreateNextSnapshotHash             sync.RWMutex
+	lockCurrentScore                       sync.RWMutex
+	lockEffectiveBalance                   sync.RWMutex
+	lockEnrichedFullAssetInfo              sync.RWMutex
+	lockEstimatorVersion                   sync.RWMutex
+	lockFullAssetInfo                      sync.RWMutex
+	lockFullWavesBalance                   sync.RWMutex
+	lockHeader                             sync.RWMutex
+	lockHeaderByHeight                     sync.RWMutex
+	lockHeight                             sync.RWMutex
+	lockHeightToBlockID                    sync.RWMutex
+	lockHitSourceAtHeight                  sync.RWMutex
+	lockInvokeResultByID                   sync.RWMutex
+	lockIsActivated                        sync.RWMutex
+	lockIsActiveAtHeight                   sync.RWMutex
+	lockIsActiveLeasing                    sync.RWMutex
+	lockIsActiveLightNodeNewBlocksFields   sync.RWMutex
+	lockIsApproved                         sync.RWMutex
+	lockIsApprovedAtHeight                 sync.RWMutex
+	lockIsAssetExist                       sync.RWMutex
+	lockLegacyStateHashAtHeight            sync.RWMutex
+	lockMap                                sync.RWMutex
+	lockMapR                               sync.RWMutex
+	lockNFTList                            sync.RWMutex
+	lockNewAddrTransactionsIterator        sync.RWMutex
+	lockNewestScriptByAccount              sync.RWMutex
+	lockNewestScriptBytesByAccount         sync.RWMutex
+	lockPersistAddressTransactions         sync.RWMutex
+	lockProvidesExtendedApi                sync.RWMutex
+	lockProvidesStateHashes                sync.RWMutex
+	lockResetValidationList                sync.RWMutex
+	lockRetrieveBinaryEntry                sync.RWMutex
+	lockRetrieveBooleanEntry               sync.RWMutex
+	lockRetrieveEntries                    sync.RWMutex
+	lockRetrieveEntry                      sync.RWMutex
+	lockRetrieveIntegerEntry               sync.RWMutex
+	lockRetrieveStringEntry                sync.RWMutex
+	lockRewardAtHeight                     sync.RWMutex
+	lockRewardVotes                        sync.RWMutex
+	lockRollbackTo                         sync.RWMutex
+	lockRollbackToHeight                   sync.RWMutex
+	lockScoreAtHeight                      sync.RWMutex
+	lockScriptBasicInfoByAccount           sync.RWMutex
+	lockScriptInfoByAccount                sync.RWMutex
+	lockScriptInfoByAsset                  sync.RWMutex
+	lockShouldPersistAddressTransactions   sync.RWMutex
+	lockSnapshotStateHashAtHeight          sync.RWMutex
+	lockSnapshotsAtHeight                  sync.RWMutex
+	lockStartProvidingExtendedAPI          sync.RWMutex
+	lockTopBlock                           sync.RWMutex
+	lockTotalWavesAmount                   sync.RWMutex
+	lockTransactionByID                    sync.RWMutex
+	lockTransactionByIDWithStatus          sync.RWMutex
+	lockTransactionHeightByID              sync.RWMutex
+	lockTxValidation                       sync.RWMutex
+	lockValidateNextTx                     sync.RWMutex
+	lockVotesNum                           sync.RWMutex
+	lockVotesNumAtHeight                   sync.RWMutex
+	lockWavesAddressesNumber               sync.RWMutex
+	lockWavesBalance                       sync.RWMutex
 }
 
 // ActivationHeight calls ActivationHeightFunc.
@@ -1037,6 +1089,42 @@ func (mock *MockState) AddBlocksCalls() []struct {
 	return calls
 }
 
+// AddBlocksWithSnapshots calls AddBlocksWithSnapshotsFunc.
+func (mock *MockState) AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error {
+	if mock.AddBlocksWithSnapshotsFunc == nil {
+		panic("MockState.AddBlocksWithSnapshotsFunc: method is nil but State.AddBlocksWithSnapshots was just called")
+	}
+	callInfo := struct {
+		Blocks    [][]byte
+		Snapshots []*proto.BlockSnapshot
+	}{
+		Blocks:    blocks,
+		Snapshots: snapshots,
+	}
+	mock.lockAddBlocksWithSnapshots.Lock()
+	mock.calls.AddBlocksWithSnapshots = append(mock.calls.AddBlocksWithSnapshots, callInfo)
+	mock.lockAddBlocksWithSnapshots.Unlock()
+	return mock.AddBlocksWithSnapshotsFunc(blocks, snapshots)
+}
+
+// AddBlocksWithSnapshotsCalls gets all the calls that were made to AddBlocksWithSnapshots.
+// Check the length with:
+//
+//	len(mockedState.AddBlocksWithSnapshotsCalls())
+func (mock *MockState) AddBlocksWithSnapshotsCalls() []struct {
+	Blocks    [][]byte
+	Snapshots []*proto.BlockSnapshot
+} {
+	var calls []struct {
+		Blocks    [][]byte
+		Snapshots []*proto.BlockSnapshot
+	}
+	mock.lockAddBlocksWithSnapshots.RLock()
+	calls = mock.calls.AddBlocksWithSnapshots
+	mock.lockAddBlocksWithSnapshots.RUnlock()
+	return calls
+}
+
 // AddDeserializedBlock calls AddDeserializedBlockFunc.
 func (mock *MockState) AddDeserializedBlock(block *proto.Block) (*proto.Block, error) {
 	if mock.AddDeserializedBlockFunc == nil {
@@ -1098,6 +1186,42 @@ func (mock *MockState) AddDeserializedBlocksCalls() []struct {
 	mock.lockAddDeserializedBlocks.RLock()
 	calls = mock.calls.AddDeserializedBlocks
 	mock.lockAddDeserializedBlocks.RUnlock()
+	return calls
+}
+
+// AddDeserializedBlocksWithSnapshots calls AddDeserializedBlocksWithSnapshotsFunc.
+func (mock *MockState) AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error) {
+	if mock.AddDeserializedBlocksWithSnapshotsFunc == nil {
+		panic("MockState.AddDeserializedBlocksWithSnapshotsFunc: method is nil but State.AddDeserializedBlocksWithSnapshots was just called")
+	}
+	callInfo := struct {
+		Blocks    []*proto.Block
+		Snapshots []*proto.BlockSnapshot
+	}{
+		Blocks:    blocks,
+		Snapshots: snapshots,
+	}
+	mock.lockAddDeserializedBlocksWithSnapshots.Lock()
+	mock.calls.AddDeserializedBlocksWithSnapshots = append(mock.calls.AddDeserializedBlocksWithSnapshots, callInfo)
+	mock.lockAddDeserializedBlocksWithSnapshots.Unlock()
+	return mock.AddDeserializedBlocksWithSnapshotsFunc(blocks, snapshots)
+}
+
+// AddDeserializedBlocksWithSnapshotsCalls gets all the calls that were made to AddDeserializedBlocksWithSnapshots.
+// Check the length with:
+//
+//	len(mockedState.AddDeserializedBlocksWithSnapshotsCalls())
+func (mock *MockState) AddDeserializedBlocksWithSnapshotsCalls() []struct {
+	Blocks    []*proto.Block
+	Snapshots []*proto.BlockSnapshot
+} {
+	var calls []struct {
+		Blocks    []*proto.Block
+		Snapshots []*proto.BlockSnapshot
+	}
+	mock.lockAddDeserializedBlocksWithSnapshots.RLock()
+	calls = mock.calls.AddDeserializedBlocksWithSnapshots
+	mock.lockAddDeserializedBlocksWithSnapshots.RUnlock()
 	return calls
 }
 
@@ -1471,6 +1595,38 @@ func (mock *MockState) CloseCalls() []struct {
 	mock.lockClose.RLock()
 	calls = mock.calls.Close
 	mock.lockClose.RUnlock()
+	return calls
+}
+
+// CreateNextSnapshotHash calls CreateNextSnapshotHashFunc.
+func (mock *MockState) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	if mock.CreateNextSnapshotHashFunc == nil {
+		panic("MockState.CreateNextSnapshotHashFunc: method is nil but State.CreateNextSnapshotHash was just called")
+	}
+	callInfo := struct {
+		Block *proto.Block
+	}{
+		Block: block,
+	}
+	mock.lockCreateNextSnapshotHash.Lock()
+	mock.calls.CreateNextSnapshotHash = append(mock.calls.CreateNextSnapshotHash, callInfo)
+	mock.lockCreateNextSnapshotHash.Unlock()
+	return mock.CreateNextSnapshotHashFunc(block)
+}
+
+// CreateNextSnapshotHashCalls gets all the calls that were made to CreateNextSnapshotHash.
+// Check the length with:
+//
+//	len(mockedState.CreateNextSnapshotHashCalls())
+func (mock *MockState) CreateNextSnapshotHashCalls() []struct {
+	Block *proto.Block
+} {
+	var calls []struct {
+		Block *proto.Block
+	}
+	mock.lockCreateNextSnapshotHash.RLock()
+	calls = mock.calls.CreateNextSnapshotHash
+	mock.lockCreateNextSnapshotHash.RUnlock()
 	return calls
 }
 
@@ -1948,6 +2104,38 @@ func (mock *MockState) IsActiveLeasingCalls() []struct {
 	mock.lockIsActiveLeasing.RLock()
 	calls = mock.calls.IsActiveLeasing
 	mock.lockIsActiveLeasing.RUnlock()
+	return calls
+}
+
+// IsActiveLightNodeNewBlocksFields calls IsActiveLightNodeNewBlocksFieldsFunc.
+func (mock *MockState) IsActiveLightNodeNewBlocksFields(blockHeight uint64) (bool, error) {
+	if mock.IsActiveLightNodeNewBlocksFieldsFunc == nil {
+		panic("MockState.IsActiveLightNodeNewBlocksFieldsFunc: method is nil but State.IsActiveLightNodeNewBlocksFields was just called")
+	}
+	callInfo := struct {
+		BlockHeight uint64
+	}{
+		BlockHeight: blockHeight,
+	}
+	mock.lockIsActiveLightNodeNewBlocksFields.Lock()
+	mock.calls.IsActiveLightNodeNewBlocksFields = append(mock.calls.IsActiveLightNodeNewBlocksFields, callInfo)
+	mock.lockIsActiveLightNodeNewBlocksFields.Unlock()
+	return mock.IsActiveLightNodeNewBlocksFieldsFunc(blockHeight)
+}
+
+// IsActiveLightNodeNewBlocksFieldsCalls gets all the calls that were made to IsActiveLightNodeNewBlocksFields.
+// Check the length with:
+//
+//	len(mockedState.IsActiveLightNodeNewBlocksFieldsCalls())
+func (mock *MockState) IsActiveLightNodeNewBlocksFieldsCalls() []struct {
+	BlockHeight uint64
+} {
+	var calls []struct {
+		BlockHeight uint64
+	}
+	mock.lockIsActiveLightNodeNewBlocksFields.RLock()
+	calls = mock.calls.IsActiveLightNodeNewBlocksFields
+	mock.lockIsActiveLightNodeNewBlocksFields.RUnlock()
 	return calls
 }
 
@@ -3165,7 +3353,7 @@ func (mock *MockState) TxValidationCalls() []struct {
 }
 
 // ValidateNextTx calls ValidateNextTxFunc.
-func (mock *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp uint64, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) error {
+func (mock *MockState) ValidateNextTx(tx proto.Transaction, currentTimestamp uint64, parentTimestamp uint64, blockVersion proto.BlockVersion, acceptFailed bool) ([]proto.AtomicSnapshot, error) {
 	if mock.ValidateNextTxFunc == nil {
 		panic("MockState.ValidateNextTxFunc: method is nil but State.ValidateNextTx was just called")
 	}

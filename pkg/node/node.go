@@ -46,6 +46,7 @@ type Node struct {
 	commandsCh      chan<- network.Command
 
 	scheme             proto.Scheme
+	tvp                proto.TransactionValidationParams
 	microblockInterval time.Duration
 	obsolescence       time.Duration
 	reward             int64
@@ -78,6 +79,9 @@ func NewNode(
 	reward int64, enableLightMode bool,
 ) (*Node, <-chan network.Command) {
 	commandsCh := make(chan network.Command, defaultChannelSize)
+	// Transaction validation with this params is only done on broadcast and re-broadcast we strictly deny users and
+	// other nodes to send us transactions with invalid versions.
+	tvp := proto.TransactionValidationParams{Scheme: scheme, CheckVersion: true}
 	n := &Node{
 		sm:                 stateless.NewStateMachine(stageIdle),
 		networkCh:          networkCh,
@@ -85,6 +89,7 @@ func NewNode(
 		commandsCh:         commandsCh,
 		broadcastCh:        broadcastCh,
 		scheme:             scheme,
+		tvp:                tvp,
 		microblockInterval: microblockInterval,
 		obsolescence:       obsolescence,
 		reward:             reward,
@@ -755,17 +760,14 @@ func (n *Node) onTransaction(_ context.Context, args ...any) error {
 	if !ok {
 		return errors.Errorf("invalid type '%T' of second argument, expected 'proto.Transaction'", args[1])
 	}
-
-	if _, err := tx.Validate(n.scheme); err != nil {
+	if _, err := tx.Validate(n.tvp); err != nil {
 		zap.S().Named(logging.FSMNamespace).
 			Debugf("[%s] Failed to validate transaction '%s' from peer '%s': %v",
 				n.sm.MustState(), n.transactionID(tx), p.ID().String(), err)
 		err = errors.Wrap(err, "failed to validate transaction")
-		if p != nil {
-			msg := fmt.Sprintf("[%s] Invalid transaction %s: %s",
-				n.sm.MustState(), n.transactionID(tx), err.Error())
-			n.commandsCh <- network.BlacklistPeerCommand{Peer: p, Message: msg}
-		}
+		msg := fmt.Sprintf("[%s] Invalid transaction %s: %s",
+			n.sm.MustState(), n.transactionID(tx), err.Error())
+		n.commandsCh <- network.BlacklistPeerCommand{Peer: p, Message: msg}
 		return nil
 	}
 
@@ -1072,8 +1074,7 @@ func (n *Node) onBroadcastTransaction(_ context.Context, args ...any) error {
 	if !ok {
 		return errors.Errorf("invalid type '%T' of second argument, expected 'chan error'", args[1])
 	}
-
-	if _, err := tx.Validate(n.scheme); err != nil {
+	if _, err := tx.Validate(n.tvp); err != nil {
 		zap.S().Named(logging.FSMNamespace).
 			Debugf("[%s] Failed to validate transaction '%s' from API: %v",
 				n.sm.MustState(), n.transactionID(tx), err)

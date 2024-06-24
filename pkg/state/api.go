@@ -233,9 +233,9 @@ func NewState(
 
 // NewUnsafeState creates stateManager without wrapping into ThreadSafeState. USE WITH CAUTION!
 func NewUnsafeState(
-	dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings,
+	dataDir string, amend bool, params StateParams, settings *settings.BlockchainSettings, lightMode bool,
 ) (State, error) {
-	return newStateManager(dataDir, amend, params, settings)
+	return newStateManager(dataDir, amend, params, settings, lightMode)
 }
 
 type StorageParams struct {

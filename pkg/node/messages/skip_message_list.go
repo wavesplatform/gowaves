@@ -39,8 +39,8 @@ func (l *SkipMessageList) DisableEverything() {
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDGetBlockIds,
-		proto.ContentIDBlockIds,
+		proto.ContentIDGetBlockIDs,
+		proto.ContentIDBlockIDs,
 	)
 }
 
@@ -58,8 +58,8 @@ func (l *SkipMessageList) DisableForIdle() {
 		proto.ContentIDPBBlock,
 		proto.ContentIDPBMicroBlock,
 		proto.ContentIDPBTransaction,
-		proto.ContentIDGetBlockIds,
-		proto.ContentIDBlockIds,
+		proto.ContentIDGetBlockIDs,
+		proto.ContentIDBlockIDs,
 	)
 }
 
@@ -71,7 +71,7 @@ func (l *SkipMessageList) DisableForOperation() {
 		proto.ContentIDMicroblockRequest,
 		proto.ContentIDMicroblock,
 		proto.ContentIDPBMicroBlock,
-		proto.ContentIDBlockIds,
+		proto.ContentIDBlockIDs,
 	)
 }
 
@@ -79,7 +79,7 @@ func (l *SkipMessageList) DisableForOperationNG() {
 	l.ignore(
 		proto.ContentIDSignatures,
 		proto.ContentIDCheckpoint,
-		proto.ContentIDBlockIds,
+		proto.ContentIDBlockIDs,
 	)
 }
 
