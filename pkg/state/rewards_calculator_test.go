@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -56,7 +57,11 @@ func makeMockFeaturesStateForRewardsCalc(features ...settings.Feature) featuresS
 			if _, enabled := enabledFeatures[int16(settings.BoostBlockReward)]; enabled {
 				ahs[settings.BoostBlockReward] = 4000
 			}
-			return ahs[settings.Feature(featureID)], nil
+			h, ok := ahs[settings.Feature(featureID)]
+			if !ok {
+				return 0, keyvalue.ErrNotFound
+			}
+			return h, nil
 		},
 	}
 	return mf

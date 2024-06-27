@@ -150,8 +150,7 @@ func (c *rewardCalculator) handleFeature23(height proto.Height) (uint64, error) 
 		}
 		return 0, fmt.Errorf("failed to get activation height for feature 23: %w", err)
 	}
-	boostPeriodLastHeight := ah + c.settings.BlockRewardBoostPeriod
-	if ah > 0 && height >= ah && height < boostPeriodLastHeight {
+	if height >= ah && height < ah+c.settings.BlockRewardBoostPeriod {
 		return boostedRewardMultiplier, nil
 	}
 	return defaultRewardMultiplier, nil
