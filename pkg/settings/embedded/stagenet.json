@@ -56,6 +56,7 @@
     "3MaFVH1vTv18FjBRugSRebx259D7xtRh9ic"
   ],
   "min_xtn_buy_back_period": 1000,
+  "block_reward_boost_period": 1000,
   "min_update_asset_info_interval": 10,
   "light_node_block_fields_absence_interval": 1000,
   "type": 2,

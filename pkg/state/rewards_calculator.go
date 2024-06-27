@@ -1,8 +1,10 @@
 package state
 
 import (
+	"errors"
 	"fmt"
 
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state/internal"
@@ -18,6 +20,7 @@ type rewardCalculator struct {
 
 type featuresStateForRewardsCalculator interface {
 	newestIsActivatedAtHeight(featureID int16, height uint64) bool
+	newestActivationHeight(featureID int16) (uint64, error)
 }
 
 func newRewardsCalculator(
@@ -66,9 +69,13 @@ func (c *rewardCalculator) performCalculation(
 	height proto.Height,
 	reward uint64,
 ) error {
+	rewardMultiplier, err := c.handleFeature23(height)
+	if err != nil {
+		return err
+	}
 	feature19ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), height)
 	if !feature19ActivatedAtHeight { // give full reward to the miner if feature 19 is not activated at PROVIDED height
-		return appendMinerReward(reward)
+		return appendMinerReward(rewardMultiplier * reward)
 	}
 
 	rewardAddresses := c.settings.RewardAddresses
@@ -89,11 +96,12 @@ func (c *rewardCalculator) performCalculation(
 	if feature20ActivatedAtHeight {
 		addressReward = c.handleFeature20(reward)
 		if addressReward == 0 {
-			return appendMinerReward(reward) // give full reward to the miner
+			return appendMinerReward(rewardMultiplier * reward) // give full reward to the miner
 		}
 	}
 
-	return c.appendRewards(appendMinerReward, appendAddressReward, rewardAddresses, reward, addressReward)
+	return c.appendRewards(appendMinerReward, appendAddressReward, rewardAddresses,
+		rewardMultiplier*reward, rewardMultiplier*addressReward)
 }
 
 func (c *rewardCalculator) appendRewards(
@@ -125,6 +133,28 @@ func (c *rewardCalculator) handleFeature21(height proto.Height, rewardAddresses 
 		}
 	}
 	return rewardAddresses
+}
+
+func (c *rewardCalculator) handleFeature23(height proto.Height) (uint64, error) {
+	const (
+		boostedRewardMultiplier = 10
+		defaultRewardMultiplier = 1
+	)
+	// Feature 23 "Boost Block Reward" is working only for `BlockRewardBoostPeriod` count of blocks. We have to check
+	// that feature already activated and not expired yet. In this case the multiplication can be applied, so we return
+	// the value of `boostedRewardMultiplier`.
+	ah, err := c.features.newestActivationHeight(int16(settings.BoostBlockReward))
+	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) { // feature 23 is not approved or activated.
+			return defaultRewardMultiplier, nil
+		}
+		return 0, fmt.Errorf("failed to get activation height for feature 23: %w", err)
+	}
+	boostPeriodLastHeight := ah + c.settings.BlockRewardBoostPeriod
+	if ah > 0 && height >= ah && height < boostPeriodLastHeight {
+		return boostedRewardMultiplier, nil
+	}
+	return defaultRewardMultiplier, nil
 }
 
 func (c *rewardCalculator) handleFeature20(reward uint64) uint64 {

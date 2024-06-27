@@ -25,7 +25,8 @@ const (
 	CappedRewards           // 20
 	XTNBuyBackCessation     // 21
 	LightNode               // 22
-	InvokeExpression        // 23
+	BoostBlockReward        // 23
+	InvokeExpression        // 24
 )
 
 type FeatureInfo struct {
@@ -56,5 +57,6 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	CappedRewards:                   {true, "Capped XTN Buy-back and DAO Amounts"},
 	XTNBuyBackCessation:             {true, "XTN Buy-back Cessation"},
 	LightNode:                       {true, "Light Node"},
+	BoostBlockReward:                {true, "Boost Block Reward"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
