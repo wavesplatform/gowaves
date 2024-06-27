@@ -66,6 +66,7 @@ func newTestRewardsCalculator(features ...settings.Feature) *rewardCalculator {
 	mf := makeMockFeaturesStateForRewardsCalc(features...)
 	sets := *settings.TestNetSettings
 	sets.MinXTNBuyBackPeriod = 3000
+	sets.BlockRewardBoostPeriod = 1000
 	c := newRewardsCalculator(&sets, mf)
 	return c
 }
