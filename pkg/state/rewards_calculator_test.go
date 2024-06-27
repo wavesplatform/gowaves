@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"strconv"
 	"testing"
 
@@ -31,37 +32,36 @@ func makeMockFeaturesStateForRewardsCalc(features ...settings.Feature) featuresS
 	}
 	mf := &mockFeaturesState{
 		newestIsActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
-			_, isEnabled := enabledFeatures[featureID]
+			if _, isEnabled := enabledFeatures[featureID]; !isEnabled {
+				return false
+			}
 			switch settings.Feature(featureID) {
 			case settings.BlockRewardDistribution:
-				return height >= 1000 && isEnabled
+				return height >= 1000
 			case settings.CappedRewards:
-				return height >= 2000 && isEnabled
+				return height >= 2000
 			case settings.XTNBuyBackCessation:
-				return height >= 3000 && isEnabled
+				return height >= 3000
 			default:
-				return false
+				panic(fmt.Sprintf("feature (%d) is not supported", featureID))
 			}
 		},
 		newestActivationHeightFunc: func(featureID int16) (uint64, error) {
-			ahs := map[settings.Feature]uint64{}
-			if _, enabled := enabledFeatures[int16(settings.BlockRewardDistribution)]; enabled {
-				ahs[settings.BlockRewardDistribution] = 1000
-			}
-			if _, enabled := enabledFeatures[int16(settings.CappedRewards)]; enabled {
-				ahs[settings.CappedRewards] = 2000
-			}
-			if _, enabled := enabledFeatures[int16(settings.XTNBuyBackCessation)]; enabled {
-				ahs[settings.XTNBuyBackCessation] = 3000
-			}
-			if _, enabled := enabledFeatures[int16(settings.BoostBlockReward)]; enabled {
-				ahs[settings.BoostBlockReward] = 4000
-			}
-			h, ok := ahs[settings.Feature(featureID)]
-			if !ok {
+			if _, enabled := enabledFeatures[featureID]; !enabled {
 				return 0, keyvalue.ErrNotFound
 			}
-			return h, nil
+			switch settings.Feature(featureID) { //nolint:exhaustive // it's a test
+			case settings.BlockRewardDistribution:
+				return 1000, nil
+			case settings.CappedRewards:
+				return 2000, nil
+			case settings.XTNBuyBackCessation:
+				return 3000, nil
+			case settings.BoostBlockReward:
+				return 4000, nil
+			default:
+				return 0, fmt.Errorf("feature (%d) is not supported", featureID)
+			}
 		},
 	}
 	return mf
