@@ -13,10 +13,17 @@ const additionalAddressesCount = 2
 
 type rewardCalculator struct {
 	settings *settings.BlockchainSettings
-	features featuresState
+	features featuresStateForRewardsCalculator
 }
 
-func newRewardsCalculator(settings *settings.BlockchainSettings, features featuresState) *rewardCalculator {
+type featuresStateForRewardsCalculator interface {
+	newestIsActivatedAtHeight(featureID int16, height uint64) bool
+}
+
+func newRewardsCalculator(
+	settings *settings.BlockchainSettings,
+	features featuresStateForRewardsCalculator,
+) *rewardCalculator {
 	return &rewardCalculator{settings: settings, features: features}
 }
 
@@ -59,23 +66,9 @@ func (c *rewardCalculator) performCalculation(
 	height proto.Height,
 	reward uint64,
 ) error {
-	feature19Activated, err := c.features.newestIsActivated(int16(settings.BlockRewardDistribution))
-	if err != nil {
-		return err
-	}
-	if !feature19Activated { // pay rewards only to the miner if feature19 is not activated on the CURRENT height
+	feature19ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), height)
+	if !feature19ActivatedAtHeight { // give full reward to the miner if feature 19 is not activated at PROVIDED height
 		return appendMinerReward(reward)
-	}
-
-	feature20Activated, err := c.features.newestIsActivated(int16(settings.CappedRewards))
-	if err != nil {
-		return err
-	}
-	if feature20Activated { // feature 19 activated and feature20 for the CURRENT height
-		feature19ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), height)
-		if !feature19ActivatedAtHeight { // append rewards only to the miner if feature19 is not activated for the given height
-			return appendMinerReward(reward)
-		}
 	}
 
 	rewardAddresses := c.settings.RewardAddresses
