@@ -7,6 +7,7 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -74,7 +75,11 @@ func makeMockFeaturesStateForRewardsCalc(features ...settings.Feature) (*mockFea
 			if _, enabled := enabledFeatures[int16(settings.BoostBlockReward)]; enabled && currentHeight >= 4000 {
 				ahs[settings.BoostBlockReward] = 4000
 			}
-			return ahs[settings.Feature(featureID)], nil
+			h, ok := ahs[settings.Feature(featureID)]
+			if !ok {
+				return 0, keyvalue.ErrNotFound
+			}
+			return h, nil
 		},
 	}
 	return mf, setCurrentHeight
@@ -171,6 +176,7 @@ func TestFeatures19And20RewardCalculation(t *testing.T) {
 		{1999, 1999, 6_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
 
 		// test for compatibility with scala node behaviour
+		{999, 999, 6_3333_3333, makeTestNetRewards(t, gen, 6_3333_3333)},
 		{999, 1999, 6_3333_3333, makeTestNetRewards(t, gen, 2_1111_1111, 2_1111_1111, 2_1111_1111)},
 		{999, 2000, 6_3333_3333, makeTestNetRewards(t, gen, 6_3333_3333)},
 		{1500, 2000, 6_3333_3333, makeTestNetRewards(t, gen, 2_1111_1111, 2_1111_1111, 2_1111_1111)},
