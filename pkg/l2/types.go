@@ -1,10 +1,11 @@
 package l2
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"math/big"
 	"strconv"
 	"strings"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
@@ -12,6 +13,13 @@ const (
 	EmptyPrevRandaoHex = "0x0000000000000000000000000000000000000000000000000000000000000000"
 	// TODO: need check, get from go-eth
 	EmptyRootHashHex = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+
+	HexBase = 16
+)
+
+const (
+	ValidStatus   = "VALID"
+	SyncingStatus = "SYNCING"
 )
 
 func emptyPrevRandaoEthHash() (proto.EthereumHash, error) {
@@ -66,7 +74,6 @@ type PayloadStatusV1 struct {
 	ValidationError *string             `json:"validationError"`
 }
 
-// PayloadID is an identifier of the payload build process
 type PayloadID [8]byte
 
 func (b PayloadID) String() string {
@@ -76,15 +83,15 @@ func (b PayloadID) String() string {
 type Quantity uint64
 
 func (h Quantity) MarshalJSON() ([]byte, error) {
-	buf := make([]byte, 2, 10)
+	buf := make([]byte, 2)
 	copy(buf, `0x`)
-	buf = strconv.AppendUint(buf, uint64(h), 16)
+	buf = strconv.AppendUint(buf, uint64(h), HexBase)
 	return buf, nil
 }
 
 func (h *Quantity) UnmarshalJSON(bytes []byte) error {
 	trimmed := strings.TrimPrefix(string(bytes), "0x")
-	u, err := strconv.ParseUint(trimmed, 16, 64)
+	u, err := strconv.ParseUint(trimmed, HexBase, 64)
 	if err != nil {
 		return err
 	}

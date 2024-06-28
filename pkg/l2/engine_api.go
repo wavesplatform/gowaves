@@ -3,27 +3,29 @@ package l2
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/proto"
+
 	"github.com/ybbus/jsonrpc/v3"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-type EngineApiClient struct {
+type EngineAPIClient struct {
 	rpcClient jsonrpc.RPCClient
 }
 
-type EngineApiOpts struct {
+type EngineAPIOpts struct {
 	Address string
 	Port    string
 }
 
-func NewEngineApiClient(opts EngineApiOpts) *EngineApiClient {
+func NewEngineAPIClient(opts EngineAPIOpts) *EngineAPIClient {
 	rpcClient := jsonrpc.NewClient("http://" + opts.Address + ":" + opts.Port)
-	return &EngineApiClient{
+	return &EngineAPIClient{
 		rpcClient: rpcClient,
 	}
 }
 
-func (e *EngineApiClient) forkChoiceUpdate(ctx context.Context, hash proto.EthereumHash) error {
+func (e *EngineAPIClient) ForkChoiceUpdate(ctx context.Context, hash proto.EthereumHash) error {
 	state := ForkChoiceStateV1{
 		HeadBlockHash:      hash,
 		SafeBlockHash:      hash,
@@ -34,7 +36,8 @@ func (e *EngineApiClient) forkChoiceUpdate(ctx context.Context, hash proto.Ether
 	if err != nil {
 		return err
 	}
-	if (response.PayloadStatus.Status == "SYNCING" || response.PayloadStatus.Status == "VALID") && response.PayloadID == nil {
+	if (response.PayloadStatus.Status == SyncingStatus || response.PayloadStatus.Status == ValidStatus) &&
+		response.PayloadID == nil {
 		return nil
 	}
 	if response.PayloadStatus.ValidationError != nil {
@@ -43,7 +46,7 @@ func (e *EngineApiClient) forkChoiceUpdate(ctx context.Context, hash proto.Ether
 	return fmt.Errorf("unexpected payload status %s", response.PayloadStatus.Status)
 }
 
-func (e *EngineApiClient) forkChoiceUpdateWithPayloadId(ctx context.Context,
+func (e *EngineAPIClient) ForkChoiceUpdateWithPayloadID(ctx context.Context,
 	lastBlockHash proto.EthereumHash,
 	unixEpochSeconds uint64,
 	suggestedFeeRecipient *proto.EthereumAddress,
@@ -81,7 +84,7 @@ func (e *EngineApiClient) forkChoiceUpdateWithPayloadId(ctx context.Context,
 	if err != nil {
 		return PayloadID{}, err
 	}
-	if response.PayloadStatus.Status == "VALID" && response.PayloadID != nil {
+	if response.PayloadStatus.Status == ValidStatus && response.PayloadID != nil {
 		return *response.PayloadID, nil
 	}
 	if response.PayloadStatus.ValidationError != nil {
@@ -90,7 +93,7 @@ func (e *EngineApiClient) forkChoiceUpdateWithPayloadId(ctx context.Context,
 	return PayloadID{}, fmt.Errorf("unexpected payload status for %s: %s", lastBlockHash, response.PayloadStatus.Status)
 }
 
-func (e *EngineApiClient) GetPayload(ctx context.Context, id PayloadID) (ExecutablePayloadV3, error) {
+func (e *EngineAPIClient) GetPayload(ctx context.Context, id PayloadID) (ExecutablePayloadV3, error) {
 	response := ExecutionPayloadEnvelope{}
 	err := e.rpcClient.CallFor(ctx, &response, "engine_getPayloadV3", id)
 	if err != nil {
@@ -99,7 +102,10 @@ func (e *EngineApiClient) GetPayload(ctx context.Context, id PayloadID) (Executa
 	return *response.ExecutionPayload, nil
 }
 
-func (e *EngineApiClient) ApplyNewPayload(ctx context.Context, payload ExecutablePayloadV3) (proto.EthereumHash, error) {
+func (e *EngineAPIClient) ApplyNewPayload(
+	ctx context.Context,
+	payload ExecutablePayloadV3,
+) (proto.EthereumHash, error) {
 	emptyArray := make([]string, 0)
 	emptyBeaconRootHash, err := emptyRootHash()
 	if err != nil {
@@ -113,7 +119,7 @@ func (e *EngineApiClient) ApplyNewPayload(ctx context.Context, payload Executabl
 	if response.ValidationError != nil {
 		return proto.EthereumHash{}, fmt.Errorf("payload validation error: %s", *response.ValidationError)
 	}
-	if response.Status == "VALID" && response.LatestValidHash != nil {
+	if response.Status == ValidStatus && response.LatestValidHash != nil {
 		return *response.LatestValidHash, nil
 	}
 	if response.LatestValidHash == nil {
@@ -122,7 +128,10 @@ func (e *EngineApiClient) ApplyNewPayload(ctx context.Context, payload Executabl
 	return proto.EthereumHash{}, fmt.Errorf("unexpected payload status for %s", response.Status)
 }
 
-func (e *EngineApiClient) GetPayloadByHash(ctx context.Context, hash proto.EthereumHash) ([]ExecutionPayloadBodyV1, error) {
+func (e *EngineAPIClient) GetPayloadByHash(
+	ctx context.Context,
+	hash proto.EthereumHash,
+) ([]ExecutionPayloadBodyV1, error) {
 	var response []ExecutionPayloadBodyV1
 	err := e.rpcClient.CallFor(ctx, &response, "engine_getPayloadBodiesByHashV1", [][]proto.EthereumHash{{hash}})
 	if err != nil {
