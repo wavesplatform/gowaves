@@ -394,14 +394,20 @@ func main() {
 	var bUpdatesExtension *state.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
 		updatesChannel := make(chan blockchainupdates.BUpdatesInfo)
-		bUpdatesExtensionState := blockchainupdates.NewBUpdatesExtensionState()
+		bUpdatesExtensionState := blockchainupdates.NewBUpdatesExtensionState(2000)
 
+		l2address, err := proto.NewAddressFromString("3MsqKJ6o1ABE37676cHHBxJRs6huYTt72ch")
+		if err != nil {
+			zap.S().Errorf("Failed to initialize L2 contract address")
+			return
+		}
 		bUpdatesExtension = &state.BlockchainUpdatesExtension{
 			EnableBlockchainUpdatesPlugin: true,
 			BUpdatesChannel:               updatesChannel,
+			L2ContractAddress:             l2address,
 		}
 
-		bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel)
+		go bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel)
 	}
 
 	// Send updatesChannel into BlockchainSettings. Write updates into this channel

@@ -61,6 +61,7 @@ type txAppender struct {
 
 type BlockchainUpdatesExtension struct {
 	EnableBlockchainUpdatesPlugin bool
+	L2ContractAddress             proto.WavesAddress
 	BUpdatesChannel               chan<- blockchainupdates.BUpdatesInfo
 }
 
@@ -859,15 +860,23 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	return a.blockDiffer.saveCurFeeDistr(params.block)
 }
 
-func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader) {
+func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader) error {
+	// TODO improve this by using diffs instead grabbing all the records every time
+	dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesExtension.L2ContractAddress))
+	if err != nil {
+		return err
+	}
+
 	bUpdatesInfo := blockchainupdates.BUpdatesInfo{
-		Height:      blockInfo.Height,
-		VRF:         blockInfo.VRF,
-		BlockID:     blockHeader.BlockID(),
-		BlockHeader: blockHeader,
+		Height:         blockInfo.Height,
+		VRF:            blockInfo.VRF,
+		BlockID:        blockHeader.BlockID(),
+		BlockHeader:    blockHeader,
+		AllDataEntries: dataEntries,
 	}
 
 	a.bUpdatesExtension.BUpdatesChannel <- bUpdatesInfo
+	return nil
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {
