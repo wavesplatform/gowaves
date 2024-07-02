@@ -84,7 +84,6 @@ func (a *NodeApi) rewardAtHeight(height proto.Height) (rewardInfoResponse, error
 	if err != nil {
 		return rewardInfoResponse{}, errors.Wrap(err, "Failed get total waves amount at height")
 	}
-	// TODO: `totalAmount` should take in account the multiplier introduced with feature 23.
 	return rewardInfoResponse{
 		Height:              height,
 		TotalWavesAmount:    totalAmount,
