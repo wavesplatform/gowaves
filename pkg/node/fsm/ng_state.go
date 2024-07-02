@@ -227,7 +227,6 @@ func (a *NGState) MinedBlock(
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
-	a.blocksCache = newBlockStatesCache()
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
 

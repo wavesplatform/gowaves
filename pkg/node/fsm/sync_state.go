@@ -277,10 +277,6 @@ func (a *SyncState) applyBlocksWithSnapshots(
 	for _, b := range blocks {
 		metrics.FSMKeyBlockApplied("sync", b)
 	}
-	if np, ok := a.changePeerIfRequired(); ok {
-		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Changing sync peer to '%s'", np.ID().String())
-		return syncWithNewPeer(a, a.baseInfo, np)
-	}
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	should, err := a.baseInfo.storage.ShouldPersistAddressTransactions()
@@ -295,6 +291,10 @@ func (a *SyncState) applyBlocksWithSnapshots(
 			return newIdleState(a.baseInfo), nil, a.Errorf(err)
 		}
 		return newNGState(a.baseInfo), nil, nil
+	}
+	if np, ok := a.changePeerIfRequired(); ok {
+		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Changing sync peer to '%s'", np.ID().String())
+		return syncWithNewPeer(a, a.baseInfo, np)
 	}
 	a.internal.AskBlocksIDs(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
 	return newSyncState(baseInfo, conf, internal), nil, nil
