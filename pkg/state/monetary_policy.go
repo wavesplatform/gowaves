@@ -278,24 +278,24 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 
 	br := &boostedReward{first: boostFirst, last: boostLast}
 
-	curTotalAmount := initialTotalAmount
-	prevHeight := uint64(0)
-	isNotLast := false
+	return calculateTotalAmount(height, changesRecords, initialTotalAmount, br), nil
+}
+
+func calculateTotalAmount(
+	relativeHeight proto.Height,
+	changesRecords rewardChangesRecords, // changesRecords must be sorted in ascending order
+	curTotalAmount uint64,
+	br *boostedReward,
+) uint64 {
 	for i := len(changesRecords) - 1; i >= 0; i-- {
 		change := changesRecords[i]
-		if height < change.Height {
+		if relativeHeight < change.Height {
 			continue
 		}
-		if height >= change.Height && !isNotLast {
-			curTotalAmount += br.reward(change.Reward, change.Height, height)
-			isNotLast = true
-		} else {
-			curTotalAmount += br.reward(change.Reward, change.Height, prevHeight)
-		}
-		prevHeight = change.Height - 1
+		curTotalAmount += br.reward(change.Reward, change.Height, relativeHeight)
+		relativeHeight = change.Height - 1
 	}
-
-	return curTotalAmount, nil
+	return curTotalAmount
 }
 
 type boostedReward struct {
