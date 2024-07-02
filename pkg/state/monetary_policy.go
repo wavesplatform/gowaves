@@ -307,8 +307,19 @@ func (b *boostedReward) reward(reward uint64, changeHeight, height proto.Height)
 	total := height - (changeHeight - 1)
 	var boosted uint64
 
-	first := max(b.first-1, changeHeight-1)
-	last := min(b.last, height)
+	// block with first boost == b.first -> boost start -> bs
+	// block with last boost == b.last -> boost end -> bs
+	// change height -> ch, height -> h
+	// Cases:
+	// 0. ----ch-------h-------(bs------be)-----> (first=bs, last=h)  ==> last <= first, no intersection
+	// 1. ----ch------|(bs*****|h-------be)-----> (first=bs, last=h)  ==> last > first,  intersection ***
+	// 2. ----(bs------|ch*****|h-------be)-----> (first=ch, last=h)  ==> last > first,  intersection ***
+	// 3. ----(bs------|ch*****|be)------h------> (first=ch, last=be) ==> last > first,  intersection ***
+	// 4. ----(bs-------be)------ch------h------> (first=ch, last=be) ==> last <= first, no intersection
+	var (
+		first = max(b.first-1, changeHeight-1) // -1 for case when boosted period == 1 block
+		last  = min(b.last, height)
+	)
 
 	if last > first {
 		boosted = last - first
