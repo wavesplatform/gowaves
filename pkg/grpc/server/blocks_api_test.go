@@ -7,19 +7,22 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	protobuf "google.golang.org/protobuf/proto"
+	"google.golang.org/protobuf/types/known/emptypb"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
-	protobuf "google.golang.org/protobuf/proto"
-	"google.golang.org/protobuf/types/known/emptypb"
 )
 
 func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
 	header, err := st.HeaderByHeight(height)
 	assert.NoError(t, err)
-	headerProto, err := header.HeaderToProtobufWithHeight(proto.MainNetScheme, height)
+	vrf, rewards, err := calculateVRFAndRewards(st, proto.MainNetScheme, header, height)
+	assert.NoError(t, err)
+	headerProto, err := header.HeaderToProtobufWithHeight(proto.MainNetScheme, height, vrf, rewards)
 	assert.NoError(t, err)
 	return headerProto
 }
@@ -27,7 +30,9 @@ func headerFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.B
 func blockFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.BlockWithHeight {
 	block, err := st.BlockByHeight(height)
 	assert.NoError(t, err)
-	blockProto, err := block.ToProtobufWithHeight(proto.MainNetScheme, height)
+	vrf, rewards, err := calculateVRFAndRewards(st, proto.MainNetScheme, &block.BlockHeader, height)
+	assert.NoError(t, err)
+	blockProto, err := block.ToProtobufWithHeight(proto.MainNetScheme, height, vrf, rewards)
 	assert.NoError(t, err)
 	return blockProto
 }

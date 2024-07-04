@@ -363,14 +363,29 @@ func (b *BlockHeader) HeaderToProtobuf(scheme Scheme) (*g.Block, error) {
 	}, nil
 }
 
-func (b *BlockHeader) HeaderToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.BlockWithHeight, error) {
-	block, err := b.HeaderToProtobuf(currentScheme)
+func (b *BlockHeader) HeaderToProtobufWithHeight(
+	scheme Scheme,
+	height uint64,
+	vrf []byte,
+	rewards Rewards,
+) (*pb.BlockWithHeight, error) {
+	block, err := b.HeaderToProtobuf(scheme)
 	if err != nil {
 		return nil, err
 	}
+	rewards = rewards.Sorted() // rewards should be sorted according to the scala node implementation
+	rewardShares := make([]*g.RewardShare, len(rewards))
+	for i, r := range rewards {
+		rewardShares[i] = &g.RewardShare{
+			Address: r.Address().Bytes(),
+			Reward:  int64(r.Amount()),
+		}
+	}
 	return &pb.BlockWithHeight{
-		Block:  block,
-		Height: uint32(height),
+		Block:        block,
+		Height:       uint32(height),
+		Vrf:          vrf,
+		RewardShares: rewardShares,
 	}, nil
 }
 
@@ -685,8 +700,13 @@ func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
 	return protoBlock, nil
 }
 
-func (b *Block) ToProtobufWithHeight(currentScheme Scheme, height uint64) (*pb.BlockWithHeight, error) {
-	block, err := b.BlockHeader.HeaderToProtobufWithHeight(currentScheme, height)
+func (b *Block) ToProtobufWithHeight(
+	currentScheme Scheme,
+	height Height,
+	vrf []byte,
+	rewards Rewards,
+) (*pb.BlockWithHeight, error) {
+	block, err := b.BlockHeader.HeaderToProtobufWithHeight(currentScheme, height, vrf, rewards)
 	if err != nil {
 		return nil, err
 	}
