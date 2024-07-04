@@ -628,7 +628,7 @@ func (s *stateManager) NewestBlockInfoByHeight(height proto.Height) (*proto.Bloc
 		return nil, err
 	}
 
-	vrf, err := s.newestBlockVRF(header, height-1)
+	vrf, err := s.newestBlockVRF(header, height)
 	if err != nil {
 		return nil, err
 	}
@@ -741,14 +741,16 @@ func (s *stateManager) TopBlock() *proto.Block {
 func blockVRFCommon(
 	settings *settings.BlockchainSettings,
 	blockHeader *proto.BlockHeader,
-	height proto.Height,
+	blockHeight proto.Height,
 	hitSourceProvider func(proto.Height) ([]byte, error),
 ) ([]byte, error) {
 	if blockHeader.Version < proto.ProtobufBlockVersion {
 		return nil, nil
 	}
 	pos := consensus.NewFairPosCalculator(settings.DelayDelta, settings.MinBlockTime)
-	p := pos.HeightForHit(height)
+	// use previous height for VRF calculation because given block height should not be included in VRF calculation
+	prevHeight := blockHeight - 1
+	p := pos.HeightForHit(prevHeight)
 	refHitSource, err := hitSourceProvider(p)
 	if err != nil {
 		return nil, err
@@ -766,14 +768,14 @@ func blockVRFCommon(
 
 // newestBlockVRF calculates VRF value for the block at given height.
 // If block version is less than protobuf block version, returns nil.
-func (s *stateManager) newestBlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	return blockVRFCommon(s.settings, blockHeader, height, s.NewestHitSourceAtHeight)
+func (s *stateManager) newestBlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
+	return blockVRFCommon(s.settings, blockHeader, blockHeight, s.NewestHitSourceAtHeight)
 }
 
 // BlockVRF calculates VRF value for the block at given height.
 // If block version is less than protobuf block version, returns nil.
-func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
-	return blockVRFCommon(s.settings, blockHeader, height, s.HitSourceAtHeight)
+func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
+	return blockVRFCommon(s.settings, blockHeader, blockHeight, s.HitSourceAtHeight)
 }
 
 func blockRewardsCommon(

@@ -299,18 +299,18 @@ func (mr *MockStateInfoMockRecorder) BlockRewards(generator, height interface{})
 }
 
 // BlockVRF mocks base method.
-func (m *MockStateInfo) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+func (m *MockStateInfo) BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, height)
+	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, blockHeight)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // BlockVRF indicates an expected call of BlockVRF.
-func (mr *MockStateInfoMockRecorder) BlockVRF(blockHeader, height interface{}) *gomock.Call {
+func (mr *MockStateInfoMockRecorder) BlockVRF(blockHeader, blockHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockStateInfo)(nil).BlockVRF), blockHeader, height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockStateInfo)(nil).BlockVRF), blockHeader, blockHeight)
 }
 
 // BlockchainSettings mocks base method.
@@ -1674,18 +1674,18 @@ func (mr *MockStateMockRecorder) BlockRewards(generator, height interface{}) *go
 }
 
 // BlockVRF mocks base method.
-func (m *MockState) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+func (m *MockState) BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, height)
+	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, blockHeight)
 	ret0, _ := ret[0].([]byte)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // BlockVRF indicates an expected call of BlockVRF.
-func (mr *MockStateMockRecorder) BlockVRF(blockHeader, height interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) BlockVRF(blockHeader, blockHeight interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockState)(nil).BlockVRF), blockHeader, height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockState)(nil).BlockVRF), blockHeader, blockHeight)
 }
 
 // BlockchainSettings mocks base method.

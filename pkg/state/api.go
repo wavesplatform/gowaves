@@ -132,7 +132,7 @@ type StateInfo interface {
 	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
 	// BlockVRF calculates VRF value for the block at given height.
-	BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error)
+	BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error)
 
 	// ShouldPersistAddressTransactions checks the size of temporary transaction storage file and returns true if we
 	// should move transactions into the main storage.

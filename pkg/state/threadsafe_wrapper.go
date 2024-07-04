@@ -22,10 +22,10 @@ func (a *ThreadSafeReadWrapper) HitSourceAtHeight(height proto.Height) ([]byte, 
 	return a.s.HitSourceAtHeight(height)
 }
 
-func (a *ThreadSafeReadWrapper) BlockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+func (a *ThreadSafeReadWrapper) BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.BlockVRF(blockHeader, height)
+	return a.s.BlockVRF(blockHeader, blockHeight)
 }
 
 func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (interface{}, error)) (interface{}, error) {
