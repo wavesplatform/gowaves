@@ -759,11 +759,11 @@ func (s *stateManager) blockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 }
 
 func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
-	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
+	blockRewardActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
 	if !blockRewardActivated {
 		return proto.Rewards{}, nil
 	}
-	blockRewardActivationHeight, err := s.stor.features.activationHeight(int16(settings.BlockReward))
+	blockRewardActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
 	if err != nil {
 		return nil, err
 	}
