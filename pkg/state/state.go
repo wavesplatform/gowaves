@@ -2836,6 +2836,8 @@ func (s *stateManager) ShouldPersistAddressTransactions() (bool, error) {
 	return s.atx.shouldPersist()
 }
 
+// RewardAtHeight return reward for the block at the given height.
+// It takes into account the reward multiplier introduced with the feature #23 (Boost Block Reward).
 func (s *stateManager) RewardAtHeight(height proto.Height) (uint64, error) {
 	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
 	if !blockRewardActivated {
@@ -2849,7 +2851,11 @@ func (s *stateManager) RewardAtHeight(height proto.Height) (uint64, error) {
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	return reward, nil
+	multiplier, err := rewardMultiplier(s.settings, s.stor.features, height)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	return multiplier * reward, nil
 }
 
 func (s *stateManager) RewardVotes(height proto.Height) (proto.RewardVotes, error) {
@@ -2880,6 +2886,9 @@ func (s *stateManager) getInitialTotalWavesAmount() uint64 {
 	return totalAmount
 }
 
+// TotalWavesAmount returns total amount of Waves in the system at the given height.
+// It returns the initial Waves amount of 100 000 000 before activation of feature #14 "BlockReward".
+// It takes into account the reward multiplier introduced with the feature #23 "BoostBlockReward".
 func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 	initialTotalAmount := s.getInitialTotalWavesAmount()
 	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
@@ -2888,9 +2897,22 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 	}
 	blockRewardActivationHeight, err := s.stor.features.activationHeight(int16(settings.BlockReward))
 	if err != nil {
-		return initialTotalAmount, err
+		return 0, err
 	}
-	amount, err := s.stor.monetaryPolicy.totalAmountAtHeight(height, initialTotalAmount, blockRewardActivationHeight)
+
+	var rewardBoostActivationHeight uint64
+	var rewardBoostLastHeight uint64
+	rewardBoostActivated := s.stor.features.isActivatedAtHeight(int16(settings.BoostBlockReward), height)
+	if rewardBoostActivated {
+		rewardBoostActivationHeight, err = s.stor.features.activationHeight(int16(settings.BoostBlockReward))
+		if err != nil {
+			return 0, err
+		}
+		rewardBoostLastHeight = rewardBoostActivationHeight + s.settings.BlockRewardBoostPeriod - 1
+	}
+
+	amount, err := s.stor.monetaryPolicy.totalAmountAtHeight(height, initialTotalAmount, blockRewardActivationHeight,
+		rewardBoostActivationHeight, rewardBoostLastHeight)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}

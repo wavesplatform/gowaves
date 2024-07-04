@@ -177,13 +177,6 @@ func maxEstimationWithOldVerifierComplexity(update ride.TreeEstimation, oldVerif
 	return max(oldVerifierComplexity, maxCallableComplexity)
 }
 
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
-
 func (sc *scriptsComplexity) saveComplexitiesForAsset(
 	asset crypto.Digest,
 	se scriptEstimation,

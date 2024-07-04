@@ -275,7 +275,7 @@ func TestTotalWavesAmountAtHeightWithRewardsAtGenesis(t *testing.T) {
 			(initialReward+2*rewardIncrement)*2,
 		},
 	} {
-		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight)
+		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight, 0, 0)
 		require.NoError(t, err)
 		assert.Equal(t, int(test.expectedTotalAmount), int(reward), "Error at height %d", test.height)
 	}
@@ -340,7 +340,98 @@ func TestTotalWavesAmountAtHeight(t *testing.T) {
 			4*(initialReward+2*rewardIncrement),
 		},
 	} {
-		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight)
+		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight, 0, 0)
+		require.NoError(t, err)
+		assert.Equal(t, int(test.expectedTotalAmount), int(reward), "Error at height %d", test.height)
+	}
+}
+
+func TestBoost(t *testing.T) {
+	for i, test := range []struct {
+		first, last          uint64
+		reward               uint64
+		changeHeight, height uint64
+		expected             uint64
+	}{
+		{0, 0, 0, 0, 0, 0},
+		{0, 0, 6, 10, 13, 24},
+
+		{8, 17, 6, 15, 19, 2*6 + 3*6*10},
+		{8, 17, 5, 10, 14, 5 * 5 * 10},
+		{8, 17, 4, 5, 8, 1*10*4 + 3*4},
+	} {
+		b := boostedReward{first: test.first, last: test.last}
+		reward := b.reward(test.reward, test.changeHeight, test.height)
+		assert.Equal(t, int(test.expected), int(reward), i+1)
+		assert.Equal(t, int(test.expected), int(reward), i+1)
+	}
+}
+
+func TestBoostedTotalWavesAmountAtHeight(t *testing.T) {
+	sets := settings.MainNetSettings
+	mo, storage := createTestObjects(t, sets)
+
+	const (
+		blockRewardActivationHeight = uint64(10)
+		initialReward               = uint64(600000000)
+		initialAmount               = uint64(1000000000)
+		rewardIncrement             = uint64(100000000)
+	)
+
+	rewardsChanges := []struct {
+		height    proto.Height
+		newReward uint64
+	}{
+		{15, initialReward + rewardIncrement},
+		{20, initialReward + 2*rewardIncrement},
+		{25, initialReward + 3*rewardIncrement},
+		{30, initialReward + 2*rewardIncrement},
+	}
+	ids := genRandBlockIds(t, len(rewardsChanges))
+	for i, rewardChange := range rewardsChanges {
+		storage.addBlock(t, ids[i])
+		err := mo.saveNewRewardChange(rewardChange.newReward, rewardChange.height, ids[i])
+		require.NoError(t, err)
+	}
+
+	for _, test := range []struct {
+		height              proto.Height
+		expectedTotalAmount uint64
+	}{
+		{2, initialAmount},
+		{4, initialAmount},
+		{9, initialAmount},
+		{10, initialAmount + initialReward},
+		{14, initialAmount + 5*initialReward},
+		{15, initialAmount + 5*initialReward + initialReward + rewardIncrement},
+		{19, initialAmount + 5*initialReward + 3*(initialReward+rewardIncrement) +
+			2*10*(initialReward+rewardIncrement)},
+		{20, initialAmount + 5*initialReward + 3*(initialReward+rewardIncrement) +
+			2*10*(initialReward+rewardIncrement) + 10*(initialReward+2*rewardIncrement),
+		},
+		{24, initialAmount + 5*initialReward + 3*(initialReward+rewardIncrement) +
+			2*10*(initialReward+rewardIncrement) + 10*5*(initialReward+2*rewardIncrement),
+		},
+		{25, initialAmount + 5*initialReward + 3*(initialReward+rewardIncrement) +
+			2*10*(initialReward+rewardIncrement) + 10*5*(initialReward+2*rewardIncrement) +
+			10*(initialReward+3*rewardIncrement),
+		},
+		{29, initialAmount + 5*initialReward + 3*(initialReward+rewardIncrement) +
+			2*10*(initialReward+rewardIncrement) + 10*5*(initialReward+2*rewardIncrement) +
+			3*10*(initialReward+3*rewardIncrement) + 2*(initialReward+3*rewardIncrement),
+		},
+		{30, initialAmount + 5*initialReward + 3*(initialReward+rewardIncrement) +
+			2*10*(initialReward+rewardIncrement) + 10*5*(initialReward+2*rewardIncrement) +
+			3*10*(initialReward+3*rewardIncrement) + 2*(initialReward+3*rewardIncrement) +
+			initialReward + 2*rewardIncrement,
+		},
+		{33, initialAmount + 5*initialReward + 3*(initialReward+rewardIncrement) +
+			2*10*(initialReward+rewardIncrement) + 10*5*(initialReward+2*rewardIncrement) +
+			3*10*(initialReward+3*rewardIncrement) + 2*(initialReward+3*rewardIncrement) +
+			4*(initialReward+2*rewardIncrement),
+		},
+	} {
+		reward, err := mo.totalAmountAtHeight(test.height, initialAmount, blockRewardActivationHeight, 18, 27)
 		require.NoError(t, err)
 		assert.Equal(t, int(test.expectedTotalAmount), int(reward), "Error at height %d", test.height)
 	}
