@@ -131,6 +131,8 @@ type StateInfo interface {
 
 	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
+	// BlockVRF calculates VRF value for the block at given height.
+	BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error)
 
 	// ShouldPersistAddressTransactions checks the size of temporary transaction storage file and returns true if we
 	// should move transactions into the main storage.
@@ -147,6 +149,8 @@ type StateInfo interface {
 	// It returns the initial Waves amount of 100 000 000 before activation of feature #14 "BlockReward".
 	// It takes into account the reward multiplier introduced with the feature #23 "BoostBlockReward".
 	TotalWavesAmount(height proto.Height) (uint64, error)
+	// BlockRewards calculates block rewards for the block at given height with given generator address.
+	BlockRewards(generator proto.WavesAddress, height proto.Height) (proto.Rewards, error)
 
 	// SnapshotsAtHeight returns block snapshots at the given height.
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)

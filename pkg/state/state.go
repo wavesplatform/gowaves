@@ -617,6 +617,7 @@ func (s *stateManager) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, erro
 	return s.stor.scriptsStorage.newestScriptByAsset(assetID)
 }
 
+// NewestBlockInfoByHeight returns block info by height.
 func (s *stateManager) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
 	header, err := s.NewestHeaderByHeight(height)
 	if err != nil {
@@ -627,11 +628,11 @@ func (s *stateManager) NewestBlockInfoByHeight(height proto.Height) (*proto.Bloc
 		return nil, err
 	}
 
-	vrf, err := s.blockVRF(header, height-1)
+	vrf, err := s.newestBlockVRF(header, height)
 	if err != nil {
 		return nil, err
 	}
-	rewards, err := s.blockRewards(generator, height)
+	rewards, err := s.newestBlockRewards(generator, height)
 	if err != nil {
 		return nil, err
 	}
@@ -737,13 +738,20 @@ func (s *stateManager) TopBlock() *proto.Block {
 	return s.lastBlock.Load().(*proto.Block)
 }
 
-func (s *stateManager) blockVRF(blockHeader *proto.BlockHeader, height proto.Height) ([]byte, error) {
+func blockVRFCommon(
+	settings *settings.BlockchainSettings,
+	blockHeader *proto.BlockHeader,
+	blockHeight proto.Height,
+	hitSourceProvider func(proto.Height) ([]byte, error),
+) ([]byte, error) {
 	if blockHeader.Version < proto.ProtobufBlockVersion {
 		return nil, nil
 	}
-	pos := consensus.NewFairPosCalculator(s.settings.DelayDelta, s.settings.MinBlockTime)
-	p := pos.HeightForHit(height)
-	refHitSource, err := s.NewestHitSourceAtHeight(p)
+	pos := consensus.NewFairPosCalculator(settings.DelayDelta, settings.MinBlockTime)
+	// use previous height for VRF calculation because given block height should not be included in VRF calculation
+	prevHeight := blockHeight - 1
+	p := pos.HeightForHit(prevHeight)
+	refHitSource, err := hitSourceProvider(p)
 	if err != nil {
 		return nil, err
 	}
@@ -758,7 +766,50 @@ func (s *stateManager) blockVRF(blockHeader *proto.BlockHeader, height proto.Hei
 	return vrf, nil
 }
 
-func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
+// newestBlockVRF calculates VRF value for the block at given height.
+// If block version is less than protobuf block version, returns nil.
+func (s *stateManager) newestBlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
+	return blockVRFCommon(s.settings, blockHeader, blockHeight, s.NewestHitSourceAtHeight)
+}
+
+// BlockVRF calculates VRF value for the block at given height.
+// If block version is less than protobuf block version, returns nil.
+func (s *stateManager) BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
+	return blockVRFCommon(s.settings, blockHeader, blockHeight, s.HitSourceAtHeight)
+}
+
+func blockRewardsCommon(
+	generatorAddress proto.WavesAddress,
+	height proto.Height,
+	settings *settings.BlockchainSettings,
+	stor *blockchainEntitiesStorage,
+	blockRewardActivationHeight proto.Height,
+) (proto.Rewards, error) {
+	reward, err := stor.monetaryPolicy.rewardAtHeight(height, blockRewardActivationHeight)
+	if err != nil {
+		return nil, err
+	}
+	c := newRewardsCalculator(settings, stor.features)
+	return c.calculateRewards(generatorAddress, height, reward)
+}
+
+// newestBlockRewards calculates block rewards for the block at given height with given generator address.
+// If block reward feature is not activated at given height, returns empty proto.Rewards.
+func (s *stateManager) newestBlockRewards(generator proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
+	blockRewardActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), height)
+	if !blockRewardActivated {
+		return proto.Rewards{}, nil
+	}
+	blockRewardActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
+	if err != nil {
+		return nil, err
+	}
+	return blockRewardsCommon(generator, height, s.settings, s.stor, blockRewardActivationHeight)
+}
+
+// BlockRewards calculates block rewards for the block at given height with given generator address.
+// If block reward feature is not activated at given height, returns empty proto.Rewards.
+func (s *stateManager) BlockRewards(generator proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
 	blockRewardActivated := s.stor.features.isActivatedAtHeight(int16(settings.BlockReward), height)
 	if !blockRewardActivated {
 		return proto.Rewards{}, nil
@@ -767,12 +818,7 @@ func (s *stateManager) blockRewards(generatorAddress proto.WavesAddress, height 
 	if err != nil {
 		return nil, err
 	}
-	reward, err := s.stor.monetaryPolicy.rewardAtHeight(height, blockRewardActivationHeight)
-	if err != nil {
-		return nil, err
-	}
-	c := newRewardsCalculator(s.settings, s.stor.features)
-	return c.calculateRewards(generatorAddress, height, reward)
+	return blockRewardsCommon(generator, height, s.settings, s.stor, blockRewardActivationHeight)
 }
 
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
