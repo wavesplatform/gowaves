@@ -64,13 +64,13 @@ func (t *MerkleTree) Root() Digest {
 	}
 }
 
-func (t *MerkleTree) RebuildRoot(leaf Digest, proofs []Digest, index uint64) Digest {
+func (t *MerkleTree) RebuildRoot(leaf Digest, proofsRootToLeafsOrder []Digest, index uint64) Digest {
 	digest := leaf
-	for i := len(proofs) - 1; i >= 0; i-- {
+	for i := len(proofsRootToLeafsOrder) - 1; i >= 0; i-- { // Iterate from leafs to root, i.e. in reverse order
 		if index%2 == 0 { // Left
-			digest = t.nodeDigest(digest, proofs[i])
+			digest = t.nodeDigest(digest, proofsRootToLeafsOrder[i])
 		} else { // Right
-			digest = t.nodeDigest(proofs[i], digest)
+			digest = t.nodeDigest(proofsRootToLeafsOrder[i], digest)
 		}
 		index = index / 2
 	}

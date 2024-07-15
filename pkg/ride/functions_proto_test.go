@@ -1415,20 +1415,48 @@ func TestFullIssue(t *testing.T) {
 }
 
 func TestRebuildMerkleRoot(t *testing.T) {
-	leaf, err := base58.Decode("7jsrwD9Xi7TjVoksaV1CDDUWYhFaz7HQmAoWwLEiZa6D")
-	require.NoError(t, err)
-	root, err := base58.Decode("6tt3obq44UqC4QwLhrKX2KsXV9GRBfhiNvzor2BQfgYZ")
-	require.NoError(t, err)
-	p1, err := base58.Decode("q1u2PJhro1cwZw5mUuujXm94f245tGS5vbP5yNwLbEv")
-	require.NoError(t, err)
-	p2, err := base58.Decode("75Aaexax3uEQNg5HAb137jC3TK64RG1S6xrBGvuupWXp")
-	require.NoError(t, err)
-	p3, err := base58.Decode("GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9")
-	require.NoError(t, err)
-	r, err := rebuildMerkleRoot(nil, rideList{rideByteVector(p1), rideByteVector(p2), rideByteVector(p3)}, rideByteVector(leaf), rideInt(3))
-	assert.NoError(t, err)
-	assert.Equal(t, "ByteVector", r.instanceOf())
-	assert.ElementsMatch(t, root, r)
+	t.Run("stagenet_tx_7Sdny5J2gq1JF5BNPWWdibMneGEQa7FSV9WFyBfU5yrL", func(t *testing.T) {
+		var testData = struct {
+			index  int
+			root   string
+			leaf   string
+			proofs []string
+		}{
+			0,
+			"2tbkpGTZgHdRySdzELT9ZzRSQ5bv25wisM8vWe2z3V3h",
+			"DcasUHxyPk3bYLZs5h17SjZJAP4uUEzjkycboi4YAXGD",
+			[]string{
+				"D4bn122GiEqs99z526GdhYETJqctLHGSmWokypEo9qu",
+				"DqspFkHCwkUdN8FsHkzVEGtfzhycFPgNNyi7YeMQunpR",
+				"9YapWwCMpJaytFUaSnBwGpHsuGuixtnChpPyzSZeQCC7",
+				"9CorA9cjXNdDQ3dxMk5aL4myMBELVdX1FH5RrJ6RTtG8",
+				"J1ZLoKt7wsX2oCXtWYrtaCxKJZyL1ZyZXYgVBXPhXtKh",
+				"Fm8onvGicJFTfPcBgRXMHY863HhPHHi3huHKCoBeyBFC",
+				"9jvzHEcg5NTgXAxyxtbSS3Qq9Zp84gcZ5WJTJWSZeGNr",
+				"32XGrpXv46NtBcHjaygGdwn1KqHqen3oNJSmRCAt7waN",
+				"2FM86QERU97ewCicP3NiYPKEDYe7jrriHFn9NSKgo3mE",
+				"6ze4HCcxj7gpjzAuE9Tco3nLU186mC6FAUZFbyuSVjaj",
+			},
+		}
+		base58StringsToRideByteVectors := func(t *testing.T, base58Strings []string) rideList {
+			res := make(rideList, len(base58Strings))
+			for i, s := range base58Strings {
+				b, err := base58.Decode(s)
+				require.NoError(t, err)
+				res[i] = rideByteVector(b)
+			}
+			return res
+		}
+		root, err := base58.Decode(testData.root)
+		require.NoError(t, err)
+		leaf, err := base58.Decode(testData.leaf)
+		require.NoError(t, err)
+		merkleProofs := base58StringsToRideByteVectors(t, testData.proofs)
+		r, err := rebuildMerkleRoot(nil, merkleProofs, rideByteVector(leaf), rideInt(testData.index))
+		assert.NoError(t, err)
+		assert.Equal(t, "ByteVector", r.instanceOf())
+		assert.Equal(t, rideType(rideByteVector(root)), r)
+	})
 }
 
 func TestBLS12Groth16Verify(t *testing.T) {
