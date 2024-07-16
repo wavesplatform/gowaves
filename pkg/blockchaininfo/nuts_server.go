@@ -1,4 +1,4 @@
-package blockchainupdates
+package blockchaininfo
 
 import (
 	"github.com/nats-io/nats-server/v2/server"

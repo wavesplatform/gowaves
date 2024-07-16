@@ -473,6 +473,62 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte, scheme Scheme) (err
 	return nil
 }
 
+func ProtobufHeaderToBlockHeader(ph *g.Block_Header) (*BlockHeader, error) {
+	if ph == nil {
+		return nil, errors.New("input protobuf header is nil")
+	}
+	var challengedHeader *ChallengedHeader
+	if ph.ChallengedHeader != nil {
+		ch, err := FromProtobufChallengedHeader(ph.ChallengedHeader)
+		if err != nil {
+			return nil, err
+		}
+		challengedHeader = ch
+	}
+	var stateHash *crypto.Digest
+	if len(ph.StateHash) > 0 {
+		sh, err := crypto.NewDigestFromBytes(ph.StateHash)
+		if err != nil {
+			return nil, err
+		}
+		stateHash = &sh
+	}
+	parentBlockID, err := NewBlockIDFromBytes(ph.Reference)
+	if err != nil {
+		return nil, err
+	}
+	generatorPK, err := crypto.NewPublicKeyFromBytes(ph.Generator)
+	if err != nil {
+		return nil, err
+	}
+	blockHeader := &BlockHeader{
+		Version:            BlockVersion(ph.Version),
+		Timestamp:          uint64(ph.Timestamp),
+		Parent:             parentBlockID,
+		Features:           uint32SliceToInt16(ph.FeatureVotes),
+		RewardVote:         ph.RewardVote,
+		GeneratorPublicKey: generatorPK,
+		TransactionsRoot:   B58Bytes(ph.TransactionsRoot),
+		StateHash:          stateHash,
+		ChallengedHeader:   challengedHeader,
+	}
+	return blockHeader, nil
+}
+
+func uint32SliceToInt16(s []uint32) []int16 {
+	var res []int16
+	for _, v := range s {
+		res = append(res, int16(v))
+	}
+	return res
+}
+
+func FromProtobufChallengedHeader(ph *g.Block_Header_ChallengedHeader) (*ChallengedHeader, error) {
+	// Implement the conversion from g.Block_Header_ChallengedHeader to ChallengedHeader
+	// This function should be defined according to your ChallengedHeader structure and conversion logic
+	return &ChallengedHeader{}, nil
+}
+
 func AppendHeaderBytesToTransactions(headerBytes, transactions []byte) ([]byte, error) {
 	headerLen := len(headerBytes)
 	if headerLen < 1 {

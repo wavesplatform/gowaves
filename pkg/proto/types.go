@@ -3119,12 +3119,12 @@ func (e *DeleteDataEntry) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-// dataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
-type dataEntryType struct {
+// DataEntryType is the assistive structure used to get the type of DataEntry while unmarshal form JSON.
+type DataEntryType struct {
 	Type string `json:"type"`
 }
 
-func guessDataEntryType(dataEntryType dataEntryType) (DataEntry, error) {
+func GuessDataEntryType(dataEntryType DataEntryType) (DataEntry, error) {
 	var r DataEntry
 	switch dataEntryType.Type {
 	case "integer":
@@ -3147,11 +3147,11 @@ func guessDataEntryType(dataEntryType dataEntryType) (DataEntry, error) {
 func NewDataEntryFromJSON(data []byte) (DataEntry, error) {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal DataEntry from JSON") }
 
-	var et dataEntryType
+	var et DataEntryType
 	if err := json.Unmarshal(data, &et); err != nil {
 		return nil, wrapError(err)
 	}
-	entry, err := guessDataEntryType(et)
+	entry, err := GuessDataEntryType(et)
 	if err != nil {
 		return nil, wrapError(err)
 	}
@@ -3196,7 +3196,7 @@ func (e DataEntries) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 func (e *DataEntries) UnmarshalJSON(data []byte) error {
 	wrapError := func(err error) error { return errors.Wrap(err, "failed to unmarshal DataEntries from JSON") }
 
-	var ets []dataEntryType
+	var ets []DataEntryType
 	err := json.Unmarshal(data, &ets)
 	if err != nil {
 		return wrapError(err)
@@ -3204,7 +3204,7 @@ func (e *DataEntries) UnmarshalJSON(data []byte) error {
 
 	entries := make([]DataEntry, len(ets))
 	for i, row := range ets {
-		et, err := guessDataEntryType(row)
+		et, err := GuessDataEntryType(row)
 		if err != nil {
 			return wrapError(err)
 		}

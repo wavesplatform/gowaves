@@ -2,10 +2,9 @@ package state
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/blockchainupdates"
-
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -62,7 +61,7 @@ type txAppender struct {
 type BlockchainUpdatesExtension struct {
 	EnableBlockchainUpdatesPlugin bool
 	L2ContractAddress             proto.WavesAddress
-	BUpdatesChannel               chan<- blockchainupdates.BUpdatesInfo
+	BUpdatesChannel               chan<- blockchaininfo.BUpdatesInfo
 }
 
 func newTxAppender(
@@ -836,7 +835,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// TODO possibly run it in a goroutine? make sure goroutines run in order?
 	if a.bUpdatesExtension != nil {
 		if a.bUpdatesExtension.EnableBlockchainUpdatesPlugin {
-			a.updateBlockchainUpdateInfo(blockInfo, params.block)
+			err := a.updateBlockchainUpdateInfo(blockInfo, params.block)
+			if err != nil {
+				return err
+			}
 		}
 	}
 
@@ -863,11 +865,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader) error {
 	// TODO improve this by using diffs instead grabbing all the records every time
 	dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesExtension.L2ContractAddress))
-	if err != nil {
+	if err != nil && !errors.Is(err, proto.ErrNotFound) {
 		return err
 	}
 
-	bUpdatesInfo := blockchainupdates.BUpdatesInfo{
+	bUpdatesInfo := blockchaininfo.BUpdatesInfo{
 		Height:         blockInfo.Height,
 		VRF:            blockInfo.VRF,
 		BlockID:        blockHeader.BlockID(),

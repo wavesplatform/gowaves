@@ -1,4 +1,4 @@
-package blockchainupdates
+package blockchaininfo
 
 import (
 	"context"
@@ -8,8 +8,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"log"
 )
-
-// protoc --go_out=. --go_opt=paths=source_relative blockchainupdates.proto
 
 type BUpdatesInfo struct {
 	Height         uint64
@@ -33,7 +31,42 @@ func (bu *BUpdatesExtensionState) hasStateChanged() {
 
 }
 
-func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo) {
+func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+	/* first publish block related info */
+	blockInfo, err := BUpdatesInfoToProto(updates, scheme)
+	if err != nil {
+		return err
+	}
+	blockInfoProtobuf, err := blockInfo.MarshalVTStrict()
+	if err != nil {
+		return err
+	}
+	err = nc.Publish(BlockUpdates, blockInfoProtobuf)
+	if err != nil {
+		log.Printf("failed to publish message on topic %s", BlockUpdates)
+		return err
+	}
+	fmt.Printf("Published on topic: %s\n", BlockUpdates)
+
+	/* second publish contract data entries */
+	dataEntries := L2ContractDataEntriesToProto(updates.AllDataEntries)
+	dataEntriesProtobuf, err := dataEntries.MarshalVTStrict()
+	if err != nil {
+		return err
+	}
+	if dataEntries.DataEntries != nil {
+		err = nc.Publish(ContractUpdates, dataEntriesProtobuf)
+		if err != nil {
+			log.Printf("failed to publish message on topic %s", ContractUpdates)
+			return err
+		}
+		fmt.Printf("Published on topic: %s\n", ContractUpdates)
+	}
+
+	return nil
+}
+
+func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme) {
 	opts := &server.Options{
 		Host: "127.0.0.1",
 		Port: 4222,
@@ -67,18 +100,11 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 				// compare the current state to the previous state
 
 				// if there is any diff, send the update
-
-				fmt.Println(updates.Height)
-				var msg string
-				msg = "hello"
-				// Publish blockchain updates
-				topic := block_updates
-				err := nc.Publish(topic, []byte(msg))
+				err := bu.publishUpdates(updates, nc, scheme)
+				log.Printf("published")
 				if err != nil {
-					log.Printf("failed to publish message %s on topic %s", msg, topic)
+					log.Printf("failed to publish updates")
 				}
-				fmt.Printf("Published: %s\n", msg)
-
 			case <-ctx.Done():
 				return
 			}

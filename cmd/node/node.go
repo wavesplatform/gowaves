@@ -6,7 +6,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/blockchainupdates"
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"math"
 	"math/big"
 	"net/http"
@@ -241,7 +241,7 @@ func (c *config) parse() {
 	flag.BoolVar(&c.enableLightMode, "enable-light-mode", false,
 		"Start node in light mode")
 
-	flag.BoolVar(&c.enableBlockchainUpdatesPlugin, "enable-blockchain-updates", false,
+	flag.BoolVar(&c.enableBlockchainUpdatesPlugin, "enable-blockchain-info", false,
 		"Turn on blockchain updates plugin")
 	flag.Parse()
 	c.logLevel = *l
@@ -393,8 +393,8 @@ func main() {
 
 	var bUpdatesExtension *state.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
-		updatesChannel := make(chan blockchainupdates.BUpdatesInfo)
-		bUpdatesExtensionState := blockchainupdates.NewBUpdatesExtensionState(2000)
+		updatesChannel := make(chan blockchaininfo.BUpdatesInfo)
+		bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(2000)
 
 		l2address, err := proto.NewAddressFromString("3MsqKJ6o1ABE37676cHHBxJRs6huYTt72ch")
 		if err != nil {
@@ -407,7 +407,7 @@ func main() {
 			L2ContractAddress:             l2address,
 		}
 
-		go bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel)
+		go bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel, cfg.AddressSchemeCharacter)
 	}
 
 	// Send updatesChannel into BlockchainSettings. Write updates into this channel
