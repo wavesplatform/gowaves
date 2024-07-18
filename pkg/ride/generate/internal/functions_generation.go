@@ -894,8 +894,19 @@ func catalogueV8() map[string]int {
 	return m
 }
 
-func evaluationCatalogueV6EvaluatorV1() map[string]int {
-	m := catalogueV6()
+func evaluationCatalogueEvaluatorV1Builder(libVer ast.LibraryVersion, catalogue func() map[string]int) map[string]int {
+	if libVer < ast.LibV6 {
+		panic(fmt.Sprintf(
+			"evaluationCatalogueEvaluatorV2Builder: can be used only for library version 6 and later, got %d", libVer,
+		))
+	}
+	if maxV := ast.CurrentMaxLibraryVersion(); libVer > maxV {
+		panic(fmt.Sprintf(
+			"evaluationCatalogueEvaluatorV2Builder: library version %d is greater than the current max version %d",
+			libVer, maxV,
+		))
+	}
+	m := catalogue()
 	m["throw"] = 2
 	m["Ceiling"] = 0
 	m["Floor"] = 0
@@ -916,12 +927,23 @@ func evaluationCatalogueV6EvaluatorV1() map[string]int {
 	m["Unit"] = 0
 	m["Address"] = 0
 	m["Alias"] = 0
-	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV6, m)
+	constructorsEvaluationCatalogueEvaluatorV1(libVer, m)
 	return m
 }
 
-func evaluationCatalogueV6EvaluatorV2() map[string]int {
-	m := catalogueV6()
+func evaluationCatalogueEvaluatorV2Builder(libVer ast.LibraryVersion, catalogue func() map[string]int) map[string]int {
+	if libVer < ast.LibV6 {
+		panic(fmt.Sprintf(
+			"evaluationCatalogueEvaluatorV2Builder: can be used only for library version 6 and later, got %d", libVer,
+		))
+	}
+	if maxV := ast.CurrentMaxLibraryVersion(); libVer > maxV {
+		panic(fmt.Sprintf(
+			"evaluationCatalogueEvaluatorV2Builder: library version %d is greater than the current max version %d",
+			libVer, maxV,
+		))
+	}
+	m := catalogue()
 	m["throw"] = 2
 	m["Ceiling"] = 1
 	m["Floor"] = 1
@@ -942,32 +964,32 @@ func evaluationCatalogueV6EvaluatorV2() map[string]int {
 	m["Unit"] = 1
 	m["Address"] = 1
 	m["Alias"] = 1
-	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV6, m)
+	constructorsEvaluationCatalogueEvaluatorV2(libVer, m)
 	return m
+}
+
+func evaluationCatalogueV6EvaluatorV1() map[string]int {
+	return evaluationCatalogueEvaluatorV1Builder(ast.LibV6, catalogueV6)
+}
+
+func evaluationCatalogueV6EvaluatorV2() map[string]int {
+	return evaluationCatalogueEvaluatorV2Builder(ast.LibV6, catalogueV6)
 }
 
 func evaluationCatalogueV7EvaluatorV1() map[string]int {
-	m := evaluationCatalogueV6EvaluatorV1()
-	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV7, m)
-	return m
-}
-
-func evaluationCatalogueV8EvaluatorV1() map[string]int {
-	m := evaluationCatalogueV7EvaluatorV1()
-	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV8, m)
-	return m
+	return evaluationCatalogueEvaluatorV1Builder(ast.LibV7, catalogueV7)
 }
 
 func evaluationCatalogueV7EvaluatorV2() map[string]int {
-	m := evaluationCatalogueV6EvaluatorV2()
-	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV7, m)
-	return m
+	return evaluationCatalogueEvaluatorV2Builder(ast.LibV7, catalogueV7)
+}
+
+func evaluationCatalogueV8EvaluatorV1() map[string]int {
+	return evaluationCatalogueEvaluatorV1Builder(ast.LibV8, catalogueV8)
 }
 
 func evaluationCatalogueV8EvaluatorV2() map[string]int {
-	m := evaluationCatalogueV7EvaluatorV2()
-	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV8, m)
-	return m
+	return evaluationCatalogueEvaluatorV2Builder(ast.LibV8, catalogueV8)
 }
 
 func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {
