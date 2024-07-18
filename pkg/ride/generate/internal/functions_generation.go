@@ -894,78 +894,75 @@ func catalogueV8() map[string]int {
 	return m
 }
 
-func evaluationCatalogueEvaluatorV1Builder(libVer ast.LibraryVersion, catalogue func() map[string]int) map[string]int {
+func evaluationCatalogueBuilder(
+	libVer ast.LibraryVersion,
+	catalogue func() map[string]int,
+	evaluatorVer int,
+) map[string]int {
 	if libVer < ast.LibV6 {
 		panic(fmt.Sprintf(
-			"evaluationCatalogueEvaluatorV2Builder: can be used only for library version 6 and later, got %d", libVer,
+			"evaluationCatalogueBuilder(V%d): can be used only for library version 6 and later, got %d",
+			evaluatorVer, libVer,
 		))
 	}
 	if maxV := ast.CurrentMaxLibraryVersion(); libVer > maxV {
 		panic(fmt.Sprintf(
-			"evaluationCatalogueEvaluatorV2Builder: library version %d is greater than the current max version %d",
-			libVer, maxV,
+			"evaluationCatalogueBuilder(V%d): library version %d is greater than the current max version %d",
+			evaluatorVer, libVer, maxV,
 		))
 	}
+
+	var (
+		constructorsComplexity          int
+		constructorsEvaluationCatalogue func(ast.LibraryVersion, map[string]int)
+	)
+	switch evaluatorVer {
+	case 1:
+		constructorsComplexity = 0
+		constructorsEvaluationCatalogue = constructorsEvaluationCatalogueEvaluatorV1
+	case 2:
+		constructorsComplexity = 1
+		constructorsEvaluationCatalogue = constructorsEvaluationCatalogueEvaluatorV2
+	default:
+		panic(fmt.Sprintf("evaluationCatalogueBuilder: unknown evaluator version %d", evaluatorVer))
+	}
+
 	m := catalogue()
 	m["throw"] = 2
-	m["Ceiling"] = 0
-	m["Floor"] = 0
-	m["HalfEven"] = 0
-	m["Down"] = 0
-	m["HalfUp"] = 0
-	m["NoAlg"] = 0
-	m["Md5"] = 0
-	m["Sha1"] = 0
-	m["Sha224"] = 0
-	m["Sha256"] = 0
-	m["Sha384"] = 0
-	m["Sha512"] = 0
-	m["Sha3224"] = 0
-	m["Sha3256"] = 0
-	m["Sha3384"] = 0
-	m["Sha3512"] = 0
-	m["Unit"] = 0
-	m["Address"] = 0
-	m["Alias"] = 0
-	constructorsEvaluationCatalogueEvaluatorV1(libVer, m)
+	constructorsList := []string{
+		"Ceiling",
+		"Floor",
+		"HalfEven",
+		"Down",
+		"HalfUp",
+		"NoAlg",
+		"Md5",
+		"Sha1",
+		"Sha224",
+		"Sha256",
+		"Sha384",
+		"Sha512",
+		"Sha3224",
+		"Sha3256",
+		"Sha3384",
+		"Sha3512",
+		"Unit",
+		"Address",
+		"Alias",
+	}
+	for _, c := range constructorsList {
+		m[c] = constructorsComplexity
+	}
+	constructorsEvaluationCatalogue(libVer, m)
 	return m
 }
 
+func evaluationCatalogueEvaluatorV1Builder(libVer ast.LibraryVersion, catalogue func() map[string]int) map[string]int {
+	return evaluationCatalogueBuilder(libVer, catalogue, 1)
+}
+
 func evaluationCatalogueEvaluatorV2Builder(libVer ast.LibraryVersion, catalogue func() map[string]int) map[string]int {
-	if libVer < ast.LibV6 {
-		panic(fmt.Sprintf(
-			"evaluationCatalogueEvaluatorV2Builder: can be used only for library version 6 and later, got %d", libVer,
-		))
-	}
-	if maxV := ast.CurrentMaxLibraryVersion(); libVer > maxV {
-		panic(fmt.Sprintf(
-			"evaluationCatalogueEvaluatorV2Builder: library version %d is greater than the current max version %d",
-			libVer, maxV,
-		))
-	}
-	m := catalogue()
-	m["throw"] = 2
-	m["Ceiling"] = 1
-	m["Floor"] = 1
-	m["HalfEven"] = 1
-	m["Down"] = 1
-	m["HalfUp"] = 1
-	m["NoAlg"] = 1
-	m["Md5"] = 1
-	m["Sha1"] = 1
-	m["Sha224"] = 1
-	m["Sha256"] = 1
-	m["Sha384"] = 1
-	m["Sha512"] = 1
-	m["Sha3224"] = 1
-	m["Sha3256"] = 1
-	m["Sha3384"] = 1
-	m["Sha3512"] = 1
-	m["Unit"] = 1
-	m["Address"] = 1
-	m["Alias"] = 1
-	constructorsEvaluationCatalogueEvaluatorV2(libVer, m)
-	return m
+	return evaluationCatalogueBuilder(libVer, catalogue, 2)
 }
 
 func evaluationCatalogueV6EvaluatorV1() map[string]int {
