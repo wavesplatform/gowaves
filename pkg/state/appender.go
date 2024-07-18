@@ -985,6 +985,11 @@ func (a *txAppender) handleInvoke(
 	default:
 		return nil, nil, errors.Errorf("failed to handle invoke: wrong type of transaction (%T)", tx)
 	}
+	const targetTxID = "3JaYYbHLJ37thyntYnPkZgdafMvRJ1JoU4CERtR6ehUy"
+	if txID := ID.String(); txID == targetTxID {
+		zap.L().Debug(">>>>>>>>>>>>>>>>", zap.String("txID", txID))
+		defer zap.L().Debug("<<<<<<<<<<<<<<<<", zap.String("txID", txID))
+	}
 	invocationRes, applicationRes, err := a.ia.applyInvokeScript(tx, info)
 	if err != nil {
 		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", ID.String(), err)
