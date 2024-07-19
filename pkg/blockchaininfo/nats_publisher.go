@@ -9,26 +9,26 @@ import (
 	"log"
 )
 
-type BUpdatesInfo struct {
-	Height         uint64
-	VRF            proto.B58Bytes
-	BlockID        proto.BlockID
-	BlockHeader    *proto.BlockHeader
-	AllDataEntries []proto.DataEntry
-}
-
 type BUpdatesExtensionState struct {
 	currentState  *BUpdatesInfo
 	previousState *BUpdatesInfo // this information is what was just published
 	Limit         uint64
+	scheme        proto.Scheme
 }
 
-func NewBUpdatesExtensionState(limit uint64) *BUpdatesExtensionState {
-	return &BUpdatesExtensionState{Limit: limit}
+func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme) *BUpdatesExtensionState {
+	return &BUpdatesExtensionState{Limit: limit, scheme: scheme}
 }
 
-func (bu *BUpdatesExtensionState) hasStateChanged() {
-
+func (bu *BUpdatesExtensionState) hasStateChanged() (bool, error) {
+	statesAreEqual, err := statesEqual(*bu, bu.scheme)
+	if err != nil {
+		return false, err
+	}
+	if statesAreEqual {
+		return false, nil
+	}
+	return true, nil
 }
 
 func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
@@ -96,15 +96,24 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 					return
 				}
 				// update current state
-
+				bu.currentState = &updates
 				// compare the current state to the previous state
-
-				// if there is any diff, send the update
-				err := bu.publishUpdates(updates, nc, scheme)
-				log.Printf("published")
+				stateChanged, err := bu.hasStateChanged()
 				if err != nil {
-					log.Printf("failed to publish updates")
+					log.Printf("failed to compare current and previous states, %v", err)
+					return
 				}
+				// if there is any diff, send the update
+				fmt.Println(stateChanged)
+				if stateChanged {
+					err := bu.publishUpdates(updates, nc, scheme)
+					log.Printf("published")
+					if err != nil {
+						log.Printf("failed to publish updates")
+					}
+					bu.previousState = &updates
+				}
+
 			case <-ctx.Done():
 				return
 			}

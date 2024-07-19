@@ -1,7 +1,6 @@
 package blockchaininfo
 
 import (
-	"errors"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -49,31 +48,13 @@ func L2ContractDataEntriesToProto(dataEntries []proto.DataEntry) *g.L2ContractDa
 	}
 }
 
-func L2ContractDataEntriesFromProto(protoDataEntries *g.L2ContractDataEntries) (L2ContractDataEntries, error) {
+func L2ContractDataEntriesFromProto(protoDataEntries *g.L2ContractDataEntries, scheme proto.Scheme) (L2ContractDataEntries, error) {
+	converter := proto.ProtobufConverter{FallbackChainID: scheme}
 	var dataEntries []proto.DataEntry
 	for _, protoEntry := range protoDataEntries.DataEntries {
-		dataEntryType := proto.DataEntryType{Type: protoEntry.Key}
-		entry, err := proto.GuessDataEntryType(dataEntryType)
+		entry, err := converter.Entry(protoEntry)
 		if err != nil {
 			return L2ContractDataEntries{}, err
-		}
-		entry.SetKey(protoEntry.Key)
-		switch e := entry.(type) {
-		case *proto.IntegerDataEntry:
-			e.Value = protoEntry.GetIntValue()
-			entry = e
-		case *proto.BooleanDataEntry:
-			e.Value = protoEntry.GetBoolValue()
-			entry = e
-		case *proto.BinaryDataEntry:
-			e.Value = protoEntry.GetBinaryValue()
-			entry = e
-		case *proto.StringDataEntry:
-			e.Value = protoEntry.GetStringValue()
-			entry = e
-		case *proto.DeleteDataEntry:
-		default:
-			return L2ContractDataEntries{}, errors.New("failed to convert proto data entries into data entries")
 		}
 		dataEntries = append(dataEntries, entry)
 	}

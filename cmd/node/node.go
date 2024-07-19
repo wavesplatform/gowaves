@@ -394,7 +394,7 @@ func main() {
 	var bUpdatesExtension *state.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
 		updatesChannel := make(chan blockchaininfo.BUpdatesInfo)
-		bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(2000)
+		bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(2000, cfg.AddressSchemeCharacter)
 
 		l2address, err := proto.NewAddressFromString("3MsqKJ6o1ABE37676cHHBxJRs6huYTt72ch")
 		if err != nil {
