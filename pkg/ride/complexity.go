@@ -98,6 +98,22 @@ func (o complexityLimitExceededError) Error() string {
 	)
 }
 
+type zeroComplexityError struct {
+	name string
+}
+
+func newZeroComplexityError(name string) zeroComplexityError {
+	return zeroComplexityError{name: name}
+}
+
+func (z zeroComplexityError) EvaluationErrorWrapType() EvaluationError {
+	return EvaluationFailure
+}
+
+func (z zeroComplexityError) Error() string {
+	return fmt.Sprintf("node '%s' has zero complexity", z.name)
+}
+
 func newComplexityCalculator(lib ast.LibraryVersion, limit uint32) complexityCalculator {
 	if lib >= ast.LibV6 {
 		return &complexityCalculatorV2{l: int(limit)}
@@ -229,6 +245,9 @@ func (cc *complexityCalculatorV2) limit() int {
 }
 
 func (cc *complexityCalculatorV2) testNativeFunctionComplexity(name string, fc int) error {
+	if fc == 0 { // sanity check: zero complexity for functions is not allowed since Ride V6
+		return newZeroComplexityError(name)
+	}
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
 		return newIntegerOverflowError(name, fc, cc.complexity(), err)
@@ -240,6 +259,10 @@ func (cc *complexityCalculatorV2) testNativeFunctionComplexity(name string, fc i
 }
 
 func (cc *complexityCalculatorV2) addNativeFunctionComplexity(name string, fc int) {
+	if fc == 0 { // sanity check: zero complexity for functions is not allowed since Ride V6
+		cc.err = newZeroComplexityError(name)
+		return // don't add zero complexity
+	}
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
 		cc.err = newIntegerOverflowError(name, fc, cc.complexity(), err)
