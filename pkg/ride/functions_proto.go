@@ -1124,19 +1124,24 @@ func fullIssue(env environment, args ...rideType) (rideType, error) {
 	return issue, nil
 }
 
+// rebuildMerkleRoot == createMerkleRoot(proofs: List[ByteVector], leaf: ByteVector, index: Int) returns ByteVector
+// Recalculates the Merkle root hash from the Merkle proof list, leaf hash, and leaf index.
+// proofs - list of proofs in the order from leaf to root.
 func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "rebuildMerkleRoot")
 	}
-	proofs, ok := args[0].(rideList)
+	proofsLeafsToRootOrder, ok := args[0].(rideList)
 	if !ok {
 		return nil, errors.Errorf("rebuildMerkleRoot: unexpected argument type '%s'", args[0].instanceOf())
 	}
-	if l := len(proofs); l > 16 {
+	const maxProofsCount = 16
+	if l := len(proofsLeafsToRootOrder); l > maxProofsCount {
 		return nil, errors.New("rebuildMerkleRoot: no more than 16 proofs is allowed")
 	}
-	pfs := make([]crypto.Digest, len(proofs))
-	for i, x := range proofs {
+	proofsRootToLeafsOrder := make([]crypto.Digest, 0, len(proofsLeafsToRootOrder))
+	for i := len(proofsLeafsToRootOrder) - 1; i >= 0; i-- { // reverse order
+		x := proofsLeafsToRootOrder[i]
 		b, ok := x.(rideByteVector)
 		if !ok {
 			return nil, errors.Errorf("rebuildMerkleRoot: unexpected proof type '%s' at position %d", x.instanceOf(), i)
@@ -1145,7 +1150,7 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, "rebuildMerkleRoot")
 		}
-		pfs[i] = d
+		proofsRootToLeafsOrder = append(proofsRootToLeafsOrder, d)
 	}
 	leaf, ok := args[1].(rideByteVector)
 	if !ok {
@@ -1164,7 +1169,7 @@ func rebuildMerkleRoot(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "rebuildMerkleRoot")
 	}
-	root := tree.RebuildRoot(lf, pfs, idx)
+	root := tree.RebuildRoot(lf, proofsRootToLeafsOrder, idx)
 	return rideByteVector(root[:]), nil
 }
 
