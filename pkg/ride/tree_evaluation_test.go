@@ -6040,3 +6040,50 @@ func TestEvaluatorComplexityFailedPaymentsCheck(t *testing.T) {
 		})
 	})
 }
+
+func TestNewRideV8Functions(t *testing.T) {
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+
+	vrf, err := crypto.NewDigestFromBase58("5AFgQTfL1GhVUZr64N6tkmF8usX9QZsPcJbZmsX32VgK")
+	require.NoError(t, err)
+	const bt = 142245893
+	testBlockInfo := protobufBlockBuilder().withGenerator(sender).withBaseTarget(bt).withVRF(vrf.Bytes()).toBlockInfo()
+	createEnv := func(t *testing.T, tree *ast.Tree) *testEnv {
+		return newTestEnv(t).withLibVersion(ast.LibV8).withComplexityLimit(ast.LibV8, 52000).
+			withBlockV5Activated().withProtobufTx().withRideV6Activated().
+			withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(dApp1).withDApp(dApp1).withSender(sender).withBlock(testBlockInfo).
+			withInvocation("call", withTransactionID(crypto.Digest{})).withTree(dApp1, tree)
+	}
+	t.Run("calculateDelay", func(t *testing.T) {
+		const src = `
+		{-# STDLIB_VERSION 8 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		
+		@Callable(i)
+		func call() = {
+		  let minerAddress = i.caller
+		  let minerBalance = 100500
+		  strict delay = calculateDelay(minerAddress, minerBalance)
+		  if delay != %d then
+			throw("delays are not equal")
+		  else
+		  []
+		}
+`
+		const expectedDelay = 703159
+		tree, errs := ridec.CompileToTree(fmt.Sprintf(src, expectedDelay))
+		require.Empty(t, errs)
+		te := createEnv(t, tree)
+		env := te.toEnv()
+		res, callErr := CallFunction(env, tree, proto.NewFunctionCall("call", proto.Arguments{}))
+		assert.NoError(t, callErr)
+		assert.True(t, res.Result())
+		assert.Empty(t, res.ScriptActions())
+		const expectedComplexity = 3
+		assert.Equal(t, expectedComplexity, res.Complexity())
+	})
+}
