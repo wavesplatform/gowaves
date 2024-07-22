@@ -282,7 +282,7 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address) ([]proto.DataE
 	return entries, nil
 }
 
-func (s *accountsDataStorage) RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
+func (s *accountsDataStorage) retrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
 	addrNum, err := s.addrToNum(addr)
 	if err != nil {
 		return nil, proto.ErrNotFound
