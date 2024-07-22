@@ -6086,4 +6086,31 @@ func TestNewRideV8Functions(t *testing.T) {
 		const expectedComplexity = 3
 		assert.Equal(t, expectedComplexity, res.Complexity())
 	})
+	t.Run("replaceByIndex", func(t *testing.T) {
+		const src = `
+		{-# STDLIB_VERSION 8 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		
+		@Callable(i)
+		func call() = {
+		  let list = ["Waves", 42, true]
+		  strict listRes = replaceByIndex(list, 1, "Ride")
+		  if listRes != ["Waves", "Ride", true] then
+			throw("lists are not equal")
+		  else
+		  []
+		}
+`
+		tree, errs := ridec.CompileToTree(src)
+		require.Empty(t, errs)
+		te := createEnv(t, tree)
+		env := te.toEnv()
+		res, callErr := CallFunction(env, tree, proto.NewFunctionCall("call", proto.Arguments{}))
+		assert.NoError(t, callErr)
+		assert.True(t, res.Result())
+		assert.Empty(t, res.ScriptActions())
+		const expectedComplexity = 12
+		assert.Equal(t, expectedComplexity, res.Complexity())
+	})
 }
