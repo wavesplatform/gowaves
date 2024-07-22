@@ -2208,6 +2208,21 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 	return entries, nil
 }
 
+func (s *stateManager) RetrieveEntriesAtHeight(account proto.Recipient) ([]proto.DataEntry, error) {
+	addr, err := s.recipientToAddress(account)
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	entries, err := s.stor.accountsDataStor.retrieveEntries(addr)
+	if err != nil {
+		if errors.Is(err, proto.ErrNotFound) {
+			return nil, err
+		}
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entries, nil
+}
+
 func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {

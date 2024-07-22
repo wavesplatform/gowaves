@@ -282,6 +282,79 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address) ([]proto.DataE
 	return entries, nil
 }
 
+func (s *accountsDataStorage) RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
+	addrNum, err := s.addrToNum(addr)
+	if err != nil {
+		return nil, proto.ErrNotFound
+	}
+	key := accountsDataStorKey{addrNum: addrNum}
+
+	recordBytes, err := s.hs.entryDataAtHeight(key.bytes(), height)
+	if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) || recordBytes == nil {
+		// 0 votes for unknown feature.
+		return nil, keyvalue.ErrNotFound
+	}
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to retrieve data at height")
+	}
+
+	var dataEntries proto.DataEntries
+	pos := 0
+
+	for {
+		// Check if there's enough data for a key size
+		if pos+2 > len(recordBytes) {
+			break
+		}
+
+		keySize := binary.BigEndian.Uint16(recordBytes[pos : pos+2])
+		pos += 2
+
+		// Check if there's enough data for the key
+		if pos+int(keySize) > len(recordBytes) {
+			break
+		}
+
+		key := recordBytes[pos : pos+int(keySize)]
+		pos += int(keySize)
+
+		// Check if there's enough data for a value size
+		if pos+2 > len(recordBytes) {
+			break
+		}
+
+		valueSize := binary.BigEndian.Uint16(recordBytes[pos : pos+2])
+		pos += 2
+
+		// Check if there's enough data for the value
+		if pos+int(valueSize) > len(recordBytes) {
+			break
+		}
+
+		value := recordBytes[pos : pos+int(valueSize)]
+		pos += int(valueSize)
+
+		var record dataEntryRecord
+		if err := record.unmarshalBinary(value); err != nil {
+			return nil, err
+		}
+
+		var entryKey accountsDataStorKey
+		if err := entryKey.unmarshal(key); err != nil {
+			return nil, err
+		}
+
+		entry, err := proto.NewDataEntryFromValueBytes(record.value)
+		if err != nil {
+			return nil, err
+		}
+
+		entry.SetKey(entryKey.entryKey)
+		dataEntries = append(dataEntries, entry)
+	}
+	return dataEntries, nil
+}
+
 func (s *accountsDataStorage) newestEntryExists(addr proto.Address) (bool, error) {
 	addrNum, newest, err := s.newestAddrToNum(addr)
 	if err != nil {
