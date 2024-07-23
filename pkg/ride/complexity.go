@@ -3,7 +3,6 @@ package ride
 import (
 	"fmt"
 
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -112,13 +111,6 @@ func (z zeroComplexityError) EvaluationErrorWrapType() EvaluationError {
 
 func (z zeroComplexityError) Error() string {
 	return fmt.Sprintf("node '%s' has zero complexity", z.name)
-}
-
-func newComplexityCalculator(lib ast.LibraryVersion, limit uint32) complexityCalculator {
-	if lib >= ast.LibV6 {
-		return &complexityCalculatorV2{l: int(limit)}
-	}
-	return &complexityCalculatorV1{l: int(limit)}
 }
 
 func newComplexityCalculatorByRideV6Activation(rideV6 bool) complexityCalculator {
