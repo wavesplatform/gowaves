@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
@@ -345,7 +346,7 @@ func TestOnEdgeComplexity1(t *testing.T) {
 		withTree(dApp, tree).withWrappedState().toEnv()
 
 	r, err := CallFunction(env, tree, proto.NewFunctionCall("foo", proto.Arguments{proto.NewIntegerArgument(52)}))
-	require.EqualError(t, err, "evaluation complexity 52001 exceeds the limit 52000")
+	require.EqualError(t, err, "failed to test complexity of system function: node '1300' with complexity 1 has exceeded the complexity limit 52000 with result complexity 52001") //nolint:lll
 	assert.Equal(t, GetEvaluationErrorType(err), ComplexityLimitExceed)
 	assert.Nil(t, r)
 	assert.Equal(t, 52000, EvaluationErrorSpentComplexity(err))
@@ -379,7 +380,7 @@ func TestOnEdgeComplexity2(t *testing.T) {
 		withInvocation("foo").withDataEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
 		withTree(dApp, tree).withWrappedState().toEnv()
 	r, err := CallFunction(env, tree, proto.NewFunctionCall("foo", proto.Arguments{proto.NewIntegerArgument(52)}))
-	require.EqualError(t, err, "evaluation complexity 52001 exceeds the limit 52000")
+	require.EqualError(t, err, "failed to test complexity of system function: node '1300' with complexity 1 has exceeded the complexity limit 52000 with result complexity 52001") //nolint:lll
 	assert.Equal(t, GetEvaluationErrorType(err), ComplexityLimitExceed)
 	assert.Nil(t, r)
 	assert.Equal(t, 52000, EvaluationErrorSpentComplexity(err))
@@ -573,5 +574,5 @@ func TestComplexityOverflow(t *testing.T) {
 		withWrappedState()
 
 	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
-	require.EqualError(t, err, "evaluation complexity 26149 exceeds the limit 26000")
+	require.EqualError(t, err, "failed to test complexity of system function: node '500' with complexity 200 has exceeded the complexity limit 26000 with result complexity 26149") //nolint:lll
 }

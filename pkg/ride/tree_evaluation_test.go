@@ -5723,7 +5723,7 @@ func TestInvocationsLimitScalaWay(t *testing.T) {
 		withInvocation("foo", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
 		withWrappedState()
 	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("foo", proto.Arguments{}))
-	assert.EqualError(t, err, "evaluation complexity 52038 exceeds the limit 52000")
+	assert.EqualError(t, err, "failed to test complexity of system function: node '0' with complexity 1 has exceeded the complexity limit 52000 with result complexity 52038") //nolint:lll
 }
 
 func TestHitInBreadthInvocationsLimit(t *testing.T) {
