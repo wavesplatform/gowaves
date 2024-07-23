@@ -20,12 +20,12 @@ func checkVerifierSpentComplexity(t *testing.T, env environment, code string, co
 }
 
 func checkVerifierSpentComplexityV5(t *testing.T, code string, complexity int, comment string) {
-	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 2000).toEnv()
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(2000).toEnv()
 	checkVerifierSpentComplexity(t, env, code, complexity, comment)
 }
 
 func checkVerifierSpentComplexityV6(t *testing.T, code string, complexity int, comment string) {
-	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(ast.LibV6, 2000).withRideV6Activated().toEnv()
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(2000).withRideV6Activated().toEnv()
 	checkVerifierSpentComplexity(t, env, code, complexity, comment)
 }
 
@@ -38,12 +38,12 @@ func checkFunctionCallComplexity(t *testing.T, env environment, code, fn string,
 }
 
 func checkFunctionCallComplexityV5(t *testing.T, code, fn string, fa proto.Arguments, complexity int) {
-	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 2000).toEnv()
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(2000).toEnv()
 	checkFunctionCallComplexity(t, env, code, fn, fa, complexity)
 }
 
 func checkFunctionCallComplexityV6(t *testing.T, code, fn string, fa proto.Arguments, complexity int) {
-	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(ast.LibV6, 2000).withRideV6Activated().toEnv()
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(2000).withRideV6Activated().toEnv()
 	checkFunctionCallComplexity(t, env, code, fn, fa, complexity)
 }
 
@@ -71,7 +71,7 @@ func TestSimpleScriptsComplexity(t *testing.T) {
 	} {
 		_, tree := parseBase64Script(t, test.source)
 
-		env := newTestEnv(t).withLibVersion(ast.LibV4).withComplexityLimit(ast.LibV4, 2000).
+		env := newTestEnv(t).withLibVersion(ast.LibV4).withComplexityLimit(2000).
 			withTransaction(testTransferWithProofs(t)).toEnv()
 		res, err := CallVerifier(env, tree)
 		require.NoError(t, err, test.comment)
@@ -238,7 +238,7 @@ func TestStrictThrow(t *testing.T) {
 	*/
 	code := "BAoBAAAACHRlc3RGdW5jAAAAAAQAAAABYQkAAAIAAAABAgAAABVTdHJpY3QgZXhlY3V0ZWQgZXJyb3IDCQAAAAAAAAIFAAAAAWEFAAAAAWEGCQAAAgAAAAECAAAAJFN0cmljdCB2YWx1ZSBpcyBub3QgZXF1YWwgdG8gaXRzZWxmLgkBAAAACHRlc3RGdW5jAAAAABn7LqM="
 	_, tree := parseBase64Script(t, code)
-	_, err := CallVerifier(newTestEnv(t).withComplexityLimit(ast.LibV5, 2000).toEnv(), tree)
+	_, err := CallVerifier(newTestEnv(t).withComplexityLimit(2000).toEnv(), tree)
 	require.Errorf(t, err, "Strict executed error")
 }
 
@@ -339,7 +339,7 @@ func TestOnEdgeComplexity1(t *testing.T) {
 	dApp := newTestAccount(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	_, tree := parseBase64Script(t, "BgIHCAISAwoBAQABA2ludgEDZm9vAQFuBAtjb21wbGV4SW50MQkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgABCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAG0GANkMAAIAGwABAAIFBkhBTEZVUAkAbQYA2QwAAgAbAAEAAgUGSEFMRlVQCQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAAAAEAAQABAAEAAQABAAEAAQABAAEAAQQLY29tcGxleEludDIDCQBmAgUBbgABCQELdmFsdWVPckVsc2UCCgABQAkA/AcECQEHQWRkcmVzcwEBGgFUcQ97e0JWLZUBUuI05V2T+HgxB8fHAvABAgNmb28JAMwIAgkAZQIFAW4AAQUDbmlsBQNuaWwDCQABAgUBQAIDSW50BQFABQR1bml0AAAJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCAAEJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAAAQABAAEAAQkAlAoCBQNuaWwJAGQCBQtjb21wbGV4SW50MQULY29tcGxleEludDIApaxBJw==")
 
-	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(ast.LibV6, 52000).
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(52000).
 		withBlockV5Activated().withProtobufTx().withDataEntriesSizeV2().
 		withRideV6Activated().withValidateInternalPayments().withThis(dApp).withDApp(dApp).withSender(dApp).
 		withInvocation("foo").withDataEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
@@ -374,7 +374,7 @@ func TestOnEdgeComplexity2(t *testing.T) {
 	*/
 	dApp := newTestAccount(t, "DAPP1") // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	_, tree := parseBase64Script(t, "BgIHCAISAwoBAQABA2ludgEDZm9vAQFuBAZyZXN1bHQDCQBmAgUBbgABBAtjb21wbGV4SW50MQkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIJAGQCCQBkAgABCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAG0GANkMAAIAGwABAAIFBkhBTEZVUAkAbQYA2QwAAgAbAAEAAgUGSEFMRlVQCQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAkBC3ZhbHVlT3JFbHNlAgkAnwgBAgFrAAAJAQt2YWx1ZU9yRWxzZQIJAJ8IAQIBawAACQELdmFsdWVPckVsc2UCCQCfCAECAWsAAAABAwkAZgIFC2NvbXBsZXhJbnQxAAAJAPwHBAkBB0FkZHJlc3MBARoBVHEPe3tCVi2VAVLiNOVdk/h4MQfHxwLwAQIDZm9vCQDMCAIJAGUCBQFuAAEFA25pbAUDbmlsAAAJAGQCCQBkAgkAZAIJAGQCCQBkAgkAZAIAAQkAoAMBCQB3BgkApwMBAgQxNjI1AAIJAKcDAQICMjcAAQACBQZIQUxGVVAJAKADAQkAdwYJAKcDAQIEMTYyNQACCQCnAwECAjI3AAEAAgUGSEFMRlVQCQCgAwEJAHcGCQCnAwECBDE2MjUAAgkApwMBAgIyNwABAAIFBkhBTEZVUAABAAEAAQkAlAoCBQNuaWwFBnJlc3VsdADR0fAN")
-	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(ast.LibV6, 52000).
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(52000).
 		withBlockV5Activated().withProtobufTx().withDataEntriesSizeV2().
 		withRideV6Activated().withValidateInternalPayments().withThis(dApp).withDApp(dApp).withSender(dApp).
 		withInvocation("foo").withDataEntries(dApp, &proto.IntegerDataEntry{Key: "k", Value: 1}).
@@ -563,7 +563,7 @@ func TestComplexityOverflow(t *testing.T) {
 	*/
 	_, tree2 := parseBase64Script(t, "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")
 
-	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 26000).
+	env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(26000).
 		withBlockV5Activated().withProtobufTx().
 		withDataEntriesSizeV2().withMessageLengthV3().
 		withValidateInternalPayments().withThis(dApp1).

@@ -364,7 +364,7 @@ func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
 	return e
 }
 
-func (e *testEnv) withComplexityLimit(v ast.LibraryVersion, limit int) *testEnv {
+func (e *testEnv) withComplexityLimit(limit int) *testEnv {
 	require.True(e.t, limit >= 0)
 	var cc complexityCalculator
 	e.me.complexityCalculatorFunc = func() complexityCalculator {
