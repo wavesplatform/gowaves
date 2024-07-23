@@ -5182,7 +5182,8 @@ func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistributionFailed(t
 	*/
 	_, tree3 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K")
 
-	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(2000).
+	const expectedSpentComplexity = 2293
+	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(expectedSpentComplexity).
 		withBlockV5Activated().withProtobufTx().
 		withDataEntriesSizeV2().withMessageLengthV3().
 		withValidateInternalPayments().withThis(dApp1).
@@ -5192,9 +5193,11 @@ func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistributionFailed(t
 		withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 1000_00000000).withWavesBalance(dApp3, 0).
 		withWrappedState().withBlockRewardDistribution()
 
-	res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+	mockEnv := env.toEnv()
+	res, err := CallFunction(mockEnv, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
 	require.EqualError(t, err, "invoke: failed to apply actions: failed to validate total actions count: number of transfer group actions (101) produced by script is more than allowed 100")
+	assert.Equal(t, expectedSpentComplexity, mockEnv.complexityCalculator().complexity())
 }
 
 func TestInvokeDappFromDappWithZeroPayments(t *testing.T) {
