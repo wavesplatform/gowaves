@@ -6117,3 +6117,56 @@ func TestNewRideV8Functions(t *testing.T) {
 		assert.Equal(t, expectedComplexity, res.Complexity())
 	})
 }
+
+func TestZeroComplexitySanityCheckInComplexityCalculator(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	const src1 = `
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+		func call() = {
+		  let dApp = Address(base58'%[1]s')
+		  if dApp != this then
+		    throw("dApp != this")
+		  else
+		  let caller = Address(base58'%[2]s')
+		  if caller != i.caller then
+		    throw("caller != i.caller")
+		  else
+		  []
+		}
+`
+	tree1, errs := ridec.CompileToTree(fmt.Sprintf(src1, dApp1.address().String(), sender.address().String()))
+	require.Empty(t, errs)
+
+	createEnv := func(t *testing.T, cc complexityCalculator) environment {
+		env := newTestEnv(t).withLibVersion(ast.LibV5).
+			withBlockV5Activated().withProtobufTx().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(dApp1).withDApp(dApp1).withSender(sender).
+			withInvocation("call", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+			withWrappedState().toEnv()
+		env.complexityCalculatorFunc = func() complexityCalculator { return cc }
+		return env
+	}
+	t.Run("complexity_calculator_v1", func(t *testing.T) {
+		const expectedSpentComplexity = 18
+		env := createEnv(t, &complexityCalculatorV1{l: expectedSpentComplexity})
+		res, err := CallFunction(env, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+		assert.NoError(t, err)
+		assert.NotNil(t, res)
+		assert.Equal(t, expectedSpentComplexity, env.complexityCalculator().complexity())
+	})
+	t.Run("complexity_calculator_v2", func(t *testing.T) {
+		const expectedSpentComplexity = 0
+		env := createEnv(t, &complexityCalculatorV2{l: expectedSpentComplexity})
+		res, err := CallFunction(env, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+		assert.Nil(t, res)
+		assert.EqualError(t, err, "failed to test complexity of system function: node 'Address' has zero complexity")
+		assert.Equal(t, expectedSpentComplexity, env.complexityCalculator().complexity())
+	})
+}
