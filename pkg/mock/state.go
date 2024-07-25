@@ -283,6 +283,36 @@ func (mr *MockStateInfoMockRecorder) BlockIDToHeight(blockID interface{}) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockIDToHeight", reflect.TypeOf((*MockStateInfo)(nil).BlockIDToHeight), blockID)
 }
 
+// BlockRewards mocks base method.
+func (m *MockStateInfo) BlockRewards(generator proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockRewards", generator, height)
+	ret0, _ := ret[0].(proto.Rewards)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockRewards indicates an expected call of BlockRewards.
+func (mr *MockStateInfoMockRecorder) BlockRewards(generator, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockRewards", reflect.TypeOf((*MockStateInfo)(nil).BlockRewards), generator, height)
+}
+
+// BlockVRF mocks base method.
+func (m *MockStateInfo) BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, blockHeight)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockVRF indicates an expected call of BlockVRF.
+func (mr *MockStateInfoMockRecorder) BlockVRF(blockHeader, blockHeight interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockStateInfo)(nil).BlockVRF), blockHeader, blockHeight)
+}
+
 // BlockchainSettings mocks base method.
 func (m *MockStateInfo) BlockchainSettings() (*settings.BlockchainSettings, error) {
 	m.ctrl.T.Helper()
@@ -1626,6 +1656,36 @@ func (m *MockState) BlockIDToHeight(blockID proto.BlockID) (proto.Height, error)
 func (mr *MockStateMockRecorder) BlockIDToHeight(blockID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockIDToHeight", reflect.TypeOf((*MockState)(nil).BlockIDToHeight), blockID)
+}
+
+// BlockRewards mocks base method.
+func (m *MockState) BlockRewards(generator proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockRewards", generator, height)
+	ret0, _ := ret[0].(proto.Rewards)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockRewards indicates an expected call of BlockRewards.
+func (mr *MockStateMockRecorder) BlockRewards(generator, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockRewards", reflect.TypeOf((*MockState)(nil).BlockRewards), generator, height)
+}
+
+// BlockVRF mocks base method.
+func (m *MockState) BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BlockVRF", blockHeader, blockHeight)
+	ret0, _ := ret[0].([]byte)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BlockVRF indicates an expected call of BlockVRF.
+func (mr *MockStateMockRecorder) BlockVRF(blockHeader, blockHeight interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockVRF", reflect.TypeOf((*MockState)(nil).BlockVRF), blockHeader, blockHeight)
 }
 
 // BlockchainSettings mocks base method.

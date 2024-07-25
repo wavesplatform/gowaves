@@ -260,7 +260,7 @@ func (m *monetaryPolicy) rewardAtHeight(height proto.Height, blockRewardActivati
 
 func (m *monetaryPolicy) totalAmountAtHeight(
 	height, initialTotalAmount uint64,
-	blockRewardActivationHeight proto.Height,
+	blockRewardActivationHeight, boostFirst, boostLast proto.Height,
 ) (uint64, error) {
 	changesRecords, err := m.getRewardChanges()
 	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
@@ -276,24 +276,61 @@ func (m *monetaryPolicy) totalAmountAtHeight(
 		Reward: m.settings.InitialBlockReward,
 	}}, changesRecords...)
 
-	curTotalAmount := initialTotalAmount
-	prevHeight := uint64(0)
-	isNotLast := false
+	br := &boostedReward{first: boostFirst, last: boostLast}
+
+	return calculateTotalAmount(height, changesRecords, initialTotalAmount, br), nil
+}
+
+func calculateTotalAmount(
+	relativeHeight proto.Height,
+	changesRecords rewardChangesRecords, // changesRecords must be sorted in ascending order
+	curTotalAmount uint64,
+	br *boostedReward,
+) uint64 {
 	for i := len(changesRecords) - 1; i >= 0; i-- {
 		change := changesRecords[i]
-		if height < change.Height {
+		if relativeHeight < change.Height {
 			continue
 		}
-		if height >= change.Height && !isNotLast {
-			curTotalAmount += change.Reward * (height - (change.Height - 1))
-			isNotLast = true
-		} else {
-			curTotalAmount += change.Reward * (prevHeight - (change.Height - 1))
-		}
-		prevHeight = change.Height - 1
+		curTotalAmount += br.reward(change.Reward, change.Height, relativeHeight)
+		relativeHeight = change.Height - 1
+	}
+	return curTotalAmount
+}
+
+type boostedReward struct {
+	first uint64
+	last  uint64
+}
+
+func (b *boostedReward) reward(reward uint64, changeHeight, height proto.Height) uint64 {
+	total := height - (changeHeight - 1)
+	var boosted uint64
+
+	// block with first boost == b.first -> boost start -> bs
+	// block with last boost == b.last -> boost end -> bs
+	// change height -> ch, height -> h
+	// Cases:
+	// 0. ----ch-------h-------(bs------be)-----> (first=bs, last=h)  ==> last <= first, no intersection
+	// 1. ----ch------|(bs*****|h-------be)-----> (first=bs, last=h)  ==> last > first,  intersection ***
+	// 2. ----(bs------|ch*****|h-------be)-----> (first=ch, last=h)  ==> last > first,  intersection ***
+	// 3. ----(bs------|ch*****|be)------h------> (first=ch, last=be) ==> last > first,  intersection ***
+	// 4. ----(bs-------be)------ch------h------> (first=ch, last=be) ==> last <= first, no intersection
+	var (
+		first = max(b.first-1, changeHeight-1) // -1 for case when boosted period == 1 block
+		last  = min(b.last, height)
+	)
+
+	if last > first {
+		boosted = last - first
 	}
 
-	return curTotalAmount, nil
+	var r uint64
+	if boosted > 0 {
+		r += boostedRewardMultiplier * reward * boosted
+	}
+	r += reward * (total - boosted)
+	return r
 }
 
 func NextRewardTerm(

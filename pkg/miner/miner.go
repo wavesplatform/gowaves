@@ -80,7 +80,8 @@ func (a *MicroblockMiner) MineKeyBlock(
 		sh, errSH := a.state.CreateNextSnapshotHash(b)
 		if errSH != nil {
 			return nil, proto.MiningLimits{}, errors.Wrapf(errSH,
-				"failed to create initial snapshot hash for key block %s", b.ID.String())
+				"failed to create initial snapshot hash for key block %s (reference to %s)",
+				b.BlockID().String(), b.Parent.String())
 		}
 		b.StateHash = &sh
 		// Resign block
