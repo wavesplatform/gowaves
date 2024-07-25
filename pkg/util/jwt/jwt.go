@@ -4,13 +4,14 @@ import (
 	"encoding/hex"
 	"fmt"
 	"os"
+	"path/filepath"
 	"time"
 
 	"github.com/golang-jwt/jwt/v4"
 )
 
 func GenerateJWTToken(jwtSecretPath string) (string, error) {
-	jwtHex, err := os.ReadFile(jwtSecretPath)
+	jwtHex, err := os.ReadFile(filepath.Clean(jwtSecretPath))
 	if err != nil {
 		return "", fmt.Errorf("failed to read JWT secret: %w", err)
 	}
