@@ -1,6 +1,7 @@
 package l2
 
 import (
+	"bytes"
 	"math/big"
 	"strconv"
 	"strings"
@@ -11,8 +12,7 @@ import (
 const (
 	EmptyFeeRecipient  = "0x0000000000000000000000000000000000000000"
 	EmptyPrevRandaoHex = "0x0000000000000000000000000000000000000000000000000000000000000000"
-	// TODO: need check, get from go-eth
-	EmptyRootHashHex = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
+	EmptyRootHashHex   = "0x56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421"
 
 	HexBase = 16
 )
@@ -22,7 +22,7 @@ const (
 	SyncingStatus = "SYNCING"
 )
 
-func emptyPrevRandaoEthHash() (proto.EthereumHash, error) {
+func EmptyPrevRandaoEthHash() (proto.EthereumHash, error) {
 	emptyPrevRandaoBytes, err := proto.DecodeFromHexString(EmptyPrevRandaoHex)
 	if err != nil {
 		return proto.EthereumHash{}, err
@@ -34,7 +34,7 @@ func emptyFeeRecipient() (proto.EthereumAddress, error) {
 	return proto.NewEthereumAddressFromHexString(EmptyFeeRecipient)
 }
 
-func emptyRootHash() (proto.EthereumHash, error) {
+func EmptyRootHash() (proto.EthereumHash, error) {
 	emptyRootHashBytes, err := proto.DecodeFromHexString(EmptyRootHashHex)
 	if err != nil {
 		return proto.EthereumHash{}, err
@@ -83,10 +83,13 @@ func (b PayloadID) String() string {
 type Quantity uint64
 
 func (h Quantity) MarshalJSON() ([]byte, error) {
-	buf := make([]byte, 2)
-	copy(buf, `0x`)
-	buf = strconv.AppendUint(buf, uint64(h), HexBase)
-	return buf, nil
+	s := strconv.FormatUint(uint64(h), HexBase)
+	var sb bytes.Buffer
+	sb.Grow(2 + len(s))
+	sb.WriteString("\"0x")
+	sb.WriteString(s)
+	sb.WriteRune('"')
+	return sb.Bytes(), nil
 }
 
 func (h *Quantity) UnmarshalJSON(bytes []byte) error {
@@ -111,7 +114,7 @@ type ExecutablePayloadV3 struct {
 	GasUsed       Quantity              `json:"gasUsed"`
 	Timestamp     Quantity              `json:"timestamp"`
 	ExtraData     proto.HexBytes        `json:"extraData"`
-	BaseFeePerGas *big.Int              `json:"baseFeePerGas"`
+	BaseFeePerGas *string               `json:"baseFeePerGas"`
 	BlockHash     proto.EthereumHash    `json:"blockHash"`
 	Transactions  []proto.HexBytes      `json:"transactions"`
 	Withdrawals   []*Withdrawal         `json:"withdrawals"`

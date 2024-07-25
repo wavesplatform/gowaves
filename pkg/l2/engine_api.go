@@ -16,20 +16,26 @@ type EngineAPIClient struct {
 type EngineAPIOpts struct {
 	Address string
 	Port    string
+
+	JWTToken string
 }
 
 func NewEngineAPIClient(opts EngineAPIOpts) *EngineAPIClient {
-	rpcClient := jsonrpc.NewClient("http://" + opts.Address + ":" + opts.Port)
+	rpcClient := jsonrpc.NewClientWithOpts("http://"+opts.Address+":"+opts.Port, &jsonrpc.RPCClientOpts{
+		CustomHeaders: map[string]string{
+			"Authorization": "Bearer " + opts.JWTToken,
+		},
+	})
 	return &EngineAPIClient{
 		rpcClient: rpcClient,
 	}
 }
 
-func (e *EngineAPIClient) ForkChoiceUpdate(ctx context.Context, hash proto.EthereumHash) error {
+func (e *EngineAPIClient) ForkChoiceUpdate(ctx context.Context, headHash, finalizedHash proto.EthereumHash) error {
 	state := ForkChoiceStateV1{
-		HeadBlockHash:      hash,
-		SafeBlockHash:      hash,
-		FinalizedBlockHash: hash,
+		HeadBlockHash:      headHash,
+		SafeBlockHash:      headHash,
+		FinalizedBlockHash: finalizedHash,
 	}
 	response := ForkChoiceResponse{}
 	err := e.rpcClient.CallFor(ctx, &response, "engine_forkchoiceUpdatedV3", state, nil)
@@ -64,11 +70,11 @@ func (e *EngineAPIClient) ForkChoiceUpdateWithPayloadID(ctx context.Context,
 	if suggestedFeeRecipient != nil {
 		feeRecipient = *suggestedFeeRecipient
 	}
-	emptyPrevRandao, err := emptyPrevRandaoEthHash()
+	emptyPrevRandao, err := EmptyPrevRandaoEthHash()
 	if err != nil {
 		return PayloadID{}, err
 	}
-	emptyBeaconRootHash, err := emptyRootHash()
+	emptyBeaconRootHash, err := EmptyRootHash()
 	if err != nil {
 		return PayloadID{}, err
 	}
@@ -107,7 +113,7 @@ func (e *EngineAPIClient) ApplyNewPayload(
 	payload ExecutablePayloadV3,
 ) (proto.EthereumHash, error) {
 	emptyArray := make([]string, 0)
-	emptyBeaconRootHash, err := emptyRootHash()
+	emptyBeaconRootHash, err := EmptyRootHash()
 	if err != nil {
 		return proto.EthereumHash{}, err
 	}
