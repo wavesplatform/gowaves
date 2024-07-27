@@ -847,6 +847,16 @@ func (bb *blockBuilder) withHeight(h uint64) *blockBuilder {
 	return bb
 }
 
+func (bb *blockBuilder) withBaseTarget(baseTarget uint64) *blockBuilder {
+	bb.bt = baseTarget
+	return bb
+}
+
+func (bb *blockBuilder) withVRF(vrf []byte) *blockBuilder {
+	bb.vrf = vrf
+	return bb
+}
+
 func parseBase64Script(t *testing.T, src string) (proto.Script, *ast.Tree) {
 	script, err := base64.StdEncoding.DecodeString(src)
 	require.NoError(t, err)
