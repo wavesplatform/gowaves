@@ -48,10 +48,7 @@ func ECDSASign(digest []byte, sk *btcec.PrivateKey) ([]byte, error) {
 	if len(digest) != 32 {
 		return nil, errors.Errorf("hash is required to be exactly 32 bytes (%d)", len(digest))
 	}
-	sig, err := btcECDSA.SignCompact(sk, digest, false)
-	if err != nil {
-		return nil, err
-	}
+	sig := btcECDSA.SignCompact(sk, digest, false)
 	// Convert to Ethereum signature format with 'recovery id' v at the end.
 	v := sig[0] - 27
 	copy(sig, sig[1:])
