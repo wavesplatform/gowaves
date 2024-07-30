@@ -69,7 +69,7 @@ type blockchainEntitiesStorage struct {
 
 func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
 	assets := newAssets(hs.db, hs.dbBatch, hs)
-	balances, err := newBalances(hs.db, hs, assets, sets.AddressSchemeCharacter, calcHashes)
+	balances, err := newBalances(hs.db, hs, assets, sets, calcHashes)
 	if err != nil {
 		return nil, err
 	}
@@ -976,35 +976,20 @@ func (s *stateManager) newestWavesBalanceProfile(addr proto.AddressID) (balanceP
 	return newProfile, nil
 }
 
-func (s *stateManager) GeneratingBalance(account proto.Recipient) (uint64, error) {
-	height, err := s.Height()
+func (s *stateManager) GeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error) {
+	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return 0, errs.Extend(err, "failed to get height")
+		return 0, errs.Extend(err, "failed convert recipient to address")
 	}
-	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
-	return s.EffectiveBalance(account, start, end)
+	return s.stor.balances.generatingBalance(addr.ID(), height)
 }
 
-func (s *stateManager) NewestGeneratingBalance(account proto.Recipient) (uint64, error) {
-	height, err := s.NewestHeight()
+func (s *stateManager) NewestGeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error) {
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
-	return s.NewestEffectiveBalance(account, start, end)
-}
-
-func (s *stateManager) newestGeneratingBalance(id proto.AddressID) (uint64, error) {
-	height, err := s.NewestHeight()
-	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
-	}
-	start, end := s.cv.RangeForGeneratingBalanceByHeight(height)
-	effectiveBalance, err := s.stor.balances.newestMinEffectiveBalanceInRange(id, start, end)
-	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
-	}
-	return effectiveBalance, nil
+	return s.stor.balances.newestGeneratingBalance(addr.ID(), height)
 }
 
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -1016,13 +1001,24 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 	if err != nil {
 		return nil, errs.Extend(err, "failed to get waves balance")
 	}
-	effective, err := profile.effectiveBalance()
+	effective, err := profile.effectiveBalanceUnchecked()
 	if err != nil {
 		return nil, errs.Extend(err, "failed to get effective balance")
 	}
-	generating, err := s.GeneratingBalance(account)
+	height, err := s.Height()
+	if err != nil {
+		return nil, errs.Extend(err, "failed to get height")
+	}
+	generating, err := s.GeneratingBalance(account, height)
 	if err != nil {
 		return nil, errs.Extend(err, "failed to get generating balance")
+	}
+	if generating == 0 { // we need to check for challenged addresses only if generating balance is 0
+		chEffective, effErr := profile.effectiveBalance(s.stor.balances.isChallengedAddress, addr.ID(), height)
+		if effErr != nil {
+			return nil, errs.Extend(effErr, "failed to get checked effective balance")
+		}
+		effective = chEffective
 	}
 	return &proto.FullWavesBalance{
 		Regular:    profile.balance,
@@ -1043,15 +1039,24 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	effective, err := profile.effectiveBalance()
+	effective, err := profile.effectiveBalanceUnchecked()
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	var generating uint64 = 0
-	gb, err := s.NewestGeneratingBalance(account)
-	if err == nil {
+	height, err := s.NewestHeight()
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	var generating uint64
+	if gb, gbErr := s.NewestGeneratingBalance(account, height); gbErr == nil {
 		generating = gb
-		//return nil, wrapErr(RetrievalError, err)
+	}
+	if generating == 0 { // we need to check for challenged addresses only if generating balance is 0
+		chEffective, effErr := profile.effectiveBalance(s.stor.balances.newestIsChallengedAddress, addr.ID(), height)
+		if effErr != nil {
+			return nil, wrapErr(RetrievalError, effErr)
+		}
+		effective = chEffective
 	}
 	return &proto.FullWavesBalance{
 		Regular:    profile.balance,
@@ -1068,15 +1073,28 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	var generating uint64 = 0
-	if gb, err := s.newestGeneratingBalance(id); err == nil {
+	height, err := s.NewestHeight()
+	if err != nil {
+		return nil, wrapErr(RetrievalError, err)
+	}
+	var generating uint64
+	if gb, gbErr := s.stor.balances.newestGeneratingBalance(id, height); gbErr == nil {
 		generating = gb
+	}
+	var challenged bool
+	if generating == 0 { // fast path: we need to check for challenged addresses only if generating balance is 0
+		ch, chErr := s.stor.balances.newestIsChallengedAddress(id, height)
+		if chErr != nil {
+			return nil, wrapErr(RetrievalError, chErr)
+		}
+		challenged = ch
 	}
 	return &types.WavesBalanceProfile{
 		Balance:    profile.balance,
 		LeaseIn:    profile.leaseIn,
 		LeaseOut:   profile.leaseOut,
 		Generating: generating,
+		Challenged: challenged,
 	}, nil
 }
 
@@ -1224,12 +1242,47 @@ func (s *stateManager) beforeAppendBlock(block *proto.Block, blockHeight proto.H
 	if err := s.stor.scores.appendBlockScore(block, blockHeight); err != nil {
 		return err
 	}
+	// Handle challenged header if it exists.
+	// Light node fields check performed in ValidateHeaderBeforeBlockApplying.
+	if chErr := s.handleChallengedHeaderIfExists(block, blockHeight); chErr != nil {
+		return chErr
+	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockID()); err != nil {
 		return err
 	}
 	// Save block header to block storage.
 	return s.rw.writeBlockHeader(&block.BlockHeader)
+}
+
+func (s *stateManager) handleChallengedHeaderIfExists(block *proto.Block, blockHeight proto.Height) error {
+	challengedHeader, ok := block.GetChallengedHeader()
+	if !ok { // nothing to do, no challenge to handle
+		return nil
+	}
+	var (
+		scheme  = s.settings.AddressSchemeCharacter
+		blockID = block.BlockID()
+	)
+	challenger, err := proto.NewAddressFromPublicKey(scheme, block.GeneratorPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create challenger address from public key '%s'",
+			challengedHeader.GeneratorPublicKey.String(),
+		)
+	}
+	challenged, err := proto.NewAddressFromPublicKey(scheme, challengedHeader.GeneratorPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create challenged address from public key '%s'",
+			challengedHeader.GeneratorPublicKey.String(),
+		)
+	}
+	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockHeight, blockID); chErr != nil {
+		return errors.Wrapf(chErr,
+			"failed to store challenge for block '%s' at height %d with challenger '%s' and challenged '%s'",
+			blockID.String(), blockHeight, challenger.String(), challenged.String(),
+		)
+	}
+	return nil
 }
 
 func (s *stateManager) afterAppendBlock(block *proto.Block, blockHeight proto.Height) error {
@@ -2008,30 +2061,6 @@ func (s *stateManager) recipientToAddress(recipient proto.Recipient) (proto.Wave
 		return *addr, nil
 	}
 	return s.stor.aliases.addrByAlias(recipient.Alias().Alias)
-}
-
-func (s *stateManager) EffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
-	addr, err := s.recipientToAddress(account)
-	if err != nil {
-		return 0, errs.Extend(err, "failed convert recipient to address ")
-	}
-	effectiveBalance, err := s.stor.balances.minEffectiveBalanceInRange(addr.ID(), startHeight, endHeight)
-	if err != nil {
-		return 0, errs.Extend(err, fmt.Sprintf("failed get min effective balance: startHeight: %d, endHeight: %d", startHeight, endHeight))
-	}
-	return effectiveBalance, nil
-}
-
-func (s *stateManager) NewestEffectiveBalance(account proto.Recipient, startHeight, endHeight uint64) (uint64, error) {
-	addr, err := s.NewestRecipientToAddress(account)
-	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
-	}
-	effectiveBalance, err := s.stor.balances.newestMinEffectiveBalanceInRange(addr.ID(), startHeight, endHeight)
-	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
-	}
-	return effectiveBalance, nil
 }
 
 func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {

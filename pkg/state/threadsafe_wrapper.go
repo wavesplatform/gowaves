@@ -86,10 +86,10 @@ func (a *ThreadSafeReadWrapper) FullWavesBalance(account proto.Recipient) (*prot
 	return a.s.FullWavesBalance(account)
 }
 
-func (a *ThreadSafeReadWrapper) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
+func (a *ThreadSafeReadWrapper) GeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.EffectiveBalance(account, startHeight, endHeight)
+	return a.s.GeneratingBalance(account, height)
 }
 
 func (a *ThreadSafeReadWrapper) WavesBalance(account proto.Recipient) (uint64, error) {
