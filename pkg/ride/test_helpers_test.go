@@ -364,10 +364,17 @@ func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
 	return e
 }
 
-func (e *testEnv) withComplexityLimit(v ast.LibraryVersion, limit int) *testEnv {
+func (e *testEnv) withComplexityLimit(limit int) *testEnv {
 	require.True(e.t, limit >= 0)
-	cc := newComplexityCalculator(v, uint32(limit))
+	var cc complexityCalculator
 	e.me.complexityCalculatorFunc = func() complexityCalculator {
+		if cc != nil { // already initialized
+			return cc
+		}
+		currentEnv := e.toEnv()
+		isRideV6Activated := currentEnv.rideV6Activated() // We have to check if Ride V6 is activated, false by default
+		cc = newComplexityCalculatorByRideV6Activation(isRideV6Activated)
+		cc.setLimit(uint32(limit))
 		return cc
 	}
 	return e

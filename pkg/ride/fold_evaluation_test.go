@@ -6,7 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
@@ -18,7 +18,7 @@ func evaluateFold(t *testing.T, code string) {
 	require.NoError(t, err)
 	assert.NotNil(t, tree)
 
-	env := newTestEnv(t).withComplexityLimit(ast.LibV5, 26000).toEnv()
+	env := newTestEnv(t).withComplexityLimit(26000).toEnv()
 	_, err = CallVerifier(env, tree)
 	require.Error(t, err)
 	foldId := "450"
