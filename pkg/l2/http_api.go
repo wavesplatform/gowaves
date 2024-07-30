@@ -48,7 +48,7 @@ func (c *HttpAPIClient) GetBlockByHash(ctx context.Context, hash proto.EthereumH
 	response := EcBlock{}
 	err := c.rpcClient.CallFor(ctx, &response, "eth_getBlockByHash", hash, false)
 	if err != nil {
-		return nil, fmt.Errorf("failed getting latest block by hash %s: %v", hash.String(), err)
+		return nil, fmt.Errorf("failed getting block by hash %s: %v", hash.String(), err)
 	}
 	return &response, nil
 }
