@@ -2,6 +2,7 @@ package l2
 
 import (
 	"bytes"
+	"fmt"
 	"math/big"
 	"strconv"
 	"strings"
@@ -93,12 +94,32 @@ func (h Quantity) MarshalJSON() ([]byte, error) {
 }
 
 func (h *Quantity) UnmarshalJSON(bytes []byte) error {
-	trimmed := strings.TrimPrefix(string(bytes), "0x")
+	trimmed := strings.TrimPrefix(string(bytes), "\"0x")
+	trimmed = strings.TrimSuffix(trimmed, "\"")
 	u, err := strconv.ParseUint(trimmed, HexBase, 64)
 	if err != nil {
 		return err
 	}
 	*h = Quantity(u)
+	return nil
+}
+
+type BigInt struct {
+	*big.Int
+}
+
+func (b BigInt) MarshalJSON() ([]byte, error) {
+	return []byte("\"0x" + b.Text(16) + "\""), nil
+}
+
+func (b *BigInt) UnmarshalJSON(bytes []byte) error {
+	trimmed := strings.TrimPrefix(string(bytes), "\"0x")
+	trimmed = strings.TrimSuffix(trimmed, "\"")
+	var res big.Int
+	if _, ok := res.SetString(trimmed, 16); !ok {
+		return fmt.Errorf("failed convert hex string to big.Int")
+	}
+	b.Int = &res
 	return nil
 }
 
@@ -114,7 +135,7 @@ type ExecutablePayloadV3 struct {
 	GasUsed       Quantity              `json:"gasUsed"`
 	Timestamp     Quantity              `json:"timestamp"`
 	ExtraData     proto.HexBytes        `json:"extraData"`
-	BaseFeePerGas *string               `json:"baseFeePerGas"`
+	BaseFeePerGas BigInt                `json:"baseFeePerGas"`
 	BlockHash     proto.EthereumHash    `json:"blockHash"`
 	Transactions  []proto.HexBytes      `json:"transactions"`
 	Withdrawals   []*Withdrawal         `json:"withdrawals"`
@@ -130,7 +151,7 @@ type BlobsBundleV1 struct {
 
 type ExecutionPayloadEnvelope struct {
 	ExecutionPayload *ExecutablePayloadV3 `json:"executionPayload"`
-	BlockValue       *big.Int             `json:"blockValue"`
+	BlockValue       BigInt               `json:"blockValue"`
 	BlobsBundle      *BlobsBundleV1       `json:"blobsBundle"`
 	Override         bool                 `json:"shouldOverrideBuilder"`
 }
@@ -138,4 +159,17 @@ type ExecutionPayloadEnvelope struct {
 type ExecutionPayloadBodyV1 struct {
 	TransactionData []proto.HexBytes `json:"transactions"`
 	Withdrawals     []*Withdrawal    `json:"withdrawals"`
+}
+
+type EcBlock struct {
+	Hash                 proto.EthereumHash `json:"hash"`
+	ParentHash           proto.EthereumHash `json:"parentHash"`
+	StateRoot            string             `json:"stateRoot"`
+	Height               Quantity           `json:"number"`
+	Timestamp            Quantity           `json:"timestamp"`
+	MinerRewardL2Address string             `json:"miner"`
+	BaseFeePerGas        BigInt             `json:"baseFeePerGas"`
+	GasLimit             Quantity           `json:"gasLimit"`
+	GasUsed              Quantity           `json:"gasUsed"`
+	Withdrawals          []Withdrawal       `json:"withdrawals"`
 }
