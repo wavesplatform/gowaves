@@ -109,14 +109,14 @@ type BigInt struct {
 }
 
 func (b BigInt) MarshalJSON() ([]byte, error) {
-	return []byte("\"0x" + b.Text(16) + "\""), nil
+	return []byte("\"0x" + b.Text(HexBase) + "\""), nil
 }
 
 func (b *BigInt) UnmarshalJSON(bytes []byte) error {
 	trimmed := strings.TrimPrefix(string(bytes), "\"0x")
 	trimmed = strings.TrimSuffix(trimmed, "\"")
 	var res big.Int
-	if _, ok := res.SetString(trimmed, 16); !ok {
+	if _, ok := res.SetString(trimmed, HexBase); !ok {
 		return fmt.Errorf("failed convert hex string to big.Int")
 	}
 	b.Int = &res
