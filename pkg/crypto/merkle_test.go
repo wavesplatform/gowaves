@@ -75,6 +75,26 @@ func TestMerkleTreeRebuildRoot(t *testing.T) {
 		{2, "6tt3obq44UqC4QwLhrKX2KsXV9GRBfhiNvzor2BQfgYZ", "GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9", []string{"q1u2PJhro1cwZw5mUuujXm94f245tGS5vbP5yNwLbEv", "75Aaexax3uEQNg5HAb137jC3TK64RG1S6xrBGvuupWXp", "7jsrwD9Xi7TjVoksaV1CDDUWYhFaz7HQmAoWwLEiZa6D"}},
 		{3, "6tt3obq44UqC4QwLhrKX2KsXV9GRBfhiNvzor2BQfgYZ", "7jsrwD9Xi7TjVoksaV1CDDUWYhFaz7HQmAoWwLEiZa6D", []string{"q1u2PJhro1cwZw5mUuujXm94f245tGS5vbP5yNwLbEv", "75Aaexax3uEQNg5HAb137jC3TK64RG1S6xrBGvuupWXp", "GemGCop1arCvTY447FLH8tDQF7knvzNCocNTHqKQBus9"}},
 		{4, "6tt3obq44UqC4QwLhrKX2KsXV9GRBfhiNvzor2BQfgYZ", "HujdCWdbCbGyzriVW8Aeu6ojcZaghwJNwSotqJmt2CcU", []string{"2AYMXo9fKWK6swVeAx4DnLuW2wKP8u3S8Ypax6MVWkNh", "D4bn122GiEqs99z526GdhYETJqctLHGSmWokypEo9qu", "D4bn122GiEqs99z526GdhYETJqctLHGSmWokypEo9qu"}},
+		// next testcase taken from stagenet transaction "7Sdny5J2gq1JF5BNPWWdibMneGEQa7FSV9WFyBfU5yrL"
+		// checked 'Merkle.createRoot' method in scala node
+		// tests in "Waves/lang/tests/src/test/scala/com/wavesplatform/utils/MerkleTest.scala"
+		{
+			0,
+			"DSo8BedisrwWBPttDGPGnAeLRS8685gCVdHkKPQbHnRG",
+			"DcasUHxyPk3bYLZs5h17SjZJAP4uUEzjkycboi4YAXGD",
+			[]string{
+				"D4bn122GiEqs99z526GdhYETJqctLHGSmWokypEo9qu",
+				"DqspFkHCwkUdN8FsHkzVEGtfzhycFPgNNyi7YeMQunpR",
+				"9YapWwCMpJaytFUaSnBwGpHsuGuixtnChpPyzSZeQCC7",
+				"9CorA9cjXNdDQ3dxMk5aL4myMBELVdX1FH5RrJ6RTtG8",
+				"J1ZLoKt7wsX2oCXtWYrtaCxKJZyL1ZyZXYgVBXPhXtKh",
+				"Fm8onvGicJFTfPcBgRXMHY863HhPHHi3huHKCoBeyBFC",
+				"9jvzHEcg5NTgXAxyxtbSS3Qq9Zp84gcZ5WJTJWSZeGNr",
+				"32XGrpXv46NtBcHjaygGdwn1KqHqen3oNJSmRCAt7waN",
+				"2FM86QERU97ewCicP3NiYPKEDYe7jrriHFn9NSKgo3mE",
+				"6ze4HCcxj7gpjzAuE9Tco3nLU186mC6FAUZFbyuSVjaj",
+			},
+		},
 	} {
 		r, err := NewDigestFromBase58(test.root)
 		require.NoError(t, err)

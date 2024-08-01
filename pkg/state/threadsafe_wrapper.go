@@ -22,6 +22,12 @@ func (a *ThreadSafeReadWrapper) HitSourceAtHeight(height proto.Height) ([]byte, 
 	return a.s.HitSourceAtHeight(height)
 }
 
+func (a *ThreadSafeReadWrapper) BlockVRF(blockHeader *proto.BlockHeader, blockHeight proto.Height) ([]byte, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.BlockVRF(blockHeader, blockHeight)
+}
+
 func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (interface{}, error)) (interface{}, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -386,6 +392,12 @@ func (a *ThreadSafeReadWrapper) TotalWavesAmount(height proto.Height) (uint64, e
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.TotalWavesAmount(height)
+}
+
+func (a *ThreadSafeReadWrapper) BlockRewards(generator proto.WavesAddress, height proto.Height) (proto.Rewards, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.BlockRewards(generator, height)
 }
 
 func (a *ThreadSafeReadWrapper) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {

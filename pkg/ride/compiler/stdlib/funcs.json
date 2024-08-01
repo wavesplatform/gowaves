@@ -2623,6 +2623,17 @@
             "return_type": "Int",
             "id": "901"
           }
+        ],
+        "replaceByIndex": [
+          {
+              "arguments": [
+                "List[Any]",
+                "Int",
+                "Any"
+              ],
+              "return_type": "List[Any]",
+              "id": "1106"
+          }
         ]
       },
       "remove": []
