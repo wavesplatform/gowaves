@@ -3,15 +3,15 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/nats-io/nats.go"
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"log"
 	"os"
 	"os/signal"
 	"syscall"
+
+	"github.com/nats-io/nats.go"
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func printBlockInfo(blockInfoProto *g.BlockInfo) error {
@@ -19,8 +19,11 @@ func printBlockInfo(blockInfoProto *g.BlockInfo) error {
 	if err != nil {
 		return err
 	}
-	blockInfoJson, err := json.Marshal(blockInfo)
-	fmt.Println(string(blockInfoJson))
+	blockInfoJSON, err := json.Marshal(blockInfo)
+	if err != nil {
+		return err
+	}
+	log.Println(string(blockInfoJSON))
 	return nil
 }
 
@@ -29,8 +32,11 @@ func printContractInfo(contractInfoProto *g.L2ContractDataEntries, scheme proto.
 	if err != nil {
 		return err
 	}
-	contractInfoJson, err := json.Marshal(contractInfo)
-	fmt.Println(string(contractInfoJson))
+	contractInfoJSON, err := json.Marshal(contractInfo)
+	if err != nil {
+		return err
+	}
+	log.Println(string(contractInfoJSON))
 	return nil
 }
 
@@ -41,14 +47,16 @@ func main() {
 	// Connect to a NATS server
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		log.Fatal(err)
+		log.Print(err)
+		return
 	}
 	defer nc.Close()
 
 	_, err = nc.Subscribe(blockchaininfo.BlockUpdates, func(msg *nats.Msg) {
 		blockUpdatesInfo := new(g.BlockInfo)
-		err := blockUpdatesInfo.UnmarshalVT(msg.Data)
-		if err != nil {
+		unmrshlErr := blockUpdatesInfo.UnmarshalVT(msg.Data)
+		if unmrshlErr != nil {
+			log.Printf("failed to unmarshal block updates, %v", unmrshlErr)
 			return
 		}
 
@@ -59,12 +67,14 @@ func main() {
 		log.Printf("Received on %s:\n", msg.Subject)
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("failed to subscribe to block updates, %v", err)
+		return
 	}
 	_, err = nc.Subscribe(blockchaininfo.ContractUpdates, func(msg *nats.Msg) {
 		contractUpdatesInfo := new(g.L2ContractDataEntries)
-		err := contractUpdatesInfo.UnmarshalVT(msg.Data)
-		if err != nil {
+		unmrshlErr := contractUpdatesInfo.UnmarshalVT(msg.Data)
+		if unmrshlErr != nil {
+			log.Printf("failed to unmarshal contract updates, %v", unmrshlErr)
 			return
 		}
 		log.Printf("Received on %s:\n", msg.Subject)
@@ -75,7 +85,8 @@ func main() {
 		}
 	})
 	if err != nil {
-		log.Fatal(err)
+		log.Printf("failed to subscribe to contract updates, %v", err)
+		return
 	}
 	<-ctx.Done()
 	log.Println("Terminations of nats subscriber")

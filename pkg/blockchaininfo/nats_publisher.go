@@ -2,12 +2,17 @@ package blockchaininfo
 
 import (
 	"context"
-	"fmt"
+	"log"
+
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"log"
 )
+
+const StoreBlocksLimit = 2000
+const PortDefault = 4222
+const HostDefault = "127.0.0.1"
+const ConnectionsTimeoutDefault = 5 * server.AUTH_TIMEOUT
 
 type BUpdatesExtensionState struct {
 	currentState  *BUpdatesInfo
@@ -46,10 +51,10 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 		log.Printf("failed to publish message on topic %s", BlockUpdates)
 		return err
 	}
-	fmt.Printf("Published on topic: %s\n", BlockUpdates)
+	log.Printf("Published on topic: %s\n", BlockUpdates)
 
 	/* second publish contract data entries */
-	dataEntries := L2ContractDataEntriesToProto(updates.AllDataEntries)
+	dataEntries := L2ContractDataEntriesToProto(updates.ContractUpdatesInfo.AllDataEntries)
 	dataEntriesProtobuf, err := dataEntries.MarshalVTStrict()
 	if err != nil {
 		return err
@@ -60,26 +65,67 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 			log.Printf("failed to publish message on topic %s", ContractUpdates)
 			return err
 		}
-		fmt.Printf("Published on topic: %s\n", ContractUpdates)
+		log.Printf("Published on topic: %s\n", ContractUpdates)
 	}
 
 	return nil
 }
 
-func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme) {
+func handleBlockchainUpdates(updates BUpdatesInfo, ok bool,
+	bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
+	if !ok {
+		log.Printf("the updates channel for publisher was closed")
+		return
+	}
+	// update current state
+	bu.currentState = &updates
+	// compare the current state to the previous state
+	stateChanged, cmprErr := bu.hasStateChanged()
+	if cmprErr != nil {
+		log.Printf("failed to compare current and previous states, %v", cmprErr)
+		return
+	}
+	// if there is any diff, send the update
+	if stateChanged {
+		pblshErr := bu.publishUpdates(updates, nc, scheme)
+		log.Printf("published")
+		if pblshErr != nil {
+			log.Printf("failed to publish updates, %v", pblshErr)
+		}
+		bu.previousState = &updates
+	}
+}
+
+func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
+	bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
+	func(ctx context.Context, updatesChannel <-chan BUpdatesInfo) {
+		for {
+			select {
+			case updates, ok := <-updatesChannel:
+				handleBlockchainUpdates(updates, ok, bu, scheme, nc)
+
+			case <-ctx.Done():
+				return
+			}
+		}
+	}(ctx, updatesChannel)
+}
+
+func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
+	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme) {
 	opts := &server.Options{
-		Host: "127.0.0.1",
-		Port: 4222,
+		Host: HostDefault,
+		Port: PortDefault,
 	}
 	s, err := server.NewServer(opts)
 	if err != nil {
 		log.Fatalf("failed to create NATS server: %v", err)
 	}
 	go s.Start()
-	if !s.ReadyForConnections(5 * server.AUTH_TIMEOUT) {
+	if !s.ReadyForConnections(ConnectionsTimeoutDefault) {
 		log.Fatal("NATS Server not ready for connections")
 	}
-	log.Printf("NATS Server is running on port %d", 4222)
+	log.Printf("NATS Server is running on port %d", PortDefault)
 
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
@@ -87,36 +133,5 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 	}
 	defer nc.Close()
 
-	func(ctx context.Context, updatesChannel <-chan BUpdatesInfo) {
-		for {
-			select {
-			case updates, ok := <-updatesChannel:
-				if !ok {
-					log.Printf("the updates channel for publisher was closed")
-					return
-				}
-				// update current state
-				bu.currentState = &updates
-				// compare the current state to the previous state
-				stateChanged, err := bu.hasStateChanged()
-				if err != nil {
-					log.Printf("failed to compare current and previous states, %v", err)
-					return
-				}
-				// if there is any diff, send the update
-				fmt.Println(stateChanged)
-				if stateChanged {
-					err := bu.publishUpdates(updates, nc, scheme)
-					log.Printf("published")
-					if err != nil {
-						log.Printf("failed to publish updates")
-					}
-					bu.previousState = &updates
-				}
-
-			case <-ctx.Done():
-				return
-			}
-		}
-	}(ctx, updatesChannel)
+	runPublisher(ctx, updatesChannel, bu, scheme, nc)
 }

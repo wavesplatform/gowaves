@@ -835,9 +835,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// TODO possibly run it in a goroutine? make sure goroutines run in order?
 	if a.bUpdatesExtension != nil {
 		if a.bUpdatesExtension.EnableBlockchainUpdatesPlugin {
-			err := a.updateBlockchainUpdateInfo(blockInfo, params.block)
-			if err != nil {
-				return err
+			updtErr := a.updateBlockchainUpdateInfo(blockInfo, params.block)
+			if updtErr != nil {
+				return updtErr
 			}
 		}
 	}
@@ -868,15 +868,17 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 	if err != nil && !errors.Is(err, proto.ErrNotFound) {
 		return err
 	}
-
 	bUpdatesInfo := blockchaininfo.BUpdatesInfo{
-		Height:         blockInfo.Height,
-		VRF:            blockInfo.VRF,
-		BlockID:        blockHeader.BlockID(),
-		BlockHeader:    blockHeader,
-		AllDataEntries: dataEntries,
+		BlockUpdatesInfo: blockchaininfo.BlockUpdatesInfo{
+			Height:      blockInfo.Height,
+			VRF:         blockInfo.VRF,
+			BlockID:     blockHeader.BlockID(),
+			BlockHeader: blockHeader,
+		},
+		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+			AllDataEntries: dataEntries,
+		},
 	}
-
 	a.bUpdatesExtension.BUpdatesChannel <- bUpdatesInfo
 	return nil
 }

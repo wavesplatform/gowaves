@@ -1,14 +1,15 @@
 package blockchaininfo
 
 import (
-	"github.com/nats-io/nats-server/v2/server"
 	"log"
+
+	"github.com/nats-io/nats-server/v2/server"
 )
 
 func RunBlockchainUpdatesServer() {
 	opts := &server.Options{
-		Host: "127.0.0.1",
-		Port: 4222,
+		Host: HostDefault,
+		Port: PortDefault,
 	}
 	s, err := server.NewServer(opts)
 	if err != nil {
@@ -17,7 +18,7 @@ func RunBlockchainUpdatesServer() {
 
 	go s.Start()
 
-	if !s.ReadyForConnections(10 * server.AUTH_TIMEOUT) {
+	if !s.ReadyForConnections(ConnectionsTimeoutDefault) {
 		log.Fatal("NATS Server not ready for connections")
 	}
 

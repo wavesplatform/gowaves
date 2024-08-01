@@ -6,7 +6,6 @@ import (
 	"errors"
 	"flag"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"math"
 	"math/big"
 	"net/http"
@@ -19,10 +18,8 @@ import (
 	"time"
 
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
-
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
@@ -49,6 +46,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"github.com/wavesplatform/gowaves/pkg/versioning"
 	"github.com/wavesplatform/gowaves/pkg/wallet"
+	"go.uber.org/zap"
+	"go.uber.org/zap/zapcore"
 )
 
 const (
@@ -394,10 +393,11 @@ func main() {
 	var bUpdatesExtension *state.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
 		updatesChannel := make(chan blockchaininfo.BUpdatesInfo)
-		bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(2000, cfg.AddressSchemeCharacter)
+		bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(blockchaininfo.StoreBlocksLimit,
+			cfg.AddressSchemeCharacter)
 
-		l2address, err := proto.NewAddressFromString("3MsqKJ6o1ABE37676cHHBxJRs6huYTt72ch")
-		if err != nil {
+		l2address, cnvrtErr := proto.NewAddressFromString("3MsqKJ6o1ABE37676cHHBxJRs6huYTt72ch")
+		if cnvrtErr != nil {
 			zap.S().Errorf("Failed to initialize L2 contract address")
 			return
 		}

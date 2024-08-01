@@ -2,10 +2,11 @@ package blockchaininfo
 
 import (
 	"bytes"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-// block updates
+// Block updates.
 type BlockUpdatesInfo struct {
 	Height      uint64             `json:"height"`
 	VRF         proto.B58Bytes     `json:"vrf"`
@@ -13,32 +14,29 @@ type BlockUpdatesInfo struct {
 	BlockHeader *proto.BlockHeader `json:"block_header"`
 }
 
-// l2 contract data entries
+// L2 contract data entries.
 type L2ContractDataEntries struct {
 	AllDataEntries []proto.DataEntry `json:"all_data_entries"`
 }
 
 type BUpdatesInfo struct {
-	Height         uint64
-	VRF            proto.B58Bytes
-	BlockID        proto.BlockID
-	BlockHeader    *proto.BlockHeader
-	AllDataEntries []proto.DataEntry
+	BlockUpdatesInfo    BlockUpdatesInfo
+	ContractUpdatesInfo L2ContractDataEntries
 }
 
-// TODO wrap errors
+// TODO wrap errors.
 
 func compareBUpdatesInfo(a, b BUpdatesInfo, scheme proto.Scheme) (bool, error) {
-	if a.Height != b.Height {
+	if a.BlockUpdatesInfo.Height != b.BlockUpdatesInfo.Height {
 		return false, nil
 	}
-	if !bytes.Equal(a.VRF, b.VRF) {
+	if !bytes.Equal(a.BlockUpdatesInfo.VRF, b.BlockUpdatesInfo.VRF) {
 		return false, nil
 	}
-	if !bytes.Equal(a.BlockID.Bytes(), b.BlockID.Bytes()) {
+	if !bytes.Equal(a.BlockUpdatesInfo.BlockID.Bytes(), b.BlockUpdatesInfo.BlockID.Bytes()) {
 		return false, nil
 	}
-	equalHeaders, err := compareBlockHeader(a.BlockHeader, b.BlockHeader, scheme)
+	equalHeaders, err := compareBlockHeader(a.BlockUpdatesInfo.BlockHeader, b.BlockUpdatesInfo.BlockHeader, scheme)
 	if err != nil {
 		return false, err
 	}
@@ -46,7 +44,7 @@ func compareBUpdatesInfo(a, b BUpdatesInfo, scheme proto.Scheme) (bool, error) {
 		return false, nil
 	}
 
-	equalEntries, err := compareDataEntries(a.AllDataEntries, b.AllDataEntries)
+	equalEntries, err := compareDataEntries(a.ContractUpdatesInfo.AllDataEntries, b.ContractUpdatesInfo.AllDataEntries)
 	if err != nil {
 		return false, err
 	}

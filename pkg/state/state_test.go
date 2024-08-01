@@ -72,12 +72,14 @@ func TestHandleAmendFlag(t *testing.T) {
 
 	// open with false amend again. Result amend should be true
 	assert.NoError(t, manager.Close(), "manager.Close() failed")
-	manager, err = newStateManager(dataDir, false, DefaultTestingStateParams(), settings.MainNetSettings, false, nil)
+	manager, err = newStateManager(dataDir, false, DefaultTestingStateParams(), settings.MainNetSettings,
+		false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.True(t, manager.stor.hs.amend)
 
 	// first open with true amend
-	newManager, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings, false, nil)
+	newManager, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), settings.MainNetSettings,
+		false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	t.Cleanup(func() {
 		assert.NoError(t, newManager.Close(), "newManager.Close() failed")

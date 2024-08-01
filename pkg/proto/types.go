@@ -3204,9 +3204,9 @@ func (e *DataEntries) UnmarshalJSON(data []byte) error {
 
 	entries := make([]DataEntry, len(ets))
 	for i, row := range ets {
-		et, err := GuessDataEntryType(row)
-		if err != nil {
-			return wrapError(err)
+		et, guessErr := GuessDataEntryType(row)
+		if guessErr != nil {
+			return wrapError(guessErr)
 		}
 		entries[i] = et
 	}

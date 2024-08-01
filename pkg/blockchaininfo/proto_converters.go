@@ -7,33 +7,32 @@ import (
 )
 
 func BUpdatesInfoToProto(blockInfo BUpdatesInfo, scheme proto.Scheme) (*g.BlockInfo, error) {
-	blockHeader, err := blockInfo.BlockHeader.HeaderToProtobufHeader(scheme)
+	blockHeader, err := blockInfo.BlockUpdatesInfo.BlockHeader.HeaderToProtobufHeader(scheme)
 	if err != nil {
 		return nil, err
 	}
 	return &g.BlockInfo{
-		Height:      blockInfo.Height,
-		VRF:         blockInfo.VRF,
-		BlockID:     blockInfo.BlockID.Bytes(),
+		Height:      blockInfo.BlockUpdatesInfo.Height,
+		VRF:         blockInfo.BlockUpdatesInfo.VRF,
+		BlockID:     blockInfo.BlockUpdatesInfo.BlockID.Bytes(),
 		BlockHeader: blockHeader,
 	}, nil
 }
 
-func BUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (BUpdatesInfo, error) {
+func BUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (BlockUpdatesInfo, error) {
 	blockID, err := proto.NewBlockIDFromBytes(blockInfoProto.BlockID)
 	if err != nil {
-		return BUpdatesInfo{}, err
+		return BlockUpdatesInfo{}, err
 	}
 	blockHeader, err := proto.ProtobufHeaderToBlockHeader(blockInfoProto.BlockHeader)
 	if err != nil {
-		return BUpdatesInfo{}, err
+		return BlockUpdatesInfo{}, err
 	}
-	return BUpdatesInfo{
-		Height:         blockInfoProto.Height,
-		VRF:            blockInfoProto.VRF,
-		BlockID:        blockID,
-		BlockHeader:    blockHeader,
-		AllDataEntries: nil,
+	return BlockUpdatesInfo{
+		Height:      blockInfoProto.Height,
+		VRF:         blockInfoProto.VRF,
+		BlockID:     blockID,
+		BlockHeader: blockHeader,
 	}, nil
 }
 
@@ -48,7 +47,8 @@ func L2ContractDataEntriesToProto(dataEntries []proto.DataEntry) *g.L2ContractDa
 	}
 }
 
-func L2ContractDataEntriesFromProto(protoDataEntries *g.L2ContractDataEntries, scheme proto.Scheme) (L2ContractDataEntries, error) {
+func L2ContractDataEntriesFromProto(protoDataEntries *g.L2ContractDataEntries,
+	scheme proto.Scheme) (L2ContractDataEntries, error) {
 	converter := proto.ProtobufConverter{FallbackChainID: scheme}
 	var dataEntries []proto.DataEntry
 	for _, protoEntry := range protoDataEntries.DataEntries {
