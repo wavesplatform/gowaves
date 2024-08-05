@@ -2,10 +2,15 @@ package ride
 
 import (
 	"math"
+	"math/big"
 	"testing"
 
+	"github.com/ericlagergren/decimal"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	rideMath "github.com/wavesplatform/gowaves/pkg/ride/math"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 func TestGE(t *testing.T) {
@@ -493,4 +498,108 @@ func TestSqrt(t *testing.T) {
 			assert.Equal(t, test.r, r)
 		}
 	}
+}
+
+func TestFraction2(t *testing.T) {
+	var minimum int64 = 245677
+	var scale8 int64 = 100000000
+	// let scaleOut = (Scale8 / tryGetInteger((("static_" + assetOut) + "_scale")))
+	// static_3VuV5WTmDz47Dmdn3QpcYjzbSdipjQE4JMdNe1xZpX13_scale at address 3P3EnYA57kMZ8kXVVThi1ZZApZeXUQHqtEe
+	scaleOut := rideMath.FloorDiv(scale8, int64(100000000))
+
+	// let AmountOut1 = calculateOutAmount(cleanAmountInScaled, AssetIn, AssetOut, AssetInBalanceScaled,
+	//		AssetOutBalanceScaled)
+	// func calculateOutAmount (AmountIn,assetIn,assetOut,BalanceIn,BalanceOut) = {
+	//    let IndexIn = value(indexOf(assetIds, assetIn))
+	//    let IndexOut = value(indexOf(assetIds, assetOut))
+	//    if ((IndexIn == IndexOut))
+	//        then AmountIn
+	//        else
+	//       	fraction(
+	//      		BalanceOut,
+	//     			(
+	//    				(Scale8 * Scale8) - toInt(
+	//   					pow(
+	//  						fraction(
+	// 								(toBigInt(BalanceIn) * toBigInt(10000)),
+	//								toBigInt((Scale8 * Scale8)),
+	//								(toBigInt((BalanceIn + AmountIn)) * toBigInt(10000)),
+	//								HALFUP
+	//							),
+	//							16,
+	//							toBigInt(
+	//								fraction(
+	//									AssetsWeights[IndexIn],
+	//									1000000000000,
+	//									AssetsWeights[IndexOut]
+	//								)
+	//							),
+	//							12,
+	//							16,
+	//							CEILING
+	//						)
+	//					)
+	//				),
+	//				(Scale8 * Scale8),
+	//				HALFEVEN
+	//			)
+	//    }
+
+	// let AssetInBalance = tryGetInteger((("global_" + getAssetString(AssetIn)) + "_balance"))
+	// global_WAVES_balance = 1589473206212; 1585309894785; 1581157450897
+	var assetInBalance int64 = 1581157450897
+	// let AssetOutBalance = tryGetInteger((("global_" + assetOut) + "_balance"))
+	// global_3VuV5WTmDz47Dmdn3QpcYjzbSdipjQE4JMdNe1xZpX13_balance = 599935580; 601550790;
+	var assetOutBalance int64 = 601550790
+
+	scaleIn := rideMath.FloorDiv(scale8, int64(100000000)) // static_WAVES_scale = 100000000
+
+	var amountIn int64 = 632699991
+
+	// let FeeScale = 10000
+	var feeScale int64 = 10_000
+	// static_fee =50
+	var fee int64 = 50
+	// let feeAmountIn = fraction(AmountIn, Fee, FeeScale)
+	feeAmountIn, err := rideMath.Fraction(amountIn, fee, feeScale)
+	require.NoError(t, err)
+	cleanAmount := amountIn - feeAmountIn
+	cleanAmountInScaled, err := common.MulInt(cleanAmount, scaleIn) // TODO: get value
+	require.NoError(t, err)
+
+	// let AssetInBalance = tryGetInteger((("global_" + getAssetString(AssetIn)) + "_balance"))
+	// let AssetOutBalance = tryGetInteger((("global_" + assetOut) + "_balance"))
+	// let AssetInBalanceScaled = (AssetInBalance * scaleIn)
+	// let AssetOutBalanceScaled = (AssetOutBalance * scaleOut)
+	assetInBalanceScaled, err := common.MulInt(assetInBalance, scaleIn)
+	require.NoError(t, err)
+	assetOutBalanceScaled, err := common.MulInt(assetOutBalance, scaleOut)
+	require.NoError(t, err)
+
+	quadScale := big.NewInt(scale8 * scale8)
+	m10k := big.NewInt(10_000)
+	b1 := big.NewInt(assetInBalanceScaled)
+	b1.Mul(b1, m10k)
+	b2 := big.NewInt(assetInBalanceScaled + cleanAmountInScaled)
+	b2.Mul(b2, m10k)
+	b, err := fractionBigIntLikeInScala(b1, quadScale, b2, decimal.ToNearestAway)
+	require.NoError(t, err)
+
+	var assetWeightIn int64 = 3400  // static_WAVES_weight = 3400
+	var assetWeightOut int64 = 3300 // static_3VuV5WTmDz47Dmdn3QpcYjzbSdipjQE4JMdNe1xZpX13_weight = 3300
+	d, err := rideMath.Fraction(assetWeightIn, 1000000000000, assetWeightOut)
+	require.NoError(t, err)
+
+	a, err := rideMath.PowBigInt(b, big.NewInt(d), 16, 12, 16, decimal.ToPositiveInf)
+	require.NoError(t, err)
+	x := big.NewInt(0)
+	x.Sub(quadScale, a)
+	amountOut1, err := fractionBigIntLikeInScala(big.NewInt(assetOutBalanceScaled), x, quadScale, decimal.ToNearestEven)
+	require.NoError(t, err)
+
+	// let AmountOut = fraction(AmountOut1, 1, scaleOut)
+	amountOut, err := rideMath.Fraction(amountOut1.Int64(), 1, scaleOut)
+	assert.NoError(t, err)
+	assert.True(t, minimum <= amountOut)
+	assert.Equal(t, int64(246665), amountOut)
 }
