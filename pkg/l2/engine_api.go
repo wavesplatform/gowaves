@@ -3,6 +3,7 @@ package l2
 import (
 	"context"
 	"fmt"
+	"net/url"
 
 	"github.com/ybbus/jsonrpc/v3"
 
@@ -16,12 +17,17 @@ type EngineAPIClient struct {
 type EngineAPIOpts struct {
 	Address string
 	Port    string
+	Scheme  string
 
 	JWTToken string
 }
 
 func NewEngineAPIClient(opts EngineAPIOpts) *EngineAPIClient {
-	rpcClient := jsonrpc.NewClientWithOpts("http://"+opts.Address+":"+opts.Port, &jsonrpc.RPCClientOpts{
+	u := url.URL{
+		Host:   opts.Address + ":" + opts.Port,
+		Scheme: opts.Scheme,
+	}
+	rpcClient := jsonrpc.NewClientWithOpts(u.String(), &jsonrpc.RPCClientOpts{
 		CustomHeaders: map[string]string{
 			"Authorization": "Bearer " + opts.JWTToken,
 		},

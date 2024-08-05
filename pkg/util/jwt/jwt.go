@@ -7,17 +7,36 @@ import (
 	"path/filepath"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/golang-jwt/jwt/v4"
 )
 
+const (
+	jwtHexSize = 64
+	jwtSize    = 32
+)
+
 func GenerateJWTToken(jwtSecretPath string) (string, error) {
-	jwtHex, err := os.ReadFile(filepath.Clean(jwtSecretPath))
+	jwtFile, err := os.Open(filepath.Clean(jwtSecretPath))
 	if err != nil {
-		return "", fmt.Errorf("failed to read JWT secret: %w", err)
+		return "", fmt.Errorf("failed to open JWT secret file: %w", err)
 	}
 
-	var jwtSecret [32]byte
-	if _, errHex := hex.Decode(jwtSecret[:], jwtHex); errHex != nil {
+	defer func() {
+		if clErr := jwtFile.Close(); clErr != nil {
+			zap.S().Errorf("Failed to close jwt secret: %v", clErr)
+		}
+	}()
+
+	var jwtHex [jwtHexSize]byte
+	_, err = jwtFile.Read(jwtHex[:])
+	if err != nil {
+		return "", fmt.Errorf("failed to read jwt secret: %w", err)
+	}
+
+	var jwtSecret [jwtSize]byte
+	if _, errHex := hex.Decode(jwtSecret[:], jwtHex[:]); errHex != nil {
 		return "", fmt.Errorf("failed to decode JWT secret from hex: %w", errHex)
 	}
 

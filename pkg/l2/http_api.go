@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"math/big"
+	"net/url"
 
 	"github.com/ybbus/jsonrpc/v3"
 
@@ -17,10 +18,15 @@ type HTTPAPIClient struct {
 type HTTPAPIOpts struct {
 	Address string
 	Port    string
+	Scheme  string
 }
 
 func NewHTTPAPIClient(opts HTTPAPIOpts) *HTTPAPIClient {
-	rpcClient := jsonrpc.NewClient("http://" + opts.Address + ":" + opts.Port)
+	u := url.URL{
+		Host:   opts.Address + ":" + opts.Port,
+		Scheme: opts.Scheme,
+	}
+	rpcClient := jsonrpc.NewClient(u.String())
 	return &HTTPAPIClient{
 		rpcClient: rpcClient,
 	}
