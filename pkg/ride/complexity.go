@@ -1,32 +1,116 @@
 package ride
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"fmt"
+
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type complexityCalculator interface {
-	overflow() bool
+	error() error
 	complexity() int
 	limit() int
-	testNativeFunctionComplexity(int) (bool, int)
-	addNativeFunctionComplexity(int)
-	testAdditionalUserFunctionComplexity(int) (bool, int)
-	addAdditionalUserFunctionComplexity(int)
-	testConditionalComplexity() (bool, int)
+	testNativeFunctionComplexity(string, int) error
+	addNativeFunctionComplexity(string, int)
+	testAdditionalUserFunctionComplexity(string, int) error
+	addAdditionalUserFunctionComplexity(string, int)
+	testConditionalComplexity() error
 	addConditionalComplexity()
-	testReferenceComplexity() (bool, int)
+	testReferenceComplexity() error
 	addReferenceComplexity()
-	testPropertyComplexity() (bool, int)
+	testPropertyComplexity() error
 	addPropertyComplexity()
 	setLimit(limit uint32)
 }
 
-func newComplexityCalculator(lib ast.LibraryVersion, limit uint32) complexityCalculator {
-	if lib >= ast.LibV6 {
-		return &complexityCalculatorV2{l: int(limit)}
+type complexityCalculatorError interface {
+	error
+	EvaluationErrorWrapType() EvaluationError
+}
+
+type integerOverflowError struct {
+	name                 string
+	nodeComplexity       int
+	calculatorComplexity int
+	innerError           error
+}
+
+func newIntegerOverflowError(
+	name string,
+	nodeComplexity int,
+	calculatorComplexity int,
+	innerError error,
+) integerOverflowError {
+	return integerOverflowError{
+		name:                 name,
+		nodeComplexity:       nodeComplexity,
+		calculatorComplexity: calculatorComplexity,
+		innerError:           innerError,
 	}
-	return &complexityCalculatorV1{l: int(limit)}
+}
+
+func (i integerOverflowError) Unwrap() error {
+	return i.innerError
+}
+
+func (i integerOverflowError) Error() string {
+	return fmt.Sprintf("node '%s' with complexity %d has overflowed integer calculator complexity %d: %v",
+		i.name,
+		i.nodeComplexity,
+		i.calculatorComplexity,
+		i.innerError,
+	)
+}
+
+func (i integerOverflowError) EvaluationErrorWrapType() EvaluationError {
+	return ComplexityLimitExceed // compatibility with the old implementation
+}
+
+type complexityLimitExceededError struct {
+	name                 string
+	nodeComplexity       int
+	calculatorComplexity int
+	complexityLimit      int
+}
+
+func newComplexityLimitOverflowError(
+	name string,
+	nodeComplexity int,
+	calculatorComplexity int,
+	limit int,
+) complexityLimitExceededError {
+	return complexityLimitExceededError{
+		name:                 name,
+		nodeComplexity:       nodeComplexity,
+		calculatorComplexity: calculatorComplexity,
+		complexityLimit:      limit,
+	}
+}
+
+func (o complexityLimitExceededError) EvaluationErrorWrapType() EvaluationError {
+	return ComplexityLimitExceed
+}
+
+func (o complexityLimitExceededError) Error() string {
+	return fmt.Sprintf("node '%s' with complexity %d has exceeded the complexity limit %d with result complexity %d",
+		o.name, o.nodeComplexity, o.complexityLimit, o.calculatorComplexity,
+	)
+}
+
+type zeroComplexityError struct {
+	name string
+}
+
+func newZeroComplexityError(name string) zeroComplexityError {
+	return zeroComplexityError{name: name}
+}
+
+func (z zeroComplexityError) EvaluationErrorWrapType() EvaluationError {
+	return EvaluationFailure
+}
+
+func (z zeroComplexityError) Error() string {
+	return fmt.Sprintf("node '%s' has zero complexity", z.name)
 }
 
 func newComplexityCalculatorByRideV6Activation(rideV6 bool) complexityCalculator {
@@ -37,13 +121,13 @@ func newComplexityCalculatorByRideV6Activation(rideV6 bool) complexityCalculator
 }
 
 type complexityCalculatorV1 struct {
-	o bool
-	c int
-	l int
+	err complexityCalculatorError
+	c   int
+	l   int
 }
 
-func (cc *complexityCalculatorV1) overflow() bool {
-	return cc.o
+func (cc *complexityCalculatorV1) error() error {
+	return cc.err
 }
 
 func (cc *complexityCalculatorV1) complexity() int {
@@ -54,66 +138,80 @@ func (cc *complexityCalculatorV1) limit() int {
 	return cc.l
 }
 
-func (cc *complexityCalculatorV1) testNativeFunctionComplexity(fc int) (bool, int) {
+func (cc *complexityCalculatorV1) testNativeFunctionComplexity(name string, fc int) error {
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
-		return false, nc
+		return newIntegerOverflowError(name, fc, cc.complexity(), err)
 	}
-	return nc <= cc.l, nc
+	if nc > cc.l {
+		return newComplexityLimitOverflowError(name, fc, nc, cc.limit())
+	}
+	return nil
 }
 
-func (cc *complexityCalculatorV1) addNativeFunctionComplexity(fc int) {
+func (cc *complexityCalculatorV1) addNativeFunctionComplexity(name string, fc int) {
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
-		cc.o = true
+		cc.err = newIntegerOverflowError(name, fc, cc.complexity(), err)
 	}
 	cc.c = nc
 }
 
-func (cc *complexityCalculatorV1) testAdditionalUserFunctionComplexity(int) (bool, int) {
-	return true, cc.c
+func (cc *complexityCalculatorV1) testAdditionalUserFunctionComplexity(string, int) error {
+	return nil
 }
 
-func (cc *complexityCalculatorV1) addAdditionalUserFunctionComplexity(int) {}
+func (cc *complexityCalculatorV1) addAdditionalUserFunctionComplexity(string, int) {}
 
-func (cc *complexityCalculatorV1) testOne() (bool, int) {
-	nc, err := common.AddInt(cc.c, 1)
+func (cc *complexityCalculatorV1) testOne(name string) error {
+	const complexity = 1
+	nc, err := common.AddInt(cc.c, complexity)
 	if err != nil {
-		return false, nc
+		return newIntegerOverflowError(name, complexity, cc.complexity(), err)
 	}
-	return nc <= cc.l, nc
+	if nc > cc.l {
+		return newComplexityLimitOverflowError(name, complexity, nc, cc.limit())
+	}
+	return nil
 }
 
-func (cc *complexityCalculatorV1) addOne() {
-	nc, err := common.AddInt(cc.c, 1)
+func (cc *complexityCalculatorV1) addOne(name string) {
+	const complexity = 1
+	nc, err := common.AddInt(cc.c, complexity)
 	if err != nil {
-		cc.o = true
+		cc.err = newIntegerOverflowError(name, complexity, cc.complexity(), err)
 	}
 	cc.c = nc
 }
 
-func (cc *complexityCalculatorV1) testConditionalComplexity() (bool, int) {
-	return cc.testOne()
+const (
+	conditionalNodeCodeName  = "<conditional_node>"
+	referenceNodeCodeName    = "<reference_node>"
+	propertyNodeCallCodeName = "<property_node>"
+)
+
+func (cc *complexityCalculatorV1) testConditionalComplexity() error {
+	return cc.testOne(conditionalNodeCodeName)
 }
 
 func (cc *complexityCalculatorV1) addConditionalComplexity() {
-	cc.addOne()
+	cc.addOne(conditionalNodeCodeName)
 }
 
-func (cc *complexityCalculatorV1) testReferenceComplexity() (bool, int) {
-	return cc.testOne()
+func (cc *complexityCalculatorV1) testReferenceComplexity() error {
+	return cc.testOne(referenceNodeCodeName)
 }
 
 func (cc *complexityCalculatorV1) addReferenceComplexity() {
-	cc.addOne()
+	cc.addOne(referenceNodeCodeName)
 }
 
-func (cc *complexityCalculatorV1) testPropertyComplexity() (bool, int) {
-	return cc.testOne()
+func (cc *complexityCalculatorV1) testPropertyComplexity() error {
+	return cc.testOne(propertyNodeCallCodeName)
 }
 
 func (cc *complexityCalculatorV1) addPropertyComplexity() {
-	cc.addOne()
+	cc.addOne(propertyNodeCallCodeName)
 }
 
 func (cc *complexityCalculatorV1) setLimit(limit uint32) {
@@ -121,13 +219,13 @@ func (cc *complexityCalculatorV1) setLimit(limit uint32) {
 }
 
 type complexityCalculatorV2 struct {
-	o bool
-	c int
-	l int
+	err complexityCalculatorError
+	c   int
+	l   int
 }
 
-func (cc *complexityCalculatorV2) overflow() bool {
-	return cc.o
+func (cc *complexityCalculatorV2) error() error {
+	return cc.err
 }
 
 func (cc *complexityCalculatorV2) complexity() int {
@@ -138,63 +236,78 @@ func (cc *complexityCalculatorV2) limit() int {
 	return cc.l
 }
 
-func (cc *complexityCalculatorV2) testNativeFunctionComplexity(fc int) (bool, int) {
+func (cc *complexityCalculatorV2) testNativeFunctionComplexity(name string, fc int) error {
+	if fc == 0 { // sanity check: zero complexity for functions is not allowed since Ride V6
+		return newZeroComplexityError(name)
+	}
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
-		return false, nc
+		return newIntegerOverflowError(name, fc, cc.complexity(), err)
 	}
-	return nc <= cc.l, nc
+	if nc > cc.l {
+		return newComplexityLimitOverflowError(name, fc, nc, cc.limit())
+	}
+	return nil
 }
 
-func (cc *complexityCalculatorV2) addNativeFunctionComplexity(fc int) {
+func (cc *complexityCalculatorV2) addNativeFunctionComplexity(name string, fc int) {
+	if fc == 0 { // sanity check: zero complexity for functions is not allowed since Ride V6
+		cc.err = newZeroComplexityError(name)
+		return // don't add zero complexity
+	}
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
-		cc.o = true
+		cc.err = newIntegerOverflowError(name, fc, cc.complexity(), err)
 	}
 	cc.c = nc
 }
 
-func (cc *complexityCalculatorV2) testAdditionalUserFunctionComplexity(ic int) (bool, int) {
+func (cc *complexityCalculatorV2) testAdditionalUserFunctionComplexity(name string, ic int) error {
 	// In case of no complexity spent in the user function we don't have to test the new complexity value.
 	// Just return `true` and current complexity.
 	// That means we can safely call companion function `addAdditionalUserFunctionComplexity`.
 	if ic == cc.c {
-		return true, cc.c
+		return nil
 	}
-	nc, err := common.AddInt(cc.c, 1)
+	const additionalComplexity = 1
+	nc, err := common.AddInt(cc.c, additionalComplexity)
 	if err != nil {
-		return false, nc
+		return newIntegerOverflowError(name, additionalComplexity, cc.complexity(), err)
 	}
-	return nc <= cc.l, nc
+	if nc > cc.l {
+		return newComplexityLimitOverflowError(name, additionalComplexity, nc, cc.limit())
+	}
+	return nil
 }
 
-func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity(ic int) {
+func (cc *complexityCalculatorV2) addAdditionalUserFunctionComplexity(name string, ic int) {
 	// The condition is opposite to the previous function because if complexity was spent in the user function
 	// we don't have to add additional 1.
 	if ic != cc.c {
 		return
 	}
-	nc, err := common.AddInt(cc.c, 1)
+	const additionalComplexity = 1
+	nc, err := common.AddInt(cc.c, additionalComplexity)
 	if err != nil {
-		cc.o = true
+		cc.err = newIntegerOverflowError(name, additionalComplexity, cc.complexity(), err)
 	}
 	cc.c = nc
 }
 
-func (cc *complexityCalculatorV2) testConditionalComplexity() (bool, int) {
-	return true, cc.c
+func (cc *complexityCalculatorV2) testConditionalComplexity() error {
+	return nil
 }
 
 func (cc *complexityCalculatorV2) addConditionalComplexity() {}
 
-func (cc *complexityCalculatorV2) testReferenceComplexity() (bool, int) {
-	return true, cc.c
+func (cc *complexityCalculatorV2) testReferenceComplexity() error {
+	return nil
 }
 
 func (cc *complexityCalculatorV2) addReferenceComplexity() {}
 
-func (cc *complexityCalculatorV2) testPropertyComplexity() (bool, int) {
-	return true, cc.c
+func (cc *complexityCalculatorV2) testPropertyComplexity() error {
+	return nil
 }
 
 func (cc *complexityCalculatorV2) addPropertyComplexity() {}

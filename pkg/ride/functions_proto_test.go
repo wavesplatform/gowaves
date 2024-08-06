@@ -859,7 +859,7 @@ func TestTransferByID(t *testing.T) {
 
 	for i, testCase := range testCases {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-			env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(ast.LibV5, 26000).
+			env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(26000).
 				withBlockV5Activated().withProtobufTx().
 				withDataEntriesSizeV2().withMessageLengthV3().
 				withValidateInternalPayments().withThis(dApp1).
