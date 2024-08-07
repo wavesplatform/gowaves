@@ -718,6 +718,7 @@ func (a *txAppender) appendTxs(
 				"failed to calculate tx snapshot hash for txID %q at height %d", base58.Encode(txID), blockInfo.Height,
 			)
 		}
+		zap.L().Info("tx snapshot hash", zap.String("txID", base58.Encode(txID)), zap.String("hash", txSh.String()))
 		stateHash = txSh // update stateHash in order to accumulate state hashes into block snapshot hash
 	}
 	return bs, stateHash, nil
