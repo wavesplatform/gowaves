@@ -4,6 +4,7 @@ import (
 	"fmt"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -260,10 +261,24 @@ func (ds *diffState) addWavesBalance(key proto.AddressID, amount int64) error {
 	return errors.New("diff not found")
 }
 
+const (
+	targetAddress = "3PGFHzVGT4NTigwCKP1NcwoXkodVZwvBuuU"
+	targetAsset   = "9wc3LXNA4TEBsXyKtoLE9mrbDD7WMHXvXrCjZvabLAsi"
+)
+
+var targetKey = func() assetBalanceKey {
+	addr := proto.MustAddressFromString(targetAddress)
+	asset := crypto.MustDigestFromBase58(targetAsset)
+	return assetBalanceKey{id: addr.ID(), asset: asset}
+}()
+
 func (ds *diffState) loadAssetBalance(key assetBalanceKey) (assetBalance, error) {
 	// Look up for local diff for the account
 	if b, ok := ds.assetBalances[key]; ok {
 		return b, nil
+	}
+	if key == targetKey {
+		zap.S().Infof("No balance diff found for addr='%s' and asset='%s', retrieve from state", targetAddress, targetAsset)
 	}
 	// In case of no balance diff found make new one from a full Waves balance from state
 	balance, err := ds.state.NewestAssetBalanceByAddressID(key.id, key.asset)
@@ -271,6 +286,9 @@ func (ds *diffState) loadAssetBalance(key assetBalanceKey) (assetBalance, error)
 		return 0, errors.Wrap(err, "failed to get asset balance from state")
 	}
 	b := assetBalance(balance)
+	if key == targetKey {
+		zap.S().Infof("Balance for addr='%s' and asset='%s' is %d", targetAddress, key.asset.String(), balance)
+	}
 	// Store new diff locally
 	ds.assetBalances[key] = b
 	return b, nil
@@ -283,6 +301,9 @@ func (ds *diffState) addAssetBalance(key assetBalanceKey, amount int64) error {
 		r, err := b.add(amount)
 		if err != nil {
 			return err
+		}
+		if key == targetKey {
+			zap.S().Infof("Change balance for addr='%s' and asset='%s': %d + (%d) = %d", targetAddress, targetAsset, b, amount, r)
 		}
 		ds.assetBalances[key] = r
 		return nil
