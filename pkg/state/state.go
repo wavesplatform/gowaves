@@ -1830,13 +1830,17 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	if err = s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
 		return nil, wrapErr(ValidationError, err)
 	}
-	// After everything is validated, save all the changes to DB.
-	if err = s.flush(); err != nil {
-		return nil, wrapErr(ModificationError, err)
+	curHeight := height + uint64(blocksNumber)
+	const noFlushHere = 4291140
+	if curHeight != noFlushHere {
+		// After everything is validated, save all the changes to DB.
+		if err = s.flush(); err != nil {
+			return nil, wrapErr(ModificationError, err)
+		}
 	}
 	zap.S().Infof(
 		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
-		height+uint64(blocksNumber),
+		curHeight,
 		lastAppliedBlock.BlockID().String(),
 		base58.Encode(lastAppliedBlock.GenSignature),
 		lastAppliedBlock.Timestamp,

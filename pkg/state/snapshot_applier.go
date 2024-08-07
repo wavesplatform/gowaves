@@ -1,7 +1,11 @@
 package state
 
 import (
+	"encoding/json"
 	stderrs "errors"
+	"fmt"
+	"os"
+	"path/filepath"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
@@ -19,6 +23,11 @@ type txSnapshotContext struct {
 
 func (c txSnapshotContext) initialized() bool { return c.applyingTx != nil }
 
+type txStatusWithEntries struct {
+	Status  proto.TransactionStatus `json:"status"`
+	Entries proto.DataEntries       `json:"entries"`
+}
+
 type blockSnapshotsApplier struct {
 	info extendedSnapshotApplierInfo
 	stor snapshotApplierStorages
@@ -33,6 +42,9 @@ type blockSnapshotsApplier struct {
 
 	// used for legacy SH
 	balanceRecordsContext balanceRecordsContext
+
+	// debug
+	dataEntriesByTxID map[string]txStatusWithEntries
 }
 
 func (a *blockSnapshotsApplier) BeforeTxSnapshotApply(tx proto.Transaction, validatingUTX bool) error {
@@ -95,6 +107,7 @@ func newBlockSnapshotsApplier(info *blockSnapshotsApplierInfo, stor snapshotAppl
 		newLeases:             []crypto.Digest{},
 		cancelledLeases:       make(map[crypto.Digest]struct{}),
 		balanceRecordsContext: newBalanceRecordsContext(),
+		dataEntriesByTxID:     make(map[string]txStatusWithEntries),
 	}
 }
 
@@ -369,8 +382,19 @@ func (a *blockSnapshotsApplier) ApplierInfo() extendedSnapshotApplierInfo {
 
 func (a *blockSnapshotsApplier) SetApplierInfo(info extendedSnapshotApplierInfo) func() {
 	a.info = info
+	a.dataEntriesByTxID = make(map[string]txStatusWithEntries)
 	return func() {
 		a.filterZeroDiffsSHOut(info.BlockID()) // clean up legacy state hash records with zero diffs
+
+		blockID := a.info.BlockID()
+		data, err := json.MarshalIndent(a.dataEntriesByTxID, "", "  ")
+		if err != nil {
+			panic(errors.Wrap(err, "failed to marshal data entries by tx ID"))
+		}
+		filename := filepath.Join("build", "data_entries_by_block", fmt.Sprintf("block_%s.json", blockID.String()))
+		if wfErr := os.WriteFile(filename, data, 0644); wfErr != nil {
+			panic(errors.Wrapf(wfErr, "failed to write data entries by tx ID to file %q", filename))
+		}
 	}
 }
 
@@ -536,6 +560,23 @@ func (a *blockSnapshotsApplier) ApplyDataEntries(snapshot proto.DataEntriesSnaps
 			return errors.Wrapf(err, "failed to add entry (%T) for address %q", entry, snapshot.Address)
 		}
 	}
+	if len(snapshot.DataEntries) == 0 {
+		snapshot.DataEntries = proto.DataEntries{} // ensure that empty data entries are saved
+	}
+	switch {
+	case !a.txSnapshotContext.initialized():
+		panic("failed to apply data entries snapshot: transaction is not set")
+	case a.txSnapshotContext.validatingUTX:
+		panic("failed to apply data entries snapshot: transaction is not applied")
+	case a.txSnapshotContext.txApplied:
+		panic("failed to apply data entries snapshot: transaction status is already applied")
+	}
+	txIDBytes, err := a.txSnapshotContext.applyingTx.GetID(a.info.Scheme())
+	if err != nil {
+		return errors.Wrap(err, "failed to get tx ID")
+	}
+	txID := base58.Encode(txIDBytes)
+	a.dataEntriesByTxID[txID] = txStatusWithEntries{Status: 0, Entries: snapshot.DataEntries}
 	return nil
 }
 
@@ -587,6 +628,14 @@ func (a *blockSnapshotsApplier) ApplyTransactionsStatus(snapshot proto.Transacti
 	} else {
 		// Save transaction to in-mem storage and persistent storage.
 		err = a.stor.rw.writeTransaction(tx, status)
+		txIDBytes, err := tx.GetID(a.info.Scheme())
+		if err != nil {
+			return errors.Wrap(err, "failed to get tx ID")
+		}
+		txID := base58.Encode(txIDBytes)
+		data := a.dataEntriesByTxID[txID]
+		data.Status = status
+		a.dataEntriesByTxID[txID] = data
 	}
 	if err != nil {
 		txID, idErr := tx.GetID(a.info.Scheme())
