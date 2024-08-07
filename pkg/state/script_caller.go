@@ -368,9 +368,8 @@ func (a *scriptCaller) invokeFunctionByInvokeWithProofsTx(
 
 	functionCall := tx.FunctionCall
 
-	const targetTxID = "AQCueW8pfNxKrwxz6PCJhZcPABTAJjwyWpkBSjsh9vXM" // it's failed in go, but success in scala
 	txIDString := tx.ID.String()
-	isTargetTx := txIDString == targetTxID
+	isTargetTx := txIDString == "AQCueW8pfNxKrwxz6PCJhZcPABTAJjwyWpkBSjsh9vXM" || txIDString == "BpZUsvTjJZNHMVBekZ1JM82Cd9NsWfNBwKx2RfvjU4Ci"
 	if isTargetTx {
 		print()
 	}
