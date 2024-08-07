@@ -1,8 +1,11 @@
 package state
 
 import (
+	"strings"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -365,12 +368,27 @@ func (a *scriptCaller) invokeFunctionByInvokeWithProofsTx(
 
 	functionCall := tx.FunctionCall
 
+	const targetTxID = "AQCueW8pfNxKrwxz6PCJhZcPABTAJjwyWpkBSjsh9vXM" // it's failed in go, but success in scala
+	txIDString := tx.ID.String()
+	isTargetTx := txIDString == targetTxID
+	if isTargetTx {
+		print()
+	}
 	r, err := ride.CallFunction(env, tree, functionCall)
 	if err != nil {
 		complexity := ride.EvaluationErrorSpentComplexity(err)
 		appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, functionCall, info)
 		if appendErr != nil {
 			return nil, proto.FunctionCall{}, appendErr
+		}
+		if isTargetTx {
+			customErr := errors.Wrapf(err,
+				"transaction '%s' failed with spent complexity %d and following call stack:\n%s",
+				txIDString,
+				ride.EvaluationErrorSpentComplexity(err),
+				strings.Join(ride.EvaluationErrorCallStack(err), "\n"),
+			)
+			zap.L().Error("failed to call function", zap.Error(customErr), zap.String("tx_id", txIDString))
 		}
 		return nil, proto.FunctionCall{}, err
 	}
