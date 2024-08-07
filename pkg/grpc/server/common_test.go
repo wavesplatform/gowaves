@@ -86,7 +86,7 @@ func stateWithCustomGenesis(t *testing.T, genesisPath string) state.State {
 	// Activate data transactions.
 	sets.PreactivatedFeatures = []int16{5}
 	params := defaultStateParams()
-	st, err := state.NewState(dataDir, true, params, sets, false)
+	st, err := state.NewState(dataDir, true, params, sets, false, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, st.Close())
@@ -120,7 +120,7 @@ func withAutoCancel(t *testing.T, ctx context.Context) context.Context {
 
 func newTestState(t *testing.T, amend bool, params state.StateParams, settings *settings.BlockchainSettings) state.State {
 	dataDir := t.TempDir()
-	st, err := state.NewState(dataDir, amend, params, settings, false)
+	st, err := state.NewState(dataDir, amend, params, settings, false, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, st.Close())

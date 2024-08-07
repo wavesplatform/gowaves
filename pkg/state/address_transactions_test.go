@@ -13,7 +13,7 @@ import (
 
 func testIterImpl(t *testing.T, params StateParams) {
 	dataDir := t.TempDir()
-	st, err := NewState(dataDir, true, params, settings.MainNetSettings, false)
+	st, err := NewState(dataDir, true, params, settings.MainNetSettings, false, nil)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
