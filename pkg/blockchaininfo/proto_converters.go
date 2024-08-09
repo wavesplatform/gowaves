@@ -36,14 +36,15 @@ func BUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (BlockUpdatesInfo, error
 	}, nil
 }
 
-func L2ContractDataEntriesToProto(dataEntries []proto.DataEntry) *g.L2ContractDataEntries {
+func L2ContractDataEntriesToProto(contractData L2ContractDataEntries) *g.L2ContractDataEntries {
 	var protobufDataEntries []*waves.DataEntry
-	for _, entry := range dataEntries {
+	for _, entry := range contractData.AllDataEntries {
 		entryProto := entry.ToProtobuf()
 		protobufDataEntries = append(protobufDataEntries, entryProto)
 	}
 	return &g.L2ContractDataEntries{
 		DataEntries: protobufDataEntries,
+		Height:      contractData.Height,
 	}
 }
 

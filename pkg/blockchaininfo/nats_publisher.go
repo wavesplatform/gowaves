@@ -2,7 +2,11 @@ package blockchaininfo
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 	"log"
+	"os"
+	"strconv"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
@@ -13,6 +17,16 @@ const StoreBlocksLimit = 2000
 const PortDefault = 4222
 const HostDefault = "127.0.0.1"
 const ConnectionsTimeoutDefault = 5 * server.AUTH_TIMEOUT
+
+const NATS_MAX_PAYLOAD_SIZE int32 = (1024 * 1024) * 64 // 64 MB
+
+//const NATS_MAX_PAYLOAD_SIZE int32 = 5
+
+const (
+	START_PAGING = iota
+	END_PAGING
+	NO_PAGING
+)
 
 type BUpdatesExtensionState struct {
 	currentState  *BUpdatesInfo
@@ -36,6 +50,74 @@ func (bu *BUpdatesExtensionState) hasStateChanged() (bool, error) {
 	return true, nil
 }
 
+func splitIntoChunks(array []byte, maxChunkSize int) [][]byte {
+	if maxChunkSize <= 0 {
+		return nil
+	}
+	var chunkedArray [][]byte
+
+	for i := 0; i < len(array); i += maxChunkSize {
+		end := i + maxChunkSize
+		if end > len(array) {
+			end = len(array)
+		}
+		chunkedArray = append(chunkedArray, array[i:end])
+	}
+
+	return chunkedArray
+}
+
+func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2ContractDataEntries, nc *nats.Conn, scheme proto.Scheme) error {
+	dataEntriesProtobuf, err := L2ContractDataEntriesToProto(contractUpdates).MarshalVTStrict()
+	if err != nil {
+		return err
+	}
+	fmt.Println("Size in MB")
+
+	fmt.Println(len(dataEntriesProtobuf) / 1024)
+
+	if len(dataEntriesProtobuf) <= int(NATS_MAX_PAYLOAD_SIZE-1) {
+		var msg []byte
+		msg = append(msg, NO_PAGING)
+		msg = append(msg, dataEntriesProtobuf...)
+		err = nc.Publish(ContractUpdates, msg)
+		if err != nil {
+			log.Printf("failed to publish message on topic %s", ContractUpdates)
+			return err
+		}
+		log.Printf("Published on topic: %s\n", ContractUpdates)
+		return nil
+	}
+
+	chunkedPayload := splitIntoChunks(dataEntriesProtobuf, int(NATS_MAX_PAYLOAD_SIZE-1))
+
+	for i, chunk := range chunkedPayload {
+		var msg []byte
+
+		if i == len(chunkedPayload)-1 {
+			msg = append(msg, END_PAGING)
+			msg = append(msg, chunk...)
+			err = nc.Publish(ContractUpdates, msg)
+			if err != nil {
+				log.Printf("failed to publish message on topic %s", ContractUpdates)
+				return err
+			}
+			log.Printf("Published on topic: %s\n", ContractUpdates)
+			break
+		}
+		msg = append(msg, START_PAGING)
+		msg = append(msg, chunk...)
+		err = nc.Publish(ContractUpdates, msg)
+		if err != nil {
+			log.Printf("failed to publish message on topic %s", ContractUpdates)
+			return err
+		}
+		log.Printf("Published on topic: %s\n", ContractUpdates)
+	}
+
+	return nil
+}
+
 func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
 	/* first publish block related info */
 	blockInfo, err := BUpdatesInfoToProto(updates, scheme)
@@ -46,6 +128,21 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 	if err != nil {
 		return err
 	}
+	// temporary
+	prettyJSON, err := json.MarshalIndent(updates.ContractUpdatesInfo, "", "    ")
+	if err != nil {
+		fmt.Println("Error converting to pretty JSON:", err)
+		return err
+	}
+	heightStr := strconv.Itoa(int(updates.BlockUpdatesInfo.Height))
+	// Write the pretty JSON to a file named "index.json"
+	err = os.WriteFile("/media/alex/My_Book/dolgavin/waves/contract_data/"+heightStr+".json", prettyJSON, 0644)
+	if err != nil {
+		fmt.Println("Error writing to file:", err)
+		return err
+	}
+
+	//
 	err = nc.Publish(BlockUpdates, blockInfoProtobuf)
 	if err != nil {
 		log.Printf("failed to publish message on topic %s", BlockUpdates)
@@ -54,16 +151,13 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 	log.Printf("Published on topic: %s\n", BlockUpdates)
 
 	/* second publish contract data entries */
-	dataEntries := L2ContractDataEntriesToProto(updates.ContractUpdatesInfo.AllDataEntries)
-	dataEntriesProtobuf, err := dataEntries.MarshalVTStrict()
-	if err != nil {
-		return err
-	}
-	if dataEntries.DataEntries != nil {
-		err = nc.Publish(ContractUpdates, dataEntriesProtobuf)
-		if err != nil {
+	if updates.ContractUpdatesInfo.AllDataEntries != nil {
+		//fmt.Println("Size in MB")
+		//fmt.Println(len(dataEntriesProtobuf) / 1024)
+		pblshErr := bu.publishContractUpdates(updates.ContractUpdatesInfo, nc, scheme)
+		if pblshErr != nil {
 			log.Printf("failed to publish message on topic %s", ContractUpdates)
-			return err
+			return pblshErr
 		}
 		log.Printf("Published on topic: %s\n", ContractUpdates)
 	}
@@ -114,8 +208,9 @@ func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
 func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
 	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme) {
 	opts := &server.Options{
-		Host: HostDefault,
-		Port: PortDefault,
+		MaxPayload: NATS_MAX_PAYLOAD_SIZE,
+		Host:       HostDefault,
+		Port:       PortDefault,
 	}
 	s, err := server.NewServer(opts)
 	if err != nil {

@@ -17,6 +17,7 @@ type BlockUpdatesInfo struct {
 // L2 contract data entries.
 type L2ContractDataEntries struct {
 	AllDataEntries []proto.DataEntry `json:"all_data_entries"`
+	Height         uint64            `json:"height"`
 }
 
 type BUpdatesInfo struct {

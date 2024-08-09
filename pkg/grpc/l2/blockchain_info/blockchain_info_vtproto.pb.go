@@ -148,6 +148,11 @@ func (m *L2ContractDataEntries) MarshalToSizedBufferVTStrict(dAtA []byte) (int, 
 			dAtA[i] = 0x2a
 		}
 	}
+	if m.Height != 0 {
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.Height))
+		i--
+		dAtA[i] = 0x8
+	}
 	return len(dAtA) - i, nil
 }
 
@@ -188,6 +193,9 @@ func (m *L2ContractDataEntries) SizeVT() (n int) {
 	}
 	var l int
 	_ = l
+	if m.Height != 0 {
+		n += 1 + protohelpers.SizeOfVarint(uint64(m.Height))
+	}
 	if len(m.DataEntries) > 0 {
 		for _, e := range m.DataEntries {
 			if size, ok := interface{}(e).(interface {
@@ -415,6 +423,25 @@ func (m *L2ContractDataEntries) UnmarshalVT(dAtA []byte) error {
 			return fmt.Errorf("proto: L2ContractDataEntries: illegal tag %d (wire type %d)", fieldNum, wire)
 		}
 		switch fieldNum {
+		case 1:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Height", wireType)
+			}
+			m.Height = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.Height |= uint64(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DataEntries", wireType)
