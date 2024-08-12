@@ -15,14 +15,12 @@ type blocksReader struct {
 	closeFun func() error
 }
 
-const blocksReaderBuffSize = 64 * 1024 // 64 KB
-
 func newBlocksReader(blockchainPath string) (*blocksReader, error) {
 	f, err := os.Open(filepath.Clean(blockchainPath))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open blocks file: %w", err)
 	}
-	r := bufio.NewReaderSize(f, blocksReaderBuffSize)
+	r := bufio.NewReaderSize(f, bufioReaderBuffSize)
 	return &blocksReader{r: r, pos: 0, closeFun: f.Close}, nil
 }
 
