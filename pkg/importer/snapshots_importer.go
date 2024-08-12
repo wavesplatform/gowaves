@@ -48,7 +48,9 @@ func (imp *SnapshotsImporter) SkipToHeight(ctx context.Context, height proto.Hei
 			return fmt.Errorf("failed to skip to height %d: %w", height, err)
 		}
 		imp.reg.updateTotalSize(size)
-		imp.br.skip(size)
+		if skipErr := imp.br.skip(size); skipErr != nil {
+			return fmt.Errorf("failed to skip to height %d: %w", height, skipErr)
+		}
 		size, err = imp.sr.readSize()
 		if err != nil {
 			return fmt.Errorf("failed to skip to height %d: %w", height, err)
