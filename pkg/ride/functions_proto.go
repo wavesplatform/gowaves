@@ -262,6 +262,10 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		}
 		return nil, err
 	}
+
+	const checkPaymentsAfterInnerInvokeHeight = 4291140 // TODO: move to config parameters
+	var newBehavior = env.height() >= checkPaymentsAfterInnerInvokeHeight && env.scheme() == proto.MainNetScheme
+
 	checkPaymentsAfterApplication := func(errT EvaluationError) error {
 		err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
 		if err != nil && GetEvaluationErrorType(err) == Undefined {
@@ -270,7 +274,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return err
 	}
 	lightNodeActivated := env.lightNodeActivated()
-	if lightNodeActivated { // Check payments result balances here AFTER Light Node activation
+	if lightNodeActivated && !newBehavior { // Check payments result balances here AFTER Light Node activation
 		if pErr := checkPaymentsAfterApplication(NegativeBalanceAfterPayment); pErr != nil {
 			return nil, pErr
 		}
@@ -314,7 +318,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, err
 	}
 
-	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
+	if !lightNodeActivated || newBehavior { // Check payments result balances here BEFORE Light Node activation
 		if pErr := checkPaymentsAfterApplication(InternalInvocationError); pErr != nil {
 			return nil, pErr
 		}
