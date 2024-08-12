@@ -306,18 +306,18 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		)
 	}
 
-	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
-		if pErr := checkPaymentsAfterApplication(InternalInvocationError); pErr != nil {
-			return nil, pErr
-		}
-	}
-
 	err = ws.smartAppendActions(res.ScriptActions(), env, &localActionsCountValidator)
 	if err != nil {
 		if GetEvaluationErrorType(err) == Undefined {
 			return nil, InternalInvocationError.Wrapf(err, "%s: failed to apply actions", invocation.name())
 		}
 		return nil, err
+	}
+
+	if !lightNodeActivated { // Check payments result balances here BEFORE Light Node activation
+		if pErr := checkPaymentsAfterApplication(InternalInvocationError); pErr != nil {
+			return nil, pErr
+		}
 	}
 
 	if env.validateInternalPayments() || env.rideV6Activated() {
