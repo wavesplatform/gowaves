@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.21
+go 1.22
 
 require (
 	filippo.io/edwards25519 v1.1.0
