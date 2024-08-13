@@ -264,7 +264,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 	}
 
 	const checkPaymentsAfterInnerInvokeHeight = 4291140 // TODO: move to config parameters
-	var newBehavior = env.height() >= checkPaymentsAfterInnerInvokeHeight && env.scheme() == proto.MainNetScheme
+	var newBehavior = env.height() == checkPaymentsAfterInnerInvokeHeight && env.scheme() == proto.MainNetScheme
 
 	checkPaymentsAfterApplication := func(errT EvaluationError) error {
 		err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
