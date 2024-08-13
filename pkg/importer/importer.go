@@ -23,6 +23,8 @@ const (
 	MaxTotalBatchSize  = 20 * MiB
 	MaxBlocksBatchSize = 50000
 	MaxBlockSize       = 2 * MiB
+
+	bufioReaderBuffSize = 64 * KiB // 64 KiB buffer for bufio.Reader
 )
 
 type State interface {

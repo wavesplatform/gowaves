@@ -40,16 +40,17 @@ func main() {
 
 func run() error {
 	var (
-		node           string
-		statePath      string
-		blockchainType string
-		height         uint64
-		extendedAPI    bool
-		compare        bool
-		search         bool
-		showHelp       bool
-		showVersion    bool
-		onlyLegacy     bool
+		node               string
+		statePath          string
+		blockchainType     string
+		height             uint64
+		extendedAPI        bool
+		compare            bool
+		search             bool
+		showHelp           bool
+		showVersion        bool
+		onlyLegacy         bool
+		disableBloomFilter bool
 	)
 
 	logging.SetupLogger(zapcore.InfoLevel)
@@ -64,6 +65,7 @@ func run() error {
 	flag.BoolVar(&showHelp, "help", false, "Show usage information and exit")
 	flag.BoolVar(&showVersion, "version", false, "Print version information and quit")
 	flag.BoolVar(&onlyLegacy, "legacy", false, "Compare only legacy state hashes")
+	flag.BoolVar(&disableBloomFilter, "disable-bloom", false, "Disable bloom filter")
 	flag.Parse()
 
 	if showHelp {
@@ -102,6 +104,7 @@ func run() error {
 	params := state.DefaultStateParams()
 	params.VerificationGoroutinesNum = 2 * runtime.NumCPU()
 	params.DbParams.WriteBuffer = 16 * MB
+	params.DbParams.BloomFilterParams.Disable = disableBloomFilter
 	params.StoreExtendedApiData = extendedAPI
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
