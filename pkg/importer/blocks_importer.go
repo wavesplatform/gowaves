@@ -43,7 +43,9 @@ func (imp *BlocksImporter) SkipToHeight(ctx context.Context, height proto.Height
 			return fmt.Errorf("failed to skip to height %d: %w", height, err)
 		}
 		imp.reg.updateTotalSize(size)
-		imp.br.skip(size)
+		if skipErr := imp.br.skip(size); skipErr != nil {
+			return fmt.Errorf("failed to skip to height %d: %w", height, skipErr)
+		}
 		imp.h++
 	}
 }

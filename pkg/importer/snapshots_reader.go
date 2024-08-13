@@ -1,8 +1,10 @@
 package importer
 
 import (
+	"bufio"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"os"
 	"path/filepath"
 
@@ -10,9 +12,10 @@ import (
 )
 
 type snapshotsReader struct {
-	scheme proto.Scheme
-	f      *os.File
-	pos    int64
+	scheme   proto.Scheme
+	r        *bufio.Reader
+	pos      int
+	closeFun func() error
 }
 
 func newSnapshotsReader(scheme proto.Scheme, snapshotsPath string) (*snapshotsReader, error) {
@@ -20,46 +23,54 @@ func newSnapshotsReader(scheme proto.Scheme, snapshotsPath string) (*snapshotsRe
 	if err != nil {
 		return nil, fmt.Errorf("failed to open snapshots file: %w", err)
 	}
-	return &snapshotsReader{scheme: scheme, f: f, pos: 0}, nil
+	r := bufio.NewReaderSize(f, bufioReaderBuffSize)
+	return &snapshotsReader{scheme: scheme, r: r, pos: 0, closeFun: f.Close}, nil
 }
 
 func (sr *snapshotsReader) readSize() (uint32, error) {
 	const sanityMaxBlockSnapshotSize = 100 * MiB
-	buf := make([]byte, uint32Size)
-	n, err := sr.f.ReadAt(buf, sr.pos)
+	var buf [uint32Size]byte
+	pos := sr.pos
+	n, err := io.ReadFull(sr.r, buf[:])
 	if err != nil {
-		return 0, fmt.Errorf("failed to read block snapshot size: %w", err)
+		return 0, fmt.Errorf("failed to read block snapshot size at pos %d: %w", pos, err)
 	}
-	sr.pos += int64(n)
-	size := binary.BigEndian.Uint32(buf)
-	if size > sanityMaxBlockSnapshotSize { // dont check for 0 size because it is valid
-		return 0, fmt.Errorf("block snapshot size %d is too big", size)
+	sr.pos += n
+	size := binary.BigEndian.Uint32(buf[:])
+	if size > sanityMaxBlockSnapshotSize { // don't check for 0 size because it is valid
+		return 0, fmt.Errorf("block snapshot size %d is too big at pos %d", size, pos)
 	}
 	return size, nil
 }
 
-func (sr *snapshotsReader) skip(size uint32) {
-	sr.pos += int64(size)
+func (sr *snapshotsReader) skip(size uint32) error {
+	n, err := sr.r.Discard(int(size))
+	if err != nil {
+		return fmt.Errorf("failed to skip at pos %d: %w", sr.pos, err)
+	}
+	sr.pos += n
+	return nil
 }
 
 func (sr *snapshotsReader) readSnapshot() (*proto.BlockSnapshot, error) {
 	size, sErr := sr.readSize()
 	if sErr != nil {
-		return nil, sErr
+		return nil, fmt.Errorf("failed to read snapshot size: %w", sErr)
 	}
+	pos := sr.pos
 	buf := make([]byte, size)
-	n, rErr := sr.f.ReadAt(buf, sr.pos)
+	n, rErr := io.ReadFull(sr.r, buf)
 	if rErr != nil {
-		return nil, fmt.Errorf("failed to read snapshot: %w", rErr)
+		return nil, fmt.Errorf("failed to read snapshot at pos %d: %w", pos, rErr)
 	}
-	sr.pos += int64(n)
+	sr.pos += n
 	snapshot := &proto.BlockSnapshot{}
 	if err := snapshot.UnmarshalBinaryImport(buf, sr.scheme); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal snapshot: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal snapshot at pos %d: %w", pos, err)
 	}
 	return snapshot, nil
 }
 
 func (sr *snapshotsReader) close() error {
-	return sr.f.Close()
+	return sr.closeFun()
 }
