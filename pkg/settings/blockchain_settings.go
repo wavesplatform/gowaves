@@ -67,6 +67,7 @@ type FunctionalitySettings struct {
 	UnissuedAssetUntilTime                              uint64 `json:"unissued_asset_until_time"`
 	InvalidReissueInSameBlockUntilTime                  uint64 `json:"invalid_reissue_in_same_block_until_time"`
 	MinimalGeneratingBalanceCheckAfterTime              uint64 `json:"minimal_generating_balance_check_after_time"`
+	PaymentsFixAfterHeight                              uint64 `json:"payments_fix_after_height"` // paymentsCheckHeight in scala node
 	InternalInvokePaymentsValidationAfterHeight         uint64 `json:"internal_invoke_payments_validation_after_height"`
 	InternalInvokeCorrectFailRejectBehaviourAfterHeight uint64 `json:"internal_invoke_correct_fail_reject_behaviour_after_height"`
 	InvokeNoZeroPaymentsAfterHeight                     uint64 `json:"invoke_no_zero_payments_after_height"`
