@@ -28,7 +28,8 @@ func main() {
 				"Note that state must be re-imported in case it wasn't imported with similar flag set")
 		buildStateHashes = flag.Bool("build-state-hashes", false,
 			"Calculate and store state hashes for each block height.")
-		cfgPath = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
+		cfgPath            = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
+		disableBloomFilter = flag.Bool("disable-bloom", false, "Disable bloom filter for state.")
 	)
 
 	flag.Parse()
@@ -72,6 +73,7 @@ func main() {
 
 	params := state.DefaultStateParams()
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
+	params.DbParams.BloomFilterParams.Disable = *disableBloomFilter
 	params.BuildStateHashes = *buildStateHashes
 	params.StoreExtendedApiData = *buildExtendedAPI
 

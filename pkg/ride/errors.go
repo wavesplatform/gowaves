@@ -79,7 +79,7 @@ func (e EvaluationError) Errorf(msg string, args ...interface{}) error {
 }
 
 func (e EvaluationError) Wrap(err error, msg string) error {
-	return e.Wrapf(err, msg)
+	return newEvaluationError(e, errors.Wrap(err, msg))
 }
 
 func (e EvaluationError) Wrapf(err error, msg string, args ...interface{}) error {
