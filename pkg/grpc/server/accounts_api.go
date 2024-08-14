@@ -123,7 +123,7 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 	if req.Key != "" {
 		entry, err := s.state.RetrieveEntry(rcp, req.Key)
 		if err != nil {
-			if err.Error() == "not found" {
+			if err.Error() == "not found" { // TODO: fix this error message comparison, use errors.Is instead
 				return nil
 			}
 			return status.Errorf(codes.NotFound, err.Error())
@@ -139,7 +139,7 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 	}
 	entries, err := s.state.RetrieveEntries(rcp)
 	if err != nil {
-		if err.Error() == "not found" {
+		if err.Error() == "not found" { // TODO: fix this error message comparison, use errors.Is instead
 			return nil
 		}
 		return status.Errorf(codes.Internal, err.Error())
