@@ -263,19 +263,19 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, err
 	}
 
-	const checkPaymentsAfterInnerInvokeHeight = 4291140 // TODO: move to config parameters
-	var newBehavior = env.height() == checkPaymentsAfterInnerInvokeHeight && env.scheme() == proto.MainNetScheme
-
-	checkPaymentsAfterApplication := func(errT EvaluationError) error {
-		err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
-		if err != nil && GetEvaluationErrorType(err) == Undefined {
-			err = errT.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+	var (
+		checkPaymentsAfterApplication = func(errT EvaluationError) error {
+			err = ws.validateBalancesAfterPaymentsApplication(env, proto.WavesAddress(callerAddress), attachedPayments)
+			if err != nil && GetEvaluationErrorType(err) == Undefined {
+				err = errT.Wrapf(err, "%s: failed to apply attached payments", invocation.name())
+			}
+			return err
 		}
-		return err
-	}
-	lightNodeActivated := env.lightNodeActivated()
-	if lightNodeActivated && !newBehavior { // Check payments result balances here AFTER Light Node activation
-		if pErr := checkPaymentsAfterApplication(NegativeBalanceAfterPayment); pErr != nil {
+		lightNodeActivated   = env.lightNodeActivated()
+		paymentsFixActivated = env.paymentsFixActivated()
+	)
+	if lightNodeActivated && paymentsFixActivated { // Check payments result balances here AFTER Light Node activation
+		if pErr := checkPaymentsAfterApplication(EvaluationFailure); pErr != nil {
 			return nil, pErr
 		}
 	}
@@ -318,7 +318,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 		return nil, err
 	}
 
-	if !lightNodeActivated || newBehavior { // Check payments result balances here BEFORE Light Node activation
+	if !lightNodeActivated || !paymentsFixActivated { // Check payments result balances here BEFORE Light Node activation
 		if pErr := checkPaymentsAfterApplication(InternalInvocationError); pErr != nil {
 			return nil, pErr
 		}
