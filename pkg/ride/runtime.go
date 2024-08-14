@@ -434,7 +434,8 @@ type environment interface {
 	consensusImprovementsActivated() bool
 	blockRewardDistributionActivated() bool
 	lightNodeActivated() bool
-	internalPaymentsValidationHeight() uint64
+	internalPaymentsValidationHeight() proto.Height
+	paymentsFixAfterHeight() proto.Height
 	paymentsFixActivated() bool
 	maxDataEntriesSize() int
 	isProtobufTx() bool

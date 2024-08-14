@@ -62,6 +62,9 @@ var _ environment = &mockRideEnvironment{}
 //			paymentsFixActivatedFunc: func() bool {
 //				panic("mock out the paymentsFixActivated method")
 //			},
+//			paymentsFixAfterHeightFunc: func() uint64 {
+//				panic("mock out the paymentsFixAfterHeight method")
+//			},
 //			rideV6ActivatedFunc: func() bool {
 //				panic("mock out the rideV6Activated method")
 //			},
@@ -147,6 +150,9 @@ type mockRideEnvironment struct {
 	// paymentsFixActivatedFunc mocks the paymentsFixActivated method.
 	paymentsFixActivatedFunc func() bool
 
+	// paymentsFixAfterHeightFunc mocks the paymentsFixAfterHeight method.
+	paymentsFixAfterHeightFunc func() uint64
+
 	// rideV6ActivatedFunc mocks the rideV6Activated method.
 	rideV6ActivatedFunc func() bool
 
@@ -229,6 +235,9 @@ type mockRideEnvironment struct {
 		// paymentsFixActivated holds details about calls to the paymentsFixActivated method.
 		paymentsFixActivated []struct {
 		}
+		// paymentsFixAfterHeight holds details about calls to the paymentsFixAfterHeight method.
+		paymentsFixAfterHeight []struct {
+		}
 		// rideV6Activated holds details about calls to the rideV6Activated method.
 		rideV6Activated []struct {
 		}
@@ -290,6 +299,7 @@ type mockRideEnvironment struct {
 	locklightNodeActivated               sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
 	lockpaymentsFixActivated             sync.RWMutex
+	lockpaymentsFixAfterHeight           sync.RWMutex
 	lockrideV6Activated                  sync.RWMutex
 	lockscheme                           sync.RWMutex
 	locksetInvocation                    sync.RWMutex
@@ -684,6 +694,33 @@ func (mock *mockRideEnvironment) paymentsFixActivatedCalls() []struct {
 	mock.lockpaymentsFixActivated.RLock()
 	calls = mock.calls.paymentsFixActivated
 	mock.lockpaymentsFixActivated.RUnlock()
+	return calls
+}
+
+// paymentsFixAfterHeight calls paymentsFixAfterHeightFunc.
+func (mock *mockRideEnvironment) paymentsFixAfterHeight() uint64 {
+	if mock.paymentsFixAfterHeightFunc == nil {
+		panic("mockRideEnvironment.paymentsFixAfterHeightFunc: method is nil but environment.paymentsFixAfterHeight was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockpaymentsFixAfterHeight.Lock()
+	mock.calls.paymentsFixAfterHeight = append(mock.calls.paymentsFixAfterHeight, callInfo)
+	mock.lockpaymentsFixAfterHeight.Unlock()
+	return mock.paymentsFixAfterHeightFunc()
+}
+
+// paymentsFixAfterHeightCalls gets all the calls that were made to paymentsFixAfterHeight.
+// Check the length with:
+//
+//	len(mockedenvironment.paymentsFixAfterHeightCalls())
+func (mock *mockRideEnvironment) paymentsFixAfterHeightCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockpaymentsFixAfterHeight.RLock()
+	calls = mock.calls.paymentsFixAfterHeight
+	mock.lockpaymentsFixAfterHeight.RUnlock()
 	return calls
 }
 
