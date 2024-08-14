@@ -6184,7 +6184,8 @@ func TestAttachedPaymentsValidation(t *testing.T) {
 		@Callable(i)
         func invokeNext(amount: Int) = {
           %s
-          strict r = addressFromStringValue("3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1").invoke("returnPayment", [], [AttachedPayment(unit, amount)])
+          let addr = addressFromStringValue("3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1")
+          strict r = addr.invoke("returnPayment", [], [AttachedPayment(unit, amount)])
           []
         }
 	`
@@ -6210,8 +6211,6 @@ func TestAttachedPaymentsValidation(t *testing.T) {
 	require.Empty(t, errs)
 	treeTargetHeavy, errs := ridec.CompileToTree(fmt.Sprintf(src2, additionalComplexity))
 	require.Empty(t, errs)
-
-	const oneWaves = 1_0000_0000
 
 	t.Run("payments-check-fix-disabled-no-errors", func(t *testing.T) {
 		createEnv := func(t *testing.T, tree1, tree2 *ast.Tree) *testEnv {
