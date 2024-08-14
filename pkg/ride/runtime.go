@@ -435,6 +435,7 @@ type environment interface {
 	blockRewardDistributionActivated() bool
 	lightNodeActivated() bool
 	internalPaymentsValidationHeight() uint64
+	paymentsFixActivated() bool
 	maxDataEntriesSize() int
 	isProtobufTx() bool
 	complexityCalculator() complexityCalculator

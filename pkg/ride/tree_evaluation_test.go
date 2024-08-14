@@ -6170,3 +6170,139 @@ func TestZeroComplexitySanityCheckInComplexityCalculator(t *testing.T) {
 		assert.Equal(t, expectedSpentComplexity, env.complexityCalculator().complexity())
 	})
 }
+
+func TestAttachedPaymentsValidation(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	const src1 = `
+		{-# STDLIB_VERSION 7 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+        func invokeNext(amount: Int) = {
+          %s
+          strict r = addressFromStringValue("3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1").invoke("returnPayment", [], [AttachedPayment(unit, amount)])
+          []
+        }
+	`
+	const src2 = `
+		{-# STDLIB_VERSION 7 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+        func returnPayment() = {
+          %s
+          [ScriptTransfer(i.caller, 5_0000_0000, unit)]
+        }
+	`
+
+	additionalComplexity := "strict foo = " + strings.Repeat("sigVerify(base58'', base58'', base58'') || ", 8) + "true"
+
+	treeProxyLight, errs := ridec.CompileToTree(fmt.Sprintf(src1, ""))
+	require.Empty(t, errs)
+	treeProxyHeavy, errs := ridec.CompileToTree(fmt.Sprintf(src1, additionalComplexity))
+	require.Empty(t, errs)
+	treeTargetLight, errs := ridec.CompileToTree(fmt.Sprintf(src2, ""))
+	require.Empty(t, errs)
+	treeTargetHeavy, errs := ridec.CompileToTree(fmt.Sprintf(src2, additionalComplexity))
+	require.Empty(t, errs)
+
+	const oneWaves = 1_0000_0000
+
+	t.Run("payments-check-fix-disabled-no-errors", func(t *testing.T) {
+		createEnv := func(t *testing.T, tree1, tree2 *ast.Tree) *testEnv {
+			return newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(52000).
+				withBlockV5Activated().withProtobufTx().withRideV6Activated().
+				withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
+				withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().withLightNodeActivated().
+				withThis(dApp1).withDApp(dApp1).withSender(sender).
+				withAdditionalDApp(dApp2).withTree(dApp2, tree2).
+				withInvocation("invokeNext", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+				withWavesBalance(sender, 0).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
+				withWrappedState()
+		}
+		t.Run("neither proxy nor target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyLight, treeTargetLight).toEnv()
+			res, err := CallFunction(env, treeProxyLight, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, 81, env.complexityCalculator().complexity())
+		})
+		t.Run("only proxy exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyHeavy, treeTargetLight).toEnv()
+			res, err := CallFunction(env, treeProxyHeavy, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, 1522, env.complexityCalculator().complexity())
+		})
+		t.Run("only target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyLight, treeTargetHeavy).toEnv()
+			res, err := CallFunction(env, treeProxyLight, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, 1522, env.complexityCalculator().complexity())
+		})
+		t.Run("both proxy and target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyHeavy, treeTargetHeavy).toEnv()
+			res, err := CallFunction(env, treeProxyHeavy, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, 2963, env.complexityCalculator().complexity())
+		})
+	})
+
+	t.Run("payments-check-fix-enabled-only-rejections", func(t *testing.T) {
+		createEnv := func(t *testing.T, tree1, tree2 *ast.Tree) *testEnv {
+			return newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(52000).
+				withBlockV5Activated().withProtobufTx().withRideV6Activated().
+				withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
+				withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().withLightNodeActivated().
+				withPaymentsFix().
+				withThis(dApp1).withDApp(dApp1).withSender(sender).
+				withAdditionalDApp(dApp2).withTree(dApp2, tree2).
+				withInvocation("invokeNext", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+				withWavesBalance(sender, 0).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
+				withWrappedState()
+		}
+		t.Run("neither proxy nor target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyLight, treeTargetLight).toEnv()
+			res, err := CallFunction(env, treeProxyLight, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.Error(t, err)
+			assert.Nil(t, res)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
+		t.Run("only proxy exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyHeavy, treeTargetLight).toEnv()
+			res, err := CallFunction(env, treeProxyHeavy, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.Error(t, err)
+			assert.Nil(t, res)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
+		t.Run("only target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyLight, treeTargetHeavy).toEnv()
+			res, err := CallFunction(env, treeProxyLight, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.Error(t, err)
+			assert.Nil(t, res)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
+		t.Run("both proxy and target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyHeavy, treeTargetHeavy).toEnv()
+			res, err := CallFunction(env, treeProxyHeavy, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.Error(t, err)
+			assert.Nil(t, res)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
+	})
+}

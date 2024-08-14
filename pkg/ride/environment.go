@@ -1032,6 +1032,7 @@ type EvaluationEnvironment struct {
 	inv                                rideType
 	ver                                ast.LibraryVersion
 	validatePaymentsAfter              uint64
+	paymentsFixAfter                   uint64
 	isBlockV5Activated                 bool
 	isRideV6Activated                  bool
 	isConsensusImprovementsActivated   bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
@@ -1137,6 +1138,10 @@ func (e *EvaluationEnvironment) blockRewardDistributionActivated() bool {
 
 func (e *EvaluationEnvironment) lightNodeActivated() bool {
 	return e.isLightNodeActivated
+}
+
+func (e *EvaluationEnvironment) paymentsFixActivated() bool {
+	return int(e.h) > int(e.paymentsFixAfter)
 }
 
 func (e *EvaluationEnvironment) rideV6Activated() bool {

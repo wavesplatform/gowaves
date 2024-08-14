@@ -59,6 +59,9 @@ var _ environment = &mockRideEnvironment{}
 //			maxDataEntriesSizeFunc: func() int {
 //				panic("mock out the maxDataEntriesSize method")
 //			},
+//			paymentsFixActivatedFunc: func() bool {
+//				panic("mock out the paymentsFixActivated method")
+//			},
 //			rideV6ActivatedFunc: func() bool {
 //				panic("mock out the rideV6Activated method")
 //			},
@@ -141,6 +144,9 @@ type mockRideEnvironment struct {
 	// maxDataEntriesSizeFunc mocks the maxDataEntriesSize method.
 	maxDataEntriesSizeFunc func() int
 
+	// paymentsFixActivatedFunc mocks the paymentsFixActivated method.
+	paymentsFixActivatedFunc func() bool
+
 	// rideV6ActivatedFunc mocks the rideV6Activated method.
 	rideV6ActivatedFunc func() bool
 
@@ -220,6 +226,9 @@ type mockRideEnvironment struct {
 		// maxDataEntriesSize holds details about calls to the maxDataEntriesSize method.
 		maxDataEntriesSize []struct {
 		}
+		// paymentsFixActivated holds details about calls to the paymentsFixActivated method.
+		paymentsFixActivated []struct {
+		}
 		// rideV6Activated holds details about calls to the rideV6Activated method.
 		rideV6Activated []struct {
 		}
@@ -280,6 +289,7 @@ type mockRideEnvironment struct {
 	locklibVersion                       sync.RWMutex
 	locklightNodeActivated               sync.RWMutex
 	lockmaxDataEntriesSize               sync.RWMutex
+	lockpaymentsFixActivated             sync.RWMutex
 	lockrideV6Activated                  sync.RWMutex
 	lockscheme                           sync.RWMutex
 	locksetInvocation                    sync.RWMutex
@@ -647,6 +657,33 @@ func (mock *mockRideEnvironment) maxDataEntriesSizeCalls() []struct {
 	mock.lockmaxDataEntriesSize.RLock()
 	calls = mock.calls.maxDataEntriesSize
 	mock.lockmaxDataEntriesSize.RUnlock()
+	return calls
+}
+
+// paymentsFixActivated calls paymentsFixActivatedFunc.
+func (mock *mockRideEnvironment) paymentsFixActivated() bool {
+	if mock.paymentsFixActivatedFunc == nil {
+		panic("mockRideEnvironment.paymentsFixActivatedFunc: method is nil but environment.paymentsFixActivated was just called")
+	}
+	callInfo := struct {
+	}{}
+	mock.lockpaymentsFixActivated.Lock()
+	mock.calls.paymentsFixActivated = append(mock.calls.paymentsFixActivated, callInfo)
+	mock.lockpaymentsFixActivated.Unlock()
+	return mock.paymentsFixActivatedFunc()
+}
+
+// paymentsFixActivatedCalls gets all the calls that were made to paymentsFixActivated.
+// Check the length with:
+//
+//	len(mockedenvironment.paymentsFixActivatedCalls())
+func (mock *mockRideEnvironment) paymentsFixActivatedCalls() []struct {
+} {
+	var calls []struct {
+	}
+	mock.lockpaymentsFixActivated.RLock()
+	calls = mock.calls.paymentsFixActivated
+	mock.lockpaymentsFixActivated.RUnlock()
 	return calls
 }
 

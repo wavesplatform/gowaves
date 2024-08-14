@@ -461,6 +461,13 @@ func (e *testEnv) withValidateInternalPayments() *testEnv {
 	return e
 }
 
+func (e *testEnv) withPaymentsFix() *testEnv {
+	e.me.paymentsFixActivatedFunc = func() bool {
+		return true
+	}
+	return e
+}
+
 func (e *testEnv) withThis(acc *testAccount) *testEnv {
 	e.this = acc.address()
 	e.me.thisFunc = func() rideType {
