@@ -2,7 +2,6 @@ package server
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -39,18 +38,18 @@ func (h *getTransactionsHandler) handle(tx proto.Transaction, status proto.Trans
 func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsApi_GetTransactionsServer) error {
 	extendedApi, err := s.state.ProvidesExtendedApi()
 	if err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	if !extendedApi {
-		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
+		return status.Error(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
 	filter, err := newTxFilter(s.scheme, req)
 	if err != nil {
-		return status.Errorf(codes.FailedPrecondition, err.Error())
+		return status.Error(codes.FailedPrecondition, err.Error())
 	}
 	iter, err := s.newStateIterator(filter.getSenderRecipient())
 	if err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	if iter == nil {
 		if len(req.TransactionIds) > 0 {
@@ -70,7 +69,7 @@ func (s *Server) GetTransactions(req *g.TransactionsRequest, srv g.TransactionsA
 	}
 	handler := &getTransactionsHandler{srv, s}
 	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	return nil
 }
@@ -121,14 +120,14 @@ func (h *getStateChangesHandler) handle(tx proto.Transaction, _ proto.Transactio
 func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsApi_GetStateChangesServer) error {
 	extendedApi, err := s.state.ProvidesExtendedApi()
 	if err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	if !extendedApi {
-		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
+		return status.Error(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
 	ftr, err := newTxFilter(s.scheme, req)
 	if err != nil {
-		return status.Errorf(codes.FailedPrecondition, err.Error())
+		return status.Error(codes.FailedPrecondition, err.Error())
 	}
 	filter := newTxFilterInvoke(ftr)
 	var iter state.TransactionIterator
@@ -138,7 +137,7 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 		iter, err = s.newStateIterator(ftr.getSenderRecipient())
 	}
 	if err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	if iter == nil {
 		// Nothing to iterate.
@@ -146,7 +145,7 @@ func (s *Server) GetStateChanges(req *g.TransactionsRequest, srv g.TransactionsA
 	}
 	handler := &getStateChangesHandler{srv, s}
 	if err := s.iterateAndHandleTransactions(iter, filter.filter, handler.handle); err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	return nil
 }
@@ -158,7 +157,7 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			// Transaction is in state, it is confirmed.
 			height, err := s.state.TransactionHeightByID(id)
 			if err != nil {
-				return status.Errorf(codes.Internal, err.Error())
+				return status.Error(codes.Internal, err.Error())
 			}
 			res.Status = g.TransactionStatus_CONFIRMED
 			res.Height = int64(height)
@@ -170,7 +169,7 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			case proto.TransactionElided:
 				res.ApplicationStatus = g.ApplicationStatus_ELIDED
 			default:
-				return status.Errorf(codes.Internal, fmt.Sprintf("invalid tx status (%d)", txStatus))
+				return status.Errorf(codes.Internal, "invalid tx status (%d)", txStatus)
 			}
 		} else if s.utx.ExistsByID(id) {
 			// Transaction is in UTX.
@@ -181,7 +180,7 @@ func (s *Server) GetStatuses(req *g.TransactionsByIdRequest, srv g.TransactionsA
 			res.ApplicationStatus = g.ApplicationStatus_UNKNOWN
 		}
 		if err := srv.Send(res); err != nil {
-			return status.Errorf(codes.Internal, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
 	}
 	return nil
@@ -206,7 +205,7 @@ func (h *getUnconfirmedHandler) handle(tx proto.Transaction, status proto.Transa
 func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsApi_GetUnconfirmedServer) error {
 	filter, err := newTxFilter(s.scheme, req)
 	if err != nil {
-		return status.Errorf(codes.FailedPrecondition, err.Error())
+		return status.Error(codes.FailedPrecondition, err.Error())
 	}
 	handler := &getUnconfirmedHandler{srv, s}
 	txs := s.utx.AllTransactions()
@@ -215,7 +214,7 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 			continue
 		}
 		if hErr := handler.handle(tx.T, proto.TransactionSucceeded); hErr != nil {
-			return status.Errorf(codes.Internal, hErr.Error())
+			return status.Error(codes.Internal, hErr.Error())
 		}
 	}
 	return nil
@@ -251,9 +250,9 @@ func apiError(err error) error {
 	err = errors.Cause(err)
 	switch e := err.(type) {
 	case *errs.NonPositiveAmount:
-		return status.Errorf(codes.InvalidArgument, "non-positive amount "+err.Error())
+		return status.Errorf(codes.InvalidArgument, "non-positive amount %v", err)
 	case *errs.TooBigArray:
-		return status.Errorf(codes.InvalidArgument, "Too big sequences requested: "+err.Error())
+		return status.Errorf(codes.InvalidArgument, "Too big sequences requested: %v", err)
 	case *errs.InvalidName:
 		return status.Errorf(codes.InvalidArgument, "invalid name: %q", err)
 	case *errs.AccountBalanceError:
@@ -261,13 +260,13 @@ func apiError(err error) error {
 	case *errs.ToSelf:
 		return status.Errorf(codes.InvalidArgument, "Transaction to yourself: %q", err)
 	case *errs.TxValidationError:
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	case *errs.AssetIsNotReissuable:
 		return status.Errorf(codes.InvalidArgument, "Asset is not reissuable: %s", err)
 	case *errs.AliasTaken:
 		return status.Errorf(codes.InvalidArgument, "Alias already claimed: %s", err)
 	case *errs.Mistiming:
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	case *errs.EmptyDataKey:
 		return status.Errorf(codes.InvalidArgument, "Empty key found: %s", err)
 	case *errs.DuplicatedDataKeys:
@@ -277,16 +276,16 @@ func apiError(err error) error {
 	case *errs.AssetIssuedByOtherAddress:
 		return status.Errorf(codes.InvalidArgument, "Asset was issued by other address: %s", err)
 	case *errs.FeeValidation:
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	case *errs.AssetUpdateInterval:
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	case *errs.TransactionNotAllowedByScript:
 		if e.IsAssetScript() {
 			return status.Errorf(codes.InvalidArgument, "Transaction is not allowed by token-script: %s: Transaction is not allowed by script of the asset", err)
 		}
-		return status.Errorf(codes.InvalidArgument, "Transaction is not allowed by account-script")
+		return status.Error(codes.InvalidArgument, "Transaction is not allowed by account-script")
 	default:
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 }
 

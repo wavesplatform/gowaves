@@ -1837,7 +1837,7 @@ func (p *astParser) ruleAnnotatedFunc(node *node32) {
 		p.tree.Functions = append(p.tree.Functions, expr)
 		err := p.loadMeta(f.Name, types)
 		if err != nil {
-			p.addError(curNode.token32, err.Error())
+			p.addError(curNode.token32, "%v", err.Error())
 		}
 		switch p.tree.LibVersion {
 		case ast.LibV1, ast.LibV2, ast.LibV3:
