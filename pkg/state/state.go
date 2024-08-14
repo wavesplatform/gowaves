@@ -1937,6 +1937,7 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	if err := s.loadLastBlock(); err != nil {
 		zap.S().Fatalf("Failed to load last block after rollback: %v", err)
 	}
+	zap.S().Infof("Rollback to block with ID '%s' completed", removalEdge.String())
 	return nil
 }
 

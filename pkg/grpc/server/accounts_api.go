@@ -18,30 +18,30 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
 	if len(req.Assets) == 0 {
 		// TODO(nickeskov): send waves balance AND all assets balances (portfolio)
 		//  by the given address according to the scala node implementation
 		if err := s.sendWavesBalance(rcp, srv); err != nil {
-			return status.Errorf(codes.Internal, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
 	}
 	for _, asset := range req.Assets {
 		if len(asset) == 0 {
 			if err := s.sendWavesBalance(rcp, srv); err != nil {
-				return status.Errorf(codes.Internal, err.Error())
+				return status.Error(codes.Internal, err.Error())
 			}
 		} else {
 			// Asset.
 			fullAssetID, err := crypto.NewDigestFromBytes(asset)
 			if err != nil {
-				return status.Errorf(codes.InvalidArgument, err.Error())
+				return status.Error(codes.InvalidArgument, err.Error())
 			}
 			balance, err := s.state.AssetBalance(rcp, proto.AssetIDFromDigest(fullAssetID))
 			if err != nil {
-				return status.Errorf(codes.NotFound, err.Error())
+				return status.Error(codes.NotFound, err.Error())
 			}
 			var res g.BalanceResponse
 			res.Balance = &g.BalanceResponse_Asset{
@@ -51,7 +51,7 @@ func (s *Server) GetBalances(req *g.BalancesRequest, srv g.AccountsApi_GetBalanc
 				},
 			}
 			if err := srv.Send(&res); err != nil {
-				return status.Errorf(codes.Internal, err.Error())
+				return status.Error(codes.Internal, err.Error())
 			}
 		}
 	}
@@ -62,7 +62,7 @@ func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptR
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
-		return nil, status.Errorf(codes.InvalidArgument, err.Error())
+		return nil, status.Error(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
 	scriptInfo, err := s.state.ScriptInfoByAccount(rcp)
@@ -75,15 +75,15 @@ func (s *Server) GetScript(_ context.Context, req *g.AccountRequest) (*g.ScriptR
 func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetActiveLeasesServer) error {
 	extendedApi, err := s.state.ProvidesExtendedApi()
 	if err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	if !extendedApi {
-		return status.Errorf(codes.FailedPrecondition, "Node's state does not have information required for extended API")
+		return status.Error(codes.FailedPrecondition, "Node's state does not have information required for extended API")
 	}
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 
 	filterFn := func(tx proto.Transaction) bool {
@@ -100,7 +100,7 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 	}
 	iter, err := s.state.NewAddrTransactionsIterator(addr)
 	if err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	if iter == nil {
 		// Nothing to iterate.
@@ -108,7 +108,7 @@ func (s *Server) GetActiveLeases(req *g.AccountRequest, srv g.AccountsApi_GetAct
 	}
 	handler := &getActiveLeasesHandler{srv, s}
 	if err := s.iterateAndHandleTransactions(iter, filterFn, handler.handle); err != nil {
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	return nil
 }
@@ -117,32 +117,32 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 	c := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	addr, err := c.Address(s.scheme, req.Address)
 	if err != nil {
-		return status.Errorf(codes.InvalidArgument, err.Error())
+		return status.Error(codes.InvalidArgument, err.Error())
 	}
 	rcp := proto.NewRecipientFromAddress(addr)
 	if req.Key != "" {
 		entry, err := s.state.RetrieveEntry(rcp, req.Key)
 		if err != nil {
-			if err.Error() == "not found" {
+			if err.Error() == "not found" { // TODO: fix this error message comparison, use errors.Is instead
 				return nil
 			}
-			return status.Errorf(codes.NotFound, err.Error())
+			return status.Error(codes.NotFound, err.Error())
 		}
 		if entry.GetValueType() == proto.DataDelete { // Send "Not Found" if entry was removed
-			return status.Errorf(codes.NotFound, "entry removed")
+			return status.Error(codes.NotFound, "entry removed")
 		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
 		if err := srv.Send(res); err != nil {
-			return status.Errorf(codes.Internal, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
 		return nil
 	}
 	entries, err := s.state.RetrieveEntries(rcp)
 	if err != nil {
-		if err.Error() == "not found" {
+		if err.Error() == "not found" { // TODO: fix this error message comparison, use errors.Is instead
 			return nil
 		}
-		return status.Errorf(codes.Internal, err.Error())
+		return status.Error(codes.Internal, err.Error())
 	}
 	for _, entry := range entries {
 		if entry.GetValueType() == proto.DataDelete {
@@ -150,7 +150,7 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 		}
 		res := &g.DataEntryResponse{Address: req.Address, Entry: entry.ToProtobuf()}
 		if err := srv.Send(res); err != nil {
-			return status.Errorf(codes.Internal, err.Error())
+			return status.Error(codes.Internal, err.Error())
 		}
 	}
 	return nil
@@ -160,7 +160,7 @@ func (s *Server) ResolveAlias(_ context.Context, req *wrapperspb.StringValue) (*
 	alias := proto.NewAlias(s.scheme, req.Value)
 	addr, err := s.state.AddrByAlias(*alias)
 	if err != nil {
-		return nil, status.Errorf(codes.NotFound, err.Error())
+		return nil, status.Error(codes.NotFound, err.Error())
 	}
 	return &wrapperspb.BytesValue{Value: addr.Bytes()}, nil
 }
