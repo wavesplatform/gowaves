@@ -5329,7 +5329,7 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 	require.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -1000000000: negative balance after payments application") //nolint:lll
 }
 
-func TestInvokePaymentsCheckBeforeAndAfterInvokeScriptTxActivation(t *testing.T) {
+func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
@@ -5370,17 +5370,42 @@ func TestInvokePaymentsCheckBeforeAndAfterInvokeScriptTxActivation(t *testing.T)
 			withWrappedState()
 	}
 
-	t.Run("BeforeInvokeScriptActivation", func(t *testing.T) {
+	t.Run("BeforeLightNodeActivationAndPaymentsFix", func(t *testing.T) {
 		env := prepareEnv().withWrappedState()
-		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+		rideEnv := env.toEnv()
+		res, err := CallFunction(rideEnv, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 		assert.Nil(t, res)
 		assert.EqualError(t, err, "gotcha")
+		assert.Equal(t, UserError, GetEvaluationErrorType(err))
+		// the call happens only once in `WrappedState.validatePaymentAction` during payment application
+		// payments check after application are not performed because of throw
+		assert.Len(t, rideEnv.calls.validateInternalPayments, 1)
 	})
-	t.Run("AfterInvokeScriptActivation", func(t *testing.T) {
+	t.Run("AfterLightNodeActivationWithoutPaymentsFix", func(t *testing.T) {
 		env := prepareEnv().withLightNodeActivated()
-		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+		rideEnv := env.toEnv()
+		res, err := CallFunction(rideEnv, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 		assert.Nil(t, res)
-		assert.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -4900000000")
+		assert.EqualError(t, err, "gotcha")
+		assert.Equal(t, UserError, GetEvaluationErrorType(err))
+		// the calls happen in `WrappedState.validatePaymentAction` during payment application  and before invoke
+		//  in `performInvoke` function
+		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
+		// payments check after application are not second time because of throw
+		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
+	})
+	t.Run("AfterLightNodeActivationAndPaymentsFix", func(t *testing.T) {
+		env := prepareEnv().withLightNodeActivated().withPaymentsFix()
+		rideEnv := env.toEnv()
+		res, err := CallFunction(rideEnv, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+		assert.Nil(t, res)
+		assert.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -4900000000: negative balance after payments application") //nolint:lll
+		assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		// the calls happen in `WrappedState.validatePaymentAction` during payment application and before invoke
+		//  in `performInvoke` function
+		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
+		// successfully fails before invoke because of negative balance
+		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
 	})
 }
 
