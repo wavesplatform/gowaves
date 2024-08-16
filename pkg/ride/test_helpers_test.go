@@ -146,6 +146,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		lightNodeActivatedFunc: func() bool {
 			return false
 		},
+		paymentsFixActivatedFunc: func() bool {
+			return false
+		},
 	}
 	r := &testEnv{
 		t:           t,
