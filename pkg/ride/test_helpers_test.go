@@ -380,6 +380,9 @@ func (e *testEnv) withComplexityLimit(limit int) *testEnv {
 		cc.setLimit(uint32(limit))
 		return cc
 	}
+	e.me.setComplexityCalculatorFunc = func(newCC complexityCalculator) {
+		cc = newCC
+	}
 	return e
 }
 

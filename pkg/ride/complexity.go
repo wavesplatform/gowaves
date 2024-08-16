@@ -21,6 +21,7 @@ type complexityCalculator interface {
 	testPropertyComplexity() error
 	addPropertyComplexity()
 	setLimit(limit uint32)
+	clone() complexityCalculator
 }
 
 type complexityCalculatorError interface {
@@ -138,6 +139,14 @@ func (cc *complexityCalculatorV1) limit() int {
 	return cc.l
 }
 
+func (cc *complexityCalculatorV1) clone() complexityCalculator {
+	return &complexityCalculatorV1{
+		err: cc.err,
+		c:   cc.c,
+		l:   cc.l,
+	}
+}
+
 func (cc *complexityCalculatorV1) testNativeFunctionComplexity(name string, fc int) error {
 	nc, err := common.AddInt(cc.c, fc)
 	if err != nil {
@@ -234,6 +243,14 @@ func (cc *complexityCalculatorV2) complexity() int {
 
 func (cc *complexityCalculatorV2) limit() int {
 	return cc.l
+}
+
+func (cc *complexityCalculatorV2) clone() complexityCalculator {
+	return &complexityCalculatorV2{
+		err: cc.err,
+		c:   cc.c,
+		l:   cc.l,
+	}
 }
 
 func (cc *complexityCalculatorV2) testNativeFunctionComplexity(name string, fc int) error {

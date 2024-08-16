@@ -505,6 +505,8 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	return nil
 }
 
+var errNegativeBalanceAfterPaymentsApplication = errors.New("negative balance after payments application")
+
 func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment, addr proto.WavesAddress, payments proto.ScriptPayments) error {
 	for _, payment := range payments {
 		var balance int64
@@ -529,7 +531,8 @@ func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment
 			}
 		}
 		if (env.validateInternalPayments() || env.rideV6Activated()) && balance < 0 {
-			return errors.Errorf("not enough money in the DApp, balance of asset %s on address %s after payments application is %d",
+			return errors.Wrapf(errNegativeBalanceAfterPaymentsApplication,
+				"not enough money in the DApp, balance of asset %s on address %s after payments application is %d",
 				payment.Asset.String(), addr.String(), balance)
 		}
 	}
@@ -1369,4 +1372,8 @@ func (e *EvaluationEnvironment) isProtobufTx() bool {
 
 func (e *EvaluationEnvironment) complexityCalculator() complexityCalculator {
 	return e.cc
+}
+
+func (e *EvaluationEnvironment) setComplexityCalculator(cc complexityCalculator) {
+	e.cc = cc
 }

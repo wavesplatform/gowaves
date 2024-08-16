@@ -71,6 +71,9 @@ var _ environment = &mockRideEnvironment{}
 //			schemeFunc: func() byte {
 //				panic("mock out the scheme method")
 //			},
+//			setComplexityCalculatorFunc: func(cc complexityCalculator)  {
+//				panic("mock out the setComplexityCalculator method")
+//			},
 //			setInvocationFunc: func(inv rideType)  {
 //				panic("mock out the setInvocation method")
 //			},
@@ -159,6 +162,9 @@ type mockRideEnvironment struct {
 	// schemeFunc mocks the scheme method.
 	schemeFunc func() byte
 
+	// setComplexityCalculatorFunc mocks the setComplexityCalculator method.
+	setComplexityCalculatorFunc func(cc complexityCalculator)
+
 	// setInvocationFunc mocks the setInvocation method.
 	setInvocationFunc func(inv rideType)
 
@@ -244,6 +250,11 @@ type mockRideEnvironment struct {
 		// scheme holds details about calls to the scheme method.
 		scheme []struct {
 		}
+		// setComplexityCalculator holds details about calls to the setComplexityCalculator method.
+		setComplexityCalculator []struct {
+			// Cc is the cc argument value.
+			Cc complexityCalculator
+		}
 		// setInvocation holds details about calls to the setInvocation method.
 		setInvocation []struct {
 			// Inv is the inv argument value.
@@ -302,6 +313,7 @@ type mockRideEnvironment struct {
 	lockpaymentsFixAfterHeight           sync.RWMutex
 	lockrideV6Activated                  sync.RWMutex
 	lockscheme                           sync.RWMutex
+	locksetComplexityCalculator          sync.RWMutex
 	locksetInvocation                    sync.RWMutex
 	locksetLibVersion                    sync.RWMutex
 	locksetNewDAppAddress                sync.RWMutex
@@ -775,6 +787,38 @@ func (mock *mockRideEnvironment) schemeCalls() []struct {
 	mock.lockscheme.RLock()
 	calls = mock.calls.scheme
 	mock.lockscheme.RUnlock()
+	return calls
+}
+
+// setComplexityCalculator calls setComplexityCalculatorFunc.
+func (mock *mockRideEnvironment) setComplexityCalculator(cc complexityCalculator) {
+	if mock.setComplexityCalculatorFunc == nil {
+		panic("mockRideEnvironment.setComplexityCalculatorFunc: method is nil but environment.setComplexityCalculator was just called")
+	}
+	callInfo := struct {
+		Cc complexityCalculator
+	}{
+		Cc: cc,
+	}
+	mock.locksetComplexityCalculator.Lock()
+	mock.calls.setComplexityCalculator = append(mock.calls.setComplexityCalculator, callInfo)
+	mock.locksetComplexityCalculator.Unlock()
+	mock.setComplexityCalculatorFunc(cc)
+}
+
+// setComplexityCalculatorCalls gets all the calls that were made to setComplexityCalculator.
+// Check the length with:
+//
+//	len(mockedenvironment.setComplexityCalculatorCalls())
+func (mock *mockRideEnvironment) setComplexityCalculatorCalls() []struct {
+	Cc complexityCalculator
+} {
+	var calls []struct {
+		Cc complexityCalculator
+	}
+	mock.locksetComplexityCalculator.RLock()
+	calls = mock.calls.setComplexityCalculator
+	mock.locksetComplexityCalculator.RUnlock()
 	return calls
 }
 

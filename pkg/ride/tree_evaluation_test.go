@@ -6004,7 +6004,7 @@ func TestEvaluatorComplexityFailedPaymentsCheck(t *testing.T) {
 		assert.Equal(t, expected, EvaluationErrorSpentComplexity(callErr))
 		assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(callErr))
 	})
-	t.Run("double-invoke_before_light_node", func(t *testing.T) {
+	t.Run("double-invoke_after_light_node", func(t *testing.T) {
 		env := createEnv(t).withLightNodeActivated()
 		rideEnv := env.toEnv()
 		res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
