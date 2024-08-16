@@ -5985,8 +5985,8 @@ func TestEvaluatorComplexityFailedPaymentsCheck(t *testing.T) {
 		})
 		t.Run("after_light_node", func(t *testing.T) {
 			env := createEnv(t).withLightNodeActivated()
-			doTest(t, env, 82, 164, NegativeBalanceAfterPayment) // fails by negative balance
-			// FIXME: in scala node behaviour is the same, as in the 'before_light_node' case
+			// in scala node behaviour is the same, as in the 'before_light_node' case
+			doTest(t, env, 84, 84, UserError)
 		})
 	})
 	t.Run("double-invoke_before_light_node", func(t *testing.T) {
