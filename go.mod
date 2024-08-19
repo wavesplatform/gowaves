@@ -11,7 +11,7 @@ require (
 	github.com/consensys/gnark v0.10.0
 	github.com/consensys/gnark-crypto v0.12.2-0.20240215234832-d72fcb379d3e
 	github.com/coocood/freecache v1.2.4
-	github.com/elliotchance/orderedmap/v2 v2.2.0
+	github.com/elliotchance/orderedmap/v2 v2.4.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/go-chi/chi v4.1.2+incompatible
