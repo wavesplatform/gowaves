@@ -403,6 +403,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		env.scheme(),
 		env.state(),
 		env.internalPaymentsValidationHeight(),
+		env.paymentsFixAfterHeight(),
 		env.blockV5Activated(),
 		env.rideV6Activated(),
 		env.consensusImprovementsActivated(),
@@ -504,6 +505,8 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	return nil
 }
 
+var errNegativeBalanceAfterPaymentsApplication = errors.New("negative balance after payments application")
+
 func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment, addr proto.WavesAddress, payments proto.ScriptPayments) error {
 	for _, payment := range payments {
 		var balance int64
@@ -528,7 +531,8 @@ func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment
 			}
 		}
 		if (env.validateInternalPayments() || env.rideV6Activated()) && balance < 0 {
-			return errors.Errorf("not enough money in the DApp, balance of asset %s on address %s after payments application is %d",
+			return errors.Wrapf(errNegativeBalanceAfterPaymentsApplication,
+				"not enough money in the DApp, balance of asset %s on address %s after payments application is %d",
 				payment.Asset.String(), addr.String(), balance)
 		}
 	}
@@ -1031,7 +1035,8 @@ type EvaluationEnvironment struct {
 	takeStr                            func(s string, n int) rideString
 	inv                                rideType
 	ver                                ast.LibraryVersion
-	validatePaymentsAfter              uint64
+	validatePaymentsAfter              proto.Height
+	paymentsFixAfter                   proto.Height
 	isBlockV5Activated                 bool
 	isRideV6Activated                  bool
 	isConsensusImprovementsActivated   bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
@@ -1050,7 +1055,10 @@ func bytesSizeCheckV3V6(l int) bool {
 	return l <= proto.MaxDataWithProofsBytes
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64,
+func NewEnvironment(
+	scheme proto.Scheme,
+	state types.SmartState,
+	internalPaymentsValidationHeight, paymentsFixAfterHeight proto.Height,
 	blockV5, rideV6, consensusImprovements, blockRewardDistribution, lightNode bool,
 ) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
@@ -1064,6 +1072,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		check:                              bytesSizeCheckV1V2, // By default almost unlimited
 		takeStr:                            func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 		validatePaymentsAfter:              internalPaymentsValidationHeight,
+		paymentsFixAfter:                   paymentsFixAfterHeight,
 		isBlockV5Activated:                 blockV5,
 		isRideV6Activated:                  rideV6,
 		isBlockRewardDistributionActivated: blockRewardDistribution,
@@ -1341,8 +1350,16 @@ func (e *EvaluationEnvironment) validateInternalPayments() bool {
 	return int(e.h) > int(e.validatePaymentsAfter)
 }
 
-func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
+func (e *EvaluationEnvironment) internalPaymentsValidationHeight() proto.Height {
 	return e.validatePaymentsAfter
+}
+
+func (e *EvaluationEnvironment) paymentsFixActivated() bool {
+	return int(e.h) > int(e.paymentsFixAfter)
+}
+
+func (e *EvaluationEnvironment) paymentsFixAfterHeight() proto.Height {
+	return e.paymentsFixAfter
 }
 
 func (e *EvaluationEnvironment) maxDataEntriesSize() int {
@@ -1355,4 +1372,8 @@ func (e *EvaluationEnvironment) isProtobufTx() bool {
 
 func (e *EvaluationEnvironment) complexityCalculator() complexityCalculator {
 	return e.cc
+}
+
+func (e *EvaluationEnvironment) setComplexityCalculator(cc complexityCalculator) {
+	e.cc = cc
 }

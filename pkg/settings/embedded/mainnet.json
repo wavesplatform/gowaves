@@ -19,6 +19,7 @@
   "unissued_asset_until_time": 1479416400000,
   "invalid_reissue_in_same_block_until_time": 1492768800000,
   "minimal_generating_balance_check_after_time": 1479168000000,
+  "payments_fix_after_height": 4303300,
   "internal_invoke_payments_validation_after_height": 2959400,
   "internal_invoke_correct_fail_reject_behaviour_after_height": 2792473,
   "invoke_no_zero_payments_after_height": 0,
