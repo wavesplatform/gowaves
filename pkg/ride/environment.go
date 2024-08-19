@@ -1355,7 +1355,9 @@ func (e *EvaluationEnvironment) internalPaymentsValidationHeight() proto.Height 
 }
 
 func (e *EvaluationEnvironment) paymentsFixActivated() bool {
-	return int(e.h) > int(e.paymentsFixAfter)
+	// according to the logic of the scala node
+	// see commit https://github.com/wavesplatform/Waves/commit/2f9e61c0fe04beeeb5b94b508b124a7ec1a746ff
+	return int(e.h) >= int(e.paymentsFixAfter)
 }
 
 func (e *EvaluationEnvironment) paymentsFixAfterHeight() proto.Height {
