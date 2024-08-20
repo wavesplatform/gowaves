@@ -1043,7 +1043,7 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}
-	height, err := s.NewestHeight()
+	height, err := s.NewestHeight() // TODO: while adding block should it be block height or blockchain height?
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
@@ -1256,6 +1256,9 @@ func (s *stateManager) beforeAppendBlock(block *proto.Block, blockHeight proto.H
 }
 
 func (s *stateManager) handleChallengedHeaderIfExists(block *proto.Block, blockHeight proto.Height) error {
+	if blockHeight < 2 { // no challenges for genesis block
+		return nil
+	}
 	challengedHeader, ok := block.GetChallengedHeader()
 	if !ok { // nothing to do, no challenge to handle
 		return nil
@@ -1276,10 +1279,11 @@ func (s *stateManager) handleChallengedHeaderIfExists(block *proto.Block, blockH
 			challengedHeader.GeneratorPublicKey.String(),
 		)
 	}
-	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockHeight, blockID); chErr != nil {
+	blockchainHeight := blockHeight - 1
+	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockchainHeight, blockID); chErr != nil {
 		return errors.Wrapf(chErr,
-			"failed to store challenge for block '%s' at height %d with challenger '%s' and challenged '%s'",
-			blockID.String(), blockHeight, challenger.String(), challenged.String(),
+			"failed to store challenge with blockchain height %d for block '%s'with challenger '%s' and challenged '%s'",
+			blockchainHeight, blockID.String(), challenger.String(), challenged.String(),
 		)
 	}
 	return nil

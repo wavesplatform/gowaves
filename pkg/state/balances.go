@@ -634,7 +634,7 @@ func (s *balances) newestGeneratingBalance(addr proto.AddressID, height proto.He
 	startHeight, endHeight := s.sets.RangeForGeneratingBalanceByHeight(height)
 	gb, err := s.newestMinEffectiveBalanceInRange(addr, startHeight, endHeight)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed get newest min effective balance; startHeight %d, endHeight %d",
+		return 0, errors.Wrapf(err, "failed get newest min effective balance with startHeight %d and endHeight %d",
 			startHeight, endHeight)
 	}
 	bonus, err := s.newestChallengerBonus(addr, height)
@@ -650,7 +650,7 @@ func (s *balances) newestGeneratingBalance(addr proto.AddressID, height proto.He
 
 func (s *balances) storeChallenge(
 	challenger, challenged proto.AddressID,
-	height proto.Height,
+	blockchainHeight proto.Height, // for changing generating balance we use current blockchain height
 	blockID proto.BlockID,
 ) error {
 	// Check if challenger and challenged addresses are the same. Self-challenge is not allowed.
@@ -658,15 +658,16 @@ func (s *balances) storeChallenge(
 		return errors.New("challenger and challenged addresses are the same")
 	}
 	// Get challenger bonus before storing the challenged penalty.
-	challengedGeneratingBalance, gbErr := s.newestGeneratingBalance(challenged, height)
+	// Challenged can't be with bonus and be challenged at the same height because of the check above.
+	generatingBalance, gbErr := s.newestGeneratingBalance(challenged, blockchainHeight)
 	if gbErr != nil {
-		return errors.Wrapf(gbErr, "failed to get generating balance for challenged address at height %d", height)
+		return errors.Wrapf(gbErr, "failed to get generating balance for challenged address at height %d", blockchainHeight)
 	}
-	if err := s.storeChallengeBonusForAddr(challenger, challengedGeneratingBalance, height, blockID); err != nil {
-		return errors.Wrapf(err, "failed to store challenge bonus for challenger at height %d", height)
+	if err := s.storeChallengeBonusForAddr(challenger, generatingBalance, blockchainHeight, blockID); err != nil {
+		return errors.Wrapf(err, "failed to store challenge bonus for challenger at height %d", blockchainHeight)
 	}
-	if err := s.storeChallengeHeightForAddr(challenged, height, blockID); err != nil {
-		return errors.Wrapf(err, "failed to store challenge height for challenged at height %d", height)
+	if err := s.storeChallengeHeightForAddr(challenged, blockchainHeight, blockID); err != nil {
+		return errors.Wrapf(err, "failed to store challenge height for challenged at height %d", blockchainHeight)
 	}
 	return nil
 }
