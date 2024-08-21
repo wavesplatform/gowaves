@@ -708,6 +708,7 @@ func (a *txAppender) appendTxs(
 			if !isBlockWithChallenge {
 				return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
 			}
+			zap.S().Debugf("Elided tx detected (ID=%q): %v", base58.Encode(txID), errAppendTx)
 			txSnap = txSnapshot{
 				regular: []proto.AtomicSnapshot{
 					&proto.TransactionStatusSnapshot{Status: proto.TransactionElided},
