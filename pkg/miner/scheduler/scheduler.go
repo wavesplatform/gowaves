@@ -233,7 +233,7 @@ func (a internalImpl) scheduleWithoutVrf(
 		"  block base target: %d\n"+
 		"Generation accounts:",
 		confirmedBlockHeight, confirmedBlock.BlockID().String(),
-		confirmedBlock.Timestamp, time.UnixMilli(int64(confirmedBlock.Timestamp)),
+		confirmedBlock.Timestamp, time.UnixMilli(int64(confirmedBlock.Timestamp)), // #nosec: used only for logging
 		confirmedBlock.BaseTarget,
 	)
 	var out []Emit
@@ -293,9 +293,10 @@ func (a internalImpl) scheduleWithoutVrf(
 		ts := confirmedBlock.Timestamp + delay
 		zap.S().Debugf("  %s (%s): ", addr.String(), pk.String())
 		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
-		zap.S().Debugf("    Generation Balance: %d", int(generatingBalance))
-		zap.S().Debugf("    Delay: %d", int(delay))
-		zap.S().Debugf("    Timestamp: %d (%s)", int(ts), common.UnixMillisToTime(int64(ts)).String())
+		zap.S().Debugf("    Generation Balance: %d", generatingBalance)
+		zap.S().Debugf("    Delay: %d", delay)
+		zap.S().Debugf("    Timestamp: %d (%s)",
+			ts, common.UnixMillisToTime(int64(ts)).String()) // #nosec: used only for logging
 		out = append(out, Emit{
 			Timestamp:    ts,
 			KeyPair:      keyPair,
