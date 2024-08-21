@@ -47,16 +47,24 @@ const (
 
 type AddressID [AddressIDSize]byte
 
+func (a AddressID) ID() AddressID {
+	return a
+}
+
+func (a AddressID) String() string {
+	return base58.Encode(a[:])
+}
+
+func (a AddressID) Equal(address Address) bool {
+	return a == address.ID()
+}
+
 func (a AddressID) Bytes() []byte {
 	return a[:]
 }
 
 func (a AddressID) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
 	return newWavesAddress(scheme, a)
-}
-
-func (a AddressID) Equal(id AddressID) bool {
-	return a == id
 }
 
 type Address interface {
@@ -141,7 +149,7 @@ func (ea EthereumAddress) Equal(address Address) bool {
 	switch other := address.(type) {
 	case EthereumAddress, *EthereumAddress:
 		return bytes.Equal(ea.Bytes(), other.Bytes())
-	case WavesAddress, *WavesAddress:
+	case WavesAddress, *WavesAddress, AddressID, *AddressID:
 		return false
 	default:
 		panic(errors.Errorf("BUG, CREATE REPORT: unknown address type %T", address))
@@ -249,14 +257,7 @@ func (a WavesAddress) String() string {
 }
 
 func (a WavesAddress) Equal(address Address) bool {
-	switch other := address.(type) {
-	case WavesAddress, *WavesAddress:
-		return bytes.Equal(a.Bytes(), other.Bytes())
-	case EthereumAddress, *EthereumAddress:
-		return false
-	default:
-		panic(errors.Errorf("BUG, CREATE REPORT: unknown address type %T", address))
-	}
+	return bytes.Equal(a.Bytes(), address.Bytes())
 }
 
 func (a WavesAddress) ToWavesAddress(_ Scheme) (WavesAddress, error) {
