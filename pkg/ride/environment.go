@@ -5,6 +5,7 @@ import (
 	"math"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -157,7 +158,22 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 	if err != nil {
 		return nil, err
 	}
-	return b.toFullWavesBalance()
+	zap.S().Infof("WrappedState.NewestFullWavesBalance: addr=%s, %+v", fmt.Stringer(addr), struct {
+		Balance, LeaseIn, LeaseOut, StateGenerating int64
+		Challenged                                  bool
+	}{
+		Balance: b.balance, LeaseIn: b.leaseIn, LeaseOut: b.leaseOut, StateGenerating: b.stateGenerating,
+		Challenged: b.challenged,
+	})
+	fullWavesBalance, err := b.toFullWavesBalance()
+	if err != nil {
+		return nil, err
+	}
+	zap.S().Infof("WrappedState.NewestFullWavesBalance.toFullWavesBalance: addr=%s, %+v",
+		fmt.Stringer(addr),
+		fullWavesBalance,
+	)
+	return fullWavesBalance, nil
 }
 
 func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) {

@@ -981,7 +981,12 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient, height proto.H
 	if err != nil {
 		return 0, errs.Extend(err, "failed convert recipient to address")
 	}
-	return s.stor.balances.generatingBalance(addr.ID(), height)
+	res, err := s.stor.balances.generatingBalance(addr.ID(), height)
+	if err != nil {
+		return 0, errs.Extend(err, "failed to get generating balance")
+	}
+	zap.S().Infof("stateManager.GeneratingBalance: addr %s, generatingBalance %d", addr.String(), res)
+	return res, nil
 }
 
 func (s *stateManager) NewestGeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error) {
@@ -989,7 +994,12 @@ func (s *stateManager) NewestGeneratingBalance(account proto.Recipient, height p
 	if err != nil {
 		return 0, wrapErr(RetrievalError, err)
 	}
-	return s.stor.balances.newestGeneratingBalance(addr.ID(), height)
+	res, err := s.stor.balances.newestGeneratingBalance(addr.ID(), height)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, err)
+	}
+	zap.S().Infof("stateManager.NewestGeneratingBalance: addr %s, generatingBalance %d", addr.String(), res)
+	return res, nil
 }
 
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -1047,7 +1057,12 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	return bp.ToFullWavesBalance()
+	res, err := bp.ToFullWavesBalance()
+	if err != nil {
+		return nil, wrapErr(Other, err)
+	}
+	zap.S().Infof("stateManager.NewestFullWavesBalance: %+v", res)
+	return res, nil
 }
 
 // WavesBalanceProfile returns WavesBalanceProfile structure retrieved by proto.AddressID of an account.
@@ -1082,13 +1097,15 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 		}
 		challenged = ch
 	}
-	return &types.WavesBalanceProfile{
+	res := &types.WavesBalanceProfile{
 		Balance:    profile.balance,
 		LeaseIn:    profile.leaseIn,
 		LeaseOut:   profile.leaseOut,
 		Generating: generating,
 		Challenged: challenged,
-	}, nil
+	}
+	zap.S().Infof("stateManager.WavesBalanceProfile: %+v", res)
+	return res, nil
 }
 
 func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, error) {
@@ -1272,8 +1289,11 @@ func (s *stateManager) handleChallengedHeaderIfExists(block *proto.Block, blockH
 			challengedHeader.GeneratorPublicKey.String(),
 		)
 	}
+	zap.S().Infof("Challenged header found in block '%s' with challenger '%s' and challenged '%s'",
+		blockID.String(), challenger.String(), challenged.String(),
+	)
 	blockchainHeight := blockHeight - 1
-	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockchainHeight, blockID); chErr != nil {
+	if chErr := s.stor.balances.storeChallenge(challenger, challenged, blockchainHeight, blockID); chErr != nil {
 		return errors.Wrapf(chErr,
 			"failed to store challenge with blockchain height %d for block '%s'with challenger '%s' and challenged '%s'",
 			blockchainHeight, blockID.String(), challenger.String(), challenged.String(),

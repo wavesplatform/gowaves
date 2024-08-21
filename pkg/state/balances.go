@@ -649,7 +649,7 @@ func (s *balances) newestGeneratingBalance(addr proto.AddressID, height proto.He
 }
 
 func (s *balances) storeChallenge(
-	challenger, challenged proto.AddressID,
+	challenger, challenged proto.Address,
 	blockchainHeight proto.Height, // for changing generating balance we use current blockchain height
 	blockID proto.BlockID,
 ) error {
@@ -659,16 +659,25 @@ func (s *balances) storeChallenge(
 	}
 	// Get challenger bonus before storing the challenged penalty.
 	// Challenged can't be with bonus and be challenged at the same height because of the check above.
-	generatingBalance, gbErr := s.newestGeneratingBalance(challenged, blockchainHeight)
+	generatingBalance, gbErr := s.newestGeneratingBalance(challenged.ID(), blockchainHeight)
 	if gbErr != nil {
 		return errors.Wrapf(gbErr, "failed to get generating balance for challenged address at height %d", blockchainHeight)
 	}
-	if err := s.storeChallengeBonusForAddr(challenger, generatingBalance, blockchainHeight, blockID); err != nil {
+	challengerGeneratingBalance, cgbErr := s.newestGeneratingBalance(challenger.ID(), blockchainHeight)
+	if cgbErr != nil {
+		return errors.Wrapf(cgbErr, "failed to get generating balance for challenger address at height %d", blockchainHeight)
+	}
+	zap.S().Infof("Storing challenge bonus for challenger %s with original balance %d at height %d: %d + %d = %d",
+		challenger.String(), challengerGeneratingBalance, blockchainHeight,
+		challengerGeneratingBalance, generatingBalance, challengerGeneratingBalance+generatingBalance,
+	)
+	if err := s.storeChallengeBonusForAddr(challenger.ID(), generatingBalance, blockchainHeight, blockID); err != nil {
 		return errors.Wrapf(err, "failed to store challenge bonus for challenger at height %d", blockchainHeight)
 	}
-	if err := s.storeChallengeHeightForAddr(challenged, blockchainHeight, blockID); err != nil {
+	if err := s.storeChallengeHeightForAddr(challenged.ID(), blockchainHeight, blockID); err != nil {
 		return errors.Wrapf(err, "failed to store challenge height for challenged at height %d", blockchainHeight)
 	}
+	zap.S().Infof("Storing challenge height for challenged %s at height %d", challenged.String(), blockchainHeight)
 	return nil
 }
 

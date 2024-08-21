@@ -11,6 +11,7 @@ import (
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
@@ -825,6 +826,7 @@ func wavesBalanceV4(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "wavesBalanceV4(%s)", r.String())
 	}
+	zap.S().Infof("wavesBalanceV4(%s) = %+v", r.String(), balance)
 	return balanceDetailsToObject(balance), nil
 }
 
