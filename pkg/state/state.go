@@ -1030,6 +1030,14 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 	}, nil
 }
 
+// NewestFullWavesBalance returns a full Waves balance of account.
+// The method must be used ONLY in the Ride environment.
+// The boundaries of the generating balance are calculated for the current height of applying block,
+// instead of the last block height.
+//
+// For example, for the block validation we are use min effective balance of the account from height 1 to 1000.
+// This function uses heights from 2 to 1001, where 1001 is the height of the applying block.
+// All changes of effective balance during the applying block are affecting the generating balance.
 func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
@@ -1068,6 +1076,16 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	}, nil
 }
 
+// WavesBalanceProfile returns WavesBalanceProfile structure retrieved by proto.AddressID of an account.
+// This function always returns the newest available state of Waves balance of account.
+// Thought, it can't be used during transaction processing, because the state does no hold changes between txs.
+// The method must be used ONLY in the Ride environment for retrieving data from state.
+// The boundaries of the generating balance are calculated for the current height of applying block,
+// instead of the last block height.
+//
+// For example, for the block validation we are use min effective balance of the account from height 1 to 1000.
+// This function uses heights from 2 to 1001, where 1001 is the height of the applying block.
+// All changes of effective balance during the applying block are affecting the generating balance.
 func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 	profile, err := s.newestWavesBalanceProfile(id)
 	if err != nil {

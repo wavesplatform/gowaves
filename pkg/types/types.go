@@ -64,6 +64,14 @@ type SmartState interface {
 	IsStateUntouched(account proto.Recipient) (bool, error)
 	NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error)
 	NewestWavesBalance(account proto.Recipient) (uint64, error)
+	// NewestFullWavesBalance returns a full Waves balance of account.
+	// The method must be used ONLY in the Ride environment.
+	// The boundaries of the generating balance are calculated for the current height of applying block,
+	// instead of the last block height.
+	//
+	// For example, for the block validation we are use min effective balance of the account from height 1 to 1000.
+	// This function uses heights from 2 to 1001, where 1001 is the height of the applying block.
+	// All changes of effective balance during the applying block are affecting the generating balance.
 	NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error)
 	RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
@@ -81,6 +89,14 @@ type SmartState interface {
 
 	// WavesBalanceProfile returns WavesBalanceProfile structure retrieved by proto.AddressID of an account.
 	// This function always returns the newest available state of Waves balance of account.
+	// Thought, it can't be used during transaction processing, because the state does no hold changes between txs.
+	// The method must be used ONLY in the Ride environment for retrieving data from state.
+	// The boundaries of the generating balance are calculated for the current height of applying block,
+	// instead of the last block height.
+	//
+	// For example, for the block validation we are use min effective balance of the account from height 1 to 1000.
+	// This function uses heights from 2 to 1001, where 1001 is the height of the applying block.
+	// All changes of effective balance during the applying block are affecting the generating balance.
 	WavesBalanceProfile(id proto.AddressID) (*WavesBalanceProfile, error)
 
 	// NewestAssetBalanceByAddressID returns the most actual asset balance by given proto.AddressID and
