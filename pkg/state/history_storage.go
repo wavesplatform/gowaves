@@ -796,7 +796,7 @@ func (hs *historyStorage) newestEntriesDataInHeightRange(key []byte, startHeight
 	}
 	endBlockNum, err := hs.stateDB.newestBlockNumByHeight(endHeight)
 	if err != nil {
-		return nil, err // TODO: end height here is 3236175, so it's throws wrapped io.EOF, i think
+		return nil, err
 	}
 	return hs.blockRangeEntries(history, startBlockNum, endBlockNum), nil
 }
