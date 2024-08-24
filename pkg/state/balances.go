@@ -782,10 +782,7 @@ func (s *balances) isChallengedAddressInRange(addr proto.AddressID, startHeight,
 }
 
 func (s *balances) isChallengedAddress(addr proto.AddressID, height proto.Height) (bool, error) {
-	var (
-		startHeight = height
-		endHeight   = startHeight // we're checking only one height, so the heights are the same
-	)
+	startHeight, endHeight := height, height // we're checking only one height, so the heights are the same
 	return s.isChallengedAddressInRange(addr, startHeight, endHeight)
 }
 
@@ -797,10 +794,7 @@ func (s *balances) newestIsChallengedAddressInRange(
 }
 
 func (s *balances) newestIsChallengedAddress(addr proto.AddressID, height proto.Height) (bool, error) {
-	var (
-		startHeight = height
-		endHeight   = startHeight // we're checking only one height, so the heights are the same
-	)
+	startHeight, endHeight := height, height // we're checking only one height, so the heights are the same
 	return s.newestIsChallengedAddressInRange(addr, startHeight, endHeight)
 }
 
