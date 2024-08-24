@@ -36,7 +36,9 @@ type TransactionWithBytes struct {
 	B []byte
 }
 
-//go:generate moq -out ../state/smart_state_moq_test.go -pkg state . SmartState:AnotherMockSmartState
+var _ = SmartState(EnrichedSmartState(nil)) // check for go:generate command
+
+//go:generate moq -out ../state/smart_state_moq_test.go -pkg state . EnrichedSmartState:AnotherMockSmartState
 
 // WavesBalanceProfile contains essential parts of Waves balance and
 // must be used to pass this information if SmartState only.
@@ -132,6 +134,12 @@ type SmartState interface {
 
 	EstimatorVersion() (int, error)
 	IsNotFound(err error) bool
+}
+
+// EnrichedSmartState is enriched SmartState interface for ride WrappedState.
+// So it also can be used as SmartState interface.
+type EnrichedSmartState interface {
+	SmartState
 
 	// WavesBalanceProfile returns WavesBalanceProfile structure retrieved by proto.AddressID of an account.
 	// This function always returns the newest available state of Waves balance of account.
@@ -148,8 +156,6 @@ type SmartState interface {
 	// NewestAssetBalanceByAddressID returns the most actual asset balance by given proto.AddressID and
 	// assets crypto.Digest.
 	NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error)
-
-	//TODO: The last 2 functions intended to be used only in wrapped state. Extract separate interface for such functions.
 }
 
 type ID interface {

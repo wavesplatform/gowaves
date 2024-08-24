@@ -198,7 +198,7 @@ func (b changedAccounts) addAssetBalanceChange(account proto.AddressID, asset cr
 }
 
 type diffState struct {
-	state           types.SmartState
+	state           types.EnrichedSmartState
 	data            map[dataEntryKey]proto.DataEntry
 	wavesBalances   map[proto.AddressID]diffBalance
 	assetBalances   map[assetBalanceKey]assetBalance
@@ -209,7 +209,7 @@ type diffState struct {
 	changedAccounts changedAccounts
 }
 
-func newDiffState(state types.SmartState) diffState {
+func newDiffState(state types.EnrichedSmartState) diffState {
 	return diffState{
 		state:           state,
 		data:            map[dataEntryKey]proto.DataEntry{},

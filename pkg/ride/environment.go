@@ -30,9 +30,13 @@ type WrappedState struct {
 	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion) *WrappedState {
+func newWrappedState(
+	env *EvaluationEnvironment,
+	originalStateForWrappedState types.EnrichedSmartState,
+	rootScriptLibVersion ast.LibraryVersion,
+) *WrappedState {
 	return &WrappedState{
-		diff:                      newDiffState(env.st),
+		diff:                      newDiffState(originalStateForWrappedState),
 		cle:                       env.th.(rideAddress),
 		scheme:                    env.sch,
 		height:                    proto.Height(env.height()),
@@ -379,14 +383,6 @@ func (ws *WrappedState) NewestScriptByAsset(asset crypto.Digest) (*ast.Tree, err
 
 func (ws *WrappedState) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
 	return ws.diff.state.NewestBlockInfoByHeight(height)
-}
-
-func (ws *WrappedState) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-	return ws.diff.state.WavesBalanceProfile(id)
-}
-
-func (ws *WrappedState) NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error) {
-	return ws.diff.state.NewestAssetBalanceByAddressID(id, asset)
 }
 
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env environment) (bool, error) {
@@ -1092,6 +1088,7 @@ func NewEnvironment(
 
 func NewEnvironmentWithWrappedState(
 	env *EvaluationEnvironment,
+	originalState types.EnrichedSmartState,
 	payments proto.ScriptPayments,
 	sender proto.WavesAddress,
 	isProtobufTransaction bool,
@@ -1099,7 +1096,7 @@ func NewEnvironmentWithWrappedState(
 	checkSenderBalance bool,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.WavesAddress(env.th.(rideAddress))
-	st := newWrappedState(env, rootScriptLibVersion)
+	st := newWrappedState(env, originalState, rootScriptLibVersion)
 	for i, payment := range payments {
 		var (
 			senderBalance uint64
