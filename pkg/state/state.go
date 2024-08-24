@@ -1065,7 +1065,8 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	height, err := s.NewestHeight()
+	// get the height of the applying block if it is in progress, or the last block height
+	height, err := s.AddingBlockHeight()
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
