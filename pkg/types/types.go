@@ -2,11 +2,13 @@ package types
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type Scheduler interface {
@@ -44,6 +46,50 @@ type WavesBalanceProfile struct {
 	LeaseOut   int64
 	Generating uint64
 	Challenged bool // if Challenged true, the account considered as challenged at the current height.
+}
+
+// EffectiveBalance returns effective balance with checking for account challenging.
+// The function MUST be used ONLY in the context where account challenging IS CHECKED.
+func (bp *WavesBalanceProfile) EffectiveBalance() (uint64, error) {
+	switch {
+	case bp.Challenged:
+		return 0, nil
+	case bp.LeaseIn < 0:
+		return 0, fmt.Errorf("negative lease in balance %d", bp.LeaseIn)
+	case bp.LeaseOut < 0:
+		return 0, fmt.Errorf("negative lease out balance %d", bp.LeaseOut)
+	}
+	val, err := common.AddInt(bp.Balance, uint64(bp.LeaseIn))
+	if err != nil {
+		return 0, err
+	}
+	return common.SubInt(val, uint64(bp.LeaseOut))
+}
+
+func (bp *WavesBalanceProfile) SpendableBalance() (uint64, error) {
+	if bp.LeaseOut < 0 {
+		return 0, fmt.Errorf("negative lease out balance %d", bp.LeaseOut)
+	}
+	return common.SubInt(bp.Balance, uint64(bp.LeaseOut))
+}
+
+func (bp *WavesBalanceProfile) ToFullWavesBalance() (*proto.FullWavesBalance, error) {
+	available, err := bp.SpendableBalance()
+	if err != nil {
+		return nil, err
+	}
+	effective, err := bp.EffectiveBalance()
+	if err != nil {
+		return nil, err
+	}
+	return &proto.FullWavesBalance{
+		Regular:    bp.Balance,
+		Generating: bp.Generating,
+		Available:  available,
+		Effective:  effective,
+		LeaseIn:    uint64(bp.LeaseIn),  // LeaseIn is always non-negative, because it's checked in EffectiveBalance.
+		LeaseOut:   uint64(bp.LeaseOut), // LeaseOut is always non-negative, because it's checked in EffectiveBalance.
+	}, nil
 }
 
 // SmartState is a part of state used by smart contracts.

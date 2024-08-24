@@ -1043,37 +1043,11 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	profile, err := s.newestWavesBalanceProfile(addr.ID())
+	bp, err := s.WavesBalanceProfile(addr.ID())
 	if err != nil {
 		return nil, wrapErr(RetrievalError, err)
 	}
-	effective, err := profile.effectiveBalanceUnchecked()
-	if err != nil {
-		return nil, wrapErr(Other, err)
-	}
-	height, err := s.NewestHeight() // TODO: while adding block should it be block height or blockchain height?
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	var generating uint64
-	if gb, gbErr := s.NewestGeneratingBalance(account, height); gbErr == nil {
-		generating = gb
-	}
-	if generating == 0 { // we need to check for challenged addresses only if generating balance is 0
-		chEffective, effErr := profile.effectiveBalance(s.stor.balances.newestIsChallengedAddress, addr.ID(), height)
-		if effErr != nil {
-			return nil, wrapErr(RetrievalError, effErr)
-		}
-		effective = chEffective
-	}
-	return &proto.FullWavesBalance{
-		Regular:    profile.balance,
-		Generating: generating,
-		Available:  profile.spendableBalance(),
-		Effective:  effective,
-		LeaseIn:    uint64(profile.leaseIn),
-		LeaseOut:   uint64(profile.leaseOut),
-	}, nil
+	return bp.ToFullWavesBalance()
 }
 
 // WavesBalanceProfile returns WavesBalanceProfile structure retrieved by proto.AddressID of an account.
