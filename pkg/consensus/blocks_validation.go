@@ -205,7 +205,8 @@ func (cv *Validator) validateGeneratingBalance(header *proto.BlockHeader, balanc
 		return nil
 	}
 	if balance < generatingBalanceForGenerator1 {
-		return errors.Errorf("generator's generating balance is less than required for generation: expected %d, %d",
+		return errors.Errorf(
+			"generator's generating balance is less than required for generation: expected %d, found %d",
 			generatingBalanceForGenerator1, balance,
 		)
 	}
