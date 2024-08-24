@@ -154,6 +154,15 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get full Waves balance from wrapped state")
 	}
+	var (
+		hit     bool
+		addrStr = addr.String()
+	)
+	if hit = addrStr == "3MzRUPSNHwHXoE9LJeSDtaeGzrHVV43MXjn"; hit { // challenger
+		print()
+	} else if hit = addrStr == "3Msjb7fHtosdG8QJZ2b8YYCp6dpcK6Ck9Qr"; hit { // challenged
+		print()
+	}
 	b, err := ws.diff.loadWavesBalance(addr.ID())
 	if err != nil {
 		return nil, err
@@ -165,7 +174,7 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 		Balance: b.balance, LeaseIn: b.leaseIn, LeaseOut: b.leaseOut, StateGenerating: b.stateGenerating,
 		Challenged: b.challenged,
 	})
-	fullWavesBalance, err := b.toFullWavesBalance()
+	fullWavesBalance, err := b.toFullWavesBalance(hit)
 	if err != nil {
 		return nil, err
 	}

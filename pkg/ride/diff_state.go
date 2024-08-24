@@ -103,7 +103,10 @@ func (db *diffBalance) effectiveBalance() (int64, error) {
 	return v2, nil
 }
 
-func (db *diffBalance) toFullWavesBalance() (*proto.FullWavesBalance, error) {
+func (db *diffBalance) toFullWavesBalance(hit bool) (*proto.FullWavesBalance, error) {
+	if hit {
+		print()
+	}
 	eff, err := db.effectiveBalance()
 	if err != nil {
 		return nil, err
