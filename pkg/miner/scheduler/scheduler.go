@@ -45,7 +45,7 @@ type internal interface {
 	schedule(
 		state state.StateInfo,
 		keyPairs []proto.KeyPair,
-		sets *settings.BlockchainSettings,
+		settings *settings.BlockchainSettings,
 		confirmedBlock *proto.Block,
 		confirmedBlockHeight uint64,
 	) ([]Emit, error)
@@ -56,7 +56,7 @@ type internalImpl struct{}
 func (a internalImpl) schedule(
 	storage state.StateInfo,
 	keyPairs []proto.KeyPair,
-	sets *settings.BlockchainSettings,
+	blockchainSettings *settings.BlockchainSettings,
 	confirmedBlock *proto.Block,
 	confirmedBlockHeight uint64,
 ) ([]Emit, error) {
@@ -65,15 +65,15 @@ func (a internalImpl) schedule(
 		return nil, errors.Wrap(err, "failed get vrfActivated")
 	}
 	if vrfActivated {
-		return a.scheduleWithVrf(storage, keyPairs, sets, confirmedBlock, confirmedBlockHeight)
+		return a.scheduleWithVrf(storage, keyPairs, blockchainSettings, confirmedBlock, confirmedBlockHeight)
 	}
-	return a.scheduleWithoutVrf(storage, keyPairs, sets, confirmedBlock, confirmedBlockHeight)
+	return a.scheduleWithoutVrf(storage, keyPairs, blockchainSettings, confirmedBlock, confirmedBlockHeight)
 }
 
 func (a internalImpl) prepareDataForSchedule(
 	storage state.StateInfo,
 	confirmedBlockHeight uint64,
-	sets *settings.BlockchainSettings,
+	blockchainSettings *settings.BlockchainSettings,
 ) (proto.Timestamp, bool, consensus.PosCalculator, error) {
 	var greatGrandParentTimestamp proto.Timestamp = 0
 	if confirmedBlockHeight > 2 {
@@ -96,7 +96,7 @@ func (a internalImpl) prepareDataForSchedule(
 	pos := consensus.NXTPosCalculator
 	if fairPosActivated {
 		if blockV5Activated {
-			pos = consensus.NewFairPosCalculator(sets.DelayDelta, sets.MinBlockTime)
+			pos = consensus.NewFairPosCalculator(blockchainSettings.DelayDelta, blockchainSettings.MinBlockTime)
 		} else {
 			pos = consensus.FairPosCalculatorV1
 		}
@@ -107,11 +107,13 @@ func (a internalImpl) prepareDataForSchedule(
 func (a internalImpl) scheduleWithVrf(
 	storage state.StateInfo,
 	keyPairs []proto.KeyPair,
-	sets *settings.BlockchainSettings,
+	blockchainSettings *settings.BlockchainSettings,
 	confirmedBlock *proto.Block,
 	confirmedBlockHeight uint64,
 ) ([]Emit, error) {
-	greatGrandParentTimestamp, blockV5Activated, pos, err := a.prepareDataForSchedule(storage, confirmedBlockHeight, sets)
+	greatGrandParentTimestamp, blockV5Activated, pos, err := a.prepareDataForSchedule(storage, confirmedBlockHeight,
+		blockchainSettings,
+	)
 	if err != nil {
 		return nil, err
 	}
@@ -122,13 +124,11 @@ func (a internalImpl) scheduleWithVrf(
 	}
 
 	heightForHit := pos.HeightForHit(confirmedBlockHeight)
-
 	hitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
 	if err != nil {
 		zap.S().Errorf("Scheduler: Failed to get hit source at height %d: %v", heightForHit, err)
 		return nil, err
 	}
-
 	zap.S().Debugf("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d",
 		confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight,
 	)
@@ -160,7 +160,7 @@ func (a internalImpl) scheduleWithVrf(
 			continue
 		}
 
-		addr, err := keyPair.Addr(sets.AddressSchemeCharacter)
+		addr, err := keyPair.Addr(blockchainSettings.AddressSchemeCharacter)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to schedule mining, failed to create address from PK: %v", err)
 			continue
@@ -180,7 +180,7 @@ func (a internalImpl) scheduleWithVrf(
 		}
 
 		baseTarget, err := pos.CalculateBaseTarget(
-			sets.AverageBlockDelaySeconds,
+			blockchainSettings.AverageBlockDelaySeconds,
 			confirmedBlockHeight,
 			confirmedBlock.BlockHeader.BaseTarget,
 			confirmedBlock.Timestamp,
@@ -210,11 +210,11 @@ func (a internalImpl) scheduleWithVrf(
 func (a internalImpl) scheduleWithoutVrf(
 	storage state.StateInfo,
 	keyPairs []proto.KeyPair,
-	sets *settings.BlockchainSettings,
+	blockchainSettings *settings.BlockchainSettings,
 	confirmedBlock *proto.Block,
 	confirmedBlockHeight uint64,
 ) ([]Emit, error) {
-	greatGrandParentTimestamp, _, pos, err := a.prepareDataForSchedule(storage, confirmedBlockHeight, sets)
+	greatGrandParentTimestamp, _, pos, err := a.prepareDataForSchedule(storage, confirmedBlockHeight, blockchainSettings)
 	if err != nil {
 		return nil, err
 	}
@@ -256,7 +256,7 @@ func (a internalImpl) scheduleWithoutVrf(
 			continue
 		}
 
-		addr, err := proto.NewAddressFromPublicKey(sets.AddressSchemeCharacter, pk)
+		addr, err := proto.NewAddressFromPublicKey(blockchainSettings.AddressSchemeCharacter, pk)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to create new address from PK %q: %v", pk.String(), err)
 			continue
@@ -279,7 +279,7 @@ func (a internalImpl) scheduleWithoutVrf(
 		}
 
 		baseTarget, err := pos.CalculateBaseTarget(
-			sets.AverageBlockDelaySeconds,
+			blockchainSettings.AverageBlockDelaySeconds,
 			confirmedBlockHeight,
 			confirmedBlock.BlockHeader.BaseTarget,
 			confirmedBlock.Timestamp,
