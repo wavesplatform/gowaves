@@ -5,12 +5,16 @@ import (
 	"fmt"
 	"math/big"
 	"path/filepath"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 
+	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -451,4 +455,180 @@ func TestStateHashAtHeight(t *testing.T) {
 	err = correctHash.UnmarshalJSON([]byte(correctHashJs))
 	assert.NoError(t, err, "failed to unmarshal correct hash JSON")
 	assert.Equal(t, correctHash, *stateHash)
+}
+
+type timeMock struct{}
+
+func (timeMock) Now() time.Time { return time.Now().UTC() }
+
+func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
+	createMockStateManager := func(t *testing.T, bs *settings.BlockchainSettings) (*stateManager, *testStorageObjects) {
+		const (
+			handleAmend               = true
+			calculateHashes           = true
+			enableLightNode           = false
+			verificationGoroutinesNum = 2
+			provideExtendedAPI        = true
+		)
+		toOpts := testStorageObjectsOptions{Amend: handleAmend, Settings: bs}
+		to := createStorageObjectsWithOptions(t, toOpts)
+
+		stor, err := newBlockchainEntitiesStorage(to.hs, to.settings, to.rw, calculateHashes)
+		require.NoError(t, err, "newBlockchainEntitiesStorage() failed")
+
+		blockStorageDir := t.TempDir()
+		atxParams := &addressTransactionsParams{
+			dir:                 blockStorageDir,
+			batchedStorMemLimit: proto.KiB,
+			batchedStorMaxKeys:  AddressTransactionsMaxKeys,
+			maxFileSize:         2 * proto.KiB,
+			providesData:        provideExtendedAPI,
+		}
+		atx, err := newAddressTransactions(to.db, to.stateDB, to.rw, atxParams, handleAmend)
+		require.NoError(t, err, "newAddressTransactions() failed")
+
+		state := &stateManager{
+			mu:                        new(sync.RWMutex),
+			lastBlock:                 atomic.Value{},
+			genesis:                   new(proto.Block), // stub
+			stateDB:                   to.stateDB,
+			stor:                      stor,
+			rw:                        to.rw,
+			settings:                  to.settings,
+			cv:                        nil, // filled in later
+			appender:                  nil, // filled in later
+			atx:                       atx,
+			verificationGoroutinesNum: verificationGoroutinesNum,
+			newBlocks:                 newNewBlocks(to.rw, to.settings),
+			enableLightNode:           enableLightNode,
+		}
+		snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, to.rw))
+		appender, err := newTxAppender(
+			state,
+			state.rw,
+			state.stor,
+			state.settings,
+			state.stateDB,
+			state.atx,
+			&snapshotApplier,
+		)
+		require.NoError(t, err, "newTxAppender() failed")
+		state.appender = appender
+		state.cv = consensus.NewValidator(state, state.settings, timeMock{})
+		return state, to
+	}
+	const (
+		initialBalance = 100
+		changedBalance = 200
+	)
+	prepareStateCommon := func(t *testing.T, addr proto.WavesAddress) (*stateManager, *testStorageObjects) {
+		const blocksToApply = 1000
+
+		customSettings := *settings.MainNetSettings                      // copy the mainnet settings
+		customSettings.GenerationBalanceDepthFrom50To1000AfterHeight = 1 // set from the first height
+		state, testObj := createMockStateManager(t, &customSettings)
+
+		// add initial balance at first block
+		testObj.addBlock(t, blockID0)
+		initialBP := newWavesValueFromProfile(balanceProfile{initialBalance, 0, 0})
+		err := state.stor.balances.setWavesBalance(addr.ID(), initialBP, blockID0) // height 1
+		require.NoError(t, err, "setWavesBalance() failed")
+		// add changed balance at second block
+		testObj.addBlock(t, blockID1)
+		changedBP := newWavesValueFromProfile(balanceProfile{changedBalance, 0, 0})
+		err = state.stor.balances.setWavesBalance(addr.ID(), changedBP, blockID1) // height 2
+		require.NoError(t, err, "setWavesBalance() failed")
+
+		testObj.addBlocks(t, blocksToApply-2) // add 998 random blocks, 2 blocks have already been added
+
+		nh, err := state.NewestHeight()
+		require.NoError(t, err, "NewestHeight() failed")
+		require.Equal(t, uint64(blocksToApply), nh) // sanity check, blockchain height should be 1000
+		ah, err := state.AddingBlockHeight()
+		require.NoError(t, err, "AddingBlockHeight() failed")
+		require.Equal(t, nh, ah) // sanity check, adding block height should be the same
+		return state, testObj
+	}
+
+	addr, aErr := proto.NewAddressFromString(addr0)
+	require.NoError(t, aErr, "NewAddressFromString() failed")
+
+	t.Run("NewestFullWavesBalance", func(t *testing.T) {
+		state, testObj := prepareStateCommon(t, addr)
+		rcp := proto.NewRecipientFromAddress(addr) // convert address to recipient
+
+		fb, err := state.NewestFullWavesBalance(rcp) // height 1000
+		require.NoError(t, err, "NewestFullWavesBalance() failed")
+		assert.Equal(t, uint64(initialBalance), fb.Generating)
+
+		lastBlockIDToApply := blockID2
+
+		// blockchain height now 1000, height for NewestFullWavesBalance is 1001
+		// because for NewestFullWavesBalance we take into account applying block
+		testObj.prepareAndStartBlock(t, lastBlockIDToApply)
+		newFb, err := state.NewestFullWavesBalance(rcp)
+		require.NoError(t, err, "NewestFullWavesBalance() failed")
+		assert.Equal(t, uint64(changedBalance), newFb.Generating) // should be changed balance
+		// finish the block, we are not in the applying block state
+		testObj.finishBlock(t, lastBlockIDToApply) // blockchain height now 1001
+		newFb, err = state.NewestFullWavesBalance(rcp)
+		require.NoError(t, err, "NewestFullWavesBalance() failed")
+		assert.Equal(t, uint64(changedBalance), newFb.Generating) // result should be the same
+	})
+	t.Run("WavesBalanceProfile", func(t *testing.T) {
+		state, testObj := prepareStateCommon(t, addr)
+
+		fb, err := state.WavesBalanceProfile(addr.ID()) // height 1000
+		require.NoError(t, err, "WavesBalanceProfile() failed")
+		assert.Equal(t, uint64(initialBalance), fb.Generating)
+
+		lastBlockIDToApply := blockID2
+
+		// blockchain height now 1000, height for NewestFullWavesBalance is 1001
+		// because for NewestFullWavesBalance we take into account applying block
+		testObj.prepareAndStartBlock(t, lastBlockIDToApply)
+		newFb, err := state.WavesBalanceProfile(addr.ID())
+		require.NoError(t, err, "WavesBalanceProfile() failed")
+		assert.Equal(t, uint64(changedBalance), newFb.Generating) // should be changed balance
+		// finish the block, we are not in the applying block state
+		testObj.finishBlock(t, lastBlockIDToApply) // blockchain height now 1001
+		newFb, err = state.WavesBalanceProfile(addr.ID())
+		require.NoError(t, err, "WavesBalanceProfile() failed")
+		assert.Equal(t, uint64(changedBalance), newFb.Generating) // result should be the same
+	})
+	t.Run("NewestGeneratingBalance", func(t *testing.T) {
+		state, testObj := prepareStateCommon(t, addr)
+		rcp := proto.NewRecipientFromAddress(addr) // convert address to recipient
+		nh, err := state.NewestHeight()
+		require.NoError(t, err, "NewestHeight() failed")
+
+		gb, err := state.NewestGeneratingBalance(rcp, nh) // height 1000
+		require.NoError(t, err, "NewestGeneratingBalance() failed")
+		assert.Equal(t, uint64(initialBalance), gb)
+
+		lastBlockIDToApply := blockID2
+
+		// blockchain height now 1000, height for NewestFullWavesBalance is 1001
+		// because for NewestFullWavesBalance we take into account applying block
+		testObj.prepareAndStartBlock(t, lastBlockIDToApply)
+		newGB, err := state.NewestGeneratingBalance(rcp, nh)
+		require.NoError(t, err, "NewestGeneratingBalance() failed")
+		assert.Equal(t, uint64(initialBalance), newGB) // should be initial balance, because nh == 1000
+		// check with adding block height == 1001
+		ah, err := state.AddingBlockHeight()
+		require.NoError(t, err, "AddingBlockHeight() failed")
+		require.Equal(t, nh+1, ah) // sanity check, adding block height should be the same
+		newGB, err = state.NewestGeneratingBalance(rcp, ah)
+		require.NoError(t, err, "NewestGeneratingBalance() failed")
+		assert.Equal(t, uint64(changedBalance), newGB) // should be changed balance now
+
+		// finish the block, we are not in the applying block state
+		testObj.finishBlock(t, lastBlockIDToApply) // blockchain height now 1001
+		nh, err = state.NewestHeight()
+		require.NoError(t, err, "NewestHeight() failed")
+		assert.Equal(t, ah, nh) // sanity check, blockchain height should be 1001
+		newGB, err = state.NewestGeneratingBalance(rcp, nh)
+		require.NoError(t, err, "NewestGeneratingBalance() failed")
+		assert.Equal(t, uint64(changedBalance), newGB) // result should be the same
+	})
 }
