@@ -57,7 +57,7 @@ type txAppender struct {
 }
 
 func newTxAppender(
-	state types.SmartState,
+	state types.EnrichedSmartState,
 	rw *blockReadWriter,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
