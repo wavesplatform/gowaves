@@ -679,6 +679,7 @@ func (a *txAppender) appendTxs(
 	if err != nil {
 		return proto.BlockSnapshot{}, crypto.Digest{}, err
 	}
+	_, isBlockWithChallenge := params.block.GetChallengedHeader()
 	// Check and append transactions.
 	var bs proto.BlockSnapshot
 	appendTxArgs := &appendTxParams{
@@ -697,22 +698,35 @@ func (a *txAppender) appendTxs(
 		currentMinerPK:                   params.block.GeneratorPublicKey,
 	}
 	for _, tx := range params.transactions {
-		txSnapshots, errAppendTx := a.appendTx(tx, appendTxArgs)
-		if errAppendTx != nil {
-			return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
-		}
-		bs.AppendTxSnapshot(txSnapshots.regular)
-
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
 			return proto.BlockSnapshot{}, crypto.Digest{}, idErr
 		}
 
-		if len(txSnapshots.regular) == 0 { // sanity check
+		txSnap, errAppendTx := a.appendTx(tx, appendTxArgs)
+		if errAppendTx != nil { // TODO: check error type for elided tx
+			if !isBlockWithChallenge {
+				return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
+			}
+			zap.S().Debugf("Elided tx detected (ID=%q): %v", base58.Encode(txID), errAppendTx)
+			txSnap = txSnapshot{
+				regular: []proto.AtomicSnapshot{
+					&proto.TransactionStatusSnapshot{Status: proto.TransactionElided},
+				},
+				internal: nil,
+			}
+			if aErr := txSnap.Apply(a.txHandler.sa, tx, appendTxArgs.validatingUtx); aErr != nil {
+				return proto.BlockSnapshot{}, crypto.Digest{},
+					errors.Wrapf(aErr, "failed to apply elided tx (ID=%q) snapshot", base58.Encode(txID))
+			}
+		}
+		bs.AppendTxSnapshot(txSnap.regular)
+
+		if len(txSnap.regular) == 0 { // sanity check
 			return proto.BlockSnapshot{}, crypto.Digest{},
 				errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
-		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, txSnapshots.regular)
+		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, txSnap.regular)
 		if shErr != nil {
 			return proto.BlockSnapshot{}, crypto.Digest{}, errors.Wrapf(shErr,
 				"failed to calculate tx snapshot hash for txID %q at height %d", base58.Encode(txID), blockInfo.Height,
