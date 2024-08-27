@@ -14,7 +14,7 @@ import (
 )
 
 type scriptCaller struct {
-	state types.SmartState
+	state types.EnrichedSmartState
 
 	stor     *blockchainEntitiesStorage
 	settings *settings.BlockchainSettings
@@ -24,7 +24,7 @@ type scriptCaller struct {
 }
 
 func newScriptCaller(
-	state types.SmartState,
+	state types.EnrichedSmartState,
 	stor *blockchainEntitiesStorage,
 	settings *settings.BlockchainSettings,
 ) (*scriptCaller, error) {
@@ -57,6 +57,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 		a.settings.AddressSchemeCharacter,
 		a.state,
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
+		a.settings.PaymentsFixAfterHeight,
 		info.blockV5Activated,
 		info.rideV6Activated,
 		info.consensusImprovementsActivated,
@@ -120,6 +121,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 		a.settings.AddressSchemeCharacter,
 		a.state,
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
+		a.settings.PaymentsFixAfterHeight,
 		params.blockV5Activated,
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
@@ -221,6 +223,7 @@ func (a *scriptCaller) callAssetScriptWithScriptTransfer(tr *proto.FullScriptTra
 		a.settings.AddressSchemeCharacter,
 		a.state,
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
+		a.settings.PaymentsFixAfterHeight,
 		params.blockV5Activated,
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
@@ -242,6 +245,7 @@ func (a *scriptCaller) callAssetScript(tx proto.Transaction, assetID crypto.Dige
 		a.settings.AddressSchemeCharacter,
 		a.state,
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
+		a.settings.PaymentsFixAfterHeight,
 		params.blockV5Activated,
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,
@@ -269,6 +273,7 @@ func (a *scriptCaller) invokeFunction(
 		a.settings.AddressSchemeCharacter,
 		a.state,
 		a.settings.InternalInvokePaymentsValidationAfterHeight,
+		a.settings.PaymentsFixAfterHeight,
 		info.blockV5Activated,
 		info.rideV6Activated,
 		info.consensusImprovementsActivated,
@@ -357,7 +362,7 @@ func (a *scriptCaller) invokeFunctionByInvokeWithProofsTx(
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= ast.LibV5 {
 		isPbTx := proto.IsProtobufTx(tx)
-		env, err = ride.NewEnvironmentWithWrappedState(env, tx.Payments, sender, isPbTx, tree.LibVersion, true)
+		env, err = ride.NewEnvironmentWithWrappedState(env, a.state, tx.Payments, sender, isPbTx, tree.LibVersion, true)
 		if err != nil {
 			return nil, proto.FunctionCall{}, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 		}
@@ -406,7 +411,7 @@ func (a *scriptCaller) invokeFunctionByEthereumTx(
 		//TODO: Update last argument of the followinxg call with new feature activation flag or
 		// something else depending on NODE-2531 issue resolution in scala implementation.
 		isPbTx := proto.IsProtobufTx(tx)
-		env, err = ride.NewEnvironmentWithWrappedState(env, scriptPayments, sender, isPbTx, tree.LibVersion, false)
+		env, err = ride.NewEnvironmentWithWrappedState(env, a.state, scriptPayments, sender, isPbTx, tree.LibVersion, false)
 		if err != nil {
 			return nil, proto.FunctionCall{}, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
@@ -451,7 +456,7 @@ func (a *scriptCaller) invokeFunctionByInvokeExpressionWithProofsTx(
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= ast.LibV5 {
 		isPbTx := proto.IsProtobufTx(tx)
-		env, err = ride.NewEnvironmentWithWrappedState(env, payments, sender, isPbTx, tree.LibVersion, true)
+		env, err = ride.NewEnvironmentWithWrappedState(env, a.state, payments, sender, isPbTx, tree.LibVersion, true)
 		if err != nil {
 			return nil, errors.Wrapf(err, "failed to create RIDE environment with wrapped state")
 		}

@@ -19,7 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.SmartState,
+func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.EnrichedSmartState,
 	assetsUncertain map[proto.AssetID]wrappedUncertainInfo,
 	params *appendTxParams) txAppender {
 	scheme := proto.TestNetScheme

@@ -146,6 +146,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		lightNodeActivatedFunc: func() bool {
 			return false
 		},
+		paymentsFixActivatedFunc: func() bool {
+			return false
+		},
 	}
 	r := &testEnv{
 		t:           t,
@@ -377,6 +380,9 @@ func (e *testEnv) withComplexityLimit(limit int) *testEnv {
 		cc.setLimit(uint32(limit))
 		return cc
 	}
+	e.me.setComplexityCalculatorFunc = func(newCC complexityCalculator) {
+		cc = newCC
+	}
 	return e
 }
 
@@ -456,6 +462,13 @@ func (e *testEnv) withLightNodeActivated() *testEnv {
 
 func (e *testEnv) withValidateInternalPayments() *testEnv {
 	e.me.validateInternalPaymentsFunc = func() bool {
+		return true
+	}
+	return e
+}
+
+func (e *testEnv) withPaymentsFix() *testEnv {
+	e.me.paymentsFixActivatedFunc = func() bool {
 		return true
 	}
 	return e

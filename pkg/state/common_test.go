@@ -437,12 +437,20 @@ func (s *testStorageObjects) prepareBlock(t *testing.T, blockID proto.BlockID) {
 	assert.NoError(t, err, "stateDB.addBlock() failed")
 }
 
-// addBlock prepares, starts and finishes fake block.
-func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
+func (s *testStorageObjects) prepareAndStartBlock(t *testing.T, blockID proto.BlockID) {
 	s.prepareBlock(t, blockID)
 	err := s.rw.startBlock(blockID)
 	assert.NoError(t, err, "startBlock() failed")
-	err = s.rw.finishBlock(blockID)
+}
+
+// addBlock prepares, starts and finishes fake block.
+func (s *testStorageObjects) addBlock(t *testing.T, blockID proto.BlockID) {
+	s.prepareAndStartBlock(t, blockID)
+	s.finishBlock(t, blockID)
+}
+
+func (s *testStorageObjects) finishBlock(t *testing.T, blockID proto.BlockID) {
+	err := s.rw.finishBlock(blockID)
 	assert.NoError(t, err, "finishBlock() failed")
 }
 

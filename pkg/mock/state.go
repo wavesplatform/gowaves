@@ -358,21 +358,6 @@ func (mr *MockStateInfoMockRecorder) CurrentScore() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentScore", reflect.TypeOf((*MockStateInfo)(nil).CurrentScore))
 }
 
-// EffectiveBalance mocks base method.
-func (m *MockStateInfo) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EffectiveBalance", account, startHeight, endHeight)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EffectiveBalance indicates an expected call of EffectiveBalance.
-func (mr *MockStateInfoMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockStateInfo)(nil).EffectiveBalance), account, startHeight, endHeight)
-}
-
 // EnrichedFullAssetInfo mocks base method.
 func (m *MockStateInfo) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
 	m.ctrl.T.Helper()
@@ -431,6 +416,21 @@ func (m *MockStateInfo) FullWavesBalance(account proto.Recipient) (*proto.FullWa
 func (mr *MockStateInfoMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockStateInfo)(nil).FullWavesBalance), account)
+}
+
+// GeneratingBalance mocks base method.
+func (m *MockStateInfo) GeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GeneratingBalance", account, height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GeneratingBalance indicates an expected call of GeneratingBalance.
+func (mr *MockStateInfoMockRecorder) GeneratingBalance(account, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GeneratingBalance", reflect.TypeOf((*MockStateInfo)(nil).GeneratingBalance), account, height)
 }
 
 // Header mocks base method.
@@ -1747,21 +1747,6 @@ func (mr *MockStateMockRecorder) CurrentScore() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CurrentScore", reflect.TypeOf((*MockState)(nil).CurrentScore))
 }
 
-// EffectiveBalance mocks base method.
-func (m *MockState) EffectiveBalance(account proto.Recipient, startHeight, endHeight proto.Height) (uint64, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "EffectiveBalance", account, startHeight, endHeight)
-	ret0, _ := ret[0].(uint64)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// EffectiveBalance indicates an expected call of EffectiveBalance.
-func (mr *MockStateMockRecorder) EffectiveBalance(account, startHeight, endHeight interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EffectiveBalance", reflect.TypeOf((*MockState)(nil).EffectiveBalance), account, startHeight, endHeight)
-}
-
 // EnrichedFullAssetInfo mocks base method.
 func (m *MockState) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.EnrichedFullAssetInfo, error) {
 	m.ctrl.T.Helper()
@@ -1820,6 +1805,21 @@ func (m *MockState) FullWavesBalance(account proto.Recipient) (*proto.FullWavesB
 func (mr *MockStateMockRecorder) FullWavesBalance(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FullWavesBalance", reflect.TypeOf((*MockState)(nil).FullWavesBalance), account)
+}
+
+// GeneratingBalance mocks base method.
+func (m *MockState) GeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GeneratingBalance", account, height)
+	ret0, _ := ret[0].(uint64)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GeneratingBalance indicates an expected call of GeneratingBalance.
+func (mr *MockStateMockRecorder) GeneratingBalance(account, height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GeneratingBalance", reflect.TypeOf((*MockState)(nil).GeneratingBalance), account, height)
 }
 
 // Header mocks base method.

@@ -11,16 +11,16 @@ import (
 	"sync"
 )
 
-// Ensure, that AnotherMockSmartState does implement types.SmartState.
+// Ensure, that AnotherMockSmartState does implement types.EnrichedSmartState.
 // If this is not the case, regenerate this file with moq.
-var _ types.SmartState = &AnotherMockSmartState{}
+var _ types.EnrichedSmartState = &AnotherMockSmartState{}
 
-// AnotherMockSmartState is a mock implementation of types.SmartState.
+// AnotherMockSmartState is a mock implementation of types.EnrichedSmartState.
 //
-//	func TestSomethingThatUsesSmartState(t *testing.T) {
+//	func TestSomethingThatUsesEnrichedSmartState(t *testing.T) {
 //
-//		// make and configure a mocked types.SmartState
-//		mockedSmartState := &AnotherMockSmartState{
+//		// make and configure a mocked types.EnrichedSmartState
+//		mockedEnrichedSmartState := &AnotherMockSmartState{
 //			AddingBlockHeightFunc: func() (uint64, error) {
 //				panic("mock out the AddingBlockHeight method")
 //			},
@@ -104,7 +104,7 @@ var _ types.SmartState = &AnotherMockSmartState{}
 //			},
 //		}
 //
-//		// use mockedSmartState in code that requires types.SmartState
+//		// use mockedEnrichedSmartState in code that requires types.EnrichedSmartState
 //		// and then make assertions.
 //
 //	}
@@ -368,7 +368,7 @@ type AnotherMockSmartState struct {
 // AddingBlockHeight calls AddingBlockHeightFunc.
 func (mock *AnotherMockSmartState) AddingBlockHeight() (uint64, error) {
 	if mock.AddingBlockHeightFunc == nil {
-		panic("AnotherMockSmartState.AddingBlockHeightFunc: method is nil but SmartState.AddingBlockHeight was just called")
+		panic("AnotherMockSmartState.AddingBlockHeightFunc: method is nil but EnrichedSmartState.AddingBlockHeight was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -381,7 +381,7 @@ func (mock *AnotherMockSmartState) AddingBlockHeight() (uint64, error) {
 // AddingBlockHeightCalls gets all the calls that were made to AddingBlockHeight.
 // Check the length with:
 //
-//	len(mockedSmartState.AddingBlockHeightCalls())
+//	len(mockedEnrichedSmartState.AddingBlockHeightCalls())
 func (mock *AnotherMockSmartState) AddingBlockHeightCalls() []struct {
 } {
 	var calls []struct {
@@ -395,7 +395,7 @@ func (mock *AnotherMockSmartState) AddingBlockHeightCalls() []struct {
 // EstimatorVersion calls EstimatorVersionFunc.
 func (mock *AnotherMockSmartState) EstimatorVersion() (int, error) {
 	if mock.EstimatorVersionFunc == nil {
-		panic("AnotherMockSmartState.EstimatorVersionFunc: method is nil but SmartState.EstimatorVersion was just called")
+		panic("AnotherMockSmartState.EstimatorVersionFunc: method is nil but EnrichedSmartState.EstimatorVersion was just called")
 	}
 	callInfo := struct {
 	}{}
@@ -408,7 +408,7 @@ func (mock *AnotherMockSmartState) EstimatorVersion() (int, error) {
 // EstimatorVersionCalls gets all the calls that were made to EstimatorVersion.
 // Check the length with:
 //
-//	len(mockedSmartState.EstimatorVersionCalls())
+//	len(mockedEnrichedSmartState.EstimatorVersionCalls())
 func (mock *AnotherMockSmartState) EstimatorVersionCalls() []struct {
 } {
 	var calls []struct {
@@ -422,7 +422,7 @@ func (mock *AnotherMockSmartState) EstimatorVersionCalls() []struct {
 // IsNotFound calls IsNotFoundFunc.
 func (mock *AnotherMockSmartState) IsNotFound(err error) bool {
 	if mock.IsNotFoundFunc == nil {
-		panic("AnotherMockSmartState.IsNotFoundFunc: method is nil but SmartState.IsNotFound was just called")
+		panic("AnotherMockSmartState.IsNotFoundFunc: method is nil but EnrichedSmartState.IsNotFound was just called")
 	}
 	callInfo := struct {
 		Err error
@@ -438,7 +438,7 @@ func (mock *AnotherMockSmartState) IsNotFound(err error) bool {
 // IsNotFoundCalls gets all the calls that were made to IsNotFound.
 // Check the length with:
 //
-//	len(mockedSmartState.IsNotFoundCalls())
+//	len(mockedEnrichedSmartState.IsNotFoundCalls())
 func (mock *AnotherMockSmartState) IsNotFoundCalls() []struct {
 	Err error
 } {
@@ -454,7 +454,7 @@ func (mock *AnotherMockSmartState) IsNotFoundCalls() []struct {
 // IsStateUntouched calls IsStateUntouchedFunc.
 func (mock *AnotherMockSmartState) IsStateUntouched(account proto.Recipient) (bool, error) {
 	if mock.IsStateUntouchedFunc == nil {
-		panic("AnotherMockSmartState.IsStateUntouchedFunc: method is nil but SmartState.IsStateUntouched was just called")
+		panic("AnotherMockSmartState.IsStateUntouchedFunc: method is nil but EnrichedSmartState.IsStateUntouched was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -470,7 +470,7 @@ func (mock *AnotherMockSmartState) IsStateUntouched(account proto.Recipient) (bo
 // IsStateUntouchedCalls gets all the calls that were made to IsStateUntouched.
 // Check the length with:
 //
-//	len(mockedSmartState.IsStateUntouchedCalls())
+//	len(mockedEnrichedSmartState.IsStateUntouchedCalls())
 func (mock *AnotherMockSmartState) IsStateUntouchedCalls() []struct {
 	Account proto.Recipient
 } {
@@ -486,7 +486,7 @@ func (mock *AnotherMockSmartState) IsStateUntouchedCalls() []struct {
 // NewestAddrByAlias calls NewestAddrByAliasFunc.
 func (mock *AnotherMockSmartState) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	if mock.NewestAddrByAliasFunc == nil {
-		panic("AnotherMockSmartState.NewestAddrByAliasFunc: method is nil but SmartState.NewestAddrByAlias was just called")
+		panic("AnotherMockSmartState.NewestAddrByAliasFunc: method is nil but EnrichedSmartState.NewestAddrByAlias was just called")
 	}
 	callInfo := struct {
 		Alias proto.Alias
@@ -502,7 +502,7 @@ func (mock *AnotherMockSmartState) NewestAddrByAlias(alias proto.Alias) (proto.W
 // NewestAddrByAliasCalls gets all the calls that were made to NewestAddrByAlias.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestAddrByAliasCalls())
+//	len(mockedEnrichedSmartState.NewestAddrByAliasCalls())
 func (mock *AnotherMockSmartState) NewestAddrByAliasCalls() []struct {
 	Alias proto.Alias
 } {
@@ -518,7 +518,7 @@ func (mock *AnotherMockSmartState) NewestAddrByAliasCalls() []struct {
 // NewestAssetBalance calls NewestAssetBalanceFunc.
 func (mock *AnotherMockSmartState) NewestAssetBalance(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
 	if mock.NewestAssetBalanceFunc == nil {
-		panic("AnotherMockSmartState.NewestAssetBalanceFunc: method is nil but SmartState.NewestAssetBalance was just called")
+		panic("AnotherMockSmartState.NewestAssetBalanceFunc: method is nil but EnrichedSmartState.NewestAssetBalance was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -536,7 +536,7 @@ func (mock *AnotherMockSmartState) NewestAssetBalance(account proto.Recipient, a
 // NewestAssetBalanceCalls gets all the calls that were made to NewestAssetBalance.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestAssetBalanceCalls())
+//	len(mockedEnrichedSmartState.NewestAssetBalanceCalls())
 func (mock *AnotherMockSmartState) NewestAssetBalanceCalls() []struct {
 	Account proto.Recipient
 	AssetID crypto.Digest
@@ -554,7 +554,7 @@ func (mock *AnotherMockSmartState) NewestAssetBalanceCalls() []struct {
 // NewestAssetBalanceByAddressID calls NewestAssetBalanceByAddressIDFunc.
 func (mock *AnotherMockSmartState) NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error) {
 	if mock.NewestAssetBalanceByAddressIDFunc == nil {
-		panic("AnotherMockSmartState.NewestAssetBalanceByAddressIDFunc: method is nil but SmartState.NewestAssetBalanceByAddressID was just called")
+		panic("AnotherMockSmartState.NewestAssetBalanceByAddressIDFunc: method is nil but EnrichedSmartState.NewestAssetBalanceByAddressID was just called")
 	}
 	callInfo := struct {
 		ID    proto.AddressID
@@ -572,7 +572,7 @@ func (mock *AnotherMockSmartState) NewestAssetBalanceByAddressID(id proto.Addres
 // NewestAssetBalanceByAddressIDCalls gets all the calls that were made to NewestAssetBalanceByAddressID.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestAssetBalanceByAddressIDCalls())
+//	len(mockedEnrichedSmartState.NewestAssetBalanceByAddressIDCalls())
 func (mock *AnotherMockSmartState) NewestAssetBalanceByAddressIDCalls() []struct {
 	ID    proto.AddressID
 	Asset crypto.Digest
@@ -590,7 +590,7 @@ func (mock *AnotherMockSmartState) NewestAssetBalanceByAddressIDCalls() []struct
 // NewestAssetConstInfo calls NewestAssetConstInfoFunc.
 func (mock *AnotherMockSmartState) NewestAssetConstInfo(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
 	if mock.NewestAssetConstInfoFunc == nil {
-		panic("AnotherMockSmartState.NewestAssetConstInfoFunc: method is nil but SmartState.NewestAssetConstInfo was just called")
+		panic("AnotherMockSmartState.NewestAssetConstInfoFunc: method is nil but EnrichedSmartState.NewestAssetConstInfo was just called")
 	}
 	callInfo := struct {
 		AssetID proto.AssetID
@@ -606,7 +606,7 @@ func (mock *AnotherMockSmartState) NewestAssetConstInfo(assetID proto.AssetID) (
 // NewestAssetConstInfoCalls gets all the calls that were made to NewestAssetConstInfo.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestAssetConstInfoCalls())
+//	len(mockedEnrichedSmartState.NewestAssetConstInfoCalls())
 func (mock *AnotherMockSmartState) NewestAssetConstInfoCalls() []struct {
 	AssetID proto.AssetID
 } {
@@ -622,7 +622,7 @@ func (mock *AnotherMockSmartState) NewestAssetConstInfoCalls() []struct {
 // NewestAssetInfo calls NewestAssetInfoFunc.
 func (mock *AnotherMockSmartState) NewestAssetInfo(assetID crypto.Digest) (*proto.AssetInfo, error) {
 	if mock.NewestAssetInfoFunc == nil {
-		panic("AnotherMockSmartState.NewestAssetInfoFunc: method is nil but SmartState.NewestAssetInfo was just called")
+		panic("AnotherMockSmartState.NewestAssetInfoFunc: method is nil but EnrichedSmartState.NewestAssetInfo was just called")
 	}
 	callInfo := struct {
 		AssetID crypto.Digest
@@ -638,7 +638,7 @@ func (mock *AnotherMockSmartState) NewestAssetInfo(assetID crypto.Digest) (*prot
 // NewestAssetInfoCalls gets all the calls that were made to NewestAssetInfo.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestAssetInfoCalls())
+//	len(mockedEnrichedSmartState.NewestAssetInfoCalls())
 func (mock *AnotherMockSmartState) NewestAssetInfoCalls() []struct {
 	AssetID crypto.Digest
 } {
@@ -654,7 +654,7 @@ func (mock *AnotherMockSmartState) NewestAssetInfoCalls() []struct {
 // NewestAssetIsSponsored calls NewestAssetIsSponsoredFunc.
 func (mock *AnotherMockSmartState) NewestAssetIsSponsored(assetID crypto.Digest) (bool, error) {
 	if mock.NewestAssetIsSponsoredFunc == nil {
-		panic("AnotherMockSmartState.NewestAssetIsSponsoredFunc: method is nil but SmartState.NewestAssetIsSponsored was just called")
+		panic("AnotherMockSmartState.NewestAssetIsSponsoredFunc: method is nil but EnrichedSmartState.NewestAssetIsSponsored was just called")
 	}
 	callInfo := struct {
 		AssetID crypto.Digest
@@ -670,7 +670,7 @@ func (mock *AnotherMockSmartState) NewestAssetIsSponsored(assetID crypto.Digest)
 // NewestAssetIsSponsoredCalls gets all the calls that were made to NewestAssetIsSponsored.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestAssetIsSponsoredCalls())
+//	len(mockedEnrichedSmartState.NewestAssetIsSponsoredCalls())
 func (mock *AnotherMockSmartState) NewestAssetIsSponsoredCalls() []struct {
 	AssetID crypto.Digest
 } {
@@ -686,7 +686,7 @@ func (mock *AnotherMockSmartState) NewestAssetIsSponsoredCalls() []struct {
 // NewestBlockInfoByHeight calls NewestBlockInfoByHeightFunc.
 func (mock *AnotherMockSmartState) NewestBlockInfoByHeight(height uint64) (*proto.BlockInfo, error) {
 	if mock.NewestBlockInfoByHeightFunc == nil {
-		panic("AnotherMockSmartState.NewestBlockInfoByHeightFunc: method is nil but SmartState.NewestBlockInfoByHeight was just called")
+		panic("AnotherMockSmartState.NewestBlockInfoByHeightFunc: method is nil but EnrichedSmartState.NewestBlockInfoByHeight was just called")
 	}
 	callInfo := struct {
 		Height uint64
@@ -702,7 +702,7 @@ func (mock *AnotherMockSmartState) NewestBlockInfoByHeight(height uint64) (*prot
 // NewestBlockInfoByHeightCalls gets all the calls that were made to NewestBlockInfoByHeight.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestBlockInfoByHeightCalls())
+//	len(mockedEnrichedSmartState.NewestBlockInfoByHeightCalls())
 func (mock *AnotherMockSmartState) NewestBlockInfoByHeightCalls() []struct {
 	Height uint64
 } {
@@ -718,7 +718,7 @@ func (mock *AnotherMockSmartState) NewestBlockInfoByHeightCalls() []struct {
 // NewestFullAssetInfo calls NewestFullAssetInfoFunc.
 func (mock *AnotherMockSmartState) NewestFullAssetInfo(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
 	if mock.NewestFullAssetInfoFunc == nil {
-		panic("AnotherMockSmartState.NewestFullAssetInfoFunc: method is nil but SmartState.NewestFullAssetInfo was just called")
+		panic("AnotherMockSmartState.NewestFullAssetInfoFunc: method is nil but EnrichedSmartState.NewestFullAssetInfo was just called")
 	}
 	callInfo := struct {
 		AssetID crypto.Digest
@@ -734,7 +734,7 @@ func (mock *AnotherMockSmartState) NewestFullAssetInfo(assetID crypto.Digest) (*
 // NewestFullAssetInfoCalls gets all the calls that were made to NewestFullAssetInfo.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestFullAssetInfoCalls())
+//	len(mockedEnrichedSmartState.NewestFullAssetInfoCalls())
 func (mock *AnotherMockSmartState) NewestFullAssetInfoCalls() []struct {
 	AssetID crypto.Digest
 } {
@@ -750,7 +750,7 @@ func (mock *AnotherMockSmartState) NewestFullAssetInfoCalls() []struct {
 // NewestFullWavesBalance calls NewestFullWavesBalanceFunc.
 func (mock *AnotherMockSmartState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	if mock.NewestFullWavesBalanceFunc == nil {
-		panic("AnotherMockSmartState.NewestFullWavesBalanceFunc: method is nil but SmartState.NewestFullWavesBalance was just called")
+		panic("AnotherMockSmartState.NewestFullWavesBalanceFunc: method is nil but EnrichedSmartState.NewestFullWavesBalance was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -766,7 +766,7 @@ func (mock *AnotherMockSmartState) NewestFullWavesBalance(account proto.Recipien
 // NewestFullWavesBalanceCalls gets all the calls that were made to NewestFullWavesBalance.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestFullWavesBalanceCalls())
+//	len(mockedEnrichedSmartState.NewestFullWavesBalanceCalls())
 func (mock *AnotherMockSmartState) NewestFullWavesBalanceCalls() []struct {
 	Account proto.Recipient
 } {
@@ -782,7 +782,7 @@ func (mock *AnotherMockSmartState) NewestFullWavesBalanceCalls() []struct {
 // NewestLeasingInfo calls NewestLeasingInfoFunc.
 func (mock *AnotherMockSmartState) NewestLeasingInfo(id crypto.Digest) (*proto.LeaseInfo, error) {
 	if mock.NewestLeasingInfoFunc == nil {
-		panic("AnotherMockSmartState.NewestLeasingInfoFunc: method is nil but SmartState.NewestLeasingInfo was just called")
+		panic("AnotherMockSmartState.NewestLeasingInfoFunc: method is nil but EnrichedSmartState.NewestLeasingInfo was just called")
 	}
 	callInfo := struct {
 		ID crypto.Digest
@@ -798,7 +798,7 @@ func (mock *AnotherMockSmartState) NewestLeasingInfo(id crypto.Digest) (*proto.L
 // NewestLeasingInfoCalls gets all the calls that were made to NewestLeasingInfo.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestLeasingInfoCalls())
+//	len(mockedEnrichedSmartState.NewestLeasingInfoCalls())
 func (mock *AnotherMockSmartState) NewestLeasingInfoCalls() []struct {
 	ID crypto.Digest
 } {
@@ -814,7 +814,7 @@ func (mock *AnotherMockSmartState) NewestLeasingInfoCalls() []struct {
 // NewestRecipientToAddress calls NewestRecipientToAddressFunc.
 func (mock *AnotherMockSmartState) NewestRecipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	if mock.NewestRecipientToAddressFunc == nil {
-		panic("AnotherMockSmartState.NewestRecipientToAddressFunc: method is nil but SmartState.NewestRecipientToAddress was just called")
+		panic("AnotherMockSmartState.NewestRecipientToAddressFunc: method is nil but EnrichedSmartState.NewestRecipientToAddress was just called")
 	}
 	callInfo := struct {
 		Recipient proto.Recipient
@@ -830,7 +830,7 @@ func (mock *AnotherMockSmartState) NewestRecipientToAddress(recipient proto.Reci
 // NewestRecipientToAddressCalls gets all the calls that were made to NewestRecipientToAddress.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestRecipientToAddressCalls())
+//	len(mockedEnrichedSmartState.NewestRecipientToAddressCalls())
 func (mock *AnotherMockSmartState) NewestRecipientToAddressCalls() []struct {
 	Recipient proto.Recipient
 } {
@@ -846,7 +846,7 @@ func (mock *AnotherMockSmartState) NewestRecipientToAddressCalls() []struct {
 // NewestScriptByAccount calls NewestScriptByAccountFunc.
 func (mock *AnotherMockSmartState) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
 	if mock.NewestScriptByAccountFunc == nil {
-		panic("AnotherMockSmartState.NewestScriptByAccountFunc: method is nil but SmartState.NewestScriptByAccount was just called")
+		panic("AnotherMockSmartState.NewestScriptByAccountFunc: method is nil but EnrichedSmartState.NewestScriptByAccount was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -862,7 +862,7 @@ func (mock *AnotherMockSmartState) NewestScriptByAccount(account proto.Recipient
 // NewestScriptByAccountCalls gets all the calls that were made to NewestScriptByAccount.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestScriptByAccountCalls())
+//	len(mockedEnrichedSmartState.NewestScriptByAccountCalls())
 func (mock *AnotherMockSmartState) NewestScriptByAccountCalls() []struct {
 	Account proto.Recipient
 } {
@@ -878,7 +878,7 @@ func (mock *AnotherMockSmartState) NewestScriptByAccountCalls() []struct {
 // NewestScriptByAsset calls NewestScriptByAssetFunc.
 func (mock *AnotherMockSmartState) NewestScriptByAsset(assetID crypto.Digest) (*ast.Tree, error) {
 	if mock.NewestScriptByAssetFunc == nil {
-		panic("AnotherMockSmartState.NewestScriptByAssetFunc: method is nil but SmartState.NewestScriptByAsset was just called")
+		panic("AnotherMockSmartState.NewestScriptByAssetFunc: method is nil but EnrichedSmartState.NewestScriptByAsset was just called")
 	}
 	callInfo := struct {
 		AssetID crypto.Digest
@@ -894,7 +894,7 @@ func (mock *AnotherMockSmartState) NewestScriptByAsset(assetID crypto.Digest) (*
 // NewestScriptByAssetCalls gets all the calls that were made to NewestScriptByAsset.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestScriptByAssetCalls())
+//	len(mockedEnrichedSmartState.NewestScriptByAssetCalls())
 func (mock *AnotherMockSmartState) NewestScriptByAssetCalls() []struct {
 	AssetID crypto.Digest
 } {
@@ -910,7 +910,7 @@ func (mock *AnotherMockSmartState) NewestScriptByAssetCalls() []struct {
 // NewestScriptBytesByAccount calls NewestScriptBytesByAccountFunc.
 func (mock *AnotherMockSmartState) NewestScriptBytesByAccount(account proto.Recipient) (proto.Script, error) {
 	if mock.NewestScriptBytesByAccountFunc == nil {
-		panic("AnotherMockSmartState.NewestScriptBytesByAccountFunc: method is nil but SmartState.NewestScriptBytesByAccount was just called")
+		panic("AnotherMockSmartState.NewestScriptBytesByAccountFunc: method is nil but EnrichedSmartState.NewestScriptBytesByAccount was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -926,7 +926,7 @@ func (mock *AnotherMockSmartState) NewestScriptBytesByAccount(account proto.Reci
 // NewestScriptBytesByAccountCalls gets all the calls that were made to NewestScriptBytesByAccount.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestScriptBytesByAccountCalls())
+//	len(mockedEnrichedSmartState.NewestScriptBytesByAccountCalls())
 func (mock *AnotherMockSmartState) NewestScriptBytesByAccountCalls() []struct {
 	Account proto.Recipient
 } {
@@ -942,7 +942,7 @@ func (mock *AnotherMockSmartState) NewestScriptBytesByAccountCalls() []struct {
 // NewestScriptPKByAddr calls NewestScriptPKByAddrFunc.
 func (mock *AnotherMockSmartState) NewestScriptPKByAddr(addr proto.WavesAddress) (crypto.PublicKey, error) {
 	if mock.NewestScriptPKByAddrFunc == nil {
-		panic("AnotherMockSmartState.NewestScriptPKByAddrFunc: method is nil but SmartState.NewestScriptPKByAddr was just called")
+		panic("AnotherMockSmartState.NewestScriptPKByAddrFunc: method is nil but EnrichedSmartState.NewestScriptPKByAddr was just called")
 	}
 	callInfo := struct {
 		Addr proto.WavesAddress
@@ -958,7 +958,7 @@ func (mock *AnotherMockSmartState) NewestScriptPKByAddr(addr proto.WavesAddress)
 // NewestScriptPKByAddrCalls gets all the calls that were made to NewestScriptPKByAddr.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestScriptPKByAddrCalls())
+//	len(mockedEnrichedSmartState.NewestScriptPKByAddrCalls())
 func (mock *AnotherMockSmartState) NewestScriptPKByAddrCalls() []struct {
 	Addr proto.WavesAddress
 } {
@@ -974,7 +974,7 @@ func (mock *AnotherMockSmartState) NewestScriptPKByAddrCalls() []struct {
 // NewestTransactionByID calls NewestTransactionByIDFunc.
 func (mock *AnotherMockSmartState) NewestTransactionByID(bytes []byte) (proto.Transaction, error) {
 	if mock.NewestTransactionByIDFunc == nil {
-		panic("AnotherMockSmartState.NewestTransactionByIDFunc: method is nil but SmartState.NewestTransactionByID was just called")
+		panic("AnotherMockSmartState.NewestTransactionByIDFunc: method is nil but EnrichedSmartState.NewestTransactionByID was just called")
 	}
 	callInfo := struct {
 		Bytes []byte
@@ -990,7 +990,7 @@ func (mock *AnotherMockSmartState) NewestTransactionByID(bytes []byte) (proto.Tr
 // NewestTransactionByIDCalls gets all the calls that were made to NewestTransactionByID.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestTransactionByIDCalls())
+//	len(mockedEnrichedSmartState.NewestTransactionByIDCalls())
 func (mock *AnotherMockSmartState) NewestTransactionByIDCalls() []struct {
 	Bytes []byte
 } {
@@ -1006,7 +1006,7 @@ func (mock *AnotherMockSmartState) NewestTransactionByIDCalls() []struct {
 // NewestTransactionHeightByID calls NewestTransactionHeightByIDFunc.
 func (mock *AnotherMockSmartState) NewestTransactionHeightByID(bytes []byte) (uint64, error) {
 	if mock.NewestTransactionHeightByIDFunc == nil {
-		panic("AnotherMockSmartState.NewestTransactionHeightByIDFunc: method is nil but SmartState.NewestTransactionHeightByID was just called")
+		panic("AnotherMockSmartState.NewestTransactionHeightByIDFunc: method is nil but EnrichedSmartState.NewestTransactionHeightByID was just called")
 	}
 	callInfo := struct {
 		Bytes []byte
@@ -1022,7 +1022,7 @@ func (mock *AnotherMockSmartState) NewestTransactionHeightByID(bytes []byte) (ui
 // NewestTransactionHeightByIDCalls gets all the calls that were made to NewestTransactionHeightByID.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestTransactionHeightByIDCalls())
+//	len(mockedEnrichedSmartState.NewestTransactionHeightByIDCalls())
 func (mock *AnotherMockSmartState) NewestTransactionHeightByIDCalls() []struct {
 	Bytes []byte
 } {
@@ -1038,7 +1038,7 @@ func (mock *AnotherMockSmartState) NewestTransactionHeightByIDCalls() []struct {
 // NewestWavesBalance calls NewestWavesBalanceFunc.
 func (mock *AnotherMockSmartState) NewestWavesBalance(account proto.Recipient) (uint64, error) {
 	if mock.NewestWavesBalanceFunc == nil {
-		panic("AnotherMockSmartState.NewestWavesBalanceFunc: method is nil but SmartState.NewestWavesBalance was just called")
+		panic("AnotherMockSmartState.NewestWavesBalanceFunc: method is nil but EnrichedSmartState.NewestWavesBalance was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -1054,7 +1054,7 @@ func (mock *AnotherMockSmartState) NewestWavesBalance(account proto.Recipient) (
 // NewestWavesBalanceCalls gets all the calls that were made to NewestWavesBalance.
 // Check the length with:
 //
-//	len(mockedSmartState.NewestWavesBalanceCalls())
+//	len(mockedEnrichedSmartState.NewestWavesBalanceCalls())
 func (mock *AnotherMockSmartState) NewestWavesBalanceCalls() []struct {
 	Account proto.Recipient
 } {
@@ -1070,7 +1070,7 @@ func (mock *AnotherMockSmartState) NewestWavesBalanceCalls() []struct {
 // RetrieveNewestBinaryEntry calls RetrieveNewestBinaryEntryFunc.
 func (mock *AnotherMockSmartState) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 	if mock.RetrieveNewestBinaryEntryFunc == nil {
-		panic("AnotherMockSmartState.RetrieveNewestBinaryEntryFunc: method is nil but SmartState.RetrieveNewestBinaryEntry was just called")
+		panic("AnotherMockSmartState.RetrieveNewestBinaryEntryFunc: method is nil but EnrichedSmartState.RetrieveNewestBinaryEntry was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -1088,7 +1088,7 @@ func (mock *AnotherMockSmartState) RetrieveNewestBinaryEntry(account proto.Recip
 // RetrieveNewestBinaryEntryCalls gets all the calls that were made to RetrieveNewestBinaryEntry.
 // Check the length with:
 //
-//	len(mockedSmartState.RetrieveNewestBinaryEntryCalls())
+//	len(mockedEnrichedSmartState.RetrieveNewestBinaryEntryCalls())
 func (mock *AnotherMockSmartState) RetrieveNewestBinaryEntryCalls() []struct {
 	Account proto.Recipient
 	Key     string
@@ -1106,7 +1106,7 @@ func (mock *AnotherMockSmartState) RetrieveNewestBinaryEntryCalls() []struct {
 // RetrieveNewestBooleanEntry calls RetrieveNewestBooleanEntryFunc.
 func (mock *AnotherMockSmartState) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 	if mock.RetrieveNewestBooleanEntryFunc == nil {
-		panic("AnotherMockSmartState.RetrieveNewestBooleanEntryFunc: method is nil but SmartState.RetrieveNewestBooleanEntry was just called")
+		panic("AnotherMockSmartState.RetrieveNewestBooleanEntryFunc: method is nil but EnrichedSmartState.RetrieveNewestBooleanEntry was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -1124,7 +1124,7 @@ func (mock *AnotherMockSmartState) RetrieveNewestBooleanEntry(account proto.Reci
 // RetrieveNewestBooleanEntryCalls gets all the calls that were made to RetrieveNewestBooleanEntry.
 // Check the length with:
 //
-//	len(mockedSmartState.RetrieveNewestBooleanEntryCalls())
+//	len(mockedEnrichedSmartState.RetrieveNewestBooleanEntryCalls())
 func (mock *AnotherMockSmartState) RetrieveNewestBooleanEntryCalls() []struct {
 	Account proto.Recipient
 	Key     string
@@ -1142,7 +1142,7 @@ func (mock *AnotherMockSmartState) RetrieveNewestBooleanEntryCalls() []struct {
 // RetrieveNewestIntegerEntry calls RetrieveNewestIntegerEntryFunc.
 func (mock *AnotherMockSmartState) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	if mock.RetrieveNewestIntegerEntryFunc == nil {
-		panic("AnotherMockSmartState.RetrieveNewestIntegerEntryFunc: method is nil but SmartState.RetrieveNewestIntegerEntry was just called")
+		panic("AnotherMockSmartState.RetrieveNewestIntegerEntryFunc: method is nil but EnrichedSmartState.RetrieveNewestIntegerEntry was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -1160,7 +1160,7 @@ func (mock *AnotherMockSmartState) RetrieveNewestIntegerEntry(account proto.Reci
 // RetrieveNewestIntegerEntryCalls gets all the calls that were made to RetrieveNewestIntegerEntry.
 // Check the length with:
 //
-//	len(mockedSmartState.RetrieveNewestIntegerEntryCalls())
+//	len(mockedEnrichedSmartState.RetrieveNewestIntegerEntryCalls())
 func (mock *AnotherMockSmartState) RetrieveNewestIntegerEntryCalls() []struct {
 	Account proto.Recipient
 	Key     string
@@ -1178,7 +1178,7 @@ func (mock *AnotherMockSmartState) RetrieveNewestIntegerEntryCalls() []struct {
 // RetrieveNewestStringEntry calls RetrieveNewestStringEntryFunc.
 func (mock *AnotherMockSmartState) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 	if mock.RetrieveNewestStringEntryFunc == nil {
-		panic("AnotherMockSmartState.RetrieveNewestStringEntryFunc: method is nil but SmartState.RetrieveNewestStringEntry was just called")
+		panic("AnotherMockSmartState.RetrieveNewestStringEntryFunc: method is nil but EnrichedSmartState.RetrieveNewestStringEntry was just called")
 	}
 	callInfo := struct {
 		Account proto.Recipient
@@ -1196,7 +1196,7 @@ func (mock *AnotherMockSmartState) RetrieveNewestStringEntry(account proto.Recip
 // RetrieveNewestStringEntryCalls gets all the calls that were made to RetrieveNewestStringEntry.
 // Check the length with:
 //
-//	len(mockedSmartState.RetrieveNewestStringEntryCalls())
+//	len(mockedEnrichedSmartState.RetrieveNewestStringEntryCalls())
 func (mock *AnotherMockSmartState) RetrieveNewestStringEntryCalls() []struct {
 	Account proto.Recipient
 	Key     string
@@ -1214,7 +1214,7 @@ func (mock *AnotherMockSmartState) RetrieveNewestStringEntryCalls() []struct {
 // WavesBalanceProfile calls WavesBalanceProfileFunc.
 func (mock *AnotherMockSmartState) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 	if mock.WavesBalanceProfileFunc == nil {
-		panic("AnotherMockSmartState.WavesBalanceProfileFunc: method is nil but SmartState.WavesBalanceProfile was just called")
+		panic("AnotherMockSmartState.WavesBalanceProfileFunc: method is nil but EnrichedSmartState.WavesBalanceProfile was just called")
 	}
 	callInfo := struct {
 		ID proto.AddressID
@@ -1230,7 +1230,7 @@ func (mock *AnotherMockSmartState) WavesBalanceProfile(id proto.AddressID) (*typ
 // WavesBalanceProfileCalls gets all the calls that were made to WavesBalanceProfile.
 // Check the length with:
 //
-//	len(mockedSmartState.WavesBalanceProfileCalls())
+//	len(mockedEnrichedSmartState.WavesBalanceProfileCalls())
 func (mock *AnotherMockSmartState) WavesBalanceProfileCalls() []struct {
 	ID proto.AddressID
 } {

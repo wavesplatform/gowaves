@@ -30,9 +30,13 @@ type WrappedState struct {
 	rootActionsCountValidator proto.ActionsCountValidator
 }
 
-func newWrappedState(env *EvaluationEnvironment, rootScriptLibVersion ast.LibraryVersion) *WrappedState {
+func newWrappedState(
+	env *EvaluationEnvironment,
+	originalStateForWrappedState types.EnrichedSmartState,
+	rootScriptLibVersion ast.LibraryVersion,
+) *WrappedState {
 	return &WrappedState{
-		diff:                      newDiffState(env.st),
+		diff:                      newDiffState(originalStateForWrappedState),
 		cle:                       env.th.(rideAddress),
 		scheme:                    env.sch,
 		height:                    proto.Height(env.height()),
@@ -136,6 +140,14 @@ func (ws *WrappedState) uncheckedWavesBalance(addr proto.WavesAddress) (diffBala
 	return ws.diff.loadWavesBalance(addr.ID())
 }
 
+// NewestFullWavesBalance returns a full Waves balance of account.
+// The method must be used ONLY in the Ride environment.
+// The boundaries of the generating balance are calculated for the current height of applying block,
+// instead of the last block height.
+//
+// For example, for the block validation we are use min effective balance of the account from height 1 to 1000.
+// This function uses heights from 2 to 1001, where 1001 is the height of the applying block.
+// All changes of effective balance during the applying block are affecting the generating balance.
 func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	addr, err := ws.NewestRecipientToAddress(account)
 	if err != nil {
@@ -373,14 +385,6 @@ func (ws *WrappedState) NewestBlockInfoByHeight(height proto.Height) (*proto.Blo
 	return ws.diff.state.NewestBlockInfoByHeight(height)
 }
 
-func (ws *WrappedState) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-	return ws.diff.state.WavesBalanceProfile(id)
-}
-
-func (ws *WrappedState) NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error) {
-	return ws.diff.state.NewestAssetBalanceByAddressID(id, asset)
-}
-
 func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.OptionalAsset, env environment) (bool, error) {
 	if !asset.Present {
 		return true, nil
@@ -403,6 +407,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 		env.scheme(),
 		env.state(),
 		env.internalPaymentsValidationHeight(),
+		env.paymentsFixAfterHeight(),
 		env.blockV5Activated(),
 		env.rideV6Activated(),
 		env.consensusImprovementsActivated(),
@@ -504,6 +509,8 @@ func (ws *WrappedState) validatePaymentAction(res *proto.AttachedPaymentScriptAc
 	return nil
 }
 
+var errNegativeBalanceAfterPaymentsApplication = errors.New("negative balance after payments application")
+
 func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment, addr proto.WavesAddress, payments proto.ScriptPayments) error {
 	for _, payment := range payments {
 		var balance int64
@@ -528,7 +535,8 @@ func (ws *WrappedState) validateBalancesAfterPaymentsApplication(env environment
 			}
 		}
 		if (env.validateInternalPayments() || env.rideV6Activated()) && balance < 0 {
-			return errors.Errorf("not enough money in the DApp, balance of asset %s on address %s after payments application is %d",
+			return errors.Wrapf(errNegativeBalanceAfterPaymentsApplication,
+				"not enough money in the DApp, balance of asset %s on address %s after payments application is %d",
 				payment.Asset.String(), addr.String(), balance)
 		}
 	}
@@ -1031,7 +1039,8 @@ type EvaluationEnvironment struct {
 	takeStr                            func(s string, n int) rideString
 	inv                                rideType
 	ver                                ast.LibraryVersion
-	validatePaymentsAfter              uint64
+	validatePaymentsAfter              proto.Height
+	paymentsFixAfter                   proto.Height
 	isBlockV5Activated                 bool
 	isRideV6Activated                  bool
 	isConsensusImprovementsActivated   bool // isConsensusImprovementsActivated => nodeVersion >= 1.4.12
@@ -1050,7 +1059,10 @@ func bytesSizeCheckV3V6(l int) bool {
 	return l <= proto.MaxDataWithProofsBytes
 }
 
-func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPaymentsValidationHeight uint64,
+func NewEnvironment(
+	scheme proto.Scheme,
+	state types.SmartState,
+	internalPaymentsValidationHeight, paymentsFixAfterHeight proto.Height,
 	blockV5, rideV6, consensusImprovements, blockRewardDistribution, lightNode bool,
 ) (*EvaluationEnvironment, error) {
 	height, err := state.AddingBlockHeight()
@@ -1064,6 +1076,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 		check:                              bytesSizeCheckV1V2, // By default almost unlimited
 		takeStr:                            func(s string, n int) rideString { panic("function 'takeStr' was not initialized") },
 		validatePaymentsAfter:              internalPaymentsValidationHeight,
+		paymentsFixAfter:                   paymentsFixAfterHeight,
 		isBlockV5Activated:                 blockV5,
 		isRideV6Activated:                  rideV6,
 		isBlockRewardDistributionActivated: blockRewardDistribution,
@@ -1075,6 +1088,7 @@ func NewEnvironment(scheme proto.Scheme, state types.SmartState, internalPayment
 
 func NewEnvironmentWithWrappedState(
 	env *EvaluationEnvironment,
+	originalState types.EnrichedSmartState,
 	payments proto.ScriptPayments,
 	sender proto.WavesAddress,
 	isProtobufTransaction bool,
@@ -1082,7 +1096,7 @@ func NewEnvironmentWithWrappedState(
 	checkSenderBalance bool,
 ) (*EvaluationEnvironment, error) {
 	recipient := proto.WavesAddress(env.th.(rideAddress))
-	st := newWrappedState(env, rootScriptLibVersion)
+	st := newWrappedState(env, originalState, rootScriptLibVersion)
 	for i, payment := range payments {
 		var (
 			senderBalance uint64
@@ -1341,8 +1355,18 @@ func (e *EvaluationEnvironment) validateInternalPayments() bool {
 	return int(e.h) > int(e.validatePaymentsAfter)
 }
 
-func (e *EvaluationEnvironment) internalPaymentsValidationHeight() uint64 {
+func (e *EvaluationEnvironment) internalPaymentsValidationHeight() proto.Height {
 	return e.validatePaymentsAfter
+}
+
+func (e *EvaluationEnvironment) paymentsFixActivated() bool {
+	// according to the logic of the scala node
+	// see commit https://github.com/wavesplatform/Waves/commit/2f9e61c0fe04beeeb5b94b508b124a7ec1a746ff
+	return int(e.h) >= int(e.paymentsFixAfter)
+}
+
+func (e *EvaluationEnvironment) paymentsFixAfterHeight() proto.Height {
+	return e.paymentsFixAfter
 }
 
 func (e *EvaluationEnvironment) maxDataEntriesSize() int {
@@ -1355,4 +1379,8 @@ func (e *EvaluationEnvironment) isProtobufTx() bool {
 
 func (e *EvaluationEnvironment) complexityCalculator() complexityCalculator {
 	return e.cc
+}
+
+func (e *EvaluationEnvironment) setComplexityCalculator(cc complexityCalculator) {
+	e.cc = cc
 }
