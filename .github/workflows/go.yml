@@ -30,7 +30,7 @@ jobs:
           args: -c .golangci.yml
       # Strict linter configuration, only checking new code from pull requests.
       - name: golangci-lint-strict
-        run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master --out-format=github-actions,line-number
+        run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master --out-format=colored-line-number
 
   build:
     name: ubuntu
