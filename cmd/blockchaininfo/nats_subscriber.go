@@ -4,16 +4,15 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"github.com/nats-io/nats.go"
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"log"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
-
-	"github.com/nats-io/nats.go"
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func printBlockInfo(blockInfoProto *g.BlockInfo) error {
@@ -69,27 +68,29 @@ func main() {
 	}
 	defer nc.Close()
 
-	//_, err = nc.Subscribe(blockchaininfo.BlockUpdates, func(msg *nats.Msg) {
-	//	blockUpdatesInfo := new(g.BlockInfo)
-	//	unmrshlErr := blockUpdatesInfo.UnmarshalVT(msg.Data)
-	//	if unmrshlErr != nil {
-	//		log.Printf("failed to unmarshal block updates, %v", unmrshlErr)
-	//		return
-	//	}
-	//
-	//	err = printBlockInfo(blockUpdatesInfo)
-	//	if err != nil {
-	//		return
-	//	}
-	//	log.Printf("Received on %s:\n", msg.Subject)
-	//})
-	//if err != nil {
-	//	log.Printf("failed to subscribe to block updates, %v", err)
-	//	return
-	//}
+	_, err = nc.Subscribe(blockchaininfo.BlockUpdates, func(msg *nats.Msg) {
+		blockUpdatesInfo := new(g.BlockInfo)
+		unmrshlErr := blockUpdatesInfo.UnmarshalVT(msg.Data)
+		if unmrshlErr != nil {
+			log.Printf("failed to unmarshal block updates, %v", unmrshlErr)
+			return
+		}
+
+		err = printBlockInfo(blockUpdatesInfo)
+		if err != nil {
+			return
+		}
+		log.Printf("Received on %s:\n", msg.Subject)
+	})
+	if err != nil {
+		log.Printf("failed to subscribe to block updates, %v", err)
+		return
+	}
 
 	var contractMsg []byte
+	//_, err = nc.Subscribe(blockchaininfo.ContractUpdates, func(msg *nats.Msg) {
 	_, err = nc.Subscribe(blockchaininfo.ContractUpdates, func(msg *nats.Msg) {
+		log.Printf("Received on %s:\n", msg.Subject)
 		if msg.Data[0] == blockchaininfo.NO_PAGING {
 			contractMsg = msg.Data[1:]
 			contractUpdatesInfo := new(g.L2ContractDataEntries)
@@ -124,7 +125,6 @@ func main() {
 			}
 			contractMsg = nil
 		}
-
 	})
 	if err != nil {
 		log.Printf("failed to subscribe to contract updates, %v", err)

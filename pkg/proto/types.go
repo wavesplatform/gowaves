@@ -3164,6 +3164,18 @@ func NewDataEntryFromJSON(data []byte) (DataEntry, error) {
 // DataEntries the slice of various entries of DataTransaction
 type DataEntries []DataEntry
 
+func (e DataEntries) Len() int {
+	return len(e)
+}
+
+func (e DataEntries) Less(i int, j int) bool {
+	return e[i].GetKey() < e[j].GetKey()
+}
+
+func (e DataEntries) Swap(i int, j int) {
+	e[i], e[j] = e[j], e[i]
+}
+
 // PayloadSize returns summary payload size of all entries.
 func (e DataEntries) PayloadSize() int {
 	pl := 0

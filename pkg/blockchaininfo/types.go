@@ -2,22 +2,23 @@ package blockchaininfo
 
 import (
 	"bytes"
+	"sort"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 // Block updates.
 type BlockUpdatesInfo struct {
-	Height      uint64             `json:"height"`
-	VRF         proto.B58Bytes     `json:"vrf"`
-	BlockID     proto.BlockID      `json:"block_id"`
+	Height      *uint64            `json:"height"`
+	VRF         *proto.B58Bytes    `json:"vrf"`
+	BlockID     *proto.BlockID     `json:"block_id"`
 	BlockHeader *proto.BlockHeader `json:"block_header"`
 }
 
 // L2 contract data entries.
 type L2ContractDataEntries struct {
-	AllDataEntries []proto.DataEntry `json:"all_data_entries"`
-	Height         uint64            `json:"height"`
+	AllDataEntries *[]proto.DataEntry `json:"all_data_entries"`
+	Height         *uint64            `json:"height"`
 }
 
 type BUpdatesInfo struct {
@@ -27,33 +28,61 @@ type BUpdatesInfo struct {
 
 // TODO wrap errors.
 
-func compareBUpdatesInfo(a, b BUpdatesInfo, scheme proto.Scheme) (bool, error) {
-	if a.BlockUpdatesInfo.Height != b.BlockUpdatesInfo.Height {
-		return false, nil
+type infoChanges map[string]interface{}
+
+const (
+	heightKey      = "heightChange"
+	VRFkey         = "vrfChange"
+	blockIDkey     = "blockIDChange"
+	blockHeaderKey = "blockHeaderChange"
+	dataEntriesKey = "dataEntriesKey"
+)
+
+func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme) (bool, BUpdatesInfo, error) {
+	changes := BUpdatesInfo{
+		BlockUpdatesInfo:    BlockUpdatesInfo{},
+		ContractUpdatesInfo: L2ContractDataEntries{},
 	}
-	if !bytes.Equal(a.BlockUpdatesInfo.VRF, b.BlockUpdatesInfo.VRF) {
-		return false, nil
+
+	equal := true
+
+	if current.BlockUpdatesInfo.Height != previous.BlockUpdatesInfo.Height {
+		equal = false
+		//changes[heightKey] = current.BlockUpdatesInfo.Height
+		changes.BlockUpdatesInfo.Height = current.BlockUpdatesInfo.Height
 	}
-	if !bytes.Equal(a.BlockUpdatesInfo.BlockID.Bytes(), b.BlockUpdatesInfo.BlockID.Bytes()) {
-		return false, nil
+	if !bytes.Equal(*current.BlockUpdatesInfo.VRF, *previous.BlockUpdatesInfo.VRF) {
+		equal = false
+		changes.BlockUpdatesInfo.VRF = current.BlockUpdatesInfo.VRF
+		//changes[VRFkey] = current.BlockUpdatesInfo.VRF
 	}
-	equalHeaders, err := compareBlockHeader(a.BlockUpdatesInfo.BlockHeader, b.BlockUpdatesInfo.BlockHeader, scheme)
+	if !bytes.Equal(current.BlockUpdatesInfo.BlockID.Bytes(), previous.BlockUpdatesInfo.BlockID.Bytes()) {
+		equal = false
+		changes.BlockUpdatesInfo.BlockID = current.BlockUpdatesInfo.BlockID
+		//changes[blockIDkey] = current.BlockUpdatesInfo.BlockID
+	}
+	equalHeaders, err := compareBlockHeader(current.BlockUpdatesInfo.BlockHeader, previous.BlockUpdatesInfo.BlockHeader, scheme)
 	if err != nil {
-		return false, err
+		return false, BUpdatesInfo{}, err
 	}
 	if !equalHeaders {
-		return false, nil
+		equal = false
+		changes.BlockUpdatesInfo.BlockHeader = current.BlockUpdatesInfo.BlockHeader
+		//changes[blockHeaderKey] = current.BlockUpdatesInfo.BlockHeader
 	}
 
-	equalEntries, err := compareDataEntries(a.ContractUpdatesInfo.AllDataEntries, b.ContractUpdatesInfo.AllDataEntries)
+	equalEntries, dataEntryChanges, err := compareDataEntries(*current.ContractUpdatesInfo.AllDataEntries, *previous.ContractUpdatesInfo.AllDataEntries)
 	if err != nil {
-		return false, err
+		return false, BUpdatesInfo{}, err
 	}
 	if !equalEntries {
-		return false, nil
+		equal = false
+		changes.ContractUpdatesInfo.AllDataEntries = &dataEntryChanges
+		changes.ContractUpdatesInfo.Height = current.BlockUpdatesInfo.Height
+		//changes[dataEntriesKey] = dataEntryChanges
 	}
 
-	return true, nil
+	return equal, changes, nil
 }
 
 func compareBlockHeader(a, b *proto.BlockHeader, scheme proto.Scheme) (bool, error) {
@@ -73,20 +102,40 @@ func compareBlockHeader(a, b *proto.BlockHeader, scheme proto.Scheme) (bool, err
 	return bytes.Equal(blockAbytes, blockBbytes), nil
 }
 
-func compareDataEntries(a, b []proto.DataEntry) (bool, error) {
-	if len(a) != len(b) {
-		return false, nil
+func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.DataEntry, error) {
+	sort.Sort(current)
+	sort.Sort(previous)
+	var changes []proto.DataEntry
+	equal := true
+	if len(current) != len(previous) {
+		equal = false
 	}
-	for i := range a {
-		equal, err := areEntriesEqual(a[i], b[i])
+
+	minLength := min(len(current), len(previous))
+	maxLength := max(len(current), len(previous))
+
+	for i := 0; i < minLength; i++ {
+		entryEqual, err := areEntriesEqual(current[i], previous[i])
 		if err != nil {
-			return false, err
+			return false, nil, err
 		}
-		if !equal {
-			return false, nil
+		if !entryEqual {
+			equal = false
+			changes = append(changes, current[i])
 		}
 	}
-	return true, nil
+	// iterating through the rest
+	restIndex := maxLength - minLength
+	if len(current) > len(previous) { // this means that some keys were added
+		for i := restIndex; i < maxLength; i++ {
+			changes = append(changes, current[i])
+		}
+	} else { // this means that some keys in the current map were deleted
+		for i := restIndex; i < maxLength; i++ {
+			changes = append(changes, &proto.DeleteDataEntry{Key: previous[i].GetKey()})
+		}
+	}
+	return equal, changes, nil
 }
 
 func areEntriesEqual(a, b proto.DataEntry) (bool, error) {
@@ -105,9 +154,6 @@ func areEntriesEqual(a, b proto.DataEntry) (bool, error) {
 	return bytes.Equal(aValueBytes, bValue), nil
 }
 
-func statesEqual(state BUpdatesExtensionState, scheme proto.Scheme) (bool, error) {
-	if state.currentState == nil || state.previousState == nil {
-		return state.currentState == state.previousState, nil // both nil or one of them is nil
-	}
+func statesEqual(state BUpdatesExtensionState, scheme proto.Scheme) (bool, BUpdatesInfo, error) {
 	return compareBUpdatesInfo(*state.currentState, *state.previousState, scheme)
 }
