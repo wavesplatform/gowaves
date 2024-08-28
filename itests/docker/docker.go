@@ -35,6 +35,12 @@ const (
 )
 
 const (
+	restAPITCPPort = RESTApiPort + tcp
+	grpcAPITCPPort = GrpcApiPort + tcp
+	bindTCPPort    = BindPort + tcp
+)
+
+const (
 	goNodeLogFileName    = "go-node.log"
 	goNodeErrFileName    = "go-node.err"
 	scalaNodeLogFileName = "scala-node.log"
@@ -217,9 +223,9 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 			"SUPPORTED_FEATURES=" + supportedFeatures,
 		},
 		ExposedPorts: []string{
-			GrpcApiPort,
-			RESTApiPort,
-			BindPort,
+			grpcAPITCPPort,
+			restAPITCPPort,
+			bindTCPPort,
 		},
 		Mounts: []string{
 			cfgPath + ":/home/gowaves/config",
@@ -267,9 +273,9 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 	d.goErrFile = errFile
 
 	portCfg := &PortConfig{
-		RestApiPort: res.GetPort(RESTApiPort + tcp),
-		GrpcPort:    res.GetPort(GrpcApiPort + tcp),
-		BindPort:    res.GetPort(BindPort + tcp),
+		RestApiPort: res.GetPort(restAPITCPPort),
+		GrpcPort:    res.GetPort(grpcAPITCPPort),
+		BindPort:    res.GetPort(bindTCPPort),
 	}
 
 	err = d.pool.Retry(func() error {
@@ -311,9 +317,9 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 				"-Dwaves.network.enable-blacklisting=no",
 		},
 		ExposedPorts: []string{
-			GrpcApiPort,
-			RESTApiPort,
-			BindPort,
+			grpcAPITCPPort,
+			restAPITCPPort,
+			bindTCPPort,
 		},
 		Networks: []*dockertest.Network{d.network},
 	}
@@ -362,9 +368,9 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 	d.scalaErrFile = errFile
 
 	portCfg := &PortConfig{
-		RestApiPort: res.GetPort(RESTApiPort + tcp),
-		GrpcPort:    res.GetPort(GrpcApiPort + tcp),
-		BindPort:    res.GetPort(BindPort + tcp),
+		RestApiPort: res.GetPort(restAPITCPPort),
+		GrpcPort:    res.GetPort(grpcAPITCPPort),
+		BindPort:    res.GetPort(bindTCPPort),
 	}
 
 	err = d.pool.Retry(func() error {
