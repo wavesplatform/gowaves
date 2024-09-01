@@ -217,9 +217,9 @@ func (d *Docker) runGoNode(ctx context.Context, cfgPath string, suiteName string
 			"SUPPORTED_FEATURES=" + supportedFeatures,
 		},
 		ExposedPorts: []string{
-			GrpcApiPort,
-			RESTApiPort,
-			BindPort,
+			GrpcApiPort + "/tcp",
+			RESTApiPort + "/tcp",
+			BindPort + "/tcp",
 		},
 		Mounts: []string{
 			cfgPath + ":/home/gowaves/config",
@@ -311,9 +311,9 @@ func (d *Docker) runScalaNode(ctx context.Context, cfgPath string, suiteName str
 				"-Dwaves.network.enable-blacklisting=no",
 		},
 		ExposedPorts: []string{
-			GrpcApiPort,
-			RESTApiPort,
-			BindPort,
+			GrpcApiPort + "/tcp",
+			RESTApiPort + "/tcp",
+			BindPort + "/tcp",
 		},
 		Networks: []*dockertest.Network{d.network},
 	}

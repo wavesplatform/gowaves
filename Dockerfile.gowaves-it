@@ -55,6 +55,8 @@ CMD /app/node \
     -build-state-hashes \
     -serve-extended-api \
     -log-level=debug \
+    -log-network \
+    -log-fsm \
     -obsolescence=1h \
     -reward=$DESIRED_REWARD \
     -vote=$SUPPORTED_FEATURES \
