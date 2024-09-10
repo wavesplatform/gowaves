@@ -12,7 +12,7 @@ import (
 	"google.golang.org/protobuf/types/known/emptypb"
 	"google.golang.org/protobuf/types/known/wrapperspb"
 
-	d "github.com/wavesplatform/gowaves/itests/docker"
+	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
@@ -25,7 +25,7 @@ type GrpcClient struct {
 }
 
 func NewGrpcClient(t *testing.T, port string) *GrpcClient {
-	conn, err := grpc.NewClient(d.Localhost+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
+	conn, err := grpc.NewClient(config.Localhost+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NoError(t, err, "failed to dial grpc")
 	return &GrpcClient{conn: conn, timeout: 30 * time.Second}
 }

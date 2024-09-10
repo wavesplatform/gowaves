@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -21,7 +22,7 @@ type HttpClient struct {
 
 func NewHttpClient(t *testing.T, port string) *HttpClient {
 	c, err := client.NewClient(client.Options{
-		BaseUrl: "http://" + d.Localhost + ":" + port + "/",
+		BaseUrl: "http://" + config.Localhost + ":" + port + "/",
 		Client:  &http.Client{Timeout: d.DefaultTimeout},
 		ApiKey:  "itest-api-key",
 		ChainID: 'L', // I tried to use constant `utilities.TestChainID`, but after all decided that a little duplication is better in this case.

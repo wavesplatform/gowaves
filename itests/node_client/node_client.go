@@ -30,10 +30,10 @@ type NodesClients struct {
 	ScalaClients *NodeClients
 }
 
-func NewNodesClients(t *testing.T, ports *d.Ports) *NodesClients {
+func NewNodesClients(t *testing.T, goPorts, scalaPorts *d.PortConfig) *NodesClients {
 	return &NodesClients{
-		GoClients:    NewNodeClient(t, ports.Go.RestApiPort, ports.Go.GrpcPort),
-		ScalaClients: NewNodeClient(t, ports.Scala.RestApiPort, ports.Scala.GrpcPort),
+		GoClients:    NewNodeClient(t, goPorts.RESTAPIPort, goPorts.GRPCPort),
+		ScalaClients: NewNodeClient(t, scalaPorts.RESTAPIPort, scalaPorts.GRPCPort),
 	}
 }
 
@@ -99,18 +99,21 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		c.WaitForNewHeight(t)
 	}
 
-	if !equal && goStateHash.FieldsHashes.Equal(scalaStateHash.FieldsHashes) {
-		var firstHeight int64 = -1
+	if !equal && goStateHash != nil && scalaStateHash != nil {
+		var firstHeight uint64
 		for height := h; height > 0; height-- {
-			goStateHash, scalaStateHash, equal = c.StateHashCmp(t, height)
+			goStateHash, scalaStateHash, _ = c.StateHashCmp(t, height)
 			if !goStateHash.FieldsHashes.Equal(scalaStateHash.FieldsHashes) {
-				firstHeight = int64(height)
+				firstHeight = height
+			} else {
+				break
 			}
 		}
-		if firstHeight == -1 {
+
+		if firstHeight == 0 {
 			t.Errorf("couldn't find the height when state hashes diverged. should not happen")
 		}
-		goStateHashDiverged, scalaStateHashDiverged, _ := c.StateHashCmp(t, uint64(firstHeight))
+		goStateHashDiverged, scalaStateHashDiverged, _ := c.StateHashCmp(t, firstHeight)
 		goFieldHashesDiverged, err := goStateHashDiverged.FieldsHashes.MarshalJSON()
 		assert.NoError(t, err)
 		scalaFieldHashesDiverged, err := scalaStateHashDiverged.FieldsHashes.MarshalJSON()
@@ -121,18 +124,18 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 			"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
 			firstHeight, goStateHashDiverged.BlockID.String(), goStateHashDiverged.SumHash.String(), goFieldHashesDiverged,
 			scalaStateHashDiverged.BlockID.String(), scalaStateHashDiverged.SumHash.String(), scalaFieldHashesDiverged)
+
+		goFieldHashes, err := goStateHash.FieldsHashes.MarshalJSON()
+		assert.NoError(t, err)
+		scalaFieldHashes, err := scalaStateHash.FieldsHashes.MarshalJSON()
+		assert.NoError(t, err)
+
+		assert.Failf(t, "Not equal state hashes",
+			"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
+				"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
+			h, goStateHash.BlockID.String(), goStateHash.SumHash.String(), goFieldHashes,
+			scalaStateHash.BlockID.String(), scalaStateHash.SumHash.String(), scalaFieldHashes)
 	}
-
-	goFieldHashes, err := goStateHash.FieldsHashes.MarshalJSON()
-	assert.NoError(t, err)
-	scalaFieldHashes, err := scalaStateHash.FieldsHashes.MarshalJSON()
-	assert.NoError(t, err)
-
-	assert.True(t, equal,
-		"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
-			"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
-		h, goStateHash.BlockID.String(), goStateHash.SumHash.String(), goFieldHashes,
-		scalaStateHash.BlockID.String(), scalaStateHash.SumHash.String(), scalaFieldHashes)
 }
 
 func Retry(timeout time.Duration, f func() error) error {

@@ -44,7 +44,6 @@ const (
 	MinSetAssetScriptFeeWaves  = 100000000
 	MinTxFeeWaves              = 100000
 	MinTxFeeWavesSmartAsset    = 500000
-	MinDecimals                = 0
 	MaxDecimals                = 8
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
@@ -656,7 +655,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	}
 	scala := !waitForTx
 
-	connections, err := net.NewNodeConnections(suite.Ports)
+	connections, err := net.NewNodeConnections(suite.Docker.GoNode().Ports(), suite.Docker.ScalaNode().Ports())
 	suite.Require().NoError(err, "failed to create new node connections")
 	defer connections.Close(suite.T())
 
@@ -819,7 +818,7 @@ func GetRewardTermAfter20Cfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardTermAfter20
 }
 
-// GetRewards get response from /blockchain/rewards.
+// GetRewardsGo get response from /blockchain/rewards.
 func GetRewardsGo(suite *f.BaseSuite) *client.RewardInfo {
 	return suite.Clients.GoClients.HttpClient.Rewards(suite.T())
 }
@@ -832,7 +831,7 @@ func GetRewards(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo) {
 	return GetRewardsGo(suite), GetRewardsScala(suite)
 }
 
-// GetRewards get response from /blockchain/rewards/{height}.
+// GetRewardsAtHeightGo get response from /blockchain/rewards/{height}.
 func GetRewardsAtHeightGo(suite *f.BaseSuite, height uint64) *client.RewardInfo {
 	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height)
 }

@@ -1,7 +1,7 @@
 package fixtures
 
 import (
-	"path/filepath"
+	"github.com/wavesplatform/gowaves/itests/config"
 )
 
 const (
@@ -19,8 +19,10 @@ type RewardIncreaseDaoXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardIncreaseDaoXtnPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "7W_2miners_dao_xtn_increase.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "7W_2miners_dao_xtn_increase.json"),
+	)
 }
 
 // 2 miners, dao, xtn, initR=600000000, increment = 100000000, desiredR = 600000000
@@ -31,8 +33,10 @@ type RewardUnchangedDaoXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardUnchangedDaoXtnPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "6W_2miners_dao_xtn_not_changed.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "6W_2miners_dao_xtn_not_changed.json"),
+	)
 }
 
 // 2 miners, dao, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
@@ -43,8 +47,10 @@ type RewardDecreaseDaoXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardDecreaseDaoXtnPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "5W_2miners_dao_xtn_decrease.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "5W_2miners_dao_xtn_decrease.json"),
+	)
 }
 
 // 2 miners, dao, initR=700000000, increment = 100000000, desiredR = 900000000
@@ -55,8 +61,10 @@ type RewardIncreaseDaoPreactivatedSuite struct {
 }
 
 func (suite *RewardIncreaseDaoPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "7W_2miners_dao_increase.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "7W_2miners_dao_increase.json"),
+	)
 }
 
 // 2 miners, xtn, initR=600000000, increment = 100000000, desiredR = 600000000
@@ -67,8 +75,10 @@ type RewardUnchangedXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardUnchangedXtnPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "6W_2miners_xtn_not_changed.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "6W_2miners_xtn_not_changed.json"),
+	)
 }
 
 // 2 miners, dao, xtn, initR=200000000, increment = 100000000, desiredR = 200000000
@@ -79,8 +89,10 @@ type Reward2WUnchangedDaoXtnPreactivatedSuite struct {
 }
 
 func (suite *Reward2WUnchangedDaoXtnPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "2W_2miners_dao_xtn_not_changed.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "2W_2miners_dao_xtn_not_changed.json"),
+	)
 }
 
 // 2 miners, dao, initR=500000000, increment = 100000000, desiredR = 300000000
@@ -91,8 +103,10 @@ type RewardDecreaseDaoPreactivatedSuite struct {
 }
 
 func (suite *RewardDecreaseDaoPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "5W_2miners_dao_decrease.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "5W_2miners_dao_decrease.json"),
+	)
 }
 
 // 2 miners, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
@@ -103,8 +117,10 @@ type RewardDecreaseXtnPreactivatedSuite struct {
 }
 
 func (suite *RewardDecreaseXtnPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "5W_2miners_xtn_decrease.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "5W_2miners_xtn_decrease.json"),
+	)
 }
 
 // 2 miners, initR=500000000, increment = 100000000, desiredR = 700000000
@@ -115,8 +131,10 @@ type RewardIncreasePreactivatedSuite struct {
 }
 
 func (suite *RewardIncreasePreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "2miners_increase.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "2miners_increase.json"),
+	)
 }
 
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
@@ -127,8 +145,10 @@ type RewardDaoXtnPreactivatedWithout19Suite struct {
 }
 
 func (suite *RewardDaoXtnPreactivatedWithout19Suite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "2miners_dao_xtn_without_f19.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "2miners_dao_xtn_without_f19.json"),
+	)
 }
 
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
@@ -139,8 +159,10 @@ type RewardDaoXtnPreactivatedWithout20Suite struct {
 }
 
 func (suite *RewardDaoXtnPreactivatedWithout20Suite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesConfigFolder, "2miners_dao_xtn_without_f20.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "2miners_dao_xtn_without_f20.json"),
+	)
 }
 
 //----- preactivated features 14, 19, 20, 21 FeaturesVotingPeriod = 1 -----
@@ -153,8 +175,10 @@ type RewardIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "7W_2miners_dao_xtn_increase.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "7W_2miners_dao_xtn_increase.json"),
+	)
 }
 
 // 2 miners, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
@@ -165,8 +189,10 @@ type RewardIncreaseXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardIncreaseXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "7W_2miners_xtn_increase.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "7W_2miners_xtn_increase.json"),
+	)
 }
 
 // 2 miners, dao, xtn, initR=600000000, increment = 100000000, desiredR = 600000000
@@ -177,8 +203,10 @@ type RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_not_changed.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_not_changed.json"),
+	)
 }
 
 // 2 miners, dao, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
@@ -189,8 +217,10 @@ type RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_xtn_dao_decrease.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_xtn_dao_decrease.json"),
+	)
 }
 
 // 2 miners, xtn, initR=500000000, increment = 100000000, desiredR = 300000000
@@ -201,8 +231,10 @@ type RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_xtn_decrease.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_xtn_decrease.json"),
+	)
 }
 
 // 2 miners, dao, xtn, initR=200000000, increment = 100000000, desiredR = 200000000
@@ -213,8 +245,10 @@ type Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "2W_2miners_dao_xtn_not_changed.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "2W_2miners_dao_xtn_not_changed.json"),
+	)
 }
 
 // 2 miners, initR=500000000, increment = 100000000, desiredR = 700000000
@@ -225,8 +259,10 @@ type Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite struct {
 }
 
 func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_increase.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_increase.json"),
+	)
 }
 
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
@@ -237,8 +273,13 @@ type RewardDaoXtnPreactivatedWith21Suite struct {
 }
 
 func (suite *RewardDaoXtnPreactivatedWith21Suite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase_without_20.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(
+			preactivatedFeaturesWith21ConfigFolder,
+			"6W_2miners_dao_xtn_increase_without_20.json",
+		),
+	)
 }
 
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
@@ -249,6 +290,11 @@ type RewardDaoXtnPreactivatedWithout19And20Suite struct {
 }
 
 func (suite *RewardDaoXtnPreactivatedWithout19And20Suite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining,
-		filepath.Join(preactivatedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_increase_without_19_20.json"))
+	suite.BaseSetup(
+		config.WithScalaMining(),
+		config.WithRewardSettingFromFile(
+			preactivatedFeaturesWith21ConfigFolder,
+			"6W_2miners_dao_xtn_increase_without_19_20.json",
+		),
+	)
 }

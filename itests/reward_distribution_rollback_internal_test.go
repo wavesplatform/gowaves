@@ -4,6 +4,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	"github.com/wavesplatform/gowaves/itests/utilities/reward"
 
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
