@@ -85,8 +85,13 @@ func NewBlockchainConfig(options ...BlockchainOption) (*BlockchainConfig, error)
 	}
 
 	// Generate new genesis block.
-	ts := time.Now().UnixMilli()
-	txs, acs, err := makeTransactionAndKeyPairs(gs, uint64(ts))
+	var ts uint64
+	if now := time.Now().UnixMilli(); now < 0 {
+		ts = 0
+	} else {
+		ts = uint64(now)
+	}
+	txs, acs, err := makeTransactionAndKeyPairs(gs, ts)
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +99,7 @@ func NewBlockchainConfig(options ...BlockchainOption) (*BlockchainConfig, error)
 	if err != nil {
 		return nil, err
 	}
-	b, err := genesis_generator.GenerateGenesisBlock(gs.Scheme, txs, bt, uint64(ts))
+	b, err := genesis_generator.GenerateGenesisBlock(gs.Scheme, txs, bt, ts)
 	if err != nil {
 		return nil, err
 	}
