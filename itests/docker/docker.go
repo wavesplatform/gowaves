@@ -150,7 +150,6 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 			log.Printf("Failed to stop go container: %v", err)
 		}
 	}
-	cancel()
 	if d.scalaNode != nil {
 		if err := d.pool.Purge(d.scalaNode.container); err != nil {
 			log.Printf("Failed to purge scala-node: %s", err)
@@ -170,6 +169,7 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 	if err := d.pool.RemoveNetwork(d.network); err != nil {
 		log.Printf("Failed to remove docker network: %s", err)
 	}
+	cancel()
 }
 
 func (d *Docker) startNode(
@@ -209,8 +209,8 @@ func (d *Docker) startNode(
 			OutputStream: logFile,
 			ErrorStream:  errFile,
 		})
-		if err != nil {
-			log.Printf("Failed to get logs from container: %s", err)
+		if err != nil && !errors.Is(err, context.Canceled) { // Do not log context.Canceled error.
+			log.Printf("Failed to get logs from container %q: %v", res.Container.ID, err)
 		}
 	}()
 	nc := &NodeContainer{

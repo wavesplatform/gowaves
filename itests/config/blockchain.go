@@ -85,12 +85,7 @@ func NewBlockchainConfig(options ...BlockchainOption) (*BlockchainConfig, error)
 	}
 
 	// Generate new genesis block.
-	var ts uint64
-	if now := time.Now().UnixMilli(); now < 0 {
-		ts = 0
-	} else {
-		ts = uint64(now)
-	}
+	ts := safeNow()
 	txs, acs, err := makeTransactionAndKeyPairs(gs, ts)
 	if err != nil {
 		return nil, err
@@ -217,4 +212,12 @@ func WithScalaMining() BlockchainOption {
 		cfg.EnableScalaMining = true
 		return nil
 	}
+}
+
+func safeNow() uint64 {
+	now := time.Now().UnixMilli()
+	if now < 0 {
+		return 0
+	}
+	return uint64(now)
 }

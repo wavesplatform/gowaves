@@ -98,57 +98,17 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		}
 		c.WaitForNewHeight(t)
 	}
-
 	if !equal && goStateHash != nil && scalaStateHash != nil {
-		var firstHeight uint64
-		for height := h; height > 0; height-- {
-			goStateHash, scalaStateHash, _ = c.StateHashCmp(t, height)
-			if !goStateHash.FieldsHashes.Equal(scalaStateHash.FieldsHashes) {
-				firstHeight = height
-			} else {
-				break
-			}
-		}
-
-		if firstHeight == 0 {
-			t.Errorf("couldn't find the height when state hashes diverged. should not happen")
-		}
-		goStateHashDiverged, scalaStateHashDiverged, _ := c.StateHashCmp(t, firstHeight)
-		goFieldHashesDiverged, err := goStateHashDiverged.FieldsHashes.MarshalJSON()
-		assert.NoError(t, err)
-		scalaFieldHashesDiverged, err := scalaStateHashDiverged.FieldsHashes.MarshalJSON()
-		assert.NoError(t, err)
-
-		t.Logf("First height when state hashes diverged: "+
-			"%d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
-			"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
-			firstHeight, goStateHashDiverged.BlockID.String(), goStateHashDiverged.SumHash.String(), goFieldHashesDiverged,
-			scalaStateHashDiverged.BlockID.String(), scalaStateHashDiverged.SumHash.String(), scalaFieldHashesDiverged)
-
-		goFieldHashes, err := goStateHash.FieldsHashes.MarshalJSON()
-		assert.NoError(t, err)
-		scalaFieldHashes, err := scalaStateHash.FieldsHashes.MarshalJSON()
-		assert.NoError(t, err)
-
 		assert.Failf(t, "Not equal state hashes",
-			"Not equal state hash at height %d:\nGo:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
+			"Not equal state hash at height %d:\n"+
+				"Go:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
 				"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
-			h, goStateHash.BlockID.String(), goStateHash.SumHash.String(), goFieldHashes,
-			scalaStateHash.BlockID.String(), scalaStateHash.SumHash.String(), scalaFieldHashes)
+			h, goStateHash.BlockID.String(), goStateHash.SumHash.String(),
+			mustFieldsHashesToString(goStateHash.FieldsHashes), scalaStateHash.BlockID.String(),
+			scalaStateHash.SumHash.String(), mustFieldsHashesToString(scalaStateHash.FieldsHashes),
+		)
+		c.reportFirstDivergedHeight(t, h)
 	}
-}
-
-func Retry(timeout time.Duration, f func() error) error {
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxInterval = time.Second * 1
-	bo.MaxElapsedTime = timeout
-	if err := backoff.Retry(f, bo); err != nil {
-		if bo.NextBackOff() == backoff.Stop {
-			return errors.Wrap(err, "reached retry deadline")
-		}
-		return err
-	}
-	return nil
 }
 
 func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duration) (error, error) {
@@ -179,4 +139,52 @@ func (c *NodesClients) WaitForConnectedPeers(timeout time.Duration) (error, erro
 		return err
 	})
 	return errGo, errScala
+}
+
+func (c *NodesClients) reportFirstDivergedHeight(t *testing.T, height uint64) {
+	var (
+		first         uint64
+		goSH, scalaSH *proto.StateHash
+	)
+	for h := height; h > 0; h-- {
+		goSH, scalaSH, _ = c.StateHashCmp(t, h)
+		if !goSH.FieldsHashes.Equal(scalaSH.FieldsHashes) {
+			first = h
+		} else {
+			break
+		}
+	}
+	if first == 0 {
+		t.Errorf("couldn't find the height when state hashes diverged. should not happen")
+		return
+	}
+
+	goSH, scalaSH, _ = c.StateHashCmp(t, first)
+	t.Logf("First height when state hashes diverged: %d:\n"+
+		"Go:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
+		"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
+		first, goSH.BlockID.String(), goSH.SumHash.String(), mustFieldsHashesToString(goSH.FieldsHashes),
+		scalaSH.BlockID.String(), scalaSH.SumHash.String(), mustFieldsHashesToString(scalaSH.FieldsHashes),
+	)
+}
+
+func Retry(timeout time.Duration, f func() error) error {
+	bo := backoff.NewExponentialBackOff()
+	bo.MaxInterval = time.Second * 1
+	bo.MaxElapsedTime = timeout
+	if err := backoff.Retry(f, bo); err != nil {
+		if bo.NextBackOff() == backoff.Stop {
+			return errors.Wrap(err, "reached retry deadline")
+		}
+		return err
+	}
+	return nil
+}
+
+func mustFieldsHashesToString(fieldHashes proto.FieldsHashes) string {
+	b, err := fieldHashes.MarshalJSON()
+	if err != nil {
+		panic(err)
+	}
+	return string(b)
 }
