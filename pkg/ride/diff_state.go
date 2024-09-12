@@ -32,6 +32,7 @@ type diffBalance struct {
 	leaseIn         int64
 	leaseOut        int64
 	stateGenerating int64
+	challenged      bool
 }
 
 func (db *diffBalance) addBalance(amount int64) error {
@@ -88,6 +89,9 @@ func (db *diffBalance) checkedSpendableBalance() (uint64, error) {
 }
 
 func (db *diffBalance) effectiveBalance() (int64, error) {
+	if db.challenged {
+		return 0, nil // challenged account has zero effective balance at the current block
+	}
 	v1, err := common.AddInt(db.balance, db.leaseIn)
 	if err != nil {
 		return 0, err
@@ -194,7 +198,7 @@ func (b changedAccounts) addAssetBalanceChange(account proto.AddressID, asset cr
 }
 
 type diffState struct {
-	state           types.SmartState
+	state           types.EnrichedSmartState
 	data            map[dataEntryKey]proto.DataEntry
 	wavesBalances   map[proto.AddressID]diffBalance
 	assetBalances   map[assetBalanceKey]assetBalance
@@ -205,7 +209,7 @@ type diffState struct {
 	changedAccounts changedAccounts
 }
 
-func newDiffState(state types.SmartState) diffState {
+func newDiffState(state types.EnrichedSmartState) diffState {
 	return diffState{
 		state:           state,
 		data:            map[dataEntryKey]proto.DataEntry{},
@@ -240,6 +244,7 @@ func (ds *diffState) loadWavesBalance(id proto.AddressID) (diffBalance, error) {
 		leaseIn:         profile.LeaseIn,
 		leaseOut:        profile.LeaseOut,
 		stateGenerating: int64(profile.Generating),
+		challenged:      profile.Challenged,
 	}
 	// Store new diff locally
 	ds.wavesBalances[id] = diff

@@ -1167,6 +1167,7 @@ func (ia *invokeApplier) validateActionSmartAsset(asset crypto.Digest, action pr
 		ia.settings.AddressSchemeCharacter,
 		ia.state,
 		ia.settings.InternalInvokePaymentsValidationAfterHeight,
+		ia.settings.PaymentsFixAfterHeight,
 		params.blockV5Activated,
 		params.rideV6Activated,
 		params.consensusImprovementsActivated,

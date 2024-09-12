@@ -5326,10 +5326,10 @@ func TestRegularAvailableBalanceSwitchOnV5ToV6(t *testing.T) {
 	env = env.withRideV6Activated().withWrappedState()
 	res, err = CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	assert.Nil(t, res)
-	require.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -1000000000")
+	require.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -1000000000: negative balance after payments application") //nolint:lll
 }
 
-func TestInvokePaymentsCheckBeforeAndAfterInvokeScriptTxActivation(t *testing.T) {
+func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
@@ -5370,17 +5370,42 @@ func TestInvokePaymentsCheckBeforeAndAfterInvokeScriptTxActivation(t *testing.T)
 			withWrappedState()
 	}
 
-	t.Run("BeforeInvokeScriptActivation", func(t *testing.T) {
+	t.Run("BeforeLightNodeActivationAndPaymentsFix", func(t *testing.T) {
 		env := prepareEnv().withWrappedState()
-		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+		rideEnv := env.toEnv()
+		res, err := CallFunction(rideEnv, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 		assert.Nil(t, res)
 		assert.EqualError(t, err, "gotcha")
+		assert.Equal(t, UserError, GetEvaluationErrorType(err))
+		// the call happens only once in `WrappedState.validatePaymentAction` during payment application
+		// payments check after application are not performed because of throw
+		assert.Len(t, rideEnv.calls.validateInternalPayments, 1)
 	})
-	t.Run("AfterInvokeScriptActivation", func(t *testing.T) {
+	t.Run("AfterLightNodeActivationWithoutPaymentsFix", func(t *testing.T) {
 		env := prepareEnv().withLightNodeActivated()
-		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+		rideEnv := env.toEnv()
+		res, err := CallFunction(rideEnv, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 		assert.Nil(t, res)
-		assert.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -4900000000")
+		assert.EqualError(t, err, "gotcha")
+		assert.Equal(t, UserError, GetEvaluationErrorType(err))
+		// the calls happen in `WrappedState.validatePaymentAction` during payment application  and before invoke
+		//  in `performInvoke` function
+		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
+		// payments check after application are not second time because of throw
+		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
+	})
+	t.Run("AfterLightNodeActivationAndPaymentsFix", func(t *testing.T) {
+		env := prepareEnv().withLightNodeActivated().withPaymentsFix()
+		rideEnv := env.toEnv()
+		res, err := CallFunction(rideEnv, tree1, proto.NewFunctionCall("call", proto.Arguments{}))
+		assert.Nil(t, res)
+		assert.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -4900000000: negative balance after payments application") //nolint:lll
+		assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		// the calls happen in `WrappedState.validatePaymentAction` during payment application and before invoke
+		//  in `performInvoke` function
+		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
+		// successfully fails before invoke because of negative balance
+		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
 	})
 }
 
@@ -5985,8 +6010,8 @@ func TestEvaluatorComplexityFailedPaymentsCheck(t *testing.T) {
 		})
 		t.Run("after_light_node", func(t *testing.T) {
 			env := createEnv(t).withLightNodeActivated()
-			doTest(t, env, 82, 164, NegativeBalanceAfterPayment) // fails by negative balance
-			// FIXME: in scala node behaviour is the same, as in the 'before_light_node' case
+			// in scala node behaviour is the same, as in the 'before_light_node' case
+			doTest(t, env, 84, 84, UserError)
 		})
 	})
 	t.Run("double-invoke_before_light_node", func(t *testing.T) {
@@ -6004,7 +6029,7 @@ func TestEvaluatorComplexityFailedPaymentsCheck(t *testing.T) {
 		assert.Equal(t, expected, EvaluationErrorSpentComplexity(callErr))
 		assert.Equal(t, InternalInvocationError, GetEvaluationErrorType(callErr))
 	})
-	t.Run("double-invoke_before_light_node", func(t *testing.T) {
+	t.Run("double-invoke_after_light_node", func(t *testing.T) {
 		env := createEnv(t).withLightNodeActivated()
 		rideEnv := env.toEnv()
 		res, callErr := CallFunction(rideEnv, tree1, proto.NewFunctionCall("f1", proto.Arguments{
@@ -6168,5 +6193,140 @@ func TestZeroComplexitySanityCheckInComplexityCalculator(t *testing.T) {
 		assert.Nil(t, res)
 		assert.EqualError(t, err, "failed to test complexity of system function: node 'Address' has zero complexity")
 		assert.Equal(t, expectedSpentComplexity, env.complexityCalculator().complexity())
+	})
+}
+
+func TestAttachedPaymentsValidation(t *testing.T) {
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	dApp2 := newTestAccount(t, "DAPP2")   // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+	const src1 = `
+		{-# STDLIB_VERSION 7 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+        func invokeNext(amount: Int) = {
+          %s
+          let addr = addressFromStringValue("3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1")
+          strict r = addr.invoke("returnPayment", [], [AttachedPayment(unit, amount)])
+          []
+        }
+	`
+	const src2 = `
+		{-# STDLIB_VERSION 7 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+
+		@Callable(i)
+        func returnPayment() = {
+          %s
+          [ScriptTransfer(i.caller, 5_0000_0000, unit)]
+        }
+	`
+
+	additionalComplexity := "strict foo = " + strings.Repeat("sigVerify(base58'', base58'', base58'') || ", 8) + "true"
+
+	treeProxyLight, errs := ridec.CompileToTree(fmt.Sprintf(src1, ""))
+	require.Empty(t, errs)
+	treeProxyHeavy, errs := ridec.CompileToTree(fmt.Sprintf(src1, additionalComplexity))
+	require.Empty(t, errs)
+	treeTargetLight, errs := ridec.CompileToTree(fmt.Sprintf(src2, ""))
+	require.Empty(t, errs)
+	treeTargetHeavy, errs := ridec.CompileToTree(fmt.Sprintf(src2, additionalComplexity))
+	require.Empty(t, errs)
+
+	t.Run("payments-check-fix-disabled-no-errors", func(t *testing.T) {
+		createEnv := func(t *testing.T, tree1, tree2 *ast.Tree) *testEnv {
+			return newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(52000).
+				withBlockV5Activated().withProtobufTx().withRideV6Activated().
+				withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
+				withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().withLightNodeActivated().
+				withThis(dApp1).withDApp(dApp1).withSender(sender).
+				withAdditionalDApp(dApp2).withTree(dApp2, tree2).
+				withInvocation("invokeNext", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+				withWavesBalance(sender, 0).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
+				withWrappedState()
+		}
+		t.Run("neither proxy nor target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyLight, treeTargetLight).toEnv()
+			res, err := CallFunction(env, treeProxyLight, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, 81, env.complexityCalculator().complexity())
+		})
+		t.Run("only proxy exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyHeavy, treeTargetLight).toEnv()
+			res, err := CallFunction(env, treeProxyHeavy, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, 1522, env.complexityCalculator().complexity())
+		})
+		t.Run("only target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyLight, treeTargetHeavy).toEnv()
+			res, err := CallFunction(env, treeProxyLight, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, 1522, env.complexityCalculator().complexity())
+		})
+		t.Run("both proxy and target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyHeavy, treeTargetHeavy).toEnv()
+			res, err := CallFunction(env, treeProxyHeavy, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.NoError(t, err)
+			assert.NotNil(t, res)
+			assert.Equal(t, 2963, env.complexityCalculator().complexity())
+		})
+	})
+
+	t.Run("payments-check-fix-enabled-only-rejections", func(t *testing.T) {
+		createEnv := func(t *testing.T, tree1, tree2 *ast.Tree) *testEnv {
+			return newTestEnv(t).withLibVersion(ast.LibV7).withComplexityLimit(52000).
+				withBlockV5Activated().withProtobufTx().withRideV6Activated().
+				withConsensusImprovementsActivatedFunc().withBlockRewardDistribution().
+				withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().withLightNodeActivated().
+				withPaymentsFix().
+				withThis(dApp1).withDApp(dApp1).withSender(sender).
+				withAdditionalDApp(dApp2).withTree(dApp2, tree2).
+				withInvocation("invokeNext", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+				withWavesBalance(sender, 0).withWavesBalance(dApp1, 0).withWavesBalance(dApp2, 0).
+				withWrappedState()
+		}
+		t.Run("neither proxy nor target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyLight, treeTargetLight).toEnv()
+			res, err := CallFunction(env, treeProxyLight, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.Error(t, err)
+			assert.Nil(t, res)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
+		t.Run("only proxy exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyHeavy, treeTargetLight).toEnv()
+			res, err := CallFunction(env, treeProxyHeavy, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.Error(t, err)
+			assert.Nil(t, res)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
+		t.Run("only target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyLight, treeTargetHeavy).toEnv()
+			res, err := CallFunction(env, treeProxyLight, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.Error(t, err)
+			assert.Nil(t, res)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
+		t.Run("both proxy and target exceeds fail-free complexity", func(t *testing.T) {
+			env := createEnv(t, treeProxyHeavy, treeTargetHeavy).toEnv()
+			res, err := CallFunction(env, treeProxyHeavy, proto.NewFunctionCall("invokeNext",
+				proto.Arguments{&proto.IntegerArgument{Value: 5_0000_0000}}))
+			assert.Error(t, err)
+			assert.Nil(t, res)
+			assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+		})
 	})
 }

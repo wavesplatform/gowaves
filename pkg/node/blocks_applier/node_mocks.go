@@ -148,10 +148,6 @@ func (a *MockStateManager) CurrentScore() (*big.Int, error) {
 	return a.ScoreAtHeight(proto.Height(len(a.state)))
 }
 
-func (a *MockStateManager) EffectiveBalanceStable(_ proto.Recipient, _, _ uint64) (uint64, error) {
-	panic("implement me")
-}
-
 func (a *MockStateManager) ValidateNextTx(_ proto.Transaction, _, _ uint64, _ proto.BlockVersion, _ bool) error {
 	panic("implement me")
 }

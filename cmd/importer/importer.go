@@ -55,6 +55,7 @@ type cfg struct {
 	snapshotsPath             string
 	cpuProfilePath            string
 	memProfilePath            string
+	disableBloomFilter        bool
 }
 
 func parseFlags() (cfg, error) {
@@ -88,6 +89,8 @@ func parseFlags() (cfg, error) {
 	// Debug.
 	flag.StringVar(&c.cpuProfilePath, "cpuprofile", "", "Write cpu profile to this file.")
 	flag.StringVar(&c.memProfilePath, "memprofile", "", "Write memory profile to this file.")
+	flag.BoolVar(&c.disableBloomFilter, "disable-bloom", false,
+		"Disable bloom filter. Less memory usage, but decrease performance.")
 	flag.Parse()
 
 	if c.blockchainPath == "" {
@@ -109,6 +112,7 @@ func (c *cfg) params(maxFDs int) state.StateParams {
 	params.StorageParams.DbParams.OpenFilesCacheCapacity = maxFDs - clearance
 	params.VerificationGoroutinesNum = c.verificationGoroutinesNum
 	params.DbParams.WriteBuffer = c.writeBufferSize * MiB
+	params.DbParams.BloomFilterParams.Disable = c.disableBloomFilter
 	params.StoreExtendedApiData = c.buildDataForExtendedAPI
 	params.BuildStateHashes = c.buildStateHashes
 	params.ProvideExtendedApi = false // We do not need to provide any APIs during import.
