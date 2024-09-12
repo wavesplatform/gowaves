@@ -120,7 +120,7 @@ func id(b []byte, fee uint64) *transaction {
 }
 
 func TestTransactionPool(t *testing.T) {
-	a := New(10000, NoOpValidator{}, settings.MainNetSettings)
+	a := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
 
 	require.EqualValues(t, 0, a.CurSize())
 	// add unique by id transactions, then check them sorted
@@ -140,7 +140,7 @@ func TestTransactionPool(t *testing.T) {
 
 func BenchmarkTransactionPool(b *testing.B) {
 	b.ReportAllocs()
-	a := New(10000, NoOpValidator{}, settings.MainNetSettings)
+	a := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
 
 	b.ResetTimer()
 	for i := 0; i < b.N; i++ {
@@ -164,7 +164,7 @@ func BenchmarkTransactionPool(b *testing.B) {
 }
 
 func TestTransactionPool_Exists(t *testing.T) {
-	a := New(10000, NoOpValidator{}, settings.MainNetSettings)
+	a := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
 
 	require.False(t, a.Exists(id([]byte{1, 2, 3}, 0)))
 
@@ -177,7 +177,7 @@ func TestTransactionPool_Exists(t *testing.T) {
 
 // check transaction not added when limit
 func TestUtxPool_Limit(t *testing.T) {
-	a := New(10, NoOpValidator{}, settings.MainNetSettings)
+	a := New(10, NoOpValidator{}, settings.MustMainNetSettings())
 	require.Equal(t, 0, a.Len())
 
 	// added
@@ -192,13 +192,13 @@ func TestUtxPool_Limit(t *testing.T) {
 }
 
 func TestUtxImpl_AllTransactions(t *testing.T) {
-	a := New(10, NoOpValidator{}, settings.MainNetSettings)
+	a := New(10, NoOpValidator{}, settings.MustMainNetSettings())
 	_ = a.AddWithBytes(id([]byte{1, 2, 3}, 10), bytes.Repeat([]byte{1, 2}, 5))
 	require.Len(t, a.AllTransactions(), 1)
 }
 
 func TestUtxImpl_TransactionExists(t *testing.T) {
-	a := New(10000, NoOpValidator{}, settings.MainNetSettings)
+	a := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
 	require.NoError(t, a.AddWithBytes(byte_helpers.BurnWithSig.Transaction, byte_helpers.BurnWithSig.TransactionBytes))
 	require.True(t, a.ExistsByID(byte_helpers.BurnWithSig.Transaction.ID.Bytes()))
 	require.False(t, a.ExistsByID(byte_helpers.TransferWithSig.Transaction.ID.Bytes()))

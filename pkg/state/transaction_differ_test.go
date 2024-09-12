@@ -18,12 +18,13 @@ const (
 	priceConstant = 10e7
 )
 
-var (
-	defaultTimestamp = settings.MainNetSettings.CheckTempNegativeAfterTime
-	defaultAmount    = uint64(100)
-	defaultFee       = uint64(FeeUnit)
-	defaultQuantity  = uint64(1000)
-	defaultDecimals  = byte(7)
+var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime //nolint:gochecknoglobals // no writes
+
+const (
+	defaultAmount   = uint64(100)
+	defaultFee      = uint64(FeeUnit)
+	defaultQuantity = uint64(1000)
+	defaultDecimals = byte(7)
 )
 
 type differTestObjects struct {

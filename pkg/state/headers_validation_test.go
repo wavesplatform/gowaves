@@ -84,7 +84,7 @@ func TestHeadersValidation(t *testing.T) {
 		t.Fatalf("Can not read blocks from blockchain file: %v\n", err)
 	}
 	var (
-		sets   = settings.MainNetSettings
+		sets   = settings.MustMainNetSettings()
 		scheme = sets.AddressSchemeCharacter
 		st     = newTestState(t, true, stateParams(), sets)
 	)

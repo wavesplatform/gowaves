@@ -21,7 +21,7 @@ func createDiffApplierTestObjects(t *testing.T) *diffApplierTestObjects {
 	stor := createStorageObjects(t, true)
 	applier, err := newDiffApplier(stor.entities.balances, proto.TestNetScheme)
 	require.NoError(t, err, "newDiffApplier() failed")
-	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings)
+	td, err := newTransactionDiffer(stor.entities, settings.MustMainNetSettings())
 	require.NoError(t, err, "newTransactionDiffer() failed")
 	return &diffApplierTestObjects{stor, applier, td}
 }
@@ -112,12 +112,13 @@ func TestDiffApplierWithAssets(t *testing.T) {
 // Check that intermediate balance in Transfer can not be negative.
 func TestTransferOverspend(t *testing.T) {
 	to := createDiffApplierTestObjects(t)
+	bs := settings.MustMainNetSettings()
 
 	to.stor.addBlock(t, blockID0)
 	// Create overspend transfer to self.
 	tx := createTransferWithSig(t)
 	info := defaultDifferInfo()
-	info.blockInfo.Timestamp = settings.MainNetSettings.CheckTempNegativeAfterTime - 1
+	info.blockInfo.Timestamp = bs.CheckTempNegativeAfterTime - 1
 	tx.Timestamp = info.blockInfo.Timestamp
 	tx.Recipient = proto.NewRecipientFromAddress(testGlobal.senderInfo.addr)
 	// Set balance equal to tx Fee.
@@ -136,7 +137,7 @@ func TestTransferOverspend(t *testing.T) {
 	err = to.applier.validateBalancesChanges(txChanges.diff.balancesChanges())
 	assert.NoError(t, err, "validateBalancesChanges() failed with overspend when it is allowed")
 	// Sending to self more than possess after settings.MainNetSettings.CheckTempNegativeAfterTime must lead to error.
-	info.blockInfo.Timestamp = settings.MainNetSettings.CheckTempNegativeAfterTime
+	info.blockInfo.Timestamp = bs.CheckTempNegativeAfterTime
 	tx.Timestamp = info.blockInfo.Timestamp
 	txChanges, err = to.td.createDiffTransferWithSig(tx, info)
 	assert.NoError(t, err, "createDiffTransferWithSig() failed")

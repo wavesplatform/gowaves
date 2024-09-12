@@ -13,10 +13,11 @@ import (
 )
 
 func makeTestNetRewards(t *testing.T, gen proto.WavesAddress, amounts ...uint64) proto.Rewards {
+	s := settings.MustTestNetSettings()
 	require.True(t, len(amounts) > 0 && len(amounts) <= 3)
 	addresses := make([]proto.WavesAddress, 3)
 	addresses[0] = gen
-	copy(addresses[1:], settings.TestNetSettings.RewardAddresses)
+	copy(addresses[1:], s.RewardAddresses)
 	r := make(proto.Rewards, 0, 3)
 	for i, a := range amounts {
 		r = append(r, proto.NewReward(addresses[i], a))
@@ -67,10 +68,10 @@ func makeMockFeaturesStateForRewardsCalc(features ...settings.Feature) featuresS
 
 func newTestRewardsCalculator(features ...settings.Feature) *rewardCalculator {
 	mf := makeMockFeaturesStateForRewardsCalc(features...)
-	sets := *settings.TestNetSettings
+	sets := settings.MustTestNetSettings()
 	sets.MinXTNBuyBackPeriod = 3000
 	sets.BlockRewardBoostPeriod = 1000
-	c := newRewardsCalculator(&sets, mf)
+	c := newRewardsCalculator(sets, mf)
 	return c
 }
 

@@ -40,7 +40,7 @@ func TestAddVote(t *testing.T) {
 		blockRewardActivationHeight = 0
 		isCappedRewardsActivated    = false
 	)
-	mo, storage := createTestObjects(t, settings.MainNetSettings)
+	mo, storage := createTestObjects(t, settings.MustMainNetSettings())
 
 	h := proto.Height(99001)
 	storage.addBlock(t, blockID0)
@@ -76,7 +76,7 @@ func TestRollbackVote(t *testing.T) {
 		blockRewardActivationHeight = 0
 		isCappedRewardsActivated    = false
 	)
-	mo, storage := createTestObjects(t, settings.MainNetSettings)
+	mo, storage := createTestObjects(t, settings.MustMainNetSettings())
 	h := proto.Height(99001)
 	storage.addBlock(t, blockID0)
 	err := mo.vote(700000000, h, blockRewardActivationHeight, isCappedRewardsActivated, blockID0)
@@ -104,7 +104,7 @@ func TestRollbackVote(t *testing.T) {
 }
 
 func TestFinishRewardVoting(t *testing.T) {
-	sets := settings.MainNetSettings
+	sets := settings.MustMainNetSettings()
 	sets.FunctionalitySettings.BlockRewardTerm = 8
 	sets.FunctionalitySettings.BlockRewardTermAfter20 = 4
 	sets.FunctionalitySettings.BlockRewardVotingPeriod = 2
@@ -177,7 +177,7 @@ func TestFinishRewardVoting(t *testing.T) {
 }
 
 func TestRewardAtHeight(t *testing.T) {
-	sets := settings.MainNetSettings
+	sets := settings.MustMainNetSettings()
 	mo, storage := createTestObjects(t, sets)
 
 	const (
@@ -221,7 +221,7 @@ func TestRewardAtHeight(t *testing.T) {
 }
 
 func TestTotalWavesAmountAtHeightWithRewardsAtGenesis(t *testing.T) {
-	sets := settings.MainNetSettings
+	sets := settings.MustMainNetSettings()
 	mo, storage := createTestObjects(t, sets)
 
 	const (
@@ -282,7 +282,7 @@ func TestTotalWavesAmountAtHeightWithRewardsAtGenesis(t *testing.T) {
 }
 
 func TestTotalWavesAmountAtHeight(t *testing.T) {
-	sets := settings.MainNetSettings
+	sets := settings.MustMainNetSettings()
 	mo, storage := createTestObjects(t, sets)
 
 	const (
@@ -368,7 +368,7 @@ func TestBoost(t *testing.T) {
 }
 
 func TestBoostedTotalWavesAmountAtHeight(t *testing.T) {
-	sets := settings.MainNetSettings
+	sets := settings.MustMainNetSettings()
 	mo, storage := createTestObjects(t, sets)
 
 	const (

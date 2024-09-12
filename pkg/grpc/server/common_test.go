@@ -70,14 +70,14 @@ func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.Block
 	assert.NoError(t, err)
 	err = genesisFile.Close()
 	assert.NoError(t, err)
-	sets := settings.DefaultCustomSettings
+	sets := settings.MustDefaultCustomSettings()
 	signBlock(t, genesis, sets.AddressSchemeCharacter)
 	sets.Genesis = *genesis
 	// For compatibility with MainNet addresses we use the same AddressSchemeCharacter.
 	// This is needed because transactions from MainNet blockchain are used in tests' genesis blocks.
-	sets.AddressSchemeCharacter = settings.MainNetSettings.AddressSchemeCharacter
+	sets.AddressSchemeCharacter = proto.MainNetScheme
 	sets.BlockRewardTerm = 100000
-	return &sets
+	return sets
 }
 
 func stateWithCustomGenesis(t *testing.T, genesisPath string) state.State {
