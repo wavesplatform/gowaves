@@ -60,7 +60,7 @@ func newTestStateManager(t *testing.T, amend bool, params StateParams, settings 
 
 func TestHandleAmendFlag(t *testing.T) {
 	dataDir := t.TempDir()
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	// first open with false amend
 	manager, err := newStateManager(dataDir, false, DefaultTestingStateParams(), bs, false)
 	assert.NoError(t, err, "newStateManager() failed")
@@ -93,7 +93,7 @@ func TestHandleAmendFlag(t *testing.T) {
 func TestGenesisConfig(t *testing.T) {
 	ss := &settings.BlockchainSettings{
 		Type:                  settings.Custom,
-		Genesis:               settings.TestNetSettings().Genesis,
+		Genesis:               settings.MustTestNetSettings().Genesis,
 		FunctionalitySettings: settings.FunctionalitySettings{BlockRewardTerm: 100000, AddressSchemeCharacter: proto.TestNetScheme},
 	}
 	stateParams := DefaultStateParams()
@@ -123,7 +123,7 @@ func validateTxs(st *stateManager, timestamp uint64, txs []proto.Transaction) er
 func TestValidationWithoutBlocks(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	manager := newTestStateManager(t, true, DefaultTestingStateParams(), bs)
 
 	// Test txs from real block without this block.
@@ -177,7 +177,7 @@ func TestStateRollback(t *testing.T) {
 	}
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	manager := newTestStateManager(t, true, DefaultTestingStateParams(), bs)
 
 	tests := []struct {
@@ -230,7 +230,7 @@ func TestStateIntegrated(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
 	balancesPath := filepath.Join(dir, "testdata", "accounts-1001")
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	manager := newTestStateManager(t, true, DefaultTestingStateParams(), bs)
 
 	tests := []testCase{
@@ -309,7 +309,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	assert.NoError(t, err)
 	// Set preactivated feature.
 	featureID := int16(1)
-	sets := settings.MainNetSettings()
+	sets := settings.MustMainNetSettings()
 	sets.PreactivatedFeatures = []int16{featureID}
 	manager := newTestStateManager(t, true, DefaultTestingStateParams(), sets)
 
@@ -338,7 +338,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 
 func TestDisallowDuplicateTxIds(t *testing.T) {
 	blocksPath, err := blocksPath()
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	assert.NoError(t, err)
 	manager := newTestStateManager(t, true, DefaultTestingStateParams(), bs)
 
@@ -361,7 +361,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 
 func TestTransactionByID(t *testing.T) {
 	blocksPath, err := blocksPath()
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	assert.NoError(t, err)
 	manager := newTestStateManager(t, true, DefaultTestingStateParams(), bs)
 
@@ -384,7 +384,7 @@ func TestTransactionByID(t *testing.T) {
 
 func TestStateManager_TopBlock(t *testing.T) {
 	blocksPath, err := blocksPath()
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	assert.NoError(t, err)
 	dataDir := t.TempDir()
 	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), bs, false)
@@ -421,7 +421,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	// Test after closure.
 	err = manager.Close()
 	assert.NoError(t, err, "manager.Close() failed")
-	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MainNetSettings(), false)
+	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MustMainNetSettings(), false)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.Equal(t, correct, manager.TopBlock())
 }
@@ -430,7 +430,7 @@ func TestGenesisStateHash(t *testing.T) {
 	params := DefaultTestingStateParams()
 	params.BuildStateHashes = true
 
-	manager := newTestStateManager(t, true, params, settings.MainNetSettings())
+	manager := newTestStateManager(t, true, params, settings.MustMainNetSettings())
 
 	stateHash, err := manager.LegacyStateHashAtHeight(1)
 	assert.NoError(t, err, "LegacyStateHashAtHeight failed")
@@ -444,7 +444,7 @@ func TestGenesisStateHash(t *testing.T) {
 
 func TestStateHashAtHeight(t *testing.T) {
 	params := DefaultTestingStateParams()
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	params.BuildStateHashes = true
 	manager := newTestStateManager(t, false, params, bs)
 
@@ -532,7 +532,7 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 	prepareStateCommon := func(t *testing.T, addr proto.WavesAddress) (*stateManager, *testStorageObjects) {
 		const blocksToApply = 1000
 
-		customSettings := settings.MainNetSettings()                     // copy the mainnet settings
+		customSettings := settings.MustMainNetSettings()                 // copy the mainnet settings
 		customSettings.GenerationBalanceDepthFrom50To1000AfterHeight = 1 // set from the first height
 		state, testObj := createMockStateManager(t, customSettings)
 

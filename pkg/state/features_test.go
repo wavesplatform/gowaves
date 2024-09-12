@@ -87,7 +87,7 @@ func TestActivateFeature(t *testing.T) {
 }
 
 func TestFinishVoting(t *testing.T) {
-	sets := settings.MainNetSettings()
+	sets := settings.MustMainNetSettings()
 	to := createFeatures(t)
 
 	height := sets.ActivationWindowSize(1)

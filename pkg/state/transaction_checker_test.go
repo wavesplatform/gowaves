@@ -51,7 +51,7 @@ func createCheckerTestObjectsWithStor(
 func defaultCheckerInfo() *checkerInfo {
 	return &checkerInfo{
 		currentTimestamp: defaultTimestamp,
-		parentTimestamp:  defaultTimestamp - settings.MainNetSettings().MaxTxTimeBackOffset/2,
+		parentTimestamp:  defaultTimestamp - settings.MustMainNetSettings().MaxTxTimeBackOffset/2,
 		blockID:          blockID0,
 		blockVersion:     1,
 		blockchainHeight: 100500,
@@ -1588,7 +1588,7 @@ func TestScriptActivation(t *testing.T) {
 			},
 		}
 		stor := &blockchainEntitiesStorage{features: mfs}
-		checker, err := newTransactionChecker(proto.BlockID{}, stor, settings.TestNetSettings())
+		checker, err := newTransactionChecker(proto.BlockID{}, stor, settings.MustTestNetSettings())
 		require.NoError(t, err)
 		blockV2 := test.libVersion >= ast.LibV3
 		_, err = checker.scriptActivation(test.libVersion, blockV2)

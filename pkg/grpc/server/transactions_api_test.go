@@ -110,7 +110,7 @@ func TestGetTransactions(t *testing.T) {
 }
 
 func TestGetStatuses(t *testing.T) {
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	params := defaultStateParams()
 	st := newTestState(t, true, params, bs)
 	ctx := withAutoCancel(t, context.Background())
@@ -163,7 +163,7 @@ func TestGetStatuses(t *testing.T) {
 }
 
 func TestGetUnconfirmed(t *testing.T) {
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 	params := defaultStateParams()
 	st := newTestState(t, true, params, bs)
 	ctx := withAutoCancel(t, context.Background())
@@ -252,7 +252,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 func TestSign(t *testing.T) {
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings())
+	st := newTestState(t, true, params, settings.MustMainNetSettings())
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
 

@@ -18,7 +18,7 @@ type sponsoredAssetsTestObjects struct {
 
 func createSponsoredAssets(t *testing.T, doubleActivation bool) *sponsoredAssetsTestObjects {
 	stor := createStorageObjects(t, true)
-	sets := settings.MainNetSettings()
+	sets := settings.MustMainNetSettings()
 	sets.SponsorshipSingleActivationPeriod = !doubleActivation
 	features, ok := stor.entities.features.(*features)
 	require.True(t, ok)

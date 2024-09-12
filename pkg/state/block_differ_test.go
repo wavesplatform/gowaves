@@ -19,7 +19,7 @@ type blockDifferTestObjects struct {
 }
 
 func createBlockDiffer(t *testing.T) *blockDifferTestObjects {
-	return createBlockDifferWithSettings(t, settings.TestNetSettings())
+	return createBlockDifferWithSettings(t, settings.MustTestNetSettings())
 }
 
 func createBlockDifferWithSettings(t *testing.T, sets *settings.BlockchainSettings) *blockDifferTestObjects {
@@ -250,7 +250,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 }
 
 func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
-	sets := settings.TestNetSettings()
+	sets := settings.MustTestNetSettings()
 	// Add some addresses for reward distribution
 	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr, testGlobal.recipientInfo.addr}
 	sets.InitialBlockReward = 800000000
@@ -299,7 +299,7 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 }
 
 func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
-	sets := settings.TestNetSettings()
+	sets := settings.MustTestNetSettings()
 	// Add some addresses for reward distribution
 	sets.RewardAddresses = []proto.WavesAddress{testGlobal.senderInfo.addr}
 	to := createBlockDifferWithSettings(t, sets)

@@ -67,7 +67,7 @@ func TestValidator_ShouldIncludeNewBlockFieldsOfLightNodeFeature(t *testing.T) {
 					return tt.lightNodeActivationHeight, nil
 				},
 			}
-			sets := settings.TestNetSettings() // copy of testnet settings
+			sets := settings.MustTestNetSettings() // copy of testnet settings
 			sets.LightNodeBlockFieldsAbsenceInterval = tt.lightNodeBlockFieldsAbsenceInterval
 			v := NewValidator(sip, sets, timeMock{})
 			result, err := v.ShouldIncludeNewBlockFieldsOfLightNodeFeature(tt.blockHeight)
@@ -156,7 +156,7 @@ func TestValidator_validateLightNodeBlockFields(t *testing.T) {
 					return tt.lightNodeActivationHeight, nil
 				},
 			}
-			sets := settings.TestNetSettings() // copy of testnet settings
+			sets := settings.MustTestNetSettings() // copy of testnet settings
 			sets.LightNodeBlockFieldsAbsenceInterval = tt.lightNodeBlockFieldsAbsenceInterval
 			v := NewValidator(sip, sets, timeMock{})
 			err := v.validateLightNodeBlockFields(&tt.blockHeader, tt.blockHeight)

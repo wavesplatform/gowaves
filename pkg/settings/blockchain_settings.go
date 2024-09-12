@@ -203,13 +203,32 @@ func (s *BlockchainSettings) validate() error {
 	return nil
 }
 
-func MainNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(MainNet) }
+var (
+	// MainNetSettings is a set of settings for main network.
+	//
+	// Deprecated: use MustMainNetSettings instead.
+	MainNetSettings = MustMainNetSettings() //nolint:gochecknoglobals // Deprecated, left for compatibility
+	// TestNetSettings is a set of settings for test network.
+	//
+	// Deprecated: use MustTestNetSettings instead.
+	TestNetSettings = MustTestNetSettings() //nolint:gochecknoglobals // Deprecated, left for compatibility
+	// StageNetSettings is a set of settings for stage network.
+	//
+	// Deprecated: use MustStageNetSettings instead.
+	StageNetSettings = MustStageNetSettings() //nolint:gochecknoglobals // Deprecated, left for compatibility
+	// DefaultCustomSettings is a set of settings for custom blockchain.
+	//
+	// Deprecated: use MustDefaultCustomSettings instead.
+	DefaultCustomSettings = MustDefaultCustomSettings() //nolint:gochecknoglobals // Deprecated, left for compatibility
+)
 
-func TestNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(TestNet) }
+func MustMainNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(MainNet) }
 
-func StageNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(StageNet) }
+func MustTestNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(TestNet) }
 
-func DefaultCustomSettings() *BlockchainSettings {
+func MustStageNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(StageNet) }
+
+func MustDefaultCustomSettings() *BlockchainSettings {
 	return &BlockchainSettings{
 		Type: Custom,
 		FunctionalitySettings: FunctionalitySettings{
@@ -286,11 +305,11 @@ func loadEmbeddedSettings(name string) (*BlockchainSettings, error) {
 func BlockchainSettingsByTypeName(networkType string) (*BlockchainSettings, error) {
 	switch strings.ToLower(networkType) {
 	case "mainnet":
-		return MainNetSettings(), nil
+		return MustMainNetSettings(), nil
 	case "testnet":
-		return TestNetSettings(), nil
+		return MustTestNetSettings(), nil
 	case "stagenet":
-		return StageNetSettings(), nil
+		return MustStageNetSettings(), nil
 	case "custom":
 		return nil, errors.New("no embedded settings for custom blockchain")
 	default:

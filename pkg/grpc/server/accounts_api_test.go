@@ -17,7 +17,7 @@ import (
 
 func TestGetBalances(t *testing.T) {
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings())
+	st := newTestState(t, true, params, settings.MustMainNetSettings())
 	ctx := withAutoCancel(t, context.Background())
 	err := server.initServer(st, nil, nil)
 	require.NoError(t, err)

@@ -47,7 +47,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Enr
 			)
 		},
 	}
-	sett := settings.MainNetSettings()
+	sett := settings.MustMainNetSettings()
 	sett.AddressSchemeCharacter = scheme
 	sett.SponsorshipSingleActivationPeriod = true
 	stor := createStorageObjectsWithOptions(t, testStorageObjectsOptions{

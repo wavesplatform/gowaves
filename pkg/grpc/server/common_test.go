@@ -70,7 +70,7 @@ func customSettingsWithGenesis(t *testing.T, genesisPath string) *settings.Block
 	assert.NoError(t, err)
 	err = genesisFile.Close()
 	assert.NoError(t, err)
-	sets := settings.DefaultCustomSettings()
+	sets := settings.MustDefaultCustomSettings()
 	signBlock(t, genesis, sets.AddressSchemeCharacter)
 	sets.Genesis = *genesis
 	// For compatibility with MainNet addresses we use the same AddressSchemeCharacter.

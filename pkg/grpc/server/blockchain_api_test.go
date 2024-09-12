@@ -16,7 +16,7 @@ import (
 func TestGetBaseTarget(t *testing.T) {
 	params := defaultStateParams()
 	params.StoreExtendedApiData = true
-	st := newTestState(t, true, params, settings.MainNetSettings())
+	st := newTestState(t, true, params, settings.MustMainNetSettings())
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
 	err := server.initServer(st, nil, sch)
@@ -45,7 +45,7 @@ func TestGetBaseTarget(t *testing.T) {
 
 func TestGetCumulativeScore(t *testing.T) {
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings())
+	st := newTestState(t, true, params, settings.MustMainNetSettings())
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
 	err := server.initServer(st, nil, sch)

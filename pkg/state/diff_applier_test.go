@@ -21,7 +21,7 @@ func createDiffApplierTestObjects(t *testing.T) *diffApplierTestObjects {
 	stor := createStorageObjects(t, true)
 	applier, err := newDiffApplier(stor.entities.balances, proto.TestNetScheme)
 	require.NoError(t, err, "newDiffApplier() failed")
-	td, err := newTransactionDiffer(stor.entities, settings.MainNetSettings())
+	td, err := newTransactionDiffer(stor.entities, settings.MustMainNetSettings())
 	require.NoError(t, err, "newTransactionDiffer() failed")
 	return &diffApplierTestObjects{stor, applier, td}
 }
@@ -112,7 +112,7 @@ func TestDiffApplierWithAssets(t *testing.T) {
 // Check that intermediate balance in Transfer can not be negative.
 func TestTransferOverspend(t *testing.T) {
 	to := createDiffApplierTestObjects(t)
-	bs := settings.MainNetSettings()
+	bs := settings.MustMainNetSettings()
 
 	to.stor.addBlock(t, blockID0)
 	// Create overspend transfer to self.
