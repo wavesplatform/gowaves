@@ -513,6 +513,7 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 			state.stateDB,
 			state.atx,
 			&snapshotApplier,
+			nil,
 		)
 		require.NoError(t, err, "newTxAppender() failed")
 		state.appender = appender
