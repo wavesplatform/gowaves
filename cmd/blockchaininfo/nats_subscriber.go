@@ -3,16 +3,16 @@ package main
 import (
 	"context"
 	"encoding/json"
-	"fmt"
-	"github.com/nats-io/nats.go"
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
-	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"log"
 	"os"
 	"os/signal"
 	"strconv"
 	"syscall"
+
+	"github.com/nats-io/nats.go"
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
+	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func printBlockInfo(blockInfoProto *g.BlockInfo) error {
@@ -37,23 +37,75 @@ func printContractInfo(contractInfoProto *g.L2ContractDataEntries, scheme proto.
 
 	prettyJSON, err := json.MarshalIndent(contractInfo, "", "    ")
 	if err != nil {
-		fmt.Println("Error converting to pretty JSON:", err)
+		log.Println("Error converting to pretty JSON:", err)
 		return err
 	}
 	heightStr := strconv.Itoa(int(contractInfoProto.Height))
-	// Write the pretty JSON to a file named "index.json"
-	err = os.WriteFile("/media/alex/My_Book/dolgavin/waves/subscriber/contract_data/"+heightStr+".json", prettyJSON, 0644)
+	// Write the pretty JSON to a file
+	err = os.WriteFile("/media/alex/My_Book/dolgavin/waves/subscriber/contract_data/"+heightStr+".json", prettyJSON, 0600)
 	if err != nil {
-		fmt.Println("Error writing to file:", err)
+		log.Println("Error writing to file:", err)
 		return err
 	}
 
-	contractInfoJSON, err := json.Marshal(contractInfo)
-	if err != nil {
-		return err
-	}
-	log.Println(string(contractInfoJSON))
 	return nil
+}
+
+func receiveBlockUpdates(msg *nats.Msg) {
+	blockUpdatesInfo := new(g.BlockInfo)
+	unmrshlErr := blockUpdatesInfo.UnmarshalVT(msg.Data)
+	if unmrshlErr != nil {
+		log.Printf("failed to unmarshal block updates, %v", unmrshlErr)
+		return
+	}
+
+	err := printBlockInfo(blockUpdatesInfo)
+	if err != nil {
+		return
+	}
+	log.Printf("Received on %s:\n", msg.Subject)
+}
+
+func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Scheme) []byte {
+	log.Printf("Received on %s:\n", msg.Subject)
+	if msg.Data[0] == blockchaininfo.NoPaging {
+		contractMsg = msg.Data[1:]
+		contractUpdatesInfo := new(g.L2ContractDataEntries)
+		unmrshlErr := contractUpdatesInfo.UnmarshalVT(contractMsg)
+		if unmrshlErr != nil {
+			log.Printf("failed to unmarshal contract updates, %v", unmrshlErr)
+			return contractMsg
+		}
+		err := printContractInfo(contractUpdatesInfo, scheme)
+		if err != nil {
+			return contractMsg
+		}
+		contractMsg = nil
+		return contractMsg
+	}
+
+	if msg.Data[0] == blockchaininfo.StartPaging {
+		contractMsg = append(contractMsg, msg.Data[1:]...)
+	}
+
+	if msg.Data[0] == blockchaininfo.EndPaging && contractMsg != nil {
+		contractMsg = append(contractMsg, msg.Data[1:]...)
+		contractUpdatesInfo := new(g.L2ContractDataEntries)
+		unmrshlErr := contractUpdatesInfo.UnmarshalVT(contractMsg)
+		if unmrshlErr != nil {
+			log.Printf("failed to unmarshal contract updates, %v", unmrshlErr)
+			return contractMsg
+		}
+
+		go func() {
+			prntErr := printContractInfo(contractUpdatesInfo, scheme)
+			if prntErr != nil {
+				log.Printf("failed to print contract info updates")
+			}
+		}()
+		contractMsg = nil
+	}
+	return contractMsg
 }
 
 func main() {
@@ -69,18 +121,7 @@ func main() {
 	defer nc.Close()
 
 	_, err = nc.Subscribe(blockchaininfo.BlockUpdates, func(msg *nats.Msg) {
-		blockUpdatesInfo := new(g.BlockInfo)
-		unmrshlErr := blockUpdatesInfo.UnmarshalVT(msg.Data)
-		if unmrshlErr != nil {
-			log.Printf("failed to unmarshal block updates, %v", unmrshlErr)
-			return
-		}
-
-		err = printBlockInfo(blockUpdatesInfo)
-		if err != nil {
-			return
-		}
-		log.Printf("Received on %s:\n", msg.Subject)
+		receiveBlockUpdates(msg)
 	})
 	if err != nil {
 		log.Printf("failed to subscribe to block updates, %v", err)
@@ -88,43 +129,8 @@ func main() {
 	}
 
 	var contractMsg []byte
-	//_, err = nc.Subscribe(blockchaininfo.ContractUpdates, func(msg *nats.Msg) {
 	_, err = nc.Subscribe(blockchaininfo.ContractUpdates, func(msg *nats.Msg) {
-		log.Printf("Received on %s:\n", msg.Subject)
-		if msg.Data[0] == blockchaininfo.NO_PAGING {
-			contractMsg = msg.Data[1:]
-			contractUpdatesInfo := new(g.L2ContractDataEntries)
-			unmrshlErr := contractUpdatesInfo.UnmarshalVT(contractMsg)
-			if unmrshlErr != nil {
-				log.Printf("failed to unmarshal contract updates, %v", unmrshlErr)
-				return
-			}
-			err = printContractInfo(contractUpdatesInfo, scheme)
-			if err != nil {
-				return
-			}
-			contractMsg = nil
-		}
-
-		if msg.Data[0] == blockchaininfo.START_PAGING {
-			contractMsg = append(contractMsg, msg.Data[1:]...)
-		}
-
-		if msg.Data[0] == blockchaininfo.END_PAGING && contractMsg != nil {
-			contractMsg = append(contractMsg, msg.Data[1:]...)
-			contractUpdatesInfo := new(g.L2ContractDataEntries)
-			unmrshlErr := contractUpdatesInfo.UnmarshalVT(contractMsg)
-			if unmrshlErr != nil {
-				log.Printf("failed to unmarshal contract updates, %v", unmrshlErr)
-				return
-			}
-
-			err = printContractInfo(contractUpdatesInfo, scheme)
-			if err != nil {
-				return
-			}
-			contractMsg = nil
-		}
+		contractMsg = receiveContractUpdates(msg, contractMsg, scheme)
 	})
 	if err != nil {
 		log.Printf("failed to subscribe to contract updates, %v", err)

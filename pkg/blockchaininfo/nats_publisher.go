@@ -2,11 +2,7 @@ package blockchaininfo
 
 import (
 	"context"
-	"encoding/json"
-	"fmt"
 	"log"
-	"os"
-	"strconv"
 	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
@@ -19,14 +15,14 @@ const PortDefault = 4222
 const HostDefault = "127.0.0.1"
 const ConnectionsTimeoutDefault = 5 * server.AUTH_TIMEOUT
 
-const NATS_MAX_PAYLOAD_SIZE int32 = 1024 * 1024 // 64 MB
+const NatsMaxPayloadSize int32 = 1024 * 1024 // 1 MB
 
-//const NATS_MAX_PAYLOAD_SIZE int32 = 5
+const PublisherWaitingTime = 100 * time.Millisecond
 
 const (
-	START_PAGING = iota
-	END_PAGING
-	NO_PAGING
+	StartPaging = iota
+	EndPaging
+	NoPaging
 )
 
 type BUpdatesExtensionState struct {
@@ -68,18 +64,15 @@ func splitIntoChunks(array []byte, maxChunkSize int) [][]byte {
 	return chunkedArray
 }
 
-func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2ContractDataEntries, nc *nats.Conn, scheme proto.Scheme) error {
+func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2ContractDataEntries, nc *nats.Conn) error {
 	dataEntriesProtobuf, err := L2ContractDataEntriesToProto(contractUpdates).MarshalVTStrict()
 	if err != nil {
 		return err
 	}
-	fmt.Println("Size in MB")
 
-	fmt.Println(len(dataEntriesProtobuf) / 1024)
-
-	if len(dataEntriesProtobuf) <= int(NATS_MAX_PAYLOAD_SIZE-1) {
+	if len(dataEntriesProtobuf) <= int(NatsMaxPayloadSize-1) {
 		var msg []byte
-		msg = append(msg, NO_PAGING)
+		msg = append(msg, NoPaging)
 		msg = append(msg, dataEntriesProtobuf...)
 		err = nc.Publish(ContractUpdates, msg)
 		if err != nil {
@@ -90,13 +83,13 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 		return nil
 	}
 
-	chunkedPayload := splitIntoChunks(dataEntriesProtobuf, int(NATS_MAX_PAYLOAD_SIZE-1)/2)
+	chunkedPayload := splitIntoChunks(dataEntriesProtobuf, int(NatsMaxPayloadSize-1)/2)
 
 	for i, chunk := range chunkedPayload {
 		var msg []byte
 
 		if i == len(chunkedPayload)-1 {
-			msg = append(msg, END_PAGING)
+			msg = append(msg, EndPaging)
 			msg = append(msg, chunk...)
 			err = nc.Publish(ContractUpdates, msg)
 			if err != nil {
@@ -106,7 +99,7 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 			log.Printf("Published on topic: %s\n", ContractUpdates)
 			break
 		}
-		msg = append(msg, START_PAGING)
+		msg = append(msg, StartPaging)
 		msg = append(msg, chunk...)
 		err = nc.Publish(ContractUpdates, msg)
 		if err != nil {
@@ -114,49 +107,41 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 			return err
 		}
 		log.Printf("Published on topic: %s\n", ContractUpdates)
-		time.Sleep(time.Millisecond)
+		time.Sleep(PublisherWaitingTime)
 	}
 
 	return nil
 }
 
-func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
-	///* first publish block related info */
-	//blockInfo, err := BUpdatesInfoToProto(updates, scheme)
-	//if err != nil {
-	//	return err
-	//}
-	//blockInfoProtobuf, err := blockInfo.MarshalVTStrict()
-	//if err != nil {
-	//	return err
-	//}
-	// temporary
-	prettyJSON, err := json.MarshalIndent(updates.ContractUpdatesInfo, "", "    ")
+func (bu *BUpdatesExtensionState) publishBlockUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+	blockInfo, err := BUpdatesInfoToProto(updates, scheme)
 	if err != nil {
-		fmt.Println("Error converting to pretty JSON:", err)
 		return err
 	}
-	heightStr := strconv.Itoa(int(*updates.BlockUpdatesInfo.Height))
-	// Write the pretty JSON to a file named "index.json"
-	err = os.WriteFile("/media/alex/My_Book/dolgavin/waves/contract_data/"+heightStr+".json", prettyJSON, 0644)
+	blockInfoProtobuf, err := blockInfo.MarshalVTStrict()
 	if err != nil {
-		fmt.Println("Error writing to file:", err)
 		return err
 	}
+	err = nc.Publish(BlockUpdates, blockInfoProtobuf)
+	if err != nil {
+		log.Printf("failed to publish message on topic %s", BlockUpdates)
+		return err
+	}
+	log.Printf("Published on topic: %s\n", BlockUpdates)
+	return nil
+}
 
-	//
-	//err = nc.Publish(BlockUpdates, blockInfoProtobuf)
-	//if err != nil {
-	//	log.Printf("failed to publish message on topic %s", BlockUpdates)
-	//	return err
-	//}
-	//log.Printf("Published on topic: %s\n", BlockUpdates)
+func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+	/* first publish block data */
+	err := bu.publishBlockUpdates(updates, nc, scheme)
+	if err != nil {
+		log.Printf("failed to publish message on topic %s", BlockUpdates)
+		return err
+	}
 
 	/* second publish contract data entries */
 	if updates.ContractUpdatesInfo.AllDataEntries != nil {
-		//fmt.Println("Size in MB")
-		//fmt.Println(len(dataEntriesProtobuf) / 1024)
-		pblshErr := bu.publishContractUpdates(updates.ContractUpdatesInfo, nc, scheme)
+		pblshErr := bu.publishContractUpdates(updates.ContractUpdatesInfo, nc)
 		if pblshErr != nil {
 			log.Printf("failed to publish message on topic %s", ContractUpdates)
 			return pblshErr
@@ -167,10 +152,6 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 	return nil
 }
 
-func convertChangesToBlockchainUpdates() {
-
-}
-
 func handleBlockchainUpdates(updates BUpdatesInfo, ok bool,
 	bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
 	if !ok {
@@ -179,18 +160,17 @@ func handleBlockchainUpdates(updates BUpdatesInfo, ok bool,
 	}
 	// update current state
 	bu.currentState = &updates
-	// compare the current state to the previous state
 	if bu.previousState == nil {
 		// publish initial updates
 		pblshErr := bu.publishUpdates(updates, nc, scheme)
-		log.Printf("published initial updates")
 		if pblshErr != nil {
 			log.Printf("failed to publish updates, %v", pblshErr)
+			return
 		}
 		bu.previousState = &updates
 		return
 	}
-
+	// compare the current state to the previous state
 	stateChanged, changes, cmprErr := bu.hasStateChanged()
 	if cmprErr != nil {
 		log.Printf("failed to compare current and previous states, %v", cmprErr)
@@ -198,8 +178,7 @@ func handleBlockchainUpdates(updates BUpdatesInfo, ok bool,
 	}
 	// if there is any diff, send the update
 	if stateChanged {
-		updates = changes
-		pblshErr := bu.publishUpdates(updates, nc, scheme)
+		pblshErr := bu.publishUpdates(changes, nc, scheme)
 		log.Printf("published changes")
 		if pblshErr != nil {
 			log.Printf("failed to publish changes, %v", pblshErr)
@@ -215,7 +194,6 @@ func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
 			select {
 			case updates, ok := <-updatesChannel:
 				handleBlockchainUpdates(updates, ok, bu, scheme, nc)
-
 			case <-ctx.Done():
 				return
 			}
@@ -226,7 +204,7 @@ func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
 func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
 	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme) {
 	opts := &server.Options{
-		MaxPayload: NATS_MAX_PAYLOAD_SIZE,
+		MaxPayload: NatsMaxPayloadSize,
 		Host:       HostDefault,
 		Port:       PortDefault,
 	}
