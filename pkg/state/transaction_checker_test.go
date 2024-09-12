@@ -1588,7 +1588,7 @@ func TestScriptActivation(t *testing.T) {
 			},
 		}
 		stor := &blockchainEntitiesStorage{features: mfs}
-		checker, err := newTransactionChecker(proto.BlockID{}, stor, settings.TestNetSettings)
+		checker, err := newTransactionChecker(proto.BlockID{}, stor, settings.TestNetSettings())
 		require.NoError(t, err)
 		blockV2 := test.libVersion >= ast.LibV3
 		_, err = checker.scriptActivation(test.libVersion, blockV2)

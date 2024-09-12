@@ -204,10 +204,12 @@ func (s *BlockchainSettings) validate() error {
 }
 
 var (
-	MainNetSettings  = mustLoadEmbeddedSettings(MainNet)
-	TestNetSettings  = mustLoadEmbeddedSettings(TestNet)
-	StageNetSettings = mustLoadEmbeddedSettings(StageNet)
+	MainNetSettings = mustLoadEmbeddedSettings(MainNet)
 )
+
+func TestNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(TestNet) }
+
+func StageNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(StageNet) }
 
 func DefaultCustomSettings() *BlockchainSettings {
 	return &BlockchainSettings{
@@ -288,9 +290,9 @@ func BlockchainSettingsByTypeName(networkType string) (*BlockchainSettings, erro
 	case "mainnet":
 		return MainNetSettings, nil
 	case "testnet":
-		return TestNetSettings, nil
+		return TestNetSettings(), nil
 	case "stagenet":
-		return StageNetSettings, nil
+		return StageNetSettings(), nil
 	case "custom":
 		return nil, errors.New("no embedded settings for custom blockchain")
 	default:
