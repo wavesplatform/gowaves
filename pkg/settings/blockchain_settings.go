@@ -203,9 +203,7 @@ func (s *BlockchainSettings) validate() error {
 	return nil
 }
 
-var (
-	MainNetSettings = mustLoadEmbeddedSettings(MainNet)
-)
+func MainNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(MainNet) }
 
 func TestNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(TestNet) }
 
@@ -288,7 +286,7 @@ func loadEmbeddedSettings(name string) (*BlockchainSettings, error) {
 func BlockchainSettingsByTypeName(networkType string) (*BlockchainSettings, error) {
 	switch strings.ToLower(networkType) {
 	case "mainnet":
-		return MainNetSettings, nil
+		return MainNetSettings(), nil
 	case "testnet":
 		return TestNetSettings(), nil
 	case "stagenet":
