@@ -47,11 +47,11 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Enr
 			)
 		},
 	}
-	sett := *settings.MainNetSettings
+	sett := settings.MustMainNetSettings()
 	sett.AddressSchemeCharacter = scheme
 	sett.SponsorshipSingleActivationPeriod = true
 	stor := createStorageObjectsWithOptions(t, testStorageObjectsOptions{
-		Settings: &sett,
+		Settings: sett,
 	})
 	newAssets := newAssets(stor.db, stor.dbBatch, stor.hs)
 	if assetsUncertain == nil {
@@ -63,7 +63,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Enr
 	store := blockchainEntitiesStorage{
 		features:        feat,
 		scriptsStorage:  storage,
-		sponsoredAssets: &sponsoredAssets{features: feat, settings: &sett},
+		sponsoredAssets: &sponsoredAssets{features: feat, settings: sett},
 		assets:          newAssets,
 	}
 	blockchainSettings := &settings.BlockchainSettings{

@@ -51,7 +51,7 @@ func createCheckerTestObjectsWithStor(
 func defaultCheckerInfo() *checkerInfo {
 	return &checkerInfo{
 		currentTimestamp: defaultTimestamp,
-		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
+		parentTimestamp:  defaultTimestamp - settings.MustMainNetSettings().MaxTxTimeBackOffset/2,
 		blockID:          blockID0,
 		blockVersion:     1,
 		blockchainHeight: 100500,
@@ -87,7 +87,7 @@ func TestCheckPayment(t *testing.T) {
 
 	tx := createPayment(t)
 
-	info.blockchainHeight = settings.MainNetSettings.BlockVersion3AfterHeight
+	info.blockchainHeight = to.stor.settings.BlockVersion3AfterHeight
 	_, err := to.tc.checkPayment(tx, info)
 	assert.Error(t, err, "checkPayment accepted payment tx after Block v3 height")
 	info.blockchainHeight = 10
@@ -240,7 +240,7 @@ func TestCheckReissueWithSig(t *testing.T) {
 	tx := createReissueWithSig(t, 1000)
 	tx.SenderPK = assetInfo.Issuer
 
-	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
+	info.currentTimestamp = to.stor.settings.ReissueBugWindowTimeEnd + 1
 	_, err := to.tc.checkReissueWithSig(tx, info)
 	assert.NoError(t, err, "checkReissueWithSig failed with valid reissue tx")
 
@@ -283,7 +283,7 @@ func TestCheckReissueWithProofs(t *testing.T) {
 	tx := createReissueWithProofs(t, 1000)
 	tx.SenderPK = assetInfo.Issuer
 
-	info.currentTimestamp = settings.MainNetSettings.ReissueBugWindowTimeEnd + 1
+	info.currentTimestamp = to.stor.settings.ReissueBugWindowTimeEnd + 1
 
 	_, err := to.tc.checkReissueWithProofs(tx, info)
 	assert.Error(t, err, "checkReissueWithProofs did not fail prior to SmartAccounts activation")
@@ -639,7 +639,7 @@ func TestCheckLeaseCancelWithSig(t *testing.T) {
 
 	leaseTx := createLeaseWithSig(t)
 
-	info.currentTimestamp = settings.MainNetSettings.AllowMultipleLeaseCancelUntilTime + 1
+	info.currentTimestamp = to.stor.settings.AllowMultipleLeaseCancelUntilTime + 1
 	tx := createLeaseCancelWithSig(t, *leaseTx.ID)
 
 	_, err := to.tc.checkLeaseCancelWithSig(tx, info)
@@ -668,7 +668,7 @@ func TestCheckLeaseCancelWithProofs(t *testing.T) {
 
 	leaseTx := createLeaseWithProofs(t)
 
-	info.currentTimestamp = settings.MainNetSettings.AllowMultipleLeaseCancelUntilTime + 1
+	info.currentTimestamp = to.stor.settings.AllowMultipleLeaseCancelUntilTime + 1
 	tx := createLeaseCancelWithProofs(t, *leaseTx.ID)
 
 	_, err := to.tc.checkLeaseCancelWithProofs(tx, info)
@@ -716,7 +716,7 @@ func TestCheckCreateAliasWithSig(t *testing.T) {
 	assert.Error(t, err, "checkCreateAliasWithSig did not fail when using alias which is already taken")
 
 	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
-	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
+	info.currentTimestamp = to.stor.settings.StolenAliasesWindowTimeStart
 	_, err = to.tc.checkCreateAliasWithSig(tx, info)
 	assert.NoError(t, err, "checkCreateAliasWithSig failed when stealing aliases is allowed")
 }
@@ -744,7 +744,7 @@ func TestCheckCreateAliasWithProofs(t *testing.T) {
 	assert.Error(t, err, "checkCreateAliasWithProofs did not fail when using alias which is already taken")
 
 	// Check that checker allows to steal aliases at specified timestamp window on MainNet.
-	info.currentTimestamp = settings.MainNetSettings.StolenAliasesWindowTimeStart
+	info.currentTimestamp = to.stor.settings.StolenAliasesWindowTimeStart
 	_, err = to.tc.checkCreateAliasWithProofs(tx, info)
 	assert.NoError(t, err, "checkCreateAliasWithSig failed when stealing aliases is allowed")
 }
@@ -1588,7 +1588,7 @@ func TestScriptActivation(t *testing.T) {
 			},
 		}
 		stor := &blockchainEntitiesStorage{features: mfs}
-		checker, err := newTransactionChecker(proto.BlockID{}, stor, settings.TestNetSettings)
+		checker, err := newTransactionChecker(proto.BlockID{}, stor, settings.MustTestNetSettings())
 		require.NoError(t, err)
 		blockV2 := test.libVersion >= ast.LibV3
 		_, err = checker.scriptActivation(test.libVersion, blockV2)

@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -17,7 +18,7 @@ type sponsoredAssetsTestObjects struct {
 
 func createSponsoredAssets(t *testing.T, doubleActivation bool) *sponsoredAssetsTestObjects {
 	stor := createStorageObjects(t, true)
-	sets := settings.MainNetSettings
+	sets := settings.MustMainNetSettings()
 	sets.SponsorshipSingleActivationPeriod = !doubleActivation
 	features, ok := stor.entities.features.(*features)
 	require.True(t, ok)

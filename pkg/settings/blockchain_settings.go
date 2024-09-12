@@ -204,17 +204,32 @@ func (s *BlockchainSettings) validate() error {
 }
 
 var (
-	MainNetSettings  = mustLoadEmbeddedSettings(MainNet)
-	TestNetSettings  = mustLoadEmbeddedSettings(TestNet)
-	StageNetSettings = mustLoadEmbeddedSettings(StageNet)
-	defaultSettings  = BlockchainSettings{
-		FunctionalitySettings: FunctionalitySettings{
-			MinBlockTime:                        minBlockTimeDefault,
-			DelayDelta:                          delayDeltaDefault,
-			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
-		},
-	}
-	DefaultCustomSettings = BlockchainSettings{
+	// MainNetSettings is a set of settings for main network.
+	//
+	// Deprecated: use MustMainNetSettings instead.
+	MainNetSettings = MustMainNetSettings() //nolint:gochecknoglobals // Deprecated, left for compatibility
+	// TestNetSettings is a set of settings for test network.
+	//
+	// Deprecated: use MustTestNetSettings instead.
+	TestNetSettings = MustTestNetSettings() //nolint:gochecknoglobals // Deprecated, left for compatibility
+	// StageNetSettings is a set of settings for stage network.
+	//
+	// Deprecated: use MustStageNetSettings instead.
+	StageNetSettings = MustStageNetSettings() //nolint:gochecknoglobals // Deprecated, left for compatibility
+	// DefaultCustomSettings is a set of settings for custom blockchain.
+	//
+	// Deprecated: use MustDefaultCustomSettings instead.
+	DefaultCustomSettings = MustDefaultCustomSettings() //nolint:gochecknoglobals // Deprecated, left for compatibility
+)
+
+func MustMainNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(MainNet) }
+
+func MustTestNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(TestNet) }
+
+func MustStageNetSettings() *BlockchainSettings { return mustLoadEmbeddedSettings(StageNet) }
+
+func MustDefaultCustomSettings() *BlockchainSettings {
+	return &BlockchainSettings{
 		Type: Custom,
 		FunctionalitySettings: FunctionalitySettings{
 			FeaturesVotingPeriod:                5000,
@@ -230,7 +245,7 @@ var (
 			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
 		},
 	}
-)
+}
 
 func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 	switch blockchain {
@@ -262,6 +277,13 @@ func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 
 func ReadBlockchainSettings(r io.Reader) (*BlockchainSettings, error) {
 	jsonParser := json.NewDecoder(r)
+	defaultSettings := BlockchainSettings{
+		FunctionalitySettings: FunctionalitySettings{
+			MinBlockTime:                        minBlockTimeDefault,
+			DelayDelta:                          delayDeltaDefault,
+			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
+		},
+	}
 	s := defaultSettings
 	if err := jsonParser.Decode(&s); err != nil {
 		return nil, errors.Wrap(err, "failed to read blockchain settings")
@@ -283,11 +305,11 @@ func loadEmbeddedSettings(name string) (*BlockchainSettings, error) {
 func BlockchainSettingsByTypeName(networkType string) (*BlockchainSettings, error) {
 	switch strings.ToLower(networkType) {
 	case "mainnet":
-		return MainNetSettings, nil
+		return MustMainNetSettings(), nil
 	case "testnet":
-		return TestNetSettings, nil
+		return MustTestNetSettings(), nil
 	case "stagenet":
-		return StageNetSettings, nil
+		return MustStageNetSettings(), nil
 	case "custom":
 		return nil, errors.New("no embedded settings for custom blockchain")
 	default:

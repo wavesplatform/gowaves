@@ -62,7 +62,7 @@ func customCheckerInfo() *checkerInfo {
 	defaultBlockInfo := defaultBlockInfo()
 	return &checkerInfo{
 		currentTimestamp: defaultBlockInfo.Timestamp,
-		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
+		parentTimestamp:  defaultTimestamp - settings.MustMainNetSettings().MaxTxTimeBackOffset/2,
 		blockID:          blockID0,
 		blockVersion:     defaultBlockInfo.Version,
 		blockchainHeight: defaultBlockInfo.Height,

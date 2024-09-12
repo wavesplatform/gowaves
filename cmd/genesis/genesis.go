@@ -121,7 +121,7 @@ func run() error {
 	}
 	var js []byte
 	if config {
-		cfg := settings.DefaultCustomSettings
+		cfg := settings.MustDefaultCustomSettings()
 		cfg.Genesis = *block
 		cfg.AddressSchemeCharacter = sc
 		var err error

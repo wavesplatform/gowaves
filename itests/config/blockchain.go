@@ -98,7 +98,7 @@ func NewBlockchainConfig(options ...BlockchainOption) (*BlockchainConfig, error)
 	if err != nil {
 		return nil, err
 	}
-	bs := &settings.DefaultCustomSettings
+	bs := settings.MustDefaultCustomSettings()
 	bs.Genesis = *b
 	bs.AddressSchemeCharacter = gs.Scheme
 	bs.AverageBlockDelaySeconds = gs.AverageBlockDelay
