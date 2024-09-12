@@ -28,13 +28,11 @@ func printBlockInfo(blockInfoProto *g.BlockInfo) error {
 	return nil
 }
 
-func printContractInfo(contractInfoProto *g.L2ContractDataEntries, scheme proto.Scheme) error {
+func printContractInfo(contractInfoProto *g.L2ContractDataEntries, scheme proto.Scheme, path string) error {
 	contractInfo, err := blockchaininfo.L2ContractDataEntriesFromProto(contractInfoProto, scheme)
 	if err != nil {
 		return err
 	}
-	// temporary
-
 	prettyJSON, err := json.MarshalIndent(contractInfo, "", "    ")
 	if err != nil {
 		log.Println("Error converting to pretty JSON:", err)
@@ -42,7 +40,7 @@ func printContractInfo(contractInfoProto *g.L2ContractDataEntries, scheme proto.
 	}
 	heightStr := strconv.Itoa(int(contractInfoProto.Height))
 	// Write the pretty JSON to a file
-	err = os.WriteFile("/media/alex/My_Book/dolgavin/waves/subscriber/contract_data/"+heightStr+".json", prettyJSON, 0600)
+	err = os.WriteFile(path+heightStr+".json", prettyJSON, 0600)
 	if err != nil {
 		log.Println("Error writing to file:", err)
 		return err
@@ -66,7 +64,7 @@ func receiveBlockUpdates(msg *nats.Msg) {
 	log.Printf("Received on %s:\n", msg.Subject)
 }
 
-func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Scheme) []byte {
+func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Scheme, path string) []byte {
 	log.Printf("Received on %s:\n", msg.Subject)
 	if msg.Data[0] == blockchaininfo.NoPaging {
 		contractMsg = msg.Data[1:]
@@ -76,7 +74,7 @@ func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Sche
 			log.Printf("failed to unmarshal contract updates, %v", unmrshlErr)
 			return contractMsg
 		}
-		err := printContractInfo(contractUpdatesInfo, scheme)
+		err := printContractInfo(contractUpdatesInfo, scheme, path)
 		if err != nil {
 			return contractMsg
 		}
@@ -98,7 +96,7 @@ func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Sche
 		}
 
 		go func() {
-			prntErr := printContractInfo(contractUpdatesInfo, scheme)
+			prntErr := printContractInfo(contractUpdatesInfo, scheme, path)
 			if prntErr != nil {
 				log.Printf("failed to print contract info updates")
 			}
@@ -108,8 +106,10 @@ func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Sche
 	return contractMsg
 }
 
+const scheme = proto.TestNetScheme
+const path = "/media/alex/My_Book/dolgavin/waves/subscriber/contract_data/"
+
 func main() {
-	scheme := proto.TestNetScheme
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer done()
 	// Connect to a NATS server
@@ -130,7 +130,7 @@ func main() {
 
 	var contractMsg []byte
 	_, err = nc.Subscribe(blockchaininfo.ContractUpdates, func(msg *nats.Msg) {
-		contractMsg = receiveContractUpdates(msg, contractMsg, scheme)
+		contractMsg = receiveContractUpdates(msg, contractMsg, scheme, path)
 	})
 	if err != nil {
 		log.Printf("failed to subscribe to contract updates, %v", err)
