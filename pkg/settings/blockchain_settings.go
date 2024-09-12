@@ -214,7 +214,10 @@ var (
 			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
 		},
 	}
-	DefaultCustomSettings = BlockchainSettings{
+)
+
+func DefaultCustomSettings() *BlockchainSettings {
+	return &BlockchainSettings{
 		Type: Custom,
 		FunctionalitySettings: FunctionalitySettings{
 			FeaturesVotingPeriod:                5000,
@@ -230,7 +233,7 @@ var (
 			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
 		},
 	}
-)
+}
 
 func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 	switch blockchain {
