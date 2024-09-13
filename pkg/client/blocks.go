@@ -7,6 +7,7 @@ import (
 	"net/http"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -87,11 +88,23 @@ type Headers struct {
 	Reward             int64              `json:"reward"`
 	VRF                string             `json:"VRF"`
 	ID                 proto.BlockID      `json:"id"`
+	RewardShares       map[string]uint64  `json:"rewardShares,omitempty"`
+	StateHash          string             `json:"stateHash,omitempty"`        // is empty before protocol version 1.5
+	ChallengedHeader   *ChallengedHeader  `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
 }
 
 type NxtConsensus struct {
 	BaseTarget          uint64 `json:"base-target"`
 	GenerationSignature string `json:"generation-signature"`
+}
+
+type ChallengedHeader struct {
+	HeaderSignature    crypto.Signature   `json:"headerSignature"`
+	Features           []int16            `json:"features"`
+	Generator          proto.WavesAddress `json:"generator"`
+	GeneratorPublicKey crypto.PublicKey   `json:"generatorPublicKey"`
+	DesiredReward      int64              `json:"desiredReward"`
+	StateHash          string             `json:"stateHash"`
 }
 
 func (a *Blocks) HeadersAt(ctx context.Context, height uint64) (*Headers, *Response, error) {
