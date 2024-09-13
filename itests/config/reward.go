@@ -33,13 +33,15 @@ type RewardSettings struct {
 
 // NewRewardSettingsFromFile reads reward settings from file.
 // The `path` is a relative path to the configuration JSON file inside the project's "rewards_settings_testdata" folder.
-func NewRewardSettingsFromFile(dir, file string) (*RewardSettings, error) {
-	pwd, err := os.Getwd()
+func NewRewardSettingsFromFile(dir, file string) (_ *RewardSettings, err error) {
+	var pwd string
+	pwd, err = os.Getwd()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read reward settings")
 	}
 	rewardSettingsPath := filepath.Join(pwd, testdataFolder, rewardSettingsFolder, dir, file)
-	f, err := os.Open(rewardSettingsPath)
+	var f *os.File
+	f, err = os.Open(rewardSettingsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read reward settings")
 	}
