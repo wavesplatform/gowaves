@@ -155,7 +155,7 @@ func (c *NodesClients) reportFirstDivergedHeight(t *testing.T, height uint64) {
 		}
 	}
 	if first == 0 {
-		t.Errorf("couldn't find the height when state hashes diverged. should not happen")
+		t.Error("couldn't find the height when state hashes diverged. should not happen")
 		return
 	}
 

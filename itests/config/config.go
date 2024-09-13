@@ -2,12 +2,11 @@ package config
 
 import (
 	"encoding/json"
+	stderrs "errors"
+	"fmt"
 	"html/template"
-	"log"
 	"os"
 	"path/filepath"
-	"strconv"
-	"strings"
 
 	"github.com/ory/dockertest/v3"
 	"github.com/pkg/errors"
@@ -32,7 +31,7 @@ const (
 	RESTAPIPort = "6869"
 	GRPCAPIPort = "6870"
 	BindPort    = "6868"
-	Localhost   = "0.0.0.0"
+	DefaultIP   = "0.0.0.0"
 	NetTCP      = "/tcp"
 )
 
@@ -66,15 +65,9 @@ func (c *ScalaConfigurator) WithGoNode(goNodeIP string) *ScalaConfigurator {
 }
 
 func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
-	kpb := new(strings.Builder)
+	kps := ""
 	for i, kp := range c.knownPeers {
-		kpb.WriteString("-Dwaves.network.known-peers.")
-		kpb.WriteString(strconv.Itoa(i))
-		kpb.WriteString("=")
-		kpb.WriteString(kp)
-		kpb.WriteString(":")
-		kpb.WriteString(BindPort)
-		kpb.WriteString(" ")
+		kps += fmt.Sprintf("-Dwaves.network.known-peers.%d=%s:%s ", i, kp, BindPort)
 	}
 	opt := &dockertest.RunOptions{
 		Repository: "wavesplatform/wavesnode",
@@ -88,7 +81,7 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 			"WAVES_LOG_LEVEL=TRACE",
 			"WAVES_NETWORK=custom",
 			"JAVA_OPTS=" +
-				kpb.String() +
+				kps +
 				"-Dwaves.network.declared-address=scala-node:" + BindPort + " " +
 				"-Dwaves.network.port=" + BindPort + " " +
 				"-Dwaves.rest-api.port=" + RESTAPIPort + " " +
@@ -104,39 +97,40 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	return opt
 }
 
-func (c *ScalaConfigurator) createNodeConfig() error {
-	configDir, err := createConfigDir(c.suite)
+func (c *ScalaConfigurator) createNodeConfig() (err error) {
+	var configDir string
+	configDir, err = createConfigDir(c.suite)
 	if err != nil {
 		return errors.Wrap(err, "failed to create scala node configuration")
 	}
 	configPath := filepath.Join(configDir, scalaConfigFilename)
-	f, err := os.Create(configPath)
+	var f *os.File
+	f, err = os.Create(configPath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create scala node configuration")
 	}
 	defer func() {
 		if synErr := f.Sync(); synErr != nil {
-			log.Printf("Failed to sync file %q to disk: %v", f.Name(), err)
-			return
+			err = stderrs.Join(err, errors.Wrapf(synErr, "failed to sync file %q to disk", f.Name()))
 		}
 		if clErr := f.Close(); clErr != nil {
-			log.Printf("Failed to close file %q: %v", f.Name(), clErr)
+			err = stderrs.Join(err, errors.Wrapf(clErr, "failed to close file %q", f.Name()))
 		}
 	}()
 	pwd, err := os.Getwd()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create scala node configuration")
 	}
 	templatePath := filepath.Join(pwd, configFolder, templateScalaCfgFilename)
 	t, err := template.ParseFiles(templatePath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create scala node configuration")
 	}
 	if exErr := t.Execute(f, c.cfg); exErr != nil {
 		return errors.Wrap(exErr, "failed to create scala node configuration")
 	}
 	c.configFolder = configDir
-	return nil
+	return err
 }
 
 type GoConfigurator struct {
@@ -164,9 +158,9 @@ func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 		User:       "gowaves",
 		Hostname:   "go-node",
 		Env: []string{
-			"GRPC_ADDR=" + Localhost + ":" + GRPCAPIPort,
-			"API_ADDR=" + Localhost + ":" + RESTAPIPort,
-			"BIND_ADDR=" + Localhost + ":" + BindPort,
+			"GRPC_ADDR=" + DefaultIP + ":" + GRPCAPIPort,
+			"API_ADDR=" + DefaultIP + ":" + RESTAPIPort,
+			"BIND_ADDR=" + DefaultIP + ":" + BindPort,
 			"DECLARED_ADDR=" + "go-node:" + BindPort,
 			"PEERS=",
 			"WALLET_PASSWORD=itest",
@@ -192,38 +186,42 @@ func (c *GoConfigurator) setAndVerifyWalletFolder() error {
 		return err
 	}
 	c.walletFolder = filepath.Clean(filepath.Join(pwd, walletPath))
-	if _, flErr := os.Stat(c.walletFolder); os.IsNotExist(flErr) {
-		return errors.New("wallet folder does not exist")
+	if _, flErr := os.Stat(c.walletFolder); flErr != nil {
+		if os.IsNotExist(flErr) {
+			return errors.New("wallet folder does not exist")
+		}
+		return errors.Wrap(err, "unexpected error while verifying wallet folder")
 	}
 	return nil
 }
 
-func (c *GoConfigurator) createNodeConfig() error {
-	configDir, err := createConfigDir(c.suite)
+func (c *GoConfigurator) createNodeConfig() (err error) {
+	var configDir string
+	configDir, err = createConfigDir(c.suite)
 	if err != nil {
 		return errors.Wrap(err, "failed to create go node configuration")
 	}
 	configPath := filepath.Join(configDir, goConfigFilename)
-	f, err := os.Create(configPath)
+	var f *os.File
+	f, err = os.Create(configPath)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create go node configuration")
 	}
 	defer func() {
-		if err := f.Sync(); err != nil {
-			log.Printf("Failed to sync file '%s' to disk: %v", f.Name(), err)
-			return
+		if synErr := f.Sync(); synErr != nil {
+			err = stderrs.Join(err, errors.Wrapf(synErr, "failed to sync file %q to disk", f.Name()))
 		}
-		if err := f.Close(); err != nil {
-			log.Printf("Failed to close file '%s': %v", f.Name(), err)
+		if clErr := f.Close(); clErr != nil {
+			err = stderrs.Join(err, errors.Wrapf(clErr, "failed to close file %q", f.Name()))
 		}
 	}()
 	jsonWriter := json.NewEncoder(f)
 	jsonWriter.SetIndent("", "\t")
 	if jsErr := jsonWriter.Encode(c.cfg.Settings); jsErr != nil {
-		return errors.Wrap(jsErr, "failed to encode genesis settings")
+		return errors.Wrap(jsErr, "failed to create go node configuration")
 	}
 	c.configFolder = configDir
-	return nil
+	return err
 }
 
 func createConfigDir(suiteName string) (string, error) {

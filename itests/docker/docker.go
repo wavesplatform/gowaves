@@ -2,6 +2,7 @@ package docker
 
 import (
 	"context"
+	stderrs "errors"
 	"fmt"
 	"log"
 	"net"
@@ -43,7 +44,7 @@ type NodeContainer struct {
 }
 
 func (c *NodeContainer) RestAPIURL() string {
-	return fmt.Sprintf("http://%s", net.JoinHostPort(config.Localhost, c.ports.RESTAPIPort))
+	return fmt.Sprintf("http://%s", net.JoinHostPort(config.DefaultIP, c.ports.RESTAPIPort))
 }
 
 func (c *NodeContainer) Ports() *PortConfig {
@@ -55,17 +56,18 @@ func (c *NodeContainer) ContainerNetworkIP() string {
 }
 
 func (c *NodeContainer) closeFiles() error {
+	var err error
 	if c.logs != nil {
-		if err := c.logs.Close(); err != nil {
-			return errors.Wrap(err, "failed to close logs file")
+		if clErr := c.logs.Close(); clErr != nil {
+			err = stderrs.Join(err, errors.Wrapf(clErr, "failed to close logs file %q", c.logs.Name()))
 		}
 	}
 	if c.errors != nil {
-		if err := c.errors.Close(); err != nil {
-			return errors.Wrap(err, "failed to close errors file")
+		if clErr := c.errors.Close(); clErr != nil {
+			err = stderrs.Join(err, errors.Wrapf(clErr, "failed to close errors file %q", c.errors.Name()))
 		}
 	}
-	return nil
+	return err
 }
 
 type Docker struct {

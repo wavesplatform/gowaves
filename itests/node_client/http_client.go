@@ -22,7 +22,7 @@ type HttpClient struct {
 
 func NewHttpClient(t *testing.T, port string) *HttpClient {
 	c, err := client.NewClient(client.Options{
-		BaseUrl: "http://" + config.Localhost + ":" + port + "/",
+		BaseUrl: "http://" + config.DefaultIP + ":" + port + "/",
 		Client:  &http.Client{Timeout: d.DefaultTimeout},
 		ApiKey:  "itest-api-key",
 		ChainID: 'L', // I tried to use constant `utilities.TestChainID`, but after all decided that a little duplication is better in this case.

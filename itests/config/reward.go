@@ -2,7 +2,7 @@ package config
 
 import (
 	"encoding/json"
-	"log"
+	stderrs "errors"
 	"os"
 	"path/filepath"
 
@@ -38,21 +38,21 @@ func NewRewardSettingsFromFile(dir, file string) (*RewardSettings, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read reward settings")
 	}
-	rewardSettingsPath := filepath.Clean(filepath.Join(pwd, testdataFolder, rewardSettingsFolder, dir, file))
+	rewardSettingsPath := filepath.Join(pwd, testdataFolder, rewardSettingsFolder, dir, file)
 	f, err := os.Open(rewardSettingsPath)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to read reward settings")
 	}
 	defer func() {
 		if clErr := f.Close(); clErr != nil {
-			log.Printf("Failed to close file %q: %v", f.Name(), clErr)
+			err = stderrs.Join(err, errors.Wrapf(clErr, "failed to close reward settings file %q", f.Name()))
 		}
 	}()
 
 	js := json.NewDecoder(f)
 	s := &RewardSettings{}
 	if jsErr := js.Decode(s); jsErr != nil {
-		return nil, errors.Wrap(err, "failed to read reward settings")
+		return nil, errors.Wrap(jsErr, "failed to read reward settings")
 	}
 	return s, nil
 }
