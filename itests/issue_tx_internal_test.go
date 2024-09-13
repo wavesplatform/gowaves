@@ -7,11 +7,13 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type IssueTxSuite struct {
@@ -54,6 +56,7 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 }
 
 func (suite *IssueTxSuite) Test_IssueTxNegative() {
+	utl.GetActivationOfFeatures(&suite.BaseSuite, settings.FeeSponsorship)
 	versions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

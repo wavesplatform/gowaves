@@ -7,12 +7,14 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/itests/utilities/setassetscript"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type SetAssetScriptApiSuite struct {
@@ -40,6 +42,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
+	utl.GetActivationOfFeatures(&suite.BaseSuite, settings.FeeSponsorship)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -64,6 +67,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegative() {
+	utl.GetActivationOfFeatures(&suite.BaseSuite, settings.FeeSponsorship)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
