@@ -51,6 +51,11 @@ const (
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
 	DefaultTimeInterval        = 5 * time.Second
+
+	// DefaultSponsorshipActivationHeight sets the height at which Fee Sponsorship takes effect.
+	// Although the feature itself is activated at height 1 by default, it takes 2 additional voting periods (2 blocks)
+	// for it to become effective.
+	DefaultSponsorshipActivationHeight = 3
 )
 
 const (

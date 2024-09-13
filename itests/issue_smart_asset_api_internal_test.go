@@ -38,7 +38,7 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
-	utl.WaitForHeight(&suite.BaseSuite, 3)
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

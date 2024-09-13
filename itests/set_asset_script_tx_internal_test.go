@@ -40,7 +40,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
-	utl.WaitForHeight(&suite.BaseSuite, 3)
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -64,7 +64,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
-	utl.WaitForHeight(&suite.BaseSuite, 3)
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

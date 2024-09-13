@@ -57,7 +57,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 }
 
 func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
-	utl.WaitForHeight(&suite.BaseSuite, 3)
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
