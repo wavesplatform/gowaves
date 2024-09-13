@@ -13,7 +13,6 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type IssueSmartAssetSuite struct {
@@ -39,7 +38,7 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
 }
 
 func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetNegative() {
-	utl.GetActivationOfFeatures(&suite.BaseSuite, settings.FeeSponsorship)
+	utl.WaitForHeight(&suite.BaseSuite, 3)
 	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

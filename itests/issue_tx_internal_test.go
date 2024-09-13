@@ -13,7 +13,6 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type IssueTxSuite struct {
@@ -56,7 +55,7 @@ func (suite *IssueTxSuite) Test_IssueTxWithSameDataPositive() {
 }
 
 func (suite *IssueTxSuite) Test_IssueTxNegative() {
-	utl.GetActivationOfFeatures(&suite.BaseSuite, settings.FeeSponsorship)
+	utl.WaitForHeight(&suite.BaseSuite, 3)
 	versions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

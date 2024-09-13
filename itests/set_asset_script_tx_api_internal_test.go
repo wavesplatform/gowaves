@@ -14,7 +14,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/itests/utilities/setassetscript"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type SetAssetScriptApiSuite struct {
@@ -42,7 +41,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
-	utl.GetActivationOfFeatures(&suite.BaseSuite, settings.FeeSponsorship)
+	utl.WaitForHeight(&suite.BaseSuite, 3)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -67,7 +66,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 }
 
 func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegative() {
-	utl.GetActivationOfFeatures(&suite.BaseSuite, settings.FeeSponsorship)
+	utl.WaitForHeight(&suite.BaseSuite, 3)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
