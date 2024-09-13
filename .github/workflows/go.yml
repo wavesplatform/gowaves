@@ -91,11 +91,13 @@ jobs:
       - name: Tests
         run: make smoke
 
-      - name: Upload smoke tests logs
+      - name: Upload smoke tests logs and configs
         uses: actions/upload-artifact@v4
         if: failure()
         with:
-          name: smoke_itest_logs
-          path: build/logs/
+          name: smoke_itest_logs_and_configs
+          path: |
+            build/logs/
+            build/config/
           if-no-files-found: warn
           retention-days: 5
