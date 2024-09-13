@@ -2,10 +2,12 @@ package client
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -385,4 +387,52 @@ func TestBlocks_Address(t *testing.T) {
 	assert.NotNil(t, resp)
 	require.Equal(t, 1, len(body))
 	assert.Equal(t, "https://testnode1.wavesnodes.com/blocks/address/3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh/1/1", resp.Request.URL.String())
+}
+
+func TestHeadersMarshalUnmarshal(t *testing.T) {
+	// block json taken from testnet
+	//nolint:lll
+	const js = `
+		{
+		  "version": 5,
+		  "timestamp": 1723560377546,
+		  "reference": "ENEF7Yoc3wvYSkNR4F6dwzMVt22nTG3EP3QcBJjLi2jr",
+		  "nxt-consensus": {
+			"base-target": 64,
+			"generation-signature": "2EZCL13xCChPyv88AcDWSXcedvseNk9Ld2jYiGn8W6Pji4MmvqdiNFtFWBu1JTrsMUwBgZLmFJX6EmLrFN8iK5Dd2fLsGFinWHYD9FfkUqHi1KGoNRL97XuLoiEzhM8ctGVD"
+		  },
+		  "transactionsRoot": "8HYdTFtyCp4ijnzrzrdpXMUdjdJdEpUrUsHb7b9W13iK",
+		  "id": "9zL4HLrZBZ4qU5jMynr8AuB7aPhEeVxaKLbYyVTY3NxE",
+		  "features": [],
+		  "desiredReward": -1,
+		  "generator": "3MzRUPSNHwHXoE9LJeSDtaeGzrHVV43MXjn",
+		  "generatorPublicKey": "AA1Y4rEbYwuuBMKkjKEKzBcUJfirQ5truntFZ8L1Zts9",
+		  "stateHash": "8wukBB7Rr6KZSCBooS5NiTXbwMnsNKVAyWG5puBuXFcv",
+		  "challengedHeader": {
+			"headerSignature": "5MLZPRwhoEYvqjzAG72nbowXPtcPDWnQuRa7StabRKqZCX335yZdnbNREMR4J4mxwu8mHeu4R8yHVrCYy3urdzUx",
+			"features": [],
+			"generator": "3Msjb7fHtosdG8QJZ2b8YYCp6dpcK6Ck9Qr",
+			"generatorPublicKey": "8rnD2WdZ1QUhW6Q9FHbZ5BRcnEvLnLkfqdKz8HY18Qm5",
+			"desiredReward": -1,
+			"stateHash": "BRtP2PECe4rVxkLpuqDzjqzcNSQBW4SVQ43YuXYnMV7B"
+		  },
+		  "signature": "5q97jLuFfmmrwNzMLktqgazmn5HErmaGD9jqvH3hovhVwqUospMYUpABBW4YMaGNd9LSec9rvWG3mL9PJPQJ4SGz",
+		  "blocksize": 917,
+		  "transactionCount": 1,
+		  "height": 3237174,
+		  "totalFee": 0,
+		  "reward": 600000000,
+		  "rewardShares": {
+			"3Myb6G8DkdBb8YcZzhrky65HrmiNuac3kvS": 200000000,
+			"3MzRUPSNHwHXoE9LJeSDtaeGzrHVV43MXjn": 200000000,
+			"3N13KQpdY3UU7JkWUBD9kN7t7xuUgeyYMTT": 200000000
+		  },
+		  "VRF": "GXuckJ7aubWQdKUZQmWvED2KKYtx4AEXx3E4ZS4H2cky"
+		}`
+	var h Headers
+	err := json.Unmarshal([]byte(js), &h)
+	require.NoError(t, err)
+	data, err := json.Marshal(h)
+	require.NoError(t, err)
+	assert.JSONEq(t, js, string(data))
 }
