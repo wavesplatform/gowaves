@@ -4,6 +4,7 @@ import (
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func getAddressesBalances(suite *f.BaseSuite,
@@ -62,7 +63,7 @@ func getAddressesDiffBalances(suite *f.BaseSuite, currentSumMinersBalance, curre
 }
 
 func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.AddressesForDistribution) (
-	utl.RewardDiffBalancesInWaves, utl.RewardTerm) {
+	utl.RewardDiffBalancesInWaves, utl.RewardTerm, proto.Height) {
 	// Get balances in waves before block applied.
 	suite.T().Log("Balances before applied block: ")
 	initHeight := utl.GetHeight(suite)
@@ -81,7 +82,7 @@ func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.Addresses
 		initHeight, currentHeight)
 	return utl.NewRewardDiffBalances(diffMinersSumBalances.BalanceInWavesGo, diffMinersSumBalances.BalanceInWavesScala,
 		diffDaoBalance.BalanceInWavesGo, diffDaoBalance.BalanceInWavesScala, diffXtnBalance.BalanceInWavesGo,
-		diffXtnBalance.BalanceInWavesScala), term
+		diffXtnBalance.BalanceInWavesScala), term, currentHeight
 }
 
 type GetTestData func(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
@@ -90,9 +91,9 @@ type GetTestData func(suite *f.BaseSuite, addresses testdata.AddressesForDistrib
 func GetRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
 	testdata GetTestData) {
 	// Get reward for 1 block.
-	rewardDistributions, term := GetBlockRewardDistribution(suite, addresses)
+	rewardDistributions, term, h := GetBlockRewardDistribution(suite, addresses)
 	// Get expected results on current height
-	td := testdata(suite, addresses, utl.GetHeight(suite))
+	td := testdata(suite, addresses, h)
 	// Check results.
 	utl.TermCheck(suite.T(), td.Expected.Term, term.TermGo, term.TermScala)
 	utl.MinersSumDiffBalanceInWavesCheck(suite.T(), td.Expected.MinersSumDiffBalance,

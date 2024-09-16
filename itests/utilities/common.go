@@ -427,20 +427,19 @@ func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, fID 
 	return status, err
 }
 
-func getFeatureActivationHeight(statusResponse *g.ActivationStatusResponse, featureID settings.Feature) (int32, error) {
-	var err error
-	var activationHeight int32
-	activationHeight = -1
+func getFeatureActivationHeight(
+	statusResponse *g.ActivationStatusResponse, featureID settings.Feature,
+) (proto.Height, bool) {
 	for _, feature := range statusResponse.GetFeatures() {
 		if feature.GetId() == int32(featureID) && feature.GetBlockchainStatus().String() == FeatureStatusActivated {
-			activationHeight = feature.GetActivationHeight()
-			break
+			if h := feature.GetActivationHeight(); h >= 0 {
+				return uint64(h), true
+			}
+			panic("Activation height is negative what is possible only on Scala node. " +
+				"Do not use this feature of Scala node!")
 		}
 	}
-	if activationHeight == -1 {
-		err = errors.Errorf("Feature with Id %d not found", featureID)
-	}
-	return activationHeight, err
+	return 0, false
 }
 
 func GetFeatureBlockchainStatusGo(suite *f.BaseSuite, featureID settings.Feature, h uint64) string {
@@ -457,25 +456,24 @@ func GetFeatureBlockchainStatusScala(suite *f.BaseSuite, featureID settings.Feat
 	return status
 }
 
-func GetFeatureActivationHeightGo(suite *f.BaseSuite, featureID settings.Feature, height uint64) int32 {
-	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureID)
-	require.NoError(suite.T(), err)
+func GetFeatureActivationHeightGo(suite *f.BaseSuite, featureID settings.Feature, height uint64) proto.Height {
+	activationHeight, ok := getFeatureActivationHeight(GetActivationFeaturesStatusInfoGo(suite, height), featureID)
+	require.True(suite.T(), ok, "Feature is not activated on the Go node")
 	return activationHeight
 }
 
-func GetFeatureActivationHeightScala(suite *f.BaseSuite, featureID settings.Feature, height uint64) int32 {
-	activationHeight, err := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureID)
-	require.NoError(suite.T(), err)
+func GetFeatureActivationHeightScala(suite *f.BaseSuite, featureID settings.Feature, height uint64) proto.Height {
+	activationHeight, ok := getFeatureActivationHeight(GetActivationFeaturesStatusInfoScala(suite, height), featureID)
+	require.True(suite.T(), ok, "Feature is not activated on the Scala node")
 	return activationHeight
 }
 
-func GetFeatureActivationHeight(suite *f.BaseSuite, featureID settings.Feature, height uint64) int32 {
+func GetFeatureActivationHeight(suite *f.BaseSuite, featureID settings.Feature, height uint64) proto.Height {
 	var err error
-	var activationHeight int32
-	activationHeight = -1
+	var activationHeight proto.Height
 	activationHeightGo := GetFeatureActivationHeightGo(suite, featureID, height)
 	activationHeightScala := GetFeatureActivationHeightScala(suite, featureID, height)
-	if activationHeightGo == activationHeightScala && activationHeightGo > -1 {
+	if activationHeightGo == activationHeightScala && activationHeightGo > 0 {
 		activationHeight = activationHeightGo
 	} else {
 		err = errors.New("Activation Height from Go and Scala is different")
@@ -520,8 +518,8 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID settings.Feat
 	return waitingBlocks
 }
 
-func WaitForFeatureActivation(suite *f.BaseSuite, featureID settings.Feature, height uint64) int32 {
-	var activationHeight int32
+func WaitForFeatureActivation(suite *f.BaseSuite, featureID settings.Feature, height uint64) proto.Height {
+	var activationHeight proto.Height
 	waitingBlocks := GetWaitingBlocks(suite, height, featureID)
 	h := WaitForHeight(suite, height+waitingBlocks)
 	activationHeightGo := GetFeatureActivationHeightGo(suite, featureID, h)
@@ -536,8 +534,8 @@ func WaitForFeatureActivation(suite *f.BaseSuite, featureID settings.Feature, he
 
 func FeatureShouldBeActivated(suite *f.BaseSuite, featureID settings.Feature, height uint64) {
 	activationHeight := WaitForFeatureActivation(suite, featureID, height)
-	if activationHeight == -1 {
-		suite.FailNowf("Feature is not activated", "Feature with Id %d", featureID)
+	if activationHeight == 0 {
+		suite.FailNowf("Feature is not activated", "Feature with ID %d", featureID)
 	}
 	suite.T().Logf("Feature %d is activated on height @%d\n", featureID, activationHeight)
 }

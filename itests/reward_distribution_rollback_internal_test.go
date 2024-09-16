@@ -132,9 +132,9 @@ func (suite *RewardDistributionAPIRollbackBeforeF21Suite) Test_NODE862() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite,
 			settings.BlockReward, settings.BlockRewardDistribution, settings.CappedRewards)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRollbackBeforeF21TestData)
-		ceaseXtnBuybackHeight := uint64(utl.GetFeatureActivationHeight(&suite.BaseSuite,
+		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
-			utl.GetHeight(&suite.BaseSuite))) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
+			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.XTNBuyBackCessation)
 		activationH21 := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.XTNBuyBackCessation, utl.GetHeight(&suite.BaseSuite))
