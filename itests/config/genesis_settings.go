@@ -233,7 +233,7 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 		return nil, nil, err
 	}
 
-	cfg := settings.DefaultCustomSettings
+	cfg := settings.MustDefaultCustomSettings()
 	cfg.Genesis = *b
 	cfg.AddressSchemeCharacter = genSettings.Scheme
 	cfg.AverageBlockDelaySeconds = genSettings.AverageBlockDelay
@@ -269,7 +269,7 @@ func newBlockchainConfig(additionalArgsPath ...string) (*config, []AccountInfo, 
 	}
 
 	return &config{
-		BlockchainSettings: &cfg,
+		BlockchainSettings: cfg,
 		ScalaOpts: &scalaCustomOptions{Features: preactivatedFeatures, EnableMining: false,
 			DaoAddress: rewardSettings.DaoAddress, XtnBuybackAddress: rewardSettings.XtnBuybackAddress},
 		GoOpts: &goEnvOptions{DesiredBlockReward: strconv.FormatUint(rewardSettings.DesiredBlockReward, 10),

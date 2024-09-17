@@ -20,7 +20,7 @@ type performerTestObjects struct {
 }
 
 func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *performerTestObjects {
-	sets := *settings.MainNetSettings
+	sets := settings.MustMainNetSettings()
 	stor := createStorageObjects(t, true)
 	snapshotApplier := newBlockSnapshotsApplier(
 		newBlockSnapshotsApplierInfo(checkerInfo, sets.AddressSchemeCharacter),
@@ -29,7 +29,7 @@ func createPerformerTestObjects(t *testing.T, checkerInfo *checkerInfo) *perform
 	buildAPIData, err := stor.stateDB.stateStoresApiData()
 	require.NoError(t, err)
 	blockID := stor.settings.Genesis.BlockID()
-	th, err := newTransactionHandler(blockID, stor.entities, &sets, &snapshotApplier, buildAPIData)
+	th, err := newTransactionHandler(blockID, stor.entities, sets, &snapshotApplier, buildAPIData)
 	require.NoError(t, err)
 	return &performerTestObjects{stor, th}
 }
@@ -41,7 +41,7 @@ func defaultPerformerInfo() *performerInfo {
 func defaultCheckerInfoHeight0() *checkerInfo {
 	return &checkerInfo{
 		currentTimestamp: defaultTimestamp,
-		parentTimestamp:  defaultTimestamp - settings.MainNetSettings.MaxTxTimeBackOffset/2,
+		parentTimestamp:  defaultTimestamp - settings.MustMainNetSettings().MaxTxTimeBackOffset/2,
 		blockID:          blockID0,
 		blockVersion:     1,
 		blockchainHeight: 0,

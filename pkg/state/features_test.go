@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -20,7 +21,7 @@ type featuresTestObjects struct {
 	features *features
 }
 
-func createFeatures(t *testing.T, sets *settings.BlockchainSettings) *featuresTestObjects {
+func createFeatures(t *testing.T) *featuresTestObjects {
 	stor := createStorageObjects(t, true)
 	definedFeaturesInfo := make(map[settings.Feature]settings.FeatureInfo)
 	definedFeaturesInfo[settings.Feature(featureID)] = settings.FeatureInfo{Implemented: true, Description: "test feature"}
@@ -30,7 +31,7 @@ func createFeatures(t *testing.T, sets *settings.BlockchainSettings) *featuresTe
 }
 
 func TestAddFeatureVote(t *testing.T) {
-	to := createFeatures(t, settings.MainNetSettings)
+	to := createFeatures(t)
 
 	to.stor.addBlock(t, blockID0)
 	err := to.features.addVote(featureID, blockID0)
@@ -48,7 +49,7 @@ func TestAddFeatureVote(t *testing.T) {
 }
 
 func TestApproveFeature(t *testing.T) {
-	to := createFeatures(t, settings.MainNetSettings)
+	to := createFeatures(t)
 
 	approved, err := to.features.isApproved(featureID)
 	assert.NoError(t, err, "isApproved failed")
@@ -67,7 +68,7 @@ func TestApproveFeature(t *testing.T) {
 }
 
 func TestActivateFeature(t *testing.T) {
-	to := createFeatures(t, settings.MainNetSettings)
+	to := createFeatures(t)
 
 	to.stor.addBlock(t, blockID0)
 	activated, err := to.features.isActivated(featureID)
@@ -86,8 +87,8 @@ func TestActivateFeature(t *testing.T) {
 }
 
 func TestFinishVoting(t *testing.T) {
-	sets := settings.MainNetSettings
-	to := createFeatures(t, sets)
+	sets := settings.MustMainNetSettings()
+	to := createFeatures(t)
 
 	height := sets.ActivationWindowSize(1)
 	ids := genRandBlockIds(t, int(height*3))
@@ -161,7 +162,7 @@ func TestFinishVoting(t *testing.T) {
 }
 
 func TestAllFeatures(t *testing.T) {
-	to := createFeatures(t, settings.MainNetSettings)
+	to := createFeatures(t)
 
 	to.stor.addBlock(t, blockID0)
 	err := to.features.addVote(featureID1, blockID0)
@@ -177,7 +178,7 @@ func TestAllFeatures(t *testing.T) {
 }
 
 func TestRollbackActivation(t *testing.T) {
-	to := createFeatures(t, settings.MainNetSettings)
+	to := createFeatures(t)
 
 	to.stor.addBlock(t, blockID0)
 	to.stor.addBlock(t, blockID1)

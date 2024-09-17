@@ -363,7 +363,7 @@ type testStorageObjectsOptions struct {
 
 func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOptions) *testStorageObjects {
 	if options.Settings == nil {
-		options.Settings = settings.MainNetSettings
+		options.Settings = settings.MustMainNetSettings()
 	}
 	db, err := keyvalue.NewKeyVal(t.TempDir(), defaultTestKeyValParams())
 	require.NoError(t, err)
@@ -552,7 +552,7 @@ func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
 
 func (s *testStorageObjects) activateSponsorship(t *testing.T) {
 	s.activateFeature(t, int16(settings.FeeSponsorship))
-	windowSize := settings.MainNetSettings.ActivationWindowSize(1)
+	windowSize := settings.MustMainNetSettings().ActivationWindowSize(1)
 	s.addBlocks(t, int(windowSize))
 }
 

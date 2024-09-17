@@ -110,11 +110,12 @@ func TestGetTransactions(t *testing.T) {
 }
 
 func TestGetStatuses(t *testing.T) {
+	bs := settings.MustMainNetSettings()
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings)
+	st := newTestState(t, true, params, bs)
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, bs)
 	err := server.initServer(st, utx, sch)
 	require.NoError(t, err)
 
@@ -138,7 +139,7 @@ func TestGetStatuses(t *testing.T) {
 	// id0 is from Mainnet genesis block.
 	id0 := crypto.MustSignatureFromBase58("2DVtfgXjpMeFf2PQCqvwxAiaGbiDsxDjSdNQkc5JQ74eWxjWFYgwvqzC4dn7iB1AhuM32WxEiVi1SGijsBtYQwn8")
 	// id1 should be in UTX.
-	id1, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
+	id1, err := tx.GetID(bs.AddressSchemeCharacter)
 	require.NoError(t, err)
 	// id2 is unknown.
 	id2 := []byte{2}
@@ -162,11 +163,12 @@ func TestGetStatuses(t *testing.T) {
 }
 
 func TestGetUnconfirmed(t *testing.T) {
+	bs := settings.MustMainNetSettings()
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings)
+	st := newTestState(t, true, params, bs)
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
-	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, settings.MainNetSettings)
+	utx := utxpool.New(utxSize, utxpool.NoOpValidator{}, bs)
 	err := server.initServer(st, utx, sch)
 	require.NoError(t, err)
 
@@ -219,7 +221,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	assert.Equal(t, io.EOF, err)
 
 	// By ID.
-	id, err := tx.GetID(settings.MainNetSettings.AddressSchemeCharacter)
+	id, err := tx.GetID(bs.AddressSchemeCharacter)
 	require.NoError(t, err)
 	req = &g.TransactionsRequest{
 		TransactionIds: [][]byte{id},
@@ -250,7 +252,7 @@ func TestGetUnconfirmed(t *testing.T) {
 
 func TestSign(t *testing.T) {
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings)
+	st := newTestState(t, true, params, settings.MustMainNetSettings())
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
 

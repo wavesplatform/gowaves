@@ -39,7 +39,7 @@ func blockFromState(t *testing.T, height proto.Height, st state.StateInfo) *g.Bl
 
 func TestGetBlock(t *testing.T) {
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings)
+	st := newTestState(t, true, params, settings.MustMainNetSettings())
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
 	err := server.initServer(st, nil, sch)
@@ -86,7 +86,7 @@ func TestGetBlock(t *testing.T) {
 
 func TestGetBlockRange(t *testing.T) {
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings)
+	st := newTestState(t, true, params, settings.MustMainNetSettings())
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
 	err := server.initServer(st, nil, sch)
@@ -156,7 +156,7 @@ func TestGetBlockRange(t *testing.T) {
 
 func TestGetCurrentHeight(t *testing.T) {
 	params := defaultStateParams()
-	st := newTestState(t, true, params, settings.MainNetSettings)
+	st := newTestState(t, true, params, settings.MustMainNetSettings())
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
 	err := server.initServer(st, nil, sch)
