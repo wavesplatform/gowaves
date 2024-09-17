@@ -87,6 +87,12 @@ func compareBlockHeader(a, b *proto.BlockHeader, scheme proto.Scheme) (bool, err
 	return bytes.Equal(blockAbytes, blockBbytes), nil
 }
 
+func filterDataEntries(height uint64) {
+	// epoch_number, i.e. epoch_03198129
+
+	// block_0xhash, i.e. block_0xee7e9ae625c8be417f239337d82ed5e577458dec8d305a35746777fd17297a03
+}
+
 func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.DataEntry, error) {
 	currentMap := make(map[string][]byte)  // Data entries.
 	previousMap := make(map[string][]byte) // Data entries.
