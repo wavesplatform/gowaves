@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	"fmt"
 	"io"
 
 	"github.com/jinzhu/copier"
@@ -486,6 +487,94 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte, scheme Scheme) (err
 		return errors.Wrap(err, "failed to generate block ID")
 	}
 	return nil
+}
+
+func ProtobufHeaderToBlockHeader(ph *g.Block_Header) (*BlockHeader, error) {
+	if ph == nil {
+		return nil, errors.New("input protobuf header is nil")
+	}
+	var challengedHeader *ChallengedHeader
+	if ph.ChallengedHeader != nil {
+		ch, err := FromProtobufChallengedHeader(ph.ChallengedHeader)
+		if err != nil {
+			return nil, err
+		}
+		challengedHeader = ch
+	}
+	var stateHash *crypto.Digest
+	if len(ph.StateHash) > 0 {
+		sh, err := crypto.NewDigestFromBytes(ph.StateHash)
+		if err != nil {
+			return nil, err
+		}
+		stateHash = &sh
+	}
+	parentBlockID, err := NewBlockIDFromBytes(ph.Reference)
+	if err != nil {
+		return nil, err
+	}
+	generatorPK, err := crypto.NewPublicKeyFromBytes(ph.Generator)
+	if err != nil {
+		return nil, err
+	}
+	blockHeader := &BlockHeader{
+		Version:            BlockVersion(ph.Version),
+		Timestamp:          uint64(ph.Timestamp),
+		Parent:             parentBlockID,
+		Features:           uint32SliceToInt16(ph.FeatureVotes),
+		RewardVote:         ph.RewardVote,
+		GeneratorPublicKey: generatorPK,
+		TransactionsRoot:   B58Bytes(ph.TransactionsRoot),
+		StateHash:          stateHash,
+		ChallengedHeader:   challengedHeader,
+	}
+	return blockHeader, nil
+}
+
+func uint32SliceToInt16(s []uint32) []int16 {
+	var res []int16
+	for _, v := range s {
+		res = append(res, int16(v))
+	}
+	return res
+}
+
+func FromProtobufChallengedHeader(pb *g.Block_Header_ChallengedHeader) (*ChallengedHeader, error) {
+	if pb == nil {
+		return nil, fmt.Errorf("input protobuf object is nil")
+	}
+	headerSig, err := crypto.NewSignatureFromBytes(pb.HeaderSignature)
+	if err != nil {
+		return nil, err
+	}
+	genPublicKey, err := crypto.NewPublicKeyFromBytes(pb.Generator)
+	if err != nil {
+		return nil, err
+	}
+	stateHash, err := crypto.NewDigestFromBytes(pb.StateHash)
+	if err != nil {
+		return nil, err
+	}
+	return &ChallengedHeader{
+		NxtConsensus: NxtConsensus{
+			BaseTarget:   uint64(pb.BaseTarget),
+			GenSignature: pb.GenerationSignature,
+		},
+		Features:           int16SliceFromUint32(pb.FeatureVotes),
+		Timestamp:          uint64(pb.Timestamp),
+		GeneratorPublicKey: genPublicKey,
+		RewardVote:         pb.RewardVote,
+		StateHash:          stateHash,
+		BlockSignature:     headerSig,
+	}, nil
+}
+
+func int16SliceFromUint32(data []uint32) []int16 {
+	result := make([]int16, len(data))
+	for i, v := range data {
+		result[i] = int16(v)
+	}
+	return result
 }
 
 func AppendHeaderBytesToTransactions(headerBytes, transactions []byte) ([]byte, error) {
