@@ -145,6 +145,7 @@ func (suite *RewardDistributionDecreaseXtnSupportedSuite) Test_NODE818() {
 	addresses := testdata.GetAddressesMinersXtn(&suite.BaseSuite)
 	suite.Run(node818, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward)
+		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDistributionAfterF14Before19TestData)
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockRewardDistribution,

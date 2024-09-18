@@ -204,6 +204,7 @@ func (suite *RewardDistributionIncreasePreactivatedSuite) Test_NODE820() {
 	suite.Run(node820, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution,
 			settings.CappedRewards)
+		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardMinersTestData)
 	})
