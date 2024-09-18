@@ -443,6 +443,7 @@ func (suite *RewardDaoXtnPreactivatedWithout20Suite) Test_NODE830() {
 	suite.Run(node830, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution,
 			settings.XTNBuyBackCessation)
+		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDaoXtnBeforePeriodWithout20TestData)
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,

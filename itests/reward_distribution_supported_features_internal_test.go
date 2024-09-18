@@ -353,6 +353,7 @@ func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackSupportedSuite) Test_NODE826() {
 	suite.Run(node826, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution,
 			settings.CappedRewards)
+		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData)
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.XTNBuyBackCessation)
