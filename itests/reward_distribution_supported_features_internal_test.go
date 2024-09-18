@@ -495,6 +495,7 @@ func (suite *RewardDaoXtnSupportedWithout19And20Suite) Test_NODE830_2() {
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(node830, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward)
+		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDaoXtnWithout19And20TestData)
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.XTNBuyBackCessation)

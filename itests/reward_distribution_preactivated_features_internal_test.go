@@ -84,6 +84,7 @@ func (suite *RewardDistributionDecreaseDaoXtnPreactivatedSuite) Test_NODE816() {
 	suite.Run(node816, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution,
 			settings.CappedRewards)
+		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseDaoXtnTestData)
 	})
