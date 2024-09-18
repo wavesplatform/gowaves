@@ -433,6 +433,7 @@ func GetReward5W2MinersIncreaseCeaseXTNBuybackTestData(suite *f.BaseSuite, addre
 func GetRewardDaoXtnBeforePeriodWithout20TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
+	suite.T().Logf("Reward at height %d: %d", height, currentReward)
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
