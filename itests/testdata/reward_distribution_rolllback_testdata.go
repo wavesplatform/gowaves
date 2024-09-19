@@ -6,10 +6,10 @@ import (
 )
 
 func GetRewardDistributionAfterF14Before19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+	height uint64, n int64) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
+			MinersSumDiffBalance: n * (int64(utl.GetCurrentReward(suite, height))),
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermCfg(suite),
@@ -20,14 +20,14 @@ func GetRewardDistributionAfterF14Before19TestData(suite *f.BaseSuite, addresses
 // ("preactivated_14_supported_19_20/2miners_dao_xtn_without_f20.json")
 // NODE - 858.
 func GetRollbackBeforeF19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+	height uint64, n int64) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: currentReward - 2*currentReward/3,
-			DaoDiffBalance:       currentReward / 3,
-			XtnDiffBalance:       currentReward / 3,
+			MinersSumDiffBalance: n * (currentReward - 2*currentReward/3),
+			DaoDiffBalance:       n * (currentReward / 3),
+			XtnDiffBalance:       n * (currentReward / 3),
 			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
@@ -36,14 +36,14 @@ func GetRollbackBeforeF19TestData(suite *f.BaseSuite, addresses AddressesForDist
 // ("preactivated_14_19_20/2miners_dao_xtn_without_f20.json")
 // NODE - 859.
 func GetRollbackAfterF19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+	height uint64, n int64) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: currentReward / 3,
-			DaoDiffBalance:       currentReward / 3,
-			XtnDiffBalance:       currentReward / 3,
+			MinersSumDiffBalance: n * (currentReward / 3),
+			DaoDiffBalance:       n * (currentReward / 3),
+			XtnDiffBalance:       n * (currentReward / 3),
 			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
@@ -52,13 +52,13 @@ func GetRollbackAfterF19TestData(suite *f.BaseSuite, addresses AddressesForDistr
 // ("preactivated_14_supported_19_20/7W_2miners_dao_xtn_increase.json")
 // NODE - 860
 func GetRollbackBeforeF20TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+	height uint64, n int64) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
-			DaoDiffBalance:       MaxAddressReward,
-			XtnDiffBalance:       MaxAddressReward,
+			MinersSumDiffBalance: n * (int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward),
+			DaoDiffBalance:       n * MaxAddressReward,
+			XtnDiffBalance:       n * MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
@@ -66,13 +66,15 @@ func GetRollbackBeforeF20TestData(suite *f.BaseSuite, addresses AddressesForDist
 // 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
 // ("preactivated_14_19_20/7W_2miners_dao_xtn_increase.json")
 // NODE - 861
-func GetRollbackAfterF20TestData(suite *f.BaseSuite, addresses AddressesForDistribution, height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackAfterF20TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64, n int64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
-			DaoDiffBalance:       MaxAddressReward,
-			XtnDiffBalance:       MaxAddressReward,
+			MinersSumDiffBalance: n * (int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward),
+			DaoDiffBalance:       n * MaxAddressReward,
+			XtnDiffBalance:       n * MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
@@ -80,23 +82,27 @@ func GetRollbackAfterF20TestData(suite *f.BaseSuite, addresses AddressesForDistr
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
 // ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_increase.json")
 // NODE - 862.
-func GetRollbackBeforeF21TestData(suite *f.BaseSuite, addresses AddressesForDistribution, height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackBeforeF21TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64, n int64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward,
-			DaoDiffBalance:       MaxAddressReward,
-			XtnDiffBalance:       MaxAddressReward,
+			MinersSumDiffBalance: n * (int64(utl.GetCurrentReward(suite, height)) - 2*MaxAddressReward),
+			DaoDiffBalance:       n * MaxAddressReward,
+			XtnDiffBalance:       n * MaxAddressReward,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
 }
 
-func GetRollbackAfterF21TestData(suite *f.BaseSuite, addresses AddressesForDistribution, height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackAfterF21TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64, n int64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: int64(utl.GetDesiredReward(suite, height)) - MaxAddressReward,
-			DaoDiffBalance:       MaxAddressReward,
+			MinersSumDiffBalance: n * (int64(utl.GetDesiredReward(suite, height)) - MaxAddressReward),
+			DaoDiffBalance:       n * MaxAddressReward,
 			XtnDiffBalance:       0,
 			Term:                 utl.GetRewardTermAfter20Cfg(suite),
 		})
