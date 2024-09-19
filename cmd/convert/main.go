@@ -88,7 +88,7 @@ func fromJSON(data []byte, cfg config) (proto.Transaction, error) {
 		return nil, fmt.Errorf("failed read transaction from JSON: %w", err)
 	}
 	if umErr := proto.UnmarshalTransactionFromJSON(data, cfg.scheme, tx); umErr != nil {
-		return nil, fmt.Errorf("failed read transaction from JSON: %w", err)
+		return nil, fmt.Errorf("failed read transaction from JSON: %w", umErr)
 	}
 	return tx, nil
 }

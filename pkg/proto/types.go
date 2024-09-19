@@ -245,6 +245,10 @@ func (v ByteVector) encodeBase64() string {
 	return base64EncodingPrefix + base64.StdEncoding.EncodeToString(v)
 }
 
+func (v ByteVector) Base64String() string {
+	return v.encodeBase64()
+}
+
 // MarshalJSON writes ByteVector Value as JSON string
 func (v ByteVector) MarshalJSON() ([]byte, error) {
 	s := v.String()
@@ -3700,11 +3704,10 @@ func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 
 // MarshalJSON converts an argument to its JSON representation. Note that BASE64 is used to represent the binary value.
 func (a *BinaryArgument) MarshalJSON() ([]byte, error) {
-	// TODO: support marshal BinaryArgument to JSON with `ByteVector` type field
 	return json.Marshal(&struct {
-		T string     `json:"type"`
-		V ByteVector `json:"value"`
-	}{a.GetValueType().String(), a.Value})
+		T string `json:"type"`
+		V string `json:"value"`
+	}{a.GetValueType().String(), ByteVector(a.Value).Base64String()})
 }
 
 // UnmarshalJSON converts JSON to a BinaryArgument structure. Value should be stored as BASE64 sting in JSON.
