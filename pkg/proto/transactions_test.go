@@ -6243,11 +6243,38 @@ func TestInvokeScriptWithProofsFromTestNet(t *testing.T) {
 		feeAsset  string
 		timestamp uint64
 	}{
-		{"DKGFPozLrsiR8NM4NJzqQaBYC8NyGYjuw2hDYicQVjco", "5eV3WVt96gQDLdk1KFGa23AZhriZcv6Xy2Zvo33Pqgh7SRLumPeToFUoZxSAry5LUbzdndAdpP5Cy1c6wvVXNUyX", "4xgCjQBvxirqts1nBhTqci5C1TLEJs974aAJgmjPF2bz", 'T', "3MpVFGJWgiGyh5LmE1nxNLsjjtSL3Bgh9NV", "{\"function\":\"LiquidExhange\",\"args\":[]}", "[{\"amount\":35000000000,\"assetId\":null}]", 1000000, "WAVES", 1559832028452},
-		{"AkMK8AjATGN89Ziiy8U4p7vquPU8qjeVedMpcWgXLovD", "4RnTATsewLTeawZJWRpwiFLGVPP81NHgDxFdXfiJXVtdRrbANAyTHGuKNiLZkRwW5vRMLnrDneGPrNfqxcAcSh59", "FdQwSRUwBzNbLdKu158aELLdPSfmKQ7B3fYd2en3CEyg", 'T', "3ND68eBy9NyJPeq4eRqi42c45hoDAzzRjSm", "{\"function\":\"bet\",\"args\":[{\"type\":\"string\",\"value\":\"1\"}]}", "[{\"amount\":200500000,\"assetId\":null}]", 500000, "WAVES", 1560151320652},
-		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "4HGuUbp2y2rh5NA5aXKi9xEAr5AYyb89PknKpZo8LdwbHoA2QBS4CYiGh6cJqZZ7DTsx2b1jEciQpPhcxzrLbDLk", "88G72uSqvSMh4qvAFGiE78eJsFXxiAjXZRJJhMGrHh6", 'T', "3N6t7q6vrBQT7CUPjFeDieKvm7be6pBcFLx", "{\"function\":\"test\",\"args\":[{\"type\":\"binary\",\"value\":\"3x91Br\"},{\"type\":\"boolean\",\"value\":true},{\"type\":\"integer\",\"value\":100500},{\"type\":\"string\",\"value\":\"some text\"}]}", "[{\"amount\":10,\"assetId\":\"H3jGkTWJr8Sr4KFay3QqNqmA3zEtgxYAx1ojitNaPkWy\"}]", 9, "H3jGkTWJr8Sr4KFay3QqNqmA3zEtgxYAx1ojitNaPkWy", 1560153418889},
-		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "4S7aQoeGrtbRsDGRg2yT8eG9ybRsv1GzeYC4zn14LzmwdYXRviqK9XtPjBWANk1VqQEJMQvMRuj19baSGmb65qeu", "DtsKYcGQbobcXboE1FzfzxqBuQJmdwzQS7YTFXYDBj6S", 'T', "3N6t7q6vrBQT7CUPjFeDieKvm7be6pBcFLx", "null", "[]", 900000, "WAVES", 1560153629460},
-		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4", "2PrBFHS41nwd2Gq4BL6VuBxX855UbSN8dgHQYcRWLRczUpoTvojzwT6yXfvEH8QEPiREdxgGUfCLiseiPoKPTUY5", "FYo3AFvGX4L5CSBNXSB6Tc8J4vmuY7PTj4FYge5BKmfM", 'T', "alias:T:inv-test", "null", "[]", 900000, "WAVES", 1560161103375},
+		{"DKGFPozLrsiR8NM4NJzqQaBYC8NyGYjuw2hDYicQVjco",
+			"5eV3WVt96gQDLdk1KFGa23AZhriZcv6Xy2Zvo33Pqgh7SRLumPeToFUoZxSAry5LUbzdndAdpP5Cy1c6wvVXNUyX",
+			"4xgCjQBvxirqts1nBhTqci5C1TLEJs974aAJgmjPF2bz", 'T', "3MpVFGJWgiGyh5LmE1nxNLsjjtSL3Bgh9NV",
+			"{\"function\":\"LiquidExhange\",\"args\":[]}",
+			"[{\"amount\":35000000000,\"assetId\":null}]",
+			1000000, "WAVES", 1559832028452},
+		{"AkMK8AjATGN89Ziiy8U4p7vquPU8qjeVedMpcWgXLovD",
+			"4RnTATsewLTeawZJWRpwiFLGVPP81NHgDxFdXfiJXVtdRrbANAyTHGuKNiLZkRwW5vRMLnrDneGPrNfqxcAcSh59",
+			"FdQwSRUwBzNbLdKu158aELLdPSfmKQ7B3fYd2en3CEyg", 'T', "3ND68eBy9NyJPeq4eRqi42c45hoDAzzRjSm",
+			"{\"function\":\"bet\",\"args\":[{\"type\":\"string\",\"value\":\"1\"}]}",
+			"[{\"amount\":200500000,\"assetId\":null}]",
+			500000, "WAVES", 1560151320652},
+		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4",
+			"4HGuUbp2y2rh5NA5aXKi9xEAr5AYyb89PknKpZo8LdwbHoA2QBS4CYiGh6cJqZZ7DTsx2b1jEciQpPhcxzrLbDLk",
+			"88G72uSqvSMh4qvAFGiE78eJsFXxiAjXZRJJhMGrHh6", 'T', "3N6t7q6vrBQT7CUPjFeDieKvm7be6pBcFLx",
+			"{\"function\":\"test\",\"args\":[{\"type\":\"binary\",\"value\":\"base64:c29tZQ==\"}," +
+				"{\"type\":\"boolean\",\"value\":true},{\"type\":\"integer\",\"value\":100500}," +
+				"{\"type\":\"string\",\"value\":\"some text\"}]}",
+			"[{\"amount\":10,\"assetId\":\"H3jGkTWJr8Sr4KFay3QqNqmA3zEtgxYAx1ojitNaPkWy\"}]",
+			9, "H3jGkTWJr8Sr4KFay3QqNqmA3zEtgxYAx1ojitNaPkWy", 1560153418889},
+		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4",
+			"4S7aQoeGrtbRsDGRg2yT8eG9ybRsv1GzeYC4zn14LzmwdYXRviqK9XtPjBWANk1VqQEJMQvMRuj19baSGmb65qeu",
+			"DtsKYcGQbobcXboE1FzfzxqBuQJmdwzQS7YTFXYDBj6S", 'T', "3N6t7q6vrBQT7CUPjFeDieKvm7be6pBcFLx",
+			"null",
+			"[]",
+			900000, "WAVES", 1560153629460},
+		{"5gwomYMjH2taJyfXjGj2LPVwcVH7Wd86Xh2T2iTENqa4",
+			"2PrBFHS41nwd2Gq4BL6VuBxX855UbSN8dgHQYcRWLRczUpoTvojzwT6yXfvEH8QEPiREdxgGUfCLiseiPoKPTUY5",
+			"FYo3AFvGX4L5CSBNXSB6Tc8J4vmuY7PTj4FYge5BKmfM", 'T', "alias:T:inv-test",
+			"null",
+			"[]",
+			900000, "WAVES", 1560161103375},
 	}
 	for _, tc := range tests {
 		spk, err := crypto.NewPublicKeyFromBase58(tc.pk)
