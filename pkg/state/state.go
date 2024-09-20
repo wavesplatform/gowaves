@@ -481,9 +481,9 @@ func initGenesis(state *stateManager, height uint64, settings *settings.Blockcha
 	if err != nil {
 		return errors.Wrap(err, "failed to get genesis block from state")
 	}
-	err = settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate genesis block id from config")
+
+	if genErr := settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter); genErr != nil {
+		return errors.Wrap(genErr, "failed to generate genesis block id from config")
 	}
 	if !bytes.Equal(genesis.ID.Bytes(), settings.Genesis.ID.Bytes()) {
 		return errors.New("genesis blocks from state and config mismatch")
@@ -946,9 +946,9 @@ func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.Asse
 		// Something weird happened.
 		return 0, err
 	}
-	balance, err = diff.applyToAssetBalance(balance)
-	if err != nil {
-		return 0, errors.Errorf("given account has negative balance at this point: %v", err)
+	balance, aErr := diff.applyToAssetBalance(balance)
+	if aErr != nil {
+		return 0, errors.Errorf("given account has negative balance at this point: %v", aErr)
 	}
 	return balance, nil
 }
@@ -1382,8 +1382,10 @@ func (s *stateManager) AddDeserializedBlocks(
 	s.newBlocks.setNew(blocks)
 	lastBlock, err := s.addBlocks()
 	if err != nil {
-		if err = s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				syncErr,
+			)
 		}
 		return nil, err
 	}
@@ -1613,8 +1615,8 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if termIsOver {
-		if err = s.updateBlockReward(lastBlock, blockchainHeight); err != nil {
-			return err
+		if ubrErr := s.updateBlockReward(lastBlock, blockchainHeight); ubrErr != nil {
+			return ubrErr
 		}
 	}
 	return nil
@@ -1817,8 +1819,8 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, wrapErr(DeserializationError, errCurBlock)
 		}
 
-		if err = s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight, chans); err != nil {
-			return nil, err
+		if badErr := s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight, chans); badErr != nil {
+			return nil, badErr
 		}
 		sh, errSh := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
 		if errSh != nil {
@@ -1877,12 +1879,12 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, wrapErr(ModificationError, shErr)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
-	if err = s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
-		return nil, wrapErr(ValidationError, err)
+	if vErr := s.cv.ValidateHeadersBatch(headers[:pos], height); vErr != nil {
+		return nil, wrapErr(ValidationError, vErr)
 	}
 	// After everything is validated, save all the changes to DB.
-	if err = s.flush(); err != nil {
-		return nil, wrapErr(ModificationError, err)
+	if fErr := s.flush(); fErr != nil {
+		return nil, wrapErr(ModificationError, fErr)
 	}
 	zap.S().Infof(
 		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
@@ -2973,15 +2975,9 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 		return 0, err
 	}
 
-	var rewardBoostActivationHeight uint64
-	var rewardBoostLastHeight uint64
-	rewardBoostActivated := s.stor.features.isActivatedAtHeight(int16(settings.BoostBlockReward), height)
-	if rewardBoostActivated {
-		rewardBoostActivationHeight, err = s.stor.features.activationHeight(int16(settings.BoostBlockReward))
-		if err != nil {
-			return 0, err
-		}
-		rewardBoostLastHeight = rewardBoostActivationHeight + s.settings.BlockRewardBoostPeriod - 1
+	rewardBoostActivationHeight, rewardBoostLastHeight, err := rewardBoostFeatureInfo(height, s.stor.features, s.settings)
+	if err != nil {
+		return 0, err
 	}
 
 	amount, err := s.stor.monetaryPolicy.totalAmountAtHeight(height, initialTotalAmount, blockRewardActivationHeight,
@@ -2990,6 +2986,23 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return amount, nil
+}
+
+func rewardBoostFeatureInfo(
+	h proto.Height,
+	feat featuresState,
+	bs *settings.BlockchainSettings,
+) (proto.Height, proto.Height, error) {
+	rewardBoostActivated := feat.isActivatedAtHeight(int16(settings.BoostBlockReward), h)
+	if !rewardBoostActivated {
+		return 0, 0, nil
+	}
+	rewardBoostActivationHeight, err := feat.activationHeight(int16(settings.BoostBlockReward))
+	if err != nil {
+		return 0, 0, err
+	}
+	rewardBoostLastHeight := rewardBoostActivationHeight + bs.BlockRewardBoostPeriod - 1
+	return rewardBoostActivationHeight, rewardBoostLastHeight, nil
 }
 
 func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {
