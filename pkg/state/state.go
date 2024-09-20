@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"context"
+	stderrs "errors"
 	"fmt"
 	"io/fs"
 	"math/big"
@@ -1332,8 +1333,10 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	s.newBlocks.setNewBinary([][]byte{block})
 	rs, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return nil, err
 	}
@@ -1344,8 +1347,10 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 	s.newBlocks.setNew([]*proto.Block{block})
 	rs, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return nil, err
 	}
@@ -1355,8 +1360,10 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
 	if _, err := s.addBlocks(); err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return err
 	}
@@ -1368,8 +1375,10 @@ func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*
 		return errors.Wrap(err, "failed to set new blocks with snapshots")
 	}
 	if _, err := s.addBlocks(); err != nil {
-		if snErr := s.rw.syncWithDb(); snErr != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", snErr)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return err
 	}
@@ -1384,7 +1393,7 @@ func (s *stateManager) AddDeserializedBlocks(
 	if err != nil {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
 			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
-				syncErr,
+				stderrs.Join(err, syncErr),
 			)
 		}
 		return nil, err
@@ -1401,8 +1410,10 @@ func (s *stateManager) AddDeserializedBlocksWithSnapshots(
 	}
 	lastBlock, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return nil, err
 	}
