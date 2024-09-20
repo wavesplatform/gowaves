@@ -1787,14 +1787,14 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	return nil
 }
 
-func (s *stateManager) addBlocks() (*proto.Block, error) {
+func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:nonamedreturns // needs in defer
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	defer func() {
 		// Reset in-memory storages and load last block in defer.
 		s.reset()
-		if err := s.loadLastBlock(); err != nil {
-			zap.S().Fatalf("Failed to load last block: %v", err)
+		if lbErr := s.loadLastBlock(); lbErr != nil {
+			zap.S().Fatalf("Failed to load last block: %v", stderrs.Join(retErr, lbErr))
 		}
 		s.newBlocks.reset()
 	}()
@@ -1805,14 +1805,14 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	}
 
 	// Read some useful values for later.
-	lastAppliedBlock, err := s.topBlock()
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+	lastAppliedBlock, tbErr := s.topBlock()
+	if tbErr != nil {
+		return nil, wrapErr(RetrievalError, tbErr)
 	}
 	zap.S().Debugf("StateManager: parent (top) block ID: %s, ts: %d", lastAppliedBlock.BlockID().String(), lastAppliedBlock.Timestamp)
-	height, err := s.Height()
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+	height, hErr := s.Height()
+	if hErr != nil {
+		return nil, wrapErr(RetrievalError, hErr)
 	}
 	headers := make([]proto.BlockHeader, blocksNumber)
 
@@ -1830,47 +1830,9 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, wrapErr(DeserializationError, errCurBlock)
 		}
 
-		if badErr := s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight, chans); badErr != nil {
-			return nil, badErr
-		}
-		sh, errSh := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
-		if errSh != nil {
-			return nil, errors.Wrapf(errSh, "failed to get newest snapshot state hash for height %d",
-				blockchainCurHeight,
-			)
-		}
-
-		// Generate blockchain fix snapshots for the applying block.
-		fixSnapshots, gbfErr := s.generateBlockchainFix(blockchainCurHeight+1, block.BlockID(), false)
-		if gbfErr != nil {
-			return nil, errors.Wrapf(gbfErr, "failed to generate blockchain fix snapshots at block %s",
-				block.BlockID().String(),
-			)
-		}
-		if sbfErr := s.saveBlockchainFix(block.BlockID(), fixSnapshots); sbfErr != nil {
-			return nil, wrapErr(ModificationError, errors.Wrapf(sbfErr, "failed to save blockchain fix for block %s",
-				block.BlockID().String()),
-			)
-		}
-
-		fixSnapshotsToInitialHash := fixSnapshots // at the block applying stage fix snapshots are only used for hashing
-		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		addErr := s.addNewBlock(
-			block, lastAppliedBlock, chans, blockchainCurHeight, optionalSnapshot, fixSnapshotsToInitialHash, sh)
-		if addErr != nil {
-			return nil, addErr
-		}
-		if fixErr := s.applyBlockchainFix(block.BlockID(), fixSnapshots); fixErr != nil {
-			return nil, errors.Wrapf(fixErr, "failed to apply fix snapshots after block %s applying",
-				block.BlockID().String(),
-			)
-		}
-		blockchainCurHeight++ // we've just added a new block and applied blockchain fix, so we have a new height
-
-		if s.needToFinishVotingPeriod(blockchainCurHeight) {
-			// If we need to finish voting period on the next block (h+1) then
-			// we have to check that protobuf will be activated on next block
-			s.checkProtobufActivation(blockchainCurHeight + 1)
+		pErr := s.processBlockInPack(block, optionalSnapshot, lastAppliedBlock, blockchainCurHeight, chans)
+		if pErr != nil {
+			return nil, pErr
 		}
 
 		// Prepare for the next iteration.
@@ -1905,6 +1867,58 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		lastAppliedBlock.Timestamp,
 	)
 	return lastAppliedBlock, nil
+}
+
+func (s *stateManager) processBlockInPack(
+	block *proto.Block,
+	optionalSnapshot *proto.BlockSnapshot,
+	lastAppliedBlock *proto.Block,
+	blockchainCurHeight uint64,
+	chans *verifierChans,
+) error {
+	if badErr := s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight, chans); badErr != nil {
+		return badErr
+	}
+	sh, errSh := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
+	if errSh != nil {
+		return errors.Wrapf(errSh, "failed to get newest snapshot state hash for height %d",
+			blockchainCurHeight,
+		)
+	}
+
+	// Generate blockchain fix snapshots for the applying block.
+	fixSnapshots, gbfErr := s.generateBlockchainFix(blockchainCurHeight+1, block.BlockID(), false)
+	if gbfErr != nil {
+		return errors.Wrapf(gbfErr, "failed to generate blockchain fix snapshots at block %s",
+			block.BlockID().String(),
+		)
+	}
+	if sbfErr := s.saveBlockchainFix(block.BlockID(), fixSnapshots); sbfErr != nil {
+		return wrapErr(ModificationError, errors.Wrapf(sbfErr, "failed to save blockchain fix for block %s",
+			block.BlockID().String()),
+		)
+	}
+
+	fixSnapshotsToInitialHash := fixSnapshots // at the block applying stage fix snapshots are only used for hashing
+	// Save block to storage, check its transactions, create and save balance diffs for its transactions.
+	addErr := s.addNewBlock(
+		block, lastAppliedBlock, chans, blockchainCurHeight, optionalSnapshot, fixSnapshotsToInitialHash, sh)
+	if addErr != nil {
+		return addErr
+	}
+	if fixErr := s.applyBlockchainFix(block.BlockID(), fixSnapshots); fixErr != nil {
+		return errors.Wrapf(fixErr, "failed to apply fix snapshots after block %s applying",
+			block.BlockID().String(),
+		)
+	}
+	blockchainCurHeight++ // we've just added a new block and applied blockchain fix, so we have a new height
+
+	if s.needToFinishVotingPeriod(blockchainCurHeight) {
+		// If we need to finish voting period on the next block (h+1) then
+		// we have to check that protobuf will be activated on next block
+		s.checkProtobufActivation(blockchainCurHeight + 1)
+	}
+	return nil
 }
 
 func (s *stateManager) beforeAddingBlock(
