@@ -23,7 +23,6 @@ func (suite *RewardDistributionAPIRollbackBeforeF19Suite) Test_NODE858() {
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(node858, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward)
-		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDistributionAfterF14Before19TestData)
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockRewardDistribution)
@@ -51,7 +50,6 @@ func (suite *RewardDistributionAPIRollbackAfterF19Suite) Test_NODE859() {
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(node859, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.BlockRewardDistribution)
-		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRollbackAfterF19TestData)
 		activationH19 := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution, utl.GetHeight(&suite.BaseSuite))
@@ -77,7 +75,6 @@ func (suite *RewardDistributionAPIRollbackBeforeF20Suite) Test_NODE860() {
 	addresses := testdata.GetAddressesMinersDaoXtn(&suite.BaseSuite)
 	suite.Run(node860, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward)
-		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDistributionAfterF14Before19TestData)
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockRewardDistribution, settings.CappedRewards)
@@ -107,7 +104,6 @@ func (suite *RewardDistributionAPIRollbackAfterF20Suite) Test_NODE861() {
 	suite.Run(node861, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite,
 			settings.BlockReward, settings.BlockRewardDistribution, settings.CappedRewards)
-		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRollbackAfterF20TestData)
 		activationH20 := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.CappedRewards, utl.GetHeight(&suite.BaseSuite))
@@ -135,7 +131,6 @@ func (suite *RewardDistributionAPIRollbackBeforeF21Suite) Test_NODE862() {
 	suite.Run(node862, func() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite,
 			settings.BlockReward, settings.BlockRewardDistribution, settings.CappedRewards)
-		utl.WaitForNewHeightIfLessThan(&suite.BaseSuite, 3)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRollbackBeforeF21TestData)
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,

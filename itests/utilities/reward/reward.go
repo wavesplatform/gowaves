@@ -1,8 +1,6 @@
 package reward
 
 import (
-	"math"
-
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -65,16 +63,16 @@ func getAddressesDiffBalances(suite *f.BaseSuite, currentSumMinersBalance, curre
 }
 
 func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.AddressesForDistribution) (
-	utl.RewardDiffBalancesInWaves, utl.RewardTerm, proto.Height, int64) {
+	utl.RewardDiffBalancesInWaves, utl.RewardTerm, proto.Height) {
 	// Get balances in waves before block applied.
 	suite.T().Log("Balances before applied block: ")
-	initHeight := utl.GetHeight(suite)
+	initHeight := utl.SyncHeights(suite)
 	initSumMinersBalance, initDaoBalance, initXtnBalance := getAddressesBalances(suite, addresses)
 	// Wait for 1 block.
 	utl.WaitForNewHeight(suite)
 	// Get balances after block applied.
 	suite.T().Log("Balances after applied block: ")
-	currentHeight := utl.GetHeight(suite)
+	currentHeight := utl.SyncHeights(suite)
 	currentSumMinersBalance, currentDaoBalance, currentXtnBalance := getAddressesBalances(suite, addresses)
 	term := utl.GetRewardTermAtHeight(suite, currentHeight)
 	// Get diff balances.
@@ -83,24 +81,24 @@ func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.Addresses
 		currentDaoBalance, currentXtnBalance, initSumMinersBalance, initDaoBalance, initXtnBalance,
 		initHeight, currentHeight)
 
-	hd := currentHeight - initHeight
-	if hd > math.MaxInt64 {
-		panic("should not happen: heights difference is greater than math.MaxInt64")
+	if hd := currentHeight - initHeight; hd != 1 {
+		suite.T().Fatalf("Heights difference is not equal to 1: %d", hd)
 	}
 	return utl.NewRewardDiffBalances(diffMinersSumBalances.BalanceInWavesGo, diffMinersSumBalances.BalanceInWavesScala,
 		diffDaoBalance.BalanceInWavesGo, diffDaoBalance.BalanceInWavesScala, diffXtnBalance.BalanceInWavesGo,
-		diffXtnBalance.BalanceInWavesScala), term, currentHeight, int64(hd)
+		diffXtnBalance.BalanceInWavesScala), term, currentHeight
 }
 
-type GetTestData func(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
-	height uint64, n int64) testdata.RewardDistributionTestData[testdata.RewardDistributionExpectedValues]
+type GetTestData func(
+	suite *f.BaseSuite, addresses testdata.AddressesForDistribution, height uint64,
+) testdata.RewardDistributionTestData[testdata.RewardDistributionExpectedValues]
 
 func GetRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
 	testdata GetTestData) {
 	// Get reward for 1 block.
-	rewardDistributions, term, h, n := GetBlockRewardDistribution(suite, addresses)
+	rewardDistributions, term, h := GetBlockRewardDistribution(suite, addresses)
 	// Get expected results on current height
-	td := testdata(suite, addresses, h, n)
+	td := testdata(suite, addresses, h)
 	// Check results.
 	utl.TermCheck(suite.T(), td.Expected.Term, term.TermGo, term.TermScala)
 	utl.MinersSumDiffBalanceInWavesCheck(suite.T(), td.Expected.MinersSumDiffBalance,

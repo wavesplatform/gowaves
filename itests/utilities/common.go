@@ -400,6 +400,18 @@ func WaitForHeight(suite *f.BaseSuite, height uint64) uint64 {
 	return suite.Clients.WaitForHeight(suite.T(), height)
 }
 
+func SyncHeights(suite *f.BaseSuite) proto.Height {
+	goHeight := GetHeightGo(suite)
+	scalaHeight := GetHeightScala(suite)
+	switch {
+	case goHeight < scalaHeight:
+		return suite.Clients.GoClients.WaitForHeight(suite.T(), scalaHeight)
+	case goHeight > scalaHeight:
+		return suite.Clients.ScalaClients.WaitForHeight(suite.T(), goHeight)
+	}
+	return goHeight
+}
+
 func WaitForNewHeight(suite *f.BaseSuite) uint64 {
 	return suite.Clients.WaitForNewHeight(suite.T())
 }
@@ -910,12 +922,4 @@ func GetRollbackToHeightScala(suite *f.BaseSuite, height uint64, returnTxToUtx b
 func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) (*proto.BlockID, *proto.BlockID) {
 	suite.T().Logf("Rollback to height: %d from height: %d", height, GetHeight(suite))
 	return GetRollbackToHeightGo(suite, height, returnTxToUtx), GetRollbackToHeightScala(suite, height, returnTxToUtx)
-}
-
-func WaitForNewHeightIfLessThan(suite *f.BaseSuite, height proto.Height) proto.Height {
-	currentHeight := GetHeight(suite)
-	if currentHeight < height {
-		return suite.Clients.WaitForNewHeight(suite.T())
-	}
-	return currentHeight
 }

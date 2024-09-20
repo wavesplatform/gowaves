@@ -25,6 +25,18 @@ func NewNodeClient(t *testing.T, httpPort string, grpcPort string) *NodeClients 
 	}
 }
 
+func (c *NodeClients) WaitForHeight(t *testing.T, height proto.Height) proto.Height {
+	var h proto.Height
+	for {
+		h = c.HttpClient.GetHeight(t).Height
+		if h >= height {
+			break
+		}
+		time.Sleep(time.Second * 1)
+	}
+	return h
+}
+
 type NodesClients struct {
 	GoClients    *NodeClients
 	ScalaClients *NodeClients
