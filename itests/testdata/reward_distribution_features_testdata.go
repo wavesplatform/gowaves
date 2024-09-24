@@ -4,6 +4,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
@@ -15,6 +16,23 @@ type AddressesForDistribution struct {
 	MinerScalaAccount *config.AccountInfo
 	DaoAccount        *config.AccountInfo
 	XtnBuyBackAccount *config.AccountInfo
+}
+
+func (a *AddressesForDistribution) AsList() []proto.WavesAddress {
+	list := make([]proto.WavesAddress, 0, 4)
+	if a.MinerGoAccount != nil {
+		list = append(list, a.MinerGoAccount.Address)
+	}
+	if a.MinerScalaAccount != nil {
+		list = append(list, a.MinerScalaAccount.Address)
+	}
+	if a.DaoAccount != nil {
+		list = append(list, a.DaoAccount.Address)
+	}
+	if a.XtnBuyBackAccount != nil {
+		list = append(list, a.XtnBuyBackAccount.Address)
+	}
+	return list
 }
 
 type RewardDistributionTestData[T any] struct {

@@ -333,11 +333,11 @@ func MustGetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) con
 }
 
 func GetAddressByAliasGo(suite *f.BaseSuite, alias string) []byte {
-	return suite.Clients.GoClients.GrpcClient.GetAddressByAlias(suite.T(), alias)
+	return suite.Clients.GoClient.GRPCClient.GetAddressByAlias(suite.T(), alias)
 }
 
 func GetAddressByAliasScala(suite *f.BaseSuite, alias string) []byte {
-	return suite.Clients.ScalaClients.GrpcClient.GetAddressByAlias(suite.T(), alias)
+	return suite.Clients.ScalaClient.GRPCClient.GetAddressByAlias(suite.T(), alias)
 }
 
 func GetAddressesByAlias(suite *f.BaseSuite, alias string) ([]byte, []byte) {
@@ -362,11 +362,11 @@ func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) prot
 }
 
 func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
-	return suite.Clients.GoClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
+	return suite.Clients.GoClient.GRPCClient.GetWavesBalance(suite.T(), address).GetAvailable()
 }
 
 func GetAvailableBalanceInWavesScala(suite *f.BaseSuite, address proto.WavesAddress) int64 {
-	return suite.Clients.ScalaClients.GrpcClient.GetWavesBalance(suite.T(), address).GetAvailable()
+	return suite.Clients.ScalaClient.GRPCClient.GetWavesBalance(suite.T(), address).GetAvailable()
 }
 
 func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) (int64, int64) {
@@ -374,17 +374,17 @@ func GetAvailableBalanceInWaves(suite *f.BaseSuite, address proto.WavesAddress) 
 }
 
 func GetAssetInfo(suite *f.BaseSuite, assetID crypto.Digest) *client.AssetsDetail {
-	assetInfo, err := suite.Clients.ScalaClients.HttpClient.GetAssetDetails(assetID)
+	assetInfo, err := suite.Clients.ScalaClient.HTTPClient.GetAssetDetails(assetID)
 	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
 	return assetInfo
 }
 
 func GetHeightGo(suite *f.BaseSuite) uint64 {
-	return suite.Clients.GoClients.HttpClient.GetHeight(suite.T()).Height
+	return suite.Clients.GoClient.HTTPClient.GetHeight(suite.T()).Height
 }
 
 func GetHeightScala(suite *f.BaseSuite) uint64 {
-	return suite.Clients.ScalaClients.HttpClient.GetHeight(suite.T()).Height
+	return suite.Clients.ScalaClient.HTTPClient.GetHeight(suite.T()).Height
 }
 
 func GetHeight(suite *f.BaseSuite) uint64 {
@@ -400,28 +400,22 @@ func WaitForHeight(suite *f.BaseSuite, height uint64) uint64 {
 	return suite.Clients.WaitForHeight(suite.T(), height)
 }
 
-func SyncHeights(suite *f.BaseSuite) proto.Height {
-	goHeight := GetHeightGo(suite)
-	scalaHeight := GetHeightScala(suite)
-	switch {
-	case goHeight < scalaHeight:
-		return suite.Clients.GoClients.WaitForHeight(suite.T(), scalaHeight)
-	case goHeight > scalaHeight:
-		return suite.Clients.ScalaClients.WaitForHeight(suite.T(), goHeight)
-	}
-	return goHeight
-}
-
 func WaitForNewHeight(suite *f.BaseSuite) uint64 {
 	return suite.Clients.WaitForNewHeight(suite.T())
 }
 
 func GetActivationFeaturesStatusInfoGo(suite *f.BaseSuite, h uint64) *g.ActivationStatusResponse {
-	return suite.Clients.GoClients.GrpcClient.GetFeatureActivationStatusInfo(suite.T(), int32(h))
+	if h > math.MaxInt32 {
+		panic("Height is too big node")
+	}
+	return suite.Clients.GoClient.GRPCClient.GetFeatureActivationStatusInfo(suite.T(), int32(h))
 }
 
 func GetActivationFeaturesStatusInfoScala(suite *f.BaseSuite, h uint64) *g.ActivationStatusResponse {
-	return suite.Clients.ScalaClients.GrpcClient.GetFeatureActivationStatusInfo(suite.T(), int32(h))
+	if h > math.MaxInt32 {
+		panic("Height is too big node")
+	}
+	return suite.Clients.ScalaClient.GRPCClient.GetFeatureActivationStatusInfo(suite.T(), int32(h))
 }
 
 func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, fID settings.Feature) (string, error) {
@@ -561,11 +555,11 @@ func GetActivationOfFeatures(suite *f.BaseSuite, featureIDs ...settings.Feature)
 }
 
 func GetAssetInfoGrpcGo(suite *f.BaseSuite, assetID crypto.Digest) *g.AssetInfoResponse {
-	return suite.Clients.GoClients.GrpcClient.GetAssetsInfo(suite.T(), assetID.Bytes())
+	return suite.Clients.GoClient.GRPCClient.GetAssetsInfo(suite.T(), assetID.Bytes())
 }
 
 func GetAssetInfoGrpcScala(suite *f.BaseSuite, assetID crypto.Digest) *g.AssetInfoResponse {
-	return suite.Clients.ScalaClients.GrpcClient.GetAssetsInfo(suite.T(), assetID.Bytes())
+	return suite.Clients.ScalaClient.GRPCClient.GetAssetsInfo(suite.T(), assetID.Bytes())
 }
 
 func GetAssetInfoGrpc(suite *f.BaseSuite, assetID crypto.Digest) AssetInfo {
@@ -573,11 +567,11 @@ func GetAssetInfoGrpc(suite *f.BaseSuite, assetID crypto.Digest) AssetInfo {
 }
 
 func GetAssetBalanceGo(suite *f.BaseSuite, address proto.WavesAddress, assetID crypto.Digest) int64 {
-	return suite.Clients.GoClients.GrpcClient.GetAssetBalance(suite.T(), address, assetID.Bytes()).GetAmount()
+	return suite.Clients.GoClient.GRPCClient.GetAssetBalance(suite.T(), address, assetID.Bytes()).GetAmount()
 }
 
 func GetAssetBalanceScala(suite *f.BaseSuite, address proto.WavesAddress, assetID crypto.Digest) int64 {
-	return suite.Clients.ScalaClients.GrpcClient.GetAssetBalance(suite.T(), address, assetID.Bytes()).GetAmount()
+	return suite.Clients.ScalaClient.GRPCClient.GetAssetBalance(suite.T(), address, assetID.Bytes()).GetAmount()
 }
 
 func GetAssetBalance(suite *f.BaseSuite, address proto.WavesAddress, assetID crypto.Digest) (int64, int64) {
@@ -623,14 +617,14 @@ func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest) map
 			for name, id := range ids {
 				goTxID := "Go " + name
 				if _, ok := txIDs[goTxID]; !ok {
-					_, _, errGo := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(*id)
+					_, _, errGo := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(*id)
 					if errGo == nil {
 						txIDs[goTxID] = id.String()
 					}
 				}
 				scalaTxID := "Scala " + name
 				if _, ok := txIDs[scalaTxID]; !ok {
-					_, _, errScala := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(*id)
+					_, _, errScala := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(*id)
 					if errScala == nil {
 						txIDs[scalaTxID] = id.String()
 					}
@@ -682,7 +676,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	if errGo != nil {
 		suite.T().Log(errors.Errorf("Errors after waiting: %s", errGo))
 	} else {
-		txInfoRawGo, respGo, goRqErr := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
+		txInfoRawGo, respGo, goRqErr := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(id)
 		if goRqErr != nil {
 			suite.T().Logf("Error on requesting Tx Info Go: %v", goRqErr)
 		} else {
@@ -693,7 +687,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	if errScala != nil {
 		suite.T().Log(errors.Errorf("Errors after waiting: %s", errScala))
 	} else {
-		txInfoRawScala, respScala, scalaRqErr := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
+		txInfoRawScala, respScala, scalaRqErr := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(id)
 		if scalaRqErr != nil {
 			suite.T().Logf("Error on requesting Tx Info Scala: %v", scalaRqErr)
 		} else {
@@ -708,12 +702,12 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 	scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
 	timeout := DefaultWaitTimeout
 	id := ExtractTxID(suite.T(), tx, scheme)
-	respGo, errBrdCstGo := suite.Clients.GoClients.HttpClient.TransactionBroadcast(tx)
+	respGo, errBrdCstGo := suite.Clients.GoClient.HTTPClient.TransactionBroadcast(tx)
 	var respScala *client.Response = nil
 	var errBrdCstScala error = nil
 	if !waitForTx {
 		timeout = DefaultInitialTimeout
-		respScala, errBrdCstScala = suite.Clients.ScalaClients.HttpClient.TransactionBroadcast(tx)
+		respScala, errBrdCstScala = suite.Clients.ScalaClient.HTTPClient.TransactionBroadcast(tx)
 	}
 	suite.T().Log("Tx msg was successfully Broadcast to nodes")
 
@@ -722,7 +716,7 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 	if errWtGo != nil {
 		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtGo))
 	} else {
-		txInfoRawGo, responseGo, goRqErr := suite.Clients.GoClients.HttpClient.TransactionInfoRaw(id)
+		txInfoRawGo, responseGo, goRqErr := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(id)
 		if goRqErr != nil {
 			suite.T().Logf("Error on requesting Tx Info Go: %v", goRqErr)
 		} else {
@@ -733,7 +727,7 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 	if errWtScala != nil {
 		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtScala))
 	} else {
-		txInfoRawScala, responseScala, scalaRqErr := suite.Clients.ScalaClients.HttpClient.TransactionInfoRaw(id)
+		txInfoRawScala, responseScala, scalaRqErr := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(id)
 		if scalaRqErr != nil {
 			suite.T().Logf("Error on requesting Tx Info Scals: %v", scalaRqErr)
 		} else {
@@ -794,11 +788,11 @@ func NewRewardDiffBalances(diffBalanceGoMiners, diffBalanceScalaMiners, diffBala
 }
 
 func GetBlockGo(suite *f.BaseSuite, height uint64) *waves.Block {
-	return suite.Clients.GoClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+	return suite.Clients.GoClient.GRPCClient.GetBlock(suite.T(), height).GetBlock()
 }
 
 func GetBlockScala(suite *f.BaseSuite, height uint64) *waves.Block {
-	return suite.Clients.ScalaClients.GrpcClient.GetBlock(suite.T(), height).GetBlock()
+	return suite.Clients.ScalaClient.GRPCClient.GetBlock(suite.T(), height).GetBlock()
 }
 
 func GetDesiredRewardGo(suite *f.BaseSuite, height uint64) int64 {
@@ -835,11 +829,11 @@ func GetRewardTermAfter20Cfg(suite *f.BaseSuite) uint64 {
 
 // GetRewardsGo get response from /blockchain/rewards.
 func GetRewardsGo(suite *f.BaseSuite) *client.RewardInfo {
-	return suite.Clients.GoClients.HttpClient.Rewards(suite.T())
+	return suite.Clients.GoClient.HTTPClient.Rewards(suite.T())
 }
 
 func GetRewardsScala(suite *f.BaseSuite) *client.RewardInfo {
-	return suite.Clients.ScalaClients.HttpClient.Rewards(suite.T())
+	return suite.Clients.ScalaClient.HTTPClient.Rewards(suite.T())
 }
 
 func GetRewards(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo) {
@@ -848,11 +842,11 @@ func GetRewards(suite *f.BaseSuite) (*client.RewardInfo, *client.RewardInfo) {
 
 // GetRewardsAtHeightGo get response from /blockchain/rewards/{height}.
 func GetRewardsAtHeightGo(suite *f.BaseSuite, height uint64) *client.RewardInfo {
-	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height)
+	return suite.Clients.GoClient.HTTPClient.RewardsAtHeight(suite.T(), height)
 }
 
 func GetRewardsAtHeightScala(suite *f.BaseSuite, height uint64) *client.RewardInfo {
-	return suite.Clients.ScalaClients.HttpClient.RewardsAtHeight(suite.T(), height)
+	return suite.Clients.ScalaClient.HTTPClient.RewardsAtHeight(suite.T(), height)
 }
 
 func GetRewardsAtHeight(suite *f.BaseSuite, height uint64) (*client.RewardInfo, *client.RewardInfo) {
@@ -860,11 +854,11 @@ func GetRewardsAtHeight(suite *f.BaseSuite, height uint64) (*client.RewardInfo, 
 }
 
 func GetCurrentRewardGo(suite *f.BaseSuite, height uint64) uint64 {
-	return suite.Clients.GoClients.HttpClient.RewardsAtHeight(suite.T(), height).CurrentReward
+	return suite.Clients.GoClient.HTTPClient.RewardsAtHeight(suite.T(), height).CurrentReward
 }
 
 func GetCurrentRewardScala(suite *f.BaseSuite, height uint64) uint64 {
-	return suite.Clients.ScalaClients.HttpClient.RewardsAtHeight(suite.T(), height).CurrentReward
+	return suite.Clients.ScalaClient.HTTPClient.RewardsAtHeight(suite.T(), height).CurrentReward
 }
 
 func GetCurrentReward(suite *f.BaseSuite, height uint64) uint64 {
@@ -912,11 +906,11 @@ func GetXtnBuybackPeriodCfg(suite *f.BaseSuite) uint64 {
 }
 
 func GetRollbackToHeightGo(suite *f.BaseSuite, height uint64, returnTxToUtx bool) *proto.BlockID {
-	return suite.Clients.GoClients.HttpClient.RollbackToHeight(suite.T(), height, returnTxToUtx)
+	return suite.Clients.GoClient.HTTPClient.RollbackToHeight(suite.T(), height, returnTxToUtx)
 }
 
 func GetRollbackToHeightScala(suite *f.BaseSuite, height uint64, returnTxToUtx bool) *proto.BlockID {
-	return suite.Clients.ScalaClients.HttpClient.RollbackToHeight(suite.T(), height, returnTxToUtx)
+	return suite.Clients.ScalaClient.HTTPClient.RollbackToHeight(suite.T(), height, returnTxToUtx)
 }
 
 func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) (*proto.BlockID, *proto.BlockID) {

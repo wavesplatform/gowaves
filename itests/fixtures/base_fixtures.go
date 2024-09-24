@@ -8,9 +8,9 @@ import (
 
 	"github.com/stoewer/go-strcase"
 
+	"github.com/wavesplatform/gowaves/itests/clients"
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
-	"github.com/wavesplatform/gowaves/itests/node_client"
 )
 
 type BaseSuite struct {
@@ -20,7 +20,7 @@ type BaseSuite struct {
 	Cancel  context.CancelFunc
 	Cfg     config.TestConfig
 	Docker  *d.Docker
-	Clients *node_client.NodesClients
+	Clients *clients.NodesClients
 }
 
 func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
@@ -49,7 +49,7 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 		suite.Require().NoError(ssErr, "couldn't start Scala node container")
 	}
 
-	suite.Clients = node_client.NewNodesClients(suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
+	suite.Clients = clients.NewNodesClients(suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
 }
 
 func (suite *BaseSuite) SetupSuite() {

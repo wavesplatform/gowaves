@@ -7,36 +7,28 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func getAddressesBalances(suite *f.BaseSuite,
-	addresses testdata.AddressesForDistribution) (utl.BalanceInWaves, utl.BalanceInWaves, utl.BalanceInWaves) {
-	var balanceMiner1Go, balanceMiner1Scala, balanceMiner2Go, balanceMiner2Scala,
-		balanceDaoGo, balanceDaoScala, balanceXtnGo, balanceXtnScala int64
-	// Get balance in waves of miners accounts.
-	if addresses.MinerGoAccount != nil {
-		balanceMiner1Go, balanceMiner1Scala = utl.GetAvailableBalanceInWaves(suite, addresses.MinerGoAccount.Address)
-	}
-	if addresses.MinerScalaAccount != nil {
-		balanceMiner2Go, balanceMiner2Scala = utl.GetAvailableBalanceInWaves(suite, addresses.MinerScalaAccount.Address)
-	}
-	// We will be summing up balances of both miners accounts.
-	sumBalanceMinersGo := balanceMiner1Go + balanceMiner2Go
-	sumBalanceMinersScala := balanceMiner1Scala + balanceMiner2Scala
-	suite.T().Logf("Go: Sum Miners balance: %d, Go current height:%d, "+
-		"Scala: Sum Miners balance: %d, Scala current height: %d",
-		sumBalanceMinersGo, utl.GetHeightGo(suite), sumBalanceMinersScala, utl.GetHeightScala(suite))
-	// Get balances of dao and xtn buy-back accounts.
-	if addresses.DaoAccount != nil {
-		balanceDaoGo, balanceDaoScala = utl.GetAvailableBalanceInWaves(suite, addresses.DaoAccount.Address)
-	}
-	suite.T().Logf("Go: DAO balance: %d, Go current height:%d, Scala: DAO balance: %d, Scala current height: %d",
-		balanceDaoGo, utl.GetHeightGo(suite), balanceDaoScala, utl.GetHeightScala(suite))
-	if addresses.XtnBuyBackAccount != nil {
-		balanceXtnGo, balanceXtnScala = utl.GetAvailableBalanceInWaves(suite, addresses.XtnBuyBackAccount.Address)
-	}
-	suite.T().Logf("Go: XTN balance: %d, Go current height:%d, Scala: XTN balance: %d, Scala current height: %d",
-		balanceXtnGo, utl.GetHeightGo(suite), balanceXtnScala, utl.GetHeightScala(suite))
-	return utl.NewBalanceInWaves(sumBalanceMinersGo, sumBalanceMinersScala),
-		utl.NewBalanceInWaves(balanceDaoGo, balanceDaoScala), utl.NewBalanceInWaves(balanceXtnGo, balanceXtnScala)
+func getSynchronizedBalances(
+	suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
+) (utl.BalanceInWaves, utl.BalanceInWaves, utl.BalanceInWaves, proto.Height) {
+	balances := suite.Clients.SynchronizedWavesBalances(suite.T(), addresses.AsList()...)
+
+	goMinerBalance := balances.GetByAccountInfo(addresses.MinerGoAccount)
+	scalaMinerBalance := balances.GetByAccountInfo(addresses.MinerScalaAccount)
+	cumulativeMainersBalance := goMinerBalance.Add(scalaMinerBalance)
+	suite.T().Logf("Go: Miners cumulative balance: %d; Scala: Miners cumulative balance: %d; Height: %d",
+		cumulativeMainersBalance.GoBalance, cumulativeMainersBalance.ScalaBalance, balances.Height)
+
+	daoBalance := balances.GetByAccountInfo(addresses.DaoAccount)
+	suite.T().Logf("Go: DAO balance: %d; Scala: DAO balance: %d; Height: %d",
+		daoBalance.GoBalance, daoBalance.ScalaBalance, balances.Height)
+
+	xtnBuybackBalance := balances.GetByAccountInfo(addresses.XtnBuyBackAccount)
+	suite.T().Logf("Go: XTN balance: %d; Scala: XTN balance: %d; Height: %d",
+		xtnBuybackBalance.GoBalance, xtnBuybackBalance.ScalaBalance, balances.Height)
+
+	return utl.NewBalanceInWaves(cumulativeMainersBalance.GoBalance, cumulativeMainersBalance.ScalaBalance),
+		utl.NewBalanceInWaves(daoBalance.GoBalance, daoBalance.ScalaBalance),
+		utl.NewBalanceInWaves(xtnBuybackBalance.GoBalance, xtnBuybackBalance.ScalaBalance), balances.Height
 }
 
 func getDiffBalance(suite *f.BaseSuite, addressType string, currentBalance utl.BalanceInWaves, currentHeight uint64,
@@ -66,14 +58,13 @@ func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.Addresses
 	utl.RewardDiffBalancesInWaves, utl.RewardTerm, proto.Height) {
 	// Get balances in waves before block applied.
 	suite.T().Log("Balances before applied block: ")
-	initHeight := utl.SyncHeights(suite)
-	initSumMinersBalance, initDaoBalance, initXtnBalance := getAddressesBalances(suite, addresses)
+	initSumMinersBalance, initDaoBalance, initXtnBalance, initHeight := getSynchronizedBalances(suite, addresses)
 	// Wait for 1 block.
 	utl.WaitForNewHeight(suite)
 	// Get balances after block applied.
 	suite.T().Log("Balances after applied block: ")
-	currentHeight := utl.SyncHeights(suite)
-	currentSumMinersBalance, currentDaoBalance, currentXtnBalance := getAddressesBalances(suite, addresses)
+	currentSumMinersBalance, currentDaoBalance, currentXtnBalance, currentHeight := getSynchronizedBalances(suite,
+		addresses)
 	term := utl.GetRewardTermAtHeight(suite, currentHeight)
 	// Get diff balances.
 	suite.T().Log("Diff Balances: ")
@@ -82,7 +73,7 @@ func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.Addresses
 		initHeight, currentHeight)
 
 	if hd := currentHeight - initHeight; hd != 1 {
-		suite.T().Fatalf("Heights difference is not equal to 1: %d", hd)
+		suite.T().Fatalf("Heights difference %d is not equal to 1", hd)
 	}
 	return utl.NewRewardDiffBalances(diffMinersSumBalances.BalanceInWavesGo, diffMinersSumBalances.BalanceInWavesScala,
 		diffDaoBalance.BalanceInWavesGo, diffDaoBalance.BalanceInWavesScala, diffXtnBalance.BalanceInWavesGo,
