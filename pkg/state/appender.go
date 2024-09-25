@@ -836,8 +836,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 	// check whether the calculated snapshot state hash equals with the provided one
 	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
-		return errors.Wrapf(errBlockSnapshotStateHashMismatch, "state hash mismatch; provided '%s', caluclated '%s'",
-			blockStateHash.String(), stateHash.String(),
+		return errors.Wrapf(errBlockSnapshotStateHashMismatch,
+			"block %d state hash mismatch — provided '%s', caluclated '%s'",
+			currentBlockHeight, blockStateHash.String(), stateHash.String(),
 		)
 	}
 
