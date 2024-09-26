@@ -2,14 +2,17 @@ package bn256
 
 import (
 	"bytes"
+	"errors"
 	"io"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	curveBn254 "github.com/consensys/gnark-crypto/ecc/bn254"
-	"github.com/consensys/gnark-crypto/ecc/bn254/fr/pedersen"
 	gnark "github.com/consensys/gnark/backend/groth16"
 )
 
+// BellmanVerifyingKeyBn256 is a struct that holds the verifying key for the BN256 curve in bellman form.
+// It is used to unmarshal the key from the short bellman format and marshal it into the gnark format.
+// See the documentation of the BellmanVerifyingKeyBl12381 for more details.
 type BellmanVerifyingKeyBn256 struct {
 	G1 struct {
 		Alpha curveBn254.G1Affine
@@ -20,83 +23,78 @@ type BellmanVerifyingKeyBn256 struct {
 	}
 }
 
-func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (n int64, err error) {
-	{
-		dec := curveBn254.NewDecoder(r)
-		toDecode := []interface{}{
-			&vk.G1.Alpha,
-			// &vk.G1.Beta,
-			&vk.G2.Beta,
-			&vk.G2.Gamma,
-			// &vk.G1.Delta,
-			&vk.G2.Delta,
+// ReadFrom reads the verifying key in bellman format from the reader r.
+func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (int64, error) {
+	dec := curveBn254.NewDecoder(r)
+	toDecode := []interface{}{
+		&vk.G1.Alpha,
+		&vk.G2.Beta,
+		&vk.G2.Gamma,
+		&vk.G2.Delta,
+	}
+	for _, v := range toDecode {
+		if err := dec.Decode(v); err != nil {
+			return dec.BytesRead(), err
 		}
-		for _, v := range toDecode {
-			if err := dec.Decode(v); err != nil {
-				return dec.BytesRead(), err
-			}
-		}
-		n += dec.BytesRead()
 	}
 
-	{
-		dec := curveBn254.NewDecoder(r)
-		var p curveBn254.G1Affine
-		for {
-			err = dec.Decode(&p)
-			if err == io.EOF {
+	var p curveBn254.G1Affine
+	for {
+		if err := dec.Decode(&p); err != nil {
+			if errors.Is(err, io.EOF) {
 				break
 			}
-			if err != nil {
-				return n + dec.BytesRead(), err
-			}
-			vk.G1.Ic = append(vk.G1.Ic, p)
+			return dec.BytesRead(), err
 		}
-		n += dec.BytesRead()
+		vk.G1.Ic = append(vk.G1.Ic, p)
 	}
-	return n, nil
+	return dec.BytesRead(), nil
 }
 
-func (vk *BellmanVerifyingKeyBn256) WriteTo(w io.Writer) (n int64, err error) {
+// WriteTo writes the verifying key in gnark format to the writer w.
+func (vk *BellmanVerifyingKeyBn256) WriteTo(w io.Writer) (int64, error) {
 	enc := curveBn254.NewEncoder(w)
-	var emptyG1Field curveBn254.G1Affine
-	// [α]1,[β]1,[β]2,[γ]2,[δ]1,[δ]2
-	if err = enc.Encode(&vk.G1.Alpha); err != nil {
+
+	// [α]1, [β]1 ([α]1), [β]2, [γ]2, [δ]1 ([α]1), [δ]2
+	if err := enc.Encode(&vk.G1.Alpha); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err = enc.Encode(&emptyG1Field); err != nil {
+	if err := enc.Encode(&vk.G1.Alpha); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err = enc.Encode(&vk.G2.Beta); err != nil {
+	if err := enc.Encode(&vk.G2.Beta); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err = enc.Encode(&vk.G2.Gamma); err != nil {
+	if err := enc.Encode(&vk.G2.Gamma); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err = enc.Encode(&emptyG1Field); err != nil {
+	if err := enc.Encode(&vk.G1.Alpha); err != nil {
 		return enc.BytesWritten(), err
 	}
-	if err = enc.Encode(&vk.G2.Delta); err != nil {
+	if err := enc.Encode(&vk.G2.Delta); err != nil {
 		return enc.BytesWritten(), err
 	}
 
 	// uint32(len(Kvk)),[Kvk]1
-	if err = enc.Encode(vk.G1.Ic); err != nil {
+	if err := enc.Encode(vk.G1.Ic); err != nil {
 		return enc.BytesWritten(), err
 	}
 
-	// only matters in tests in Gnark
-	if err = enc.Encode([][]uint64{}); err != nil {
+	var publicCommitted [][]uint64
+	var nbCommitments uint32
+
+	// Encode 0 as length of publicCommited.
+	if err := enc.Encode(publicCommitted); err != nil {
 		return enc.BytesWritten(), err
 	}
-	commitmentKey := pedersen.VerifyingKey{}
-	m, err := commitmentKey.WriteTo(w)
-	if err != nil {
-		return enc.BytesWritten() + m, err
+	// Encode number of commitments.
+	if err := enc.Encode(nbCommitments); err != nil {
+		return enc.BytesWritten(), err
 	}
-	return enc.BytesWritten() + m, nil
+	return enc.BytesWritten(), nil
 }
 
+// FromBytesToVerifyingKey un-marshals the verifying key from the bytes in the bellman format to the gnark format.
 func FromBytesToVerifyingKey(vkBytes []byte) (gnark.VerifyingKey, error) {
 	var bvk BellmanVerifyingKeyBn256
 	vkBytes, err := changeFlagsInVKToGnarkType(vkBytes)
