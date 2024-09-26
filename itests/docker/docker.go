@@ -282,7 +282,7 @@ func (d *Docker) mkLogsDir() error {
 		return errors.Wrapf(err, "failed to create logs dir for suite %s", d.suite)
 	}
 	d.logs = filepath.Join(pwd, logsDir, d.suite)
-	if mkErr := os.MkdirAll(d.logs, 0750); mkErr != nil {
+	if mkErr := os.MkdirAll(d.logs, 0770); mkErr != nil {
 		return errors.Wrapf(mkErr, "failed to create logs dir for suite %s", d.suite)
 	}
 	return nil
