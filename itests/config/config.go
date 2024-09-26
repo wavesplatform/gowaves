@@ -230,7 +230,7 @@ func createConfigDir(suiteName string) (string, error) {
 		return "", err
 	}
 	configDir := filepath.Join(pwd, tmpDir, suiteName)
-	if mkErr := os.MkdirAll(configDir, 0770); mkErr != nil {
+	if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
 		return "", mkErr
 	}
 	return configDir, nil
