@@ -138,34 +138,39 @@ func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duratio
 	return errGo, errScala
 }
 
-func (c *NodesClients) WaitForConnectedPeers(timeout time.Duration) (error, error) {
-	var (
-		errGo, errScala error
-		wg              sync.WaitGroup
-	)
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
-		errGo = Retry(timeout, func() error {
-			cp, _, err := c.GoClient.HTTPClient.ConnectedPeers()
+func (c *NodesClients) WaitForConnectedPeers(ctx context.Context, timeout time.Duration) error {
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel() // Cancel the context when we are done
+	eg, ctx := errgroup.WithContext(ctx)
+	eg.Go(func() error {
+		err := RetryCtx(ctx, timeout, func() error {
+			cp, _, err := c.GoClient.HTTPClient.ConnectedPeersCtx(ctx)
 			if len(cp) == 0 && err == nil {
 				err = errors.New("no connected peers")
 			}
 			return err
 		})
-	}()
-	go func() {
-		defer wg.Done()
-		errScala = Retry(timeout, func() error {
-			cp, _, err := c.ScalaClient.HTTPClient.ConnectedPeers()
+		if err != nil {
+			cancel() // Cancel the context if we have an error to stop other goroutines
+			return errors.Wrap(err, "Go")
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		err := RetryCtx(ctx, timeout, func() error {
+			cp, _, err := c.ScalaClient.HTTPClient.ConnectedPeersCtx(ctx)
 			if len(cp) == 0 && err == nil {
 				err = errors.New("no connected peers")
 			}
 			return err
 		})
-	}()
-	wg.Wait() // Wait for both clients to finish
-	return errGo, errScala
+		if err != nil {
+			cancel() // Cancel the context if we have an error to stop other goroutines
+			return errors.Wrap(err, "Scala")
+		}
+		return nil
+	})
+	return eg.Wait() // Wait for both clients to finish and return first error
 }
 
 func (c *NodesClients) reportFirstDivergedHeight(t *testing.T, height uint64) {
@@ -331,10 +336,13 @@ func (c *NodesClients) requestNodesAvailableBalances(
 	return r, nil
 }
 
-func Retry(timeout time.Duration, f func() error) error {
-	bo := backoff.NewExponentialBackOff()
-	bo.MaxInterval = time.Second * 1
-	bo.MaxElapsedTime = timeout
+func RetryCtx(ctx context.Context, timeout time.Duration, f func() error) error {
+	bo := backoff.WithContext(
+		backoff.NewExponentialBackOff(
+			backoff.WithMaxInterval(time.Second*1),
+			backoff.WithMaxElapsedTime(timeout),
+		), ctx,
+	)
 	if err := backoff.Retry(f, bo); err != nil {
 		if bo.NextBackOff() == backoff.Stop {
 			return errors.Wrap(err, "reached retry deadline")
@@ -342,6 +350,10 @@ func Retry(timeout time.Duration, f func() error) error {
 		return err
 	}
 	return nil
+}
+
+func Retry(timeout time.Duration, f func() error) error {
+	return RetryCtx(context.Background(), timeout, f)
 }
 
 func mustFieldsHashesToString(fieldHashes proto.FieldsHashes) string {
