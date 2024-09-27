@@ -106,7 +106,11 @@ func (c *HTTPClient) AssetBalance(
 }
 
 func (c *HTTPClient) ConnectedPeers() ([]*client.PeersConnectedRow, *client.Response, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	return c.ConnectedPeersCtx(context.Background())
+}
+
+func (c *HTTPClient) ConnectedPeersCtx(ctx context.Context) ([]*client.PeersConnectedRow, *client.Response, error) {
+	ctx, cancel := context.WithTimeout(ctx, c.timeout)
 	defer cancel()
 	connectedPeers, resp, err := c.cli.Peers.Connected(ctx)
 	return connectedPeers, resp, err
