@@ -139,9 +139,7 @@ func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duratio
 }
 
 func (c *NodesClients) WaitForConnectedPeers(ctx context.Context, timeout time.Duration) error {
-	ctx, cancel := context.WithCancel(ctx)
-	defer cancel() // Cancel the context when we are done
-	eg, ctx := errgroup.WithContext(ctx)
+	eg, ctx := errgroup.WithContext(ctx) // context will be canceled when first error occurs
 	eg.Go(func() error {
 		err := RetryCtx(ctx, timeout, func() error {
 			cp, _, err := c.GoClient.HTTPClient.ConnectedPeersCtx(ctx)
@@ -150,11 +148,7 @@ func (c *NodesClients) WaitForConnectedPeers(ctx context.Context, timeout time.D
 			}
 			return err
 		})
-		if err != nil {
-			cancel() // Cancel the context if we have an error to stop other goroutines
-			return errors.Wrap(err, "Go")
-		}
-		return nil
+		return errors.Wrap(err, "Go")
 	})
 	eg.Go(func() error {
 		err := RetryCtx(ctx, timeout, func() error {
@@ -164,11 +158,7 @@ func (c *NodesClients) WaitForConnectedPeers(ctx context.Context, timeout time.D
 			}
 			return err
 		})
-		if err != nil {
-			cancel() // Cancel the context if we have an error to stop other goroutines
-			return errors.Wrap(err, "Scala")
-		}
-		return nil
+		return errors.Wrap(err, "Scala")
 	})
 	return eg.Wait() // Wait for both clients to finish and return first error
 }
