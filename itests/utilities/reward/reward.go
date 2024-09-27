@@ -14,9 +14,9 @@ func getSynchronizedBalances(
 
 	goMinerBalance := balances.GetByAccountInfo(addresses.MinerGoAccount)
 	scalaMinerBalance := balances.GetByAccountInfo(addresses.MinerScalaAccount)
-	cumulativeMainersBalance := goMinerBalance.Add(scalaMinerBalance)
+	cumulativeMinersBalance := goMinerBalance.Add(scalaMinerBalance)
 	suite.T().Logf("Go: Miners cumulative balance: %d; Scala: Miners cumulative balance: %d; Height: %d",
-		cumulativeMainersBalance.GoBalance, cumulativeMainersBalance.ScalaBalance, balances.Height)
+		cumulativeMinersBalance.GoBalance, cumulativeMinersBalance.ScalaBalance, balances.Height)
 
 	daoBalance := balances.GetByAccountInfo(addresses.DaoAccount)
 	suite.T().Logf("Go: DAO balance: %d; Scala: DAO balance: %d; Height: %d",
@@ -26,7 +26,7 @@ func getSynchronizedBalances(
 	suite.T().Logf("Go: XTN balance: %d; Scala: XTN balance: %d; Height: %d",
 		xtnBuybackBalance.GoBalance, xtnBuybackBalance.ScalaBalance, balances.Height)
 
-	return utl.NewBalanceInWaves(cumulativeMainersBalance.GoBalance, cumulativeMainersBalance.ScalaBalance),
+	return utl.NewBalanceInWaves(cumulativeMinersBalance.GoBalance, cumulativeMinersBalance.ScalaBalance),
 		utl.NewBalanceInWaves(daoBalance.GoBalance, daoBalance.ScalaBalance),
 		utl.NewBalanceInWaves(xtnBuybackBalance.GoBalance, xtnBuybackBalance.ScalaBalance), balances.Height
 }
