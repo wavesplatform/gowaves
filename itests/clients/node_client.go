@@ -197,33 +197,30 @@ func (c *NodesClients) reportFirstDivergedHeight(t *testing.T, height uint64) {
 func (c *NodesClients) requestAvailableBalancesForAddresses(
 	ctx context.Context, addresses []proto.WavesAddress,
 ) (map[proto.WavesAddress]NodesWavesBalanceAtHeight, error) {
-	ch := make(chan addressedBalanceAtHeight, len(addresses))
-
-	var jointError error
-
-	g, childCtx := errgroup.WithContext(ctx)
-	for _, addr := range addresses {
-		g.Go(func() error {
-			ab, err := c.requestNodesAvailableBalances(childCtx, addr)
+	var (
+		addrBalances = make([]addressedBalanceAtHeight, len(addresses))
+		errsForJoin  = make([]error, len(addresses)) // Errors from all goroutines
+		wg           = sync.WaitGroup{}
+	)
+	wg.Add(len(addresses))
+	for i, addr := range addresses {
+		go func(i int, addr proto.WavesAddress) {
+			defer wg.Done()
+			ab, err := c.requestNodesAvailableBalances(ctx, addr)
 			if err != nil {
-				jointError = stderrs.Join(jointError, err)
-				// Suppress error here, we will retry to get synced balances later,
-				// but throwing error cancels the whole group.
-				ch <- addressedBalanceAtHeight{address: addr, balance: NodesWavesBalanceAtHeight{}}
-				return nil
+				errsForJoin[i] = err // Write error here, we will retry to get synced balances later.
+				addrBalances[i] = addressedBalanceAtHeight{address: addr, balance: NodesWavesBalanceAtHeight{}}
+				return
 			}
-			ch <- ab
-			return nil
-		})
+			addrBalances[i] = ab
+		}(i, addr)
 	}
-	_ = g.Wait()
-	close(ch)
-
+	wg.Wait() // Wait for all goroutines to finish.
 	r := make(map[proto.WavesAddress]NodesWavesBalanceAtHeight, len(addresses))
-	for e := range ch {
+	for _, e := range addrBalances {
 		r[e.address] = e.balance
 	}
-	return r, jointError
+	return r, stderrs.Join(errsForJoin...)
 }
 
 func (c *NodesClients) SynchronizedWavesBalances(
