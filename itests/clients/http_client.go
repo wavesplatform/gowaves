@@ -25,7 +25,7 @@ func NewHTTPClient(t *testing.T, impl Implementation, port string) *HTTPClient {
 	c, err := client.NewClient(client.Options{
 		BaseUrl: "http://" + config.DefaultIP + ":" + port + "/",
 		Client:  &http.Client{Timeout: d.DefaultTimeout},
-		ApiKey:  "itest-api-key",
+		ApiKey:  d.DefaultAPIKey,
 		ChainID: 'L', // I tried to use constant `utilities.TestChainID`, but after all decided that a little duplication is better in this case.
 	})
 	require.NoError(t, err, "couldn't create %s node HTTP API client", impl.String())

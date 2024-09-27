@@ -21,6 +21,7 @@ import (
 
 const (
 	DefaultTimeout       = 16 * time.Second
+	DefaultAPIKey        = "itest-api-key"
 	networkName          = "waves-it-network"
 	goNodeLogFileName    = "go-node.log"
 	goNodeErrFileName    = "go-node.err"
@@ -231,7 +232,7 @@ func (d *Docker) startNode(
 		nodeClient, fErr := client.NewClient(client.Options{
 			BaseUrl: nc.RestAPIURL(),
 			Client:  &http.Client{Timeout: DefaultTimeout},
-			ApiKey:  "itest-api-key",
+			ApiKey:  DefaultAPIKey,
 		})
 		if fErr != nil {
 			return fErr

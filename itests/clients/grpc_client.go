@@ -21,7 +21,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-const defaultGRPCTimeout = 30 * time.Second
+const defaultTimeout = 30 * time.Second
 
 type balanceAtHeight struct {
 	impl    Implementation
@@ -38,7 +38,7 @@ type GRPCClient struct {
 func NewGRPCClient(t *testing.T, impl Implementation, port string) *GRPCClient {
 	conn, err := grpc.NewClient(config.DefaultIP+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
 	assert.NoError(t, err, "failed to dial GRPC to %s", impl.String())
-	return &GRPCClient{impl: impl, conn: conn, timeout: defaultGRPCTimeout}
+	return &GRPCClient{impl: impl, conn: conn, timeout: defaultTimeout}
 }
 
 func (c *GRPCClient) GetFeatureActivationStatusInfo(t *testing.T, h int32) *g.ActivationStatusResponse {

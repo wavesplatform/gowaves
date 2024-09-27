@@ -61,11 +61,13 @@ func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
 func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 	var (
 		hg, hs uint64
-		wg     sync.WaitGroup
 	)
-	wg.Add(2)
-	go func() {
-		defer wg.Done()
+
+	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	defer cancel()
+
+	g, _ := errgroup.WithContext(ctx)
+	g.Go(func() error {
 		for {
 			hg = c.GoClient.HTTPClient.GetHeight(t).Height
 			if hg >= height {
@@ -73,9 +75,9 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 			}
 			time.Sleep(time.Second * 1)
 		}
-	}()
-	go func() {
-		defer wg.Done()
+		return nil
+	})
+	g.Go(func() error {
 		for {
 			hs = c.ScalaClient.HTTPClient.GetHeight(t).Height
 			if hs >= height {
@@ -83,8 +85,9 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 			}
 			time.Sleep(time.Second * 1)
 		}
-	}()
-	wg.Wait() // Wait for both clients to finish
+		return nil
+	})
+	_ = g.Wait() // Wait for both goroutines to finish.
 	return min(hg, hs)
 }
 

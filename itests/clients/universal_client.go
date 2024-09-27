@@ -2,9 +2,6 @@ package clients
 
 import (
 	"testing"
-	"time"
-
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type NodeUniversalClient struct {
@@ -19,16 +16,4 @@ func NewNodeUniversalClient(t *testing.T, impl Implementation, httpPort string, 
 		HTTPClient:     NewHTTPClient(t, impl, httpPort),
 		GRPCClient:     NewGRPCClient(t, impl, grpcPort),
 	}
-}
-
-func (c *NodeUniversalClient) WaitForHeight(t *testing.T, height proto.Height) proto.Height {
-	var h proto.Height
-	for {
-		h = c.HTTPClient.GetHeight(t).Height
-		if h >= height {
-			break
-		}
-		time.Sleep(time.Second * 1)
-	}
-	return h
 }
