@@ -87,7 +87,10 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 		}
 		return nil
 	})
-	_ = g.Wait() // Wait for both goroutines to finish.
+	// Wait for both goroutines to finish.
+	if err := g.Wait(); err != nil {
+		t.Logf("Error while waiting for height: %v", err)
+	}
 	return min(hg, hs)
 }
 
