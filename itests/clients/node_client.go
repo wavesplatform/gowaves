@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	stderrs "errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -58,25 +59,33 @@ func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
 // WaitForHeight waits for nodes to get on given height. Exits if nodes' height already equal or greater than requested.
 // Function returns actual nodes' height.
 func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
-	var hg, hs uint64
-	for {
-		hg = c.GoClient.HTTPClient.GetHeight(t).Height
-		if hg >= height {
-			break
+	var (
+		hg, hs uint64
+		wg     sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		for {
+			hg = c.GoClient.HTTPClient.GetHeight(t).Height
+			if hg >= height {
+				break
+			}
+			time.Sleep(time.Second * 1)
 		}
-		time.Sleep(time.Second * 1)
-	}
-	for {
-		hs = c.ScalaClient.HTTPClient.GetHeight(t).Height
-		if hs >= height {
-			break
+	}()
+	go func() {
+		defer wg.Done()
+		for {
+			hs = c.ScalaClient.HTTPClient.GetHeight(t).Height
+			if hs >= height {
+				break
+			}
+			time.Sleep(time.Second * 1)
 		}
-		time.Sleep(time.Second * 1)
-	}
-	if hg < hs {
-		return hg
-	}
-	return hs
+	}()
+	wg.Wait() // Wait for both clients to finish
+	return min(hg, hs)
 }
 
 func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
@@ -106,32 +115,55 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 }
 
 func (c *NodesClients) WaitForTransaction(id crypto.Digest, timeout time.Duration) (error, error) {
-	errGo := Retry(timeout, func() error {
-		_, _, err := c.GoClient.HTTPClient.TransactionInfoRaw(id)
-		return err
-	})
-	errScala := Retry(timeout, func() error {
-		_, _, err := c.ScalaClient.HTTPClient.TransactionInfoRaw(id)
-		return err
-	})
+	var (
+		errGo, errScala error
+		wg              sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		errGo = Retry(timeout, func() error {
+			_, _, err := c.GoClient.HTTPClient.TransactionInfoRaw(id)
+			return err
+		})
+	}()
+	go func() {
+		defer wg.Done()
+		errScala = Retry(timeout, func() error {
+			_, _, err := c.ScalaClient.HTTPClient.TransactionInfoRaw(id)
+			return err
+		})
+	}()
+	wg.Wait() // Wait for both clients to finish
 	return errGo, errScala
 }
 
 func (c *NodesClients) WaitForConnectedPeers(timeout time.Duration) (error, error) {
-	errGo := Retry(timeout, func() error {
-		cp, _, err := c.GoClient.HTTPClient.ConnectedPeers()
-		if len(cp) == 0 && err == nil {
-			err = errors.New("no connected peers")
-		}
-		return err
-	})
-	errScala := Retry(timeout, func() error {
-		cp, _, err := c.ScalaClient.HTTPClient.ConnectedPeers()
-		if len(cp) == 0 && err == nil {
-			err = errors.New("no connected peers")
-		}
-		return err
-	})
+	var (
+		errGo, errScala error
+		wg              sync.WaitGroup
+	)
+	wg.Add(2)
+	go func() {
+		defer wg.Done()
+		errGo = Retry(timeout, func() error {
+			cp, _, err := c.GoClient.HTTPClient.ConnectedPeers()
+			if len(cp) == 0 && err == nil {
+				err = errors.New("no connected peers")
+			}
+			return err
+		})
+	}()
+	go func() {
+		errScala = Retry(timeout, func() error {
+			cp, _, err := c.ScalaClient.HTTPClient.ConnectedPeers()
+			if len(cp) == 0 && err == nil {
+				err = errors.New("no connected peers")
+			}
+			return err
+		})
+	}()
+	wg.Wait() // Wait for both clients to finish
 	return errGo, errScala
 }
 
