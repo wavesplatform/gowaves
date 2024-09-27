@@ -2,6 +2,7 @@ package crypto
 
 import (
 	b64 "encoding/base64"
+	"fmt"
 	"testing"
 
 	"github.com/consensys/gnark-crypto/ecc"
@@ -10,7 +11,7 @@ import (
 )
 
 func TestGroth16VerifyBLS(t *testing.T) {
-	for _, test := range []struct {
+	for i, test := range []struct {
 		vk     string
 		proof  string
 		inputs string
@@ -72,20 +73,22 @@ func TestGroth16VerifyBLS(t *testing.T) {
 			"I8C5RcBDPi2n4omt9oOV2rZk9T9xlSV8PQvLeVHjGb00fCVz7AHOIjLJ03ZCTLQwEKkAk9tQWJ6gFTBnG2+0DDHlXcVkwpMafcpS2diKFe0T4fRb0t9mxNzOFiRVcJoeMU1zb/rE4dIMm9rbEPSDnVSOd8tHNnJDkT+/NcNsQ2w0UEVJJRAEnC7G0Y3522RlDLxpTZ6w0U/9V0pLNkFgDCkFBKvpaEfPDJjoEVyCUWDC1ts9LIR43xh3ZZBdcO/HATHoLzxM3Ef11qF+riV7WDPEJfK11u8WGazzCAFhsx0aKkkbnKl7LnypBzwRvrG2JxdLI/oXL0eoIw9woVjqrg6elHudnHDXezDVXjRWMPaU+L3tOW9aqN+OdP4AhtpgT2CoRCjrOIU3MCFqsrCK9bh33PW1gtNeHC78mIetQM5LWZHtw4KNwafTrQ+GCKPelJhiC2x7ygBtat5rtBsJAVF5wjssLPZx/7fqNqifXB7WyMV7J1M8LBQVXj5kLoS9bpmNHlERRSadC0DEUbY9xhIG2xo7R88R0sq04a299MFv8XJNd+IdueYiMiGF5broHD4UUhPxRBlBO3lOfDTPnRSUGS3Sr6GxwCjKO3MObz/6RNxCk9SnQ4NccD17hS/mEFt8d4ERZOfmuvD3A0RCPCnx3Fr6rHdm6j+cfn/NM6o=",
 			false},
 	} {
-		vk, err := b64.StdEncoding.DecodeString(test.vk)
-		require.NoError(t, err)
-		proof, err := b64.StdEncoding.DecodeString(test.proof)
-		require.NoError(t, err)
-		inputs, err := b64.StdEncoding.DecodeString(test.inputs)
-		require.NoError(t, err)
-		ok, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
-		if test.ok {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			vk, err := b64.StdEncoding.DecodeString(test.vk)
 			require.NoError(t, err)
-			assert.True(t, ok)
-		} else {
-			assert.NoError(t, err)
-			assert.False(t, ok)
-		}
+			proof, err := b64.StdEncoding.DecodeString(test.proof)
+			require.NoError(t, err)
+			inputs, err := b64.StdEncoding.DecodeString(test.inputs)
+			require.NoError(t, err)
+			ok, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
+			if test.ok {
+				require.NoError(t, err)
+				assert.True(t, ok)
+			} else {
+				assert.NoError(t, err)
+				assert.False(t, ok)
+			}
+		})
 	}
 }
 
@@ -168,7 +171,7 @@ func BenchmarkGroth16Verify16inputsBLS(b *testing.B) {
 }
 
 func TestGroth16VerifyOKBn256(t *testing.T) {
-	for _, test := range []struct {
+	for i, test := range []struct {
 		vk     string
 		proof  string
 		inputs string
@@ -210,20 +213,22 @@ func TestGroth16VerifyOKBn256(t *testing.T) {
 			"IfZhAypdtgvecKDWzVyRuvXatmFf2ZYcMWVkCJ0/MQou2EkLZ569itz7cL7GQnzipNe1JRCQ/QK8UXr8IG8k0hW3GAoAXun/Pwk0Jq9fst26FET2RehSLbxUdvZQLjEzCJmfahCreklII85wEMuwYctsOv/3JWgvrI8hmn8sWjwELKgjqMSLQgJ7u5ZHe9PDhBgF/3dliXhY1jUsXFvkig6pfEr0bFuXhXcg2R+vuPErhG0w08SPNOi2SjvPngYpJ8nsOT98G6EDlyNaHtJuRC/xOA+6ftL/k2+hzFsd+1Ui5/1NGTfDxLDndEE1NQ+opvk79ZeaY+qPP7pEc0uQMxnEIHHpcYsRt9dal9bSQpE5hWKu1nOBzIVmXb/Ef51YDg+nW5w9a2tEAY2zQCZ/z3sFs7FwAZ5TXhDfhYR5sQ8tZaF3FWh+Yzf5hgMmXWrApp/arwPszNhKCoxScnhPSgfcxYSdauqvp5+vcacJFY1OkWG6tQ6iuh5CZSdX645oA7oNr9d5kXYSewhTflcV9pufeaH21BtEipHpO3sNRkUngnHC+uj1D8ReSgcCofnv8s0mVme9Ml64r6CbeaHK+x5Mc9bolN96XJZ137xkPDpev+RVrVK6ZIFrH2hFl8/vGoBwWDlmjmVzUt4YQdsCavsf7c0vBa7d33EcvyvQMDY=",
 			true},
 	} {
-		vk, err := b64.StdEncoding.DecodeString(test.vk)
-		require.NoError(t, err)
-		proof, err := b64.StdEncoding.DecodeString(test.proof)
-		require.NoError(t, err)
-		inputs, err := b64.StdEncoding.DecodeString(test.inputs)
-		require.NoError(t, err)
-		result, err := Groth16Verify(vk, proof, inputs, ecc.BN254)
-		if test.ok {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			vk, err := b64.StdEncoding.DecodeString(test.vk)
 			require.NoError(t, err)
-			assert.True(t, result)
-		} else {
-			assert.Error(t, err)
-			assert.False(t, result)
-		}
+			proof, err := b64.StdEncoding.DecodeString(test.proof)
+			require.NoError(t, err)
+			inputs, err := b64.StdEncoding.DecodeString(test.inputs)
+			require.NoError(t, err)
+			result, err := Groth16Verify(vk, proof, inputs, ecc.BN254)
+			if test.ok {
+				require.NoError(t, err)
+				assert.True(t, result)
+			} else {
+				assert.Error(t, err)
+				assert.False(t, result)
+			}
+		})
 	}
 }
 

@@ -11,7 +11,7 @@ import (
 	gnarkLog "github.com/consensys/gnark/logger"
 	"github.com/pkg/errors"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12_381"
+	bls12381 "github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bls12_381"
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal/groth16/bn256"
 )
 
@@ -25,7 +25,6 @@ func init() {
 }
 
 func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve ecc.ID) (bool, error) {
-
 	var vk gnark.VerifyingKey
 	var proof gnark.Proof
 
