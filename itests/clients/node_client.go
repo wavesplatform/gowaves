@@ -155,6 +155,7 @@ func (c *NodesClients) WaitForConnectedPeers(timeout time.Duration) (error, erro
 		})
 	}()
 	go func() {
+		defer wg.Done()
 		errScala = Retry(timeout, func() error {
 			cp, _, err := c.ScalaClient.HTTPClient.ConnectedPeers()
 			if len(cp) == 0 && err == nil {
