@@ -8,13 +8,9 @@ import (
 
 	"github.com/stoewer/go-strcase"
 
+	"github.com/wavesplatform/gowaves/itests/clients"
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
-	"github.com/wavesplatform/gowaves/itests/node_client"
-)
-
-const (
-	enableScalaMining = true
 )
 
 type BaseSuite struct {
@@ -24,33 +20,40 @@ type BaseSuite struct {
 	Cancel  context.CancelFunc
 	Cfg     config.TestConfig
 	Docker  *d.Docker
-	Clients *node_client.NodesClients
-	Ports   *d.Ports
+	Clients *clients.NodesClients
 }
 
-func (suite *BaseSuite) BaseSetup(enableScalaMining bool, additionalArgsPath ...string) {
+func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
 	suiteName := strcase.KebabCase(suite.T().Name())
-	paths, cfg, err := config.CreateFileConfigs(suiteName, enableScalaMining, additionalArgsPath...)
-	suite.Require().NoError(err, "couldn't create config")
-	suite.Cfg = cfg
+	cfg, err := config.NewBlockchainConfig(options...)
+	suite.Require().NoError(err, "couldn't create blockchain config")
+	suite.Cfg = cfg.TestConfig()
+
+	goConfigurator, err := config.NewGoConfigurator(suiteName, cfg)
+	suite.Require().NoError(err, "couldn't create Go configurator")
+	scalaConfigurator, err := config.NewScalaConfigurator(suiteName, cfg)
+	suite.Require().NoError(err, "couldn't create Scala configurator")
 
 	docker, err := d.NewDocker(suiteName)
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
 
-	ports, err := docker.RunContainers(suite.MainCtx, paths, suiteName, cfg.Env.DesiredBlockReward,
-		cfg.Env.SupportedFeatures)
-	if err != nil {
+	if gsErr := docker.StartGoNode(suite.MainCtx, goConfigurator); gsErr != nil {
 		docker.Finish(suite.Cancel)
-		suite.Require().NoError(err, "couldn't run Docker containers")
+		suite.Require().NoError(gsErr, "couldn't start Go node container")
 	}
-	suite.Ports = ports
-	suite.Clients = node_client.NewNodesClients(suite.T(), ports)
+	scalaConfigurator.WithGoNode(docker.GoNode().ContainerNetworkIP())
+	if ssErr := docker.StartScalaNode(suite.MainCtx, scalaConfigurator); ssErr != nil {
+		docker.Finish(suite.Cancel)
+		suite.Require().NoError(ssErr, "couldn't start Scala node container")
+	}
+
+	suite.Clients = clients.NewNodesClients(suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
 }
 
 func (suite *BaseSuite) SetupSuite() {
-	suite.BaseSetup(enableScalaMining)
+	suite.BaseSetup(config.WithScalaMining())
 }
 
 func (suite *BaseSuite) TearDownSuite() {
@@ -59,9 +62,9 @@ func (suite *BaseSuite) TearDownSuite() {
 }
 
 func (suite *BaseSuite) SetupTest() {
-	errGo, errScala := suite.Clients.WaitForConnectedPeers(5 * time.Second)
-	suite.Require().NoError(errGo, "Go: no connected peers")
-	suite.Require().NoError(errScala, "Scala: no connected peers")
+	const waitForConnectedPeersTimeout = 5 * time.Second
+	err := suite.Clients.WaitForConnectedPeers(suite.MainCtx, waitForConnectedPeersTimeout)
+	suite.Require().NoError(err, "no connected peers or an unexpected error occurred")
 	suite.Clients.WaitForHeight(suite.T(), 2) // Wait for nodes to start mining
 	suite.Clients.SendStartMessage(suite.T())
 }

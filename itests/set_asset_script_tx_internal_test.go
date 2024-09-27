@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -39,6 +40,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -62,6 +64,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

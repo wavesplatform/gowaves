@@ -6,8 +6,9 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
+	"github.com/wavesplatform/gowaves/itests/clients"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
-	"github.com/wavesplatform/gowaves/itests/node_client"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 	"github.com/wavesplatform/gowaves/pkg/client"
@@ -154,7 +155,7 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
 	// Waiting for changing waves balance.
-	err := node_client.Retry(utl.DefaultTimeInterval, func() error {
+	err := clients.Retry(utl.DefaultTimeInterval, func() error {
 		balanceGo, balanceScala := utl.GetAvailableBalanceInWaves(suite, utl.GetAccount(suite, accNumber).Address)
 		if balanceScala == 0 && balanceGo == 0 {
 			return errors.New("account Waves balance is empty")

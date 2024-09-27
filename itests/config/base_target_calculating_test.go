@@ -1,10 +1,12 @@
 package config
 
 import (
+	"testing"
+
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"testing"
 )
 
 func TestCalculateBaseTarget(t *testing.T) {

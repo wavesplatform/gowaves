@@ -5,8 +5,9 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
-func GetRewardDistributionAfterF14Before19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDistributionAfterF14Before19TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(addresses,
 		RewardDistributionExpectedValues{
 			MinersSumDiffBalance: int64(utl.GetCurrentReward(suite, height)),
@@ -19,8 +20,9 @@ func GetRewardDistributionAfterF14Before19TestData(suite *f.BaseSuite, addresses
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
 // ("preactivated_14_supported_19_20/2miners_dao_xtn_without_f20.json")
 // NODE - 858.
-func GetRollbackBeforeF19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackBeforeF19TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -35,8 +37,9 @@ func GetRollbackBeforeF19TestData(suite *f.BaseSuite, addresses AddressesForDist
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
 // ("preactivated_14_19_20/2miners_dao_xtn_without_f20.json")
 // NODE - 859.
-func GetRollbackAfterF19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackAfterF19TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -51,8 +54,9 @@ func GetRollbackAfterF19TestData(suite *f.BaseSuite, addresses AddressesForDistr
 // 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
 // ("preactivated_14_supported_19_20/7W_2miners_dao_xtn_increase.json")
 // NODE - 860
-func GetRollbackBeforeF20TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackBeforeF20TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -66,7 +70,9 @@ func GetRollbackBeforeF20TestData(suite *f.BaseSuite, addresses AddressesForDist
 // 2 miners, dao, xtn, initR=700000000, increment = 100000000, desiredR = 900000000
 // ("preactivated_14_19_20/7W_2miners_dao_xtn_increase.json")
 // NODE - 861
-func GetRollbackAfterF20TestData(suite *f.BaseSuite, addresses AddressesForDistribution, height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackAfterF20TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -80,7 +86,9 @@ func GetRollbackAfterF20TestData(suite *f.BaseSuite, addresses AddressesForDistr
 // 2 miners,dao, xtn, initR=600000000, increment = 100000000, desiredR = 800000000
 // ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_increase.json")
 // NODE - 862.
-func GetRollbackBeforeF21TestData(suite *f.BaseSuite, addresses AddressesForDistribution, height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackBeforeF21TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -91,7 +99,9 @@ func GetRollbackBeforeF21TestData(suite *f.BaseSuite, addresses AddressesForDist
 		})
 }
 
-func GetRollbackAfterF21TestData(suite *f.BaseSuite, addresses AddressesForDistribution, height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRollbackAfterF21TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
