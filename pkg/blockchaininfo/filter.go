@@ -2,7 +2,6 @@ package blockchaininfo
 
 import (
 	"bytes"
-	"encoding/base64"
 	"encoding/binary"
 	"errors"
 	"fmt"
@@ -12,7 +11,8 @@ import (
 )
 
 var EpochKeyPrefix = "epoch_"
-var blockMetaKeyPrefix = "block_0x"
+var blockMeta0xKeyPrefix = "block_0x"
+var blockMetaKeyPrefix = "blockMeta"
 
 func removeOldEpochs(height uint64) {
 
@@ -29,23 +29,23 @@ func readInt64(data *bytes.Reader) int64 {
 }
 
 // Decode base64 and extract blockHeight and height
-func extractHeightFromBase64(metaBlockValueBytes []byte) (int64, int64, error) {
-	const base64Prefix = "base64:"
+func extractEpochFromBlockMeta(metaBlockValueBytes []byte) (int64, int64, error) {
+	//const base64Prefix = "base64:"
 
-	metaBlockValue := string(metaBlockValueBytes)
+	//metaBlockValue := string(metaBlockValueBytes)
 	// Strip the "base64:" prefix
-	if !strings.HasPrefix(metaBlockValue, base64Prefix) {
-		return 0, 0, fmt.Errorf("invalid base64 string")
-	}
+	//if !strings.HasPrefix(metaBlockValue, base64Prefix) {
+	//	return 0, 0, fmt.Errorf("invalid base64 string")
+	//}
 
 	// Decode Base64 string
-	data, err := base64.StdEncoding.DecodeString(metaBlockValue[len(base64Prefix):])
-	if err != nil {
-		return 0, 0, fmt.Errorf("failed to decode base64 string: %w", err)
-	}
+	//data, err := base64.StdEncoding.DecodeString(metaBlockValue[len(base64Prefix):])
+	//if err != nil {
+	//	return 0, 0, fmt.Errorf("failed to decode base64 string: %w", err)
+	//}
 
 	// Create a bytes reader for easier parsing
-	reader := bytes.NewReader(data)
+	reader := bytes.NewReader(metaBlockValueBytes)
 
 	// Extract blockHeight and height
 	blockHeight := readInt64(reader)
@@ -79,13 +79,31 @@ func filterDataEntries(beforeHeight uint64, dataEntries []proto.DataEntry) ([]pr
 			}
 
 		// Filter block_0x binary entries
+		case strings.HasPrefix(key, blockMeta0xKeyPrefix):
+			// Extract blockHeight and height from base64
+			binaryEntry, ok := entry.(*proto.BinaryDataEntry)
+			if !ok {
+				return nil, errors.New("failed to convert block meta key to binary data entry")
+			}
+			_, epoch, err := extractEpochFromBlockMeta(binaryEntry.Value)
+			if err != nil {
+				return nil, err
+			}
+
+			// Compare height with beforeHeight
+			if epoch > int64(beforeHeight) {
+				// Add to filtered list if height is less than beforeHeight
+				filteredDataEntries = append(filteredDataEntries, entry)
+			}
+
+			// Filter blockMeta binary entries
 		case strings.HasPrefix(key, blockMetaKeyPrefix):
 			// Extract blockHeight and height from base64
 			binaryEntry, ok := entry.(*proto.BinaryDataEntry)
 			if !ok {
 				return nil, errors.New("failed to convert block meta key to binary data entry")
 			}
-			_, epoch, err := extractHeightFromBase64(binaryEntry.Value)
+			_, epoch, err := extractEpochFromBlockMeta(binaryEntry.Value)
 			if err != nil {
 				return nil, err
 			}
@@ -101,9 +119,6 @@ func filterDataEntries(beforeHeight uint64, dataEntries []proto.DataEntry) ([]pr
 			filteredDataEntries = append(filteredDataEntries, entry)
 		}
 	}
-
-	//epoch_number, i.e. epoch_03198129
-	//
 
 	return filteredDataEntries, nil
 }

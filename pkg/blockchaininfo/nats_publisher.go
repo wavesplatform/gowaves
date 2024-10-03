@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-const StoreBlocksLimit = 2000
+const StoreBlocksLimit = 200
 const PortDefault = 4222
 const HostDefault = "127.0.0.1"
 const ConnectionsTimeoutDefault = 5 * server.AUTH_TIMEOUT
@@ -162,6 +162,12 @@ func handleBlockchainUpdates(updates BUpdatesInfo, ok bool,
 	bu.currentState = &updates
 	if bu.previousState == nil {
 		// publish initial updates
+
+		filteredDataEntries, err := filterDataEntries(*updates.BlockUpdatesInfo.Height-bu.Limit, *updates.ContractUpdatesInfo.AllDataEntries)
+		if err != nil {
+			return
+		}
+		updates.ContractUpdatesInfo.AllDataEntries = &filteredDataEntries
 		pblshErr := bu.publishUpdates(updates, nc, scheme)
 		if pblshErr != nil {
 			log.Printf("failed to publish updates, %v", pblshErr)

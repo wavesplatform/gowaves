@@ -27,7 +27,7 @@ type BUpdatesInfo struct {
 
 // TODO wrap errors.
 
-func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme) (bool, BUpdatesInfo, error) {
+func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme, heightLimit uint64) (bool, BUpdatesInfo, error) {
 	changes := BUpdatesInfo{
 		BlockUpdatesInfo:    BlockUpdatesInfo{},
 		ContractUpdatesInfo: L2ContractDataEntries{},
@@ -57,8 +57,17 @@ func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme) (b
 		changes.BlockUpdatesInfo.BlockHeader = current.BlockUpdatesInfo.BlockHeader
 	}
 
-	equalEntries, dataEntryChanges, err := compareDataEntries(*current.ContractUpdatesInfo.AllDataEntries,
-		*previous.ContractUpdatesInfo.AllDataEntries)
+	previousFilteredDataEntries, err := filterDataEntries(*previous.BlockUpdatesInfo.Height-heightLimit, *previous.ContractUpdatesInfo.AllDataEntries)
+	if err != nil {
+		return false, BUpdatesInfo{}, err
+	}
+	currentFilteredDataEntries, err := filterDataEntries(*current.BlockUpdatesInfo.Height-heightLimit, *current.ContractUpdatesInfo.AllDataEntries)
+	if err != nil {
+		return false, BUpdatesInfo{}, err
+	}
+
+	equalEntries, dataEntryChanges, err := compareDataEntries(currentFilteredDataEntries,
+		previousFilteredDataEntries)
 	if err != nil {
 		return false, BUpdatesInfo{}, err
 	}
@@ -86,12 +95,6 @@ func compareBlockHeader(a, b *proto.BlockHeader, scheme proto.Scheme) (bool, err
 
 	return bytes.Equal(blockAbytes, blockBbytes), nil
 }
-
-//func filterDataEntries(height uint64) {
-//	// epoch_number, i.e. epoch_03198129
-//
-//	// block_0xhash, i.e. block_0xee7e9ae625c8be417f239337d82ed5e577458dec8d305a35746777fd17297a03
-//}
 
 func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.DataEntry, error) {
 	currentMap := make(map[string][]byte)  // Data entries.
@@ -148,5 +151,5 @@ func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.Data
 }
 
 func statesEqual(state BUpdatesExtensionState, scheme proto.Scheme) (bool, BUpdatesInfo, error) {
-	return compareBUpdatesInfo(*state.currentState, *state.previousState, scheme)
+	return compareBUpdatesInfo(*state.currentState, *state.previousState, scheme, state.Limit)
 }
