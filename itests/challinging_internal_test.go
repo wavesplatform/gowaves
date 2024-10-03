@@ -50,12 +50,10 @@ func (s *SimpleChallengingSuite) TestSimpleChallenging() {
 
 	// Calculate state hash for the key-block. Take into account only miner's reward.
 	genesisSH := s.Cfg.GenesisSH()
-	s.T().Logf("Genesis snapshot hash: %s", genesisSH.String())
 
 	newBalance := acc.Amount + s.Cfg.BlockchainSettings.InitialBlockReward
 	sh, err := KeyBlockSH(genesisSH, acc.Address, newBalance)
 	require.NoError(s.T(), err, "failed to calculate state hash")
-	s.T().Logf("Key-block snapshot hash: %s", sh.String())
 
 	// Generate key-block
 	hs := s.Cfg.BlockchainSettings.Genesis.BlockHeader.GenSignature
@@ -83,13 +81,18 @@ func (s *SimpleChallengingSuite) TestSimpleChallenging() {
 		ts,
 	)
 
+	blockTime := time.UnixMilli(int64(ts))
+	d := blockTime.Sub(time.Now())
+	if d > 0 {
+		time.Sleep(d)
+	}
+
 	nxt := proto.NxtConsensus{BaseTarget: bt, GenSignature: gs}
 
 	err = s.Cfg.BlockchainSettings.Genesis.GenerateBlockID(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
 	require.NoError(s.T(), err, "failed to generate genesis block ID")
 
 	genesisID := s.Cfg.BlockchainSettings.Genesis.BlockID()
-	s.T().Logf("Genesis block ID: %s", genesisID.String())
 	bl, err := proto.CreateBlock(proto.Transactions(nil), ts, genesisID, acc.PublicKey,
 		nxt, proto.ProtobufBlockVersion, nil, int64(s.Cfg.BlockchainSettings.InitialBlockReward),
 		s.Cfg.BlockchainSettings.AddressSchemeCharacter, &sh)

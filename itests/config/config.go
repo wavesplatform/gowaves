@@ -1,7 +1,6 @@
 package config
 
 import (
-	"bytes"
 	"encoding/binary"
 	"encoding/json"
 	stderrs "errors"
@@ -9,7 +8,6 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
-	"sort"
 
 	"github.com/ory/dockertest/v3"
 	"github.com/pkg/errors"
@@ -64,35 +62,25 @@ func (c *TestConfig) GenesisSH() crypto.Digest {
 	hash.Sum(emptyDigest[:0])
 
 	// Create binary entries for all genesis transactions.
-	entries := make([][]byte, len(c.Accounts))
-	for i, a := range c.Accounts {
+	prevSH := emptyDigest
+	for _, a := range c.Accounts {
+		hash.Reset()
 		buf := make([]byte, proto.WavesAddressSize+8)
 		copy(buf, a.Address[:])
 		binary.BigEndian.PutUint64(buf[proto.WavesAddressSize:], a.Amount)
-		entries[i] = buf
+		hash.Write(buf)
+		var txSH crypto.Digest
+		hash.Sum(txSH[:0])
+
+		hash.Reset()
+		hash.Write(prevSH[:])
+		hash.Write(txSH[:])
+
+		var newSH crypto.Digest
+		hash.Sum(newSH[:0])
+		prevSH = newSH
 	}
-	// Sort entries in byte order.
-	sort.Slice(entries, func(i, j int) bool {
-		return bytes.Compare(entries[i], entries[j]) < 0
-	})
-
-	// Write all entries to hash.
-	hash.Reset()
-	for _, e := range entries {
-		hash.Write(e)
-	}
-	// Calculate hash of all entries.
-	var txSHD crypto.Digest
-	hash.Sum(txSHD[:0])
-
-	// Calculate hash of genesis block.
-	hash.Reset()
-	hash.Write(emptyDigest.Bytes())
-	hash.Write(txSHD.Bytes())
-
-	var r crypto.Digest
-	hash.Sum(r[:0])
-	return r
+	return prevSH
 }
 
 type DockerConfigurator interface {
