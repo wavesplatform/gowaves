@@ -94,7 +94,7 @@ func TestValidator_validateLightNodeBlockFields(t *testing.T) {
 			blockHeader: proto.BlockHeader{
 				StateHash: new(crypto.Digest),
 			},
-			error: "new block fields of light node feature are not allowed at block height 1",
+			error: "LightNode feature is not activated at height 1: new block fields of light node feature are not allowed at block height 1", //nolint:lll
 		},
 		{
 			lightNodeIsActiveAtHeight:           false,
@@ -104,7 +104,27 @@ func TestValidator_validateLightNodeBlockFields(t *testing.T) {
 			blockHeader: proto.BlockHeader{
 				ChallengedHeader: new(proto.ChallengedHeader),
 			},
-			error: "new block fields of light node feature are not allowed at block height 1",
+			error: "LightNode feature is not activated at height 1: new block fields of light node feature are not allowed at block height 1", //nolint:lll
+		},
+		{
+			lightNodeIsActiveAtHeight:           true,
+			lightNodeActivationHeight:           1,
+			lightNodeBlockFieldsAbsenceInterval: 1,
+			blockHeight:                         1,
+			blockHeader: proto.BlockHeader{
+				StateHash: new(crypto.Digest),
+			},
+			error: "for height 1 absence interval 1 is not passed yet since LightNode activation at height 1: new block fields of light node feature are not allowed at block height 1", //nolint:lll
+		},
+		{
+			lightNodeIsActiveAtHeight:           true,
+			lightNodeActivationHeight:           1,
+			lightNodeBlockFieldsAbsenceInterval: 1,
+			blockHeight:                         1,
+			blockHeader: proto.BlockHeader{
+				ChallengedHeader: new(proto.ChallengedHeader),
+			},
+			error: "for height 1 absence interval 1 is not passed yet since LightNode activation at height 1: new block fields of light node feature are not allowed at block height 1", //nolint:lll
 		},
 		{
 			lightNodeIsActiveAtHeight:           false,

@@ -1,6 +1,7 @@
 package consensus
 
 import (
+	stderrs "errors"
 	"fmt"
 
 	"github.com/mr-tron/base58"
@@ -277,18 +278,47 @@ func (cv *Validator) validateMinerAccount(block *proto.BlockHeader, blockHeight 
 	return nil
 }
 
-func (cv *Validator) validateLightNodeBlockFields(blockHeader *proto.BlockHeader, blockHeight proto.Height) error {
-	newFieldsShouldBeIncluded, err := cv.ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight)
+func (cv *Validator) enrichLightNodeBlockFieldsValidationError(origErr error, blockHeight proto.Height) error {
+	if origErr == nil {
+		return nil
+	}
+	activated, err := cv.state.NewestIsActiveAtHeight(int16(settings.LightNode), blockHeight)
 	if err != nil {
-		return errors.Wrap(err, "failed to check if new block fields should be included")
+		return stderrs.Join(origErr, errors.Wrapf(err,
+			"failed to check if LightNode feature is activated at height %d", blockHeight,
+		))
+	}
+	if !activated {
+		return errors.Wrapf(origErr, "LightNode feature is not activated at height %d", blockHeight)
+	}
+	activationHeight, err := cv.state.NewestActivationHeight(int16(settings.LightNode))
+	if err != nil {
+		return stderrs.Join(origErr, errors.Wrap(err, "failed to get activation height of LightNode feature"))
+	}
+	newBlockFieldsAllowedHeight := activationHeight + cv.settings.LightNodeBlockFieldsAbsenceInterval
+	if blockHeight < newBlockFieldsAllowedHeight {
+		return errors.Wrapf(origErr,
+			"for height %d absence interval %d is not passed yet since LightNode activation at height %d",
+			blockHeight, cv.settings.LightNodeBlockFieldsAbsenceInterval, activationHeight,
+		)
+	}
+	return origErr
+}
+
+func (cv *Validator) validateLightNodeBlockFields(blockHeader *proto.BlockHeader, blockHeight proto.Height) error {
+	newFieldsShouldBeIncluded, lnErr := cv.ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight)
+	if lnErr != nil {
+		return errors.Wrapf(lnErr, "failed to check if new block fields should be included at height %d", blockHeight)
 	}
 	_, hasStateHash := blockHeader.GetStateHash()
 	_, hasChallengedHeader := blockHeader.GetChallengedHeader()
 	if !newFieldsShouldBeIncluded && (hasStateHash || hasChallengedHeader) {
-		return errors.Errorf("new block fields of light node feature are not allowed at block height %d", blockHeight)
+		err := errors.Errorf("new block fields of light node feature are not allowed at block height %d", blockHeight)
+		return cv.enrichLightNodeBlockFieldsValidationError(err, blockHeight)
 	}
 	if newFieldsShouldBeIncluded && !hasStateHash { // don't check challenged header, because it is not required
-		return errors.Errorf("new block fields of light node feature should be included at block height %d", blockHeight)
+		err := errors.Errorf("new block fields of light node feature should be included at block height %d", blockHeight)
+		return cv.enrichLightNodeBlockFieldsValidationError(err, blockHeight)
 	}
 	return nil
 }
