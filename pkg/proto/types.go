@@ -4495,7 +4495,7 @@ func (s TransactionStatus) IsNotSucceeded() bool { return s != TransactionSuccee
 
 const (
 	txStatusSucceededJSON = "\"succeeded\""
-	txStatusFailedJSON    = "\"failed\""
+	txStatusFailedJSON    = "\"script_execution_failed\""
 	txStatusElidedJSON    = "\"elided\""
 )
 

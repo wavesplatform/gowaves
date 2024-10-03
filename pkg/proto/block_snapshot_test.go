@@ -154,7 +154,7 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
     ]
   },
   {
-    "applicationStatus": "failed",
+    "applicationStatus": "script_execution_failed",
     "balances": [
       {
         "address": "3NA26AC1aLjj6uYnuoTahauhUPPPB3VBPUe",
