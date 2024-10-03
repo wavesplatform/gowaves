@@ -2,6 +2,7 @@ package main
 
 import (
 	"encoding/json"
+	"fmt"
 	"sort"
 	"strconv"
 	"strings"
@@ -32,6 +33,16 @@ type txSnapshotJSON struct {
 	OrderFills                proto.NonNullableSlice[proto.FilledVolumeFeeSnapshot]  `json:"orderFills"`
 	AccountScripts            proto.NonNullableSlice[proto.AccountScriptSnapshot]    `json:"accountScripts"`
 	AccountData               proto.NonNullableSlice[proto.DataEntriesSnapshot]      `json:"accountData"`
+}
+
+func (s *txSnapshotJSON) UnmarshalJSON(data []byte) error {
+	type alias txSnapshotJSON
+	var a alias
+	if err := json.Unmarshal(data, &a); err != nil {
+		return fmt.Errorf("failed to unmarshal txSnapshotJSON '%s': %w", string(data), err)
+	}
+	*s = txSnapshotJSON(a)
+	return nil
 }
 
 func (s *txSnapshotJSON) sortFields() {

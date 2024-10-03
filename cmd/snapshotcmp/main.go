@@ -201,7 +201,7 @@ func readSnapshotsPack(cl *http.Client, baseURL string, txIDsForRequest []string
 	}
 	var snapshots []txSnapshotJSON
 	if jsErr := json.NewDecoder(resp.Body).Decode(&snapshots); jsErr != nil {
-		return nil, fmt.Errorf("failed to decode JSON: %w", jsErr)
+		return nil, fmt.Errorf("failed to decode JSON by '%s': %w", string(jsonData), jsErr)
 	}
 	return snapshots, nil
 }
