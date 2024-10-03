@@ -17,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type SimpleChallengingSuite struct {
@@ -24,7 +25,11 @@ type SimpleChallengingSuite struct {
 }
 
 func (s *SimpleChallengingSuite) SetupSuite() {
-	s.BaseSetup(config.WithNoGoMining())
+	s.BaseSetup(
+		config.WithNoGoMining(),
+		config.WithPreactivatedFeatures([]config.FeatureInfo{{Feature: int16(settings.LightNode), Height: 1}}),
+		config.WithAbsencePeriod(1),
+	)
 }
 
 func (s *SimpleChallengingSuite) TestSimpleChallenging() {

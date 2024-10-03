@@ -53,3 +53,19 @@ func WithNoGoMining() BlockchainOption {
 		return nil
 	}
 }
+
+func WithPreactivatedFeatures(features []FeatureInfo) BlockchainOption {
+	return func(cfg *BlockchainConfig) error {
+		if ftErr := cfg.UpdatePreactivatedFeatures(features); ftErr != nil {
+			return errors.Wrap(ftErr, "failed to modify preactivated features")
+		}
+		return nil
+	}
+}
+
+func WithAbsencePeriod(period int) BlockchainOption {
+	return func(cfg *BlockchainConfig) error {
+		cfg.Settings.LightNodeBlockFieldsAbsenceInterval = uint64(period)
+		return nil
+	}
+}
