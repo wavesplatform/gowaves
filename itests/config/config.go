@@ -1,16 +1,21 @@
 package config
 
 import (
+	"bytes"
+	"encoding/binary"
 	"encoding/json"
 	stderrs "errors"
 	"fmt"
 	"html/template"
 	"os"
 	"path/filepath"
+	"sort"
 
 	"github.com/ory/dockertest/v3"
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -38,6 +43,56 @@ const (
 type TestConfig struct {
 	Accounts           []AccountInfo
 	BlockchainSettings *settings.BlockchainSettings
+}
+
+func (c *TestConfig) GetRichestAccount() AccountInfo {
+	r := c.Accounts[0]
+	for _, a := range c.Accounts {
+		if a.Amount > r.Amount {
+			r = a
+		}
+	}
+	return r
+}
+
+func (c *TestConfig) GenesisSH() crypto.Digest {
+	hash, err := crypto.NewFastHash()
+	if err != nil {
+		panic(err)
+	}
+	var emptyDigest crypto.Digest
+	hash.Sum(emptyDigest[:0])
+
+	// Create binary entries for all genesis transactions.
+	entries := make([][]byte, len(c.Accounts))
+	for i, a := range c.Accounts {
+		buf := make([]byte, proto.WavesAddressSize+8)
+		copy(buf, a.Address[:])
+		binary.BigEndian.PutUint64(buf[proto.WavesAddressSize:], a.Amount)
+		entries[i] = buf
+	}
+	// Sort entries in byte order.
+	sort.Slice(entries, func(i, j int) bool {
+		return bytes.Compare(entries[i], entries[j]) < 0
+	})
+
+	// Write all entries to hash.
+	hash.Reset()
+	for _, e := range entries {
+		hash.Write(e)
+	}
+	// Calculate hash of all entries.
+	var txSHD crypto.Digest
+	hash.Sum(txSHD[:0])
+
+	// Calculate hash of genesis block.
+	hash.Reset()
+	hash.Write(emptyDigest.Bytes())
+	hash.Write(txSHD.Bytes())
+
+	var r crypto.Digest
+	hash.Sum(r[:0])
+	return r
 }
 
 type DockerConfigurator interface {
