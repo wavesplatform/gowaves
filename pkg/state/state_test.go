@@ -469,62 +469,61 @@ type timeMock struct{}
 
 func (timeMock) Now() time.Time { return time.Now().UTC() }
 
-func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
-	createMockStateManager := func(t *testing.T, bs *settings.BlockchainSettings) (*stateManager, *testStorageObjects) {
-		const (
-			handleAmend               = true
-			calculateHashes           = true
-			enableLightNode           = false
-			verificationGoroutinesNum = 2
-			provideExtendedAPI        = true
-		)
-		toOpts := testStorageObjectsOptions{Amend: handleAmend, Settings: bs}
-		to := createStorageObjectsWithOptions(t, toOpts)
+func createMockStateManager(t *testing.T, bs *settings.BlockchainSettings) (*stateManager, *testStorageObjects) {
+	const (
+		handleAmend               = true
+		calculateHashes           = false
+		enableLightNode           = false
+		verificationGoroutinesNum = 2
+		provideExtendedAPI        = true
+	)
+	toOpts := testStorageObjectsOptions{Amend: handleAmend, Settings: bs, CalculateHashes: calculateHashes}
+	to := createStorageObjectsWithOptions(t, toOpts)
+	stor := to.entities
 
-		stor, err := newBlockchainEntitiesStorage(to.hs, to.settings, to.rw, calculateHashes)
-		require.NoError(t, err, "newBlockchainEntitiesStorage() failed")
-
-		blockStorageDir := t.TempDir()
-		atxParams := &addressTransactionsParams{
-			dir:                 blockStorageDir,
-			batchedStorMemLimit: proto.KiB,
-			batchedStorMaxKeys:  AddressTransactionsMaxKeys,
-			maxFileSize:         2 * proto.KiB,
-			providesData:        provideExtendedAPI,
-		}
-		atx, err := newAddressTransactions(to.db, to.stateDB, to.rw, atxParams, handleAmend)
-		require.NoError(t, err, "newAddressTransactions() failed")
-
-		state := &stateManager{
-			mu:                        new(sync.RWMutex),
-			lastBlock:                 atomic.Value{},
-			genesis:                   new(proto.Block), // stub
-			stateDB:                   to.stateDB,
-			stor:                      stor,
-			rw:                        to.rw,
-			settings:                  to.settings,
-			cv:                        nil, // filled in later
-			appender:                  nil, // filled in later
-			atx:                       atx,
-			verificationGoroutinesNum: verificationGoroutinesNum,
-			newBlocks:                 newNewBlocks(to.rw, to.settings),
-			enableLightNode:           enableLightNode,
-		}
-		snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, to.rw))
-		appender, err := newTxAppender(
-			state,
-			state.rw,
-			state.stor,
-			state.settings,
-			state.stateDB,
-			state.atx,
-			&snapshotApplier,
-		)
-		require.NoError(t, err, "newTxAppender() failed")
-		state.appender = appender
-		state.cv = consensus.NewValidator(state, state.settings, timeMock{})
-		return state, to
+	blockStorageDir := t.TempDir()
+	atxParams := &addressTransactionsParams{
+		dir:                 blockStorageDir,
+		batchedStorMemLimit: proto.KiB,
+		batchedStorMaxKeys:  AddressTransactionsMaxKeys,
+		maxFileSize:         2 * proto.KiB,
+		providesData:        provideExtendedAPI,
 	}
+	atx, err := newAddressTransactions(to.db, to.stateDB, to.rw, atxParams, handleAmend)
+	require.NoError(t, err, "newAddressTransactions() failed")
+
+	state := &stateManager{
+		mu:                        new(sync.RWMutex),
+		lastBlock:                 atomic.Value{},
+		genesis:                   new(proto.Block), // stub
+		stateDB:                   to.stateDB,
+		stor:                      stor,
+		rw:                        to.rw,
+		settings:                  to.settings,
+		cv:                        nil, // filled in later
+		appender:                  nil, // filled in later
+		atx:                       atx,
+		verificationGoroutinesNum: verificationGoroutinesNum,
+		newBlocks:                 newNewBlocks(to.rw, to.settings),
+		enableLightNode:           enableLightNode,
+	}
+	snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, to.rw))
+	appender, err := newTxAppender(
+		state,
+		state.rw,
+		state.stor,
+		state.settings,
+		state.stateDB,
+		state.atx,
+		&snapshotApplier,
+	)
+	require.NoError(t, err, "newTxAppender() failed")
+	state.appender = appender
+	state.cv = consensus.NewValidator(state, state.settings, timeMock{})
+	return state, to
+}
+
+func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 	const (
 		initialBalance = 100
 		changedBalance = 200
@@ -538,17 +537,13 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 
 		// add initial balance at first block
 		testObj.addBlock(t, blockID0)
-		initialBP := newWavesValueFromProfile(balanceProfile{initialBalance, 0, 0})
-		err := state.stor.balances.setWavesBalance(addr.ID(), initialBP, blockID0) // height 1
-		require.NoError(t, err, "setWavesBalance() failed")
+		testObj.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0}, blockID0) // height 1
 		// add changed balance at second block
 		testObj.addBlock(t, blockID1)
-		changedBP := newWavesValueFromProfile(balanceProfile{changedBalance, 0, 0})
-		err = state.stor.balances.setWavesBalance(addr.ID(), changedBP, blockID1) // height 2
-		require.NoError(t, err, "setWavesBalance() failed")
-
-		testObj.addBlocks(t, blocksToApply-2) // add 998 random blocks, 2 blocks have already been added
-
+		testObj.setWavesBalance(t, addr, balanceProfile{changedBalance, 0, 0}, blockID1) // height 2
+		// add 998 random blocks, 2 blocks have already been added
+		testObj.addBlocks(t, blocksToApply-2)
+		// check blockchain height
 		nh, err := state.NewestHeight()
 		require.NoError(t, err, "NewestHeight() failed")
 		require.Equal(t, uint64(blocksToApply), nh) // sanity check, blockchain height should be 1000

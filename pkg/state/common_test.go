@@ -357,8 +357,9 @@ func createStorageObjects(t *testing.T, amend bool) *testStorageObjects {
 }
 
 type testStorageObjectsOptions struct {
-	Amend    bool
-	Settings *settings.BlockchainSettings
+	Amend           bool
+	Settings        *settings.BlockchainSettings
+	CalculateHashes bool
 }
 
 func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOptions) *testStorageObjects {
@@ -388,7 +389,7 @@ func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOpt
 	hs, err := newHistoryStorage(db, dbBatch, stateDB, options.Amend)
 	require.NoError(t, err)
 
-	entities, err := newBlockchainEntitiesStorage(hs, options.Settings, rw, false)
+	entities, err := newBlockchainEntitiesStorage(hs, options.Settings, rw, options.CalculateHashes)
 	require.NoError(t, err)
 
 	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, options.Settings, entities}
@@ -502,6 +503,17 @@ func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Diges
 	err := s.entities.scriptsStorage.setAssetScript(assetID, testGlobal.scriptBytes, blockID0)
 	assert.NoError(t, err, "setAssetScript failed")
 	s.flush(t)
+}
+
+func (s *testStorageObjects) setWavesBalance(
+	t *testing.T,
+	addr proto.WavesAddress,
+	bp balanceProfile,
+	blockID proto.BlockID,
+) {
+	wb := newWavesValueFromProfile(bp)
+	err := s.entities.balances.setWavesBalance(addr.ID(), wb, blockID)
+	assert.NoError(t, err, "setWavesBalance() failed")
 }
 
 func storeScriptByAddress(
