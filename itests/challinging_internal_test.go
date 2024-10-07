@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"github.com/stretchr/testify/suite"
 
@@ -48,64 +49,30 @@ func (s *SimpleChallengingSuite) TestSimpleChallenging() {
 
 	acc := s.Cfg.GetRichestAccount()
 
+	// Initialize genesis block ID.
+	err = s.Cfg.BlockchainSettings.Genesis.GenerateBlockID(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
+	require.NoError(s.T(), err, "failed to generate genesis block ID")
+	genesisID := s.Cfg.BlockchainSettings.Genesis.BlockID()
+
 	// Calculate state hash for the key-block. Take into account only miner's reward.
 	genesisSH := s.Cfg.GenesisSH()
 
+	// Calculate new balance of the richest account (block generator).
 	newBalance := acc.Amount + s.Cfg.BlockchainSettings.InitialBlockReward
-	sh, err := KeyBlockSH(genesisSH, acc.Address, newBalance)
+
+	// Calculate state hash for the key-block.
+	sh, err := keyBlockSH(genesisSH, acc.Address, newBalance)
 	require.NoError(s.T(), err, "failed to calculate state hash")
 
 	// Generate key-block
-	hs := s.Cfg.BlockchainSettings.Genesis.BlockHeader.GenSignature
-	gsp := consensus.VRFGenerationSignatureProvider
-	pos := consensus.NewFairPosCalculator(s.Cfg.BlockchainSettings.DelayDelta, s.Cfg.BlockchainSettings.MinBlockTime)
-	gs, err := gsp.GenerationSignature(acc.SecretKey, hs)
-	require.NoError(s.T(), err, "failed to generate generation signature")
-
-	source, err := gsp.HitSource(acc.SecretKey, hs)
-	require.NoError(s.T(), err, "failed to generate hit source")
-
-	hit, err := consensus.GenHit(source)
-	require.NoError(s.T(), err, "failed to generate hit from source")
-
-	delay, err := pos.CalculateDelay(hit, s.Cfg.BlockchainSettings.Genesis.BaseTarget, acc.Amount)
-	require.NoError(s.T(), err, "failed to calculate delay")
-
-	ts := s.Cfg.BlockchainSettings.Genesis.Timestamp + delay
-	bt, err := pos.CalculateBaseTarget(
-		s.Cfg.BlockchainSettings.AverageBlockDelaySeconds,
-		1,
-		s.Cfg.BlockchainSettings.Genesis.BaseTarget,
-		s.Cfg.BlockchainSettings.Genesis.Timestamp,
-		0, // Zero for heights less than 2.
-		ts,
-	)
-
-	blockTime := time.UnixMilli(int64(ts))
-	d := blockTime.Sub(time.Now())
-	if d > 0 {
-		time.Sleep(d)
+	bl, delay := createKeyBlock(s.T(), s.Cfg.BlockchainSettings.Genesis.GenSignature, s.Cfg.BlockchainSettings,
+		acc.SecretKey, acc.PublicKey, newBalance, genesisID, s.Cfg.BlockchainSettings.Genesis.Timestamp,
+		s.Cfg.BlockchainSettings.Genesis.BaseTarget, sh)
+	if delay > 0 {
+		time.Sleep(delay)
 	}
 
-	nxt := proto.NxtConsensus{BaseTarget: bt, GenSignature: gs}
-
-	err = s.Cfg.BlockchainSettings.Genesis.GenerateBlockID(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
-	require.NoError(s.T(), err, "failed to generate genesis block ID")
-
-	genesisID := s.Cfg.BlockchainSettings.Genesis.BlockID()
-	bl, err := proto.CreateBlock(proto.Transactions(nil), ts, genesisID, acc.PublicKey,
-		nxt, proto.ProtobufBlockVersion, nil, int64(s.Cfg.BlockchainSettings.InitialBlockReward),
-		s.Cfg.BlockchainSettings.AddressSchemeCharacter, &sh)
-	require.NoError(s.T(), err, "failed to create block")
-
-	// Sign the block and generate its ID.
-	err = bl.Sign(s.Cfg.BlockchainSettings.AddressSchemeCharacter, acc.SecretKey)
-	require.NoError(s.T(), err, "failed to sing the block")
-
-	err = bl.GenerateBlockID(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
-	require.NoError(s.T(), err, "failed to generate block ID")
-
-	// Calculate score.
+	// Calculate new score and send score to the node.
 	genesisScore := calculateScore(s.Cfg.BlockchainSettings.Genesis.BaseTarget)
 	blockScore := calculateCumulativeScore(genesisScore, bl.BaseTarget)
 	scoreMsg := &proto.ScoreMessage{Score: blockScore.Bytes()}
@@ -125,7 +92,38 @@ func (s *SimpleChallengingSuite) TestSimpleChallenging() {
 	blMsg := &proto.PBBlockMessage{PBBlockBytes: bb}
 	err = conn.SendMessage(blMsg)
 	require.NoError(s.T(), err, "failed to send block to node")
-	time.Sleep(10 * time.Second)
+
+	// Wait for 2.5 seconds and send mb-block.
+	time.Sleep(2500 * time.Millisecond)
+
+	// Add transactions to block.
+	tx := proto.NewUnsignedTransferWithProofs(3, acc.PublicKey,
+		proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(), uint64(time.Now().UnixMilli()), 1_0000_0000,
+		100_000, proto.NewRecipientFromAddress(acc.Address), nil)
+	err = tx.Sign(s.Cfg.BlockchainSettings.AddressSchemeCharacter, acc.SecretKey)
+	require.NoError(s.T(), err, "failed to sign tx")
+
+	// Create micro-block with the transaction and unchanged state hash.
+	mb, inv := createMicroBlockAndInv(s.T(), *bl, s.Cfg.BlockchainSettings, tx, acc.SecretKey, acc.PublicKey, sh)
+
+	ib, err := inv.MarshalBinary()
+	require.NoError(s.T(), err, "failed to marshal inv")
+
+	invMsg := &proto.MicroBlockInvMessage{Body: ib}
+	time.Sleep(100 * time.Millisecond)
+	err = conn.SendMessage(invMsg)
+	require.NoError(s.T(), err, "failed to send inv to node")
+
+	time.Sleep(100 * time.Millisecond)
+	mbb, err := mb.MarshalToProtobuf(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
+	require.NoError(s.T(), err, "failed to marshal micro block")
+	mbMsg := &proto.PBMicroBlockMessage{MicroBlockBytes: mbb}
+	err = conn.SendMessage(mbMsg)
+	require.NoError(s.T(), err, "failed to send micro block to node")
+
+	h := s.Client.HTTPClient.GetHeight(s.T())
+	header := s.Client.HTTPClient.BlockHeader(s.T(), h.Height)
+	assert.Equal(s.T(), bl.BlockID().String(), header.ID.String())
 }
 
 func TestSimpleChallengingSuite(t *testing.T) {
@@ -133,7 +131,7 @@ func TestSimpleChallengingSuite(t *testing.T) {
 	suite.Run(t, new(SimpleChallengingSuite))
 }
 
-func KeyBlockSH(prevSH crypto.Digest, miner proto.WavesAddress, balance uint64) (crypto.Digest, error) {
+func keyBlockSH(prevSH crypto.Digest, miner proto.WavesAddress, balance uint64) (crypto.Digest, error) {
 	hash, err := crypto.NewFastHash()
 	if err != nil {
 		return crypto.Digest{}, errors.Wrap(err, "failed to calculate key block snapshot hash")
@@ -156,9 +154,83 @@ func KeyBlockSH(prevSH crypto.Digest, miner proto.WavesAddress, balance uint64) 
 	return r, nil
 }
 
-const decimalBase = 10
+func createKeyBlock(t *testing.T, hitSource []byte, cfg *settings.BlockchainSettings,
+	generatorSK crypto.SecretKey, generatorPK crypto.PublicKey, generatorBalance uint64,
+	parentID proto.BlockID, parentTimestamp uint64, parentBaseTarget uint64,
+	sh crypto.Digest,
+) (*proto.Block, time.Duration) {
+	gsp := consensus.VRFGenerationSignatureProvider
+	pos := consensus.NewFairPosCalculator(cfg.DelayDelta, cfg.MinBlockTime)
+	gs, err := gsp.GenerationSignature(generatorSK, hitSource)
+	require.NoError(t, err, "failed to generate generation signature")
+
+	source, err := gsp.HitSource(generatorSK, hitSource)
+	require.NoError(t, err, "failed to generate hit source")
+
+	hit, err := consensus.GenHit(source)
+	require.NoError(t, err, "failed to generate hit from source")
+
+	delay, err := pos.CalculateDelay(hit, parentBaseTarget, generatorBalance)
+	require.NoError(t, err, "failed to calculate delay")
+
+	ts := parentTimestamp + delay
+	bt, err := pos.CalculateBaseTarget(cfg.AverageBlockDelaySeconds, 1, parentBaseTarget, parentTimestamp, 0, ts)
+	require.NoError(t, err, "failed to calculate base target")
+
+	blockDelay := time.UnixMilli(int64(ts)).Sub(time.Now())
+
+	nxt := proto.NxtConsensus{BaseTarget: bt, GenSignature: gs}
+
+	bl, err := proto.CreateBlock(proto.Transactions(nil), ts, parentID, generatorPK, nxt, proto.ProtobufBlockVersion,
+		nil, int64(cfg.InitialBlockReward), cfg.AddressSchemeCharacter, &sh)
+	require.NoError(t, err, "failed to create block")
+
+	// Sign the block and generate its ID.
+	err = bl.Sign(cfg.AddressSchemeCharacter, generatorSK)
+	require.NoError(t, err, "failed to sing the block")
+
+	err = bl.GenerateBlockID(cfg.AddressSchemeCharacter)
+	require.NoError(t, err, "failed to generate block ID")
+
+	return bl, blockDelay
+}
+
+func createMicroBlockAndInv(t *testing.T, b proto.Block, cfg *settings.BlockchainSettings, tx proto.Transaction,
+	generatorSK crypto.SecretKey, generatorPK crypto.PublicKey, sh crypto.Digest,
+) (*proto.MicroBlock, *proto.MicroBlockInv) {
+	b.Transactions = []proto.Transaction{tx}
+	b.TransactionCount = len(b.Transactions)
+	err := b.SetTransactionsRootIfPossible(cfg.AddressSchemeCharacter)
+	require.NoError(t, err, "failed to set transactions root")
+	err = b.Sign(cfg.AddressSchemeCharacter, generatorSK)
+	require.NoError(t, err, "failed to sign block")
+	err = b.GenerateBlockID(cfg.AddressSchemeCharacter)
+	require.NoError(t, err, "failed to generate block ID")
+
+	mb := &proto.MicroBlock{
+		VersionField:          byte(b.Version),
+		SenderPK:              generatorPK,
+		Transactions:          b.Transactions,
+		TransactionCount:      uint32(b.TransactionCount),
+		Reference:             b.ID,
+		TotalResBlockSigField: b.BlockSignature,
+		TotalBlockID:          b.BlockID(),
+		StateHash:             &sh,
+	}
+
+	err = mb.Sign(cfg.AddressSchemeCharacter, generatorSK)
+	require.NoError(t, err, "failed to sign mb block")
+
+	inv := proto.NewUnsignedMicroblockInv(generatorPK, mb.TotalBlockID, mb.Reference)
+	err = inv.Sign(generatorSK, cfg.AddressSchemeCharacter)
+	require.NoError(t, err, "failed to sign inv")
+
+	return mb, inv
+}
 
 func calculateScore(baseTarget uint64) *big.Int {
+	const decimalBase = 10
+
 	res := big.NewInt(0)
 	if baseTarget == 0 {
 		return res
