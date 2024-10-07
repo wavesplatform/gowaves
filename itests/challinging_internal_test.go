@@ -177,8 +177,6 @@ func createKeyBlock(t *testing.T, hitSource []byte, cfg *settings.BlockchainSett
 	bt, err := pos.CalculateBaseTarget(cfg.AverageBlockDelaySeconds, 1, parentBaseTarget, parentTimestamp, 0, ts)
 	require.NoError(t, err, "failed to calculate base target")
 
-	blockDelay := time.UnixMilli(int64(ts)).Sub(time.Now())
-
 	nxt := proto.NxtConsensus{BaseTarget: bt, GenSignature: gs}
 
 	bl, err := proto.CreateBlock(proto.Transactions(nil), ts, parentID, generatorPK, nxt, proto.ProtobufBlockVersion,
@@ -192,7 +190,7 @@ func createKeyBlock(t *testing.T, hitSource []byte, cfg *settings.BlockchainSett
 	err = bl.GenerateBlockID(cfg.AddressSchemeCharacter)
 	require.NoError(t, err, "failed to generate block ID")
 
-	return bl, blockDelay
+	return bl, time.Until(time.UnixMilli(int64(ts)))
 }
 
 func createMicroBlockAndInv(t *testing.T, b proto.Block, cfg *settings.BlockchainSettings, tx proto.Transaction,

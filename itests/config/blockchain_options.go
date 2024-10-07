@@ -63,9 +63,9 @@ func WithPreactivatedFeatures(features []FeatureInfo) BlockchainOption {
 	}
 }
 
-func WithAbsencePeriod(period int) BlockchainOption {
+func WithAbsencePeriod(period uint64) BlockchainOption {
 	return func(cfg *BlockchainConfig) error {
-		cfg.Settings.LightNodeBlockFieldsAbsenceInterval = uint64(period)
+		cfg.Settings.LightNodeBlockFieldsAbsenceInterval = period
 		return nil
 	}
 }

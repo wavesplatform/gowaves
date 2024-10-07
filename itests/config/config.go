@@ -54,6 +54,8 @@ func (c *TestConfig) GetRichestAccount() AccountInfo {
 }
 
 func (c *TestConfig) GenesisSH() crypto.Digest {
+	const uint64Size = 8
+
 	hash, err := crypto.NewFastHash()
 	if err != nil {
 		panic(err)
@@ -65,7 +67,7 @@ func (c *TestConfig) GenesisSH() crypto.Digest {
 	prevSH := emptyDigest
 	for _, a := range c.Accounts {
 		hash.Reset()
-		buf := make([]byte, proto.WavesAddressSize+8)
+		buf := make([]byte, proto.WavesAddressSize+uint64Size)
 		copy(buf, a.Address[:])
 		binary.BigEndian.PutUint64(buf[proto.WavesAddressSize:], a.Amount)
 		hash.Write(buf)
