@@ -21,11 +21,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
-type SimpleChallengingSuite struct {
+type SimpleSnapshotSuite struct {
 	fixtures.SingleGoNodeSuite
 }
 
-func (s *SimpleChallengingSuite) SetupSuite() {
+func (s *SimpleSnapshotSuite) SetupSuite() {
 	s.BaseSetup(
 		config.WithNoGoMining(),
 		config.WithPreactivatedFeatures([]config.FeatureInfo{{Feature: int16(settings.LightNode), Height: 1}}),
@@ -33,7 +33,7 @@ func (s *SimpleChallengingSuite) SetupSuite() {
 	)
 }
 
-func (s *SimpleChallengingSuite) TestSimpleChallenging() {
+func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	conn, err := net.NewConnection(
 		proto.TCPAddr{},
 		config.DefaultIP+":"+s.Docker.GoNode().Ports().BindPort,
@@ -126,9 +126,9 @@ func (s *SimpleChallengingSuite) TestSimpleChallenging() {
 	assert.Equal(s.T(), bl.BlockID().String(), header.ID.String())
 }
 
-func TestSimpleChallengingSuite(t *testing.T) {
+func TestSimpleSnapshotSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SimpleChallengingSuite))
+	suite.Run(t, new(SimpleSnapshotSuite))
 }
 
 func keyBlockSH(prevSH crypto.Digest, miner proto.WavesAddress, balance uint64) (crypto.Digest, error) {
