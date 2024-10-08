@@ -61,21 +61,19 @@ func (ra *RewardAddresses) AddressesAfter21() []proto.WavesAddress {
 	return []proto.WavesAddress{}
 }
 
-// BlockchainOption is a function type that allows to set additional parameters to BlockchainConfig.
-type BlockchainOption func(*BlockchainConfig) error
-
 // BlockchainConfig is a struct that contains settings for blockchain.
 // This configuration is used both for building Scala and Go configuration files.
 // Also, it's used to produce a Docker container run configurations for both nodes.
 type BlockchainConfig struct {
-	accounts      []AccountInfo
-	supported     []int16
-	desiredReward uint64
+	accounts           []AccountInfo
+	supported          []int16
+	desiredReward      uint64
+	disableGoMining    bool
+	disableScalaMining bool
 
-	Settings          *settings.BlockchainSettings
-	Features          []FeatureInfo
-	RewardAddresses   RewardAddresses
-	EnableScalaMining bool
+	Settings        *settings.BlockchainSettings
+	Features        []FeatureInfo
+	RewardAddresses RewardAddresses
 }
 
 func NewBlockchainConfig(options ...BlockchainOption) (*BlockchainConfig, error) {
@@ -174,44 +172,15 @@ func (c *BlockchainConfig) TestConfig() TestConfig {
 	}
 }
 
-// WithRewardSettingFromFile is a BlockchainOption that allows to set reward settings from configuration file.
-// Reward settings configuration file is a JSON file with the structure of `rewardSettings`.
-func WithRewardSettingFromFile(dir, file string) BlockchainOption {
-	return func(cfg *BlockchainConfig) error {
-		rs, err := NewRewardSettingsFromFile(dir, file)
-		if err != nil {
-			return errors.Wrap(err, "failed to modify reward settings")
-		}
-		cfg.Settings.InitialBlockReward = rs.InitialBlockReward
-		cfg.Settings.BlockRewardIncrement = rs.BlockRewardIncrement
-		cfg.Settings.BlockRewardVotingPeriod = rs.BlockRewardVotingPeriod
-		cfg.Settings.BlockRewardTermAfter20 = rs.BlockRewardTermAfter20
-		cfg.Settings.BlockRewardTerm = rs.BlockRewardTerm
-		cfg.Settings.MinXTNBuyBackPeriod = rs.MinXTNBuyBackPeriod
-
-		ras, err := NewRewardAddresses(rs.DaoAddress, rs.XtnBuybackAddress)
-		if err != nil {
-			return errors.Wrap(err, "failed to modify reward settings")
-		}
-		cfg.RewardAddresses = ras
-		cfg.Settings.RewardAddresses = ras.Addresses()
-		cfg.Settings.RewardAddressesAfter21 = ras.AddressesAfter21()
-
-		cfg.supported = rs.SupportedFeatures
-		cfg.desiredReward = rs.DesiredBlockReward
-
-		if ftErr := cfg.UpdatePreactivatedFeatures(rs.PreactivatedFeatures); ftErr != nil {
-			return errors.Wrap(ftErr, "failed to modify preactivated features")
-		}
-		return nil
-	}
+func (c *BlockchainConfig) DisableGoMiningString() string {
+	return strconv.FormatBool(c.disableGoMining)
 }
 
-func WithScalaMining() BlockchainOption {
-	return func(cfg *BlockchainConfig) error {
-		cfg.EnableScalaMining = true
-		return nil
+func (c *BlockchainConfig) DisableScalaMiningString() string {
+	if c.disableScalaMining {
+		return "no"
 	}
+	return "yes"
 }
 
 func safeNow() uint64 {
