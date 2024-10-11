@@ -408,10 +408,13 @@ func (a *scriptCaller) invokeFunctionByEthereumTx(
 	}
 	// Since V5 we have to create environment with wrapped state to which we put attached payments
 	if tree.LibVersion >= ast.LibV5 {
+		const checkSenderBalance = false // skip initial payments validation for eth tx, see PR #965 for more info
 		//TODO: Update last argument of the followinxg call with new feature activation flag or
 		// something else depending on NODE-2531 issue resolution in scala implementation.
 		isPbTx := proto.IsProtobufTx(tx)
-		env, err = ride.NewEnvironmentWithWrappedState(env, a.state, scriptPayments, sender, isPbTx, tree.LibVersion, false)
+		env, err = ride.NewEnvironmentWithWrappedState(env, a.state, scriptPayments, sender,
+			isPbTx, tree.LibVersion, checkSenderBalance,
+		)
 		if err != nil {
 			return nil, proto.FunctionCall{}, errors.Wrap(err, "failed to create RIDE environment with wrapped state")
 		}
