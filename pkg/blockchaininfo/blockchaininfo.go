@@ -122,15 +122,3 @@ func filterDataEntries(beforeHeight uint64, dataEntries []proto.DataEntry) ([]pr
 
 	return filteredDataEntries, nil
 }
-
-//block_0xhash, i.e. block_0xee7e9ae625c8be417f239337d82ed5e577458dec8d305a35746777fd17297a03
-
-//func mkBlockMetaEntry(
-//	blockHashHex: String, blockHeight: Int, blockParentHex: String, blockGenerator: Address, chainId: Int,
-//	elToClTransfersRootHashHex: String, lastClToElTransferIndex: Int
-//) = {
-//let blockMetaBytes = blockHeight.toBytes() + height.toBytes() + blockParentHex.fromBase16String() + blockGenerator.bytes +
-//chainId.toBytes() + elToClTransfersRootHashHex.fromBase16String() + lastClToElTransferIndex.toBytes()
-//
-//BinaryEntry(blockMetaK + blockHashHex, blockMetaBytes)
-//}

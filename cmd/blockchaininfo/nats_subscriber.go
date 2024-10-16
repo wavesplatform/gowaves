@@ -3,10 +3,14 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"flag"
+	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"log"
 	"os"
 	"os/signal"
 	"strconv"
+	"strings"
 	"syscall"
 
 	"github.com/nats-io/nats.go"
@@ -65,57 +69,76 @@ func receiveBlockUpdates(msg *nats.Msg) {
 }
 
 func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Scheme, path string) []byte {
-	log.Printf("Received on %s:\n", msg.Subject)
-	if msg.Data[0] == blockchaininfo.NoPaging {
+	zap.S().Infof("Received on %s:\n", msg.Subject)
+
+	switch msg.Data[0] {
+	case blockchaininfo.NoPaging:
 		contractMsg = msg.Data[1:]
 		contractUpdatesInfo := new(g.L2ContractDataEntries)
-		unmrshlErr := contractUpdatesInfo.UnmarshalVT(contractMsg)
-		if unmrshlErr != nil {
-			log.Printf("failed to unmarshal contract updates, %v", unmrshlErr)
+		if err := contractUpdatesInfo.UnmarshalVT(contractMsg); err != nil {
+			log.Printf("Failed to unmarshal contract updates: %v", err)
 			return contractMsg
 		}
-		err := printContractInfo(contractUpdatesInfo, scheme, path)
-		if err != nil {
+		if err := printContractInfo(contractUpdatesInfo, scheme, path); err != nil {
+			log.Printf("Failed to print contract info: %v", err)
 			return contractMsg
 		}
 		contractMsg = nil
-		return contractMsg
-	}
 
-	if msg.Data[0] == blockchaininfo.StartPaging {
+	case blockchaininfo.StartPaging:
 		contractMsg = append(contractMsg, msg.Data[1:]...)
-	}
 
-	if msg.Data[0] == blockchaininfo.EndPaging && contractMsg != nil {
-		contractMsg = append(contractMsg, msg.Data[1:]...)
-		contractUpdatesInfo := new(g.L2ContractDataEntries)
-		unmrshlErr := contractUpdatesInfo.UnmarshalVT(contractMsg)
-		if unmrshlErr != nil {
-			log.Printf("failed to unmarshal contract updates, %v", unmrshlErr)
-			return contractMsg
-		}
-
-		go func() {
-			prntErr := printContractInfo(contractUpdatesInfo, scheme, path)
-			if prntErr != nil {
-				log.Printf("failed to print contract info updates")
+	case blockchaininfo.EndPaging:
+		if contractMsg != nil {
+			contractMsg = append(contractMsg, msg.Data[1:]...)
+			contractUpdatesInfo := new(g.L2ContractDataEntries)
+			if err := contractUpdatesInfo.UnmarshalVT(contractMsg); err != nil {
+				log.Printf("Failed to unmarshal contract updates: %v", err)
+				return contractMsg
 			}
-		}()
-		contractMsg = nil
+
+			go func() {
+				if err := printContractInfo(contractUpdatesInfo, scheme, path); err != nil {
+					log.Printf("Failed to print contract info updates: %v", err)
+				}
+			}()
+			contractMsg = nil
+		}
 	}
+
 	return contractMsg
 }
 
-const scheme = proto.TestNetScheme
-const path = "/media/alex/My_Book/dolgavin/waves/subscriber/contract_data/"
+//const scheme = proto.TestNetScheme
+//const path = "/media/alex/ExtremePro/waves/subscription/"
 
 func main() {
+	var (
+		blockchainType string
+		updatesPath    string
+		natsURL        string
+	)
+	// Initialize the zap logger
+	l, err := zap.NewProduction()
+	if err != nil {
+		log.Fatalf("failed to initialize zap logger: %v", err)
+	}
+	defer l.Sync()
+
+	flag.StringVar(&blockchainType, "blockchain-type", "testnet", "Blockchain scheme (e.g., stagenet, testnet, mainnet)")
+	flag.StringVar(&updatesPath, "updates-path", "", "File path to store contract updates")
+	flag.StringVar(&natsURL, "nats-url", nats.DefaultURL, "URL for the NATS server")
+
+	scheme, err := schemeFromString(blockchainType)
+	if err != nil {
+		zap.S().Fatalf("Failed to parse the blockchain type: %v", err)
+	}
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer done()
 	// Connect to a NATS server
-	nc, err := nats.Connect(nats.DefaultURL)
+	nc, err := nats.Connect(natsURL)
 	if err != nil {
-		log.Print(err)
+		zap.S().Fatalf("Failed to connect to nats server: %v", err)
 		return
 	}
 	defer nc.Close()
@@ -124,18 +147,31 @@ func main() {
 		receiveBlockUpdates(msg)
 	})
 	if err != nil {
-		log.Printf("failed to subscribe to block updates, %v", err)
+		zap.S().Fatalf("Failed to subscribe to block updates: %v", err)
 		return
 	}
 
 	var contractMsg []byte
 	_, err = nc.Subscribe(blockchaininfo.ContractUpdates, func(msg *nats.Msg) {
-		contractMsg = receiveContractUpdates(msg, contractMsg, scheme, path)
+		contractMsg = receiveContractUpdates(msg, contractMsg, scheme, updatesPath)
 	})
 	if err != nil {
-		log.Printf("failed to subscribe to contract updates, %v", err)
+		zap.S().Fatalf("Failed to subscribe to contract updates: %v", err)
 		return
 	}
 	<-ctx.Done()
-	log.Println("Terminations of nats subscriber")
+	zap.S().Info("NATS subscriber finished...")
+}
+
+func schemeFromString(networkType string) (proto.Scheme, error) {
+	switch strings.ToLower(networkType) {
+	case "mainnet":
+		return proto.MainNetScheme, nil
+	case "testnet":
+		return proto.TestNetScheme, nil
+	case "stagenet":
+		return proto.StageNetScheme, nil
+	default:
+		return 0, errors.New("invalid blockchain type string")
+	}
 }

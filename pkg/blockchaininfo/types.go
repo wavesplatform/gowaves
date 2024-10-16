@@ -34,7 +34,7 @@ func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme, he
 	}
 
 	equal := true
-
+	// todo REMOVE POINTERS
 	if current.BlockUpdatesInfo.Height != previous.BlockUpdatesInfo.Height {
 		equal = false
 		changes.BlockUpdatesInfo.Height = current.BlockUpdatesInfo.Height
