@@ -357,8 +357,9 @@ func createStorageObjects(t *testing.T, amend bool) *testStorageObjects {
 }
 
 type testStorageObjectsOptions struct {
-	Amend    bool
-	Settings *settings.BlockchainSettings
+	Amend           bool
+	Settings        *settings.BlockchainSettings
+	CalculateHashes bool
 }
 
 func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOptions) *testStorageObjects {
@@ -388,7 +389,7 @@ func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOpt
 	hs, err := newHistoryStorage(db, dbBatch, stateDB, options.Amend)
 	require.NoError(t, err)
 
-	entities, err := newBlockchainEntitiesStorage(hs, options.Settings, rw, false)
+	entities, err := newBlockchainEntitiesStorage(hs, options.Settings, rw, options.CalculateHashes)
 	require.NoError(t, err)
 
 	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, options.Settings, entities}
@@ -454,6 +455,12 @@ func (s *testStorageObjects) finishBlock(t *testing.T, blockID proto.BlockID) {
 	assert.NoError(t, err, "finishBlock() failed")
 }
 
+func (s *testStorageObjects) addBlockAndDo(t *testing.T, blockID proto.BlockID, f func(proto.BlockID)) {
+	s.prepareAndStartBlock(t, blockID)
+	f(blockID)
+	s.finishBlock(t, blockID)
+}
+
 func (s *testStorageObjects) addBlocks(t *testing.T, blocksNum int) {
 	ids := genRandBlockIds(t, blocksNum)
 	for _, id := range ids {
@@ -504,6 +511,39 @@ func (s *testStorageObjects) createSmartAsset(t *testing.T, assetID crypto.Diges
 	s.flush(t)
 }
 
+func (s *testStorageObjects) setWavesBalance(
+	t *testing.T,
+	addr proto.WavesAddress,
+	bp balanceProfile,
+	blockID proto.BlockID,
+) {
+	wb := newWavesValueFromProfile(bp)
+	err := s.entities.balances.setWavesBalance(addr.ID(), wb, blockID)
+	assert.NoError(t, err, "setWavesBalance() failed")
+}
+
+func (s *testStorageObjects) transferWaves(
+	t *testing.T,
+	from, to proto.WavesAddress,
+	amount uint64,
+	blockID proto.BlockID,
+) {
+	fromBP, err := s.entities.balances.newestWavesBalance(from.ID())
+	require.NoError(t, err, "newestWavesBalance() failed")
+	if fromBalance := fromBP.spendableBalance(); fromBalance < amount {
+		require.Failf(t, "transferWaves()", "not enough balance at account '%s': %d < %d",
+			from.String(), fromBalance, amount,
+		)
+	}
+	fromBP.balance -= amount
+	s.setWavesBalance(t, from, fromBP, blockID)
+
+	toBalance, err := s.entities.balances.newestWavesBalance(to.ID())
+	require.NoError(t, err, "newestWavesBalance() failed")
+	toBalance.balance += amount
+	s.setWavesBalance(t, to, toBalance, blockID)
+}
+
 func storeScriptByAddress(
 	stor *blockchainEntitiesStorage,
 	scheme proto.Scheme,
@@ -542,11 +582,15 @@ func (s *testStorageObjects) setScript(t *testing.T, pk crypto.PublicKey, script
 	require.NoError(t, err)
 }
 
+func (s *testStorageObjects) activateFeatureWithBlock(t *testing.T, featureID int16, blockID proto.BlockID) {
+	activationReq := &activatedFeaturesRecord{1}
+	err := s.entities.features.activateFeature(featureID, activationReq, blockID)
+	assert.NoError(t, err, "activateFeature() failed")
+}
+
 func (s *testStorageObjects) activateFeature(t *testing.T, featureID int16) {
 	s.addBlock(t, blockID0)
-	activationReq := &activatedFeaturesRecord{1}
-	err := s.entities.features.activateFeature(featureID, activationReq, blockID0)
-	assert.NoError(t, err, "activateFeature() failed")
+	s.activateFeatureWithBlock(t, featureID, blockID0)
 	s.flush(t)
 }
 

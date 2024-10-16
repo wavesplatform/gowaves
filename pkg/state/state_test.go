@@ -2,6 +2,8 @@ package state
 
 import (
 	"context"
+	"encoding/binary"
+	stderrs "errors"
 	"fmt"
 	"math/big"
 	"path/filepath"
@@ -18,7 +20,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const (
@@ -469,62 +475,61 @@ type timeMock struct{}
 
 func (timeMock) Now() time.Time { return time.Now().UTC() }
 
-func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
-	createMockStateManager := func(t *testing.T, bs *settings.BlockchainSettings) (*stateManager, *testStorageObjects) {
-		const (
-			handleAmend               = true
-			calculateHashes           = true
-			enableLightNode           = false
-			verificationGoroutinesNum = 2
-			provideExtendedAPI        = true
-		)
-		toOpts := testStorageObjectsOptions{Amend: handleAmend, Settings: bs}
-		to := createStorageObjectsWithOptions(t, toOpts)
+func createMockStateManager(t *testing.T, bs *settings.BlockchainSettings) (*stateManager, *testStorageObjects) {
+	const (
+		handleAmend               = true
+		calculateHashes           = false
+		enableLightNode           = false
+		verificationGoroutinesNum = 2
+		provideExtendedAPI        = true
+	)
+	toOpts := testStorageObjectsOptions{Amend: handleAmend, Settings: bs, CalculateHashes: calculateHashes}
+	to := createStorageObjectsWithOptions(t, toOpts)
+	stor := to.entities
 
-		stor, err := newBlockchainEntitiesStorage(to.hs, to.settings, to.rw, calculateHashes)
-		require.NoError(t, err, "newBlockchainEntitiesStorage() failed")
-
-		blockStorageDir := t.TempDir()
-		atxParams := &addressTransactionsParams{
-			dir:                 blockStorageDir,
-			batchedStorMemLimit: proto.KiB,
-			batchedStorMaxKeys:  AddressTransactionsMaxKeys,
-			maxFileSize:         2 * proto.KiB,
-			providesData:        provideExtendedAPI,
-		}
-		atx, err := newAddressTransactions(to.db, to.stateDB, to.rw, atxParams, handleAmend)
-		require.NoError(t, err, "newAddressTransactions() failed")
-
-		state := &stateManager{
-			mu:                        new(sync.RWMutex),
-			lastBlock:                 atomic.Value{},
-			genesis:                   new(proto.Block), // stub
-			stateDB:                   to.stateDB,
-			stor:                      stor,
-			rw:                        to.rw,
-			settings:                  to.settings,
-			cv:                        nil, // filled in later
-			appender:                  nil, // filled in later
-			atx:                       atx,
-			verificationGoroutinesNum: verificationGoroutinesNum,
-			newBlocks:                 newNewBlocks(to.rw, to.settings),
-			enableLightNode:           enableLightNode,
-		}
-		snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, to.rw))
-		appender, err := newTxAppender(
-			state,
-			state.rw,
-			state.stor,
-			state.settings,
-			state.stateDB,
-			state.atx,
-			&snapshotApplier,
-		)
-		require.NoError(t, err, "newTxAppender() failed")
-		state.appender = appender
-		state.cv = consensus.NewValidator(state, state.settings, timeMock{})
-		return state, to
+	blockStorageDir := t.TempDir()
+	atxParams := &addressTransactionsParams{
+		dir:                 blockStorageDir,
+		batchedStorMemLimit: proto.KiB,
+		batchedStorMaxKeys:  AddressTransactionsMaxKeys,
+		maxFileSize:         2 * proto.KiB,
+		providesData:        provideExtendedAPI,
 	}
+	atx, err := newAddressTransactions(to.db, to.stateDB, to.rw, atxParams, handleAmend)
+	require.NoError(t, err, "newAddressTransactions() failed")
+
+	state := &stateManager{
+		mu:                        new(sync.RWMutex),
+		lastBlock:                 atomic.Value{},
+		genesis:                   new(proto.Block), // stub
+		stateDB:                   to.stateDB,
+		stor:                      stor,
+		rw:                        to.rw,
+		settings:                  to.settings,
+		cv:                        nil, // filled in later
+		appender:                  nil, // filled in later
+		atx:                       atx,
+		verificationGoroutinesNum: verificationGoroutinesNum,
+		newBlocks:                 newNewBlocks(to.rw, to.settings),
+		enableLightNode:           enableLightNode,
+	}
+	snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, to.rw))
+	appender, err := newTxAppender(
+		state,
+		state.rw,
+		state.stor,
+		state.settings,
+		state.stateDB,
+		state.atx,
+		&snapshotApplier,
+	)
+	require.NoError(t, err, "newTxAppender() failed")
+	state.appender = appender
+	state.cv = consensus.NewValidator(state, state.settings, timeMock{})
+	return state, to
+}
+
+func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 	const (
 		initialBalance = 100
 		changedBalance = 200
@@ -538,17 +543,13 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 
 		// add initial balance at first block
 		testObj.addBlock(t, blockID0)
-		initialBP := newWavesValueFromProfile(balanceProfile{initialBalance, 0, 0})
-		err := state.stor.balances.setWavesBalance(addr.ID(), initialBP, blockID0) // height 1
-		require.NoError(t, err, "setWavesBalance() failed")
+		testObj.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0}, blockID0) // height 1
 		// add changed balance at second block
 		testObj.addBlock(t, blockID1)
-		changedBP := newWavesValueFromProfile(balanceProfile{changedBalance, 0, 0})
-		err = state.stor.balances.setWavesBalance(addr.ID(), changedBP, blockID1) // height 2
-		require.NoError(t, err, "setWavesBalance() failed")
-
-		testObj.addBlocks(t, blocksToApply-2) // add 998 random blocks, 2 blocks have already been added
-
+		testObj.setWavesBalance(t, addr, balanceProfile{changedBalance, 0, 0}, blockID1) // height 2
+		// add 998 random blocks, 2 blocks have already been added
+		testObj.addBlocks(t, blocksToApply-2)
+		// check blockchain height
 		nh, err := state.NewestHeight()
 		require.NoError(t, err, "NewestHeight() failed")
 		require.Equal(t, uint64(blocksToApply), nh) // sanity check, blockchain height should be 1000
@@ -638,5 +639,234 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 		newGB, err = state.NewestGeneratingBalance(rcp, nh)
 		require.NoError(t, err, "NewestGeneratingBalance() failed")
 		assert.Equal(t, uint64(changedBalance), newGB) // result should be the same
+	})
+}
+
+type stateForEnv interface {
+	StateInfo
+	types.EnrichedSmartState
+}
+
+func createNewRideEnv(
+	t *testing.T,
+	state stateForEnv,
+	dApp, caller proto.WavesAddress,
+	rootLibV ast.LibraryVersion,
+) *ride.EvaluationEnvironment {
+	blockV5, err := state.IsActivated(int16(settings.BlockV5))
+	require.NoError(t, err, "IsActivated() failed for feature BlockV5")
+	rideV6, err := state.IsActivated(int16(settings.RideV6))
+	require.NoError(t, err, "IsActivated() failed for feature RideV6")
+	consensusImprovements, err := state.IsActivated(int16(settings.ConsensusImprovements))
+	require.NoError(t, err, "IsActivated() failed for feature ConsensusImprovements")
+	blockRewardDistribution, err := state.IsActivated(int16(settings.BlockRewardDistribution))
+	require.NoError(t, err, "IsActivated() failed for feature BlockRewardDistribution")
+	lightNode, err := state.IsActivated(int16(settings.LightNode))
+	require.NoError(t, err, "IsActivated() failed for feature LightNode")
+	bs, err := state.BlockchainSettings()
+	require.NoError(t, err, "BlockchainSettings() failed")
+	var (
+		internalPaymentsValidationHeight = bs.InternalInvokePaymentsValidationAfterHeight
+		paymentsFixAfterHeight           = bs.PaymentsFixAfterHeight
+	)
+	origEnv, err := ride.NewEnvironment(
+		bs.AddressSchemeCharacter,
+		state,
+		internalPaymentsValidationHeight, paymentsFixAfterHeight,
+		blockV5, rideV6, consensusImprovements, blockRewardDistribution, lightNode,
+	)
+	require.NoError(t, err, "ride.NewEnvironment() failed")
+	origEnv.SetThisFromAddress(dApp)
+	complexity, err := ride.MaxChainInvokeComplexityByVersion(rootLibV)
+	require.NoError(t, err, "MaxChainInvokeComplexityByVersion() failed")
+	origEnv.SetLimit(complexity)
+	const (
+		isProtobufTransaction = true // assume that transaction is protobuf
+		checkSenderBalance    = true // check initial sender balance for payments
+	)
+	var payments proto.ScriptPayments // no payments
+	env, err := ride.NewEnvironmentWithWrappedState(origEnv, state,
+		payments, caller, isProtobufTransaction, rootLibV, checkSenderBalance,
+	)
+	require.NoError(t, err, "ride.NewEnvironmentWithWrappedState() failed")
+	return env
+}
+
+// TestGeneratingBalanceValuesInRide tests that generating balance values are calculated correctly in Ride scripts.
+// It's analogous to RideGeneratingBalanceSpec in scala node tests.
+func TestGeneratingBalanceValuesInRide(t *testing.T) {
+	createTestScript := func(t *testing.T, libV ast.LibraryVersion) *ast.Tree {
+		//nolint:lll // keep original formatting of the script
+		const scriptTemplate = `
+			{-# STDLIB_VERSION %d #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			
+			@Callable(i)
+			func assertBalances(
+			  expectedRegularBalance: Int,
+			  expectedAvailableBalance: Int,
+			  expectedEffectiveBalance: Int,
+			  expectedGeneratingBalance: Int
+			) = {
+			  let actualRegularBalance = wavesBalance(this).regular
+			  let actualAvailableBalance = wavesBalance(this).available
+			  let actualEffectiveBalance = wavesBalance(this).effective
+			  let actualGeneratingBalance = wavesBalance(this).generating
+			
+			  strict checkRegular = if (actualRegularBalance != expectedRegularBalance)
+				then throw("Expected Regular balance to be: " + toString(expectedRegularBalance) + ", But got: " + toString(actualRegularBalance))
+				else unit
+			
+			  strict checkAvailable = if (actualAvailableBalance != expectedAvailableBalance)
+				then throw("Expected Available balance to be: " + toString(expectedAvailableBalance) + ", But got: " + toString(actualAvailableBalance))
+				else unit
+			
+			  strict checkEffective = if (actualEffectiveBalance != expectedEffectiveBalance)
+				then throw("Expected Effective balance to be: " + toString(expectedEffectiveBalance) + ", But got: " + toString(actualEffectiveBalance))
+				else unit
+			
+			  strict checkGenerating = if (actualGeneratingBalance != expectedGeneratingBalance)
+				then throw("Expected Generating balance to be: " + toString(expectedGeneratingBalance) + ", But got: " + toString(actualGeneratingBalance))
+				else unit
+			  ([], unit)
+			}`
+		scriptSrc := fmt.Sprintf(scriptTemplate, libV)
+		tree, errs := ridec.CompileToTree(scriptSrc)
+		require.NoError(t, stderrs.Join(errs...), "ride.CompileToTree() failed")
+		return tree
+	}
+	doTest := func(t *testing.T, state *stateManager, testObj *testStorageObjects, libV ast.LibraryVersion) {
+		// create test accounts
+		dApp, err := proto.NewKeyPair(binary.BigEndian.AppendUint32(nil, 999))
+		require.NoError(t, err, "NewKeyPair() failed")
+		anotherAccount, err := proto.NewKeyPair(binary.BigEndian.AppendUint32(nil, 1))
+		require.NoError(t, err, "NewKeyPair() failed")
+		// create test addresses
+		bs, bsErr := state.BlockchainSettings()
+		require.NoError(t, bsErr, "BlockchainSettings() failed")
+		caller, aErr := anotherAccount.Addr(bs.AddressSchemeCharacter)
+		require.NoError(t, aErr, "Addr() failed")
+		dAppAddr, aErr := dApp.Addr(bs.AddressSchemeCharacter)
+		require.NoError(t, aErr, "Addr() failed")
+		// create test script
+		tree := createTestScript(t, libV)
+		// create assertion function for the current state
+		assertBalances := func(t *testing.T, regular, available, effective, generating int64) {
+			fc := proto.NewFunctionCall("assertBalances", proto.Arguments{
+				proto.NewIntegerArgument(regular),
+				proto.NewIntegerArgument(available),
+				proto.NewIntegerArgument(effective),
+				proto.NewIntegerArgument(generating),
+			})
+			env := createNewRideEnv(t, state, dAppAddr, caller, libV)
+			_, err = ride.CallFunction(env, tree, fc)
+			require.NoError(t, err, "ride.CallFunction() failed")
+		}
+		assertHeight := func(t *testing.T, expectedHeight int) {
+			nh, hErr := state.NewestHeight()
+			require.NoError(t, hErr, "NewestHeight() failed")
+			require.Equal(t, proto.Height(expectedHeight), nh)
+		}
+		assertHeight(t, 1) // check that height is 1
+		// set initial balance for dApp and another account
+		const (
+			initialDAppBalance           = 100 * proto.PriceConstant
+			initialAnotherAccountBalance = 500 * proto.PriceConstant
+			firstTransferAmount          = 10 * proto.PriceConstant
+			secondTransferAmount         = 50 * proto.PriceConstant
+		)
+		testObj.setWavesBalance(t, dAppAddr, balanceProfile{initialDAppBalance, 0, 0}, blockID0)         // height 1
+		testObj.setWavesBalance(t, caller, balanceProfile{initialAnotherAccountBalance, 0, 0}, blockID0) // height 1
+
+		dAppBalance := int64(initialDAppBalance)
+		testObj.addBlockAndDo(t, blockID1, func(_ proto.BlockID) { // height 2
+			assertBalances(t, dAppBalance, dAppBalance, dAppBalance, dAppBalance)
+		})
+		assertHeight(t, 2) // check that height is 2
+
+		testObj.addBlockAndDo(t, blockID2, func(blockID proto.BlockID) { // height 3
+			testObj.transferWaves(t, caller, dAppAddr, firstTransferAmount, blockID) // transfer 10 waves from caller to dApp
+			dAppBalance += firstTransferAmount                                       // update dApp balance
+		})
+		assertHeight(t, 3) // check that height is 3
+		// add 997 blocks
+		testObj.addBlocks(t, 1000-3) // add 997 blocks
+		assertHeight(t, 1000)        // check that height is 1000
+
+		// Block 1001
+		// This assertion tells us that the generating balance
+		// is not being updated until the block 1002, which is expected,
+		// because 10 waves was sent on height = 3,
+		// and until height 1002 the balance is not updated
+		// (...the lowest of the last 1000 blocks, including 3 and 1002)
+		testObj.addBlockAndDo(t, blockID3, func(_ proto.BlockID) { // height 1000
+			assertBalances(t, dAppBalance, dAppBalance, dAppBalance, initialDAppBalance)
+		})
+		assertHeight(t, 1001) // check that height is 1001
+
+		// Block 1002
+		testObj.addBlockAndDo(t, genBlockId(42), func(blockID proto.BlockID) { // height 1001
+			// This assertion tells us that the generating balance
+			// was already updated after 10 waves was sent on height = 3
+			assertBalances(t, dAppBalance, dAppBalance, dAppBalance, dAppBalance)
+			testObj.transferWaves(t, dAppAddr, caller, secondTransferAmount, blockID) // transfer 50 waves from dApp to caller
+			dAppBalance -= secondTransferAmount                                       // update dApp balance
+			// This assertion tells us that the generating balance
+			// was updated by a transaction in this block.
+			assertBalances(t, dAppBalance, dAppBalance, dAppBalance, dAppBalance)
+		})
+		assertHeight(t, 1002) // check that height is 1002
+	}
+	t.Run("The generating balance is affected by transactions in the current block", func(t *testing.T) {
+		generateFeaturesList := func(targetFeature settings.Feature) []settings.Feature {
+			var feats []settings.Feature
+			for f := settings.SmallerMinimalGeneratingBalance; f <= targetFeature; f++ {
+				feats = append(feats, f)
+			}
+			return feats
+		}
+		activateFeatures := func(t *testing.T, testObj *testStorageObjects, feats []settings.Feature, id proto.BlockID) {
+			for _, f := range feats {
+				testObj.activateFeatureWithBlock(t, int16(f), id)
+			}
+		}
+		createMockState := func(t *testing.T, targetFeature settings.Feature) (*stateManager, *testStorageObjects) {
+			sets := settings.MustDefaultCustomSettings()
+			sets.LightNodeBlockFieldsAbsenceInterval = 0           // disable absence interval for Light Node
+			sets.GenerationBalanceDepthFrom50To1000AfterHeight = 1 // set from the first height
+			state, testObj := createMockStateManager(t, sets)
+			featuresList := generateFeaturesList(targetFeature)
+			testObj.addBlock(t, blockID0)                        // add "genesis" block, height 1
+			activateFeatures(t, testObj, featuresList, blockID0) // activate features at height 1
+			testObj.flush(t)                                     // write changes to the storage
+			return state, testObj
+		}
+		t.Run("RideV5, STDLIB_VERSION 5", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.RideV5)
+			doTest(t, state, testObj, ast.LibV5)
+		})
+		t.Run("RideV6, STDLIB_VERSION 6", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.RideV6)
+			doTest(t, state, testObj, ast.LibV6)
+		})
+		t.Run("ConsensusImprovements, STDLIB_VERSION 6", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.ConsensusImprovements)
+			doTest(t, state, testObj, ast.LibV6)
+		})
+		// scala name is "ContinuationTransaction, STDLIB_VERSION 6", it means that all possible features are activated
+		t.Run("AllFeatures, STDLIB_VERSION 6", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.LastFeature()) // all features are activated
+			doTest(t, state, testObj, ast.LibV6)
+		})
+		t.Run("BlockRewardDistribution, STDLIB_VERSION 7", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.BlockRewardDistribution)
+			doTest(t, state, testObj, ast.LibV7)
+		})
+		// scala name is "TransactionStateSnapshot, STDLIB_VERSION 8", TransactionStateSnapshot == LightNode
+		t.Run("LightNode, STDLIB_VERSION 8", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.LightNode)
+			doTest(t, state, testObj, ast.LibV8)
+		})
 	})
 }
