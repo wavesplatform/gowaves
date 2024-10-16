@@ -144,7 +144,7 @@ func TransferringFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, fr
 	sender := utl.GetAccount(suite, from)
 	recipient := utl.GetAccount(suite, to)
 
-	//Balances before transferring
+	// Balances before transferring
 	senderBalanceGoBefore, senderBalanceScalaBefore := utl.GetAvailableBalanceInWaves(suite, sender.Address)
 	require.Equal(suite.T(), senderBalanceGoBefore, senderBalanceScalaBefore)
 	recipientBalanceGoBefore, recipientBalanceScalaBefore := utl.GetAvailableBalanceInWaves(suite, recipient.Address)
@@ -155,16 +155,16 @@ func TransferringFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, fr
 		utl.MinTxFeeWaves, proto.NewRecipientFromAddress(recipient.Address), nil, true)
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
-	//Waiting for changing waves balance
+	// Waiting for changing waves balance
 	err := clients.Retry(utl.DefaultTimeInterval, func() error {
-		//Balances after transferring
+		// Balances after transferring
 		senderBalanceGoAfter, senderBalanceScalaAfter := utl.GetAvailableBalanceInWaves(suite, sender.Address)
 		require.Equal(suite.T(), senderBalanceGoAfter, senderBalanceScalaAfter)
 		recipientBalanceGoAfter, recipientBalanceScalaAfter := utl.GetAvailableBalanceInWaves(suite, recipient.Address)
 		require.Equal(suite.T(), recipientBalanceGoAfter, recipientBalanceScalaAfter)
 
-		if uint64(senderBalanceGoBefore-senderBalanceGoAfter) != amount &&
-			uint64(recipientBalanceGoAfter-recipientBalanceGoBefore) != amount {
+		if uint64(utl.Abs(senderBalanceGoBefore-senderBalanceGoAfter)) != amount &&
+			uint64(utl.Abs(recipientBalanceGoAfter-recipientBalanceGoBefore)) != amount {
 			return errors.New("accounts Waves balances are mismatch")
 		}
 
@@ -199,10 +199,11 @@ func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Sche
 
 	senderAssetBalanceGoBefore, senderAssetBalanceScalaBefore := utl.GetAssetBalance(suite, sender.Address, assetID)
 	require.Equal(suite.T(), senderAssetBalanceGoBefore, senderAssetBalanceScalaBefore)
-	recipientAssetBalanceGoBefore, recipientAssetBalanceScalaBefore := utl.GetAssetBalance(suite, recipient.Address, assetID)
+	recipientAssetBalanceGoBefore, recipientAssetBalanceScalaBefore := utl.GetAssetBalance(
+		suite, recipient.Address, assetID)
 	require.Equal(suite.T(), recipientAssetBalanceGoBefore, recipientAssetBalanceScalaBefore)
 
-	currentAmount = uint64(senderAssetBalanceGoBefore)
+	currentAmount = uint64(utl.Abs(senderAssetBalanceGoBefore))
 	if len(assetAmount) == 1 && assetAmount[0] <= currentAmount {
 		amount = assetAmount[0]
 	} else {
@@ -215,16 +216,17 @@ func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Sche
 		proto.NewRecipientFromAddress(recipient.Address), nil, true)
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
-	//Waiting for changing waves balance
+	// Waiting for changing waves balance
 	err := clients.Retry(utl.DefaultTimeInterval, func() error {
-		//Balances after transferring
+		// Balances after transferring
 		senderAssetBalanceGoAfter, senderAssetBalanceScalaAfter := utl.GetAssetBalance(suite, sender.Address, assetID)
 		require.Equal(suite.T(), senderAssetBalanceGoAfter, senderAssetBalanceScalaAfter)
-		recipientAssetBalanceGoAfter, recipientAssetBalanceScalaAfter := utl.GetAssetBalance(suite, recipient.Address, assetID)
+		recipientAssetBalanceGoAfter, recipientAssetBalanceScalaAfter := utl.GetAssetBalance(
+			suite, recipient.Address, assetID)
 		require.Equal(suite.T(), recipientAssetBalanceGoAfter, recipientAssetBalanceScalaAfter)
 
-		if uint64(senderAssetBalanceGoBefore-senderAssetBalanceGoAfter) != amount &&
-			uint64(recipientAssetBalanceGoAfter-recipientAssetBalanceGoBefore) != amount {
+		if uint64(utl.Abs(senderAssetBalanceGoBefore-senderAssetBalanceGoAfter)) != amount &&
+			uint64(utl.Abs(recipientAssetBalanceGoAfter-recipientAssetBalanceGoBefore)) != amount {
 			return errors.New("accounts asset balances are mismatch")
 		}
 
