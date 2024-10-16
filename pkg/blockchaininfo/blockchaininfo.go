@@ -14,10 +14,6 @@ var EpochKeyPrefix = "epoch_"
 var blockMeta0xKeyPrefix = "block_0x"
 var blockMetaKeyPrefix = "blockMeta"
 
-func removeOldEpochs(height uint64) {
-
-}
-
 // Helper function to read uint64 from bytes
 func readInt64(data *bytes.Reader) int64 {
 	var num int64

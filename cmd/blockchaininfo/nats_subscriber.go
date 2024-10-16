@@ -123,7 +123,12 @@ func main() {
 	if err != nil {
 		log.Fatalf("failed to initialize zap logger: %v", err)
 	}
-	defer l.Sync()
+	defer func(l *zap.Logger) {
+		err := l.Sync()
+		if err != nil {
+			log.Fatalf("failed to sync zap logger %v", err)
+		}
+	}(l)
 
 	flag.StringVar(&blockchainType, "blockchain-type", "testnet", "Blockchain scheme (e.g., stagenet, testnet, mainnet)")
 	flag.StringVar(&updatesPath, "updates-path", "", "File path to store contract updates")
