@@ -6,6 +6,7 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -34,18 +35,30 @@ func (inf *stateInfo) unmarshalBinary(data []byte) error {
 	return cbor.Unmarshal(data, inf)
 }
 
+const forceUpdateStateVersion = false
+
 func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
 	has, err := db.Has(stateInfoKeyBytes)
 	if err != nil {
 		return err
 	}
-	if has {
+	if has && !forceUpdateStateVersion {
 		return nil
 	}
 	info := &stateInfo{
 		Version:            StateVersion,
 		HasExtendedApiData: params.StoreExtendedApiData,
 		HasStateHashes:     params.BuildStateHashes,
+	}
+	if has && forceUpdateStateVersion {
+		data, dbErr := db.Get(stateInfoKeyBytes)
+		if dbErr != nil {
+			return dbErr
+		}
+		if ubErr := info.unmarshalBinary(data); ubErr != nil {
+			return ubErr
+		}
+		info.Version = StateVersion
 	}
 	return putStateInfoToDB(db, info)
 }
