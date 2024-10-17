@@ -280,8 +280,8 @@ func Abs(x int64) int64 {
 
 func SafeInt64ToUint64(x int64) uint64 {
 	var result uint64
-	if x < 0 || x > math.MaxInt64 {
-		panic("negative number or a number greater than MaxInt64")
+	if x < 0 {
+		panic("negative number")
 	} else {
 		result = uint64(x)
 	}
