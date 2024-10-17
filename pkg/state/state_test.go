@@ -17,6 +17,7 @@ import (
 	"go.uber.org/atomic"
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -534,19 +535,24 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 		initialBalance = 100
 		changedBalance = 200
 	)
-	prepareStateCommon := func(t *testing.T, addr proto.WavesAddress) (*stateManager, *testStorageObjects) {
+	customSettings := settings.MustMainNetSettings()                 // copy the mainnet settings
+	customSettings.GenerationBalanceDepthFrom50To1000AfterHeight = 1 // set from the first height
+	prepareStateCommon := func(t *testing.T, addresses ...proto.WavesAddress) (*stateManager, *testStorageObjects) {
 		const blocksToApply = 1000
+		// initial check
+		require.GreaterOrEqual(t, len(addresses), 1, "at least one address should be provided")
 
-		customSettings := settings.MustMainNetSettings()                 // copy the mainnet settings
-		customSettings.GenerationBalanceDepthFrom50To1000AfterHeight = 1 // set from the first height
 		state, testObj := createMockStateManager(t, customSettings)
-
 		// add initial balance at first block
 		testObj.addBlock(t, blockID0)
-		testObj.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0}, blockID0) // height 1
+		for _, addr := range addresses {
+			testObj.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0}, blockID0) // height 1
+		}
 		// add changed balance at second block
 		testObj.addBlock(t, blockID1)
-		testObj.setWavesBalance(t, addr, balanceProfile{changedBalance, 0, 0}, blockID1) // height 2
+		for _, addr := range addresses {
+			testObj.setWavesBalance(t, addr, balanceProfile{changedBalance, 0, 0}, blockID1) // height 2
+		}
 		// add 998 random blocks, 2 blocks have already been added
 		testObj.addBlocks(t, blocksToApply-2)
 		// check blockchain height
@@ -559,7 +565,9 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 		return state, testObj
 	}
 
-	addr, aErr := proto.NewAddressFromString(addr0)
+	_, pk, kpErr := crypto.GenerateKeyPair([]byte("test"))
+	require.NoError(t, kpErr, "GenerateKeyPair() failed")
+	addr, aErr := proto.NewAddressFromPublicKey(customSettings.AddressSchemeCharacter, pk)
 	require.NoError(t, aErr, "NewAddressFromString() failed")
 
 	t.Run("NewestFullWavesBalance", func(t *testing.T) {
@@ -605,14 +613,31 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 		require.NoError(t, err, "WavesBalanceProfile() failed")
 		assert.Equal(t, uint64(changedBalance), newFb.Generating) // result should be the same
 	})
-	t.Run("NewestGeneratingBalance", func(t *testing.T) {
-		state, testObj := prepareStateCommon(t, addr)
-		rcp := proto.NewRecipientFromAddress(addr) // convert address to recipient
+	t.Run("NewestMinerGeneratingBalance", func(t *testing.T) {
+		genBH := func(miner crypto.PublicKey) *proto.BlockHeader {
+			return &proto.BlockHeader{
+				GeneratorPublicKey: miner,
+				ChallengedHeader:   nil,
+			}
+		}
+		genBHWithChallenge := func(challenger, challenged crypto.PublicKey) *proto.BlockHeader {
+			bh := genBH(challenger)
+			bh.ChallengedHeader = &proto.ChallengedHeader{
+				GeneratorPublicKey: challenged,
+			}
+			return bh
+		}
+		_, chPK, err := crypto.GenerateKeyPair([]byte("challenged"))
+		require.NoError(t, err, "GenerateKeyPair() failed")
+		chAddr, err := proto.NewAddressFromPublicKey(customSettings.AddressSchemeCharacter, chPK)
+		require.NoError(t, err, "NewAddressFromString() failed")
+
+		state, testObj := prepareStateCommon(t, addr, chAddr)
 		nh, err := state.NewestHeight()
 		require.NoError(t, err, "NewestHeight() failed")
 
-		gb, err := state.NewestGeneratingBalance(rcp, nh) // height 1000
-		require.NoError(t, err, "NewestGeneratingBalance() failed")
+		gb, err := state.NewestMinerGeneratingBalance(genBH(pk), nh) // height 1000
+		require.NoError(t, err, "NewestMinerGeneratingBalance() failed")
 		assert.Equal(t, uint64(initialBalance), gb)
 
 		lastBlockIDToApply := blockID2
@@ -620,15 +645,15 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 		// blockchain height now 1000, height for NewestFullWavesBalance is 1001
 		// because for NewestFullWavesBalance we take into account applying block
 		testObj.prepareAndStartBlock(t, lastBlockIDToApply)
-		newGB, err := state.NewestGeneratingBalance(rcp, nh)
-		require.NoError(t, err, "NewestGeneratingBalance() failed")
+		newGB, err := state.NewestMinerGeneratingBalance(genBH(pk), nh)
+		require.NoError(t, err, "NewestMinerGeneratingBalance() failed")
 		assert.Equal(t, uint64(initialBalance), newGB) // should be initial balance, because nh == 1000
 		// check with adding block height == 1001
 		ah, err := state.AddingBlockHeight()
 		require.NoError(t, err, "AddingBlockHeight() failed")
 		require.Equal(t, nh+1, ah) // sanity check, adding block height should be the same
-		newGB, err = state.NewestGeneratingBalance(rcp, ah)
-		require.NoError(t, err, "NewestGeneratingBalance() failed")
+		newGB, err = state.NewestMinerGeneratingBalance(genBH(pk), ah)
+		require.NoError(t, err, "NewestMinerGeneratingBalance() failed")
 		assert.Equal(t, uint64(changedBalance), newGB) // should be changed balance now
 
 		// finish the block, we are not in the applying block state
@@ -636,9 +661,14 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 		nh, err = state.NewestHeight()
 		require.NoError(t, err, "NewestHeight() failed")
 		assert.Equal(t, ah, nh) // sanity check, blockchain height should be 1001
-		newGB, err = state.NewestGeneratingBalance(rcp, nh)
-		require.NoError(t, err, "NewestGeneratingBalance() failed")
+		newGB, err = state.NewestMinerGeneratingBalance(genBH(pk), nh)
+		require.NoError(t, err, "NewestMinerGeneratingBalance() failed")
 		assert.Equal(t, uint64(changedBalance), newGB) // result should be the same
+
+		// check miner balance with challenge
+		gbWithBonus, err := state.NewestMinerGeneratingBalance(genBHWithChallenge(pk, chPK), nh)
+		require.NoError(t, err, "NewestMinerGeneratingBalance() failed")
+		assert.Equal(t, uint64(changedBalance+changedBalance), gbWithBonus) // should be doubled because of challenge
 	})
 }
 

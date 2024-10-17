@@ -985,12 +985,37 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient, height proto.H
 	return s.stor.balances.generatingBalance(addr.ID(), height)
 }
 
-func (s *stateManager) NewestGeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error) {
-	addr, err := s.NewestRecipientToAddress(account)
+// NewestMinerGeneratingBalance returns the generating balance of the miner at the given height.
+// This method includes the challenger bonus if the block has a challenged header.
+func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, height proto.Height) (uint64, error) {
+	minerAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(RetrievalError, errors.Wrapf(err, "failed create get miner address from PK %s",
+			header.GeneratorPublicKey,
+		))
 	}
-	return s.stor.balances.newestGeneratingBalance(addr.ID(), height)
+	minerGB, err := s.stor.balances.newestGeneratingBalance(minerAddr.ID(), height)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, errors.Wrapf(err, "failed to get generating balance for addr %s",
+			minerAddr.String(),
+		))
+	}
+	if ch, ok := header.GetChallengedHeader(); ok { // if the block has challenged header
+		chMinerAddr, chErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, ch.GeneratorPublicKey)
+		if chErr != nil {
+			return 0, wrapErr(RetrievalError, errors.Wrapf(chErr, "failed to create challenged miner address from PK %s",
+				ch.GeneratorPublicKey,
+			))
+		}
+		challengerBonus, chErr := s.stor.balances.newestGeneratingBalance(chMinerAddr.ID(), height)
+		if chErr != nil {
+			return 0, wrapErr(RetrievalError, errors.Wrapf(chErr, "failed to get generating balance for addr %s",
+				chMinerAddr.String(),
+			))
+		}
+		minerGB += challengerBonus // add challenger bonus to challenger miner's generating balance
+	}
+	return minerGB, nil
 }
 
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -1273,11 +1298,10 @@ func (s *stateManager) handleChallengedHeaderIfExists(block *proto.Block, blockH
 			challengedHeader.GeneratorPublicKey.String(),
 		)
 	}
-	blockchainHeight := blockHeight - 1
-	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockchainHeight, blockID); chErr != nil {
+	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockHeight, blockID); chErr != nil {
 		return errors.Wrapf(chErr,
-			"failed to store challenge with blockchain height %d for block '%s'with challenger '%s' and challenged '%s'",
-			blockchainHeight, blockID.String(), challenger.String(), challenged.String(),
+			"failed to store challenge at adding block height %d for block '%s'with challenger '%s' and challenged '%s'",
+			blockHeight, blockID.String(), challenger.String(), challenged.String(),
 		)
 	}
 	return nil

@@ -27,14 +27,14 @@ var _ stateInfoProvider = &stateInfoProviderMock{}
 //			NewestActivationHeightFunc: func(featureID int16) (uint64, error) {
 //				panic("mock out the NewestActivationHeight method")
 //			},
-//			NewestGeneratingBalanceFunc: func(account proto.Recipient, height uint64) (uint64, error) {
-//				panic("mock out the NewestGeneratingBalance method")
-//			},
 //			NewestHitSourceAtHeightFunc: func(height uint64) ([]byte, error) {
 //				panic("mock out the NewestHitSourceAtHeight method")
 //			},
 //			NewestIsActiveAtHeightFunc: func(featureID int16, height uint64) (bool, error) {
 //				panic("mock out the NewestIsActiveAtHeight method")
+//			},
+//			NewestMinerGeneratingBalanceFunc: func(header *proto.BlockHeader, height uint64) (uint64, error) {
+//				panic("mock out the NewestMinerGeneratingBalance method")
 //			},
 //		}
 //
@@ -52,14 +52,14 @@ type stateInfoProviderMock struct {
 	// NewestActivationHeightFunc mocks the NewestActivationHeight method.
 	NewestActivationHeightFunc func(featureID int16) (uint64, error)
 
-	// NewestGeneratingBalanceFunc mocks the NewestGeneratingBalance method.
-	NewestGeneratingBalanceFunc func(account proto.Recipient, height uint64) (uint64, error)
-
 	// NewestHitSourceAtHeightFunc mocks the NewestHitSourceAtHeight method.
 	NewestHitSourceAtHeightFunc func(height uint64) ([]byte, error)
 
 	// NewestIsActiveAtHeightFunc mocks the NewestIsActiveAtHeight method.
 	NewestIsActiveAtHeightFunc func(featureID int16, height uint64) (bool, error)
+
+	// NewestMinerGeneratingBalanceFunc mocks the NewestMinerGeneratingBalance method.
+	NewestMinerGeneratingBalanceFunc func(header *proto.BlockHeader, height uint64) (uint64, error)
 
 	// calls tracks calls to the methods.
 	calls struct {
@@ -78,13 +78,6 @@ type stateInfoProviderMock struct {
 			// FeatureID is the featureID argument value.
 			FeatureID int16
 		}
-		// NewestGeneratingBalance holds details about calls to the NewestGeneratingBalance method.
-		NewestGeneratingBalance []struct {
-			// Account is the account argument value.
-			Account proto.Recipient
-			// Height is the height argument value.
-			Height uint64
-		}
 		// NewestHitSourceAtHeight holds details about calls to the NewestHitSourceAtHeight method.
 		NewestHitSourceAtHeight []struct {
 			// Height is the height argument value.
@@ -97,13 +90,20 @@ type stateInfoProviderMock struct {
 			// Height is the height argument value.
 			Height uint64
 		}
+		// NewestMinerGeneratingBalance holds details about calls to the NewestMinerGeneratingBalance method.
+		NewestMinerGeneratingBalance []struct {
+			// Header is the header argument value.
+			Header *proto.BlockHeader
+			// Height is the height argument value.
+			Height uint64
+		}
 	}
-	lockHeaderByHeight          sync.RWMutex
-	lockNewestAccountHasScript  sync.RWMutex
-	lockNewestActivationHeight  sync.RWMutex
-	lockNewestGeneratingBalance sync.RWMutex
-	lockNewestHitSourceAtHeight sync.RWMutex
-	lockNewestIsActiveAtHeight  sync.RWMutex
+	lockHeaderByHeight               sync.RWMutex
+	lockNewestAccountHasScript       sync.RWMutex
+	lockNewestActivationHeight       sync.RWMutex
+	lockNewestHitSourceAtHeight      sync.RWMutex
+	lockNewestIsActiveAtHeight       sync.RWMutex
+	lockNewestMinerGeneratingBalance sync.RWMutex
 }
 
 // HeaderByHeight calls HeaderByHeightFunc.
@@ -202,42 +202,6 @@ func (mock *stateInfoProviderMock) NewestActivationHeightCalls() []struct {
 	return calls
 }
 
-// NewestGeneratingBalance calls NewestGeneratingBalanceFunc.
-func (mock *stateInfoProviderMock) NewestGeneratingBalance(account proto.Recipient, height uint64) (uint64, error) {
-	if mock.NewestGeneratingBalanceFunc == nil {
-		panic("stateInfoProviderMock.NewestGeneratingBalanceFunc: method is nil but stateInfoProvider.NewestGeneratingBalance was just called")
-	}
-	callInfo := struct {
-		Account proto.Recipient
-		Height  uint64
-	}{
-		Account: account,
-		Height:  height,
-	}
-	mock.lockNewestGeneratingBalance.Lock()
-	mock.calls.NewestGeneratingBalance = append(mock.calls.NewestGeneratingBalance, callInfo)
-	mock.lockNewestGeneratingBalance.Unlock()
-	return mock.NewestGeneratingBalanceFunc(account, height)
-}
-
-// NewestGeneratingBalanceCalls gets all the calls that were made to NewestGeneratingBalance.
-// Check the length with:
-//
-//	len(mockedstateInfoProvider.NewestGeneratingBalanceCalls())
-func (mock *stateInfoProviderMock) NewestGeneratingBalanceCalls() []struct {
-	Account proto.Recipient
-	Height  uint64
-} {
-	var calls []struct {
-		Account proto.Recipient
-		Height  uint64
-	}
-	mock.lockNewestGeneratingBalance.RLock()
-	calls = mock.calls.NewestGeneratingBalance
-	mock.lockNewestGeneratingBalance.RUnlock()
-	return calls
-}
-
 // NewestHitSourceAtHeight calls NewestHitSourceAtHeightFunc.
 func (mock *stateInfoProviderMock) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
 	if mock.NewestHitSourceAtHeightFunc == nil {
@@ -303,5 +267,41 @@ func (mock *stateInfoProviderMock) NewestIsActiveAtHeightCalls() []struct {
 	mock.lockNewestIsActiveAtHeight.RLock()
 	calls = mock.calls.NewestIsActiveAtHeight
 	mock.lockNewestIsActiveAtHeight.RUnlock()
+	return calls
+}
+
+// NewestMinerGeneratingBalance calls NewestMinerGeneratingBalanceFunc.
+func (mock *stateInfoProviderMock) NewestMinerGeneratingBalance(header *proto.BlockHeader, height uint64) (uint64, error) {
+	if mock.NewestMinerGeneratingBalanceFunc == nil {
+		panic("stateInfoProviderMock.NewestMinerGeneratingBalanceFunc: method is nil but stateInfoProvider.NewestMinerGeneratingBalance was just called")
+	}
+	callInfo := struct {
+		Header *proto.BlockHeader
+		Height uint64
+	}{
+		Header: header,
+		Height: height,
+	}
+	mock.lockNewestMinerGeneratingBalance.Lock()
+	mock.calls.NewestMinerGeneratingBalance = append(mock.calls.NewestMinerGeneratingBalance, callInfo)
+	mock.lockNewestMinerGeneratingBalance.Unlock()
+	return mock.NewestMinerGeneratingBalanceFunc(header, height)
+}
+
+// NewestMinerGeneratingBalanceCalls gets all the calls that were made to NewestMinerGeneratingBalance.
+// Check the length with:
+//
+//	len(mockedstateInfoProvider.NewestMinerGeneratingBalanceCalls())
+func (mock *stateInfoProviderMock) NewestMinerGeneratingBalanceCalls() []struct {
+	Header *proto.BlockHeader
+	Height uint64
+} {
+	var calls []struct {
+		Header *proto.BlockHeader
+		Height uint64
+	}
+	mock.lockNewestMinerGeneratingBalance.RLock()
+	calls = mock.calls.NewestMinerGeneratingBalance
+	mock.lockNewestMinerGeneratingBalance.RUnlock()
 	return calls
 }
