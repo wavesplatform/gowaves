@@ -32,14 +32,14 @@ type WrappedState struct {
 }
 
 func newWrappedState(
-	env *EvaluationEnvironment,
+	env environment,
 	originalStateForWrappedState types.EnrichedSmartState,
 	rootScriptLibVersion ast.LibraryVersion,
 ) *WrappedState {
 	return &WrappedState{
 		diff:                      newDiffState(originalStateForWrappedState),
-		cle:                       env.th.(rideAddress),
-		scheme:                    env.sch,
+		cle:                       env.this().(rideAddress),
+		scheme:                    env.scheme(),
 		height:                    proto.Height(env.height()),
 		rootScriptLibVersion:      rootScriptLibVersion,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),

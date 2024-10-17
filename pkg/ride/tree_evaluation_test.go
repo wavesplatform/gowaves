@@ -6330,3 +6330,81 @@ func TestAttachedPaymentsValidation(t *testing.T) {
 		})
 	})
 }
+
+func TestUpdateGeneratingBalanceDuringScriptExecutionAfterLightNode(t *testing.T) {
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+
+	const src = `
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		
+		@Callable(i)
+		func call(to: String, value: Int) = {
+		  let balanceBeforeTransfer = wavesBalance(this)
+		  let balanceAfter = invoke(this, "transfer", [to, value], [])
+		  let balanceAfterTransfer = wavesBalance(this)
+		  let isUpdated = balanceAfter == balanceAfterTransfer.generating
+		  if (!isUpdated && balanceBeforeTransfer.generating != balanceAfterTransfer.generating) then
+			throw("failure")
+		  else
+		  ([], isUpdated)
+		}
+		
+		@Callable(i)
+		func transfer(to: String, value: Int) = {
+		  let balance = wavesBalance(this)
+		  let toAddr = addressFromStringValue(to)
+		  ([ScriptTransfer(toAddr, value, unit)], balance.generating - value)
+		}`
+	tree, errs := ridec.CompileToTree(src)
+	require.Empty(t, errs)
+
+	const (
+		dAppInitialBalance = 10 * proto.PriceConstant
+		transferAmount     = 5 * proto.PriceConstant
+	)
+
+	createEnv := func(t *testing.T, lightNodeActivated bool) *testEnv {
+		complexity, err := MaxChainInvokeComplexityByVersion(ast.LibV5)
+		require.NoError(t, err)
+		env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(int(complexity)).
+			withBlockV5Activated().withProtobufTx().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(dApp1).withDApp(dApp1).withSender(sender).
+			withInvocation("call", withTransactionID(crypto.Digest{})).withTree(dApp1, tree).
+			withWavesBalance(sender, 0).
+			withWavesBalance(dApp1, dAppInitialBalance, 0, 0, dAppInitialBalance)
+		if lightNodeActivated {
+			env = env.withLightNodeActivated()
+		}
+		return env.withWrappedState()
+	}
+	t.Run("before-light-node", func(t *testing.T) {
+		env := createEnv(t, false).toEnv()
+		fc := proto.NewFunctionCall("call", proto.Arguments{
+			proto.NewStringArgument(sender.address().String()),
+			proto.NewIntegerArgument(transferAmount),
+		})
+		res, err := CallFunction(env, tree, fc)
+		require.NoError(t, err)
+		require.Len(t, res.ScriptActions(), 1)
+		isBalanceUpdated, ok := res.userResult().(rideBoolean)
+		require.True(t, ok)
+		assert.False(t, bool(isBalanceUpdated))
+	})
+	t.Run("after-light-node", func(t *testing.T) {
+		env := createEnv(t, true).toEnv()
+		fc := proto.NewFunctionCall("call", proto.Arguments{
+			proto.NewStringArgument(sender.address().String()),
+			proto.NewIntegerArgument(transferAmount),
+		})
+		res, err := CallFunction(env, tree, fc)
+		require.NoError(t, err)
+		require.Len(t, res.ScriptActions(), 1)
+		isBalanceUpdated, ok := res.userResult().(rideBoolean)
+		require.True(t, ok)
+		assert.True(t, bool(isBalanceUpdated))
+	})
+}
