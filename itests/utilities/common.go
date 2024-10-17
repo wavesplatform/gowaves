@@ -278,6 +278,14 @@ func Abs(x int64) int64 {
 	return x
 }
 
+func SafeInt64ToUint64(x int64) uint64 {
+	if 0 <= x && x < math.MaxInt64 {
+		return uint64(x)
+	} else {
+		panic("negative number or a number greater than MaxInt64")
+	}
+}
+
 func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 	var from, to int
 	switch len(accountNumbers) {

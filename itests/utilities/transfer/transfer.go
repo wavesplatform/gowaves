@@ -163,8 +163,8 @@ func TransferringFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, fr
 		recipientBalanceGoAfter, recipientBalanceScalaAfter := utl.GetAvailableBalanceInWaves(suite, recipient.Address)
 		require.Equal(suite.T(), recipientBalanceGoAfter, recipientBalanceScalaAfter)
 
-		if uint64(utl.Abs(senderBalanceGoBefore-senderBalanceGoAfter)) != amount &&
-			uint64(utl.Abs(recipientBalanceGoAfter-recipientBalanceGoBefore)) != amount {
+		if utl.SafeInt64ToUint64(utl.Abs(senderBalanceGoBefore-senderBalanceGoAfter)) != amount &&
+			utl.SafeInt64ToUint64(utl.Abs(recipientBalanceGoAfter-recipientBalanceGoBefore)) != amount {
 			return errors.New("accounts Waves balances are mismatch")
 		}
 
@@ -203,7 +203,7 @@ func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Sche
 		suite, recipient.Address, assetID)
 	require.Equal(suite.T(), recipientAssetBalanceGoBefore, recipientAssetBalanceScalaBefore)
 
-	currentAmount = uint64(utl.Abs(senderAssetBalanceGoBefore))
+	currentAmount = utl.SafeInt64ToUint64(senderAssetBalanceGoBefore)
 	if len(assetAmount) == 1 && assetAmount[0] <= currentAmount {
 		amount = assetAmount[0]
 	} else {
@@ -225,8 +225,8 @@ func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Sche
 			suite, recipient.Address, assetID)
 		require.Equal(suite.T(), recipientAssetBalanceGoAfter, recipientAssetBalanceScalaAfter)
 
-		if uint64(utl.Abs(senderAssetBalanceGoBefore-senderAssetBalanceGoAfter)) != amount &&
-			uint64(utl.Abs(recipientAssetBalanceGoAfter-recipientAssetBalanceGoBefore)) != amount {
+		if utl.SafeInt64ToUint64(utl.Abs(senderAssetBalanceGoBefore-senderAssetBalanceGoAfter)) != amount &&
+			utl.SafeInt64ToUint64(utl.Abs(recipientAssetBalanceGoAfter-recipientAssetBalanceGoBefore)) != amount {
 			return errors.New("accounts asset balances are mismatch")
 		}
 
