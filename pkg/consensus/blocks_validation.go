@@ -39,7 +39,7 @@ func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 type stateInfoProvider interface {
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	NewestHitSourceAtHeight(height uint64) ([]byte, error)
-	NewestGeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error)
+	NewestMinerGeneratingBalance(header *proto.BlockHeader, height proto.Height) (uint64, error)
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	NewestActivationHeight(featureID int16) (uint64, error)
 	NewestAccountHasScript(addr proto.WavesAddress) (bool, error)
@@ -215,12 +215,7 @@ func (cv *Validator) validateGeneratingBalance(header *proto.BlockHeader, balanc
 }
 
 func (cv *Validator) minerGeneratingBalance(height uint64, header *proto.BlockHeader) (uint64, error) {
-	minerAddr, err := proto.NewAddressFromPublicKey(cv.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
-	if err != nil {
-		return 0, err
-	}
-	account := proto.NewRecipientFromAddress(minerAddr)
-	return cv.state.NewestGeneratingBalance(account, height)
+	return cv.state.NewestMinerGeneratingBalance(header, height)
 }
 
 func (cv *Validator) validBlockVersionAtHeight(blockchainHeight uint64) (proto.BlockVersion, error) {
