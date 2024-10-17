@@ -330,12 +330,15 @@ func TestBalancesChangesByStoredChallenge(t *testing.T) {
 			{firstBlock, challengerID, 1},
 			// because lastBlockBeforeChallenge1 == generationBalanceDepthDiff, so we use the lowes value in the range
 			{lastBlockBeforeChallenge1, challengerID, 1},
-			// challengerGenBalance + challengedGenBalance = 1 + 1
-			{challengeHeight1, challengerID, 2 * (challengeHeight1 - generationBalanceDepthDiff)},
+			// challengerGenBalance = 1 , i.e. without challenger bonus, bonus MUST be included in generation balance
+			// only for block header validation, but not for generating balance.
+			// See 'stateManager.NewestMinerGeneratingBalance' and its usages for more info.
+			{challengeHeight1, challengerID, challengeHeight1 - generationBalanceDepthDiff},
 			{firstBlockAfterChallenge1, challengerID, firstBlockAfterChallenge1 - generationBalanceDepthDiff},
 			{lastBlockBeforeChallenge2, challengerID, lastBlockBeforeChallenge2 - generationBalanceDepthDiff},
-			// challengerGenBalance + challengedGenBalance = 51 + 51
-			{challengeHeight2, challengerID, 2 * (challengeHeight2 - generationBalanceDepthDiff)},
+			// challengerGenBalance = 51
+			// See comment above for the explanation why challenger bonus is not included in generating balance.
+			{challengeHeight2, challengerID, challengeHeight2 - generationBalanceDepthDiff},
 			{firstBlockAfterChallenge2, challengerID, firstBlockAfterChallenge2 - generationBalanceDepthDiff},
 			{totalBlocksNumber, challengerID, totalBlocksNumber - generationBalanceDepthDiff},
 			// FOR CHALLENGED
