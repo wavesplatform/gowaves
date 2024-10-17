@@ -1,6 +1,8 @@
 package testdata
 
 import (
+	"math"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
@@ -23,13 +25,13 @@ func GetRewardDistributionAfterF14Before19TestData(
 func GetRollbackBeforeF19TestData(
 	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
 ) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := utl.GetCurrentReward(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: currentReward - 2*currentReward/3,
-			DaoDiffBalance:       currentReward / 3,
-			XtnDiffBalance:       currentReward / 3,
+			MinersSumDiffBalance: int64(currentReward) - int64(2*math.Round(float64(currentReward)/3)),
+			DaoDiffBalance:       int64(math.Round(float64(currentReward) / 3)),
+			XtnDiffBalance:       int64(math.Round(float64(currentReward) / 3)),
 			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
@@ -40,13 +42,13 @@ func GetRollbackBeforeF19TestData(
 func GetRollbackAfterF19TestData(
 	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
 ) RewardDistributionTestData[RewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := utl.GetCurrentReward(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: currentReward / 3,
-			DaoDiffBalance:       currentReward / 3,
-			XtnDiffBalance:       currentReward / 3,
+			MinersSumDiffBalance: int64(math.Round(float64(currentReward) / 3)),
+			DaoDiffBalance:       int64(math.Round(float64(currentReward) / 3)),
+			XtnDiffBalance:       int64(math.Round(float64(currentReward) / 3)),
 			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
