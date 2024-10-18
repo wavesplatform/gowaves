@@ -24,12 +24,13 @@ func GetRollbackBeforeF19TestData(
 	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
 ) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
+	p := currentReward / 3
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: currentReward - 2*currentReward/3,
-			DaoDiffBalance:       currentReward / 3,
-			XtnDiffBalance:       currentReward / 3,
+			MinersSumDiffBalance: currentReward - 2*p,
+			DaoDiffBalance:       p,
+			XtnDiffBalance:       p,
 			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
@@ -41,12 +42,13 @@ func GetRollbackAfterF19TestData(
 	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
 ) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
+	p := currentReward / 3
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
-			MinersSumDiffBalance: currentReward / 3,
-			DaoDiffBalance:       currentReward / 3,
-			XtnDiffBalance:       currentReward / 3,
+			MinersSumDiffBalance: currentReward - 2*p,
+			DaoDiffBalance:       p,
+			XtnDiffBalance:       p,
 			Term:                 utl.GetRewardTermCfg(suite),
 		})
 }
