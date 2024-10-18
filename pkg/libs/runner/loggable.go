@@ -1,9 +1,12 @@
 package runner
 
-import "sync"
+import (
+	"maps"
+	"sync"
+)
 
 type LogRunner interface {
-	Named(name string, f func())
+	Named(name string, f func()) (done <-chan struct{})
 	Running() map[string]int
 }
 
@@ -22,33 +25,32 @@ func NewLogRunner(r Runner) *log {
 
 func (a *log) addNamed(name string) {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	a.running[name] += 1
-	a.mu.Unlock()
 }
 
 func (a *log) removeNamed(name string) {
 	a.mu.Lock()
+	defer a.mu.Unlock()
 	a.running[name] -= 1
 	if a.running[name] == 0 {
 		delete(a.running, name)
 	}
-	a.mu.Unlock()
 }
 
-func (a *log) Named(name string, f func()) {
+func (a *log) Named(name string, f func()) <-chan struct{} {
+	done := make(chan struct{})
 	a.r.Go(func() {
+		defer close(done)
 		a.addNamed(name)
 		defer a.removeNamed(name)
 		f()
 	})
+	return done
 }
 
 func (a *log) Running() map[string]int {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	out := make(map[string]int, len(a.running))
-	for k, v := range a.running {
-		out[k] = v
-	}
-	return out
+	return maps.Clone(a.running)
 }
