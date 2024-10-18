@@ -53,7 +53,7 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 }
 
 func (suite *BaseSuite) SetupSuite() {
-	suite.BaseSetup(config.WithScalaMining())
+	suite.BaseSetup()
 }
 
 func (suite *BaseSuite) TearDownSuite() {

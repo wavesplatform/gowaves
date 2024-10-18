@@ -17,3 +17,11 @@ func NewNodeUniversalClient(t *testing.T, impl Implementation, httpPort string, 
 		GRPCClient:     NewGRPCClient(t, impl, grpcPort),
 	}
 }
+
+func (c *NodeUniversalClient) SendStartMessage(t *testing.T) {
+	c.HTTPClient.PrintMsg(t, "------------- Start test: "+t.Name()+" -------------")
+}
+
+func (c *NodeUniversalClient) SendEndMessage(t *testing.T) {
+	c.HTTPClient.PrintMsg(t, "------------- End test: "+t.Name()+" -------------")
+}
