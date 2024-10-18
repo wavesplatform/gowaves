@@ -60,3 +60,14 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	BoostBlockReward:                {true, "Boost Block Reward"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
+
+// LastFeature returns the last implemented feature.
+func LastFeature() Feature {
+	var f Feature
+	for feature, info := range FeaturesInfo {
+		if info.Implemented {
+			f = max(f, feature)
+		}
+	}
+	return f
+}

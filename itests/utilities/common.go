@@ -278,6 +278,13 @@ func Abs(x int64) int64 {
 	return x
 }
 
+func SafeInt64ToUint64(x int64) uint64 {
+	if x < 0 {
+		panic("negative number")
+	}
+	return uint64(x)
+}
+
 func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 	var from, to int
 	switch len(accountNumbers) {

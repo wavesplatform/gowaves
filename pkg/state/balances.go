@@ -137,14 +137,6 @@ func (c *challengedAddressRecord) appendHeight(height proto.Height) {
 	}
 }
 
-type challengerAddressRecord struct {
-	Bonus uint64 `cbor:"0,keyasint"`
-}
-
-func (c *challengerAddressRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(c) }
-
-func (c *challengerAddressRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, c) }
-
 type leaseBalanceRecordForHashes struct {
 	addr     *proto.WavesAddress
 	leaseIn  int64
@@ -616,81 +608,43 @@ func (s *balances) generatingBalance(addr proto.AddressID, height proto.Height) 
 	startHeight, endHeight := s.sets.RangeForGeneratingBalanceByHeight(height)
 	gb, err := s.minEffectiveBalanceInRange(addr, startHeight, endHeight)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed get min effective balance; startHeight %d, endHeight %d",
+		return 0, errors.Wrapf(err, "failed to get min effective balance with startHeight %d and endHeight %d",
 			startHeight, endHeight)
 	}
-	bonus, err := s.challengerBonus(addr, height)
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed get challenger bonus at height %d", height)
-	}
-	r, err := common.AddInt(gb, bonus)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to add generating balance and bonus")
-	}
-	return r, nil
+	return gb, nil
 }
 
 func (s *balances) newestGeneratingBalance(addr proto.AddressID, height proto.Height) (uint64, error) {
 	startHeight, endHeight := s.sets.RangeForGeneratingBalanceByHeight(height)
 	gb, err := s.newestMinEffectiveBalanceInRange(addr, startHeight, endHeight)
 	if err != nil {
-		return 0, errors.Wrapf(err, "failed get newest min effective balance with startHeight %d and endHeight %d",
+		return 0, errors.Wrapf(err, "failed to get newest min effective balance with startHeight %d and endHeight %d",
 			startHeight, endHeight)
 	}
-	bonus, err := s.newestChallengerBonus(addr, height)
-	if err != nil {
-		return 0, errors.Wrapf(err, "failed get newest challenger bonus at height %d", height)
-	}
-	r, err := common.AddInt(gb, bonus)
-	if err != nil {
-		return 0, errors.Wrap(err, "failed to add generating balance and bonus")
-	}
-	return r, nil
+	return gb, nil
 }
 
 func (s *balances) storeChallenge(
 	challenger, challenged proto.AddressID,
-	blockchainHeight proto.Height, // for changing generating balance we use current blockchain height
+	challengedBlockHeight proto.Height, // Height of the block with the challenged header.
 	blockID proto.BlockID,
 ) error {
 	// Check if challenger and challenged addresses are the same. Self-challenge is not allowed.
 	if challenger.Equal(challenged) {
 		return errors.New("challenger and challenged addresses are the same")
 	}
-	// Get challenger bonus before storing the challenged penalty.
-	// Challenged can't be with bonus and be challenged at the same height because of the check above.
-	generatingBalance, gbErr := s.newestGeneratingBalance(challenged, blockchainHeight)
-	if gbErr != nil {
-		return errors.Wrapf(gbErr, "failed to get generating balance for challenged address at height %d", blockchainHeight)
-	}
-	if err := s.storeChallengeBonusForAddr(challenger, generatingBalance, blockchainHeight, blockID); err != nil {
-		return errors.Wrapf(err, "failed to store challenge bonus for challenger at height %d", blockchainHeight)
-	}
-	if err := s.storeChallengeHeightForAddr(challenged, blockchainHeight, blockID); err != nil {
-		return errors.Wrapf(err, "failed to store challenge height for challenged at height %d", blockchainHeight)
+	if err := s.storeChallengeHeightForAddr(challenged, challengedBlockHeight, blockID); err != nil {
+		return errors.Wrapf(err, "failed to store challenge height for challenged at height %d",
+			challengedBlockHeight,
+		)
 	}
 	return nil
-}
-
-func (s *balances) storeChallengeBonusForAddr(
-	challenger proto.AddressID,
-	bonus uint64,
-	height proto.Height,
-	blockID proto.BlockID,
-) error {
-	r := challengerAddressRecord{Bonus: bonus}
-	recordBytes, mErr := r.marshalBinary()
-	if mErr != nil {
-		return errors.Wrap(mErr, "failed to marshal record to binary data")
-	}
-	key := challengerAddressKey{address: challenger, height: height}
-	return s.hs.addNewEntry(challengerAddress, key.bytes(), recordBytes, blockID)
 }
 
 // storeChallengeHeightForAddr stores the height of the block at which the address was challenged.
 func (s *balances) storeChallengeHeightForAddr(
 	challenged proto.AddressID,
-	height proto.Height,
+	challengedBlockHeight proto.Height,
 	blockID proto.BlockID,
 ) error {
 	key := challengedAddressKey{address: challenged}
@@ -698,7 +652,7 @@ func (s *balances) storeChallengeHeightForAddr(
 	recordBytes, err := s.hs.newestTopEntryData(keyBytes)
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) { // No record found, create new one.
-			r := challengedAddressRecord{Heights: []proto.Height{height}}
+			r := challengedAddressRecord{Heights: []proto.Height{challengedBlockHeight}}
 			data, mErr := r.marshalBinary()
 			if mErr != nil {
 				return errors.Wrap(err, "failed to marshal record to binary data")
@@ -711,7 +665,7 @@ func (s *balances) storeChallengeHeightForAddr(
 	if uErr := r.unmarshalBinary(recordBytes); uErr != nil {
 		return errors.Wrap(err, "failed to unmarshal record from binary data")
 	}
-	r.appendHeight(height) // Append new height to the list.
+	r.appendHeight(challengedBlockHeight) // Append new height to the list.
 	recordBytes, err = r.marshalBinary()
 	if err != nil {
 		return errors.Wrap(err, "failed to marshal record to binary data")
@@ -751,30 +705,6 @@ func isChallengedAddressInRangeCommon(
 		}
 	}
 	return false, nil
-}
-
-func getChallengerBonusCommon(getEntryData entryDataGetter, addr proto.AddressID, height proto.Height) (uint64, error) {
-	key := challengerAddressKey{address: addr, height: height}
-	recordBytes, err := getEntryData(key.bytes())
-	if err != nil {
-		if isNotFoundInHistoryOrDBErr(err) { // No challenger record found, return 0.
-			return 0, nil
-		}
-		return 0, err
-	}
-	var r challengerAddressRecord
-	if ubErr := r.unmarshalBinary(recordBytes); ubErr != nil {
-		return 0, errors.Wrap(ubErr, "failed to unmarshal record from binary data")
-	}
-	return r.Bonus, nil
-}
-
-func (s *balances) challengerBonus(addr proto.AddressID, height proto.Height) (uint64, error) {
-	return getChallengerBonusCommon(s.hs.topEntryData, addr, height)
-}
-
-func (s *balances) newestChallengerBonus(addr proto.AddressID, height proto.Height) (uint64, error) {
-	return getChallengerBonusCommon(s.hs.newestTopEntryData, addr, height)
 }
 
 func (s *balances) isChallengedAddressInRange(addr proto.AddressID, startHeight, endHeight proto.Height) (bool, error) {
