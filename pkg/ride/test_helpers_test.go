@@ -635,16 +635,12 @@ func (e *testEnv) withDataFromJSON(s string) *testEnv {
 
 func (e *testEnv) withWrappedState() *testEnv {
 	v, err := e.me.libVersion()
-	if err != nil {
-		panic(err)
+	require.NoError(e.t, err)
+	if e.me.heightFunc == nil { // create stub height function`
+		e.me.heightFunc = func() rideInt { return 0 }
+		defer func() { e.me.heightFunc = nil }()
 	}
-	e.ws = &WrappedState{
-		diff:                      newDiffState(e.ms),
-		cle:                       e.me.this().(rideAddress),
-		scheme:                    e.me.scheme(),
-		rootScriptLibVersion:      v,
-		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
-	}
+	e.ws = newWrappedState(e.me, e.ms, v)
 	e.me.stateFunc = func() types.SmartState {
 		return e.ws
 	}
