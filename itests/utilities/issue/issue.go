@@ -97,6 +97,10 @@ func IssuedAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, ac
 	tx := Send(suite, version, scheme, utl.GetAccount(suite, accountNumber).PublicKey,
 		utl.GetAccount(suite, accountNumber).SecretKey, "Asset", "Common Asset for testing", amount,
 		utl.GetCurrentTimestampInMs(), utl.MinIssueFeeWaves, utl.MaxDecimals, true, true, nil)
+	if tx.WtErr.ErrWtScala != nil || tx.WtErr.ErrWtGo != nil {
+		suite.FailNowf("failed to issue assets", "asset: %s, ammount: %d, with errors: Scala: %s, Go: %S",
+			tx.TxID, amount, tx.WtErr.ErrWtScala, tx.WtErr.ErrWtGo)
+	}
 	return tx.TxID
 }
 

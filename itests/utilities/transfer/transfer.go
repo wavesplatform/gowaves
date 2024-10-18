@@ -140,20 +140,43 @@ func BroadcastTransferTxAndGetBalances[T any](suite *f.BaseSuite, testdata testd
 }
 
 func TransferringFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from, to int,
-	amount uint64) utl.ConsideredTransaction {
+	amount uint64) {
 	sender := utl.GetAccount(suite, from)
 	recipient := utl.GetAccount(suite, to)
+
+	// Balances before transferring
+	senderBalanceGoBefore, senderBalanceScalaBefore := utl.GetAvailableBalanceInWaves(suite, sender.Address)
+	require.Equal(suite.T(), senderBalanceGoBefore, senderBalanceScalaBefore)
+	recipientBalanceGoBefore, recipientBalanceScalaBefore := utl.GetAvailableBalanceInWaves(suite, recipient.Address)
+	require.Equal(suite.T(), recipientBalanceGoBefore, recipientBalanceScalaBefore)
+
 	tx := Send(suite, version, scheme, sender.PublicKey, sender.SecretKey,
 		proto.NewOptionalAssetWaves(), proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount,
 		utl.MinTxFeeWaves, proto.NewRecipientFromAddress(recipient.Address), nil, true)
-	return tx
+	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
+	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
+	// Waiting for changing waves balance
+	err := clients.Retry(utl.DefaultTimeInterval, func() error {
+		// Balances after transferring
+		senderBalanceGoAfter, senderBalanceScalaAfter := utl.GetAvailableBalanceInWaves(suite, sender.Address)
+		require.Equal(suite.T(), senderBalanceGoAfter, senderBalanceScalaAfter)
+		recipientBalanceGoAfter, recipientBalanceScalaAfter := utl.GetAvailableBalanceInWaves(suite, recipient.Address)
+		require.Equal(suite.T(), recipientBalanceGoAfter, recipientBalanceScalaAfter)
+
+		if utl.SafeInt64ToUint64(utl.Abs(senderBalanceGoBefore-senderBalanceGoAfter)) != amount &&
+			utl.SafeInt64ToUint64(utl.Abs(recipientBalanceGoAfter-recipientBalanceGoBefore)) != amount {
+			return errors.New("accounts Waves balances are mismatch")
+		}
+
+		return nil
+	})
+	require.NoError(suite.T(), err)
 }
 
 func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Scheme, from int, amount uint64) int {
 	accNumber, _ := utl.AddNewAccount(suite, scheme)
-	tx := TransferringFunds(suite, version, scheme, from, accNumber, amount)
-	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
-	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
+	TransferringFunds(suite, version, scheme, from, accNumber, amount)
+
 	// Waiting for changing waves balance.
 	err := clients.Retry(utl.DefaultTimeInterval, func() error {
 		balanceGo, balanceScala := utl.GetAvailableBalanceInWaves(suite, utl.GetAccount(suite, accNumber).Address)
@@ -171,18 +194,46 @@ func GetNewAccountWithFunds(suite *f.BaseSuite, version byte, scheme proto.Schem
 func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Scheme, assetID crypto.Digest,
 	from, to int, assetAmount ...uint64) {
 	var amount, currentAmount uint64
-	currentAmount = uint64(utl.GetAssetBalanceGo(suite, utl.GetAccount(suite, from).Address, assetID))
+	sender := utl.GetAccount(suite, from)
+	recipient := utl.GetAccount(suite, to)
+
+	senderAssetBalanceGoBefore, senderAssetBalanceScalaBefore := utl.GetAssetBalance(suite, sender.Address, assetID)
+	require.Equal(suite.T(), senderAssetBalanceGoBefore, senderAssetBalanceScalaBefore)
+	recipientAssetBalanceGoBefore, recipientAssetBalanceScalaBefore := utl.GetAssetBalance(
+		suite, recipient.Address, assetID)
+	require.Equal(suite.T(), recipientAssetBalanceGoBefore, recipientAssetBalanceScalaBefore)
+
+	currentAmount = utl.SafeInt64ToUint64(senderAssetBalanceGoBefore)
 	if len(assetAmount) == 1 && assetAmount[0] <= currentAmount {
 		amount = assetAmount[0]
 	} else {
 		amount = currentAmount
 	}
-	tx := Send(suite, version, scheme, utl.GetAccount(suite, from).PublicKey,
-		utl.GetAccount(suite, from).SecretKey, *proto.NewOptionalAssetFromDigest(assetID),
+
+	tx := Send(suite, version, scheme, sender.PublicKey,
+		sender.SecretKey, *proto.NewOptionalAssetFromDigest(assetID),
 		proto.NewOptionalAssetWaves(), utl.GetCurrentTimestampInMs(), amount, utl.MinTxFeeWaves,
-		proto.NewRecipientFromAddress(utl.GetAccount(suite, to).Address), nil, true)
+		proto.NewRecipientFromAddress(recipient.Address), nil, true)
 	require.NoError(suite.T(), tx.WtErr.ErrWtGo, "Reached deadline of Transfer tx in Go")
 	require.NoError(suite.T(), tx.WtErr.ErrWtScala, "Reached deadline of Transfer tx in Scala")
+	// Waiting for changing waves balance
+	err := clients.Retry(utl.DefaultTimeInterval, func() error {
+		// Balances after transferring
+		senderAssetBalanceGoAfter, senderAssetBalanceScalaAfter := utl.GetAssetBalance(suite, sender.Address, assetID)
+		require.Equal(suite.T(), senderAssetBalanceGoAfter, senderAssetBalanceScalaAfter)
+		recipientAssetBalanceGoAfter, recipientAssetBalanceScalaAfter := utl.GetAssetBalance(
+			suite, recipient.Address, assetID)
+		require.Equal(suite.T(), recipientAssetBalanceGoAfter, recipientAssetBalanceScalaAfter)
+
+		if utl.SafeInt64ToUint64(utl.Abs(senderAssetBalanceGoBefore-senderAssetBalanceGoAfter)) != amount &&
+			utl.SafeInt64ToUint64(utl.Abs(recipientAssetBalanceGoAfter-recipientAssetBalanceGoBefore)) != amount {
+			return errors.New("accounts asset balances are mismatch")
+		}
+
+		return nil
+	})
+	require.NoError(suite.T(), err)
+
 }
 
 func GetVersions(suite *f.BaseSuite) []byte {
