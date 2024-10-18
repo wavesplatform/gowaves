@@ -28,20 +28,22 @@ type WrappedState struct {
 	dataEntriesSize           int
 	rootScriptLibVersion      ast.LibraryVersion
 	rootActionsCountValidator proto.ActionsCountValidator
+	isLightNodeActivated      bool
 }
 
 func newWrappedState(
-	env *EvaluationEnvironment,
+	env environment,
 	originalStateForWrappedState types.EnrichedSmartState,
 	rootScriptLibVersion ast.LibraryVersion,
 ) *WrappedState {
 	return &WrappedState{
 		diff:                      newDiffState(originalStateForWrappedState),
-		cle:                       env.th.(rideAddress),
-		scheme:                    env.sch,
+		cle:                       env.this().(rideAddress),
+		scheme:                    env.scheme(),
 		height:                    proto.Height(env.height()),
 		rootScriptLibVersion:      rootScriptLibVersion,
 		rootActionsCountValidator: proto.NewScriptActionsCountValidator(),
+		isLightNodeActivated:      env.lightNodeActivated(),
 	}
 }
 
@@ -157,7 +159,7 @@ func (ws *WrappedState) NewestFullWavesBalance(account proto.Recipient) (*proto.
 	if err != nil {
 		return nil, err
 	}
-	return b.toFullWavesBalance()
+	return b.toFullWavesBalance(ws.isLightNodeActivated)
 }
 
 func (ws *WrappedState) IsStateUntouched(account proto.Recipient) (bool, error) {
