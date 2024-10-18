@@ -250,7 +250,7 @@ func (a *Node) runOutgoingConnections(ctx context.Context) {
 func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a fsm.Async) {
 	for _, t := range a {
 		func(t tasks.Task) {
-			r.Named(fmt.Sprintf("Async Task %T", t), func() {
+			_ = r.Named(fmt.Sprintf("Async Task %T", t), func() {
 				err := t.Run(ctx, ch)
 				if err != nil && !errors.Is(err, context.Canceled) {
 					zap.S().Warnf("Async task '%T' finished with error: %q", t, err)
