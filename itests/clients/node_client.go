@@ -32,13 +32,13 @@ func NewNodesClients(t *testing.T, goPorts, scalaPorts *d.PortConfig) *NodesClie
 }
 
 func (c *NodesClients) SendStartMessage(t *testing.T) {
-	c.GoClient.HTTPClient.PrintMsg(t, "------------- Start test: "+t.Name()+" -------------")
-	c.ScalaClient.HTTPClient.PrintMsg(t, "------------- Start test: "+t.Name()+" -------------")
+	c.GoClient.SendStartMessage(t)
+	c.ScalaClient.SendStartMessage(t)
 }
 
 func (c *NodesClients) SendEndMessage(t *testing.T) {
-	c.GoClient.HTTPClient.PrintMsg(t, "------------- End test: "+t.Name()+" -------------")
-	c.ScalaClient.HTTPClient.PrintMsg(t, "------------- End test: "+t.Name()+" -------------")
+	c.GoClient.SendEndMessage(t)
+	c.ScalaClient.SendEndMessage(t)
 }
 
 func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) (*proto.StateHash, *proto.StateHash, bool) {

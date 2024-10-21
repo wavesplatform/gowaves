@@ -16,6 +16,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const DefaultIntegrationTestsNetwork = "wavesL"
+
 type OutgoingPeer struct {
 	conn net.Conn
 }
@@ -90,7 +92,7 @@ func establishConnections(goPorts, scalaPorts *d.PortConfig) (NodeConnections, e
 	goCon, err := NewConnection(
 		proto.TCPAddr{},
 		config.DefaultIP+":"+goPorts.BindPort,
-		proto.ProtocolVersion(), "wavesL",
+		proto.ProtocolVersion(), DefaultIntegrationTestsNetwork,
 	)
 	if err != nil {
 		return NodeConnections{}, errors.Wrap(err, "failed to create connection to go node")
@@ -98,7 +100,7 @@ func establishConnections(goPorts, scalaPorts *d.PortConfig) (NodeConnections, e
 	scalaCon, err := NewConnection(
 		proto.TCPAddr{},
 		config.DefaultIP+":"+scalaPorts.BindPort,
-		proto.ProtocolVersion(), "wavesL",
+		proto.ProtocolVersion(), DefaultIntegrationTestsNetwork,
 	)
 	if err != nil {
 		if closeErr := goCon.Close(); closeErr != nil {
