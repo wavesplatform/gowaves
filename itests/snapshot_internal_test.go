@@ -38,7 +38,7 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 		proto.TCPAddr{},
 		config.DefaultIP+":"+s.Docker.GoNode().Ports().BindPort,
 		proto.ProtocolVersion(),
-		"wavesL",
+		net.DefaultIntegrationTestsNetwork,
 	)
 	require.NoError(s.T(), err, "failed to create connection to go node")
 	defer func(conn *net.OutgoingPeer) {

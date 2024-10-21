@@ -176,7 +176,7 @@ func (c *BlockchainConfig) DisableGoMiningString() string {
 	return strconv.FormatBool(c.disableGoMining)
 }
 
-func (c *BlockchainConfig) DisableScalaMiningString() string {
+func (c *BlockchainConfig) EnableScalaMiningString() string {
 	if c.disableScalaMining {
 		return "no"
 	}
