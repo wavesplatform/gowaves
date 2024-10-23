@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -15,8 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
+	pkgerr "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -435,7 +437,7 @@ func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, fID 
 		}
 	}
 	if status == "" {
-		err = errors.Errorf("Feature with ID %d not found", fID)
+		err = pkgerr.Errorf("Feature with ID %d not found", fID)
 	}
 	return status, err
 }
@@ -503,7 +505,7 @@ func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureID settings.Feature, 
 	if statusGo == statusScala {
 		status = statusGo
 	} else {
-		err = errors.Errorf("Feature with Id %d has different statuses", featureID)
+		err = pkgerr.Errorf("Feature with Id %d has different statuses", featureID)
 	}
 	return status, err
 }
@@ -681,7 +683,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	suite.T().Log("Waiting for Tx appears in Blockchain")
 	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
 	if errGo != nil {
-		suite.T().Log(errors.Errorf("Errors after waiting: %s", errGo))
+		suite.T().Log(pkgerr.Errorf("Errors after waiting: %s", errGo))
 	} else {
 		txInfoRawGo, respGo, goRqErr := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(id)
 		if goRqErr != nil {
@@ -692,7 +694,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 		}
 	}
 	if errScala != nil {
-		suite.T().Log(errors.Errorf("Errors after waiting: %s", errScala))
+		suite.T().Log(pkgerr.Errorf("Errors after waiting: %s", errScala))
 	} else {
 		txInfoRawScala, respScala, scalaRqErr := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(id)
 		if scalaRqErr != nil {
@@ -721,7 +723,7 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 	suite.T().Log("Waiting for Tx appears in Blockchain")
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
 	if errWtGo != nil {
-		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtGo))
+		suite.T().Log(pkgerr.Errorf("Errors after waiting: %s", errWtGo))
 	} else {
 		txInfoRawGo, responseGo, goRqErr := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(id)
 		if goRqErr != nil {
@@ -732,7 +734,7 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 		}
 	}
 	if errWtScala != nil {
-		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtScala))
+		suite.T().Log(pkgerr.Errorf("Errors after waiting: %s", errWtScala))
 	} else {
 		txInfoRawScala, responseScala, scalaRqErr := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(id)
 		if scalaRqErr != nil {
@@ -768,6 +770,24 @@ func ReadScript(scriptDir, fileName string) ([]byte, error) {
 	scriptBase64 := strings.TrimSpace(scriptBase64WithoutComments)
 
 	return base64.StdEncoding.DecodeString(scriptBase64)
+}
+
+func ReadAndCompileRideScript(scriptDir, fileName string) ([]byte, error) {
+	dir, err := getItestsDir()
+	if err != nil {
+		return nil, err
+	}
+	scriptPath := filepath.Join(dir, "testdata", "scripts", scriptDir, fileName)
+	scriptFileContent, err := os.ReadFile(filepath.Clean(scriptPath))
+	if err != nil {
+		return nil, err
+	}
+	script := string(scriptFileContent)
+	compiledScript, errs := ridec.Compile(script, false, true)
+	if errs != nil {
+		return nil, errors.Join(errs...)
+	}
+	return compiledScript, nil
 }
 
 type RewardDiffBalancesInWaves struct {

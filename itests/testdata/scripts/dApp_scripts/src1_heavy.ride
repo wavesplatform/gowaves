@@ -1,0 +1,11 @@
+{-# STDLIB_VERSION 7 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func invokeNext(amount: Int, dApp2: String) = {
+    strict foo = sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || true
+    let addr = addressFromStringValue(dApp2)
+    strict r = addr.invoke("returnPayment", [], [AttachedPayment(unit, amount)])
+    []
+}
