@@ -1,0 +1,9 @@
+{-# STDLIB_VERSION 7 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func returnPayment() = {
+    strict foo = sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || true
+    [ScriptTransfer(i.caller, 5_0000_0000, unit)]
+}

@@ -1,0 +1,8 @@
+{-# STDLIB_VERSION 7 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func returnPayment() = {
+    [ScriptTransfer(i.caller, 5_0000_0000, unit)]
+}
