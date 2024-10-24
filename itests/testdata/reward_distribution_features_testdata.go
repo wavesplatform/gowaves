@@ -4,6 +4,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const (
@@ -15,6 +16,23 @@ type AddressesForDistribution struct {
 	MinerScalaAccount *config.AccountInfo
 	DaoAccount        *config.AccountInfo
 	XtnBuyBackAccount *config.AccountInfo
+}
+
+func (a *AddressesForDistribution) AsList() []proto.WavesAddress {
+	list := make([]proto.WavesAddress, 0, 4)
+	if a.MinerGoAccount != nil {
+		list = append(list, a.MinerGoAccount.Address)
+	}
+	if a.MinerScalaAccount != nil {
+		list = append(list, a.MinerScalaAccount.Address)
+	}
+	if a.DaoAccount != nil {
+		list = append(list, a.DaoAccount.Address)
+	}
+	if a.XtnBuyBackAccount != nil {
+		list = append(list, a.XtnBuyBackAccount.Address)
+	}
+	return list
 }
 
 type RewardDistributionTestData[T any] struct {
@@ -84,8 +102,9 @@ func GetAddressesMiners(suite *f.BaseSuite) AddressesForDistribution {
 // ("preactivated_14_19_20/7W_2miners_dao_xtn_increase.json")
 // ("preactivated_14_supported_19_20/7W_2miners_dao_xtn_increase.json")
 // NODE - 815
-func GetRewardIncreaseDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardIncreaseDaoXtnTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -100,8 +119,9 @@ func GetRewardIncreaseDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForD
 // ("preactivated_14_19_20/6W_2miners_dao_xtn_not_changed.json")
 // ("preactivated_14_supported_19_20/7W_2miners_dao_xtn_increase.json")
 // NODE - 815
-func GetRewardUnchangedDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardUnchangedDaoXtnTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -116,8 +136,9 @@ func GetRewardUnchangedDaoXtnTestData(suite *f.BaseSuite, addresses AddressesFor
 // ("preactivated_14_19_20/5W_2miners_dao_xtn_decrease.json")
 // ("preactivated_14_supported_19_20/5W_2miners_dao_xtn_decrease.json")
 // NODE - 816
-func GetRewardDecreaseDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDecreaseDaoXtnTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -133,8 +154,9 @@ func GetRewardDecreaseDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForD
 // ("preactivated_14_19_20/7W_2miners_dao_increase.json")
 // ("preactivated_14_supported_19_20/7W_2miners_dao_increase.json")
 // NODE - 817
-func GetRewardIncreaseDaoTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardIncreaseDaoTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -149,8 +171,9 @@ func GetRewardIncreaseDaoTestData(suite *f.BaseSuite, addresses AddressesForDist
 // ("preactivated_14_19_20/6W_2miners_xtn_not_changed.json")
 // ("preactivated_14_supported_19_20/6W_2miners_xtn_not_changed.json")
 // NODE - 817
-func GetRewardUnchangedXtnTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardUnchangedXtnTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -165,8 +188,9 @@ func GetRewardUnchangedXtnTestData(suite *f.BaseSuite, addresses AddressesForDis
 // ("preactivated_14_19_20/5W_2miners_xtn_decrease.json")
 // ("preactivated_14_supported_19_20/5W_2miners_xtn_decrease.json")
 // NODE - 818
-func GetRewardDecreaseXtnTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDecreaseXtnTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -182,8 +206,9 @@ func GetRewardDecreaseXtnTestData(suite *f.BaseSuite, addresses AddressesForDist
 // ("preactivated_14_19_20/5W_2miners_dao_decrease.json")
 // ("preactivated_14_supported_19_20/5W_2miners_dao_decrease.json")
 // NODE - 818
-func GetRewardDecreaseDaoTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDecreaseDaoTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -199,8 +224,9 @@ func GetRewardDecreaseDaoTestData(suite *f.BaseSuite, addresses AddressesForDist
 // ("preactivated_14_19_20/2W_2miners_dao_xtn_not_changed.json")
 // ("preactivated_14_supported_19_20/2miners_increase.json")
 // NODE - 818
-func GetReward2WUnchangedDaoXtnTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetReward2WUnchangedDaoXtnTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -215,8 +241,9 @@ func GetReward2WUnchangedDaoXtnTestData(suite *f.BaseSuite, addresses AddressesF
 // ("preactivated_14_19_20/2miners_increase.json")
 // ("preactivated_14_supported_19_20/2miners_increase.json")
 // NODE - 820
-func GetRewardMinersTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardMinersTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -231,8 +258,9 @@ func GetRewardMinersTestData(suite *f.BaseSuite, addresses AddressesForDistribut
 // ("preactivated_14_19_20/2miners_dao_xtn_without_f19.json")
 // ("preactivated_14_supported_19_20/2miners_dao_xtn_without_f19.json")
 // NODE - 821
-func GetRewardDaoXtnWithout19TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDaoXtnWithout19TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -255,8 +283,9 @@ type RewardDistributionCeaseXtnBuybackData struct {
 // ("preactivated_14_19_20_21/7W_2miners_dao_xtn_increase.json")
 // ("preactivated_14_19_20_supported_21/7W_2miners_dao_xtn_increase.json")
 // NODE - 825
-func GetRewardIncreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardIncreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -267,8 +296,9 @@ func GetRewardIncreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSui
 		})
 }
 
-func GetRewardIncreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardIncreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -283,8 +313,9 @@ func GetRewardIncreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuit
 // ("preactivated_14_19_20_21/7W_2miners_xtn_increase.json")
 // ("preactivated_14_19_20_supported_21/7W_2miners_xtn_increase.json")
 // NODE - 825
-func GetRewardIncreaseXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardIncreaseXtnCeaseXTNBuybackBeforePeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -295,8 +326,9 @@ func GetRewardIncreaseXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite,
 		})
 }
 
-func GetRewardIncreaseXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardIncreaseXtnCeaseXTNBuybackAfterPeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -311,8 +343,9 @@ func GetRewardIncreaseXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, 
 // ("preactivated_14_19_20_21/6W_2miners_dao_xtn_not_changed.json")
 // ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_not_changed.json")
 // NODE - 825
-func GetRewardUnchangedDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardUnchangedDaoXtnCeaseXTNBuybackBeforePeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -323,8 +356,9 @@ func GetRewardUnchangedDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSu
 		})
 }
 
-func GetRewardUnchangedDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardUnchangedDaoXtnCeaseXTNBuybackAfterPeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -339,8 +373,8 @@ func GetRewardUnchangedDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSui
 // ("preactivated_14_19_20_21/5W_2miners_dao_xtn_decrease.json")
 // ("preactivated_14_19_20_supported_21/5W_2miners_dao_xtn_decrease.json")
 // NODE - 826
-func GetRewardDecreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDecreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -352,8 +386,9 @@ func GetRewardDecreaseDaoXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSui
 		})
 }
 
-func GetRewardDecreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDecreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -369,8 +404,9 @@ func GetRewardDecreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuit
 // ("preactivated_14_19_20_21/5W_2miners_xtn_decrease.json")
 // ("preactivated_14_19_20_supported_21/5W_2miners_xtn_decrease.json")
 // NODE - 826
-func GetRewardDecreaseXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDecreaseXtnCeaseXTNBuybackBeforePeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -382,8 +418,9 @@ func GetRewardDecreaseXtnCeaseXTNBuybackBeforePeriodTestData(suite *f.BaseSuite,
 		})
 }
 
-func GetRewardDecreaseXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDecreaseXtnCeaseXTNBuybackAfterPeriodTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -398,8 +435,9 @@ func GetRewardDecreaseXtnCeaseXTNBuybackAfterPeriodTestData(suite *f.BaseSuite, 
 // ("preactivated_14_19_20_21/2W_2miners_dao_xtn_not_change.json")
 // ("preactivated_14_19_20_supported_21/2W_2miners_dao_xtn_not_change.json")
 // NODE - 826
-func GetReward2WUnchangedDaoXtnCeaseXTNBuybackTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetReward2WUnchangedDaoXtnCeaseXTNBuybackTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -414,8 +452,9 @@ func GetReward2WUnchangedDaoXtnCeaseXTNBuybackTestData(suite *f.BaseSuite, addre
 // ("preactivated_14_19_20_21/5W_2miners_increase.json")
 // ("preactivated_14_19_20_supported_21/5W_2miners_increase.json")
 // NODE - 829
-func GetReward5W2MinersIncreaseCeaseXTNBuybackTestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetReward5W2MinersIncreaseCeaseXTNBuybackTestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -430,9 +469,11 @@ func GetReward5W2MinersIncreaseCeaseXTNBuybackTestData(suite *f.BaseSuite, addre
 // ("preactivated_14_19_20_21/6W_2miners_dao_xtn_increase_without_20.json")
 // ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_increase_without_20.json")
 // NODE - 830
-func GetRewardDaoXtnBeforePeriodWithout20TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDaoXtnBeforePeriodWithout20TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
+	suite.T().Logf("Reward at height %d: %d", height, currentReward)
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{
@@ -443,8 +484,9 @@ func GetRewardDaoXtnBeforePeriodWithout20TestData(suite *f.BaseSuite, addresses 
 		})
 }
 
-func GetRewardDaoXtnAfterPeriodWithout20TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDaoXtnAfterPeriodWithout20TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
@@ -460,8 +502,9 @@ func GetRewardDaoXtnAfterPeriodWithout20TestData(suite *f.BaseSuite, addresses A
 // ("preactivated_14_19_20_21/6W_2miners_dao_xtn_increase_without_19_20.json")
 // ("preactivated_14_19_20_supported_21/6W_2miners_dao_xtn_increase_without_19_20.json")
 // NODE - 830
-func GetRewardDaoXtnWithout19And20TestData(suite *f.BaseSuite, addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[RewardDistributionExpectedValues] {
+func GetRewardDaoXtnWithout19And20TestData(
+	suite *f.BaseSuite, addresses AddressesForDistribution, height uint64,
+) RewardDistributionTestData[RewardDistributionExpectedValues] {
 	return NewRewardDistributionTestData(
 		addresses,
 		RewardDistributionExpectedValues{

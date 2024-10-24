@@ -2,7 +2,7 @@ package testdata
 
 import (
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
-	utl "github.com/wavesplatform/gowaves/itests/utilities"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type RewardDistributionApiTestData[T any] struct {
@@ -22,32 +22,13 @@ func NewRewardDistributionApiTestData[T any](expected T) RewardDistributionApiTe
 	}
 }
 
-func GetRewardInfoApiAfterPreactivated20TestData(suite *f.BaseSuite) RewardDistributionApiTestData[RewardInfoApiExpectedValues] {
-	period := utl.GetRewardTermAfter20Cfg(suite)
+func ExpectedRewardInfoAPITestData(suite *f.BaseSuite, f func(*f.BaseSuite) uint64, height proto.Height) RewardDistributionApiTestData[RewardInfoApiExpectedValues] {
+	period := f(suite)
+	m := (height + period - 1) / period
 	return NewRewardDistributionApiTestData(
 		RewardInfoApiExpectedValues{
 			Term:                period,
-			NextCheck:           period,
-			VotingIntervalStart: period,
-		})
-}
-
-func GetRewardInfoApiAfterSupported20TestData(suite *f.BaseSuite) RewardDistributionApiTestData[RewardInfoApiExpectedValues] {
-	period := utl.GetRewardTermAfter20Cfg(suite)
-	return NewRewardDistributionApiTestData(
-		RewardInfoApiExpectedValues{
-			Term:                period,
-			NextCheck:           2 * period,
-			VotingIntervalStart: 2 * period,
-		})
-}
-
-func GetRewardInfoApiBefore20TestData(suite *f.BaseSuite) RewardDistributionApiTestData[RewardInfoApiExpectedValues] {
-	period := utl.GetRewardTermCfg(suite)
-	return NewRewardDistributionApiTestData(
-		RewardInfoApiExpectedValues{
-			Term:                period,
-			NextCheck:           period,
-			VotingIntervalStart: period,
+			NextCheck:           period * m,
+			VotingIntervalStart: period * m,
 		})
 }

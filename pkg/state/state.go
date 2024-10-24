@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"context"
+	stderrs "errors"
 	"fmt"
 	"io/fs"
 	"math/big"
@@ -481,9 +482,9 @@ func initGenesis(state *stateManager, height uint64, settings *settings.Blockcha
 	if err != nil {
 		return errors.Wrap(err, "failed to get genesis block from state")
 	}
-	err = settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter)
-	if err != nil {
-		return errors.Wrap(err, "failed to generate genesis block id from config")
+
+	if genErr := settings.Genesis.GenerateBlockID(settings.AddressSchemeCharacter); genErr != nil {
+		return errors.Wrap(genErr, "failed to generate genesis block id from config")
 	}
 	if !bytes.Equal(genesis.ID.Bytes(), settings.Genesis.ID.Bytes()) {
 		return errors.New("genesis blocks from state and config mismatch")
@@ -947,9 +948,9 @@ func (s *stateManager) newestAssetBalance(addr proto.AddressID, asset proto.Asse
 		// Something weird happened.
 		return 0, err
 	}
-	balance, err = diff.applyToAssetBalance(balance)
-	if err != nil {
-		return 0, errors.Errorf("given account has negative balance at this point: %v", err)
+	balance, aErr := diff.applyToAssetBalance(balance)
+	if aErr != nil {
+		return 0, errors.Errorf("given account has negative balance at this point: %v", aErr)
 	}
 	return balance, nil
 }
@@ -985,12 +986,37 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient, height proto.H
 	return s.stor.balances.generatingBalance(addr.ID(), height)
 }
 
-func (s *stateManager) NewestGeneratingBalance(account proto.Recipient, height proto.Height) (uint64, error) {
-	addr, err := s.NewestRecipientToAddress(account)
+// NewestMinerGeneratingBalance returns the generating balance of the miner at the given height.
+// This method includes the challenger bonus if the block has a challenged header.
+func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, height proto.Height) (uint64, error) {
+	minerAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(RetrievalError, errors.Wrapf(err, "failed create get miner address from PK %s",
+			header.GeneratorPublicKey,
+		))
 	}
-	return s.stor.balances.newestGeneratingBalance(addr.ID(), height)
+	minerGB, err := s.stor.balances.newestGeneratingBalance(minerAddr.ID(), height)
+	if err != nil {
+		return 0, wrapErr(RetrievalError, errors.Wrapf(err, "failed to get generating balance for addr %s",
+			minerAddr.String(),
+		))
+	}
+	if ch, ok := header.GetChallengedHeader(); ok { // if the block has challenged header
+		chMinerAddr, chErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, ch.GeneratorPublicKey)
+		if chErr != nil {
+			return 0, wrapErr(RetrievalError, errors.Wrapf(chErr, "failed to create challenged miner address from PK %s",
+				ch.GeneratorPublicKey,
+			))
+		}
+		challengerBonus, chErr := s.stor.balances.newestGeneratingBalance(chMinerAddr.ID(), height)
+		if chErr != nil {
+			return 0, wrapErr(RetrievalError, errors.Wrapf(chErr, "failed to get generating balance for addr %s",
+				chMinerAddr.String(),
+			))
+		}
+		minerGB += challengerBonus // add challenger bonus to challenger miner's generating balance
+	}
+	return minerGB, nil
 }
 
 func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
@@ -1273,11 +1299,10 @@ func (s *stateManager) handleChallengedHeaderIfExists(block *proto.Block, blockH
 			challengedHeader.GeneratorPublicKey.String(),
 		)
 	}
-	blockchainHeight := blockHeight - 1
-	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockchainHeight, blockID); chErr != nil {
+	if chErr := s.stor.balances.storeChallenge(challenger.ID(), challenged.ID(), blockHeight, blockID); chErr != nil {
 		return errors.Wrapf(chErr,
-			"failed to store challenge with blockchain height %d for block '%s'with challenger '%s' and challenged '%s'",
-			blockchainHeight, blockID.String(), challenger.String(), challenged.String(),
+			"failed to store challenge at adding block height %d for block '%s'with challenger '%s' and challenged '%s'",
+			blockHeight, blockID.String(), challenger.String(), challenged.String(),
 		)
 	}
 	return nil
@@ -1333,8 +1358,10 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	s.newBlocks.setNewBinary([][]byte{block})
 	rs, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return nil, err
 	}
@@ -1345,8 +1372,10 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 	s.newBlocks.setNew([]*proto.Block{block})
 	rs, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return nil, err
 	}
@@ -1356,8 +1385,10 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
 	if _, err := s.addBlocks(); err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return err
 	}
@@ -1369,8 +1400,10 @@ func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*
 		return errors.Wrap(err, "failed to set new blocks with snapshots")
 	}
 	if _, err := s.addBlocks(); err != nil {
-		if snErr := s.rw.syncWithDb(); snErr != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", snErr)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return err
 	}
@@ -1383,8 +1416,10 @@ func (s *stateManager) AddDeserializedBlocks(
 	s.newBlocks.setNew(blocks)
 	lastBlock, err := s.addBlocks()
 	if err != nil {
-		if err = s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return nil, err
 	}
@@ -1400,8 +1435,10 @@ func (s *stateManager) AddDeserializedBlocksWithSnapshots(
 	}
 	lastBlock, err := s.addBlocks()
 	if err != nil {
-		if err := s.rw.syncWithDb(); err != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v", err)
+		if syncErr := s.rw.syncWithDb(); syncErr != nil {
+			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
+				stderrs.Join(err, syncErr),
+			)
 		}
 		return nil, err
 	}
@@ -1614,8 +1651,8 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		return err
 	}
 	if termIsOver {
-		if err = s.updateBlockReward(lastBlock, blockchainHeight); err != nil {
-			return err
+		if ubrErr := s.updateBlockReward(lastBlock, blockchainHeight); ubrErr != nil {
+			return ubrErr
 		}
 	}
 	return nil
@@ -1775,14 +1812,14 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	return nil
 }
 
-func (s *stateManager) addBlocks() (*proto.Block, error) {
+func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:nonamedreturns // needs in defer
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 	defer func() {
 		// Reset in-memory storages and load last block in defer.
 		s.reset()
-		if err := s.loadLastBlock(); err != nil {
-			zap.S().Fatalf("Failed to load last block: %v", err)
+		if lbErr := s.loadLastBlock(); lbErr != nil {
+			zap.S().Fatalf("Failed to load last block: %v", stderrs.Join(retErr, lbErr))
 		}
 		s.newBlocks.reset()
 	}()
@@ -1793,14 +1830,14 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 	}
 
 	// Read some useful values for later.
-	lastAppliedBlock, err := s.topBlock()
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+	lastAppliedBlock, tbErr := s.topBlock()
+	if tbErr != nil {
+		return nil, wrapErr(RetrievalError, tbErr)
 	}
 	zap.S().Debugf("StateManager: parent (top) block ID: %s, ts: %d", lastAppliedBlock.BlockID().String(), lastAppliedBlock.Timestamp)
-	height, err := s.Height()
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+	height, hErr := s.Height()
+	if hErr != nil {
+		return nil, wrapErr(RetrievalError, hErr)
 	}
 	headers := make([]proto.BlockHeader, blocksNumber)
 
@@ -1818,47 +1855,9 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 			return nil, wrapErr(DeserializationError, errCurBlock)
 		}
 
-		if err = s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight, chans); err != nil {
-			return nil, err
-		}
-		sh, errSh := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
-		if errSh != nil {
-			return nil, errors.Wrapf(errSh, "failed to get newest snapshot state hash for height %d",
-				blockchainCurHeight,
-			)
-		}
-
-		// Generate blockchain fix snapshots for the applying block.
-		fixSnapshots, gbfErr := s.generateBlockchainFix(blockchainCurHeight+1, block.BlockID(), false)
-		if gbfErr != nil {
-			return nil, errors.Wrapf(gbfErr, "failed to generate blockchain fix snapshots at block %s",
-				block.BlockID().String(),
-			)
-		}
-		if sbfErr := s.saveBlockchainFix(block.BlockID(), fixSnapshots); sbfErr != nil {
-			return nil, wrapErr(ModificationError, errors.Wrapf(sbfErr, "failed to save blockchain fix for block %s",
-				block.BlockID().String()),
-			)
-		}
-
-		fixSnapshotsToInitialHash := fixSnapshots // at the block applying stage fix snapshots are only used for hashing
-		// Save block to storage, check its transactions, create and save balance diffs for its transactions.
-		addErr := s.addNewBlock(
-			block, lastAppliedBlock, chans, blockchainCurHeight, optionalSnapshot, fixSnapshotsToInitialHash, sh)
-		if addErr != nil {
-			return nil, addErr
-		}
-		if fixErr := s.applyBlockchainFix(block.BlockID(), fixSnapshots); fixErr != nil {
-			return nil, errors.Wrapf(fixErr, "failed to apply fix snapshots after block %s applying",
-				block.BlockID().String(),
-			)
-		}
-		blockchainCurHeight++ // we've just added a new block and applied blockchain fix, so we have a new height
-
-		if s.needToFinishVotingPeriod(blockchainCurHeight) {
-			// If we need to finish voting period on the next block (h+1) then
-			// we have to check that protobuf will be activated on next block
-			s.checkProtobufActivation(blockchainCurHeight + 1)
+		pErr := s.processBlockInPack(block, optionalSnapshot, lastAppliedBlock, blockchainCurHeight, chans)
+		if pErr != nil {
+			return nil, pErr
 		}
 
 		// Prepare for the next iteration.
@@ -1878,12 +1877,12 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		return nil, wrapErr(ModificationError, shErr)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
-	if err = s.cv.ValidateHeadersBatch(headers[:pos], height); err != nil {
-		return nil, wrapErr(ValidationError, err)
+	if vErr := s.cv.ValidateHeadersBatch(headers[:pos], height); vErr != nil {
+		return nil, wrapErr(ValidationError, vErr)
 	}
 	// After everything is validated, save all the changes to DB.
-	if err = s.flush(); err != nil {
-		return nil, wrapErr(ModificationError, err)
+	if fErr := s.flush(); fErr != nil {
+		return nil, wrapErr(ModificationError, fErr)
 	}
 	zap.S().Infof(
 		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
@@ -1893,6 +1892,58 @@ func (s *stateManager) addBlocks() (*proto.Block, error) {
 		lastAppliedBlock.Timestamp,
 	)
 	return lastAppliedBlock, nil
+}
+
+func (s *stateManager) processBlockInPack(
+	block *proto.Block,
+	optionalSnapshot *proto.BlockSnapshot,
+	lastAppliedBlock *proto.Block,
+	blockchainCurHeight uint64,
+	chans *verifierChans,
+) error {
+	if badErr := s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight, chans); badErr != nil {
+		return badErr
+	}
+	sh, errSh := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
+	if errSh != nil {
+		return errors.Wrapf(errSh, "failed to get newest snapshot state hash for height %d",
+			blockchainCurHeight,
+		)
+	}
+
+	// Generate blockchain fix snapshots for the applying block.
+	fixSnapshots, gbfErr := s.generateBlockchainFix(blockchainCurHeight+1, block.BlockID(), false)
+	if gbfErr != nil {
+		return errors.Wrapf(gbfErr, "failed to generate blockchain fix snapshots at block %s",
+			block.BlockID().String(),
+		)
+	}
+	if sbfErr := s.saveBlockchainFix(block.BlockID(), fixSnapshots); sbfErr != nil {
+		return wrapErr(ModificationError, errors.Wrapf(sbfErr, "failed to save blockchain fix for block %s",
+			block.BlockID().String()),
+		)
+	}
+
+	fixSnapshotsToInitialHash := fixSnapshots // at the block applying stage fix snapshots are only used for hashing
+	// Save block to storage, check its transactions, create and save balance diffs for its transactions.
+	addErr := s.addNewBlock(
+		block, lastAppliedBlock, chans, blockchainCurHeight, optionalSnapshot, fixSnapshotsToInitialHash, sh)
+	if addErr != nil {
+		return addErr
+	}
+	if fixErr := s.applyBlockchainFix(block.BlockID(), fixSnapshots); fixErr != nil {
+		return errors.Wrapf(fixErr, "failed to apply fix snapshots after block %s applying",
+			block.BlockID().String(),
+		)
+	}
+	blockchainCurHeight++ // we've just added a new block and applied blockchain fix, so we have a new height
+
+	if s.needToFinishVotingPeriod(blockchainCurHeight) {
+		// If we need to finish voting period on the next block (h+1) then
+		// we have to check that protobuf will be activated on next block
+		s.checkProtobufActivation(blockchainCurHeight + 1)
+	}
+	return nil
 }
 
 func (s *stateManager) beforeAddingBlock(
@@ -2992,15 +3043,9 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 		return 0, err
 	}
 
-	var rewardBoostActivationHeight uint64
-	var rewardBoostLastHeight uint64
-	rewardBoostActivated := s.stor.features.isActivatedAtHeight(int16(settings.BoostBlockReward), height)
-	if rewardBoostActivated {
-		rewardBoostActivationHeight, err = s.stor.features.activationHeight(int16(settings.BoostBlockReward))
-		if err != nil {
-			return 0, err
-		}
-		rewardBoostLastHeight = rewardBoostActivationHeight + s.settings.BlockRewardBoostPeriod - 1
+	rewardBoostActivationHeight, rewardBoostLastHeight, err := rewardBoostFeatureInfo(height, s.stor.features, s.settings)
+	if err != nil {
+		return 0, err
 	}
 
 	amount, err := s.stor.monetaryPolicy.totalAmountAtHeight(height, initialTotalAmount, blockRewardActivationHeight,
@@ -3009,6 +3054,23 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 		return 0, wrapErr(RetrievalError, err)
 	}
 	return amount, nil
+}
+
+func rewardBoostFeatureInfo(
+	h proto.Height,
+	feat featuresState,
+	bs *settings.BlockchainSettings,
+) (proto.Height, proto.Height, error) {
+	rewardBoostActivated := feat.isActivatedAtHeight(int16(settings.BoostBlockReward), h)
+	if !rewardBoostActivated {
+		return 0, 0, nil
+	}
+	rewardBoostActivationHeight, err := feat.activationHeight(int16(settings.BoostBlockReward))
+	if err != nil {
+		return 0, 0, err
+	}
+	rewardBoostLastHeight := rewardBoostActivationHeight + bs.BlockRewardBoostPeriod - 1
+	return rewardBoostActivationHeight, rewardBoostLastHeight, nil
 }
 
 func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error) {

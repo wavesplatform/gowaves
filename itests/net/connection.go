@@ -2,6 +2,7 @@ package net
 
 import (
 	"bufio"
+	stderrs "errors"
 	"net"
 	"testing"
 	"time"
@@ -9,6 +10,8 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+
+	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -73,25 +76,34 @@ type NodeConnections struct {
 	goCon    *OutgoingPeer
 }
 
-func NewNodeConnections(p *d.Ports) (NodeConnections, error) {
+func NewNodeConnections(goPorts, scalaPorts *d.PortConfig) (NodeConnections, error) {
 	var connections NodeConnections
 	err := retry(1*time.Second, func() error {
 		var err error
-		connections, err = establishConnections(p)
+		connections, err = establishConnections(goPorts, scalaPorts)
 		return err
 	})
 	return connections, err
 }
 
-func establishConnections(p *d.Ports) (NodeConnections, error) {
-	goCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Go.BindPort, proto.ProtocolVersion(), "wavesL")
+func establishConnections(goPorts, scalaPorts *d.PortConfig) (NodeConnections, error) {
+	goCon, err := NewConnection(
+		proto.TCPAddr{},
+		config.DefaultIP+":"+goPorts.BindPort,
+		proto.ProtocolVersion(), "wavesL",
+	)
 	if err != nil {
 		return NodeConnections{}, errors.Wrap(err, "failed to create connection to go node")
 	}
-	scalaCon, err := NewConnection(proto.TCPAddr{}, d.Localhost+":"+p.Scala.BindPort, proto.ProtocolVersion(), "wavesL")
+	scalaCon, err := NewConnection(
+		proto.TCPAddr{},
+		config.DefaultIP+":"+scalaPorts.BindPort,
+		proto.ProtocolVersion(), "wavesL",
+	)
 	if err != nil {
 		if closeErr := goCon.Close(); closeErr != nil {
-			err = errors.Wrap(err, closeErr.Error())
+			return NodeConnections{}, errors.Wrap(stderrs.Join(closeErr, err),
+				"failed to create connection to scala node and close go node connection")
 		}
 		return NodeConnections{}, errors.Wrap(err, "failed to create connection to scala node")
 	}
@@ -113,18 +125,24 @@ func retry(timeout time.Duration, f func() error) error {
 }
 
 func (c *NodeConnections) SendToNodes(t *testing.T, m proto.Message, scala bool) {
+	t.Logf("Sending message to go node: %T", m)
 	err := c.goCon.SendMessage(m)
 	assert.NoError(t, err, "failed to send TransactionMessage to go node")
+	t.Log("Message sent to go node")
 	if scala {
+		t.Logf("Sending message to scala node: %T", m)
 		err = c.scalaCon.SendMessage(m)
 		assert.NoError(t, err, "failed to send TransactionMessage to scala node")
+		t.Log("Message sent to scala node")
 	}
 }
 
 func (c *NodeConnections) Close(t *testing.T) {
+	t.Log("Closing connections")
 	err := c.goCon.Close()
 	assert.NoError(t, err, "failed to close go node connection")
 
 	err = c.scalaCon.Close()
 	assert.NoError(t, err, "failed to close scala node connection")
+	t.Log("Connections closed")
 }

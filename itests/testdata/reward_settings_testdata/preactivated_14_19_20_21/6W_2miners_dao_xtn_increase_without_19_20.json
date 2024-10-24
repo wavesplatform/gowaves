@@ -7,7 +7,7 @@
   "desired_reward": 800000000,
   "dao_address": "3JuungCtDNEvFyHgx1Dcd937ztNTVpRNSWi",
   "xtn_buyback_address": "3JdWGi733mWM2kPoUvHqg3uJzMQ5rPCoFWU",
-  "min_xtn_buy_back_period": 4,
+  "min_xtn_buy_back_period": 5,
   "preactivated_features": [
     {"feature": 21, "height": 1}
   ],
