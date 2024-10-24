@@ -6,5 +6,3 @@ const (
 	microblockUpdates = "microblock_topic"
 	ContractUpdates   = "contract_topic"
 )
-
-// var Topics = []string{BlockUpdates, microblockUpdates, ContractUpdates}

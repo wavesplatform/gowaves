@@ -8,30 +8,18 @@ import (
 
 func BUpdatesInfoToProto(blockInfo BUpdatesInfo, scheme proto.Scheme) (*g.BlockInfo, error) {
 	var (
-		height      uint64
-		vrf         []byte
-		blockID     []byte
 		blockHeader *waves.Block_Header
 		err         error
 	)
-	if blockInfo.BlockUpdatesInfo.Height != nil {
-		height = *blockInfo.BlockUpdatesInfo.Height
-	}
-	if blockInfo.BlockUpdatesInfo.VRF != nil {
-		vrf = *blockInfo.BlockUpdatesInfo.VRF
-	}
-	if blockInfo.BlockUpdatesInfo.BlockID != nil {
-		blockID = blockInfo.BlockUpdatesInfo.BlockID.Bytes()
-	}
 
 	blockHeader, err = blockInfo.BlockUpdatesInfo.BlockHeader.HeaderToProtobufHeader(scheme)
 	if err != nil {
 		return nil, err
 	}
 	return &g.BlockInfo{
-		Height:      height,
-		VRF:         vrf,
-		BlockID:     blockID,
+		Height:      blockInfo.BlockUpdatesInfo.Height,
+		VRF:         blockInfo.BlockUpdatesInfo.VRF,
+		BlockID:     blockInfo.BlockUpdatesInfo.BlockID.Bytes(),
 		BlockHeader: blockHeader,
 	}, nil
 }
@@ -47,22 +35,22 @@ func BUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (BlockUpdatesInfo, error
 	}
 	vrf := proto.B58Bytes(blockInfoProto.VRF)
 	return BlockUpdatesInfo{
-		Height:      &blockInfoProto.Height,
-		VRF:         &vrf,
-		BlockID:     &blockID,
-		BlockHeader: blockHeader,
+		Height:      blockInfoProto.Height,
+		VRF:         vrf,
+		BlockID:     blockID,
+		BlockHeader: *blockHeader,
 	}, nil
 }
 
 func L2ContractDataEntriesToProto(contractData L2ContractDataEntries) *g.L2ContractDataEntries {
 	var protobufDataEntries []*waves.DataEntry
-	for _, entry := range *contractData.AllDataEntries {
+	for _, entry := range contractData.AllDataEntries {
 		entryProto := entry.ToProtobuf()
 		protobufDataEntries = append(protobufDataEntries, entryProto)
 	}
 	return &g.L2ContractDataEntries{
 		DataEntries: protobufDataEntries,
-		Height:      *contractData.Height,
+		Height:      contractData.Height,
 	}
 }
 
@@ -78,5 +66,5 @@ func L2ContractDataEntriesFromProto(protoDataEntries *g.L2ContractDataEntries,
 		dataEntries = append(dataEntries, entry)
 	}
 
-	return L2ContractDataEntries{AllDataEntries: &dataEntries, Height: &protoDataEntries.Height}, nil
+	return L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height}, nil
 }

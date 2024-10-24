@@ -8,16 +8,16 @@ import (
 
 // BlockUpdatesInfo Block updates.
 type BlockUpdatesInfo struct {
-	Height      *uint64            `json:"height"`
-	VRF         *proto.B58Bytes    `json:"vrf"`
-	BlockID     *proto.BlockID     `json:"block_id"`
-	BlockHeader *proto.BlockHeader `json:"block_header"`
+	Height      uint64            `json:"height"`
+	VRF         proto.B58Bytes    `json:"vrf"`
+	BlockID     proto.BlockID     `json:"block_id"`
+	BlockHeader proto.BlockHeader `json:"block_header"`
 }
 
 // L2ContractDataEntries L2 contract data entries.
 type L2ContractDataEntries struct {
-	AllDataEntries *[]proto.DataEntry `json:"all_data_entries"`
-	Height         *uint64            `json:"height"`
+	AllDataEntries []proto.DataEntry `json:"all_data_entries"`
+	Height         uint64            `json:"height"`
 }
 
 type BUpdatesInfo struct {
@@ -27,7 +27,8 @@ type BUpdatesInfo struct {
 
 // TODO wrap errors.
 
-func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme, heightLimit uint64) (bool, BUpdatesInfo, error) {
+func CompareBUpdatesInfo(current, previous BUpdatesInfo,
+	scheme proto.Scheme, heightLimit uint64) (bool, BUpdatesInfo, error) {
 	changes := BUpdatesInfo{
 		BlockUpdatesInfo:    BlockUpdatesInfo{},
 		ContractUpdatesInfo: L2ContractDataEntries{},
@@ -39,7 +40,7 @@ func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme, he
 		equal = false
 		changes.BlockUpdatesInfo.Height = current.BlockUpdatesInfo.Height
 	}
-	if !bytes.Equal(*current.BlockUpdatesInfo.VRF, *previous.BlockUpdatesInfo.VRF) {
+	if !bytes.Equal(current.BlockUpdatesInfo.VRF, previous.BlockUpdatesInfo.VRF) {
 		equal = false
 		changes.BlockUpdatesInfo.VRF = current.BlockUpdatesInfo.VRF
 	}
@@ -57,11 +58,13 @@ func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme, he
 		changes.BlockUpdatesInfo.BlockHeader = current.BlockUpdatesInfo.BlockHeader
 	}
 
-	previousFilteredDataEntries, err := filterDataEntries(*previous.BlockUpdatesInfo.Height-heightLimit, *previous.ContractUpdatesInfo.AllDataEntries)
+	previousFilteredDataEntries, err := filterDataEntries(previous.BlockUpdatesInfo.Height-heightLimit,
+		previous.ContractUpdatesInfo.AllDataEntries)
 	if err != nil {
 		return false, BUpdatesInfo{}, err
 	}
-	currentFilteredDataEntries, err := filterDataEntries(*current.BlockUpdatesInfo.Height-heightLimit, *current.ContractUpdatesInfo.AllDataEntries)
+	currentFilteredDataEntries, err := filterDataEntries(current.BlockUpdatesInfo.Height-heightLimit,
+		current.ContractUpdatesInfo.AllDataEntries)
 	if err != nil {
 		return false, BUpdatesInfo{}, err
 	}
@@ -73,16 +76,14 @@ func compareBUpdatesInfo(current, previous BUpdatesInfo, scheme proto.Scheme, he
 	}
 	if !equalEntries {
 		equal = false
-		changes.ContractUpdatesInfo.AllDataEntries = &dataEntryChanges
+		changes.ContractUpdatesInfo.AllDataEntries = dataEntryChanges
 		changes.ContractUpdatesInfo.Height = current.BlockUpdatesInfo.Height
 	}
+
 	return equal, changes, nil
 }
 
-func compareBlockHeader(a, b *proto.BlockHeader, scheme proto.Scheme) (bool, error) {
-	if a == nil || b == nil {
-		return a == b, nil // both nil or one of them is nil
-	}
+func compareBlockHeader(a, b proto.BlockHeader, scheme proto.Scheme) (bool, error) {
 	blockAbytes, err := a.MarshalHeader(scheme)
 	if err != nil {
 		return false, err
@@ -151,5 +152,5 @@ func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.Data
 }
 
 func statesEqual(state BUpdatesExtensionState, scheme proto.Scheme) (bool, BUpdatesInfo, error) {
-	return compareBUpdatesInfo(*state.currentState, *state.previousState, scheme, state.Limit)
+	return CompareBUpdatesInfo(*state.currentState, *state.previousState, scheme, state.Limit)
 }

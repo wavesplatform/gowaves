@@ -163,11 +163,12 @@ func handleBlockchainUpdates(updates BUpdatesInfo, ok bool,
 	if bu.previousState == nil {
 		// publish initial updates
 
-		filteredDataEntries, err := filterDataEntries(*updates.BlockUpdatesInfo.Height-bu.Limit, *updates.ContractUpdatesInfo.AllDataEntries)
+		filteredDataEntries, err := filterDataEntries(updates.BlockUpdatesInfo.Height-bu.Limit,
+			updates.ContractUpdatesInfo.AllDataEntries)
 		if err != nil {
 			return
 		}
-		updates.ContractUpdatesInfo.AllDataEntries = &filteredDataEntries
+		updates.ContractUpdatesInfo.AllDataEntries = filteredDataEntries
 		pblshErr := bu.publishUpdates(updates, nc, scheme)
 		if pblshErr != nil {
 			log.Printf("failed to publish updates, %v", pblshErr)

@@ -4,8 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"log"
 	"os"
 	"os/signal"
@@ -13,7 +11,10 @@ import (
 	"strings"
 	"syscall"
 
+	"go.uber.org/zap"
+
 	"github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -109,9 +110,6 @@ func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Sche
 	return contractMsg
 }
 
-//const scheme = proto.TestNetScheme
-//const path = "/media/alex/ExtremePro/waves/subscription/"
-
 func main() {
 	var (
 		blockchainType string
@@ -124,9 +122,9 @@ func main() {
 		log.Fatalf("failed to initialize zap logger: %v", err)
 	}
 	defer func(l *zap.Logger) {
-		err := l.Sync()
-		if err != nil {
-			log.Fatalf("failed to sync zap logger %v", err)
+		syncErr := l.Sync()
+		if syncErr != nil {
+			log.Fatalf("failed to sync zap logger %v", syncErr)
 		}
 	}(l)
 

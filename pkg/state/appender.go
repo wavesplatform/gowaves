@@ -885,14 +885,14 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 	blockID := blockHeader.BlockID()
 	bUpdatesInfo := blockchaininfo.BUpdatesInfo{
 		BlockUpdatesInfo: blockchaininfo.BlockUpdatesInfo{
-			Height:      &blockInfo.Height,
-			VRF:         &blockInfo.VRF,
-			BlockID:     &blockID,
-			BlockHeader: blockHeader,
+			Height:      blockInfo.Height,
+			VRF:         blockInfo.VRF,
+			BlockID:     blockID,
+			BlockHeader: *blockHeader,
 		},
 		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
-			AllDataEntries: &dataEntries,
-			Height:         &blockInfo.Height,
+			AllDataEntries: dataEntries,
+			Height:         blockInfo.Height,
 		},
 	}
 	a.bUpdatesExtension.BUpdatesChannel <- bUpdatesInfo

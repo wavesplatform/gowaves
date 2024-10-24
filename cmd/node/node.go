@@ -396,7 +396,7 @@ func main() {
 		bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(blockchaininfo.StoreBlocksLimit,
 			cfg.AddressSchemeCharacter)
 
-		l2address, cnvrtErr := proto.NewAddressFromString("3MsqKJ6o1ABE37676cHHBxJRs6huYTt72ch")
+		l2address, cnvrtErr := proto.NewAddressFromString("3Msx4Aq69zWUKy4d1wyKnQ4ofzEDAfv5Ngf")
 		if cnvrtErr != nil {
 			zap.S().Errorf("Failed to initialize L2 contract address")
 			return
