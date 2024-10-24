@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 
 	"github.com/jinzhu/copier"
 	"github.com/mr-tron/base58/base58"
@@ -517,11 +518,18 @@ func ProtobufHeaderToBlockHeader(ph *g.Block_Header) (*BlockHeader, error) {
 	if err != nil {
 		return nil, err
 	}
+	if ph.Timestamp < 0 {
+		return nil, errors.Errorf("invalid timestamp: negative value %d", ph.Timestamp)
+	}
+	features, err := uint32SliceToInt16(ph.FeatureVotes)
+	if err != nil {
+		return nil, errors.Errorf("failed to convert uint32 slice of feature votes to int16, %v", err)
+	}
 	blockHeader := &BlockHeader{
 		Version:            BlockVersion(ph.Version),
 		Timestamp:          uint64(ph.Timestamp),
 		Parent:             parentBlockID,
-		Features:           uint32SliceToInt16(ph.FeatureVotes),
+		Features:           features,
 		RewardVote:         ph.RewardVote,
 		GeneratorPublicKey: generatorPK,
 		TransactionsRoot:   B58Bytes(ph.TransactionsRoot),
@@ -531,12 +539,15 @@ func ProtobufHeaderToBlockHeader(ph *g.Block_Header) (*BlockHeader, error) {
 	return blockHeader, nil
 }
 
-func uint32SliceToInt16(s []uint32) []int16 {
+func uint32SliceToInt16(s []uint32) ([]int16, error) {
 	var res []int16
 	for _, v := range s {
+		if v > math.MaxInt16 { // Check for overflow
+			return nil, fmt.Errorf("value %d exceeds int16 range", v)
+		}
 		res = append(res, int16(v))
 	}
-	return res
+	return res, nil
 }
 
 func FromProtobufChallengedHeader(pb *g.Block_Header_ChallengedHeader) (*ChallengedHeader, error) {
@@ -555,12 +566,22 @@ func FromProtobufChallengedHeader(pb *g.Block_Header_ChallengedHeader) (*Challen
 	if err != nil {
 		return nil, err
 	}
+	if pb.BaseTarget < 0 {
+		return nil, errors.Errorf("invalid basetarget: negative value %d", pb.BaseTarget)
+	}
+	if pb.Timestamp < 0 {
+		return nil, errors.Errorf("invalid timestamp: negative value %d", pb.Timestamp)
+	}
+	features, err := int16SliceFromUint32(pb.FeatureVotes)
+	if err != nil {
+		return nil, errors.Errorf("failed to convert int16 slice of feature votes to uint32, %v", err)
+	}
 	return &ChallengedHeader{
 		NxtConsensus: NxtConsensus{
 			BaseTarget:   uint64(pb.BaseTarget),
 			GenSignature: pb.GenerationSignature,
 		},
-		Features:           int16SliceFromUint32(pb.FeatureVotes),
+		Features:           features,
 		Timestamp:          uint64(pb.Timestamp),
 		GeneratorPublicKey: genPublicKey,
 		RewardVote:         pb.RewardVote,
@@ -569,12 +590,15 @@ func FromProtobufChallengedHeader(pb *g.Block_Header_ChallengedHeader) (*Challen
 	}, nil
 }
 
-func int16SliceFromUint32(data []uint32) []int16 {
+func int16SliceFromUint32(data []uint32) ([]int16, error) {
 	result := make([]int16, len(data))
 	for i, v := range data {
+		if v > math.MaxInt16 { // Check for overflow
+			return nil, fmt.Errorf("value %d exceeds int16 range", v)
+		}
 		result[i] = int16(v)
 	}
-	return result
+	return result, nil
 }
 
 func AppendHeaderBytesToTransactions(headerBytes, transactions []byte) ([]byte, error) {

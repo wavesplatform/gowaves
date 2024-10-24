@@ -70,7 +70,7 @@ func filterDataEntries(beforeHeight uint64, dataEntries []proto.DataEntry) ([]pr
 			epoch := extractEpochFromBlockMeta(binaryEntry.Value)
 
 			// Compare height with beforeHeight.
-			if epoch > int64(beforeHeight) {
+			if uint64(epoch) > beforeHeight {
 				// Add to filtered list if height is less than beforeHeight.
 				filteredDataEntries = append(filteredDataEntries, entry)
 			}

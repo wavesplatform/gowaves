@@ -43,7 +43,7 @@ func printContractInfo(contractInfoProto *g.L2ContractDataEntries, scheme proto.
 		log.Println("Error converting to pretty JSON:", err)
 		return err
 	}
-	heightStr := strconv.Itoa(int(contractInfoProto.Height))
+	heightStr := strconv.FormatUint(contractInfoProto.Height, 10)
 	// Write the pretty JSON to a file
 	err = os.WriteFile(path+heightStr+".json", prettyJSON, 0600)
 	if err != nil {
