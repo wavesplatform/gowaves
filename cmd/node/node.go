@@ -26,7 +26,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
-	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -409,9 +408,6 @@ func main() {
 		return
 	}
 
-	async := runner.NewAsync()
-	logRunner := runner.NewLogRunner(async)
-
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 	bindAddr := proto.NewTCPAddrFromString(nc.bindAddress)
 
@@ -481,7 +477,6 @@ func main() {
 		BlocksApplier:   blockApplier,
 		UtxPool:         utx,
 		Scheme:          cfg.AddressSchemeCharacter,
-		LoggableRunner:  logRunner,
 		Time:            ntpTime,
 		Wallet:          wal,
 		MicroBlockCache: microblock_cache.NewMicroBlockCache(),

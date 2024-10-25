@@ -780,14 +780,6 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
-func (a *NodeApi) nodeProcesses(w http.ResponseWriter, _ *http.Request) error {
-	rs := a.app.NodeProcesses()
-	if err := trySendJson(w, rs); err != nil {
-		return errors.Wrap(err, "nodeProcesses")
-	}
-	return nil
-}
-
 func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
 	stateHash, err := a.state.LegacyStateHashAtHeight(height)
 	if err != nil {
