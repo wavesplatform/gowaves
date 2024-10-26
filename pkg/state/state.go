@@ -225,27 +225,35 @@ func (s *blockchainEntitiesStorage) flush() error {
 	return nil
 }
 
+var ErrIncompatibleStateParams = stderrs.New("incompatible state params")
+
 func checkCompatibility(stateDB *stateDB, params StateParams) error {
 	version, err := stateDB.stateVersion()
 	if err != nil {
-		return errors.Errorf("stateVersion: %v", err)
+		return errors.Wrap(err, "stateVersion")
 	}
 	if version != StateVersion {
-		return errors.Errorf("incompatible storage version %d; current state supports only %d", version, StateVersion)
+		return errors.Wrapf(ErrIncompatibleStateParams, "incompatible storage version: state has value (%d), want (%d)",
+			version, StateVersion,
+		)
 	}
 	hasDataForExtendedApi, err := stateDB.stateStoresApiData()
 	if err != nil {
-		return errors.Errorf("stateStoresApiData(): %v", err)
+		return errors.Wrap(err, "stateStoresApiData")
 	}
 	if params.StoreExtendedApiData != hasDataForExtendedApi {
-		return errors.Errorf("extended API incompatibility: state stores: %v; want: %v", hasDataForExtendedApi, params.StoreExtendedApiData)
+		return errors.Wrapf(ErrIncompatibleStateParams, "extended API incompatibility: state has value (%v), want (%v)",
+			hasDataForExtendedApi, params.StoreExtendedApiData,
+		)
 	}
 	hasDataForHashes, err := stateDB.stateStoresHashes()
 	if err != nil {
-		return errors.Errorf("stateStoresHashes: %v", err)
+		return errors.Wrap(err, "stateStoresHashes")
 	}
 	if params.BuildStateHashes != hasDataForHashes {
-		return errors.Errorf("state hashes incompatibility: state stores: %v; want: %v", hasDataForHashes, params.BuildStateHashes)
+		return errors.Wrapf(ErrIncompatibleStateParams, "state hashes incompatibility: state has value (%v), want (%v)",
+			hasDataForHashes, params.BuildStateHashes,
+		)
 	}
 	return nil
 }
@@ -433,7 +441,7 @@ func initDatabase(
 	dataDir, blockStorageDir string,
 	amend bool,
 	params StateParams,
-) (*keyvalue.KeyVal, keyvalue.Batch, *stateDB, bool, error) {
+) (_ *keyvalue.KeyVal, _ keyvalue.Batch, _ *stateDB, _ bool, retErr error) {
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	zap.S().Info("Initializing state database, will take up to few minutes...")
 	params.DbParams.BloomFilterParams.Store.WithPath(filepath.Join(blockStorageDir, "bloom"))
@@ -444,12 +452,25 @@ func initDatabase(
 	zap.S().Info("Finished initializing database")
 	dbBatch, err := db.NewBatch()
 	if err != nil {
+		if dbCloseErr := db.Close(); dbCloseErr != nil {
+			err = stderrs.Join(retErr, errors.Wrap(dbCloseErr, "failed to close db"))
+		}
 		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create db batch"))
 	}
 	sdb, err := newStateDB(db, dbBatch, params)
 	if err != nil {
+		if dbCloseErr := db.Close(); dbCloseErr != nil {
+			retErr = stderrs.Join(retErr, errors.Wrap(dbCloseErr, "failed to close db"))
+		}
 		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create stateDB"))
 	}
+	defer func() {
+		if retErr != nil {
+			if sdbCloseErr := sdb.close(); sdbCloseErr != nil {
+				retErr = stderrs.Join(retErr, errors.Wrap(sdbCloseErr, "failed to close state db"))
+			}
+		}
+	}()
 	if cErr := checkCompatibility(sdb, params); cErr != nil {
 		return nil, nil, nil, false, wrapErr(IncompatibilityError, cErr)
 	}
