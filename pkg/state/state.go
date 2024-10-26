@@ -551,10 +551,7 @@ func newStateManager(
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
 	sdb.setRw(rw)
-	hs, err := newHistoryStorage(db, dbBatch, sdb, handledAmend)
-	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create history storage: %v", err))
-	}
+	hs := newHistoryStorage(db, dbBatch, sdb, handledAmend)
 	stor, err := newBlockchainEntitiesStorage(hs, settings, rw, params.BuildStateHashes)
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
