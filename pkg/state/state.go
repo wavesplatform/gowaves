@@ -519,7 +519,7 @@ func newStateManager(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
-) (*stateManager, error) {
+) (_ *stateManager, retErr error) {
 	if err := validateSettings(settings); err != nil {
 		return nil, err
 	}
@@ -539,6 +539,13 @@ func newStateManager(
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if dbCloseErr := db.Close(); dbCloseErr != nil {
+				retErr = stderrs.Join(retErr, errors.Wrap(dbCloseErr, "failed to close stateDB"))
+			}
+		}
+	}()
 	// rw is storage for blocks.
 	rw, err := newBlockReadWriter(
 		blockStorageDir,
@@ -550,6 +557,13 @@ func newStateManager(
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
 	}
+	defer func() {
+		if retErr != nil {
+			if rwCloseErr := rw.close(); rwCloseErr != nil {
+				retErr = stderrs.Join(retErr, errors.Wrap(rwCloseErr, "failed to close block read writer"))
+			}
+		}
+	}()
 	sdb.setRw(rw)
 	hs := newHistoryStorage(db, dbBatch, sdb, handledAmend)
 	stor, err := newBlockchainEntitiesStorage(hs, settings, rw, params.BuildStateHashes)
@@ -567,6 +581,13 @@ func newStateManager(
 	if err != nil {
 		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
 	}
+	defer func() {
+		if retErr != nil {
+			if atxCloseErr := atx.close(); atxCloseErr != nil {
+				retErr = stderrs.Join(retErr, errors.Wrap(atxCloseErr, "failed to close address transactions"))
+			}
+		}
+	}()
 	state := &stateManager{
 		mu:                        &sync.RWMutex{},
 		stateDB:                   sdb,
