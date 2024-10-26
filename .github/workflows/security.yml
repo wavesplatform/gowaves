@@ -8,6 +8,10 @@ on:
   schedule:
     - cron: '30 12 * * 3'
 
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'master' && github.event_name != 'workflow_dispatch' }}
+
 jobs:
   gosec:
     name: gosec check
