@@ -3,6 +3,7 @@ package state
 import (
 	"bufio"
 	"encoding/binary"
+	stderrs "errors"
 	"io"
 	"os"
 	"path/filepath"
@@ -154,7 +155,7 @@ func newAddressTransactions(
 	rw *blockReadWriter,
 	params *addressTransactionsParams,
 	amend bool,
-) (*addressTransactions, error) {
+) (_ *addressTransactions, retErr error) {
 	bsParams := &batchedStorParams{
 		maxBatchSize: maxTransactionIdsBatchSize,
 		recordSize:   txMetaSize,
@@ -165,6 +166,13 @@ func newAddressTransactions(
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if fErr := addrTransactionsFile.Close(); fErr != nil {
+				retErr = stderrs.Join(retErr, errors.Wrap(fErr, "failed to close address_transactions file"))
+			}
+		}
+	}()
 	if err := manageFile(addrTransactionsFile, db); err != nil {
 		return nil, err
 	}
@@ -183,8 +191,8 @@ func newAddressTransactions(
 		amend:               amend,
 	}
 	if params.providesData {
-		if err := atx.persist(); err != nil {
-			return nil, errors.Wrap(err, "failed to persist")
+		if pErr := atx.persist(); pErr != nil { // no need to close atx here because all resources will be closed above
+			return nil, errors.Wrap(pErr, "failed to persist")
 		}
 	}
 	return atx, nil
