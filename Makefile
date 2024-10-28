@@ -5,7 +5,7 @@ SOURCE=$(shell find . -name '*.go' | grep -v vendor/)
 SOURCE_DIRS = cmd pkg
 
 VERSION=$(shell git describe --tags --always --dirty)
-DEB_VER=$(shell git describe --tags --abbrev=0 | cut -c 2-)
+DEB_VER=$(shell echo $(VERSION) | cut -c 2-)
 DEB_HASH=$(shell git rev-parse HEAD)
 
 export GO111MODULE=on
