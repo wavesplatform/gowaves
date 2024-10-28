@@ -5,6 +5,10 @@ on:
     types: [ submitted ]
     branches: [ master ]
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
+
 jobs:
   itest:
     name: integration_tests
