@@ -5,3 +5,4 @@
 *.bat text eol=crlf
 *.cmd text eol=crlf
 importer.pgo -text
+pkg/state/testdata/blocks-10000 -text
