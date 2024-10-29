@@ -3,6 +3,8 @@ package state
 import (
 	"bufio"
 	"encoding/binary"
+	stderrs "errors"
+	"math"
 	"os"
 	"path/filepath"
 	"sync"
@@ -169,11 +171,14 @@ type blockReadWriter struct {
 	addingBlock bool
 
 	// Protobuf-related stuff.
-	protobufActivated                     bool
-	protobufTxStart, protobufHeadersStart uint64
-	protobufAfterHeight                   uint64
+	protobufInfoWithActivation
 
 	mtx sync.RWMutex
+}
+
+type protobufInfoWithActivation struct {
+	protobufActivated bool
+	protobufInfo
 }
 
 // openOrCreateForAppending function opens file if it exists or creates new in other case.
@@ -199,19 +204,43 @@ func newBlockReadWriter(
 	headerOffsetLen int,
 	stateDB *stateDB,
 	scheme proto.Scheme,
-) (*blockReadWriter, error) {
+) (_ *blockReadWriter, retErr error) {
+	if offsetLen < 0 {
+		return nil, errors.New("negative offset length")
+	}
 	blockchain, blockchainSize, err := openOrCreateForAppending(filepath.Join(dir, "blockchain"))
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if fErr := blockchain.Close(); fErr != nil {
+				retErr = stderrs.Join(retErr, errors.Wrap(fErr, "failed to close blockchain file"))
+			}
+		}
+	}()
 	headers, headersSize, err := openOrCreateForAppending(filepath.Join(dir, "headers"))
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if fErr := headers.Close(); fErr != nil {
+				retErr = stderrs.Join(retErr, errors.Wrap(fErr, "failed to close headers file"))
+			}
+		}
+	}()
 	blockHeight2ID, _, err := openOrCreateForAppending(filepath.Join(dir, "block_height_to_id"))
 	if err != nil {
 		return nil, err
 	}
+	defer func() {
+		if retErr != nil {
+			if fErr := blockHeight2ID.Close(); fErr != nil {
+				retErr = stderrs.Join(retErr, errors.Wrap(fErr, "failed to close block_height_to_id file"))
+			}
+		}
+	}()
 	if offsetLen != 8 {
 		// TODO: support different offset lengths.
 		return nil, errors.New("only offsetLen 8 is currently supported")
@@ -224,33 +253,35 @@ func newBlockReadWriter(
 	if err != nil {
 		return nil, errors.Errorf("failed to retrieve height: %v", err)
 	}
-	rw := &blockReadWriter{
-		db:                stateDB.db,
-		dbBatch:           stateDB.dbBatch,
-		stateDB:           stateDB,
-		scheme:            scheme,
-		blockchain:        blockchain,
-		headers:           headers,
-		blockHeight2ID:    blockHeight2ID,
-		blockchainBuf:     bufio.NewWriter(blockchain),
-		headersBuf:        bufio.NewWriter(headers),
-		blockHeight2IDBuf: bufio.NewWriter(blockHeight2ID),
-		rtx:               newRecentTransactions(),
-		rheaders:          make(map[proto.BlockID]proto.BlockHeader),
-		blockInfo:         make(map[proto.BlockID]blockMeta),
-		height2IDCache:    make(map[uint64]proto.BlockID),
-		offsetEnd:         uint64(1<<uint(8*offsetLen) - 1),
-		blockchainLen:     blockchainSize,
-		headersLen:        headersSize,
-		offsetLen:         offsetLen,
-		headerOffsetLen:   headerOffsetLen,
-		height:            height,
+	pbInfo, err := loadProtobufInfo(stateDB.db)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to load protobuf info")
 	}
-	if err := rw.loadProtobufInfo(); err != nil {
-		return nil, err
+	rw := &blockReadWriter{
+		db:                         stateDB.db,
+		dbBatch:                    stateDB.dbBatch,
+		stateDB:                    stateDB,
+		scheme:                     scheme,
+		blockchain:                 blockchain,
+		headers:                    headers,
+		blockHeight2ID:             blockHeight2ID,
+		blockchainBuf:              bufio.NewWriter(blockchain),
+		headersBuf:                 bufio.NewWriter(headers),
+		blockHeight2IDBuf:          bufio.NewWriter(blockHeight2ID),
+		rtx:                        newRecentTransactions(),
+		rheaders:                   make(map[proto.BlockID]proto.BlockHeader),
+		blockInfo:                  make(map[proto.BlockID]blockMeta),
+		height2IDCache:             make(map[uint64]proto.BlockID),
+		offsetEnd:                  math.MaxUint64, // previously 'uint64(1<<uint(8*offsetLen) - 1)', which is the same
+		blockchainLen:              blockchainSize,
+		headersLen:                 headersSize,
+		offsetLen:                  offsetLen,
+		headerOffsetLen:            headerOffsetLen,
+		height:                     height,
+		protobufInfoWithActivation: pbInfo,
 	}
 	if err := rw.syncWithDb(); err != nil {
-		return nil, err
+		return nil, err // no need to close rw because all resources will be closed above
 	}
 	return rw, nil
 }
@@ -845,30 +876,25 @@ func (rw *blockReadWriter) flush() error {
 	return nil
 }
 
-func (rw *blockReadWriter) loadProtobufInfo() error {
+func loadProtobufInfo(db keyvalue.KeyValue) (protobufInfoWithActivation, error) {
 	key := []byte{rwProtobufInfoKeyPrefix}
-	has, err := rw.db.Has(key)
+	has, err := db.Has(key)
 	if err != nil {
-		return err
+		return protobufInfoWithActivation{}, err
 	}
 	if !has {
 		// Nothing found, means protobuf is not yet activated.
-		rw.protobufActivated = false
-		return nil
+		return protobufInfoWithActivation{protobufActivated: false}, nil
 	}
-	infoBytes, err := rw.db.Get(key)
+	infoBytes, err := db.Get(key)
 	if err != nil {
-		return err
+		return protobufInfoWithActivation{}, err
 	}
 	var info protobufInfo
-	if err := info.unmarshalBinary(infoBytes); err != nil {
-		return err
+	if unmErr := info.unmarshalBinary(infoBytes); unmErr != nil {
+		return protobufInfoWithActivation{}, unmErr
 	}
-	rw.protobufActivated = true
-	rw.protobufTxStart = info.protobufTxStart
-	rw.protobufHeadersStart = info.protobufHeadersStart
-	rw.protobufAfterHeight = info.protobufAfterHeight
-	return nil
+	return protobufInfoWithActivation{protobufActivated: true, protobufInfo: info}, nil
 }
 
 func (rw *blockReadWriter) storeProtobufInfo(info *protobufInfo) {
