@@ -1,0 +1,14 @@
+name: "Deploy node"
+on:
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    uses: "./.github/workflows/deploy_node_to.yml"
+    with:
+      network: "stagenet"
+      arch: "amd64"
+    secrets:
+      SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+      DEPLOYMENT_SERVER: ${{ secrets.DEPLOYMENT_SERVER }}
+      DEPLOYMENT_USER: ${{ secrets.DEPLOYMENT_USER }}
