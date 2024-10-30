@@ -70,10 +70,11 @@ func NewNode(
 	}
 }
 
-func (a *Node) Close() {
+func (a *Node) Close() error {
 	ch := make(chan struct{})
 	a.services.InternalChannel <- messages.NewHaltMessage(ch)
 	<-ch
+	return nil
 }
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
