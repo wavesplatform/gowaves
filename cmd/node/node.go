@@ -3,7 +3,7 @@ package main
 import (
 	"context"
 	"crypto/rand"
-	"errors"
+	stderrs "errors"
 	"flag"
 	"fmt"
 	"math"
@@ -17,6 +17,7 @@ import (
 	"syscall"
 	"time"
 
+	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
@@ -248,6 +249,17 @@ type Scheduler interface {
 }
 
 func main() {
+	err := run()
+	if err != nil {
+		zap.S().Errorf("Failed to run: %v", err)
+		os.Exit(1)
+	}
+}
+
+func run() (retErr error) {
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer done()
+
 	nc := new(config)
 	nc.parse()
 	logger := logging.SetupLogger(nc.logLevel,
@@ -258,7 +270,7 @@ func main() {
 	)
 	defer func() {
 		err := logger.Sync()
-		if err != nil && errors.Is(err, os.ErrInvalid) {
+		if err != nil && stderrs.Is(err, os.ErrInvalid) {
 			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
 		}
 	}()
@@ -299,9 +311,6 @@ func main() {
 		}()
 	}
 
-	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
-	defer done()
-
 	if nc.metricsURL != "" && nc.metricsID != -1 {
 		err = metrics.Start(ctx, nc.metricsID, nc.metricsURL)
 		if err != nil {
@@ -324,35 +333,31 @@ func main() {
 		defer func() { _ = f.Close() }()
 		cfg, err = settings.ReadBlockchainSettings(f)
 		if err != nil {
-			zap.S().Fatalf("Failed to read configuration file: %v", err)
+			return errors.Wrap(err, "failed to read configuration file")
 		}
 	} else {
 		cfg, err = settings.BlockchainSettingsByTypeName(nc.blockchainType)
 		if err != nil {
-			zap.S().Errorf("Failed to get blockchain settings: %v", err)
-			return
+			return errors.Wrap(err, "failed to get blockchain settings")
 		}
 	}
 
 	conf := &settings.NodeSettings{}
 	err = settings.ApplySettings(conf, FromArgs(cfg.AddressSchemeCharacter, nc), settings.FromJavaEnviron)
 	if err != nil {
-		zap.S().Errorf("Failed to apply node settings: %v", err)
-		return
+		return errors.Wrap(err, "failed to apply node settings")
 	}
 
 	err = conf.Validate()
 	if err != nil {
-		zap.S().Errorf("Failed to validate node settings: %v", err)
-		return
+		return errors.Wrap(err, "failed to validate node settings")
 	}
 
 	var wal types.EmbeddedWallet = wallet.NewEmbeddedWallet(wallet.NewLoader(nc.walletPath),
 		wallet.NewWallet(), cfg.AddressSchemeCharacter)
 	if nc.walletPassword != "" {
 		if err = wal.Load([]byte(nc.walletPassword)); err != nil {
-			zap.S().Errorf("Failed to load wallet: %v", err)
-			return
+			return errors.Wrap(err, "failed to load wallet")
 		}
 	}
 
@@ -360,21 +365,18 @@ func main() {
 	if path == "" {
 		path, err = common.GetStatePath()
 		if err != nil {
-			zap.S().Errorf("Failed to get state path: %v", err)
-			return
+			return errors.Wrap(err, "failed to get state path")
 		}
 	}
 
 	reward, err := miner.ParseReward(nc.reward)
 	if err != nil {
-		zap.S().Errorf("Failed to parse '-reward': %v", err)
-		return
+		return errors.Wrap(err, "failed to parse '-reward'")
 	}
 
 	ntpTime, err := getNtp(ctx, nc.disableNTP)
 	if err != nil {
-		zap.S().Errorf("Failed to get NTP time: %v", err)
-		return
+		return errors.Wrap(err, "failed to get NTP time")
 	}
 
 	params := state.DefaultStateParams()
@@ -387,26 +389,30 @@ func main() {
 
 	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode)
 	if err != nil {
-		zap.S().Errorf("Failed to initialize node's state: %v", err)
-		return
+		return errors.Wrap(err, "failed to initialize node's state")
 	}
+	defer func() {
+		if clErr := st.Close(); clErr != nil {
+			retErr = stderrs.Join(retErr, errors.Wrap(clErr, "failed to close state"))
+		} else {
+			zap.S().Info("State storage closed")
+		}
+	}()
 
 	features, err := miner.ParseVoteFeatures(nc.minerVoteFeatures)
 	if err != nil {
 		zap.S().Errorf("Failed to parse '-vote': %v", err)
-		return
+		return errors.Wrap(err, "failed to parse '-vote'")
 	}
 
 	features, err = miner.ValidateFeatures(st, features)
 	if err != nil {
-		zap.S().Errorf("Failed to validate features: %v", err)
-		return
+		return errors.Wrap(err, "failed to validate features")
 	}
 
 	// Check if we need to start serving extended API right now.
 	if err := node.MaybeEnableExtendedApi(st, ntpTime); err != nil {
-		zap.S().Errorf("Failed to enable extended API: %v", err)
-		return
+		return errors.Wrap(err, "failed to enable extended API")
 	}
 
 	async := runner.NewAsync()
@@ -417,28 +423,24 @@ func main() {
 
 	utxValidator, err := utxpool.NewValidator(st, ntpTime, nc.obsolescencePeriod)
 	if err != nil {
-		zap.S().Errorf("Failed to initialize UTX: %v", err)
-		return
+		return errors.Wrap(err, "failed to initialize UTX")
 	}
 	utx := utxpool.New(uint64(1024*mb), utxValidator, cfg)
 	parent := peer.NewParent(nc.enableLightMode)
 
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxInt32))
 	if err != nil {
-		zap.S().Errorf("Failed to get node's nonce: %v", err)
-		return
+		return errors.Wrap(err, "failed to get node's nonce")
 	}
 	peerSpawnerImpl := peers.NewPeerSpawner(parent, conf.WavesNetwork, declAddr, nc.nodeName,
 		nodeNonce.Uint64(), proto.ProtocolVersion())
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(nc.statePath, time.Now())
 	if err != nil {
-		zap.S().Errorf("Failed to open or create peers storage: %v", err)
-		return
+		return errors.Wrap(err, "failed to open or create peers storage")
 	}
 	if nc.dropPeers {
 		if err := peerStorage.DropStorage(); err != nil {
-			zap.S().Errorf("Failed to drop peers storage. Drop peers storage manually. Err: %v", err)
-			return
+			return errors.Wrap(err, "failed to drop peers storage (drop peers storage manually)")
 		}
 		zap.S().Info("Successfully dropped peers storage")
 	}
@@ -468,8 +470,7 @@ func main() {
 			nc.obsolescencePeriod,
 		)
 		if err != nil {
-			zap.S().Errorf("Failed to initialize miner scheduler: %v", err)
-			return
+			return errors.Wrap(err, "failed to initialize miner scheduler")
 		}
 	}
 	blockApplier := blocks_applier.NewBlocksApplier()
@@ -507,21 +508,18 @@ func main() {
 			tcpAddr := proto.NewTCPAddrFromString(addr)
 			if tcpAddr.Empty() {
 				// That means that configuration parameter is invalid
-				zap.S().Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
-				return
+				return errors.Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
 			}
 			if pErr := peerManager.AddAddress(ctx, tcpAddr); pErr != nil {
 				// That means that we have problems with peers storage
-				zap.S().Errorf("Failed to add addres into know peers storage: %v", pErr)
-				return
+				return errors.Wrap(pErr, "failed to add address into known peers storage")
 			}
 		}
 	}
 
 	app, err := api.NewApp(nc.apiKey, minerScheduler, svs)
 	if err != nil {
-		zap.S().Errorf("Failed to initialize application: %v", err)
-		return
+		return errors.Wrap(err, "failed to initialize application")
 	}
 
 	webApi := api.NewNodeApi(app, st, n)
@@ -532,8 +530,8 @@ func main() {
 		}
 	}()
 
-	go func() {
-		if nc.prometheus != "" {
+	if nc.prometheus != "" {
+		go func() {
 			h := http.NewServeMux()
 			h.Handle("/metrics", promhttp.Handler())
 			s := &http.Server{
@@ -544,14 +542,13 @@ func main() {
 			}
 			zap.S().Infof("Starting node metrics endpoint on '%v'", nc.prometheus)
 			_ = s.ListenAndServe()
-		}
-	}()
+		}()
+	}
 
 	if nc.enableGrpcAPI {
 		srv, srvErr := server.NewServer(svs)
 		if srvErr != nil {
-			zap.S().Errorf("Failed to create gRPC server: %v", srvErr)
-			return
+			return errors.Wrap(srvErr, "failed to create gRPC server")
 		}
 		go func() {
 			if runErr := srv.Run(ctx, conf.GrpcAddr, grpcAPIRunOptsFromCLIFlags(nc)); runErr != nil {
@@ -564,6 +561,7 @@ func main() {
 	zap.S().Info("User termination in progress...")
 	n.Close()
 	<-time.After(1 * time.Second)
+	return nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {
