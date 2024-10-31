@@ -29,7 +29,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
-	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -757,7 +756,6 @@ func createServices(
 		BlocksApplier:   blocks_applier.NewBlocksApplier(),
 		UtxPool:         utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
 		Scheme:          cfg.AddressSchemeCharacter,
-		LoggableRunner:  runner.NewLogRunner(runner.NewAsync()),
 		Time:            ntpTime,
 		Wallet:          wal,
 		MicroBlockCache: microblock_cache.NewMicroBlockCache(),
