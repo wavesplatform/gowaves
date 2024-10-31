@@ -112,7 +112,7 @@ jobs:
             sudo systemctl stop $SERVICE_NAME || echo "Service $SERVICE_NAME is not running or does not exist"
             sudo dpkg -i /tmp/$PACKAGE_NAME
             sudo systemctl start $SERVICE_NAME
-            sleep 5 && systemctl is-active $SERVICE_NAME # wait for the service to start and check its status
+            sleep 30 && systemctl is-active $SERVICE_NAME # wait for the service to start and check its status
 
       - name: Rollback deb package on the deployment server
         uses: appleboy/ssh-action@v1.1.0
@@ -132,7 +132,7 @@ jobs:
             sudo systemctl stop $SERVICE_NAME
             sudo dpkg -i $BACKUP_PACKAGE_PATH
             sudo systemctl start $SERVICE_NAME
-            sleep 5 && systemctl is-active $SERVICE_NAME # wait for the service to start and check its status
+            sleep 30 && systemctl is-active $SERVICE_NAME # wait for the service to start and check its status
 
       - name: Clean up deb package on the deployment server
         uses: appleboy/ssh-action@v1.1.0
