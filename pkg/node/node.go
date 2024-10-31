@@ -2,7 +2,6 @@ package node
 
 import (
 	"context"
-	"fmt"
 	"net"
 	"reflect"
 	"time"
@@ -13,7 +12,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -156,7 +154,7 @@ func (a *Node) Run(
 		zap.S().Errorf("Failed to create FSM: %v", err)
 		return
 	}
-	spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
+	spawnAsync(ctx, tasksCh, async)
 	actions := createActions()
 
 	for {
@@ -207,7 +205,7 @@ func (a *Node) Run(
 		if err != nil {
 			a.logErrors(err)
 		}
-		spawnAsync(ctx, tasksCh, a.services.LoggableRunner, async)
+		spawnAsync(ctx, tasksCh, async)
 	}
 }
 
@@ -247,15 +245,13 @@ func (a *Node) runOutgoingConnections(ctx context.Context) {
 	}
 }
 
-func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, r runner.LogRunner, a fsm.Async) {
+func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, a fsm.Async) {
 	for _, t := range a {
-		func(t tasks.Task) {
-			_ = r.Named(fmt.Sprintf("Async Task %T", t), func() {
-				err := t.Run(ctx, ch)
-				if err != nil && !errors.Is(err, context.Canceled) {
-					zap.S().Warnf("Async task '%T' finished with error: %q", t, err)
-				}
-			})
+		go func(t tasks.Task) {
+			err := t.Run(ctx, ch)
+			if err != nil && !errors.Is(err, context.Canceled) {
+				zap.S().Warnf("Async task '%T' finished with error: %q", t, err)
+			}
 		}(t)
 	}
 }
