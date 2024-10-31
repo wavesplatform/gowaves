@@ -363,6 +363,114 @@ func run(nc *config) (retErr error) {
 	return nil
 }
 
+func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
+	cfg, err := blockchainSettings(nc)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get blockchain settings")
+	}
+
+	conf, err := nodeSettings(nc, cfg.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get node settings")
+	}
+
+	wal, err := embeddedWallet(nc, cfg.AddressSchemeCharacter)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get embedded wallet")
+	}
+
+	path, err := nc.StatePath()
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get state path")
+	}
+
+	ntpTime, err := getNtp(ctx, nc.disableNTP)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to get NTP time")
+	}
+
+	params, err := stateParams(nc, ntpTime)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create state parameters")
+	}
+
+	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize node's state")
+	}
+	defer func() { retErr = closeIfErrorf(st, retErr, "failed to close state") }()
+
+	features, err := minerFeatures(st, nc.minerVoteFeatures)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to parse and validate miner features")
+	}
+
+	// Check if we need to start serving extended API right now.
+	if eapiErr := node.MaybeEnableExtendedApi(st, ntpTime); eapiErr != nil {
+		return nil, errors.Wrap(eapiErr, "failed to enable extended API")
+	}
+
+	parent := peer.NewParent(nc.enableLightMode)
+	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
+
+	peerManager, err := createPeerManager(nc, conf, parent, declAddr)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create peer manager")
+	}
+	defer func() { retErr = closeIfErrorf(peerManager, retErr, "failed to close peer manager") }()
+	go peerManager.Run(ctx)
+
+	minerScheduler, err := newMinerScheduler(nc, st, wal, cfg, ntpTime, peerManager)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize miner scheduler")
+	}
+
+	svs, err := createServices(nc, st, wal, cfg, ntpTime, peerManager, parent, minerScheduler)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create services")
+	}
+
+	app, err := api.NewApp(nc.apiKey, minerScheduler, svs)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize application")
+	}
+
+	if pErr := spawnPeersByAddresses(ctx, conf.Addresses, peerManager); pErr != nil {
+		return nil, errors.Wrap(pErr, "failed to spawn peers by addresses")
+	}
+
+	if apiErr := runAPIs(ctx, nc, conf, app, svs); apiErr != nil {
+		return nil, errors.Wrap(apiErr, "failed to run APIs")
+	}
+
+	return startNode(ctx, nc, svs, features, minerScheduler, parent, declAddr), nil
+}
+
+func startNode(
+	ctx context.Context,
+	nc *config,
+	svs services.Services,
+	features miner.Features,
+	minerScheduler Scheduler,
+	parent peer.Parent,
+	declAddr proto.TCPAddr,
+) *node.Node {
+	bindAddr := proto.NewTCPAddrFromString(nc.bindAddress)
+
+	mine := miner.NewMicroblockMiner(svs, features, nc.reward)
+	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
+
+	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
+	go ntw.Run(ctx)
+
+	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode)
+	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer())
+
+	go minerScheduler.Reschedule() // Reschedule mining after node start
+
+	return n
+}
+
 func raiseToMaxFDs(nc *config) error {
 	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
@@ -657,114 +765,6 @@ func createServices(
 		MinPeersMining:  nc.minPeersMining,
 		SkipMessageList: parent.SkipMessageList,
 	}, nil
-}
-
-func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
-	cfg, err := blockchainSettings(nc)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get blockchain settings")
-	}
-
-	conf, err := nodeSettings(nc, cfg.AddressSchemeCharacter)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get node settings")
-	}
-
-	wal, err := embeddedWallet(nc, cfg.AddressSchemeCharacter)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get embedded wallet")
-	}
-
-	path, err := nc.StatePath()
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get state path")
-	}
-
-	ntpTime, err := getNtp(ctx, nc.disableNTP)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to get NTP time")
-	}
-
-	params, err := stateParams(nc, ntpTime)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create state parameters")
-	}
-
-	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize node's state")
-	}
-	defer func() { retErr = closeIfErrorf(st, retErr, "failed to close state") }()
-
-	features, err := minerFeatures(st, nc.minerVoteFeatures)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to parse and validate miner features")
-	}
-
-	// Check if we need to start serving extended API right now.
-	if eapiErr := node.MaybeEnableExtendedApi(st, ntpTime); eapiErr != nil {
-		return nil, errors.Wrap(eapiErr, "failed to enable extended API")
-	}
-
-	parent := peer.NewParent(nc.enableLightMode)
-	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
-
-	peerManager, err := createPeerManager(nc, conf, parent, declAddr)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create peer manager")
-	}
-	defer func() { retErr = closeIfErrorf(peerManager, retErr, "failed to close peer manager") }()
-	go peerManager.Run(ctx)
-
-	minerScheduler, err := newMinerScheduler(nc, st, wal, cfg, ntpTime, peerManager)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize miner scheduler")
-	}
-
-	svs, err := createServices(nc, st, wal, cfg, ntpTime, peerManager, parent, minerScheduler)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create services")
-	}
-
-	app, err := api.NewApp(nc.apiKey, minerScheduler, svs)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to initialize application")
-	}
-
-	if pErr := spawnPeersByAddresses(ctx, conf.Addresses, peerManager); pErr != nil {
-		return nil, errors.Wrap(pErr, "failed to spawn peers by addresses")
-	}
-
-	if apiErr := runAPIs(ctx, nc, conf, app, svs); apiErr != nil {
-		return nil, errors.Wrap(apiErr, "failed to run APIs")
-	}
-
-	return startNode(ctx, nc, svs, features, minerScheduler, parent, declAddr), nil
-}
-
-func startNode(
-	ctx context.Context,
-	nc *config,
-	svs services.Services,
-	features miner.Features,
-	minerScheduler Scheduler,
-	parent peer.Parent,
-	declAddr proto.TCPAddr,
-) *node.Node {
-	bindAddr := proto.NewTCPAddrFromString(nc.bindAddress)
-
-	mine := miner.NewMicroblockMiner(svs, features, nc.reward)
-	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
-
-	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
-	go ntw.Run(ctx)
-
-	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode)
-	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer())
-
-	go minerScheduler.Reschedule() // Reschedule mining after node start
-
-	return n
 }
 
 func runAPIs(
