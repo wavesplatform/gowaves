@@ -18,7 +18,6 @@ import (
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
@@ -33,14 +32,12 @@ const (
 
 type NodeApi struct {
 	state state.State
-	node  *node.Node
 	app   *App
 }
 
-func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
+func NewNodeAPI(app *App, state state.State) *NodeApi {
 	return &NodeApi{
 		state: state,
-		node:  node,
 		app:   app,
 	}
 }
