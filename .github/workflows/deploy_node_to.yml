@@ -12,16 +12,16 @@ on:
         description: "Machine architecture (amd64, arm64)"
     secrets:
       SSH_PRIVATE_KEY:
-        required: true
+        required: false # should be taken from the environment secrets
         description: "SSH private key for deployment server"
       DEPLOYMENT_SERVER:
-        required: true
+        required: false # should be taken from the environment secrets
         description: "Deployment server hostname or IP address"
       DEPLOYMENT_PORT:
-        required: false
+        required: false # should be taken from the environment secrets
         description: "Deployment server port"
       DEPLOYMENT_USER:
-        required: true
+        required: false # should be taken from the environment secrets
         description: "Deployment server user"
 
 jobs:
