@@ -120,6 +120,7 @@ jobs:
     name: deploy-node
     needs: [ golangci, build, smoke ]
     if: ${{ (github.event_name == 'push' && github.ref == 'refs/heads/master' || github.event_name == 'workflow_dispatch') &&
+      (needs.smoke.result == 'success' || needs.smoke.result == 'skipped' && github.event_name != 'workflow_dispatch') &&
       github.repository == 'wavesplatform/gowaves' }}
     strategy:
       matrix:
