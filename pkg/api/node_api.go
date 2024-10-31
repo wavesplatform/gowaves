@@ -18,28 +18,26 @@ import (
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
-	"github.com/wavesplatform/gowaves/pkg/node"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 )
 
 const (
-	defaultTimeout              = 30 * time.Second
-	postMessageSizeLimit  int64 = 1 << 20 // 1 MB
-	maxDebugMessageLength       = 100
+	defaultTimeout               = 30 * time.Second
+	defaultShutdownTimeout       = 5 * time.Second
+	postMessageSizeLimit   int64 = 1 << 20 // 1 MB
+	maxDebugMessageLength        = 100
 )
 
 type NodeApi struct {
 	state state.State
-	node  *node.Node
 	app   *App
 }
 
-func NewNodeApi(app *App, state state.State, node *node.Node) *NodeApi {
+func NewNodeAPI(app *App, state state.State) *NodeApi {
 	return &NodeApi{
 		state: state,
-		node:  node,
 		app:   app,
 	}
 }
@@ -415,12 +413,19 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 	}
 
 	apiServer := &http.Server{Addr: address, Handler: routes, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
+	apiServer.RegisterOnShutdown(func() {
+		zap.S().Info("Shutting down API server ...")
+	})
+	done := make(chan struct{})
+	defer func() { <-done }() // wait for server shutdown
 	go func() {
+		defer close(done)
 		<-ctx.Done()
-		zap.S().Info("Shutting down API...")
-		err := apiServer.Shutdown(ctx)
-		if err != nil && !errors.Is(err, context.Canceled) {
-			zap.S().Errorf("Failed to shutdown API server: %v", err)
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), defaultShutdownTimeout)
+		defer cancel()
+		sErr := apiServer.Shutdown(shutdownCtx)
+		if sErr != nil {
+			zap.S().Errorf("Failed to shutdown API server: %v", sErr)
 		}
 	}()
 
@@ -442,7 +447,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 		err = apiServer.ListenAndServe()
 	}
 
-	if err != nil && err != http.ErrServerClosed {
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil

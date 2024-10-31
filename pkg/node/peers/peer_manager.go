@@ -47,7 +47,7 @@ type PeerManager interface {
 	UpdateScore(p peer.Peer, score *proto.Score) error
 	KnownPeers() []storage.KnownPeer
 	UpdateKnownPeers([]storage.KnownPeer) error
-	Close()
+	Close() error
 	SpawnOutgoingConnections(context.Context)
 	SpawnIncomingConnection(ctx context.Context, conn net.Conn) error
 	Spawned() []proto.IpPort
@@ -246,7 +246,7 @@ func (a *PeerManagerImpl) UpdateKnownPeers(known []storage.KnownPeer) error {
 	return nil
 }
 
-func (a *PeerManagerImpl) Close() {
+func (a *PeerManagerImpl) Close() error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 
@@ -255,6 +255,7 @@ func (a *PeerManagerImpl) Close() {
 			_ = info.peer.Close()
 		},
 	)
+	return nil
 }
 
 func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {

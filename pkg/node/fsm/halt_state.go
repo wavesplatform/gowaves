@@ -2,7 +2,9 @@ package fsm
 
 import (
 	"context"
+	stderrs "errors"
 
+	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
 
@@ -24,17 +26,20 @@ func (a *HaltState) Errorf(err error) error {
 
 func newHaltState(info BaseInfo) (State, Async, error) {
 	zap.S().Named(logging.FSMNamespace).Debugf("[Halt] Entered the Halt state")
-	info.peers.Close()
+	var errs []error
+	if err := info.peers.Close(); err != nil {
+		errs = append(errs, errors.Wrap(err, "failed to close peers"))
+	}
 	zap.S().Named(logging.FSMNamespace).Debugf("[Halt] Peers closed")
 	err := info.storage.Close()
 	if err != nil {
-		return nil, nil, err
+		errs = append(errs, errors.Wrap(err, "failed to close storage"))
 	}
 	zap.S().Named(logging.FSMNamespace).Debugf("[Halt] Storage closed")
 	info.syncPeer.Clear()
 	return &HaltState{
 		baseInfo: info,
-	}, nil, nil
+	}, nil, stderrs.Join(errs...)
 }
 
 func initHaltStateInFSM(_ *StateData, fsm *stateless.StateMachine, info BaseInfo) {
