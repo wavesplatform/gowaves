@@ -1,4 +1,4 @@
-* text eol=lf
+* text=auto eol=lf
 
 # Windows .bat files are known to have multiple bugs when run with LF
 # endings, and so they are checked in with CRLF endings.
