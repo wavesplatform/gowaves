@@ -414,7 +414,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 
 	apiServer := &http.Server{Addr: address, Handler: routes, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	apiServer.RegisterOnShutdown(func() {
-		zap.S().Info("Shutting down API sever ...")
+		zap.S().Info("Shutting down API server ...")
 	})
 	done := make(chan struct{})
 	defer func() { <-done }() // wait for server shutdown
