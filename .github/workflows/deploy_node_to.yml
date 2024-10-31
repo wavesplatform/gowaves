@@ -29,7 +29,7 @@ jobs:
     name: deploy
     runs-on: ubuntu-latest
     environment:
-      name: "Deploy"
+      name: "Deploy-${{ inputs.network }}-${{ inputs.arch }}"
     env:
       MAKEFILE_TARGET: "build-node-${{ inputs.network }}-${{ inputs.arch }}-deb-package"
       SERVICE_NAME: "gowaves-${{ inputs.network }}" # also used as a package name
