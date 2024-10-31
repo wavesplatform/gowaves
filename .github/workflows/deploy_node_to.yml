@@ -119,7 +119,7 @@ jobs:
 
       - name: Rollback deb package on the deployment server
         uses: appleboy/ssh-action@v1.1.0
-        if: ${{ steps.install-deb.outcome == 'failure' }}
+        if: ${{ failure() }}
         env:
           BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
