@@ -255,7 +255,7 @@ func (c *config) parse() {
 		"URL of InfluxDB or Telegraf in form of 'http://username:password@host:port/db'.")
 	flag.BoolVar(&c.dropPeers, "drop-peers", false,
 		"Drop peers storage before node start.")
-	flag.UintVar(&c.dbFileDescriptors, "db-file-descriptors", state.DefaultOpenFilesCacheCapacity,
+	flag.UintVar(&c.dbFileDescriptors, "db-file-descriptors", uint(state.DefaultOpenFilesCacheCapacity),
 		"Maximum allowed file descriptors count that will be used by state database.")
 	flag.IntVar(&c.newConnectionsLimit, "new-connections-limit", defaultNewConnectionLimit,
 		"Number of new outbound connections established simultaneously, defaults to 10. Should be positive. "+
