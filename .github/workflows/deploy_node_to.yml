@@ -56,9 +56,6 @@ jobs:
           mv build/dist/*.deb ./ # move the deb package to the root directory
           echo "PACKAGE_NAME=$(ls ./*.deb | xargs -n 1 basename)" >> $GITHUB_ENV # set the package name for the next steps
 
-      #- name: Show package name
-      #  run: echo ${{ env.PACKAGE_NAME }}
-
       - name: Copy deb package to the deployment server
         id: copy-deb
         uses: appleboy/scp-action@v0.1.7
@@ -91,8 +88,6 @@ jobs:
             sudo mv $(ls $TMPDIR/$SERVICE_NAME*.deb) $BACKUP_PACKAGE_PATH
             sudo chown $DEPLOYMENT_USER:$DEPLOYMENT_USER $BACKUP_PACKAGE_PATH
             rmdir $TMPDIR
-
-      #TODO: add step for checking the node state version
 
       - name: Install deb package on the deployment server
         uses: appleboy/ssh-action@v1.1.0
@@ -142,7 +137,6 @@ jobs:
 
       - name: Clean up deb package on the deployment server
         uses: appleboy/ssh-action@v1.1.0
-        #if: ${{ steps.copy-deb.outcome == 'success' }}
         if: ${{ always() }}
         env:
           PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
@@ -158,7 +152,6 @@ jobs:
 
       - name: Clean up backup deb package on the deployment server
         uses: appleboy/ssh-action@v1.1.0
-        #if: ${{ steps.backup-deb.outcome == 'success' }}
         if: ${{ always() }}
         env:
           BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
