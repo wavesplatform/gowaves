@@ -25,7 +25,7 @@ on:
         description: "Deployment server user"
 
 jobs:
-  deployments:
+  deploy:
     name: deploy
     runs-on: ubuntu-latest
     environment:
@@ -34,7 +34,7 @@ jobs:
       MAKEFILE_TARGET: "build-node-${{ inputs.network }}-${{ inputs.arch }}-deb-package"
       SERVICE_NAME: "gowaves-${{ inputs.network }}" # also used as a package name
       BACKUP_PACKAGE_PATH: "/tmp/gowaves-${{ inputs.network }}-${{ inputs.arch }}_backup_${{ github.run_number }}.deb"
-      PACKAGE_NAME: "" # will be set by the step
+      PACKAGE_NAME: "" # will be set by the step that builds the deb package
 
     steps:
       - name: Set up Go 1.22
