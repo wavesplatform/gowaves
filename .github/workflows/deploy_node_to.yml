@@ -5,7 +5,7 @@ on:
       network:
         required: true
         type: string
-        description: "Waves network name"
+        description: "Waves network name (mainnet, testnet, stagenet)"
       arch:
         required: true
         type: string
@@ -19,7 +19,7 @@ on:
         description: "Deployment server hostname or IP address"
       DEPLOYMENT_PORT:
         required: false # should be taken from the environment secrets
-        description: "Deployment server port"
+        description: "Deployment server SSH port"
       DEPLOYMENT_USER:
         required: false # should be taken from the environment secrets
         description: "Deployment server user"

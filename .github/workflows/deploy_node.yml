@@ -5,7 +5,7 @@ on:
       network:
         required: true
         type: string
-        description: "Waves network name"
+        description: "Waves network name (mainnet, testnet, stagenet)"
       arch:
         required: true
         type: string
