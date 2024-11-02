@@ -88,7 +88,6 @@ func NewFeatureSettingsFromFile(path ...string) (_ *FeaturesSettings, err error)
 
 // RewardSettings stores parts of genesis configuration related to rewards and features.
 // It's used to modify the blockchain settings in test on rewards.
-// TODO: Separate into 2 or more structs: one for rewards and one for features.
 type RewardSettings struct {
 	BlockRewardVotingPeriod uint64 `json:"voting_interval"`
 	BlockRewardTerm         uint64 `json:"term"`
