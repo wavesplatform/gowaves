@@ -13,8 +13,8 @@ type historyFormatter struct {
 	db *stateDB
 }
 
-func newHistoryFormatter(db *stateDB) (*historyFormatter, error) {
-	return &historyFormatter{db}, nil
+func newHistoryFormatter(db *stateDB) *historyFormatter {
+	return &historyFormatter{db: db}
 }
 
 // filter removes entries from the history record that belongs to a removed by roll back blocks.
