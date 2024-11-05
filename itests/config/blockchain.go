@@ -174,6 +174,8 @@ func (c *BlockchainConfig) TestConfig() TestConfig {
 	}
 }
 
+// WithFeatureSettingFromFile is a BlockchainOption that allows to set feature settings from configuration file.
+// Feature settings configuration file is a JSON file with the structure of `featureSettings`.
 func WithFeatureSettingFromFile(path ...string) BlockchainOption {
 	return func(cfg *BlockchainConfig) error {
 		fs, err := NewFeatureSettingsFromFile(path...)
@@ -188,6 +190,8 @@ func WithFeatureSettingFromFile(path ...string) BlockchainOption {
 	}
 }
 
+// WithPaymentsSettingFromFile is a BlockchainOption that allows to set payment settings from configuration file.
+// Payment settings configuration file is a JSON file with the structure of `paymentSettings`.
 func WithPaymentsSettingFromFile(path ...string) BlockchainOption {
 	return func(cfg *BlockchainConfig) error {
 		fs, err := NewPaymentSettingsFromFile(path...)
@@ -196,7 +200,8 @@ func WithPaymentsSettingFromFile(path ...string) BlockchainOption {
 		}
 		cfg.Settings.PaymentsFixAfterHeight = fs.PaymentsFixAfterHeight
 		cfg.Settings.InternalInvokePaymentsValidationAfterHeight = fs.InternalInvokePaymentsValidationAfterHeight
-		cfg.Settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight = fs.InternalInvokeCorrectFailRejectBehaviourAfterHeight
+		cfg.Settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight =
+			fs.InternalInvokeCorrectFailRejectBehaviourAfterHeight
 		cfg.Settings.InvokeNoZeroPaymentsAfterHeight = fs.InvokeNoZeroPaymentsAfterHeight
 		return nil
 	}
