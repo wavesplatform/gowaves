@@ -518,8 +518,9 @@ func ProtobufHeaderToBlockHeader(ph *g.Block_Header) (*BlockHeader, error) {
 	if err != nil {
 		return nil, err
 	}
-	if ph.Timestamp < 0 {
-		return nil, errors.Errorf("invalid timestamp: negative value %d", ph.Timestamp)
+	ts := ph.Timestamp
+	if ts < 0 {
+		return nil, errors.Errorf("invalid timestamp: negative value %d", ts)
 	}
 	features, err := uint32SliceToInt16(ph.FeatureVotes)
 	if err != nil {
@@ -527,7 +528,7 @@ func ProtobufHeaderToBlockHeader(ph *g.Block_Header) (*BlockHeader, error) {
 	}
 	blockHeader := &BlockHeader{
 		Version:            BlockVersion(ph.Version),
-		Timestamp:          uint64(ph.Timestamp),
+		Timestamp:          uint64(ts),
 		Parent:             parentBlockID,
 		Features:           features,
 		RewardVote:         ph.RewardVote,
@@ -566,11 +567,13 @@ func FromProtobufChallengedHeader(pb *g.Block_Header_ChallengedHeader) (*Challen
 	if err != nil {
 		return nil, err
 	}
-	if pb.BaseTarget < 0 {
-		return nil, errors.Errorf("invalid basetarget: negative value %d", pb.BaseTarget)
+	bt := pb.BaseTarget
+	if bt < 0 {
+		return nil, errors.Errorf("invalid basetarget: negative value %d", bt)
 	}
-	if pb.Timestamp < 0 {
-		return nil, errors.Errorf("invalid timestamp: negative value %d", pb.Timestamp)
+	ts := pb.Timestamp
+	if ts < 0 {
+		return nil, errors.Errorf("invalid timestamp: negative value %d", ts)
 	}
 	features, err := int16SliceFromUint32(pb.FeatureVotes)
 	if err != nil {
@@ -578,11 +581,11 @@ func FromProtobufChallengedHeader(pb *g.Block_Header_ChallengedHeader) (*Challen
 	}
 	return &ChallengedHeader{
 		NxtConsensus: NxtConsensus{
-			BaseTarget:   uint64(pb.BaseTarget),
+			BaseTarget:   uint64(bt),
 			GenSignature: pb.GenerationSignature,
 		},
 		Features:           features,
-		Timestamp:          uint64(pb.Timestamp),
+		Timestamp:          uint64(ts),
 		GeneratorPublicKey: genPublicKey,
 		RewardVote:         pb.RewardVote,
 		StateHash:          stateHash,
