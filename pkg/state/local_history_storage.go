@@ -37,8 +37,8 @@ type localHistoryStorage struct {
 	index   map[string]int
 }
 
-func newLocalHistoryStorage() (*localHistoryStorage, error) {
-	return &localHistoryStorage{index: make(map[string]int)}, nil
+func newLocalHistoryStorage() *localHistoryStorage {
+	return &localHistoryStorage{index: make(map[string]int)}
 }
 
 func (l *localHistoryStorage) set(key []byte, value *historyRecord) error {

@@ -5,6 +5,7 @@ import (
 )
 
 const (
+	rewardSettingsFolder                   = "reward_settings_testdata"
 	preactivatedFeaturesConfigFolder       = "preactivated_14_19_20"
 	preactivatedFeaturesWith21ConfigFolder = "preactivated_14_19_20_21"
 )
@@ -21,7 +22,16 @@ type RewardIncreaseDaoXtnPreactivatedSuite struct {
 func (suite *RewardIncreaseDaoXtnPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "7W_2miners_dao_xtn_increase.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"7W_2miners_dao_xtn_increase.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"7W_2miners_dao_xtn_increase.json",
+		),
 	)
 }
 
@@ -35,7 +45,16 @@ type RewardUnchangedDaoXtnPreactivatedSuite struct {
 func (suite *RewardUnchangedDaoXtnPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "6W_2miners_dao_xtn_not_changed.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"6W_2miners_dao_xtn_not_changed.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"6W_2miners_dao_xtn_not_changed.json",
+		),
 	)
 }
 
@@ -49,7 +68,16 @@ type RewardDecreaseDaoXtnPreactivatedSuite struct {
 func (suite *RewardDecreaseDaoXtnPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "5W_2miners_dao_xtn_decrease.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"5W_2miners_dao_xtn_decrease.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"5W_2miners_dao_xtn_decrease.json",
+		),
 	)
 }
 
@@ -63,7 +91,16 @@ type RewardIncreaseDaoPreactivatedSuite struct {
 func (suite *RewardIncreaseDaoPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "7W_2miners_dao_increase.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"7W_2miners_dao_increase.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"7W_2miners_dao_increase.json",
+		),
 	)
 }
 
@@ -77,7 +114,16 @@ type RewardUnchangedXtnPreactivatedSuite struct {
 func (suite *RewardUnchangedXtnPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "6W_2miners_xtn_not_changed.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"6W_2miners_xtn_not_changed.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"6W_2miners_xtn_not_changed.json",
+		),
 	)
 }
 
@@ -91,7 +137,16 @@ type Reward2WUnchangedDaoXtnPreactivatedSuite struct {
 func (suite *Reward2WUnchangedDaoXtnPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "2W_2miners_dao_xtn_not_changed.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"2W_2miners_dao_xtn_not_changed.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"2W_2miners_dao_xtn_not_changed.json",
+		),
 	)
 }
 
@@ -105,7 +160,16 @@ type RewardDecreaseDaoPreactivatedSuite struct {
 func (suite *RewardDecreaseDaoPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "5W_2miners_dao_decrease.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"5W_2miners_dao_decrease.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"5W_2miners_dao_decrease.json",
+		),
 	)
 }
 
@@ -119,7 +183,16 @@ type RewardDecreaseXtnPreactivatedSuite struct {
 func (suite *RewardDecreaseXtnPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "5W_2miners_xtn_decrease.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"5W_2miners_xtn_decrease.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"5W_2miners_xtn_decrease.json",
+		),
 	)
 }
 
@@ -133,7 +206,16 @@ type RewardIncreasePreactivatedSuite struct {
 func (suite *RewardIncreasePreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "2miners_increase.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"2miners_increase.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"2miners_increase.json",
+		),
 	)
 }
 
@@ -147,7 +229,16 @@ type RewardDaoXtnPreactivatedWithout19Suite struct {
 func (suite *RewardDaoXtnPreactivatedWithout19Suite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "2miners_dao_xtn_without_f19.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"2miners_dao_xtn_without_f19.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"2miners_dao_xtn_without_f19.json",
+		),
 	)
 }
 
@@ -161,7 +252,16 @@ type RewardDaoXtnPreactivatedWithout20Suite struct {
 func (suite *RewardDaoXtnPreactivatedWithout20Suite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesConfigFolder, "2miners_dao_xtn_without_f20.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"2miners_dao_xtn_without_f20.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesConfigFolder,
+			"2miners_dao_xtn_without_f20.json",
+		),
 	)
 }
 
@@ -177,7 +277,16 @@ type RewardIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 func (suite *RewardIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "7W_2miners_dao_xtn_increase.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"7W_2miners_dao_xtn_increase.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"7W_2miners_dao_xtn_increase.json",
+		),
 	)
 }
 
@@ -191,7 +300,16 @@ type RewardIncreaseXtnCeaseXTNBuybackPreactivatedSuite struct {
 func (suite *RewardIncreaseXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "7W_2miners_xtn_increase.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"7W_2miners_xtn_increase.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"7W_2miners_xtn_increase.json",
+		),
 	)
 }
 
@@ -205,7 +323,16 @@ type RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "6W_2miners_dao_xtn_not_changed.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"6W_2miners_dao_xtn_not_changed.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"6W_2miners_dao_xtn_not_changed.json",
+		),
 	)
 }
 
@@ -219,7 +346,16 @@ type RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_xtn_dao_decrease.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"5W_2miners_xtn_dao_decrease.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"5W_2miners_xtn_dao_decrease.json",
+		),
 	)
 }
 
@@ -233,7 +369,16 @@ type RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite struct {
 func (suite *RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_xtn_decrease.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"5W_2miners_xtn_decrease.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"5W_2miners_xtn_decrease.json",
+		),
 	)
 }
 
@@ -247,7 +392,16 @@ type Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite struct {
 func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "2W_2miners_dao_xtn_not_changed.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"2W_2miners_dao_xtn_not_changed.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"2W_2miners_dao_xtn_not_changed.json",
+		),
 	)
 }
 
@@ -261,7 +415,16 @@ type Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite struct {
 func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
-		config.WithRewardSettingFromFile(preactivatedFeaturesWith21ConfigFolder, "5W_2miners_increase.json"),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"5W_2miners_increase.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"5W_2miners_increase.json",
+		),
 	)
 }
 
@@ -275,7 +438,13 @@ type RewardDaoXtnPreactivatedWith21Suite struct {
 func (suite *RewardDaoXtnPreactivatedWith21Suite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"6W_2miners_dao_xtn_increase_without_20.json",
+		),
 		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
 			preactivatedFeaturesWith21ConfigFolder,
 			"6W_2miners_dao_xtn_increase_without_20.json",
 		),
@@ -292,7 +461,13 @@ type RewardDaoXtnPreactivatedWithout19And20Suite struct {
 func (suite *RewardDaoXtnPreactivatedWithout19And20Suite) SetupSuite() {
 	suite.BaseSetup(
 		config.WithScalaMining(),
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			preactivatedFeaturesWith21ConfigFolder,
+			"6W_2miners_dao_xtn_increase_without_19_20.json",
+		),
 		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
 			preactivatedFeaturesWith21ConfigFolder,
 			"6W_2miners_dao_xtn_increase_without_19_20.json",
 		),
