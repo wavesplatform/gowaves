@@ -402,22 +402,11 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 
 	var bUpdatesExtension *state.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
-		updatesChannel := make(chan blockchaininfo.BUpdatesInfo)
-		bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(blockchaininfo.StoreBlocksLimit,
-			cfg.AddressSchemeCharacter)
-
-		l2address, cnvrtErr := proto.NewAddressFromString("3Msx4Aq69zWUKy4d1wyKnQ4ofzEDAfv5Ngf")
-		if cnvrtErr != nil {
-			zap.S().Errorf("Failed to initialize L2 contract address")
-			return
+		var bUErr error
+		bUpdatesExtension, bUErr = runBlockchainUpdatesPlugin(ctx, cfg)
+		if bUErr != nil {
+			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
 		}
-		bUpdatesExtension = &state.BlockchainUpdatesExtension{
-			EnableBlockchainUpdatesPlugin: true,
-			BUpdatesChannel:               updatesChannel,
-			L2ContractAddress:             l2address,
-		}
-
-		go bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel, cfg.AddressSchemeCharacter)
 	}
 
 	// Send updatesChannel into BlockchainSettings. Write updates into this channel
@@ -814,6 +803,32 @@ func runAPIs(
 		}
 	}()
 	return nil
+}
+
+func runBlockchainUpdatesPlugin(
+	ctx context.Context,
+	cfg *settings.BlockchainSettings,
+) (*state.BlockchainUpdatesExtension, error) {
+	const l2ContractAddr = "3Msx4Aq69zWUKy4d1wyKnQ4ofzEDAfv5Ngf"
+
+	l2address, cnvrtErr := proto.NewAddressFromString(l2ContractAddr)
+	if cnvrtErr != nil {
+		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2ContractAddr)
+	}
+
+	bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(
+		blockchaininfo.StoreBlocksLimit,
+		cfg.AddressSchemeCharacter,
+	)
+
+	updatesChannel := make(chan blockchaininfo.BUpdatesInfo)
+	go bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel, cfg.AddressSchemeCharacter)
+
+	return &state.BlockchainUpdatesExtension{
+		EnableBlockchainUpdatesPlugin: true,
+		BUpdatesChannel:               updatesChannel,
+		L2ContractAddress:             l2address,
+	}, nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {
