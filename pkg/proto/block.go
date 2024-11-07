@@ -4,9 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
-	"fmt"
 	"io"
-	"math"
 
 	"github.com/jinzhu/copier"
 	"github.com/mr-tron/base58/base58"
@@ -488,120 +486,6 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte, scheme Scheme) (err
 		return errors.Wrap(err, "failed to generate block ID")
 	}
 	return nil
-}
-
-func ProtobufHeaderToBlockHeader(ph *g.Block_Header) (*BlockHeader, error) {
-	if ph == nil {
-		return nil, errors.New("input protobuf header is nil")
-	}
-	var challengedHeader *ChallengedHeader
-	if ph.ChallengedHeader != nil {
-		ch, err := FromProtobufChallengedHeader(ph.ChallengedHeader)
-		if err != nil {
-			return nil, err
-		}
-		challengedHeader = ch
-	}
-	var stateHash *crypto.Digest
-	if len(ph.StateHash) > 0 {
-		sh, err := crypto.NewDigestFromBytes(ph.StateHash)
-		if err != nil {
-			return nil, err
-		}
-		stateHash = &sh
-	}
-	parentBlockID, err := NewBlockIDFromBytes(ph.Reference)
-	if err != nil {
-		return nil, err
-	}
-	generatorPK, err := crypto.NewPublicKeyFromBytes(ph.Generator)
-	if err != nil {
-		return nil, err
-	}
-	ts := ph.Timestamp
-	if ts < 0 {
-		return nil, errors.Errorf("invalid timestamp: negative value %d", ts)
-	}
-	features, err := uint32SliceToInt16(ph.FeatureVotes)
-	if err != nil {
-		return nil, errors.Errorf("failed to convert uint32 slice of feature votes to int16, %v", err)
-	}
-	blockHeader := &BlockHeader{
-		Version:            BlockVersion(ph.Version),
-		Timestamp:          uint64(ts),
-		Parent:             parentBlockID,
-		Features:           features,
-		RewardVote:         ph.RewardVote,
-		GeneratorPublicKey: generatorPK,
-		TransactionsRoot:   B58Bytes(ph.TransactionsRoot),
-		StateHash:          stateHash,
-		ChallengedHeader:   challengedHeader,
-	}
-	return blockHeader, nil
-}
-
-func uint32SliceToInt16(s []uint32) ([]int16, error) {
-	var res []int16
-	for _, v := range s {
-		if v > math.MaxInt16 { // Check for overflow
-			return nil, fmt.Errorf("value %d exceeds int16 range", v)
-		}
-		res = append(res, int16(v))
-	}
-	return res, nil
-}
-
-func FromProtobufChallengedHeader(pb *g.Block_Header_ChallengedHeader) (*ChallengedHeader, error) {
-	if pb == nil {
-		return nil, fmt.Errorf("input protobuf object is nil")
-	}
-	headerSig, err := crypto.NewSignatureFromBytes(pb.HeaderSignature)
-	if err != nil {
-		return nil, err
-	}
-	genPublicKey, err := crypto.NewPublicKeyFromBytes(pb.Generator)
-	if err != nil {
-		return nil, err
-	}
-	stateHash, err := crypto.NewDigestFromBytes(pb.StateHash)
-	if err != nil {
-		return nil, err
-	}
-	bt := pb.BaseTarget
-	if bt < 0 {
-		return nil, errors.Errorf("invalid basetarget: negative value %d", bt)
-	}
-	ts := pb.Timestamp
-	if ts < 0 {
-		return nil, errors.Errorf("invalid timestamp: negative value %d", ts)
-	}
-	features, err := int16SliceFromUint32(pb.FeatureVotes)
-	if err != nil {
-		return nil, errors.Errorf("failed to convert int16 slice of feature votes to uint32, %v", err)
-	}
-	return &ChallengedHeader{
-		NxtConsensus: NxtConsensus{
-			BaseTarget:   uint64(bt),
-			GenSignature: pb.GenerationSignature,
-		},
-		Features:           features,
-		Timestamp:          uint64(ts),
-		GeneratorPublicKey: genPublicKey,
-		RewardVote:         pb.RewardVote,
-		StateHash:          stateHash,
-		BlockSignature:     headerSig,
-	}, nil
-}
-
-func int16SliceFromUint32(data []uint32) ([]int16, error) {
-	result := make([]int16, len(data))
-	for i, v := range data {
-		if v > math.MaxInt16 { // Check for overflow
-			return nil, fmt.Errorf("value %d exceeds int16 range", v)
-		}
-		result[i] = int16(v)
-	}
-	return result, nil
 }
 
 func AppendHeaderBytesToTransactions(headerBytes, transactions []byte) ([]byte, error) {
