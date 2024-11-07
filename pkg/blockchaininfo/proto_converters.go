@@ -61,14 +61,19 @@ func L2ContractDataEntriesToProto(contractData L2ContractDataEntries) *g.L2Contr
 	}
 }
 
-func L2ContractDataEntriesFromProto(protoDataEntries *g.L2ContractDataEntries,
-	scheme proto.Scheme) (L2ContractDataEntries, error) {
+func L2ContractDataEntriesFromProto(
+	protoDataEntries *g.L2ContractDataEntries,
+	scheme proto.Scheme,
+) (L2ContractDataEntries, error) {
+	if protoDataEntries == nil {
+		return L2ContractDataEntries{}, errors.New("empty contract data")
+	}
 	converter := proto.ProtobufConverter{FallbackChainID: scheme}
-	var dataEntries []proto.DataEntry
+	dataEntries := make([]proto.DataEntry, 0, len(protoDataEntries.DataEntries))
 	for _, protoEntry := range protoDataEntries.DataEntries {
 		entry, err := converter.Entry(protoEntry)
 		if err != nil {
-			return L2ContractDataEntries{}, err
+			return L2ContractDataEntries{}, errors.Wrap(err, "failed to convert data entry")
 		}
 		dataEntries = append(dataEntries, entry)
 	}
