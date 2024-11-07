@@ -44,6 +44,17 @@ func handleJSON(data []byte, cfg config) error {
 	if rErr != nil {
 		return rErr
 	}
+
+	if cfg.validate {
+		vp := proto.TransactionValidationParams{
+			Scheme:       cfg.scheme,
+			CheckVersion: true,
+		}
+		_, err := tx.Validate(vp)
+		if err != nil {
+			return err
+		}
+	}
 	tx, sErr := sign(tx, cfg)
 	if sErr != nil {
 		return sErr

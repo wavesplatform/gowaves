@@ -20,22 +20,26 @@ type config struct {
 	toJSON   bool
 	toBinary bool
 	base64   bool
+	validate bool
 }
 
 func (c *config) parse() error {
 	var (
 		scheme, privateKey, in, out string
 	)
-	flag.StringVar(&scheme, "scheme", "W", "Network scheme byte. Defaults to 'W' (MainNet).")
+	flag.StringVar(&scheme, "scheme", "W", "Specifies the network scheme byte. Defaults to 'W' (MainNet).")
 	flag.BoolVar(&c.toJSON, "to-json", false,
-		"Convert the transaction to JSON representation. Sign the transaction if a private key is provided.")
+		"Converts the transaction to JSON format. Signs the transaction if a private key is provided.")
 	flag.BoolVar(&c.toBinary, "to-binary", false,
-		"Convert the transaction to binary representation. Sign the transaction if a private key is provided.")
-	flag.BoolVar(&c.base64, "base64", false, "Use Base64 as the binary transaction encoding.")
+		"Converts the transaction to binary format. Signs the transaction if a private key is provided.")
+	flag.BoolVar(&c.base64, "base64", false, "Encodes the binary transaction in Base64.")
 	flag.StringVar(&privateKey, "private-key", "",
-		"Private key to sign the transaction. Please provide the key in Base58 string.")
-	flag.StringVar(&in, "in", "", "Input file path. Defaults to empty string. If empty, reads from STDIN.")
-	flag.StringVar(&out, "out", "", "Output file path. Defaults to empty string. If empty, writes to STDOUT.")
+		"Private key for signing the transaction. Provide the key as a Base58 string.")
+	flag.StringVar(&in, "in", "",
+		"Specifies the input file path. Defaults to an empty string. If empty, reads from STDIN.")
+	flag.StringVar(&out, "out", "",
+		"Specifies the output file path. Defaults to an empty string. If empty, writes to STDOUT.")
+	flag.BoolVar(&c.validate, "validate", false, "Validates the transaction after deserialization.")
 	flag.Parse()
 
 	if len(scheme) != 1 {

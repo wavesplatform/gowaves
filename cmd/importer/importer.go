@@ -32,11 +32,26 @@ const (
 )
 
 func main() {
-	err := run()
+	os.Exit(realMain()) // for more info see https://github.com/golang/go/issues/42078
+}
+
+func realMain() int {
+	c := parseFlags()
+
+	logSync := c.setupLogger()
+	defer logSync()
+
+	if err := c.validateFlags(); err != nil {
+		zap.S().Error(capitalize(err.Error()))
+		return 1
+	}
+
+	err := runImporter(&c)
 	if err != nil {
 		zap.S().Error(capitalize(err.Error()))
-		os.Exit(1)
+		return 1
 	}
+	return 0
 }
 
 type cfg struct {
@@ -58,7 +73,7 @@ type cfg struct {
 	disableBloomFilter        bool
 }
 
-func parseFlags() (cfg, error) {
+func parseFlags() cfg {
 	const (
 		defaultBlocksNumber = 1000
 		defaultBufferSize   = 16
@@ -92,18 +107,20 @@ func parseFlags() (cfg, error) {
 	flag.BoolVar(&c.disableBloomFilter, "disable-bloom", false,
 		"Disable bloom filter. Less memory usage, but decrease performance.")
 	flag.Parse()
+	return c
+}
 
+func (c *cfg) validateFlags() error {
 	if c.blockchainPath == "" {
-		return cfg{}, errors.New("option blockchain-path is not specified, please specify it")
+		return errors.New("option blockchain-path is not specified, please specify it")
 	}
 	if c.dataDirPath == "" {
-		return cfg{}, errors.New("option data-path is not specified, please specify it")
+		return errors.New("option data-path is not specified, please specify it")
 	}
 	if c.lightNodeMode && c.snapshotsPath == "" {
-		return cfg{}, errors.New("option snapshots-path is not specified in light mode, please specify it")
+		return errors.New("option snapshots-path is not specified in light mode, please specify it")
 	}
-
-	return c, nil
+	return nil
 }
 
 func (c *cfg) params(maxFDs int) state.StateParams {
@@ -147,15 +164,7 @@ func (c *cfg) setupCPUProfile() (func(), error) {
 	}, nil
 }
 
-func run() error {
-	c, err := parseFlags()
-	if err != nil {
-		return err
-	}
-
-	logSync := c.setupLogger()
-	defer logSync()
-
+func runImporter(c *cfg) error {
 	zap.S().Infof("Gowaves Importer version: %s", versioning.Version)
 
 	fds, err := riseFDLimit()

@@ -1,7 +1,6 @@
 package services
 
 import (
-	"github.com/wavesplatform/gowaves/pkg/libs/runner"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -52,7 +51,6 @@ type Services struct {
 	UtxPool         types.UtxPool
 	Scheme          proto.Scheme
 	InvRequester    types.InvRequester
-	LoggableRunner  runner.LogRunner
 	Time            types.Time
 	Wallet          types.EmbeddedWallet
 	MicroBlockCache MicroBlockCache

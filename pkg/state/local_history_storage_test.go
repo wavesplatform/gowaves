@@ -7,10 +7,9 @@ import (
 )
 
 func TestLocalStor(t *testing.T) {
-	stor, err := newLocalHistoryStorage()
-	assert.NoError(t, err, "newLocalHistoryStorage() failed")
+	stor := newLocalHistoryStorage()
 	history0 := &historyRecord{entityType: wavesBalance}
-	err = stor.set([]byte("key0"), history0)
+	err := stor.set([]byte("key0"), history0)
 	assert.NoError(t, err, "stor.set() failed")
 	val, err := stor.get([]byte("key0"))
 	assert.NoError(t, err, "stor.get() failed")

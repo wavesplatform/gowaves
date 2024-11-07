@@ -95,7 +95,6 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		})
 
 		r.Get("/miner/info", wrapper(a.GoMinerInfo))
-		r.Get("/node/processes", wrapper(a.nodeProcesses))
 		r.Get("/pool/transactions", wrapper(a.poolTransactions))
 	})
 

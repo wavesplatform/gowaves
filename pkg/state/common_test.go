@@ -386,8 +386,7 @@ func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOpt
 	})
 	stateDB.setRw(rw)
 
-	hs, err := newHistoryStorage(db, dbBatch, stateDB, options.Amend)
-	require.NoError(t, err)
+	hs := newHistoryStorage(db, dbBatch, stateDB, options.Amend)
 
 	entities, err := newBlockchainEntitiesStorage(hs, options.Settings, rw, options.CalculateHashes)
 	require.NoError(t, err)

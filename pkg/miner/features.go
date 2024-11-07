@@ -5,6 +5,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -40,13 +41,6 @@ func parseFeature(s string) (settings.Feature, error) {
 		return 0, err
 	}
 	return settings.Feature(u), nil
-}
-
-func ParseReward(s string) (int64, error) {
-	if s == "" {
-		return 0, nil
-	}
-	return strconv.ParseInt(s, 10, 64)
 }
 
 type featureState interface {
