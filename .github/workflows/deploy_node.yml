@@ -1,4 +1,4 @@
-name: "Deploy node to"
+name: "Deploy node"
 on:
   workflow_dispatch:
     inputs:
