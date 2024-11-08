@@ -1,6 +1,7 @@
 module github.com/wavesplatform/gowaves
 
 go 1.22
+toolchain go1.22.9
 
 require (
 	filippo.io/edwards25519 v1.1.0
@@ -47,7 +48,7 @@ require (
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
 	golang.org/x/sync v0.9.0
 	golang.org/x/sys v0.27.0
-	google.golang.org/grpc v1.67.1
+	google.golang.org/grpc v1.68.0
 	google.golang.org/protobuf v1.35.1
 	moul.io/zapfilter v1.7.0
 )
