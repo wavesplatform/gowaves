@@ -1,0 +1,21 @@
+name: "Deploy nodes"
+on:
+  workflow_dispatch:
+    inputs:
+      arch:
+        required: true
+        type: string
+        description: "Machine architecture (amd64, arm64)"
+        default: "amd64"
+
+jobs:
+  deploy:
+    name: deploy-node
+    strategy:
+      matrix:
+        network: [ stagenet, testnet, mainnet ]
+        arch: [ "${{ github.event.inputs.arch }}" ]
+    uses: "./.github/workflows/deploy_node_to.yml"
+    with:
+      network: ${{ matrix.network }}
+      arch: ${{ matrix.arch }}
