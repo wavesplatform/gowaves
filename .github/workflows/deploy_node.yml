@@ -36,7 +36,7 @@ on:
         description: "Deployment server user"
 
 concurrency:
-  group: ${{ github.workflow }}-${{ github.event.inputs.network }}-${{ github.event.inputs.arch }}
+  group: deploy-node-${{ inputs.network }}-${{ inputs.arch }} # run only one deployment at a time for the same network and architecture
   cancel-in-progress: false # don't cancel the previous deployment if a new one is triggered
 
 jobs:

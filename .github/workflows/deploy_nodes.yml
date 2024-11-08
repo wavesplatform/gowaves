@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         network: [ stagenet, testnet, mainnet ]
-        arch: [ "${{ github.event.inputs.arch }}" ]
+        arch: [ "${{ inputs.arch }}" ]
     uses: "./.github/workflows/deploy_node.yml"
     with:
       network: ${{ matrix.network }}
