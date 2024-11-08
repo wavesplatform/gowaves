@@ -36,6 +36,10 @@ on:
         required: false # should be taken from the environment secrets
         description: "Deployment server user"
 
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.network }}-${{ github.event.inputs.arch }}
+  cancel-in-progress: false # don't cancel the previous deployment if a new one is triggered
+
 jobs:
   check-inputs:
     name: check-inputs
