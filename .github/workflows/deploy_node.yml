@@ -21,7 +21,6 @@ on:
         required: true
         type: string
         description: "Machine architecture (amd64, arm64)"
-        default: "amd64"
     secrets:
       SSH_PRIVATE_KEY:
         required: false # should be taken from the environment secrets
