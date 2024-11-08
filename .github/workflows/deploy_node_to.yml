@@ -1,5 +1,16 @@
 name: "Deploy node to"
 on:
+  workflow_dispatch:
+    inputs:
+      network:
+        required: true
+        type: string
+        description: "Waves network name (mainnet, testnet, stagenet)"
+      arch:
+        required: true
+        type: string
+        description: "Machine architecture (amd64, arm64)"
+        default: "amd64"
   workflow_call:
     inputs:
       network:
