@@ -37,8 +37,18 @@ on:
         description: "Deployment server user"
 
 jobs:
+  check-inputs:
+    name: check-inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check inputs
+        run: |
+          echo "${{ inputs.network }}" | grep -E '^(mainnet|testnet|stagenet)$' || exit 1 # check if the network is valid
+          echo "${{ inputs.arch }}" | grep -E '^(amd64|arm64)$' || exit 1 # check if the architecture is valid
+
   deploy:
     name: deploy
+    needs: [ check-inputs ]
     runs-on: ubuntu-latest
     environment:
       name: "Deploy-${{ inputs.network }}-${{ inputs.arch }}"
