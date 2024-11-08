@@ -1,5 +1,14 @@
 name: build
-on: [ push, pull_request, workflow_dispatch ]
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+    inputs:
+      smoke_tests:
+        required: false
+        type: boolean
+        description: 'Run smoke tests'
+        default: true
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
@@ -75,7 +84,8 @@ jobs:
   smoke:
     name: smoke_tests
     runs-on: self-hosted
-    if: github.event_name == 'pull_request' && github.repository == 'wavesplatform/gowaves'
+    if: ${{ (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' && github.event.inputs.smoke_tests) &&
+      github.repository == 'wavesplatform/gowaves'}}
 
     steps:
       - name: Set up Go 1.22

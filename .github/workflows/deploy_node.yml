@@ -1,0 +1,192 @@
+name: "Deploy node"
+on:
+  workflow_dispatch:
+    inputs:
+      network:
+        required: true
+        type: string
+        description: "Waves network name (mainnet, testnet, stagenet)"
+      arch:
+        required: true
+        type: string
+        description: "Machine architecture (amd64, arm64)"
+        default: "amd64"
+  workflow_call:
+    inputs:
+      network:
+        required: true
+        type: string
+        description: "Waves network name (mainnet, testnet, stagenet)"
+      arch:
+        required: true
+        type: string
+        description: "Machine architecture (amd64, arm64)"
+        default: "amd64"
+    secrets:
+      SSH_PRIVATE_KEY:
+        required: false # should be taken from the environment secrets
+        description: "SSH private key for deployment server"
+      DEPLOYMENT_SERVER:
+        required: false # should be taken from the environment secrets
+        description: "Deployment server hostname or IP address"
+      DEPLOYMENT_PORT:
+        required: false # should be taken from the environment secrets
+        description: "Deployment server SSH port"
+      DEPLOYMENT_USER:
+        required: false # should be taken from the environment secrets
+        description: "Deployment server user"
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.inputs.network }}-${{ github.event.inputs.arch }}
+  cancel-in-progress: false # don't cancel the previous deployment if a new one is triggered
+
+jobs:
+  check-inputs:
+    name: check-inputs
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check inputs
+        run: |
+          echo "${{ inputs.network }}" | grep -E '^(mainnet|testnet|stagenet)$' || exit 1 # check if the network is valid
+          echo "${{ inputs.arch }}" | grep -E '^(amd64|arm64)$' || exit 1 # check if the architecture is valid
+
+  deploy:
+    name: deploy
+    needs: [ check-inputs ]
+    runs-on: ubuntu-latest
+    environment:
+      name: "Deploy-${{ inputs.network }}-${{ inputs.arch }}"
+    env:
+      MAKEFILE_TARGET: "build-node-${{ inputs.network }}-${{ inputs.arch }}-deb-package"
+      SERVICE_NAME: "gowaves-${{ inputs.network }}" # also used as a package name
+      BACKUP_PACKAGE_PATH: "/tmp/gowaves-${{ inputs.network }}-${{ inputs.arch }}_backup_${{ github.run_number }}.deb"
+      PACKAGE_NAME: "" # will be set by the step that builds the deb package
+
+    steps:
+      - name: Set up Go 1.22
+        uses: actions/setup-go@v5.0.2
+        with:
+          go-version: 1.22.x
+          check-latest: true
+          cache: true
+
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+
+      - name: Get dependencies
+        run: go mod vendor
+
+      - name: Build ${{ inputs.network }}-${{ inputs.arch }} deb package
+        run: |
+          make ${{ env.MAKEFILE_TARGET }} # build the deb package
+          mv build/dist/*.deb ./ # move the deb package to the root directory
+          echo "PACKAGE_NAME=$(ls ./*.deb | xargs -n 1 basename)" >> $GITHUB_ENV # set the package name for the next steps
+
+      - name: Copy deb package to the deployment server
+        id: copy-deb
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER }}
+          username: ${{ secrets.DEPLOYMENT_USER }}
+          port: ${{ secrets.DEPLOYMENT_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          source: ${{ env.PACKAGE_NAME }}
+          target: /tmp/
+
+      - name: Backup deb package on the deployment server
+        uses: appleboy/ssh-action@v1.1.0
+        id: backup-deb
+        env:
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+          BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
+          DEPLOYMENT_USER: ${{ secrets.DEPLOYMENT_USER }}
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER }}
+          username: ${{ secrets.DEPLOYMENT_USER }}
+          port: ${{ secrets.DEPLOYMENT_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          envs: SERVICE_NAME, BACKUP_PACKAGE_PATH, DEPLOYMENT_USER
+          script: |
+            dpkg-query --show $SERVICE_NAME || exit 0 # check if the package exists, if not, skip the backup
+            export TMPDIR=$(mktemp -d) && cd $TMPDIR
+            sudo dpkg-repack $SERVICE_NAME
+            sudo mv $(ls $TMPDIR/$SERVICE_NAME*.deb) $BACKUP_PACKAGE_PATH
+            sudo chown $DEPLOYMENT_USER:$DEPLOYMENT_USER $BACKUP_PACKAGE_PATH
+            rmdir $TMPDIR
+
+      - name: Install deb package on the deployment server
+        uses: appleboy/ssh-action@v1.1.0
+        id: install-deb
+        env:
+          PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER }}
+          username: ${{ secrets.DEPLOYMENT_USER }}
+          port: ${{ secrets.DEPLOYMENT_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          envs: PACKAGE_NAME, SERVICE_NAME
+          script: |
+            ls -l /tmp/$PACKAGE_NAME || exit 1 # check if the package exists
+            sudo systemctl stop $SERVICE_NAME || echo "Service $SERVICE_NAME is not running or does not exist"
+            sudo dpkg -i /tmp/$PACKAGE_NAME
+            sudo systemctl start $SERVICE_NAME
+            for ((i=1; i<=60; i++)); do
+              systemctl is-active $SERVICE_NAME || exit 1 # wait for the service to start and check its status for 60 seconds
+              sleep 1
+            done
+
+      - name: Rollback deb package on the deployment server
+        uses: appleboy/ssh-action@v1.1.0
+        if: ${{ failure() }}
+        env:
+          BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
+          SERVICE_NAME: ${{ env.SERVICE_NAME }}
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER }}
+          username: ${{ secrets.DEPLOYMENT_USER }}
+          port: ${{ secrets.DEPLOYMENT_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          envs: BACKUP_PACKAGE_PATH, SERVICE_NAME
+          script: |
+            ls -l $BACKUP_PACKAGE_PATH || exit 1 # check if the backup package exists
+            sudo systemctl stop $SERVICE_NAME
+            sudo dpkg -i $BACKUP_PACKAGE_PATH
+            sudo systemctl start $SERVICE_NAME
+            for ((i=1; i<=60; i++)); do
+              systemctl is-active $SERVICE_NAME || exit 1 # wait for the service to start and check its status for 60 seconds
+              sleep 1
+            done
+
+      - name: Clean up deb package on the deployment server
+        uses: appleboy/ssh-action@v1.1.0
+        if: ${{ always() }}
+        env:
+          PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER }}
+          username: ${{ secrets.DEPLOYMENT_USER }}
+          port: ${{ secrets.DEPLOYMENT_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          envs: PACKAGE_NAME
+          script: |
+            rm -f /tmp/$PACKAGE_NAME
+
+      - name: Clean up backup deb package on the deployment server
+        uses: appleboy/ssh-action@v1.1.0
+        if: ${{ always() }}
+        env:
+          BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
+        with:
+          host: ${{ secrets.DEPLOYMENT_SERVER }}
+          username: ${{ secrets.DEPLOYMENT_USER }}
+          port: ${{ secrets.DEPLOYMENT_PORT }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script_stop: true
+          envs: BACKUP_PACKAGE_PATH
+          script: |
+            rm -f $BACKUP_PACKAGE_PATH
