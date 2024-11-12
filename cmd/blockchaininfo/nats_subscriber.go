@@ -38,6 +38,7 @@ func printContractInfo(contractInfoProto *g.L2ContractDataEntries, scheme proto.
 	if err != nil {
 		return err
 	}
+	// Delete data entries are not going to have "type"
 	prettyJSON, err := json.MarshalIndent(contractInfo, "", "    ")
 	if err != nil {
 		log.Println("Error converting to pretty JSON:", err)
@@ -131,6 +132,8 @@ func main() {
 	flag.StringVar(&blockchainType, "blockchain-type", "testnet", "Blockchain scheme (e.g., stagenet, testnet, mainnet)")
 	flag.StringVar(&updatesPath, "updates-path", "", "File path to store contract updates")
 	flag.StringVar(&natsURL, "nats-url", nats.DefaultURL, "URL for the NATS server")
+
+	flag.Parse()
 
 	scheme, err := schemeFromString(blockchainType)
 	if err != nil {
