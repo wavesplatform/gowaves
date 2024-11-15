@@ -1,0 +1,404 @@
+package networking
+
+import (
+	"bufio"
+	"bytes"
+	"context"
+	"encoding/base64"
+	"errors"
+	"io"
+	"log/slog"
+	"net"
+	"strings"
+	"sync"
+	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/execution"
+)
+
+// Session is used to wrap a reliable ordered connection.
+type Session struct {
+	g      *execution.TaskGroup
+	ctx    context.Context
+	cancel context.CancelFunc
+
+	config *Config
+	logger Logger
+	tp     *timerPool
+
+	conn    io.ReadWriteCloser // conn is the underlying connection
+	bufRead *bufio.Reader      // buffered reader wrapped around the connection
+
+	receiveLock   sync.Mutex    // Guards the receiveBuffer.
+	receiveBuffer *bytes.Buffer // receiveBuffer is used to store the incoming data.
+
+	sendLock sync.Mutex       // Guards the sendCh.
+	sendCh   chan *sendPacket // sendCh is used to send data to the connection.
+
+	establishedLock sync.Mutex // Guards the established field.
+	established     bool       // Indicates that incoming Handshake was successfully accepted.
+	shutdownLock    sync.Mutex // Guards the shutdown field.
+	shutdown        bool       // shutdown is used to safely close the Session.
+}
+
+// NewSession is used to construct a new session.
+func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp *timerPool) (*Session, error) {
+	if config.protocol == nil {
+		return nil, ErrInvalidConfigurationNoProtocol
+	}
+	if config.handler == nil {
+		return nil, ErrInvalidConfigurationNoHandler
+	}
+	if tp == nil {
+		return nil, ErrEmptyTimerPool
+	}
+	sCtx, cancel := context.WithCancel(ctx)
+	//TODO: Properly initialize sendCh
+	s := &Session{
+		g:       execution.NewTaskGroup(suppressContextCancellationError),
+		ctx:     sCtx,
+		cancel:  cancel,
+		config:  config,
+		tp:      tp,
+		conn:    conn,
+		bufRead: bufio.NewReader(conn),
+		sendCh:  make(chan *sendPacket, 1),
+	}
+
+	attributes := []any{
+		slog.String("namespace", Namespace),
+		slog.String("remote", s.RemoteAddr().String()),
+	}
+	attributes = append(attributes, config.attributes...)
+
+	if config.logger == nil {
+		s.logger = noopLogger{}
+	} else {
+		s.logger = &wrappingLogger{
+			logger:     config.logger,
+			attributes: attributes,
+		}
+	}
+
+	s.g.Run(s.receiveLoop)
+	s.g.Run(s.sendLoop)
+	if s.config.keepAlive {
+		s.g.Run(s.keepaliveLoop)
+	}
+
+	return s, nil
+}
+
+// LocalAddr returns the local network address.
+func (s *Session) LocalAddr() net.Addr {
+	if a, ok := s.conn.(addressable); ok {
+		return a.LocalAddr()
+	}
+	return &sessionAddress{addr: "local"}
+}
+
+// RemoteAddr returns the remote network address.
+func (s *Session) RemoteAddr() net.Addr {
+	if a, ok := s.conn.(addressable); ok {
+		return a.RemoteAddr()
+	}
+	return &sessionAddress{addr: "remote"}
+}
+
+// Close is used to close the session. It is safe to call Close multiple times from different goroutines,
+// subsequent calls do nothing.
+func (s *Session) Close() error {
+	s.shutdownLock.Lock()
+	defer s.shutdownLock.Unlock()
+
+	if s.shutdown {
+		return nil // Fast path - session already closed.
+	}
+	s.shutdown = true
+
+	s.logger.Debug("Closing session")
+	clErr := s.conn.Close() // Close the underlying connection.
+	if clErr != nil {
+		s.logger.Warn("Failed to close underlying connection", "error", clErr)
+	}
+	s.logger.Debug("Underlying connection closed")
+
+	s.cancel() // Cancel the underlying context to interrupt the loops.
+
+	s.logger.Debug("Waiting for loops to finish")
+	err := s.g.Wait() // Wait for loops to finish.
+
+	err = errors.Join(err, clErr) // Combine loops finalization errors with connection close error.
+
+	s.logger.Debug("Session closed", "error", err)
+	return err
+}
+
+// Write is used to write to the session. It is safe to call Write and/or Close concurrently.
+func (s *Session) Write(msg []byte) (int, error) {
+	s.sendLock.Lock()
+	defer s.sendLock.Unlock()
+
+	if err := s.waitForSend(msg); err != nil {
+		return 0, err
+	}
+
+	return len(msg), nil
+}
+
+// waitForSend waits to send a data, checking for a potential context cancellation.
+func (s *Session) waitForSend(data []byte) error {
+	// Channel to receive an error from sendLoop goroutine.
+	// We are not closing this channel, it will be GCed when the session is closed.
+	errCh := make(chan error, 1)
+
+	timer := s.tp.Get()
+	timer.Reset(s.config.connectionWriteTimeout)
+	defer s.tp.Put(timer)
+
+	s.logger.Debug("Sending data", "data", base64.StdEncoding.EncodeToString(data))
+	ready := &sendPacket{data: data, err: errCh}
+	select {
+	case s.sendCh <- ready:
+		s.logger.Debug("Data written into send channel")
+	case <-s.ctx.Done():
+		s.logger.Debug("Session shutdown while sending data")
+		return ErrSessionShutdown
+	case <-timer.C:
+		s.logger.Debug("Connection write timeout while sending data")
+		return ErrConnectionWriteTimeout
+	}
+
+	dataCopy := func() {
+		if data == nil {
+			return // A nil data is ignored.
+		}
+
+		// In the event of session shutdown or connection write timeout, we need to prevent `send` from reading
+		// the body buffer after returning from this function since the caller may re-use the underlying array.
+		ready.mu.Lock()
+		defer ready.mu.Unlock()
+
+		if ready.data == nil {
+			return // data was already copied in `send`.
+		}
+		newData := make([]byte, len(data))
+		copy(newData, data)
+		ready.data = newData
+	}
+
+	select {
+	case err := <-errCh:
+		s.logger.Debug("Data sent", "error", err)
+		return err
+	case <-s.ctx.Done():
+		dataCopy()
+		s.logger.Debug("Session shutdown while waiting send error")
+		return ErrSessionShutdown
+	case <-timer.C:
+		dataCopy()
+		s.logger.Debug("Connection write timeout while waiting send error")
+		return ErrConnectionWriteTimeout
+	}
+}
+
+// sendLoop is a long-running goroutine that sends data to the connection.
+func (s *Session) sendLoop() error {
+	var dataBuf bytes.Buffer
+	for {
+		dataBuf.Reset()
+
+		select {
+		case <-s.ctx.Done():
+			s.logger.Debug("Exiting connection send loop")
+			return s.ctx.Err()
+
+		case packet := <-s.sendCh:
+			s.logger.Debug("Sending data to connection",
+				"data", base64.StdEncoding.EncodeToString(packet.data))
+			packet.mu.Lock()
+			if packet.data != nil {
+				// Copy the data into the buffer to avoid holding a mutex lock during the writing.
+				_, err := dataBuf.Write(packet.data)
+				if err != nil {
+					packet.data = nil
+					packet.mu.Unlock()
+					s.logger.Error("Failed to copy data into buffer", "error", err)
+					s.asyncSendErr(packet.err, err)
+					return err // TODO: Do we need to return here?
+				}
+				s.logger.Debug("Data copied into buffer")
+				packet.data = nil
+			}
+			packet.mu.Unlock()
+
+			if dataBuf.Len() > 0 {
+				s.logger.Debug("Writing data into connection", "len", len(dataBuf.Bytes()))
+				_, err := s.conn.Write(dataBuf.Bytes()) // TODO: We are locking here, because no timeout set on connection itself.
+				if err != nil {
+					s.logger.Error("Failed to write data into connection", "error", err)
+					s.asyncSendErr(packet.err, err)
+					return err
+				}
+				s.logger.Debug("Data written into connection")
+			}
+
+			// No error, successful send
+			s.asyncSendErr(packet.err, nil)
+		}
+	}
+}
+
+// receiveLoop continues to receive data until a fatal error is encountered or underlying connection is closed.
+// Receive loop works after handshake and accepts only length-prepended messages.
+func (s *Session) receiveLoop() error {
+	s.establishedLock.Lock() // Prevents from running multiple receiveLoops.
+	defer s.establishedLock.Unlock()
+
+	for {
+		if err := s.receive(); err != nil {
+			if errors.Is(err, ErrConnectionClosedOnRead) {
+				s.config.handler.OnClose(s)
+				return nil // Exit normally on connection close.
+			}
+			return err
+		}
+	}
+}
+
+func (s *Session) receive() error {
+	if s.established {
+		hdr := s.config.protocol.EmptyHeader()
+		return s.readMessage(hdr)
+	}
+	return s.readHandshake()
+}
+
+func (s *Session) readHandshake() error {
+	s.logger.Debug("Reading handshake")
+
+	hs := s.config.protocol.EmptyHandshake()
+	_, err := hs.ReadFrom(s.bufRead)
+	if err != nil {
+		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") ||
+			strings.Contains(err.Error(), "reset by peer") {
+			return ErrConnectionClosedOnRead
+		}
+		s.logger.Error("Failed to read handshake from connection", "error", err)
+		return err
+	}
+	s.logger.Debug("Handshake successfully read")
+
+	if !s.config.protocol.IsAcceptableHandshake(hs) {
+		s.logger.Error("Handshake is not acceptable")
+		return ErrUnacceptableHandshake
+	}
+	// Handshake is acceptable, we can switch the session into established state.
+	s.established = true
+	s.config.handler.OnHandshake(s, hs)
+	return nil
+}
+
+func (s *Session) readMessage(hdr Header) error {
+	// Read the header
+	if _, err := hdr.ReadFrom(s.bufRead); err != nil {
+		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") ||
+			strings.Contains(err.Error(), "reset by peer") {
+			return ErrConnectionClosedOnRead
+		}
+		s.logger.Error("Failed to read header", "error", err)
+		return err
+	}
+	if !s.config.protocol.IsAcceptableMessage(hdr) {
+		// We have to discard the remaining part of the message.
+		if _, err := io.CopyN(io.Discard, s.bufRead, int64(hdr.PayloadLength())); err != nil {
+			s.logger.Error("Failed to discard message", "error", err)
+			return err
+		}
+	}
+	// Read the new data
+	if err := s.readMessagePayload(hdr, s.bufRead); err != nil {
+		s.logger.Error("Failed to read message", "error", err)
+		return err
+	}
+	return nil
+}
+
+func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
+	// Wrap in a limited reader
+	conn = &io.LimitedReader{R: conn, N: int64(hdr.PayloadLength())}
+
+	// Copy into buffer
+	s.receiveLock.Lock()
+	defer s.receiveLock.Unlock()
+
+	if s.receiveBuffer == nil {
+		// Allocate the receiving buffer just-in-time to fit the full message.
+		s.receiveBuffer = bytes.NewBuffer(make([]byte, 0, hdr.HeaderLength()+hdr.PayloadLength()))
+	}
+	_, err := hdr.WriteTo(s.receiveBuffer)
+	if err != nil {
+		s.logger.Error("Failed to write header to receiving buffer", "error", err)
+		return err
+	}
+	_, err = io.Copy(s.receiveBuffer, conn)
+	if err != nil {
+		s.logger.Error("Failed to copy payload to receiving buffer", "error", err)
+		return err
+	}
+	// We lock the buffer from modification on the time of invocation of OnReceive handler.
+	// The slice of bytes passed into the handler is only valid for the duration of the handler invocation.
+	// So inside the handler better deserialize message or make a copy of the bytes.
+	s.config.handler.OnReceive(s, s.receiveBuffer.Bytes()) // Invoke OnReceive handler.
+	return nil
+}
+
+// keepaliveLoop is a long-running goroutine that periodically sends a Ping message to keep the connection alive.
+func (s *Session) keepaliveLoop() error {
+	for {
+		select {
+		case <-s.ctx.Done():
+			return s.ctx.Err()
+		case <-time.After(s.config.keepAliveInterval):
+			// Get actual Ping message from Protocol.
+			p, err := s.config.protocol.Ping()
+			if err != nil {
+				s.logger.Error("Failed to get ping message", "error", err)
+				return ErrKeepAliveProtocolFailure
+			}
+			if sndErr := s.waitForSend(p); sndErr != nil {
+				if errors.Is(sndErr, ErrSessionShutdown) {
+					return nil // Exit normally on session termination.
+				}
+				s.logger.Error("Failed to send ping message", "error", err)
+				return ErrKeepAliveTimeout
+			}
+		}
+	}
+}
+
+// sendPacket is used to send data.
+type sendPacket struct {
+	mu   sync.Mutex // Protects data from unsafe reads.
+	data []byte
+	err  chan error
+}
+
+// asyncSendErr is used to try an async send of an error.
+func (s *Session) asyncSendErr(ch chan error, err error) {
+	if ch == nil {
+		return
+	}
+	select {
+	case ch <- err:
+		s.logger.Debug("Error sent to channel", "error", err)
+	default:
+	}
+}
+
+func suppressContextCancellationError(err error) error {
+	if errors.Is(err, context.Canceled) {
+		return nil
+	}
+	return err
+}
