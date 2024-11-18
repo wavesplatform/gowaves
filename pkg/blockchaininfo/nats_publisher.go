@@ -7,6 +7,7 @@ import (
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -214,6 +215,7 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 		MaxPayload: NatsMaxPayloadSize,
 		Host:       HostDefault,
 		Port:       PortDefault,
+		NoSigs:     true,
 	}
 	s, err := server.NewServer(opts)
 	if err != nil {
