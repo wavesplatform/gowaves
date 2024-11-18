@@ -7,6 +7,8 @@ import (
 	"io"
 )
 
+const Namespace = "NET"
+
 var (
 	// ErrInvalidConfigurationNoProtocol is used when the configuration has no protocol.
 	ErrInvalidConfigurationNoProtocol = errors.New("invalid configuration: empty protocol")

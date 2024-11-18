@@ -6,6 +6,7 @@ import (
 	"errors"
 	"io"
 	"log/slog"
+	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -113,34 +114,26 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	require.NoError(t, err)
 
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
-
 	serverHandler.On("OnClose", serverSession).Return()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
-		// Close server.
-		err = serverSession.Close()
-		assert.NoError(t, err)
-		wg.Done()
-	}()
+	clientHandler.On("OnClose", clientSession).Return()
 
 	// Lock
 	pc, ok := clientConn.(*pipeConn)
 	require.True(t, ok)
 	pc.writeBlocker.Lock()
-
-	clientHandler.On("OnClose", clientSession).Return()
+	runtime.Gosched()
 
 	// Send handshake to server, but writing will block because the clientConn is locked.
 	n, err := clientSession.Write([]byte("hello"))
 	require.Error(t, err)
 	assert.Equal(t, 0, n)
 
-	time.Sleep(2 * time.Second) // Let timeout occur.
+	runtime.Gosched()
+
+	err = serverSession.Close()
+	assert.NoError(t, err)
 
 	// Unlock "timeout" and close client.
-	wg.Wait()
 	pc.writeBlocker.Unlock()
 	err = clientSession.Close()
 	assert.Error(t, err)

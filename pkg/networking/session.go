@@ -23,7 +23,7 @@ type Session struct {
 	cancel context.CancelFunc
 
 	config *Config
-	logger Logger
+	logger *slog.Logger
 	tp     *timerPool
 
 	conn    io.ReadWriteCloser // conn is the underlying connection
@@ -53,7 +53,6 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 		return nil, ErrEmptyTimerPool
 	}
 	sCtx, cancel := context.WithCancel(ctx)
-	//TODO: Properly initialize sendCh
 	s := &Session{
 		g:       execution.NewTaskGroup(suppressContextCancellationError),
 		ctx:     sCtx,
@@ -62,7 +61,7 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 		tp:      tp,
 		conn:    conn,
 		bufRead: bufio.NewReader(conn),
-		sendCh:  make(chan *sendPacket, 1),
+		sendCh:  make(chan *sendPacket, 1), // TODO: Make the size of send channel configurable.
 	}
 
 	attributes := []any{
@@ -72,12 +71,9 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 	attributes = append(attributes, config.attributes...)
 
 	if config.logger == nil {
-		s.logger = noopLogger{}
+		s.logger = slog.Default().With(attributes...)
 	} else {
-		s.logger = &wrappingLogger{
-			logger:     config.logger,
-			attributes: attributes,
-		}
+		s.logger = config.logger.With(attributes...)
 	}
 
 	s.g.Run(s.receiveLoop)
