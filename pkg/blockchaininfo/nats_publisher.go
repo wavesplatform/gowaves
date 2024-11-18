@@ -153,12 +153,7 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 	return nil
 }
 
-func handleBlockchainUpdates(updates BUpdatesInfo, ok bool,
-	bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
-	if !ok {
-		log.Printf("the updates channel for publisher was closed")
-		return
-	}
+func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
 	// update current state
 	bu.currentState = &updates
 	if bu.previousState == nil {
@@ -197,16 +192,18 @@ func handleBlockchainUpdates(updates BUpdatesInfo, ok bool,
 
 func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
 	bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
-	func(ctx context.Context, updatesChannel <-chan BUpdatesInfo) {
-		for {
-			select {
-			case updates, ok := <-updatesChannel:
-				handleBlockchainUpdates(updates, ok, bu, scheme, nc)
-			case <-ctx.Done():
+	for {
+		select {
+		case updates, ok := <-updatesChannel:
+			if !ok {
+				log.Printf("the updates channel for publisher was closed")
 				return
 			}
+			handleBlockchainUpdate(updates, bu, scheme, nc)
+		case <-ctx.Done():
+			return
 		}
-	}(ctx, updatesChannel)
+	}
 }
 
 func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
