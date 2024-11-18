@@ -7,6 +7,7 @@ import (
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -207,7 +208,7 @@ func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
 }
 
 func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
-	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme) {
+	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme) error {
 	opts := &server.Options{
 		MaxPayload: NatsMaxPayloadSize,
 		Host:       HostDefault,
@@ -216,19 +217,25 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 	}
 	s, err := server.NewServer(opts)
 	if err != nil {
-		log.Fatalf("failed to create NATS server: %v", err)
+		return errors.Wrap(err, "failed to create NATS server")
 	}
 	go s.Start()
+	defer func() {
+		s.Shutdown()
+		s.WaitForShutdown()
+	}()
 	if !s.ReadyForConnections(ConnectionsTimeoutDefault) {
-		log.Fatal("NATS Server not ready for connections")
+		return errors.New("NATS server is not ready for connections")
 	}
+
 	log.Printf("NATS Server is running on port %d", PortDefault)
 
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
-		log.Fatal(err)
+		return errors.Wrap(err, "failed to connect to NATS server")
 	}
 	defer nc.Close()
 
 	runPublisher(ctx, updatesChannel, bu, scheme, nc)
+	return nil
 }

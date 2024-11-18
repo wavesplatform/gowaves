@@ -822,7 +822,12 @@ func runBlockchainUpdatesPlugin(
 	)
 
 	updatesChannel := make(chan blockchaininfo.BUpdatesInfo)
-	go bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel, cfg.AddressSchemeCharacter)
+	go func() {
+		err := bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel, cfg.AddressSchemeCharacter)
+		if err != nil {
+			zap.S().Fatalf("Failed to run blockchain updates publisher: %v", err)
+		}
+	}()
 
 	return &state.BlockchainUpdatesExtension{
 		EnableBlockchainUpdatesPlugin: true,
