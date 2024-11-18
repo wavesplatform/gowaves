@@ -2,10 +2,12 @@ package state
 
 import (
 	"fmt"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -55,13 +57,7 @@ type txAppender struct {
 	// appending transactions.
 	buildApiData bool
 
-	bUpdatesExtension *BlockchainUpdatesExtension
-}
-
-type BlockchainUpdatesExtension struct {
-	EnableBlockchainUpdatesPlugin bool
-	L2ContractAddress             proto.WavesAddress
-	BUpdatesChannel               chan<- blockchaininfo.BUpdatesInfo
+	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension
 }
 
 func newTxAppender(
@@ -72,7 +68,7 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
-	bUpdatesExtension *BlockchainUpdatesExtension,
+	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension,
 ) (*txAppender, error) {
 	buildAPIData, err := stateDB.stateStoresApiData()
 	if err != nil {
@@ -847,12 +843,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 	// write updates into the updatesChannel here
 	// TODO possibly run it in a goroutine? make sure goroutines run in order?
-	if a.bUpdatesExtension != nil {
-		if a.bUpdatesExtension.EnableBlockchainUpdatesPlugin {
-			updtErr := a.updateBlockchainUpdateInfo(blockInfo, params.block)
-			if updtErr != nil {
-				return updtErr
-			}
+	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
+		updtErr := a.updateBlockchainUpdateInfo(blockInfo, params.block)
+		if updtErr != nil {
+			return updtErr
 		}
 	}
 
@@ -879,7 +873,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader) error {
 	// TODO improve this by using diffs instead grabbing all the records every time
-	dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesExtension.L2ContractAddress))
+	dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesExtension.L2ContractAddress()))
 	if err != nil && !errors.Is(err, proto.ErrNotFound) {
 		return err
 	}
@@ -896,7 +890,7 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 			Height:         blockInfo.Height,
 		},
 	}
-	a.bUpdatesExtension.BUpdatesChannel <- bUpdatesInfo
+	a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
 	return nil
 }
 

@@ -16,6 +16,7 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -519,7 +520,7 @@ func newStateManager(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
-	bUpdatesExtension *BlockchainUpdatesExtension,
+	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension,
 ) (_ *stateManager, retErr error) {
 	if err := validateSettings(settings); err != nil {
 		return nil, err

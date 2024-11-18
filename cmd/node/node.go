@@ -400,7 +400,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to create state parameters")
 	}
 
-	var bUpdatesExtension *state.BlockchainUpdatesExtension
+	var bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
 		var bUErr error
 		bUpdatesExtension, bUErr = runBlockchainUpdatesPlugin(ctx, cfg)
@@ -808,7 +808,7 @@ func runAPIs(
 func runBlockchainUpdatesPlugin(
 	ctx context.Context,
 	cfg *settings.BlockchainSettings,
-) (*state.BlockchainUpdatesExtension, error) {
+) (*blockchaininfo.BlockchainUpdatesExtension, error) {
 	const l2ContractAddr = "3Msx4Aq69zWUKy4d1wyKnQ4ofzEDAfv5Ngf"
 
 	l2address, cnvrtErr := proto.NewAddressFromString(l2ContractAddr)
@@ -829,11 +829,7 @@ func runBlockchainUpdatesPlugin(
 		}
 	}()
 
-	return &state.BlockchainUpdatesExtension{
-		EnableBlockchainUpdatesPlugin: true,
-		BUpdatesChannel:               updatesChannel,
-		L2ContractAddress:             l2address,
-	}, nil
+	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel), nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {

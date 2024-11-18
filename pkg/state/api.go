@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
@@ -232,7 +233,7 @@ func NewState(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
-	bUpdatesExtension *BlockchainUpdatesExtension,
+	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension,
 ) (State, error) {
 	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode, bUpdatesExtension)
 	if err != nil {
