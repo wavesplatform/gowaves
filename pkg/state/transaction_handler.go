@@ -265,8 +265,6 @@ func (h *transactionHandler) performTx(
 		return txSnapshot{}, errors.Wrap(err, "failed to apply transaction snapshot")
 	}
 
-	// write updates into the updatesChannel here
-
 	return snapshot, nil
 }
 

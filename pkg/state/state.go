@@ -2364,7 +2364,7 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 	}
 	entries, err := s.stor.accountsDataStor.retrieveEntries(addr)
 	if err != nil {
-		if errors.Is(err, proto.ErrNotFound) {
+		if IsNotFound(err) {
 			return nil, err
 		}
 		return nil, wrapErr(RetrievalError, err)
