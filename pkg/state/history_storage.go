@@ -506,15 +506,9 @@ func newHistoryStorage(
 	dbBatch keyvalue.Batch,
 	stateDB *stateDB,
 	amend bool,
-) (*historyStorage, error) {
-	stor, err := newLocalHistoryStorage()
-	if err != nil {
-		return nil, err
-	}
-	fmt, err := newHistoryFormatter(stateDB)
-	if err != nil {
-		return nil, err
-	}
+) *historyStorage {
+	stor := newLocalHistoryStorage()
+	fmt := newHistoryFormatter(stateDB)
 	return &historyStorage{
 		db:        db,
 		dbBatch:   dbBatch,
@@ -523,7 +517,7 @@ func newHistoryStorage(
 		stor:      stor,
 		fmt:       fmt,
 		amend:     amend,
-	}, nil
+	}
 }
 
 func (hs *historyStorage) newTopEntryIteratorByPrefix(prefix []byte) (*topEntryIterator, error) {

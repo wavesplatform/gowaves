@@ -174,11 +174,44 @@ func (c *BlockchainConfig) TestConfig() TestConfig {
 	}
 }
 
+// WithFeatureSettingFromFile is a BlockchainOption that allows to set feature settings from configuration file.
+// Feature settings configuration file is a JSON file with the structure of `featureSettings`.
+func WithFeatureSettingFromFile(path ...string) BlockchainOption {
+	return func(cfg *BlockchainConfig) error {
+		fs, err := NewFeatureSettingsFromFile(path...)
+		if err != nil {
+			return errors.Wrap(err, "failed to modify features settings")
+		}
+		cfg.supported = fs.SupportedFeatures
+		if ftErr := cfg.UpdatePreactivatedFeatures(fs.PreactivatedFeatures); ftErr != nil {
+			return errors.Wrap(ftErr, "failed to modify preactivated features")
+		}
+		return nil
+	}
+}
+
+// WithPaymentsSettingFromFile is a BlockchainOption that allows to set payment settings from configuration file.
+// Payment settings configuration file is a JSON file with the structure of `paymentSettings`.
+func WithPaymentsSettingFromFile(path ...string) BlockchainOption {
+	return func(cfg *BlockchainConfig) error {
+		fs, err := NewPaymentSettingsFromFile(path...)
+		if err != nil {
+			return errors.Wrap(err, "failed to modify payments settings")
+		}
+		cfg.Settings.PaymentsFixAfterHeight = fs.PaymentsFixAfterHeight
+		cfg.Settings.InternalInvokePaymentsValidationAfterHeight = fs.InternalInvokePaymentsValidationAfterHeight
+		cfg.Settings.InternalInvokeCorrectFailRejectBehaviourAfterHeight =
+			fs.InternalInvokeCorrectFailRejectBehaviourAfterHeight
+		cfg.Settings.InvokeNoZeroPaymentsAfterHeight = fs.InvokeNoZeroPaymentsAfterHeight
+		return nil
+	}
+}
+
 // WithRewardSettingFromFile is a BlockchainOption that allows to set reward settings from configuration file.
 // Reward settings configuration file is a JSON file with the structure of `rewardSettings`.
-func WithRewardSettingFromFile(dir, file string) BlockchainOption {
+func WithRewardSettingFromFile(path ...string) BlockchainOption {
 	return func(cfg *BlockchainConfig) error {
-		rs, err := NewRewardSettingsFromFile(dir, file)
+		rs, err := NewRewardSettingsFromFile(path...)
 		if err != nil {
 			return errors.Wrap(err, "failed to modify reward settings")
 		}
@@ -196,13 +229,7 @@ func WithRewardSettingFromFile(dir, file string) BlockchainOption {
 		cfg.RewardAddresses = ras
 		cfg.Settings.RewardAddresses = ras.Addresses()
 		cfg.Settings.RewardAddressesAfter21 = ras.AddressesAfter21()
-
-		cfg.supported = rs.SupportedFeatures
 		cfg.desiredReward = rs.DesiredBlockReward
-
-		if ftErr := cfg.UpdatePreactivatedFeatures(rs.PreactivatedFeatures); ftErr != nil {
-			return errors.Wrap(ftErr, "failed to modify preactivated features")
-		}
 		return nil
 	}
 }
