@@ -154,7 +154,7 @@ func (c *config) logParameters() {
 	zap.S().Debugf("build-state-hashes: %t", c.buildStateHashes)
 	zap.S().Debugf("bind-address: %s", c.bindAddress)
 	zap.S().Debugf("vote: %s", c.minerVoteFeatures)
-	zap.S().Debugf("reward: %s", c.reward)
+	zap.S().Debugf("reward: %d", c.reward)
 	zap.S().Debugf("obsolescence: %s", c.obsolescencePeriod)
 	zap.S().Debugf("disable-miner %t", c.disableMiner)
 	zap.S().Debugf("wallet-path: %s", c.walletPath)

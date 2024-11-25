@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.22
+go 1.22.0
 
 require (
 	filippo.io/edwards25519 v1.1.0
@@ -34,7 +34,7 @@ require (
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/stoewer/go-strcase v1.3.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/throttled/throttled/v2 v2.12.0
 	github.com/tidwall/sjson v1.2.5
@@ -50,7 +50,7 @@ require (
 	golang.org/x/sync v0.9.0
 	golang.org/x/sys v0.27.0
 	google.golang.org/grpc v1.67.1
-	google.golang.org/protobuf v1.35.1
+	google.golang.org/protobuf v1.35.2
 	moul.io/zapfilter v1.7.0
 )
 
