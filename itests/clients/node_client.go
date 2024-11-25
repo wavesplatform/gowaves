@@ -247,7 +247,6 @@ func (c *NodesClients) SynchronizedWavesBalances(
 	if err != nil {
 		t.Logf("Errors while requesting balances: %v", err)
 	}
-	t.Log("Entering loop")
 	for {
 		commonHeight := mostCommonHeight(sbs)
 		toRetry := make([]proto.WavesAddress, 0, len(addresses))
