@@ -57,3 +57,8 @@ func (c *Config) WithKeepAliveDisabled() *Config {
 	c.keepAlive = false
 	return c
 }
+
+func (c *Config) WithKeepAliveInterval(interval time.Duration) *Config {
+	c.keepAliveInterval = interval
+	return c
+}

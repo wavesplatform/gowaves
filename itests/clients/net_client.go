@@ -22,6 +22,7 @@ const (
 	appName        = "wavesL"
 	nonce          = uint64(0)
 	networkTimeout = 3 * time.Second
+	pingInterval   = 5 * time.Second
 )
 
 type NetClient struct {
@@ -32,8 +33,10 @@ type NetClient struct {
 	c    *networking.Config
 	s    *networking.Session
 
-	closedLock sync.Mutex
-	closed     bool
+	closingLock sync.Mutex
+	closingFlag bool
+	closedLock  sync.Mutex
+	closedFlag  bool
 }
 
 func NewNetClient(
@@ -46,6 +49,7 @@ func NewNetClient(
 	conf := networking.NewConfig(p, h).
 		WithLogger(log).
 		WithWriteTimeout(networkTimeout).
+		WithKeepAliveInterval(pingInterval).
 		WithSlogAttribute(slog.String("suite", t.Name())).
 		WithSlogAttribute(slog.String("impl", impl.String()))
 
@@ -79,7 +83,6 @@ func (c *NetClient) SendHandshake() {
 }
 
 func (c *NetClient) SendMessage(m proto.Message) {
-	// TODO: Postpone message sending if the connection is reconnecting.
 	b, err := m.MarshalBinary()
 	require.NoError(c.t, err, "failed to marshal message to %s node at %q", c.impl.String(), c.s.RemoteAddr())
 	_, err = c.s.Write(b)
@@ -87,22 +90,23 @@ func (c *NetClient) SendMessage(m proto.Message) {
 }
 
 func (c *NetClient) Close() {
+	c.t.Logf("Trying to close connection to %s node at %q", c.impl.String(), c.s.RemoteAddr().String())
+
+	c.closingLock.Lock()
+	c.closingFlag = true
+	c.closingLock.Unlock()
+
 	c.closedLock.Lock()
 	defer c.closedLock.Unlock()
-	if c.closed {
+	c.t.Logf("Closing connection to %s node at %q (%t)", c.impl.String(), c.s.RemoteAddr().String(), c.closedFlag)
+	if c.closedFlag {
 		return
 	}
-	c.closed = true
 	_ = c.s.Close()
+	c.closedFlag = true
 }
 
 func (c *NetClient) reconnect() {
-	// Check if the client was manually closed, in which case we don't want to reconnect.
-	c.closedLock.Lock()
-	defer c.closedLock.Unlock()
-	if c.closed {
-		return
-	}
 	c.t.Logf("Reconnecting to %q", c.s.RemoteAddr().String())
 	conn, err := net.Dial("tcp", c.s.RemoteAddr().String())
 	require.NoError(c.t, err, "failed to dial TCP to %s node", c.impl.String())
@@ -112,6 +116,12 @@ func (c *NetClient) reconnect() {
 	c.s = s
 
 	c.SendHandshake()
+}
+
+func (c *NetClient) closing() bool {
+	c.closingLock.Lock()
+	defer c.closingLock.Unlock()
+	return c.closingFlag
 }
 
 type protocol struct {
@@ -206,7 +216,7 @@ func (h *handler) OnHandshake(_ *networking.Session, _ networking.Handshake) {
 
 func (h *handler) OnClose(s *networking.Session) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
-	if h.client != nil {
+	if !h.client.closing() && h.client != nil {
 		h.client.reconnect()
 	}
 }
