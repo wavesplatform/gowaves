@@ -5,7 +5,6 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
-	"math"
 	"math/big"
 	"os/user"
 	"path/filepath"
@@ -13,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/constraints"
@@ -247,11 +247,9 @@ func padBytes(p byte, bytes []byte) []byte {
 }
 
 func SafeIntToUint32(v int) uint32 {
-	if v < 0 {
-		panic("negative value")
+	r, err := safecast.ToUint32(v)
+	if err != nil {
+		panic(err)
 	}
-	if v > math.MaxUint32 {
-		panic("value is too big")
-	}
-	return uint32(v)
+	return r
 }
