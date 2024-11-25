@@ -299,7 +299,8 @@ func (s *Session) readMessage(hdr Header) error {
 	// Read the header
 	if _, err := hdr.ReadFrom(s.bufRead); err != nil {
 		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") ||
-			strings.Contains(err.Error(), "reset by peer") {
+			strings.Contains(err.Error(), "reset by peer") ||
+			strings.Contains(err.Error(), "broken pipe") { // In Docker network built on top of pipe, we get this error on close.
 			return ErrConnectionClosedOnRead
 		}
 		s.logger.Error("Failed to read header", "error", err)
@@ -322,6 +323,7 @@ func (s *Session) readMessage(hdr Header) error {
 
 func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 	// Wrap in a limited reader
+	s.logger.Debug("Reading message payload", "len", hdr.PayloadLength())
 	conn = &io.LimitedReader{R: conn, N: int64(hdr.PayloadLength())}
 
 	// Copy into buffer
@@ -337,15 +339,19 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 		s.logger.Error("Failed to write header to receiving buffer", "error", err)
 		return err
 	}
-	_, err = io.Copy(s.receiveBuffer, conn)
+	n, err := io.Copy(s.receiveBuffer, conn)
 	if err != nil {
 		s.logger.Error("Failed to copy payload to receiving buffer", "error", err)
 		return err
 	}
+	s.logger.Debug("Message payload successfully read", "len", n)
+
 	// We lock the buffer from modification on the time of invocation of OnReceive handler.
 	// The slice of bytes passed into the handler is only valid for the duration of the handler invocation.
 	// So inside the handler better deserialize message or make a copy of the bytes.
+	s.logger.Debug("Invoking OnReceive handler", "message", base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
 	s.config.handler.OnReceive(s, s.receiveBuffer.Bytes()) // Invoke OnReceive handler.
+	s.receiveBuffer.Reset()                                // Reset the buffer for the next message.
 	return nil
 }
 

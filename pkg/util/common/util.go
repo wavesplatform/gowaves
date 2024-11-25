@@ -5,6 +5,7 @@ import (
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
+	"math"
 	"math/big"
 	"os/user"
 	"path/filepath"
@@ -243,4 +244,14 @@ func padBytes(p byte, bytes []byte) []byte {
 	r[0] = p
 	copy(r[1:], bytes)
 	return r
+}
+
+func SafeIntToUint32(v int) uint32 {
+	if v < 0 {
+		panic("negative value")
+	}
+	if v > math.MaxUint32 {
+		panic("value is too big")
+	}
+	return uint32(v)
 }
