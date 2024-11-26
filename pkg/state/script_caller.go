@@ -334,7 +334,8 @@ func workaroundHandler(scheme proto.Scheme, tx proto.Transaction) (workaroundRes
 		}
 		switch txIDStr := base58.Encode(txID); txIDStr {
 		case "DGXQ69rv3PbwVa6TeT7AQy2pyhpeCawNwGdWcC3wdfVh",
-			"GqKtPzT4judzqSPxtLpzeoZpZcdULeW2rGtGLYADoqmj":
+			"GqKtPzT4judzqSPxtLpzeoZpZcdULeW2rGtGLYADoqmj",
+			"DAcwgX2UkJ1zWYPE3ABrQQtRGamWDdJwCherhoVzkvJP":
 			const txSpentComplexity = 16154
 			rideErr := ride.EvaluationErrorSetComplexity( // set spent complexity
 				ride.RuntimeError.Errorf("workaround for tx %q", txIDStr), // in scala - failed tx, go - ok
