@@ -178,6 +178,11 @@ func runImporter(c *cfg) error {
 		return err
 	}
 	defer cpfClose()
+	defer func() { // Debug.
+		if mpfErr := configureMemProfile(c.memProfilePath); mpfErr != nil {
+			zap.S().Errorf("Failed to configure memory profile: %v", mpfErr)
+		}
+	}()
 
 	// https://godoc.org/github.com/coocood/freecache#NewCache
 	debug.SetGCPercent(20)
@@ -213,15 +218,19 @@ func runImporter(c *cfg) error {
 	}
 
 	start := time.Now()
+	defer func() {
+		elapsed := time.Since(start)
+		zap.S().Infof("Import took %s", elapsed)
+	}()
 	if impErr := importer.ApplyFromFile(ctx, params, st, uint64(c.nBlocks), height); impErr != nil {
 		currentHeight, hErr := st.Height()
 		if hErr != nil {
 			zap.S().Fatalf("Failed to get current height: %v", hErr)
 		}
-		handleError(impErr, currentHeight)
+		if resErr := handleError(impErr, currentHeight); resErr != nil {
+			return resErr
+		}
 	}
-	elapsed := time.Since(start)
-	zap.S().Infof("Import took %s", elapsed)
 
 	if len(c.balancesPath) != 0 {
 		if balErr := importer.CheckBalances(st, c.balancesPath); balErr != nil {
@@ -229,22 +238,19 @@ func runImporter(c *cfg) error {
 		}
 	}
 
-	// Debug.
-	if mpfErr := configureMemProfile(c.memProfilePath); mpfErr != nil {
-		return mpfErr
-	}
-
 	return nil
 }
 
-func handleError(err error, height uint64) {
+func handleError(err error, height uint64) error {
 	switch {
 	case errors.Is(err, context.Canceled):
 		zap.S().Infof("Interrupted by user, height %d", height)
+		return nil
 	case errors.Is(err, io.EOF):
 		zap.S().Infof("End of blockchain file reached, height %d", height)
+		return nil
 	default:
-		zap.S().Fatalf("Failed to apply blocks after height %d: %v", height, err)
+		return fmt.Errorf("failed to apply blocks after height %d: %w", height, err)
 	}
 }
 
