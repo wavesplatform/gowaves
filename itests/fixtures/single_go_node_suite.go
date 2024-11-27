@@ -48,6 +48,7 @@ func (suite *SingleGoNodeSuite) BaseSetup(options ...config.BlockchainOption) {
 		docker.GoNode().Ports().RESTAPIPort, docker.GoNode().Ports().GRPCPort, docker.GoNode().Ports().BindPort,
 		peers,
 	)
+	suite.Client.Handshake()
 }
 
 func (suite *SingleGoNodeSuite) SetupSuite() {

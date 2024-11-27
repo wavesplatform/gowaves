@@ -284,8 +284,8 @@ func (c *NodesClients) SynchronizedWavesBalances(
 }
 
 func (c *NodesClients) Handshake() {
-	c.GoClient.Connection.SendHandshake()
-	c.ScalaClient.Connection.SendHandshake()
+	c.GoClient.Handshake()
+	c.ScalaClient.Handshake()
 }
 
 func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, scala bool) {
