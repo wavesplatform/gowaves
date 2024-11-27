@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/clients"
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type SingleGoNodeSuite struct {
@@ -40,8 +41,13 @@ func (suite *SingleGoNodeSuite) BaseSetup(options ...config.BlockchainOption) {
 		suite.Require().NoError(sErr, "couldn't start Go node container")
 	}
 
-	suite.Client = clients.NewNodeUniversalClient(suite.T(), clients.NodeGo, docker.GoNode().Ports().RESTAPIPort,
-		docker.GoNode().Ports().GRPCPort)
+	gp, err := proto.NewPeerInfoFromString(config.DefaultIP + ":" + docker.GoNode().Ports().BindPort)
+	suite.Require().NoError(err, "failed to create Go peer info")
+	peers := []proto.PeerInfo{gp}
+	suite.Client = clients.NewNodeUniversalClient(suite.MainCtx, suite.T(), clients.NodeGo,
+		docker.GoNode().Ports().RESTAPIPort, docker.GoNode().Ports().GRPCPort, docker.GoNode().Ports().BindPort,
+		peers,
+	)
 }
 
 func (suite *SingleGoNodeSuite) SetupSuite() {
@@ -49,6 +55,7 @@ func (suite *SingleGoNodeSuite) SetupSuite() {
 }
 
 func (suite *SingleGoNodeSuite) TearDownSuite() {
+	suite.Client.Close(suite.T())
 	suite.Docker.Finish(suite.Cancel)
 }
 

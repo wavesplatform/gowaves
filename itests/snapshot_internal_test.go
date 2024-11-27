@@ -14,7 +14,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/itests/fixtures"
-	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -34,23 +33,10 @@ func (s *SimpleSnapshotSuite) SetupSuite() {
 }
 
 func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
-	conn, err := net.NewConnection(
-		proto.TCPAddr{},
-		config.DefaultIP+":"+s.Docker.GoNode().Ports().BindPort,
-		proto.ProtocolVersion(),
-		net.DefaultIntegrationTestsNetwork,
-	)
-	require.NoError(s.T(), err, "failed to create connection to go node")
-	defer func(conn *net.OutgoingPeer) {
-		if clErr := conn.Close(); clErr != nil {
-			s.T().Logf("Failed to close connection: %v", clErr)
-		}
-	}(conn)
-
 	acc := s.Cfg.GetRichestAccount()
 
 	// Initialize genesis block ID.
-	err = s.Cfg.BlockchainSettings.Genesis.GenerateBlockID(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
+	err := s.Cfg.BlockchainSettings.Genesis.GenerateBlockID(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
 	require.NoError(s.T(), err, "failed to generate genesis block ID")
 	genesisID := s.Cfg.BlockchainSettings.Genesis.BlockID()
 
@@ -76,22 +62,19 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	genesisScore := calculateScore(s.Cfg.BlockchainSettings.Genesis.BaseTarget)
 	blockScore := calculateCumulativeScore(genesisScore, bl.BaseTarget)
 	scoreMsg := &proto.ScoreMessage{Score: blockScore.Bytes()}
-	err = conn.SendMessage(scoreMsg)
-	require.NoError(s.T(), err, "failed to send score to node")
+	s.Client.Connection.SendMessage(scoreMsg)
 	time.Sleep(100 * time.Millisecond)
 
 	// Send block IDs to the node.
 	blocksMsg := &proto.BlockIdsMessage{Blocks: []proto.BlockID{bl.BlockID()}}
-	err = conn.SendMessage(blocksMsg)
-	require.NoError(s.T(), err, "failed to send block IDs to node")
+	s.Client.Connection.SendMessage(blocksMsg)
 	time.Sleep(100 * time.Millisecond)
 
 	// Marshal the block and send it to the node.
 	bb, err := bl.MarshalToProtobuf(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
 	require.NoError(s.T(), err, "failed to marshal block")
 	blMsg := &proto.PBBlockMessage{PBBlockBytes: bb}
-	err = conn.SendMessage(blMsg)
-	require.NoError(s.T(), err, "failed to send block to node")
+	s.Client.Connection.SendMessage(blMsg)
 
 	// Wait for 2.5 seconds and send mb-block.
 	time.Sleep(2500 * time.Millisecond)
@@ -111,15 +94,13 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 
 	invMsg := &proto.MicroBlockInvMessage{Body: ib}
 	time.Sleep(100 * time.Millisecond)
-	err = conn.SendMessage(invMsg)
-	require.NoError(s.T(), err, "failed to send inv to node")
+	s.Client.Connection.SendMessage(invMsg)
 
 	time.Sleep(100 * time.Millisecond)
 	mbb, err := mb.MarshalToProtobuf(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
 	require.NoError(s.T(), err, "failed to marshal micro block")
 	mbMsg := &proto.PBMicroBlockMessage{MicroBlockBytes: mbb}
-	err = conn.SendMessage(mbMsg)
-	require.NoError(s.T(), err, "failed to send micro block to node")
+	s.Client.Connection.SendMessage(mbMsg)
 
 	h := s.Client.HTTPClient.GetHeight(s.T())
 	header := s.Client.HTTPClient.BlockHeader(s.T(), h.Height)
