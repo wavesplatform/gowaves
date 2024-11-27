@@ -29,13 +29,3 @@ func TestParseVoteFeaturesFailure(t *testing.T) {
 	_, err := ParseVoteFeatures(s2)
 	require.Error(t, err)
 }
-
-func TestParseReward(t *testing.T) {
-	rs, err := ParseReward("")
-	require.NoError(t, err)
-	require.EqualValues(t, 0, rs)
-
-	rs, err = ParseReward("100500")
-	require.NoError(t, err)
-	require.EqualValues(t, 100500, rs)
-}

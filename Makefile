@@ -5,7 +5,7 @@ SOURCE=$(shell find . -name '*.go' | grep -v vendor/)
 SOURCE_DIRS = cmd pkg
 
 VERSION=$(shell git describe --tags --always --dirty)
-DEB_VER=$(shell git describe --tags --abbrev=0 | cut -c 2-)
+DEB_VER=$(shell echo $(VERSION) | cut -c 2-)
 DEB_HASH=$(shell git rev-parse HEAD)
 
 export GO111MODULE=on
@@ -123,7 +123,7 @@ build-node-windows-amd64:
 
 release-node: ver build-node-linux-amd64 build-node-linux-i386 build-node-linux-arm64 build-node-linux-arm build-node-darwin-amd64 build-node-windows-amd64
 
-dist-node: release-node build-node-mainnet-amd64-deb-package build-node-testnet-amd64-deb-package build-node-testnet-arm64-deb-package build-node-stagenet-amd64-deb-package build-node-stagenet-arm64-deb-package
+dist-node: release-node build-node-mainnet-amd64-deb-package build-node-mainnet-arm64-deb-package build-node-testnet-amd64-deb-package build-node-testnet-arm64-deb-package build-node-stagenet-amd64-deb-package build-node-stagenet-arm64-deb-package
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/node_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/node*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/node_$(VERSION)_Linux-amd64.tar.gz ./node*

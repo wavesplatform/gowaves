@@ -4,7 +4,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
 )
 
 const (
@@ -19,8 +18,7 @@ type historyTestObjects struct {
 
 func createHistory(t *testing.T) *historyTestObjects {
 	stor := createStorageObjects(t, true)
-	fmt, err := newHistoryFormatter(stor.stateDB)
-	require.NoError(t, err)
+	fmt := newHistoryFormatter(stor.stateDB)
 	return &historyTestObjects{stor, fmt}
 }
 
