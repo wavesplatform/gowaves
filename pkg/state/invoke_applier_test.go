@@ -148,9 +148,9 @@ func (to *invokeApplierTestObjects) activateFeature(t *testing.T, feature int16)
 	to.state.reset()
 }
 
-func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs,
+func (to *invokeApplierTestObjects) applyAndSaveInvokeIfOk(t *testing.T, tx *proto.InvokeScriptWithProofs,
 	info *fallibleValidationParams,
-	shouldCommitUncertain bool) (*invocationResult, *applicationResult) {
+	shouldCommitUncertain bool) (*invocationResult, *applicationResult, error) {
 	// TODO: consider rewriting using txAppender.
 	// This should simplify tests because we actually reimplement part of appendTx() here.
 	if shouldCommitUncertain {
@@ -161,13 +161,23 @@ func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.I
 	}
 
 	invocationRes, applicationRes, err := to.state.appender.ia.applyInvokeScript(tx, info)
-	require.NoError(t, err)
+	if err != nil { // if error occurred, we should not save diff and return immediately
+		return invocationRes, applicationRes, err
+	}
 	err = to.state.appender.diffStor.saveTxDiff(applicationRes.changes.diff)
 	assert.NoError(t, err)
 	if applicationRes.status && shouldCommitUncertain {
 		err = to.state.stor.commitUncertain(info.checkerInfo.blockID)
 		assert.NoError(t, err)
 	}
+	return invocationRes, applicationRes, nil
+}
+
+func (to *invokeApplierTestObjects) applyAndSaveInvoke(t *testing.T, tx *proto.InvokeScriptWithProofs,
+	info *fallibleValidationParams,
+	shouldCommitUncertain bool) (*invocationResult, *applicationResult) {
+	invocationRes, applicationRes, err := to.applyAndSaveInvokeIfOk(t, tx, info, shouldCommitUncertain)
+	require.NoError(t, err)
 	return invocationRes, applicationRes
 }
 
