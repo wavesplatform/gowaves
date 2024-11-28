@@ -6,6 +6,7 @@ import (
 	"context"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"io"
 	"log/slog"
 	"net"
@@ -83,6 +84,10 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 	}
 
 	return s, nil
+}
+
+func (s *Session) String() string {
+	return fmt.Sprintf("Session{local=%s,remote=%s}", s.LocalAddr(), s.RemoteAddr())
 }
 
 // LocalAddr returns the local network address.
