@@ -709,6 +709,12 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if err != nil {
 				return proto.DAppError, info.failedChanges, err
 			}
+			if !li.isActive() {
+				return proto.DAppError, info.failedChanges,
+					errors.Errorf(
+						"failed to cancel leasing %q, leasing is already cancelled", a.LeaseID.String(),
+					)
+			}
 			if senderPK != li.SenderPK {
 				return proto.DAppError, info.failedChanges,
 					errors.Errorf(
