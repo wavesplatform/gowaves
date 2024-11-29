@@ -14,6 +14,7 @@ import (
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/client"
@@ -132,6 +133,29 @@ func (d *Docker) ScalaNode() *NodeContainer {
 	return d.scalaNode
 }
 
+// StartNodes start both Go and Scala nodes with the given configurations.
+// Note that while starting nodes in parallel it is impossible to retrieve the IP address of the other node in prior.
+// So this method is heavily dependent on Docker DNS resolution and Go-node's domain name should be passed to the
+// configuration of Scala node before calling this method:
+//
+//	scalaConfigurator.WithGoNode("go-node")
+func (d *Docker) StartNodes(ctx context.Context, goCfg, scalaCfg config.DockerConfigurator) error {
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		if err := d.StartGoNode(ctx, goCfg); err != nil {
+			return err
+		}
+		return nil
+	})
+	eg.Go(func() error {
+		if err := d.StartScalaNode(ctx, scalaCfg); err != nil {
+			return err
+		}
+		return nil
+	})
+	return eg.Wait()
+}
+
 // StartGoNode starts a Go node container with the given configuration.
 func (d *Docker) StartGoNode(ctx context.Context, cfg config.DockerConfigurator) error {
 	var err error
@@ -153,26 +177,41 @@ func (d *Docker) StartScalaNode(ctx context.Context, cfg config.DockerConfigurat
 }
 
 func (d *Docker) Finish(cancel context.CancelFunc) {
+	eg := errgroup.Group{}
 	if d.scalaNode != nil {
-		if stErr := d.stopContainer(d.scalaNode.container.Container.ID); stErr != nil {
-			log.Printf("Failed to stop Scala node container: %v", stErr)
-		}
+		eg.Go(func() error {
+			if stErr := d.stopContainer(d.scalaNode.container.Container.ID); stErr != nil {
+				log.Printf("Failed to stop Scala node container: %v", stErr)
+			}
+			return nil
+		})
 	}
 	if d.goNode != nil {
-		if stErr := d.stopContainer(d.goNode.container.Container.ID); stErr != nil {
-			log.Printf("Failed to stop Go node container: %v", stErr)
-		}
+		eg.Go(func() error {
+			if stErr := d.stopContainer(d.goNode.container.Container.ID); stErr != nil {
+				log.Printf("Failed to stop Go node container: %v", stErr)
+			}
+			return nil
+		})
 	}
+	_ = eg.Wait()
 	if d.scalaNode != nil {
-		if clErr := d.scalaNode.Close(); clErr != nil {
-			log.Printf("Failed to close scala-node: %s", clErr)
-		}
+		eg.Go(func() error {
+			if clErr := d.scalaNode.Close(); clErr != nil {
+				log.Printf("Failed to close scala-node: %s", clErr)
+			}
+			return nil
+		})
 	}
 	if d.goNode != nil {
-		if clErr := d.goNode.Close(); clErr != nil {
-			log.Printf("Failed to close go-node: %s", clErr)
-		}
+		eg.Go(func() error {
+			if clErr := d.goNode.Close(); clErr != nil {
+				log.Printf("Failed to close go-node: %s", clErr)
+			}
+			return nil
+		})
 	}
+	_ = eg.Wait()
 	if err := d.pool.RemoveNetwork(d.network); err != nil {
 		log.Printf("Failed to remove docker network: %s", err)
 	}
