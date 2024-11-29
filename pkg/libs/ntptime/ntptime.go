@@ -70,7 +70,10 @@ func (a *ntpTimeImpl) Run(ctx context.Context, duration time.Duration) {
 		select {
 		case <-ctx.Done():
 			if !timer.Stop() {
-				<-timer.C
+				select {
+				case <-timer.C:
+				default:
+				}
 			}
 			return
 		case <-timer.C:
