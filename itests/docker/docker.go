@@ -71,6 +71,24 @@ func (c *NodeContainer) closeFiles() error {
 	return err
 }
 
+// Close purges container and closes log files.
+func (c *NodeContainer) Close() error {
+	if c.container == nil {
+		return nil
+	}
+	if dcErr := c.container.DisconnectFromNetwork(c.network); dcErr != nil {
+		return errors.Wrapf(dcErr, "failed to disconnect container %q from network %q",
+			c.container.Container.ID, c.network.Network.Name)
+	}
+	if clErr := c.container.Close(); clErr != nil {
+		return errors.Wrapf(clErr, "failed to close container %q", c.container.Container.ID)
+	}
+	if err := c.closeFiles(); err != nil {
+		return err
+	}
+	return nil
+}
+
 type Docker struct {
 	suite string
 
@@ -136,43 +154,42 @@ func (d *Docker) StartScalaNode(ctx context.Context, cfg config.DockerConfigurat
 
 func (d *Docker) Finish(cancel context.CancelFunc) {
 	if d.scalaNode != nil {
-		err := d.pool.Client.KillContainer(dc.KillContainerOptions{
-			ID:     d.scalaNode.container.Container.ID,
-			Signal: dc.SIGINT,
-		})
-		if err != nil {
-			log.Printf("Failed to stop scala container: %v", err)
+		if stErr := d.stopContainer(d.scalaNode.container.Container.ID); stErr != nil {
+			log.Printf("Failed to stop Scala node container: %v", stErr)
 		}
 	}
 	if d.goNode != nil {
-		err := d.pool.Client.KillContainer(dc.KillContainerOptions{
-			ID:     d.goNode.container.Container.ID,
-			Signal: dc.SIGINT,
-		})
-		if err != nil {
-			log.Printf("Failed to stop go container: %v", err)
+		if stErr := d.stopContainer(d.goNode.container.Container.ID); stErr != nil {
+			log.Printf("Failed to stop Go node container: %v", stErr)
 		}
 	}
 	if d.scalaNode != nil {
-		if err := d.pool.Purge(d.scalaNode.container); err != nil {
-			log.Printf("Failed to purge scala-node: %s", err)
-		}
-		if err := d.scalaNode.closeFiles(); err != nil {
-			log.Printf("Failed to close scala-node files: %s", err)
+		if clErr := d.scalaNode.Close(); clErr != nil {
+			log.Printf("Failed to close scala-node: %s", clErr)
 		}
 	}
 	if d.goNode != nil {
-		if err := d.pool.Purge(d.goNode.container); err != nil {
-			log.Printf("Failed to purge go-node: %s", err)
-		}
-		if err := d.goNode.closeFiles(); err != nil {
-			log.Printf("Failed to close go-node files: %s", err)
+		if clErr := d.goNode.Close(); clErr != nil {
+			log.Printf("Failed to close go-node: %s", clErr)
 		}
 	}
 	if err := d.pool.RemoveNetwork(d.network); err != nil {
 		log.Printf("Failed to remove docker network: %s", err)
 	}
 	cancel()
+}
+
+func (d *Docker) stopContainer(containerID string) error {
+	const shutdownTimeout = 5 // In seconds.
+	if stErr := d.pool.Client.StopContainer(containerID, shutdownTimeout); stErr != nil {
+		if klErr := d.pool.Client.KillContainer(dc.KillContainerOptions{
+			ID:     containerID,
+			Signal: dc.SIGINT,
+		}); klErr != nil {
+			return errors.Wrapf(stderrs.Join(stErr, klErr), "failed to stop container %q", containerID)
+		}
+	}
+	return nil
 }
 
 func (d *Docker) startNode(
@@ -182,7 +199,7 @@ func (d *Docker) startNode(
 	opts.Networks = []*dockertest.Network{d.network}
 
 	res, err := d.pool.RunWithOptions(opts, func(hc *dc.HostConfig) {
-		hc.AutoRemove = true
+		hc.AutoRemove = false
 		hc.PublishAllPorts = true
 	})
 	if err != nil {

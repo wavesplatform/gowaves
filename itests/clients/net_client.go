@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"io"
 	"log/slog"
 	"net"
 	"sync"
@@ -45,7 +46,17 @@ func NewNetClient(
 	n := networking.NewNetwork()
 	p := newProtocol(nil)
 	h := newHandler(t, peers)
-	log := slogt.New(t)
+
+	f := slogt.Factory(func(w io.Writer) slog.Handler {
+		opts := &slog.HandlerOptions{
+			AddSource: true,
+			Level:     slog.LevelInfo,
+		}
+		return slog.NewTextHandler(w, opts)
+	})
+	log := slogt.New(t, f)
+
+	slog.SetLogLoggerLevel(slog.LevelError)
 	conf := networking.NewConfig(p, h).
 		WithLogger(log).
 		WithWriteTimeout(networkTimeout).
@@ -193,7 +204,6 @@ func (h *handler) OnReceive(s *networking.Session, data []byte) {
 	}
 	switch msg.(type) { // Only reply with peers on GetPeersMessage.
 	case *proto.GetPeersMessage:
-		h.t.Logf("Received GetPeersMessage from %q", s.RemoteAddr())
 		rpl := &proto.PeersMessage{Peers: h.peers}
 		bts, mErr := rpl.MarshalBinary()
 		if mErr != nil { // Fail test on marshal error.

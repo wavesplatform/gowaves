@@ -242,7 +242,7 @@ func (c *NodesClients) SynchronizedWavesBalances(
 	ctx, cancel := context.WithTimeout(context.Background(), synchronizedBalancesTimeout)
 	defer cancel()
 
-	t.Logf("Initial balacnces request")
+	t.Logf("Initial balances request")
 	sbs, err := c.requestAvailableBalancesForAddresses(ctx, addresses)
 	if err != nil {
 		t.Logf("Errors while requesting balances: %v", err)
