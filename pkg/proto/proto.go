@@ -376,23 +376,14 @@ func (a TCPAddr) Equal(other TCPAddr) bool {
 	return a.IP.Equal(other.IP) && a.Port == other.Port
 }
 
+// NewTCPAddrFromString creates TCPAddr from string.
+// Returns empty TCPAddr if string can't be parsed.
 func NewTCPAddrFromString(s string) TCPAddr {
-	host, port, err := net.SplitHostPort(s)
+	pi, err := NewPeerInfoFromString(s)
 	if err != nil {
-		return TCPAddr{}
+		return TCPAddr{} // return empty TCPAddr in case of error
 	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		ips, err := net.LookupIP(host)
-		if err == nil {
-			ip = ips[0]
-		}
-	}
-	p, err := strconv.ParseUint(port, 10, 16)
-	if err != nil {
-		return TCPAddr{}
-	}
-	return NewTCPAddr(ip, int(p))
+	return NewTCPAddr(pi.Addr, int(pi.Port))
 }
 
 func NewTcpAddrFromUint64(value uint64) TCPAddr {
