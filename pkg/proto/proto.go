@@ -744,19 +744,25 @@ type PeerInfo struct {
 }
 
 func NewPeerInfoFromString(addr string) (PeerInfo, error) {
-	parts := strings.Split(addr, ":")
-	if len(parts) != 2 {
-		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		return PeerInfo{}, errors.Wrap(err, "failed to split host and port")
 	}
 
-	ip := net.ParseIP(parts[0])
-	port, err := strconv.ParseUint(parts[1], 10, 16)
+	ip := net.ParseIP(host)
+	if ip == nil {
+		return PeerInfo{}, errors.Errorf("invalid ip %q", host)
+	}
+	portNum, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
-		return PeerInfo{}, errors.Errorf("invalid port %s", parts[1])
+		return PeerInfo{}, errors.Errorf("invalid port %q", port)
+	}
+	if portNum == 0 {
+		return PeerInfo{}, errors.Errorf("invalid port %q", port)
 	}
 	return PeerInfo{
 		Addr: ip,
-		Port: uint16(port),
+		Port: uint16(portNum),
 	}, nil
 }
 
