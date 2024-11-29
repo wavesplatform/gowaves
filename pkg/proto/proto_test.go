@@ -285,7 +285,26 @@ func TestNewPeerInfoFromString(t *testing.T) {
 		err string
 	}{
 		{"34.253.153.4:6868", PeerInfo{net.IPv4(34, 253, 153, 4), 6868}, ""},
-		{"34.444.153.4:6868", PeerInfo{}, "invalid ip \"34.444.153.4\""},
+		{
+			"34.444.153.4:6868",
+			PeerInfo{},
+			"failed to resolve host: failed to resolve host \"34.444.153.4\": lookup 34.444.153.4: no such host",
+		},
+		{
+			"jfhasjdhfkmnn:6868",
+			PeerInfo{},
+			"failed to resolve host: failed to resolve host \"jfhasjdhfkmnn\": lookup jfhasjdhfkmnn: no such host",
+		},
+		{
+			"localhost:6868",
+			PeerInfo{net.IPv4(127, 0, 0, 1), 6868},
+			"",
+		},
+		{
+			"127.0.0.1:6868",
+			PeerInfo{net.IPv4(127, 0, 0, 1), 6868},
+			"",
+		},
 		{
 			fmt.Sprintf("34.44.153.4:%d", math.MaxUint16+1),
 			PeerInfo{},

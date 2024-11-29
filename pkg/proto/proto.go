@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"strconv"
 	"strings"
@@ -737,6 +738,46 @@ func (a *IpPort) String() string {
 	return NewTCPAddr(a.Addr(), a.Port()).String()
 }
 
+func ipV4Loopback() net.IP {
+	const a, b, c, d = 127, 0, 0, 1
+	return net.IPv4(a, b, c, d)
+}
+
+func filterToIPV4(ips []net.IP) []net.IP {
+	for i := 0; i < len(ips); i++ {
+		ip := ips[i]
+		if ip.IsLoopback() {
+			// after resolving localhost, ip can be in both format, unify it to IPv4
+			ips[i] = ipV4Loopback()
+			continue
+		}
+		if ip.To4() == nil { // for now we support only IPv4
+			ips = append(ips[:i], ips[i+1:]...) // remove non-IPv4 address, assume that count of addresses is small
+		}
+	}
+	return ips
+}
+
+func resolveHostToIPv4(host string) (net.IP, error) {
+	if ip := net.ParseIP(host); ip != nil { // try to parse host as IP address
+		if ip.To4() == nil {
+			return nil, errors.Errorf("non-IPv4 address %q", host)
+		}
+		return ip, nil // host is already an IP address
+	}
+	ips, err := net.LookupIP(host) // try to resolve host
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to resolve host %q", host)
+	}
+	ips = filterToIPV4(ips)
+	if len(ips) == 0 {
+		return nil, errors.Errorf("no IPv4 addresses found for host %q", host)
+	}
+	// Select random IPv4 from the list
+	n := rand.IntN(len(ips)) // #nosec: it's ok to use math/rand/v2 here
+	return ips[n], nil
+}
+
 // PeerInfo represents the address of a single peer
 type PeerInfo struct {
 	Addr net.IP
@@ -748,10 +789,9 @@ func NewPeerInfoFromString(addr string) (PeerInfo, error) {
 	if err != nil {
 		return PeerInfo{}, errors.Wrap(err, "failed to split host and port")
 	}
-
-	ip := net.ParseIP(host)
-	if ip == nil {
-		return PeerInfo{}, errors.Errorf("invalid ip %q", host)
+	ip, err := resolveHostToIPv4(host)
+	if err != nil {
+		return PeerInfo{}, errors.Wrap(err, "failed to resolve host")
 	}
 	portNum, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
