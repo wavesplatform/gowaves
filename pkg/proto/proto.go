@@ -733,8 +733,10 @@ func filterToIPV4(ips []net.IP) []net.IP {
 	for i := 0; i < len(ips); i++ {
 		ipV4 := ips[i].To4()
 		if ipV4 == nil { // for now we support only IPv4
-			ips = append(ips[:i], ips[i+1:]...) // remove non-IPv4 address, assume that count of addresses is small
-			i--                                 // move back to check next address
+			iLast := len(ips) - 1
+			ips[i], ips[iLast] = ips[iLast], nil // move last address to the current position, order is not important
+			ips = ips[:iLast]                    // remove last address
+			i--                                  // move back to check the previously last address
 		} else {
 			ips[i] = ipV4 // replace with exact IPv4 form (ipV4 can be in both forms: ipv4 and ipV4 in ipv6)
 		}
