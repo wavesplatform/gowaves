@@ -744,13 +744,13 @@ func filterToIPV4(ips []net.IP) []net.IP {
 	return ips
 }
 
-func resolveHostToIPv4(host string) (net.IP, error) {
+func resolveHostToIPsv4(host string) ([]net.IP, error) {
 	if ip := net.ParseIP(host); ip != nil { // try to parse host as IP address
 		ipV4 := ip.To4() // try to convert to IPv4
 		if ipV4 == nil {
 			return nil, errors.Errorf("non-IPv4 address %q", host)
 		}
-		return ipV4, nil // host is already an IP address, return it
+		return []net.IP{ipV4}, nil // host is already an IP address
 	}
 	ips, err := net.LookupIP(host) // try to resolve host
 	if err != nil {
@@ -760,9 +760,7 @@ func resolveHostToIPv4(host string) (net.IP, error) {
 	if len(ips) == 0 {
 		return nil, errors.Errorf("no IPv4 addresses found for host %q", host)
 	}
-	// Select random IPv4 from the list
-	n := rand.IntN(len(ips)) // #nosec: it's ok to use math/rand/v2 here
-	return ips[n], nil
+	return ips, nil
 }
 
 // PeerInfo represents the address of a single peer
@@ -771,25 +769,54 @@ type PeerInfo struct {
 	Port uint16
 }
 
-func NewPeerInfoFromString(addr string) (PeerInfo, error) {
+func ipsV4PortFromString(addr string) ([]net.IP, uint16, error) {
 	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return PeerInfo{}, errors.Wrap(err, "failed to split host and port")
-	}
-	ip, err := resolveHostToIPv4(host)
-	if err != nil {
-		return PeerInfo{}, errors.Wrap(err, "failed to resolve host")
+		return nil, 0, errors.Wrap(err, "failed to split host and port")
 	}
 	portNum, err := strconv.ParseUint(port, 10, 16)
 	if err != nil {
-		return PeerInfo{}, errors.Errorf("invalid port %q", port)
+		return nil, 0, errors.Errorf("invalid port %q", port)
 	}
 	if portNum == 0 {
-		return PeerInfo{}, errors.Errorf("invalid port %q", port)
+		return nil, 0, errors.Errorf("invalid port %q", port)
 	}
+	ips, err := resolveHostToIPsv4(host)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to resolve host")
+	}
+	return ips, uint16(portNum), nil
+}
+
+// NewPeerInfosFromString creates PeerInfo slice from string 'host:port'.
+// It resolves host to IPv4 addresses and creates PeerInfo for each of them.
+func NewPeerInfosFromString(addr string) ([]PeerInfo, error) {
+	ips, portNum, err := ipsV4PortFromString(addr)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]PeerInfo, 0, len(ips))
+	for _, ip := range ips {
+		res = append(res, PeerInfo{
+			Addr: ip,
+			Port: portNum,
+		})
+	}
+	return res, nil
+}
+
+// NewPeerInfoFromString creates PeerInfo from string 'host:port'.
+// It resolves host to IPv4 addresses and selects the random one using math/rand/v2.
+func NewPeerInfoFromString(addr string) (PeerInfo, error) {
+	ips, portNum, err := ipsV4PortFromString(addr)
+	if err != nil {
+		return PeerInfo{}, err
+	}
+	n := rand.IntN(len(ips)) // #nosec: it's ok to use math/rand/v2 here
+	ip := ips[n]             // Select random IPv4 from the list
 	return PeerInfo{
 		Addr: ip,
-		Port: uint16(portNum),
+		Port: portNum,
 	}, nil
 }
 

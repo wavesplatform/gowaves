@@ -330,14 +330,27 @@ func TestNewPeerInfoFromString(t *testing.T) {
 		},
 	}
 	for i, tc := range tests {
-		t.Run(fmt.Sprintf("case %d", i), func(t *testing.T) {
-			rs, err := NewPeerInfoFromString(tc.in)
-			if tc.err != "" {
-				assert.EqualError(t, err, tc.err)
-			} else {
-				require.NoError(t, err)
-				assert.Equal(t, tc.out, rs)
-			}
+		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
+			t.Run("NewPeerInfoFromString", func(t *testing.T) {
+				rs, err := NewPeerInfoFromString(tc.in)
+				if tc.err != "" {
+					assert.EqualError(t, err, tc.err)
+				} else {
+					require.NoError(t, err)
+					assert.Equal(t, tc.out, rs)
+				}
+			})
+			t.Run("NewPeerInfosFromString", func(t *testing.T) {
+				rs, err := NewPeerInfosFromString(tc.in)
+				if tc.err != "" {
+					assert.EqualError(t, err, tc.err)
+				} else {
+					require.NoError(t, err)
+					assert.Len(t, rs, 1)
+					res := rs[0]
+					assert.Equal(t, tc.out, res)
+				}
+			})
 		})
 	}
 }
