@@ -284,7 +284,7 @@ func TestNewPeerInfoFromString(t *testing.T) {
 		out PeerInfo
 		err string
 	}{
-		{"34.253.153.4:6868", PeerInfo{net.IPv4(34, 253, 153, 4), 6868}, ""},
+		{"34.253.153.4:6868", PeerInfo{net.IPv4(34, 253, 153, 4).To4(), 6868}, ""},
 		{
 			"34.444.153.4:6868",
 			PeerInfo{},
@@ -297,12 +297,12 @@ func TestNewPeerInfoFromString(t *testing.T) {
 		},
 		{
 			"localhost:6868",
-			PeerInfo{net.IPv4(127, 0, 0, 1), 6868},
+			PeerInfo{net.IPv4(127, 0, 0, 1).To4(), 6868},
 			"",
 		},
 		{
 			"127.0.0.1:6868",
-			PeerInfo{net.IPv4(127, 0, 0, 1), 6868},
+			PeerInfo{net.IPv4(127, 0, 0, 1).To4(), 6868},
 			"",
 		},
 		{

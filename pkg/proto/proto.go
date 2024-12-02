@@ -729,21 +729,14 @@ func (a *IpPort) String() string {
 	return NewTCPAddr(a.Addr(), a.Port()).String()
 }
 
-func ipV4Loopback() net.IP {
-	const a, b, c, d = 127, 0, 0, 1
-	return net.IPv4(a, b, c, d)
-}
-
 func filterToIPV4(ips []net.IP) []net.IP {
 	for i := 0; i < len(ips); i++ {
-		ip := ips[i]
-		if ip.IsLoopback() {
-			// after resolving localhost, ip can be in both format, unify it to IPv4
-			ips[i] = ipV4Loopback()
-			continue
-		}
-		if ip.To4() == nil { // for now we support only IPv4
+		ipV4 := ips[i].To4()
+		if ipV4 == nil { // for now we support only IPv4
 			ips = append(ips[:i], ips[i+1:]...) // remove non-IPv4 address, assume that count of addresses is small
+			i--                                 // move back to check next address
+		} else {
+			ips[i] = ipV4 // replace with exact IPv4 form (ipV4 can be in both forms: ipv4 and ipV4 in ipv6)
 		}
 	}
 	return ips
@@ -751,10 +744,11 @@ func filterToIPV4(ips []net.IP) []net.IP {
 
 func resolveHostToIPv4(host string) (net.IP, error) {
 	if ip := net.ParseIP(host); ip != nil { // try to parse host as IP address
-		if ip.To4() == nil {
+		ipV4 := ip.To4() // try to convert to IPv4
+		if ipV4 == nil {
 			return nil, errors.Errorf("non-IPv4 address %q", host)
 		}
-		return ip, nil // host is already an IP address
+		return ipV4, nil // host is already an IP address, return it
 	}
 	ips, err := net.LookupIP(host) // try to resolve host
 	if err != nil {
