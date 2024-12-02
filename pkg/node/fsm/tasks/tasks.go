@@ -233,7 +233,10 @@ func (a SnapshotTimeoutTask) Run(ctx context.Context, output chan AsyncTask) err
 	t := time.NewTimer(a.timeout)
 	defer func() {
 		if !t.Stop() {
-			<-t.C
+			select {
+			case <-t.C:
+			default:
+			}
 		}
 	}()
 	select {
