@@ -90,7 +90,10 @@ func (l *limitListener) acquire() bool {
 		timer := time.NewTimer(l.waitConnQuotaTimeout)
 		stopTimer := func() {
 			if !timer.Stop() {
-				<-timer.C
+				select {
+				case <-timer.C:
+				default:
+				}
 			}
 		}
 		select {
