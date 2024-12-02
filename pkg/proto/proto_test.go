@@ -280,53 +280,55 @@ func TestPeerInfoMarshalJSON(t *testing.T) {
 
 func TestNewPeerInfoFromString(t *testing.T) {
 	tests := []struct {
-		in  string
-		out PeerInfo
-		err string
+		in                      string
+		out                     PeerInfo
+		err                     string
+		platformDependentErrMsg bool
 	}{
-		{"34.253.153.4:6868", PeerInfo{net.IPv4(34, 253, 153, 4).To4(), 6868}, ""},
+		{in: "34.253.153.4:6868", out: PeerInfo{net.IPv4(34, 253, 153, 4).To4(), 6868}, err: ""},
 		{
-			"34.444.153.4:6868",
-			PeerInfo{},
-			"failed to resolve host: failed to resolve host \"34.444.153.4\": lookup 34.444.153.4: no such host",
+			in:  "34.444.153.4:6868",
+			out: PeerInfo{},
+			err: "failed to resolve host: failed to resolve host \"34.444.153.4\": lookup 34.444.153.4: no such host",
 		},
 		{
-			"jfhasjdhfkmnn:6868",
-			PeerInfo{},
-			"failed to resolve host: failed to resolve host \"jfhasjdhfkmnn\": lookup jfhasjdhfkmnn: no such host",
+			in:                      "jfhasjdhfkmnn:6868",
+			out:                     PeerInfo{},
+			err:                     "failed to resolve host: failed to resolve host \"jfhasjdhfkmnn\": ",
+			platformDependentErrMsg: true,
 		},
 		{
-			"localhost:6868",
-			PeerInfo{net.IPv4(127, 0, 0, 1).To4(), 6868},
-			"",
+			in:  "localhost:6868",
+			out: PeerInfo{net.IPv4(127, 0, 0, 1).To4(), 6868},
+			err: "",
 		},
 		{
-			"127.0.0.1:6868",
-			PeerInfo{net.IPv4(127, 0, 0, 1).To4(), 6868},
-			"",
+			in:  "127.0.0.1:6868",
+			out: PeerInfo{net.IPv4(127, 0, 0, 1).To4(), 6868},
+			err: "",
 		},
 		{
-			fmt.Sprintf("34.44.153.4:%d", math.MaxUint16+1),
-			PeerInfo{},
-			fmt.Sprintf("invalid port \"%d\"", math.MaxUint16+1),
+			in:  fmt.Sprintf("34.44.153.4:%d", math.MaxUint16+1),
+			out: PeerInfo{},
+			err: fmt.Sprintf("invalid port \"%d\"", math.MaxUint16+1),
 		},
 		{
-			fmt.Sprintf("34.44.153.4:%d", -42),
-			PeerInfo{},
-			fmt.Sprintf("invalid port \"%d\"", -42),
+			in:  fmt.Sprintf("34.44.153.4:%d", -42),
+			out: PeerInfo{},
+			err: fmt.Sprintf("invalid port \"%d\"", -42),
 		},
-		{"34.44.153.4:bugaga", PeerInfo{}, "invalid port \"bugaga\""},
-		{"34.44.153.4:0", PeerInfo{}, "invalid port \"0\""},
-		{"34.44.153.4:", PeerInfo{}, "invalid port \"\""},
+		{in: "34.44.153.4:bugaga", out: PeerInfo{}, err: "invalid port \"bugaga\""},
+		{in: "34.44.153.4:0", out: PeerInfo{}, err: "invalid port \"0\""},
+		{in: "34.44.153.4:", out: PeerInfo{}, err: "invalid port \"\""},
 		{
-			"34.44.153.4",
-			PeerInfo{},
-			"failed to split host and port: address 34.44.153.4: missing port in address",
+			in:  "34.44.153.4",
+			out: PeerInfo{},
+			err: "failed to split host and port: address 34.44.153.4: missing port in address",
 		},
 		{
-			"34.44.153.4:42:",
-			PeerInfo{},
-			"failed to split host and port: address 34.44.153.4:42:: too many colons in address",
+			in:  "34.44.153.4:42:",
+			out: PeerInfo{},
+			err: "failed to split host and port: address 34.44.153.4:42:: too many colons in address",
 		},
 	}
 	for i, tc := range tests {
@@ -334,7 +336,11 @@ func TestNewPeerInfoFromString(t *testing.T) {
 			t.Run("NewPeerInfoFromString", func(t *testing.T) {
 				rs, err := NewPeerInfoFromString(tc.in)
 				if tc.err != "" {
-					assert.EqualError(t, err, tc.err)
+					if tc.platformDependentErrMsg {
+						assert.ErrorContains(t, err, tc.err)
+					} else {
+						assert.EqualError(t, err, tc.err)
+					}
 				} else {
 					require.NoError(t, err)
 					assert.Equal(t, tc.out, rs)
@@ -343,7 +349,11 @@ func TestNewPeerInfoFromString(t *testing.T) {
 			t.Run("NewPeerInfosFromString", func(t *testing.T) {
 				rs, err := NewPeerInfosFromString(tc.in)
 				if tc.err != "" {
-					assert.EqualError(t, err, tc.err)
+					if tc.platformDependentErrMsg {
+						assert.ErrorContains(t, err, tc.err)
+					} else {
+						assert.EqualError(t, err, tc.err)
+					}
 				} else {
 					require.NoError(t, err)
 					assert.Len(t, rs, 1)
