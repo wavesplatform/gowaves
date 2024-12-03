@@ -21,7 +21,9 @@ import (
 )
 
 const (
-	DefaultTimeout       = 16 * time.Second
+	DefaultTimeout   = 16 * time.Second
+	PoolRetryTimeout = 2 * time.Minute
+
 	DefaultAPIKey        = "itest-api-key"
 	networkName          = "waves-it-network"
 	goNodeLogFileName    = "go-node.log"
@@ -109,6 +111,7 @@ func NewDocker(suiteName string) (*Docker, error) {
 	if err != nil {
 		return nil, err
 	}
+	pool.MaxWait = PoolRetryTimeout
 	docker := &Docker{suite: suiteName, pool: pool}
 	if rmErr := docker.removeContainers(); rmErr != nil {
 		return nil, rmErr
@@ -142,16 +145,10 @@ func (d *Docker) ScalaNode() *NodeContainer {
 func (d *Docker) StartNodes(ctx context.Context, goCfg, scalaCfg config.DockerConfigurator) error {
 	eg := errgroup.Group{}
 	eg.Go(func() error {
-		if err := d.StartGoNode(ctx, goCfg); err != nil {
-			return err
-		}
-		return nil
+		return d.StartGoNode(ctx, goCfg)
 	})
 	eg.Go(func() error {
-		if err := d.StartScalaNode(ctx, scalaCfg); err != nil {
-			return err
-		}
-		return nil
+		return d.StartScalaNode(ctx, scalaCfg)
 	})
 	return eg.Wait()
 }
@@ -223,7 +220,7 @@ func (d *Docker) stopContainer(containerID string) error {
 	if stErr := d.pool.Client.StopContainer(containerID, shutdownTimeout); stErr != nil {
 		if klErr := d.pool.Client.KillContainer(dc.KillContainerOptions{
 			ID:     containerID,
-			Signal: dc.SIGINT,
+			Signal: dc.SIGKILL,
 		}); klErr != nil {
 			return errors.Wrapf(stderrs.Join(stErr, klErr), "failed to stop container %q", containerID)
 		}
@@ -291,9 +288,11 @@ func (d *Docker) startNode(
 			ApiKey:  DefaultAPIKey,
 		})
 		if fErr != nil {
+			log.Printf("Failed to create client for container %q: %v", res.Container.Name, fErr)
 			return fErr
 		}
 		_, _, fErr = nodeClient.Blocks.Height(ctx)
+		log.Printf("Result requesting height from container %q: %v", res.Container.Name, fErr)
 		return fErr
 	})
 	if err != nil {

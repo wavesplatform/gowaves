@@ -394,8 +394,16 @@ func GetHeightScala(suite *f.BaseSuite) uint64 {
 }
 
 func GetHeight(suite *f.BaseSuite) uint64 {
-	goHeight := GetHeightGo(suite)
-	scalaHeight := GetHeightScala(suite)
+	goCh := make(chan uint64)
+	scalaCh := make(chan uint64)
+	go func() {
+		goCh <- GetHeightGo(suite)
+	}()
+	go func() {
+		scalaCh <- GetHeightScala(suite)
+	}()
+	goHeight := <-goCh
+	scalaHeight := <-scalaCh
 	if goHeight < scalaHeight {
 		return goHeight
 	}
@@ -481,30 +489,41 @@ func GetFeatureActivationHeightScala(suite *f.BaseSuite, featureID settings.Feat
 }
 
 func GetFeatureActivationHeight(suite *f.BaseSuite, featureID settings.Feature, height uint64) proto.Height {
-	var err error
-	var activationHeight proto.Height
-	activationHeightGo := GetFeatureActivationHeightGo(suite, featureID, height)
-	activationHeightScala := GetFeatureActivationHeightScala(suite, featureID, height)
+	goCh := make(chan proto.Height)
+	scalaCh := make(chan proto.Height)
+	go func() {
+		goCh <- GetFeatureActivationHeightGo(suite, featureID, height)
+	}()
+	go func() {
+		scalaCh <- GetFeatureActivationHeightScala(suite, featureID, height)
+	}()
+	activationHeightGo := <-goCh
+	activationHeightScala := <-scalaCh
+
 	if activationHeightGo == activationHeightScala && activationHeightGo > 0 {
-		activationHeight = activationHeightGo
-	} else {
-		err = errors.New("Activation Height from Go and Scala is different")
+		return activationHeightGo
 	}
-	require.NoError(suite.T(), err)
-	return activationHeight
+
+	suite.FailNow("Activation Height from Go and Scala is different")
+	return 0
 }
 
 func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureID settings.Feature, height uint64) (string, error) {
-	var status string
-	var err error
-	statusGo := GetFeatureBlockchainStatusGo(suite, featureID, height)
-	statusScala := GetFeatureBlockchainStatusScala(suite, featureID, height)
+	goCh := make(chan string)
+	scalaCh := make(chan string)
+	go func() {
+		goCh <- GetFeatureBlockchainStatusGo(suite, featureID, height)
+	}()
+	go func() {
+		scalaCh <- GetFeatureBlockchainStatusScala(suite, featureID, height)
+	}()
+	statusGo := <-goCh
+	statusScala := <-scalaCh
+
 	if statusGo == statusScala {
-		status = statusGo
-	} else {
-		err = errors.Errorf("Feature with Id %d has different statuses", featureID)
+		return statusGo, nil
 	}
-	return status, err
+	return "", errors.Errorf("Feature with ID %d has different statuses", featureID)
 }
 
 func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID settings.Feature) uint64 {
@@ -531,17 +550,26 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID settings.Feat
 }
 
 func WaitForFeatureActivation(suite *f.BaseSuite, featureID settings.Feature, height uint64) proto.Height {
-	var activationHeight proto.Height
 	waitingBlocks := GetWaitingBlocks(suite, height, featureID)
 	h := WaitForHeight(suite, height+waitingBlocks)
-	activationHeightGo := GetFeatureActivationHeightGo(suite, featureID, h)
-	activationHeightScala := GetFeatureActivationHeightScala(suite, featureID, h)
+
+	goCh := make(chan proto.Height)
+	scalaCh := make(chan proto.Height)
+
+	go func() {
+		goCh <- GetFeatureActivationHeightGo(suite, featureID, h)
+	}()
+	go func() {
+		scalaCh <- GetFeatureActivationHeightScala(suite, featureID, h)
+	}()
+	activationHeightGo := <-goCh
+	activationHeightScala := <-scalaCh
+
 	if activationHeightScala == activationHeightGo {
-		activationHeight = activationHeightGo
-	} else {
-		suite.FailNowf("Feature has different activation heights", "Feature ID is %d", featureID)
+		return activationHeightGo
 	}
-	return activationHeight
+	suite.FailNowf("Feature has different activation heights", "Feature ID is %d", featureID)
+	return 0
 }
 
 func FeatureShouldBeActivated(suite *f.BaseSuite, featureID settings.Feature, height uint64) {
@@ -884,8 +912,16 @@ func GetRewardTermAtHeightScala(suite *f.BaseSuite, height uint64) uint64 {
 }
 
 func GetRewardTermAtHeight(suite *f.BaseSuite, height uint64) RewardTerm {
-	termGo := GetRewardTermAtHeightGo(suite, height)
-	termScala := GetRewardTermAtHeightScala(suite, height)
+	goCh := make(chan uint64)
+	scalaCh := make(chan uint64)
+	go func() {
+		goCh <- GetRewardTermAtHeightGo(suite, height)
+	}()
+	go func() {
+		scalaCh <- GetRewardTermAtHeightScala(suite, height)
+	}()
+	termGo := <-goCh
+	termScala := <-scalaCh
 	suite.T().Logf("Go: Reward Term: %d, Scala: Reward Term: %d, height: %d",
 		termGo, termScala, height)
 	return NewRewardTerm(termGo, termScala)
@@ -917,5 +953,13 @@ func GetRollbackToHeightScala(suite *f.BaseSuite, height uint64, returnTxToUtx b
 
 func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) (*proto.BlockID, *proto.BlockID) {
 	suite.T().Logf("Rollback to height: %d from height: %d", height, GetHeight(suite))
-	return GetRollbackToHeightGo(suite, height, returnTxToUtx), GetRollbackToHeightScala(suite, height, returnTxToUtx)
+	goCh := make(chan *proto.BlockID)
+	scalaCh := make(chan *proto.BlockID)
+	go func() {
+		goCh <- GetRollbackToHeightGo(suite, height, returnTxToUtx)
+	}()
+	go func() {
+		scalaCh <- GetRollbackToHeightScala(suite, height, returnTxToUtx)
+	}()
+	return <-goCh, <-scalaCh
 }
