@@ -6,6 +6,7 @@ import (
 	"encoding/binary"
 	"fmt"
 	"io"
+	"math/rand/v2"
 	"net"
 	"strconv"
 	"strings"
@@ -375,23 +376,14 @@ func (a TCPAddr) Equal(other TCPAddr) bool {
 	return a.IP.Equal(other.IP) && a.Port == other.Port
 }
 
+// NewTCPAddrFromString creates TCPAddr from string.
+// Returns empty TCPAddr if string can't be parsed.
 func NewTCPAddrFromString(s string) TCPAddr {
-	host, port, err := net.SplitHostPort(s)
+	pi, err := NewPeerInfoFromString(s)
 	if err != nil {
-		return TCPAddr{}
+		return TCPAddr{} // return empty TCPAddr in case of error
 	}
-	ip := net.ParseIP(host)
-	if ip == nil {
-		ips, err := net.LookupIP(host)
-		if err == nil {
-			ip = ips[0]
-		}
-	}
-	p, err := strconv.ParseUint(port, 10, 16)
-	if err != nil {
-		return TCPAddr{}
-	}
-	return NewTCPAddr(ip, int(p))
+	return NewTCPAddr(pi.Addr, int(pi.Port))
 }
 
 func NewTcpAddrFromUint64(value uint64) TCPAddr {
@@ -737,26 +729,94 @@ func (a *IpPort) String() string {
 	return NewTCPAddr(a.Addr(), a.Port()).String()
 }
 
+func filterToIPV4(ips []net.IP) []net.IP {
+	for i := 0; i < len(ips); i++ {
+		ipV4 := ips[i].To4()
+		if ipV4 == nil { // for now we support only IPv4
+			iLast := len(ips) - 1
+			ips[i], ips[iLast] = ips[iLast], nil // move last address to the current position, order is not important
+			ips = ips[:iLast]                    // remove last address
+			i--                                  // move back to check the previously last address
+		} else {
+			ips[i] = ipV4 // replace with exact IPv4 form (ipV4 can be in both forms: ipv4 and ipV4 in ipv6)
+		}
+	}
+	return ips
+}
+
+func resolveHostToIPsv4(host string) ([]net.IP, error) {
+	if ip := net.ParseIP(host); ip != nil { // try to parse host as IP address
+		ipV4 := ip.To4() // try to convert to IPv4
+		if ipV4 == nil {
+			return nil, errors.Errorf("non-IPv4 address %q", host)
+		}
+		return []net.IP{ipV4}, nil // host is already an IP address
+	}
+	ips, err := net.LookupIP(host) // try to resolve host
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to resolve host %q", host)
+	}
+	ips = filterToIPV4(ips)
+	if len(ips) == 0 {
+		return nil, errors.Errorf("no IPv4 addresses found for host %q", host)
+	}
+	return ips, nil
+}
+
 // PeerInfo represents the address of a single peer
 type PeerInfo struct {
 	Addr net.IP
 	Port uint16
 }
 
-func NewPeerInfoFromString(addr string) (PeerInfo, error) {
-	parts := strings.Split(addr, ":")
-	if len(parts) != 2 {
-		return PeerInfo{}, errors.Errorf("invalid addr %s", addr)
-	}
-
-	ip := net.ParseIP(parts[0])
-	port, err := strconv.ParseUint(parts[1], 10, 16)
+func ipsV4PortFromString(addr string) ([]net.IP, uint16, error) {
+	host, port, err := net.SplitHostPort(addr)
 	if err != nil {
-		return PeerInfo{}, errors.Errorf("invalid port %s", parts[1])
+		return nil, 0, errors.Wrap(err, "failed to split host and port")
 	}
+	portNum, err := strconv.ParseUint(port, 10, 16)
+	if err != nil {
+		return nil, 0, errors.Errorf("invalid port %q", port)
+	}
+	if portNum == 0 {
+		return nil, 0, errors.Errorf("invalid port %q", port)
+	}
+	ips, err := resolveHostToIPsv4(host)
+	if err != nil {
+		return nil, 0, errors.Wrap(err, "failed to resolve host")
+	}
+	return ips, uint16(portNum), nil
+}
+
+// NewPeerInfosFromString creates PeerInfo slice from string 'host:port'.
+// It resolves host to IPv4 addresses and creates PeerInfo for each of them.
+func NewPeerInfosFromString(addr string) ([]PeerInfo, error) {
+	ips, portNum, err := ipsV4PortFromString(addr)
+	if err != nil {
+		return nil, err
+	}
+	res := make([]PeerInfo, 0, len(ips))
+	for _, ip := range ips {
+		res = append(res, PeerInfo{
+			Addr: ip,
+			Port: portNum,
+		})
+	}
+	return res, nil
+}
+
+// NewPeerInfoFromString creates PeerInfo from string 'host:port'.
+// It resolves host to IPv4 addresses and selects the random one using math/rand/v2.
+func NewPeerInfoFromString(addr string) (PeerInfo, error) {
+	ips, portNum, err := ipsV4PortFromString(addr)
+	if err != nil {
+		return PeerInfo{}, err
+	}
+	n := rand.IntN(len(ips)) // #nosec: it's ok to use math/rand/v2 here
+	ip := ips[n]             // Select random IPv4 from the list
 	return PeerInfo{
 		Addr: ip,
-		Port: uint16(port),
+		Port: portNum,
 	}, nil
 }
 
