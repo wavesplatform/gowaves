@@ -14,7 +14,7 @@ COPY cmd cmd
 COPY pkg pkg
 
 ARG WITH_RACE_SUFFIX=""
-RUN make build-node-linux-amd64${WITH_RACE_SUFFIX}
+RUN make build-node-native${WITH_RACE_SUFFIX}
 
 FROM alpine:3.20.3
 ENV TZ=Etc/UTC \
@@ -34,7 +34,7 @@ ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
 
 USER $APP_USER
 
-COPY --from=builder /app/build/bin/linux-amd64/node /app/node
+COPY --from=builder /app/build/bin/native/node /app/node
 
 STOPSIGNAL SIGINT
 
