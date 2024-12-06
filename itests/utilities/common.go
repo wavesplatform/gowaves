@@ -23,7 +23,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
-	"github.com/wavesplatform/gowaves/itests/net"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
@@ -671,11 +670,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 	}
 	scala := !waitForTx
 
-	connections, err := net.NewNodeConnections(suite.Docker.GoNode().Ports(), suite.Docker.ScalaNode().Ports())
-	suite.Require().NoError(err, "failed to create new node connections")
-	defer connections.Close(suite.T())
-
-	connections.SendToNodes(suite.T(), txMsg, scala)
+	suite.Clients.SendToNodes(suite.T(), txMsg, scala)
 	suite.T().Log("Tx msg was successfully send to nodes")
 
 	suite.T().Log("Waiting for Tx appears in Blockchain")

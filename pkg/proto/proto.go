@@ -16,6 +16,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/util/collect_writes"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -74,7 +75,7 @@ type Header struct {
 	Length          uint32
 	Magic           uint32
 	ContentID       PeerMessageID
-	PayloadLength   uint32
+	payloadLength   uint32
 	PayloadChecksum [headerChecksumLen]byte
 }
 
@@ -97,7 +98,7 @@ func (h *Header) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (h *Header) HeaderLength() uint32 {
-	if h.PayloadLength > 0 {
+	if h.payloadLength > 0 {
 		return headerSizeWithPayload
 	}
 	return headerSizeWithoutPayload
@@ -133,8 +134,8 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("received wrong magic: want %x, have %x", headerMagic, h.Magic)
 	}
 	h.ContentID = PeerMessageID(data[HeaderContentIDPosition])
-	h.PayloadLength = binary.BigEndian.Uint32(data[9:headerSizeWithoutPayload])
-	if h.PayloadLength > 0 {
+	h.payloadLength = binary.BigEndian.Uint32(data[9:headerSizeWithoutPayload])
+	if h.payloadLength > 0 {
 		if uint32(len(data)) < headerSizeWithPayload {
 			return errors.New("Header UnmarshalBinary: invalid data size")
 		}
@@ -151,8 +152,8 @@ func (h *Header) Copy(data []byte) (int, error) {
 	binary.BigEndian.PutUint32(data[0:4], h.Length)
 	binary.BigEndian.PutUint32(data[4:8], headerMagic)
 	data[HeaderContentIDPosition] = byte(h.ContentID)
-	binary.BigEndian.PutUint32(data[9:headerSizeWithoutPayload], h.PayloadLength)
-	if h.PayloadLength > 0 {
+	binary.BigEndian.PutUint32(data[9:headerSizeWithoutPayload], h.payloadLength)
+	if h.payloadLength > 0 {
 		if len(data) < headerSizeWithPayload {
 			return 0, errors.New("Header Copy: invalid data size")
 		}
@@ -160,6 +161,10 @@ func (h *Header) Copy(data []byte) (int, error) {
 		return headerSizeWithPayload, nil
 	}
 	return headerSizeWithoutPayload, nil
+}
+
+func (h *Header) PayloadLength() uint32 {
+	return h.payloadLength
 }
 
 // Version represents the version of the protocol
@@ -490,10 +495,6 @@ func (a HandshakeTCPAddr) Network() string {
 	return "tcp"
 }
 
-func ParseHandshakeTCPAddr(s string) HandshakeTCPAddr {
-	return HandshakeTCPAddr(NewTCPAddrFromString(s))
-}
-
 type U8String struct {
 	S string
 }
@@ -647,7 +648,7 @@ func (m *GetPeersMessage) MarshalBinary() ([]byte, error) {
 	h.Length = maxHeaderLength - 8
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetPeers
-	h.PayloadLength = 0
+	h.payloadLength = 0
 	return h.MarshalBinary()
 }
 
@@ -663,7 +664,7 @@ func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 	if header.ContentID != ContentIDGetPeers {
 		return fmt.Errorf("getpeers message ContentID is unexpected: want %x have %x", ContentIDGetPeers, header.ContentID)
 	}
-	if header.PayloadLength != 0 {
+	if header.payloadLength != 0 {
 		return fmt.Errorf("getpeers message length is not zero")
 	}
 
@@ -969,10 +970,10 @@ func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
 		return n, err
 	}
 
-	h.Length = maxHeaderLength + uint32(len(buf.Bytes())) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(buf.Bytes())) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDPeers
-	h.PayloadLength = uint32(len(buf.Bytes()))
+	h.payloadLength = common.SafeIntToUint32(len(buf.Bytes()))
 	dig, err := crypto.FastHash(buf.Bytes())
 	if err != nil {
 		return 0, err
@@ -1110,7 +1111,7 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 	h.Length = maxHeaderLength + uint32(len(body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetSignatures
-	h.PayloadLength = uint32(len(body))
+	h.payloadLength = common.SafeIntToUint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
 		return nil, err
@@ -1192,16 +1193,16 @@ type SignaturesMessage struct {
 // MarshalBinary encodes SignaturesMessage to binary form
 func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4, 4+len(m.Signatures))
-	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Signatures)))
+	binary.BigEndian.PutUint32(body[0:4], common.SafeIntToUint32(len(m.Signatures)))
 	for _, b := range m.Signatures {
 		body = append(body, b[:]...)
 	}
 
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDSignatures
-	h.PayloadLength = uint32(len(body))
+	h.payloadLength = common.SafeIntToUint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
 		return nil, err
@@ -1285,10 +1286,10 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
 
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetBlock
-	h.PayloadLength = uint32(len(body))
+	h.payloadLength = common.SafeIntToUint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
 		return nil, err
@@ -1329,10 +1330,11 @@ func parsePacket(data []byte, ContentID PeerMessageID, name string, f func(paylo
 	if h.ContentID != ContentID {
 		return fmt.Errorf("%s: wrong ContentID in Header: %x", name, h.ContentID)
 	}
-	if len(data) < int(17+h.PayloadLength) {
-		return fmt.Errorf("%s: expected data at least %d, found %d", name, 17+h.PayloadLength, len(data))
+	if len(data) < int(headerSizeWithPayload+h.payloadLength) {
+		return fmt.Errorf("%s: expected data at least %d, found %d",
+			name, headerSizeWithPayload+h.payloadLength, len(data))
 	}
-	err := f(data[17 : 17+h.PayloadLength])
+	err := f(data[headerSizeWithPayload : headerSizeWithPayload+h.payloadLength])
 	if err != nil {
 		return errors.Wrapf(err, "%s payload error", name)
 	}
@@ -1380,10 +1382,10 @@ type BlockMessage struct {
 // MarshalBinary encodes BlockMessage to binary form
 func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(m.BlockBytes)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.BlockBytes)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDBlock
-	h.PayloadLength = uint32(len(m.BlockBytes))
+	h.payloadLength = common.SafeIntToUint32(len(m.BlockBytes))
 	dig, err := crypto.FastHash(m.BlockBytes)
 	if err != nil {
 		return nil, err
@@ -1400,10 +1402,10 @@ func (m *BlockMessage) MarshalBinary() ([]byte, error) {
 
 func MakeHeader(contentID PeerMessageID, payload []byte) (Header, error) {
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(payload)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(payload)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = contentID
-	h.PayloadLength = uint32(len(payload))
+	h.payloadLength = common.SafeIntToUint32(len(payload))
 	dig, err := crypto.FastHash(payload)
 	if err != nil {
 		return Header{}, err
@@ -1425,11 +1427,11 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
-	if uint32(len(data)) < 17+h.PayloadLength {
+	if common.SafeIntToUint32(len(data)) < 17+h.payloadLength {
 		return errors.New("BlockMessage UnmarshalBinary: invalid data size")
 	}
-	m.BlockBytes = make([]byte, h.PayloadLength)
-	copy(m.BlockBytes, data[17:17+h.PayloadLength])
+	m.BlockBytes = make([]byte, h.payloadLength)
+	copy(m.BlockBytes, data[17:17+h.payloadLength])
 
 	return nil
 }
@@ -1463,10 +1465,10 @@ type ScoreMessage struct {
 // MarshalBinary encodes ScoreMessage to binary form
 func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(m.Score)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Score)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDScore
-	h.PayloadLength = uint32(len(m.Score))
+	h.payloadLength = common.SafeIntToUint32(len(m.Score))
 	dig, err := crypto.FastHash(m.Score)
 	if err != nil {
 		return nil, err
@@ -1494,11 +1496,11 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
-	if uint32(len(data)) < 17+h.PayloadLength {
+	if common.SafeIntToUint32(len(data)) < 17+h.payloadLength {
 		return errors.New("invalid data size")
 	}
-	m.Score = make([]byte, h.PayloadLength)
-	copy(m.Score, data[17:17+h.PayloadLength])
+	m.Score = make([]byte, h.payloadLength)
+	copy(m.Score, data[17:17+h.payloadLength])
 	return nil
 }
 
@@ -1530,10 +1532,10 @@ type TransactionMessage struct {
 // MarshalBinary encodes TransactionMessage to binary form
 func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(m.Transaction)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Transaction)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDTransaction
-	h.PayloadLength = uint32(len(m.Transaction))
+	h.payloadLength = common.SafeIntToUint32(len(m.Transaction))
 	dig, err := crypto.FastHash(m.Transaction)
 	if err != nil {
 		return nil, err
@@ -1558,11 +1560,11 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	// TODO check max length
-	if uint32(len(data)) < maxHeaderLength+h.PayloadLength {
+	if common.SafeIntToUint32(len(data)) < maxHeaderLength+h.payloadLength {
 		return errors.New("invalid data size")
 	}
-	m.Transaction = make([]byte, h.PayloadLength)
-	copy(m.Transaction, data[maxHeaderLength:maxHeaderLength+h.PayloadLength])
+	m.Transaction = make([]byte, h.payloadLength)
+	copy(m.Transaction, data[maxHeaderLength:maxHeaderLength+h.payloadLength])
 	dig, err := crypto.FastHash(m.Transaction)
 	if err != nil {
 		return err
@@ -1618,10 +1620,10 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 	}
 
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDCheckpoint
-	h.PayloadLength = uint32(len(body))
+	h.payloadLength = common.SafeIntToUint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
 		return nil, err
@@ -1702,10 +1704,10 @@ type PBBlockMessage struct {
 // MarshalBinary encodes PBBlockMessage to binary form
 func (m *PBBlockMessage) MarshalBinary() ([]byte, error) {
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(m.PBBlockBytes)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.PBBlockBytes)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDPBBlock
-	h.PayloadLength = uint32(len(m.PBBlockBytes))
+	h.payloadLength = common.SafeIntToUint32(len(m.PBBlockBytes))
 	dig, err := crypto.FastHash(m.PBBlockBytes)
 	if err != nil {
 		return nil, err
@@ -1733,11 +1735,11 @@ func (m *PBBlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
-	m.PBBlockBytes = make([]byte, h.PayloadLength)
-	if uint32(len(data)) < 17+h.PayloadLength {
+	m.PBBlockBytes = make([]byte, h.payloadLength)
+	if common.SafeIntToUint32(len(data)) < 17+h.payloadLength {
 		return errors.New("PBBlockMessage UnmarshalBinary: invalid data size")
 	}
-	copy(m.PBBlockBytes, data[17:17+h.PayloadLength])
+	copy(m.PBBlockBytes, data[17:17+h.payloadLength])
 
 	return nil
 }
@@ -1771,10 +1773,10 @@ type PBTransactionMessage struct {
 // MarshalBinary encodes PBTransactionMessage to binary form
 func (m *PBTransactionMessage) MarshalBinary() ([]byte, error) {
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(m.Transaction)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Transaction)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDPBTransaction
-	h.PayloadLength = uint32(len(m.Transaction))
+	h.payloadLength = common.SafeIntToUint32(len(m.Transaction))
 	dig, err := crypto.FastHash(m.Transaction)
 	if err != nil {
 		return nil, err
@@ -1799,11 +1801,11 @@ func (m *PBTransactionMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	// TODO check max length
-	m.Transaction = make([]byte, h.PayloadLength)
-	if uint32(len(data)) < maxHeaderLength+h.PayloadLength {
+	m.Transaction = make([]byte, h.payloadLength)
+	if common.SafeIntToUint32(len(data)) < maxHeaderLength+h.payloadLength {
 		return errors.New("PBTransactionMessage UnmarshalBinary: invalid data size")
 	}
-	copy(m.Transaction, data[maxHeaderLength:maxHeaderLength+h.PayloadLength])
+	copy(m.Transaction, data[maxHeaderLength:maxHeaderLength+h.payloadLength])
 	dig, err := crypto.FastHash(m.Transaction)
 	if err != nil {
 		return err
@@ -1911,10 +1913,10 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 	}
 
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDGetBlockIDs
-	h.PayloadLength = uint32(len(body))
+	h.payloadLength = common.SafeIntToUint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
 		return nil, err
@@ -2007,10 +2009,10 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 	}
 
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDBlockIDs
-	h.PayloadLength = uint32(len(body))
+	h.payloadLength = common.SafeIntToUint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
 		return nil, err
@@ -2123,10 +2125,10 @@ type MiningLimits struct {
 
 func buildHeader(body []byte, messID PeerMessageID) (Header, error) {
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - headerChecksumLen
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = messID
-	h.PayloadLength = uint32(len(body))
+	h.payloadLength = common.SafeIntToUint32(len(body))
 	dig, err := crypto.FastHash(body)
 	if err != nil {
 		return Header{}, err
@@ -2221,8 +2223,8 @@ func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 	if h.ContentID != ContentIDBlockSnapshot {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
-	m.Bytes = make([]byte, h.PayloadLength)
-	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.PayloadLength])
+	m.Bytes = make([]byte, h.payloadLength)
+	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.payloadLength])
 	return nil
 }
 
@@ -2280,8 +2282,8 @@ func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 	if h.ContentID != ContentIDMicroBlockSnapshot {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
-	m.Bytes = make([]byte, h.PayloadLength)
-	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.PayloadLength])
+	m.Bytes = make([]byte, h.payloadLength)
+	copy(m.Bytes, data[maxHeaderLength:maxHeaderLength+h.payloadLength])
 	return nil
 }
 

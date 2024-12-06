@@ -1,0 +1,12 @@
+quiet: False
+with-expecter: True
+dir: "{{.InterfaceDir}}/mocks"
+mockname: "Mock{{.InterfaceName}}"
+filename: "{{.InterfaceName | snakecase}}.go"
+
+packages:
+  github.com/wavesplatform/gowaves/pkg/networking:
+    interfaces:
+      Header:
+      Protocol:
+      Handler:
