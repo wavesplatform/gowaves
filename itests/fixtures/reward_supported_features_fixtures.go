@@ -21,7 +21,6 @@ type RewardIncreaseDaoXtnSupportedSuite struct {
 
 func (suite *RewardIncreaseDaoXtnSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -44,7 +43,6 @@ type RewardUnchangedDaoXtnSupportedSuite struct {
 
 func (suite *RewardUnchangedDaoXtnSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -67,7 +65,6 @@ type RewardDecreaseDaoXtnSupportedSuite struct {
 
 func (suite *RewardDecreaseDaoXtnSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -90,7 +87,6 @@ type RewardIncreaseDaoSupportedSuite struct {
 
 func (suite *RewardIncreaseDaoSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -113,7 +109,6 @@ type RewardUnchangedXtnSupportedSuite struct {
 
 func (suite *RewardUnchangedXtnSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -136,7 +131,6 @@ type Reward2WUnchangedDaoXtnSupportedSuite struct {
 
 func (suite *Reward2WUnchangedDaoXtnSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -159,7 +153,6 @@ type RewardDecreaseDaoSupportedSuite struct {
 
 func (suite *RewardDecreaseDaoSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -182,7 +175,6 @@ type RewardDecreaseXtnSupportedSuite struct {
 
 func (suite *RewardDecreaseXtnSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -205,7 +197,6 @@ type RewardIncreaseSupportedSuite struct {
 
 func (suite *RewardIncreaseSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -228,7 +219,6 @@ type RewardDaoXtnSupportedWithout19Suite struct {
 
 func (suite *RewardDaoXtnSupportedWithout19Suite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -253,7 +243,6 @@ type RewardIncreaseDaoXtnCeaseXTNBuybackSupportedSuite struct {
 
 func (suite *RewardIncreaseDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -276,7 +265,6 @@ type RewardIncreaseXtnCeaseXTNBuybackSupportedSuite struct {
 
 func (suite *RewardIncreaseXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -299,7 +287,6 @@ type RewardUnchangedDaoXtnCeaseXTNBuybackSupportedSuite struct {
 
 func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -322,7 +309,6 @@ type RewardDecreaseDaoXtnCeaseXTNBuybackSupportedSuite struct {
 
 func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -345,7 +331,6 @@ type RewardDecreaseXtnCeaseXTNBuybackSupportedSuite struct {
 
 func (suite *RewardDecreaseXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -368,7 +353,6 @@ type Reward2WUnchangedDaoXtnCeaseXTNBuybackSupportedSuite struct {
 
 func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -391,7 +375,6 @@ type Reward5W2MinersIncreaseCeaseXTNBuybackSupportedSuite struct {
 
 func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackSupportedSuite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -414,7 +397,6 @@ type RewardDaoXtnSupportedWithout20Suite struct {
 
 func (suite *RewardDaoXtnSupportedWithout20Suite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -437,7 +419,6 @@ type RewardDaoXtnSupportedWithout19And20Suite struct {
 
 func (suite *RewardDaoXtnSupportedWithout19And20Suite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -462,7 +443,6 @@ type RewardIncreaseDaoXtnSupported20Suite struct {
 
 func (suite *RewardIncreaseDaoXtnSupported20Suite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeature20ConfigFolder,
@@ -485,7 +465,6 @@ type RewardDaoXtnSupported19Suite struct {
 
 func (suite *RewardDaoXtnSupported19Suite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -508,7 +487,6 @@ type RewardDistributionRollbackBefore21Suite struct {
 
 func (suite *RewardDistributionRollbackBefore21Suite) SetupSuite() {
 	suite.BaseSetup(
-		config.WithScalaMining(),
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,

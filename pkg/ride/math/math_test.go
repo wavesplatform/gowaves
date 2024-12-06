@@ -21,6 +21,7 @@ func TestFraction(t *testing.T) {
 	}{
 		{-6, 6301369, 100, false, -378082},
 		{6, 6301369, 100, false, 378082},
+		{4445280, 1, 1440, false, 3087},
 		{6, 6301369, 0, true, 0},
 	} {
 		r, err := Fraction(tc.value, tc.numerator, tc.denominator)
