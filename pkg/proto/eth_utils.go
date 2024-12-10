@@ -72,7 +72,7 @@ func copyBytes(bytes []byte) []byte {
 	return copiedBytes
 }
 
-// copyBytes returns an exact copy of the provided big.Int.
+// copyBigInt returns an exact copy of the provided big.Int.
 func copyBigInt(v *big.Int) *big.Int {
 	if v == nil {
 		return nil
