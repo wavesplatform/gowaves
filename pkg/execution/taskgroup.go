@@ -14,12 +14,12 @@ import (
 type TaskGroup struct {
 	wg sync.WaitGroup // Counter for active goroutines.
 
-	// active is nonzero when the group is "active", meaning there has been at least one call to Run since the group
+	// active is true when the group is "active", meaning there has been at least one call to Run since the group
 	// was created or the last Wait.
 	//
 	// Together active and errLock work as a kind of resettable sync.Once. The fast path reads active and only
 	// acquires errLock if it discovers setup is needed.
-	active atomic.Uint32
+	active atomic.Bool
 
 	errLock sync.Mutex // Guards the fields below.
 	err     error      // First captured error returned from Wait.
@@ -56,7 +56,7 @@ func (g *TaskGroup) OnError(handler func(error) error) *TaskGroup {
 // so the [execute] function should include the interruption logic.
 func (g *TaskGroup) Run(execute func() error) {
 	g.wg.Add(1)
-	if g.active.Load() == 0 {
+	if !g.active.Load() {
 		g.activate()
 	}
 	go func() {
@@ -82,9 +82,7 @@ func (g *TaskGroup) Wait() error {
 	defer g.errLock.Unlock()
 
 	// If the group is still active, deactivate it now.
-	if g.active.Load() != 0 {
-		g.active.Store(0)
-	}
+	g.active.CompareAndSwap(true, false)
 	return g.err
 }
 
@@ -93,9 +91,8 @@ func (g *TaskGroup) Wait() error {
 func (g *TaskGroup) activate() {
 	g.errLock.Lock()
 	defer g.errLock.Unlock()
-	if g.active.Load() == 0 {
+	if g.active.CompareAndSwap(false, true) {
 		g.err = nil
-		g.active.Store(1)
 	}
 }
 

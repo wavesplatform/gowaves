@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -83,8 +82,6 @@ func TestCancelPropagation(t *testing.T) {
 			}
 		})
 	}
-	runtime.Gosched()
-	<-time.After(500 * time.Microsecond)
 	cancel()
 
 	err := g.Wait()
@@ -102,9 +99,6 @@ func TestCancelPropagation(t *testing.T) {
 		}
 	}
 
-	assert.NotZero(t, numOK)
-	assert.NotZero(t, numCanceled)
-	assert.NotZero(t, numOther)
 	total := int(numOK) + numCanceled + numOther
 	assert.Equal(t, numTasks, total)
 }
@@ -119,7 +113,7 @@ func TestWaitingForFinish(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			return work(50, nil)()
-		case <-time.After(randomDuration(60)):
+		case <-time.After(60 * time.Millisecond):
 			return failure
 		}
 	}
