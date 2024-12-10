@@ -95,7 +95,7 @@ func TestCancelPropagation(t *testing.T) {
 		case errors.Is(e, errOther):
 			numOther++
 		default:
-			require.FailNow(t, "unexpected error: %v", e)
+			require.FailNowf(t, "No error is expected", "unexpected error: %v", e)
 		}
 	}
 
@@ -130,6 +130,8 @@ func TestWaitingForFinish(t *testing.T) {
 }
 
 func TestRegression(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
 	t.Run("WaitRace", func(_ *testing.T) {
 		ready := make(chan struct{})
 		var g execution.TaskGroup
@@ -140,20 +142,26 @@ func TestRegression(t *testing.T) {
 
 		var wg sync.WaitGroup
 		wg.Add(2)
-		go func() { defer wg.Done(); _ = g.Wait() }()
-		go func() { defer wg.Done(); _ = g.Wait() }()
+		go func() {
+			defer wg.Done()
+			err := g.Wait()
+			require.NoError(t, err)
+		}()
+		go func() {
+			defer wg.Done()
+			err := g.Wait()
+			require.NoError(t, err)
+		}()
 
 		close(ready)
 		wg.Wait()
 	})
 	t.Run("WaitUnstarted", func(t *testing.T) {
-		defer func() {
-			if x := recover(); x != nil {
-				t.Errorf("Unexpected panic: %v", x)
-			}
-		}()
-		var g execution.TaskGroup
-		_ = g.Wait()
+		require.NotPanics(t, func() {
+			var g execution.TaskGroup
+			err := g.Wait()
+			require.NoError(t, err)
+		})
 	})
 }
 
