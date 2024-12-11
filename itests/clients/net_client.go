@@ -7,6 +7,7 @@ import (
 	"log/slog"
 	"net"
 	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -33,25 +34,22 @@ type NetClient struct {
 	c    *networking.Config
 	s    *networking.Session
 
-	closingLock sync.Mutex
-	closingFlag bool
-	closedLock  sync.Mutex
-	closedFlag  bool
+	closing atomic.Bool
+	closed  sync.Once
 }
 
 func NewNetClient(
 	ctx context.Context, t testing.TB, impl Implementation, port string, peers []proto.PeerInfo,
 ) *NetClient {
 	n := networking.NewNetwork()
-	p := newProtocol(nil)
+	p := newProtocol(t, nil)
 	h := newHandler(t, peers)
 	log := slogt.New(t)
 	conf := networking.NewConfig(p, h).
 		WithLogger(log).
 		WithWriteTimeout(networkTimeout).
 		WithKeepAliveInterval(pingInterval).
-		WithSlogAttribute(slog.String("suite", t.Name())).
-		WithSlogAttribute(slog.String("impl", impl.String()))
+		WithSlogAttributes(slog.String("suite", t.Name()), slog.String("impl", impl.String()))
 
 	conn, err := net.Dial("tcp", config.DefaultIP+":"+port)
 	require.NoError(t, err, "failed to dial TCP to %s node", impl.String())
@@ -83,27 +81,18 @@ func (c *NetClient) SendHandshake() {
 }
 
 func (c *NetClient) SendMessage(m proto.Message) {
-	b, err := m.MarshalBinary()
-	require.NoError(c.t, err, "failed to marshal message to %s node at %q", c.impl.String(), c.s.RemoteAddr())
-	_, err = c.s.Write(b)
+	_, err := m.WriteTo(c.s)
 	require.NoError(c.t, err, "failed to send message to %s node at %q", c.impl.String(), c.s.RemoteAddr())
 }
 
 func (c *NetClient) Close() {
-	c.t.Logf("Trying to close connection to %s node at %q", c.impl.String(), c.s.RemoteAddr().String())
-
-	c.closingLock.Lock()
-	c.closingFlag = true
-	c.closingLock.Unlock()
-
-	c.closedLock.Lock()
-	defer c.closedLock.Unlock()
-	c.t.Logf("Closing connection to %s node at %q (%t)", c.impl.String(), c.s.RemoteAddr().String(), c.closedFlag)
-	if c.closedFlag {
-		return
-	}
-	_ = c.s.Close()
-	c.closedFlag = true
+	c.closed.Do(func() {
+		if c.closing.CompareAndSwap(false, true) {
+			c.t.Logf("Closing connection to %s node at %q", c.impl.String(), c.s.RemoteAddr().String())
+		}
+		err := c.s.Close()
+		require.NoError(c.t, err, "failed to close session to %s node at %q", c.impl.String(), c.s.RemoteAddr())
+	})
 }
 
 func (c *NetClient) reconnect() {
@@ -118,23 +107,18 @@ func (c *NetClient) reconnect() {
 	c.SendHandshake()
 }
 
-func (c *NetClient) closing() bool {
-	c.closingLock.Lock()
-	defer c.closingLock.Unlock()
-	return c.closingFlag
-}
-
 type protocol struct {
+	t        testing.TB
 	dropLock sync.Mutex
 	drop     map[proto.PeerMessageID]struct{}
 }
 
-func newProtocol(drop []proto.PeerMessageID) *protocol {
+func newProtocol(t testing.TB, drop []proto.PeerMessageID) *protocol {
 	m := make(map[proto.PeerMessageID]struct{})
 	for _, id := range drop {
 		m[id] = struct{}{}
 	}
-	return &protocol{drop: m}
+	return &protocol{t: t, drop: m}
 }
 
 func (p *protocol) EmptyHandshake() networking.Handshake {
@@ -158,6 +142,17 @@ func (p *protocol) IsAcceptableHandshake(h networking.Handshake) bool {
 	// Reject nodes with incorrect network bytes, unsupported protocol versions,
 	// or a zero nonce (indicating a self-connection).
 	if hs.AppName != appName || hs.Version.Cmp(proto.ProtocolVersion()) < 0 || hs.NodeNonce == 0 {
+		p.t.Logf("Unacceptable handshake:")
+		if hs.AppName != appName {
+			p.t.Logf("\tinvalid application name %q, expected %q", hs.AppName, appName)
+		}
+		if hs.Version.Cmp(proto.ProtocolVersion()) < 0 {
+			p.t.Logf("\tinvalid application version %q should be equal or more than %q",
+				hs.Version, proto.ProtocolVersion())
+		}
+		if hs.NodeNonce == 0 {
+			p.t.Logf("\tinvalid node nonce %d", hs.NodeNonce)
+		}
 		return false
 	}
 	return true
@@ -195,14 +190,8 @@ func (h *handler) OnReceive(s *networking.Session, data []byte) {
 	case *proto.GetPeersMessage:
 		h.t.Logf("Received GetPeersMessage from %q", s.RemoteAddr())
 		rpl := &proto.PeersMessage{Peers: h.peers}
-		bts, mErr := rpl.MarshalBinary()
-		if mErr != nil { // Fail test on marshal error.
-			h.t.Logf("Failed to marshal peers message: %v", mErr)
-			h.t.FailNow()
-			return
-		}
-		if _, wErr := s.Write(bts); wErr != nil {
-			h.t.Logf("Failed to send peers message: %v", wErr)
+		if _, sErr := rpl.WriteTo(s); sErr != nil {
+			h.t.Logf("Failed to send peers message: %v", sErr)
 			h.t.FailNow()
 			return
 		}
@@ -216,7 +205,7 @@ func (h *handler) OnHandshake(_ *networking.Session, _ networking.Handshake) {
 
 func (h *handler) OnClose(s *networking.Session) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
-	if !h.client.closing() && h.client != nil {
+	if !h.client.closing.Load() && h.client != nil {
 		h.client.reconnect()
 	}
 }
