@@ -53,6 +53,14 @@ func (c *Config) WithSlogAttribute(attr slog.Attr) *Config {
 	return c
 }
 
+// WithSlogAttributes adds given attributes to the slice of attributes.
+func (c *Config) WithSlogAttributes(attrs ...slog.Attr) *Config {
+	for _, attr := range attrs {
+		c.attributes = append(c.attributes, attr)
+	}
+	return c
+}
+
 func (c *Config) WithKeepAliveDisabled() *Config {
 	c.keepAlive = false
 	return c

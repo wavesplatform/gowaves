@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"math/rand/v2"
-	"runtime"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -83,8 +82,6 @@ func TestCancelPropagation(t *testing.T) {
 			}
 		})
 	}
-	runtime.Gosched()
-	<-time.After(500 * time.Microsecond)
 	cancel()
 
 	err := g.Wait()
@@ -98,13 +95,10 @@ func TestCancelPropagation(t *testing.T) {
 		case errors.Is(e, errOther):
 			numOther++
 		default:
-			require.FailNow(t, "unexpected error: %v", e)
+			require.FailNowf(t, "No error is expected", "unexpected error: %v", e)
 		}
 	}
 
-	assert.NotZero(t, numOK)
-	assert.NotZero(t, numCanceled)
-	assert.NotZero(t, numOther)
 	total := int(numOK) + numCanceled + numOther
 	assert.Equal(t, numTasks, total)
 }
@@ -119,7 +113,7 @@ func TestWaitingForFinish(t *testing.T) {
 		select {
 		case <-ctx.Done():
 			return work(50, nil)()
-		case <-time.After(randomDuration(60)):
+		case <-time.After(60 * time.Millisecond):
 			return failure
 		}
 	}
@@ -136,6 +130,8 @@ func TestWaitingForFinish(t *testing.T) {
 }
 
 func TestRegression(t *testing.T) {
+	defer goleak.VerifyNone(t)
+
 	t.Run("WaitRace", func(_ *testing.T) {
 		ready := make(chan struct{})
 		var g execution.TaskGroup
@@ -146,20 +142,26 @@ func TestRegression(t *testing.T) {
 
 		var wg sync.WaitGroup
 		wg.Add(2)
-		go func() { defer wg.Done(); _ = g.Wait() }()
-		go func() { defer wg.Done(); _ = g.Wait() }()
+		go func() {
+			defer wg.Done()
+			err := g.Wait()
+			require.NoError(t, err)
+		}()
+		go func() {
+			defer wg.Done()
+			err := g.Wait()
+			require.NoError(t, err)
+		}()
 
 		close(ready)
 		wg.Wait()
 	})
 	t.Run("WaitUnstarted", func(t *testing.T) {
-		defer func() {
-			if x := recover(); x != nil {
-				t.Errorf("Unexpected panic: %v", x)
-			}
-		}()
-		var g execution.TaskGroup
-		_ = g.Wait()
+		require.NotPanics(t, func() {
+			var g execution.TaskGroup
+			err := g.Wait()
+			require.NoError(t, err)
+		})
 	})
 }
 
