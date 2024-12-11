@@ -32,10 +32,11 @@ func (p *timerPool) Get() *time.Timer {
 }
 
 func (p *timerPool) Put(t *time.Timer) {
-	t.Stop()
-	select {
-	case <-t.C:
-	default:
+	if !t.Stop() {
+		select {
+		case <-t.C:
+		default:
+		}
 	}
 	p.p.Put(t)
 }
