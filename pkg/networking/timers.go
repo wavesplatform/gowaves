@@ -5,13 +5,12 @@ import (
 	"time"
 )
 
-const initialTimerInterval = time.Hour * 1e6
-
 type timerPool struct {
 	p *sync.Pool
 }
 
 func newTimerPool() *timerPool {
+	const initialTimerInterval = time.Hour * 1e6
 	return &timerPool{
 		p: &sync.Pool{
 			New: func() any {
