@@ -166,8 +166,8 @@ func (s *Session) waitForSend(data []byte) error {
 	}
 
 	dataCopy := func() {
-		if data == nil {
-			return // A nil data is ignored.
+		if len(data) == 0 {
+			return // An empty data is ignored.
 		}
 
 		// In the event of session shutdown or connection write timeout, we need to prevent `send` from reading
@@ -213,7 +213,7 @@ func (s *Session) sendLoop() error {
 			s.logger.Debug("Sending data to connection",
 				"data", base64.StdEncoding.EncodeToString(packet.data))
 			packet.mu.Lock()
-			if packet.data != nil {
+			if len(packet.data) != 0 {
 				// Copy the data into the buffer to avoid holding a mutex lock during the writing.
 				_, err := dataBuf.Write(packet.data)
 				if err != nil {
