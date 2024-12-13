@@ -298,10 +298,13 @@ func (s *Session) readHandshake() error {
 func (s *Session) readMessage(hdr Header) error {
 	// Read the header
 	if _, err := hdr.ReadFrom(s.bufRead); err != nil {
-		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") ||
-			strings.Contains(err.Error(), "reset by peer") ||
-			strings.Contains(err.Error(), "broken pipe") { // In Docker network built on top of pipe, we get this error on close.
+		if errors.Is(err, io.EOF) {
 			return ErrConnectionClosedOnRead
+		}
+		if errMsg := err.Error(); strings.Contains(errMsg, "closed") ||
+			strings.Contains(errMsg, "reset by peer") ||
+			strings.Contains(errMsg, "broken pipe") { // In Docker network built on top of pipe, we get this error on close.
+			return errors.Join(ErrConnectionClosedOnRead, err) // Wrap the error with ErrConnectionClosedOnRead.
 		}
 		s.logger.Error("Failed to read header", "error", err)
 		return err
