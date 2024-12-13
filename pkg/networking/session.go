@@ -327,7 +327,7 @@ func (s *Session) readMessage(hdr Header) error {
 func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 	// Wrap in a limited reader
 	s.logger.Debug("Reading message payload", "len", hdr.PayloadLength())
-	conn = &io.LimitedReader{R: conn, N: int64(hdr.PayloadLength())}
+	conn = io.LimitReader(conn, int64(hdr.PayloadLength()))
 
 	// Copy into buffer
 	s.receiveLock.Lock()
