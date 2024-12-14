@@ -152,7 +152,9 @@ func (s *Session) waitForSend(data []byte) error {
 	timer.Reset(s.config.connectionWriteTimeout)
 	defer s.tp.Put(timer)
 
-	s.logger.Debug("Sending data", "data", base64.StdEncoding.EncodeToString(data))
+	if s.logger.Enabled(s.ctx, slog.LevelDebug) {
+		s.logger.Debug("Sending data", "data", base64.StdEncoding.EncodeToString(data))
+	}
 	ready := &sendPacket{data: data, err: errCh}
 	select {
 	case s.sendCh <- ready:
@@ -210,9 +212,11 @@ func (s *Session) sendLoop() error {
 			return s.ctx.Err()
 
 		case packet := <-s.sendCh:
-			s.logger.Debug("Sending data to connection",
-				"data", base64.StdEncoding.EncodeToString(packet.data))
 			packet.mu.Lock()
+			if s.logger.Enabled(s.ctx, slog.LevelDebug) {
+				s.logger.Debug("Sending data to connection",
+					"data", base64.StdEncoding.EncodeToString(packet.data))
+			}
 			if len(packet.data) != 0 {
 				// Copy the data into the buffer to avoid holding a mutex lock during the writing.
 				_, err := dataBuf.Write(packet.data)
@@ -352,7 +356,10 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 	// We lock the buffer from modification on the time of invocation of OnReceive handler.
 	// The slice of bytes passed into the handler is only valid for the duration of the handler invocation.
 	// So inside the handler better deserialize message or make a copy of the bytes.
-	s.logger.Debug("Invoking OnReceive handler", "message", base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
+	if s.logger.Enabled(s.ctx, slog.LevelDebug) {
+		s.logger.Debug("Invoking OnReceive handler", "message",
+			base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
+	}
 	s.config.handler.OnReceive(s, s.receiveBuffer.Bytes()) // Invoke OnReceive handler.
 	s.receiveBuffer.Reset()                                // Reset the buffer for the next message.
 	return nil
