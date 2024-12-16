@@ -290,9 +290,12 @@ func (s *Session) readHandshake() error {
 	hs := s.config.protocol.EmptyHandshake()
 	_, err := hs.ReadFrom(s.bufRead)
 	if err != nil {
-		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") ||
-			strings.Contains(err.Error(), "reset by peer") {
+		if errors.Is(err, io.EOF) {
 			return ErrConnectionClosedOnRead
+		}
+		if errMsg := err.Error(); strings.Contains(errMsg, "closed") ||
+			strings.Contains(errMsg, "reset by peer") {
+			return errors.Join(ErrConnectionClosedOnRead, err) // Wrap the error with ErrConnectionClosedOnRead.
 		}
 		s.logger.Error("Failed to read handshake from connection", "error", err)
 		return err
