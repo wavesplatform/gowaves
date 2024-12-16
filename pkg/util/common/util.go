@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"golang.org/x/exp/constraints"
@@ -242,5 +243,13 @@ func padBytes(p byte, bytes []byte) []byte {
 	r := make([]byte, len(bytes)+1)
 	r[0] = p
 	copy(r[1:], bytes)
+	return r
+}
+
+func SafeIntToUint32(v int) uint32 {
+	r, err := safecast.ToUint32(v)
+	if err != nil {
+		panic(err)
+	}
 	return r
 }

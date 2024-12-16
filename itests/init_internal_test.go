@@ -36,7 +36,12 @@ func TestMain(m *testing.M) {
 	if err != nil {
 		log.Fatalf("Failed to create docker pool: %v", err)
 	}
-	if err := pool.Client.PullImage(dc.PullImageOptions{Repository: "wavesplatform/wavesnode", Tag: "latest"}, dc.AuthConfiguration{}); err != nil {
+	if plErr := pool.Client.PullImage(
+		dc.PullImageOptions{
+			Repository: "wavesplatform/wavesnode",
+			Tag:        "latest",
+			Platform:   "linux/amd64"},
+		dc.AuthConfiguration{}); plErr != nil {
 		log.Fatalf("Failed to pull node image: %v", err)
 	}
 	var buildArgs []dc.BuildArg

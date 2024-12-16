@@ -14,7 +14,7 @@ COPY cmd cmd
 COPY pkg pkg
 
 ARG WITH_RACE_SUFFIX=""
-RUN make build-node-linux-amd64${WITH_RACE_SUFFIX}
+RUN make build-node-native${WITH_RACE_SUFFIX}
 
 FROM alpine:3.21.0
 ENV TZ=Etc/UTC \
@@ -34,7 +34,7 @@ ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
 
 USER $APP_USER
 
-COPY --from=builder /app/build/bin/linux-amd64/node /app/node
+COPY --from=builder /app/build/bin/native/node /app/node
 
 STOPSIGNAL SIGINT
 
@@ -64,3 +64,5 @@ CMD /app/node \
     -microblock-interval 2s \
     -blacklist-residence-time 0 \
     -rate-limiter-opts="rps=100&burst=100" \
+    -min-peers-mining=2 \
+    -disable-miner=$DISABLE_MINER \

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/binary"
 	"encoding/json"
 	stderrs "errors"
 	"fmt"
@@ -11,6 +12,8 @@ import (
 	"github.com/ory/dockertest/v3"
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
@@ -38,6 +41,48 @@ const (
 type TestConfig struct {
 	Accounts           []AccountInfo
 	BlockchainSettings *settings.BlockchainSettings
+}
+
+func (c *TestConfig) GetRichestAccount() AccountInfo {
+	r := c.Accounts[0]
+	for _, a := range c.Accounts {
+		if a.Amount > r.Amount {
+			r = a
+		}
+	}
+	return r
+}
+
+func (c *TestConfig) GenesisSH() crypto.Digest {
+	const uint64Size = 8
+
+	hash, err := crypto.NewFastHash()
+	if err != nil {
+		panic(err)
+	}
+	var emptyDigest crypto.Digest
+	hash.Sum(emptyDigest[:0])
+
+	// Create binary entries for all genesis transactions.
+	prevSH := emptyDigest
+	for _, a := range c.Accounts {
+		hash.Reset()
+		buf := make([]byte, proto.WavesAddressSize+uint64Size)
+		copy(buf, a.Address[:])
+		binary.BigEndian.PutUint64(buf[proto.WavesAddressSize:], a.Amount)
+		hash.Write(buf)
+		var txSH crypto.Digest
+		hash.Sum(txSH[:0])
+
+		hash.Reset()
+		hash.Write(prevSH[:])
+		hash.Write(txSH[:])
+
+		var newSH crypto.Digest
+		hash.Sum(newSH[:0])
+		prevSH = newSH
+	}
+	return prevSH
 }
 
 type DockerConfigurator interface {
@@ -166,6 +211,7 @@ func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 			"WALLET_PASSWORD=itest",
 			"DESIRED_REWARD=" + c.cfg.DesiredBlockRewardString(),
 			"SUPPORTED_FEATURES=" + c.cfg.SupportedFeaturesString(),
+			"DISABLE_MINER=" + c.cfg.DisableGoMiningString(),
 		},
 		ExposedPorts: []string{
 			GRPCAPIPort + NetTCP,
