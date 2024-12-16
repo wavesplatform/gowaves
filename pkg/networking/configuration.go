@@ -12,7 +12,7 @@ const (
 
 // Config allows to set some parameters of the [Conn] or it's underlying connection.
 type Config struct {
-	logger                 *slog.Logger
+	slogHandler            slog.Handler
 	protocol               Protocol
 	handler                Handler
 	keepAlive              bool
@@ -25,7 +25,6 @@ type Config struct {
 // Other parameters are set to their default values.
 func NewConfig(p Protocol, h Handler) *Config {
 	return &Config{
-		logger:                 slog.Default(),
 		protocol:               p,
 		handler:                h,
 		keepAlive:              true,
@@ -35,9 +34,9 @@ func NewConfig(p Protocol, h Handler) *Config {
 	}
 }
 
-// WithLogger sets the logger.
-func (c *Config) WithLogger(logger *slog.Logger) *Config {
-	c.logger = logger
+// WithSlogHandler sets the slog handler.
+func (c *Config) WithSlogHandler(handler slog.Handler) *Config {
+	c.slogHandler = handler
 	return c
 }
 

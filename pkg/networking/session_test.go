@@ -385,7 +385,7 @@ func TestCloseParentContext(t *testing.T) {
 func testConfig(t testing.TB, p networking.Protocol, h networking.Handler, direction string) *networking.Config {
 	log := slogt.New(t)
 	return networking.NewConfig(p, h).
-		WithLogger(log).
+		WithSlogHandler(log.Handler()).
 		WithWriteTimeout(1 * time.Second).
 		WithKeepAliveDisabled().
 		WithSlogAttribute(slog.String("direction", direction))

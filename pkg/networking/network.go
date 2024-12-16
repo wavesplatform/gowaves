@@ -3,18 +3,24 @@ package networking
 import (
 	"context"
 	"errors"
-	"fmt"
 	"io"
 )
 
 const Namespace = "NET"
 
+// TODO: Consider special Error type for all [networking] errors.
 var (
 	// ErrInvalidConfigurationNoProtocol is used when the configuration has no protocol.
 	ErrInvalidConfigurationNoProtocol = errors.New("invalid configuration: empty protocol")
 
 	// ErrInvalidConfigurationNoHandler is used when the configuration has no handler.
 	ErrInvalidConfigurationNoHandler = errors.New("invalid configuration: empty handler")
+
+	// ErrInvalidConfigurationNoKeepAliveInterval is used when the configuration has an invalid keep-alive interval.
+	ErrInvalidConfigurationNoKeepAliveInterval = errors.New("invalid configuration: invalid keep-alive interval value")
+
+	// ErrInvalidConfigurationNoWriteTimeout is used when the configuration has an invalid write timeout.
+	ErrInvalidConfigurationNoWriteTimeout = errors.New("invalid configuration: invalid write timeout value")
 
 	// ErrUnacceptableHandshake is used when the handshake is not accepted.
 	ErrUnacceptableHandshake = errors.New("handshake is not accepted")
@@ -23,7 +29,7 @@ var (
 	ErrSessionShutdown = errors.New("session shutdown")
 
 	// ErrConnectionWriteTimeout indicates that we hit the timeout writing to the underlying stream connection.
-	ErrConnectionWriteTimeout = fmt.Errorf("connection write timeout")
+	ErrConnectionWriteTimeout = errors.New("connection write timeout")
 
 	// ErrKeepAliveProtocolFailure is used when the protocol failed to provide a keep-alive message.
 	ErrKeepAliveProtocolFailure = errors.New("protocol failed to provide a keep-alive message")

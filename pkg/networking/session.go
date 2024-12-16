@@ -12,6 +12,7 @@ import (
 	"net"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/execution"
@@ -36,10 +37,9 @@ type Session struct {
 	sendLock sync.Mutex       // Guards the sendCh.
 	sendCh   chan *sendPacket // sendCh is used to send data to the connection.
 
-	establishedLock sync.Mutex // Guards the established field.
-	established     bool       // Indicates that incoming Handshake was successfully accepted.
-	shutdownLock    sync.Mutex // Guards the shutdown field.
-	shutdown        bool       // shutdown is used to safely close the Session.
+	receiving   atomic.Bool // Indicates that receiveLoop already running.
+	established atomic.Bool // Indicates that incoming Handshake was successfully accepted.
+	shutdown    sync.Once   // shutdown is used to safely close the Session.
 }
 
 // NewSession is used to construct a new session.
@@ -50,9 +50,16 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 	if config.handler == nil {
 		return nil, ErrInvalidConfigurationNoHandler
 	}
+	if config.keepAlive && config.keepAliveInterval <= 0 {
+		return nil, ErrInvalidConfigurationNoKeepAliveInterval
+	}
+	if config.connectionWriteTimeout <= 0 {
+		return nil, ErrInvalidConfigurationNoWriteTimeout
+	}
 	if tp == nil {
 		return nil, ErrEmptyTimerPool
 	}
+
 	sCtx, cancel := context.WithCancel(ctx)
 	s := &Session{
 		g:       execution.NewTaskGroup(suppressContextCancellationError),
@@ -65,17 +72,16 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 		sendCh:  make(chan *sendPacket, 1), // TODO: Make the size of send channel configurable.
 	}
 
-	attributes := []any{
+	if config.slogHandler == nil {
+		config.slogHandler = discardingHandler{}
+	}
+
+	sa := [...]any{
 		slog.String("namespace", Namespace),
 		slog.String("remote", s.RemoteAddr().String()),
 	}
-	attributes = append(attributes, config.attributes...)
-
-	if config.logger == nil {
-		s.logger = slog.Default().With(attributes...)
-	} else {
-		s.logger = config.logger.With(attributes...)
-	}
+	attrs := append(sa[:], config.attributes...)
+	s.logger = slog.New(config.slogHandler).With(attrs...)
 
 	s.g.Run(s.receiveLoop)
 	s.g.Run(s.sendLoop)
@@ -109,29 +115,24 @@ func (s *Session) RemoteAddr() net.Addr {
 // Close is used to close the session. It is safe to call Close multiple times from different goroutines,
 // subsequent calls do nothing.
 func (s *Session) Close() error {
-	s.shutdownLock.Lock()
-	defer s.shutdownLock.Unlock()
+	var err error
+	s.shutdown.Do(func() {
+		s.logger.Debug("Closing session")
+		clErr := s.conn.Close() // Close the underlying connection.
+		if clErr != nil {
+			s.logger.Warn("Failed to close underlying connection", "error", clErr)
+		}
+		s.logger.Debug("Underlying connection closed")
 
-	if s.shutdown {
-		return nil // Fast path - session already closed.
-	}
-	s.shutdown = true
+		s.cancel() // Cancel the underlying context to interrupt the loops.
 
-	s.logger.Debug("Closing session")
-	clErr := s.conn.Close() // Close the underlying connection.
-	if clErr != nil {
-		s.logger.Warn("Failed to close underlying connection", "error", clErr)
-	}
-	s.logger.Debug("Underlying connection closed")
+		s.logger.Debug("Waiting for loops to finish")
+		err = s.g.Wait() // Wait for loops to finish.
 
-	s.cancel() // Cancel the underlying context to interrupt the loops.
+		err = errors.Join(err, clErr) // Combine loops finalization errors with connection close error.
 
-	s.logger.Debug("Waiting for loops to finish")
-	err := s.g.Wait() // Wait for loops to finish.
-
-	err = errors.Join(err, clErr) // Combine loops finalization errors with connection close error.
-
-	s.logger.Debug("Session closed", "error", err)
+		s.logger.Debug("Session closed", "error", err)
+	})
 	return err
 }
 
@@ -157,7 +158,9 @@ func (s *Session) waitForSend(data []byte) error {
 	timer.Reset(s.config.connectionWriteTimeout)
 	defer s.tp.Put(timer)
 
-	s.logger.Debug("Sending data", "data", base64.StdEncoding.EncodeToString(data))
+	if s.logger.Enabled(s.ctx, slog.LevelDebug) {
+		s.logger.Debug("Sending data", "data", base64.StdEncoding.EncodeToString(data))
+	}
 	ready := &sendPacket{data: data, err: errCh}
 	select {
 	case s.sendCh <- ready:
@@ -171,8 +174,8 @@ func (s *Session) waitForSend(data []byte) error {
 	}
 
 	dataCopy := func() {
-		if data == nil {
-			return // A nil data is ignored.
+		if len(data) == 0 {
+			return // An empty data is ignored.
 		}
 
 		// In the event of session shutdown or connection write timeout, we need to prevent `send` from reading
@@ -215,10 +218,12 @@ func (s *Session) sendLoop() error {
 			return s.ctx.Err()
 
 		case packet := <-s.sendCh:
-			s.logger.Debug("Sending data to connection",
-				"data", base64.StdEncoding.EncodeToString(packet.data))
 			packet.mu.Lock()
-			if packet.data != nil {
+			if s.logger.Enabled(s.ctx, slog.LevelDebug) {
+				s.logger.Debug("Sending data to connection",
+					"data", base64.StdEncoding.EncodeToString(packet.data))
+			}
+			if len(packet.data) != 0 {
 				// Copy the data into the buffer to avoid holding a mutex lock during the writing.
 				_, err := dataBuf.Write(packet.data)
 				if err != nil {
@@ -253,9 +258,9 @@ func (s *Session) sendLoop() error {
 // receiveLoop continues to receive data until a fatal error is encountered or underlying connection is closed.
 // Receive loop works after handshake and accepts only length-prepended messages.
 func (s *Session) receiveLoop() error {
-	s.establishedLock.Lock() // Prevents from running multiple receiveLoops.
-	defer s.establishedLock.Unlock()
-
+	if !s.receiving.CompareAndSwap(false, true) {
+		return nil // Prevent running multiple receive loops.
+	}
 	for {
 		if err := s.receive(); err != nil {
 			if errors.Is(err, ErrConnectionClosedOnRead) {
@@ -268,7 +273,7 @@ func (s *Session) receiveLoop() error {
 }
 
 func (s *Session) receive() error {
-	if s.established {
+	if s.established.Load() {
 		hdr := s.config.protocol.EmptyHeader()
 		return s.readMessage(hdr)
 	}
@@ -295,7 +300,7 @@ func (s *Session) readHandshake() error {
 		return ErrUnacceptableHandshake
 	}
 	// Handshake is acceptable, we can switch the session into established state.
-	s.established = true
+	s.established.Store(true)
 	s.config.handler.OnHandshake(s, hs)
 	return nil
 }
@@ -303,10 +308,13 @@ func (s *Session) readHandshake() error {
 func (s *Session) readMessage(hdr Header) error {
 	// Read the header
 	if _, err := hdr.ReadFrom(s.bufRead); err != nil {
-		if errors.Is(err, io.EOF) || strings.Contains(err.Error(), "closed") ||
-			strings.Contains(err.Error(), "reset by peer") ||
-			strings.Contains(err.Error(), "broken pipe") { // In Docker network built on top of pipe, we get this error on close.
+		if errors.Is(err, io.EOF) {
 			return ErrConnectionClosedOnRead
+		}
+		if errMsg := err.Error(); strings.Contains(errMsg, "closed") ||
+			strings.Contains(errMsg, "reset by peer") ||
+			strings.Contains(errMsg, "broken pipe") { // In Docker network built on top of pipe, we get this error on close.
+			return errors.Join(ErrConnectionClosedOnRead, err) // Wrap the error with ErrConnectionClosedOnRead.
 		}
 		s.logger.Error("Failed to read header", "error", err)
 		return err
@@ -329,7 +337,7 @@ func (s *Session) readMessage(hdr Header) error {
 func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 	// Wrap in a limited reader
 	s.logger.Debug("Reading message payload", "len", hdr.PayloadLength())
-	conn = &io.LimitedReader{R: conn, N: int64(hdr.PayloadLength())}
+	conn = io.LimitReader(conn, int64(hdr.PayloadLength()))
 
 	// Copy into buffer
 	s.receiveLock.Lock()
@@ -354,7 +362,10 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 	// We lock the buffer from modification on the time of invocation of OnReceive handler.
 	// The slice of bytes passed into the handler is only valid for the duration of the handler invocation.
 	// So inside the handler better deserialize message or make a copy of the bytes.
-	s.logger.Debug("Invoking OnReceive handler", "message", base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
+	if s.logger.Enabled(s.ctx, slog.LevelDebug) {
+		s.logger.Debug("Invoking OnReceive handler", "message",
+			base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
+	}
 	s.config.handler.OnReceive(s, s.receiveBuffer.Bytes()) // Invoke OnReceive handler.
 	s.receiveBuffer.Reset()                                // Reset the buffer for the next message.
 	return nil
