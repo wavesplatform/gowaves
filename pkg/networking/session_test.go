@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -98,6 +97,7 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 
 	clientHandler := netmocks.NewMockHandler(t)
 	serverHandler := netmocks.NewMockHandler(t)
@@ -110,33 +110,36 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 
 	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
 	require.NoError(t, err)
+	clientHandler.On("OnClose", clientSession).Return()
+
 	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
 	require.NoError(t, err)
-
-	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 	serverHandler.On("OnClose", serverSession).Return()
-	clientHandler.On("OnClose", clientSession).Return()
 
 	// Lock
 	pc, ok := clientConn.(*pipeConn)
 	require.True(t, ok)
 	pc.writeBlocker.Lock()
-	runtime.Gosched()
 
 	// Send handshake to server, but writing will block because the clientConn is locked.
 	n, err := clientSession.Write([]byte("hello"))
 	require.ErrorIs(t, err, networking.ErrConnectionWriteTimeout)
 	assert.Equal(t, 0, n)
 
-	runtime.Gosched()
-
 	err = serverSession.Close()
 	assert.NoError(t, err)
 
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func() {
+		err = clientSession.Close()
+		assert.ErrorIs(t, err, io.ErrClosedPipe)
+		wg.Done()
+	}()
+
 	// Unlock "timeout" and close client.
 	pc.writeBlocker.Unlock()
-	err = clientSession.Close()
-	assert.ErrorIs(t, err, io.ErrClosedPipe)
+	wg.Wait()
 }
 
 func TestSessionTimeoutOnMessage(t *testing.T) {
