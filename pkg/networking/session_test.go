@@ -6,7 +6,6 @@ import (
 	"errors"
 	"io"
 	"log/slog"
-	"runtime"
 	"sync"
 	"testing"
 	"time"
@@ -98,6 +97,7 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 
 	clientHandler := netmocks.NewMockHandler(t)
 	serverHandler := netmocks.NewMockHandler(t)
@@ -110,33 +110,36 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 
 	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
 	require.NoError(t, err)
+	clientHandler.On("OnClose", clientSession).Return()
+
 	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
 	require.NoError(t, err)
-
-	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 	serverHandler.On("OnClose", serverSession).Return()
-	clientHandler.On("OnClose", clientSession).Return()
 
 	// Lock
 	pc, ok := clientConn.(*pipeConn)
 	require.True(t, ok)
 	pc.writeBlocker.Lock()
-	runtime.Gosched()
 
 	// Send handshake to server, but writing will block because the clientConn is locked.
 	n, err := clientSession.Write([]byte("hello"))
-	require.Error(t, err)
+	require.ErrorIs(t, err, networking.ErrConnectionWriteTimeout)
 	assert.Equal(t, 0, n)
-
-	runtime.Gosched()
 
 	err = serverSession.Close()
 	assert.NoError(t, err)
 
+	wg := new(sync.WaitGroup)
+	wg.Add(1)
+	go func() {
+		err = clientSession.Close()
+		assert.ErrorIs(t, err, io.ErrClosedPipe)
+		wg.Done()
+	}()
+
 	// Unlock "timeout" and close client.
 	pc.writeBlocker.Unlock()
-	err = clientSession.Close()
-	assert.Error(t, err)
+	wg.Wait()
 }
 
 func TestSessionTimeoutOnMessage(t *testing.T) {
@@ -199,7 +202,7 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 		clientWG.Wait() // Wait for pipe to be locked.
 		// On receiving handshake from server, send the message back to server.
 		_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-		require.Error(t, msgErr)
+		require.ErrorIs(t, msgErr, networking.ErrConnectionWriteTimeout)
 	})
 
 	time.Sleep(1 * time.Second) // Let timeout occur.
@@ -210,7 +213,7 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 	pc.writeBlocker.Unlock() // Unlock the pipe.
 
 	err = clientSession.Close()
-	assert.Error(t, err) // Expect error because connection to the server already closed.
+	assert.ErrorIs(t, err, io.ErrClosedPipe) // Expect error because connection to the server already closed.
 }
 
 func TestDoubleClose(t *testing.T) {
@@ -305,13 +308,13 @@ func TestOnClosedByOtherSide(t *testing.T) {
 		// Try to send message to server, but it will fail because server is already closed.
 		time.Sleep(10 * time.Millisecond) // Wait for server to close.
 		_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-		require.Error(t, msgErr)
+		require.ErrorIs(t, msgErr, io.ErrClosedPipe)
 		wg.Done()
 	})
 
 	wg.Wait() // Wait for client to finish.
 	err = clientSession.Close()
-	assert.Error(t, err) // Close reports the same error, because it was registered in the send loop.
+	assert.ErrorIs(t, err, io.ErrClosedPipe) // Close reports the same error, because it was registered in the send loop.
 }
 
 func TestCloseParentContext(t *testing.T) {
@@ -370,7 +373,7 @@ func TestCloseParentContext(t *testing.T) {
 		// Try to send message to server, but it will fail because server is already closed.
 		time.Sleep(10 * time.Millisecond) // Wait for server to close.
 		_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-		require.Error(t, msgErr)
+		require.ErrorIs(t, msgErr, networking.ErrSessionShutdown)
 		wg.Done()
 	})
 
