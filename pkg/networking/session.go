@@ -50,9 +50,16 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 	if config.handler == nil {
 		return nil, ErrInvalidConfigurationNoHandler
 	}
+	if config.keepAlive && config.keepAliveInterval <= 0 {
+		return nil, ErrInvalidConfigurationNoKeepAliveInterval
+	}
+	if config.connectionWriteTimeout <= 0 {
+		return nil, ErrInvalidConfigurationNoWriteTimeout
+	}
 	if tp == nil {
 		return nil, ErrEmptyTimerPool
 	}
+
 	sCtx, cancel := context.WithCancel(ctx)
 	s := &Session{
 		g:       execution.NewTaskGroup(suppressContextCancellationError),
@@ -65,17 +72,16 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 		sendCh:  make(chan *sendPacket, 1), // TODO: Make the size of send channel configurable.
 	}
 
-	attributes := []any{
+	if config.slogHandler == nil {
+		config.slogHandler = discardingHandler{}
+	}
+
+	sa := [...]any{
 		slog.String("namespace", Namespace),
 		slog.String("remote", s.RemoteAddr().String()),
 	}
-	attributes = append(attributes, config.attributes...)
-
-	if config.logger == nil {
-		s.logger = slog.Default().With(attributes...)
-	} else {
-		s.logger = config.logger.With(attributes...)
-	}
+	attrs := append(sa[:], config.attributes...)
+	s.logger = slog.New(config.slogHandler).With(attrs...)
 
 	s.g.Run(s.receiveLoop)
 	s.g.Run(s.sendLoop)

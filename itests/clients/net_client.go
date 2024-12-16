@@ -46,7 +46,7 @@ func NewNetClient(
 	h := newHandler(t, peers)
 	log := slogt.New(t)
 	conf := networking.NewConfig(p, h).
-		WithLogger(log).
+		WithSlogHandler(log.Handler()).
 		WithWriteTimeout(networkTimeout).
 		WithKeepAliveInterval(pingInterval).
 		WithSlogAttributes(slog.String("suite", t.Name()), slog.String("impl", impl.String()))
