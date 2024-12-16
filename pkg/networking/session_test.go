@@ -125,7 +125,7 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 
 	// Send handshake to server, but writing will block because the clientConn is locked.
 	n, err := clientSession.Write([]byte("hello"))
-	require.Error(t, err)
+	require.ErrorIs(t, err, networking.ErrConnectionWriteTimeout)
 	assert.Equal(t, 0, n)
 
 	runtime.Gosched()
@@ -136,7 +136,7 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	// Unlock "timeout" and close client.
 	pc.writeBlocker.Unlock()
 	err = clientSession.Close()
-	assert.Error(t, err)
+	assert.ErrorIs(t, err, io.ErrClosedPipe)
 }
 
 func TestSessionTimeoutOnMessage(t *testing.T) {
@@ -199,7 +199,7 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 		clientWG.Wait() // Wait for pipe to be locked.
 		// On receiving handshake from server, send the message back to server.
 		_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-		require.Error(t, msgErr)
+		require.ErrorIs(t, msgErr, networking.ErrConnectionWriteTimeout)
 	})
 
 	time.Sleep(1 * time.Second) // Let timeout occur.
@@ -210,7 +210,7 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 	pc.writeBlocker.Unlock() // Unlock the pipe.
 
 	err = clientSession.Close()
-	assert.Error(t, err) // Expect error because connection to the server already closed.
+	assert.ErrorIs(t, err, io.ErrClosedPipe) // Expect error because connection to the server already closed.
 }
 
 func TestDoubleClose(t *testing.T) {
@@ -305,13 +305,13 @@ func TestOnClosedByOtherSide(t *testing.T) {
 		// Try to send message to server, but it will fail because server is already closed.
 		time.Sleep(10 * time.Millisecond) // Wait for server to close.
 		_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-		require.Error(t, msgErr)
+		require.ErrorIs(t, msgErr, io.ErrClosedPipe)
 		wg.Done()
 	})
 
 	wg.Wait() // Wait for client to finish.
 	err = clientSession.Close()
-	assert.Error(t, err) // Close reports the same error, because it was registered in the send loop.
+	assert.ErrorIs(t, err, io.ErrClosedPipe) // Close reports the same error, because it was registered in the send loop.
 }
 
 func TestCloseParentContext(t *testing.T) {
@@ -370,7 +370,7 @@ func TestCloseParentContext(t *testing.T) {
 		// Try to send message to server, but it will fail because server is already closed.
 		time.Sleep(10 * time.Millisecond) // Wait for server to close.
 		_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-		require.Error(t, msgErr)
+		require.ErrorIs(t, msgErr, networking.ErrSessionShutdown)
 		wg.Done()
 	})
 
