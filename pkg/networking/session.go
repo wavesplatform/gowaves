@@ -192,8 +192,12 @@ func (s *Session) waitForSend(data []byte) error {
 	}
 
 	select {
-	case err := <-errCh:
-		s.logger.Debug("Data sent", "error", err)
+	case err, ok := <-errCh:
+		if !ok {
+			s.logger.Debug("Data sent successfully")
+			return nil // No error, data was sent successfully.
+		}
+		s.logger.Debug("Error sending data", "error", err)
 		return err
 	case <-s.ctx.Done():
 		dataCopy()
@@ -249,8 +253,8 @@ func (s *Session) sendLoop() error {
 				s.logger.Debug("Data written into connection")
 			}
 
-			// No error, successful send
-			s.asyncSendErr(packet.err, nil)
+			// No error, close the channel.
+			close(packet.err)
 		}
 	}
 }
@@ -347,6 +351,7 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 		// Allocate the receiving buffer just-in-time to fit the full message.
 		s.receiveBuffer = bytes.NewBuffer(make([]byte, 0, hdr.HeaderLength()+hdr.PayloadLength()))
 	}
+	defer s.receiveBuffer.Reset()
 	_, err := hdr.WriteTo(s.receiveBuffer)
 	if err != nil {
 		s.logger.Error("Failed to write header to receiving buffer", "error", err)
@@ -367,7 +372,6 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 			base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
 	}
 	s.config.handler.OnReceive(s, s.receiveBuffer.Bytes()) // Invoke OnReceive handler.
-	s.receiveBuffer.Reset()                                // Reset the buffer for the next message.
 	return nil
 }
 
@@ -399,11 +403,11 @@ func (s *Session) keepaliveLoop() error {
 type sendPacket struct {
 	mu   sync.Mutex // Protects data from unsafe reads.
 	data []byte
-	err  chan error
+	err  chan<- error
 }
 
 // asyncSendErr is used to try an async send of an error.
-func (s *Session) asyncSendErr(ch chan error, err error) {
+func (s *Session) asyncSendErr(ch chan<- error, err error) {
 	if ch == nil {
 		return
 	}
