@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
 func makeErrorMessage(errMsg string, args ...interface{}) string {
@@ -111,4 +112,13 @@ func NextCheckParameterCheck(t *testing.T, expected uint64, actualGo, actualScal
 	errMsg := makeErrorMessage("NextChecks are mismatch", args...)
 	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
 	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
+}
+
+// Need to rewrite
+func DataEntryAndKeyCheck(t *testing.T, expected *waves.DataEntry, actualGo, actualScala *waves.DataEntry, args ...interface{}) {
+	errMsg := makeErrorMessage("DataEntry parameters are mismatch", args...)
+	assert.Equalf(t, expected.Key, actualGo.Key, "Node Go: "+errMsg)
+	assert.Equalf(t, expected.Key, actualScala.Key, "Node Go: "+errMsg)
+	assert.Equalf(t, expected.Value, actualGo.Value, "Node Go: "+errMsg)
+	assert.Equalf(t, expected.Value, actualScala.Value, "Node Scala: "+errMsg)
 }

@@ -40,11 +40,11 @@ func BroadcastWithTestData(suite *f.BaseSuite, version byte, testdata testdata.S
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func CreateDAppAccount(suite *f.BaseSuite, version byte, from int, amount uint64,
+func CreateDAppAccount(suite *f.BaseSuite, from int, amount uint64,
 	scriptName string) config.AccountInfo {
 	accNumber := transfer.GetNewAccountWithFunds(suite, testdata.TransferMaxVersion, utl.TestChainID, from, amount)
 	td := testdata.GetDataForDAppAccount(suite, utl.GetAccount(suite, accNumber), scriptName)
-	tx := NewSignedSetScriptTransactionWithTestData(suite, version, td)
+	tx := NewSignedSetScriptTransactionWithTestData(suite, testdata.SetScriptMaxVersion, td)
 	utl.SendAndWaitTransaction(suite, tx, td.ChainID, true)
 	return utl.GetAccount(suite, accNumber)
 }

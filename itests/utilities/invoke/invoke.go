@@ -9,7 +9,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-// Need to add [T any]!
 func NewSignedInvokeScriptTransaction(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
 	senderSK crypto.SecretKey, scriptRecipient proto.Recipient, call proto.FunctionCall, payments proto.ScriptPayments,
 	feeAsset proto.OptionalAsset, fee, timestamp uint64) proto.Transaction {
@@ -23,11 +22,11 @@ func NewSignedInvokeScriptTransaction(suite *f.BaseSuite, version byte, scheme p
 	return tx
 }
 
-type MakeTx func(suite *f.BaseSuite, testdata testdata.InvokeScriptTestData, version byte,
+type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.InvokeScriptTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction
 
-func MakeTxAndGetDiffBalances(suite *f.BaseSuite, testdata testdata.InvokeScriptTestData, version byte,
-	waitForTx bool, makeTx MakeTx) (utl.ConsideredTransaction, utl.BalanceInWaves) {
+func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.InvokeScriptTestData[T], version byte,
+	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves) {
 	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.SenderAccount.Address)
 	tx := makeTx(suite, testdata, version, waitForTx)
 	actualDiffBalanceInWaves := utl.GetActualDiffBalanceInWaves(
@@ -37,20 +36,20 @@ func MakeTxAndGetDiffBalances(suite *f.BaseSuite, testdata testdata.InvokeScript
 		utl.NewBalanceInWaves(actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala)
 }
 
-func NewSignedInvokeScriptTransactionWithTestData(suite *f.BaseSuite, version byte,
-	testdata testdata.InvokeScriptTestData) proto.Transaction {
+func NewSignedInvokeScriptTransactionWithTestData[T any](suite *f.BaseSuite, version byte,
+	testdata testdata.InvokeScriptTestData[T]) proto.Transaction {
 	return NewSignedInvokeScriptTransaction(suite, version, testdata.ChainID, testdata.SenderAccount.PublicKey,
 		testdata.SenderAccount.SecretKey, testdata.ScriptRecipient, testdata.Call, testdata.Payments, testdata.FeeAsset,
 		testdata.Fee, testdata.Timestamp)
 }
 
-func SendWithTestData(suite *f.BaseSuite, testdata testdata.InvokeScriptTestData, version byte,
+func SendWithTestData[T any](suite *f.BaseSuite, testdata testdata.InvokeScriptTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignedInvokeScriptTransactionWithTestData(suite, version, testdata)
 	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func BroadcastWithTestData(suite *f.BaseSuite, testdata testdata.InvokeScriptTestData, version byte,
+func BroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.InvokeScriptTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignedInvokeScriptTransactionWithTestData(suite, version, testdata)
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)

@@ -22,11 +22,11 @@ type SetScriptData struct {
 	Timestamp     uint64
 }
 
-/*func readDAppScript(suite *f.BaseSuite, name string) proto.Script {
+func readDAppScript(suite *f.BaseSuite, name string) proto.Script {
 	script, err := utl.ReadScript(ScriptDir, name)
 	require.NoError(suite.T(), err, "unable to read dApp script")
 	return script
-}*/
+}
 
 func getDAppScript(suite *f.BaseSuite, name string) proto.Script {
 	script, err := utl.ReadAndCompileRideScript(ScriptDir, name)
