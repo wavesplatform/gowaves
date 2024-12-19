@@ -395,7 +395,10 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 		return proto.EthereumHash{}, errors.New("timeout waiting response from internal FSM")
 	case err := <-respCh:
 		if !timer.Stop() {
-			<-timer.C
+			select {
+			case <-timer.C:
+			default:
+			}
 		}
 		if err != nil {
 			zap.S().Debugf("Eth_SendRawTransaction: error from internal FSM for ethereum tx (ethTxID=%q, to=%q, from=%q): %v",

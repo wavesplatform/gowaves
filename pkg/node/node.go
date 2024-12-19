@@ -222,7 +222,10 @@ func (a *Node) runInternalMetrics(ctx context.Context, ch chan peer.ProtoMessage
 		select {
 		case <-ctx.Done():
 			if !timer.Stop() {
-				<-timer.C
+				select {
+				case <-timer.C:
+				default:
+				}
 			}
 			return
 		case <-timer.C:
@@ -238,7 +241,10 @@ func (a *Node) runOutgoingConnections(ctx context.Context) {
 		select {
 		case <-ctx.Done():
 			if !timer.Stop() {
-				<-timer.C
+				select {
+				case <-timer.C:
+				default:
+				}
 			}
 			return
 		case <-timer.C:

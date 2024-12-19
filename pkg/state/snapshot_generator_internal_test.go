@@ -1309,6 +1309,78 @@ func TestLeaseAndLeaseCancelInTheSameInvokeTx(t *testing.T) {
 	assert.NoError(t, flushErr)
 }
 
+func TestDoubleLeaseCancelApplicationFailure(t *testing.T) {
+	const (
+		script = `
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		
+		let addr = Address(base58'3PD8uesEwWoKu63ujwbJXeJdk7jygdimJST')
+		
+		@Callable(i)
+		func call() = {
+			let lease = Lease(addr, 1000000)
+			let leaseID = calculateLeaseId(lease)
+			[lease, LeaseCancel(leaseID), LeaseCancel(leaseID)]
+		}`
+		leaseAmount        = 1000000
+		leaseRecipientAddr = "3PD8uesEwWoKu63ujwbJXeJdk7jygdimJST"
+	)
+	scriptBytes, errs := compiler.Compile(script, false, true)
+	require.NoError(t, errors.Join(errs...))
+
+	to := createInvokeApplierTestObjects(t)
+	info := to.fallibleValidationParams(t)
+
+	dAppInfo := testGlobal.recipientInfo
+	to.setScript(t, testGlobal.recipientInfo.addr, dAppInfo.pk, scriptBytes)
+
+	amount := uint64(1000)
+	startBalance := amount + 1
+
+	wavesBalSender := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance + invokeFee,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	wavesBalMiner := wavesValue{
+		profile: balanceProfile{
+			balance: startBalance,
+		},
+		leaseChange:   false,
+		balanceChange: false,
+	}
+	err := to.state.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), wavesBalSender, blockID0)
+	assert.NoError(t, err)
+	err = to.state.stor.balances.setWavesBalance(testGlobal.minerInfo.addr.ID(), wavesBalMiner, blockID0)
+	assert.NoError(t, err)
+
+	snapshotApplierInfo := newBlockSnapshotsApplierInfo(info.checkerInfo, to.state.settings.AddressSchemeCharacter)
+	cleanup := to.state.appender.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
+	defer cleanup()
+
+	testData := invokeApplierTestData{
+		payments: []proto.ScriptPayment{},
+		fc:       proto.NewFunctionCall("call", []proto.Argument{}),
+		info:     info,
+	}
+
+	tx := createInvokeScriptWithProofs(t, testData.payments, testData.fc, feeAsset, invokeFee)
+	assert.NoError(t, err, "failed to sign invoke script tx")
+
+	lRcpAddr := proto.MustAddressFromString(leaseRecipientAddr)
+	lID := proto.GenerateLeaseScriptActionID(proto.NewRecipientFromAddress(lRcpAddr), leaseAmount, 0, *tx.ID)
+
+	_, _, resErr := to.applyAndSaveInvokeIfOk(t, tx, testData.info, false)
+	assert.Errorf(t, resErr, "failed to cancel leasing \"%s\", leasing is already cancelled", lID.String())
+
+	flushErr := to.state.stor.flush()
+	assert.NoError(t, flushErr)
+}
+
 func remove(slice []proto.AtomicSnapshot, s int) []proto.AtomicSnapshot {
 	return append(slice[:s], slice[s+1:]...)
 }

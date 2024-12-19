@@ -114,7 +114,7 @@ func (s *accountsDataStorage) setLastAddrNum(lastAddrNum uint64) error {
 	return nil
 }
 
-// newestAddressToNum returns the number of given address. It looks up for the address in cache map first
+// newestAddrToNum returns the number of given address. It looks up for the address in cache map first
 // and if not present in state. The second result parameter is true if account's number was found cache otherwise false.
 // Error can be `keyvalue.ErrNotFound` if no corresponding number found for given address.
 func (s *accountsDataStorage) newestAddrToNum(addr proto.Address) (uint64, bool, error) {

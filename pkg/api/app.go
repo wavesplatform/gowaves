@@ -111,7 +111,10 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transa
 	)
 	defer func() {
 		if !delay.Stop() && !fired {
-			<-delay.C
+			select {
+			case <-delay.C:
+			default:
+			}
 		}
 	}()
 	select {

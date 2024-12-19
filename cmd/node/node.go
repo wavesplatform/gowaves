@@ -154,7 +154,7 @@ func (c *config) logParameters() {
 	zap.S().Debugf("build-state-hashes: %t", c.buildStateHashes)
 	zap.S().Debugf("bind-address: %s", c.bindAddress)
 	zap.S().Debugf("vote: %s", c.minerVoteFeatures)
-	zap.S().Debugf("reward: %s", c.reward)
+	zap.S().Debugf("reward: %d", c.reward)
 	zap.S().Debugf("obsolescence: %s", c.obsolescencePeriod)
 	zap.S().Debugf("disable-miner %t", c.disableMiner)
 	zap.S().Debugf("wallet-path: %s", c.walletPath)
@@ -640,14 +640,21 @@ func spawnPeersByAddresses(ctx context.Context, addressesByComma string, pm *pee
 	}
 	addresses := strings.Split(addressesByComma, ",")
 	for _, addr := range addresses {
-		tcpAddr := proto.NewTCPAddrFromString(addr)
-		if tcpAddr.Empty() {
-			// That means that configuration parameter is invalid
-			return errors.Errorf("Failed to parse TCPAddr from string %q", tcpAddr.String())
+		peerInfos, err := proto.NewPeerInfosFromString(addr)
+		if err != nil {
+			return errors.Wrapf(err, "failed to resolve TCP addresses from string %q", addr)
 		}
-		if pErr := pm.AddAddress(ctx, tcpAddr); pErr != nil {
-			// That means that we have problems with peers storage
-			return errors.Wrapf(pErr, "failed to add address %q into known peers storage", tcpAddr.String())
+		for _, pi := range peerInfos {
+			tcpAddr := proto.NewTCPAddr(pi.Addr, int(pi.Port))
+			if tcpAddr.Empty() {
+				return errors.Errorf("failed to create TCP address from IP %q and port %d",
+					fmt.Stringer(pi.Addr), pi.Port,
+				)
+			}
+			if pErr := pm.AddAddress(ctx, tcpAddr); pErr != nil {
+				// That means that we have problems with peers storage
+				return errors.Wrapf(pErr, "failed to add address %q into known peers storage", tcpAddr.String())
+			}
 		}
 	}
 	return nil

@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.22
+go 1.22.0
 
 require (
 	filippo.io/edwards25519 v1.1.0
@@ -11,7 +11,7 @@ require (
 	github.com/consensys/gnark v0.11.0
 	github.com/consensys/gnark-crypto v0.14.0
 	github.com/coocood/freecache v1.2.4
-	github.com/elliotchance/orderedmap/v2 v2.4.0
+	github.com/elliotchance/orderedmap/v2 v2.6.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.7.0
 	github.com/go-chi/chi v4.1.2+incompatible
@@ -33,7 +33,7 @@ require (
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/stoewer/go-strcase v1.3.0
-	github.com/stretchr/testify v1.9.0
+	github.com/stretchr/testify v1.10.0
 	github.com/syndtr/goleveldb v1.0.1-0.20210819022825-2ae1ddf74ef7
 	github.com/throttled/throttled/v2 v2.12.0
 	github.com/tidwall/sjson v1.2.5
@@ -43,12 +43,12 @@ require (
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.11.0
 	go.uber.org/zap v1.27.0
-	golang.org/x/crypto v0.28.0
+	golang.org/x/crypto v0.31.0
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
-	golang.org/x/sync v0.8.0
-	golang.org/x/sys v0.26.0
-	google.golang.org/grpc v1.67.1
-	google.golang.org/protobuf v1.35.1
+	golang.org/x/sync v0.10.0
+	golang.org/x/sys v0.28.0
+	google.golang.org/grpc v1.69.2
+	google.golang.org/protobuf v1.36.0
 	moul.io/zapfilter v1.7.0
 )
 
@@ -106,10 +106,10 @@ require (
 	github.com/xeipuuv/gojsonreference v0.0.0-20180127040603-bd5ef7bd5415 // indirect
 	github.com/xeipuuv/gojsonschema v1.2.0 // indirect
 	go.uber.org/multierr v1.11.0 // indirect
-	golang.org/x/net v0.29.0 // indirect
-	golang.org/x/term v0.25.0 // indirect
-	golang.org/x/text v0.19.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20240903143218-8af14fe29dc1 // indirect
+	golang.org/x/net v0.30.0 // indirect
+	golang.org/x/term v0.27.0 // indirect
+	golang.org/x/text v0.21.0 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20241015192408-796eee8c2d53 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect

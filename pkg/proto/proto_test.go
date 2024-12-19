@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"math"
 	"net"
 	"sort"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -277,10 +279,90 @@ func TestPeerInfoMarshalJSON(t *testing.T) {
 }
 
 func TestNewPeerInfoFromString(t *testing.T) {
-	rs, err := NewPeerInfoFromString("34.253.153.4:6868")
-	require.NoError(t, err)
-	assert.Equal(t, "34.253.153.4", rs.Addr.String())
-	assert.EqualValues(t, 6868, rs.Port)
+	tests := []struct {
+		in                      string
+		out                     PeerInfo
+		err                     string
+		platformDependentErrMsg bool
+	}{
+		{in: "34.253.153.4:6868", out: PeerInfo{net.IPv4(34, 253, 153, 4).To4(), 6868}, err: ""},
+		{
+			in:  "34.444.153.4:6868",
+			out: PeerInfo{},
+			err: "failed to resolve host: failed to resolve host \"34.444.153.4\": lookup 34.444.153.4: no such host",
+		},
+		{
+			in:                      "jfhasjdhfkmnn:6868",
+			out:                     PeerInfo{},
+			err:                     "failed to resolve host: failed to resolve host \"jfhasjdhfkmnn\": ",
+			platformDependentErrMsg: true,
+		},
+		{
+			in:  "localhost:6868",
+			out: PeerInfo{net.IPv4(127, 0, 0, 1).To4(), 6868},
+			err: "",
+		},
+		{
+			in:  "127.0.0.1:6868",
+			out: PeerInfo{net.IPv4(127, 0, 0, 1).To4(), 6868},
+			err: "",
+		},
+		{
+			in:  fmt.Sprintf("34.44.153.4:%d", math.MaxUint16+1),
+			out: PeerInfo{},
+			err: fmt.Sprintf("invalid port \"%d\"", math.MaxUint16+1),
+		},
+		{
+			in:  fmt.Sprintf("34.44.153.4:%d", -42),
+			out: PeerInfo{},
+			err: fmt.Sprintf("invalid port \"%d\"", -42),
+		},
+		{in: "34.44.153.4:bugaga", out: PeerInfo{}, err: "invalid port \"bugaga\""},
+		{in: "34.44.153.4:0", out: PeerInfo{}, err: "invalid port \"0\""},
+		{in: "34.44.153.4:", out: PeerInfo{}, err: "invalid port \"\""},
+		{
+			in:  "34.44.153.4",
+			out: PeerInfo{},
+			err: "failed to split host and port: address 34.44.153.4: missing port in address",
+		},
+		{
+			in:  "34.44.153.4:42:",
+			out: PeerInfo{},
+			err: "failed to split host and port: address 34.44.153.4:42:: too many colons in address",
+		},
+	}
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
+			t.Run("NewPeerInfoFromString", func(t *testing.T) {
+				rs, err := NewPeerInfoFromString(tc.in)
+				if tc.err != "" {
+					if tc.platformDependentErrMsg {
+						assert.ErrorContains(t, err, tc.err)
+					} else {
+						assert.EqualError(t, err, tc.err)
+					}
+				} else {
+					require.NoError(t, err)
+					assert.Equal(t, tc.out, rs)
+				}
+			})
+			t.Run("NewPeerInfosFromString", func(t *testing.T) {
+				rs, err := NewPeerInfosFromString(tc.in)
+				if tc.err != "" {
+					if tc.platformDependentErrMsg {
+						assert.ErrorContains(t, err, tc.err)
+					} else {
+						assert.EqualError(t, err, tc.err)
+					}
+				} else {
+					require.NoError(t, err)
+					assert.Len(t, rs, 1)
+					res := rs[0]
+					assert.Equal(t, tc.out, res)
+				}
+			})
+		})
+	}
 }
 
 func TestPeerInfoUnmarshalJSON(t *testing.T) {
