@@ -1,0 +1,45 @@
+{-# STDLIB_VERSION 6 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func checkStorageUntouchedByAddress(accountAddress: String) = {
+  let address = addressFromStringValue(accountAddress)
+   if isDataStorageUntouched(address) then {
+     [
+        BooleanEntry("test", true)
+     ]
+   } else {
+     [
+        BooleanEntry("test", false)
+     ]
+   }
+}
+
+@Callable(i)
+func checkStorageUntouchedByAlias(accountAlias: String) = {
+  let alias = Alias(accountAlias)
+  if isDataStorageUntouched(alias) then {
+    [
+      BooleanEntry("test", true)
+    ]
+  } else {
+    [
+      BooleanEntry("test", false)
+    ]
+  }
+}
+
+@Callable(i)
+func writeData() = {
+  let accountAddress = toBase58String(i.caller.bytes)
+    [
+      BinaryEntry(accountAddress + "bin", base58''),
+      BooleanEntry(accountAddress + "bool", true),
+      IntegerEntry(accountAddress + "int", 1),
+      StringEntry(accountAddress + "str", "")
+    ]
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)

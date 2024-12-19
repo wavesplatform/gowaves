@@ -140,3 +140,18 @@ func (c *GRPCClient) syncedWavesAvailableBalance(
 	}
 	return balanceAtHeight{impl: c.impl, balance: available, height: after}, nil
 }
+
+// GetDataEntries return data entries for account
+func (c *GRPCClient) GetDataEntryByKey(t *testing.T, address proto.WavesAddress, key string) *waves.DataEntry {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	dr := g.DataRequest{
+		Address: address.Bytes(),
+		Key:     key,
+	}
+	stream, err := g.NewAccountsApiClient(c.conn).GetDataEntries(ctx, &dr, grpc.EmptyCallOption{})
+	assert.NoError(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
+	d, err := stream.Recv()
+	assert.NoError(t, err, "failed to get data entry from %s node with error: %s", c.impl.String(), err)
+	return d.GetEntry()
+}

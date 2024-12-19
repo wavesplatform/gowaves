@@ -370,6 +370,25 @@ func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) prot
 	return address
 }
 
+// String representation of an Alias should have a following format: "alias:<scheme>:<alias>".
+// Scheme should be represented with a one-byte ASCII symbol.
+func GetAliasFromString(suite *f.BaseSuite, alias string, chainId proto.Scheme) *proto.Alias {
+	var newAliasStr string
+	aliasPref := "alias:"
+	chainIdPref := string(chainId) + ":"
+	prefix := aliasPref + chainIdPref
+	if strings.HasPrefix(alias, prefix) {
+		newAliasStr = alias
+	} else if strings.HasPrefix(alias, chainIdPref) {
+		newAliasStr = aliasPref + alias
+	} else {
+		newAliasStr = prefix + alias
+	}
+	newAlias, err := proto.NewAliasFromString(newAliasStr)
+	require.NoError(suite.T(), err, "Can't get alias from string")
+	return newAlias
+}
+
 func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
 	return suite.Clients.GoClient.GRPCClient.GetWavesBalance(suite.T(), address).GetAvailable()
 }
@@ -386,6 +405,16 @@ func GetAssetInfo(suite *f.BaseSuite, assetID crypto.Digest) *client.AssetsDetai
 	assetInfo, err := suite.Clients.ScalaClient.HTTPClient.GetAssetDetails(assetID)
 	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
 	return assetInfo
+}
+
+func GetAssetByID(assetID *crypto.Digest) proto.OptionalAsset {
+	var asset proto.OptionalAsset
+	if assetID == nil {
+		asset = proto.NewOptionalAssetWaves()
+	} else {
+		asset = *proto.NewOptionalAssetFromDigest(*assetID)
+	}
+	return asset
 }
 
 func GetHeightGo(suite *f.BaseSuite) uint64 {
@@ -943,4 +972,12 @@ func GetRollbackToHeightScala(suite *f.BaseSuite, height uint64, returnTxToUtx b
 func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) (*proto.BlockID, *proto.BlockID) {
 	suite.T().Logf("Rollback to height: %d from height: %d", height, GetHeight(suite))
 	return GetRollbackToHeightGo(suite, height, returnTxToUtx), GetRollbackToHeightScala(suite, height, returnTxToUtx)
+}
+
+func GetAccountDataGoByKey(suite *f.BaseSuite, address proto.WavesAddress, key string) *waves.DataEntry {
+	return suite.Clients.GoClient.GRPCClient.GetDataEntryByKey(suite.T(), address, key)
+}
+
+func GetAccountDataScalaByKey(suite *f.BaseSuite, address proto.WavesAddress, key string) *waves.DataEntry {
+	return suite.Clients.ScalaClient.GRPCClient.GetDataEntryByKey(suite.T(), address, key)
 }

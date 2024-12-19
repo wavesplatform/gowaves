@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -54,6 +55,11 @@ func SetAliasToAccount(suite *f.BaseSuite, version byte, scheme proto.Scheme, al
 	account := utl.GetAccount(suite, accNumber)
 	AliasSend(suite, version, scheme, account.PublicKey, account.SecretKey, alias,
 		100000, utl.GetCurrentTimestampInMs(), true)
+}
+
+func SetAliasToRecipient(suite *f.BaseSuite, alias string, account config.AccountInfo) {
+	AliasSend(suite, testdata.AliasMaxVersion, utl.TestChainID, account.PublicKey, account.SecretKey, alias,
+		500000, utl.GetCurrentTimestampInMs(), true)
 }
 
 func SetAliasToAccountByAPI(suite *f.BaseSuite, version byte, scheme proto.Scheme, alias string, accNumber int) {
