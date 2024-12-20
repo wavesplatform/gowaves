@@ -72,8 +72,9 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 		sendCh:  make(chan *sendPacket, 1), // TODO: Make the size of send channel configurable.
 	}
 
-	if config.slogHandler == nil {
-		config.slogHandler = discardingHandler{}
+	slogHandler := config.slogHandler
+	if slogHandler == nil {
+		slogHandler = discardingHandler{}
 	}
 
 	sa := [...]any{
@@ -81,7 +82,7 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 		slog.String("remote", s.RemoteAddr().String()),
 	}
 	attrs := append(sa[:], config.attributes...)
-	s.logger = slog.New(config.slogHandler).With(attrs...)
+	s.logger = slog.New(slogHandler).With(attrs...)
 
 	s.g.Run(s.receiveLoop)
 	s.g.Run(s.sendLoop)
