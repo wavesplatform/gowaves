@@ -73,7 +73,7 @@ func GetInvokeScriptAccountStorageUntouchedTestData(suite *f.BaseSuite, dAppAlia
 		"Check account storage is untouched by alias": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAlias(*utl.GetAliasFromString(suite, dAppAliasOrAddress, utl.TestChainID)),
-			proto.NewFunctionCall("checkStorageUntouchedByAlias",
+			proto.NewFunctionCall("checkStorageUntouchedByAddress",
 				proto.Arguments{proto.NewStringArgument(accountAddressOrAlias)}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
