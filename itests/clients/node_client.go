@@ -10,8 +10,10 @@ import (
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"golang.org/x/sync/errgroup"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -24,10 +26,19 @@ type NodesClients struct {
 	ScalaClient *NodeUniversalClient
 }
 
-func NewNodesClients(t *testing.T, goPorts, scalaPorts *d.PortConfig) *NodesClients {
+func NewNodesClients(ctx context.Context, t *testing.T, goPorts, scalaPorts *d.PortConfig) *NodesClients {
+	sp, err := proto.NewPeerInfoFromString(config.DefaultIP + ":" + scalaPorts.BindPort)
+	require.NoError(t, err, "failed to create Scala peer info")
+	gp, err := proto.NewPeerInfoFromString(config.DefaultIP + ":" + goPorts.BindPort)
+	require.NoError(t, err, "failed to create Go peer info")
+	peers := []proto.PeerInfo{sp, gp}
 	return &NodesClients{
-		GoClient:    NewNodeUniversalClient(t, NodeGo, goPorts.RESTAPIPort, goPorts.GRPCPort),
-		ScalaClient: NewNodeUniversalClient(t, NodeScala, scalaPorts.RESTAPIPort, scalaPorts.GRPCPort),
+		GoClient: NewNodeUniversalClient(
+			ctx, t, NodeGo, goPorts.RESTAPIPort, goPorts.GRPCPort, goPorts.BindPort, peers,
+		),
+		ScalaClient: NewNodeUniversalClient(
+			ctx, t, NodeScala, scalaPorts.RESTAPIPort, scalaPorts.GRPCPort, scalaPorts.BindPort, peers,
+		),
 	}
 }
 
@@ -236,7 +247,6 @@ func (c *NodesClients) SynchronizedWavesBalances(
 	if err != nil {
 		t.Logf("Errors while requesting balances: %v", err)
 	}
-	t.Log("Entering loop")
 	for {
 		commonHeight := mostCommonHeight(sbs)
 		toRetry := make([]proto.WavesAddress, 0, len(addresses))
@@ -271,6 +281,29 @@ func (c *NodesClients) SynchronizedWavesBalances(
 		r.Height = sb.Height
 	}
 	return r
+}
+
+func (c *NodesClients) Handshake() {
+	c.GoClient.Connection.SendHandshake()
+	c.ScalaClient.Connection.SendHandshake()
+}
+
+func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, scala bool) {
+	t.Logf("Sending message to Go node: %T", m)
+	c.GoClient.Connection.SendMessage(m)
+	t.Log("Message sent to Go node")
+	if scala {
+		t.Logf("Sending message to Scala node: %T", m)
+		c.ScalaClient.Connection.SendMessage(m)
+		t.Log("Message sent to Scala node")
+	}
+}
+
+func (c *NodesClients) Close(t *testing.T) {
+	c.GoClient.GRPCClient.Close(t)
+	c.GoClient.Connection.Close()
+	c.ScalaClient.GRPCClient.Close(t)
+	c.ScalaClient.Connection.Close()
 }
 
 func (c *NodesClients) requestNodesAvailableBalances(
