@@ -13,7 +13,7 @@ func TestSaveSnapshots(t *testing.T) {
 	snapshotStor := newSnapshotsAtHeight(storage.hs, storage.settings.AddressSchemeCharacter)
 	ids := genRandBlockIds(t, 1)
 	snapshots := proto.BlockSnapshot{
-		TxSnapshots: [][]proto.AtomicSnapshot{{
+		TransactionsSnapshots: []proto.TxSnapshot{{
 			proto.WavesBalanceSnapshot{Address: *generateRandomRecipient(t).Address(), Balance: 100},
 			proto.WavesBalanceSnapshot{Address: *generateRandomRecipient(t).Address(), Balance: 100},
 			proto.WavesBalanceSnapshot{Address: *generateRandomRecipient(t).Address(), Balance: 100},
@@ -28,5 +28,5 @@ func TestSaveSnapshots(t *testing.T) {
 	fromStorage, err := snapshotStor.getSnapshots(10)
 	assert.NoError(t, err)
 
-	assert.Equal(t, len(fromStorage.TxSnapshots[0]), len(snapshots.TxSnapshots[0]))
+	assert.Equal(t, len(fromStorage.TransactionsSnapshots[0]), len(snapshots.TransactionsSnapshots[0]))
 }
