@@ -20,7 +20,7 @@ FROM alpine:3.21.0
 ENV TZ=Etc/UTC \
     APP_USER=gowaves
 
-RUN apk add --no-cache bind-tools
+RUN apk add --no-cache bind-tools curl
 
 RUN addgroup -S $APP_USER \
     && adduser -S $APP_USER -G $APP_USER
@@ -35,6 +35,8 @@ ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
 USER $APP_USER
 
 COPY --from=builder /app/build/bin/native/node /app/node
+
+HEALTHCHECK CMD curl -f http://localhost:6869/node/status || exit 1
 
 STOPSIGNAL SIGINT
 

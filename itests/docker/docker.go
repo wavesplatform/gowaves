@@ -324,7 +324,7 @@ func (d *Docker) removeNetworks() error {
 }
 
 func (d *Docker) createNetwork() error {
-	n, err := d.pool.CreateNetwork(d.suite + "-" + networkName)
+	n, err := d.pool.CreateNetwork(d.suite+"-"+networkName, WithIPv6Disabled)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create network for suite %s", d.suite)
 	}
@@ -342,4 +342,8 @@ func (d *Docker) mkLogsDir() error {
 		return errors.Wrapf(mkErr, "failed to create logs dir for suite %s", d.suite)
 	}
 	return nil
+}
+
+func WithIPv6Disabled(conf *dc.CreateNetworkOptions) {
+	conf.EnableIPv6 = false
 }
