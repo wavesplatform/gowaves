@@ -7,6 +7,8 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -54,6 +56,8 @@ type txAppender struct {
 	// buildApiData flag indicates that additional data for API is built when
 	// appending transactions.
 	buildApiData bool
+
+	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension
 }
 
 func newTxAppender(
@@ -64,6 +68,7 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
+	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension,
 ) (*txAppender, error) {
 	buildAPIData, err := stateDB.stateStoresApiData()
 	if err != nil {
@@ -112,6 +117,7 @@ func newTxAppender(
 		diffApplier:       diffApplier,
 		buildApiData:      buildAPIData,
 		ethTxKindResolver: ethKindResolver,
+		bUpdatesExtension: bUpdatesExtension,
 	}, nil
 }
 
@@ -834,6 +840,20 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+
+	// write updates into the updatesChannel here
+	// TODO possibly run it in a goroutine? make sure goroutines run in order?
+	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
+		// TODO get info from block snapshot?
+
+		// blockSnapshot.TxSnapshots.
+
+		updtErr := a.updateBlockchainUpdateInfo(blockInfo, params.block)
+		if updtErr != nil {
+			return updtErr
+		}
+	}
+
 	// check whether the calculated snapshot state hash equals with the provided one
 	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
 		return errors.Wrapf(errBlockSnapshotStateHashMismatch,
@@ -853,6 +873,29 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	return a.blockDiffer.saveCurFeeDistr(params.block)
+}
+
+func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader) error {
+	// TODO improve this by using diffs instead grabbing all the records every time
+	dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesExtension.L2ContractAddress()))
+	if err != nil && !errors.Is(err, proto.ErrNotFound) {
+		return err
+	}
+	blockID := blockHeader.BlockID()
+	bUpdatesInfo := blockchaininfo.BUpdatesInfo{
+		BlockUpdatesInfo: blockchaininfo.BlockUpdatesInfo{
+			Height:      blockInfo.Height,
+			VRF:         blockInfo.VRF,
+			BlockID:     blockID,
+			BlockHeader: *blockHeader,
+		},
+		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+			AllDataEntries: dataEntries,
+			Height:         blockInfo.Height,
+		},
+	}
+	a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
+	return nil
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {
