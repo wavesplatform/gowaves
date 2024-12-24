@@ -844,6 +844,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// write updates into the updatesChannel here
 	// TODO possibly run it in a goroutine? make sure goroutines run in order?
 	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
+		// TODO get info from block snapshot?
+
+		//blockSnapshot.TxSnapshots
+
 		updtErr := a.updateBlockchainUpdateInfo(blockInfo, params.block)
 		if updtErr != nil {
 			return updtErr
