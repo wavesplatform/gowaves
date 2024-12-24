@@ -846,7 +846,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
 		// TODO get info from block snapshot?
 
-		//blockSnapshot.TxSnapshots
+		// blockSnapshot.TxSnapshots.
 
 		updtErr := a.updateBlockchainUpdateInfo(blockInfo, params.block)
 		if updtErr != nil {
