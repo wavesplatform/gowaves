@@ -61,6 +61,7 @@ func GetInvokeScriptAccountStorageUntouchedTestData(suite *f.BaseSuite, dAppAlia
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
 			500000,
+			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
 			ExpectedInvokeScriptDataPositive{
 				Address: dApp.Address,

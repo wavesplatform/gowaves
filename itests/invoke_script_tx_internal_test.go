@@ -30,10 +30,10 @@ func (suite *InvokeScriptSuite) Test_CheckThatAccountStorageIsUntouched() {
 	newAccount := transfer.GetNewAccountWithFunds(&suite.BaseSuite, testdata.TransferMaxVersion,
 		utl.TestChainID, utl.DefaultAccountForLoanFunds, 1000000000)
 	// set alias for new account
-	alias.SetAliasToRecipient(&suite.BaseSuite, "testAcc", utl.GetAccount(&suite.BaseSuite, newAccount))
+	alias.SetAliasToRecipient(&suite.BaseSuite, "testacc", utl.GetAccount(&suite.BaseSuite, newAccount))
 	// get test data for invoke script transaction
 	invokeScriptTestData := testdata.GetInvokeScriptAccountStorageUntouchedTestData(&suite.BaseSuite,
-		"testdapp", "testAcc")
+		"testdapp", "testacc")
 	for _, version := range versions {
 		for name, td := range invokeScriptTestData {
 			caseName := utl.GetTestcaseNameWithVersion(name, version)
