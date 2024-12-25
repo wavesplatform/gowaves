@@ -2367,8 +2367,10 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 	return entries, nil
 }
 
+// IsStateUntouched returns true if the account has no data entries.
+// ATTENTION: Despite the name, this function operates on the newest state. The name is kept for compatibility.
 func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
-	addr, err := s.recipientToAddress(account)
+	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
 		return false, wrapErr(RetrievalError, err)
 	}
