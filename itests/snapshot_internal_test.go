@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"math"
 	"math/big"
+	"reflect"
 	"testing"
 	"time"
 
@@ -33,6 +34,8 @@ func (s *SimpleSnapshotSuite) SetupSuite() {
 }
 
 func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
+	const messageTimeout = 5 * time.Second
+
 	acc := s.Cfg.GetRichestAccount()
 
 	// Initialize genesis block ID.
@@ -58,17 +61,33 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 		time.Sleep(delay)
 	}
 
+	err = s.Client.Connection.SubscribeForMessages(
+		reflect.TypeOf(&proto.GetBlockIdsMessage{}),
+		reflect.TypeOf(&proto.GetBlockMessage{}),
+		reflect.TypeOf(&proto.ScoreMessage{}),
+		reflect.TypeOf(&proto.MicroBlockRequestMessage{}),
+	)
+	require.NoError(s.T(), err, "failed to subscribe for messages")
+
 	// Calculate new score and send score to the node.
 	genesisScore := calculateScore(s.Cfg.BlockchainSettings.Genesis.BaseTarget)
 	blockScore := calculateCumulativeScore(genesisScore, bl.BaseTarget)
 	scoreMsg := &proto.ScoreMessage{Score: blockScore.Bytes()}
 	s.Client.Connection.SendMessage(scoreMsg)
-	time.Sleep(100 * time.Millisecond)
+
+	// Wait for the node to request block IDs.
+	_, err = s.Client.Connection.AwaitMessage(reflect.TypeOf(&proto.GetBlockIdsMessage{}), messageTimeout)
+	require.NoError(s.T(), err, "failed to wait for block IDs request")
 
 	// Send block IDs to the node.
 	blocksMsg := &proto.BlockIdsMessage{Blocks: []proto.BlockID{bl.BlockID()}}
 	s.Client.Connection.SendMessage(blocksMsg)
 	time.Sleep(100 * time.Millisecond)
+
+	// Wait for the node to request the block.
+	blockID, err := s.Client.Connection.AwaitGetBlockMessage(messageTimeout)
+	require.NoError(s.T(), err, "failed to wait for block request")
+	assert.Equal(s.T(), bl.BlockID(), blockID)
 
 	// Marshal the block and send it to the node.
 	bb, err := bl.MarshalToProtobuf(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
@@ -76,7 +95,12 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	blMsg := &proto.PBBlockMessage{PBBlockBytes: bb}
 	s.Client.Connection.SendMessage(blMsg)
 
-	// Wait for 2.5 seconds and send mb-block.
+	// Wait for updated score message.
+	score, err := s.Client.Connection.AwaitScoreMessage(messageTimeout)
+	require.NoError(s.T(), err, "failed to wait for score")
+	assert.Equal(s.T(), blockScore, score)
+
+	// Wait for 2.5 seconds and send micro-block.
 	time.Sleep(2500 * time.Millisecond)
 
 	// Add transactions to block.
@@ -89,14 +113,18 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	// Create micro-block with the transaction and unchanged state hash.
 	mb, inv := createMicroBlockAndInv(s.T(), *bl, s.Cfg.BlockchainSettings, tx, acc.SecretKey, acc.PublicKey, sh)
 
+	// Send micro-block inv to the node.
 	ib, err := inv.MarshalBinary()
 	require.NoError(s.T(), err, "failed to marshal inv")
-
 	invMsg := &proto.MicroBlockInvMessage{Body: ib}
-	time.Sleep(100 * time.Millisecond)
 	s.Client.Connection.SendMessage(invMsg)
 
-	time.Sleep(100 * time.Millisecond)
+	// Wait for the node to request micro-block.
+	mbID, err := s.Client.Connection.AwaitMicroblockRequest(messageTimeout)
+	require.NoError(s.T(), err, "failed to wait for micro-block request")
+	assert.Equal(s.T(), inv.TotalBlockID, mbID)
+
+	// Marshal the micro-block and send it to the node.
 	mbb, err := mb.MarshalToProtobuf(s.Cfg.BlockchainSettings.AddressSchemeCharacter)
 	require.NoError(s.T(), err, "failed to marshal micro block")
 	mbMsg := &proto.PBMicroBlockMessage{MicroBlockBytes: mbb}
