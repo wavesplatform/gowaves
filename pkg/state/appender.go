@@ -897,15 +897,11 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 			if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
 				if dataEntriesSnapshot.Address == a.bUpdatesExtension.L2ContractAddress() {
 					l2ContractCount++
-					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntriesSnapshot.DataEntries
+					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries, dataEntriesSnapshot.DataEntries...)
 				}
 			}
 		}
 	}
-	if l2ContractCount > 0 {
-		return errors.Errorf("unexpected multiple data entries snapshots for l2 contract, %d", l2ContractCount)
-	}
-
 	a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
 	return nil
 }
