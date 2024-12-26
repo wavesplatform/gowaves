@@ -543,6 +543,11 @@ func (s *testStorageObjects) transferWaves(
 	s.setWavesBalance(t, to, toBalance, blockID)
 }
 
+func (s *testStorageObjects) createAlias(t testing.TB, addr proto.WavesAddress, alias string, blockID proto.BlockID) {
+	err := s.entities.aliases.createAlias(alias, addr, blockID)
+	assert.NoError(t, err, "createAlias() failed")
+}
+
 func storeScriptByAddress(
 	stor *blockchainEntitiesStorage,
 	scheme proto.Scheme,

@@ -74,6 +74,8 @@ vetcheck:
 strict-vet-check:
 	golangci-lint run -c .golangci-strict.yml
 
+build-chaincmp-native:
+	@go build -o build/bin/native/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
 build-chaincmp-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
 build-chaincmp-darwin:
@@ -89,6 +91,8 @@ dist-chaincmp: release-chaincmp
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_Linux-amd64.tar.gz ./chaincmp*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_macOS-amd64.tar.gz ./chaincmp*
 
+build-blockcmp-native:
+	@go build -o build/bin/native/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
 build-blockcmp-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
 build-blockcmp-darwin:
@@ -147,6 +151,8 @@ dist-importer: release-importer
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_Linux-amd64.tar.gz ./importer*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-amd64.tar.gz ./importer*
 
+build-wallet-native:
+	@go build -o build/bin/native/wallet ./cmd/wallet
 build-wallet-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/wallet ./cmd/wallet
 build-wallet-darwin:
@@ -162,6 +168,8 @@ dist-wallet: release-wallet
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_Linux-amd64.tar.gz ./wallet*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_macOS-amd64.tar.gz ./wallet*
 
+build-rollback-native:
+	@go build -o build/bin/native/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
 build-rollback-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
 build-rollback-darwin:
@@ -171,6 +179,8 @@ build-rollback-windows:
 
 release-rollback: ver build-rollback-linux build-rollback-darwin build-rollback-windows
 
+build-compiler-native:
+	@go build -o build/bin/native/compiler ./cmd/compiler
 build-compiler-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/compiler ./cmd/compiler
 build-compiler-darwin:
@@ -186,6 +196,8 @@ dist-compiler: release-compiler
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_Linux-amd64.tar.gz ./compiler*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_macOS-amd64.tar.gz ./compiler*
 
+build-statehash-native:
+	@go build -o build/bin/native/statehash ./cmd/statehash
 build-statehash-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/statehash ./cmd/statehash
 build-statehash-darwin:
@@ -195,6 +207,8 @@ build-statehash-windows:
 
 release-statehash: ver build-statehash-linux build-statehash-darwin build-statehash-windows
 
+build-convert-native:
+	@go build -o build/bin/native/convert ./cmd/convert
 build-convert-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/convert ./cmd/convert
 build-convert-darwin:
@@ -211,6 +225,8 @@ dist-convert: release-convert
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/convert_$(VERSION)_macOS-amd64.tar.gz ./convert*
 
 dist: clean dist-chaincmp dist-importer dist-node dist-wallet dist-compiler
+
+build: vendor ver build-chaincmp-native build-blockcmp-native build-node-native build-importer-native build-wallet-native build-rollback-native build-compiler-native build-statehash-native build-convert-native
 
 mock:
 	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper
