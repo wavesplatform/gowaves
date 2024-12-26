@@ -846,12 +846,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
 		// TODO get info from block snapshot?
 
-		// blockSnapshot.TxSnapshots.
-
-		updtErr := a.updateBlockchainUpdateInfo(blockInfo, params.block)
-		if updtErr != nil {
-			return updtErr
-		}
+		a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
 	}
 
 	// check whether the calculated snapshot state hash equals with the provided one
@@ -875,12 +870,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	return a.blockDiffer.saveCurFeeDistr(params.block)
 }
 
-func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader) error {
-	// TODO improve this by using diffs instead grabbing all the records every time
-	dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesExtension.L2ContractAddress()))
-	if err != nil && !errors.Is(err, proto.ErrNotFound) {
-		return err
-	}
+func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
+	blockSnapshot proto.BlockSnapshot) {
 	blockID := blockHeader.BlockID()
 	bUpdatesInfo := blockchaininfo.BUpdatesInfo{
 		BlockUpdatesInfo: blockchaininfo.BlockUpdatesInfo{
@@ -890,12 +881,24 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 			BlockHeader: *blockHeader,
 		},
 		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
-			AllDataEntries: dataEntries,
+			AllDataEntries: nil,
 			Height:         blockInfo.Height,
 		},
 	}
+	// Write the L2 contract updates into the structure.
+	l2ContractCount := 0
+	for _, txSnapshots := range blockSnapshot.TxSnapshots {
+		for _, snapshot := range txSnapshots {
+			if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
+				if dataEntriesSnapshot.Address == a.bUpdatesExtension.L2ContractAddress() {
+					l2ContractCount++
+					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
+						dataEntriesSnapshot.DataEntries...)
+				}
+			}
+		}
+	}
 	a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
-	return nil
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {

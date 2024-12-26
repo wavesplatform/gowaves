@@ -28,14 +28,13 @@ type BUpdatesInfo struct {
 // TODO wrap errors.
 
 func CompareBUpdatesInfo(current, previous BUpdatesInfo,
-	scheme proto.Scheme, heightLimit uint64) (bool, BUpdatesInfo, error) {
+	scheme proto.Scheme) (bool, BUpdatesInfo, error) {
 	changes := BUpdatesInfo{
 		BlockUpdatesInfo:    BlockUpdatesInfo{},
 		ContractUpdatesInfo: L2ContractDataEntries{},
 	}
 
 	equal := true
-	// todo REMOVE POINTERS
 	if current.BlockUpdatesInfo.Height != previous.BlockUpdatesInfo.Height {
 		equal = false
 		changes.BlockUpdatesInfo.Height = current.BlockUpdatesInfo.Height
@@ -58,19 +57,8 @@ func CompareBUpdatesInfo(current, previous BUpdatesInfo,
 		changes.BlockUpdatesInfo.BlockHeader = current.BlockUpdatesInfo.BlockHeader
 	}
 
-	previousFilteredDataEntries, err := filterDataEntries(previous.BlockUpdatesInfo.Height-heightLimit,
+	equalEntries, dataEntryChanges, err := compareDataEntries(current.ContractUpdatesInfo.AllDataEntries,
 		previous.ContractUpdatesInfo.AllDataEntries)
-	if err != nil {
-		return false, BUpdatesInfo{}, err
-	}
-	currentFilteredDataEntries, err := filterDataEntries(current.BlockUpdatesInfo.Height-heightLimit,
-		current.ContractUpdatesInfo.AllDataEntries)
-	if err != nil {
-		return false, BUpdatesInfo{}, err
-	}
-
-	equalEntries, dataEntryChanges, err := compareDataEntries(currentFilteredDataEntries,
-		previousFilteredDataEntries)
 	if err != nil {
 		return false, BUpdatesInfo{}, err
 	}
@@ -152,5 +140,5 @@ func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.Data
 }
 
 func statesEqual(state BUpdatesExtensionState, scheme proto.Scheme) (bool, BUpdatesInfo, error) {
-	return CompareBUpdatesInfo(*state.currentState, *state.previousState, scheme, state.Limit)
+	return CompareBUpdatesInfo(*state.currentState, *state.previousState, scheme)
 }

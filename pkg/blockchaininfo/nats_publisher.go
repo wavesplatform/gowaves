@@ -159,7 +159,6 @@ func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, sc
 	bu.currentState = &updates
 	if bu.previousState == nil {
 		// publish initial updates
-
 		filteredDataEntries, err := filterDataEntries(updates.BlockUpdatesInfo.Height-bu.Limit,
 			updates.ContractUpdatesInfo.AllDataEntries)
 		if err != nil {

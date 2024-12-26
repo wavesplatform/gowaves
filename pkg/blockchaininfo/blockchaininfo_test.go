@@ -104,7 +104,7 @@ func TestChangesGenerationNewEntries(t *testing.T) {
 	}
 
 	equal, changes, err := blockchaininfo.CompareBUpdatesInfo(currentBlockInfo, previousBlockInfo,
-		proto.TestNetScheme, 10)
+		proto.TestNetScheme)
 	if err != nil {
 		return
 	}
@@ -183,7 +183,7 @@ func TestChangesGenerationContainsPrevious(t *testing.T) {
 	}
 
 	equal, changes, err := blockchaininfo.CompareBUpdatesInfo(currentBlockInfo, previousBlockInfo,
-		proto.TestNetScheme, 10)
+		proto.TestNetScheme)
 	if err != nil {
 		return
 	}
@@ -245,7 +245,7 @@ func TestNoChangesGeneration(t *testing.T) {
 	}
 
 	equal, changes, err := blockchaininfo.CompareBUpdatesInfo(currentBlockInfo, previousBlockInfo,
-		proto.TestNetScheme, 10)
+		proto.TestNetScheme)
 	if err != nil {
 		return
 	}
