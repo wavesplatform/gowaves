@@ -846,12 +846,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
 		// TODO get info from block snapshot?
 
-		// blockSnapshot.TxSnapshots.
-
-		updtErr := a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
-		if updtErr != nil {
-			return updtErr
-		}
+		a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
 	}
 
 	// check whether the calculated snapshot state hash equals with the provided one
@@ -876,7 +871,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 }
 
 func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
-	blockSnapshot proto.BlockSnapshot) error {
+	blockSnapshot proto.BlockSnapshot) {
 	blockID := blockHeader.BlockID()
 	bUpdatesInfo := blockchaininfo.BUpdatesInfo{
 		BlockUpdatesInfo: blockchaininfo.BlockUpdatesInfo{
@@ -897,13 +892,13 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 			if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
 				if dataEntriesSnapshot.Address == a.bUpdatesExtension.L2ContractAddress() {
 					l2ContractCount++
-					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries, dataEntriesSnapshot.DataEntries...)
+					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
+						dataEntriesSnapshot.DataEntries...)
 				}
 			}
 		}
 	}
 	a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
-	return nil
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {
