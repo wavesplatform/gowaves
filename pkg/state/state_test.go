@@ -900,3 +900,122 @@ func TestGeneratingBalanceValuesInRide(t *testing.T) {
 		})
 	})
 }
+
+func TestIsStateUntouched(t *testing.T) {
+	createTestScript := func(t *testing.T, libV ast.LibraryVersion) *ast.Tree {
+		const scriptTemplate = `
+			{-# STDLIB_VERSION %d #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			@Callable(i)
+			func checkStorageUntouchedByAlias(accountAlias: String) = {
+  				let alias = Alias(accountAlias)
+  				let res = if isDataStorageUntouched(alias) then {
+    				unit
+  				} else {
+					throw("Data storage is not untouched by alias")
+  				}
+				([], res)
+			}
+		`
+		scriptSrc := fmt.Sprintf(scriptTemplate, libV)
+		tree, errs := ridec.CompileToTree(scriptSrc)
+		require.NoError(t, stderrs.Join(errs...), "ride.CompileToTree() failed")
+		return tree
+	}
+	doTest := func(t *testing.T, state *stateManager, testObj *testStorageObjects, libV ast.LibraryVersion) {
+		// create test accounts
+		dApp, err := proto.NewKeyPair(binary.BigEndian.AppendUint32(nil, 999))
+		require.NoError(t, err, "NewKeyPair() failed")
+		anotherAccount, err := proto.NewKeyPair(binary.BigEndian.AppendUint32(nil, 1))
+		require.NoError(t, err, "NewKeyPair() failed")
+		// create test addresses
+		bs, bsErr := state.BlockchainSettings()
+		require.NoError(t, bsErr, "BlockchainSettings() failed")
+		caller, aErr := anotherAccount.Addr(bs.AddressSchemeCharacter)
+		require.NoError(t, aErr, "Addr() failed")
+		dAppAddr, aErr := dApp.Addr(bs.AddressSchemeCharacter)
+		require.NoError(t, aErr, "Addr() failed")
+		// create test script
+		tree := createTestScript(t, libV)
+		// create assertion function for the current state
+		assertDataStorageByAlias := func(t *testing.T, alias string) {
+			fc := proto.NewFunctionCall("checkStorageUntouchedByAlias",
+				proto.Arguments{proto.NewStringArgument(alias)})
+			env := createNewRideEnv(t, state, dAppAddr, caller, libV)
+			_, err = ride.CallFunction(env, tree, fc)
+			require.NoError(t, err, "ride.CallFunction() failed")
+		}
+		assertHeight := func(t *testing.T, expectedHeight int) {
+			nh, hErr := state.NewestHeight()
+			require.NoError(t, hErr, "NewestHeight() failed")
+			require.Equal(t, proto.Height(expectedHeight), nh)
+		}
+		assertHeight(t, 1) // check that height is 1
+		// set initial balance for dApp and another account
+		const (
+			initialDAppBalance           = 100 * proto.PriceConstant
+			initialAnotherAccountBalance = 500 * proto.PriceConstant
+		)
+		testObj.setWavesBalance(t, dAppAddr, balanceProfile{initialDAppBalance, 0, 0}, blockID0)         // height 1
+		testObj.setWavesBalance(t, caller, balanceProfile{initialAnotherAccountBalance, 0, 0}, blockID0) // height 1
+
+		// Alias "alice" created and checked in different blocks, should always pass.
+		testObj.addBlockAndDo(t, blockID1, func(_ proto.BlockID) { // height 2 - create alias "alice".
+			testObj.createAlias(t, dAppAddr, "alice", blockID1)
+		})
+		assertHeight(t, 2)
+
+		testObj.addBlockAndDo(t, blockID2, func(_ proto.BlockID) { // height 3 - check data storage by alias "alice".
+			assertDataStorageByAlias(t, "alice")
+		})
+		assertHeight(t, 3)
+		// Bob alias is created and checked in the same block.
+		testObj.addBlockAndDo(t, blockID3, func(_ proto.BlockID) { // height 4 - create alias "bob" and check the storage.
+			testObj.createAlias(t, dAppAddr, "bob", blockID3)
+			assertDataStorageByAlias(t, "bob")
+		})
+		assertHeight(t, 4)
+	}
+	t.Run("The data storage can be checked by alias created in the same block", func(t *testing.T) {
+		generateFeaturesList := func(targetFeature settings.Feature) []settings.Feature {
+			var feats []settings.Feature
+			for f := settings.SmallerMinimalGeneratingBalance; f <= targetFeature; f++ {
+				feats = append(feats, f)
+			}
+			return feats
+		}
+		activateFeatures := func(t *testing.T, testObj *testStorageObjects, feats []settings.Feature, id proto.BlockID) {
+			for _, f := range feats {
+				testObj.activateFeatureWithBlock(t, int16(f), id)
+			}
+		}
+		createMockState := func(t *testing.T, targetFeature settings.Feature) (*stateManager, *testStorageObjects) {
+			sets := settings.MustDefaultCustomSettings()
+			sets.LightNodeBlockFieldsAbsenceInterval = 0           // disable absence interval for Light Node
+			sets.GenerationBalanceDepthFrom50To1000AfterHeight = 1 // set from the first height
+			state, testObj := createMockStateManager(t, sets)
+			featuresList := generateFeaturesList(targetFeature)
+			testObj.addBlock(t, blockID0)                        // add "genesis" block, height 1
+			activateFeatures(t, testObj, featuresList, blockID0) // activate features at height 1
+			testObj.flush(t)                                     // write changes to the storage
+			return state, testObj
+		}
+		t.Run("RideV5, STDLIB_VERSION 5", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.RideV5)
+			doTest(t, state, testObj, ast.LibV5)
+		})
+		t.Run("RideV6, STDLIB_VERSION 6", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.RideV6)
+			doTest(t, state, testObj, ast.LibV6)
+		})
+		t.Run("BlockRewardDistribution, STDLIB_VERSION 7", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.BlockRewardDistribution)
+			doTest(t, state, testObj, ast.LibV7)
+		})
+		t.Run("LightNode, STDLIB_VERSION 8", func(t *testing.T) {
+			state, testObj := createMockState(t, settings.LightNode)
+			doTest(t, state, testObj, ast.LibV8)
+		})
+	})
+}
