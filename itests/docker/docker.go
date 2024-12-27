@@ -302,9 +302,27 @@ func (d *Docker) startNode(
 }
 
 func (d *Docker) removeContainers() error {
-	err := d.pool.RemoveContainerByName(d.suite)
+	containers, err := d.pool.Client.ListContainers(dc.ListContainersOptions{
+		All: true,
+		Filters: map[string][]string{
+			"name": {d.suite},
+		},
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to remove existing containers for suite %s", d.suite)
+		return fmt.Errorf("failed to list suite %q containers: %w", d.suite, err)
+	}
+	if len(containers) == 0 {
+		return nil
+	}
+	for _, c := range containers {
+		err = d.pool.Client.RemoveContainer(dc.RemoveContainerOptions{
+			ID:            c.ID,
+			Force:         true,
+			RemoveVolumes: true,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to remove container %q of suite %q: %w", c.ID, d.suite, err)
+		}
 	}
 	return nil
 }
