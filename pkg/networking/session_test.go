@@ -1,6 +1,7 @@
 package networking_test
 
 import (
+	"bytes"
 	"context"
 	"encoding/binary"
 	"errors"
@@ -55,7 +56,8 @@ func TestSuccessfulSession(t *testing.T) {
 			require.NoError(t, wErr)
 			assert.Equal(t, 5, n)
 		})
-		sc2 := serverHandler.On("OnReceive", ss, encodeMessage("Hello session")).Once().Return()
+		sc2 := serverHandler.On("OnReceive", ss, bytes.NewReader(encodeMessage("Hello session"))).
+			Once().Return()
 		sc2.NotBefore(sc1).
 			Run(func(_ mock.Arguments) {
 				n, wErr := ss.Write(encodeMessage("Hi"))
@@ -73,7 +75,7 @@ func TestSuccessfulSession(t *testing.T) {
 		require.NoError(t, wErr)
 		assert.Equal(t, 17, n)
 	})
-	cl2 := clientHandler.On("OnReceive", cs, encodeMessage("Hi")).Once().Return()
+	cl2 := clientHandler.On("OnReceive", cs, bytes.NewReader(encodeMessage("Hi"))).Once().Return()
 	cl2.NotBefore(cl1).
 		Run(func(_ mock.Arguments) {
 			cWG.Done()

@@ -162,9 +162,8 @@ func (s *Session) waitForSend(data []byte) error {
 	if s.logger.Enabled(s.ctx, slog.LevelDebug) {
 		s.logger.Debug("Sending data", "data", base64.StdEncoding.EncodeToString(data))
 	}
-	ready := &sendPacket{data: data, err: errCh}
 	select {
-	case s.sendCh <- ready:
+	case s.sendCh <- newSendPacket(data, errCh):
 		s.logger.Debug("Data written into send channel")
 	case <-s.ctx.Done():
 		s.logger.Debug("Session shutdown while sending data")
@@ -172,24 +171,6 @@ func (s *Session) waitForSend(data []byte) error {
 	case <-timer.C:
 		s.logger.Debug("Connection write timeout while sending data")
 		return ErrConnectionWriteTimeout
-	}
-
-	dataCopy := func() {
-		if len(data) == 0 {
-			return // An empty data is ignored.
-		}
-
-		// In the event of session shutdown or connection write timeout, we need to prevent `send` from reading
-		// the body buffer after returning from this function since the caller may re-use the underlying array.
-		ready.mu.Lock()
-		defer ready.mu.Unlock()
-
-		if ready.data == nil {
-			return // data was already copied in `send`.
-		}
-		newData := make([]byte, len(data))
-		copy(newData, data)
-		ready.data = newData
 	}
 
 	select {
@@ -201,11 +182,9 @@ func (s *Session) waitForSend(data []byte) error {
 		s.logger.Debug("Error sending data", "error", err)
 		return err
 	case <-s.ctx.Done():
-		dataCopy()
 		s.logger.Debug("Session shutdown while waiting send error")
 		return ErrSessionShutdown
 	case <-timer.C:
-		dataCopy()
 		s.logger.Debug("Connection write timeout while waiting send error")
 		return ErrConnectionWriteTimeout
 	}
@@ -224,22 +203,16 @@ func (s *Session) sendLoop() error {
 
 		case packet := <-s.sendCh:
 			packet.mu.Lock()
+			_, rErr := dataBuf.ReadFrom(packet.r)
+			if rErr != nil {
+				packet.mu.Unlock()
+				s.logger.Error("Failed to copy data into buffer", "error", rErr)
+				s.asyncSendErr(packet.err, rErr)
+				return rErr
+			}
 			if s.logger.Enabled(s.ctx, slog.LevelDebug) {
 				s.logger.Debug("Sending data to connection",
-					"data", base64.StdEncoding.EncodeToString(packet.data))
-			}
-			if len(packet.data) != 0 {
-				// Copy the data into the buffer to avoid holding a mutex lock during the writing.
-				_, err := dataBuf.Write(packet.data)
-				if err != nil {
-					packet.data = nil
-					packet.mu.Unlock()
-					s.logger.Error("Failed to copy data into buffer", "error", err)
-					s.asyncSendErr(packet.err, err)
-					return err // TODO: Do we need to return here?
-				}
-				s.logger.Debug("Data copied into buffer")
-				packet.data = nil
+					"data", base64.StdEncoding.EncodeToString(dataBuf.Bytes()))
 			}
 			packet.mu.Unlock()
 
@@ -375,7 +348,7 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 		s.logger.Debug("Invoking OnReceive handler", "message",
 			base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
 	}
-	s.config.handler.OnReceive(s, s.receiveBuffer.Bytes()) // Invoke OnReceive handler.
+	s.config.handler.OnReceive(s, bytes.NewReader(s.receiveBuffer.Bytes())) // Invoke OnReceive handler.
 	return nil
 }
 
@@ -405,9 +378,13 @@ func (s *Session) keepaliveLoop() error {
 
 // sendPacket is used to send data.
 type sendPacket struct {
-	mu   sync.Mutex // Protects data from unsafe reads.
-	data []byte
-	err  chan<- error
+	mu  sync.Mutex // Protects data from unsafe reads.
+	r   io.Reader
+	err chan<- error
+}
+
+func newSendPacket(data []byte, ch chan<- error) *sendPacket {
+	return &sendPacket{r: bytes.NewReader(data), err: ch}
 }
 
 // asyncSendErr is used to try an async send of an error.
