@@ -108,6 +108,7 @@ func (c *NetClient) Close() {
 		}
 		err := c.s.Close()
 		require.NoError(c.t, err, "failed to close session to %s node at %q", c.impl.String(), c.s.RemoteAddr())
+		c.h.close()
 	})
 }
 
@@ -128,10 +129,11 @@ func (c *NetClient) AwaitMessage(messageType reflect.Type, timeout time.Duration
 	case <-c.ctx.Done():
 		return nil, c.ctx.Err()
 	case <-time.After(timeout):
-		return nil, errors.New("timeout waiting for message")
+		return nil, fmt.Errorf("timeout waiting for message of type %q", messageType.String())
 	case msg := <-c.h.receiveChan():
 		if reflect.TypeOf(msg) != messageType {
-			return nil, fmt.Errorf("unexpected message type %q", reflect.TypeOf(msg).String())
+			return nil, fmt.Errorf("unexpected message type %q, expecting %q",
+				reflect.TypeOf(msg).String(), messageType.String())
 		}
 		return msg, nil
 	}
@@ -146,7 +148,8 @@ func (c *NetClient) AwaitGetBlockMessage(timeout time.Duration) (proto.BlockID, 
 	}
 	getBlockMessage, ok := msg.(*proto.GetBlockMessage)
 	if !ok {
-		return proto.BlockID{}, errors.New("unexpected message type")
+		return proto.BlockID{}, fmt.Errorf("failed to cast message of type %q to GetBlockMessage",
+			reflect.TypeOf(msg).String())
 	}
 	return getBlockMessage.BlockID, nil
 }
@@ -159,7 +162,7 @@ func (c *NetClient) AwaitScoreMessage(timeout time.Duration) (*big.Int, error) {
 	}
 	scoreMessage, ok := msg.(*proto.ScoreMessage)
 	if !ok {
-		return nil, errors.New("unexpected message type")
+		return nil, fmt.Errorf("failed to cast message of type %q to ScoreMessage", reflect.TypeOf(msg).String())
 	}
 	score := new(big.Int).SetBytes(scoreMessage.Score)
 	return score, nil
@@ -174,7 +177,8 @@ func (c *NetClient) AwaitMicroblockRequest(timeout time.Duration) (proto.BlockID
 	}
 	mbr, ok := msg.(*proto.MicroBlockRequestMessage)
 	if !ok {
-		return proto.BlockID{}, errors.New("unexpected message type")
+		return proto.BlockID{}, fmt.Errorf("failed to cast message of type %q to MicroBlockRequestMessage",
+			reflect.TypeOf(msg).String())
 	}
 	r, err := proto.NewBlockIDFromBytes(mbr.TotalBlockSig)
 	if err != nil {
@@ -322,4 +326,11 @@ func (h *handler) waitFor(messageType reflect.Type) error {
 
 func (h *handler) receiveChan() <-chan proto.Message {
 	return h.ch
+}
+
+func (h *handler) close() {
+	if h.ch != nil {
+		close(h.ch)
+		h.ch = nil
+	}
 }

@@ -82,7 +82,6 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	// Send block IDs to the node.
 	blocksMsg := &proto.BlockIdsMessage{Blocks: []proto.BlockID{bl.BlockID()}}
 	s.Client.Connection.SendMessage(blocksMsg)
-	time.Sleep(100 * time.Millisecond)
 
 	// Wait for the node to request the block.
 	blockID, err := s.Client.Connection.AwaitGetBlockMessage(messageTimeout)
@@ -100,7 +99,7 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	require.NoError(s.T(), err, "failed to wait for score")
 	assert.Equal(s.T(), blockScore, score)
 
-	// Wait for 2.5 seconds and send micro-block.
+	// Wait for 2.5 seconds and send micro-block (imitate real life).
 	time.Sleep(2500 * time.Millisecond)
 
 	// Add transactions to block.
