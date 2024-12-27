@@ -274,7 +274,13 @@ func newHandler(t testing.TB, peers []proto.PeerInfo) *handler {
 	return &handler{t: t, peers: peers, ch: ch}
 }
 
-func (h *handler) OnReceive(s *networking.Session, data []byte) {
+func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
+	data, err := io.ReadAll(r)
+	if err != nil {
+		h.t.Logf("Failed to read message from %q: %v", s.RemoteAddr(), err)
+		h.t.FailNow()
+		return
+	}
 	msg, err := proto.UnmarshalMessage(data)
 	if err != nil { // Fail test on unmarshal error.
 		h.t.Logf("Failed to unmarshal message from bytes: %q", base64.StdEncoding.EncodeToString(data))
