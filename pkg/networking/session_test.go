@@ -56,7 +56,7 @@ func TestSuccessfulSession(t *testing.T) {
 			require.NoError(t, wErr)
 			assert.Equal(t, 5, n)
 		})
-		sc2 := serverHandler.On("OnReceive", ss, bytes.NewReader(encodeMessage("Hello session"))).
+		sc2 := serverHandler.On("OnReceive", ss, bytes.NewBuffer(encodeMessage("Hello session"))).
 			Once().Return()
 		sc2.NotBefore(sc1).
 			Run(func(_ mock.Arguments) {
@@ -75,7 +75,7 @@ func TestSuccessfulSession(t *testing.T) {
 		require.NoError(t, wErr)
 		assert.Equal(t, 17, n)
 	})
-	cl2 := clientHandler.On("OnReceive", cs, bytes.NewReader(encodeMessage("Hi"))).Once().Return()
+	cl2 := clientHandler.On("OnReceive", cs, bytes.NewBuffer(encodeMessage("Hi"))).Once().Return()
 	cl2.NotBefore(cl1).
 		Run(func(_ mock.Arguments) {
 			cWG.Done()

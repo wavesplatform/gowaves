@@ -348,7 +348,7 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 		s.logger.Debug("Invoking OnReceive handler", "message",
 			base64.StdEncoding.EncodeToString(s.receiveBuffer.Bytes()))
 	}
-	s.config.handler.OnReceive(s, bytes.NewReader(s.receiveBuffer.Bytes())) // Invoke OnReceive handler.
+	s.config.handler.OnReceive(s, s.receiveBuffer) // Invoke OnReceive handler.
 	return nil
 }
 
