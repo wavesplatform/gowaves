@@ -4,9 +4,13 @@ import (
 	"bytes"
 	"context"
 	"encoding/base64"
+	"errors"
+	"fmt"
 	"io"
 	"log/slog"
+	"math/big"
 	"net"
+	"reflect"
 	"sync"
 	"sync/atomic"
 	"testing"
@@ -33,6 +37,7 @@ type NetClient struct {
 	impl Implementation
 	n    *networking.Network
 	c    *networking.Config
+	h    *handler
 	s    *networking.Session
 
 	closing atomic.Bool
@@ -45,7 +50,17 @@ func NewNetClient(
 	n := networking.NewNetwork()
 	p := newProtocol(t, nil)
 	h := newHandler(t, peers)
-	log := slogt.New(t)
+
+	f := slogt.Factory(func(w io.Writer) slog.Handler {
+		opts := &slog.HandlerOptions{
+			AddSource: true,
+			Level:     slog.LevelInfo,
+		}
+		return slog.NewTextHandler(w, opts)
+	})
+	log := slogt.New(t, f)
+
+	slog.SetLogLoggerLevel(slog.LevelError)
 	conf := networking.NewConfig(p, h).
 		WithSlogHandler(log.Handler()).
 		WithWriteTimeout(networkTimeout).
@@ -58,7 +73,7 @@ func NewNetClient(
 	s, err := n.NewSession(ctx, conn, conf)
 	require.NoError(t, err, "failed to establish new session to %s node", impl.String())
 
-	cli := &NetClient{ctx: ctx, t: t, impl: impl, n: n, c: conf, s: s}
+	cli := &NetClient{ctx: ctx, t: t, impl: impl, n: n, c: conf, h: h, s: s}
 	h.client = cli // Set client reference in handler.
 	return cli
 }
@@ -93,7 +108,83 @@ func (c *NetClient) Close() {
 		}
 		err := c.s.Close()
 		require.NoError(c.t, err, "failed to close session to %s node at %q", c.impl.String(), c.s.RemoteAddr())
+		c.h.close()
 	})
+}
+
+// SubscribeForMessages adds specified types to the message waiting queue.
+// Once the awaited message received the corresponding type is removed from the queue.
+func (c *NetClient) SubscribeForMessages(messageType ...reflect.Type) error {
+	for _, mt := range messageType {
+		if err := c.h.waitFor(mt); err != nil {
+			return err
+		}
+	}
+	return nil
+}
+
+// AwaitMessage waits for a message from the node for the specified timeout.
+func (c *NetClient) AwaitMessage(messageType reflect.Type, timeout time.Duration) (proto.Message, error) {
+	select {
+	case <-c.ctx.Done():
+		return nil, c.ctx.Err()
+	case <-time.After(timeout):
+		return nil, fmt.Errorf("timeout waiting for message of type %q", messageType.String())
+	case msg := <-c.h.receiveChan():
+		if reflect.TypeOf(msg) != messageType {
+			return nil, fmt.Errorf("unexpected message type %q, expecting %q",
+				reflect.TypeOf(msg).String(), messageType.String())
+		}
+		return msg, nil
+	}
+}
+
+// AwaitGetBlockMessage waits for a GetBlockMessage from the node for the specified timeout and
+// returns the requested block ID.
+func (c *NetClient) AwaitGetBlockMessage(timeout time.Duration) (proto.BlockID, error) {
+	msg, err := c.AwaitMessage(reflect.TypeOf(&proto.GetBlockMessage{}), timeout)
+	if err != nil {
+		return proto.BlockID{}, err
+	}
+	getBlockMessage, ok := msg.(*proto.GetBlockMessage)
+	if !ok {
+		return proto.BlockID{}, fmt.Errorf("failed to cast message of type %q to GetBlockMessage",
+			reflect.TypeOf(msg).String())
+	}
+	return getBlockMessage.BlockID, nil
+}
+
+// AwaitScoreMessage waits for a ScoreMessage from the node for the specified timeout and returns the received score.
+func (c *NetClient) AwaitScoreMessage(timeout time.Duration) (*big.Int, error) {
+	msg, err := c.AwaitMessage(reflect.TypeOf(&proto.ScoreMessage{}), timeout)
+	if err != nil {
+		return nil, err
+	}
+	scoreMessage, ok := msg.(*proto.ScoreMessage)
+	if !ok {
+		return nil, fmt.Errorf("failed to cast message of type %q to ScoreMessage", reflect.TypeOf(msg).String())
+	}
+	score := new(big.Int).SetBytes(scoreMessage.Score)
+	return score, nil
+}
+
+// AwaitMicroblockRequest waits for a MicroBlockRequestMessage from the node for the specified timeout and
+// returns the received block ID.
+func (c *NetClient) AwaitMicroblockRequest(timeout time.Duration) (proto.BlockID, error) {
+	msg, err := c.AwaitMessage(reflect.TypeOf(&proto.MicroBlockRequestMessage{}), timeout)
+	if err != nil {
+		return proto.BlockID{}, err
+	}
+	mbr, ok := msg.(*proto.MicroBlockRequestMessage)
+	if !ok {
+		return proto.BlockID{}, fmt.Errorf("failed to cast message of type %q to MicroBlockRequestMessage",
+			reflect.TypeOf(msg).String())
+	}
+	r, err := proto.NewBlockIDFromBytes(mbr.TotalBlockSig)
+	if err != nil {
+		return proto.BlockID{}, err
+	}
+	return r, nil
 }
 
 func (c *NetClient) reconnect() {
@@ -174,10 +265,13 @@ type handler struct {
 	peers  []proto.PeerInfo
 	t      testing.TB
 	client *NetClient
+	queue  []reflect.Type
+	ch     chan proto.Message
 }
 
 func newHandler(t testing.TB, peers []proto.PeerInfo) *handler {
-	return &handler{t: t, peers: peers}
+	ch := make(chan proto.Message, 1)
+	return &handler{t: t, peers: peers, ch: ch}
 }
 
 func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
@@ -195,7 +289,6 @@ func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
 	}
 	switch msg.(type) { // Only reply with peers on GetPeersMessage.
 	case *proto.GetPeersMessage:
-		h.t.Logf("Received GetPeersMessage from %q", s.RemoteAddr())
 		rpl := &proto.PeersMessage{Peers: h.peers}
 		if _, sErr := rpl.WriteTo(s); sErr != nil {
 			h.t.Logf("Failed to send peers message: %v", sErr)
@@ -203,6 +296,15 @@ func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
 			return
 		}
 	default:
+		if len(h.queue) == 0 { // No messages to wait for.
+			return
+		}
+		et := h.queue[0]
+		if reflect.TypeOf(msg) == et {
+			h.t.Logf("Received expected message of type %q", reflect.TypeOf(msg).String())
+			h.queue = h.queue[1:] // Pop the expected type.
+			h.ch <- msg
+		}
 	}
 }
 
@@ -214,5 +316,27 @@ func (h *handler) OnClose(s *networking.Session) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
 	if !h.client.closing.Load() && h.client != nil {
 		h.client.reconnect()
+	}
+}
+
+func (h *handler) waitFor(messageType reflect.Type) error {
+	if messageType == nil {
+		return errors.New("nil message type")
+	}
+	if messageType == reflect.TypeOf(proto.GetPeersMessage{}) {
+		return errors.New("cannot wait for GetPeersMessage")
+	}
+	h.queue = append(h.queue, messageType)
+	return nil
+}
+
+func (h *handler) receiveChan() <-chan proto.Message {
+	return h.ch
+}
+
+func (h *handler) close() {
+	if h.ch != nil {
+		close(h.ch)
+		h.ch = nil
 	}
 }

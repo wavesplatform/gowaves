@@ -34,19 +34,14 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 	suite.Require().NoError(err, "couldn't create Go configurator")
 	scalaConfigurator, err := config.NewScalaConfigurator(suiteName, cfg)
 	suite.Require().NoError(err, "couldn't create Scala configurator")
-
+	scalaConfigurator.WithGoNode("go-node")
 	docker, err := d.NewDocker(suiteName)
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
 
-	if gsErr := docker.StartGoNode(suite.MainCtx, goConfigurator); gsErr != nil {
+	if sErr := docker.StartNodes(suite.MainCtx, goConfigurator, scalaConfigurator); sErr != nil {
 		docker.Finish(suite.Cancel)
-		suite.Require().NoError(gsErr, "couldn't start Go node container")
-	}
-	scalaConfigurator.WithGoNode(docker.GoNode().ContainerNetworkIP())
-	if ssErr := docker.StartScalaNode(suite.MainCtx, scalaConfigurator); ssErr != nil {
-		docker.Finish(suite.Cancel)
-		suite.Require().NoError(ssErr, "couldn't start Scala node container")
+		suite.Require().NoError(sErr, "couldn't start nodes")
 	}
 
 	suite.Clients = clients.NewNodesClients(suite.MainCtx, suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
@@ -54,7 +49,7 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 }
 
 func (suite *BaseSuite) SetupSuite() {
-	suite.BaseSetup(config.WithScalaMining())
+	suite.BaseSetup()
 }
 
 func (suite *BaseSuite) TearDownSuite() {

@@ -43,13 +43,13 @@ func NewNodesClients(ctx context.Context, t *testing.T, goPorts, scalaPorts *d.P
 }
 
 func (c *NodesClients) SendStartMessage(t *testing.T) {
-	c.GoClient.HTTPClient.PrintMsg(t, "------------- Start test: "+t.Name()+" -------------")
-	c.ScalaClient.HTTPClient.PrintMsg(t, "------------- Start test: "+t.Name()+" -------------")
+	c.GoClient.SendStartMessage(t)
+	c.ScalaClient.SendStartMessage(t)
 }
 
 func (c *NodesClients) SendEndMessage(t *testing.T) {
-	c.GoClient.HTTPClient.PrintMsg(t, "------------- End test: "+t.Name()+" -------------")
-	c.ScalaClient.HTTPClient.PrintMsg(t, "------------- End test: "+t.Name()+" -------------")
+	c.GoClient.SendEndMessage(t)
+	c.ScalaClient.SendEndMessage(t)
 }
 
 func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) (*proto.StateHash, *proto.StateHash, bool) {
@@ -242,7 +242,7 @@ func (c *NodesClients) SynchronizedWavesBalances(
 	ctx, cancel := context.WithTimeout(context.Background(), synchronizedBalancesTimeout)
 	defer cancel()
 
-	t.Logf("Initial balacnces request")
+	t.Logf("Initial balances request")
 	sbs, err := c.requestAvailableBalancesForAddresses(ctx, addresses)
 	if err != nil {
 		t.Logf("Errors while requesting balances: %v", err)

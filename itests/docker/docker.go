@@ -14,13 +14,16 @@ import (
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
 	"github.com/pkg/errors"
+	"golang.org/x/sync/errgroup"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/client"
 )
 
 const (
-	DefaultTimeout       = 16 * time.Second
+	DefaultTimeout   = 16 * time.Second
+	PoolRetryTimeout = 2 * time.Minute
+
 	DefaultAPIKey        = "itest-api-key"
 	networkName          = "waves-it-network"
 	goNodeLogFileName    = "go-node.log"
@@ -71,6 +74,24 @@ func (c *NodeContainer) closeFiles() error {
 	return err
 }
 
+// Close purges container and closes log files.
+func (c *NodeContainer) Close() error {
+	if c.container == nil {
+		return nil
+	}
+	if dcErr := c.container.DisconnectFromNetwork(c.network); dcErr != nil {
+		return errors.Wrapf(dcErr, "failed to disconnect container %q from network %q",
+			c.container.Container.ID, c.network.Network.Name)
+	}
+	if clErr := c.container.Close(); clErr != nil {
+		return errors.Wrapf(clErr, "failed to close container %q", c.container.Container.ID)
+	}
+	if err := c.closeFiles(); err != nil {
+		return err
+	}
+	return nil
+}
+
 type Docker struct {
 	suite string
 
@@ -90,6 +111,7 @@ func NewDocker(suiteName string) (*Docker, error) {
 	if err != nil {
 		return nil, err
 	}
+	pool.MaxWait = PoolRetryTimeout
 	docker := &Docker{suite: suiteName, pool: pool}
 	if rmErr := docker.removeContainers(); rmErr != nil {
 		return nil, rmErr
@@ -114,6 +136,23 @@ func (d *Docker) ScalaNode() *NodeContainer {
 	return d.scalaNode
 }
 
+// StartNodes start both Go and Scala nodes with the given configurations.
+// Note that while starting nodes in parallel it is impossible to retrieve the IP address of the other node in prior.
+// So this method is heavily dependent on Docker DNS resolution and Go-node's domain name should be passed to the
+// configuration of Scala node before calling this method:
+//
+//	scalaConfigurator.WithGoNode("go-node")
+func (d *Docker) StartNodes(ctx context.Context, goCfg, scalaCfg config.DockerConfigurator) error {
+	eg := errgroup.Group{}
+	eg.Go(func() error {
+		return d.StartGoNode(ctx, goCfg)
+	})
+	eg.Go(func() error {
+		return d.StartScalaNode(ctx, scalaCfg)
+	})
+	return eg.Wait()
+}
+
 // StartGoNode starts a Go node container with the given configuration.
 func (d *Docker) StartGoNode(ctx context.Context, cfg config.DockerConfigurator) error {
 	var err error
@@ -135,44 +174,58 @@ func (d *Docker) StartScalaNode(ctx context.Context, cfg config.DockerConfigurat
 }
 
 func (d *Docker) Finish(cancel context.CancelFunc) {
+	eg := errgroup.Group{}
 	if d.scalaNode != nil {
-		err := d.pool.Client.KillContainer(dc.KillContainerOptions{
-			ID:     d.scalaNode.container.Container.ID,
-			Signal: dc.SIGINT,
+		eg.Go(func() error {
+			if stErr := d.stopContainer(d.scalaNode.container.Container.ID); stErr != nil {
+				log.Printf("Failed to stop Scala node container: %v", stErr)
+			}
+			return nil
 		})
-		if err != nil {
-			log.Printf("Failed to stop scala container: %v", err)
-		}
 	}
 	if d.goNode != nil {
-		err := d.pool.Client.KillContainer(dc.KillContainerOptions{
-			ID:     d.goNode.container.Container.ID,
-			Signal: dc.SIGINT,
+		eg.Go(func() error {
+			if stErr := d.stopContainer(d.goNode.container.Container.ID); stErr != nil {
+				log.Printf("Failed to stop Go node container: %v", stErr)
+			}
+			return nil
 		})
-		if err != nil {
-			log.Printf("Failed to stop go container: %v", err)
-		}
 	}
+	_ = eg.Wait()
 	if d.scalaNode != nil {
-		if err := d.pool.Purge(d.scalaNode.container); err != nil {
-			log.Printf("Failed to purge scala-node: %s", err)
-		}
-		if err := d.scalaNode.closeFiles(); err != nil {
-			log.Printf("Failed to close scala-node files: %s", err)
-		}
+		eg.Go(func() error {
+			if clErr := d.scalaNode.Close(); clErr != nil {
+				log.Printf("Failed to close scala-node: %s", clErr)
+			}
+			return nil
+		})
 	}
 	if d.goNode != nil {
-		if err := d.pool.Purge(d.goNode.container); err != nil {
-			log.Printf("Failed to purge go-node: %s", err)
-		}
-		if err := d.goNode.closeFiles(); err != nil {
-			log.Printf("Failed to close go-node files: %s", err)
-		}
+		eg.Go(func() error {
+			if clErr := d.goNode.Close(); clErr != nil {
+				log.Printf("Failed to close go-node: %s", clErr)
+			}
+			return nil
+		})
 	}
+	_ = eg.Wait()
 	if err := d.pool.RemoveNetwork(d.network); err != nil {
 		log.Printf("Failed to remove docker network: %s", err)
 	}
 	cancel()
+}
+
+func (d *Docker) stopContainer(containerID string) error {
+	const shutdownTimeout = 5 // In seconds.
+	if stErr := d.pool.Client.StopContainer(containerID, shutdownTimeout); stErr != nil {
+		if klErr := d.pool.Client.KillContainer(dc.KillContainerOptions{
+			ID:     containerID,
+			Signal: dc.SIGKILL,
+		}); klErr != nil {
+			return errors.Wrapf(stderrs.Join(stErr, klErr), "failed to stop container %q", containerID)
+		}
+	}
+	return nil
 }
 
 func (d *Docker) startNode(
@@ -182,7 +235,7 @@ func (d *Docker) startNode(
 	opts.Networks = []*dockertest.Network{d.network}
 
 	res, err := d.pool.RunWithOptions(opts, func(hc *dc.HostConfig) {
-		hc.AutoRemove = true
+		hc.AutoRemove = false
 		hc.PublishAllPorts = true
 	})
 	if err != nil {
@@ -235,9 +288,11 @@ func (d *Docker) startNode(
 			ApiKey:  DefaultAPIKey,
 		})
 		if fErr != nil {
+			log.Printf("Failed to create client for container %q: %v", res.Container.Name, fErr)
 			return fErr
 		}
 		_, _, fErr = nodeClient.Blocks.Height(ctx)
+		log.Printf("Result requesting height from container %q: %v", res.Container.Name, fErr)
 		return fErr
 	})
 	if err != nil {
@@ -247,9 +302,27 @@ func (d *Docker) startNode(
 }
 
 func (d *Docker) removeContainers() error {
-	err := d.pool.RemoveContainerByName(d.suite)
+	containers, err := d.pool.Client.ListContainers(dc.ListContainersOptions{
+		All: true,
+		Filters: map[string][]string{
+			"name": {d.suite},
+		},
+	})
 	if err != nil {
-		return errors.Wrapf(err, "failed to remove existing containers for suite %s", d.suite)
+		return fmt.Errorf("failed to list suite %q containers: %w", d.suite, err)
+	}
+	if len(containers) == 0 {
+		return nil
+	}
+	for _, c := range containers {
+		err = d.pool.Client.RemoveContainer(dc.RemoveContainerOptions{
+			ID:            c.ID,
+			Force:         true,
+			RemoveVolumes: true,
+		})
+		if err != nil {
+			return fmt.Errorf("failed to remove container %q of suite %q: %w", c.ID, d.suite, err)
+		}
 	}
 	return nil
 }
@@ -269,7 +342,7 @@ func (d *Docker) removeNetworks() error {
 }
 
 func (d *Docker) createNetwork() error {
-	n, err := d.pool.CreateNetwork(d.suite + "-" + networkName)
+	n, err := d.pool.CreateNetwork(d.suite+"-"+networkName, WithIPv6Disabled)
 	if err != nil {
 		return errors.Wrapf(err, "failed to create network for suite %s", d.suite)
 	}
@@ -287,4 +360,8 @@ func (d *Docker) mkLogsDir() error {
 		return errors.Wrapf(mkErr, "failed to create logs dir for suite %s", d.suite)
 	}
 	return nil
+}
+
+func WithIPv6Disabled(conf *dc.CreateNetworkOptions) {
+	conf.EnableIPv6 = false
 }
