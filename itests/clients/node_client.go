@@ -284,8 +284,8 @@ func (c *NodesClients) SynchronizedWavesBalances(
 }
 
 func (c *NodesClients) Handshake() {
-	c.GoClient.Handshake()
-	c.ScalaClient.Handshake()
+	c.GoClient.Connection.SendHandshake()
+	c.ScalaClient.Connection.SendHandshake()
 }
 
 func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, scala bool) {
@@ -300,8 +300,10 @@ func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, scala bool) {
 }
 
 func (c *NodesClients) Close(t *testing.T) {
-	c.GoClient.Close(t)
-	c.ScalaClient.Close(t)
+	c.GoClient.GRPCClient.Close(t)
+	c.GoClient.Connection.Close()
+	c.ScalaClient.GRPCClient.Close(t)
+	c.ScalaClient.Connection.Close()
 }
 
 func (c *NodesClients) requestNodesAvailableBalances(
