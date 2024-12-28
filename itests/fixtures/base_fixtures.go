@@ -49,7 +49,8 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 		suite.Require().NoError(ssErr, "couldn't start Scala node container")
 	}
 
-	suite.Clients = clients.NewNodesClients(suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
+	suite.Clients = clients.NewNodesClients(suite.MainCtx, suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
+	suite.Clients.Handshake()
 }
 
 func (suite *BaseSuite) SetupSuite() {
@@ -58,6 +59,7 @@ func (suite *BaseSuite) SetupSuite() {
 
 func (suite *BaseSuite) TearDownSuite() {
 	suite.Clients.WaitForStateHashEquality(suite.T())
+	suite.Clients.Close(suite.T())
 	suite.Docker.Finish(suite.Cancel)
 }
 
