@@ -69,8 +69,8 @@ github.com/docker/go-connections v0.5.0 h1:USnMq7hx7gwdVZq1L49hLXaFtUdTADjXGp+uj
 github.com/docker/go-connections v0.5.0/go.mod h1:ov60Kzw0kKElRwhNs9UlUHAE/F9Fe6GLaXnqyDdmEXc=
 github.com/docker/go-units v0.5.0 h1:69rxXcBk27SvSaaxTtLh/8llcHD8vYHT7WSdRZ/jvr4=
 github.com/docker/go-units v0.5.0/go.mod h1:fgPhTUdO+D/Jk86RDLlptpiXQzgHJF7gydDDbaIK4Dk=
-github.com/elliotchance/orderedmap/v2 v2.6.0 h1:Zzo4k/u6hTRSt4NbYVphwOn5fBKlLpcbaV00INfJ1WI=
-github.com/elliotchance/orderedmap/v2 v2.6.0/go.mod h1:85lZyVbpGaGvHvnKa7Qhx7zncAdBIBq6u56Hb1PRU5Q=
+github.com/elliotchance/orderedmap/v2 v2.6.1 h1:vBgfLjyW0Nk0/NUgs/xiQoB38SVHATHcLTwxq2rrlC0=
+github.com/elliotchance/orderedmap/v2 v2.6.1/go.mod h1:85lZyVbpGaGvHvnKa7Qhx7zncAdBIBq6u56Hb1PRU5Q=
 github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58 h1:+Ct3FisijQso/lJt1zGGl0eIcFCoM0dozj4tiPJamqw=
 github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58/go.mod h1:ZWP59etEywfyMG2lAqnoi3t8uoiZCiTmLtwt6iESIsQ=
 github.com/fsnotify/fsnotify v1.4.7/go.mod h1:jwhsz4b93w/PPRr/qN1Yymfu8t87LnFCMoQvtojpjFo=
