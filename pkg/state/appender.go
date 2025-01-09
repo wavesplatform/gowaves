@@ -842,10 +842,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	// write updates into the updatesChannel here
-	// TODO possibly run it in a goroutine? make sure goroutines run in order?
 	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
-		// TODO get info from block snapshot?
-
 		a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
 	}
 
@@ -871,7 +868,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 }
 
 func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
-	blockSnapshot proto.BlockSnapshot) {
+	blockSnapshot proto.BlockSnapshot) error {
 	blockID := blockHeader.BlockID()
 	bUpdatesInfo := blockchaininfo.BUpdatesInfo{
 		BlockUpdatesInfo: blockchaininfo.BlockUpdatesInfo{
@@ -885,20 +882,28 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 			Height:         blockInfo.Height,
 		},
 	}
-	// Write the L2 contract updates into the structure.
-	l2ContractCount := 0
-	for _, txSnapshots := range blockSnapshot.TxSnapshots {
-		for _, snapshot := range txSnapshots {
-			if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
-				if dataEntriesSnapshot.Address == a.bUpdatesExtension.L2ContractAddress() {
-					l2ContractCount++
-					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
-						dataEntriesSnapshot.DataEntries...)
+	if a.bUpdatesExtension.IsFirstRequestedBlock() {
+		dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesExtension.L2ContractAddress()))
+		if err != nil && !errors.Is(err, proto.ErrNotFound) {
+			return err
+		}
+		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries
+		a.bUpdatesExtension.FirstBlockDone()
+	} else { // for the rest of the blocks
+		// Write the L2 contract updates into the structure.
+		for _, txSnapshots := range blockSnapshot.TxSnapshots {
+			for _, snapshot := range txSnapshots {
+				if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
+					if dataEntriesSnapshot.Address == a.bUpdatesExtension.L2ContractAddress() {
+						bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
+							dataEntriesSnapshot.DataEntries...)
+					}
 				}
 			}
 		}
 	}
 	a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
+	return nil
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {
