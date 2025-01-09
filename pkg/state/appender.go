@@ -843,7 +843,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 	// write updates into the updatesChannel here
 	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
-		a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
+		err = a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
+		if err != nil {
+			return errors.Errorf("failed to request blockchain info from L2 smart contract state, %v", err)
+		}
 	}
 
 	// check whether the calculated snapshot state hash equals with the provided one
