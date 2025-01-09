@@ -11,6 +11,7 @@ type BlockchainUpdatesExtension struct {
 	enableBlockchainUpdatesPlugin bool
 	l2ContractAddress             proto.WavesAddress
 	bUpdatesChannel               chan<- BUpdatesInfo
+	firstBlock                    bool
 }
 
 func NewBlockchainUpdatesExtension(
@@ -23,6 +24,7 @@ func NewBlockchainUpdatesExtension(
 		enableBlockchainUpdatesPlugin: true,
 		l2ContractAddress:             l2ContractAddress,
 		bUpdatesChannel:               bUpdatesChannel,
+		firstBlock:                    true,
 	}
 }
 
@@ -32,6 +34,14 @@ func (e *BlockchainUpdatesExtension) EnableBlockchainUpdatesPlugin() bool {
 
 func (e *BlockchainUpdatesExtension) L2ContractAddress() proto.WavesAddress {
 	return e.l2ContractAddress
+}
+
+func (e *BlockchainUpdatesExtension) IsFirstRequestedBlock() bool {
+	return e.firstBlock
+}
+
+func (e *BlockchainUpdatesExtension) FirstBlockDone() {
+	e.firstBlock = false
 }
 
 func (e *BlockchainUpdatesExtension) WriteBUpdates(bUpdates BUpdatesInfo) {
