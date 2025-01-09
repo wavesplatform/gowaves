@@ -892,19 +892,22 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 		}
 		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries
 		a.bUpdatesExtension.FirstBlockDone()
-	} else { // for the rest of the blocks
-		// Write the L2 contract updates into the structure.
-		for _, txSnapshots := range blockSnapshot.TxSnapshots {
-			for _, snapshot := range txSnapshots {
-				if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
-					if dataEntriesSnapshot.Address == a.bUpdatesExtension.L2ContractAddress() {
-						bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
-							dataEntriesSnapshot.DataEntries...)
-					}
+		a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
+		return nil
+	}
+
+	// Write the L2 contract updates into the structure.
+	for _, txSnapshots := range blockSnapshot.TxSnapshots {
+		for _, snapshot := range txSnapshots {
+			if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
+				if dataEntriesSnapshot.Address == a.bUpdatesExtension.L2ContractAddress() {
+					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
+						dataEntriesSnapshot.DataEntries...)
 				}
 			}
 		}
 	}
+
 	a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
 	return nil
 }
