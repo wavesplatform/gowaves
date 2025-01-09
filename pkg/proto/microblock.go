@@ -252,7 +252,7 @@ func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
+	h, err := NewHeader(ContentIDMicroblock, buf.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -308,16 +308,10 @@ func (a *MicroBlockInvMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 }
 
 func (a *MicroBlockInvMessage) WriteTo(w io.Writer) (n int64, err error) {
-	var h Header
-	h.Length = maxHeaderLength + uint32(len(a.Body)) - 4
-	h.Magic = headerMagic
-	h.ContentID = ContentIDInvMicroblock
-	h.payloadLength = common.SafeIntToUint32(len(a.Body))
-	dig, err := crypto.FastHash(a.Body)
+	h, err := NewHeader(ContentIDInvMicroblock, a.Body)
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 	n1, err := h.WriteTo(w)
 	if err != nil {
 		return 0, err
@@ -351,21 +345,14 @@ func (a *MicroBlockRequestMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 }
 
 func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(a.TotalBlockSig)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDMicroblockRequest
-	h.payloadLength = common.SafeIntToUint32(len(a.TotalBlockSig))
-	dig, err := crypto.FastHash(a.TotalBlockSig)
+	h, err := NewHeader(ContentIDMicroblockRequest, a.TotalBlockSig)
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 	n2, err := h.WriteTo(w)
 	if err != nil {
 		return 0, err
 	}
-
 	n3, err := w.Write(a.TotalBlockSig)
 	if err != nil {
 		return 0, err
@@ -542,7 +529,7 @@ func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 		return 0, err
 	}
 
-	h, err := MakeHeader(ContentIDPBMicroBlock, buf.Bytes())
+	h, err := NewHeader(ContentIDPBMicroBlock, buf.Bytes())
 	if err != nil {
 		return 0, err
 	}

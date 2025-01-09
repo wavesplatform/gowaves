@@ -11,6 +11,8 @@ import (
 	"strconv"
 	"strings"
 
+	"github.com/ccoveille/go-safecast"
+
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 
@@ -77,6 +79,26 @@ type Header struct {
 	ContentID       PeerMessageID
 	payloadLength   uint32
 	PayloadChecksum [headerChecksumLen]byte
+}
+
+func NewHeader(contentID PeerMessageID, body []byte) (Header, error) {
+	bl, err := safecast.ToUint32(len(body))
+	if err != nil {
+		return Header{}, fmt.Errorf("failed to create header: %w", err)
+	}
+	h := Header{
+		Length:          maxHeaderLength + bl - headerChecksumLen,
+		Magic:           headerMagic,
+		ContentID:       contentID,
+		payloadLength:   bl,
+		PayloadChecksum: [4]byte{},
+	}
+	dig, err := crypto.FastHash(body)
+	if err != nil {
+		return Header{}, fmt.Errorf("failed to create header: %w", err)
+	}
+	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
+	return h, nil
 }
 
 func (h *Header) MarshalBinary() ([]byte, error) {
@@ -1107,16 +1129,10 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b[:]...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
-	h.Magic = headerMagic
-	h.ContentID = ContentIDGetSignatures
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDGetSignatures, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1198,16 +1214,10 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b[:]...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDSignatures
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDSignatures, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1285,17 +1295,10 @@ type GetBlockMessage struct {
 func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDGetBlock
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDGetBlock, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1381,37 +1384,16 @@ type BlockMessage struct {
 
 // MarshalBinary encodes BlockMessage to binary form
 func (m *BlockMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.BlockBytes)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDBlock
-	h.payloadLength = common.SafeIntToUint32(len(m.BlockBytes))
-	dig, err := crypto.FastHash(m.BlockBytes)
+	h, err := NewHeader(ContentIDBlock, m.BlockBytes)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 	hdr = append(hdr, m.BlockBytes...)
 	return hdr, nil
-}
-
-func MakeHeader(contentID PeerMessageID, payload []byte) (Header, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(payload)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = contentID
-	h.payloadLength = common.SafeIntToUint32(len(payload))
-	dig, err := crypto.FastHash(payload)
-	if err != nil {
-		return Header{}, err
-	}
-	copy(h.PayloadChecksum[:], dig[:4])
-	return h, nil
 }
 
 // UnmarshalBinary decodes BlockMessage from binary from
@@ -1464,17 +1446,10 @@ type ScoreMessage struct {
 
 // MarshalBinary encodes ScoreMessage to binary form
 func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Score)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDScore
-	h.payloadLength = common.SafeIntToUint32(len(m.Score))
-	dig, err := crypto.FastHash(m.Score)
+	h, err := NewHeader(ContentIDScore, m.Score)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1531,17 +1506,10 @@ type TransactionMessage struct {
 
 // MarshalBinary encodes TransactionMessage to binary form
 func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Transaction)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDTransaction
-	h.payloadLength = common.SafeIntToUint32(len(m.Transaction))
-	dig, err := crypto.FastHash(m.Transaction)
+	h, err := NewHeader(ContentIDTransaction, m.Transaction)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1619,16 +1587,10 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, c.Signature[:]...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDCheckpoint
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDCheckpoint, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1703,17 +1665,10 @@ type PBBlockMessage struct {
 
 // MarshalBinary encodes PBBlockMessage to binary form
 func (m *PBBlockMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.PBBlockBytes)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDPBBlock
-	h.payloadLength = common.SafeIntToUint32(len(m.PBBlockBytes))
-	dig, err := crypto.FastHash(m.PBBlockBytes)
+	h, err := NewHeader(ContentIDPBBlock, m.PBBlockBytes)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1772,17 +1727,10 @@ type PBTransactionMessage struct {
 
 // MarshalBinary encodes PBTransactionMessage to binary form
 func (m *PBTransactionMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Transaction)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDPBTransaction
-	h.payloadLength = common.SafeIntToUint32(len(m.Transaction))
-	dig, err := crypto.FastHash(m.Transaction)
+	h, err := NewHeader(ContentIDPBTransaction, m.Transaction)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1912,16 +1860,10 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDGetBlockIDs
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDGetBlockIDs, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -2008,16 +1950,10 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDBlockIDs
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDBlockIDs, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -2123,20 +2059,6 @@ type MiningLimits struct {
 	MaxTxsSizeInBytes           int
 }
 
-func buildHeader(body []byte, messID PeerMessageID) (Header, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = messID
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
-	if err != nil {
-		return Header{}, err
-	}
-	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
-	return h, nil
-}
-
 type GetBlockSnapshotMessage struct {
 	BlockID BlockID
 }
@@ -2173,7 +2095,8 @@ func (m *GetBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 
 func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
-	h, err := buildHeader(body, ContentIDGetBlockSnapshot)
+
+	h, err := NewHeader(ContentIDGetBlockSnapshot, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2231,7 +2154,7 @@ func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *BlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
-	h, err := buildHeader(body, ContentIDBlockSnapshot)
+	h, err := NewHeader(ContentIDBlockSnapshot, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2290,7 +2213,7 @@ func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
-	h, err := buildHeader(body, ContentIDMicroBlockSnapshot)
+	h, err := NewHeader(ContentIDMicroBlockSnapshot, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2340,7 +2263,7 @@ func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
 func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockIDBytes
 
-	h, err := buildHeader(body, ContentIDMicroBlockSnapshotRequest)
+	h, err := NewHeader(ContentIDMicroBlockSnapshotRequest, body)
 	if err != nil {
 		return nil, err
 	}
