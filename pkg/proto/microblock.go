@@ -11,6 +11,7 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/deserializer"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -278,7 +279,7 @@ func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
 	if len(data) < crypto.SignatureSize*2+1 {
 		return errors.New("invalid micro block size")
 	}
-	b := make([]byte, len(data[:h.PayloadLength]))
+	b := make([]byte, len(data[:h.payloadLength]))
 	copy(b, data)
 
 	a.Body = b
@@ -311,7 +312,7 @@ func (a *MicroBlockInvMessage) WriteTo(w io.Writer) (n int64, err error) {
 	h.Length = maxHeaderLength + uint32(len(a.Body)) - 4
 	h.Magic = headerMagic
 	h.ContentID = ContentIDInvMicroblock
-	h.PayloadLength = uint32(len(a.Body))
+	h.payloadLength = common.SafeIntToUint32(len(a.Body))
 	dig, err := crypto.FastHash(a.Body)
 	if err != nil {
 		return 0, err
@@ -351,10 +352,10 @@ func (a *MicroBlockRequestMessage) ReadFrom(_ io.Reader) (n int64, err error) {
 
 func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
 	var h Header
-	h.Length = maxHeaderLength + uint32(len(a.TotalBlockSig)) - 4
+	h.Length = maxHeaderLength + common.SafeIntToUint32(len(a.TotalBlockSig)) - headerChecksumLen
 	h.Magic = headerMagic
 	h.ContentID = ContentIDMicroblockRequest
-	h.PayloadLength = uint32(len(a.TotalBlockSig))
+	h.payloadLength = common.SafeIntToUint32(len(a.TotalBlockSig))
 	dig, err := crypto.FastHash(a.TotalBlockSig)
 	if err != nil {
 		return 0, err
@@ -393,7 +394,7 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
-	body := make([]byte, h.PayloadLength)
+	body := make([]byte, h.payloadLength)
 	copy(body, data)
 	a.TotalBlockSig = body
 	return nil
@@ -517,8 +518,8 @@ func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
-	body := make([]byte, h.PayloadLength)
-	copy(body, data[:h.PayloadLength])
+	body := make([]byte, h.payloadLength)
+	copy(body, data[:h.payloadLength])
 	a.Body = body
 	return nil
 }
@@ -563,15 +564,15 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 	if h.ContentID != ContentIDPBMicroBlock {
 		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
-	if h.PayloadLength < crypto.DigestSize {
+	if h.payloadLength < crypto.DigestSize {
 		return errors.New("PBMicroBlockMessage UnmarshalBinary: invalid data size")
 	}
 	data = data[17:]
 
-	if uint32(len(data)) < h.PayloadLength {
+	if common.SafeIntToUint32(len(data)) < h.payloadLength {
 		return errors.New("invalid data size")
 	}
-	mbBytes := data[:h.PayloadLength]
+	mbBytes := data[:h.payloadLength]
 	a.MicroBlockBytes = make([]byte, len(mbBytes))
 	copy(a.MicroBlockBytes, mbBytes)
 	return nil

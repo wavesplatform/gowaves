@@ -94,6 +94,11 @@ func (c *GRPCClient) GetAssetsInfo(t *testing.T, id []byte) *g.AssetInfoResponse
 	return assetInfo
 }
 
+func (c *GRPCClient) Close(t testing.TB) {
+	err := c.conn.Close()
+	assert.NoError(t, err, "failed to close GRPC connection to %s node", c.impl.String())
+}
+
 func (c *GRPCClient) getBalance(t *testing.T, req *g.BalancesRequest) *g.BalanceResponse {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
