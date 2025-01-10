@@ -326,6 +326,7 @@ type workaroundResult struct {
 }
 
 func workaroundHandler(scheme proto.Scheme, tx proto.Transaction) (workaroundResult, bool, error) {
+	// TODO: remove this workaround after the issue will be fixed
 	switch scheme {
 	case proto.MainNetScheme:
 		txID, err := tx.GetID(scheme)
