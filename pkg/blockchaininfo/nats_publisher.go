@@ -5,10 +5,11 @@ import (
 	"log"
 	"time"
 
+	"go.uber.org/zap"
+
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -27,15 +28,25 @@ const (
 	NoPaging
 )
 
-type BUpdatesExtensionState struct {
-	currentState  *BUpdatesInfo
-	previousState *BUpdatesInfo // this information is what was just published
-	Limit         uint64
-	scheme        proto.Scheme
+const L2RequestsTopic = "l2_requests_topic"
+const (
+	RequestRestartSubTopic = "restart"
+)
+
+func ConcatenateContractTopics(contractAddress string) string {
+	return ContractUpdates + contractAddress
 }
 
-func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme) *BUpdatesExtensionState {
-	return &BUpdatesExtensionState{Limit: limit, scheme: scheme}
+type BUpdatesExtensionState struct {
+	currentState      *BUpdatesInfo
+	previousState     *BUpdatesInfo // this information is what was just published
+	Limit             uint64
+	scheme            proto.Scheme
+	l2ContractAddress string
+}
+
+func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string) *BUpdatesExtensionState {
+	return &BUpdatesExtensionState{Limit: limit, scheme: scheme, l2ContractAddress: l2ContractAddress}
 }
 
 func (bu *BUpdatesExtensionState) hasStateChanged() (bool, BUpdatesInfo, error) {
@@ -76,12 +87,12 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 		var msg []byte
 		msg = append(msg, NoPaging)
 		msg = append(msg, dataEntriesProtobuf...)
-		err = nc.Publish(ContractUpdates, msg)
+		err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
 		if err != nil {
-			log.Printf("failed to publish message on topic %s", ContractUpdates)
+			log.Printf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
 			return err
 		}
-		log.Printf("Published on topic: %s\n", ContractUpdates)
+		log.Printf("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
 		return nil
 	}
 
@@ -93,22 +104,22 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 		if i == len(chunkedPayload)-1 {
 			msg = append(msg, EndPaging)
 			msg = append(msg, chunk...)
-			err = nc.Publish(ContractUpdates, msg)
+			err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
 			if err != nil {
-				log.Printf("failed to publish message on topic %s", ContractUpdates)
+				log.Printf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
 				return err
 			}
-			log.Printf("Published on topic: %s\n", ContractUpdates)
+			log.Printf("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
 			break
 		}
 		msg = append(msg, StartPaging)
 		msg = append(msg, chunk...)
-		err = nc.Publish(ContractUpdates, msg)
+		err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
 		if err != nil {
-			log.Printf("failed to publish message on topic %s", ContractUpdates)
+			log.Printf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
 			return err
 		}
-		log.Printf("Published on topic: %s\n", ContractUpdates)
+		log.Printf("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
 		time.Sleep(PublisherWaitingTime)
 	}
 
@@ -145,10 +156,10 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 	if updates.ContractUpdatesInfo.AllDataEntries != nil {
 		pblshErr := bu.publishContractUpdates(updates.ContractUpdatesInfo, nc)
 		if pblshErr != nil {
-			log.Printf("failed to publish message on topic %s", ContractUpdates)
+			log.Printf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
 			return pblshErr
 		}
-		log.Printf("Published on topic: %s\n", ContractUpdates)
+		log.Printf("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
 	}
 
 	return nil
@@ -206,8 +217,31 @@ func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
 	}
 }
 
+func runReceiver(requestsChannel chan<- L2Requests, nc *nats.Conn) error {
+	_, subErr := nc.Subscribe(L2RequestsTopic, func(request *nats.Msg) {
+		signal := string(request.Data)
+		switch signal {
+		case RequestRestartSubTopic:
+			l2Request := L2Requests{Restart: true}
+			requestsChannel <- l2Request
+
+			notNilResponse := "ok"
+			err := request.Respond([]byte(notNilResponse))
+			if err != nil {
+				return
+			}
+		default:
+			zap.S().Errorf("nats receiver received an unknown signal, %s", signal)
+		}
+	})
+	if subErr != nil {
+		return subErr
+	}
+	return nil
+}
+
 func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
-	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme) error {
+	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme, l2Requests chan<- L2Requests) error {
 	opts := &server.Options{
 		MaxPayload: NatsMaxPayloadSize,
 		Host:       HostDefault,
@@ -227,7 +261,7 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 		return errors.New("NATS server is not ready for connections")
 	}
 
-	log.Printf("NATS Server is running on port %d", PortDefault)
+	zap.S().Infof("NATS Server is running on port %d", PortDefault)
 
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
@@ -235,6 +269,10 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 	}
 	defer nc.Close()
 
+	receiverErr := runReceiver(l2Requests, nc)
+	if receiverErr != nil {
+		return receiverErr
+	}
 	runPublisher(ctx, updatesChannel, bu, scheme, nc)
 	return nil
 }

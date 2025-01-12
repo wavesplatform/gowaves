@@ -107,15 +107,29 @@ func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Sche
 			contractMsg = nil
 		}
 	}
-
 	return contractMsg
+}
+
+func ConcatenateContractTopics(contractAddress string) string {
+	return blockchaininfo.ContractUpdates + contractAddress
+}
+
+//nolint:unused // because this function will be called in some other place.
+func sendRestartSignal(nc *nats.Conn) error {
+	message := []byte(blockchaininfo.RequestRestartSubTopic)
+	_, err := nc.Request(blockchaininfo.L2RequestsTopic, message, blockchaininfo.ConnectionsTimeoutDefault)
+	if err != nil {
+		return err
+	}
+	return nil
 }
 
 func main() {
 	var (
-		blockchainType string
-		updatesPath    string
-		natsURL        string
+		blockchainType    string
+		updatesPath       string
+		natsURL           string
+		l2ContractAddress string
 	)
 	// Initialize the zap logger
 	l, err := zap.NewProduction()
@@ -132,6 +146,7 @@ func main() {
 	flag.StringVar(&blockchainType, "blockchain-type", "testnet", "Blockchain scheme (e.g., stagenet, testnet, mainnet)")
 	flag.StringVar(&updatesPath, "updates-path", "", "File path to store contract updates")
 	flag.StringVar(&natsURL, "nats-url", nats.DefaultURL, "URL for the NATS server")
+	flag.StringVar(&l2ContractAddress, "l2-contract-address", "", "L2 contract address to pull updates from")
 
 	flag.Parse()
 
@@ -139,6 +154,10 @@ func main() {
 	if err != nil {
 		zap.S().Fatalf("Failed to parse the blockchain type: %v", err)
 	}
+	if l2ContractAddress == "" {
+		zap.S().Fatalf("No L2 contract address was specified")
+	}
+
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer done()
 	// Connect to a NATS server
@@ -158,13 +177,14 @@ func main() {
 	}
 
 	var contractMsg []byte
-	_, err = nc.Subscribe(blockchaininfo.ContractUpdates, func(msg *nats.Msg) {
+	_, err = nc.Subscribe(ConcatenateContractTopics(l2ContractAddress), func(msg *nats.Msg) {
 		contractMsg = receiveContractUpdates(msg, contractMsg, scheme, updatesPath)
 	})
 	if err != nil {
 		zap.S().Fatalf("Failed to subscribe to contract updates: %v", err)
 		return
 	}
+
 	<-ctx.Done()
 	zap.S().Info("NATS subscriber finished...")
 }

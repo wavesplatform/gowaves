@@ -25,6 +25,10 @@ type BUpdatesInfo struct {
 	ContractUpdatesInfo L2ContractDataEntries
 }
 
+type L2Requests struct {
+	Restart bool
+}
+
 // TODO wrap errors.
 
 func CompareBUpdatesInfo(current, previous BUpdatesInfo,
