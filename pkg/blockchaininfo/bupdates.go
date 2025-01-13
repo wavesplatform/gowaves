@@ -13,6 +13,7 @@ type BlockchainUpdatesExtension struct {
 	bUpdatesChannel               chan<- BUpdatesInfo
 	l2RequestsChannel             <-chan L2Requests
 	firstBlock                    bool
+	blockchainExtensionState      *BUpdatesExtensionState
 }
 
 func NewBlockchainUpdatesExtension(
@@ -20,6 +21,7 @@ func NewBlockchainUpdatesExtension(
 	l2ContractAddress proto.WavesAddress,
 	bUpdatesChannel chan<- BUpdatesInfo,
 	requestChannel <-chan L2Requests,
+	blockchainExtensionState *BUpdatesExtensionState,
 ) *BlockchainUpdatesExtension {
 	return &BlockchainUpdatesExtension{
 		ctx:                           ctx,
@@ -28,6 +30,7 @@ func NewBlockchainUpdatesExtension(
 		bUpdatesChannel:               bUpdatesChannel,
 		l2RequestsChannel:             requestChannel,
 		firstBlock:                    true,
+		blockchainExtensionState:      blockchainExtensionState,
 	}
 }
 
@@ -55,6 +58,7 @@ func (e *BlockchainUpdatesExtension) ReceiveSignals() {
 		case l2Request := <-e.l2RequestsChannel:
 			if l2Request.Restart {
 				e.firstBlock = true
+				e.blockchainExtensionState.previousState = nil
 			}
 		}
 	}
