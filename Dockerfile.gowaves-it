@@ -16,7 +16,7 @@ COPY pkg pkg
 ARG WITH_RACE_SUFFIX=""
 RUN make build-node-native${WITH_RACE_SUFFIX}
 
-FROM alpine:3.21.1
+FROM alpine:3.21.2
 ENV TZ=Etc/UTC \
     APP_USER=gowaves
 

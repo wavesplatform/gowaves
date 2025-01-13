@@ -310,39 +310,108 @@ func (a *scriptCaller) invokeFunction(
 	if err != nil {
 		return nil, err
 	}
-	var (
-		functionCall proto.FunctionCall
-		r            ride.Result
-	)
-	switch transaction := tx.(type) {
-	case *proto.InvokeScriptWithProofs:
-		r, functionCall, err = a.invokeFunctionByInvokeWithProofsTx(transaction, sender, scriptAddress,
-			env, tree, scriptEstimationUpdate, info,
-		)
-		if err != nil {
-			return nil, err
-		}
-	case *proto.InvokeExpressionTransactionWithProofs:
-		// don't initialize function call because invoke expression tx can call only default function
-		r, err = a.invokeFunctionByInvokeExpressionWithProofsTx(transaction, sender, scriptAddress,
-			env, tree, scriptEstimationUpdate, info,
-		)
-		if err != nil {
-			return nil, err
-		}
-	case *proto.EthereumTransaction:
-		r, functionCall, err = a.invokeFunctionByEthereumTx(transaction, sender, scriptAddress,
-			env, tree, scriptEstimationUpdate, info,
-		)
-		if err != nil {
-			return nil, err
-		}
-	default:
-		return nil, errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
+	r, functionCall, err := a.doTxInvoke(tx, sender, scriptAddress, env, tree, scriptEstimationUpdate, info)
+	if err != nil {
+		return nil, err
 	}
 
 	err = a.appendFunctionComplexity(r.Complexity(), scriptAddress, scriptEstimationUpdate, functionCall, info)
 	return r, err
+}
+
+type workaroundResult struct {
+	r       ride.Result
+	fc      proto.FunctionCall
+	rideErr error
+}
+
+func workaroundHandler(scheme proto.Scheme, tx proto.Transaction) (workaroundResult, bool, error) {
+	// TODO: remove this workaround after the issue will be fixed
+	switch scheme {
+	case proto.MainNetScheme:
+		txID, err := tx.GetID(scheme)
+		if err != nil {
+			return workaroundResult{}, false, errors.Wrap(err, "failed to calculate tx ID in workaround handler")
+		}
+		switch txIDStr := base58.Encode(txID); txIDStr {
+		case "DGXQ69rv3PbwVa6TeT7AQy2pyhpeCawNwGdWcC3wdfVh",
+			"GqKtPzT4judzqSPxtLpzeoZpZcdULeW2rGtGLYADoqmj",
+			"DAcwgX2UkJ1zWYPE3ABrQQtRGamWDdJwCherhoVzkvJP":
+			const txSpentComplexity = 16154
+			rideErr := ride.EvaluationErrorSetComplexity( // set spent complexity
+				ride.RuntimeError.Errorf("workaround for tx %q", txIDStr), // in scala - failed tx, go - ok
+				txSpentComplexity,
+			)
+			res := workaroundResult{
+				r:       nil,
+				fc:      proto.FunctionCall{}, // default function call
+				rideErr: rideErr,
+			}
+			return res, true, nil
+		default:
+			return workaroundResult{}, false, nil
+		}
+	case proto.TestNetScheme, proto.StageNetScheme:
+		fallthrough
+	default:
+		return workaroundResult{}, false, nil
+	}
+}
+
+func (a *scriptCaller) doTxInvoke(
+	tx proto.Transaction,
+	sender proto.WavesAddress,
+	scriptAddress proto.WavesAddress,
+	env *ride.EvaluationEnvironment,
+	tree *ast.Tree,
+	scriptEstimationUpdate *scriptEstimation,
+	info *fallibleValidationParams,
+) (ride.Result, proto.FunctionCall, error) {
+	wr, ok, whErr := workaroundHandler(a.settings.AddressSchemeCharacter, tx)
+	if whErr != nil {
+		return nil, proto.FunctionCall{}, errors.Wrap(whErr, "failed to handle workaround invoke tx")
+	}
+	if ok {
+		complexity := ride.EvaluationErrorSpentComplexity(wr.rideErr)
+		appendErr := a.appendFunctionComplexity(complexity, scriptAddress, scriptEstimationUpdate, wr.fc, info)
+		if appendErr != nil {
+			return nil, proto.FunctionCall{}, errors.Wrap(appendErr,
+				"failed to append function complexity for workaround invoke tx",
+			)
+		}
+		return wr.r, wr.fc, wr.rideErr
+	}
+	switch transaction := tx.(type) {
+	case *proto.InvokeScriptWithProofs:
+		r, functionCall, err := a.invokeFunctionByInvokeWithProofsTx(transaction, sender, scriptAddress,
+			env, tree, scriptEstimationUpdate, info,
+		)
+		if err != nil {
+			return nil, functionCall, err
+		}
+		return r, functionCall, nil
+	case *proto.InvokeExpressionTransactionWithProofs:
+		// don't initialize function call because invoke expression tx can call only default function
+		var functionCall proto.FunctionCall
+		r, err := a.invokeFunctionByInvokeExpressionWithProofsTx(transaction, sender, scriptAddress,
+			env, tree, scriptEstimationUpdate, info,
+		)
+		if err != nil {
+			return nil, functionCall, err
+		}
+		return r, functionCall, nil
+	case *proto.EthereumTransaction:
+		r, functionCall, err := a.invokeFunctionByEthereumTx(transaction, sender, scriptAddress,
+			env, tree, scriptEstimationUpdate, info,
+		)
+		if err != nil {
+			return nil, functionCall, err
+		}
+		return r, functionCall, nil
+	default:
+		return nil, proto.FunctionCall{},
+			errors.Errorf("failed to invoke function: unexpected type of transaction (%T)", transaction)
+	}
 }
 
 func (a *scriptCaller) invokeFunctionByInvokeWithProofsTx(
