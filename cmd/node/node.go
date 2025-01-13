@@ -844,7 +844,8 @@ func runBlockchainUpdatesPlugin(
 		}
 	}()
 
-	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel, requestsChannel, bUpdatesExtensionState), nil
+	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel,
+		requestsChannel, bUpdatesExtensionState), nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {
