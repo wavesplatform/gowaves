@@ -2,7 +2,6 @@ package blockchaininfo
 
 import (
 	"context"
-	"log"
 	"time"
 
 	"go.uber.org/zap"
@@ -14,13 +13,12 @@ import (
 )
 
 const StoreBlocksLimit = 200
-const PortDefault = 4222
-const HostDefault = "127.0.0.1"
 const ConnectionsTimeoutDefault = 5 * server.AUTH_TIMEOUT
 
-const NatsMaxPayloadSize int32 = 1024 * 1024 // 1 MB
-
-const PublisherWaitingTime = 100 * time.Millisecond
+const portDefault = 4222
+const hostDefault = "127.0.0.1"
+const natsMaxPayloadSize int32 = 1024 * 1024 // 1 MB
+const publisherWaitingTime = 100 * time.Millisecond
 
 const (
 	StartPaging = iota
@@ -50,7 +48,7 @@ func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddr
 }
 
 func (bu *BUpdatesExtensionState) hasStateChanged() (bool, BUpdatesInfo, error) {
-	statesAreEqual, changes, err := statesEqual(*bu, bu.scheme)
+	statesAreEqual, changes, err := bu.statesEqual(bu.scheme)
 	if err != nil {
 		return false, BUpdatesInfo{}, err
 	}
@@ -58,6 +56,10 @@ func (bu *BUpdatesExtensionState) hasStateChanged() (bool, BUpdatesInfo, error) 
 		return false, BUpdatesInfo{}, nil
 	}
 	return true, changes, nil
+}
+
+func (bu *BUpdatesExtensionState) statesEqual(scheme proto.Scheme) (bool, BUpdatesInfo, error) {
+	return CompareBUpdatesInfo(*bu.currentState, *bu.previousState, scheme)
 }
 
 func splitIntoChunks(array []byte, maxChunkSize int) [][]byte {
@@ -83,20 +85,20 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 		return err
 	}
 
-	if len(dataEntriesProtobuf) <= int(NatsMaxPayloadSize-1) {
+	if len(dataEntriesProtobuf) <= int(natsMaxPayloadSize-1) {
 		var msg []byte
 		msg = append(msg, NoPaging)
 		msg = append(msg, dataEntriesProtobuf...)
 		err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
 		if err != nil {
-			log.Printf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
 			return err
 		}
-		log.Printf("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
 		return nil
 	}
 
-	chunkedPayload := splitIntoChunks(dataEntriesProtobuf, int(NatsMaxPayloadSize-1)/2)
+	chunkedPayload := splitIntoChunks(dataEntriesProtobuf, int(natsMaxPayloadSize-1)/2)
 
 	for i, chunk := range chunkedPayload {
 		var msg []byte
@@ -106,21 +108,21 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 			msg = append(msg, chunk...)
 			err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
 			if err != nil {
-				log.Printf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+				zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
 				return err
 			}
-			log.Printf("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
 			break
 		}
 		msg = append(msg, StartPaging)
 		msg = append(msg, chunk...)
 		err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
 		if err != nil {
-			log.Printf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
 			return err
 		}
-		log.Printf("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
-		time.Sleep(PublisherWaitingTime)
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		time.Sleep(publisherWaitingTime)
 	}
 
 	return nil
@@ -137,10 +139,10 @@ func (bu *BUpdatesExtensionState) publishBlockUpdates(updates BUpdatesInfo, nc *
 	}
 	err = nc.Publish(BlockUpdates, blockInfoProtobuf)
 	if err != nil {
-		log.Printf("failed to publish message on topic %s", BlockUpdates)
+		zap.S().Errorf("failed to publish message on topic %s", BlockUpdates)
 		return err
 	}
-	log.Printf("Published on topic: %s\n", BlockUpdates)
+	zap.S().Infof("Published on topic: %s\n", BlockUpdates)
 	return nil
 }
 
@@ -148,7 +150,7 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 	/* first publish block data */
 	err := bu.publishBlockUpdates(updates, nc, scheme)
 	if err != nil {
-		log.Printf("failed to publish message on topic %s", BlockUpdates)
+		zap.S().Errorf("failed to publish message on topic %s", BlockUpdates)
 		return err
 	}
 
@@ -156,10 +158,10 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 	if updates.ContractUpdatesInfo.AllDataEntries != nil {
 		pblshErr := bu.publishContractUpdates(updates.ContractUpdatesInfo, nc)
 		if pblshErr != nil {
-			log.Printf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
 			return pblshErr
 		}
-		log.Printf("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
 	}
 
 	return nil
@@ -178,7 +180,7 @@ func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, sc
 		updates.ContractUpdatesInfo.AllDataEntries = filteredDataEntries
 		pblshErr := bu.publishUpdates(updates, nc, scheme)
 		if pblshErr != nil {
-			log.Printf("failed to publish updates, %v", pblshErr)
+			zap.S().Errorf("failed to publish updates, %v", pblshErr)
 			return
 		}
 		bu.previousState = &updates
@@ -187,15 +189,14 @@ func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, sc
 	// compare the current state to the previous state
 	stateChanged, changes, cmprErr := bu.hasStateChanged()
 	if cmprErr != nil {
-		log.Printf("failed to compare current and previous states, %v", cmprErr)
+		zap.S().Errorf("failed to compare current and previous states, %v", cmprErr)
 		return
 	}
 	// if there is any diff, send the update
 	if stateChanged {
 		pblshErr := bu.publishUpdates(changes, nc, scheme)
-		log.Printf("published changes")
 		if pblshErr != nil {
-			log.Printf("failed to publish changes, %v", pblshErr)
+			zap.S().Errorf("failed to publish changes, %v", pblshErr)
 		}
 		bu.previousState = &updates
 	}
@@ -207,7 +208,7 @@ func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
 		select {
 		case updates, ok := <-updatesChannel:
 			if !ok {
-				log.Printf("the updates channel for publisher was closed")
+				zap.S().Errorf("the updates channel for publisher was closed")
 				return
 			}
 			handleBlockchainUpdate(updates, bu, scheme, nc)
@@ -243,9 +244,9 @@ func runReceiver(requestsChannel chan<- L2Requests, nc *nats.Conn) error {
 func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
 	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme, l2Requests chan<- L2Requests) error {
 	opts := &server.Options{
-		MaxPayload: NatsMaxPayloadSize,
-		Host:       HostDefault,
-		Port:       PortDefault,
+		MaxPayload: natsMaxPayloadSize,
+		Host:       hostDefault,
+		Port:       portDefault,
 		NoSigs:     true,
 	}
 	s, err := server.NewServer(opts)
@@ -261,7 +262,7 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 		return errors.New("NATS server is not ready for connections")
 	}
 
-	zap.S().Infof("NATS Server is running on port %d", PortDefault)
+	zap.S().Infof("NATS Server is running on port %d", portDefault)
 
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {

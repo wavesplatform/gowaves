@@ -29,8 +29,6 @@ type L2Requests struct {
 	Restart bool
 }
 
-// TODO wrap errors.
-
 func CompareBUpdatesInfo(current, previous BUpdatesInfo,
 	scheme proto.Scheme) (bool, BUpdatesInfo, error) {
 	changes := BUpdatesInfo{
@@ -139,10 +137,6 @@ func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.Data
 		}
 	}
 
-	equal := changes == nil
+	equal := len(changes) == 0
 	return equal, changes, nil
-}
-
-func statesEqual(state BUpdatesExtensionState, scheme proto.Scheme) (bool, BUpdatesInfo, error) {
-	return CompareBUpdatesInfo(*state.currentState, *state.previousState, scheme)
 }

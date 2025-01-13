@@ -29,7 +29,7 @@ func printBlockInfo(blockInfoProto *g.BlockInfo) error {
 	if err != nil {
 		return err
 	}
-	log.Println(string(blockInfoJSON))
+	zap.S().Info(string(blockInfoJSON))
 	return nil
 }
 
@@ -41,14 +41,14 @@ func printContractInfo(contractInfoProto *g.L2ContractDataEntries, scheme proto.
 	// Delete data entries are not going to have "type"
 	prettyJSON, err := json.MarshalIndent(contractInfo, "", "    ")
 	if err != nil {
-		log.Println("Error converting to pretty JSON:", err)
+		zap.S().Errorf("failed converting to pretty JSON, %v", err)
 		return err
 	}
 	heightStr := strconv.FormatUint(contractInfoProto.Height, 10)
 	// Write the pretty JSON to a file
 	err = os.WriteFile(path+heightStr+".json", prettyJSON, 0600)
 	if err != nil {
-		log.Println("Error writing to file:", err)
+		zap.S().Errorf("failed writing to file: %v", err)
 		return err
 	}
 
@@ -59,7 +59,7 @@ func receiveBlockUpdates(msg *nats.Msg) {
 	blockUpdatesInfo := new(g.BlockInfo)
 	unmrshlErr := blockUpdatesInfo.UnmarshalVT(msg.Data)
 	if unmrshlErr != nil {
-		log.Printf("failed to unmarshal block updates, %v", unmrshlErr)
+		zap.S().Errorf("failed to unmarshal block updates, %v", unmrshlErr)
 		return
 	}
 
@@ -67,7 +67,7 @@ func receiveBlockUpdates(msg *nats.Msg) {
 	if err != nil {
 		return
 	}
-	log.Printf("Received on %s:\n", msg.Subject)
+	zap.S().Infof("Received on %s:\n", msg.Subject)
 }
 
 func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Scheme, path string) []byte {
@@ -78,11 +78,11 @@ func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Sche
 		contractMsg = msg.Data[1:]
 		contractUpdatesInfo := new(g.L2ContractDataEntries)
 		if err := contractUpdatesInfo.UnmarshalVT(contractMsg); err != nil {
-			log.Printf("Failed to unmarshal contract updates: %v", err)
+			zap.S().Errorf("Failed to unmarshal contract updates: %v", err)
 			return contractMsg
 		}
 		if err := printContractInfo(contractUpdatesInfo, scheme, path); err != nil {
-			log.Printf("Failed to print contract info: %v", err)
+			zap.S().Errorf("Failed to print contract info: %v", err)
 			return contractMsg
 		}
 		contractMsg = nil
@@ -95,13 +95,13 @@ func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Sche
 			contractMsg = append(contractMsg, msg.Data[1:]...)
 			contractUpdatesInfo := new(g.L2ContractDataEntries)
 			if err := contractUpdatesInfo.UnmarshalVT(contractMsg); err != nil {
-				log.Printf("Failed to unmarshal contract updates: %v", err)
+				zap.S().Errorf("Failed to unmarshal contract updates: %v", err)
 				return contractMsg
 			}
 
 			go func() {
 				if err := printContractInfo(contractUpdatesInfo, scheme, path); err != nil {
-					log.Printf("Failed to print contract info updates: %v", err)
+					zap.S().Errorf("Failed to print contract info updates: %v", err)
 				}
 			}()
 			contractMsg = nil
@@ -132,7 +132,7 @@ func main() {
 		l2ContractAddress string
 	)
 	// Initialize the zap logger
-	l, err := zap.NewProduction()
+	logger, err := zap.NewProduction()
 	if err != nil {
 		log.Fatalf("failed to initialize zap logger: %v", err)
 	}
@@ -141,7 +141,8 @@ func main() {
 		if syncErr != nil {
 			log.Fatalf("failed to sync zap logger %v", syncErr)
 		}
-	}(l)
+	}(logger)
+	zap.ReplaceGlobals(logger)
 
 	flag.StringVar(&blockchainType, "blockchain-type", "testnet", "Blockchain scheme (e.g., stagenet, testnet, mainnet)")
 	flag.StringVar(&updatesPath, "updates-path", "", "File path to store contract updates")

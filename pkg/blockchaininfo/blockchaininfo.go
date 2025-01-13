@@ -3,11 +3,10 @@ package blockchaininfo
 import (
 	"bytes"
 	"encoding/binary"
-	"errors"
-	"fmt"
 	"strconv"
 	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -15,25 +14,69 @@ const EpochKeyPrefix = "epoch_"
 const blockMeta0xKeyPrefix = "block_0x"
 
 // Helper function to read uint64 from bytes.
-func readInt64(data *bytes.Reader) int64 {
+func readInt64(data *bytes.Reader) (int64, error) {
 	var num int64
 	err := binary.Read(data, binary.BigEndian, &num)
 	if err != nil {
-		panic(fmt.Sprintf("Failed to read uint64: %v", err))
+		return 0, err
 	}
-	return num
+	return num, nil
 }
 
 // Decode base64 and extract blockHeight and height.
-func extractEpochFromBlockMeta(metaBlockValueBytes []byte) int64 {
+func extractEpochFromBlockMeta(metaBlockValueBytes []byte) (int64, error) {
 	// Create a bytes reader for easier parsing.
 	reader := bytes.NewReader(metaBlockValueBytes)
 
 	// Extract blockHeight and epoch.
-	readInt64(reader)
-	epoch := readInt64(reader)
+	_, err := readInt64(reader)
+	if err != nil {
+		return 0, errors.Errorf("failed to read the block height from blockMeta, %v", err)
+	}
+	epoch, err := readInt64(reader)
+	if err != nil {
+		return 0, errors.Errorf("failed to read the epoch from blockMeta, %v", err)
+	}
 
-	return epoch
+	return epoch, nil
+}
+
+func filterEpochEntry(entry proto.DataEntry, beforeHeight uint64) ([]proto.DataEntry, error) {
+	key := entry.GetKey()
+	// Extract the part after "epoch_"
+	epochStr := key[len(EpochKeyPrefix):]
+
+	epochNumber, err := strconv.ParseUint(epochStr, 10, 64)
+	if err != nil {
+		return nil, err
+	}
+
+	// Return this entry only if epochNumber is greater than beforeHeight
+	if epochNumber > beforeHeight {
+		return []proto.DataEntry{entry}, nil
+	}
+	return nil, nil
+}
+
+func filterBlock0xEntry(entry proto.DataEntry, beforeHeight uint64) ([]proto.DataEntry, error) {
+	// Extract blockHeight and height from base64.
+	binaryEntry, ok := entry.(*proto.BinaryDataEntry)
+	if !ok {
+		return nil, errors.New("failed to convert block meta key to binary data entry")
+	}
+	epoch, err := extractEpochFromBlockMeta(binaryEntry.Value)
+	if err != nil {
+		return nil, errors.Errorf("failed to filter data entries, %v", err)
+	}
+
+	if epoch < 0 {
+		return nil, errors.New("epoch is less than 0")
+	}
+	// Return this entry only if epochNumber is greater than beforeHeight
+	if uint64(epoch) > beforeHeight {
+		return []proto.DataEntry{entry}, nil
+	}
+	return nil, nil
 }
 
 func filterDataEntries(beforeHeight uint64, dataEntries []proto.DataEntry) ([]proto.DataEntry, error) {
@@ -45,38 +88,19 @@ func filterDataEntries(beforeHeight uint64, dataEntries []proto.DataEntry) ([]pr
 		switch {
 		// Filter "epoch_" prefixed keys.
 		case strings.HasPrefix(key, EpochKeyPrefix):
-			// Extract the numeric part after "epoch_"
-			epochStr := key[len(EpochKeyPrefix):]
-
-			// Convert the epoch number to uint64.
-			epochNumber, err := strconv.ParseUint(epochStr, 10, 64)
+			entryOrNil, err := filterEpochEntry(entry, beforeHeight)
 			if err != nil {
 				return nil, err
 			}
-
-			// Compare epoch number with beforeHeight.
-			if epochNumber > beforeHeight {
-				// Add to filtered list if epochNumber is greater.
-				filteredDataEntries = append(filteredDataEntries, entry)
-			}
+			filteredDataEntries = append(filteredDataEntries, entryOrNil...)
 
 		// Filter block_0x binary entries.
 		case strings.HasPrefix(key, blockMeta0xKeyPrefix):
-			// Extract blockHeight and height from base64.
-			binaryEntry, ok := entry.(*proto.BinaryDataEntry)
-			if !ok {
-				return nil, errors.New("failed to convert block meta key to binary data entry")
+			entryOrNil, err := filterBlock0xEntry(entry, beforeHeight)
+			if err != nil {
+				return nil, err
 			}
-			epoch := extractEpochFromBlockMeta(binaryEntry.Value)
-
-			if epoch < 0 {
-				return nil, errors.New("epoch is less than 0")
-			}
-			// Compare height with beforeHeight.
-			if uint64(epoch) > beforeHeight {
-				// Add to filtered list if height is less than beforeHeight.
-				filteredDataEntries = append(filteredDataEntries, entry)
-			}
+			filteredDataEntries = append(filteredDataEntries, entryOrNil...)
 
 		// Default case to handle non-epoch and non-base64 entries.
 		default:

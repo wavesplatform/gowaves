@@ -2,9 +2,13 @@ package blockchaininfo
 
 import (
 	"context"
+	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
+
+const ChannelWriteTimeout = 10 * time.Second
 
 type BlockchainUpdatesExtension struct {
 	ctx                           context.Context
@@ -70,6 +74,9 @@ func (e *BlockchainUpdatesExtension) WriteBUpdates(bUpdates BUpdatesInfo) {
 	}
 	select {
 	case e.bUpdatesChannel <- bUpdates:
+	case <-time.After(ChannelWriteTimeout):
+		zap.S().Errorf("failed to write into the blockchain updates channel, out of time")
+		return
 	case <-e.ctx.Done():
 		e.close()
 		return

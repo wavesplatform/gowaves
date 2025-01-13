@@ -2372,21 +2372,6 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 	return entries, nil
 }
 
-func (s *stateManager) RetrieveEntriesAtHeight(account proto.Recipient, height uint64) ([]proto.DataEntry, error) {
-	addr, err := s.recipientToAddress(account)
-	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
-	}
-	entries, err := s.stor.accountsDataStor.retrieveEntriesAtHeight(addr, height)
-	if err != nil {
-		if errors.Is(err, proto.ErrNotFound) {
-			return nil, err
-		}
-		return nil, wrapErr(RetrievalError, err)
-	}
-	return entries, nil
-}
-
 // IsStateUntouched returns true if the account has no data entries.
 // ATTENTION: Despite the name, this function operates on the newest state. The name is kept for compatibility.
 func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
