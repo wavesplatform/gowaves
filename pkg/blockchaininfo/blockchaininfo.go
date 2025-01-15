@@ -24,21 +24,14 @@ func readInt64(data *bytes.Reader) (int64, error) {
 }
 
 // Decode base64 and extract blockHeight and height.
-func extractEpochFromBlockMeta(metaBlockValueBytes []byte) (int64, error) {
-	// Create a bytes reader for easier parsing.
-	reader := bytes.NewReader(metaBlockValueBytes)
-
-	// Extract blockHeight and epoch.
-	_, err := readInt64(reader)
+func extractEpochFromBlockMeta(blockMetaValue []byte) (int64, error) {
+	var blockMeta BlockMeta
+	err := blockMeta.UnmarshalBinary(blockMetaValue)
 	if err != nil {
-		return 0, errors.Errorf("failed to read the block height from blockMeta, %v", err)
-	}
-	epoch, err := readInt64(reader)
-	if err != nil {
-		return 0, errors.Errorf("failed to read the epoch from blockMeta, %v", err)
+		return 0, errors.Errorf("failed to unmarshal blockMeta, %v", err)
 	}
 
-	return epoch, nil
+	return blockMeta.BlockEpoch, nil
 }
 
 func filterEpochEntry(entry proto.DataEntry, beforeHeight uint64) ([]proto.DataEntry, error) {

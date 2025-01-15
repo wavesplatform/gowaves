@@ -3,7 +3,13 @@ package blockchaininfo
 import (
 	"bytes"
 
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+)
+
+const (
+	RootHashSize = 32
 )
 
 // BlockUpdatesInfo Block updates.
@@ -139,4 +145,74 @@ func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.Data
 
 	equal := len(changes) == 0
 	return equal, changes, nil
+}
+
+type BlockMeta struct {
+	BlockHeight          int64  `json:"blockHeight"`
+	BlockEpoch           int64  `json:"blockEpoch"`
+	BlockParent          []byte `json:"blockParent"`
+	ChainID              int64  `json:"chainId"`
+	E2CTransfersRootHash []byte `json:"e2cTransfersRootHash"`
+	LastC2ETransferIndex int64  `json:"lastC2ETransferIndex"`
+}
+
+func readBytes(reader *bytes.Reader, length int) ([]byte, error) {
+	buf := make([]byte, length)
+	n, err := reader.Read(buf)
+	if err != nil {
+		return nil, err
+	}
+	if n != length {
+		return nil, errors.Errorf("expected to read %d bytes, but read %d bytes", length, n)
+	}
+	return buf, nil
+}
+
+func (bm *BlockMeta) UnmarshalBinary(value []byte) error {
+	var err error
+	binaryData := value
+
+	reader := bytes.NewReader(binaryData)
+	// Step 1: Extract blockHeight, 8 bytes
+	bm.BlockHeight, err = readInt64(reader)
+	if err != nil {
+		return errors.Errorf("failed to read block height from blockMeta: %v", err)
+	}
+	// Step 2: Extract blockEpoch, 8 bytes
+	bm.BlockEpoch, err = readInt64(reader)
+	if err != nil {
+		return errors.Errorf("failed to read block epoch from blockMeta: %v", err)
+	}
+	// Step 3: Extract blockParent, 32 bytes
+	bm.BlockParent, err = readBytes(reader, crypto.DigestSize)
+	if err != nil {
+		return errors.Errorf("failed to read block parent from blockMeta: %v", err)
+	}
+	// Step 4: Extract chainId, 8 bytes
+	bm.ChainID, err = readInt64(reader)
+	if err != nil {
+		return errors.Errorf("failed to read chain ID from blockMeta: %v", err)
+	}
+	// How many bytes are left to read
+	remainingBytes := reader.Len()
+	// Step 5: Extract e2cTransfersRootHash
+	if remainingBytes >= RootHashSize {
+		bm.E2CTransfersRootHash, err = readBytes(reader, RootHashSize)
+		if err != nil {
+			return errors.Errorf("failed to read E2CTransfersRootHash from blockMeta: %v", err)
+		}
+	} else {
+		bm.E2CTransfersRootHash = nil // Represents base58''
+	}
+	// Step 6: Extract lastC2ETransferIndex
+	if remainingBytes == 8 || remainingBytes > RootHashSize {
+		index, readErr := readInt64(reader)
+		if readErr != nil {
+			return errors.Errorf("failed to read lastC2ETransferIndex from blockMeta: %v", readErr)
+		}
+		bm.LastC2ETransferIndex = index
+	} else {
+		bm.LastC2ETransferIndex = -1
+	}
+	return nil
 }

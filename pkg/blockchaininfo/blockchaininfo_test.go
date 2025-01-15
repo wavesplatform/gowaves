@@ -253,3 +253,19 @@ func TestNoChangesGeneration(t *testing.T) {
 
 	require.True(t, len(changes.ContractUpdatesInfo.AllDataEntries) == 0)
 }
+
+func TestDecodeBlockMeta(t *testing.T) {
+	binaryDataEntryJSON := []byte(`{
+		"key": "block_0x000cf2d957da5e30dcfae8b5eba2b585f0102680a5c343a1a107aa529f61c2db",
+		"type": "binary",
+		"value": "base64:AAAAAAACn6IAAAAAADKE1/L3xxY2i+uZZ0Rzd3XOD2O+12+a8D2j0d4Ymk/7v7YdAAAAAAAAAAAAAAAAAAAAFg=="
+	}`)
+	var binaryEntry proto.BinaryDataEntry
+	err := binaryEntry.UnmarshalJSON(binaryDataEntryJSON)
+	require.NoError(t, err)
+	var blockMeta blockchaininfo.BlockMeta
+	err = blockMeta.UnmarshalBinary(binaryEntry.Value)
+	require.NoError(t, err)
+	require.Equal(t, blockMeta.BlockHeight, int64(171938))
+	require.Equal(t, blockMeta.BlockEpoch, int64(3310807))
+}
