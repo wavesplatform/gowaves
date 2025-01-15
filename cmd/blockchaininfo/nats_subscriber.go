@@ -114,16 +114,6 @@ func ConcatenateContractTopics(contractAddress string) string {
 	return blockchaininfo.ContractUpdates + contractAddress
 }
 
-//nolint:unused // because this function will be called in some other place.
-func sendRestartSignal(nc *nats.Conn) error {
-	message := []byte(blockchaininfo.RequestRestartSubTopic)
-	_, err := nc.Request(blockchaininfo.L2RequestsTopic, message, blockchaininfo.ConnectionsTimeoutDefault)
-	if err != nil {
-		return err
-	}
-	return nil
-}
-
 func main() {
 	var (
 		blockchainType    string

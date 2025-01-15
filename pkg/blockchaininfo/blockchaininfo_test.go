@@ -3,10 +3,15 @@ package blockchaininfo_test
 import (
 	"testing"
 
+	"github.com/nats-io/nats-server/v2/server"
+	"github.com/nats-io/nats.go"
+	"github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
+
+const natsTestURL = "nats://127.0.0.1:4756"
 
 // some random test data.
 func testBlockUpdates() blockchaininfo.BlockUpdatesInfo {
@@ -268,4 +273,48 @@ func TestDecodeBlockMeta(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, blockMeta.BlockHeight, int64(171938))
 	require.Equal(t, blockMeta.BlockEpoch, int64(3310807))
+}
+
+func RunNatsTestServer() (*server.Server, error) {
+	opts := &server.Options{
+		MaxPayload: 1024 * 1024,
+		Host:       "127.0.0.1",
+		Port:       4756,
+		NoSigs:     true,
+	}
+	s, err := server.NewServer(opts)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to create NATS server")
+	}
+	go s.Start()
+	if !s.ReadyForConnections(5 * server.AUTH_TIMEOUT) {
+		return nil, errors.New("NATS server is not ready for connections")
+	}
+	return s, nil
+}
+
+func TestSendRestartSignal(t *testing.T) {
+	ts, err := RunNatsTestServer()
+	require.NoError(t, err, "failed to run nats test server")
+	defer ts.Shutdown()
+	// Connect to NATS (adjust URL to match your environment).
+	nc, err := nats.Connect(natsTestURL)
+	require.NoError(t, err, "failed to connect to NATS")
+	defer nc.Close()
+
+	// Subscribe to the L2RequestsTopic to simulate a service that handles the request.
+	_, err = nc.Subscribe(blockchaininfo.L2RequestsTopic, func(msg *nats.Msg) {
+		if string(msg.Data) == blockchaininfo.RequestRestartSubTopic {
+			_ = msg.Respond([]byte("ok"))
+		} else {
+			t.Errorf("unexpected message: %s", msg.Data)
+		}
+	})
+	require.NoError(t, err, "Failed to subscribe to topic")
+
+	// Call the function we're testing.
+	msg, err := blockchaininfo.SendRestartSignal(nc)
+	require.NoError(t, err, "Failed to send a restart signal")
+
+	require.Equal(t, msg.Data, []byte("ok"))
 }

@@ -229,16 +229,14 @@ func runReceiver(requestsChannel chan<- L2Requests, nc *nats.Conn) error {
 			notNilResponse := "ok"
 			err := request.Respond([]byte(notNilResponse))
 			if err != nil {
+				zap.S().Errorf("failed to respond to a restart signal, %v", err)
 				return
 			}
 		default:
 			zap.S().Errorf("nats receiver received an unknown signal, %s", signal)
 		}
 	})
-	if subErr != nil {
-		return subErr
-	}
-	return nil
+	return subErr
 }
 
 func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,

@@ -59,7 +59,11 @@ func (e *BlockchainUpdatesExtension) ReceiveSignals() {
 		select {
 		case <-e.ctx.Done():
 			return
-		case l2Request := <-e.l2RequestsChannel:
+		case l2Request, ok := <-e.l2RequestsChannel:
+			if !ok {
+				zap.S().Errorf("can't read from l2RequestsChannel, the channel is closed")
+				return
+			}
 			if l2Request.Restart {
 				e.firstBlock = true
 				e.blockchainExtensionState.previousState = nil
