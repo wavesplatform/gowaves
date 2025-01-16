@@ -158,6 +158,34 @@ func (id *BlockID) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (id *BlockID) WriteTo(w io.Writer) (int64, error) {
+	var n int
+	var err error
+	switch id.idType {
+	case SignatureID:
+		n, err = w.Write(id.sig[:])
+	case DigestID:
+		n, err = w.Write(id.dig[:])
+	default:
+		return 0, errors.New("unknown BlockID type")
+	}
+	return int64(n), err
+}
+
+func (id *BlockID) ReadFrom(r io.Reader) (int64, error) {
+	buf := make([]byte, crypto.SignatureSize)
+	n, err := r.Read(buf)
+	if err != nil {
+		return int64(n), err
+	}
+	res, err := NewBlockIDFromBytes(buf)
+	if err != nil {
+		return int64(n), err
+	}
+	*id = res
+	return int64(n), nil
+}
+
 type ChallengedHeader struct {
 	Timestamp uint64 `json:"timestamp"`
 	NxtConsensus

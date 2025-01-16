@@ -574,10 +574,10 @@ func TestGetBlockIdsMessageRoundTrip(t *testing.T) {
 	id0 := NewBlockIDFromSignature(crypto.Signature{0x1})
 	id1 := NewBlockIDFromSignature(crypto.Signature{0x2})
 	id2 := NewBlockIDFromDigest(crypto.Digest{0x3})
-	msg := GetBlockIdsMessage{Blocks: []BlockID{id0, id1, id2}}
+	msg := GetBlockIDsMessage{Blocks: []BlockID{id0, id1, id2}}
 	msgBytes, err := msg.MarshalBinary()
 	assert.NoError(t, err)
-	var res GetBlockIdsMessage
+	var res GetBlockIDsMessage
 	err = res.UnmarshalBinary(msgBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, res, msg)
@@ -587,10 +587,10 @@ func TestBlockIdsMessageRoundTrip(t *testing.T) {
 	id0 := NewBlockIDFromSignature(crypto.Signature{0x1})
 	id1 := NewBlockIDFromSignature(crypto.Signature{0x2})
 	id2 := NewBlockIDFromDigest(crypto.Digest{0x3})
-	msg := BlockIdsMessage{Blocks: []BlockID{id0, id1, id2}}
+	msg := BlockIDsMessage{Blocks: []BlockID{id0, id1, id2}}
 	msgBytes, err := msg.MarshalBinary()
 	assert.NoError(t, err)
-	var res BlockIdsMessage
+	var res BlockIDsMessage
 	err = res.UnmarshalBinary(msgBytes)
 	assert.NoError(t, err)
 	assert.Equal(t, res, msg)
@@ -691,10 +691,29 @@ func TestPeersMessage_Marshalling(t *testing.T) {
 	})
 }
 
-func TestTCPAddr_ToUint64(t *testing.T) {
-	a := NewTCPAddrFromString("127.0.0.1:6868")
-	rs := a.ToUint64()
-	b := NewTcpAddrFromUint64(rs)
+func TestChecksumReader(t *testing.T) {
+	for i, tst := range []struct {
+		data     []byte
+		checksum [4]byte
+	}{
+		{[]byte{}, [4]byte{0xe, 0x57, 0x51, 0xc0}},
+		{[]byte{0x00}, [4]byte{0x3, 0x17, 0xa, 0x2e}},
+		{[]byte{0x00, 0x00, 0x00, 0x00}, [4]byte{0x11, 0xda, 0x6d, 0x1f}},
+		{[]byte{0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07, 0x08}, [4]byte{0xea, 0x2d, 0x4b, 0xc2}},
+		{[]byte("Test message"), [4]byte{0xb, 0x97, 0xbc, 0xad}},
+	} {
+		t.Run(fmt.Sprintf("case_%d", i), func(t *testing.T) {
+			r, err := NewChecksumReader(bytes.NewReader(tst.data))
+			require.NoError(t, err)
+			bts, err := io.ReadAll(r)
+			require.NoError(t, err)
+			assert.Equal(t, tst.data, bts)
 
-	require.True(t, a.Equal(b))
+			d, err := crypto.FastHash(tst.data)
+			require.NoError(t, err)
+			assert.Equal(t, tst.checksum[:], d[:4])
+
+			assert.Equal(t, tst.checksum, r.Checksum())
+		})
+	}
 }
