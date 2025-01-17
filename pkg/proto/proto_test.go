@@ -9,6 +9,7 @@ import (
 	"io"
 	"math"
 	"net"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
@@ -30,7 +31,6 @@ type comparable interface {
 
 type testable interface {
 	marshallable
-	//comparable
 }
 
 type protocolMarshallingTest struct {
@@ -161,6 +161,22 @@ func (m *TransactionMessage) Equal(d comparable) bool {
 	return bytes.Equal(m.Transaction, p.Transaction)
 }
 
+func makeDigest(b byte) crypto.Digest {
+	var d crypto.Digest
+	for i := range d {
+		d[i] = b
+	}
+	return d
+}
+
+func makeSignature(b byte) crypto.Signature {
+	var s crypto.Signature
+	for i := range s {
+		s[i] = b
+	}
+	return s
+}
+
 var tests = []protocolMarshallingTest{
 	{
 		&GetPeersMessage{},
@@ -224,6 +240,20 @@ var tests = []protocolMarshallingTest{
 		//P. Len |    Magic | ContentID | Payload Length | PayloadChecksum | Payload
 		"00000059  12345678       64         0000004c      fcb6b02a   00000001 00000000 deadbeef 10110000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
 	},
+	{
+		&GetBlockIDsMessage{Blocks: []BlockID{
+			NewBlockIDFromDigest(makeDigest(0x01)),
+			NewBlockIDFromSignature(makeSignature(0x02)),
+			NewBlockIDFromDigest(makeDigest(0x03)),
+		}},
+		// P. Len |    Magic | ContentID | Payload Length | PayloadChecksum | Payload
+		//nolint:lll
+		"00000094  12345678       20         00000087  20261ba5  00000003 200101010101010101010101010101010101010101010101010101010101010101 4002020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202020202 200303030303030303030303030303030303030303030303030303030303030303",
+	},
+	{
+		&GetBlockMessage{BlockID: NewBlockIDFromDigest(makeDigest(0x01))},
+		"0000002d  12345678  16  00000020  f40ceaf8  0101010101010101010101010101010101010101010101010101010101010101",
+	},
 }
 
 func TestProtocolMarshalling(t *testing.T) {
@@ -236,12 +266,28 @@ func TestProtocolMarshalling(t *testing.T) {
 			buf := new(bytes.Buffer)
 			_, err = v.testMessage.WriteTo(buf)
 			require.NoError(t, err)
-			require.Equal(t, decoded, buf.Bytes())
+			assert.Equal(t, decoded, buf.Bytes())
 
-			m := v.testMessage
+			tmt := reflect.TypeOf(v.testMessage).Elem()
+
+			msg, ok := v.testMessage.(Message)
+			require.True(t, ok)
+			bts, err := msg.MarshalBinary()
+			require.NoError(t, err)
+			assert.ElementsMatch(t, decoded, bts)
+
+			p := reflect.New(tmt)
+			m, ok := p.Interface().(Message)
+			require.True(t, ok)
 			_, err = m.ReadFrom(buf)
 			require.NoError(t, err)
 			require.Equal(t, v.testMessage, m)
+
+			msg2, ok := reflect.New(tmt).Interface().(Message)
+			require.True(t, ok)
+			err = msg2.UnmarshalBinary(decoded)
+			require.NoError(t, err)
+			assert.Equal(t, v.testMessage, msg2)
 		})
 	}
 }

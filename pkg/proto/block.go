@@ -158,6 +158,7 @@ func (id *BlockID) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+// WriteTo writes binary representation of BlockID into Writer. It writes only Digest or Signature bytes.
 func (id *BlockID) WriteTo(w io.Writer) (int64, error) {
 	var n int
 	var err error
@@ -172,13 +173,27 @@ func (id *BlockID) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
+// ReadFrom reads binary representation of BlockID from Reader. It reads only Digest or Signature bytes.
+// ATTENTION!!! The size of the data is unknown before reading, so we use a workaround here. We allocate buffer that
+// could hold a Signature and read at least 32 bytes. If there is no data even for Digest, we return an error.
+// If we read 32 bytes or more, we look at the size of read data and decide whether we have a Signature, a Digest or
+// return invalid size error.
 func (id *BlockID) ReadFrom(r io.Reader) (int64, error) {
 	buf := make([]byte, crypto.SignatureSize)
-	n, err := r.Read(buf)
+	if id.idType == DigestID {
+		buf = buf[:crypto.DigestSize]
+	}
+	n, err := io.ReadAtLeast(r, buf, crypto.DigestSize)
 	if err != nil {
+		if errors.Is(err, io.ErrUnexpectedEOF) {
+			return int64(n), err
+		}
 		return int64(n), err
 	}
-	res, err := NewBlockIDFromBytes(buf)
+	if n != crypto.DigestSize && n != crypto.SignatureSize {
+		return int64(n), errors.New("invalid data size")
+	}
+	res, err := NewBlockIDFromBytes(buf[:n])
 	if err != nil {
 		return int64(n), err
 	}
