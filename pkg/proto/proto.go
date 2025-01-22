@@ -30,7 +30,7 @@ Messages are sent over the network in the following format:
 +---------+-----------+----------+-------------+------------------+---------+
 
 * MSG_LEN (4 bytes, uint32) - message length. It includes lengths of all fields except the length of MSG_LEN itself.
-* MSG_MAGIC (4 bytes, "0x123456787") - magic number, constant value.
+* MSG_MAGIC (4 bytes, "0x12345678") - magic number, constant value.
 * MSG_TYPE (1 byte) - message type.
 * PAYLOAD_LEN (4 bytes, uin32) - payload length.
 * PAYLOAD_CHECKSUM (4 bytes) - payload checksum, optional, may be omitted if PAYLOAD_LEN == 0.
@@ -145,7 +145,7 @@ func (r *ChecksumReader) Read(p []byte) (int, error) {
 }
 
 // Checksum returns the checksum of the data read so far.
-func (r *ChecksumReader) Checksum() [4]byte {
+func (r *ChecksumReader) Checksum() [payloadChecksumSize]byte {
 	var d crypto.Digest
 	r.h.Sum(d[:0])
 	var cs [4]byte
@@ -162,23 +162,23 @@ func ReadMessage(r io.Reader, contentID PeerMessageID, name string, payload io.R
 		return n1, fmt.Errorf("%s: failed to read header: %w", name, err)
 	}
 	if vErr := h.Validate(contentID); vErr != nil {
-		return n1 + n1, fmt.Errorf("%s: message header is not valid: %w", name, vErr)
+		return n1, fmt.Errorf("%s: message header is not valid: %w", name, vErr)
 	}
 	if h.payloadLength == 0 || payload == nil { // Fast exit for messages without payload.
-		return n1 + n1, nil
+		return n1, nil
 	}
 	pr, err := NewChecksumReader(io.LimitReader(r, int64(h.payloadLength)))
 	if err != nil {
-		return n1 + n1, fmt.Errorf("%s: failed to create checksum reader: %w", name, err)
+		return n1, fmt.Errorf("%s: failed to create checksum reader: %w", name, err)
 	}
-	n3, err := payload.ReadFrom(pr)
+	n2, err := payload.ReadFrom(pr)
 	if err != nil {
-		return n1 + n1 + n3, fmt.Errorf("%s: failed to read payload: %w", name, err)
+		return n1 + n2, fmt.Errorf("%s: failed to read payload: %w", name, err)
 	}
 	if pr.Checksum() != h.PayloadChecksum {
-		return n1 + n1 + n3, fmt.Errorf("%s: payload checksum mismatch", name)
+		return n1 + n2, fmt.Errorf("%s: payload checksum mismatch", name)
 	}
-	return n1 + n1 + n3, nil
+	return n1 + n2, nil
 }
 
 func writeEmptyMessage(w io.Writer, contentID PeerMessageID, name string) (int64, error) {
@@ -242,7 +242,7 @@ func NewHeader(contentID PeerMessageID, body []byte) (Header, error) {
 		return Header{}, fmt.Errorf("failed to create header: %w", err)
 	}
 	msgLen := msgMagicSize + msgTypeSize + payloadLenSize // For empty Header.
-	cs := [4]byte{}
+	cs := [payloadChecksumSize]byte{}
 	if bl > 0 {
 		msgLen = msgMagicSize + msgTypeSize + payloadLenSize + payloadChecksumSize + bl
 		dig, fhErr := crypto.FastHash(body)
@@ -271,9 +271,8 @@ func (h *Header) Validate(contentID PeerMessageID) error {
 	}
 	// h.Length is the length of the message after the MSG_LEN field itself. So, we need to add 4 bytes to check
 	// the total length of the message
-	if h.Length+uint32Size != h.HeaderLength()+h.payloadLength {
-		return fmt.Errorf("invalid header: incorrect message length in header (%d), expected  %d",
-			h.Length+uint32Size, h.HeaderLength()+h.payloadLength)
+	if act, exp := h.Length+uint32Size, h.HeaderLength()+h.payloadLength; act != exp {
+		return fmt.Errorf("invalid header: incorrect message length in header (%d), expected  %d", act, exp)
 	}
 	return nil
 }
@@ -378,10 +377,10 @@ func (h *Header) Copy(data []byte) (int, error) {
 	if l < headerSizeWithoutPayload {
 		return 0, errors.New("failed to copy Header: invalid data size")
 	}
-	binary.BigEndian.PutUint32(data[0:4], h.Length)
-	binary.BigEndian.PutUint32(data[4:8], headerMagic)
+	binary.BigEndian.PutUint32(data[:msgLenSize], h.Length)
+	binary.BigEndian.PutUint32(data[msgLenSize:msgLenSize+msgMagicSize], h.Magic)
 	data[HeaderContentIDPosition] = byte(h.ContentID)
-	binary.BigEndian.PutUint32(data[9:headerSizeWithoutPayload], h.payloadLength)
+	binary.BigEndian.PutUint32(data[HeaderContentIDPosition+1:headerSizeWithoutPayload], h.payloadLength)
 	if h.payloadLength > 0 {
 		if l < headerSizeWithPayload {
 			return 0, errors.New("failed to copy Header: invalid data size")
@@ -601,9 +600,39 @@ func (a TCPAddr) WriteTo(w io.Writer) (int64, error) {
 	return int64(n1 + n2), err
 }
 
+// ToUint64 converts TCPAddr to uint64 number.
+// Deprecated: will be removed in future versions.
+func (a TCPAddr) ToUint64() uint64 {
+	ip := uint64(a.ipToUint32()) << 32
+	ip = ip | uint64(a.Port)
+	return ip
+}
+
+// TODO: remove after removing of ToUint64.
+func (a TCPAddr) ipToUint32() uint32 {
+	if len(a.IP) == 16 {
+		return binary.BigEndian.Uint32(a.IP[12:16])
+	}
+	return binary.BigEndian.Uint32(a.IP)
+}
+
 // Equal checks if ip address and port are equal.
 func (a TCPAddr) Equal(other TCPAddr) bool {
 	return a.IP.Equal(other.IP) && a.Port == other.Port
+}
+
+// Deprecated: will be removed in future versions.
+func NewTcpAddrFromUint64(value uint64) TCPAddr {
+	var (
+		ip    = make([]byte, 4)
+		port  = uint32(value)
+		ipVal = uint32(value >> 32)
+	)
+	binary.BigEndian.PutUint32(ip, ipVal)
+	return TCPAddr{
+		IP:   ip,
+		Port: int(port),
+	}
 }
 
 func (a TCPAddr) ToIpPort() IpPort {
@@ -1499,9 +1528,7 @@ type CheckpointItem struct {
 }
 
 func (c CheckpointItem) WriteTo(w io.Writer) (int64, error) {
-	var n int64
-	var err error
-	n, err = U64(c.Height).WriteTo(w)
+	n, err := U64(c.Height).WriteTo(w)
 	if err != nil {
 		return n, err
 	}
@@ -1524,6 +1551,7 @@ func (c *CheckpointItem) ReadFrom(r io.Reader) (int64, error) {
 }
 
 // CheckPointMessage represents a CheckPoint message
+// TODO: Remove this message and related payload as not used anymore.
 type CheckPointMessage struct {
 	Checkpoints []CheckpointItem
 }
@@ -1552,7 +1580,6 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 
 	hdr = append(hdr, body...)
 	return hdr, nil
-
 }
 
 // UnmarshalBinary decodes CheckPointMessage from binary form

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"errors"
+	"fmt"
 	"io"
 	"math"
 
@@ -103,7 +104,7 @@ func (a *U8String) ReadFrom(r io.Reader) (int64, error) {
 type SignaturePayload crypto.Signature
 
 func (a SignaturePayload) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(crypto.Signature(a).Bytes())
+	n, err := w.Write(a[:])
 	return int64(n), err
 }
 
@@ -113,8 +114,7 @@ func (a *SignaturePayload) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return int64(n), err
 	}
-	s := crypto.Signature{}
-	copy(s[:], buf[:])
+	s := crypto.Signature(buf)
 	*a = SignaturePayload(s)
 	return int64(n), nil
 }
@@ -146,16 +146,17 @@ func (a *Signatures) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return n, err
 	}
-	*a = make([]crypto.Signature, l)
-	for i := range *a {
+	s := make([]crypto.Signature, l)
+	for i := range s {
 		sp := SignaturePayload{}
 		n1, rErr := sp.ReadFrom(r)
 		if rErr != nil {
 			return n + n1, rErr
 		}
-		(*a)[i] = crypto.Signature(sp)
+		s[i] = crypto.Signature(sp)
 		n += n1
 	}
+	*a = s
 	return n, nil
 }
 
@@ -185,7 +186,7 @@ func (a BlockIDsPayload) WriteTo(w io.Writer) (int64, error) {
 			}
 			n += int64(n1)
 		default:
-			return n, errors.New("unsupported block ID type")
+			return n, fmt.Errorf("unsupported block ID type '%d'", id.idType)
 		}
 		n2, wErr := id.WriteTo(w)
 		if wErr != nil {
@@ -202,8 +203,8 @@ func (a *BlockIDsPayload) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return n, err
 	}
-	*a = make([]BlockID, l)
-	for i := range *a {
+	ids := make([]BlockID, l)
+	for i := range ids {
 		var idSize [1]byte
 		n1, rErr := io.ReadFull(r, idSize[:])
 		if rErr != nil {
@@ -217,15 +218,16 @@ func (a *BlockIDsPayload) ReadFrom(r io.Reader) (int64, error) {
 		case crypto.DigestSize:
 			id = BlockID{idType: DigestID}
 		default:
-			return n, errors.New("unsupported block ID size")
+			return n, fmt.Errorf("unsupported block ID size '%d'", idSize[0])
 		}
 		n2, rErr := id.ReadFrom(r)
 		if rErr != nil {
 			return n + n2, rErr
 		}
-		(*a)[i] = id
+		ids[i] = id
 		n += n2
 	}
+	*a = ids
 	return n, nil
 }
 
@@ -276,16 +278,17 @@ func (a *CheckpointPayload) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return n, err
 	}
-	*a = make([]CheckpointItem, l)
-	for i := range *a {
+	cps := make([]CheckpointItem, l)
+	for i := range cps {
 		item := CheckpointItem{}
 		n1, rErr := item.ReadFrom(r)
 		if rErr != nil {
 			return n + n1, rErr
 		}
-		(*a)[i] = item
+		cps[i] = item
 		n += n1
 	}
+	*a = cps
 	return n, nil
 }
 
@@ -296,8 +299,6 @@ func (a PeersPayload) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return 0, err
 	}
-	const maxPeersCount = 1000
-	l = min(maxPeersCount, l)
 	n, err := U32(l).WriteTo(w)
 	if err != nil {
 		return n, err
@@ -318,15 +319,16 @@ func (a *PeersPayload) ReadFrom(r io.Reader) (int64, error) {
 	if err != nil {
 		return n, err
 	}
-	*a = make([]PeerInfo, l)
-	for i := range *a {
+	ps := make([]PeerInfo, l)
+	for i := range ps {
 		info := PeerInfo{}
 		n1, rErr := info.ReadFrom(r)
 		if rErr != nil {
 			return n + n1, rErr
 		}
-		(*a)[i] = info
+		ps[i] = info
 		n += n1
 	}
+	*a = ps
 	return n, nil
 }
