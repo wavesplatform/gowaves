@@ -271,8 +271,8 @@ func (h *Header) Validate(contentID PeerMessageID) error {
 	}
 	// h.Length is the length of the message after the MSG_LEN field itself. So, we need to add 4 bytes to check
 	// the total length of the message
-	if act, exp := h.Length+uint32Size, h.HeaderLength()+h.payloadLength; act != exp {
-		return fmt.Errorf("invalid header: incorrect message length in header (%d), expected  %d", act, exp)
+	if exp := h.HeaderLength() + h.payloadLength - msgLenSize; h.Length != exp {
+		return fmt.Errorf("invalid header: incorrect message length in header (%d), expected  %d", h.Length, exp)
 	}
 	return nil
 }
