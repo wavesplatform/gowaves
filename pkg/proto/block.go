@@ -41,10 +41,12 @@ func (nc *NxtConsensus) BinarySize() int {
 	return 8 + len(nc.GenSignature)
 }
 
+var ErrInvalidBlockIDDataSize = errors.New("invalid data size for BlockID")
+
 type BlockIDType byte
 
 const (
-	SignatureID BlockIDType = iota
+	SignatureID BlockIDType = iota + 1
 	DigestID
 )
 
@@ -55,15 +57,27 @@ type BlockID struct {
 }
 
 func NewBlockIDFromBase58(s string) (BlockID, error) {
-	dig, err := crypto.NewDigestFromBase58(s)
-	if err != nil {
-		sig, err := crypto.NewSignatureFromBase58(s)
-		if err != nil {
-			return BlockID{}, err
-		}
-		return NewBlockIDFromSignature(sig), nil
+	// The Base58 encoded Signature can take up to Ceil(64 * log2(256)/log2(58)) = Ceil(64 * 1.37) = 88 characters.
+	const maxExpectedStringLength = 88
+	if len(s) > maxExpectedStringLength {
+		return BlockID{}, ErrInvalidBlockIDDataSize
 	}
-	return NewBlockIDFromDigest(dig), nil
+	d, err := base58.Decode(s)
+	if err != nil {
+		return BlockID{}, err
+	}
+	switch len(d) {
+	case crypto.SignatureSize:
+		sig := crypto.Signature{}
+		copy(sig[:], d)
+		return NewBlockIDFromSignature(sig), nil
+	case crypto.DigestSize:
+		dig := crypto.Digest{}
+		copy(dig[:], d)
+		return NewBlockIDFromDigest(dig), nil
+	default:
+		return BlockID{}, ErrInvalidBlockIDDataSize
+	}
 }
 
 func MustBlockIDFromBase58(s string) BlockID {
@@ -84,26 +98,29 @@ func NewBlockIDFromDigest(dig crypto.Digest) BlockID {
 
 func NewBlockIDFromBytes(data []byte) (BlockID, error) {
 	res := BlockID{}
-	if len(data) == crypto.SignatureSize {
+	switch len(data) {
+	case crypto.SignatureSize:
 		sig, err := crypto.NewSignatureFromBytes(data)
 		if err != nil {
 			return BlockID{}, err
 		}
 		res.sig = sig
 		res.idType = SignatureID
-	} else if len(data) == crypto.DigestSize {
+	case crypto.DigestSize:
 		dig, err := crypto.NewDigestFromBytes(data)
 		if err != nil {
 			return BlockID{}, err
 		}
 		res.dig = dig
 		res.idType = DigestID
-	} else {
-		return BlockID{}, errors.Errorf("NewBlockIDFromBytes: invalid data size %d", len(data))
+	default:
+		return BlockID{}, ErrInvalidBlockIDDataSize
 	}
 	return res, nil
 }
 
+// IsValid checks if BlockID is valid for the given BlockVersion.
+// Uninitialized BlockID is always not valid.
 func (id BlockID) IsValid(version BlockVersion) bool {
 	if version >= ProtobufBlockVersion {
 		return id.idType == DigestID
@@ -111,32 +128,47 @@ func (id BlockID) IsValid(version BlockVersion) bool {
 	return id.idType == SignatureID
 }
 
+// Bytes returns the slice of bytes of BlockID.
+// If BlockID is not initialized, nil is returned.
 func (id BlockID) Bytes() []byte {
-	if id.idType == SignatureID {
+	switch id.idType {
+	case SignatureID:
 		return id.sig.Bytes()
-	} else if id.idType == DigestID {
+	case DigestID:
 		return id.dig.Bytes()
+	default:
+		return nil
 	}
-	return nil
 }
 
+// IsSignature returns true if BlockID is a Signature.
 func (id BlockID) IsSignature() bool {
 	return id.idType == SignatureID
 }
 
+// Signature returns BlockID as a Signature.
+// If BlockID is not a Signature, empty Signature is returned.
 func (id BlockID) Signature() crypto.Signature {
-	return id.sig
-}
-
-func (id BlockID) ShortString() string {
 	if id.idType == SignatureID {
-		return id.sig.ShortString()
-	} else if id.idType == DigestID {
-		return id.dig.ShortString()
+		return id.sig
 	}
-	return ""
+	return crypto.Signature{}
 }
 
+// ShortString returns a short string representation of BlockID.
+// If BlockID is not initialized, empty string is returned.
+func (id BlockID) ShortString() string {
+	switch id.idType {
+	case SignatureID:
+		return id.sig.ShortString()
+	case DigestID:
+		return id.dig.ShortString()
+	default:
+		return ""
+	}
+}
+
+// String returns a string representation of BlockID.
 func (id BlockID) String() string {
 	return base58.Encode(id.Bytes())
 }
@@ -156,6 +188,80 @@ func (id *BlockID) UnmarshalJSON(value []byte) error {
 	}
 	*id = res
 	return nil
+}
+
+// WriteTo writes binary representation of BlockID into Writer. It writes only Digest or Signature bytes.
+func (id BlockID) WriteTo(w io.Writer) (int64, error) {
+	var n int
+	var err error
+	switch id.idType {
+	case SignatureID:
+		n, err = w.Write(id.sig[:])
+	case DigestID:
+		n, err = w.Write(id.dig[:])
+	default:
+		return 0, errors.New("undefined BlockID type")
+	}
+	return int64(n), err
+}
+
+// ReadFrom reads the binary representation of BlockID from a io.Reader. It reads only the content of the ID
+// (either crypto.Digest or crypto.Signature). ReadFrom does not process any additional data that might
+// describe the type of the ID.
+//
+// If the BlockID instance has been pre-initialized with a type, ReadFrom will read data of that specific type.
+// If the BlockID instance has not been initialized, ReadFrom will attempt to read 32 bytes twice
+// and determine the type of ID upon successful reading of those parts.
+//
+// If the data size is less than 32 bytes or does not match the exact size of a crypto.Digest or crypto.Signature,
+// an BlockIDDataSizeError error will be returned.
+func (id *BlockID) ReadFrom(r io.Reader) (int64, error) {
+	switch id.idType {
+	case SignatureID:
+		return id.readSignatureFrom(r)
+	case DigestID:
+		return id.readDigestFrom(r)
+	default:
+		return id.readUndefinedFrom(r)
+	}
+}
+
+func (id *BlockID) readSignatureFrom(r io.Reader) (int64, error) {
+	n, err := io.ReadFull(r, id.sig[:])
+	if err != nil {
+		return int64(n), ErrInvalidBlockIDDataSize
+	}
+	return int64(n), nil
+}
+
+func (id *BlockID) readDigestFrom(r io.Reader) (int64, error) {
+	n, err := io.ReadFull(r, id.dig[:])
+	if err != nil {
+		return int64(n), ErrInvalidBlockIDDataSize
+	}
+	return int64(n), nil
+}
+
+func (id *BlockID) readUndefinedFrom(r io.Reader) (int64, error) {
+	lr := io.LimitReader(r, crypto.SignatureSize)
+	n1, err := io.ReadFull(lr, id.dig[:])
+	if err != nil { // Not enough data to read even a digest.
+		return int64(n1), ErrInvalidBlockIDDataSize
+	}
+	n2, err := io.ReadFull(lr, id.sig[crypto.DigestSize:])
+	if err != nil { // Not enough data to read a second half of a signature.
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			// Return ID as a Digest. Also note that we return real number of bytes read.
+			id.idType = DigestID
+			return int64(n1 + n2), nil
+		}
+		return int64(n1 + n2), err
+	}
+	// We have read 64 bytes, so it's a signature.
+	id.idType = SignatureID
+	copy(id.sig[:crypto.DigestSize], id.dig[:])
+	id.dig = crypto.Digest{}
+	return int64(n1 + n2), nil
 }
 
 type ChallengedHeader struct {

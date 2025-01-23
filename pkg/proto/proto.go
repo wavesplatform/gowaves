@@ -5,11 +5,15 @@ import (
 	"encoding"
 	"encoding/binary"
 	"fmt"
+	"hash"
 	"io"
 	"math/rand/v2"
 	"net"
 	"strconv"
 	"strings"
+
+	"github.com/ccoveille/go-safecast"
+	"golang.org/x/crypto/blake2b"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
@@ -19,14 +23,35 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
+/*
+Messages are sent over the network in the following format:
++---------+-----------+----------+-------------+------------------+---------+
+| MSG_LEN | MSG_MAGIC | MSG_TYPE | PAYLOAD_LEN | PAYLOAD_CHECKSUM | PAYLOAD |
++---------+-----------+----------+-------------+------------------+---------+
+
+* MSG_LEN (4 bytes, uint32) - message length. It includes lengths of all fields except the length of MSG_LEN itself.
+* MSG_MAGIC (4 bytes, "0x12345678") - magic number, constant value.
+* MSG_TYPE (1 byte) - message type.
+* PAYLOAD_LEN (4 bytes, uin32) - payload length.
+* PAYLOAD_CHECKSUM (4 bytes) - payload checksum, optional, may be omitted if PAYLOAD_LEN == 0.
+* PAYLOAD (variable) - payload, optional, omitted if PAYLOAD_LEN == 0.
+
+Payload checksum calculated as first 4 bytes of blake2b-256 (crypto.FastHash) digest of payload.
+*/
+
 const (
 	HeaderContentIDPosition = 8
 
-	headerSizeWithPayload    = 17
-	headerSizeWithoutPayload = 13
+	msgLenSize          uint32 = 4
+	msgMagicSize        uint32 = 4
+	msgTypeSize         uint32 = 1
+	payloadLenSize      uint32 = 4
+	payloadChecksumSize uint32 = 4
+
+	headerSizeWithPayload    = msgLenSize + msgMagicSize + msgTypeSize + payloadLenSize + payloadChecksumSize
+	headerSizeWithoutPayload = msgLenSize + msgMagicSize + msgTypeSize + payloadLenSize
 	maxHeaderLength          = headerSizeWithPayload
 	headerMagic              = 0x12345678
-	headerChecksumLen        = 4
 )
 
 type (
@@ -64,6 +89,138 @@ func ProtocolVersion() Version {
 	return NewVersion(major, minor, patch)
 }
 
+// ParseMessage parses a message from the given data. The 'f' function parameter is used to parse the message payload.
+func ParseMessage(data []byte, contentID PeerMessageID, name string, f func(payload []byte) error) error {
+	l, err := safecast.ToUint32(len(data))
+	if err != nil {
+		return fmt.Errorf("%s: %w", name, err)
+	}
+	if l < headerSizeWithoutPayload {
+		return fmt.Errorf("%s: invalid data size %d, expected at least %d",
+			name, len(data), headerSizeWithoutPayload)
+	}
+	var h Header
+	if ubErr := h.UnmarshalBinary(data); ubErr != nil {
+		return fmt.Errorf("%s: %w", name, ubErr)
+	}
+	if vErr := h.Validate(contentID); vErr != nil {
+		return fmt.Errorf("%s: %w", name, vErr)
+	}
+	if exp, act := int(h.Length+msgLenSize), len(data); act < exp { // Add the length of the MSG_LEN field itself.
+		return fmt.Errorf("%s: expected data at least %d, found %d", name, exp, act)
+	}
+	if h.payloadLength > 0 {
+		if fErr := f(data[headerSizeWithPayload : headerSizeWithPayload+h.payloadLength]); fErr != nil {
+			return fmt.Errorf("%s: payload error: %w", name, fErr)
+		}
+	}
+	return nil
+}
+
+type ChecksumReader struct {
+	r io.Reader
+	h hash.Hash
+}
+
+func NewChecksumReader(r io.Reader) (*ChecksumReader, error) {
+	h, err := blake2b.New256(nil)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create ChecksumReader: %w", err)
+	}
+	return &ChecksumReader{
+		r: r,
+		h: h,
+	}, nil
+}
+
+// Read reads data from the underlying reader and updates the checksum.
+func (r *ChecksumReader) Read(p []byte) (int, error) {
+	n, err := r.r.Read(p)
+	if n > 0 {
+		if wn, wErr := r.h.Write(p[:n]); wErr != nil {
+			return wn, fmt.Errorf("failed to update hasher: %w", wErr)
+		}
+	}
+	return n, err
+}
+
+// Checksum returns the checksum of the data read so far.
+func (r *ChecksumReader) Checksum() [payloadChecksumSize]byte {
+	var d crypto.Digest
+	r.h.Sum(d[:0])
+	var cs [4]byte
+	copy(cs[:], d[:4])
+	return cs
+}
+
+// ReadMessage reads message from io.Reader and parses its payload using the given [f] function.
+// While reading payload, checksum is calculated and compared with the checksum from the message header.
+func ReadMessage(r io.Reader, contentID PeerMessageID, name string, payload io.ReaderFrom) (int64, error) {
+	var h Header
+	n1, err := h.ReadFrom(r)
+	if err != nil {
+		return n1, fmt.Errorf("%s: failed to read header: %w", name, err)
+	}
+	if vErr := h.Validate(contentID); vErr != nil {
+		return n1, fmt.Errorf("%s: message header is not valid: %w", name, vErr)
+	}
+	if h.payloadLength == 0 || payload == nil { // Fast exit for messages without payload.
+		return n1, nil
+	}
+	pr, err := NewChecksumReader(io.LimitReader(r, int64(h.payloadLength)))
+	if err != nil {
+		return n1, fmt.Errorf("%s: failed to create checksum reader: %w", name, err)
+	}
+	n2, err := payload.ReadFrom(pr)
+	if err != nil {
+		return n1 + n2, fmt.Errorf("%s: failed to read payload: %w", name, err)
+	}
+	if pr.Checksum() != h.PayloadChecksum {
+		return n1 + n2, fmt.Errorf("%s: payload checksum mismatch", name)
+	}
+	return n1 + n2, nil
+}
+
+func writeEmptyMessage(w io.Writer, contentID PeerMessageID, name string) (int64, error) {
+	h, err := NewHeader(contentID, nil)
+	if err != nil {
+		return 0, fmt.Errorf("%s: failed to create header: %w", name, err)
+	}
+	n, err := h.WriteTo(w)
+	if err != nil {
+		return n, fmt.Errorf("%s: failed to write header: %w", name, err)
+	}
+	return n, nil
+}
+
+// WriteMessage writes a message with the given content ID, name, and payload to the writer.
+func WriteMessage(w io.Writer, contentID PeerMessageID, name string, payload io.WriterTo) (int64, error) {
+	// TODO: Think about implementing a MessageWriter that does sequential payload write and
+	//  header calculation (sizes and checksum). Looks like it has to update some of header fields after payload write.
+	//  Don't know if it's possible.
+	if payload == nil {
+		return writeEmptyMessage(w, contentID, name)
+	}
+	buf := bytebufferpool.Get()
+	defer bytebufferpool.Put(buf)
+	if _, err := payload.WriteTo(buf); err != nil {
+		return 0, fmt.Errorf("%s: failed to write payload: %w", name, err)
+	}
+	h, err := NewHeader(contentID, buf.Bytes())
+	if err != nil {
+		return 0, fmt.Errorf("%s: failed to create header: %w", name, err)
+	}
+	n1, err := h.WriteTo(w)
+	if err != nil {
+		return n1, fmt.Errorf("%s: failed to write header: %w", name, err)
+	}
+	n2, err := buf.WriteTo(w)
+	if err != nil {
+		return n1 + n2, fmt.Errorf("%s: failed to write payload: %w", name, err)
+	}
+	return n1 + n2, nil
+}
+
 type Message interface {
 	io.ReaderFrom
 	io.WriterTo
@@ -76,7 +233,48 @@ type Header struct {
 	Magic           uint32
 	ContentID       PeerMessageID
 	payloadLength   uint32
-	PayloadChecksum [headerChecksumLen]byte
+	PayloadChecksum [payloadChecksumSize]byte
+}
+
+func NewHeader(contentID PeerMessageID, body []byte) (Header, error) {
+	bl, err := safecast.ToUint32(len(body))
+	if err != nil {
+		return Header{}, fmt.Errorf("failed to create header: %w", err)
+	}
+	msgLen := msgMagicSize + msgTypeSize + payloadLenSize // For empty Header.
+	cs := [payloadChecksumSize]byte{}
+	if bl > 0 {
+		msgLen = msgMagicSize + msgTypeSize + payloadLenSize + payloadChecksumSize + bl
+		dig, fhErr := crypto.FastHash(body)
+		if fhErr != nil {
+			return Header{}, fmt.Errorf("failed to create header: %w", fhErr)
+		}
+		copy(cs[:], dig[:payloadChecksumSize])
+	}
+	return Header{
+		Length:          msgLen,
+		Magic:           headerMagic,
+		ContentID:       contentID,
+		payloadLength:   bl,
+		PayloadChecksum: cs,
+	}, nil
+}
+
+// Validate checks the header for correctness. It checks the magic number, ContentID, and lengths.
+// Returns an error with a description of the problem.
+func (h *Header) Validate(contentID PeerMessageID) error {
+	if h.Magic != headerMagic {
+		return fmt.Errorf("invalid header: wrong magic: want %x, have %x", headerMagic, h.Magic)
+	}
+	if h.ContentID != contentID {
+		return fmt.Errorf("invalid header: wrong ContentID: want %x, have %x", contentID, h.ContentID)
+	}
+	// h.Length is the length of the message after the MSG_LEN field itself. So, we need to add 4 bytes to check
+	// the total length of the message
+	if exp := h.HeaderLength() + h.payloadLength - msgLenSize; h.Length != exp {
+		return fmt.Errorf("invalid header: incorrect message length in header (%d), expected  %d", h.Length, exp)
+	}
+	return nil
 }
 
 func (h *Header) MarshalBinary() ([]byte, error) {
@@ -105,27 +303,53 @@ func (h *Header) HeaderLength() uint32 {
 }
 
 func (h *Header) ReadFrom(r io.Reader) (int64, error) {
-	body := [headerSizeWithPayload]byte{}
-	n, err := io.ReadFull(r, body[:headerSizeWithoutPayload])
+	var msgLen U32
+	n1, err := msgLen.ReadFrom(r)
 	if err != nil {
-		return int64(n), err
+		return n1, err
+	}
+	h.Length = uint32(msgLen)
+
+	var magic U32
+	n2, err := magic.ReadFrom(r)
+	if err != nil {
+		return n1 + n2, err
+	}
+	h.Magic = uint32(magic)
+
+	var msgType [msgTypeSize]byte
+	n3, err := io.ReadFull(r, msgType[:])
+	if err != nil {
+		return n1 + n2 + int64(n3), err
+	}
+	h.ContentID = PeerMessageID(msgType[0])
+
+	var payloadLen U32
+	n4, err := payloadLen.ReadFrom(r)
+	if err != nil {
+		return n1 + n2 + int64(n3) + n4, err
+	}
+	h.payloadLength = uint32(payloadLen)
+
+	if payloadLen == 0 { // Fast exit for messages without payload.
+		return n1 + n2 + int64(n3) + n4, nil
 	}
 
-	payloadLength := binary.BigEndian.Uint32(body[9:headerSizeWithoutPayload])
-	nn := 0
-	if payloadLength > 0 {
-		nn, err = io.ReadFull(r, body[headerSizeWithoutPayload:headerSizeWithPayload])
-		if err != nil {
-			return int64(n), err
-		}
-		return int64(n + nn), h.UnmarshalBinary(body[:])
+	var payloadChecksum [payloadChecksumSize]byte
+	n5, err := io.ReadFull(r, payloadChecksum[:])
+	if err != nil {
+		return n1 + n2 + int64(n3) + n4 + int64(n5), err
 	}
-
-	return int64(n + nn), h.UnmarshalBinary(body[:headerSizeWithoutPayload])
+	h.PayloadChecksum = payloadChecksum
+	return n1 + n2 + int64(n3) + n4 + int64(n5), nil
 }
 
 func (h *Header) UnmarshalBinary(data []byte) error {
-	if len(data) < headerSizeWithoutPayload {
+	l, err := safecast.ToUint32(len(data))
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal Header: %w", err)
+	}
+	if l < headerSizeWithoutPayload {
 		return fmt.Errorf("data is to short to unmarshal Header: len=%d", len(data))
 	}
 	h.Length = binary.BigEndian.Uint32(data[0:4])
@@ -146,21 +370,25 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 }
 
 func (h *Header) Copy(data []byte) (int, error) {
-	if len(data) < headerSizeWithoutPayload {
-		return 0, errors.New("Header Copy: invalid data size")
+	l, err := safecast.ToUint32(len(data))
+	if err != nil {
+		return 0, fmt.Errorf("failed to copy Header: %w", err)
 	}
-	binary.BigEndian.PutUint32(data[0:4], h.Length)
-	binary.BigEndian.PutUint32(data[4:8], headerMagic)
+	if l < headerSizeWithoutPayload {
+		return 0, errors.New("failed to copy Header: invalid data size")
+	}
+	binary.BigEndian.PutUint32(data[:msgLenSize], h.Length)
+	binary.BigEndian.PutUint32(data[msgLenSize:msgLenSize+msgMagicSize], h.Magic)
 	data[HeaderContentIDPosition] = byte(h.ContentID)
-	binary.BigEndian.PutUint32(data[9:headerSizeWithoutPayload], h.payloadLength)
+	binary.BigEndian.PutUint32(data[HeaderContentIDPosition+1:headerSizeWithoutPayload], h.payloadLength)
 	if h.payloadLength > 0 {
-		if len(data) < headerSizeWithPayload {
-			return 0, errors.New("Header Copy: invalid data size")
+		if l < headerSizeWithPayload {
+			return 0, errors.New("failed to copy Header: invalid data size")
 		}
 		copy(data[headerSizeWithoutPayload:headerSizeWithPayload], h.PayloadChecksum[:])
-		return headerSizeWithPayload, nil
+		return int(headerSizeWithPayload), nil
 	}
-	return headerSizeWithoutPayload, nil
+	return int(headerSizeWithoutPayload), nil
 }
 
 func (h *Header) PayloadLength() uint32 {
@@ -179,6 +407,29 @@ func NewVersion(major, minor, patch uint32) Version {
 		minor: minor,
 		patch: patch,
 	}
+}
+
+func NewVersionFromString(version string) (Version, error) {
+	parts := strings.Split(version, ".")
+	if l := len(parts); l <= 0 || l > 3 {
+		return Version{}, errors.Errorf("invalid version string '%s'", version)
+	}
+	r := Version{}
+	for n, p := range parts {
+		i, err := strconv.ParseUint(p, 10, 32)
+		if err != nil {
+			return Version{}, errors.Wrapf(err, "invalid version string '%s'", version)
+		}
+		switch n {
+		case 0:
+			r.major = uint32(i)
+		case 1:
+			r.minor = uint32(i)
+		case 2:
+			r.patch = uint32(i)
+		}
+	}
+	return r, nil
 }
 
 func (v Version) Major() uint32 {
@@ -231,29 +482,6 @@ func (v Version) CmpMinor(other Version) int {
 		return 1
 	}
 	return 2
-}
-
-func NewVersionFromString(version string) (Version, error) {
-	parts := strings.Split(version, ".")
-	if l := len(parts); l <= 0 || l > 3 {
-		return Version{}, errors.Errorf("invalid version string '%s'", version)
-	}
-	r := Version{}
-	for n, p := range parts {
-		i, err := strconv.ParseUint(p, 10, 32)
-		if err != nil {
-			return Version{}, errors.Wrapf(err, "invalid version string '%s'", version)
-		}
-		switch n {
-		case 0:
-			r.major = uint32(i)
-		case 1:
-			r.minor = uint32(i)
-		case 2:
-			r.patch = uint32(i)
-		}
-	}
-	return r, nil
 }
 
 func (v Version) WriteTo(writer io.Writer) (int64, error) {
@@ -342,6 +570,16 @@ func NewTCPAddr(ip net.IP, port int) TCPAddr {
 	}
 }
 
+// NewTCPAddrFromString creates TCPAddr from string.
+// Returns empty TCPAddr if string can't be parsed.
+func NewTCPAddrFromString(s string) TCPAddr {
+	pi, err := NewPeerInfoFromString(s)
+	if err != nil {
+		return TCPAddr{} // return empty TCPAddr in case of error
+	}
+	return NewTCPAddr(pi.Addr, int(pi.Port))
+}
+
 func (a TCPAddr) String() string {
 	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 }
@@ -363,12 +601,14 @@ func (a TCPAddr) WriteTo(w io.Writer) (int64, error) {
 }
 
 // ToUint64 converts TCPAddr to uint64 number.
+// Deprecated: will be removed in future versions.
 func (a TCPAddr) ToUint64() uint64 {
 	ip := uint64(a.ipToUint32()) << 32
 	ip = ip | uint64(a.Port)
 	return ip
 }
 
+// TODO: remove after removing of ToUint64.
 func (a TCPAddr) ipToUint32() uint32 {
 	if len(a.IP) == 16 {
 		return binary.BigEndian.Uint32(a.IP[12:16])
@@ -381,16 +621,7 @@ func (a TCPAddr) Equal(other TCPAddr) bool {
 	return a.IP.Equal(other.IP) && a.Port == other.Port
 }
 
-// NewTCPAddrFromString creates TCPAddr from string.
-// Returns empty TCPAddr if string can't be parsed.
-func NewTCPAddrFromString(s string) TCPAddr {
-	pi, err := NewPeerInfoFromString(s)
-	if err != nil {
-		return TCPAddr{} // return empty TCPAddr in case of error
-	}
-	return NewTCPAddr(pi.Addr, int(pi.Port))
-}
-
+// Deprecated: will be removed in future versions.
 func NewTcpAddrFromUint64(value uint64) TCPAddr {
 	var (
 		ip    = make([]byte, 4)
@@ -495,94 +726,6 @@ func (a HandshakeTCPAddr) Network() string {
 	return "tcp"
 }
 
-type U8String struct {
-	S string
-}
-
-func NewU8String(s string) U8String {
-	return U8String{S: s}
-}
-
-// MarshalBinary encodes U8String to binary form
-func (a U8String) MarshalBinary() ([]byte, error) {
-	l := len(a.S)
-	if l > 255 {
-		return nil, errors.New("too long string")
-	}
-
-	data := make([]byte, l+1)
-	data[0] = byte(l)
-	copy(data[1:1+l], a.S)
-	return data, nil
-}
-
-// WriteTo writes U8String into io.Writer w in binary form.
-func (a U8String) WriteTo(w io.Writer) (int64, error) {
-	l := len(a.S)
-	if l > 255 {
-		return 0, errors.New("too long string")
-	}
-
-	data := make([]byte, l+1)
-	data[0] = byte(l)
-	copy(data[1:1+l], a.S)
-	n, err := w.Write(data)
-	return int64(n), err
-}
-
-func (a *U8String) ReadFrom(r io.Reader) (int64, error) {
-	size := [1]byte{}
-	n1, err := io.ReadFull(r, size[:])
-	if err != nil {
-		return int64(n1), err
-	}
-	str := make([]byte, size[0])
-	n2, err := io.ReadFull(r, str)
-	if err != nil {
-		return int64(n1 + n2), err
-	}
-	a.S = string(str)
-	return int64(n1 + n2), nil
-}
-
-type U64 uint64
-
-func (a U64) WriteTo(w io.Writer) (int64, error) {
-	b := [8]byte{}
-	binary.BigEndian.PutUint64(b[:], uint64(a))
-	n, err := w.Write(b[:])
-	return int64(n), err
-}
-
-func (a *U64) ReadFrom(r io.Reader) (int64, error) {
-	b := [8]byte{}
-	n, err := io.ReadFull(r, b[:])
-	if err != nil {
-		return int64(n), err
-	}
-	*a = U64(binary.BigEndian.Uint64(b[:]))
-	return int64(n), nil
-}
-
-type U32 uint32
-
-func (a U32) WriteTo(w io.Writer) (int64, error) {
-	b := [4]byte{}
-	binary.BigEndian.PutUint32(b[:], uint32(a))
-	n, err := w.Write(b[:])
-	return int64(n), err
-}
-
-func (a *U32) ReadFrom(r io.Reader) (int64, error) {
-	b := [4]byte{}
-	n, err := io.ReadFull(r, b[:])
-	if err != nil {
-		return int64(n), err
-	}
-	*a = U32(binary.BigEndian.Uint32(b[:]))
-	return int64(n), nil
-}
-
 func (a *Handshake) WriteTo(w io.Writer) (int64, error) {
 	c := collect_writes.CollectInt64{}
 	c.W(NewU8String(a.AppName).WriteTo(w))
@@ -673,22 +816,16 @@ func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 
 // ReadFrom reads GetPeersMessage from io.Reader
 func (m *GetPeersMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
+	nn, err := ReadMessage(r, ContentIDGetPeers, "GetPeersMessage", nil)
 	if err != nil {
 		return nn, err
 	}
-	return nn, m.UnmarshalBinary(packet)
+	return nn, nil
 }
 
 // WriteTo writes GetPeersMessage to io.Writer
 func (m *GetPeersMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	return WriteMessage(w, ContentIDGetPeers, "GetPeersMessage", nil)
 }
 
 const IpPortLength = net.IPv6len + 8
@@ -836,8 +973,10 @@ func (p *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), err
 	}
 	p.Addr = net.IPv4(b[0], b[1], b[2], b[3])
-	p.Port = uint16(binary.BigEndian.Uint32(b[:4]))
-
+	p.Port, err = safecast.ToUint16(binary.BigEndian.Uint32(b[4:8]))
+	if err != nil {
+		return int64(n), fmt.Errorf("PeerInfo: invalid port value: %w", err)
+	}
 	return int64(n), nil
 }
 
@@ -946,53 +1085,7 @@ type PeersMessage struct {
 }
 
 func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
-	var h Header
-
-	buf := new(bytes.Buffer)
-
-	c := collect_writes.CollectInt64{}
-
-	peers := m.Peers
-
-	if len(peers) > 1000 {
-		peers = peers[:1000]
-	}
-
-	length := U32(len(peers))
-	c.W(length.WriteTo(buf))
-
-	for _, k := range peers {
-		c.W(k.WriteTo(buf))
-	}
-
-	n, err := c.Ret()
-	if err != nil {
-		return n, err
-	}
-
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(buf.Bytes())) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDPeers
-	h.payloadLength = common.SafeIntToUint32(len(buf.Bytes()))
-	dig, err := crypto.FastHash(buf.Bytes())
-	if err != nil {
-		return 0, err
-	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-
-	out := append(hdr, buf.Bytes()...)
-
-	n2, err := w.Write(out)
-	if err != nil {
-		return 0, err
-	}
-
-	return int64(n2), nil
+	return WriteMessage(w, ContentIDPeers, "PeersMessage", PeersPayload(m.Peers))
 }
 
 // MarshalBinary encodes PeersMessage message to binary form
@@ -1038,60 +1131,15 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func readPacket(r io.Reader) ([]byte, int64, error) {
-	var packetLen [4]byte
-	nn, err := io.ReadFull(r, packetLen[:])
-	if err != nil {
-		return nil, int64(nn), err
-	}
-	l := binary.BigEndian.Uint32(packetLen[:])
-	packet := make([]byte, l)
-	for i := 0; i < len(packet); i++ {
-		packet[i] = 0x88
-	}
-	n, err := io.ReadFull(r, packet)
-	if err != nil {
-		return nil, int64(nn + n), err
-	}
-	nn += n
-	packet = append(packetLen[:], packet...)
-
-	return packet, int64(nn), nil
-}
-
-// ReadFrom reads PeersMessage from io.Reader
+// ReadFrom reads PeersMessage from io.Reader.
 func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
-	//packet, nn, err := readPacket(r)
-	//if err != nil {
-	//	return nn, err
-	//}
-
-	h := Header{}
-	n, err := h.ReadFrom(r)
+	payload := &PeersPayload{}
+	n, err := ReadMessage(r, ContentIDPeers, "PeersMessage", payload)
 	if err != nil {
 		return n, err
 	}
-
-	length := U32(0)
-	n2, err := length.ReadFrom(r)
-	if err != nil {
-		return 0, err
-	}
-
-	Peers := make([]PeerInfo, length)
-
-	n3 := n + n2
-	for i := 0; i < int(length); i++ {
-		p := PeerInfo{}
-		n4, err := p.ReadFrom(r)
-		if err != nil {
-			return 0, err
-		}
-		n3 += n4
-		Peers[i] = p
-	}
-
-	return n3, nil
+	m.Peers = *payload
+	return n, nil
 }
 
 // GetSignaturesMessage represents the Get Signatures request
@@ -1107,16 +1155,10 @@ func (m *GetSignaturesMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b[:]...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + uint32(len(body)) - 4
-	h.Magic = headerMagic
-	h.ContentID = ContentIDGetSignatures
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDGetSignatures, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1166,23 +1208,19 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads GetSignaturesMessage from io.Reader
 func (m *GetSignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
+	payload := &Signatures{}
+	n, err := ReadMessage(r, ContentIDGetSignatures, "GetSignaturesMessage", payload)
 	if err != nil {
-		return nn, err
+		return n, err
 	}
-
-	return nn, m.UnmarshalBinary(packet)
+	m.Signatures = *payload
+	return n, nil
 }
 
 // WriteTo writes GetSignaturesMessage to io.Writer
 func (m *GetSignaturesMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	payload := Signatures(m.Signatures)
+	return WriteMessage(w, ContentIDGetSignatures, "GetSignaturesMessage", &payload)
 }
 
 // SignaturesMessage represents Signatures message
@@ -1198,16 +1236,10 @@ func (m *SignaturesMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b[:]...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDSignatures
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDSignatures, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1257,23 +1289,19 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads SignaturesMessage from binary form
 func (m *SignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
+	payload := &Signatures{}
+	n, err := ReadMessage(r, ContentIDSignatures, "SignaturesMessage", payload)
 	if err != nil {
-		return nn, err
+		return n, err
 	}
-
-	return nn, m.UnmarshalBinary(packet)
+	m.Signatures = *payload
+	return n, nil
 }
 
 // WriteTo writes SignaturesMessage to binary form
 func (m *SignaturesMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	payload := Signatures(m.Signatures)
+	return WriteMessage(w, ContentIDSignatures, "SignaturesMessage", &payload)
 }
 
 // GetBlockMessage represents GetBlock message
@@ -1285,17 +1313,10 @@ type GetBlockMessage struct {
 func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDGetBlock
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDGetBlock, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1306,7 +1327,7 @@ func (m *GetBlockMessage) MarshalBinary() ([]byte, error) {
 
 // UnmarshalBinary decodes GetBlockMessage from binary form
 func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
-	return parsePacket(data, ContentIDGetBlock, "GetBlockMessage", func(payload []byte) error {
+	return ParseMessage(data, ContentIDGetBlock, "GetBlockMessage", func(payload []byte) error {
 		blockID, err := NewBlockIDFromBytes(payload)
 		if err != nil {
 			return err
@@ -1316,50 +1337,14 @@ func (m *GetBlockMessage) UnmarshalBinary(data []byte) error {
 	})
 }
 
-func parsePacket(data []byte, ContentID PeerMessageID, name string, f func(payload []byte) error) error {
-	if len(data) < 17 {
-		return errors.Errorf("%s: invalid data size %d, expected at least 17", name, len(data))
-	}
-	var h Header
-	if err := h.UnmarshalBinary(data); err != nil {
-		return errors.Wrap(err, name)
-	}
-	if h.Magic != headerMagic {
-		return fmt.Errorf("%s: wrong magic in Header: %x", name, h.Magic)
-	}
-	if h.ContentID != ContentID {
-		return fmt.Errorf("%s: wrong ContentID in Header: %x", name, h.ContentID)
-	}
-	if len(data) < int(headerSizeWithPayload+h.payloadLength) {
-		return fmt.Errorf("%s: expected data at least %d, found %d",
-			name, headerSizeWithPayload+h.payloadLength, len(data))
-	}
-	err := f(data[headerSizeWithPayload : headerSizeWithPayload+h.payloadLength])
-	if err != nil {
-		return errors.Wrapf(err, "%s payload error", name)
-	}
-	return nil
-}
-
 // ReadFrom reads GetBlockMessage from io.Reader
 func (m *GetBlockMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return nn, err
-	}
-
-	return nn, m.UnmarshalBinary(packet)
+	return ReadMessage(r, ContentIDGetBlock, "GetBlockMessage", &m.BlockID)
 }
 
 // WriteTo writes GetBlockMessage to io.Writer
 func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	return WriteMessage(w, ContentIDGetBlock, "GetBlockMessage", BytesPayload(m.BlockID.Bytes()))
 }
 
 func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
@@ -1381,37 +1366,16 @@ type BlockMessage struct {
 
 // MarshalBinary encodes BlockMessage to binary form
 func (m *BlockMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.BlockBytes)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDBlock
-	h.payloadLength = common.SafeIntToUint32(len(m.BlockBytes))
-	dig, err := crypto.FastHash(m.BlockBytes)
+	h, err := NewHeader(ContentIDBlock, m.BlockBytes)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 	hdr = append(hdr, m.BlockBytes...)
 	return hdr, nil
-}
-
-func MakeHeader(contentID PeerMessageID, payload []byte) (Header, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(payload)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = contentID
-	h.payloadLength = common.SafeIntToUint32(len(payload))
-	dig, err := crypto.FastHash(payload)
-	if err != nil {
-		return Header{}, err
-	}
-	copy(h.PayloadChecksum[:], dig[:4])
-	return h, nil
 }
 
 // UnmarshalBinary decodes BlockMessage from binary from
@@ -1427,34 +1391,25 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 
-	if common.SafeIntToUint32(len(data)) < 17+h.payloadLength {
+	if common.SafeIntToUint32(len(data)) < headerSizeWithPayload+h.payloadLength {
 		return errors.New("BlockMessage UnmarshalBinary: invalid data size")
 	}
 	m.BlockBytes = make([]byte, h.payloadLength)
-	copy(m.BlockBytes, data[17:17+h.payloadLength])
+	copy(m.BlockBytes, data[headerSizeWithPayload:headerSizeWithPayload+h.payloadLength])
 
 	return nil
 }
 
 // ReadFrom reads BlockMessage from io.Reader
 func (m *BlockMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return nn, err
-	}
-
-	return nn, m.UnmarshalBinary(packet)
+	p, n, err := readBytesPayload(r, ContentIDBlock, "BlockMessage")
+	m.BlockBytes = p
+	return n, err
 }
 
 // WriteTo writes BlockMessage to io.Writer
 func (m *BlockMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	return WriteMessage(w, ContentIDBlock, "BlockMessage", BytesPayload(m.BlockBytes))
 }
 
 // ScoreMessage represents Score message
@@ -1464,17 +1419,10 @@ type ScoreMessage struct {
 
 // MarshalBinary encodes ScoreMessage to binary form
 func (m *ScoreMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Score)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDScore
-	h.payloadLength = common.SafeIntToUint32(len(m.Score))
-	dig, err := crypto.FastHash(m.Score)
+	h, err := NewHeader(ContentIDScore, m.Score)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1506,22 +1454,14 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads ScoreMessage from io.Reader
 func (m *ScoreMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return 0, err
-	}
-	return nn, m.UnmarshalBinary(packet)
+	p, n, err := readBytesPayload(r, ContentIDScore, "ScoreMessage")
+	m.Score = p
+	return n, err
 }
 
 // WriteTo writes ScoreMessage to io.Writer
 func (m *ScoreMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	return WriteMessage(w, ContentIDScore, "ScoreMessage", BytesPayload(m.Score))
 }
 
 // TransactionMessage represents TransactionsSend message
@@ -1531,17 +1471,10 @@ type TransactionMessage struct {
 
 // MarshalBinary encodes TransactionMessage to binary form
 func (m *TransactionMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Transaction)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDTransaction
-	h.payloadLength = common.SafeIntToUint32(len(m.Transaction))
-	dig, err := crypto.FastHash(m.Transaction)
+	h, err := NewHeader(ContentIDTransaction, m.Transaction)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1578,22 +1511,14 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads TransactionMessage from io.Reader
 func (m *TransactionMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return nn, err
-	}
-	return nn, m.UnmarshalBinary(packet)
+	p, n, err := readBytesPayload(r, ContentIDTransaction, "TransactionMessage")
+	m.Transaction = p
+	return n, err
 }
 
 // WriteTo writes TransactionMessage to io.Writer
 func (m *TransactionMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	return WriteMessage(w, ContentIDTransaction, "TransactionMessage", BytesPayload(m.Transaction))
 }
 
 // CheckpointItem represents a Checkpoint
@@ -1602,7 +1527,31 @@ type CheckpointItem struct {
 	Signature crypto.Signature
 }
 
+func (c CheckpointItem) WriteTo(w io.Writer) (int64, error) {
+	n, err := U64(c.Height).WriteTo(w)
+	if err != nil {
+		return n, err
+	}
+	n2, err := w.Write(c.Signature[:])
+	return n + int64(n2), err
+}
+
+func (c *CheckpointItem) ReadFrom(r io.Reader) (int64, error) {
+	h := U64(0)
+	n1, err := h.ReadFrom(r)
+	if err != nil {
+		return n1, err
+	}
+	c.Height = uint64(h)
+	n2, err := io.ReadFull(r, c.Signature[:])
+	if err != nil {
+		return n1 + int64(n2), err
+	}
+	return n1 + int64(n2), err
+}
+
 // CheckPointMessage represents a CheckPoint message
+// TODO: Remove this message and related payload as not used anymore.
 type CheckPointMessage struct {
 	Checkpoints []CheckpointItem
 }
@@ -1619,16 +1568,10 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, c.Signature[:]...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDCheckpoint
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDCheckpoint, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1637,7 +1580,6 @@ func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
 
 	hdr = append(hdr, body...)
 	return hdr, nil
-
 }
 
 // UnmarshalBinary decodes CheckPointMessage from binary form
@@ -1677,23 +1619,18 @@ func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads CheckPointMessage from io.Reader
 func (m *CheckPointMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
+	payload := new(CheckpointPayload)
+	n, err := ReadMessage(r, ContentIDCheckpoint, "CheckPointMessage", payload)
 	if err != nil {
-		return nn, err
+		return n, err
 	}
-
-	return nn, m.UnmarshalBinary(packet)
+	m.Checkpoints = *payload
+	return n, nil
 }
 
 // WriteTo writes CheckPointMessage to io.Writer
 func (m *CheckPointMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	return WriteMessage(w, ContentIDCheckpoint, "CheckPointMessage", CheckpointPayload(m.Checkpoints))
 }
 
 // PBBlockMessage represents Protobuf Block message
@@ -1703,17 +1640,10 @@ type PBBlockMessage struct {
 
 // MarshalBinary encodes PBBlockMessage to binary form
 func (m *PBBlockMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.PBBlockBytes)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDPBBlock
-	h.payloadLength = common.SafeIntToUint32(len(m.PBBlockBytes))
-	dig, err := crypto.FastHash(m.PBBlockBytes)
+	h, err := NewHeader(ContentIDPBBlock, m.PBBlockBytes)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1746,23 +1676,14 @@ func (m *PBBlockMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads PBBlockMessage from io.Reader
 func (m *PBBlockMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return nn, err
-	}
-
-	return nn, m.UnmarshalBinary(packet)
+	p, n, err := readBytesPayload(r, ContentIDPBBlock, "PBBlockMessage")
+	m.PBBlockBytes = p
+	return n, err
 }
 
 // WriteTo writes PBBlockMessage to io.Writer
 func (m *PBBlockMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	return WriteMessage(w, ContentIDPBBlock, "PBBlockMessage", BytesPayload(m.PBBlockBytes))
 }
 
 // PBTransactionMessage represents Protobuf TransactionsSend message
@@ -1772,17 +1693,10 @@ type PBTransactionMessage struct {
 
 // MarshalBinary encodes PBTransactionMessage to binary form
 func (m *PBTransactionMessage) MarshalBinary() ([]byte, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(m.Transaction)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDPBTransaction
-	h.payloadLength = common.SafeIntToUint32(len(m.Transaction))
-	dig, err := crypto.FastHash(m.Transaction)
+	h, err := NewHeader(ContentIDPBTransaction, m.Transaction)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
@@ -1817,30 +1731,35 @@ func (m *PBTransactionMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-// ReadFrom reads PBTransactionMessage from io.Reader
-func (m *PBTransactionMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
+func readBytesPayload(r io.Reader, contentID PeerMessageID, name string) ([]byte, int64, error) {
+	bpl := BytesPayload{}
+	n, err := ReadMessage(r, contentID, name, &bpl)
 	if err != nil {
-		return nn, err
+		return nil, n, err
 	}
-	return nn, m.UnmarshalBinary(packet)
+	return bpl, n, nil
 }
 
-// WriteTo writes PBTransactionMessage to io.Writer
-func (m *PBTransactionMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
+// ReadFrom reads PBTransactionMessage from io.Reader.
+func (m *PBTransactionMessage) ReadFrom(r io.Reader) (int64, error) {
+	p, n, err := readBytesPayload(r, ContentIDPBTransaction, "PBTransactionMessage")
+	m.Transaction = p
 	return n, err
 }
 
-// UnmarshalMessage tries unmarshal bytes to proper type
+// WriteTo writes PBTransactionMessage to io.Writer.
+func (m *PBTransactionMessage) WriteTo(w io.Writer) (int64, error) {
+	return WriteMessage(w, ContentIDPBTransaction, "PBTransactionMessage", BytesPayload(m.Transaction))
+}
+
+// UnmarshalMessage tries unmarshal bytes to proper type.
 func UnmarshalMessage(b []byte) (Message, error) {
-	if len(b) < headerSizeWithoutPayload {
-		return nil, errors.Errorf("message is too short")
+	l, err := safecast.ToUint32(len(b))
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal message: %w", err)
+	}
+	if l < headerSizeWithoutPayload {
+		return nil, errors.New("message is too short")
 	}
 
 	var m Message
@@ -1876,9 +1795,9 @@ func UnmarshalMessage(b []byte) (Message, error) {
 	case ContentIDPBTransaction:
 		m = &PBTransactionMessage{}
 	case ContentIDGetBlockIDs:
-		m = &GetBlockIdsMessage{}
+		m = &GetBlockIDsMessage{}
 	case ContentIDBlockIDs:
-		m = &BlockIdsMessage{}
+		m = &BlockIDsMessage{}
 	case ContentIDGetBlockSnapshot:
 		m = &GetBlockSnapshotMessage{}
 	case ContentIDMicroBlockSnapshotRequest:
@@ -1892,17 +1811,17 @@ func UnmarshalMessage(b []byte) (Message, error) {
 			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
 	}
 
-	err := m.UnmarshalBinary(b)
+	err = m.UnmarshalBinary(b)
 	return m, err
 
 }
 
-// GetBlockIdsMessage is used for Signatures or hashes block ids
-type GetBlockIdsMessage struct {
+// GetBlockIDsMessage is used for Signatures or hashes block IDs.
+type GetBlockIDsMessage struct {
 	Blocks []BlockID
 }
 
-func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
+func (m *GetBlockIDsMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4)
 	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
 	for _, bl := range m.Blocks {
@@ -1912,16 +1831,10 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDGetBlockIDs
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDGetBlockIDs, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -1933,72 +1846,77 @@ func (m *GetBlockIdsMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
-func (m *GetBlockIdsMessage) UnmarshalBinary(data []byte) error {
-	if len(data) < 17 {
-		return errors.New("GetBlockIdsMessage UnmarshalBinary: invalid data size")
+func unmarshalBlockIDs(data []byte) ([]BlockID, error) {
+	if len(data) < uint32Size {
+		return nil, fmt.Errorf("message too short %v", len(data))
 	}
-	var h Header
-	if err := h.UnmarshalBinary(data); err != nil {
-		return err
-	}
-	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
-	}
-	if h.ContentID != ContentIDGetBlockIDs {
-		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
-	}
-	data = data[17:]
-	if len(data) < 4 {
-		return fmt.Errorf("message too short %v", len(data))
-	}
-	blockCount := binary.BigEndian.Uint32(data[0:4])
-	data = data[4:]
+	count := binary.BigEndian.Uint32(data[0:uint32Size])
+	data = data[uint32Size:]
 	pos := 0
-	for i := uint32(0); i < blockCount; i++ {
-		if len(data) < pos+1 {
-			return fmt.Errorf("message too short %v", len(data))
+	dl := len(data)
+	ids := make([]BlockID, count)
+	for i := uint32(0); i < count; i++ {
+		if pos+1 > dl {
+			return nil, fmt.Errorf("message too short %v", dl)
 		}
-		idLen := int(data[pos])
-		pos += 1
-		if len(data[pos:]) < idLen {
-			return fmt.Errorf("message too short %v", len(data))
+		l := int(data[pos])
+		pos++ // Skip length byte.
+		if pos+l > dl {
+			return nil, fmt.Errorf("message too short %v", dl)
 		}
-		id, err := NewBlockIDFromBytes(data[pos : pos+idLen])
+		id, err := NewBlockIDFromBytes(data[pos : pos+l])
 		if err != nil {
-			return errors.Wrap(err, "bad block id bytes")
+			return nil, errors.Wrap(err, "bad block ID bytes")
 		}
-		m.Blocks = append(m.Blocks, id)
-		pos += idLen
+		ids[i] = id
+		pos += l
 	}
+	return ids, nil
+}
 
+func (m *GetBlockIDsMessage) UnmarshalBinary(data []byte) error {
+	l, err := safecast.ToUint32(len(data))
+	if err != nil {
+		return fmt.Errorf("GetBlockIDsMessage UnmarshalBinary: %w", err)
+	}
+	if l < headerSizeWithoutPayload {
+		return errors.New("GetBlockIDsMessage UnmarshalBinary: invalid data size")
+	}
+	var h Header
+	if ubErr := h.UnmarshalBinary(data); ubErr != nil {
+		return ubErr
+	}
+	if vErr := h.Validate(ContentIDGetBlockIDs); vErr != nil {
+		return fmt.Errorf("GetBlockIDsMessage UnmarshalBinary: %w", vErr)
+	}
+	data = data[headerSizeWithPayload:]
+	m.Blocks, err = unmarshalBlockIDs(data)
+	if err != nil {
+		return fmt.Errorf("GetBlockIDsMessage UnmarshalBinary: %w", err)
+	}
 	return nil
 }
 
-func (m *GetBlockIdsMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
+func (m *GetBlockIDsMessage) ReadFrom(r io.Reader) (int64, error) {
+	payload := new(BlockIDsPayload)
+	n, err := ReadMessage(r, ContentIDGetBlockIDs, "GetBlockIDsMessage", payload)
 	if err != nil {
-		return nn, err
+		return n, err
 	}
-
-	return nn, m.UnmarshalBinary(packet)
+	m.Blocks = *payload
+	return n, nil
 }
 
-func (m *GetBlockIdsMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+func (m *GetBlockIDsMessage) WriteTo(w io.Writer) (int64, error) {
+	return WriteMessage(w, ContentIDGetBlockIDs, "GetBlockIDsMessage", BlockIDsPayload(m.Blocks))
 }
 
-// BlockIdsMessage is used for Signatures or hashes block ids.
-type BlockIdsMessage struct {
+// BlockIDsMessage is used for Signatures or hashes block ids.
+type BlockIDsMessage struct {
 	Blocks []BlockID
 }
 
-func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
+func (m *BlockIDsMessage) MarshalBinary() ([]byte, error) {
 	body := make([]byte, 4)
 	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Blocks)))
 	for _, bl := range m.Blocks {
@@ -2008,16 +1926,10 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 		body = append(body, b...)
 	}
 
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDBlockIDs
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
+	h, err := NewHeader(ContentIDBlockIDs, body)
 	if err != nil {
 		return nil, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 
 	hdr, err := h.MarshalBinary()
 	if err != nil {
@@ -2029,91 +1941,41 @@ func (m *BlockIdsMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
-func (m *BlockIdsMessage) UnmarshalBinary(data []byte) error {
-	if len(data) < 17 {
-		return errors.New("BlockIdsMessage UnmarshalBinary: invalid data size")
+func (m *BlockIDsMessage) UnmarshalBinary(data []byte) error {
+	l, err := safecast.ToUint32(len(data))
+	if err != nil {
+		return fmt.Errorf("BlockIDsMessage UnmarshalBinary: %w", err)
+	}
+	if l < headerSizeWithPayload {
+		return errors.New("BlockIDsMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
-
-	if err := h.UnmarshalBinary(data); err != nil {
-		return err
+	if ubErr := h.UnmarshalBinary(data); ubErr != nil {
+		return ubErr
 	}
-	if h.Magic != headerMagic {
-		return fmt.Errorf("wrong magic in Header: %x", h.Magic)
+	if vErr := h.Validate(ContentIDBlockIDs); vErr != nil {
+		return fmt.Errorf("BlockIDsMessage UnmarshalBinary: %w", vErr)
 	}
-	if h.ContentID != ContentIDBlockIDs {
-		return fmt.Errorf("wrong ContentID in Header: %x", h.ContentID)
+	data = data[headerSizeWithPayload:]
+	m.Blocks, err = unmarshalBlockIDs(data)
+	if err != nil {
+		return fmt.Errorf("BlockIDsMessage UnmarshalBinary: %w", err)
 	}
-	data = data[17:]
-	if len(data) < 4 {
-		return fmt.Errorf("message too short %v", len(data))
-	}
-	idsCount := binary.BigEndian.Uint32(data[0:4])
-	data = data[4:]
-
-	offset := 0
-	for i := uint32(0); i < idsCount; i++ {
-		if len(data) < offset+1 {
-			return fmt.Errorf("message too short: %v", len(data))
-		}
-		idLen := int(data[offset])
-		offset += 1
-		if len(data[offset:]) < idLen {
-			return fmt.Errorf("message too short: %v", len(data))
-		}
-		id, err := NewBlockIDFromBytes(data[offset : offset+idLen])
-		if err != nil {
-			return errors.Wrap(err, "bad block id bytes")
-		}
-		m.Blocks = append(m.Blocks, id)
-		offset += idLen
-	}
-
 	return nil
 }
 
-func (m *BlockIdsMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
+func (m *BlockIDsMessage) ReadFrom(r io.Reader) (int64, error) {
+	payload := new(BlockIDsPayload)
+	n, err := ReadMessage(r, ContentIDBlockIDs, "BlockIDsMessage", payload)
 	if err != nil {
-		return nn, err
+		return n, err
 	}
-
-	return nn, m.UnmarshalBinary(packet)
+	m.Blocks = *payload
+	return n, nil
 }
 
-func (m *BlockIdsMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
-}
-
-type BulkMessage []Message
-
-func (BulkMessage) ReadFrom(_ io.Reader) (n int64, err error) {
-	panic("implement me")
-}
-
-func (BulkMessage) WriteTo(_ io.Writer) (n int64, err error) {
-	panic("implement me")
-}
-
-func (BulkMessage) UnmarshalBinary(_ []byte) error {
-	panic("implement me")
-}
-
-func (a BulkMessage) MarshalBinary() (data []byte, err error) {
-	var out bytes.Buffer
-	for _, row := range a {
-		_, err := row.WriteTo(&out)
-		if err != nil {
-			return nil, err
-		}
-	}
-	return out.Bytes(), nil
+func (m *BlockIDsMessage) WriteTo(w io.Writer) (int64, error) {
+	return WriteMessage(w, ContentIDBlockIDs, "BlockIDsMessage", BlockIDsPayload(m.Blocks))
 }
 
 type MiningLimits struct {
@@ -2123,45 +1985,20 @@ type MiningLimits struct {
 	MaxTxsSizeInBytes           int
 }
 
-func buildHeader(body []byte, messID PeerMessageID) (Header, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(body)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = messID
-	h.payloadLength = common.SafeIntToUint32(len(body))
-	dig, err := crypto.FastHash(body)
-	if err != nil {
-		return Header{}, err
-	}
-	copy(h.PayloadChecksum[:], dig[:headerChecksumLen])
-	return h, nil
-}
-
 type GetBlockSnapshotMessage struct {
 	BlockID BlockID
 }
 
 func (m *GetBlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return nn, err
-	}
-
-	return nn, m.UnmarshalBinary(packet)
+	return ReadMessage(r, ContentIDGetBlockSnapshot, "GetBlockSnapshotMessage", &m.BlockID)
 }
 
 func (m *GetBlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
-	return n, err
+	return WriteMessage(w, ContentIDGetBlockSnapshot, "GetBlockSnapshotMessage", &m.BlockID)
 }
 
 func (m *GetBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
-	return parsePacket(data, ContentIDGetBlockSnapshot, "GetBlockSnapshotMessage", func(payload []byte) error {
+	return ParseMessage(data, ContentIDGetBlockSnapshot, "GetBlockSnapshotMessage", func(payload []byte) error {
 		blockID, err := NewBlockIDFromBytes(payload)
 		if err != nil {
 			return err
@@ -2173,7 +2010,8 @@ func (m *GetBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 
 func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockID.Bytes()
-	h, err := buildHeader(body, ContentIDGetBlockSnapshot)
+
+	h, err := NewHeader(ContentIDGetBlockSnapshot, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2190,26 +2028,21 @@ type BlockSnapshotMessage struct {
 }
 
 func (m *BlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return nn, err
-	}
-
-	return nn, m.UnmarshalBinary(packet)
-}
-
-func (m *BlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
+	p, n, err := readBytesPayload(r, ContentIDBlockSnapshot, "BlockSnapshotMessage")
+	m.Bytes = p
 	return n, err
 }
 
+func (m *BlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
+	return WriteMessage(w, ContentIDBlockSnapshot, "BlockSnapshotMessage", BytesPayload(m.Bytes))
+}
+
 func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
-	if len(data) < maxHeaderLength {
+	l, err := safecast.ToUint32(len(data))
+	if err != nil {
+		return fmt.Errorf("BlockSnapshotMessage UnmarshalBinary: %w", err)
+	}
+	if l < maxHeaderLength {
 		return errors.New("BlockSnapshotMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
@@ -2231,7 +2064,7 @@ func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *BlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
-	h, err := buildHeader(body, ContentIDBlockSnapshot)
+	h, err := NewHeader(ContentIDBlockSnapshot, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2249,26 +2082,21 @@ type MicroBlockSnapshotMessage struct {
 }
 
 func (m *MicroBlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return nn, err
-	}
-
-	return nn, m.UnmarshalBinary(packet)
-}
-
-func (m *MicroBlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
+	p, n, err := readBytesPayload(r, ContentIDMicroBlockSnapshot, "MicroBlockSnapshotMessage")
+	m.Bytes = p
 	return n, err
 }
 
+func (m *MicroBlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
+	return WriteMessage(w, ContentIDMicroBlockSnapshot, "MicroBlockSnapshotMessage", BytesPayload(m.Bytes))
+}
+
 func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
-	if len(data) < maxHeaderLength {
+	l, err := safecast.ToUint32(len(data))
+	if err != nil {
+		return fmt.Errorf("MicroBlockSnapshotMessage UnmarshalBinary: %w", err)
+	}
+	if l < maxHeaderLength {
 		return errors.New("MicroBlockSnapshotMessage UnmarshalBinary: invalid data size")
 	}
 	var h Header
@@ -2290,7 +2118,7 @@ func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
 func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	body := m.Bytes
 
-	h, err := buildHeader(body, ContentIDMicroBlockSnapshot)
+	h, err := NewHeader(ContentIDMicroBlockSnapshot, body)
 	if err != nil {
 		return nil, err
 	}
@@ -2304,30 +2132,23 @@ func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 }
 
 type MicroBlockSnapshotRequestMessage struct {
+	//TODO: Use BlockID instead of []byte
 	BlockIDBytes []byte
 }
 
 func (m *MicroBlockSnapshotRequestMessage) ReadFrom(r io.Reader) (int64, error) {
-	packet, nn, err := readPacket(r)
-	if err != nil {
-		return nn, err
-	}
-
-	return nn, m.UnmarshalBinary(packet)
-}
-
-func (m *MicroBlockSnapshotRequestMessage) WriteTo(w io.Writer) (int64, error) {
-	buf, err := m.MarshalBinary()
-	if err != nil {
-		return 0, err
-	}
-	nn, err := w.Write(buf)
-	n := int64(nn)
+	p, n, err := readBytesPayload(r, ContentIDMicroBlockSnapshotRequest, "MicroBlockSnapshotRequestMessage")
+	m.BlockIDBytes = p
 	return n, err
 }
 
+func (m *MicroBlockSnapshotRequestMessage) WriteTo(w io.Writer) (int64, error) {
+	return WriteMessage(w, ContentIDMicroBlockSnapshotRequest, "MicroBlockSnapshotRequestMessage",
+		BytesPayload(m.BlockIDBytes))
+}
+
 func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
-	return parsePacket(
+	return ParseMessage(
 		data,
 		ContentIDMicroBlockSnapshotRequest,
 		"MicroBlockSnapshotRequestMessage",
@@ -2340,7 +2161,7 @@ func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
 func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
 	body := m.BlockIDBytes
 
-	h, err := buildHeader(body, ContentIDMicroBlockSnapshotRequest)
+	h, err := NewHeader(ContentIDMicroBlockSnapshotRequest, body)
 	if err != nil {
 		return nil, err
 	}
