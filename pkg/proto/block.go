@@ -250,9 +250,12 @@ func (id *BlockID) readUndefinedFrom(r io.Reader) (int64, error) {
 	}
 	n2, err := io.ReadFull(lr, id.sig[crypto.DigestSize:])
 	if err != nil { // Not enough data to read a second half of a signature.
-		// Return ID as a Digest. Also note that we return real number of bytes read.
-		id.idType = DigestID
-		return int64(n1 + n2), nil //lint:ignore nilerr we return nil here because it's correct Digest.
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			// Return ID as a Digest. Also note that we return real number of bytes read.
+			id.idType = DigestID
+			return int64(n1 + n2), nil
+		}
+		return int64(n1 + n2), err
 	}
 	// We have read 64 bytes, so it's a signature.
 	id.idType = SignatureID
