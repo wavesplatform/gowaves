@@ -88,7 +88,7 @@ func tryAsInt64(dataT DataType) (int64, error) {
 	}
 }
 
-// forEachUnpack iteratively unpack elements.
+// forEachUnpackRideList iteratively unpack elements.
 func forEachUnpackRideList(t Type, output []byte, start, size int) (_ List, slotsReadTotal int, err error) {
 	if t.T != SliceType { // here we can only handle slice type
 		return nil, 0, errors.Errorf("abi: invalid type in slice unpacking stage")
