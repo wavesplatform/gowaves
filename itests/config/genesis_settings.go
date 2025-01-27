@@ -96,6 +96,7 @@ type AccountInfo struct {
 	SecretKey crypto.SecretKey
 	Amount    uint64
 	Address   proto.WavesAddress
+	Alias     proto.Alias
 }
 
 func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {

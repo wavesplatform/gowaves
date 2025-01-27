@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"io"
 	"math"
 	"testing"
 	"time"
@@ -141,7 +142,7 @@ func (c *GRPCClient) syncedWavesAvailableBalance(
 	return balanceAtHeight{impl: c.impl, balance: available, height: after}, nil
 }
 
-// GetDataEntries return data entries for account
+// GetDataEntryByKey return data entries for account by key
 func (c *GRPCClient) GetDataEntryByKey(t *testing.T, address proto.WavesAddress, key string) *waves.DataEntry {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
@@ -154,4 +155,25 @@ func (c *GRPCClient) GetDataEntryByKey(t *testing.T, address proto.WavesAddress,
 	d, err := stream.Recv()
 	assert.NoError(t, err, "failed to get data entry from %s node with error: %s", c.impl.String(), err)
 	return d.GetEntry()
+}
+
+// GetDataEntries returns all data entries for account
+func (c *GRPCClient) GetDataEntries(t *testing.T, address proto.WavesAddress) []*waves.DataEntry {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	de := make([]*waves.DataEntry, 0)
+	defer cancel()
+	dr := g.DataRequest{
+		Address: address.Bytes(),
+	}
+	stream, err := g.NewAccountsApiClient(c.conn).GetDataEntries(ctx, &dr, grpc.EmptyCallOption{})
+	assert.NoError(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
+	for {
+		d, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		assert.NoError(t, err, "failed to get data entry from %s node with error: %s", c.impl.String(), err)
+		de = append(de, d.GetEntry())
+	}
+	return de
 }

@@ -1,4 +1,4 @@
-{-# STDLIB_VERSION 6 #-}
+{-# STDLIB_VERSION 8 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}
 
@@ -31,13 +31,25 @@ func checkStorageUntouchedByAlias(accountAlias: String) = {
 }
 
 @Callable(i)
-func writeData() = {
+func writeBinaryData(binValueBase16: ByteVector, binValueBase58: ByteVector, binValueBase64: ByteVector, boolValue: Boolean, intValue: Int, strValue: String) = {
   let accountAddress = toBase58String(i.caller.bytes)
     [
-      BinaryEntry(accountAddress + "bin", base58''),
-      BooleanEntry(accountAddress + "bool", true),
-      IntegerEntry(accountAddress + "int", 1),
-      StringEntry(accountAddress + "str", "")
+      BinaryEntry(accountAddress + "_binBase16", binValueBase16),
+      BinaryEntry(accountAddress + "_binBase58", binValueBase58),
+      BinaryEntry(accountAddress + "_binBase64", binValueBase64),
+      BinaryEntry(accountAddress + "_binBoolean", toBytes(boolValue)),
+      BinaryEntry(accountAddress + "_binInteger", toBytes(intValue)),
+      BinaryEntry(accountAddress + "_binString", toBytes(strValue))
+    ]
+}
+
+@Callable(i)
+func writeData(boolValue: Boolean, intValue: Int, strValue: String) = {
+  let accountAddress = toBase58String(i.caller.bytes)
+    [
+      BooleanEntry(accountAddress + "_bool", boolValue),
+      IntegerEntry(accountAddress + "_int", intValue),
+      StringEntry(accountAddress + "_str", strValue)
     ]
 }
 

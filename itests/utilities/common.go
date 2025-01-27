@@ -3,6 +3,8 @@ package utilities
 import (
 	"context"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -16,6 +18,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/mr-tron/base58/base58"
 	pkgerr "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
 	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
@@ -46,6 +49,7 @@ const (
 	MinSetAssetScriptFeeWaves  = 100000000
 	MinTxFeeWaves              = 100000
 	MinTxFeeWavesSmartAsset    = 500000
+	MinTxFeeWavesDApp          = 500000
 	MaxDecimals                = 8
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
@@ -287,6 +291,48 @@ func SafeInt64ToUint64(x int64) uint64 {
 	return uint64(x)
 }
 
+// StrToBase16Bytes gets string in utf8 and returns array of bytes of base16 string
+func StrToBase16Bytes(t *testing.T, s string) []byte {
+	encodedStr := hex.EncodeToString([]byte(s))
+	result, err := hex.DecodeString(encodedStr)
+	require.NoError(t, err, "failed to decode hex string")
+	return result
+}
+
+func StrToBase58Bytes(t *testing.T, s string) []byte {
+	encodedStr := base58.Encode([]byte(s))
+	result, err := base58.Decode(encodedStr)
+	require.NoError(t, err, "failed to decode base58 string")
+	return result
+}
+
+func StrToBase64Bytes(t *testing.T, s string) []byte {
+	encodedStr := base64.StdEncoding.EncodeToString([]byte(s))
+	result, err := base64.StdEncoding.DecodeString(encodedStr)
+	require.NoError(t, err, "failed to decode base64 string")
+	return result
+}
+
+func IntToBase64Bytes(t *testing.T, i int64) []byte {
+	bs := make([]byte, 8)
+	binary.BigEndian.PutUint64(bs, uint64(i))
+	encodedStr := base64.StdEncoding.EncodeToString(bs)
+	result, err := base64.StdEncoding.DecodeString(encodedStr)
+	require.NoError(t, err, "failed to decode base64 string")
+	return result
+}
+
+func BoolToBase64Bytes(t *testing.T, b bool) []byte {
+	bs := make([]byte, 1)
+	if b {
+		bs[0] = 1
+	}
+	encodedStr := base64.StdEncoding.EncodeToString(bs)
+	result, err := base64.StdEncoding.DecodeString(encodedStr)
+	require.NoError(t, err, "failed to decode base64 string")
+	return result
+}
+
 func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 	var from, to int
 	switch len(accountNumbers) {
@@ -318,6 +364,7 @@ func AddNewAccount(suite *f.BaseSuite, chainID proto.Scheme) (int, config.Accoun
 		SecretKey: sk,
 		Amount:    0,
 		Address:   addr,
+		Alias:     proto.Alias{},
 	}
 	suite.Cfg.Accounts = append(suite.Cfg.Accounts, acc)
 	return len(suite.Cfg.Accounts) - 1, acc
@@ -980,4 +1027,12 @@ func GetAccountDataGoByKey(suite *f.BaseSuite, address proto.WavesAddress, key s
 
 func GetAccountDataScalaByKey(suite *f.BaseSuite, address proto.WavesAddress, key string) *waves.DataEntry {
 	return suite.Clients.ScalaClient.GRPCClient.GetDataEntryByKey(suite.T(), address, key)
+}
+
+func GetAccountDataGo(suite *f.BaseSuite, address proto.WavesAddress) []*waves.DataEntry {
+	return suite.Clients.GoClient.GRPCClient.GetDataEntries(suite.T(), address)
+}
+
+func GetAccountDataScala(suite *f.BaseSuite, address proto.WavesAddress) []*waves.DataEntry {
+	return suite.Clients.ScalaClient.GRPCClient.GetDataEntries(suite.T(), address)
 }
