@@ -1453,7 +1453,7 @@ func (tc *transactionChecker) tryCreateDAppEstimationUpdate(
 	}
 	treeEstimation, err := ride.EstimateTree(tree, currentEstimatorVersion)
 	if err != nil {
-		return scriptEstimation{}, false, errors.Wrapf(err, "faield to estimate script by addr %q", scriptAddr)
+		return scriptEstimation{}, false, errors.Wrapf(err, "failed to estimate script by addr %q", scriptAddr)
 	}
 	return scriptEstimation{
 		currentEstimatorVersion: currentEstimatorVersion,
