@@ -58,7 +58,7 @@ func (a PeerWrapperImpl) AskBlocksIDs(ids []proto.BlockID) {
 	} else {
 		zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Requesting blocks IDs for IDs range [%s...%s]",
 			a.p.ID().String(), ids[0].ShortString(), ids[len(ids)-1].ShortString())
-		a.p.SendMessage(&proto.GetBlockIdsMessage{Blocks: ids})
+		a.p.SendMessage(&proto.GetBlockIDsMessage{Blocks: ids})
 	}
 }
 

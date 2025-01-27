@@ -46,10 +46,15 @@ func TestMicroBlockProtobufRoundTrip(t *testing.T) {
 	require.NoError(t, err)
 	refSig := crypto.MustSignatureFromBase58("37ex9gonRZtUddDHgSzSes5Ds9UeQyS74DyAXtGFrDpJnEg7sjGdi2ncaV4rVpZnLboQmid3whcbZUWS49FV3ZCs")
 	ref := NewBlockIDFromSignature(refSig)
+	totalSig := crypto.MustSignatureFromBase58(
+		"3ta68P5LdLHWKuKcDvASsjcCMEQsm1ySrpxYZwqmzCHiAWHgrYJE1ZmaTsh3ytPqY73545EUPDaGfVdrguTqVTHg",
+	)
+	totalBlockID := NewBlockIDFromSignature(totalSig)
 	m := MicroBlock{
 		VersionField:          3,
 		Reference:             ref,
-		TotalResBlockSigField: crypto.MustSignatureFromBase58("3ta68P5LdLHWKuKcDvASsjcCMEQsm1ySrpxYZwqmzCHiAWHgrYJE1ZmaTsh3ytPqY73545EUPDaGfVdrguTqVTHg"),
+		TotalResBlockSigField: totalSig,
+		TotalBlockID:          totalBlockID,
 		SenderPK:              crypto.MustPublicKeyFromBase58("adBBo1RCATFZYX114g8xDRpzKqRCVwckuTP6rcgYmA6"),
 		Transactions:          txs,
 		TransactionCount:      1,
