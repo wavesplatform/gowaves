@@ -90,7 +90,7 @@ func (c *rewardCalculator) performCalculation(
 	}
 	// sanity check
 	if cnt := len(rewardAddresses); cnt > additionalAddressesCount {
-		panic(fmt.Sprintf("reward addresses count=%d is greater than additional addreses count which is %d",
+		panic(fmt.Sprintf("reward addresses count=%d is greater than additional addresses count which is %d",
 			cnt, additionalAddressesCount,
 		))
 	}
