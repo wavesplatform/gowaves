@@ -27,10 +27,11 @@ type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.InvokeScriptTestDa
 
 func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.InvokeScriptTestData[T], version byte,
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves) {
-	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.SenderAccount.Address)
+	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Sender.Address)
 	tx := makeTx(suite, testdata, version, waitForTx)
+
 	actualDiffBalanceInWaves := utl.GetActualDiffBalanceInWaves(
-		suite, testdata.SenderAccount.Address, initBalanceGo, initBalanceScala)
+		suite, testdata.Sender.Address, initBalanceGo, initBalanceScala)
 	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo,
 			tx.WtErr.ErrWtScala, tx.BrdCstErr.ErrorBrdCstGo, tx.BrdCstErr.ErrorBrdCstScala),
 		utl.NewBalanceInWaves(actualDiffBalanceInWaves.BalanceInWavesGo, actualDiffBalanceInWaves.BalanceInWavesScala)
@@ -38,8 +39,8 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Invok
 
 func NewSignedInvokeScriptTransactionWithTestData[T any](suite *f.BaseSuite, version byte,
 	testdata testdata.InvokeScriptTestData[T]) proto.Transaction {
-	return NewSignedInvokeScriptTransaction(suite, version, testdata.ChainID, testdata.SenderAccount.PublicKey,
-		testdata.SenderAccount.SecretKey, testdata.ScriptRecipient, testdata.Call, testdata.Payments, testdata.FeeAsset,
+	return NewSignedInvokeScriptTransaction(suite, version, testdata.ChainID, testdata.Sender.PublicKey,
+		testdata.Sender.SecretKey, testdata.ScriptRecipient, testdata.Call, testdata.Payments, testdata.FeeAsset,
 		testdata.Fee, testdata.Timestamp)
 }
 

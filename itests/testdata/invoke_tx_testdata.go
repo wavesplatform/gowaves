@@ -14,7 +14,7 @@ const (
 )
 
 type InvokeScriptTestData[T any] struct {
-	SenderAccount   config.AccountInfo
+	Sender          config.AccountInfo
 	ScriptRecipient proto.Recipient
 	Call            proto.FunctionCall
 	Payments        proto.ScriptPayments
@@ -38,13 +38,25 @@ type ExpectedInvokeScriptDataSlicePositive struct {
 }
 
 type ExpectedInvokeScriptDataNegative struct {
+	WavesDiffBalanceSender    int64
+	AssetDiffBalanceSender    int64
+	FeeAssetDiffBalanceSender int64
+	WavesDiffBalanceRecipient int64
+	AssetDiffBalanceRecipient int64
+	WavesDiffBalanceSponsor   int64
+	AssetDiffBalanceSponsor   int64
+	ErrGoMsg                  string
+	ErrScalaMsg               string
+	ErrBrdCstGoMsg            string
+	ErrBrdCstScalaMsg         string
+	_                         struct{}
 }
 
 func NewInvokeScriptTestData[T any](senderAccount config.AccountInfo, scriptRecipient proto.Recipient,
 	call proto.FunctionCall, payments proto.ScriptPayments, chainID proto.Scheme, fee uint64,
 	feeAssetID proto.OptionalAsset, timestamp uint64, expected T) InvokeScriptTestData[T] {
 	return InvokeScriptTestData[T]{
-		SenderAccount:   senderAccount,
+		Sender:          senderAccount,
 		ScriptRecipient: scriptRecipient,
 		Call:            call,
 		Payments:        payments,
@@ -66,7 +78,7 @@ func GetInvokeScriptAccountStorageUntouchedTestData(suite *f.BaseSuite, dApp,
 				proto.Arguments{proto.NewStringArgument(account.Address.String())}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			500000,
+			utl.MinTxFeeWavesDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
 			ExpectedInvokeScriptDataPositive{
@@ -101,10 +113,10 @@ func GetInvokeScriptAccountStorageUntouchedTestData(suite *f.BaseSuite, dApp,
 func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataSlicePositive] {
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataSlicePositive]{
-		"Check that binary data is written correct": NewInvokeScriptTestData(
+		"Checking that binary data is written correctly": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(dApp.Address),
-			proto.NewFunctionCall("writeBinaryData",
+			proto.NewFunctionCall("writeData",
 				proto.Arguments{
 					&proto.BinaryArgument{Value: utl.StrToBase16Bytes(suite.T(), "test")},
 					&proto.BinaryArgument{Value: utl.StrToBase58Bytes(suite.T(), "test")},
@@ -120,29 +132,41 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 			ExpectedInvokeScriptDataSlicePositive{
 				Address: dApp.Address,
 				DataEntries: []*waves.DataEntry{
-					&waves.DataEntry{
+					{
 						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase16",
 						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
 					},
-					&waves.DataEntry{
+					{
 						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase58",
 						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
 					},
-					&waves.DataEntry{
+					{
 						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase64",
 						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
 					},
-					&waves.DataEntry{
+					{
 						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean",
 						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), true)},
 					},
-					&waves.DataEntry{
+					{
 						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger",
 						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(), 9223372036854775807)},
 					},
-					&waves.DataEntry{
+					{
 						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString",
 						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test string value")},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool",
+						Value: &waves.DataEntry_BoolValue{BoolValue: true},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int",
+						Value: &waves.DataEntry_IntValue{IntValue: 9223372036854775807},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
+						Value: &waves.DataEntry_StringValue{StringValue: "test string value"},
 					},
 				},
 			}),

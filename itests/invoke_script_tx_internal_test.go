@@ -41,7 +41,6 @@ func (suite *InvokeScriptSuite) Test_CheckThatAccountStorageIsUntouched() {
 			caseName := utl.GetTestcaseNameWithVersion(name, version)
 			suite.Run(caseName, func() {
 				tx := invoke.SendWithTestData(&suite.BaseSuite, td, version, true)
-				fmt.Sprintf("Invoke script tx: %s", tx.TxID.String())
 				dataGo := utl.GetAccountDataGoByKey(&suite.BaseSuite, dApp.Address, "test")
 				dataScala := utl.GetAccountDataScalaByKey(&suite.BaseSuite, dApp.Address, "test")
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
@@ -65,7 +64,6 @@ func (suite *InvokeScriptSuite) Test_CheckWrittenDataInAccountStorage() {
 			caseName := utl.GetTestcaseNameWithVersion(name, version)
 			suite.Run(caseName, func() {
 				tx := invoke.SendWithTestData(&suite.BaseSuite, td, version, true)
-				fmt.Sprintf("Invoke script tx: %s", tx.TxID.String())
 				dataGo := utl.GetAccountDataGo(&suite.BaseSuite, dApp.Address)
 				dataScala := utl.GetAccountDataScala(&suite.BaseSuite, dApp.Address)
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
