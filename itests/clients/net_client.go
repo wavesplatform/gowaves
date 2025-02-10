@@ -312,6 +312,10 @@ func (h *handler) OnHandshake(_ *networking.Session, _ networking.Handshake) {
 	h.t.Logf("Connection to %s node at %q was established", h.client.impl.String(), h.client.s.RemoteAddr())
 }
 
+func (h *handler) OnHandshakeFailed(_ *networking.Session, _ networking.Handshake) {
+	h.t.Logf("Handshake with %q failed", h.client.impl.String())
+}
+
 func (h *handler) OnClose(s *networking.Session) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
 	if !h.client.closing.Load() && h.client != nil {

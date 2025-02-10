@@ -278,6 +278,7 @@ func (s *Session) readHandshake() error {
 
 	if !s.config.protocol.IsAcceptableHandshake(hs) {
 		s.logger.Error("Handshake is not acceptable")
+		s.config.handler.OnHandshakeFailed(s, hs)
 		return ErrUnacceptableHandshake
 	}
 	// Handshake is acceptable, we can switch the session into established state.
