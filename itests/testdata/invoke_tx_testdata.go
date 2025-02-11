@@ -9,7 +9,7 @@ import (
 )
 
 const (
-	InvokeMinVersion = 2
+	InvokeMinVersion = 1
 	InvokeMaxVersion = 2
 )
 
@@ -113,7 +113,7 @@ func GetInvokeScriptAccountStorageUntouchedTestData(suite *f.BaseSuite, dApp,
 func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataSlicePositive] {
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataSlicePositive]{
-		"Checking that binary data is written correctly": NewInvokeScriptTestData(
+		"Checking that data is written correctly": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(dApp.Address),
 			proto.NewFunctionCall("writeData",
