@@ -66,7 +66,7 @@ jobs:
           cache: true
 
       - name: Set up GolangCI-Lint
-        run: curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $HOME/bin v1.61.0
+        run: curl -sfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh| sh -s -- -b $HOME/bin v1.64.4
 
       - name: Get dependencies
         run: go mod vendor
