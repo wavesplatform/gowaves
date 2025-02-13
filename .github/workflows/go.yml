@@ -29,10 +29,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Go 1.22
+      - name: Set up Go 1.23
         uses: actions/setup-go@v5.3.0
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
           check-latest: true
           cache: false # don't save & restore build caches because golangci-lint action does it internally
 
@@ -58,10 +58,10 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Set up Go 1.22
+      - name: Set up Go 1.23
         uses: actions/setup-go@v5.3.0
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
           check-latest: true
           cache: true
 
@@ -93,10 +93,10 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@v4
 
-      - name: Set up Go 1.22
+      - name: Set up Go 1.23
         uses: actions/setup-go@v5.3.0
         with:
-          go-version: 1.22.x
+          go-version: 1.23.x
           check-latest: true
           cache: true
         id: go
