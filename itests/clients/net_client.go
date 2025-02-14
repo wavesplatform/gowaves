@@ -3,7 +3,6 @@ package clients
 import (
 	"bytes"
 	"context"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"io"
@@ -180,11 +179,7 @@ func (c *NetClient) AwaitMicroblockRequest(timeout time.Duration) (proto.BlockID
 		return proto.BlockID{}, fmt.Errorf("failed to cast message of type %q to MicroBlockRequestMessage",
 			reflect.TypeOf(msg).String())
 	}
-	r, err := proto.NewBlockIDFromBytes(mbr.TotalBlockSig)
-	if err != nil {
-		return proto.BlockID{}, err
-	}
-	return r, nil
+	return mbr.TotalBlockSig, nil
 }
 
 func (c *NetClient) reconnect() {
@@ -275,15 +270,9 @@ func newHandler(t testing.TB, peers []proto.PeerInfo) *handler {
 }
 
 func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
-	data, err := io.ReadAll(r)
+	msg, _, err := proto.ReadMessageFrom(r)
 	if err != nil {
 		h.t.Logf("Failed to read message from %q: %v", s.RemoteAddr(), err)
-		h.t.FailNow()
-		return
-	}
-	msg, err := proto.UnmarshalMessage(data)
-	if err != nil { // Fail test on unmarshal error.
-		h.t.Logf("Failed to unmarshal message from bytes: %q", base64.StdEncoding.EncodeToString(data))
 		h.t.FailNow()
 		return
 	}
@@ -310,6 +299,10 @@ func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
 
 func (h *handler) OnHandshake(_ *networking.Session, _ networking.Handshake) {
 	h.t.Logf("Connection to %s node at %q was established", h.client.impl.String(), h.client.s.RemoteAddr())
+}
+
+func (h *handler) OnHandshakeFailed(_ *networking.Session, _ networking.Handshake) {
+	h.t.Logf("Handshake with %q failed", h.client.impl.String())
 }
 
 func (h *handler) OnClose(s *networking.Session) {

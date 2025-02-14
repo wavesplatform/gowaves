@@ -137,22 +137,6 @@ func (m *ScoreMessage) Equal(d comparable) bool {
 	return bytes.Equal(m.Score, p.Score)
 }
 
-func (m *CheckPointMessage) Equal(d comparable) bool {
-	p, ok := d.(*CheckPointMessage)
-	if !ok {
-		return false
-	}
-	if len(m.Checkpoints) != len(p.Checkpoints) {
-		return false
-	}
-	for i := 0; i < len(m.Checkpoints); i++ {
-		if m.Checkpoints[i] != p.Checkpoints[i] {
-			return false
-		}
-	}
-	return true
-}
-
 func (m *TransactionMessage) Equal(d comparable) bool {
 	p, ok := d.(*TransactionMessage)
 	if !ok {
@@ -236,11 +220,6 @@ var tests = []protocolMarshallingTest{
 		"0000000f  12345678       19         00000002      c2426c62   6642",
 	},
 	{
-		&CheckPointMessage{[]CheckpointItem{{0xdeadbeef, crypto.Signature{0x10, 0x11}}}},
-		//P. Len |    Magic | ContentID | Payload Length | PayloadChecksum | Payload
-		"00000059  12345678       64         0000004c      fcb6b02a   00000001 00000000 deadbeef 10110000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000 00000000",
-	},
-	{
 		&GetBlockIDsMessage{Blocks: []BlockID{
 			NewBlockIDFromDigest(makeDigest(0x01)),
 			NewBlockIDFromSignature(makeSignature(0x02)),
@@ -306,7 +285,7 @@ func TestTransactionMessageUnmarshalBinary(t *testing.T) {
 	p2 := TransactionMessage{}
 	err = p2.UnmarshalBinary(otherBts)
 	require.NoError(t, err)
-	assert.Equal(t, []byte("transaction"), p2.Transaction)
+	assert.Equal(t, []byte("transaction"), []byte(p2.Transaction))
 }
 
 func TestPeerInfoMarshalJSON(t *testing.T) {
