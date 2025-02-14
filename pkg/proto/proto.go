@@ -70,7 +70,6 @@ const (
 	ContentIDScore                     PeerMessageID = 0x18
 	ContentIDTransaction               PeerMessageID = 0x19
 	ContentIDInvMicroblock             PeerMessageID = 0x1A
-	ContentIDCheckpoint                PeerMessageID = 0x64
 	ContentIDMicroblockRequest         PeerMessageID = 27
 	ContentIDMicroblock                PeerMessageID = 28
 	ContentIDPBBlock                   PeerMessageID = 29
@@ -155,7 +154,7 @@ func (r *ChecksumReader) Checksum() [payloadChecksumSize]byte {
 
 // ReadMessage reads message from io.Reader and parses its payload using the given [f] function.
 // While reading payload, checksum is calculated and compared with the checksum from the message header.
-func ReadMessage(r io.Reader, contentID PeerMessageID, name string, payload io.ReaderFrom) (int64, error) {
+func ReadMessage(r io.Reader, contentID PeerMessageID, name string, payload Payload) (int64, error) {
 	var h Header
 	n1, err := h.ReadFrom(r)
 	if err != nil {
@@ -221,11 +220,16 @@ func WriteMessage(w io.Writer, contentID PeerMessageID, name string, payload io.
 	return n1 + n2, nil
 }
 
+type messageTag interface {
+	isMessage()
+}
 type Message interface {
+	messageTag
 	io.ReaderFrom
 	io.WriterTo
 	encoding.BinaryUnmarshaler
 	encoding.BinaryMarshaler
+	setPayload(Payload) (Message, error)
 }
 
 type Header struct {
@@ -306,28 +310,28 @@ func (h *Header) ReadFrom(r io.Reader) (int64, error) {
 	var msgLen U32
 	n1, err := msgLen.ReadFrom(r)
 	if err != nil {
-		return n1, err
+		return n1, fmt.Errorf("failed to read message lenght: %w", err)
 	}
 	h.Length = uint32(msgLen)
 
 	var magic U32
 	n2, err := magic.ReadFrom(r)
 	if err != nil {
-		return n1 + n2, err
+		return n1 + n2, fmt.Errorf("failed to read message magic: %w", err)
 	}
 	h.Magic = uint32(magic)
 
 	var msgType [msgTypeSize]byte
 	n3, err := io.ReadFull(r, msgType[:])
 	if err != nil {
-		return n1 + n2 + int64(n3), err
+		return n1 + n2 + int64(n3), fmt.Errorf("failed to read message type: %w", err)
 	}
 	h.ContentID = PeerMessageID(msgType[0])
 
 	var payloadLen U32
 	n4, err := payloadLen.ReadFrom(r)
 	if err != nil {
-		return n1 + n2 + int64(n3) + n4, err
+		return n1 + n2 + int64(n3) + n4, fmt.Errorf("failed to read payload length: %w", err)
 	}
 	h.payloadLength = uint32(payloadLen)
 
@@ -338,7 +342,7 @@ func (h *Header) ReadFrom(r io.Reader) (int64, error) {
 	var payloadChecksum [payloadChecksumSize]byte
 	n5, err := io.ReadFull(r, payloadChecksum[:])
 	if err != nil {
-		return n1 + n2 + int64(n3) + n4 + int64(n5), err
+		return n1 + n2 + int64(n3) + n4 + int64(n5), fmt.Errorf("failed to read payload checksum: %w", err)
 	}
 	h.PayloadChecksum = payloadChecksum
 	return n1 + n2 + int64(n3) + n4 + int64(n5), nil
@@ -828,6 +832,12 @@ func (m *GetPeersMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDGetPeers, "GetPeersMessage", nil)
 }
 
+func (m *GetPeersMessage) isMessage() {}
+
+func (m *GetPeersMessage) setPayload(Payload) (Message, error) {
+	return m, nil
+}
+
 const IpPortLength = net.IPv6len + 8
 
 type IpPort [IpPortLength]byte
@@ -1081,11 +1091,11 @@ func (p *PeerInfo) Empty() bool {
 
 // PeersMessage represents the peers message
 type PeersMessage struct {
-	Peers []PeerInfo
+	Peers PeerInfos
 }
 
 func (m *PeersMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDPeers, "PeersMessage", PeersPayload(m.Peers))
+	return WriteMessage(w, ContentIDPeers, "PeersMessage", &m.Peers)
 }
 
 // MarshalBinary encodes PeersMessage message to binary form
@@ -1133,7 +1143,7 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads PeersMessage from io.Reader.
 func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
-	payload := &PeersPayload{}
+	payload := &PeerInfos{}
 	n, err := ReadMessage(r, ContentIDPeers, "PeersMessage", payload)
 	if err != nil {
 		return n, err
@@ -1142,9 +1152,19 @@ func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
 	return n, nil
 }
 
+func (m *PeersMessage) isMessage() {}
+
+func (m *PeersMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*PeerInfos); ok {
+		m.Peers = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
 // GetSignaturesMessage represents the Get Signatures request
 type GetSignaturesMessage struct {
-	Signatures []crypto.Signature
+	Signatures Signatures
 }
 
 // MarshalBinary encodes GetSignaturesMessage to binary form
@@ -1219,13 +1239,23 @@ func (m *GetSignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
 
 // WriteTo writes GetSignaturesMessage to io.Writer
 func (m *GetSignaturesMessage) WriteTo(w io.Writer) (int64, error) {
-	payload := Signatures(m.Signatures)
+	payload := m.Signatures
 	return WriteMessage(w, ContentIDGetSignatures, "GetSignaturesMessage", &payload)
+}
+
+func (m *GetSignaturesMessage) isMessage() {}
+
+func (m *GetSignaturesMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*Signatures); ok {
+		m.Signatures = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 // SignaturesMessage represents Signatures message
 type SignaturesMessage struct {
-	Signatures []crypto.Signature
+	Signatures Signatures
 }
 
 // MarshalBinary encodes SignaturesMessage to binary form
@@ -1304,6 +1334,16 @@ func (m *SignaturesMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDSignatures, "SignaturesMessage", &payload)
 }
 
+func (m *SignaturesMessage) isMessage() {}
+
+func (m *SignaturesMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*Signatures); ok {
+		m.Signatures = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
 // GetBlockMessage represents GetBlock message
 type GetBlockMessage struct {
 	BlockID BlockID
@@ -1344,7 +1384,17 @@ func (m *GetBlockMessage) ReadFrom(r io.Reader) (int64, error) {
 
 // WriteTo writes GetBlockMessage to io.Writer
 func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDGetBlock, "GetBlockMessage", BytesPayload(m.BlockID.Bytes()))
+	p := BytesPayload(m.BlockID.Bytes())
+	return WriteMessage(w, ContentIDGetBlock, "GetBlockMessage", &p)
+}
+func (m *GetBlockMessage) isMessage() {}
+
+func (m *GetBlockMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BlockID); ok {
+		m.BlockID = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
@@ -1361,7 +1411,7 @@ func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
 
 // BlockMessage represents Block message
 type BlockMessage struct {
-	BlockBytes []byte
+	BlockBytes BytesPayload
 }
 
 // MarshalBinary encodes BlockMessage to binary form
@@ -1402,19 +1452,27 @@ func (m *BlockMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads BlockMessage from io.Reader
 func (m *BlockMessage) ReadFrom(r io.Reader) (int64, error) {
-	p, n, err := readBytesPayload(r, ContentIDBlock, "BlockMessage")
-	m.BlockBytes = p
-	return n, err
+	return ReadMessage(r, ContentIDBlock, "BlockMessage", &m.BlockBytes)
 }
 
 // WriteTo writes BlockMessage to io.Writer
 func (m *BlockMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDBlock, "BlockMessage", BytesPayload(m.BlockBytes))
+	return WriteMessage(w, ContentIDBlock, "BlockMessage", &m.BlockBytes)
+}
+
+func (m *BlockMessage) isMessage() {}
+
+func (m *BlockMessage) setPayload(payload Payload) (Message, error) {
+	if b, ok := payload.(*BytesPayload); ok {
+		m.BlockBytes = *b
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 // ScoreMessage represents Score message
 type ScoreMessage struct {
-	Score []byte
+	Score BytesPayload
 }
 
 // MarshalBinary encodes ScoreMessage to binary form
@@ -1454,19 +1512,27 @@ func (m *ScoreMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads ScoreMessage from io.Reader
 func (m *ScoreMessage) ReadFrom(r io.Reader) (int64, error) {
-	p, n, err := readBytesPayload(r, ContentIDScore, "ScoreMessage")
-	m.Score = p
-	return n, err
+	return ReadMessage(r, ContentIDScore, "ScoreMessage", &m.Score)
 }
 
 // WriteTo writes ScoreMessage to io.Writer
 func (m *ScoreMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDScore, "ScoreMessage", BytesPayload(m.Score))
+	return WriteMessage(w, ContentIDScore, "ScoreMessage", &m.Score)
+}
+
+func (m *ScoreMessage) isMessage() {}
+
+func (m *ScoreMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.Score = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 // TransactionMessage represents TransactionsSend message
 type TransactionMessage struct {
-	Transaction []byte
+	Transaction BytesPayload
 }
 
 // MarshalBinary encodes TransactionMessage to binary form
@@ -1511,14 +1577,22 @@ func (m *TransactionMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads TransactionMessage from io.Reader
 func (m *TransactionMessage) ReadFrom(r io.Reader) (int64, error) {
-	p, n, err := readBytesPayload(r, ContentIDTransaction, "TransactionMessage")
-	m.Transaction = p
-	return n, err
+	return ReadMessage(r, ContentIDTransaction, "TransactionMessage", &m.Transaction)
 }
 
 // WriteTo writes TransactionMessage to io.Writer
 func (m *TransactionMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDTransaction, "TransactionMessage", BytesPayload(m.Transaction))
+	return WriteMessage(w, ContentIDTransaction, "TransactionMessage", &m.Transaction)
+}
+
+func (m *TransactionMessage) isMessage() {}
+
+func (m *TransactionMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.Transaction = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 // CheckpointItem represents a Checkpoint
@@ -1550,92 +1624,9 @@ func (c *CheckpointItem) ReadFrom(r io.Reader) (int64, error) {
 	return n1 + int64(n2), err
 }
 
-// CheckPointMessage represents a CheckPoint message
-// TODO: Remove this message and related payload as not used anymore.
-type CheckPointMessage struct {
-	Checkpoints []CheckpointItem
-}
-
-// MarshalBinary encodes CheckPointMessage to binary form
-func (m *CheckPointMessage) MarshalBinary() ([]byte, error) {
-	body := make([]byte, 4, 4+len(m.Checkpoints)*72+100)
-
-	binary.BigEndian.PutUint32(body[0:4], uint32(len(m.Checkpoints)))
-	for _, c := range m.Checkpoints {
-		var height [8]byte
-		binary.BigEndian.PutUint64(height[0:8], c.Height)
-		body = append(body, height[:]...)
-		body = append(body, c.Signature[:]...)
-	}
-
-	h, err := NewHeader(ContentIDCheckpoint, body)
-	if err != nil {
-		return nil, err
-	}
-
-	hdr, err := h.MarshalBinary()
-	if err != nil {
-		return nil, err
-	}
-
-	hdr = append(hdr, body...)
-	return hdr, nil
-}
-
-// UnmarshalBinary decodes CheckPointMessage from binary form
-func (m *CheckPointMessage) UnmarshalBinary(data []byte) error {
-	if len(data) < 17 {
-		return errors.New("invalid data size")
-	}
-	var h Header
-	if err := h.UnmarshalBinary(data); err != nil {
-		return err
-	}
-	if h.Magic != headerMagic {
-		return fmt.Errorf("ckeckpoint message magic is unexpected: %x", headerMagic)
-	}
-	if h.ContentID != ContentIDCheckpoint {
-		return fmt.Errorf("checkpoint message ContentID is unexpected %x", h.ContentID)
-	}
-	data = data[17:]
-	if len(data) < 4 {
-		return fmt.Errorf("checkpoint message data too short: %d", len(data))
-	}
-	checkpointsCount := binary.BigEndian.Uint32(data[0:4])
-	data = data[4:]
-	for i := uint32(0); i < checkpointsCount; i++ {
-		if len(data) < 72 {
-			return fmt.Errorf("checkpoint message data too short")
-		}
-		var ci CheckpointItem
-		ci.Height = binary.BigEndian.Uint64(data[0:8])
-		copy(ci.Signature[:], data[8:72])
-		data = data[72:]
-		m.Checkpoints = append(m.Checkpoints, ci)
-	}
-
-	return nil
-}
-
-// ReadFrom reads CheckPointMessage from io.Reader
-func (m *CheckPointMessage) ReadFrom(r io.Reader) (int64, error) {
-	payload := new(CheckpointPayload)
-	n, err := ReadMessage(r, ContentIDCheckpoint, "CheckPointMessage", payload)
-	if err != nil {
-		return n, err
-	}
-	m.Checkpoints = *payload
-	return n, nil
-}
-
-// WriteTo writes CheckPointMessage to io.Writer
-func (m *CheckPointMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDCheckpoint, "CheckPointMessage", CheckpointPayload(m.Checkpoints))
-}
-
 // PBBlockMessage represents Protobuf Block message
 type PBBlockMessage struct {
-	PBBlockBytes []byte
+	PBBlockBytes BytesPayload
 }
 
 // MarshalBinary encodes PBBlockMessage to binary form
@@ -1676,19 +1667,27 @@ func (m *PBBlockMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads PBBlockMessage from io.Reader
 func (m *PBBlockMessage) ReadFrom(r io.Reader) (int64, error) {
-	p, n, err := readBytesPayload(r, ContentIDPBBlock, "PBBlockMessage")
-	m.PBBlockBytes = p
-	return n, err
+	return ReadMessage(r, ContentIDPBBlock, "PBBlockMessage", &m.PBBlockBytes)
 }
 
 // WriteTo writes PBBlockMessage to io.Writer
 func (m *PBBlockMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDPBBlock, "PBBlockMessage", BytesPayload(m.PBBlockBytes))
+	return WriteMessage(w, ContentIDPBBlock, "PBBlockMessage", &m.PBBlockBytes)
+}
+
+func (m *PBBlockMessage) isMessage() {}
+
+func (m *PBBlockMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.PBBlockBytes = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 // PBTransactionMessage represents Protobuf TransactionsSend message
 type PBTransactionMessage struct {
-	Transaction []byte
+	Transaction BytesPayload
 }
 
 // MarshalBinary encodes PBTransactionMessage to binary form
@@ -1731,25 +1730,24 @@ func (m *PBTransactionMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func readBytesPayload(r io.Reader, contentID PeerMessageID, name string) ([]byte, int64, error) {
-	bpl := BytesPayload{}
-	n, err := ReadMessage(r, contentID, name, &bpl)
-	if err != nil {
-		return nil, n, err
-	}
-	return bpl, n, nil
-}
-
 // ReadFrom reads PBTransactionMessage from io.Reader.
 func (m *PBTransactionMessage) ReadFrom(r io.Reader) (int64, error) {
-	p, n, err := readBytesPayload(r, ContentIDPBTransaction, "PBTransactionMessage")
-	m.Transaction = p
-	return n, err
+	return ReadMessage(r, ContentIDPBTransaction, "PBTransactionMessage", &m.Transaction)
 }
 
 // WriteTo writes PBTransactionMessage to io.Writer.
 func (m *PBTransactionMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDPBTransaction, "PBTransactionMessage", BytesPayload(m.Transaction))
+	return WriteMessage(w, ContentIDPBTransaction, "PBTransactionMessage", &m.Transaction)
+}
+
+func (m *PBTransactionMessage) isMessage() {}
+
+func (m *PBTransactionMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.Transaction = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 // UnmarshalMessage tries unmarshal bytes to proper type.
@@ -1780,8 +1778,6 @@ func UnmarshalMessage(b []byte) (Message, error) {
 		m = &ScoreMessage{}
 	case ContentIDTransaction:
 		m = &TransactionMessage{}
-	case ContentIDCheckpoint:
-		m = &CheckPointMessage{}
 	case ContentIDMicroblock:
 		m = &MicroBlockMessage{}
 	case ContentIDMicroblockRequest:
@@ -1813,12 +1809,11 @@ func UnmarshalMessage(b []byte) (Message, error) {
 
 	err = m.UnmarshalBinary(b)
 	return m, err
-
 }
 
 // GetBlockIDsMessage is used for Signatures or hashes block IDs.
 type GetBlockIDsMessage struct {
-	Blocks []BlockID
+	Blocks BlockIDsPayload
 }
 
 func (m *GetBlockIDsMessage) MarshalBinary() ([]byte, error) {
@@ -1846,34 +1841,6 @@ func (m *GetBlockIDsMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
-func unmarshalBlockIDs(data []byte) ([]BlockID, error) {
-	if len(data) < uint32Size {
-		return nil, fmt.Errorf("message too short %v", len(data))
-	}
-	count := binary.BigEndian.Uint32(data[0:uint32Size])
-	data = data[uint32Size:]
-	pos := 0
-	dl := len(data)
-	ids := make([]BlockID, count)
-	for i := uint32(0); i < count; i++ {
-		if pos+1 > dl {
-			return nil, fmt.Errorf("message too short %v", dl)
-		}
-		l := int(data[pos])
-		pos++ // Skip length byte.
-		if pos+l > dl {
-			return nil, fmt.Errorf("message too short %v", dl)
-		}
-		id, err := NewBlockIDFromBytes(data[pos : pos+l])
-		if err != nil {
-			return nil, errors.Wrap(err, "bad block ID bytes")
-		}
-		ids[i] = id
-		pos += l
-	}
-	return ids, nil
-}
-
 func (m *GetBlockIDsMessage) UnmarshalBinary(data []byte) error {
 	l, err := safecast.ToUint32(len(data))
 	if err != nil {
@@ -1898,22 +1865,26 @@ func (m *GetBlockIDsMessage) UnmarshalBinary(data []byte) error {
 }
 
 func (m *GetBlockIDsMessage) ReadFrom(r io.Reader) (int64, error) {
-	payload := new(BlockIDsPayload)
-	n, err := ReadMessage(r, ContentIDGetBlockIDs, "GetBlockIDsMessage", payload)
-	if err != nil {
-		return n, err
-	}
-	m.Blocks = *payload
-	return n, nil
+	return ReadMessage(r, ContentIDGetBlockIDs, "GetBlockIDsMessage", &m.Blocks)
 }
 
 func (m *GetBlockIDsMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDGetBlockIDs, "GetBlockIDsMessage", BlockIDsPayload(m.Blocks))
+	return WriteMessage(w, ContentIDGetBlockIDs, "GetBlockIDsMessage", &m.Blocks)
+}
+
+func (m *GetBlockIDsMessage) isMessage() {}
+
+func (m *GetBlockIDsMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BlockIDsPayload); ok {
+		m.Blocks = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 // BlockIDsMessage is used for Signatures or hashes block ids.
 type BlockIDsMessage struct {
-	Blocks []BlockID
+	Blocks BlockIDsPayload
 }
 
 func (m *BlockIDsMessage) MarshalBinary() ([]byte, error) {
@@ -1965,24 +1936,21 @@ func (m *BlockIDsMessage) UnmarshalBinary(data []byte) error {
 }
 
 func (m *BlockIDsMessage) ReadFrom(r io.Reader) (int64, error) {
-	payload := new(BlockIDsPayload)
-	n, err := ReadMessage(r, ContentIDBlockIDs, "BlockIDsMessage", payload)
-	if err != nil {
-		return n, err
-	}
-	m.Blocks = *payload
-	return n, nil
+	return ReadMessage(r, ContentIDBlockIDs, "BlockIDsMessage", &m.Blocks)
 }
 
 func (m *BlockIDsMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDBlockIDs, "BlockIDsMessage", BlockIDsPayload(m.Blocks))
+	return WriteMessage(w, ContentIDBlockIDs, "BlockIDsMessage", &m.Blocks)
 }
 
-type MiningLimits struct {
-	MaxScriptRunsInBlock        int
-	MaxScriptsComplexityInBlock int
-	ClassicAmountOfTxsInBlock   int
-	MaxTxsSizeInBytes           int
+func (m *BlockIDsMessage) isMessage() {}
+
+func (m *BlockIDsMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BlockIDsPayload); ok {
+		m.Blocks = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 type GetBlockSnapshotMessage struct {
@@ -2023,18 +1991,26 @@ func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
+func (m *GetBlockSnapshotMessage) isMessage() {}
+
+func (m *GetBlockSnapshotMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BlockID); ok {
+		m.BlockID = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
 type BlockSnapshotMessage struct {
-	Bytes []byte
+	Bytes BytesPayload
 }
 
 func (m *BlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
-	p, n, err := readBytesPayload(r, ContentIDBlockSnapshot, "BlockSnapshotMessage")
-	m.Bytes = p
-	return n, err
+	return ReadMessage(r, ContentIDBlockSnapshot, "BlockSnapshotMessage", &m.Bytes)
 }
 
 func (m *BlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDBlockSnapshot, "BlockSnapshotMessage", BytesPayload(m.Bytes))
+	return WriteMessage(w, ContentIDBlockSnapshot, "BlockSnapshotMessage", &m.Bytes)
 }
 
 func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
@@ -2077,18 +2053,26 @@ func (m *BlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
+func (m *BlockSnapshotMessage) isMessage() {}
+
+func (m *BlockSnapshotMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.Bytes = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
 type MicroBlockSnapshotMessage struct {
-	Bytes []byte
+	Bytes BytesPayload
 }
 
 func (m *MicroBlockSnapshotMessage) ReadFrom(r io.Reader) (int64, error) {
-	p, n, err := readBytesPayload(r, ContentIDMicroBlockSnapshot, "MicroBlockSnapshotMessage")
-	m.Bytes = p
-	return n, err
+	return ReadMessage(r, ContentIDMicroBlockSnapshot, "MicroBlockSnapshotMessage", &m.Bytes)
 }
 
 func (m *MicroBlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDMicroBlockSnapshot, "MicroBlockSnapshotMessage", BytesPayload(m.Bytes))
+	return WriteMessage(w, ContentIDMicroBlockSnapshot, "MicroBlockSnapshotMessage", &m.Bytes)
 }
 
 func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
@@ -2131,20 +2115,26 @@ func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
+func (m *MicroBlockSnapshotMessage) isMessage() {}
+
+func (m *MicroBlockSnapshotMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.Bytes = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
 type MicroBlockSnapshotRequestMessage struct {
-	//TODO: Use BlockID instead of []byte
-	BlockIDBytes []byte
+	BlockID BlockID
 }
 
 func (m *MicroBlockSnapshotRequestMessage) ReadFrom(r io.Reader) (int64, error) {
-	p, n, err := readBytesPayload(r, ContentIDMicroBlockSnapshotRequest, "MicroBlockSnapshotRequestMessage")
-	m.BlockIDBytes = p
-	return n, err
+	return ReadMessage(r, ContentIDMicroBlockSnapshotRequest, "MicroBlockSnapshotRequestMessage", &m.BlockID)
 }
 
 func (m *MicroBlockSnapshotRequestMessage) WriteTo(w io.Writer) (int64, error) {
-	return WriteMessage(w, ContentIDMicroBlockSnapshotRequest, "MicroBlockSnapshotRequestMessage",
-		BytesPayload(m.BlockIDBytes))
+	return WriteMessage(w, ContentIDMicroBlockSnapshotRequest, "MicroBlockSnapshotRequestMessage", &m.BlockID)
 }
 
 func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
@@ -2153,23 +2143,148 @@ func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
 		ContentIDMicroBlockSnapshotRequest,
 		"MicroBlockSnapshotRequestMessage",
 		func(payload []byte) error {
-			m.BlockIDBytes = payload
+			id, err := NewBlockIDFromBytes(payload)
+			if err != nil {
+				return fmt.Errorf("failed to unmarshal block MicroBlockSnapshotRequestMessage: %w", err)
+			}
+			m.BlockID = id
 			return nil
 		})
 }
 
 func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
-	body := m.BlockIDBytes
-
+	body := m.BlockID.Bytes()
 	h, err := NewHeader(ContentIDMicroBlockSnapshotRequest, body)
 	if err != nil {
 		return nil, err
 	}
-
 	hdr, err := h.MarshalBinary()
 	if err != nil {
 		return nil, err
 	}
 	body = append(hdr, body...)
 	return body, nil
+}
+
+func (m *MicroBlockSnapshotRequestMessage) isMessage() {}
+
+func (m *MicroBlockSnapshotRequestMessage) setPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BlockID); ok {
+		m.BlockID = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
+func CreateMessage(contentID PeerMessageID, payload Payload) (Message, error) {
+	switch contentID {
+	case ContentIDGetPeers:
+		return &GetPeersMessage{}, nil
+	case ContentIDPeers:
+		return (&PeersMessage{}).setPayload(payload)
+	case ContentIDGetSignatures:
+		return (&GetSignaturesMessage{}).setPayload(payload)
+	case ContentIDSignatures:
+		return (&SignaturesMessage{}).setPayload(payload)
+	case ContentIDGetBlock:
+		return (&GetBlockMessage{}).setPayload(payload)
+	case ContentIDBlock:
+		return (&BlockMessage{}).setPayload(payload)
+	case ContentIDScore:
+		return (&ScoreMessage{}).setPayload(payload)
+	case ContentIDTransaction:
+		return (&TransactionMessage{}).setPayload(payload)
+	case ContentIDMicroblock:
+		return (&MicroBlockMessage{}).setPayload(payload)
+	case ContentIDMicroblockRequest:
+		return (&MicroBlockRequestMessage{}).setPayload(payload)
+	case ContentIDInvMicroblock:
+		return (&MicroBlockInvMessage{}).setPayload(payload)
+	case ContentIDPBBlock:
+		return (&PBBlockMessage{}).setPayload(payload)
+	case ContentIDPBMicroBlock:
+		return (&PBMicroBlockMessage{}).setPayload(payload)
+	case ContentIDPBTransaction:
+		return (&PBTransactionMessage{}).setPayload(payload)
+	case ContentIDGetBlockIDs:
+		return (&GetBlockIDsMessage{}).setPayload(payload)
+	case ContentIDBlockIDs:
+		return (&BlockIDsMessage{}).setPayload(payload)
+	case ContentIDGetBlockSnapshot:
+		return (&GetBlockSnapshotMessage{}).setPayload(payload)
+	case ContentIDMicroBlockSnapshotRequest:
+		return (&MicroBlockSnapshotRequestMessage{}).setPayload(payload)
+	case ContentIDBlockSnapshot:
+		return (&BlockSnapshotMessage{}).setPayload(payload)
+	case ContentIDMicroBlockSnapshot:
+		return (&MicroBlockSnapshotMessage{}).setPayload(payload)
+	default:
+		return nil, fmt.Errorf("unexpected content ID %d", contentID)
+	}
+}
+
+func ReadMessageFrom(r io.Reader) (Message, int64, error) {
+	var h Header
+	n1, err := h.ReadFrom(r)
+	if err != nil {
+		return nil, n1, fmt.Errorf("failed to read header: %w", err)
+	}
+	if vErr := h.Validate(h.ContentID); vErr != nil {
+		return nil, n1, fmt.Errorf("message header is not valid: %w", vErr)
+	}
+	payload, err := CreatePayloadByContentID(h.ContentID)
+	if err != nil {
+		return nil, n1, fmt.Errorf("failed to create payload: %w", err)
+	}
+	if h.payloadLength == 0 { // Fast exit for messages without payload.
+		msg, crErr := CreateMessage(h.ContentID, payload)
+		if crErr != nil {
+			return nil, n1, fmt.Errorf("failed to create message: %w", crErr)
+		}
+		return msg, n1, nil
+	}
+	pr, err := NewChecksumReader(io.LimitReader(r, int64(h.payloadLength)))
+	if err != nil {
+		return nil, n1, fmt.Errorf("failed to create checksum reader: %w", err)
+	}
+	n2, err := payload.ReadFrom(pr)
+	if err != nil {
+		return nil, n1 + n2, fmt.Errorf("failed to read payload: %w", err)
+	}
+	if pr.Checksum() != h.PayloadChecksum {
+		return nil, n1 + n2, errors.New("payload checksum mismatch")
+	}
+	msg, err := CreateMessage(h.ContentID, payload)
+	if err != nil {
+		return nil, n1 + n2, fmt.Errorf("failed to create message: %w", err)
+	}
+	return msg, n1 + n2, nil
+}
+
+func unmarshalBlockIDs(data []byte) ([]BlockID, error) {
+	if len(data) < uint32Size {
+		return nil, fmt.Errorf("message too short %v", len(data))
+	}
+	count := binary.BigEndian.Uint32(data[0:uint32Size])
+	data = data[uint32Size:]
+	pos := 0
+	dl := len(data)
+	ids := make([]BlockID, count)
+	for i := uint32(0); i < count; i++ {
+		if pos+1 > dl {
+			return nil, fmt.Errorf("message too short %v", dl)
+		}
+		l := int(data[pos])
+		pos++ // Skip length byte.
+		if pos+l > dl {
+			return nil, fmt.Errorf("message too short %v", dl)
+		}
+		id, err := NewBlockIDFromBytes(data[pos : pos+l])
+		if err != nil {
+			return nil, errors.Wrap(err, "bad block ID bytes")
+		}
+		ids[i] = id
+		pos += l
+	}
+	return ids, nil
 }

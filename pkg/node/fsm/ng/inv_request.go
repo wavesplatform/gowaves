@@ -28,8 +28,13 @@ func (a *InvRequesterImpl) Add2Cache(id []byte) (existed bool) {
 func (a *InvRequesterImpl) Request(p types.MessageSender, id []byte) bool {
 	existed := a.Add2Cache(id)
 	if !existed {
+		bid, err := proto.NewBlockIDFromBytes(id)
+		if err != nil {
+			// TODO: Handle error properly.
+			panic("invalid block id")
+		}
 		p.SendMessage(&proto.MicroBlockRequestMessage{
-			TotalBlockSig: id,
+			TotalBlockSig: bid,
 		})
 	}
 	return existed
