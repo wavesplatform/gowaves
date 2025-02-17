@@ -14,7 +14,7 @@ import (
 )
 
 type payloadTag interface {
-	isPayload()
+	IsPayload()
 }
 
 type Payload interface {
@@ -171,7 +171,7 @@ func (p *Signatures) ReadFrom(r io.Reader) (int64, error) {
 	return n, nil
 }
 
-func (p *Signatures) isPayload() {}
+func (p *Signatures) IsPayload() {}
 
 type BlockIDsPayload []BlockID
 
@@ -244,7 +244,7 @@ func (p *BlockIDsPayload) ReadFrom(r io.Reader) (int64, error) {
 	return n, nil
 }
 
-func (p *BlockIDsPayload) isPayload() {}
+func (p *BlockIDsPayload) IsPayload() {}
 
 type BytesPayload []byte
 
@@ -266,7 +266,7 @@ func (p *BytesPayload) ReadFrom(r io.Reader) (int64, error) {
 	return n, nil
 }
 
-func (p *BytesPayload) isPayload() {}
+func (p *BytesPayload) IsPayload() {}
 
 type PeerInfos []PeerInfo
 
@@ -309,63 +309,40 @@ func (p *PeerInfos) ReadFrom(r io.Reader) (int64, error) {
 	return n, nil
 }
 
-func (p *PeerInfos) isPayload() {}
+func (p *PeerInfos) IsPayload() {}
+
+// PayloadProducer is a function that creates an instance of Payload by provided PeerMessageID.
+type PayloadProducer func(PeerMessageID) (Payload, error)
 
 func CreatePayloadByContentID(contentID PeerMessageID) (Payload, error) {
 	switch contentID {
 	case ContentIDGetPeers:
-		return &emptyPayload{}, nil
+		return &EmptyPayload{}, nil
 	case ContentIDPeers:
 		return &PeerInfos{}, nil
-	case ContentIDGetSignatures:
+	case ContentIDGetSignatures, ContentIDSignatures:
 		return &Signatures{}, nil
-	case ContentIDSignatures:
-		return &Signatures{}, nil
-	case ContentIDGetBlock:
+	case ContentIDGetBlock, ContentIDMicroblockRequest, ContentIDGetBlockSnapshot, ContentIDMicroBlockSnapshotRequest:
 		return &BlockID{}, nil
-	case ContentIDBlock:
+	case ContentIDBlock, ContentIDScore, ContentIDTransaction, ContentIDMicroblock, ContentIDInvMicroblock,
+		ContentIDPBBlock, ContentIDPBMicroBlock, ContentIDPBTransaction, ContentIDBlockSnapshot,
+		ContentIDMicroBlockSnapshot:
 		return &BytesPayload{}, nil
-	case ContentIDScore:
-		return &BytesPayload{}, nil
-	case ContentIDTransaction:
-		return &BytesPayload{}, nil
-	case ContentIDMicroblock:
-		return &BytesPayload{}, nil
-	case ContentIDMicroblockRequest:
-		return &BlockID{}, nil
-	case ContentIDInvMicroblock:
-		return &BytesPayload{}, nil
-	case ContentIDPBBlock:
-		return &BytesPayload{}, nil
-	case ContentIDPBMicroBlock:
-		return &BytesPayload{}, nil
-	case ContentIDPBTransaction:
-		return &BytesPayload{}, nil
-	case ContentIDGetBlockIDs:
+	case ContentIDGetBlockIDs, ContentIDBlockIDs:
 		return &BlockIDsPayload{}, nil
-	case ContentIDBlockIDs:
-		return &BlockIDsPayload{}, nil
-	case ContentIDGetBlockSnapshot:
-		return &BlockID{}, nil
-	case ContentIDMicroBlockSnapshotRequest:
-		return &BlockID{}, nil
-	case ContentIDBlockSnapshot:
-		return &BytesPayload{}, nil
-	case ContentIDMicroBlockSnapshot:
-		return &BytesPayload{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected content ID %d", contentID)
 	}
 }
 
-type emptyPayload struct{}
+type EmptyPayload struct{}
 
-func (p *emptyPayload) WriteTo(io.Writer) (int64, error) {
+func (p *EmptyPayload) WriteTo(io.Writer) (int64, error) {
 	return 0, nil
 }
 
-func (p *emptyPayload) ReadFrom(io.Reader) (int64, error) {
+func (p *EmptyPayload) ReadFrom(io.Reader) (int64, error) {
 	return 0, nil
 }
 
-func (p *emptyPayload) isPayload() {}
+func (p *EmptyPayload) IsPayload() {}

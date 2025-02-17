@@ -221,7 +221,7 @@ func WriteMessage(w io.Writer, contentID PeerMessageID, name string, payload io.
 }
 
 type messageTag interface {
-	isMessage()
+	IsMessage()
 }
 type Message interface {
 	messageTag
@@ -229,7 +229,7 @@ type Message interface {
 	io.WriterTo
 	encoding.BinaryUnmarshaler
 	encoding.BinaryMarshaler
-	setPayload(Payload) (Message, error)
+	SetPayload(Payload) (Message, error)
 }
 
 type Header struct {
@@ -820,11 +820,7 @@ func (m *GetPeersMessage) UnmarshalBinary(b []byte) error {
 
 // ReadFrom reads GetPeersMessage from io.Reader
 func (m *GetPeersMessage) ReadFrom(r io.Reader) (int64, error) {
-	nn, err := ReadMessage(r, ContentIDGetPeers, "GetPeersMessage", nil)
-	if err != nil {
-		return nn, err
-	}
-	return nn, nil
+	return ReadMessage(r, ContentIDGetPeers, "GetPeersMessage", nil)
 }
 
 // WriteTo writes GetPeersMessage to io.Writer
@@ -832,9 +828,9 @@ func (m *GetPeersMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDGetPeers, "GetPeersMessage", nil)
 }
 
-func (m *GetPeersMessage) isMessage() {}
+func (m *GetPeersMessage) IsMessage() {}
 
-func (m *GetPeersMessage) setPayload(Payload) (Message, error) {
+func (m *GetPeersMessage) SetPayload(Payload) (Message, error) {
 	return m, nil
 }
 
@@ -1143,18 +1139,12 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads PeersMessage from io.Reader.
 func (m *PeersMessage) ReadFrom(r io.Reader) (int64, error) {
-	payload := &PeerInfos{}
-	n, err := ReadMessage(r, ContentIDPeers, "PeersMessage", payload)
-	if err != nil {
-		return n, err
-	}
-	m.Peers = *payload
-	return n, nil
+	return ReadMessage(r, ContentIDPeers, "PeersMessage", &m.Peers)
 }
 
-func (m *PeersMessage) isMessage() {}
+func (m *PeersMessage) IsMessage() {}
 
-func (m *PeersMessage) setPayload(payload Payload) (Message, error) {
+func (m *PeersMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*PeerInfos); ok {
 		m.Peers = *p
 		return m, nil
@@ -1228,24 +1218,17 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads GetSignaturesMessage from io.Reader
 func (m *GetSignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
-	payload := &Signatures{}
-	n, err := ReadMessage(r, ContentIDGetSignatures, "GetSignaturesMessage", payload)
-	if err != nil {
-		return n, err
-	}
-	m.Signatures = *payload
-	return n, nil
+	return ReadMessage(r, ContentIDGetSignatures, "GetSignaturesMessage", &m.Signatures)
 }
 
 // WriteTo writes GetSignaturesMessage to io.Writer
 func (m *GetSignaturesMessage) WriteTo(w io.Writer) (int64, error) {
-	payload := m.Signatures
-	return WriteMessage(w, ContentIDGetSignatures, "GetSignaturesMessage", &payload)
+	return WriteMessage(w, ContentIDGetSignatures, "GetSignaturesMessage", &m.Signatures)
 }
 
-func (m *GetSignaturesMessage) isMessage() {}
+func (m *GetSignaturesMessage) IsMessage() {}
 
-func (m *GetSignaturesMessage) setPayload(payload Payload) (Message, error) {
+func (m *GetSignaturesMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*Signatures); ok {
 		m.Signatures = *p
 		return m, nil
@@ -1319,24 +1302,17 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 
 // ReadFrom reads SignaturesMessage from binary form
 func (m *SignaturesMessage) ReadFrom(r io.Reader) (int64, error) {
-	payload := &Signatures{}
-	n, err := ReadMessage(r, ContentIDSignatures, "SignaturesMessage", payload)
-	if err != nil {
-		return n, err
-	}
-	m.Signatures = *payload
-	return n, nil
+	return ReadMessage(r, ContentIDSignatures, "SignaturesMessage", &m.Signatures)
 }
 
 // WriteTo writes SignaturesMessage to binary form
 func (m *SignaturesMessage) WriteTo(w io.Writer) (int64, error) {
-	payload := Signatures(m.Signatures)
-	return WriteMessage(w, ContentIDSignatures, "SignaturesMessage", &payload)
+	return WriteMessage(w, ContentIDSignatures, "SignaturesMessage", &m.Signatures)
 }
 
-func (m *SignaturesMessage) isMessage() {}
+func (m *SignaturesMessage) IsMessage() {}
 
-func (m *SignaturesMessage) setPayload(payload Payload) (Message, error) {
+func (m *SignaturesMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*Signatures); ok {
 		m.Signatures = *p
 		return m, nil
@@ -1384,12 +1360,11 @@ func (m *GetBlockMessage) ReadFrom(r io.Reader) (int64, error) {
 
 // WriteTo writes GetBlockMessage to io.Writer
 func (m *GetBlockMessage) WriteTo(w io.Writer) (int64, error) {
-	p := BytesPayload(m.BlockID.Bytes())
-	return WriteMessage(w, ContentIDGetBlock, "GetBlockMessage", &p)
+	return WriteMessage(w, ContentIDGetBlock, "GetBlockMessage", &m.BlockID)
 }
-func (m *GetBlockMessage) isMessage() {}
+func (m *GetBlockMessage) IsMessage() {}
 
-func (m *GetBlockMessage) setPayload(payload Payload) (Message, error) {
+func (m *GetBlockMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BlockID); ok {
 		m.BlockID = *p
 		return m, nil
@@ -1460,9 +1435,9 @@ func (m *BlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDBlock, "BlockMessage", &m.BlockBytes)
 }
 
-func (m *BlockMessage) isMessage() {}
+func (m *BlockMessage) IsMessage() {}
 
-func (m *BlockMessage) setPayload(payload Payload) (Message, error) {
+func (m *BlockMessage) SetPayload(payload Payload) (Message, error) {
 	if b, ok := payload.(*BytesPayload); ok {
 		m.BlockBytes = *b
 		return m, nil
@@ -1520,9 +1495,9 @@ func (m *ScoreMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDScore, "ScoreMessage", &m.Score)
 }
 
-func (m *ScoreMessage) isMessage() {}
+func (m *ScoreMessage) IsMessage() {}
 
-func (m *ScoreMessage) setPayload(payload Payload) (Message, error) {
+func (m *ScoreMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.Score = *p
 		return m, nil
@@ -1585,43 +1560,14 @@ func (m *TransactionMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDTransaction, "TransactionMessage", &m.Transaction)
 }
 
-func (m *TransactionMessage) isMessage() {}
+func (m *TransactionMessage) IsMessage() {}
 
-func (m *TransactionMessage) setPayload(payload Payload) (Message, error) {
+func (m *TransactionMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.Transaction = *p
 		return m, nil
 	}
 	return nil, fmt.Errorf("invalid payload type %T", payload)
-}
-
-// CheckpointItem represents a Checkpoint
-type CheckpointItem struct {
-	Height    uint64
-	Signature crypto.Signature
-}
-
-func (c CheckpointItem) WriteTo(w io.Writer) (int64, error) {
-	n, err := U64(c.Height).WriteTo(w)
-	if err != nil {
-		return n, err
-	}
-	n2, err := w.Write(c.Signature[:])
-	return n + int64(n2), err
-}
-
-func (c *CheckpointItem) ReadFrom(r io.Reader) (int64, error) {
-	h := U64(0)
-	n1, err := h.ReadFrom(r)
-	if err != nil {
-		return n1, err
-	}
-	c.Height = uint64(h)
-	n2, err := io.ReadFull(r, c.Signature[:])
-	if err != nil {
-		return n1 + int64(n2), err
-	}
-	return n1 + int64(n2), err
 }
 
 // PBBlockMessage represents Protobuf Block message
@@ -1675,9 +1621,9 @@ func (m *PBBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDPBBlock, "PBBlockMessage", &m.PBBlockBytes)
 }
 
-func (m *PBBlockMessage) isMessage() {}
+func (m *PBBlockMessage) IsMessage() {}
 
-func (m *PBBlockMessage) setPayload(payload Payload) (Message, error) {
+func (m *PBBlockMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.PBBlockBytes = *p
 		return m, nil
@@ -1740,9 +1686,9 @@ func (m *PBTransactionMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDPBTransaction, "PBTransactionMessage", &m.Transaction)
 }
 
-func (m *PBTransactionMessage) isMessage() {}
+func (m *PBTransactionMessage) IsMessage() {}
 
-func (m *PBTransactionMessage) setPayload(payload Payload) (Message, error) {
+func (m *PBTransactionMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.Transaction = *p
 		return m, nil
@@ -1750,8 +1696,18 @@ func (m *PBTransactionMessage) setPayload(payload Payload) (Message, error) {
 	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
-// UnmarshalMessage tries unmarshal bytes to proper type.
+// UnmarshalMessage tries unmarshal bytes to proper Message type.
+// It uses CreateMessageByContentID to create a message type.
+// And can be used to unmarshal messages defined in this package only.
+// Function returns error if message type is not supported.
 func UnmarshalMessage(b []byte) (Message, error) {
+	return UnmarshalMessageWith(b, CreateMessageByContentID)
+}
+
+// UnmarshalMessageWith tries unmarshal bytes to proper Message type with a given MessageProducer
+// to create a message type.
+// Use this function to unmarshal custom sets of messages.
+func UnmarshalMessageWith(b []byte, mp MessageProducer) (Message, error) {
 	l, err := safecast.ToUint32(len(b))
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal message: %w", err)
@@ -1759,54 +1715,10 @@ func UnmarshalMessage(b []byte) (Message, error) {
 	if l < headerSizeWithoutPayload {
 		return nil, errors.New("message is too short")
 	}
-
-	var m Message
-	switch messageID := b[HeaderContentIDPosition]; PeerMessageID(messageID) {
-	case ContentIDGetPeers:
-		m = &GetPeersMessage{}
-	case ContentIDPeers:
-		m = &PeersMessage{}
-	case ContentIDGetSignatures:
-		m = &GetSignaturesMessage{}
-	case ContentIDSignatures:
-		m = &SignaturesMessage{}
-	case ContentIDGetBlock:
-		m = &GetBlockMessage{}
-	case ContentIDBlock:
-		m = &BlockMessage{}
-	case ContentIDScore:
-		m = &ScoreMessage{}
-	case ContentIDTransaction:
-		m = &TransactionMessage{}
-	case ContentIDMicroblock:
-		m = &MicroBlockMessage{}
-	case ContentIDMicroblockRequest:
-		m = &MicroBlockRequestMessage{}
-	case ContentIDInvMicroblock:
-		m = &MicroBlockInvMessage{}
-	case ContentIDPBBlock:
-		m = &PBBlockMessage{}
-	case ContentIDPBMicroBlock:
-		m = &PBMicroBlockMessage{}
-	case ContentIDPBTransaction:
-		m = &PBTransactionMessage{}
-	case ContentIDGetBlockIDs:
-		m = &GetBlockIDsMessage{}
-	case ContentIDBlockIDs:
-		m = &BlockIDsMessage{}
-	case ContentIDGetBlockSnapshot:
-		m = &GetBlockSnapshotMessage{}
-	case ContentIDMicroBlockSnapshotRequest:
-		m = &MicroBlockSnapshotRequestMessage{}
-	case ContentIDBlockSnapshot:
-		m = &BlockSnapshotMessage{}
-	case ContentIDMicroBlockSnapshot:
-		m = &MicroBlockSnapshotMessage{}
-	default:
-		return nil, errors.Errorf(
-			"received unknown content id byte %d 0x%x", b[HeaderContentIDPosition], b[HeaderContentIDPosition])
+	m, err := mp(PeerMessageID(b[HeaderContentIDPosition]))
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal message: %w", err)
 	}
-
 	err = m.UnmarshalBinary(b)
 	return m, err
 }
@@ -1872,9 +1784,9 @@ func (m *GetBlockIDsMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDGetBlockIDs, "GetBlockIDsMessage", &m.Blocks)
 }
 
-func (m *GetBlockIDsMessage) isMessage() {}
+func (m *GetBlockIDsMessage) IsMessage() {}
 
-func (m *GetBlockIDsMessage) setPayload(payload Payload) (Message, error) {
+func (m *GetBlockIDsMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BlockIDsPayload); ok {
 		m.Blocks = *p
 		return m, nil
@@ -1943,9 +1855,9 @@ func (m *BlockIDsMessage) WriteTo(w io.Writer) (int64, error) {
 	return WriteMessage(w, ContentIDBlockIDs, "BlockIDsMessage", &m.Blocks)
 }
 
-func (m *BlockIDsMessage) isMessage() {}
+func (m *BlockIDsMessage) IsMessage() {}
 
-func (m *BlockIDsMessage) setPayload(payload Payload) (Message, error) {
+func (m *BlockIDsMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BlockIDsPayload); ok {
 		m.Blocks = *p
 		return m, nil
@@ -1991,9 +1903,9 @@ func (m *GetBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
-func (m *GetBlockSnapshotMessage) isMessage() {}
+func (m *GetBlockSnapshotMessage) IsMessage() {}
 
-func (m *GetBlockSnapshotMessage) setPayload(payload Payload) (Message, error) {
+func (m *GetBlockSnapshotMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BlockID); ok {
 		m.BlockID = *p
 		return m, nil
@@ -2053,9 +1965,9 @@ func (m *BlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
-func (m *BlockSnapshotMessage) isMessage() {}
+func (m *BlockSnapshotMessage) IsMessage() {}
 
-func (m *BlockSnapshotMessage) setPayload(payload Payload) (Message, error) {
+func (m *BlockSnapshotMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.Bytes = *p
 		return m, nil
@@ -2115,9 +2027,9 @@ func (m *MicroBlockSnapshotMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
-func (m *MicroBlockSnapshotMessage) isMessage() {}
+func (m *MicroBlockSnapshotMessage) IsMessage() {}
 
-func (m *MicroBlockSnapshotMessage) setPayload(payload Payload) (Message, error) {
+func (m *MicroBlockSnapshotMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.Bytes = *p
 		return m, nil
@@ -2166,9 +2078,9 @@ func (m *MicroBlockSnapshotRequestMessage) MarshalBinary() ([]byte, error) {
 	return body, nil
 }
 
-func (m *MicroBlockSnapshotRequestMessage) isMessage() {}
+func (m *MicroBlockSnapshotRequestMessage) IsMessage() {}
 
-func (m *MicroBlockSnapshotRequestMessage) setPayload(payload Payload) (Message, error) {
+func (m *MicroBlockSnapshotRequestMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BlockID); ok {
 		m.BlockID = *p
 		return m, nil
@@ -2176,54 +2088,65 @@ func (m *MicroBlockSnapshotRequestMessage) setPayload(payload Payload) (Message,
 	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
-func CreateMessage(contentID PeerMessageID, payload Payload) (Message, error) {
+// MessageProducer is a function that creates a message by provided content ID.
+type MessageProducer func(PeerMessageID) (Message, error)
+
+func CreateMessageByContentID(contentID PeerMessageID) (Message, error) {
 	switch contentID {
 	case ContentIDGetPeers:
 		return &GetPeersMessage{}, nil
 	case ContentIDPeers:
-		return (&PeersMessage{}).setPayload(payload)
+		return &PeersMessage{}, nil
 	case ContentIDGetSignatures:
-		return (&GetSignaturesMessage{}).setPayload(payload)
+		return &GetSignaturesMessage{}, nil
 	case ContentIDSignatures:
-		return (&SignaturesMessage{}).setPayload(payload)
+		return &SignaturesMessage{}, nil
 	case ContentIDGetBlock:
-		return (&GetBlockMessage{}).setPayload(payload)
+		return &GetBlockMessage{}, nil
 	case ContentIDBlock:
-		return (&BlockMessage{}).setPayload(payload)
+		return &BlockMessage{}, nil
 	case ContentIDScore:
-		return (&ScoreMessage{}).setPayload(payload)
+		return &ScoreMessage{}, nil
 	case ContentIDTransaction:
-		return (&TransactionMessage{}).setPayload(payload)
+		return &TransactionMessage{}, nil
 	case ContentIDMicroblock:
-		return (&MicroBlockMessage{}).setPayload(payload)
+		return &MicroBlockMessage{}, nil
 	case ContentIDMicroblockRequest:
-		return (&MicroBlockRequestMessage{}).setPayload(payload)
+		return &MicroBlockRequestMessage{}, nil
 	case ContentIDInvMicroblock:
-		return (&MicroBlockInvMessage{}).setPayload(payload)
+		return &MicroBlockInvMessage{}, nil
 	case ContentIDPBBlock:
-		return (&PBBlockMessage{}).setPayload(payload)
+		return &PBBlockMessage{}, nil
 	case ContentIDPBMicroBlock:
-		return (&PBMicroBlockMessage{}).setPayload(payload)
+		return &PBMicroBlockMessage{}, nil
 	case ContentIDPBTransaction:
-		return (&PBTransactionMessage{}).setPayload(payload)
+		return &PBTransactionMessage{}, nil
 	case ContentIDGetBlockIDs:
-		return (&GetBlockIDsMessage{}).setPayload(payload)
+		return &GetBlockIDsMessage{}, nil
 	case ContentIDBlockIDs:
-		return (&BlockIDsMessage{}).setPayload(payload)
+		return &BlockIDsMessage{}, nil
 	case ContentIDGetBlockSnapshot:
-		return (&GetBlockSnapshotMessage{}).setPayload(payload)
+		return &GetBlockSnapshotMessage{}, nil
 	case ContentIDMicroBlockSnapshotRequest:
-		return (&MicroBlockSnapshotRequestMessage{}).setPayload(payload)
+		return &MicroBlockSnapshotRequestMessage{}, nil
 	case ContentIDBlockSnapshot:
-		return (&BlockSnapshotMessage{}).setPayload(payload)
+		return &BlockSnapshotMessage{}, nil
 	case ContentIDMicroBlockSnapshot:
-		return (&MicroBlockSnapshotMessage{}).setPayload(payload)
+		return &MicroBlockSnapshotMessage{}, nil
 	default:
 		return nil, fmt.Errorf("unexpected content ID %d", contentID)
 	}
 }
 
+// ReadMessageFrom reads message from io.Reader.
+// Use this function to read messages defined in this package only.
 func ReadMessageFrom(r io.Reader) (Message, int64, error) {
+	return ReadMessageFromWith(r, CreatePayloadByContentID, CreateMessageByContentID)
+}
+
+// ReadMessageFromWith reads message from io.Reader with custom payload and message producers.
+// Use this function to read custom sets of messages.
+func ReadMessageFromWith(r io.Reader, pp PayloadProducer, mp MessageProducer) (Message, int64, error) {
 	var h Header
 	n1, err := h.ReadFrom(r)
 	if err != nil {
@@ -2232,16 +2155,16 @@ func ReadMessageFrom(r io.Reader) (Message, int64, error) {
 	if vErr := h.Validate(h.ContentID); vErr != nil {
 		return nil, n1, fmt.Errorf("message header is not valid: %w", vErr)
 	}
-	payload, err := CreatePayloadByContentID(h.ContentID)
+	msg, err := mp(h.ContentID)
 	if err != nil {
-		return nil, n1, fmt.Errorf("failed to create payload: %w", err)
+		return nil, n1, fmt.Errorf("failed to create message: %w", err)
 	}
 	if h.payloadLength == 0 { // Fast exit for messages without payload.
-		msg, crErr := CreateMessage(h.ContentID, payload)
-		if crErr != nil {
-			return nil, n1, fmt.Errorf("failed to create message: %w", crErr)
-		}
 		return msg, n1, nil
+	}
+	payload, err := pp(h.ContentID)
+	if err != nil {
+		return nil, n1, fmt.Errorf("failed to create payload: %w", err)
 	}
 	pr, err := NewChecksumReader(io.LimitReader(r, int64(h.payloadLength)))
 	if err != nil {
@@ -2254,9 +2177,8 @@ func ReadMessageFrom(r io.Reader) (Message, int64, error) {
 	if pr.Checksum() != h.PayloadChecksum {
 		return nil, n1 + n2, errors.New("payload checksum mismatch")
 	}
-	msg, err := CreateMessage(h.ContentID, payload)
-	if err != nil {
-		return nil, n1 + n2, fmt.Errorf("failed to create message: %w", err)
+	if msg, err = msg.SetPayload(payload); err != nil {
+		return nil, n1 + n2, fmt.Errorf("failed to set payload: %w", err)
 	}
 	return msg, n1 + n2, nil
 }

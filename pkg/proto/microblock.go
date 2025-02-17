@@ -300,9 +300,9 @@ func (m *MicroBlockMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (m *MicroBlockMessage) isMessage() {}
+func (m *MicroBlockMessage) IsMessage() {}
 
-func (m *MicroBlockMessage) setPayload(payload Payload) (Message, error) {
+func (m *MicroBlockMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.Body = *p
 		return m, nil
@@ -346,9 +346,9 @@ func (m *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (m *MicroBlockInvMessage) isMessage() {}
+func (m *MicroBlockInvMessage) IsMessage() {}
 
-func (m *MicroBlockInvMessage) setPayload(payload Payload) (Message, error) {
+func (m *MicroBlockInvMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.Body = *p
 		return m, nil
@@ -410,9 +410,9 @@ func (m *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (m *MicroBlockRequestMessage) isMessage() {}
+func (m *MicroBlockRequestMessage) IsMessage() {}
 
-func (m *MicroBlockRequestMessage) setPayload(payload Payload) (Message, error) {
+func (m *MicroBlockRequestMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BlockID); ok {
 		m.TotalBlockSig = *p
 		return m, nil
@@ -611,9 +611,9 @@ func (m *PBMicroBlockMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (m *PBMicroBlockMessage) isMessage() {}
+func (m *PBMicroBlockMessage) IsMessage() {}
 
-func (m *PBMicroBlockMessage) setPayload(payload Payload) (Message, error) {
+func (m *PBMicroBlockMessage) SetPayload(payload Payload) (Message, error) {
 	if p, ok := payload.(*BytesPayload); ok {
 		m.MicroBlockBytes = *p
 		return m, nil
