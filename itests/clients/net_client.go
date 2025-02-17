@@ -60,7 +60,9 @@ func NewNetClient(
 	log := slogt.New(t, f)
 
 	slog.SetLogLoggerLevel(slog.LevelError)
-	conf := networking.NewConfig(p, h).
+	conf := networking.NewConfig().
+		WithProtocol(p).
+		WithHandler(h).
 		WithSlogHandler(log.Handler()).
 		WithWriteTimeout(networkTimeout).
 		WithKeepAliveInterval(pingInterval).
