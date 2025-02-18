@@ -223,7 +223,7 @@ func (p *protocol) Ping() ([]byte, error) {
 	return msg.MarshalBinary()
 }
 
-func (p *protocol) IsAcceptableHandshake(h networking.Handshake) bool {
+func (p *protocol) IsAcceptableHandshake(_ *networking.Session, h networking.Handshake) bool {
 	hs, ok := h.(*proto.Handshake)
 	if !ok {
 		return false
@@ -247,7 +247,7 @@ func (p *protocol) IsAcceptableHandshake(h networking.Handshake) bool {
 	return true
 }
 
-func (p *protocol) IsAcceptableMessage(h networking.Header) bool {
+func (p *protocol) IsAcceptableMessage(_ *networking.Session, h networking.Header) bool {
 	hdr, ok := h.(*proto.Header)
 	if !ok {
 		return false

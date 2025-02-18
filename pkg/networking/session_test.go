@@ -25,13 +25,6 @@ func TestSuccessfulSession(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	p := netmocks.NewMockProtocol(t)
-	p.On("EmptyHandshake").Return(&textHandshake{}, nil)
-	p.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
-	p.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
-	p.On("EmptyHeader").Return(&textHeader{}, nil)
-	p.On("IsAcceptableMessage", &textHeader{l: 2}).Once().Return(true)
-	p.On("IsAcceptableMessage", &textHeader{l: 13}).Once().Return(true)
-
 	clientHandler := netmocks.NewMockHandler(t)
 	serverHandler := netmocks.NewMockHandler(t)
 
@@ -45,6 +38,13 @@ func TestSuccessfulSession(t *testing.T) {
 	require.NoError(t, err)
 	ss, err := net.NewSession(ctx, serverConn, testConfig(t, p, serverHandler, "server"))
 	require.NoError(t, err)
+
+	p.On("EmptyHandshake").Return(&textHandshake{}, nil)
+	p.On("IsAcceptableHandshake", cs, &textHandshake{v: "hello"}).Once().Return(true)
+	p.On("IsAcceptableHandshake", ss, &textHandshake{v: "hello"}).Once().Return(true)
+	p.On("EmptyHeader").Return(&textHeader{}, nil)
+	p.On("IsAcceptableMessage", cs, &textHeader{l: 2}).Once().Return(true)
+	p.On("IsAcceptableMessage", ss, &textHeader{l: 13}).Once().Return(true)
 
 	var sWG sync.WaitGroup
 	var cWG sync.WaitGroup
@@ -148,11 +148,6 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	mockProtocol := netmocks.NewMockProtocol(t)
-	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
-	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
-	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
-	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
-
 	clientHandler := netmocks.NewMockHandler(t)
 	serverHandler := netmocks.NewMockHandler(t)
 
@@ -166,6 +161,11 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 	require.NoError(t, err)
 	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
 	require.NoError(t, err)
+
+	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
+	mockProtocol.On("IsAcceptableHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return(true)
+	mockProtocol.On("IsAcceptableHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return(true)
+	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
 
 	pc, ok := clientConn.(*pipeConn)
 	require.True(t, ok)
@@ -265,11 +265,6 @@ func TestOnClosedByOtherSide(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	mockProtocol := netmocks.NewMockProtocol(t)
-	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
-	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
-	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
-	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
-
 	clientHandler := netmocks.NewMockHandler(t)
 	serverHandler := netmocks.NewMockHandler(t)
 
@@ -283,6 +278,11 @@ func TestOnClosedByOtherSide(t *testing.T) {
 	require.NoError(t, err)
 	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
 	require.NoError(t, err)
+
+	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
+	mockProtocol.On("IsAcceptableHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return(true)
+	mockProtocol.On("IsAcceptableHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return(true)
+	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
 
 	clientWG := new(sync.WaitGroup)
 	clientWG.Add(1) // Wait for client to send Handshake to server.
@@ -339,11 +339,6 @@ func TestCloseParentContext(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
 	mockProtocol := netmocks.NewMockProtocol(t)
-	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
-	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
-	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
-	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
-
 	clientHandler := netmocks.NewMockHandler(t)
 	serverHandler := netmocks.NewMockHandler(t)
 
@@ -356,6 +351,11 @@ func TestCloseParentContext(t *testing.T) {
 	require.NoError(t, err)
 	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
 	require.NoError(t, err)
+
+	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
+	mockProtocol.On("IsAcceptableHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return(true)
+	mockProtocol.On("IsAcceptableHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return(true)
+	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
 
 	clientWG := new(sync.WaitGroup)
 	clientWG.Add(1) // Wait for client to send Handshake to server.
