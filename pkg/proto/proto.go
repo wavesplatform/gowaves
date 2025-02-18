@@ -2057,7 +2057,7 @@ func (m *MicroBlockSnapshotRequestMessage) UnmarshalBinary(data []byte) error {
 		func(payload []byte) error {
 			id, err := NewBlockIDFromBytes(payload)
 			if err != nil {
-				return fmt.Errorf("failed to unmarshal block MicroBlockSnapshotRequestMessage: %w", err)
+				return fmt.Errorf("failed to unmarshal MicroBlockSnapshotRequestMessage: %w", err)
 			}
 			m.BlockID = id
 			return nil
