@@ -44,16 +44,20 @@ var (
 	ErrEmptyTimerPool = errors.New("empty timer pool")
 )
 
-type Network[HS Handshake] struct {
+type Network[HS Handshake, H Header] struct {
 	tp *timerPool
 }
 
-func NewNetwork[HS Handshake]() *Network[HS] {
-	return &Network[HS]{
+func NewNetwork[HS Handshake, H Header]() *Network[HS, H] {
+	return &Network[HS, H]{
 		tp: newTimerPool(),
 	}
 }
 
-func (n *Network[HS]) NewSession(ctx context.Context, conn io.ReadWriteCloser, conf *Config[HS]) (*Session[HS], error) {
+func (n *Network[HS, H]) NewSession(
+	ctx context.Context,
+	conn io.ReadWriteCloser,
+	conf *Config[HS, H],
+) (*Session[HS, H], error) {
 	return newSession(ctx, conf, conn, n.tp)
 }

@@ -31,15 +31,16 @@ const (
 )
 
 type handshake = *proto.Handshake
+type header = *proto.Header
 
 type NetClient struct {
 	ctx  context.Context
 	t    testing.TB
 	impl Implementation
-	n    *networking.Network[handshake]
-	c    *networking.Config[handshake]
+	n    *networking.Network[handshake, header]
+	c    *networking.Config[handshake, header]
 	h    *handler
-	s    *networking.Session[handshake]
+	s    *networking.Session[handshake, header]
 
 	closing atomic.Bool
 	closed  sync.Once
@@ -48,7 +49,7 @@ type NetClient struct {
 func NewNetClient(
 	ctx context.Context, t testing.TB, impl Implementation, port string, peers []proto.PeerInfo,
 ) *NetClient {
-	n := networking.NewNetwork[handshake]()
+	n := networking.NewNetwork[handshake, header]()
 	p := newProtocol(t, nil)
 	h := newHandler(t, peers)
 
@@ -62,7 +63,7 @@ func NewNetClient(
 	log := slogt.New(t, f)
 
 	slog.SetLogLoggerLevel(slog.LevelError)
-	conf := networking.NewConfig[handshake](p, h).
+	conf := networking.NewConfig[handshake, header](p, h).
 		WithSlogHandler(log.Handler()).
 		WithWriteTimeout(networkTimeout).
 		WithKeepAliveInterval(pingInterval).
@@ -214,7 +215,7 @@ func (p *protocol) EmptyHandshake() handshake {
 	return &proto.Handshake{}
 }
 
-func (p *protocol) EmptyHeader() networking.Header {
+func (p *protocol) EmptyHeader() header {
 	return &proto.Header{}
 }
 
@@ -244,14 +245,11 @@ func (p *protocol) IsAcceptableHandshake(h handshake) bool {
 	return true
 }
 
-func (p *protocol) IsAcceptableMessage(h networking.Header) bool {
-	hdr, ok := h.(*proto.Header)
-	if !ok {
-		return false
-	}
+func (p *protocol) IsAcceptableMessage(h header) bool {
+	hdr := h
 	p.dropLock.Lock()
 	defer p.dropLock.Unlock()
-	_, ok = p.drop[hdr.ContentID]
+	_, ok := p.drop[hdr.ContentID]
 	return !ok
 }
 
@@ -268,7 +266,7 @@ func newHandler(t testing.TB, peers []proto.PeerInfo) *handler {
 	return &handler{t: t, peers: peers, ch: ch}
 }
 
-func (h *handler) OnReceive(s *networking.Session[handshake], r io.Reader) {
+func (h *handler) OnReceive(s *networking.Session[handshake, header], r io.Reader) {
 	msg, _, err := proto.ReadMessageFrom(r)
 	if err != nil {
 		h.t.Logf("Failed to read message from %q: %v", s.RemoteAddr(), err)
@@ -296,15 +294,15 @@ func (h *handler) OnReceive(s *networking.Session[handshake], r io.Reader) {
 	}
 }
 
-func (h *handler) OnHandshake(_ *networking.Session[handshake], _ handshake) {
+func (h *handler) OnHandshake(_ *networking.Session[handshake, header], _ handshake) {
 	h.t.Logf("Connection to %s node at %q was established", h.client.impl.String(), h.client.s.RemoteAddr())
 }
 
-func (h *handler) OnHandshakeFailed(_ *networking.Session[handshake], _ handshake) {
+func (h *handler) OnHandshakeFailed(_ *networking.Session[handshake, header], _ handshake) {
 	h.t.Logf("Handshake with %q failed", h.client.impl.String())
 }
 
-func (h *handler) OnClose(s *networking.Session[handshake]) {
+func (h *handler) OnClose(s *networking.Session[handshake, header]) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
 	if !h.client.closing.Load() && h.client != nil {
 		h.client.reconnect()

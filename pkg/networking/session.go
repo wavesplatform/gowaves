@@ -19,12 +19,12 @@ import (
 )
 
 // Session is used to wrap a reliable ordered connection.
-type Session[HS Handshake] struct {
+type Session[HS Handshake, H Header] struct {
 	g      *execution.TaskGroup
 	ctx    context.Context
 	cancel context.CancelFunc
 
-	config *Config[HS]
+	config *Config[HS, H]
 	logger *slog.Logger
 	tp     *timerPool
 
@@ -43,12 +43,12 @@ type Session[HS Handshake] struct {
 }
 
 // NewSession is used to construct a new session.
-func newSession[HS Handshake](
+func newSession[HS Handshake, H Header](
 	ctx context.Context,
-	config *Config[HS],
+	config *Config[HS, H],
 	conn io.ReadWriteCloser,
 	tp *timerPool,
-) (*Session[HS], error) {
+) (*Session[HS, H], error) {
 	if config.protocol == nil {
 		return nil, ErrInvalidConfigurationNoProtocol
 	}
@@ -66,7 +66,7 @@ func newSession[HS Handshake](
 	}
 
 	sCtx, cancel := context.WithCancel(ctx)
-	s := &Session[HS]{
+	s := &Session[HS, H]{
 		g:       execution.NewTaskGroup(suppressContextCancellationError),
 		ctx:     sCtx,
 		cancel:  cancel,
@@ -98,12 +98,12 @@ func newSession[HS Handshake](
 	return s, nil
 }
 
-func (s *Session[HS]) String() string {
+func (s *Session[HS, H]) String() string {
 	return fmt.Sprintf("Session{local=%s,remote=%s}", s.LocalAddr(), s.RemoteAddr())
 }
 
 // LocalAddr returns the local network address.
-func (s *Session[HS]) LocalAddr() net.Addr {
+func (s *Session[HS, H]) LocalAddr() net.Addr {
 	if a, ok := s.conn.(addressable); ok {
 		return a.LocalAddr()
 	}
@@ -111,7 +111,7 @@ func (s *Session[HS]) LocalAddr() net.Addr {
 }
 
 // RemoteAddr returns the remote network address.
-func (s *Session[HS]) RemoteAddr() net.Addr {
+func (s *Session[HS, H]) RemoteAddr() net.Addr {
 	if a, ok := s.conn.(addressable); ok {
 		return a.RemoteAddr()
 	}
@@ -120,7 +120,7 @@ func (s *Session[HS]) RemoteAddr() net.Addr {
 
 // Close is used to close the session. It is safe to call Close multiple times from different goroutines,
 // subsequent calls do nothing.
-func (s *Session[HS]) Close() error {
+func (s *Session[HS, H]) Close() error {
 	var err error
 	s.shutdown.Do(func() {
 		s.logger.Debug("Closing session")
@@ -143,7 +143,7 @@ func (s *Session[HS]) Close() error {
 }
 
 // Write is used to write to the session. It is safe to call Write and/or Close concurrently.
-func (s *Session[HS]) Write(msg []byte) (int, error) {
+func (s *Session[HS, H]) Write(msg []byte) (int, error) {
 	s.sendLock.Lock()
 	defer s.sendLock.Unlock()
 
@@ -155,7 +155,7 @@ func (s *Session[HS]) Write(msg []byte) (int, error) {
 }
 
 // waitForSend waits to send a data, checking for a potential context cancellation.
-func (s *Session[HS]) waitForSend(data []byte) error {
+func (s *Session[HS, H]) waitForSend(data []byte) error {
 	// Channel to receive an error from sendLoop goroutine.
 	// We are not closing this channel, it will be GCed when the session is closed.
 	errCh := make(chan error, 1)
@@ -196,7 +196,7 @@ func (s *Session[HS]) waitForSend(data []byte) error {
 }
 
 // sendLoop is a long-running goroutine that sends data to the connection.
-func (s *Session[HS]) sendLoop() error {
+func (s *Session[HS, H]) sendLoop() error {
 	var dataBuf bytes.Buffer
 	for {
 		dataBuf.Reset()
@@ -240,7 +240,7 @@ func (s *Session[HS]) sendLoop() error {
 
 // receiveLoop continues to receive data until a fatal error is encountered or underlying connection is closed.
 // Receive loop works after handshake and accepts only length-prepended messages.
-func (s *Session[HS]) receiveLoop() error {
+func (s *Session[HS, H]) receiveLoop() error {
 	if !s.receiving.CompareAndSwap(false, true) {
 		return nil // Prevent running multiple receive loops.
 	}
@@ -255,7 +255,7 @@ func (s *Session[HS]) receiveLoop() error {
 	}
 }
 
-func (s *Session[HS]) receive() error {
+func (s *Session[HS, H]) receive() error {
 	if s.established.Load() {
 		hdr := s.config.protocol.EmptyHeader()
 		return s.readMessage(hdr)
@@ -263,7 +263,7 @@ func (s *Session[HS]) receive() error {
 	return s.readHandshake()
 }
 
-func (s *Session[HS]) readHandshake() error {
+func (s *Session[HS, H]) readHandshake() error {
 	s.logger.Debug("Reading handshake")
 
 	hs := s.config.protocol.EmptyHandshake()
@@ -292,7 +292,7 @@ func (s *Session[HS]) readHandshake() error {
 	return nil
 }
 
-func (s *Session[HS]) readMessage(hdr Header) error {
+func (s *Session[HS, H]) readMessage(hdr H) error {
 	// Read the header
 	if _, err := hdr.ReadFrom(s.bufRead); err != nil {
 		if errors.Is(err, io.EOF) {
@@ -321,7 +321,7 @@ func (s *Session[HS]) readMessage(hdr Header) error {
 	return nil
 }
 
-func (s *Session[HS]) readMessagePayload(hdr Header, conn io.Reader) error {
+func (s *Session[HS, H]) readMessagePayload(hdr Header, conn io.Reader) error {
 	// Wrap in a limited reader
 	s.logger.Debug("Reading message payload", "len", hdr.PayloadLength())
 	conn = io.LimitReader(conn, int64(hdr.PayloadLength()))
@@ -359,7 +359,7 @@ func (s *Session[HS]) readMessagePayload(hdr Header, conn io.Reader) error {
 }
 
 // keepaliveLoop is a long-running goroutine that periodically sends a Ping message to keep the connection alive.
-func (s *Session[HS]) keepaliveLoop() error {
+func (s *Session[HS, H]) keepaliveLoop() error {
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -394,7 +394,7 @@ func newSendPacket(data []byte, ch chan<- error) *sendPacket {
 }
 
 // asyncSendErr is used to try an async send of an error.
-func (s *Session[HS]) asyncSendErr(ch chan<- error, err error) {
+func (s *Session[HS, H]) asyncSendErr(ch chan<- error, err error) {
 	if ch == nil {
 		return
 	}
