@@ -30,14 +30,16 @@ const (
 	pingInterval   = 5 * time.Second
 )
 
+type handshake = *proto.Handshake
+
 type NetClient struct {
 	ctx  context.Context
 	t    testing.TB
 	impl Implementation
-	n    *networking.Network
-	c    *networking.Config
+	n    *networking.Network[handshake]
+	c    *networking.Config[handshake]
 	h    *handler
-	s    *networking.Session
+	s    *networking.Session[handshake]
 
 	closing atomic.Bool
 	closed  sync.Once
@@ -46,7 +48,7 @@ type NetClient struct {
 func NewNetClient(
 	ctx context.Context, t testing.TB, impl Implementation, port string, peers []proto.PeerInfo,
 ) *NetClient {
-	n := networking.NewNetwork()
+	n := networking.NewNetwork[handshake]()
 	p := newProtocol(t, nil)
 	h := newHandler(t, peers)
 
@@ -60,7 +62,7 @@ func NewNetClient(
 	log := slogt.New(t, f)
 
 	slog.SetLogLoggerLevel(slog.LevelError)
-	conf := networking.NewConfig(p, h).
+	conf := networking.NewConfig[handshake](p, h).
 		WithSlogHandler(log.Handler()).
 		WithWriteTimeout(networkTimeout).
 		WithKeepAliveInterval(pingInterval).
@@ -208,7 +210,7 @@ func newProtocol(t testing.TB, drop []proto.PeerMessageID) *protocol {
 	return &protocol{t: t, drop: m}
 }
 
-func (p *protocol) EmptyHandshake() networking.Handshake {
+func (p *protocol) EmptyHandshake() handshake {
 	return &proto.Handshake{}
 }
 
@@ -221,11 +223,8 @@ func (p *protocol) Ping() ([]byte, error) {
 	return msg.MarshalBinary()
 }
 
-func (p *protocol) IsAcceptableHandshake(h networking.Handshake) bool {
-	hs, ok := h.(*proto.Handshake)
-	if !ok {
-		return false
-	}
+func (p *protocol) IsAcceptableHandshake(h handshake) bool {
+	hs := h
 	// Reject nodes with incorrect network bytes, unsupported protocol versions,
 	// or a zero nonce (indicating a self-connection).
 	if hs.AppName != appName || hs.Version.Cmp(proto.ProtocolVersion()) < 0 || hs.NodeNonce == 0 {
@@ -269,7 +268,7 @@ func newHandler(t testing.TB, peers []proto.PeerInfo) *handler {
 	return &handler{t: t, peers: peers, ch: ch}
 }
 
-func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
+func (h *handler) OnReceive(s *networking.Session[handshake], r io.Reader) {
 	msg, _, err := proto.ReadMessageFrom(r)
 	if err != nil {
 		h.t.Logf("Failed to read message from %q: %v", s.RemoteAddr(), err)
@@ -297,15 +296,15 @@ func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
 	}
 }
 
-func (h *handler) OnHandshake(_ *networking.Session, _ networking.Handshake) {
+func (h *handler) OnHandshake(_ *networking.Session[handshake], _ handshake) {
 	h.t.Logf("Connection to %s node at %q was established", h.client.impl.String(), h.client.s.RemoteAddr())
 }
 
-func (h *handler) OnHandshakeFailed(_ *networking.Session, _ networking.Handshake) {
+func (h *handler) OnHandshakeFailed(_ *networking.Session[handshake], _ handshake) {
 	h.t.Logf("Handshake with %q failed", h.client.impl.String())
 }
 
-func (h *handler) OnClose(s *networking.Session) {
+func (h *handler) OnClose(s *networking.Session[handshake]) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
 	if !h.client.closing.Load() && h.client != nil {
 		h.client.reconnect()

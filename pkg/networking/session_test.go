@@ -24,7 +24,7 @@ import (
 func TestSuccessfulSession(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	p := netmocks.NewMockProtocol(t)
+	p := netmocks.NewMockProtocol[hs](t)
 	p.On("EmptyHandshake").Return(&textHandshake{}, nil)
 	p.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
 	p.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
@@ -32,14 +32,14 @@ func TestSuccessfulSession(t *testing.T) {
 	p.On("IsAcceptableMessage", &textHeader{l: 2}).Once().Return(true)
 	p.On("IsAcceptableMessage", &textHeader{l: 13}).Once().Return(true)
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := netmocks.NewMockHandler[hs](t)
+	serverHandler := netmocks.NewMockHandler[hs](t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	clientConn, serverConn := testConnPipe()
-	net := networking.NewNetwork()
+	net := networking.NewNetwork[hs]()
 
 	cs, err := net.NewSession(ctx, clientConn, testConfig(t, p, clientHandler, "client"))
 	require.NoError(t, err)
@@ -98,17 +98,17 @@ func TestSuccessfulSession(t *testing.T) {
 func TestSessionTimeoutOnHandshake(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := netmocks.NewMockProtocol[hs](t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := netmocks.NewMockHandler[hs](t)
+	serverHandler := netmocks.NewMockHandler[hs](t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	clientConn, serverConn := testConnPipe()
-	net := networking.NewNetwork()
+	net := networking.NewNetwork[hs]()
 
 	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
 	require.NoError(t, err)
@@ -147,20 +147,20 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 func TestSessionTimeoutOnMessage(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := netmocks.NewMockProtocol[hs](t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
 	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
 	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := netmocks.NewMockHandler[hs](t)
+	serverHandler := netmocks.NewMockHandler[hs](t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	clientConn, serverConn := testConnPipe()
-	net := networking.NewNetwork()
+	net := networking.NewNetwork[hs]()
 
 	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
 	require.NoError(t, err)
@@ -230,17 +230,17 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 func TestDoubleClose(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := netmocks.NewMockProtocol[hs](t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := netmocks.NewMockHandler[hs](t)
+	serverHandler := netmocks.NewMockHandler[hs](t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	clientConn, serverConn := testConnPipe()
-	net := networking.NewNetwork()
+	net := networking.NewNetwork[hs]()
 
 	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
 	require.NoError(t, err)
@@ -264,20 +264,20 @@ func TestDoubleClose(t *testing.T) {
 func TestOnClosedByOtherSide(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := netmocks.NewMockProtocol[hs](t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
 	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
 	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := netmocks.NewMockHandler[hs](t)
+	serverHandler := netmocks.NewMockHandler[hs](t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
 
 	clientConn, serverConn := testConnPipe()
-	net := networking.NewNetwork()
+	net := networking.NewNetwork[hs]()
 
 	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
 	require.NoError(t, err)
@@ -338,19 +338,19 @@ func TestOnClosedByOtherSide(t *testing.T) {
 func TestCloseParentContext(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := netmocks.NewMockProtocol[hs](t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{}, nil)
 	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
 	mockProtocol.On("IsAcceptableHandshake", &textHandshake{v: "hello"}).Once().Return(true)
 	mockProtocol.On("EmptyHeader").Return(&textHeader{}, nil)
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := netmocks.NewMockHandler[hs](t)
+	serverHandler := netmocks.NewMockHandler[hs](t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 
 	clientConn, serverConn := testConnPipe()
-	net := networking.NewNetwork()
+	net := networking.NewNetwork[hs]()
 
 	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
 	require.NoError(t, err)
@@ -409,9 +409,16 @@ func TestCloseParentContext(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func testConfig(t testing.TB, p networking.Protocol, h networking.Handler, direction string) *networking.Config {
+type hs = networking.Handshake
+
+func testConfig(
+	t testing.TB,
+	p networking.Protocol[hs],
+	h networking.Handler[hs],
+	direction string,
+) *networking.Config[hs] {
 	log := slogt.New(t)
-	return networking.NewConfig(p, h).
+	return networking.NewConfig[hs](p, h).
 		WithSlogHandler(log.Handler()).
 		WithWriteTimeout(1 * time.Second).
 		WithKeepAliveDisabled().

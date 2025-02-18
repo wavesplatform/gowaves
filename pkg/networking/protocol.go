@@ -19,9 +19,9 @@ type Handshake interface {
 // Protocol is the interface for the network protocol implementation.
 // It provides the methods to create the handshake packet, message header, and ping packet.
 // It also provides the methods to validate the handshake and message header packets.
-type Protocol interface {
+type Protocol[HS Handshake] interface {
 	// EmptyHandshake returns the empty instance of the handshake packet.
-	EmptyHandshake() Handshake
+	EmptyHandshake() HS
 
 	// EmptyHeader returns the empty instance of the message header.
 	EmptyHeader() Header
@@ -30,7 +30,7 @@ type Protocol interface {
 	Ping() ([]byte, error)
 
 	// IsAcceptableHandshake checks the handshake is acceptable.
-	IsAcceptableHandshake(Handshake) bool
+	IsAcceptableHandshake(HS) bool
 
 	// IsAcceptableMessage checks the message is acceptable by examining its header.
 	// If return false, the message will be discarded.
