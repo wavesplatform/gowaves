@@ -2,6 +2,7 @@ package blockchaininfo
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -36,15 +37,19 @@ func ConcatenateContractTopics(contractAddress string) string {
 }
 
 type BUpdatesExtensionState struct {
-	currentState      *BUpdatesInfo
-	previousState     *BUpdatesInfo // this information is what was just published
-	Limit             uint64
-	scheme            proto.Scheme
-	l2ContractAddress string
+	currentState          *BUpdatesInfo
+	previousState         *BUpdatesInfo // this information is what was just published
+	Limit                 uint64
+	scheme                proto.Scheme
+	l2ContractAddress     string
+	historyJournal        *HistoryJournal
+	lock                  sync.Mutex
+	buPatchChannel        chan proto.DataEntries
+	buPatchRequestChannel chan []string
 }
 
 func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string) *BUpdatesExtensionState {
-	return &BUpdatesExtensionState{Limit: limit, scheme: scheme, l2ContractAddress: l2ContractAddress}
+	return &BUpdatesExtensionState{Limit: limit, scheme: scheme, l2ContractAddress: l2ContractAddress, historyJournal: NewHistoryJournal()}
 }
 
 func (bu *BUpdatesExtensionState) hasStateChanged() (bool, BUpdatesInfo, error) {
@@ -167,6 +172,64 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 	return nil
 }
 
+// initHistoryJournal with 100 past entries from State when the node starts.
+func (bu *BUpdatesExtensionState) initHistoryJournal(updates BUpdatesInfo) {
+	// TODO implement this.
+}
+
+func (bu *BUpdatesExtensionState) addSentEntriesToHistoryJournal(updates BUpdatesInfo) {
+	height := updates.BlockUpdatesInfo.Height
+	blockID := updates.BlockUpdatesInfo.BlockID
+
+	historyEntry := HistoryEntry{
+		height:  height,
+		blockID: blockID,
+		entries: updates.ContractUpdatesInfo.AllDataEntries,
+	}
+	bu.historyJournal.Push(historyEntry)
+}
+
+func (bu *BUpdatesExtensionState) rollbackHappened(updates BUpdatesInfo, previousState BUpdatesInfo) bool {
+	if updates.BlockUpdatesInfo.Height > previousState.BlockUpdatesInfo.Height {
+		return false
+	}
+	if _, _, blockIDFound := bu.historyJournal.SearchByBlockID(updates.BlockUpdatesInfo.BlockID); blockIDFound {
+		return true
+	}
+	if updates.BlockUpdatesInfo.Height < previousState.BlockUpdatesInfo.Height {
+		return true
+	}
+	return false
+}
+
+func (bu *BUpdatesExtensionState) generatePatch(latestUpdates BUpdatesInfo) BUpdatesInfo {
+	keysForAnalysis, found := bu.historyJournal.FetchKeysUntilBlockID(latestUpdates.BlockUpdatesInfo.BlockID)
+	if !found {
+		// TODO the rollback is too deep. Emergency restart.
+	}
+
+	// If the key is found in the state, fetch it. If it is not found, it creates a DeleteEntry.
+	bu.requestPatchFromState(keysForAnalysis)
+
+	patchDataEntries := <-bu.buPatchChannel
+
+	patch := BUpdatesInfo{
+		BlockUpdatesInfo: latestUpdates.BlockUpdatesInfo,
+		ContractUpdatesInfo: L2ContractDataEntries{
+			AllDataEntries: patchDataEntries,
+			Height:         latestUpdates.ContractUpdatesInfo.Height,
+		},
+	}
+	return patch
+}
+
+func (bu *BUpdatesExtensionState) requestPatchFromState(keysForPatch []string) {
+	bu.lock.Lock()
+	defer bu.lock.Unlock()
+
+	bu.buPatchRequestChannel <- keysForPatch
+}
+
 func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
 	// update current state
 	bu.currentState = &updates
@@ -186,6 +249,18 @@ func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, sc
 		bu.previousState = &updates
 		return
 	}
+	if bu.rollbackHappened(updates, *bu.previousState) {
+		patch := bu.generatePatch(updates)
+		// TODO did I include the current last update from the patch?
+		pblshErr := bu.publishUpdates(patch, nc, scheme)
+		if pblshErr != nil {
+			zap.S().Errorf("failed to publish updates, %v", pblshErr)
+			return
+		}
+		bu.addSentEntriesToHistoryJournal(patch)
+		bu.previousState = &patch
+		return
+	}
 	// compare the current state to the previous state
 	stateChanged, changes, cmprErr := bu.hasStateChanged()
 	if cmprErr != nil {
@@ -198,40 +273,38 @@ func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, sc
 		if pblshErr != nil {
 			zap.S().Errorf("failed to publish changes, %v", pblshErr)
 		}
+		bu.addSentEntriesToHistoryJournal(changes)
 		bu.previousState = &updates
 	}
 }
 
-func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
-	bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
+func runPublisher(ctx context.Context, extension *BlockchainUpdatesExtension, scheme proto.Scheme, nc *nats.Conn) {
 	for {
 		select {
-		case updates, ok := <-updatesChannel:
+		case updates, ok := <-extension.BUpdatesChannel:
 			if !ok {
 				zap.S().Errorf("the updates channel for publisher was closed")
 				return
 			}
-			handleBlockchainUpdate(updates, bu, scheme, nc)
+			handleBlockchainUpdate(updates, extension.blockchainExtensionState, scheme, nc)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func runReceiver(requestsChannel chan<- L2Requests, nc *nats.Conn) error {
+func runReceiver(nc *nats.Conn, bu *BlockchainUpdatesExtension) error {
 	_, subErr := nc.Subscribe(L2RequestsTopic, func(request *nats.Msg) {
 		signal := string(request.Data)
 		switch signal {
 		case RequestRestartSubTopic:
-			l2Request := L2Requests{Restart: true}
-			requestsChannel <- l2Request
-
 			notNilResponse := "ok"
 			err := request.Respond([]byte(notNilResponse))
 			if err != nil {
 				zap.S().Errorf("failed to respond to a restart signal, %v", err)
 				return
 			}
+			bu.EmptyPreviousState()
 		default:
 			zap.S().Errorf("nats receiver received an unknown signal, %s", signal)
 		}
@@ -239,8 +312,8 @@ func runReceiver(requestsChannel chan<- L2Requests, nc *nats.Conn) error {
 	return subErr
 }
 
-func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
-	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme, l2Requests chan<- L2Requests) error {
+func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.Context,
+	scheme proto.Scheme) error {
 	opts := &server.Options{
 		MaxPayload: natsMaxPayloadSize,
 		Host:       hostDefault,
@@ -268,10 +341,10 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 	}
 	defer nc.Close()
 
-	receiverErr := runReceiver(l2Requests, nc)
+	receiverErr := runReceiver(nc, e)
 	if receiverErr != nil {
 		return receiverErr
 	}
-	runPublisher(ctx, updatesChannel, bu, scheme, nc)
+	runPublisher(ctx, e, scheme, nc)
 	return nil
 }

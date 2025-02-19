@@ -406,11 +406,17 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	var bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
 		var bUErr error
-		bUpdatesExtension, bUErr = runBlockchainUpdatesPlugin(ctx, cfg, nc.BlockchainUpdatesL2Address)
+		bUpdatesExtension, bUErr = initializeBlockchainUpdatesPlugin(ctx, cfg, nc.BlockchainUpdatesL2Address)
 		if bUErr != nil {
 			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
 		}
-		go bUpdatesExtension.ReceiveSignals()
+		go func() {
+			err := bUpdatesExtension.RunBlockchainUpdatesPublisher(ctx,
+				cfg.AddressSchemeCharacter)
+			if err != nil {
+				zap.S().Fatalf("Failed to run blockchain updates publisher: %v", err)
+			}
+		}()
 		zap.S().Info("The blockchain info extension started pulling info from smart contract address",
 			nc.BlockchainUpdatesL2Address)
 	}
@@ -421,6 +427,29 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to initialize node's state")
 	}
 	defer func() { retErr = closeIfErrorf(st, retErr, "failed to close state") }()
+
+	if nc.enableBlockchainUpdatesPlugin {
+		go func() {
+			for {
+				var patch []proto.DataEntry
+				select {
+				case dataEntryKeys := <-bUpdatesExtension.BuPatchRequestChannel:
+					for _, dataEntryKey := range dataEntryKeys {
+						recipient := proto.NewRecipientFromAddress(bUpdatesExtension.L2ContractAddress())
+						dataEntry, err := st.RetrieveEntry(recipient, dataEntryKey)
+						if err != nil {
+							dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
+						}
+						patch = append(patch, dataEntry)
+					}
+					bUpdatesExtension.WriteBUPatch(patch)
+				case <-bUpdatesExtension.Ctx.Done():
+					bUpdatesExtension.Close()
+					return
+				}
+			}
+		}()
+	}
 
 	features, err := minerFeatures(st, nc.minerVoteFeatures)
 	if err != nil {
@@ -818,7 +847,7 @@ func runAPIs(
 	return nil
 }
 
-func runBlockchainUpdatesPlugin(
+func initializeBlockchainUpdatesPlugin(
 	ctx context.Context,
 	cfg *settings.BlockchainSettings,
 	l2ContractAddress string,
@@ -835,17 +864,9 @@ func runBlockchainUpdatesPlugin(
 	)
 
 	updatesChannel := make(chan blockchaininfo.BUpdatesInfo)
-	requestsChannel := make(chan blockchaininfo.L2Requests)
-	go func() {
-		err := bUpdatesExtensionState.RunBlockchainUpdatesPublisher(ctx, updatesChannel,
-			cfg.AddressSchemeCharacter, requestsChannel)
-		if err != nil {
-			zap.S().Fatalf("Failed to run blockchain updates publisher: %v", err)
-		}
-	}()
-
-	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel,
-		requestsChannel, bUpdatesExtensionState), nil
+	buPatchChannel := make(chan proto.DataEntries)
+	buPatchRequestChannel := make(chan []string)
+	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel, buPatchChannel, buPatchRequestChannel, bUpdatesExtensionState), nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {
