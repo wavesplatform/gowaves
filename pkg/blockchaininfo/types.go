@@ -2,6 +2,7 @@ package blockchaininfo
 
 import (
 	"bytes"
+	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -10,6 +11,8 @@ import (
 
 const (
 	RootHashSize = 32
+
+	HistoryJournalLengthMax = 100
 )
 
 // BlockUpdatesInfo Block updates.
@@ -29,6 +32,109 @@ type L2ContractDataEntries struct {
 type BUpdatesInfo struct {
 	BlockUpdatesInfo    BlockUpdatesInfo
 	ContractUpdatesInfo L2ContractDataEntries
+}
+
+type HistoryEntry struct {
+	height  uint64
+	blockID proto.BlockID
+	entries proto.DataEntries
+}
+
+type HistoryJournal struct {
+	lock           sync.Mutex
+	historyJournal [HistoryJournalLengthMax]HistoryEntry
+	top            int
+	size           int
+}
+
+// NewHistoryJournal создаёт и инициализирует новый экземпляр HistoryJournal.
+func NewHistoryJournal() *HistoryJournal {
+	return &HistoryJournal{
+		top:  0,
+		size: 0,
+	}
+}
+
+// FetchKeysUntilBlockID TODO write tests.
+// FetchKeysUntilBlockID goes from top to bottom and fetches all keys.
+// If the blockID is found, it returns the keys up to and including that element and true.
+// If the blockID is not found - nil and false.
+func (hj *HistoryJournal) FetchKeysUntilBlockID(blockID proto.BlockID) ([]string, bool) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	var keys []string
+	for i := 0; i < hj.size; i++ {
+		idx := (hj.top - 1 - i + HistoryJournalLengthMax) % HistoryJournalLengthMax
+		historyEntry := hj.historyJournal[idx]
+
+		dataEntries := historyEntry.entries
+		for _, dataEntry := range dataEntries {
+			keys = append(keys, dataEntry.GetKey())
+		}
+		if historyEntry.blockID == blockID {
+			return keys, true
+		}
+	}
+
+	return nil, false
+}
+
+// SearchByBlockID TODO write tests.
+func (hj *HistoryJournal) SearchByBlockID(blockID proto.BlockID) (HistoryEntry, int, bool) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	// Iterate over the elements from the top (latest) to the bottom.
+	for i := 0; i < hj.size; i++ {
+		idx := (hj.top - 1 - i + HistoryJournalLengthMax) % HistoryJournalLengthMax
+		if hj.historyJournal[idx].blockID == blockID {
+			return hj.historyJournal[idx], i, true
+		}
+	}
+	return HistoryEntry{}, -1, false
+}
+
+// CleanUntil TODO write tests.
+func (hj *HistoryJournal) CleanUntil(distance int) error {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	if distance < 0 || distance > hj.size {
+		return errors.New("distance out of range")
+	}
+
+	// Remove the number of elements from the top to `distance`.
+	hj.top = (hj.top - distance + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	hj.size -= distance
+	return nil
+}
+
+func (hj *HistoryJournal) Push(v HistoryEntry) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+	hj.historyJournal[hj.top] = v // Add to top or rewrite the oldest element.
+
+	hj.top = (hj.top + 1) % HistoryJournalLengthMax
+
+	if hj.size < HistoryJournalLengthMax {
+		hj.size++
+	}
+}
+
+func (hj *HistoryJournal) Pop() (HistoryEntry, error) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	if hj.size == 0 {
+		return HistoryEntry{}, errors.New("failed to pop from the history journal, it's empty")
+	}
+
+	// Shift "top" back.
+	hj.top = (hj.top - 1 + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	entry := hj.historyJournal[hj.top]
+	hj.size--
+	return entry, nil
 }
 
 type L2Requests struct {

@@ -2,6 +2,7 @@ package blockchaininfo
 
 import (
 	"context"
+	"sync"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -11,30 +12,35 @@ import (
 const ChannelWriteTimeout = 10 * time.Second
 
 type BlockchainUpdatesExtension struct {
-	ctx                           context.Context
+	Ctx                           context.Context
 	enableBlockchainUpdatesPlugin bool
 	l2ContractAddress             proto.WavesAddress
-	bUpdatesChannel               chan<- BUpdatesInfo
-	l2RequestsChannel             <-chan L2Requests
+	BUpdatesChannel               chan BUpdatesInfo
 	firstBlock                    bool
 	blockchainExtensionState      *BUpdatesExtensionState
+	Lock                          sync.Mutex
+	BuPatchChannel                chan proto.DataEntries
+	BuPatchRequestChannel         chan []string
 }
 
 func NewBlockchainUpdatesExtension(
 	ctx context.Context,
 	l2ContractAddress proto.WavesAddress,
-	bUpdatesChannel chan<- BUpdatesInfo,
-	requestChannel <-chan L2Requests,
+	bUpdatesChannel chan BUpdatesInfo,
+	buPatchChannel chan proto.DataEntries,
+	buPatchRequestChannel chan []string,
 	blockchainExtensionState *BUpdatesExtensionState,
 ) *BlockchainUpdatesExtension {
+
 	return &BlockchainUpdatesExtension{
-		ctx:                           ctx,
+		Ctx:                           ctx,
 		enableBlockchainUpdatesPlugin: true,
 		l2ContractAddress:             l2ContractAddress,
-		bUpdatesChannel:               bUpdatesChannel,
-		l2RequestsChannel:             requestChannel,
+		BUpdatesChannel:               bUpdatesChannel,
 		firstBlock:                    true,
 		blockchainExtensionState:      blockchainExtensionState,
+		BuPatchChannel:                buPatchChannel,
+		BuPatchRequestChannel:         buPatchRequestChannel,
 	}
 }
 
@@ -51,46 +57,59 @@ func (e *BlockchainUpdatesExtension) IsFirstRequestedBlock() bool {
 }
 
 func (e *BlockchainUpdatesExtension) FirstBlockDone() {
+	e.Lock.Lock()
+	defer e.Lock.Unlock()
 	e.firstBlock = false
 }
 
-func (e *BlockchainUpdatesExtension) ReceiveSignals() {
-	for {
-		select {
-		case <-e.ctx.Done():
-			return
-		case l2Request, ok := <-e.l2RequestsChannel:
-			if !ok {
-				zap.S().Errorf("can't read from l2RequestsChannel, the channel is closed")
-				return
-			}
-			if l2Request.Restart {
-				e.firstBlock = true
-				e.blockchainExtensionState.previousState = nil
-			}
-		}
-	}
+func (e *BlockchainUpdatesExtension) EmptyPreviousState() {
+	e.Lock.Lock()
+	e.firstBlock = true
+	e.blockchainExtensionState.previousState = nil
+	defer e.Lock.Unlock()
 }
 
 func (e *BlockchainUpdatesExtension) WriteBUpdates(bUpdates BUpdatesInfo) {
-	if e.bUpdatesChannel == nil {
+	e.Lock.Lock()
+	defer e.Lock.Unlock()
+	if e.BUpdatesChannel == nil {
 		return
 	}
 	select {
-	case e.bUpdatesChannel <- bUpdates:
+	case e.BUpdatesChannel <- bUpdates:
 	case <-time.After(ChannelWriteTimeout):
 		zap.S().Errorf("failed to write into the blockchain updates channel, out of time")
 		return
-	case <-e.ctx.Done():
-		e.close()
+	case <-e.Ctx.Done():
+		e.Close()
 		return
 	}
 }
 
-func (e *BlockchainUpdatesExtension) close() {
-	if e.bUpdatesChannel == nil {
+func (e *BlockchainUpdatesExtension) WriteBUPatch(dataEntriesPatch proto.DataEntries) {
+	e.Lock.Lock()
+	defer e.Lock.Unlock()
+	if e.BuPatchChannel == nil {
 		return
 	}
-	close(e.bUpdatesChannel)
-	e.bUpdatesChannel = nil
+	select {
+	case e.BuPatchChannel <- dataEntriesPatch:
+	case <-time.After(ChannelWriteTimeout):
+		zap.S().Errorf("failed to write into the bu patch channel, out of time")
+		return
+	case <-e.Ctx.Done():
+		e.Close()
+		return
+	}
+}
+
+func (e *BlockchainUpdatesExtension) Close() {
+	if e.BUpdatesChannel != nil {
+		close(e.BUpdatesChannel)
+	}
+	if e.BuPatchChannel != nil {
+		close(e.BuPatchChannel)
+	}
+	e.BUpdatesChannel = nil
+	e.BuPatchChannel = nil
 }
