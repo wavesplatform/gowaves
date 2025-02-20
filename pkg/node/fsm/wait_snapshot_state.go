@@ -151,7 +151,6 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 		proto.ContentIDBlock,
 		proto.ContentIDTransaction,
 		proto.ContentIDInvMicroblock,
-		proto.ContentIDCheckpoint,
 		proto.ContentIDMicroblockRequest,
 		proto.ContentIDMicroblock,
 		proto.ContentIDPBBlock,

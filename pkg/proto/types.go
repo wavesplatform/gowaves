@@ -4542,3 +4542,10 @@ func (s *TransactionStatus) UnmarshalJSON(b []byte) error {
 	}
 	return nil
 }
+
+type MiningLimits struct {
+	MaxScriptRunsInBlock        int
+	MaxScriptsComplexityInBlock int
+	ClassicAmountOfTxsInBlock   int
+	MaxTxsSizeInBytes           int
+}

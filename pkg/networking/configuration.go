@@ -21,17 +21,28 @@ type Config struct {
 	attributes             []any
 }
 
-// NewConfig creates a new Config and sets required Protocol and Handler parameters.
-// Other parameters are set to their default values.
-func NewConfig(p Protocol, h Handler) *Config {
+// NewConfig creates a new Config and sets default keepAliveInterval and connectionWriteTimeout.
+// KeepAlive is enabled by default.
+// Protocol and Handler should be set explicitly.
+func NewConfig() *Config {
 	return &Config{
-		protocol:               p,
-		handler:                h,
 		keepAlive:              true,
 		keepAliveInterval:      defaultKeepAliveInterval,
 		connectionWriteTimeout: defaultConnectionWriteTimeout,
 		attributes:             nil,
 	}
+}
+
+// WithProtocol sets the protocol.
+func (c *Config) WithProtocol(p Protocol) *Config {
+	c.protocol = p
+	return c
+}
+
+// WithHandler sets the handler.
+func (c *Config) WithHandler(h Handler) *Config {
+	c.handler = h
+	return c
 }
 
 // WithSlogHandler sets the slog handler.

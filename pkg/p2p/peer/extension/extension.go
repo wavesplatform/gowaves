@@ -78,7 +78,7 @@ func (a PeerWrapperImpl) AskMicroBlockSnapshot(id proto.BlockID) {
 	zap.S().Named(logging.NetworkNamespace).Debugf(
 		"[%s] Requesting micro block snapshot for micro block %s", a.p.ID().String(), id.ShortString(),
 	)
-	a.p.SendMessage(&proto.MicroBlockSnapshotRequestMessage{BlockIDBytes: id.Bytes()})
+	a.p.SendMessage(&proto.MicroBlockSnapshotRequestMessage{BlockID: id})
 }
 
 func (a PeerWrapperImpl) SendMicroBlock(micro *proto.MicroBlock) error {

@@ -304,7 +304,6 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 	syncSkipMessageList := proto.PeerMessageIDs{
 		proto.ContentIDTransaction,
 		proto.ContentIDInvMicroblock,
-		proto.ContentIDCheckpoint,
 		proto.ContentIDMicroblockRequest,
 		proto.ContentIDMicroblock,
 		proto.ContentIDPBMicroBlock,
