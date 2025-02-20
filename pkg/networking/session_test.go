@@ -87,8 +87,8 @@ func TestSuccessfulSession(t *testing.T) {
 				cWG.Done()
 			})
 
-		n, err := cs.Write([]byte("hello")) // Send handshake to server.
-		require.NoError(t, err)
+		n, wErr := cs.Write([]byte("hello")) // Send handshake to server.
+		require.NoError(t, wErr)
 		assert.Equal(t, 5, n)
 
 		cWG.Wait() // Wait for client to finish.
@@ -402,7 +402,6 @@ func TestCloseParentContext(t *testing.T) {
 				testWG.Done()
 			}()
 		})
-
 	}()
 	clientHandler.On("OnClose", clientSession).Return()
 
