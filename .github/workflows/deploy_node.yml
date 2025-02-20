@@ -96,7 +96,7 @@ jobs:
           target: /tmp/
 
       - name: Backup deb package on the deployment server
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.1
         id: backup-deb
         env:
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
@@ -118,7 +118,7 @@ jobs:
             rmdir $TMPDIR
 
       - name: Install deb package on the deployment server
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.1
         id: install-deb
         env:
           PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
@@ -141,7 +141,7 @@ jobs:
             done
 
       - name: Rollback deb package on the deployment server
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.1
         if: ${{ failure() }}
         env:
           BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
@@ -164,7 +164,7 @@ jobs:
             done
 
       - name: Clean up deb package on the deployment server
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.1
         if: ${{ always() }}
         env:
           PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
@@ -179,7 +179,7 @@ jobs:
             rm -f /tmp/$PACKAGE_NAME
 
       - name: Clean up backup deb package on the deployment server
-        uses: appleboy/ssh-action@v1.2.0
+        uses: appleboy/ssh-action@v1.2.1
         if: ${{ always() }}
         env:
           BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
