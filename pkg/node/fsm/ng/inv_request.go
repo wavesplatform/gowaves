@@ -17,24 +17,20 @@ func NewInvRequester() *InvRequesterImpl {
 	}
 }
 
-func (a *InvRequesterImpl) Add2Cache(id []byte) (existed bool) {
-	if a.cache.Exists(id) {
+func (a *InvRequesterImpl) Add2Cache(id proto.BlockID) bool {
+	idb := id.Bytes()
+	if a.cache.Exists(idb) {
 		return true
 	}
-	a.cache.Add2(id, struct{}{})
+	a.cache.Add2(idb, struct{}{})
 	return false
 }
 
-func (a *InvRequesterImpl) Request(p types.MessageSender, id []byte) bool {
+func (a *InvRequesterImpl) Request(p types.MessageSender, id proto.BlockID) bool {
 	existed := a.Add2Cache(id)
 	if !existed {
-		bid, err := proto.NewBlockIDFromBytes(id)
-		if err != nil {
-			// TODO: Handle error properly.
-			panic("invalid block id")
-		}
 		p.SendMessage(&proto.MicroBlockRequestMessage{
-			TotalBlockSig: bid,
+			TotalBlockSig: id,
 		})
 	}
 	return existed

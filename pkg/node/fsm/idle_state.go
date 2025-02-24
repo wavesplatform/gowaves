@@ -16,8 +16,8 @@ import (
 )
 
 type InvRequester interface {
-	Add2Cache(id []byte) (existed bool)
-	Request(p types.MessageSender, id []byte) (existed bool)
+	Add2Cache(id proto.BlockID) (existed bool)
+	Request(p types.MessageSender, id proto.BlockID) (existed bool)
 }
 
 type IdleState struct {

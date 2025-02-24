@@ -230,7 +230,7 @@ func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
 		p.SendMessage(msg)
 		cnt++
 	})
-	info.invRequester.Add2Cache(inv.TotalBlockID.Bytes()) // prevent further unnecessary microblock request
+	info.invRequester.Add2Cache(inv.TotalBlockID) // prevent further unnecessary microblock request
 	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: blockID='%s', ref='%s'",
 		msg, cnt, inv.TotalBlockID, inv.Reference,
 	)
