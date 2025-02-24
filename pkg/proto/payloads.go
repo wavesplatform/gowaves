@@ -13,6 +13,16 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
+type payloadTag interface {
+	IsPayload()
+}
+
+type Payload interface {
+	payloadTag
+	WriteTo(w io.Writer) (int64, error)
+	ReadFrom(r io.Reader) (int64, error)
+}
+
 type U32 uint32
 
 func (a U32) WriteTo(w io.Writer) (int64, error) {
@@ -101,28 +111,28 @@ func (a *U8String) ReadFrom(r io.Reader) (int64, error) {
 	return int64(n1 + n2), nil
 }
 
-type SignaturePayload crypto.Signature
+type signaturePayload crypto.Signature
 
-func (a SignaturePayload) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(a[:])
+func (p *signaturePayload) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(p[:])
 	return int64(n), err
 }
 
-func (a *SignaturePayload) ReadFrom(r io.Reader) (int64, error) {
+func (p *signaturePayload) ReadFrom(r io.Reader) (int64, error) {
 	buf := [crypto.SignatureSize]byte{}
 	n, err := io.ReadFull(r, buf[:])
 	if err != nil {
 		return int64(n), err
 	}
 	s := crypto.Signature(buf)
-	*a = SignaturePayload(s)
+	*p = signaturePayload(s)
 	return int64(n), nil
 }
 
 type Signatures []crypto.Signature
 
-func (a Signatures) WriteTo(w io.Writer) (int64, error) {
-	l, err := safecast.ToUint32(len(a))
+func (p *Signatures) WriteTo(w io.Writer) (int64, error) {
+	l, err := safecast.ToUint32(len(*p))
 	if err != nil {
 		return 0, err
 	}
@@ -130,8 +140,9 @@ func (a Signatures) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, err
 	}
-	for _, s := range a {
-		n1, wErr := SignaturePayload(s).WriteTo(w)
+	for _, s := range *p {
+		sp := signaturePayload(s)
+		n1, wErr := sp.WriteTo(w)
 		if wErr != nil {
 			return n + n1, wErr
 		}
@@ -140,7 +151,7 @@ func (a Signatures) WriteTo(w io.Writer) (int64, error) {
 	return n, nil
 }
 
-func (a *Signatures) ReadFrom(r io.Reader) (int64, error) {
+func (p *Signatures) ReadFrom(r io.Reader) (int64, error) {
 	var l U32
 	n, err := l.ReadFrom(r)
 	if err != nil {
@@ -148,7 +159,7 @@ func (a *Signatures) ReadFrom(r io.Reader) (int64, error) {
 	}
 	s := make([]crypto.Signature, l)
 	for i := range s {
-		sp := SignaturePayload{}
+		sp := signaturePayload{}
 		n1, rErr := sp.ReadFrom(r)
 		if rErr != nil {
 			return n + n1, rErr
@@ -156,14 +167,16 @@ func (a *Signatures) ReadFrom(r io.Reader) (int64, error) {
 		s[i] = crypto.Signature(sp)
 		n += n1
 	}
-	*a = s
+	*p = s
 	return n, nil
 }
 
+func (p *Signatures) IsPayload() {}
+
 type BlockIDsPayload []BlockID
 
-func (a BlockIDsPayload) WriteTo(w io.Writer) (int64, error) {
-	l, err := safecast.ToUint32(len(a))
+func (p *BlockIDsPayload) WriteTo(w io.Writer) (int64, error) {
+	l, err := safecast.ToUint32(len(*p))
 	if err != nil {
 		return 0, err
 	}
@@ -171,7 +184,7 @@ func (a BlockIDsPayload) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, err
 	}
-	for _, id := range a {
+	for _, id := range *p {
 		switch id.idType {
 		case SignatureID:
 			n1, wErr := w.Write([]byte{crypto.SignatureSize})
@@ -197,7 +210,7 @@ func (a BlockIDsPayload) WriteTo(w io.Writer) (int64, error) {
 	return n, nil
 }
 
-func (a *BlockIDsPayload) ReadFrom(r io.Reader) (int64, error) {
+func (p *BlockIDsPayload) ReadFrom(r io.Reader) (int64, error) {
 	var l U32
 	n, err := l.ReadFrom(r)
 	if err != nil {
@@ -227,14 +240,16 @@ func (a *BlockIDsPayload) ReadFrom(r io.Reader) (int64, error) {
 		ids[i] = id
 		n += n2
 	}
-	*a = ids
+	*p = ids
 	return n, nil
 }
 
+func (p *BlockIDsPayload) IsPayload() {}
+
 type BytesPayload []byte
 
-func (p BytesPayload) WriteTo(w io.Writer) (int64, error) {
-	n, err := w.Write(p)
+func (p *BytesPayload) WriteTo(w io.Writer) (int64, error) {
+	n, err := w.Write(*p)
 	if err != nil {
 		return int64(n), err
 	}
@@ -251,10 +266,12 @@ func (p *BytesPayload) ReadFrom(r io.Reader) (int64, error) {
 	return n, nil
 }
 
-type CheckpointPayload []CheckpointItem
+func (p *BytesPayload) IsPayload() {}
 
-func (a CheckpointPayload) WriteTo(w io.Writer) (int64, error) {
-	l, err := safecast.ToUint32(len(a))
+type PeerInfos []PeerInfo
+
+func (p *PeerInfos) WriteTo(w io.Writer) (int64, error) {
+	l, err := safecast.ToUint32(len(*p))
 	if err != nil {
 		return 0, err
 	}
@@ -262,48 +279,7 @@ func (a CheckpointPayload) WriteTo(w io.Writer) (int64, error) {
 	if err != nil {
 		return n, err
 	}
-	for _, item := range a {
-		n1, wErr := item.WriteTo(w)
-		if wErr != nil {
-			return n + n1, wErr
-		}
-		n += n1
-	}
-	return n, nil
-}
-
-func (a *CheckpointPayload) ReadFrom(r io.Reader) (int64, error) {
-	var l U32
-	n, err := l.ReadFrom(r)
-	if err != nil {
-		return n, err
-	}
-	cps := make([]CheckpointItem, l)
-	for i := range cps {
-		item := CheckpointItem{}
-		n1, rErr := item.ReadFrom(r)
-		if rErr != nil {
-			return n + n1, rErr
-		}
-		cps[i] = item
-		n += n1
-	}
-	*a = cps
-	return n, nil
-}
-
-type PeersPayload []PeerInfo
-
-func (a PeersPayload) WriteTo(w io.Writer) (int64, error) {
-	l, err := safecast.ToUint32(len(a))
-	if err != nil {
-		return 0, err
-	}
-	n, err := U32(l).WriteTo(w)
-	if err != nil {
-		return n, err
-	}
-	for _, info := range a[:l] {
+	for _, info := range (*p)[:l] {
 		n1, wErr := info.WriteTo(w)
 		if wErr != nil {
 			return n + n1, wErr
@@ -313,7 +289,7 @@ func (a PeersPayload) WriteTo(w io.Writer) (int64, error) {
 	return n, nil
 }
 
-func (a *PeersPayload) ReadFrom(r io.Reader) (int64, error) {
+func (p *PeerInfos) ReadFrom(r io.Reader) (int64, error) {
 	var l U32
 	n, err := l.ReadFrom(r)
 	if err != nil {
@@ -329,6 +305,44 @@ func (a *PeersPayload) ReadFrom(r io.Reader) (int64, error) {
 		ps[i] = info
 		n += n1
 	}
-	*a = ps
+	*p = ps
 	return n, nil
 }
+
+func (p *PeerInfos) IsPayload() {}
+
+// PayloadProducer is a function that creates an instance of Payload by provided PeerMessageID.
+type PayloadProducer func(PeerMessageID) (Payload, error)
+
+func CreatePayloadByContentID(contentID PeerMessageID) (Payload, error) {
+	switch contentID {
+	case ContentIDGetPeers:
+		return &EmptyPayload{}, nil
+	case ContentIDPeers:
+		return &PeerInfos{}, nil
+	case ContentIDGetSignatures, ContentIDSignatures:
+		return &Signatures{}, nil
+	case ContentIDGetBlock, ContentIDMicroblockRequest, ContentIDGetBlockSnapshot, ContentIDMicroBlockSnapshotRequest:
+		return &BlockID{}, nil
+	case ContentIDBlock, ContentIDScore, ContentIDTransaction, ContentIDMicroblock, ContentIDInvMicroblock,
+		ContentIDPBBlock, ContentIDPBMicroBlock, ContentIDPBTransaction, ContentIDBlockSnapshot,
+		ContentIDMicroBlockSnapshot:
+		return &BytesPayload{}, nil
+	case ContentIDGetBlockIDs, ContentIDBlockIDs:
+		return &BlockIDsPayload{}, nil
+	default:
+		return nil, fmt.Errorf("unexpected content ID %d", contentID)
+	}
+}
+
+type EmptyPayload struct{}
+
+func (p *EmptyPayload) WriteTo(io.Writer) (int64, error) {
+	return 0, nil
+}
+
+func (p *EmptyPayload) ReadFrom(io.Reader) (int64, error) {
+	return 0, nil
+}
+
+func (p *EmptyPayload) IsPayload() {}

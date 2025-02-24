@@ -138,7 +138,7 @@ func TestMicroBlockRequestMessage_Marshaling(t *testing.T) {
 	sig := crypto.MustSignatureFromBase58("rBA7qj1nvXCnD8puLzWBWDoyHVkm3TzooDJgwbiaum9oV3vGhxGs45DfqwoM9qAyu4xfP6j8gQL6avub1wrB2zX")
 
 	mess := MicroBlockRequestMessage{
-		TotalBlockSig: sig.Bytes(),
+		TotalBlockSig: NewBlockIDFromSignature(sig),
 	}
 
 	bts, err := mess.MarshalBinary()

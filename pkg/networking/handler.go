@@ -7,8 +7,11 @@ type Handler interface {
 	// OnReceive fired on new message received.
 	OnReceive(*Session, io.Reader)
 
-	// OnHandshake fired on new Handshake received.
+	// OnHandshake fired on new successful Handshake received.
 	OnHandshake(*Session, Handshake)
+
+	// OnHandshakeFailed fired on failed Handshake received.
+	OnHandshakeFailed(*Session, Handshake)
 
 	// OnClose fired on Session closed.
 	OnClose(*Session)

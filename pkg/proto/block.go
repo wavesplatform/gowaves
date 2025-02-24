@@ -264,6 +264,8 @@ func (id *BlockID) readUndefinedFrom(r io.Reader) (int64, error) {
 	return int64(n1 + n2), nil
 }
 
+func (id *BlockID) IsPayload() {}
+
 type ChallengedHeader struct {
 	Timestamp uint64 `json:"timestamp"`
 	NxtConsensus

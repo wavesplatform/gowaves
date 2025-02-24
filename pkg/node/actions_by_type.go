@@ -176,11 +176,11 @@ func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 func MicroBlockRequestAction(
 	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
 ) (fsm.Async, error) {
-	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockRequestMessage).TotalBlockSig)
-	if err != nil {
-		return nil, err
+	msg, ok := mess.Message.(*proto.MicroBlockRequestMessage)
+	if !ok {
+		return nil, fmt.Errorf("unexpected message type %T", mess.Message)
 	}
-	micro, ok := services.MicroBlockCache.GetBlock(blockID)
+	micro, ok := services.MicroBlockCache.GetBlock(msg.TotalBlockSig)
 	if ok {
 		_ = extension.NewPeerExtension(mess.ID, services.Scheme).SendMicroBlock(micro)
 	}
@@ -265,12 +265,11 @@ func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 }
 
 func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
-	blockIDBytes := mess.Message.(*proto.MicroBlockSnapshotRequestMessage).BlockIDBytes
-	blockID, err := proto.NewBlockIDFromBytes(blockIDBytes)
-	if err != nil {
-		return nil, err
+	msg, ok := mess.Message.(*proto.MicroBlockSnapshotRequestMessage)
+	if !ok {
+		return nil, fmt.Errorf("unexpected message type %T", mess.Message)
 	}
-	sn, ok := services.MicroBlockCache.GetSnapshot(blockID)
+	sn, ok := services.MicroBlockCache.GetSnapshot(msg.BlockID)
 	if ok {
 		snapshotProto, errToProto := sn.ToProtobuf()
 		if errToProto != nil {
@@ -278,7 +277,7 @@ func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessa
 		}
 		sProto := g.MicroBlockSnapshot{
 			Snapshots:    snapshotProto,
-			TotalBlockId: blockIDBytes,
+			TotalBlockId: msg.BlockID.Bytes(),
 		}
 		bsmBytes, errMarshall := sProto.MarshalVTStrict()
 		if errMarshall != nil {

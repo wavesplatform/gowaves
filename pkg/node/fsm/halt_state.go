@@ -53,7 +53,6 @@ func initHaltStateInFSM(_ *StateData, fsm *stateless.StateMachine, info BaseInfo
 		proto.ContentIDScore,
 		proto.ContentIDTransaction,
 		proto.ContentIDInvMicroblock,
-		proto.ContentIDCheckpoint,
 		proto.ContentIDMicroblockRequest,
 		proto.ContentIDMicroblock,
 		proto.ContentIDPBBlock,

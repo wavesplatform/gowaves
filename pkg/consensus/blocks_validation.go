@@ -444,8 +444,10 @@ func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, head
 	}
 	minTimestamp := parent.Timestamp + delay
 	if header.Timestamp < minTimestamp {
-		return errors.Errorf("block '%s' at %d: invalid block timestamp %d: less than min valid timestamp %d (hit source %s)",
-			header.ID, height, header.Timestamp, minTimestamp, base58.Encode(hitSource))
+		return errors.Errorf(
+			"block '%s' at %d: invalid block timestamp %d: less than min valid timestamp %d (hit source %s)",
+			header.ID.String(), height, header.Timestamp, minTimestamp, base58.Encode(hitSource),
+		)
 	}
 	return nil
 }
