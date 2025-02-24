@@ -163,6 +163,9 @@ func ReadMessage(r io.Reader, contentID PeerMessageID, name string, payload Payl
 	if vErr := h.Validate(contentID); vErr != nil {
 		return n1, fmt.Errorf("%s: message header is not valid: %w", name, vErr)
 	}
+	if h.payloadLength > 0 && payload == nil {
+		return n1, fmt.Errorf("%s: empty payload while length is %d", name, h.payloadLength)
+	}
 	if h.payloadLength == 0 || payload == nil { // Fast exit for messages without payload.
 		return n1, nil
 	}
