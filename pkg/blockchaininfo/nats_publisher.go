@@ -2,7 +2,7 @@ package blockchaininfo
 
 import (
 	"context"
-	"sync"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"time"
 
 	"go.uber.org/zap"
@@ -37,33 +37,31 @@ func ConcatenateContractTopics(contractAddress string) string {
 }
 
 type BUpdatesExtensionState struct {
-	currentState          *BUpdatesInfo
-	previousState         *BUpdatesInfo // this information is what was just published
-	Limit                 uint64
-	scheme                proto.Scheme
-	l2ContractAddress     string
-	historyJournal        *HistoryJournal
-	lock                  sync.Mutex
-	buPatchChannel        chan proto.DataEntries
-	buPatchRequestChannel chan []string
+	currentState      *proto.BUpdatesInfo
+	previousState     *proto.BUpdatesInfo // this information is what was just published
+	Limit             uint64
+	scheme            proto.Scheme
+	l2ContractAddress string
+	historyJournal    *HistoryJournal
+	st                state.State
 }
 
-func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string) *BUpdatesExtensionState {
-	return &BUpdatesExtensionState{Limit: limit, scheme: scheme, l2ContractAddress: l2ContractAddress, historyJournal: NewHistoryJournal()}
+func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string, state state.State) *BUpdatesExtensionState {
+	return &BUpdatesExtensionState{Limit: limit, scheme: scheme, l2ContractAddress: l2ContractAddress, historyJournal: NewHistoryJournal(), st: state}
 }
 
-func (bu *BUpdatesExtensionState) hasStateChanged() (bool, BUpdatesInfo, error) {
+func (bu *BUpdatesExtensionState) hasStateChanged() (bool, proto.BUpdatesInfo, error) {
 	statesAreEqual, changes, err := bu.statesEqual(bu.scheme)
 	if err != nil {
-		return false, BUpdatesInfo{}, err
+		return false, proto.BUpdatesInfo{}, err
 	}
 	if statesAreEqual {
-		return false, BUpdatesInfo{}, nil
+		return false, proto.BUpdatesInfo{}, nil
 	}
 	return true, changes, nil
 }
 
-func (bu *BUpdatesExtensionState) statesEqual(scheme proto.Scheme) (bool, BUpdatesInfo, error) {
+func (bu *BUpdatesExtensionState) statesEqual(scheme proto.Scheme) (bool, proto.BUpdatesInfo, error) {
 	return CompareBUpdatesInfo(*bu.currentState, *bu.previousState, scheme)
 }
 
@@ -84,7 +82,7 @@ func splitIntoChunks(array []byte, maxChunkSize int) [][]byte {
 	return chunkedArray
 }
 
-func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2ContractDataEntries, nc *nats.Conn) error {
+func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nats.Conn) error {
 	dataEntriesProtobuf, err := L2ContractDataEntriesToProto(contractUpdates).MarshalVTStrict()
 	if err != nil {
 		return err
@@ -133,7 +131,7 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 	return nil
 }
 
-func (bu *BUpdatesExtensionState) publishBlockUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+func (bu *BUpdatesExtensionState) publishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
 	blockInfo, err := BUpdatesInfoToProto(updates, scheme)
 	if err != nil {
 		return err
@@ -151,7 +149,7 @@ func (bu *BUpdatesExtensionState) publishBlockUpdates(updates BUpdatesInfo, nc *
 	return nil
 }
 
-func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+func (bu *BUpdatesExtensionState) publishUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
 	/* first publish block data */
 	err := bu.publishBlockUpdates(updates, nc, scheme)
 	if err != nil {
@@ -173,11 +171,11 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 }
 
 // initHistoryJournal with 100 past entries from State when the node starts.
-func (bu *BUpdatesExtensionState) initHistoryJournal(updates BUpdatesInfo) {
+func (bu *BUpdatesExtensionState) initHistoryJournal(updates proto.BUpdatesInfo) {
 	// TODO implement this.
 }
 
-func (bu *BUpdatesExtensionState) addSentEntriesToHistoryJournal(updates BUpdatesInfo) {
+func (bu *BUpdatesExtensionState) addSentEntriesToHistoryJournal(updates proto.BUpdatesInfo) {
 	height := updates.BlockUpdatesInfo.Height
 	blockID := updates.BlockUpdatesInfo.BlockID
 
@@ -189,11 +187,8 @@ func (bu *BUpdatesExtensionState) addSentEntriesToHistoryJournal(updates BUpdate
 	bu.historyJournal.Push(historyEntry)
 }
 
-func (bu *BUpdatesExtensionState) rollbackHappened(updates BUpdatesInfo, previousState BUpdatesInfo) bool {
-	if updates.BlockUpdatesInfo.Height > previousState.BlockUpdatesInfo.Height {
-		return false
-	}
-	if _, _, blockIDFound := bu.historyJournal.SearchByBlockID(updates.BlockUpdatesInfo.BlockID); blockIDFound {
+func (bu *BUpdatesExtensionState) rollbackHappened(updates proto.BUpdatesInfo, previousState proto.BUpdatesInfo) bool {
+	if _, _, blockIDFound := bu.historyJournal.SearchByBlockID(updates.BlockUpdatesInfo.BlockHeader.Parent); blockIDFound {
 		return true
 	}
 	if updates.BlockUpdatesInfo.Height < previousState.BlockUpdatesInfo.Height {
@@ -202,20 +197,21 @@ func (bu *BUpdatesExtensionState) rollbackHappened(updates BUpdatesInfo, previou
 	return false
 }
 
-func (bu *BUpdatesExtensionState) generatePatch(latestUpdates BUpdatesInfo) BUpdatesInfo {
+func (bu *BUpdatesExtensionState) generatePatch(latestUpdates proto.BUpdatesInfo) proto.BUpdatesInfo {
 	keysForAnalysis, found := bu.historyJournal.FetchKeysUntilBlockID(latestUpdates.BlockUpdatesInfo.BlockID)
 	if !found {
 		// TODO the rollback is too deep. Emergency restart.
 	}
 
 	// If the key is found in the state, fetch it. If it is not found, it creates a DeleteEntry.
-	bu.requestPatchFromState(keysForAnalysis)
+	patchDataEntries, err := bu.requestPatchFromState(keysForAnalysis)
+	if err != nil {
+		return proto.BUpdatesInfo{}
+	}
 
-	patchDataEntries := <-bu.buPatchChannel
-
-	patch := BUpdatesInfo{
+	patch := proto.BUpdatesInfo{
 		BlockUpdatesInfo: latestUpdates.BlockUpdatesInfo,
-		ContractUpdatesInfo: L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: patchDataEntries,
 			Height:         latestUpdates.ContractUpdatesInfo.Height,
 		},
@@ -223,14 +219,24 @@ func (bu *BUpdatesExtensionState) generatePatch(latestUpdates BUpdatesInfo) BUpd
 	return patch
 }
 
-func (bu *BUpdatesExtensionState) requestPatchFromState(keysForPatch []string) {
-	bu.lock.Lock()
-	defer bu.lock.Unlock()
-
-	bu.buPatchRequestChannel <- keysForPatch
+func (bu *BUpdatesExtensionState) requestPatchFromState(keysForPatch []string) (proto.DataEntries, error) {
+	l2WavesAddress, cnvrtErr := proto.NewAddressFromString(bu.l2ContractAddress)
+	if cnvrtErr != nil {
+		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", bu.l2ContractAddress)
+	}
+	var patch proto.DataEntries
+	for _, dataEntryKey := range keysForPatch {
+		recipient := proto.NewRecipientFromAddress(l2WavesAddress)
+		dataEntry, err := bu.st.RetrieveEntry(recipient, dataEntryKey)
+		if err != nil {
+			dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
+		}
+		patch = append(patch, dataEntry)
+	}
+	return patch, nil
 }
 
-func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
+func handleBlockchainUpdate(updates proto.BUpdatesInfo, bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
 	// update current state
 	bu.currentState = &updates
 	if bu.previousState == nil {

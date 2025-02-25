@@ -15,25 +15,6 @@ const (
 	HistoryJournalLengthMax = 100
 )
 
-// BlockUpdatesInfo Block updates.
-type BlockUpdatesInfo struct {
-	Height      uint64            `json:"height"`
-	VRF         proto.B58Bytes    `json:"vrf"`
-	BlockID     proto.BlockID     `json:"block_id"`
-	BlockHeader proto.BlockHeader `json:"block_header"`
-}
-
-// L2ContractDataEntries L2 contract data entries.
-type L2ContractDataEntries struct {
-	AllDataEntries []proto.DataEntry `json:"all_data_entries"`
-	Height         uint64            `json:"height"`
-}
-
-type BUpdatesInfo struct {
-	BlockUpdatesInfo    BlockUpdatesInfo
-	ContractUpdatesInfo L2ContractDataEntries
-}
-
 type HistoryEntry struct {
 	height  uint64
 	blockID proto.BlockID
@@ -141,11 +122,11 @@ type L2Requests struct {
 	Restart bool
 }
 
-func CompareBUpdatesInfo(current, previous BUpdatesInfo,
-	scheme proto.Scheme) (bool, BUpdatesInfo, error) {
-	changes := BUpdatesInfo{
-		BlockUpdatesInfo:    BlockUpdatesInfo{},
-		ContractUpdatesInfo: L2ContractDataEntries{},
+func CompareBUpdatesInfo(current, previous proto.BUpdatesInfo,
+	scheme proto.Scheme) (bool, proto.BUpdatesInfo, error) {
+	changes := proto.BUpdatesInfo{
+		BlockUpdatesInfo:    proto.BlockUpdatesInfo{},
+		ContractUpdatesInfo: proto.L2ContractDataEntries{},
 	}
 
 	equal := true
@@ -164,7 +145,7 @@ func CompareBUpdatesInfo(current, previous BUpdatesInfo,
 	equalHeaders, err := compareBlockHeader(current.BlockUpdatesInfo.BlockHeader,
 		previous.BlockUpdatesInfo.BlockHeader, scheme)
 	if err != nil {
-		return false, BUpdatesInfo{}, err
+		return false, proto.BUpdatesInfo{}, err
 	}
 	if !equalHeaders {
 		equal = false
@@ -174,7 +155,7 @@ func CompareBUpdatesInfo(current, previous BUpdatesInfo,
 	equalEntries, dataEntryChanges, err := compareDataEntries(current.ContractUpdatesInfo.AllDataEntries,
 		previous.ContractUpdatesInfo.AllDataEntries)
 	if err != nil {
-		return false, BUpdatesInfo{}, err
+		return false, proto.BUpdatesInfo{}, err
 	}
 	if !equalEntries {
 		equal = false

@@ -16,7 +16,6 @@ import (
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -520,7 +519,7 @@ func newStateManager(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
-	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension,
+	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo,
 ) (_ *stateManager, retErr error) {
 	if err := validateSettings(settings); err != nil {
 		return nil, err
@@ -604,7 +603,7 @@ func newStateManager(
 	// Set fields which depend on state.
 	// Consensus validator is needed to check block headers.
 	snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, rw))
-	appender, err := newTxAppender(state, rw, stor, settings, sdb, atx, &snapshotApplier, bUpdatesExtension)
+	appender, err := newTxAppender(state, rw, stor, settings, sdb, atx, &snapshotApplier, bUpdatesPluginInfo)
 	if err != nil {
 		return nil, wrapErr(Other, err)
 	}

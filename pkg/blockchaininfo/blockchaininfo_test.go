@@ -14,8 +14,8 @@ import (
 const natsTestURL = "nats://127.0.0.1:4756"
 
 // some random test data.
-func testBlockUpdates() blockchaininfo.BlockUpdatesInfo {
-	var b blockchaininfo.BlockUpdatesInfo
+func testBlockUpdates() proto.BlockUpdatesInfo {
+	var b proto.BlockUpdatesInfo
 
 	var (
 		height      uint64 = 100
@@ -92,17 +92,17 @@ func TestChangesGenerationNewEntries(t *testing.T) {
 	}
 	var currentHeight uint64 = 3199611
 
-	previousBlockInfo := blockchaininfo.BUpdatesInfo{
+	previousBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: previousDataEntries,
 			Height:         previousHeight,
 		},
 	}
 
-	currentBlockInfo := blockchaininfo.BUpdatesInfo{
+	currentBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: currentDataEntries,
 			Height:         currentHeight,
 		},
@@ -171,17 +171,17 @@ func TestChangesGenerationContainsPrevious(t *testing.T) {
 	}
 	var currentHeight uint64 = 3199611
 
-	previousBlockInfo := blockchaininfo.BUpdatesInfo{
+	previousBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: previousDataEntries,
 			Height:         previousHeight,
 		},
 	}
 
-	currentBlockInfo := blockchaininfo.BUpdatesInfo{
+	currentBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: currentDataEntries,
 			Height:         currentHeight,
 		},
@@ -233,17 +233,17 @@ func TestNoChangesGeneration(t *testing.T) {
 	}
 	var currentHeight uint64 = 3199611
 
-	previousBlockInfo := blockchaininfo.BUpdatesInfo{
+	previousBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: previousDataEntries,
 			Height:         previousHeight,
 		},
 	}
 
-	currentBlockInfo := blockchaininfo.BUpdatesInfo{
+	currentBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: currentDataEntries,
 			Height:         currentHeight,
 		},
