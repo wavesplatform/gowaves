@@ -176,8 +176,15 @@ func TestStringDeclaration(t *testing.T) {
 	}{
 		{`let a = "test"`, false, "BgICCAIBAAFhAgR0ZXN0AABM5UxM"},
 		{`let a = ""`, false, "BgICCAIBAAFhAgAAALkZwZw="},
-		{`let a = "\t\f\b\r\n"`, false, "BgICCAIBAAFhAgUJDAgNCgAAlYWq5w=="},
-		{`let a = "\a"`, true, "(4:10, 4:12): Unknown escaped symbol: '\\a'. The valid are \\b, \\f, \\n, \\r, \\t, \\\""},
+		{`let a = "\t\f\b\r\n\\\""`, false, "BgICCAIBAAFhAgcJDAgNClwiAAAi5V0R"},
+		{`let a = "\a"`, true,
+			"(4:10, 4:12): Unknown escaped symbol: '\\a'. The valid are \\b, \\f, \\n, \\r, \\t, \\\\, \\\""},
+		{`let a = "\v"`, true,
+			"(4:10, 4:12): Unknown escaped symbol: '\\v'. The valid are \\b, \\f, \\n, \\r, \\t, \\\\, \\\""},
+		{`let a = "\'"`, true,
+			"(4:10, 4:12): Unknown escaped symbol: '\\''. The valid are \\b, \\f, \\n, \\r, \\t, \\\\, \\\""},
+		{`let a = "\""`, false, "BgICCAIBAAFhAgEiAAB8PThD"},
+		{`let a = "\\"`, false, "BgICCAIBAAFhAgFcAAAmdEva"},
 		{`let a = "\u1234"`, false, "BgICCAIBAAFhAgPhiLQAAKUbIjo="},
 		{`let a = "\u1234a\t"`, false, "BgICCAIBAAFhAgXhiLRhCQAADF+pNw=="},
 	} {
