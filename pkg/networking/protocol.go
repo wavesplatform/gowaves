@@ -30,9 +30,9 @@ type Protocol interface {
 	Ping() ([]byte, error)
 
 	// IsAcceptableHandshake checks the handshake is acceptable.
-	IsAcceptableHandshake(Handshake) bool
+	IsAcceptableHandshake(*Session, Handshake) bool
 
 	// IsAcceptableMessage checks the message is acceptable by examining its header.
 	// If return false, the message will be discarded.
-	IsAcceptableMessage(Header) bool
+	IsAcceptableMessage(*Session, Header) bool
 }

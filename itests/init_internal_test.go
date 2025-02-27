@@ -42,7 +42,7 @@ func TestMain(m *testing.M) {
 			Tag:        "latest",
 			Platform:   "linux/amd64"},
 		dc.AuthConfiguration{}); plErr != nil {
-		log.Fatalf("Failed to pull node image: %v", err)
+		log.Fatalf("Failed to pull node image: %v", plErr)
 	}
 	var buildArgs []dc.BuildArg
 	if withRaceDetector {
@@ -65,22 +65,22 @@ func TestMain(m *testing.M) {
 	}
 
 	if !keepDangling { // remove dangling images
-		imgs, err := pool.Client.ListImages(dc.ListImagesOptions{
+		images, lsErr := pool.Client.ListImages(dc.ListImagesOptions{
 			Filters: map[string][]string{
 				"label": {"wavesplatform-gowaves-itests-tmp=true"},
 			},
 		})
-		if err != nil {
-			log.Fatalf("Failed to get list of images from docker: %v", err)
+		if lsErr != nil {
+			log.Fatalf("Failed to get list of images from docker: %v", lsErr)
 		}
-		for _, i := range imgs {
-			err = pool.Client.RemoveImageExtended(i.ID, dc.RemoveImageOptions{
+		for _, i := range images {
+			rmErr := pool.Client.RemoveImageExtended(i.ID, dc.RemoveImageOptions{
 				Force:   true,
 				NoPrune: false,
 				Context: nil,
 			})
-			if err != nil {
-				log.Fatalf("Failed to remove dangling images: %v", err)
+			if rmErr != nil {
+				log.Fatalf("Failed to remove dangling images: %v", rmErr)
 			}
 		}
 	}

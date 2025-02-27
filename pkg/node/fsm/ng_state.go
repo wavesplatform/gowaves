@@ -378,7 +378,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 
 func (a *NGState) MicroBlockInv(p peer.Peer, inv *proto.MicroBlockInv) (State, Async, error) {
 	metrics.MicroBlockInv(inv, p.Handshake().NodeName)
-	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID.Bytes())
+	existed := a.baseInfo.invRequester.Request(p, inv.TotalBlockID)
 	if existed {
 		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Microblock inv received: block '%s' already in cache",
 			a, inv.TotalBlockID)
