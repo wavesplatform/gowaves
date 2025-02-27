@@ -53,6 +53,8 @@ const (
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	SymbolSet                  = "~!|#$%^&*()+=;:/?><|][{}\\\\\\\".-_@`"
+	RusLetters                 = "абвгдеёжзиЙклмнопрстуфхцчшщьыъэюяАБВГДЕЁЖЗИКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ"
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
 	DefaultTimeInterval        = 5 * time.Second
@@ -757,7 +759,7 @@ func ExtractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto
 func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transaction) proto.Message {
 	bts, err := proto.MarshalTx(scheme, tx)
 	require.NoError(t, err, "failed to marshal tx")
-	t.Logf("Transaction bytes: %s", base64.StdEncoding.EncodeToString(bts))
+	t.Logf("Transaction bytes: %s, Byte size: %d", base64.StdEncoding.EncodeToString(bts), len(bts))
 	if proto.IsProtobufTx(tx) {
 		return &proto.PBTransactionMessage{Transaction: bts}
 	} else {

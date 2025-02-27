@@ -113,7 +113,64 @@ func GetInvokeScriptAccountStorageUntouchedTestData(suite *f.BaseSuite, dApp,
 func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataSlicePositive] {
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataSlicePositive]{
-		"Checking that data is written correctly": NewInvokeScriptTestData(
+		"Min values for int, string, checking binary values": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("writeData",
+				proto.Arguments{
+					&proto.BinaryArgument{Value: utl.StrToBase16Bytes(suite.T(), "test")},
+					&proto.BinaryArgument{Value: utl.StrToBase58Bytes(suite.T(), "test")},
+					&proto.BinaryArgument{Value: utl.StrToBase64Bytes(suite.T(), "test")},
+					&proto.BooleanArgument{Value: false},
+					&proto.IntegerArgument{Value: -9223372036854775808},
+					&proto.StringArgument{Value: ""}}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			500000,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs(),
+			ExpectedInvokeScriptDataSlicePositive{
+				Address: dApp.Address,
+				DataEntries: []*waves.DataEntry{
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase16",
+						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase58",
+						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase64",
+						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean",
+						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), false)},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger",
+						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(), -9223372036854775808)},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString",
+						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("")},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool",
+						Value: &waves.DataEntry_BoolValue{BoolValue: false},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int",
+						Value: &waves.DataEntry_IntValue{IntValue: -9223372036854775808},
+					},
+					{
+						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
+						Value: &waves.DataEntry_StringValue{StringValue: ""},
+					},
+				},
+			}),
+		"Max value for int, checking binary values": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(dApp.Address),
 			proto.NewFunctionCall("writeData",
@@ -168,6 +225,36 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
 						Value: &waves.DataEntry_StringValue{StringValue: "test string value"},
 					},
+				},
+			}),
+	}
+}
+
+func GetInvokeScriptWriteToStorageStringTestData(suite *f.BaseSuite, version byte,
+	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataPositive] {
+	var maxStrVal string
+	if version == 1 {
+		maxStrVal = utl.RandStringBytes(4935, utl.LettersAndDigits)
+	} else {
+		maxStrVal = utl.SymbolSet + utl.RusLetters + utl.RandStringBytes(4895, utl.LettersAndDigits)
+	}
+	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataPositive]{
+		"Max value for string variable": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("writeMaxValueString",
+				proto.Arguments{
+					&proto.StringArgument{Value: maxStrVal}}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			500000,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs(),
+			ExpectedInvokeScriptDataPositive{
+				Address: dApp.Address,
+				DataEntry: &waves.DataEntry{
+					Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
+					Value: &waves.DataEntry_StringValue{StringValue: maxStrVal},
 				},
 			}),
 	}

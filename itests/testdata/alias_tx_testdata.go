@@ -14,6 +14,7 @@ const (
 	AliasMaxVersion       = 3
 	AliasSymbolSet        = "abcdefghijklmnopqrstuvwxyz0123456789.-_@"
 	AliasInvalidSymbolSet = "ABCDEFGHIJKLMNOPQRSTUVWXYZ~!|#$%^&*()+=;:/?><|][{}\\\""
+	SymbolSet             = "abcdefghijklmnopqrstuvwxyz0123456789.-_@ABCDEFGHIJKLMNOPQRSTUVWXYZ~!|#$%^&*()+=;:/?><|][{}\\\""
 )
 
 type AliasTestData[T any] struct {
