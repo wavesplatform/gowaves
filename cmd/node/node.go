@@ -859,7 +859,7 @@ func initializeBlockchainUpdatesPlugin(
 		state,
 	)
 	if err != nil {
-
+		return nil, errors.Wrap(err, "failed to initialize blockchain updates extension state")
 	}
 
 	l2address, cnvrtErr := proto.NewAddressFromString(l2ContractAddress)

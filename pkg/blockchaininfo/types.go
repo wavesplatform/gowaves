@@ -172,7 +172,7 @@ func (hj *HistoryJournal) CleanAfterRollback(latestHeightFromHistory uint64, hei
 	defer hj.lock.Unlock()
 
 	distance := latestHeightFromHistory - heightAfterRollback
-	if distance < 0 || int(distance) > hj.size {
+	if int(distance) > hj.size {
 		return errors.New("distance out of range")
 	}
 

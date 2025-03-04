@@ -194,11 +194,6 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates proto.BUpdatesInfo, nc 
 	return nil
 }
 
-// initHistoryJournal with 100 past entries from State when the node starts.
-func (bu *BUpdatesExtensionState) initHistoryJournal(updates proto.BUpdatesInfo) {
-	// TODO implement this.
-}
-
 func (bu *BUpdatesExtensionState) addEntriesToHistoryJournalAndCache(updates proto.BUpdatesInfo) {
 	height := updates.BlockUpdatesInfo.Height
 	blockID := updates.BlockUpdatesInfo.BlockID
@@ -266,6 +261,9 @@ func (bu *BUpdatesExtensionState) buildPatch(keysForPatch []string, targetHeight
 		if err != nil {
 			// height is too deep
 			dataEntry, err = bu.st.RetrieveEntry(recipient, dataEntryKey)
+			if err != nil {
+				dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
+			}
 		}
 		if !ok {
 			dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
@@ -314,7 +312,7 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, bu *BUpdatesExtensionSta
 	if bu.rollbackHappened(updates, *bu.previousState) {
 		patch, err := bu.generatePatch(updates)
 		if err != nil {
-
+			zap.S().Errorf("failed to generate a patch, %v", err)
 		}
 		pblshErr := bu.publishUpdates(patch, nc, scheme)
 		if pblshErr != nil {
