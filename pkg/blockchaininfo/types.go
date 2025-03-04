@@ -15,6 +15,81 @@ const (
 	HistoryJournalLengthMax = 100
 )
 
+type StateCacheRecord struct {
+	nonce       uint64
+	dataEntries map[string]proto.DataEntry
+}
+
+func NewStateCacheRecord(dataEntries []proto.DataEntry) StateCacheRecord {
+	var stateCacheRecord StateCacheRecord
+	stateCacheRecord.dataEntries = make(map[string]proto.DataEntry)
+	stateCacheRecord.nonce = 0
+
+	for _, dataEntry := range dataEntries {
+		stateCacheRecord.dataEntries[dataEntry.GetKey()] = dataEntry
+	}
+	return stateCacheRecord
+}
+
+type StateCache struct {
+	lock    sync.Mutex
+	records map[proto.Height]StateCacheRecord
+	heights []uint64
+}
+
+func NewStateCache() *StateCache {
+	return &StateCache{
+		records: make(map[proto.Height]StateCacheRecord),
+	}
+}
+
+func (sc *StateCache) SearchValue(key string, height uint64) (proto.DataEntry, bool, error) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	if _, ok := sc.records[height]; !ok {
+		return nil, false, errors.New("the target height is not in cache")
+	}
+	if _, ok := sc.records[height].dataEntries[key]; !ok {
+		return nil, false, nil
+	}
+
+	return sc.records[height].dataEntries[key], true, nil
+}
+
+func (sc *StateCache) AddCacheRecord(height uint64, dataEntries []proto.DataEntry) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	// clean the oldest record if the cache is too big
+	if len(sc.heights) > HistoryJournalLengthMax {
+		minHeight := sc.heights[0]
+		for _, v := range sc.heights {
+			if v < minHeight {
+				minHeight = v
+			}
+		}
+		delete(sc.records, minHeight)
+	}
+
+	stateCacheRecord := NewStateCacheRecord(dataEntries)
+	sc.records[height] = stateCacheRecord
+	sc.heights = append(sc.heights, height)
+}
+
+func (sc *StateCache) RemoveCacheRecord(targetHeight uint64) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	delete(sc.records, targetHeight)
+
+	for i, item := range sc.heights {
+		if item == targetHeight {
+			sc.heights = append(sc.heights[:i], sc.heights[i+1:]...)
+		}
+	}
+}
+
 type HistoryEntry struct {
 	height  uint64
 	blockID proto.BlockID
@@ -76,18 +151,34 @@ func (hj *HistoryJournal) SearchByBlockID(blockID proto.BlockID) (HistoryEntry, 
 	return HistoryEntry{}, -1, false
 }
 
-// CleanUntil TODO write tests.
-func (hj *HistoryJournal) CleanUntil(distance int) error {
+// SearchByBlockID TODO write tests.
+func (hj *HistoryJournal) TopHeight() (uint64, error) {
 	hj.lock.Lock()
 	defer hj.lock.Unlock()
 
-	if distance < 0 || distance > hj.size {
+	if hj.size == 0 {
+		return 0, errors.New("failed to pull the top height, history journal is empty")
+	}
+
+	// Shift "top" back.
+	hj.top = (hj.top - 1 + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	topHeight := hj.historyJournal[hj.top].height
+	return topHeight, nil
+}
+
+// CleanAfterRollback TODO write tests.
+func (hj *HistoryJournal) CleanAfterRollback(latestHeightFromHistory uint64, heightAfterRollback uint64) error {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	distance := latestHeightFromHistory - heightAfterRollback
+	if distance < 0 || int(distance) > hj.size {
 		return errors.New("distance out of range")
 	}
 
 	// Remove the number of elements from the top to `distance`.
-	hj.top = (hj.top - distance + HistoryJournalLengthMax) % HistoryJournalLengthMax
-	hj.size -= distance
+	hj.top = (hj.top - int(distance) + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	hj.size -= int(distance)
 	return nil
 }
 

@@ -43,11 +43,35 @@ type BUpdatesExtensionState struct {
 	scheme            proto.Scheme
 	l2ContractAddress string
 	historyJournal    *HistoryJournal
+	stateCache        *StateCache
 	st                state.State
 }
 
-func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string, state state.State) *BUpdatesExtensionState {
-	return &BUpdatesExtensionState{Limit: limit, scheme: scheme, l2ContractAddress: l2ContractAddress, historyJournal: NewHistoryJournal(), st: state}
+func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string, state state.State) (*BUpdatesExtensionState, error) {
+	stateCache := NewStateCache()
+	currentHeight, err := state.Height()
+	if err != nil {
+		return nil, err
+	}
+	l2address, cnvrtErr := proto.NewAddressFromString(l2ContractAddress)
+	if cnvrtErr != nil {
+		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %s", l2ContractAddress)
+	}
+	for i := 0; i < HistoryJournalLengthMax; i++ {
+		dataEntriesAtHeight, err := state.RetrieveEntriesAtHeight(l2address, currentHeight)
+		if err != nil {
+			return nil, err
+		}
+		filteredDataEntries, err := filterDataEntries(currentHeight-limit, dataEntriesAtHeight)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to initialize state cache, failed to filter data entries")
+		}
+		stateCache.AddCacheRecord(currentHeight, filteredDataEntries)
+		currentHeight--
+	}
+
+	return &BUpdatesExtensionState{Limit: limit, scheme: scheme,
+		l2ContractAddress: l2ContractAddress, historyJournal: NewHistoryJournal(), stateCache: stateCache, st: state}, nil
 }
 
 func (bu *BUpdatesExtensionState) hasStateChanged() (bool, proto.BUpdatesInfo, error) {
@@ -175,7 +199,7 @@ func (bu *BUpdatesExtensionState) initHistoryJournal(updates proto.BUpdatesInfo)
 	// TODO implement this.
 }
 
-func (bu *BUpdatesExtensionState) addSentEntriesToHistoryJournal(updates proto.BUpdatesInfo) {
+func (bu *BUpdatesExtensionState) addEntriesToHistoryJournalAndCache(updates proto.BUpdatesInfo) {
 	height := updates.BlockUpdatesInfo.Height
 	blockID := updates.BlockUpdatesInfo.BlockID
 
@@ -185,6 +209,7 @@ func (bu *BUpdatesExtensionState) addSentEntriesToHistoryJournal(updates proto.B
 		entries: updates.ContractUpdatesInfo.AllDataEntries,
 	}
 	bu.historyJournal.Push(historyEntry)
+	bu.stateCache.AddCacheRecord(height, updates.ContractUpdatesInfo.AllDataEntries)
 }
 
 func (bu *BUpdatesExtensionState) rollbackHappened(updates proto.BUpdatesInfo, previousState proto.BUpdatesInfo) bool {
@@ -197,16 +222,26 @@ func (bu *BUpdatesExtensionState) rollbackHappened(updates proto.BUpdatesInfo, p
 	return false
 }
 
-func (bu *BUpdatesExtensionState) generatePatch(latestUpdates proto.BUpdatesInfo) proto.BUpdatesInfo {
+func (bu *BUpdatesExtensionState) generatePatch(latestUpdates proto.BUpdatesInfo) (proto.BUpdatesInfo, error) {
 	keysForAnalysis, found := bu.historyJournal.FetchKeysUntilBlockID(latestUpdates.BlockUpdatesInfo.BlockID)
 	if !found {
 		// TODO the rollback is too deep. Emergency restart.
 	}
 
 	// If the key is found in the state, fetch it. If it is not found, it creates a DeleteEntry.
-	patchDataEntries, err := bu.requestPatchFromState(keysForAnalysis)
+	patchDataEntries, err := bu.buildPatch(keysForAnalysis, latestUpdates.BlockUpdatesInfo.Height)
 	if err != nil {
-		return proto.BUpdatesInfo{}
+		return proto.BUpdatesInfo{}, err
+	}
+
+	// Clean the journal after rollback
+	historyJournalLatestHeight, err := bu.historyJournal.TopHeight()
+	if err != nil {
+		return proto.BUpdatesInfo{}, err
+	}
+	err = bu.CleanRecordsAfterRollback(historyJournalLatestHeight, latestUpdates.BlockUpdatesInfo.Height)
+	if err != nil {
+		return proto.BUpdatesInfo{}, err
 	}
 
 	patch := proto.BUpdatesInfo{
@@ -216,10 +251,10 @@ func (bu *BUpdatesExtensionState) generatePatch(latestUpdates proto.BUpdatesInfo
 			Height:         latestUpdates.ContractUpdatesInfo.Height,
 		},
 	}
-	return patch
+	return patch, nil
 }
 
-func (bu *BUpdatesExtensionState) requestPatchFromState(keysForPatch []string) (proto.DataEntries, error) {
+func (bu *BUpdatesExtensionState) buildPatch(keysForPatch []string, targetHeight uint64) (proto.DataEntries, error) {
 	l2WavesAddress, cnvrtErr := proto.NewAddressFromString(bu.l2ContractAddress)
 	if cnvrtErr != nil {
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", bu.l2ContractAddress)
@@ -227,13 +262,34 @@ func (bu *BUpdatesExtensionState) requestPatchFromState(keysForPatch []string) (
 	var patch proto.DataEntries
 	for _, dataEntryKey := range keysForPatch {
 		recipient := proto.NewRecipientFromAddress(l2WavesAddress)
-		dataEntry, err := bu.st.RetrieveEntry(recipient, dataEntryKey)
+		dataEntry, ok, err := bu.stateCache.SearchValue(dataEntryKey, targetHeight)
 		if err != nil {
+			// height is too deep
+			dataEntry, err = bu.st.RetrieveEntry(recipient, dataEntryKey)
+		}
+		if !ok {
 			dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
 		}
 		patch = append(patch, dataEntry)
 	}
 	return patch, nil
+}
+
+func (bu *BUpdatesExtensionState) CleanRecordsAfterRollback(latestHeightFromHistory uint64, heightAfterRollback uint64) error {
+	// TODO should it be historyJournalLatestHeight - latestUpdates.BlockUpdatesInfo.Height + 1?
+	err := bu.historyJournal.CleanAfterRollback(latestHeightFromHistory, heightAfterRollback)
+	if err != nil {
+		return err
+	}
+
+	// This should never happen
+	if latestHeightFromHistory < heightAfterRollback {
+		return errors.New("the height after rollback is bigger than the last saved height")
+	}
+	for i := latestHeightFromHistory; i >= heightAfterRollback; i-- {
+		bu.stateCache.RemoveCacheRecord(i)
+	}
+	return nil
 }
 
 func handleBlockchainUpdate(updates proto.BUpdatesInfo, bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
@@ -256,16 +312,17 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, bu *BUpdatesExtensionSta
 		return
 	}
 	if bu.rollbackHappened(updates, *bu.previousState) {
-		patch := bu.generatePatch(updates)
-		// TODO did I include the current last update from the patch?
+		patch, err := bu.generatePatch(updates)
+		if err != nil {
+
+		}
 		pblshErr := bu.publishUpdates(patch, nc, scheme)
 		if pblshErr != nil {
 			zap.S().Errorf("failed to publish updates, %v", pblshErr)
 			return
 		}
-		bu.addSentEntriesToHistoryJournal(patch)
+		bu.addEntriesToHistoryJournalAndCache(patch)
 		bu.previousState = &patch
-		return
 	}
 	// compare the current state to the previous state
 	stateChanged, changes, cmprErr := bu.hasStateChanged()
@@ -279,7 +336,7 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, bu *BUpdatesExtensionSta
 		if pblshErr != nil {
 			zap.S().Errorf("failed to publish changes, %v", pblshErr)
 		}
-		bu.addSentEntriesToHistoryJournal(changes)
+		bu.addEntriesToHistoryJournalAndCache(changes)
 		bu.previousState = &updates
 	}
 }

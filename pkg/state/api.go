@@ -82,6 +82,7 @@ type StateInfo interface {
 	// Accounts data storage.
 	RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error)
 	RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error)
+	RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error)
 	RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
 	RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)

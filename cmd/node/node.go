@@ -852,12 +852,15 @@ func initializeBlockchainUpdatesPlugin(
 	state state.State,
 ) (*blockchaininfo.BlockchainUpdatesExtension, error) {
 
-	bUpdatesExtensionState := blockchaininfo.NewBUpdatesExtensionState(
+	bUpdatesExtensionState, err := blockchaininfo.NewBUpdatesExtensionState(
 		blockchaininfo.StoreBlocksLimit,
 		cfg.AddressSchemeCharacter,
 		l2ContractAddress,
 		state,
 	)
+	if err != nil {
+
+	}
 
 	l2address, cnvrtErr := proto.NewAddressFromString(l2ContractAddress)
 	if cnvrtErr != nil {

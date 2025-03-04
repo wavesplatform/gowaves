@@ -318,3 +318,29 @@ func TestSendRestartSignal(t *testing.T) {
 
 	require.Equal(t, msg.Data, []byte("ok"))
 }
+
+func TestRollback(t *testing.T) {
+	ts, err := RunNatsTestServer()
+	require.NoError(t, err, "failed to run nats test server")
+	defer ts.Shutdown()
+	// Connect to NATS (adjust URL to match your environment).
+	nc, err := nats.Connect(natsTestURL)
+	require.NoError(t, err, "failed to connect to NATS")
+	defer nc.Close()
+
+	// Subscribe to the L2RequestsTopic to simulate a service that handles the request.
+	_, err = nc.Subscribe(blockchaininfo.L2RequestsTopic, func(msg *nats.Msg) {
+		if string(msg.Data) == blockchaininfo.RequestRestartSubTopic {
+			_ = msg.Respond([]byte("ok"))
+		} else {
+			t.Errorf("unexpected message: %s", msg.Data)
+		}
+	})
+	require.NoError(t, err, "Failed to subscribe to topic")
+
+	// Call the function we're testing.
+	msg, err := blockchaininfo.SendRestartSignal(nc)
+	require.NoError(t, err, "Failed to send a restart signal")
+
+	require.Equal(t, msg.Data, []byte("ok"))
+}

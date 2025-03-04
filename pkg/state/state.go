@@ -2207,6 +2207,17 @@ func (s *stateManager) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height
 	return s.cv.ShouldIncludeNewBlockFieldsOfLightNodeFeature(blockHeight)
 }
 
+func (s *stateManager) RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
+	entries, err := s.stor.accountsDataStor.RetrieveEntriesAtHeight(addr, height)
+	if err != nil {
+		if errors.Is(err, proto.ErrNotFound) {
+			return nil, err
+		}
+		return nil, wrapErr(RetrievalError, err)
+	}
+	return entries, nil
+}
+
 func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias)
 	if err != nil {
