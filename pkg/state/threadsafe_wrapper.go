@@ -206,6 +206,12 @@ func (a *ThreadSafeReadWrapper) RetrieveEntries(account proto.Recipient) ([]prot
 	return a.s.RetrieveEntries(account)
 }
 
+func (a *ThreadSafeReadWrapper) RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.RetrieveEntriesAtHeight(addr, height)
+}
+
 func (a *ThreadSafeReadWrapper) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

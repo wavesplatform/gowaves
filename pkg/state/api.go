@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
@@ -83,6 +82,7 @@ type StateInfo interface {
 	// Accounts data storage.
 	RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error)
 	RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error)
+	RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error)
 	RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
 	RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)
@@ -233,9 +233,9 @@ func NewState(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
-	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension,
+	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo,
 ) (State, error) {
-	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode, bUpdatesExtension)
+	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode, bUpdatesPluginInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

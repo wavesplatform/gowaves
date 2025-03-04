@@ -14,8 +14,8 @@ import (
 const natsTestURL = "nats://127.0.0.1:4756"
 
 // some random test data.
-func testBlockUpdates() blockchaininfo.BlockUpdatesInfo {
-	var b blockchaininfo.BlockUpdatesInfo
+func testBlockUpdates() proto.BlockUpdatesInfo {
+	var b proto.BlockUpdatesInfo
 
 	var (
 		height      uint64 = 100
@@ -92,17 +92,17 @@ func TestChangesGenerationNewEntries(t *testing.T) {
 	}
 	var currentHeight uint64 = 3199611
 
-	previousBlockInfo := blockchaininfo.BUpdatesInfo{
+	previousBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: previousDataEntries,
 			Height:         previousHeight,
 		},
 	}
 
-	currentBlockInfo := blockchaininfo.BUpdatesInfo{
+	currentBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: currentDataEntries,
 			Height:         currentHeight,
 		},
@@ -171,17 +171,17 @@ func TestChangesGenerationContainsPrevious(t *testing.T) {
 	}
 	var currentHeight uint64 = 3199611
 
-	previousBlockInfo := blockchaininfo.BUpdatesInfo{
+	previousBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: previousDataEntries,
 			Height:         previousHeight,
 		},
 	}
 
-	currentBlockInfo := blockchaininfo.BUpdatesInfo{
+	currentBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: currentDataEntries,
 			Height:         currentHeight,
 		},
@@ -233,17 +233,17 @@ func TestNoChangesGeneration(t *testing.T) {
 	}
 	var currentHeight uint64 = 3199611
 
-	previousBlockInfo := blockchaininfo.BUpdatesInfo{
+	previousBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: previousDataEntries,
 			Height:         previousHeight,
 		},
 	}
 
-	currentBlockInfo := blockchaininfo.BUpdatesInfo{
+	currentBlockInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: testBlockUpdates(),
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: currentDataEntries,
 			Height:         currentHeight,
 		},
@@ -294,6 +294,32 @@ func RunNatsTestServer() (*server.Server, error) {
 }
 
 func TestSendRestartSignal(t *testing.T) {
+	ts, err := RunNatsTestServer()
+	require.NoError(t, err, "failed to run nats test server")
+	defer ts.Shutdown()
+	// Connect to NATS (adjust URL to match your environment).
+	nc, err := nats.Connect(natsTestURL)
+	require.NoError(t, err, "failed to connect to NATS")
+	defer nc.Close()
+
+	// Subscribe to the L2RequestsTopic to simulate a service that handles the request.
+	_, err = nc.Subscribe(blockchaininfo.L2RequestsTopic, func(msg *nats.Msg) {
+		if string(msg.Data) == blockchaininfo.RequestRestartSubTopic {
+			_ = msg.Respond([]byte("ok"))
+		} else {
+			t.Errorf("unexpected message: %s", msg.Data)
+		}
+	})
+	require.NoError(t, err, "Failed to subscribe to topic")
+
+	// Call the function we're testing.
+	msg, err := blockchaininfo.SendRestartSignal(nc)
+	require.NoError(t, err, "Failed to send a restart signal")
+
+	require.Equal(t, msg.Data, []byte("ok"))
+}
+
+func TestRollback(t *testing.T) {
 	ts, err := RunNatsTestServer()
 	require.NoError(t, err, "failed to run nats test server")
 	defer ts.Shutdown()
