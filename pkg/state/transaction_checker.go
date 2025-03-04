@@ -894,7 +894,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	}
 	txa := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: ordersSmartAssets}
 	if errCF := tc.checkFee(transaction, txa, info); errCF != nil {
-		return nil, err
+		return nil, errCF
 	}
 	smartAssetsActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAssets))
 	if err != nil {
