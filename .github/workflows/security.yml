@@ -48,7 +48,10 @@ jobs:
       - name: Run semgrep security scanner
         run: |
           cat << 'EOF' | bash
-              semgrep ci --config=auto --sarif --output=semgrep.sarif --max-target-bytes=2MB
+              semgrep ci --config="auto" --config="r/default" --config="r/go" --config="r/dgryski" \
+                --config="r/trailofbits" --config="r/gitlab.gosec" --config="r/dockerfile" --config="r/bash" \
+                --config="r/problem-based-packs" --config="r/generic" --config="r/yaml" --config="r/json" \
+                --sarif --dataflow-traces --output=semgrep.sarif --max-target-bytes=2MB
               EXIT_CODE=$?
               if [ "$EXIT_CODE" = "0" ] || [ "$EXIT_CODE" = "1" ]
               then
