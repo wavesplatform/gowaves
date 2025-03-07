@@ -234,7 +234,7 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 			return txDiff{}, err
 		}
 		if mpErr := d.doMinerPayoutBeforeNG(minerDiff, blockHeader.Timestamp, minerAddr, transactions); mpErr != nil {
-			return txDiff{}, errors.Wrap(err, "failed to count miner payout")
+			return txDiff{}, errors.Wrap(mpErr, "failed to count miner payout")
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, blockHeader)
 	}
