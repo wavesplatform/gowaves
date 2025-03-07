@@ -518,7 +518,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 			if nftErr := ai.initIsNFTFlag(ia.stor.features); nftErr != nil {
 				return proto.DAppError, info.failedChanges,
-					errors.Wrapf(err, "failed to initialize isNFT flag for asset %s", a.ID.String())
+					errors.Wrapf(nftErr, "failed to initialize isNFT flag for asset %s", a.ID.String())
 			}
 
 			id := proto.AssetIDFromDigest(a.ID)
