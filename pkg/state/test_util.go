@@ -11,9 +11,10 @@ import (
 	"runtime"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 var (
@@ -78,8 +79,8 @@ func readRealBlocks(blocksPath string, nBlocks int) ([]proto.Block, error) {
 	}
 	cachedBlocks = blocks
 
-	if err := f.Close(); err != nil {
-		return nil, errors.Errorf("failed to close blockchain file: %v", err.Error())
+	if cErr := f.Close(); cErr != nil {
+		return nil, errors.Wrap(cErr, "failed to close blockchain file")
 	}
 
 	return blocks, nil
