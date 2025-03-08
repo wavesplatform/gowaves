@@ -524,14 +524,15 @@ func newStateManager(
 		return nil, err
 	}
 	if _, err := os.Stat(dataDir); errors.Is(err, fs.ErrNotExist) {
-		if err := os.Mkdir(dataDir, 0750); err != nil {
-			return nil, wrapErr(Other, errors.Errorf("failed to create state directory: %v", err))
+		if dirErr := os.Mkdir(dataDir, 0750); dirErr != nil {
+			wErr := errors.Wrap(dirErr, "failed to create state directory")
+			return nil, wrapErr(Other, wErr)
 		}
 	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); errors.Is(err, fs.ErrNotExist) {
-		if err := os.Mkdir(blockStorageDir, 0750); err != nil {
-			return nil, wrapErr(Other, errors.Errorf("failed to create blocks directory: %v", err))
+		if dirErr := os.Mkdir(blockStorageDir, 0750); dirErr != nil {
+			return nil, wrapErr(Other, errors.Wrap(dirErr, "failed to create blocks directory"))
 		}
 	}
 	// Initialize database.
