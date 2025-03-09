@@ -157,7 +157,7 @@ func (s *scoreSelector) selectBestPeer(currentBest peer.ID) (peer.ID, *proto.Sco
 		}
 		// The peer was not found in the larges group, time to change the peer.
 		// Select the random peer from the group and return it along with a new score value.
-		i := rand.IntN(len(g.peers))
+		i := rand.IntN(len(g.peers)) // #nosec: it's ok to use math/rand/v2 here
 		heap.Push(s.groups, g)
 		return g.peers[i], g.score
 	}
