@@ -4,6 +4,7 @@ package itests
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -14,7 +15,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"golang.org/x/exp/maps"
 )
 
 type BurnTxSuite struct {
