@@ -1,6 +1,8 @@
 package blockchaininfo_test
 
 import (
+	"github.com/golang/mock/gomock"
+	"github.com/wavesplatform/gowaves/pkg/mock"
 	"testing"
 
 	"github.com/nats-io/nats-server/v2/server"
@@ -319,28 +321,51 @@ func TestSendRestartSignal(t *testing.T) {
 	require.Equal(t, msg.Data, []byte("ok"))
 }
 
+//type BlockchainInfoExtensionStateTest struct {
+//}
+//
+//func (be *BlockchainInfoExtensionStateTest) HasStateChanged() (bool, proto.BUpdatesInfo, error) {
+//	return false, proto.BUpdatesInfo{}, nil
+//}
+//func (be *BlockchainInfoExtensionStateTest) StatesEqual(scheme proto.Scheme) (bool, proto.BUpdatesInfo, error) {
+//	return false, proto.BUpdatesInfo{}, nil
+//}
+//func (be *BlockchainInfoExtensionStateTest) PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nats.Conn) error {
+//	return nil
+//}
+//func (be *BlockchainInfoExtensionStateTest) PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+//	return nil
+//}
+//func (be *BlockchainInfoExtensionStateTest) PublishUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+//	return nil
+//}
+//func (be *BlockchainInfoExtensionStateTest) AddEntriesToHistoryJournalAndCache(updates proto.BUpdatesInfo) {
+//}
+//func (be *BlockchainInfoExtensionStateTest) RollbackHappened(updates proto.BUpdatesInfo, previousState proto.BUpdatesInfo) bool {
+//	return false
+//}
+//func (be *BlockchainInfoExtensionStateTest) GeneratePatch(latestUpdates proto.BUpdatesInfo) (proto.BUpdatesInfo, error) {
+//	return proto.BUpdatesInfo{}, nil
+//}
+//func (be *BlockchainInfoExtensionStateTest) BuildPatch(keysForPatch []string, targetHeight uint64) (proto.DataEntries, error) {
+//	return nil, nil
+//}
+//func (be *BlockchainInfoExtensionStateTest) CleanRecordsAfterRollback(latestHeightFromHistory uint64, heightAfterRollback uint64) error {
+//	return nil
+//}
+//func (be *BlockchainInfoExtensionStateTest) SetPreviousState(updates proto.BUpdatesInfo) {}
+
 func TestRollback(t *testing.T) {
-	ts, err := RunNatsTestServer()
-	require.NoError(t, err, "failed to run nats test server")
-	defer ts.Shutdown()
-	// Connect to NATS (adjust URL to match your environment).
-	nc, err := nats.Connect(natsTestURL)
-	require.NoError(t, err, "failed to connect to NATS")
-	defer nc.Close()
-
-	// Subscribe to the L2RequestsTopic to simulate a service that handles the request.
-	_, err = nc.Subscribe(blockchaininfo.L2RequestsTopic, func(msg *nats.Msg) {
-		if string(msg.Data) == blockchaininfo.RequestRestartSubTopic {
-			_ = msg.Respond([]byte("ok"))
-		} else {
-			t.Errorf("unexpected message: %s", msg.Data)
-		}
+	//var be *BUpdatesExtensionState
+	//
+	var updates proto.BUpdatesInfo
+	//
+	//var blockchainInfoExt BlockchainInfoExtensionStateTest
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+	mockBlockchaininfo := mock.NewMockUpdatesExtensionState(ctrl)
+	mockBlockchaininfo.EXPECT().
+		PublishBlockUpdates(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(updates, nc, scheme interface{}) { // do nothing
 	})
-	require.NoError(t, err, "Failed to subscribe to topic")
-
-	// Call the function we're testing.
-	msg, err := blockchaininfo.SendRestartSignal(nc)
-	require.NoError(t, err, "Failed to send a restart signal")
-
-	require.Equal(t, msg.Data, []byte("ok"))
+	blockchaininfo.HandleRollback(mockBlockchaininfo, updates, nil, proto.TestNetScheme)
 }
