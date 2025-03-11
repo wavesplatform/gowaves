@@ -238,7 +238,7 @@ mock:
 	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
 	mockgen -source pkg/grpc/server/api.go -destination pkg/mock/grpc.go -package mock GrpcHandlers
 #	mockgen -source pkg/blockchaininfo/types.go -destination pkg/mock/blockchaininfo_types.go -package mock UpdatesExtensionState
-	mockery --dir=pkg/blockchaininfo --name=UpdatesExtensionState  --filename=types.go --output=pkg/mock/blockchaininfo_types.go --outpkg=mock
+	mockery --PackagePath=pkg/blockchaininfo --InterfaceName=UpdatesPublisherInterface --dir=pkg/mock --filename=blockchaininfo_types.go --outpkg=mock
 
 proto:
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-vtproto_out=./ --go-vtproto_opt=features=marshal_strict+unmarshal+size --go-vtproto_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/*.proto

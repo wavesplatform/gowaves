@@ -2,6 +2,7 @@ package blockchaininfo
 
 import (
 	"bytes"
+	"github.com/nats-io/nats.go"
 	"sync"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,12 @@ const (
 
 	HistoryJournalLengthMax = 100
 )
+
+type UpdatesPublisherInterface interface {
+	PublishUpdates(updates proto.BUpdatesInfo,
+		nc *nats.Conn, scheme proto.Scheme, l2ContractAddress string) error
+	L2ContractAddress() string
+}
 
 type StateCacheRecord struct {
 	nonce       uint64

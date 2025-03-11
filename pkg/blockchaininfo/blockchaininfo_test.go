@@ -1,7 +1,6 @@
 package blockchaininfo_test
 
 import (
-	"github.com/golang/mock/gomock"
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"testing"
 
@@ -356,16 +355,13 @@ func TestSendRestartSignal(t *testing.T) {
 //func (be *BlockchainInfoExtensionStateTest) SetPreviousState(updates proto.BUpdatesInfo) {}
 
 func TestRollback(t *testing.T) {
-	//var be *BUpdatesExtensionState
-	//
 	var updates proto.BUpdatesInfo
-	//
-	//var blockchainInfoExt BlockchainInfoExtensionStateTest
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-	mockBlockchaininfo := mock.NewMockUpdatesExtensionState(ctrl)
-	mockBlockchaininfo.EXPECT().
-		PublishBlockUpdates(gomock.Any(), gomock.Any(), gomock.Any()).Do(func(updates, nc, scheme interface{}) { // do nothing
-	})
+	mockBlockchaininfo := mock.NewMockUpdatesExtensionState(t)
+	mockBlockchaininfo.EXPECT().PublishUpdates(nil, nil, 't').Return(nil)
+
+	historyJournal := blockchaininfo.HistoryJournal{}
+
+	// Rollback from block 210 to 208
+
 	blockchaininfo.HandleRollback(mockBlockchaininfo, updates, nil, proto.TestNetScheme)
 }

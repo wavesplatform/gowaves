@@ -47,6 +47,10 @@ type BUpdatesExtensionState struct {
 	st                state.State
 }
 
+type UpdatesPublisher struct {
+	l2ContractAddress string
+}
+
 func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string, state state.State) (*BUpdatesExtensionState, error) {
 	stateCache := NewStateCache()
 	currentHeight, err := state.Height()
@@ -110,7 +114,8 @@ func splitIntoChunks(array []byte, maxChunkSize int) [][]byte {
 	return chunkedArray
 }
 
-func (bu *BUpdatesExtensionState) PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nats.Conn) error {
+func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nats.Conn,
+	l2ContractAddress string) error {
 	dataEntriesProtobuf, err := L2ContractDataEntriesToProto(contractUpdates).MarshalVTStrict()
 	if err != nil {
 		return err
@@ -120,12 +125,12 @@ func (bu *BUpdatesExtensionState) PublishContractUpdates(contractUpdates proto.L
 		var msg []byte
 		msg = append(msg, NoPaging)
 		msg = append(msg, dataEntriesProtobuf...)
-		err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
+		err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 		if err != nil {
-			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 			return err
 		}
-		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 		return nil
 	}
 
@@ -137,29 +142,29 @@ func (bu *BUpdatesExtensionState) PublishContractUpdates(contractUpdates proto.L
 		if i == len(chunkedPayload)-1 {
 			msg = append(msg, EndPaging)
 			msg = append(msg, chunk...)
-			err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
+			err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 			if err != nil {
-				zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+				zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 				return err
 			}
-			zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 			break
 		}
 		msg = append(msg, StartPaging)
 		msg = append(msg, chunk...)
-		err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
+		err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 		if err != nil {
-			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 			return err
 		}
-		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 		time.Sleep(publisherWaitingTime)
 	}
 
 	return nil
 }
 
-func (bu *BUpdatesExtensionState) PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+func PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
 	blockInfo, err := BUpdatesInfoToProto(updates, scheme)
 	if err != nil {
 		return err
@@ -177,9 +182,10 @@ func (bu *BUpdatesExtensionState) PublishBlockUpdates(updates proto.BUpdatesInfo
 	return nil
 }
 
-func (bu *BUpdatesExtensionState) PublishUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+func (p *UpdatesPublisher) PublishUpdates(updates proto.BUpdatesInfo,
+	nc *nats.Conn, scheme proto.Scheme, l2ContractAddress string) error {
 	/* first publish block data */
-	err := bu.PublishBlockUpdates(updates, nc, scheme)
+	err := PublishBlockUpdates(updates, nc, scheme)
 	if err != nil {
 		zap.S().Errorf("failed to publish message on topic %s", BlockUpdates)
 		return err
@@ -187,15 +193,19 @@ func (bu *BUpdatesExtensionState) PublishUpdates(updates proto.BUpdatesInfo, nc 
 
 	/* second publish contract data entries */
 	if updates.ContractUpdatesInfo.AllDataEntries != nil {
-		pblshErr := bu.PublishContractUpdates(updates.ContractUpdatesInfo, nc)
+		pblshErr := PublishContractUpdates(updates.ContractUpdatesInfo, nc, l2ContractAddress)
 		if pblshErr != nil {
-			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(p.L2ContractAddress()))
 			return pblshErr
 		}
-		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(p.L2ContractAddress()))
 	}
 
 	return nil
+}
+
+func (p *UpdatesPublisher) L2ContractAddress() string {
+	return p.l2ContractAddress
 }
 
 func (bu *BUpdatesExtensionState) AddEntriesToHistoryJournalAndCache(updates proto.BUpdatesInfo) {
@@ -294,12 +304,13 @@ func (bu *BUpdatesExtensionState) CleanRecordsAfterRollback(latestHeightFromHist
 	return nil
 }
 
-func HandleRollback(be UpdatesExtensionState, updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) {
+func HandleRollback(be *BUpdatesExtensionState, updates proto.BUpdatesInfo, updatesPublisher UpdatesPublisherInterface,
+	nc *nats.Conn, scheme proto.Scheme) {
 	patch, err := be.GeneratePatch(updates)
 	if err != nil {
 		zap.S().Errorf("failed to generate a patch, %v", err)
 	}
-	pblshErr := be.PublishUpdates(patch, nc, scheme)
+	pblshErr := updatesPublisher.PublishUpdates(patch, nc, scheme)
 	if pblshErr != nil {
 		zap.S().Errorf("failed to publish updates, %v", pblshErr)
 		return
@@ -310,6 +321,7 @@ func HandleRollback(be UpdatesExtensionState, updates proto.BUpdatesInfo, nc *na
 
 func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
 	// update current state
+	updatesPublisher := UpdatesPublisher{l2ContractAddress: be.l2ContractAddress}
 	be.currentState = &updates
 	if be.previousState == nil {
 		// publish initial updates
@@ -319,7 +331,7 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionSta
 			return
 		}
 		updates.ContractUpdatesInfo.AllDataEntries = filteredDataEntries
-		pblshErr := be.PublishUpdates(updates, nc, scheme)
+		pblshErr := updatesPublisher.PublishUpdates(updates, &updatesPublisher, nc, scheme)
 		if pblshErr != nil {
 			zap.S().Errorf("failed to publish updates, %v", pblshErr)
 			return
@@ -328,7 +340,7 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionSta
 		return
 	}
 	if be.RollbackHappened(updates, *be.previousState) {
-		HandleRollback(be, updates, nc, scheme)
+		HandleRollback(be, updates, &updatesPublisher, nc, scheme)
 	}
 	// compare the current state to the previous state
 	stateChanged, changes, cmprErr := be.HasStateChanged()
@@ -338,7 +350,7 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionSta
 	}
 	// if there is any diff, send the update
 	if stateChanged {
-		pblshErr := be.PublishUpdates(changes, nc, scheme)
+		pblshErr := updatesPublisher.PublishUpdates(updates, &updatesPublisher, nc, scheme)
 		if pblshErr != nil {
 			zap.S().Errorf("failed to publish changes, %v", pblshErr)
 		}
