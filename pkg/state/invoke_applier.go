@@ -324,7 +324,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	// Resolve all aliases.
 	// It has to be done before validation because we validate addresses, not aliases.
 	if err := ia.resolveAliases(info.actions); err != nil {
-		return proto.DAppError, info.failedChanges, errors.New("ScriptResult; failed to resolve aliases")
+		return proto.DAppError, info.failedChanges, errors.Wrap(err, "ScriptResult; failed to resolve aliases")
 	}
 	// Validate produced actions.
 	isUTF16KeyLen := !info.blockV5Activated // if RideV4 isn't activated
@@ -518,7 +518,7 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 			if nftErr := ai.initIsNFTFlag(ia.stor.features); nftErr != nil {
 				return proto.DAppError, info.failedChanges,
-					errors.Wrapf(err, "failed to initialize isNFT flag for asset %s", a.ID.String())
+					errors.Wrapf(nftErr, "failed to initialize isNFT flag for asset %s", a.ID.String())
 			}
 
 			id := proto.AssetIDFromDigest(a.ID)
