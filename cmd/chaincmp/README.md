@@ -46,4 +46,4 @@ To get more information about differences between chains use `--verbose` flag. I
 * Result code `2` - The code means that some of command line parameters were incorrect.
 * Result code `69` - Some of the nodes are unavailable of could not be reached by network.
 * Result code `70` - Internal error
-* Result code `130` - The programm was terminated by user (Ctrl-C).
+* Result code `130` - The program was terminated by user (Ctrl-C).
