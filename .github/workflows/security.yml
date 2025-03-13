@@ -51,7 +51,7 @@ jobs:
               semgrep ci --config="auto" --config="r/default" --config="r/go" --config="r/dgryski" \
                 --config="r/trailofbits" --config="r/dockerfile" --config="r/bash" \
                 --config="r/problem-based-packs" --config="r/generic" --config="r/yaml" --config="r/json" \
-                --sarif --dataflow-traces --output=semgrep.sarif --max-target-bytes=2MB
+                --config="./.semgrep/rules" --sarif --dataflow-traces --output=semgrep.sarif --max-target-bytes=2MB
               EXIT_CODE=$?
               if [ "$EXIT_CODE" = "0" ] || [ "$EXIT_CODE" = "1" ]
               then
