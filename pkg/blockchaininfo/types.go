@@ -23,18 +23,18 @@ type UpdatesPublisherInterface interface {
 }
 
 type StateCacheRecord struct {
-	nonce       uint64
 	dataEntries map[string]proto.DataEntry
+	blockInfo   proto.BlockUpdatesInfo
 }
 
-func NewStateCacheRecord(dataEntries []proto.DataEntry) StateCacheRecord {
+func NewStateCacheRecord(dataEntries []proto.DataEntry, blockInfo proto.BlockUpdatesInfo) StateCacheRecord {
 	var stateCacheRecord StateCacheRecord
 	stateCacheRecord.dataEntries = make(map[string]proto.DataEntry)
-	stateCacheRecord.nonce = 0
 
 	for _, dataEntry := range dataEntries {
 		stateCacheRecord.dataEntries[dataEntry.GetKey()] = dataEntry
 	}
+	stateCacheRecord.blockInfo = blockInfo
 	return stateCacheRecord
 }
 
@@ -60,14 +60,22 @@ func (sc *StateCache) SearchValue(key string, height uint64) (proto.DataEntry, b
 	if _, ok := sc.records[height].dataEntries[key]; !ok {
 		return nil, false, nil
 	}
-
 	return sc.records[height].dataEntries[key], true, nil
 }
 
-func (sc *StateCache) AddCacheRecord(height uint64, dataEntries []proto.DataEntry) {
+func (sc *StateCache) SearchBlockInfo(height uint64) (proto.BlockUpdatesInfo, error) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 
+	if _, ok := sc.records[height]; !ok {
+		return proto.BlockUpdatesInfo{}, errors.New("the target height is not in cache")
+	}
+	return sc.records[height].blockInfo, nil
+}
+
+func (sc *StateCache) AddCacheRecord(height uint64, dataEntries []proto.DataEntry, blockInfo proto.BlockUpdatesInfo) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
 	// clean the oldest record if the cache is too big
 	if len(sc.heights) > HistoryJournalLengthMax {
 		minHeight := sc.heights[0]
@@ -78,8 +86,7 @@ func (sc *StateCache) AddCacheRecord(height uint64, dataEntries []proto.DataEntr
 		}
 		delete(sc.records, minHeight)
 	}
-
-	stateCacheRecord := NewStateCacheRecord(dataEntries)
+	stateCacheRecord := NewStateCacheRecord(dataEntries, blockInfo)
 	sc.records[height] = stateCacheRecord
 	sc.heights = append(sc.heights, height)
 }
@@ -98,9 +105,9 @@ func (sc *StateCache) RemoveCacheRecord(targetHeight uint64) {
 }
 
 type HistoryEntry struct {
-	height  uint64
-	blockID proto.BlockID
-	entries proto.DataEntries
+	Height  uint64
+	BlockID proto.BlockID
+	Entries proto.DataEntries
 }
 
 type HistoryJournal struct {
@@ -131,11 +138,11 @@ func (hj *HistoryJournal) FetchKeysUntilBlockID(blockID proto.BlockID) ([]string
 		idx := (hj.top - 1 - i + HistoryJournalLengthMax) % HistoryJournalLengthMax
 		historyEntry := hj.historyJournal[idx]
 
-		dataEntries := historyEntry.entries
+		dataEntries := historyEntry.Entries
 		for _, dataEntry := range dataEntries {
 			keys = append(keys, dataEntry.GetKey())
 		}
-		if historyEntry.blockID == blockID {
+		if historyEntry.BlockID == blockID {
 			return keys, true
 		}
 	}
@@ -151,7 +158,7 @@ func (hj *HistoryJournal) SearchByBlockID(blockID proto.BlockID) (HistoryEntry, 
 	// Iterate over the elements from the top (latest) to the bottom.
 	for i := 0; i < hj.size; i++ {
 		idx := (hj.top - 1 - i + HistoryJournalLengthMax) % HistoryJournalLengthMax
-		if hj.historyJournal[idx].blockID == blockID {
+		if hj.historyJournal[idx].BlockID == blockID {
 			return hj.historyJournal[idx], i, true
 		}
 	}
@@ -169,7 +176,7 @@ func (hj *HistoryJournal) TopHeight() (uint64, error) {
 
 	// Shift "top" back.
 	hj.top = (hj.top - 1 + HistoryJournalLengthMax) % HistoryJournalLengthMax
-	topHeight := hj.historyJournal[hj.top].height
+	topHeight := hj.historyJournal[hj.top].Height
 	return topHeight, nil
 }
 

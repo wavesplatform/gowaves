@@ -36,6 +36,7 @@ type StateInfo interface {
 	TopBlock() *proto.Block
 	Block(blockID proto.BlockID) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
+	NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error)
 	// Header getters.
 	Header(blockID proto.BlockID) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)

@@ -45,7 +45,7 @@ func (e *BlockchainUpdatesExtension) IsFirstRequestedBlock() bool {
 func (e *BlockchainUpdatesExtension) EmptyPreviousState() {
 	e.Lock.Lock()
 	*e.firstBlock = true
-	e.blockchainExtensionState.previousState = nil
+	e.blockchainExtensionState.PreviousState = nil
 	defer e.Lock.Unlock()
 }
 

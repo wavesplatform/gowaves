@@ -237,8 +237,8 @@ mock:
 	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
 	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
 	mockgen -source pkg/grpc/server/api.go -destination pkg/mock/grpc.go -package mock GrpcHandlers
-#	mockgen -source pkg/blockchaininfo/types.go -destination pkg/mock/blockchaininfo_types.go -package mock UpdatesExtensionState
-	mockery --PackagePath=pkg/blockchaininfo --InterfaceName=UpdatesPublisherInterface --dir=pkg/mock --filename=blockchaininfo_types.go --outpkg=mock
+	mockery --dir=pkg/mock --filename=blockchaininfo_types.go --outpkg=mock # The interface name must be specified in .mockery.yaml, see examples there.
+
 
 proto:
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-vtproto_out=./ --go-vtproto_opt=features=marshal_strict+unmarshal+size --go-vtproto_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/*.proto
