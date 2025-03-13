@@ -76,7 +76,7 @@ func main() {
 
 	defer func() {
 		if err := conn.Close(); err != nil {
-			zap.S().Errorf("failed to close connetion: %v", err)
+			zap.S().Errorf("failed to close connection: %v", err)
 		}
 	}()
 

@@ -63,7 +63,7 @@ func run() error {
 	}
 	sc = scheme[0]
 	if timestamp <= 0 {
-		return errors.Errorf("ivalid timestamp '%d'", timestamp)
+		return errors.Errorf("invalid timestamp '%d'", timestamp)
 	}
 	ts = uint64(timestamp)
 	if shift != 0 {
