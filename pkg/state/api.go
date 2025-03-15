@@ -199,7 +199,7 @@ type StateModifier interface {
 	// State will provide extended API data after returning.
 	StartProvidingExtendedApi() error
 
-	// PersisAddressTransactions sorts and saves transactions to storage.
+	// PersistAddressTransactions sorts and saves transactions to storage.
 	PersistAddressTransactions() error
 
 	Close() error
