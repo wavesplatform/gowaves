@@ -2,8 +2,9 @@ package blockchaininfo
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/proto"
 	"sync"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 type BlockchainUpdatesExtension struct {
@@ -19,12 +20,9 @@ func NewBlockchainUpdatesExtension(
 	ctx context.Context,
 	l2ContractAddress proto.WavesAddress,
 	bUpdatesChannel chan proto.BUpdatesInfo,
-	buPatchChannel chan proto.DataEntries,
-	buPatchRequestChannel chan []string,
 	blockchainExtensionState *BUpdatesExtensionState,
 	firstBlock *bool,
 ) *BlockchainUpdatesExtension {
-
 	return &BlockchainUpdatesExtension{
 		Ctx:                      ctx,
 		l2ContractAddress:        l2ContractAddress,

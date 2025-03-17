@@ -2,9 +2,11 @@ package blockchaininfo
 
 import (
 	"bytes"
-	"github.com/nats-io/nats.go"
+	"fmt"
+	"math"
 	"sync"
 
+	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -112,16 +114,18 @@ type HistoryEntry struct {
 
 type HistoryJournal struct {
 	lock           sync.Mutex
+	StateCache     *StateCache
 	historyJournal [HistoryJournalLengthMax]HistoryEntry
 	top            int
 	size           int
 }
 
 // NewHistoryJournal создаёт и инициализирует новый экземпляр HistoryJournal.
-func NewHistoryJournal() *HistoryJournal {
+func NewHistoryJournal(stateCache *StateCache) *HistoryJournal {
 	return &HistoryJournal{
-		top:  0,
-		size: 0,
+		StateCache: stateCache,
+		top:        0,
+		size:       0,
 	}
 }
 
@@ -186,12 +190,17 @@ func (hj *HistoryJournal) CleanAfterRollback(latestHeightFromHistory uint64, hei
 	defer hj.lock.Unlock()
 
 	distance := latestHeightFromHistory - heightAfterRollback
-	if int(distance) > hj.size {
+	if distance > math.MaxInt64 {
+		return fmt.Errorf("distance too large to fit in an int64")
+	}
+	dist := int64(distance)
+
+	if int(dist) > hj.size {
 		return errors.New("distance out of range")
 	}
 
 	// Remove the number of elements from the top to `distance`.
-	hj.top = (hj.top - int(distance) + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	hj.top = (hj.top - int(dist) + HistoryJournalLengthMax) % HistoryJournalLengthMax
 	hj.size -= int(distance)
 	return nil
 }

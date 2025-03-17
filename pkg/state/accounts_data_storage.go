@@ -333,18 +333,18 @@ func (s *accountsDataStorage) RetrieveEntriesAtHeight(addr proto.Address, height
 		pos += int(valueSize)
 
 		var record dataEntryRecord
-		if err := record.unmarshalBinary(value); err != nil {
-			return nil, err
+		if unmarhslErr := record.unmarshalBinary(value); unmarhslErr != nil {
+			return nil, unmarhslErr
 		}
 
 		var entryKey accountsDataStorKey
-		if err := entryKey.unmarshal(key); err != nil {
-			return nil, err
+		if marshlErr := entryKey.unmarshal(key); marshlErr != nil {
+			return nil, marshlErr
 		}
 
-		entry, err := proto.NewDataEntryFromValueBytes(record.value)
-		if err != nil {
-			return nil, err
+		entry, convErr := proto.NewDataEntryFromValueBytes(record.value)
+		if convErr != nil {
+			return nil, convErr
 		}
 
 		entry.SetKey(entryKey.entryKey)

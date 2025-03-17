@@ -372,16 +372,17 @@ func run(nc *config) (retErr error) {
 	return nil
 }
 
-func initBlockchainUpdatesPlugin(l2addressContract string,
+func initBlockchainUpdatesPlugin(ctx context.Context,
+	l2addressContract string,
 	enableBlockchainUpdatesPlugin bool,
-	updatesChannel chan<- proto.BUpdatesInfo,
-	ctx context.Context, firstBlock *bool,
+	updatesChannel chan<- proto.BUpdatesInfo, firstBlock *bool,
 ) (*proto.BlockchainUpdatesPluginInfo, error) {
 	l2address, cnvrtErr := proto.NewAddressFromString(l2addressContract)
 	if cnvrtErr != nil {
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2addressContract)
 	}
-	bUpdatesPluginInfo := proto.NewBlockchainUpdatesPluginInfo(l2address, updatesChannel, ctx, firstBlock, enableBlockchainUpdatesPlugin)
+	bUpdatesPluginInfo := proto.NewBlockchainUpdatesPluginInfo(ctx, l2address, updatesChannel,
+		firstBlock, enableBlockchainUpdatesPlugin)
 	return bUpdatesPluginInfo, nil
 }
 
@@ -418,7 +419,8 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 
 	updatesChannel := make(chan proto.BUpdatesInfo)
 	firstBlock := false
-	bUpdatesPluginInfo, initErr := initBlockchainUpdatesPlugin(nc.BlockchainUpdatesL2Address, nc.enableBlockchainUpdatesPlugin, updatesChannel, ctx, &firstBlock)
+	bUpdatesPluginInfo, initErr := initBlockchainUpdatesPlugin(ctx, nc.BlockchainUpdatesL2Address,
+		nc.enableBlockchainUpdatesPlugin, updatesChannel, &firstBlock)
 	if initErr != nil {
 		return nil, errors.Wrap(err, "failed to initialize blockchain updates plugin")
 	}
@@ -432,15 +434,16 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	if nc.enableBlockchainUpdatesPlugin {
 		var bUErr error
 
-		bUpdatesExtension, bUErr = initializeBlockchainUpdatesPlugin(ctx, cfg, nc.BlockchainUpdatesL2Address, updatesChannel, &firstBlock, st)
+		bUpdatesExtension, bUErr = initializeBlockchainUpdatesPlugin(ctx, cfg, nc.BlockchainUpdatesL2Address,
+			updatesChannel, &firstBlock, st)
 		if bUErr != nil {
 			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
 		}
 		go func() {
-			err := bUpdatesExtension.RunBlockchainUpdatesPublisher(ctx,
+			publshrErr := bUpdatesExtension.RunBlockchainUpdatesPublisher(ctx,
 				cfg.AddressSchemeCharacter)
-			if err != nil {
-				zap.S().Fatalf("Failed to run blockchain updates publisher: %v", err)
+			if publshrErr != nil {
+				zap.S().Fatalf("Failed to run blockchain updates publisher: %v", publshrErr)
 			}
 		}()
 		zap.S().Info("The blockchain info extension started pulling info from smart contract address",
@@ -851,7 +854,6 @@ func initializeBlockchainUpdatesPlugin(
 	firstBlock *bool,
 	state state.State,
 ) (*blockchaininfo.BlockchainUpdatesExtension, error) {
-
 	bUpdatesExtensionState, err := blockchaininfo.NewBUpdatesExtensionState(
 		blockchaininfo.StoreBlocksLimit,
 		cfg.AddressSchemeCharacter,
@@ -861,15 +863,12 @@ func initializeBlockchainUpdatesPlugin(
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize blockchain updates extension state")
 	}
-
 	l2address, cnvrtErr := proto.NewAddressFromString(l2ContractAddress)
 	if cnvrtErr != nil {
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2ContractAddress)
 	}
-
-	buPatchChannel := make(chan proto.DataEntries)
-	buPatchRequestChannel := make(chan []string)
-	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel, buPatchChannel, buPatchRequestChannel, bUpdatesExtensionState, firstBlock), nil
+	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel,
+		bUpdatesExtensionState, firstBlock), nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {

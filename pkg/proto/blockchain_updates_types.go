@@ -2,9 +2,10 @@ package proto
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 )
 
 const ChannelWriteTimeout = 10 * time.Second
@@ -28,7 +29,6 @@ type L2ContractDataEntries struct {
 	Height         uint64      `json:"height"`
 }
 
-// For appender
 type BlockchainUpdatesPluginInfo struct {
 	EnableBlockchainUpdatesPlugin bool
 	L2ContractAddress             WavesAddress
@@ -38,7 +38,9 @@ type BlockchainUpdatesPluginInfo struct {
 	ctx                           context.Context
 }
 
-func NewBlockchainUpdatesPluginInfo(l2Address WavesAddress, bUpdatesChannel chan<- BUpdatesInfo, ctx context.Context, firstBlock *bool,
+func NewBlockchainUpdatesPluginInfo(ctx context.Context,
+	l2Address WavesAddress, bUpdatesChannel chan<- BUpdatesInfo,
+	firstBlock *bool,
 	enableBlockchainUpdatesPlugin bool) *BlockchainUpdatesPluginInfo {
 	return &BlockchainUpdatesPluginInfo{
 		L2ContractAddress:             l2Address,

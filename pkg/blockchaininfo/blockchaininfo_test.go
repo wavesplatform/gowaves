@@ -1,9 +1,6 @@
 package blockchaininfo_test
 
 import (
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
-	mocks "github.com/wavesplatform/gowaves/pkg/mock"
 	"sort"
 	"strconv"
 	"testing"
@@ -11,8 +8,11 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
+	mocks "github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -324,40 +324,6 @@ func TestSendRestartSignal(t *testing.T) {
 	require.Equal(t, msg.Data, []byte("ok"))
 }
 
-//type BlockchainInfoExtensionStateTest struct {
-//}
-//
-//func (be *BlockchainInfoExtensionStateTest) HasStateChanged() (bool, proto.BUpdatesInfo, error) {
-//	return false, proto.BUpdatesInfo{}, nil
-//}
-//func (be *BlockchainInfoExtensionStateTest) StatesEqual(scheme proto.Scheme) (bool, proto.BUpdatesInfo, error) {
-//	return false, proto.BUpdatesInfo{}, nil
-//}
-//func (be *BlockchainInfoExtensionStateTest) PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nats.Conn) error {
-//	return nil
-//}
-//func (be *BlockchainInfoExtensionStateTest) PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
-//	return nil
-//}
-//func (be *BlockchainInfoExtensionStateTest) PublishUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
-//	return nil
-//}
-//func (be *BlockchainInfoExtensionStateTest) AddEntriesToHistoryJournalAndCache(updates proto.BUpdatesInfo) {
-//}
-//func (be *BlockchainInfoExtensionStateTest) RollbackHappened(updates proto.BUpdatesInfo, previousState proto.BUpdatesInfo) bool {
-//	return false
-//}
-//func (be *BlockchainInfoExtensionStateTest) GeneratePatch(latestUpdates proto.BUpdatesInfo) (proto.BUpdatesInfo, error) {
-//	return proto.BUpdatesInfo{}, nil
-//}
-//func (be *BlockchainInfoExtensionStateTest) BuildPatch(keysForPatch []string, targetHeight uint64) (proto.DataEntries, error) {
-//	return nil, nil
-//}
-//func (be *BlockchainInfoExtensionStateTest) CleanRecordsAfterRollback(latestHeightFromHistory uint64, heightAfterRollback uint64) error {
-//	return nil
-//}
-//func (be *BlockchainInfoExtensionStateTest) SetPreviousState(updates proto.BUpdatesInfo) {}
-
 const (
 	blockID1 = "7wKAcTGbvDtruMSSYyndzN9YK3cQ47ZdTPeT8ej22qRg"
 	BlockID2 = "gzz8aN4b5rr1rkeAdmuwytuGv1jbm9LLRbXNKNb7ETX"
@@ -367,14 +333,46 @@ const (
 	BlockID6 = "5bEZ4Y9BiVvM53RtBWmpT5jADeLmSt2vmC1iBB2gKuE8"
 
 	l2ContractAddress = "3Mw2AVgk5xNmkWQkzKKhinhBH1YyBTeVku2"
+
+	checkedBlockNumber = 3
 )
 
-func fillHistoryJournal(t *testing.T) *blockchaininfo.HistoryJournal {
+func fillThirdCheckedBlock(t *testing.T) ([]proto.DataEntry, proto.BlockUpdatesInfo) {
+	var integerEntries []proto.DataEntry
+	blockID, err := proto.NewBlockIDFromBase58(BlockID3)
+
+	for j := 1; j <= 3; j++ {
+		integerDataEntry := &proto.IntegerDataEntry{
+			Key:   strconv.Itoa(j),
+			Value: int64(-j),
+		}
+		assert.NoError(t, err)
+		integerEntries = append(integerEntries, integerDataEntry)
+	}
+	blockInfo := proto.BlockUpdatesInfo{
+		Height:  uint64(3),
+		BlockID: blockID,
+	}
+	return integerEntries, blockInfo
+}
+
+func fillHistoryJournal(t *testing.T, stateCache *blockchaininfo.StateCache) *blockchaininfo.HistoryJournal {
 	var historyJorunal blockchaininfo.HistoryJournal
 	blockIDs := []string{blockID1, BlockID2, BlockID3, BlockID4, BlockID5}
 	for i := 1; i <= 5; i++ {
+		if i == checkedBlockNumber {
+			integerEntries, blockInfo := fillThirdCheckedBlock(t)
+			historyEntry := blockchaininfo.HistoryEntry{
+				Height:  blockInfo.Height,
+				BlockID: blockInfo.BlockID,
+				Entries: integerEntries,
+			}
+			historyJorunal.Push(historyEntry)
+		}
+
 		var integerEntries []proto.DataEntry
 		blockID, err := proto.NewBlockIDFromBase58(blockIDs[i-1])
+
 		for j := 1; j <= i; j++ {
 			integerDataEntry := &proto.IntegerDataEntry{
 				Key:   strconv.Itoa(j),
@@ -389,8 +387,9 @@ func fillHistoryJournal(t *testing.T) *blockchaininfo.HistoryJournal {
 			Entries: integerEntries,
 		}
 		historyJorunal.Push(historyEntry)
-
+		continue
 	}
+	historyJorunal.StateCache = stateCache
 	return &historyJorunal
 }
 
@@ -398,6 +397,12 @@ func fillCache(t *testing.T) *blockchaininfo.StateCache {
 	stateCache := blockchaininfo.NewStateCache()
 	blockIDs := []string{blockID1, BlockID2, BlockID3, BlockID4, BlockID5}
 	for i := 1; i <= 5; i++ {
+		if i == checkedBlockNumber {
+			integerEntries, blockInfo := fillThirdCheckedBlock(t)
+			stateCache.AddCacheRecord(blockInfo.Height, integerEntries, blockInfo)
+			continue
+		}
+
 		var integerEntries []proto.DataEntry
 		blockID, err := proto.NewBlockIDFromBase58(blockIDs[i-1])
 		require.NoError(t, err)
@@ -417,11 +422,14 @@ func fillCache(t *testing.T) *blockchaininfo.StateCache {
 	return stateCache
 }
 
-// Rollback from block 5 to 3
+// Rollback from block 5 to block 3.
+// On block 3, keys "1", "2", "3" had negative values, so the patch should generate the negative
+// values only found on that block.
 func TestRollback(t *testing.T) {
 	mockPublisherInterface := mocks.NewMockUpdatesPublisherInterface(t)
-	mockPublisherInterface.EXPECT().PublishUpdates(mock.Anything, mock.Anything, proto.TestNetScheme, "3Mw2AVgk5xNmkWQkzKKhinhBH1YyBTeVku2").Return(nil)
-	mockPublisherInterface.EXPECT().L2ContractAddress().Return("3Mw2AVgk5xNmkWQkzKKhinhBH1YyBTeVku2")
+	mockPublisherInterface.EXPECT().PublishUpdates(mock.Anything, mock.Anything, proto.TestNetScheme,
+		l2ContractAddress).Return(nil)
+	mockPublisherInterface.EXPECT().L2ContractAddress().Return(l2ContractAddress)
 
 	blockID6, err := proto.NewBlockIDFromBase58(BlockID6)
 	assert.NoError(t, err)
@@ -475,27 +483,26 @@ func TestRollback(t *testing.T) {
 		Limit:             100,
 		Scheme:            proto.TestNetScheme,
 		L2ContractAddress: l2ContractAddress,
-		HistoryJournal:    fillHistoryJournal(t),
-		StateCache:        fillCache(t),
+		HistoryJournal:    fillHistoryJournal(t, fillCache(t)),
 		St:                nil,
 	}
 
 	// Rollback from block 5 to 3
-
-	patch := blockchaininfo.HandleRollback(updatesExtensionState, updates, mockPublisherInterface, nil, proto.TestNetScheme)
+	patch := blockchaininfo.HandleRollback(updatesExtensionState, updates, mockPublisherInterface,
+		nil, proto.TestNetScheme)
 
 	expectedPatchEntries := []proto.DataEntry{
 		&proto.IntegerDataEntry{
 			Key:   "1",
-			Value: 1,
+			Value: -1,
 		},
 		&proto.IntegerDataEntry{
 			Key:   "2",
-			Value: 2,
+			Value: -2,
 		},
 		&proto.IntegerDataEntry{
 			Key:   "3",
-			Value: 3,
+			Value: -3,
 		},
 		&proto.DeleteDataEntry{Key: "4"},
 		&proto.DeleteDataEntry{Key: "5"},
