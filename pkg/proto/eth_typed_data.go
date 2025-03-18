@@ -11,6 +11,7 @@ import (
 	"unicode"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -73,7 +74,7 @@ func (typedData *ethereumTypedData) RawData() ([]byte, error) {
 func (typedData *ethereumTypedData) Hash() (EthereumHash, error) {
 	rawData, err := typedData.RawData()
 	if err != nil {
-		return EthereumHash{}, nil
+		return EthereumHash{}, err
 	}
 	return Keccak256EthereumHash(rawData), nil
 }
