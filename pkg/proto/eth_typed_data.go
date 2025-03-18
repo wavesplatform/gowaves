@@ -348,7 +348,7 @@ func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValu
 
 		b, err := DecodeFromHexString(stringValue)
 		if err != nil {
-			return nil, dataMismatchError(encType, encValue)
+			return nil, dataMismatchErrorWrap(err, encType, encValue)
 		}
 
 		retval := make([]byte, 32)
@@ -406,10 +406,14 @@ func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValu
 
 }
 
-// dataMismatchError generates an error for a mismatch between
-// the provided type and data
+// dataMismatchError generates an error for a mismatch between the provided type and data.
 func dataMismatchError(encType string, encValue interface{}) error {
 	return errors.Errorf("provided data '%v' doesn't match type '%s'", encValue, encType)
+}
+
+// dataMismatchErrorWrap enriches an error with an info of a mismatch between the provided type and data.
+func dataMismatchErrorWrap(inner error, encType string, encValue interface{}) error {
+	return errors.Wrapf(inner, "provided data '%v' doesn't match type '%s'", encValue, encType)
 }
 
 // validate makes sure the types are sound
