@@ -43,7 +43,7 @@ jobs:
   check-inputs:
     name: check-inputs
     runs-on: ubuntu-latest
-    environment:
+    env:
       NETWORK: "${{ inputs.network }}"
       ARCH: "${{ inputs.arch }}"
     steps:
