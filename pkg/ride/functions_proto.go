@@ -907,7 +907,7 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		}
 		kindType, ktErr := proto.GuessEthereumTransactionKindType(ethTx.Data())
 		if ktErr != nil {
-			return nil, errors.Wrap(err, "transferByID: failed to guess ethereum transaction kind type")
+			return nil, errors.Wrap(ktErr, "transferByID: failed to guess ethereum transaction kind type")
 		}
 		switch kindType {
 		case proto.EthereumTransferWavesKindType, proto.EthereumTransferAssetsKindType:
