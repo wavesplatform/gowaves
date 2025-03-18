@@ -296,7 +296,9 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name())
+		return nil, RuntimeError.Wrapf(err,
+			"%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name(),
+		)
 	}
 	recipientAddr := address
 	env.setNewDAppAddress(recipientAddr)
