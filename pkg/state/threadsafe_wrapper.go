@@ -28,6 +28,12 @@ func (a *ThreadSafeReadWrapper) BlockVRF(blockHeader *proto.BlockHeader, blockHe
 	return a.s.BlockVRF(blockHeader, blockHeight)
 }
 
+func (a *ThreadSafeReadWrapper) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.NewestBlockInfoByHeight(height)
+}
+
 func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (interface{}, error)) (interface{}, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -204,6 +210,12 @@ func (a *ThreadSafeReadWrapper) RetrieveEntries(account proto.Recipient) ([]prot
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.RetrieveEntries(account)
+}
+
+func (a *ThreadSafeReadWrapper) RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.RetrieveEntriesAtHeight(addr, height)
 }
 
 func (a *ThreadSafeReadWrapper) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
