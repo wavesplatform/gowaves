@@ -234,7 +234,7 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 			for j := 0; j < b.N; j++ {
 				h, hErr := calculateTxSnapshotStateHash(hasher, txID, blockHeight, prevHash, txSnapshot)
 				if hErr != nil {
-					b.Fatalf("error occured: %+v", err)
+					b.Fatalf("error occurred: %+v", err)
 				}
 				if h != expectedHash {
 					b.Fatalf("expectedHash=%s  != actual=%s", expectedHash.Hex(), h.Hex())

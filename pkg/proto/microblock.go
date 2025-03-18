@@ -2,6 +2,7 @@ package proto
 
 import (
 	"bytes"
+	"fmt"
 	"io"
 
 	"github.com/pkg/errors"
@@ -236,23 +237,23 @@ func (a *MicroBlock) MarshalBinary(scheme Scheme) ([]byte, error) {
 
 // MicroBlockMessage represents a MicroBlock message.
 type MicroBlockMessage struct {
-	Body []byte
+	Body BytesPayload
 }
 
-func (*MicroBlockMessage) ReadFrom(_ io.Reader) (int64, error) {
-	panic("implement me")
+func (m *MicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+	return ReadMessage(r, ContentIDMicroblock, "MicroBlockMessage", &m.Body)
 }
 
-func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
+func (m *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	_, err := buf.Write(a.Body)
+	_, err := buf.Write(m.Body)
 	if err != nil {
 		return 0, err
 	}
 
-	h, err := MakeHeader(ContentIDMicroblock, buf.Bytes())
+	h, err := NewHeader(ContentIDMicroblock, buf.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -266,7 +267,7 @@ func (a *MicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return n1 + n2, err
 }
 
-func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
+func (m *MicroBlockMessage) UnmarshalBinary(data []byte) error {
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
@@ -282,15 +283,15 @@ func (a *MicroBlockMessage) UnmarshalBinary(data []byte) error {
 	b := make([]byte, len(data[:h.payloadLength]))
 	copy(b, data)
 
-	a.Body = b
+	m.Body = b
 	return nil
 }
 
-func (a *MicroBlockMessage) MarshalBinary() ([]byte, error) {
+func (m *MicroBlockMessage) MarshalBinary() ([]byte, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	_, err := a.WriteTo(buf)
+	_, err := m.WriteTo(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -299,40 +300,44 @@ func (a *MicroBlockMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
+func (m *MicroBlockMessage) IsMessage() {}
+
+func (m *MicroBlockMessage) SetPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.Body = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
 type MicroBlockInvMessage struct {
-	Body []byte
+	Body BytesPayload
 }
 
-func (a *MicroBlockInvMessage) ReadFrom(_ io.Reader) (n int64, err error) {
-	panic("implement me")
+func (m *MicroBlockInvMessage) ReadFrom(r io.Reader) (int64, error) {
+	return ReadMessage(r, ContentIDInvMicroblock, "MicroBlockInvMessage", &m.Body)
 }
 
-func (a *MicroBlockInvMessage) WriteTo(w io.Writer) (n int64, err error) {
-	var h Header
-	h.Length = maxHeaderLength + uint32(len(a.Body)) - 4
-	h.Magic = headerMagic
-	h.ContentID = ContentIDInvMicroblock
-	h.payloadLength = common.SafeIntToUint32(len(a.Body))
-	dig, err := crypto.FastHash(a.Body)
+func (m *MicroBlockInvMessage) WriteTo(w io.Writer) (int64, error) {
+	h, err := NewHeader(ContentIDInvMicroblock, m.Body)
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 	n1, err := h.WriteTo(w)
 	if err != nil {
 		return 0, err
 	}
-	n2, err := w.Write(a.Body)
+	n2, err := w.Write(m.Body)
 	if err != nil {
 		return 0, err
 	}
 	return n1 + int64(n2), nil
 }
 
-func (a *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
+func (m *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-	_, err := a.WriteTo(buf)
+	_, err := m.WriteTo(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -341,42 +346,45 @@ func (a *MicroBlockInvMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
+func (m *MicroBlockInvMessage) IsMessage() {}
+
+func (m *MicroBlockInvMessage) SetPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.Body = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
+}
+
 // MicroBlockRequestMessage total block signature or ID.
 type MicroBlockRequestMessage struct {
-	TotalBlockSig []byte
+	TotalBlockSig BlockID
 }
 
-func (a *MicroBlockRequestMessage) ReadFrom(_ io.Reader) (n int64, err error) {
-	panic("implement me")
+func (m *MicroBlockRequestMessage) ReadFrom(r io.Reader) (int64, error) {
+	return ReadMessage(r, ContentIDMicroblockRequest, "MicroBlockRequestMessage", &m.TotalBlockSig)
 }
 
-func (a *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
-	var h Header
-	h.Length = maxHeaderLength + common.SafeIntToUint32(len(a.TotalBlockSig)) - headerChecksumLen
-	h.Magic = headerMagic
-	h.ContentID = ContentIDMicroblockRequest
-	h.payloadLength = common.SafeIntToUint32(len(a.TotalBlockSig))
-	dig, err := crypto.FastHash(a.TotalBlockSig)
+func (m *MicroBlockRequestMessage) WriteTo(w io.Writer) (int64, error) {
+	h, err := NewHeader(ContentIDMicroblockRequest, m.TotalBlockSig.Bytes())
 	if err != nil {
 		return 0, err
 	}
-	copy(h.PayloadChecksum[:], dig[:4])
 	n2, err := h.WriteTo(w)
 	if err != nil {
 		return 0, err
 	}
-
-	n3, err := w.Write(a.TotalBlockSig)
+	n3, err := w.Write(m.TotalBlockSig.Bytes())
 	if err != nil {
 		return 0, err
 	}
 	return n2 + int64(n3), nil
 }
 
-func (a *MicroBlockRequestMessage) MarshalBinary() ([]byte, error) {
+func (m *MicroBlockRequestMessage) MarshalBinary() ([]byte, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
-	_, err := a.WriteTo(buf)
+	_, err := m.WriteTo(buf)
 	if err != nil {
 		return nil, err
 	}
@@ -385,7 +393,7 @@ func (a *MicroBlockRequestMessage) MarshalBinary() ([]byte, error) {
 	return out, nil
 }
 
-func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
+func (m *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
@@ -394,10 +402,22 @@ func (a *MicroBlockRequestMessage) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("wrong ContentID in Header: %x", h.ContentID)
 	}
 	data = data[17:]
-	body := make([]byte, h.payloadLength)
-	copy(body, data)
-	a.TotalBlockSig = body
+	id, err := NewBlockIDFromBytes(data[:h.payloadLength])
+	if err != nil {
+		return fmt.Errorf("failed to unmarshal MicroBlockRequestMessage: %w", err)
+	}
+	m.TotalBlockSig = id
 	return nil
+}
+
+func (m *MicroBlockRequestMessage) IsMessage() {}
+
+func (m *MicroBlockRequestMessage) SetPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BlockID); ok {
+		m.TotalBlockSig = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }
 
 type MicroBlockInv struct {
@@ -443,7 +463,7 @@ func (a *MicroBlockInv) UnmarshalBinary(data []byte) error {
 			return err
 		}
 		a.Reference = NewBlockIDFromDigest(ref)
-	} else if sigId {
+	} else {
 		sig, err := d.Signature()
 		if err != nil {
 			return err
@@ -509,7 +529,7 @@ func NewUnsignedMicroblockInv(PublicKey crypto.PublicKey, TotalBlockID BlockID, 
 	}
 }
 
-func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
+func (m *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
@@ -520,29 +540,29 @@ func (a *MicroBlockInvMessage) UnmarshalBinary(data []byte) error {
 	data = data[17:]
 	body := make([]byte, h.payloadLength)
 	copy(body, data[:h.payloadLength])
-	a.Body = body
+	m.Body = body
 	return nil
 }
 
 // PBMicroBlockMessage represents a Protobuf MicroBlock message.
 type PBMicroBlockMessage struct {
-	MicroBlockBytes Bytes
+	MicroBlockBytes BytesPayload
 }
 
-func (*PBMicroBlockMessage) ReadFrom(_ io.Reader) (int64, error) {
-	panic("implement me")
+func (m *PBMicroBlockMessage) ReadFrom(r io.Reader) (int64, error) {
+	return ReadMessage(r, ContentIDMicroblock, "PBMicroBlockMessage", &m.MicroBlockBytes)
 }
 
-func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
+func (m *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	_, err := a.MicroBlockBytes.WriteTo(buf)
+	_, err := m.MicroBlockBytes.WriteTo(buf)
 	if err != nil {
 		return 0, err
 	}
 
-	h, err := MakeHeader(ContentIDPBMicroBlock, buf.Bytes())
+	h, err := NewHeader(ContentIDPBMicroBlock, buf.Bytes())
 	if err != nil {
 		return 0, err
 	}
@@ -556,7 +576,7 @@ func (a *PBMicroBlockMessage) WriteTo(w io.Writer) (int64, error) {
 	return n1 + n2, err
 }
 
-func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
+func (m *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 	var h Header
 	if err := h.UnmarshalBinary(data); err != nil {
 		return err
@@ -573,20 +593,30 @@ func (a *PBMicroBlockMessage) UnmarshalBinary(data []byte) error {
 		return errors.New("invalid data size")
 	}
 	mbBytes := data[:h.payloadLength]
-	a.MicroBlockBytes = make([]byte, len(mbBytes))
-	copy(a.MicroBlockBytes, mbBytes)
+	m.MicroBlockBytes = make([]byte, len(mbBytes))
+	copy(m.MicroBlockBytes, mbBytes)
 	return nil
 }
 
-func (a *PBMicroBlockMessage) MarshalBinary() ([]byte, error) {
+func (m *PBMicroBlockMessage) MarshalBinary() ([]byte, error) {
 	buf := bytebufferpool.Get()
 	defer bytebufferpool.Put(buf)
 
-	_, err := a.WriteTo(buf)
+	_, err := m.WriteTo(buf)
 	if err != nil {
 		return nil, err
 	}
 	out := make([]byte, buf.Len())
 	copy(out, buf.B)
 	return out, nil
+}
+
+func (m *PBMicroBlockMessage) IsMessage() {}
+
+func (m *PBMicroBlockMessage) SetPayload(payload Payload) (Message, error) {
+	if p, ok := payload.(*BytesPayload); ok {
+		m.MicroBlockBytes = *p
+		return m, nil
+	}
+	return nil, fmt.Errorf("invalid payload type %T", payload)
 }

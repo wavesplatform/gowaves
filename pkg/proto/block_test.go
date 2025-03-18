@@ -6,6 +6,8 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"fmt"
+	"io"
+	"strings"
 	"testing"
 	"time"
 
@@ -365,13 +367,12 @@ func TestBlock_Clone(t *testing.T) {
 	require.Equal(t, b1, b2)
 }
 
-// TODO, empty block should not marshal, or unmarshal successfully
 func TestEmptyBlockMarshall(t *testing.T) {
 	const scheme = TestNetScheme
 
 	b1 := Block{}
 	bts, err := b1.MarshalBinary(scheme)
-	require.NoError(t, err)
+	require.Error(t, err)
 
 	b2 := Block{}
 	err = b2.UnmarshalBinary(bts, scheme)
@@ -476,4 +477,102 @@ func TestBlockAfterLightNodeFeature(t *testing.T) {
 		require.NoError(t, vErr)
 		require.True(t, ok)
 	})
+}
+
+func TestBlockID_ReadFrom(t *testing.T) {
+	for i, tc := range []struct {
+		data string
+		exp  string
+		n    int64
+		err  error
+	}{
+		{"", "", 0, ErrInvalidBlockIDDataSize},
+		{"000102", "", 3, ErrInvalidBlockIDDataSize},
+		{"000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+			"1thX6LZfHDZZKUs92febWaf4WJZnsKRiVwJusXxB7L", 32, nil},
+		{"000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+			"1thX6LZfHDZZKUs92febWaf4WJZnsKRiVwJusXxB7L", 48, nil},
+		{"000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" +
+			"000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+			"1GMkH3brNXiNNs1tiFZHtUoRG8yzjuLTbgUVK7TPtAgWVQRKi4nR5nhQURVuXYLRpG22QW5uWmkK6SHHKZ7WSa",
+			64, nil},
+		{"000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" +
+			"000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+			"1GMkH3brNXiNNs1tiFZHtUoRG8yzjuLTbgUVK7TPtAgWVQRKi4nR5nhQURVuXYLRpG22QW5uWmkK6SHHKZ7WSa",
+			64, nil}, // Excess data left unread in reader.
+	} {
+		t.Run(fmt.Sprintf("Case_%d", i+1), func(t *testing.T) {
+			data := hex.NewDecoder(newSlowReader(strings.NewReader(tc.data)))
+
+			var id BlockID
+			n, err := id.ReadFrom(data)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err)
+				assert.Equal(t, tc.n, n)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.exp, id.String())
+			assert.Equal(t, tc.n, n)
+		})
+	}
+}
+
+func TestBlockID_ReadFrom_Initialized(t *testing.T) {
+	for i, tc := range []struct {
+		idType BlockIDType
+		data   string
+		exp    string
+		n      int64
+		err    error
+	}{
+		{SignatureID, "", "", 0, ErrInvalidBlockIDDataSize},
+		{DigestID, "", "", 0, ErrInvalidBlockIDDataSize},
+		{SignatureID, "000102", "", 3, ErrInvalidBlockIDDataSize},
+		{DigestID, "000102", "", 3, ErrInvalidBlockIDDataSize},
+		{SignatureID, "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+			"", 32, ErrInvalidBlockIDDataSize},
+		{DigestID, "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+			"1thX6LZfHDZZKUs92febWaf4WJZnsKRiVwJusXxB7L", 32, nil},
+		{SignatureID, "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" +
+			"000102030405060708090a0b0c0d0e0f",
+			"1thX6LZfHDZZKUs92febWaf4WJZnsKRiVwJusXxB7L", 48, ErrInvalidBlockIDDataSize},
+		{DigestID, "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" +
+			"000102030405060708090a0b0c0d0e0f",
+			"1thX6LZfHDZZKUs92febWaf4WJZnsKRiVwJusXxB7L", 32, nil},
+		{SignatureID, "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f" +
+			"000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+			"1GMkH3brNXiNNs1tiFZHtUoRG8yzjuLTbgUVK7TPtAgWVQRKi4nR5nhQURVuXYLRpG22QW5uWmkK6SHHKZ7WSa",
+			64, nil},
+		{DigestID, "000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f0" +
+			"00102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f",
+			"1thX6LZfHDZZKUs92febWaf4WJZnsKRiVwJusXxB7L", 32, nil},
+	} {
+		t.Run(fmt.Sprintf("Case_%d", i+1), func(t *testing.T) {
+			data := newSlowReader(hex.NewDecoder(strings.NewReader(tc.data)))
+
+			id := BlockID{idType: tc.idType}
+			n, err := id.ReadFrom(data)
+			if tc.err != nil {
+				assert.ErrorIs(t, err, tc.err)
+				assert.Equal(t, tc.n, n)
+				return
+			}
+			assert.NoError(t, err)
+			assert.Equal(t, tc.exp, id.String())
+			assert.Equal(t, tc.n, n)
+		})
+	}
+}
+
+// slowReader is a reader that reads only 2 bytes at a time.
+type slowReader struct {
+	r io.Reader
+}
+
+func newSlowReader(r io.Reader) *slowReader {
+	return &slowReader{r: r}
+}
+func (r *slowReader) Read(p []byte) (int, error) {
+	return io.ReadFull(r.r, p[:2])
 }

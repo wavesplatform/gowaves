@@ -261,7 +261,7 @@ func (cv *Validator) validateMinerAccount(block *proto.BlockHeader, blockHeight 
 	}
 	minerAddr, err := proto.NewAddressFromPublicKey(cv.settings.AddressSchemeCharacter, block.GeneratorPublicKey)
 	if err != nil {
-		return errors.Wrapf(err, "faield to get miner address from pub key %q", block.GeneratorPublicKey.String())
+		return errors.Wrapf(err, "failed to get miner address from pub key %q", block.GeneratorPublicKey.String())
 	}
 	blockMinerHasScript, err := cv.state.NewestAccountHasScript(minerAddr)
 	if err != nil {
@@ -444,8 +444,10 @@ func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, head
 	}
 	minTimestamp := parent.Timestamp + delay
 	if header.Timestamp < minTimestamp {
-		return errors.Errorf("block '%s' at %d: invalid block timestamp %d: less than min valid timestamp %d (hit source %s)",
-			header.ID, height, header.Timestamp, minTimestamp, base58.Encode(hitSource))
+		return errors.Errorf(
+			"block '%s' at %d: invalid block timestamp %d: less than min valid timestamp %d (hit source %s)",
+			header.ID.String(), height, header.Timestamp, minTimestamp, base58.Encode(hitSource),
+		)
 	}
 	return nil
 }

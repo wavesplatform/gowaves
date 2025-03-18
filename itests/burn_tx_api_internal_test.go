@@ -4,6 +4,7 @@ package itests
 
 import (
 	"fmt"
+	"maps"
 	"net/http"
 	"testing"
 
@@ -15,7 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"golang.org/x/exp/maps"
 )
 
 type BurnTxApiSuite struct {

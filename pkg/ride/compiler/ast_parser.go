@@ -1077,10 +1077,13 @@ func (p *astParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
 				res += "\r"
 			case "\\t":
 				res += "\t"
+			case "\\\\":
+				res += "\\"
 			case "\\\"":
 				res += "\""
 			default:
-				p.addError(curNode.token32, "Unknown escaped symbol: '%s'. The valid are \\b, \\f, \\n, \\r, \\t, \\\"", escapedChar)
+				p.addError(curNode.token32,
+					"Unknown escaped symbol: '%s'. The valid are \\b, \\f, \\n, \\r, \\t, \\\\, \\\"", escapedChar)
 			}
 		case ruleUnicodeChar:
 			unicodeChar := p.nodeValue(curNode)

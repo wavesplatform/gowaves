@@ -62,7 +62,7 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	}
 
 	err = s.Client.Connection.SubscribeForMessages(
-		reflect.TypeOf(&proto.GetBlockIdsMessage{}),
+		reflect.TypeOf(&proto.GetBlockIDsMessage{}),
 		reflect.TypeOf(&proto.GetBlockMessage{}),
 		reflect.TypeOf(&proto.ScoreMessage{}),
 		reflect.TypeOf(&proto.MicroBlockRequestMessage{}),
@@ -76,11 +76,11 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	s.Client.Connection.SendMessage(scoreMsg)
 
 	// Wait for the node to request block IDs.
-	_, err = s.Client.Connection.AwaitMessage(reflect.TypeOf(&proto.GetBlockIdsMessage{}), messageTimeout)
+	_, err = s.Client.Connection.AwaitMessage(reflect.TypeOf(&proto.GetBlockIDsMessage{}), messageTimeout)
 	require.NoError(s.T(), err, "failed to wait for block IDs request")
 
 	// Send block IDs to the node.
-	blocksMsg := &proto.BlockIdsMessage{Blocks: []proto.BlockID{bl.BlockID()}}
+	blocksMsg := &proto.BlockIDsMessage{Blocks: []proto.BlockID{bl.BlockID()}}
 	s.Client.Connection.SendMessage(blocksMsg)
 
 	// Wait for the node to request the block.

@@ -121,7 +121,7 @@ func run() error {
 	}
 	if height == 0 {
 		err := errors.Errorf("zero height")
-		zap.S().Errorf("Failed to intialize: %v", err)
+		zap.S().Errorf("Failed to initialize: %v", err)
 		return err
 	}
 	bs, err := settings.BlockchainSettingsByTypeName(blockchainType)
