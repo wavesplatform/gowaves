@@ -49,8 +49,8 @@ jobs:
     steps:
       - name: Check inputs
         run: |
-          echo "$NETWORK" | grep -E '^(mainnet|testnet|stagenet)$' || exit 1 # check if the network is valid
-          echo "$ARCH" | grep -E '^(amd64|arm64)$' || exit 1 # check if the architecture is valid
+          echo "${{ env.NETWORK }}" | grep -E '^(mainnet|testnet|stagenet)$' || exit 1 # check if the network is valid
+          echo "${{ env.ARCH }}" | grep -E '^(amd64|arm64)$' || exit 1 # check if the architecture is valid
 
   deploy:
     name: deploy
