@@ -859,10 +859,10 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		return nil, err
 	}
 	if errO1 := checkOrderWithMetamaskFeature(o1, metamaskActivated); errO1 != nil {
-		return nil, errors.Wrap(err, "order1 metamask feature checks failed")
+		return nil, errors.Wrap(errO1, "order1 metamask feature checks failed")
 	}
 	if errO2 := checkOrderWithMetamaskFeature(o2, metamaskActivated); errO2 != nil {
-		return nil, errors.Wrap(err, "order2 metamask feature checks failed")
+		return nil, errors.Wrap(errO2, "order2 metamask feature checks failed")
 	}
 
 	// Check assets.
@@ -894,7 +894,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	}
 	txa := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: ordersSmartAssets}
 	if errCF := tc.checkFee(transaction, txa, info); errCF != nil {
-		return nil, err
+		return nil, errCF
 	}
 	smartAssetsActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAssets))
 	if err != nil {
@@ -1453,7 +1453,7 @@ func (tc *transactionChecker) tryCreateDAppEstimationUpdate(
 	}
 	treeEstimation, err := ride.EstimateTree(tree, currentEstimatorVersion)
 	if err != nil {
-		return scriptEstimation{}, false, errors.Wrapf(err, "faield to estimate script by addr %q", scriptAddr)
+		return scriptEstimation{}, false, errors.Wrapf(err, "failed to estimate script by addr %q", scriptAddr)
 	}
 	return scriptEstimation{
 		currentEstimatorVersion: currentEstimatorVersion,

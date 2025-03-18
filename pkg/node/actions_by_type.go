@@ -1,6 +1,7 @@
 package node
 
 import (
+	"fmt"
 	"math/big"
 	"reflect"
 
@@ -155,7 +156,7 @@ func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.P
 
 	// There are block signatures to send in addition to requested one
 	if len(out) > 1 {
-		p.SendMessage(&proto.BlockIdsMessage{
+		p.SendMessage(&proto.BlockIDsMessage{
 			Blocks: out,
 		})
 	}
@@ -175,11 +176,11 @@ func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 func MicroBlockRequestAction(
 	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
 ) (fsm.Async, error) {
-	blockID, err := proto.NewBlockIDFromBytes(mess.Message.(*proto.MicroBlockRequestMessage).TotalBlockSig)
-	if err != nil {
-		return nil, err
+	msg, ok := mess.Message.(*proto.MicroBlockRequestMessage)
+	if !ok {
+		return nil, fmt.Errorf("unexpected message type %T", mess.Message)
 	}
-	micro, ok := services.MicroBlockCache.GetBlock(blockID)
+	micro, ok := services.MicroBlockCache.GetBlock(msg.TotalBlockSig)
 	if ok {
 		_ = extension.NewPeerExtension(mess.ID, services.Scheme).SendMicroBlock(micro)
 	}
@@ -219,8 +220,12 @@ func PBMicroBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FS
 func GetBlockIdsAction(
 	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
 ) (fsm.Async, error) {
-	for _, sig := range mess.Message.(*proto.GetBlockIdsMessage).Blocks {
-		block, err := services.State.Header(sig)
+	msg, ok := mess.Message.(*proto.GetBlockIDsMessage)
+	if !ok {
+		return nil, fmt.Errorf("unexpected message type %T", mess.Message)
+	}
+	for _, id := range msg.Blocks {
+		block, err := services.State.Header(id)
 		if err != nil {
 			continue
 		}
@@ -231,7 +236,11 @@ func GetBlockIdsAction(
 }
 
 func BlockIdsAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
-	return fsm.BlockIDs(mess.ID, mess.Message.(*proto.BlockIdsMessage).Blocks)
+	msg, ok := mess.Message.(*proto.BlockIDsMessage)
+	if !ok {
+		return nil, fmt.Errorf("unexpected message type %T", mess.Message)
+	}
+	return fsm.BlockIDs(mess.ID, msg.Blocks)
 }
 
 // TransactionAction handles new transaction message.
@@ -256,12 +265,11 @@ func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 }
 
 func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
-	blockIDBytes := mess.Message.(*proto.MicroBlockSnapshotRequestMessage).BlockIDBytes
-	blockID, err := proto.NewBlockIDFromBytes(blockIDBytes)
-	if err != nil {
-		return nil, err
+	msg, ok := mess.Message.(*proto.MicroBlockSnapshotRequestMessage)
+	if !ok {
+		return nil, fmt.Errorf("unexpected message type %T", mess.Message)
 	}
-	sn, ok := services.MicroBlockCache.GetSnapshot(blockID)
+	sn, ok := services.MicroBlockCache.GetSnapshot(msg.BlockID)
 	if ok {
 		snapshotProto, errToProto := sn.ToProtobuf()
 		if errToProto != nil {
@@ -269,7 +277,7 @@ func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessa
 		}
 		sProto := g.MicroBlockSnapshot{
 			Snapshots:    snapshotProto,
-			TotalBlockId: blockIDBytes,
+			TotalBlockId: msg.BlockID.Bytes(),
 		}
 		bsmBytes, errMarshall := sProto.MarshalVTStrict()
 		if errMarshall != nil {
@@ -357,8 +365,8 @@ func createActions() map[reflect.Type]Action {
 		reflect.TypeOf(&proto.MicroBlockMessage{}):                MicroBlockAction,
 		reflect.TypeOf(&proto.PBBlockMessage{}):                   PBBlockAction,
 		reflect.TypeOf(&proto.PBMicroBlockMessage{}):              PBMicroBlockAction,
-		reflect.TypeOf(&proto.GetBlockIdsMessage{}):               GetBlockIdsAction,
-		reflect.TypeOf(&proto.BlockIdsMessage{}):                  BlockIdsAction,
+		reflect.TypeOf(&proto.GetBlockIDsMessage{}):               GetBlockIdsAction,
+		reflect.TypeOf(&proto.BlockIDsMessage{}):                  BlockIdsAction,
 		reflect.TypeOf(&proto.TransactionMessage{}):               TransactionAction,
 		reflect.TypeOf(&proto.PBTransactionMessage{}):             PBTransactionAction,
 		reflect.TypeOf(&proto.GetBlockSnapshotMessage{}):          GetSnapshotAction,

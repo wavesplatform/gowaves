@@ -276,8 +276,9 @@ func (s *Session) readHandshake() error {
 	}
 	s.logger.Debug("Handshake successfully read")
 
-	if !s.config.protocol.IsAcceptableHandshake(hs) {
+	if !s.config.protocol.IsAcceptableHandshake(s, hs) {
 		s.logger.Error("Handshake is not acceptable")
+		s.config.handler.OnHandshakeFailed(s, hs)
 		return ErrUnacceptableHandshake
 	}
 	// Handshake is acceptable, we can switch the session into established state.
@@ -300,7 +301,7 @@ func (s *Session) readMessage(hdr Header) error {
 		s.logger.Error("Failed to read header", "error", err)
 		return err
 	}
-	if !s.config.protocol.IsAcceptableMessage(hdr) {
+	if !s.config.protocol.IsAcceptableMessage(s, hdr) {
 		// We have to discard the remaining part of the message.
 		if _, err := io.CopyN(io.Discard, s.bufRead, int64(hdr.PayloadLength())); err != nil {
 			s.logger.Error("Failed to discard message", "error", err)
