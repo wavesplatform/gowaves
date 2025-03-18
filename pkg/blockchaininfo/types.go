@@ -121,12 +121,15 @@ type HistoryJournal struct {
 }
 
 // NewHistoryJournal создаёт и инициализирует новый экземпляр HistoryJournal.
-func NewHistoryJournal(stateCache *StateCache) *HistoryJournal {
+func NewHistoryJournal() *HistoryJournal {
 	return &HistoryJournal{
-		StateCache: stateCache,
-		top:        0,
-		size:       0,
+		top:  0,
+		size: 0,
 	}
+}
+
+func (hj *HistoryJournal) SetStateCache(stateCache *StateCache) {
+	hj.StateCache = stateCache
 }
 
 // FetchKeysUntilBlockID TODO write tests.

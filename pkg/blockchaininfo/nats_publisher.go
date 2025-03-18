@@ -61,6 +61,7 @@ func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddr
 	if cnvrtErr != nil {
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %s", l2ContractAddress)
 	}
+	historyJournal := NewHistoryJournal()
 	for i := 0; i < HistoryJournalLengthMax; i++ {
 		dataEntriesAtHeight, retrieveErr := state.RetrieveEntriesAtHeight(l2address, currentHeight)
 		if retrieveErr != nil {
@@ -85,11 +86,19 @@ func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddr
 			BlockHeader: block.BlockHeader,
 		}
 		stateCache.AddCacheRecord(currentHeight, filteredDataEntries, blockUpdatesInfo)
+
+		historyEntry := HistoryEntry{
+			Height:  currentHeight,
+			BlockID: block.BlockID(),
+			Entries: filteredDataEntries,
+		}
+		historyJournal.Push(historyEntry)
 		currentHeight--
 	}
 
 	return &BUpdatesExtensionState{Limit: limit, Scheme: scheme,
-		L2ContractAddress: l2ContractAddress, HistoryJournal: NewHistoryJournal(stateCache), St: state}, nil
+		L2ContractAddress: l2ContractAddress, HistoryJournal: historyJournal, St: state}, nil
+
 }
 
 func (bu *BUpdatesExtensionState) SetPreviousState(updates proto.BUpdatesInfo) {
@@ -455,13 +464,31 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 	}
 	defer nc.Close()
 
-	// TODO publish the first 100 updates
+	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String()}
+	// Publish the first 100 history entries for the rollback functionality.
+	publishHistoryBlocks(e, scheme, nc, updatesPublisher)
 
 	receiverErr := runReceiver(nc, e)
 	if receiverErr != nil {
 		return receiverErr
 	}
-	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String()}
 	runPublisher(ctx, e, scheme, nc, updatesPublisher)
 	return nil
+}
+
+func publishHistoryBlocks(e *BlockchainUpdatesExtension, scheme proto.Scheme,
+	nc *nats.Conn, updatesPublisher UpdatesPublisher) {
+	for _, historyEntry := range e.blockchainExtensionState.HistoryJournal.historyJournal {
+		updates := proto.BUpdatesInfo{
+			BlockUpdatesInfo: proto.BlockUpdatesInfo{
+				Height:  historyEntry.Height,
+				BlockID: historyEntry.BlockID,
+			},
+			ContractUpdatesInfo: proto.L2ContractDataEntries{
+				Height:         historyEntry.Height,
+				AllDataEntries: historyEntry.Entries,
+			},
+		}
+		handleBlockchainUpdate(updates, e.blockchainExtensionState, scheme, nc, updatesPublisher)
+	}
 }
