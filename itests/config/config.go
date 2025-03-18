@@ -233,7 +233,7 @@ func (c *GoConfigurator) setAndVerifyWalletFolder() error {
 	}
 	c.walletFolder = filepath.Clean(filepath.Join(pwd, walletPath))
 	if _, flErr := os.Stat(c.walletFolder); flErr != nil {
-		if os.IsNotExist(flErr) {
+		if errors.Is(flErr, os.ErrNotExist) {
 			return errors.New("wallet folder does not exist")
 		}
 		return errors.Wrap(err, "unexpected error while verifying wallet folder")
