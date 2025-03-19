@@ -4,11 +4,12 @@ import (
 	"context"
 	"net"
 
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type BehaviourImpl struct {
@@ -127,8 +128,8 @@ func (a *BehaviourImpl) SpawnKnownPeers(ctx context.Context) {
 }
 
 func (a *BehaviourImpl) errorHandler(p peer.Peer, e error) {
-	_ = p.Close()
 	if p != nil {
+		_ = p.Close()
 		a.activeConnections.Delete(p)
 	}
 }
