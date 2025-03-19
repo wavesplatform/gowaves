@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/tidwall/sjson"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -46,7 +47,7 @@ func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (p
 	out := TransactionsField{}
 	err = json.Unmarshal(buf.Bytes(), &out)
 	if err != nil {
-		return nil, response, &ParseError{Err: err}
+		return nil, response, newParseError(err)
 	}
 
 	if len(out) == 0 {
@@ -128,7 +129,7 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (TransactionI
 
 	err = json.Unmarshal(buf.Bytes(), &out)
 	if err != nil {
-		return nil, response, &ParseError{Err: err}
+		return nil, response, newParseError(err)
 	}
 
 	return out, response, nil

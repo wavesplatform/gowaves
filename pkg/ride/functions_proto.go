@@ -296,7 +296,9 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 
 	address, err := env.state().NewestRecipientToAddress(recipient)
 	if err != nil {
-		return nil, RuntimeError.Errorf("%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name())
+		return nil, RuntimeError.Wrapf(err,
+			"%s: failed to get address from dApp, invokeFunctionFromDApp", invocation.name(),
+		)
 	}
 	recipientAddr := address
 	env.setNewDAppAddress(recipientAddr)
@@ -905,7 +907,7 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		}
 		kindType, ktErr := proto.GuessEthereumTransactionKindType(ethTx.Data())
 		if ktErr != nil {
-			return nil, errors.Wrap(err, "transferByID: failed to guess ethereum transaction kind type")
+			return nil, errors.Wrap(ktErr, "transferByID: failed to guess ethereum transaction kind type")
 		}
 		switch kindType {
 		case proto.EthereumTransferWavesKindType, proto.EthereumTransferAssetsKindType:
