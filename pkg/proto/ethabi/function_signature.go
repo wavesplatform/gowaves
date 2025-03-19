@@ -7,6 +7,7 @@ import (
 	"strings"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 )
@@ -20,7 +21,7 @@ func NewSignatureFromRideFunctionMeta(fn meta.Function, addPayments bool) (Signa
 	}
 	signature, err := builder.MarshalText()
 	if err != nil {
-		return "", errors.Errorf("failed to build signature for function %s with %d arguments",
+		return "", errors.Wrapf(err, "failed to build signature for function %s with %d arguments",
 			fn.Name,
 			len(fn.Arguments),
 		)

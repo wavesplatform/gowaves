@@ -1,6 +1,7 @@
 package state
 
 import (
+	stderrs "errors"
 	"fmt"
 
 	"github.com/mr-tron/base58/base58"
@@ -535,7 +536,8 @@ func (a *txAppender) handleTxAndScripts(
 		if err != nil {
 			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 			if idErr != nil {
-				return nil, nil, false, errors.Wrap(err, "failed to generate transaction ID")
+				idErrEnrich := errors.Wrap(idErr, "failed to generate transaction ID")
+				return nil, nil, false, stderrs.Join(idErrEnrich, err)
 			}
 			return nil, nil, false, errors.Wrapf(err, "failed to handle transaction '%s'", base58.Encode(id))
 		}

@@ -102,7 +102,7 @@ func (s RPCService) Eth_GetBlockByNumber(blockOrTag string, filterTxObj bool) (G
 	default:
 		u, err := hexUintToUint64(blockOrTag)
 		if err != nil {
-			return GetBlockByNumberResponse{}, errors.New("Request parameter is not number nor supported tag")
+			return GetBlockByNumberResponse{}, errors.Wrap(err, "Request parameter is not number nor supported tag")
 		}
 		n = u
 	}
@@ -451,7 +451,7 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 			"Eth_GetTransactionReceipt: failed to get sender (from) for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
-		return nil, errors.New("failed to get sender from tx")
+		return nil, errors.Wrap(err, "failed to get sender from tx")
 	}
 
 	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
@@ -460,7 +460,7 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 			"Eth_GetTransactionReceipt: failed to get block height for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
-		return nil, errors.New("failed to get blockNumber for transaction")
+		return nil, errors.Wrap(err, "failed to get blockNumber for transaction")
 	}
 
 	lastBlockHeader := s.nodeRPCApp.State.TopBlock()
@@ -532,7 +532,7 @@ func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTr
 			"Eth_GetTransactionByHash: failed to get sender (from) public key for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
-		return nil, errors.New("failed to get sender from tx")
+		return nil, errors.Wrap(err, "failed to get sender from tx")
 	}
 
 	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
@@ -541,7 +541,7 @@ func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTr
 			"Eth_GetTransactionByHash: failed to get block height for tx with ID=%q or ethID=%q: %v",
 			txID, ethTxID, err,
 		)
-		return nil, errors.New("failed to get blockNumber for transaction")
+		return nil, errors.Wrap(err, "failed to get blockNumber for transaction")
 	}
 
 	lastBlockHeader := s.nodeRPCApp.State.TopBlock()

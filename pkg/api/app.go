@@ -85,17 +85,17 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transa
 	tt := proto.TransactionTypeVersion{}
 	err := json.Unmarshal(b, &tt)
 	if err != nil {
-		return nil, &BadRequestError{err}
+		return nil, wrapToBadRequestError(err)
 	}
 
 	realType, err := proto.GuessTransactionType(&tt)
 	if err != nil {
-		return nil, &BadRequestError{err}
+		return nil, wrapToBadRequestError(err)
 	}
 
 	err = proto.UnmarshalTransactionFromJSON(b, a.services.Scheme, realType)
 	if err != nil {
-		return nil, &BadRequestError{err}
+		return nil, wrapToBadRequestError(err)
 	}
 
 	respCh := make(chan error, 1)
@@ -160,7 +160,7 @@ func (a *App) Accounts() ([]account, error) {
 func (a *App) checkAuth(key string) error {
 	if !a.apiKeyEnabled {
 		// TODO(nickeskov): use new types of errors
-		return &AuthError{errors.New("api key disabled")}
+		return wrapToAuthError(errors.New("api key disabled"))
 	}
 	d, err := crypto.SecureHash([]byte(key))
 	if err != nil {
@@ -168,7 +168,7 @@ func (a *App) checkAuth(key string) error {
 	}
 	if d != a.hashedApiKey {
 		// TODO(nickeskov): use new types of errors
-		return &AuthError{errors.New("invalid api key")}
+		return wrapToAuthError(errors.New("invalid api key"))
 	}
 	return nil
 }

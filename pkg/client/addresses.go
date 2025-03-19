@@ -9,6 +9,7 @@ import (
 	"net/url"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -204,7 +205,7 @@ func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*proto.Wav
 	}
 
 	if out.Address == nil {
-		return nil, response, &ParseError{Err: errors.New("failed parse address")}
+		return nil, response, newParseError(errors.New("failed parse address"))
 	}
 
 	return out.Address, response, nil

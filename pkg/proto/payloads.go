@@ -250,10 +250,7 @@ type BytesPayload []byte
 
 func (p *BytesPayload) WriteTo(w io.Writer) (int64, error) {
 	n, err := w.Write(*p)
-	if err != nil {
-		return int64(n), err
-	}
-	return int64(n), nil
+	return int64(n), err
 }
 
 func (p *BytesPayload) ReadFrom(r io.Reader) (int64, error) {

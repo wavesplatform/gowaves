@@ -45,3 +45,10 @@ rules:
               ...
               return ..., $ANYFUNC1(..., $NEWERR, ...)
           }
+      - pattern-not: |
+          if $ERR != nil {
+              ...
+              $NEWERR := $ERR
+              ...
+              return ..., $NEWERR
+          }

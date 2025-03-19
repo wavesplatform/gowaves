@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -117,7 +118,7 @@ func (a *Deserializer) PublicKey() (crypto.PublicKey, error) {
 	l := len(a.b)
 	bts, err := a.Bytes(crypto.PublicKeySize)
 	if err != nil {
-		return crypto.PublicKey{}, errors.Errorf(
+		return crypto.PublicKey{}, errors.Wrapf(err,
 			"not enough bytes to deserialize PublicKey, expected %d, found %d",
 			crypto.PublicKeySize,
 			l)

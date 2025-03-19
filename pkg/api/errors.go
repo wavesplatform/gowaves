@@ -23,6 +23,10 @@ type BadRequestError struct {
 	inner error
 }
 
+func wrapToBadRequestError(err error) *BadRequestError {
+	return &BadRequestError{inner: err}
+}
+
 func (e *BadRequestError) Error() string {
 	return e.inner.Error()
 }
@@ -31,6 +35,10 @@ func (e *BadRequestError) Error() string {
 // Deprecated: don't use this error type in new code. Create a new error type or value in 'pkg/api/errors' package.
 type AuthError struct {
 	inner error
+}
+
+func wrapToAuthError(err error) *AuthError {
+	return &AuthError{inner: err}
 }
 
 func (e *AuthError) Error() string {

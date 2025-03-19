@@ -9,17 +9,33 @@ type RequestError struct {
 	Body string
 }
 
-func (a *RequestError) Error() string {
-	if a.Body != "" {
-		return errors.Wrap(a.Err, a.Body).Error()
+func newRequestError(err error, body string) *RequestError {
+	return &RequestError{Err: err, Body: body}
+}
+
+func (e *RequestError) Unwrap() error {
+	return e.Err
+}
+
+func (e *RequestError) Error() string {
+	if e.Body != "" {
+		return errors.Wrap(e.Err, e.Body).Error()
 	}
-	return a.Err.Error()
+	return e.Err.Error()
 }
 
 type ParseError struct {
 	Err error
 }
 
-func (a ParseError) Error() string {
-	return a.Err.Error()
+func newParseError(err error) *ParseError {
+	return &ParseError{Err: err}
+}
+
+func (e ParseError) Unwrap() error {
+	return e.Err
+}
+
+func (e ParseError) Error() string {
+	return e.Err.Error()
 }

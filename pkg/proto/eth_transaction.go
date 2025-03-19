@@ -346,7 +346,7 @@ func (tx *EthereumTransaction) Validate(params TransactionValidationParams) (Tra
 	// too many waves (this check doesn't exist in scala)
 	wavelets, err := EthereumWeiToWavelet(tx.Value())
 	if err != nil {
-		return tx, errs.NewFeeValidation(err.Error())
+		return tx, errs.NewFeeValidation(fmt.Sprintf("too many waves: %v", err))
 	}
 	// non positive amount
 	if wavelets < 0 {

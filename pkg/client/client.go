@@ -128,7 +128,7 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 
 	resp, err := options.Client.Do(req)
 	if err != nil {
-		return nil, &RequestError{Err: err}
+		return nil, newRequestError(err, "")
 	}
 	defer func(Body io.ReadCloser) {
 		_ = Body.Close() // No error handling intentionally
@@ -138,10 +138,10 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 
 	if response.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(response.Body)
-		return response, &RequestError{
-			Err:  errors.Errorf("Invalid status code: expect 200 got %d", response.StatusCode),
-			Body: string(body),
-		}
+		return response, newRequestError(
+			errors.Errorf("Invalid status code: expect 200 got %d", response.StatusCode),
+			string(body),
+		)
 	}
 
 	select {
@@ -157,7 +157,7 @@ func doHttp(ctx context.Context, options Options, req *http.Request, v interface
 			}
 		} else {
 			if err = json.NewDecoder(resp.Body).Decode(v); err != nil {
-				return response, &ParseError{Err: err}
+				return response, newParseError(err)
 			}
 		}
 	}

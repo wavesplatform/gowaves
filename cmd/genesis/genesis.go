@@ -163,7 +163,7 @@ func parsePairs(s string, scheme byte, ts uint64) ([]genesis_generator.GenesisTr
 		if err != nil {
 			seed, err := crypto.NewDigestFromBase58(parts[0])
 			if err != nil {
-				return nil, errors.Errorf("failed to convert '%s' to address or account seed", parts[0])
+				return nil, errors.Wrapf(err, "failed to convert '%s' to address or account seed", parts[0])
 			}
 			_, pk, err := crypto.GenerateKeyPair(seed[:])
 			if err != nil {

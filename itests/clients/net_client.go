@@ -309,7 +309,7 @@ func (h *handler) OnHandshakeFailed(_ *networking.Session, _ networking.Handshak
 
 func (h *handler) OnClose(s *networking.Session) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
-	if !h.client.closing.Load() && h.client != nil {
+	if h.client != nil && !h.client.closing.Load() {
 		h.client.reconnect()
 	}
 }

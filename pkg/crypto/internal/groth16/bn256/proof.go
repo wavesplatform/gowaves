@@ -56,10 +56,7 @@ func (proof *BellmanProofBn256) WriteTo(w io.Writer) (int64, error) {
 
 	commitmentKey := pedersen.VerifyingKey{}
 	m, err := commitmentKey.WriteTo(w)
-	if err != nil {
-		return enc.BytesWritten() + m, err
-	}
-	return enc.BytesWritten() + m, nil
+	return enc.BytesWritten() + m, err
 }
 
 func FromBytesToProof(proofBytes []byte) (gnark.Proof, error) {

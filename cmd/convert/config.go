@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -69,7 +70,7 @@ func (c *config) setInput(str string) error {
 		return nil
 	}
 	fi, err := os.Stat(str)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return fmt.Errorf("file %q does not exist", str)
 	}
 	if err != nil {
@@ -100,7 +101,7 @@ func (c *config) setOutput(str string) error {
 		return nil
 	}
 	fi, err := os.Stat(str)
-	if os.IsNotExist(err) {
+	if errors.Is(err, os.ErrNotExist) {
 		return c.createOutputFile(str)
 	}
 	if err != nil {

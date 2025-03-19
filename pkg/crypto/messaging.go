@@ -101,7 +101,7 @@ func Decrypt(key, encrypted []byte) ([]byte, error) {
 	}
 	message, err := decryptAESCTR(enc, sessionKey, iv)
 	if err != nil {
-		return nil, errors.New("failed to decrypt message")
+		return nil, errors.Wrap(err, "failed to decrypt message")
 	}
 	h = hmac.New(sha256.New, sessionKey)
 	if _, err := h.Write(message); err != nil {
