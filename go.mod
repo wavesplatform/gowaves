@@ -2,6 +2,8 @@ module github.com/wavesplatform/gowaves
 
 go 1.23.0
 
+toolchain go1.24.1
+
 require (
 	filippo.io/edwards25519 v1.1.0
 	github.com/beevik/ntp v1.4.3
@@ -30,7 +32,7 @@ require (
 	github.com/prometheus/client_golang v1.21.1
 	github.com/qmuntal/stateless v1.7.1
 	github.com/semrush/zenrpc/v2 v2.1.1
-	github.com/spf13/afero v1.12.0
+	github.com/spf13/afero v1.14.0
 	github.com/spf13/pflag v1.0.6
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
