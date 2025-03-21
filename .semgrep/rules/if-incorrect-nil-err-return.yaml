@@ -11,6 +11,26 @@ rules:
           regex: .*(?i)err # using .* to allow prefixes, because regex matching is left anchored.
 
       - pattern-either:
+          # inside multiple return values function or method
+          - pattern-inside: |
+              func $FUNCNAME(...) (..., error) {
+                ...
+              }
+          - pattern-inside: |
+              func ($ANYRCV $ANYTYPE) $METHNAME(...) (..., error) {
+                ...
+              }
+          # inside single return value function or method
+          - pattern-inside: |
+              func $FUNCNAME(...) error {
+                ...
+              }
+          - pattern-inside: |
+              func ($ANYRCV $ANYTYPE) $METHNAME(...) error {
+                ...
+              }
+
+      - pattern-either:
           - pattern: | # multiple return values
               if $ERR != nil {
                   ...
