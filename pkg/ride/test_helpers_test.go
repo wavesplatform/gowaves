@@ -114,6 +114,7 @@ type testEnv struct {
 	tokens      map[proto.WavesAddress]map[crypto.Digest]uint64
 	leasings    map[crypto.Digest]*proto.LeaseInfo
 	scripts     map[proto.WavesAddress]proto.Script
+	notFoundErr error
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -165,6 +166,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		tokens:      map[proto.WavesAddress]map[crypto.Digest]uint64{},
 		leasings:    map[crypto.Digest]*proto.LeaseInfo{},
 		scripts:     map[proto.WavesAddress]proto.Script{},
+		notFoundErr: errors.New("not found"),
 	}
 	r.me.stateFunc = func() types.SmartState {
 		return r.ms
@@ -346,6 +348,9 @@ func newTestEnv(t *testing.T) *testEnv {
 			return s, nil
 		}
 		return nil, nil
+	}
+	r.ms.IsNotFoundFunc = func(err error) bool {
+		return errors.Is(err, r.notFoundErr)
 	}
 	return r
 }
@@ -739,9 +744,9 @@ func (e *testEnv) retrieveEntry(account proto.Recipient, key string) (proto.Data
 		if e, ok := entries[key]; ok {
 			return e, nil
 		}
-		return nil, errors.Errorf("no entry by key '%s' at '%s'", key, addr.String())
+		return nil, errors.Wrapf(e.notFoundErr, "no entry by key '%s' at '%s'", key, addr.String())
 	}
-	return nil, errors.Errorf("no entries for address '%s'", addr.String())
+	return nil, errors.Wrapf(e.notFoundErr, "no entries for address '%s'", addr.String())
 }
 
 func (e *testEnv) withNoTransactionAtHeight() *testEnv {
