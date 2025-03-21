@@ -10,12 +10,19 @@ rules:
           metavariable: $ERR
           regex: .*(?i)err # using .* to allow prefixes, because regex matching is left anchored.
 
-      - pattern: |
-          if $ERR != nil {
-              ...
-              return ..., $OTHERERR
-          }
+      - pattern-either:
+          - pattern: | # multiple return values
+              if $ERR != nil {
+                  ...
+                  return ..., $OTHERERR
+              }
+          - pattern: | # single return value
+              if $ERR != nil {
+                  ...
+                  return $OTHERERR
+              }
 
+      # pattern-not for multiple return values
       - pattern-not: |
           if $ERR != nil {
               ...
@@ -51,4 +58,42 @@ rules:
               $NEWERR := $ERR
               ...
               return ..., $NEWERR
+          }
+
+      # pattern-not for single return value
+      - pattern-not: |
+          if $ERR != nil {
+              ...
+              return $ERR
+          }
+      - pattern-not: |
+          if $ERR != nil {
+              ...
+              return $ANYFUNC(..., $ERR, ...)
+          }
+      - pattern-not: |
+          if $ERR != nil {
+              ...
+              return $ANYFUNC(..., $ANYFUNC1(..., $ERR, ...), ...)
+          }
+      - pattern-not: |
+          if $ERR != nil {
+              ...
+              $NEWERR := $ANYFUNC(..., $ERR, ...)
+              ...
+              return $NEWERR
+          }
+      - pattern-not: |
+          if $ERR != nil {
+              ...
+              $NEWERR := $ANYFUNC(..., $ERR, ...)
+              ...
+              return $ANYFUNC1(..., $NEWERR, ...)
+          }
+      - pattern-not: |
+          if $ERR != nil {
+              ...
+              $NEWERR := $ERR
+              ...
+              return $NEWERR
           }
