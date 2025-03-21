@@ -201,7 +201,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		if be, ok := e.(*proto.BinaryDataEntry); ok {
 			return be, nil
 		}
-		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key)
+		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a binary data entry
+			"unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+		)
 	}
 	r.ms.RetrieveNewestBooleanEntryFunc = func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -211,7 +213,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		if be, ok := e.(*proto.BooleanDataEntry); ok {
 			return be, nil
 		}
-		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key)
+		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a boolean data entry
+			"unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+		)
 	}
 	r.ms.RetrieveNewestIntegerEntryFunc = func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -221,7 +225,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		if be, ok := e.(*proto.IntegerDataEntry); ok {
 			return be, nil
 		}
-		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key)
+		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a integer data entry
+			"unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+		)
 	}
 	r.ms.RetrieveNewestStringEntryFunc = func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -231,7 +237,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		if be, ok := e.(*proto.StringDataEntry); ok {
 			return be, nil
 		}
-		return nil, errors.Errorf("unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key)
+		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a string data entry
+			"unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+		)
 	}
 	r.ms.NewestWavesBalanceFunc = func(account proto.Recipient) (uint64, error) {
 		addr, err := r.resolveRecipient(account)
