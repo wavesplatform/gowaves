@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -336,7 +337,7 @@ func (a *txAppender) commitTxApplication(
 	// Add transaction ID to recent IDs.
 	txID, err := tx.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
-		return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to get tx id: %v", err))
+		return txSnapshot{}, wrapErr(stateerr.TxCommitmentError, errors.Errorf("failed to get tx id: %v", err))
 	}
 	a.recentTxIds[string(txID)] = empty
 	// Update script runs.
@@ -345,7 +346,7 @@ func (a *txAppender) commitTxApplication(
 	a.sc.addRecentTxComplexity()
 	// Save balance diff.
 	if err = a.diffStor.saveTxDiff(applicationRes.changes.diff); err != nil {
-		return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
+		return txSnapshot{}, wrapErr(stateerr.TxCommitmentError, errors.Errorf("failed to save balance diff: %v", err))
 	}
 	var (
 		pi = newPerformerInfo(
@@ -365,7 +366,7 @@ func (a *txAppender) commitTxApplication(
 	a.diffStor.reset()
 	snapshot, err := a.txHandler.performTx(tx, pi, params.validatingUtx, invocationRes, applicationStatus, balanceChanges)
 	if err != nil {
-		return txSnapshot{}, wrapErr(TxCommitmentError,
+		return txSnapshot{}, wrapErr(stateerr.TxCommitmentError,
 			errors.Wrapf(err, "failed to perform transaction %q", base58.Encode(txID)),
 		)
 	}
@@ -373,7 +374,7 @@ func (a *txAppender) commitTxApplication(
 	if !params.validatingUtx {
 		// Count tx fee. This should not affect transaction execution. It only accumulates miner fee.
 		if err := a.blockDiffer.countMinerFee(tx); err != nil {
-			return txSnapshot{}, wrapErr(TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
+			return txSnapshot{}, wrapErr(stateerr.TxCommitmentError, errors.Errorf("failed to count miner fee: %v", err))
 		}
 	}
 	return snapshot, nil

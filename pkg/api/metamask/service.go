@@ -17,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -127,7 +128,7 @@ func (s RPCService) Eth_GetBlockByHash(blockIDBytes proto.HexBytes, filterTxObj 
 	}
 	_, err = s.nodeRPCApp.State.BlockIDToHeight(blockID)
 	switch {
-	case state.IsNotFound(err):
+	case stateerr.IsNotFound(err):
 		return nil, nil // according to the scala node implementation
 	case err != nil:
 		return nil, errors.Wrapf(err, "failed to fetch heigh of block by blockID %q", blockID.String())
@@ -309,7 +310,7 @@ func (s RPCService) Eth_GetCode(ethAddr proto.EthereumAddress, blockOrTag string
 
 	si, err := s.nodeRPCApp.State.ScriptBasicInfoByAccount(proto.NewRecipientFromAddress(wavesAddr))
 	switch {
-	case state.IsNotFound(err):
+	case stateerr.IsNotFound(err):
 		// account has no script, trying fetch data as asset
 		assetID := proto.AssetID(ethAddr)
 		_, err := s.nodeRPCApp.State.AssetInfo(assetID)
@@ -428,7 +429,7 @@ type GetTransactionReceiptResponse struct {
 func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetTransactionReceiptResponse, error) {
 	txID := crypto.Digest(ethTxID)
 	tx, status, err := s.nodeRPCApp.State.TransactionByIDWithStatus(txID.Bytes())
-	if state.IsNotFound(err) {
+	if stateerr.IsNotFound(err) {
 		zap.S().Debugf("Eth_GetTransactionReceipt: transaction with ID=%q or ethID=%q cannot be found",
 			txID, ethTxID,
 		)
@@ -509,7 +510,7 @@ type GetTransactionByHashResponse struct {
 func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTransactionByHashResponse, error) {
 	txID := crypto.Digest(ethTxID)
 	tx, err := s.nodeRPCApp.State.TransactionByID(txID.Bytes())
-	if state.IsNotFound(err) {
+	if stateerr.IsNotFound(err) {
 		zap.S().Debugf("Eth_GetTransactionByHash: transaction with ID=%q or ethID=%q cannot be found",
 			txID, ethTxID,
 		)

@@ -384,7 +384,7 @@ func ensureRecipientAddress(env environment, recipient proto.Recipient) (proto.R
 	}
 	address, err := env.state().NewestAddrByAlias(*alias)
 	if err != nil {
-		return proto.Recipient{}, errors.Errorf("failed to get address by alias, %v", err)
+		return proto.Recipient{}, errors.Wrap(err, "failed to get address by alias")
 	}
 	return proto.NewRecipientFromAddress(address), nil
 }
@@ -409,12 +409,12 @@ func hashScriptAtAddress(env environment, args ...rideType) (rideType, error) {
 		if errors.Is(err, keyvalue.ErrNotFound) {
 			return rideUnit{}, nil
 		}
-		return nil, errors.Errorf("hashScriptAtAddress: failed to get script by recipient, %v", err)
+		return nil, errors.Wrap(err, "hashScriptAtAddress: failed to get script by recipient")
 	}
 	if len(script) != 0 {
-		hash, err := crypto.FastHash(script)
-		if err != nil {
-			return nil, errors.Errorf("hashScriptAtAddress: failed to get hash of script, %v", err)
+		hash, hErr := crypto.FastHash(script)
+		if hErr != nil {
+			return nil, errors.Wrap(hErr, "hashScriptAtAddress: failed to get hash of script")
 		}
 		return rideByteVector(hash.Bytes()), nil
 	}
@@ -550,7 +550,10 @@ func intFromState(env environment, args ...rideType) (rideType, error) {
 	}
 	entry, err := env.state().RetrieveNewestIntegerEntry(r, k)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "intFromState")
 	}
 	return rideInt(entry.Value), nil
 }
@@ -567,7 +570,10 @@ func intFromSelfState(env environment, args ...rideType) (rideType, error) {
 	r := proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	entry, err := env.state().RetrieveNewestIntegerEntry(r, k)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "intFromSelfState")
 	}
 	return rideInt(entry.Value), nil
 }
@@ -579,7 +585,10 @@ func bytesFromState(env environment, args ...rideType) (rideType, error) {
 	}
 	entry, err := env.state().RetrieveNewestBinaryEntry(r, k)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "bytesFromState")
 	}
 	return rideByteVector(entry.Value), nil
 }
@@ -596,7 +605,10 @@ func bytesFromSelfState(env environment, args ...rideType) (rideType, error) {
 	r := proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	entry, err := env.state().RetrieveNewestBinaryEntry(r, k)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "bytesFromSelfState")
 	}
 	return rideByteVector(entry.Value), nil
 }
@@ -608,7 +620,10 @@ func stringFromState(env environment, args ...rideType) (rideType, error) {
 	}
 	entry, err := env.state().RetrieveNewestStringEntry(r, k)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "stringFromState")
 	}
 	return rideString(entry.Value), nil
 }
@@ -625,7 +640,10 @@ func stringFromSelfState(env environment, args ...rideType) (rideType, error) {
 	r := proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	entry, err := env.state().RetrieveNewestStringEntry(r, k)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "stringFromSelfState")
 	}
 	return rideString(entry.Value), nil
 }
@@ -637,7 +655,10 @@ func booleanFromState(env environment, args ...rideType) (rideType, error) {
 	}
 	entry, err := env.state().RetrieveNewestBooleanEntry(r, k)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "booleanFromState")
 	}
 	return rideBoolean(entry.Value), nil
 }
@@ -654,7 +675,10 @@ func booleanFromSelfState(env environment, args ...rideType) (rideType, error) {
 	r := proto.NewRecipientFromAddress(proto.WavesAddress(a))
 	entry, err := env.state().RetrieveNewestBooleanEntry(r, k)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "booleanFromSelfState")
 	}
 	return rideBoolean(entry.Value), nil
 }
@@ -841,7 +865,10 @@ func assetInfoV3(env environment, args ...rideType) (rideType, error) {
 	}
 	info, err := env.state().NewestAssetInfo(asset)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "assetInfoV3")
 	}
 	return assetInfoToObject(info), nil
 }
@@ -857,7 +884,10 @@ func assetInfoV4(env environment, args ...rideType) (rideType, error) {
 	}
 	info, err := env.state().NewestFullAssetInfo(asset)
 	if err != nil {
-		return rideUnit{}, nil
+		if env.state().IsNotFound(err) {
+			return rideUnit{}, nil
+		}
+		return rideUnit{}, errors.Wrap(err, "assetInfoV4")
 	}
 	return fullAssetInfoToObject(info), nil
 }

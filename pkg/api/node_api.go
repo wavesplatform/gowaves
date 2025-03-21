@@ -20,6 +20,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
 )
 
@@ -92,7 +93,7 @@ func (a *NodeApi) TransactionInfo(w http.ResponseWriter, r *http.Request) error 
 	tx, err := a.state.TransactionByID(id.Bytes())
 	if err != nil {
 		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
+		if stateerr.IsNotFound(origErr) {
 			return apiErrs.TransactionDoesNotExist
 		}
 		return errors.Wrapf(err,
@@ -150,7 +151,7 @@ func (a *NodeApi) BlocksHeadersAt(w http.ResponseWriter, r *http.Request) error 
 	}
 	header, err := a.app.BlocksHeadersAt(h)
 	if err != nil {
-		if state.IsInvalidInput(err) || state.IsNotFound(err) {
+		if stateerr.IsInvalidInput(err) || stateerr.IsNotFound(err) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err, "BlocksHeadersAt: failed to get block header at height %d", h)
@@ -174,7 +175,7 @@ func (a *NodeApi) BlockHeadersID(w http.ResponseWriter, r *http.Request) error {
 	}
 	header, err := a.app.BlocksHeadersByID(id)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if stateerr.IsNotFound(err) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err, "BlockHeadersID: failed to get block header by ID=%q", s)
@@ -320,7 +321,7 @@ func (a *NodeApi) BlocksSnapshotAt(w http.ResponseWriter, r *http.Request) error
 	}
 	blockSnapshot, err := a.state.SnapshotsAtHeight(height)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if stateerr.IsNotFound(err) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err, "BlocksSnapshotAt: failed to get block snapshot at height %d", height)
@@ -523,7 +524,7 @@ func (a *NodeApi) AddrByAlias(w http.ResponseWriter, r *http.Request) error {
 	addr, err := a.app.AddrByAlias(*alias)
 	if err != nil {
 		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
+		if stateerr.IsNotFound(origErr) {
 			return apiErrs.NewAliasDoesNotExistError(alias.String())
 		}
 		return errors.Wrapf(err, "failed to find addr by short alias %q", aliasShort)
@@ -546,7 +547,7 @@ func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
 
 	aliases, err := a.app.AliasesByAddr(addr)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if stateerr.IsNotFound(err) {
 			aliases = nil
 		} else {
 			return errors.Wrapf(err, "failed to find aliases by addr")
@@ -696,7 +697,7 @@ func (a *NodeApi) RollbackToHeight(w http.ResponseWriter, r *http.Request) error
 	err := a.state.RollbackToHeight(rollbackReq.Height)
 	if err != nil {
 		origErr := errors.Cause(err)
-		if state.IsNotFound(origErr) {
+		if stateerr.IsNotFound(origErr) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err, "failed to rollback to height %d", rollbackReq.Height)
@@ -811,7 +812,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	}
 	stateHashDebug, err := a.stateHashDebug(height)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if stateerr.IsNotFound(err) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrap(err, "failed to get state hash debug")
@@ -834,7 +835,7 @@ func (a *NodeApi) stateHashLast(w http.ResponseWriter, _ *http.Request) error {
 	}
 	stateHashDebug, err := a.stateHashDebug(h)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if stateerr.IsNotFound(err) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrap(err, "failed to get last state hash")
@@ -857,7 +858,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	}
 	sh, err := a.state.SnapshotStateHashAtHeight(height)
 	if err != nil {
-		if state.IsNotFound(err) {
+		if stateerr.IsNotFound(err) {
 			return apiErrs.BlockDoesNotExist
 		}
 		return errors.Wrapf(err, "failed to get snapshot state hash at height %d", height)

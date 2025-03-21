@@ -1,10 +1,12 @@
 package utxpool
 
 import (
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 type BulkValidator interface {
@@ -53,7 +55,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 				break
 			}
 			_, err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
-			if state.IsTxCommitmentError(err) {
+			if stateerr.IsTxCommitmentError(err) {
 				// This should not happen in practice.
 				// Reset state, return applied transactions to UTX.
 				s.ResetValidationList()
