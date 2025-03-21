@@ -7,10 +7,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 )
 
-func notFound() state.StateError {
-	return state.NewStateError(state.NotFoundError, proto.ErrNotFound)
+func notFound() stateerr.StateError {
+	return stateerr.NewStateError(stateerr.NotFoundError, proto.ErrNotFound)
 }
 
 type MockStateManager struct {
