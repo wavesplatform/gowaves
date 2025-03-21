@@ -1,6 +1,6 @@
 rules:
   - id: if-incorrect-nil-err-return
-    languages: [go]
+    languages: [ go ]
     severity: WARNING
     message: |
       WARNING: A local variable '$ERR' is checked for nil, but a different variable is returned.
@@ -36,7 +36,7 @@ rules:
               ...
               $NEWERR := $ANYFUNC(..., $ERR, ...)
               ...
-              return nil, $NEWERR
+              return ..., $NEWERR
           }
       - pattern-not: |
           if $ERR != nil {
