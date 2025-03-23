@@ -433,8 +433,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	var bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
 		var bUErr error
-
-		bUpdatesExtension, bUErr = initializeBlockchainUpdatesPlugin(ctx, cfg, nc.BlockchainUpdatesL2Address,
+		bUpdatesExtension, bUErr = initializeBlockchainUpdatesExtension(ctx, cfg, nc.BlockchainUpdatesL2Address,
 			updatesChannel, &firstBlock, st)
 		if bUErr != nil {
 			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
@@ -846,7 +845,7 @@ func runAPIs(
 	return nil
 }
 
-func initializeBlockchainUpdatesPlugin(
+func initializeBlockchainUpdatesExtension(
 	ctx context.Context,
 	cfg *settings.BlockchainSettings,
 	l2ContractAddress string,

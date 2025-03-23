@@ -8,7 +8,7 @@ import (
 )
 
 type BlockchainUpdatesExtension struct {
-	Ctx                      context.Context
+	ctx                      context.Context
 	l2ContractAddress        proto.WavesAddress
 	BUpdatesChannel          chan proto.BUpdatesInfo
 	firstBlock               *bool
@@ -24,7 +24,7 @@ func NewBlockchainUpdatesExtension(
 	firstBlock *bool,
 ) *BlockchainUpdatesExtension {
 	return &BlockchainUpdatesExtension{
-		Ctx:                      ctx,
+		ctx:                      ctx,
 		l2ContractAddress:        l2ContractAddress,
 		BUpdatesChannel:          bUpdatesChannel,
 		firstBlock:               firstBlock,

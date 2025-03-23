@@ -40,6 +40,7 @@ type StateInfo interface {
 	// Header getters.
 	Header(blockID proto.BlockID) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
+	NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	// Height returns current blockchain height.
 	Height() (proto.Height, error)
 	// Height <---> blockID converters.
@@ -83,7 +84,6 @@ type StateInfo interface {
 	// Accounts data storage.
 	RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error)
 	RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error)
-	RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error)
 	RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error)
 	RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error)
 	RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error)

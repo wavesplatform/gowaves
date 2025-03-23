@@ -870,6 +870,26 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
 	blockSnapshot proto.BlockSnapshot) error {
+	bUpdatesInfo := BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot,
+		a.bUpdatesPluginInfo.L2ContractAddress)
+
+	if *a.bUpdatesPluginInfo.FirstBlock {
+		dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesPluginInfo.L2ContractAddress))
+		if err != nil && !errors.Is(err, proto.ErrNotFound) {
+			return err
+		}
+		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries
+		a.bUpdatesPluginInfo.FirstBlockDone()
+		a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)
+		return nil
+	}
+
+	a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)
+	return nil
+}
+
+func BuildBlockUpdatesInfoFromSnapshot(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
+	blockSnapshot proto.BlockSnapshot, l2ContractAddress proto.WavesAddress) proto.BUpdatesInfo {
 	blockID := blockHeader.BlockID()
 	bUpdatesInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: proto.BlockUpdatesInfo{
@@ -883,31 +903,19 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 			Height:         blockInfo.Height,
 		},
 	}
-	if *a.bUpdatesPluginInfo.FirstBlock {
-		dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesPluginInfo.L2ContractAddress))
-		if err != nil && !errors.Is(err, proto.ErrNotFound) {
-			return err
-		}
-		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries
-		a.bUpdatesPluginInfo.FirstBlockDone()
-		a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)
-		return nil
-	}
 
 	// Write the L2 contract updates into the structure.
 	for _, txSnapshots := range blockSnapshot.TxSnapshots {
 		for _, snapshot := range txSnapshots {
 			if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
-				if dataEntriesSnapshot.Address == a.bUpdatesPluginInfo.L2ContractAddress {
+				if dataEntriesSnapshot.Address == l2ContractAddress {
 					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
 						dataEntriesSnapshot.DataEntries...)
 				}
 			}
 		}
 	}
-
-	a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)
-	return nil
+	return bUpdatesInfo
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {

@@ -68,6 +68,12 @@ func (a *ThreadSafeReadWrapper) HeaderByHeight(height proto.Height) (*proto.Bloc
 	return a.s.HeaderByHeight(height)
 }
 
+func (a *ThreadSafeReadWrapper) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.NewestHeaderByHeight(height)
+}
+
 func (a *ThreadSafeReadWrapper) Height() (proto.Height, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -210,12 +216,6 @@ func (a *ThreadSafeReadWrapper) RetrieveEntries(account proto.Recipient) ([]prot
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.RetrieveEntries(account)
-}
-
-func (a *ThreadSafeReadWrapper) RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.RetrieveEntriesAtHeight(addr, height)
 }
 
 func (a *ThreadSafeReadWrapper) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {

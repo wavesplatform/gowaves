@@ -703,6 +703,21 @@ func (mr *MockStateInfoMockRecorder) NewestBlockInfoByHeight(height interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestBlockInfoByHeight", reflect.TypeOf((*MockStateInfo)(nil).NewestBlockInfoByHeight), height)
 }
 
+// NewestHeaderByHeight mocks base method.
+func (m *MockStateInfo) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestHeaderByHeight", height)
+	ret0, _ := ret[0].(*proto.BlockHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestHeaderByHeight indicates an expected call of NewestHeaderByHeight.
+func (mr *MockStateInfoMockRecorder) NewestHeaderByHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestHeaderByHeight", reflect.TypeOf((*MockStateInfo)(nil).NewestHeaderByHeight), height)
+}
+
 // NewestScriptByAccount mocks base method.
 func (m *MockStateInfo) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
 	m.ctrl.T.Helper()
@@ -806,21 +821,6 @@ func (m *MockStateInfo) RetrieveEntries(account proto.Recipient) ([]proto.DataEn
 func (mr *MockStateInfoMockRecorder) RetrieveEntries(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntries", reflect.TypeOf((*MockStateInfo)(nil).RetrieveEntries), account)
-}
-
-// RetrieveEntriesAtHeight mocks base method.
-func (m *MockStateInfo) RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveEntriesAtHeight", addr, height)
-	ret0, _ := ret[0].([]proto.DataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveEntriesAtHeight indicates an expected call of RetrieveEntriesAtHeight.
-func (mr *MockStateInfoMockRecorder) RetrieveEntriesAtHeight(addr, height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntriesAtHeight", reflect.TypeOf((*MockStateInfo)(nil).RetrieveEntriesAtHeight), addr, height)
 }
 
 // RetrieveEntry mocks base method.
@@ -2136,6 +2136,21 @@ func (mr *MockStateMockRecorder) NewestBlockInfoByHeight(height interface{}) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestBlockInfoByHeight", reflect.TypeOf((*MockState)(nil).NewestBlockInfoByHeight), height)
 }
 
+// NewestHeaderByHeight mocks base method.
+func (m *MockState) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestHeaderByHeight", height)
+	ret0, _ := ret[0].(*proto.BlockHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestHeaderByHeight indicates an expected call of NewestHeaderByHeight.
+func (mr *MockStateMockRecorder) NewestHeaderByHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestHeaderByHeight", reflect.TypeOf((*MockState)(nil).NewestHeaderByHeight), height)
+}
+
 // NewestScriptByAccount mocks base method.
 func (m *MockState) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
 	m.ctrl.T.Helper()
@@ -2265,21 +2280,6 @@ func (m *MockState) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry,
 func (mr *MockStateMockRecorder) RetrieveEntries(account interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntries", reflect.TypeOf((*MockState)(nil).RetrieveEntries), account)
-}
-
-// RetrieveEntriesAtHeight mocks base method.
-func (m *MockState) RetrieveEntriesAtHeight(addr proto.Address, height uint64) ([]proto.DataEntry, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RetrieveEntriesAtHeight", addr, height)
-	ret0, _ := ret[0].([]proto.DataEntry)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RetrieveEntriesAtHeight indicates an expected call of RetrieveEntriesAtHeight.
-func (mr *MockStateMockRecorder) RetrieveEntriesAtHeight(addr, height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RetrieveEntriesAtHeight", reflect.TypeOf((*MockState)(nil).RetrieveEntriesAtHeight), addr, height)
 }
 
 // RetrieveEntry mocks base method.
