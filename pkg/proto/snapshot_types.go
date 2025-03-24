@@ -60,7 +60,7 @@ func (s *WavesBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	}
 	asset, amount := c.convertAmount(p.Amount)
 	if c.err != nil {
-		return err
+		return c.err
 	}
 	if asset.Present {
 		return errors.New("failed to unmarshal waves balance snapshot: asset is present")
