@@ -42,12 +42,6 @@ rules:
                   return $OTHERERR
               }
 
-      # exclude defer context
-      - pattern-not-inside: |
-          defer func (...) {
-            ...
-          }(...)
-
       # pattern-not for multiple return values
       - pattern-not: |
           if $ERR := $FUNC(...); $ERR != nil {
