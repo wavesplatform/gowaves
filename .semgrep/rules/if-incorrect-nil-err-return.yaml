@@ -80,12 +80,6 @@ rules:
               return ..., $NEWERR
           }
 
-      # exclude defer context
-      - pattern-not-inside: |
-          defer func (...) {
-            ...
-          }(...)
-
       # pattern-not for single return value
       - pattern-not: |
           if $ERR != nil {
