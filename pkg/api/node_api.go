@@ -389,7 +389,7 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return &BadRequestError{err}
+		return wrapToBadRequestError(err)
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
@@ -804,7 +804,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return &BadRequestError{err}
+		return wrapToBadRequestError(err)
 	}
 	if height < 1 {
 		return apiErrs.BlockDoesNotExist
@@ -850,7 +850,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return &BadRequestError{err}
+		return wrapToBadRequestError(err)
 	}
 	if height < 1 {
 		return apiErrs.BlockDoesNotExist
