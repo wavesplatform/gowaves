@@ -3,8 +3,6 @@ package blockchaininfo
 import (
 	"strings"
 
-	"go.uber.org/zap"
-
 	"github.com/nats-io/nats.go"
 )
 
@@ -38,13 +36,6 @@ func SendRestartSignal(nc *nats.Conn) (*nats.Msg, error) {
 }
 
 func SendConstantKeys(nc *nats.Conn) error {
-	_, subErr := nc.Subscribe(ConstantKeys, func(request *nats.Msg) {
-		constantKeys := strings.Join(ConstantContractKeys(), ",")
-		err := request.Respond([]byte(constantKeys))
-		if err != nil {
-			zap.S().Errorf("failed to respond to a restart signal, %v", err)
-			return
-		}
-	})
-	return subErr
+	constantKeys := strings.Join(ConstantContractKeys(), ",")
+	return nc.Publish(ConstantKeys, []byte(constantKeys))
 }

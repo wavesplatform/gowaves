@@ -107,8 +107,11 @@ func (sc *StateCache) RemoveCacheRecord(targetHeight uint64) {
 }
 
 type HistoryEntry struct {
-	Height  uint64
-	BlockID proto.BlockID
+	Height      uint64
+	BlockID     proto.BlockID
+	VRF         proto.B58Bytes
+	BlockHeader proto.BlockHeader
+
 	Entries proto.DataEntries
 }
 

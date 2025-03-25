@@ -2,10 +2,10 @@ package blockchaininfo
 
 import (
 	"context"
-	"strings"
-	"time"
-
 	"go.uber.org/zap"
+	"strings"
+	"sync"
+	"time"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
@@ -15,7 +15,7 @@ import (
 )
 
 const StoreBlocksLimit = 200
-const ConnectionsTimeoutDefault = 5 * server.AUTH_TIMEOUT
+const ConnectionsTimeoutDefault = 10 * server.AUTH_TIMEOUT
 
 const portDefault = 4222
 const hostDefault = "127.0.0.1"
@@ -65,37 +65,39 @@ func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddr
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %s", l2ContractAddress)
 	}
 	historyJournal := NewHistoryJournal()
-	for i := 0; i < HistoryJournalLengthMax; i++ {
-		blockSnapshot, retrieveErr := st.SnapshotsAtHeight(currentHeight - 1)
+	for targetHeight := currentHeight - HistoryJournalLengthMax; targetHeight < currentHeight; targetHeight++ {
+		blockSnapshot, retrieveErr := st.SnapshotsAtHeight(targetHeight)
 		if retrieveErr != nil {
 			return nil, retrieveErr
 		}
-		blockInfo, pullErr := st.NewestBlockInfoByHeight(currentHeight - 1)
+		blockInfo, pullErr := st.NewestBlockInfoByHeight(targetHeight)
 		if pullErr != nil {
 			return nil, errors.Wrap(pullErr, "failed to get newest block info")
 		}
-		blockHeader, blockErr := st.NewestHeaderByHeight(currentHeight - 1)
+		blockHeader, blockErr := st.NewestHeaderByHeight(targetHeight)
 		if blockErr != nil {
 			return nil, errors.Wrap(blockErr, "failed to get newest block info")
 		}
 		bUpdatesInfo := state.BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot, l2address)
 
-		filteredDataEntries, filtrErr := filterDataEntries(currentHeight-limit,
+		filteredDataEntries, filtrErr := filterDataEntries(targetHeight-limit,
 			bUpdatesInfo.ContractUpdatesInfo.AllDataEntries)
 		if filtrErr != nil {
 			return nil, errors.Wrap(filtrErr, "failed to initialize state cache, failed to filter data entries")
 		}
 
-		stateCache.AddCacheRecord(currentHeight-1, filteredDataEntries, bUpdatesInfo.BlockUpdatesInfo)
+		stateCache.AddCacheRecord(targetHeight, filteredDataEntries, bUpdatesInfo.BlockUpdatesInfo)
 
 		historyEntry := HistoryEntry{
-			Height:  currentHeight,
-			BlockID: bUpdatesInfo.BlockUpdatesInfo.BlockID,
-			Entries: filteredDataEntries,
+			Height:      targetHeight,
+			BlockID:     bUpdatesInfo.BlockUpdatesInfo.BlockID,
+			Entries:     filteredDataEntries,
+			VRF:         bUpdatesInfo.BlockUpdatesInfo.VRF,
+			BlockHeader: bUpdatesInfo.BlockUpdatesInfo.BlockHeader,
 		}
 		historyJournal.Push(historyEntry)
-		currentHeight--
 	}
+	historyJournal.StateCache = stateCache
 
 	return &BUpdatesExtensionState{Limit: limit, Scheme: scheme,
 		L2ContractAddress: l2ContractAddress, HistoryJournal: historyJournal, St: st}, nil
@@ -236,9 +238,11 @@ func (bu *BUpdatesExtensionState) AddEntriesToHistoryJournalAndCache(updates pro
 	blockID := updates.BlockUpdatesInfo.BlockID
 
 	historyEntry := HistoryEntry{
-		Height:  height,
-		BlockID: blockID,
-		Entries: updates.ContractUpdatesInfo.AllDataEntries,
+		Height:      height,
+		BlockID:     blockID,
+		Entries:     updates.ContractUpdatesInfo.AllDataEntries,
+		VRF:         updates.BlockUpdatesInfo.VRF,
+		BlockHeader: updates.BlockUpdatesInfo.BlockHeader,
 	}
 	bu.HistoryJournal.Push(historyEntry)
 	bu.HistoryJournal.StateCache.AddCacheRecord(height, updates.ContractUpdatesInfo.AllDataEntries,
@@ -247,7 +251,7 @@ func (bu *BUpdatesExtensionState) AddEntriesToHistoryJournalAndCache(updates pro
 
 func (bu *BUpdatesExtensionState) RollbackHappened(updates proto.BUpdatesInfo, previousState proto.BUpdatesInfo) bool {
 	if _, _, blockIDFound := bu.HistoryJournal.SearchByBlockID(updates.BlockUpdatesInfo.BlockHeader.Parent); blockIDFound {
-		return true
+		return false
 	}
 	if updates.BlockUpdatesInfo.Height < previousState.BlockUpdatesInfo.Height {
 		return true
@@ -374,7 +378,7 @@ func HandleRollback(be *BUpdatesExtensionState, updates proto.BUpdatesInfo, upda
 }
 
 func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn,
-	updatesPublisher UpdatesPublisher) {
+	updatesPublisher UpdatesPublisher, handleRollback bool) {
 	// update current state
 	be.CurrentState = &updates
 	if be.PreviousState == nil {
@@ -393,8 +397,10 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionSta
 		be.PreviousState = &updates
 		return
 	}
-	if be.RollbackHappened(updates, *be.PreviousState) {
-		HandleRollback(be, updates, &updatesPublisher, nc, scheme)
+	if handleRollback {
+		if be.RollbackHappened(updates, *be.PreviousState) {
+			HandleRollback(be, updates, &updatesPublisher, nc, scheme)
+		}
 	}
 	// compare the current state to the previous state
 	stateChanged, changes, cmprErr := be.HasStateChanged()
@@ -422,7 +428,7 @@ func runPublisher(ctx context.Context, extension *BlockchainUpdatesExtension, sc
 				zap.S().Errorf("the updates channel for publisher was closed")
 				return
 			}
-			handleBlockchainUpdate(updates, extension.blockchainExtensionState, scheme, nc, updatesPublisher)
+			handleBlockchainUpdate(updates, extension.blockchainExtensionState, scheme, nc, updatesPublisher, true)
 		case <-ctx.Done():
 			return
 		}
@@ -477,11 +483,13 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 	}
 	defer nc.Close()
 
-	constantKeys, err := requestConstantKeys(nc)
-	if err != nil {
-		return errors.Wrap(err, "failed to request constant keys from the client")
+	var wg sync.WaitGroup
+	wg.Add(1)
+	reqErr := e.requestConstantKeys(nc, &wg)
+	if reqErr != nil {
+		return errors.Wrap(reqErr, "failed to request constant keys from the client")
 	}
-	e.blockchainExtensionState.constantContractKeys = constantKeys
+	wg.Wait()
 
 	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String()}
 	// Publish the first 100 history entries for the rollback functionality.
@@ -495,12 +503,13 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 	return nil
 }
 
-func requestConstantKeys(nc *nats.Conn) ([]string, error) {
-	msg, err := nc.Request(ConstantKeys, nil, ConnectionsTimeoutDefault)
-	if err != nil {
-		return nil, err
-	}
-	return strings.Split(string(msg.Data), ","), nil
+func (e *BlockchainUpdatesExtension) requestConstantKeys(nc *nats.Conn, wg *sync.WaitGroup) error {
+	_, subErr := nc.Subscribe(ConstantKeys, func(msg *nats.Msg) {
+		defer wg.Done()
+		constantKeys := strings.Split(string(msg.Data), ",")
+		e.blockchainExtensionState.constantContractKeys = constantKeys
+	})
+	return subErr
 }
 
 func publishHistoryBlocks(e *BlockchainUpdatesExtension, scheme proto.Scheme,
@@ -508,14 +517,16 @@ func publishHistoryBlocks(e *BlockchainUpdatesExtension, scheme proto.Scheme,
 	for _, historyEntry := range e.blockchainExtensionState.HistoryJournal.historyJournal {
 		updates := proto.BUpdatesInfo{
 			BlockUpdatesInfo: proto.BlockUpdatesInfo{
-				Height:  historyEntry.Height,
-				BlockID: historyEntry.BlockID,
+				Height:      historyEntry.Height,
+				BlockID:     historyEntry.BlockID,
+				VRF:         historyEntry.VRF,
+				BlockHeader: historyEntry.BlockHeader,
 			},
 			ContractUpdatesInfo: proto.L2ContractDataEntries{
 				Height:         historyEntry.Height,
 				AllDataEntries: historyEntry.Entries,
 			},
 		}
-		handleBlockchainUpdate(updates, e.blockchainExtensionState, scheme, nc, updatesPublisher)
+		handleBlockchainUpdate(updates, e.blockchainExtensionState, scheme, nc, updatesPublisher, false)
 	}
 }

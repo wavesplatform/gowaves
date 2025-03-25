@@ -228,15 +228,15 @@ func (s *blockchainEntitiesStorage) flush() error {
 var ErrIncompatibleStateParams = stderrs.New("incompatible state params")
 
 func checkCompatibility(stateDB *stateDB, params StateParams) error {
-	version, err := stateDB.stateVersion()
-	if err != nil {
-		return errors.Wrap(err, "stateVersion")
-	}
-	if version != StateVersion {
-		return errors.Wrapf(ErrIncompatibleStateParams, "incompatible storage version: state has value (%d), want (%d)",
-			version, StateVersion,
-		)
-	}
+	//version, err := stateDB.stateVersion()
+	//if err != nil {
+	//	return errors.Wrap(err, "stateVersion")
+	//}
+	//if version != StateVersion {
+	//	return errors.Wrapf(ErrIncompatibleStateParams, "incompatible storage version: state has value (%d), want (%d)",
+	//		version, StateVersion,
+	//	)
+	//}
 	hasDataForExtendedApi, err := stateDB.stateStoresApiData()
 	if err != nil {
 		return errors.Wrap(err, "stateStoresApiData")
