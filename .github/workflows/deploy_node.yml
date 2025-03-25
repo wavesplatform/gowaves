@@ -43,11 +43,14 @@ jobs:
   check-inputs:
     name: check-inputs
     runs-on: ubuntu-latest
+    env:
+      NETWORK: "${{ inputs.network }}"
+      ARCH: "${{ inputs.arch }}"
     steps:
       - name: Check inputs
         run: |
-          echo "${{ inputs.network }}" | grep -E '^(mainnet|testnet|stagenet)$' || exit 1 # check if the network is valid
-          echo "${{ inputs.arch }}" | grep -E '^(amd64|arm64)$' || exit 1 # check if the architecture is valid
+          echo "${{ env.NETWORK }}" | grep -E '^(mainnet|testnet|stagenet)$' || exit 1 # check if the network is valid
+          echo "${{ env.ARCH }}" | grep -E '^(amd64|arm64)$' || exit 1 # check if the architecture is valid
 
   deploy:
     name: deploy
@@ -69,7 +72,7 @@ jobs:
           fetch-tags: true
 
       - name: Set up Go 1.24
-        uses: actions/setup-go@v5.3.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: 1.24.x
           check-latest: true

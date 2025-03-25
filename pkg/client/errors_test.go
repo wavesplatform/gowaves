@@ -9,12 +9,18 @@ import (
 
 func TestParseError_Error(t *testing.T) {
 	txt := "parse error"
-	err := ParseError{errors.New(txt)}
+	inner := errors.New(txt)
+	err := newParseError(inner)
 	assert.Equal(t, txt, err.Error())
+	assert.ErrorIs(t, err, inner)
+	assert.ErrorAs(t, err, new(*ParseError))
 }
 
 func TestRequestError_Error(t *testing.T) {
 	txt := "request error"
-	err := RequestError{Err: errors.New(txt)}
+	inner := errors.New(txt)
+	err := newRequestError(inner, "")
 	assert.Equal(t, txt, err.Error())
+	assert.ErrorIs(t, err, inner)
+	assert.ErrorAs(t, err, new(*RequestError))
 }
