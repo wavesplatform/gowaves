@@ -665,7 +665,9 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 			isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID)
 			if err != nil {
-				return proto.DAppError, info.failedChanges, errors.Errorf("sponsorships: failed to check whether the asset was smart")
+				return proto.DAppError, info.failedChanges, errors.Wrap(err,
+					"sponsorships: failed to check whether the asset was smart",
+				)
 			}
 			if isSmartAsset {
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())
