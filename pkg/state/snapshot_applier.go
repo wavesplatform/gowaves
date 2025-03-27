@@ -475,8 +475,8 @@ func (a *blockSnapshotsApplier) ApplyAssetVolume(snapshot proto.AssetVolumeSnaps
 	if err != nil {
 		return errors.Wrapf(err, "failed to get newest asset info for asset %q", snapshot.AssetID.String())
 	}
-	assetFullInfo.assetChangeableInfo.reissuable = snapshot.IsReissuable
-	assetFullInfo.assetChangeableInfo.quantity = snapshot.TotalQuantity
+	assetFullInfo.reissuable = snapshot.IsReissuable
+	assetFullInfo.quantity = snapshot.TotalQuantity
 	return a.stor.assets.storeAssetInfo(assetID, assetFullInfo, a.info.BlockID())
 }
 

@@ -7,7 +7,7 @@ import (
 )
 
 func ValidatePositiveAmount(amount int64, of string) error {
-	if !(amount > 0) {
+	if amount <= 0 {
 		return errs.NewNonPositiveAmount(amount, of)
 	}
 	return nil

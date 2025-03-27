@@ -104,7 +104,7 @@ func TestGenesisConfig(t *testing.T) {
 		FunctionalitySettings: settings.FunctionalitySettings{BlockRewardTerm: 100000, AddressSchemeCharacter: proto.TestNetScheme},
 	}
 	stateParams := DefaultStateParams()
-	stateParams.DbParams.Store = &keyvalue.NoOpStore{}
+	stateParams.DbParams.BloomFilterStore = &keyvalue.NoOpStore{}
 
 	manager := newTestStateManager(t, true, stateParams, ss)
 
