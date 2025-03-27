@@ -8,8 +8,6 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -58,7 +56,7 @@ type txAppender struct {
 	// appending transactions.
 	buildApiData bool
 
-	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension
+	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo
 }
 
 func newTxAppender(
@@ -69,7 +67,7 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
-	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension,
+	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo,
 ) (*txAppender, error) {
 	buildAPIData, err := stateDB.stateStoresApiData()
 	if err != nil {
@@ -103,22 +101,22 @@ func newTxAppender(
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	return &txAppender{
-		sc:                sc,
-		ia:                ia,
-		rw:                rw,
-		blockInfoProvider: state,
-		atx:               atx,
-		stor:              stor,
-		settings:          settings,
-		txHandler:         txHandler,
-		blockDiffer:       blockDiffer,
-		recentTxIds:       make(map[string]struct{}),
-		diffStor:          diffStor,
-		diffStorInvoke:    diffStorInvoke,
-		diffApplier:       diffApplier,
-		buildApiData:      buildAPIData,
-		ethTxKindResolver: ethKindResolver,
-		bUpdatesExtension: bUpdatesExtension,
+		sc:                 sc,
+		ia:                 ia,
+		rw:                 rw,
+		blockInfoProvider:  state,
+		atx:                atx,
+		stor:               stor,
+		settings:           settings,
+		txHandler:          txHandler,
+		blockDiffer:        blockDiffer,
+		recentTxIds:        make(map[string]struct{}),
+		diffStor:           diffStor,
+		diffStorInvoke:     diffStorInvoke,
+		diffApplier:        diffApplier,
+		buildApiData:       buildAPIData,
+		ethTxKindResolver:  ethKindResolver,
+		bUpdatesPluginInfo: bUpdatesPluginInfo,
 	}, nil
 }
 
@@ -844,10 +842,12 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	// write updates into the updatesChannel here
-	if a.bUpdatesExtension != nil && a.bUpdatesExtension.EnableBlockchainUpdatesPlugin() {
-		err = a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
-		if err != nil {
-			return errors.Errorf("failed to request blockchain info from L2 smart contract state, %v", err)
+	if a.bUpdatesPluginInfo != nil && a.bUpdatesPluginInfo.EnableBlockchainUpdatesPlugin {
+		if a.bUpdatesPluginInfo.IsReady() {
+			err = a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
+			if err != nil {
+				return errors.Errorf("failed to request blockchain info from L2 smart contract state, %v", err)
+			}
 		}
 	}
 
@@ -874,44 +874,52 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
 	blockSnapshot proto.BlockSnapshot) error {
+	bUpdatesInfo := BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot,
+		a.bUpdatesPluginInfo.L2ContractAddress)
+
+	if *a.bUpdatesPluginInfo.FirstBlock {
+		dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesPluginInfo.L2ContractAddress))
+		if err != nil && !errors.Is(err, proto.ErrNotFound) {
+			return err
+		}
+		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries
+		a.bUpdatesPluginInfo.FirstBlockDone()
+		a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)
+		return nil
+	}
+
+	a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)
+	return nil
+}
+
+func BuildBlockUpdatesInfoFromSnapshot(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
+	blockSnapshot proto.BlockSnapshot, l2ContractAddress proto.WavesAddress) proto.BUpdatesInfo {
 	blockID := blockHeader.BlockID()
-	bUpdatesInfo := blockchaininfo.BUpdatesInfo{
-		BlockUpdatesInfo: blockchaininfo.BlockUpdatesInfo{
+	bUpdatesInfo := proto.BUpdatesInfo{
+		BlockUpdatesInfo: proto.BlockUpdatesInfo{
 			Height:      blockInfo.Height,
 			VRF:         blockInfo.VRF,
 			BlockID:     blockID,
 			BlockHeader: *blockHeader,
 		},
-		ContractUpdatesInfo: blockchaininfo.L2ContractDataEntries{
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: nil,
 			Height:         blockInfo.Height,
 		},
-	}
-	if a.bUpdatesExtension.IsFirstRequestedBlock() {
-		dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesExtension.L2ContractAddress()))
-		if err != nil && !errors.Is(err, proto.ErrNotFound) {
-			return err
-		}
-		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries
-		a.bUpdatesExtension.FirstBlockDone()
-		a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
-		return nil
 	}
 
 	// Write the L2 contract updates into the structure.
 	for _, txSnapshots := range blockSnapshot.TxSnapshots {
 		for _, snapshot := range txSnapshots {
 			if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
-				if dataEntriesSnapshot.Address == a.bUpdatesExtension.L2ContractAddress() {
+				if dataEntriesSnapshot.Address == l2ContractAddress {
 					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
 						dataEntriesSnapshot.DataEntries...)
 				}
 			}
 		}
 	}
-
-	a.bUpdatesExtension.WriteBUpdates(bUpdatesInfo)
-	return nil
+	return bUpdatesInfo
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {

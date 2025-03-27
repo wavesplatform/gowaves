@@ -8,7 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func BUpdatesInfoToProto(blockInfo BUpdatesInfo, scheme proto.Scheme) (*g.BlockInfo, error) {
+func BUpdatesInfoToProto(blockInfo proto.BUpdatesInfo, scheme proto.Scheme) (*g.BlockInfo, error) {
 	var (
 		blockHeader *waves.Block_Header
 		err         error
@@ -26,22 +26,22 @@ func BUpdatesInfoToProto(blockInfo BUpdatesInfo, scheme proto.Scheme) (*g.BlockI
 	}, nil
 }
 
-func BUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (BlockUpdatesInfo, error) {
+func BUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (proto.BlockUpdatesInfo, error) {
 	if blockInfoProto == nil {
-		return BlockUpdatesInfo{}, errors.New("empty block info")
+		return proto.BlockUpdatesInfo{}, errors.New("empty block info")
 	}
 	blockID, err := proto.NewBlockIDFromBytes(blockInfoProto.BlockID)
 	if err != nil {
-		return BlockUpdatesInfo{}, errors.Wrap(err, "failed to convert block ID")
+		return proto.BlockUpdatesInfo{}, errors.Wrap(err, "failed to convert block ID")
 	}
 	var c proto.ProtobufConverter
 	blockHeader, err := c.PartialBlockHeader(blockInfoProto.BlockHeader)
 	if err != nil {
-		return BlockUpdatesInfo{}, errors.Wrap(err, "failed to convert block header")
+		return proto.BlockUpdatesInfo{}, errors.Wrap(err, "failed to convert block header")
 	}
 	blockHeader.ID = blockID // Set block ID to the one from the protobuf.
 	vrf := proto.B58Bytes(blockInfoProto.VRF)
-	return BlockUpdatesInfo{
+	return proto.BlockUpdatesInfo{
 		Height:      blockInfoProto.Height,
 		VRF:         vrf,
 		BlockID:     blockID,
@@ -49,7 +49,7 @@ func BUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (BlockUpdatesInfo, error
 	}, nil
 }
 
-func L2ContractDataEntriesToProto(contractData L2ContractDataEntries) *g.L2ContractDataEntries {
+func L2ContractDataEntriesToProto(contractData proto.L2ContractDataEntries) *g.L2ContractDataEntries {
 	var protobufDataEntries []*waves.DataEntry
 	for _, entry := range contractData.AllDataEntries {
 		entryProto := entry.ToProtobuf()
@@ -64,19 +64,19 @@ func L2ContractDataEntriesToProto(contractData L2ContractDataEntries) *g.L2Contr
 func L2ContractDataEntriesFromProto(
 	protoDataEntries *g.L2ContractDataEntries,
 	scheme proto.Scheme,
-) (L2ContractDataEntries, error) {
+) (proto.L2ContractDataEntries, error) {
 	if protoDataEntries == nil {
-		return L2ContractDataEntries{}, errors.New("empty contract data")
+		return proto.L2ContractDataEntries{}, errors.New("empty contract data")
 	}
 	converter := proto.ProtobufConverter{FallbackChainID: scheme}
 	dataEntries := make([]proto.DataEntry, 0, len(protoDataEntries.DataEntries))
 	for _, protoEntry := range protoDataEntries.DataEntries {
 		entry, err := converter.Entry(protoEntry)
 		if err != nil {
-			return L2ContractDataEntries{}, errors.Wrap(err, "failed to convert data entry")
+			return proto.L2ContractDataEntries{}, errors.Wrap(err, "failed to convert data entry")
 		}
 		dataEntries = append(dataEntries, entry)
 	}
 
-	return L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height}, nil
+	return proto.L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height}, nil
 }
