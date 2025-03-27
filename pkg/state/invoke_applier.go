@@ -263,7 +263,7 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction) (ui
 		}
 		isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID)
 		if err != nil {
-			return 0, errors.Errorf("failed to count actions: failed to check whether the asset was smart")
+			return 0, errors.Wrap(err, "failed to count actions: failed to check whether the asset was smart")
 		}
 		if isSmartAsset {
 			scriptRuns++
