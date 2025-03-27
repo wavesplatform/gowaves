@@ -488,7 +488,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
-		return false, errs.NewTransactionNotAllowedByScript(err.Error(), asset.ID.Bytes())
+		return false, errs.NewTransactionNotAllowedByScript(fmt.Sprintf("asset script: %v", err), asset.ID.Bytes())
 	}
 	if !r.Result() {
 		return false, errs.NewTransactionNotAllowedByScript("Script returned False", asset.ID.Bytes())

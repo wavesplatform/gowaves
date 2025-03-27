@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 
@@ -197,7 +199,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
-		return nil, errs.NewTransactionNotAllowedByScript(err.Error(), assetID.Bytes())
+		return nil, errs.NewTransactionNotAllowedByScript(fmt.Sprintf("asset script: %v", err), assetID.Bytes())
 	}
 	if !r.Result() && !params.acceptFailed {
 		return nil, errs.NewTransactionNotAllowedByScript("", assetID.Bytes())
