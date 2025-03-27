@@ -2,10 +2,11 @@ package blockchaininfo
 
 import (
 	"context"
-	"go.uber.org/zap"
 	"strings"
 	"sync"
 	"time"
+
+	"go.uber.org/zap"
 
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
@@ -490,7 +491,7 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 		return errors.Wrap(reqErr, "failed to request constant keys from the client")
 	}
 	wg.Wait()
-
+	e.MarkExtensionReady()
 	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String()}
 	// Publish the first 100 history entries for the rollback functionality.
 	publishHistoryBlocks(e, scheme, nc, updatesPublisher)

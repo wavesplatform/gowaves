@@ -34,6 +34,7 @@ type BlockchainUpdatesPluginInfo struct {
 	L2ContractAddress             WavesAddress
 	FirstBlock                    *bool
 	Lock                          sync.Mutex
+	Ready                         bool
 	BUpdatesChannel               chan<- BUpdatesInfo
 	ctx                           context.Context
 }
@@ -48,7 +49,20 @@ func NewBlockchainUpdatesPluginInfo(ctx context.Context,
 		BUpdatesChannel:               bUpdatesChannel,
 		ctx:                           ctx,
 		EnableBlockchainUpdatesPlugin: enableBlockchainUpdatesPlugin,
+		Ready:                         false,
 	}
+}
+
+func (e *BlockchainUpdatesPluginInfo) IsReady() bool {
+	e.Lock.Lock()
+	defer e.Lock.Unlock()
+	return e.Ready
+}
+
+func (e *BlockchainUpdatesPluginInfo) MakeExtensionReady() {
+	e.Lock.Lock()
+	defer e.Lock.Unlock()
+	e.Ready = true
 }
 
 func (e *BlockchainUpdatesPluginInfo) Ctx() context.Context {

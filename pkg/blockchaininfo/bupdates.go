@@ -14,6 +14,7 @@ type BlockchainUpdatesExtension struct {
 	firstBlock               *bool
 	blockchainExtensionState *BUpdatesExtensionState
 	Lock                     sync.Mutex
+	extensionReady           chan<- struct{}
 }
 
 func NewBlockchainUpdatesExtension(
@@ -22,6 +23,7 @@ func NewBlockchainUpdatesExtension(
 	bUpdatesChannel chan proto.BUpdatesInfo,
 	blockchainExtensionState *BUpdatesExtensionState,
 	firstBlock *bool,
+	extensionReady chan<- struct{},
 ) *BlockchainUpdatesExtension {
 	return &BlockchainUpdatesExtension{
 		ctx:                      ctx,
@@ -29,11 +31,18 @@ func NewBlockchainUpdatesExtension(
 		BUpdatesChannel:          bUpdatesChannel,
 		firstBlock:               firstBlock,
 		blockchainExtensionState: blockchainExtensionState,
+		extensionReady:           extensionReady,
 	}
 }
 
 func (e *BlockchainUpdatesExtension) L2ContractAddress() proto.WavesAddress {
 	return e.l2ContractAddress
+}
+
+func (e *BlockchainUpdatesExtension) MarkExtensionReady() {
+	e.Lock.Lock()
+	defer e.Lock.Unlock()
+	e.extensionReady <- struct{}{}
 }
 
 func (e *BlockchainUpdatesExtension) IsFirstRequestedBlock() bool {

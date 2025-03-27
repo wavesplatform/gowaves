@@ -843,9 +843,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 	// write updates into the updatesChannel here
 	if a.bUpdatesPluginInfo != nil && a.bUpdatesPluginInfo.EnableBlockchainUpdatesPlugin {
-		err = a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
-		if err != nil {
-			return errors.Errorf("failed to request blockchain info from L2 smart contract state, %v", err)
+		if a.bUpdatesPluginInfo.IsReady() {
+			err = a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
+			if err != nil {
+				return errors.Errorf("failed to request blockchain info from L2 smart contract state, %v", err)
+			}
 		}
 	}
 
