@@ -272,9 +272,10 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction) (ui
 	return scriptRuns, nil
 }
 
-func errorForSmartAsset(msg string, asset crypto.Digest) error {
+// errorForSmartAsset creates an error with scala compatible error message for smart asset script execution failure.
+func errorForSmartAsset(executionErr error, asset crypto.Digest) error {
 	var text string
-	if msg != "" {
+	if executionErr != nil {
 		text = fmt.Sprintf("Transaction is not allowed by token-script id %s: throw from asset script.", asset.String())
 	} else {
 		// scala compatible error message
@@ -315,10 +316,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	for _, smartAsset := range info.paymentSmartAssets {
 		r, err := ia.sc.callAssetScript(tx, smartAsset, info.fallibleValidationParams.appendTxParams)
 		if err != nil {
-			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(err.Error(), smartAsset)
+			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(err, smartAsset)
 		}
 		if !r.Result() {
-			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset("", smartAsset)
+			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(nil, smartAsset)
 		}
 	}
 	// Resolve all aliases.
@@ -419,10 +420,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				// Call asset script if transferring smart asset.
 				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
 				if err != nil {
-					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.Asset.ID)
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err, a.Asset.ID)
 				}
 				if !res.Result() {
-					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset("", a.Asset.ID)
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(nil, a.Asset.ID)
 				}
 			}
 			txDiff, err := ia.newTxDiffFromScriptTransfer(senderAddress, a)
@@ -473,10 +474,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				// Call asset script if transferring smart asset.
 				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
 				if err != nil {
-					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.Asset.ID)
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err, a.Asset.ID)
 				}
 				if !res.Result() {
-					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset("", a.Asset.ID)
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(nil, a.Asset.ID)
 				}
 			}
 			txDiff, err := ia.newTxDiffFromAttachedPaymentAction(senderAddress, a)
@@ -563,10 +564,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 			ok, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, txID, tx.GetTimestamp(), info.appendTxParams)
 			if err != nil {
-				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.AssetID)
+				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err, a.AssetID)
 			}
 			if !ok {
-				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset("", a.AssetID)
+				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(nil, a.AssetID)
 			}
 			// Update asset's info.
 			change := &assetReissueChange{
@@ -612,10 +613,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 			ok, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, txID, tx.GetTimestamp(), info.appendTxParams)
 			if err != nil {
-				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.AssetID)
+				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err, a.AssetID)
 			}
 			if !ok {
-				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset("", a.AssetID)
+				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(nil, a.AssetID)
 			}
 			// Update asset's info
 			// Modify asset.
