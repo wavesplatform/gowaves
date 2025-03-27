@@ -463,7 +463,9 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if a.Asset.Present {
 				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID))
 				if err != nil {
-					return proto.DAppError, info.failedChanges, errors.Errorf("attached payment script actions: failed to check whether the asset was smart")
+					return proto.DAppError, info.failedChanges, errors.Wrap(err,
+						"attached payment script actions: failed to check whether the asset was smart",
+					)
 				}
 			}
 			if isSmartAsset {
