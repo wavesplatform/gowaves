@@ -337,7 +337,7 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID proto.AssetID) (bool, error
 	}
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
 	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
-	if err != nil { // TODO: check error type
+	if err != nil {
 		if isHistoryEntryNotFoundError(err) {
 			return false, nil
 		}
@@ -355,7 +355,7 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID proto.AssetID) (bool, error
 func (ss *scriptsStorage) isSmartAsset(assetID proto.AssetID) (bool, error) {
 	key := scriptBasicInfoKey{scriptKey: &assetScriptKey{assetID}}
 	recordBytes, err := ss.hs.topEntryData(key.bytes())
-	if err != nil { // TODO: check error type
+	if err != nil {
 		if isHistoryEntryNotFoundError(err) {
 			return false, nil
 		}
@@ -438,7 +438,7 @@ func (ss *scriptsStorage) newestAccountIsDApp(addr proto.WavesAddress) (bool, er
 	}
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
 	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
-	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
+	if err != nil {
 		if isHistoryEntryNotFoundError(err) {
 			return false, nil
 		}
@@ -459,7 +459,7 @@ func (ss *scriptsStorage) newestAccountIsDApp(addr proto.WavesAddress) (bool, er
 func (ss *scriptsStorage) accountIsDApp(addr proto.WavesAddress) (bool, error) {
 	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
 	recordBytes, err := ss.hs.topEntryData(key.bytes())
-	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
+	if err != nil {
 		if isHistoryEntryNotFoundError(err) {
 			return false, nil
 		}
@@ -487,7 +487,7 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress) (boo
 	}
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
 	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
-	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
+	if err != nil {
 		if isHistoryEntryNotFoundError(err) {
 			return false, nil
 		}
@@ -508,7 +508,7 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress) (boo
 func (ss *scriptsStorage) accountHasVerifier(addr proto.WavesAddress) (bool, error) {
 	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
 	recordBytes, err := ss.hs.topEntryData(key.bytes())
-	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
+	if err != nil {
 		if isHistoryEntryNotFoundError(err) {
 			return false, nil
 		}
@@ -533,7 +533,7 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress) (bool,
 	}
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
 	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
-	if err != nil { // TODO: check error type
+	if err != nil {
 		if isHistoryEntryNotFoundError(err) {
 			return false, nil
 		}
@@ -551,7 +551,7 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress) (bool,
 func (ss *scriptsStorage) accountHasScript(addr proto.WavesAddress) (bool, error) {
 	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
 	recordBytes, err := ss.hs.topEntryData(key.bytes())
-	if err != nil { // TODO: check error type
+	if err != nil {
 		if isHistoryEntryNotFoundError(err) {
 			return false, nil
 		}
