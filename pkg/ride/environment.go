@@ -714,9 +714,9 @@ func (ws *WrappedState) validateWavesBalance(addrID proto.AddressID, rideV6Activ
 	if rideV6Activated { // After activation of RideV6 we check that spendable balance is not negative
 		_, err := diff.checkedSpendableBalance()
 		if err != nil {
-			addr, err2 := addrID.ToWavesAddress(ws.scheme)
-			if err2 != nil {
-				return errors.Wrap(err, "failed to validate balances")
+			addr, wErr := addrID.ToWavesAddress(ws.scheme)
+			if wErr != nil {
+				return errors.Wrap(wErr, "failed to validate balances")
 			}
 			return errors.Wrapf(err, "failed validation of address %s", addr.String())
 		}
