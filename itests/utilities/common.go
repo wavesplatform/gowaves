@@ -404,10 +404,7 @@ func GetHeight(suite *f.BaseSuite) uint64 {
 	}()
 	goHeight := <-goCh
 	scalaHeight := <-scalaCh
-	if goHeight < scalaHeight {
-		return goHeight
-	}
-	return scalaHeight
+	return min(scalaHeight, goHeight)
 }
 
 func WaitForHeight(suite *f.BaseSuite, height uint64) uint64 {
