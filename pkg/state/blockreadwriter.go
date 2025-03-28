@@ -68,12 +68,9 @@ func (r *recentTransactions) appendTx(id []byte, inf *txInfoWithTx) {
 	r.infos[string(id)] = *inf
 }
 
-func (r *recentTransactions) txInfoById(id []byte) (txInfoWithTx, error) {
+func (r *recentTransactions) txInfoByID(id []byte) (txInfoWithTx, bool) {
 	info, ok := r.infos[string(id)]
-	if !ok {
-		return txInfoWithTx{}, errNotFound
-	}
-	return info, nil
+	return info, ok
 }
 
 func (r *recentTransactions) reset() {
@@ -555,8 +552,8 @@ func (rw *blockReadWriter) recentHeight() uint64 {
 func (rw *blockReadWriter) newestTransactionHeightByID(txID []byte) (uint64, proto.TransactionStatus, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	info, err := rw.rtx.txInfoById(txID)
-	if err == nil {
+	info, ok := rw.rtx.txInfoByID(txID)
+	if ok {
 		return info.height, info.txStatus, nil
 	}
 	return rw.transactionHeightByID(txID)
@@ -587,8 +584,8 @@ func (rw *blockReadWriter) transactionInfoByID(txID []byte) (txInfo, error) {
 func (rw *blockReadWriter) newestTransactionInfoByID(txID []byte) (txInfo, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	info, err := rw.rtx.txInfoById(txID)
-	if err == nil {
+	info, ok := rw.rtx.txInfoByID(txID)
+	if ok {
 		return info.txInfo, nil
 	}
 	return rw.transactionInfoByID(txID)
@@ -608,11 +605,11 @@ func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
 func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
-	info, err := rw.rtx.txInfoById(txID)
-	if err != nil {
-		return rw.readTransactionImpl(txID)
+	info, ok := rw.rtx.txInfoByID(txID)
+	if ok {
+		return info.tx, info.txStatus, nil
 	}
-	return info.tx, info.txStatus, nil
+	return rw.readTransactionImpl(txID)
 }
 
 func (rw *blockReadWriter) readTransaction(txID []byte) (proto.Transaction, proto.TransactionStatus, error) {
