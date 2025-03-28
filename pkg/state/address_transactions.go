@@ -101,11 +101,12 @@ func (i *txIter) Release() {
 func manageFile(file *os.File, db keyvalue.IterableKeyVal) error {
 	var properFileSize uint64
 	fileSizeBytes, err := db.Get(fileSizeKeyBytes)
-	if err == keyvalue.ErrNotFound {
+	switch {
+	case errors.Is(err, keyvalue.ErrNotFound):
 		properFileSize = 0
-	} else if err == nil {
+	case err == nil:
 		properFileSize = binary.BigEndian.Uint64(fileSizeBytes)
-	} else {
+	default:
 		return err
 	}
 

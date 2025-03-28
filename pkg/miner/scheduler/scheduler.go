@@ -173,7 +173,7 @@ func (a internalImpl) scheduleWithVrf(
 			continue
 		}
 
-		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, generatingBalance)
+		delay, err := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to schedule mining for address %q, failed to calculate delay: %v", addr.String(), err)
 			continue
@@ -182,7 +182,7 @@ func (a internalImpl) scheduleWithVrf(
 		baseTarget, err := pos.CalculateBaseTarget(
 			blockchainSettings.AverageBlockDelaySeconds,
 			confirmedBlockHeight,
-			confirmedBlock.BlockHeader.BaseTarget,
+			confirmedBlock.BaseTarget,
 			confirmedBlock.Timestamp,
 			greatGrandParentTimestamp,
 			delay+confirmedBlock.Timestamp,
@@ -270,7 +270,7 @@ func (a internalImpl) scheduleWithoutVrf(
 			continue
 		}
 
-		delay, err := pos.CalculateDelay(hit, confirmedBlock.BlockHeader.BaseTarget, generatingBalance)
+		delay, err := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to calculate delay for address %q with effective balance %d: %v",
 				addr, generatingBalance, err,
@@ -281,7 +281,7 @@ func (a internalImpl) scheduleWithoutVrf(
 		baseTarget, err := pos.CalculateBaseTarget(
 			blockchainSettings.AverageBlockDelaySeconds,
 			confirmedBlockHeight,
-			confirmedBlock.BlockHeader.BaseTarget,
+			confirmedBlock.BaseTarget,
 			confirmedBlock.Timestamp,
 			greatGrandParentTimestamp,
 			delay+confirmedBlock.Timestamp,

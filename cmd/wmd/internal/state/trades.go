@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
+
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -313,10 +314,7 @@ func trades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Digest, f
 	c := 0
 	var trades []data.Trade
 	if it.Last() {
-		for {
-			if c >= limit {
-				break
-			}
+		for c < limit {
 			b := it.Key()
 			var k marketTradeKey
 			err := k.fromBytes(b)
@@ -381,10 +379,7 @@ func addressTrades(snapshot *leveldb.Snapshot, amountAsset, priceAsset crypto.Di
 	c := 0
 	var trades []data.Trade
 	if it.Last() {
-		for {
-			if c >= limit {
-				break
-			}
+		for c < limit {
 			b := it.Key()
 			var k addressTradesKey
 			err := k.fromBytes(b)

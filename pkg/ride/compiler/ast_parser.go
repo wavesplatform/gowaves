@@ -376,10 +376,7 @@ func (p *astParser) ruleDirectiveHandler(node *node32, directiveCnt map[string]i
 	case importDirectiveName:
 		if isRule(curNode, rulePaths) {
 			curNode = curNode.up
-			for {
-				if curNode == nil {
-					break
-				}
+			for curNode != nil {
 				switch curNode.pegRule {
 				case rulePathString:
 					p.importPaths = append(p.importPaths, importPath{path: p.nodeValue(curNode), node: curNode})
@@ -1057,10 +1054,7 @@ func (p *astParser) ruleIntegerHandler(node *node32) (ast.Node, s.Type) {
 func (p *astParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
 	var res string
-	for {
-		if curNode == nil {
-			break
-		}
+	for curNode != nil {
 		switch curNode.pegRule {
 		case ruleChar:
 			res += p.nodeValue(curNode)
@@ -1238,10 +1232,7 @@ func (p *astParser) ruleGettableExprHandler(node *node32) (ast.Node, s.Type) {
 		expr, varType = p.ruleConstHandler(curNode)
 	}
 	curNode = curNode.next
-	for {
-		if curNode == nil {
-			break
-		}
+	for curNode != nil {
 		curNode = skipToNextRule(curNode)
 		switch curNode.pegRule {
 		case ruleAsType:
@@ -2119,16 +2110,10 @@ func (p *astParser) ruleObjectPatternHandler(node *node32, matchName string, pos
 	var shadowDeclarations []ast.Node
 	exprs = append(exprs, ast.NewFunctionCallNode(ast.NativeFunction("1"), []ast.Node{ast.NewReferenceNode(matchName), ast.NewStringNode(structName)}))
 	shadowDeclarations = append(shadowDeclarations, ast.NewAssignmentNode(matchName, ast.NewReferenceNode(matchName), nil))
-	for {
-		if curNode == nil {
-			break
-		}
+	for curNode != nil {
 		expr, decl, newNode := p.ruleObjectFieldsPatternHandler(curNode, matchName, structName)
 		curNode = newNode
-		for {
-			if curNode == nil || curNode.pegRule == ruleObjectFieldsPattern {
-				break
-			}
+		for curNode != nil && curNode.pegRule != ruleObjectFieldsPattern {
 			curNode = curNode.next
 		}
 		if expr == nil && decl == nil {

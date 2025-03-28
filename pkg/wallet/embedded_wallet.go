@@ -29,7 +29,7 @@ func (a *EmbeddedWalletImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.T
 			return tx.Sign(a.scheme, secret)
 		}
 	}
-	return PublicKeyNotFound
+	return ErrPublicKeyNotFound
 }
 
 func (a *EmbeddedWalletImpl) Load(password []byte) error {

@@ -387,7 +387,7 @@ func (a *BlocksApplier) ApplyMicroWithSnapshots(
 func calcMultipleScore(blocks []*proto.Block) (*big.Int, error) {
 	score := big.NewInt(0)
 	for _, block := range blocks {
-		s, err := state.CalculateScore(block.NxtConsensus.BaseTarget)
+		s, err := state.CalculateScore(block.BaseTarget)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed calculate score")
 		}

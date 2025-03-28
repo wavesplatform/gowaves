@@ -63,5 +63,5 @@ type IterableKeyVal interface {
 }
 
 type CacheParams struct {
-	Size int
+	CacheSize int
 }

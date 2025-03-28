@@ -10,7 +10,6 @@ import (
 	"math"
 	"math/big"
 	"net/http"
-	_ "net/http"
 	"net/http/pprof"
 	"os"
 	"os/signal"
@@ -519,12 +518,12 @@ func stateParams(nc *config, ntpTime types.Time) (state.StateParams, error) {
 		)
 	}
 	params := state.DefaultStateParams()
-	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(dbFileDescriptors)
+	params.DbParams.OpenFilesCacheCapacity = int(dbFileDescriptors)
 	params.StoreExtendedApiData = nc.buildExtendedAPI
 	params.ProvideExtendedApi = nc.serveExtendedAPI
 	params.BuildStateHashes = nc.buildStateHashes
 	params.Time = ntpTime
-	params.DbParams.BloomFilterParams.Disable = nc.disableBloomFilter
+	params.DbParams.DisableBloomFilter = nc.disableBloomFilter
 	return params, nil
 }
 

@@ -160,7 +160,7 @@ func (a *assets) addNewRecord(assetID proto.AssetID, record *assetHistoryRecord,
 }
 
 func (a *assets) storeAssetInfo(assetID proto.AssetID, asset *assetInfo, blockID proto.BlockID) error {
-	assetConstBytes, err := asset.assetConstInfo.marshalBinary()
+	assetConstBytes, err := asset.marshalBinary()
 	if err != nil {
 		return errors.Errorf("failed to marshal asset const info: %v\n", err)
 	}
