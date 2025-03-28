@@ -149,8 +149,9 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 		if tx.GetTypeInfo().Type == proto.CreateAliasTransaction {
 			return errs.NewAliasTaken(err.Error())
 		}
+		return err
 	}
-	return err
+	return nil
 }
 
 type appendBlockParams struct {
