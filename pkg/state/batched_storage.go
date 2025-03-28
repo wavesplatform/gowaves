@@ -406,8 +406,11 @@ func (s *batchedStorage) normalizeBatches(key []byte) error {
 
 	lastBatchNum, err := s.readLastBatchNum(key)
 	if err != nil {
-		// Nothing to normalize for this key.
-		return nil
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			// Nothing to normalize for this key.
+			return nil
+		}
+		return errors.Wrap(err, "failed to read last batch num")
 	}
 	batchNum := lastBatchNum
 	for {
