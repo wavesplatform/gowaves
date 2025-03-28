@@ -338,7 +338,12 @@ func (ss *scriptsStorage) newestIsSmartAsset(assetID proto.AssetID) (bool, error
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
 	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
 	if err != nil { // TODO: check error type
-		return false, nil
+		if isHistoryEntryNotFoundError(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get script basic info from newest history for short assetID %q", assetID.String(),
+		)
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
@@ -351,7 +356,12 @@ func (ss *scriptsStorage) isSmartAsset(assetID proto.AssetID) (bool, error) {
 	key := scriptBasicInfoKey{scriptKey: &assetScriptKey{assetID}}
 	recordBytes, err := ss.hs.topEntryData(key.bytes())
 	if err != nil { // TODO: check error type
-		return false, nil
+		if isHistoryEntryNotFoundError(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get script basic info from history for short assetID %q", assetID.String(),
+		)
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
@@ -429,7 +439,12 @@ func (ss *scriptsStorage) newestAccountIsDApp(addr proto.WavesAddress) (bool, er
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
 	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
 	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
-		return false, nil
+		if isHistoryEntryNotFoundError(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get script basic info from newest history for account %q", addr.String(),
+		)
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
@@ -445,7 +460,12 @@ func (ss *scriptsStorage) accountIsDApp(addr proto.WavesAddress) (bool, error) {
 	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
 	recordBytes, err := ss.hs.topEntryData(key.bytes())
 	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
-		return false, nil
+		if isHistoryEntryNotFoundError(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get script basic info from history for account %q", addr.String(),
+		)
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
@@ -468,7 +488,12 @@ func (ss *scriptsStorage) newestAccountHasVerifier(addr proto.WavesAddress) (boo
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
 	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
 	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
-		return false, nil
+		if isHistoryEntryNotFoundError(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get script basic info from newest history for account %q", addr.String(),
+		)
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
@@ -484,7 +509,12 @@ func (ss *scriptsStorage) accountHasVerifier(addr proto.WavesAddress) (bool, err
 	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
 	recordBytes, err := ss.hs.topEntryData(key.bytes())
 	if err != nil { // TODO: Check errors type, all NotFound like errors must be suppressed
-		return false, nil
+		if isHistoryEntryNotFoundError(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get script basic info from history for account %q", addr.String(),
+		)
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
@@ -504,7 +534,12 @@ func (ss *scriptsStorage) newestAccountHasScript(addr proto.WavesAddress) (bool,
 	infoKey := scriptBasicInfoKey{scriptKey: &key}
 	recordBytes, err := ss.hs.newestTopEntryData(infoKey.bytes())
 	if err != nil { // TODO: check error type
-		return false, nil
+		if isHistoryEntryNotFoundError(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get script basic info from newest history for account %q", addr.String(),
+		)
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
@@ -517,7 +552,12 @@ func (ss *scriptsStorage) accountHasScript(addr proto.WavesAddress) (bool, error
 	key := scriptBasicInfoKey{scriptKey: &accountScriptKey{addr.ID()}}
 	recordBytes, err := ss.hs.topEntryData(key.bytes())
 	if err != nil { // TODO: check error type
-		return false, nil
+		if isHistoryEntryNotFoundError(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get script basic info from history for account %q", addr.String(),
+		)
 	}
 	var info scriptBasicInfoRecord
 	if err := info.unmarshalBinary(recordBytes); err != nil {
