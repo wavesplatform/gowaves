@@ -658,11 +658,6 @@ func (hs *historyStorage) fullHistory(key []byte) (*historyRecord, error) {
 	return hs.combineHistories(key, newHist)
 }
 
-// isHistoryEntryNotFoundError checks if the error is errEmptyHist or keyvalue.ErrNotFound.
-func isHistoryEntryNotFoundError(err error) bool {
-	return errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist)
-}
-
 // topEntryData() returns bytes of the top entry.
 func (hs *historyStorage) topEntryData(key []byte) ([]byte, error) {
 	entry, err := hs.topEntry(key)
@@ -816,6 +811,7 @@ func (hs *historyStorage) flush() error {
 	return nil
 }
 
+// isNotFoundInHistoryOrDBErr checks if the error is errEmptyHist or keyvalue.ErrNotFound.
 func isNotFoundInHistoryOrDBErr(err error) bool {
 	return errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist)
 }

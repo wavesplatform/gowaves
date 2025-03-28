@@ -127,7 +127,7 @@ func (s *sponsoredAssets) sponsorAssetUncertain(assetID crypto.Digest, assetCost
 func (s *sponsoredAssets) newestIsSponsored(assetID proto.AssetID) (bool, error) {
 	cost, err := s.newestAssetCost(assetID)
 	if err != nil {
-		if isHistoryEntryNotFoundError(err) {
+		if isNotFoundInHistoryOrDBErr(err) {
 			return false, nil
 		}
 		return false, errors.Wrapf(err,
@@ -144,7 +144,7 @@ func (s *sponsoredAssets) newestIsSponsored(assetID proto.AssetID) (bool, error)
 func (s *sponsoredAssets) isSponsored(assetID proto.AssetID) (bool, error) {
 	cost, err := s.assetCost(assetID)
 	if err != nil {
-		if isHistoryEntryNotFoundError(err) {
+		if isNotFoundInHistoryOrDBErr(err) {
 			return false, nil
 		}
 		return false, errors.Wrapf(err, "failed to get sponsored asset cost for assetID %s", assetID.String())
