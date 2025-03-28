@@ -115,7 +115,9 @@ func checkTx(
 		return verifyExchangeTransaction(t, params.Scheme, checkOrder1, checkOrder2)
 	case *proto.EthereumTransaction:
 		if _, err := t.Verify(); err != nil {
-			return errs.NewTxValidationError("EthereumTransaction transaction signature verification failed")
+			return errs.NewTxValidationError(fmt.Sprintf(
+				"EthereumTransaction transaction signature verification failed: %v", err,
+			))
 		}
 	case selfVerifier:
 		return verifyTransactionSignature(t, params.Scheme)
