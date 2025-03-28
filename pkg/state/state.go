@@ -444,7 +444,7 @@ func initDatabase(
 ) (_ *keyvalue.KeyVal, _ keyvalue.Batch, _ *stateDB, _ bool, retErr error) {
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	zap.S().Info("Initializing state database, will take up to few minutes...")
-	params.DbParams.BloomFilterParams.Store.WithPath(filepath.Join(blockStorageDir, "bloom"))
+	params.DbParams.BloomFilterStore.WithPath(filepath.Join(blockStorageDir, "bloom"))
 	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
 	if err != nil {
 		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create db"))

@@ -135,7 +135,7 @@ func (a *MockStateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	}
 	score := big.NewInt(0)
 	for _, b := range a.state[:height] {
-		n, err := state.CalculateScore(b.NxtConsensus.BaseTarget)
+		n, err := state.CalculateScore(b.BaseTarget)
 		if err != nil {
 			panic(err)
 		}

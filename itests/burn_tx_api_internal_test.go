@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -77,7 +78,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, ttx.TxID.String())
 
 				utl.StatusCodesCheck(suite.T(), http.StatusOK, http.StatusOK, ttx, errMsg)
-				utl.TxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala,
+				utl.TxInfoCheck(suite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala,
 					errMsg)
 
 				//burn NFT from Account 3

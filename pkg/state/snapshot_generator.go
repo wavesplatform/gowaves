@@ -221,7 +221,7 @@ func (sg *snapshotGenerator) performLeaseCancelWithSig(
 		return txSnapshot{}, errors.New("failed to convert interface to LeaseCancelWithSig transaction")
 	}
 	return sg.generateSnapshotForLeaseCancelTx(
-		tx.LeaseCancel.LeaseID,
+		tx.LeaseID,
 		tx.ID,
 		info.blockHeight(),
 		balanceChanges,
@@ -238,7 +238,7 @@ func (sg *snapshotGenerator) performLeaseCancelWithProofs(
 		return txSnapshot{}, errors.New("failed to convert interface to LeaseCancelWithProofs transaction")
 	}
 	return sg.generateSnapshotForLeaseCancelTx(
-		tx.LeaseCancel.LeaseID,
+		tx.LeaseID,
 		tx.ID,
 		info.blockHeight(),
 		balanceChanges,

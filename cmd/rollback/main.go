@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"os"
 
+	"github.com/ccoveille/go-safecast"
 	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 
@@ -72,8 +73,14 @@ func main() {
 	}
 
 	params := state.DefaultStateParams()
-	params.StorageParams.DbParams.OpenFilesCacheCapacity = int(maxFDs - 10)
-	params.DbParams.BloomFilterParams.Disable = *disableBloomFilter
+	const fdSigma = 10
+	c, err := safecast.ToInt(maxFDs - fdSigma)
+	if err != nil {
+		zap.S().Errorf("Failed to initialize: %s", err)
+		return
+	}
+	params.DbParams.OpenFilesCacheCapacity = c
+	params.DbParams.DisableBloomFilter = *disableBloomFilter
 	params.BuildStateHashes = *buildStateHashes
 	params.StoreExtendedApiData = *buildExtendedAPI
 

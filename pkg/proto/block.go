@@ -738,7 +738,7 @@ func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return bytes.Equal(b.BlockHeader.TransactionsRoot, rh), nil
+	return bytes.Equal(b.TransactionsRoot, rh), nil
 }
 
 // MarshalBinary encodes Block to binary form
@@ -806,7 +806,7 @@ func (b *Block) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
-	protoBlock, err := b.BlockHeader.HeaderToProtobuf(scheme)
+	protoBlock, err := b.HeaderToProtobuf(scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -824,7 +824,7 @@ func (b *Block) ToProtobufWithHeight(
 	vrf []byte,
 	rewards Rewards,
 ) (*pb.BlockWithHeight, error) {
-	block, err := b.BlockHeader.HeaderToProtobufWithHeight(currentScheme, height, vrf, rewards)
+	block, err := b.HeaderToProtobufWithHeight(currentScheme, height, vrf, rewards)
 	if err != nil {
 		return nil, err
 	}

@@ -21,21 +21,21 @@ type BloomFilter interface {
 }
 
 type BloomFilterParams struct {
-	// N is how many items will be added to the filter.
-	N int
+	// BloomFilterCapacity is how many items will be added to the filter.
+	BloomFilterCapacity uint64
 	// FalsePositiveProbability is acceptable false positive rate {0..1}.
 	FalsePositiveProbability float64
 	// Bloom store.
-	Store store
+	BloomFilterStore store
 	// Disable bloom filter.
-	Disable bool
+	DisableBloomFilter bool
 }
 
-func NewBloomFilterParams(N int, FalsePositiveProbability float64, store store) BloomFilterParams {
+func NewBloomFilterParams(capacity uint64, probability float64, store store) BloomFilterParams {
 	return BloomFilterParams{
-		N:                        N,
-		FalsePositiveProbability: FalsePositiveProbability,
-		Store:                    store,
+		BloomFilterCapacity:      capacity,
+		FalsePositiveProbability: probability,
+		BloomFilterStore:         store,
 	}
 }
 
@@ -57,10 +57,10 @@ func (bf *bloomFilter) ReadFrom(r io.Reader) (n int64, err error) {
 }
 
 func newBloomFilter(params BloomFilterParams) (BloomFilter, error) {
-	if params.Disable {
+	if params.DisableBloomFilter {
 		return NewBloomFilterStub(params), nil
 	}
-	bf, err := bloomfilter.NewOptimal(uint64(params.N), params.FalsePositiveProbability)
+	bf, err := bloomfilter.NewOptimal(params.BloomFilterCapacity, params.FalsePositiveProbability)
 	if err != nil {
 		return nil, err
 	}
@@ -68,16 +68,16 @@ func newBloomFilter(params BloomFilterParams) (BloomFilter, error) {
 }
 
 func newBloomFilterFromStore(params BloomFilterParams) (BloomFilter, error) {
-	if params.Disable {
+	if params.DisableBloomFilter {
 		return NewBloomFilterStub(params), nil
 	}
-	f, err := bloomfilter.NewOptimal(uint64(params.N), params.FalsePositiveProbability)
+	f, err := bloomfilter.NewOptimal(params.BloomFilterCapacity, params.FalsePositiveProbability)
 	if err != nil {
 		return nil, err
 	}
 	bf := &bloomFilter{filter: f, params: params}
 
-	bts, err := params.Store.load()
+	bts, err := params.BloomFilterStore.load()
 	if err != nil {
 		return nil, err
 	}
@@ -91,8 +91,8 @@ func newBloomFilterFromStore(params BloomFilterParams) (BloomFilter, error) {
 
 func storeBloomFilter(a BloomFilter) error {
 	debug.FreeOSMemory()
-	if a.Params().Store != nil {
-		return a.Params().Store.save(a)
+	if a.Params().BloomFilterStore != nil {
+		return a.Params().BloomFilterStore.save(a)
 	}
 	return nil
 }

@@ -196,7 +196,7 @@ func (tx *IssueWithProofs) Validate(params TransactionValidationParams) (Transac
 		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for IssueWithProofs", tx.Version)
 	}
-	ok, err := tx.Issue.Valid()
+	ok, err := tx.Valid()
 	if !ok {
 		return tx, err
 	}
@@ -540,7 +540,7 @@ func (tx *TransferWithProofs) Validate(params TransactionValidationParams) (Tran
 		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for TransferWithProofs", tx.Version)
 	}
-	ok, err := tx.Transfer.Valid(params.Scheme)
+	ok, err := tx.Valid(params.Scheme)
 	if !ok {
 		return tx, err
 	}
@@ -549,7 +549,7 @@ func (tx *TransferWithProofs) Validate(params TransactionValidationParams) (Tran
 }
 
 func (tx *TransferWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	b, err := tx.Transfer.marshalBinary()
+	b, err := tx.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal TransferWithProofs body")
 	}
@@ -854,7 +854,7 @@ func (tx *ReissueWithProofs) Validate(params TransactionValidationParams) (Trans
 		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for ReissueWithProofs", tx.Version)
 	}
-	ok, err := tx.Reissue.Valid()
+	ok, err := tx.Valid()
 	if !ok {
 		return tx, err
 	}
@@ -867,7 +867,7 @@ func (tx *ReissueWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
 	buf[2] = scheme
-	b, err := tx.Reissue.marshalBinary()
+	b, err := tx.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal ReissueWithProofs body")
 	}
@@ -1108,7 +1108,7 @@ func (tx *BurnWithProofs) Validate(params TransactionValidationParams) (Transact
 		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for BurnWithProofs", tx.Version)
 	}
-	ok, err := tx.Burn.Valid()
+	ok, err := tx.Valid()
 	if !ok {
 		return tx, err
 	}
@@ -1122,7 +1122,7 @@ func (tx *BurnWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
 	buf[2] = scheme
-	b, err := tx.Burn.marshalBinary()
+	b, err := tx.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal BurnWithProofs body")
 	}
@@ -1894,7 +1894,7 @@ func (tx *LeaseWithProofs) Validate(params TransactionValidationParams) (Transac
 		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected transaction version %d for LeaseWithProofs transaction", tx.Version)
 	}
-	ok, err := tx.Lease.Valid(params.Scheme)
+	ok, err := tx.Valid(params.Scheme)
 	if !ok {
 		return tx, err
 	}
@@ -2028,7 +2028,7 @@ func (tx *LeaseWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
 	buf[2] = 0 //Always zero, reserved for future extension of leasing assets.
-	b, err := tx.Lease.marshalBinary()
+	b, err := tx.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseWithSig transaction to bytes")
 	}
@@ -2263,7 +2263,7 @@ func (tx *LeaseCancelWithProofs) Validate(params TransactionValidationParams) (T
 		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for LeaseCancelWithProofs", tx.Version)
 	}
-	ok, err := tx.LeaseCancel.Valid()
+	ok, err := tx.Valid()
 	if !ok {
 		return tx, err
 	}
@@ -2277,7 +2277,7 @@ func (tx *LeaseCancelWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
 	buf[2] = scheme
-	b, err := tx.LeaseCancel.marshalBinary()
+	b, err := tx.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal LeaseCancelWithProofs to bytes")
 	}
@@ -2397,7 +2397,7 @@ func (tx *CreateAliasWithProofs) Validate(params TransactionValidationParams) (T
 		!params.CheckVersion && tx.Version > MaxUncheckedTransactionVersion {
 		return tx, errors.Errorf("unexpected version %d for CreateAliasWithProofs", tx.Version)
 	}
-	ok, err := tx.CreateAlias.Valid(params.Scheme)
+	ok, err := tx.Valid(params.Scheme)
 	if !ok {
 		return tx, err
 	}
@@ -2493,7 +2493,7 @@ func (tx *CreateAliasWithProofs) GenerateID(scheme Scheme) error {
 		tx.ID = &id
 		return nil
 	}
-	id, err := tx.CreateAlias.id()
+	id, err := tx.id()
 	if err != nil {
 		return err
 	}
@@ -2536,7 +2536,7 @@ func (tx *CreateAliasWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	buf := make([]byte, createAliasWithProofsFixedBodyLen+len(tx.Alias.Alias))
 	buf[0] = byte(tx.Type)
 	buf[1] = tx.Version
-	b, err := tx.CreateAlias.marshalBinary()
+	b, err := tx.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal CreateAliasWithProofs transaction body to bytes")
 	}

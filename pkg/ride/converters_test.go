@@ -47,7 +47,7 @@ func (a *TransferWithSigTestSuite) SetupTest() {
 }
 
 func (a *TransferWithSigTestSuite) Test_feeAssetId_Presence() {
-	a.tx.Transfer.FeeAsset = _asset
+	a.tx.FeeAsset = _asset
 	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	feeAssetID, err := rs.get(feeAssetIDField)
@@ -72,7 +72,7 @@ func (a *TransferWithSigTestSuite) Test_amount() {
 }
 
 func (a *TransferWithSigTestSuite) Test_assetId_presence() {
-	a.tx.Transfer.AmountAsset = _asset
+	a.tx.AmountAsset = _asset
 	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetID, err := rs.get(assetIDField)
@@ -195,7 +195,7 @@ func (a *TransferWithProofsTestSuite) SetupTest() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_feeAssetId_Presence() {
-	a.tx.Transfer.FeeAsset = _asset
+	a.tx.FeeAsset = _asset
 	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	feeAssetID, err := rs.get(feeAssetIDField)
@@ -220,7 +220,7 @@ func (a *TransferWithProofsTestSuite) Test_amount() {
 }
 
 func (a *TransferWithProofsTestSuite) Test_assetId_presence() {
-	a.tx.Transfer.AmountAsset = _asset
+	a.tx.AmountAsset = _asset
 	rs, err := a.f(a.T(), ast.LibV1, a.tx)
 	a.NoError(err)
 	assetID, err := rs.get(assetIDField)
