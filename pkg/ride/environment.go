@@ -14,7 +14,9 @@ import (
 )
 
 var (
-	errDeletedEntry = errors.New("entry has been deleted")
+	// errDeletedEntry is returned when the entry was deleted in during the script execution.
+	// Wrapped with proto.ErrNotFound to be compatible WrappedState.IsNotFound method.
+	errDeletedEntry = errors.Wrap(proto.ErrNotFound, "entry has been deleted")
 )
 
 type WrappedState struct {
