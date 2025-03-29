@@ -127,7 +127,12 @@ func (s *sponsoredAssets) sponsorAssetUncertain(assetID crypto.Digest, assetCost
 func (s *sponsoredAssets) newestIsSponsored(assetID proto.AssetID) (bool, error) {
 	cost, err := s.newestAssetCost(assetID)
 	if err != nil {
-		return false, nil
+		if isNotFoundInHistoryOrDBErr(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err,
+			"failed to get newest sponsored asset cost for short assetID %s", assetID.String(),
+		)
 	}
 	if cost == 0 {
 		// 0 cost means that asset isn't really sponsored anymore.
@@ -137,14 +142,12 @@ func (s *sponsoredAssets) newestIsSponsored(assetID proto.AssetID) (bool, error)
 }
 
 func (s *sponsoredAssets) isSponsored(assetID proto.AssetID) (bool, error) {
-	key := sponsorshipKey{assetID: assetID}
-	if _, err := s.hs.topEntryData(key.bytes()); err != nil {
-		// No sponsorship info for this asset at all.
-		return false, nil
-	}
 	cost, err := s.assetCost(assetID)
 	if err != nil {
-		return false, err
+		if isNotFoundInHistoryOrDBErr(err) {
+			return false, nil
+		}
+		return false, errors.Wrapf(err, "failed to get sponsored asset cost for assetID %s", assetID.String())
 	}
 	if cost == 0 {
 		// 0 cost means that asset isn't really sponsored anymore.
@@ -153,6 +156,8 @@ func (s *sponsoredAssets) isSponsored(assetID proto.AssetID) (bool, error) {
 	return true, nil
 }
 
+// newestAssetCost returns the newest asset cost (or minSponsoredAssetFee) for the given assetID.
+// Get the cost from uncertainSponsoredAssets if it exists, otherwise retrieve it from the history storage.
 func (s *sponsoredAssets) newestAssetCost(assetID proto.AssetID) (uint64, error) {
 	if sponsored, ok := s.uncertainSponsoredAssets[assetID]; ok {
 		return sponsored.assetCost, nil
@@ -169,6 +174,8 @@ func (s *sponsoredAssets) newestAssetCost(assetID proto.AssetID) (uint64, error)
 	return record.assetCost, nil
 }
 
+// assetCost returns the asset cost (or minSponsoredAssetFee) for the given assetID.
+// It retrieves the cost from the history storage.
 func (s *sponsoredAssets) assetCost(assetID proto.AssetID) (uint64, error) {
 	key := sponsorshipKey{assetID: assetID}
 	recordBytes, err := s.hs.topEntryData(key.bytes())

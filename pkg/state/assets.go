@@ -303,9 +303,12 @@ func (a *assets) newestLastUpdateHeight(assetID proto.AssetID) (uint64, error) {
 
 func (a *assets) constInfo(assetID proto.AssetID) (*assetConstInfo, error) {
 	constKey := assetConstKey{assetID: assetID}
-	constInfoBytes, err := a.db.Get(constKey.bytes())
+	constInfoBytes, err := a.db.Get(constKey.bytes()) // `keyvalue.ErrNotFound` error here or unknown db error
 	if err != nil {
-		return nil, errs.NewUnknownAsset(fmt.Sprintf("failed to retrieve const info for given asset: %v", err))
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return nil, errs.NewUnknownAsset(fmt.Sprintf("failed to retrieve const info for given asset: %v", err))
+		}
+		return nil, errors.Wrapf(err, "failed to retrieve const info for asset %q", assetID.String())
 	}
 	var constInfo assetConstInfo
 	if err := constInfo.unmarshalBinary(constInfoBytes); err != nil {

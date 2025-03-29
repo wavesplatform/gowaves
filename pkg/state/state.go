@@ -23,6 +23,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -35,13 +36,13 @@ const (
 
 var empty struct{}
 
-func wrapErr(stateErrorType ErrorType, err error) error {
-	var stateError StateError
+func wrapErr(stateErrorType stateerr.ErrorType, err error) error {
+	var stateError stateerr.StateError
 	switch {
 	case errors.As(err, &stateError):
 		return err
 	default:
-		return NewStateError(stateErrorType, err)
+		return stateerr.NewStateError(stateErrorType, err)
 	}
 }
 
@@ -447,7 +448,7 @@ func initDatabase(
 	params.DbParams.BloomFilterStore.WithPath(filepath.Join(blockStorageDir, "bloom"))
 	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
 	if err != nil {
-		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create db"))
+		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to create db"))
 	}
 	zap.S().Info("Finished initializing database")
 	dbBatch, err := db.NewBatch()
@@ -455,14 +456,14 @@ func initDatabase(
 		if dbCloseErr := db.Close(); dbCloseErr != nil {
 			err = stderrs.Join(retErr, errors.Wrap(dbCloseErr, "failed to close db"))
 		}
-		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create db batch"))
+		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to create db batch"))
 	}
 	sdb, err := newStateDB(db, dbBatch, params)
 	if err != nil {
 		if dbCloseErr := db.Close(); dbCloseErr != nil {
 			retErr = stderrs.Join(retErr, errors.Wrap(dbCloseErr, "failed to close db"))
 		}
-		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to create stateDB"))
+		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to create stateDB"))
 	}
 	defer func() {
 		if retErr != nil {
@@ -472,11 +473,11 @@ func initDatabase(
 		}
 	}()
 	if cErr := checkCompatibility(sdb, params); cErr != nil {
-		return nil, nil, nil, false, wrapErr(IncompatibilityError, cErr)
+		return nil, nil, nil, false, wrapErr(stateerr.IncompatibilityError, cErr)
 	}
 	handledAmend, err := handleAmendFlag(sdb, amend)
 	if err != nil {
-		return nil, nil, nil, false, wrapErr(Other, errors.Wrap(err, "failed to handle amend flag"))
+		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to handle amend flag"))
 	}
 	return db, dbBatch, sdb, handledAmend, nil
 }
@@ -526,13 +527,13 @@ func newStateManager(
 	if _, err := os.Stat(dataDir); errors.Is(err, fs.ErrNotExist) {
 		if dirErr := os.Mkdir(dataDir, 0750); dirErr != nil {
 			wErr := errors.Wrap(dirErr, "failed to create state directory")
-			return nil, wrapErr(Other, wErr)
+			return nil, wrapErr(stateerr.Other, wErr)
 		}
 	}
 	blockStorageDir := filepath.Join(dataDir, blocksStorDir)
 	if _, err := os.Stat(blockStorageDir); errors.Is(err, fs.ErrNotExist) {
 		if dirErr := os.Mkdir(blockStorageDir, 0750); dirErr != nil {
-			return nil, wrapErr(Other, errors.Wrap(dirErr, "failed to create blocks directory"))
+			return nil, wrapErr(stateerr.Other, errors.Wrap(dirErr, "failed to create blocks directory"))
 		}
 	}
 	// Initialize database.
@@ -556,7 +557,7 @@ func newStateManager(
 		settings.AddressSchemeCharacter,
 	)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create block storage: %v", err))
+		return nil, wrapErr(stateerr.Other, errors.Errorf("failed to create block storage: %v", err))
 	}
 	defer func() {
 		if retErr != nil {
@@ -569,7 +570,7 @@ func newStateManager(
 	hs := newHistoryStorage(db, dbBatch, sdb, handledAmend)
 	stor, err := newBlockchainEntitiesStorage(hs, settings, rw, params.BuildStateHashes)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
+		return nil, wrapErr(stateerr.Other, errors.Errorf("failed to create blockchain entities storage: %v", err))
 	}
 	atxParams := &addressTransactionsParams{
 		dir:                 blockStorageDir,
@@ -580,7 +581,7 @@ func newStateManager(
 	}
 	atx, err := newAddressTransactions(db, sdb, rw, atxParams, handledAmend)
 	if err != nil {
-		return nil, wrapErr(Other, errors.Errorf("failed to create address transactions storage: %v", err))
+		return nil, wrapErr(stateerr.Other, errors.Errorf("failed to create address transactions storage: %v", err))
 	}
 	defer func() {
 		if retErr != nil {
@@ -605,7 +606,7 @@ func newStateManager(
 	snapshotApplier := newBlockSnapshotsApplier(nil, newSnapshotApplierStorages(stor, rw))
 	appender, err := newTxAppender(state, rw, stor, settings, sdb, atx, &snapshotApplier)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	state.appender = appender
 	state.cv = consensus.NewValidator(state, settings, params.Time)
@@ -619,11 +620,11 @@ func newStateManager(
 		return nil, gErr
 	}
 	if err := state.loadLastBlock(); err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	h, err := state.Height()
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	state.checkProtobufActivation(h + 1)
 	return state, nil
@@ -727,11 +728,11 @@ func (s *stateManager) addGenesisBlock() error {
 		return err
 	}
 	if verifyError := chans.closeAndWait(); verifyError != nil {
-		return wrapErr(ValidationError, verifyError)
+		return wrapErr(stateerr.ValidationError, verifyError)
 	}
 
 	if err := s.flush(); err != nil {
-		return wrapErr(ModificationError, err)
+		return wrapErr(stateerr.ModificationError, err)
 	}
 	s.reset()
 	return nil
@@ -865,7 +866,7 @@ func (s *stateManager) BlockRewards(generator proto.WavesAddress, height proto.H
 func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error) {
 	header, err := s.rw.readBlockHeader(blockID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return header, nil
 }
@@ -873,7 +874,7 @@ func (s *stateManager) Header(blockID proto.BlockID) (*proto.BlockHeader, error)
 func (s *stateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
 	header, err := s.rw.readNewestBlockHeaderByHeight(height)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return header, nil
 }
@@ -881,7 +882,7 @@ func (s *stateManager) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, 
 func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error) {
 	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return s.Header(blockID)
 }
@@ -889,7 +890,7 @@ func (s *stateManager) HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 func (s *stateManager) Block(blockID proto.BlockID) (*proto.Block, error) {
 	block, err := s.rw.readBlock(blockID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return block, nil
 }
@@ -897,7 +898,7 @@ func (s *stateManager) Block(blockID proto.BlockID) (*proto.Block, error) {
 func (s *stateManager) BlockByHeight(height uint64) (*proto.Block, error) {
 	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return s.Block(blockID)
 }
@@ -943,7 +944,7 @@ func (s *stateManager) NewestHeight() (uint64, error) {
 func (s *stateManager) Height() (uint64, error) {
 	height, err := s.stateDB.getHeight()
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return height, nil
 }
@@ -951,7 +952,7 @@ func (s *stateManager) Height() (uint64, error) {
 func (s *stateManager) BlockIDToHeight(blockID proto.BlockID) (uint64, error) {
 	height, err := s.rw.heightByBlockID(blockID)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return height, nil
 }
@@ -959,14 +960,16 @@ func (s *stateManager) BlockIDToHeight(blockID proto.BlockID) (uint64, error) {
 func (s *stateManager) HeightToBlockID(height uint64) (proto.BlockID, error) {
 	maxHeight, err := s.Height()
 	if err != nil {
-		return proto.BlockID{}, wrapErr(RetrievalError, err)
+		return proto.BlockID{}, wrapErr(stateerr.RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return proto.BlockID{}, wrapErr(InvalidInputError, errors.Errorf("HeightToBlockID: height %d out of valid range [1, %d]", height, maxHeight))
+		return proto.BlockID{}, wrapErr(stateerr.InvalidInputError,
+			errors.Errorf("HeightToBlockID: height %d out of valid range [1, %d]", height, maxHeight),
+		)
 	}
 	blockID, err := s.rw.blockIDByHeight(height)
 	if err != nil {
-		return proto.BlockID{}, wrapErr(RetrievalError, err)
+		return proto.BlockID{}, wrapErr(stateerr.RetrievalError, err)
 	}
 	return blockID, nil
 }
@@ -1030,26 +1033,26 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient, height proto.H
 func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, height proto.Height) (uint64, error) {
 	minerAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, errors.Wrapf(err, "failed create get miner address from PK %s",
+		return 0, wrapErr(stateerr.RetrievalError, errors.Wrapf(err, "failed create get miner address from PK %s",
 			header.GeneratorPublicKey,
 		))
 	}
 	minerGB, err := s.stor.balances.newestGeneratingBalance(minerAddr.ID(), height)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, errors.Wrapf(err, "failed to get generating balance for addr %s",
+		return 0, wrapErr(stateerr.RetrievalError, errors.Wrapf(err, "failed to get generating balance for addr %s",
 			minerAddr.String(),
 		))
 	}
 	if ch, ok := header.GetChallengedHeader(); ok { // if the block has challenged header
 		chMinerAddr, chErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, ch.GeneratorPublicKey)
 		if chErr != nil {
-			return 0, wrapErr(RetrievalError, errors.Wrapf(chErr, "failed to create challenged miner address from PK %s",
-				ch.GeneratorPublicKey,
+			return 0, wrapErr(stateerr.RetrievalError, errors.Wrapf(chErr,
+				"failed to create challenged miner address from PK %s", ch.GeneratorPublicKey,
 			))
 		}
 		challengerBonus, chErr := s.stor.balances.newestGeneratingBalance(chMinerAddr.ID(), height)
 		if chErr != nil {
-			return 0, wrapErr(RetrievalError, errors.Wrapf(chErr, "failed to get generating balance for addr %s",
+			return 0, wrapErr(stateerr.RetrievalError, errors.Wrapf(chErr, "failed to get generating balance for addr %s",
 				chMinerAddr.String(),
 			))
 		}
@@ -1107,11 +1110,11 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.FullWavesBalance, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	bp, err := s.WavesBalanceProfile(addr.ID())
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return bp.ToFullWavesBalance()
 }
@@ -1129,12 +1132,12 @@ func (s *stateManager) NewestFullWavesBalance(account proto.Recipient) (*proto.F
 func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBalanceProfile, error) {
 	profile, err := s.newestWavesBalanceProfile(id)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	// get the height of the applying block if it is in progress, or the last block height
 	height, err := s.AddingBlockHeight()
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	var generating uint64
 	if gb, gbErr := s.stor.balances.newestGeneratingBalance(id, height); gbErr == nil {
@@ -1144,7 +1147,7 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 	if generating == 0 { // fast path: we need to check for challenged addresses only if generating balance is 0
 		ch, chErr := s.stor.balances.newestIsChallengedAddress(id, height)
 		if chErr != nil {
-			return nil, wrapErr(RetrievalError, chErr)
+			return nil, wrapErr(stateerr.RetrievalError, chErr)
 		}
 		challenged = ch
 	}
@@ -1160,11 +1163,11 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	profile, err := s.newestWavesBalanceProfile(addr.ID())
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return profile.balance, nil
 }
@@ -1172,11 +1175,11 @@ func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, erro
 func (s *stateManager) NewestAssetBalance(account proto.Recipient, asset crypto.Digest) (uint64, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	balance, err := s.newestAssetBalance(addr.ID(), proto.AssetIDFromDigest(asset))
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return balance, nil
 }
@@ -1184,7 +1187,7 @@ func (s *stateManager) NewestAssetBalance(account proto.Recipient, asset crypto.
 func (s *stateManager) NewestAssetBalanceByAddressID(id proto.AddressID, asset crypto.Digest) (uint64, error) {
 	balance, err := s.newestAssetBalance(id, proto.AssetIDFromDigest(asset))
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return balance, nil
 }
@@ -1192,11 +1195,11 @@ func (s *stateManager) NewestAssetBalanceByAddressID(id proto.AddressID, asset c
 func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	profile, err := s.stor.balances.wavesBalance(addr.ID())
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return profile.balance, nil
 }
@@ -1204,11 +1207,11 @@ func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 func (s *stateManager) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	balance, err := s.stor.balances.assetBalance(addr.ID(), assetID)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return balance, nil
 }
@@ -1216,7 +1219,7 @@ func (s *stateManager) AssetBalance(account proto.Recipient, assetID proto.Asset
 func (s *stateManager) WavesAddressesNumber() (uint64, error) {
 	res, err := s.stor.balances.wavesAddressesNumber()
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return res, nil
 }
@@ -1865,18 +1868,18 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 
 	blocksNumber := s.newBlocks.len()
 	if blocksNumber == 0 {
-		return nil, wrapErr(InvalidInputError, errors.New("no blocks provided"))
+		return nil, wrapErr(stateerr.InvalidInputError, errors.New("no blocks provided"))
 	}
 
 	// Read some useful values for later.
 	lastAppliedBlock, tbErr := s.topBlock()
 	if tbErr != nil {
-		return nil, wrapErr(RetrievalError, tbErr)
+		return nil, wrapErr(stateerr.RetrievalError, tbErr)
 	}
 	zap.S().Debugf("StateManager: parent (top) block ID: %s, ts: %d", lastAppliedBlock.BlockID().String(), lastAppliedBlock.Timestamp)
 	height, hErr := s.Height()
 	if hErr != nil {
-		return nil, wrapErr(RetrievalError, hErr)
+		return nil, wrapErr(stateerr.RetrievalError, hErr)
 	}
 	headers := make([]proto.BlockHeader, blocksNumber)
 
@@ -1891,7 +1894,7 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 		blockchainCurHeight := height + uint64(pos)
 		block, optionalSnapshot, errCurBlock := s.newBlocks.current()
 		if errCurBlock != nil {
-			return nil, wrapErr(DeserializationError, errCurBlock)
+			return nil, wrapErr(stateerr.DeserializationError, errCurBlock)
 		}
 
 		pErr := s.processBlockInPack(block, optionalSnapshot, lastAppliedBlock, blockchainCurHeight, chans)
@@ -1908,20 +1911,20 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 	// Tasks chan can now be closed, since all the blocks and transactions have been already sent for verification.
 	// wait for all verifier goroutines
 	if verifyError := chans.closeAndWait(); verifyError != nil {
-		return nil, wrapErr(ValidationError, verifyError)
+		return nil, wrapErr(stateerr.ValidationError, verifyError)
 	}
 
 	// Retrieve and store legacy state hashes for each of new blocks.
 	if shErr := s.stor.handleLegacyStateHashes(height, ids); shErr != nil {
-		return nil, wrapErr(ModificationError, shErr)
+		return nil, wrapErr(stateerr.ModificationError, shErr)
 	}
 	// Validate consensus (i.e. that all the new blocks were mined fairly).
 	if vErr := s.cv.ValidateHeadersBatch(headers[:pos], height); vErr != nil {
-		return nil, wrapErr(ValidationError, vErr)
+		return nil, wrapErr(stateerr.ValidationError, vErr)
 	}
 	// After everything is validated, save all the changes to DB.
 	if fErr := s.flush(); fErr != nil {
-		return nil, wrapErr(ModificationError, fErr)
+		return nil, wrapErr(stateerr.ModificationError, fErr)
 	}
 	zap.S().Infof(
 		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
@@ -1958,7 +1961,7 @@ func (s *stateManager) processBlockInPack(
 		)
 	}
 	if sbfErr := s.saveBlockchainFix(block.BlockID(), fixSnapshots); sbfErr != nil {
-		return wrapErr(ModificationError, errors.Wrapf(sbfErr, "failed to save blockchain fix for block %s",
+		return wrapErr(stateerr.ModificationError, errors.Wrapf(sbfErr, "failed to save blockchain fix for block %s",
 			block.BlockID().String()),
 		)
 	}
@@ -1992,12 +1995,12 @@ func (s *stateManager) beforeAddingBlock(
 ) error {
 	// Assign unique block number for this block ID, add this number to the list of valid blocks.
 	if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
-		return wrapErr(ModificationError, blErr)
+		return wrapErr(stateerr.ModificationError, blErr)
 	}
 	// At some blockchain heights specific logic is performed.
 	// This includes voting for features, block rewards and so on.
 	if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
-		return wrapErr(ModificationError, err)
+		return wrapErr(stateerr.ModificationError, err)
 	}
 	if vhErr := s.cv.ValidateHeaderBeforeBlockApplying(&block.BlockHeader, blockchainCurHeight); vhErr != nil {
 		return vhErr
@@ -2044,11 +2047,11 @@ func (s *stateManager) checkRollbackInput(blockID proto.BlockID) error {
 
 func (s *stateManager) RollbackToHeight(height uint64) error {
 	if err := s.checkRollbackHeight(height); err != nil {
-		return wrapErr(InvalidInputError, err)
+		return wrapErr(stateerr.InvalidInputError, err)
 	}
 	blockID, err := s.HeightToBlockID(height)
 	if err != nil {
-		return wrapErr(RetrievalError, err)
+		return wrapErr(stateerr.RetrievalError, err)
 	}
 	return s.rollbackToImpl(blockID)
 }
@@ -2056,7 +2059,7 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	// The database part of rollback.
 	if err := s.stateDB.rollback(removalEdge); err != nil {
-		return wrapErr(RollbackError, err)
+		return wrapErr(stateerr.RollbackError, err)
 	}
 	// After this point Fatalf() is called instead of returning errors,
 	// because exiting would lead to incorrect state.
@@ -2084,7 +2087,7 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 
 func (s *stateManager) RollbackTo(removalEdge proto.BlockID) error {
 	if err := s.checkRollbackInput(removalEdge); err != nil {
-		return wrapErr(InvalidInputError, err)
+		return wrapErr(stateerr.InvalidInputError, err)
 	}
 	return s.rollbackToImpl(removalEdge)
 }
@@ -2092,14 +2095,16 @@ func (s *stateManager) RollbackTo(removalEdge proto.BlockID) error {
 func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	maxHeight, err := s.Height()
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return nil, wrapErr(InvalidInputError, errors.Errorf("ScoreAtHeight: %d height out of valid range [1, %d]", height, maxHeight))
+		return nil, wrapErr(stateerr.InvalidInputError, errors.Errorf(
+			"ScoreAtHeight: %d height out of valid range [1, %d]", height, maxHeight,
+		))
 	}
 	score, err := s.stor.scores.score(height)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return score, nil
 }
@@ -2107,10 +2112,12 @@ func (s *stateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
 	maxHeight, err := s.Height()
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return nil, wrapErr(InvalidInputError, errors.Errorf("HitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
+		return nil, wrapErr(stateerr.InvalidInputError, errors.Errorf(
+			"HitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight,
+		))
 	}
 	return s.stor.hitSources.hitSource(height)
 }
@@ -2118,10 +2125,12 @@ func (s *stateManager) HitSourceAtHeight(height uint64) ([]byte, error) {
 func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
 	maxHeight, err := s.NewestHeight()
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if height < 1 || height > maxHeight {
-		return nil, wrapErr(InvalidInputError, errors.Errorf("NewestHitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight))
+		return nil, wrapErr(stateerr.InvalidInputError, errors.Errorf(
+			"NewestHitSourceAtHeight: height %d out of valid range [1, %d]", height, maxHeight,
+		))
 	}
 	return s.stor.hitSources.newestHitSource(height)
 }
@@ -2129,11 +2138,11 @@ func (s *stateManager) NewestHitSourceAtHeight(height uint64) ([]byte, error) {
 func (s *stateManager) CurrentScore() (*big.Int, error) {
 	height, err := s.Height()
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	score, err := s.stor.scores.score(height)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return score, nil
 }
@@ -2210,7 +2219,7 @@ func (s *stateManager) IsActiveLightNodeNewBlocksFields(blockHeight proto.Height
 func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	addr, err := s.stor.aliases.newestAddrByAlias(alias.Alias)
 	if err != nil {
-		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
+		return proto.WavesAddress{}, wrapErr(stateerr.RetrievalError, err)
 	}
 	return addr, nil
 }
@@ -2218,7 +2227,7 @@ func (s *stateManager) NewestAddrByAlias(alias proto.Alias) (proto.WavesAddress,
 func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error) {
 	addr, err := s.stor.aliases.addrByAlias(alias.Alias)
 	if err != nil {
-		return proto.WavesAddress{}, wrapErr(RetrievalError, err)
+		return proto.WavesAddress{}, wrapErr(stateerr.RetrievalError, err)
 	}
 	return addr, nil
 }
@@ -2226,7 +2235,7 @@ func (s *stateManager) AddrByAlias(alias proto.Alias) (proto.WavesAddress, error
 func (s *stateManager) AliasesByAddr(addr proto.WavesAddress) ([]string, error) {
 	aliases, err := s.stor.aliases.aliasesByAddr(addr)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return aliases, nil
 }
@@ -2234,7 +2243,7 @@ func (s *stateManager) AliasesByAddr(addr proto.WavesAddress) ([]string, error) 
 func (s *stateManager) VotesNumAtHeight(featureID int16, height proto.Height) (uint64, error) {
 	votesNum, err := s.stor.features.featureVotesAtHeight(featureID, height)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return votesNum, nil
 }
@@ -2242,7 +2251,7 @@ func (s *stateManager) VotesNumAtHeight(featureID int16, height proto.Height) (u
 func (s *stateManager) VotesNum(featureID int16) (uint64, error) {
 	votesNum, err := s.stor.features.featureVotes(featureID)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return votesNum, nil
 }
@@ -2250,7 +2259,7 @@ func (s *stateManager) VotesNum(featureID int16) (uint64, error) {
 func (s *stateManager) IsActivated(featureID int16) (bool, error) {
 	activated, err := s.stor.features.newestIsActivated(featureID)
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	return activated, nil
 }
@@ -2266,7 +2275,7 @@ func (s *stateManager) IsActiveAtHeight(featureID int16, height proto.Height) (b
 func (s *stateManager) NewestActivationHeight(featureID int16) (uint64, error) {
 	height, err := s.stor.features.newestActivationHeight(featureID)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return height, nil
 }
@@ -2274,7 +2283,7 @@ func (s *stateManager) NewestActivationHeight(featureID int16) (uint64, error) {
 func (s *stateManager) ActivationHeight(featureID int16) (uint64, error) {
 	height, err := s.stor.features.activationHeight(featureID)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return height, nil
 }
@@ -2282,7 +2291,7 @@ func (s *stateManager) ActivationHeight(featureID int16) (uint64, error) {
 func (s *stateManager) IsApproved(featureID int16) (bool, error) {
 	approved, err := s.stor.features.isApproved(featureID)
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	return approved, nil
 }
@@ -2294,7 +2303,7 @@ func (s *stateManager) IsApprovedAtHeight(featureID int16, height uint64) (bool,
 func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
 	height, err := s.stor.features.approvalHeight(featureID)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return height, nil
 }
@@ -2302,7 +2311,7 @@ func (s *stateManager) ApprovalHeight(featureID int16) (uint64, error) {
 func (s *stateManager) AllFeatures() ([]int16, error) {
 	features, err := s.stor.features.allFeatures()
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return features, nil
 }
@@ -2347,11 +2356,11 @@ func (s *stateManager) EstimatorVersion() (int, error) {
 func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveNewestEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2359,11 +2368,11 @@ func (s *stateManager) RetrieveNewestEntry(account proto.Recipient, key string) 
 func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entries, err := s.stor.accountsDataStor.retrieveEntries(addr)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entries, nil
 }
@@ -2373,11 +2382,11 @@ func (s *stateManager) RetrieveEntries(account proto.Recipient) ([]proto.DataEnt
 func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	entryExist, err := s.stor.accountsDataStor.newestEntryExists(addr)
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	return !entryExist, nil
 }
@@ -2385,11 +2394,11 @@ func (s *stateManager) IsStateUntouched(account proto.Recipient) (bool, error) {
 func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto.DataEntry, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2397,11 +2406,11 @@ func (s *stateManager) RetrieveEntry(account proto.Recipient, key string) (proto
 func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveNewestIntegerEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2409,11 +2418,11 @@ func (s *stateManager) RetrieveNewestIntegerEntry(account proto.Recipient, key s
 func (s *stateManager) RetrieveIntegerEntry(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveIntegerEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2421,11 +2430,11 @@ func (s *stateManager) RetrieveIntegerEntry(account proto.Recipient, key string)
 func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveNewestBooleanEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2433,11 +2442,11 @@ func (s *stateManager) RetrieveNewestBooleanEntry(account proto.Recipient, key s
 func (s *stateManager) RetrieveBooleanEntry(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveBooleanEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2445,11 +2454,11 @@ func (s *stateManager) RetrieveBooleanEntry(account proto.Recipient, key string)
 func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveNewestStringEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2457,11 +2466,11 @@ func (s *stateManager) RetrieveNewestStringEntry(account proto.Recipient, key st
 func (s *stateManager) RetrieveStringEntry(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveStringEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2469,11 +2478,11 @@ func (s *stateManager) RetrieveStringEntry(account proto.Recipient, key string) 
 func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 	addr, err := s.NewestRecipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveNewestBinaryEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2481,11 +2490,11 @@ func (s *stateManager) RetrieveNewestBinaryEntry(account proto.Recipient, key st
 func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	entry, err := s.stor.accountsDataStor.retrieveBinaryEntry(addr, key)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return entry, nil
 }
@@ -2495,10 +2504,10 @@ func (s *stateManager) RetrieveBinaryEntry(account proto.Recipient, key string) 
 func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, error) {
 	tx, status, err := s.rw.readNewestTransaction(id)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if status.IsNotSucceeded() {
-		return nil, wrapErr(RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
+		return nil, wrapErr(stateerr.RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
 	}
 	return tx, nil
 }
@@ -2506,7 +2515,7 @@ func (s *stateManager) NewestTransactionByID(id []byte) (proto.Transaction, erro
 func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 	tx, _, err := s.rw.readTransaction(id)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return tx, nil
 }
@@ -2514,7 +2523,7 @@ func (s *stateManager) TransactionByID(id []byte) (proto.Transaction, error) {
 func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, proto.TransactionStatus, error) {
 	tx, status, err := s.rw.readTransaction(id)
 	if err != nil {
-		return nil, 0, wrapErr(RetrievalError, err)
+		return nil, 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return tx, status, nil
 }
@@ -2524,10 +2533,10 @@ func (s *stateManager) TransactionByIDWithStatus(id []byte) (proto.Transaction, 
 func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	txHeight, status, err := s.rw.newestTransactionHeightByID(id)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	if status.IsNotSucceeded() {
-		return 0, wrapErr(RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
+		return 0, wrapErr(stateerr.RetrievalError, errors.Errorf("transaction is not succeeded, status=%d", status))
 	}
 	return txHeight, nil
 }
@@ -2535,7 +2544,7 @@ func (s *stateManager) NewestTransactionHeightByID(id []byte) (uint64, error) {
 func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
 	txHeight, _, err := s.rw.transactionHeightByID(id)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return txHeight, nil
 }
@@ -2543,14 +2552,16 @@ func (s *stateManager) TransactionHeightByID(id []byte) (uint64, error) {
 func (s *stateManager) NewAddrTransactionsIterator(addr proto.Address) (TransactionIterator, error) {
 	providesData, err := s.ProvidesExtendedApi()
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	if !providesData {
-		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for transactions by address API"))
+		return nil, wrapErr(stateerr.IncompatibilityError, errors.New(
+			"state does not have data for transactions by address API",
+		))
 	}
 	iter, err := s.atx.newTransactionsByAddrIterator(addr)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	return iter, nil
 }
@@ -2559,7 +2570,7 @@ func (s *stateManager) NewestAssetIsSponsored(asset crypto.Digest) (bool, error)
 	assetID := proto.AssetIDFromDigest(asset)
 	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID)
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	return sponsored, nil
 }
@@ -2567,7 +2578,7 @@ func (s *stateManager) NewestAssetIsSponsored(asset crypto.Digest) (bool, error)
 func (s *stateManager) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID)
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	return sponsored, nil
 }
@@ -2575,11 +2586,11 @@ func (s *stateManager) AssetIsSponsored(assetID proto.AssetID) (bool, error) {
 func (s *stateManager) NewestAssetConstInfo(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
 	info, err := s.stor.assets.newestConstInfo(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	return &proto.AssetConstInfo{
 		ID:          proto.ReconstructDigest(assetID, info.Tail),
@@ -2593,22 +2604,22 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 	assetID := proto.AssetIDFromDigest(asset)
 	info, err := s.stor.assets.newestAssetInfo(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if !info.quantity.IsUint64() {
-		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
+		return nil, wrapErr(stateerr.Other, errors.New("asset quantity overflows uint64"))
 	}
 	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	sponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	scripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	return &proto.AssetInfo{
 		AssetConstInfo: proto.AssetConstInfo{
@@ -2631,12 +2642,12 @@ func (s *stateManager) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, e
 func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAssetInfo, error) {
 	ai, err := s.NewestAssetInfo(asset)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	assetID := proto.AssetIDFromDigest(asset)
 	info, err := s.stor.assets.newestAssetInfo(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	res := &proto.FullAssetInfo{
 		AssetInfo:        *ai,
@@ -2646,28 +2657,28 @@ func (s *stateManager) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAsse
 	}
 	isSponsored, err := s.stor.sponsoredAssets.newestIsSponsored(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if isSponsored {
 		assetCost, err := s.stor.sponsoredAssets.newestAssetCost(assetID)
 		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+			return nil, wrapErr(stateerr.RetrievalError, err)
 		}
 		sponsorBalance, err := s.NewestWavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
 		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+			return nil, wrapErr(stateerr.RetrievalError, err)
 		}
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
 	isScripted, err := s.stor.scriptsStorage.newestIsSmartAsset(assetID)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	if isScripted {
 		scriptInfo, err := s.NewestScriptInfoByAsset(assetID)
 		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+			return nil, wrapErr(stateerr.RetrievalError, err)
 		}
 		res.ScriptInfo = *scriptInfo
 	}
@@ -2682,7 +2693,7 @@ func (s *stateManager) IsAssetExist(assetID proto.AssetID) (bool, error) {
 	case errors.Is(err, errs.UnknownAsset{}):
 		return false, nil
 	default:
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 }
 
@@ -2695,22 +2706,22 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 		if errors.Is(err, errs.UnknownAsset{}) {
 			return nil, err
 		}
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if !info.quantity.IsUint64() {
-		return nil, wrapErr(Other, errors.New("asset quantity overflows uint64"))
+		return nil, wrapErr(stateerr.Other, errors.New("asset quantity overflows uint64"))
 	}
 	issuer, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, info.Issuer)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	sponsored, err := s.stor.sponsoredAssets.isSponsored(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	scripted, err := s.stor.scriptsStorage.isSmartAsset(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return &proto.AssetInfo{
 		AssetConstInfo: proto.AssetConstInfo{
@@ -2731,11 +2742,11 @@ func (s *stateManager) AssetInfo(assetID proto.AssetID) (*proto.AssetInfo, error
 func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInfo, error) {
 	ai, err := s.AssetInfo(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	info, err := s.stor.assets.assetInfo(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	txID := crypto.Digest(ai.ID)             // explicitly show that full asset ID is a crypto.Digest and equals txID
 	tx, _ := s.TransactionByID(txID.Bytes()) // Explicitly ignore error here, in case of error tx is nil as expected
@@ -2748,28 +2759,28 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 
 	isSponsored, err := s.stor.sponsoredAssets.isSponsored(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if isSponsored {
 		assetCost, err := s.stor.sponsoredAssets.assetCost(assetID)
 		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+			return nil, wrapErr(stateerr.RetrievalError, err)
 		}
 		sponsorBalance, err := s.WavesBalance(proto.NewRecipientFromAddress(ai.Issuer))
 		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+			return nil, wrapErr(stateerr.RetrievalError, err)
 		}
 		res.SponsorshipCost = assetCost
 		res.SponsorBalance = sponsorBalance
 	}
 	isScripted, err := s.stor.scriptsStorage.isSmartAsset(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	if isScripted {
 		scriptInfo, err := s.ScriptInfoByAsset(assetID)
 		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+			return nil, wrapErr(stateerr.RetrievalError, err)
 		}
 		res.ScriptInfo = *scriptInfo
 	}
@@ -2786,7 +2797,7 @@ func (s *stateManager) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.Enri
 		if errors.Is(err, errs.UnknownAsset{}) {
 			return nil, err
 		}
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	res := &proto.EnrichedFullAssetInfo{
 		FullAssetInfo:   *fa,
@@ -2798,21 +2809,21 @@ func (s *stateManager) EnrichedFullAssetInfo(assetID proto.AssetID) (*proto.Enri
 func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	height, err := s.Height()
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	nfts, err := s.stor.balances.nftList(addr.ID(), limit, afterAssetID, height, s.stor.features)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	infos := make([]*proto.FullAssetInfo, len(nfts))
 	for i, nft := range nfts {
 		info, err := s.FullAssetInfo(proto.AssetIDFromDigest(nft))
 		if err != nil {
-			return nil, wrapErr(RetrievalError, err)
+			return nil, wrapErr(stateerr.RetrievalError, err)
 		}
 		infos[i] = info
 	}
@@ -2822,18 +2833,18 @@ func (s *stateManager) NFTList(account proto.Recipient, limit uint64, afterAsset
 func (s *stateManager) ScriptBasicInfoByAccount(account proto.Recipient) (*proto.ScriptBasicInfo, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	hasScript, err := s.stor.scriptsStorage.accountHasScript(addr)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	if !hasScript {
 		return nil, proto.ErrNotFound
 	}
 	info, err := s.stor.scriptsStorage.scriptBasicInfoByAddressID(addr.ID())
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	return &proto.ScriptBasicInfo{
 		PK:             info.PK,
@@ -2847,19 +2858,19 @@ func (s *stateManager) ScriptBasicInfoByAccount(account proto.Recipient) (*proto
 func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.ScriptInfo, error) {
 	addr, err := s.recipientToAddress(account)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAddr(addr)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	est, err := s.stor.scriptsComplexity.scriptComplexityByAddress(addr)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	version, err := proto.VersionFromScriptBytes(scriptBytes)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	return &proto.ScriptInfo{
 		Version:    version,
@@ -2871,15 +2882,15 @@ func (s *stateManager) ScriptInfoByAccount(account proto.Recipient) (*proto.Scri
 func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
 	scriptBytes, err := s.stor.scriptsStorage.scriptBytesByAsset(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	est, err := s.stor.scriptsComplexity.scriptComplexityByAsset(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	version, err := proto.VersionFromScriptBytes(scriptBytes)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	return &proto.ScriptInfo{
 		Version:    version,
@@ -2891,15 +2902,15 @@ func (s *stateManager) ScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptIn
 func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.ScriptInfo, error) {
 	scriptBytes, err := s.stor.scriptsStorage.newestScriptBytesByAsset(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	est, err := s.stor.scriptsComplexity.newestScriptComplexityByAsset(assetID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	version, err := proto.VersionFromScriptBytes(scriptBytes)
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	return &proto.ScriptInfo{
 		Version:    version,
@@ -2911,7 +2922,7 @@ func (s *stateManager) NewestScriptInfoByAsset(assetID proto.AssetID) (*proto.Sc
 func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 	isActive, err := s.stor.leases.isActive(leaseID)
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	return isActive, nil
 }
@@ -2919,14 +2930,14 @@ func (s *stateManager) IsActiveLeasing(leaseID crypto.Digest) (bool, error) {
 func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
 	hasData, err := s.storesExtendedApiData()
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	if !hasData {
-		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for invoke results"))
+		return nil, wrapErr(stateerr.IncompatibilityError, errors.New("state does not have data for invoke results"))
 	}
 	res, err := s.stor.invokeResults.invokeResult(s.settings.AddressSchemeCharacter, invokeID)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return res, nil
 }
@@ -2934,7 +2945,7 @@ func (s *stateManager) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptRe
 func (s *stateManager) storesExtendedApiData() (bool, error) {
 	stores, err := s.stateDB.stateStoresApiData()
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	return stores, nil
 }
@@ -2942,7 +2953,7 @@ func (s *stateManager) storesExtendedApiData() (bool, error) {
 func (s *stateManager) ProvidesExtendedApi() (bool, error) {
 	hasData, err := s.storesExtendedApiData()
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	if !hasData {
 		// State does not have extended API data.
@@ -2955,7 +2966,7 @@ func (s *stateManager) ProvidesExtendedApi() (bool, error) {
 func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	provides, err := s.stateDB.stateStoresHashes()
 	if err != nil {
-		return false, wrapErr(RetrievalError, err)
+		return false, wrapErr(stateerr.RetrievalError, err)
 	}
 	return provides, nil
 }
@@ -2963,14 +2974,14 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
-		return nil, wrapErr(Other, err)
+		return nil, wrapErr(stateerr.Other, err)
 	}
 	if !hasData {
-		return nil, wrapErr(IncompatibilityError, errors.New("state does not have data for state hashes"))
+		return nil, wrapErr(stateerr.IncompatibilityError, errors.New("state does not have data for state hashes"))
 	}
 	sh, err := s.stor.stateHashes.legacyStateHash(height)
 	if err != nil {
-		return nil, wrapErr(RetrievalError, err)
+		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
 	return sh, nil
 }
@@ -2978,18 +2989,18 @@ func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.Stat
 func (s *stateManager) SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error) {
 	sh, err := s.stor.stateHashes.snapshotStateHash(height)
 	if err != nil {
-		return crypto.Digest{}, wrapErr(RetrievalError, err)
+		return crypto.Digest{}, wrapErr(stateerr.RetrievalError, err)
 	}
 	return sh, nil
 }
 
 func (s *stateManager) IsNotFound(err error) bool {
-	return IsNotFound(err)
+	return stateerr.IsNotFound(err)
 }
 
 func (s *stateManager) StartProvidingExtendedApi() error {
 	if err := s.atx.startProvidingData(); err != nil {
-		return wrapErr(ModificationError, err)
+		return wrapErr(stateerr.ModificationError, err)
 	}
 	return nil
 }
@@ -3015,11 +3026,11 @@ func (s *stateManager) RewardAtHeight(height proto.Height) (uint64, error) {
 	}
 	reward, err := s.stor.monetaryPolicy.rewardAtHeight(height, blockRewardActivationHeight)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	multiplier, err := rewardMultiplier(s.settings, s.stor.features, height)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return multiplier * reward, nil
 }
@@ -3074,7 +3085,7 @@ func (s *stateManager) TotalWavesAmount(height proto.Height) (uint64, error) {
 	amount, err := s.stor.monetaryPolicy.totalAmountAtHeight(height, initialTotalAmount, blockRewardActivationHeight,
 		rewardBoostActivationHeight, rewardBoostLastHeight)
 	if err != nil {
-		return 0, wrapErr(RetrievalError, err)
+		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
 	return amount, nil
 }
@@ -3102,13 +3113,13 @@ func (s *stateManager) SnapshotsAtHeight(height proto.Height) (proto.BlockSnapsh
 
 func (s *stateManager) Close() error {
 	if err := s.atx.close(); err != nil {
-		return wrapErr(ClosureError, err)
+		return wrapErr(stateerr.ClosureError, err)
 	}
 	if err := s.rw.close(); err != nil {
-		return wrapErr(ClosureError, err)
+		return wrapErr(stateerr.ClosureError, err)
 	}
 	if err := s.stateDB.close(); err != nil {
-		return wrapErr(ClosureError, err)
+		return wrapErr(stateerr.ClosureError, err)
 	}
 	return nil
 }

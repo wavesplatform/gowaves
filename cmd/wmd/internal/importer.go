@@ -8,11 +8,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type Importer struct {
@@ -39,9 +40,9 @@ func (im *Importer) Import(n string) error {
 		return errors.Wrapf(err, "failed to open blockchain file '%s'", n)
 	}
 	defer func() {
-		err = f.Close()
-		if err != nil {
-			zap.S().Errorf("Failed to close blockchain file: %s", err.Error())
+		closeErr := f.Close()
+		if closeErr != nil {
+			zap.S().Errorf("Failed to close blockchain file: %s", closeErr.Error())
 		}
 	}()
 

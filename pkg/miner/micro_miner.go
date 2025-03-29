@@ -10,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -88,7 +89,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			// In the miner we pack transactions from UTX into new block.
 			// We should accept failed transactions here.
 			snapshot, errVal := s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
-			if state.IsTxCommitmentError(errVal) {
+			if stateerr.IsTxCommitmentError(errVal) {
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.
 				s.ResetValidationList()

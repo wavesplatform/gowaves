@@ -7,10 +7,12 @@ package state
 
 import (
 	"encoding/binary"
+	stderrs "errors"
 	"math"
 	"sync"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 )
 
@@ -319,7 +321,7 @@ func (s *batchedStorage) newBatchGroupForKey(key []byte) (*batchesGroup, error) 
 		return nil, err
 	}
 	last, err := s.readLastBatch(key)
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		return bg, nil
 	} else if err != nil {
 		return nil, err
@@ -404,8 +406,11 @@ func (s *batchedStorage) normalizeBatches(key []byte) error {
 
 	lastBatchNum, err := s.readLastBatchNum(key)
 	if err != nil {
-		// Nothing to normalize for this key.
-		return nil
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			// Nothing to normalize for this key.
+			return nil
+		}
+		return errors.Wrap(err, "failed to read last batch num")
 	}
 	batchNum := lastBatchNum
 	for {
@@ -449,7 +454,10 @@ func (s *batchedStorage) readLastBatch(key []byte) (*batch, error) {
 	}
 	lastBatchNum, err := s.readLastBatchNum(key)
 	if err != nil {
-		return nil, errNotFound
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return nil, stderrs.Join(errNotFound, err) // add local errNotFound error
+		}
+		return nil, errors.Wrapf(err, "failed to read last batch num by key 0x%x", key)
 	}
 	return s.batchByNum(key, lastBatchNum)
 }

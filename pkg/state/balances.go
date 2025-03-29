@@ -655,7 +655,7 @@ func (s *balances) storeChallengeHeightForAddr(
 			r := challengedAddressRecord{Heights: []proto.Height{challengedBlockHeight}}
 			data, mErr := r.marshalBinary()
 			if mErr != nil {
-				return errors.Wrap(err, "failed to marshal record to binary data")
+				return errors.Wrap(mErr, "failed to marshal record to binary data")
 			}
 			return s.hs.addNewEntry(challengedAddress, keyBytes, data, blockID)
 		}
@@ -663,7 +663,7 @@ func (s *balances) storeChallengeHeightForAddr(
 	}
 	var r challengedAddressRecord
 	if uErr := r.unmarshalBinary(recordBytes); uErr != nil {
-		return errors.Wrap(err, "failed to unmarshal record from binary data")
+		return errors.Wrap(uErr, "failed to unmarshal record from binary data")
 	}
 	r.appendHeight(challengedBlockHeight) // Append new height to the list.
 	recordBytes, err = r.marshalBinary()

@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 
@@ -80,7 +82,7 @@ func (a *scriptCaller) callAccountScriptWithOrder(order proto.Order, lastBlockIn
 	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
-		return errors.Errorf("account script on order '%s' thrown error with message: %s", base58.Encode(id), err.Error())
+		return errors.Wrapf(err, "account script on order '%s' thrown error with message", base58.Encode(id))
 	}
 	if !r.Result() {
 		return errors.Errorf("account script on order '%s' returned false result", base58.Encode(id))
@@ -144,7 +146,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
-		return errors.Errorf("account script on transaction '%s' failed with error: %v", base58.Encode(id), err.Error())
+		return errors.Wrapf(err, "account script on transaction '%s' failed with error", base58.Encode(id))
 	}
 	if !r.Result() {
 		return errs.NewTransactionNotAllowedByScript("script failed", id)
@@ -197,7 +199,7 @@ func (a *scriptCaller) callAssetScriptCommon(env *ride.EvaluationEnvironment, se
 	}
 	r, err := ride.CallVerifier(env, tree)
 	if err != nil {
-		return nil, errs.NewTransactionNotAllowedByScript(err.Error(), assetID.Bytes())
+		return nil, errs.NewTransactionNotAllowedByScript(fmt.Sprintf("asset script: %v", err), assetID.Bytes())
 	}
 	if !r.Result() && !params.acceptFailed {
 		return nil, errs.NewTransactionNotAllowedByScript("", assetID.Bytes())

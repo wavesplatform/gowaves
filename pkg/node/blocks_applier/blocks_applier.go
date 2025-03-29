@@ -8,6 +8,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 )
 
 const maxRollbackDeltaHeight = 100
@@ -32,7 +33,7 @@ func (a *innerBlocksApplier) exists(storage innerState, block *proto.Block) (boo
 	if err == nil {
 		return true, nil
 	}
-	if state.IsNotFound(err) {
+	if stateerr.IsNotFound(err) {
 		return false, nil
 	}
 	return false, err
@@ -102,7 +103,7 @@ func (a *innerBlocksApplier) getParentAndCurrentHeight(
 	if err == nil {
 		return 0, 0, proto.NewInfoMsg(errors.Errorf("first block %s exists", firstBlock.BlockID().String()))
 	}
-	if !state.IsNotFound(err) {
+	if !stateerr.IsNotFound(err) {
 		return 0, 0, errors.Wrap(err, "unknown error")
 	}
 	currentHeight, err := storage.Height()
@@ -240,7 +241,7 @@ func (a *innerBlocksApplier) applyMicro(
 	if err == nil {
 		return 0, errors.Errorf("block '%s' already exist", block.BlockID().String())
 	}
-	if !state.IsNotFound(err) {
+	if !stateerr.IsNotFound(err) {
 		return 0, errors.Wrap(err, "unexpected error")
 	}
 
@@ -290,7 +291,7 @@ func (a *innerBlocksApplier) applyMicroWithSnapshot(
 	if err == nil {
 		return 0, errors.Errorf("block '%s' already exist", block.BlockID().String())
 	}
-	if !state.IsNotFound(err) {
+	if !stateerr.IsNotFound(err) {
 		return 0, errors.Wrap(err, "unexpected error")
 	}
 

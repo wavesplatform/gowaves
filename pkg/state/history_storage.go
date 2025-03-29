@@ -555,7 +555,7 @@ func (hs *historyStorage) addNewEntry(entityType blockchainEntity, key, value []
 	}
 	entry := historyEntry{value, blockNum}
 	history, err := hs.stor.get(key)
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		history = newHistoryRecord(entityType)
 	} else if err != nil {
 		return err
@@ -650,7 +650,7 @@ func (hs *historyStorage) combineHistories(key []byte, newHist *historyRecord) (
 // fullHistory() returns combination of history from DB and the local storage (if any).
 func (hs *historyStorage) fullHistory(key []byte) (*historyRecord, error) {
 	newHist, err := hs.stor.get(key)
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		return hs.getHistory(key, true)
 	} else if err != nil {
 		return nil, err
@@ -811,6 +811,7 @@ func (hs *historyStorage) flush() error {
 	return nil
 }
 
+// isNotFoundInHistoryOrDBErr checks if the error is errEmptyHist or keyvalue.ErrNotFound.
 func isNotFoundInHistoryOrDBErr(err error) bool {
 	return errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist)
 }

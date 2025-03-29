@@ -94,7 +94,7 @@ func (s *diffStorage) balanceChanges(key string) (*balanceChanges, error) {
 func (s *diffStorage) balanceChangesWithNewDiff(key string, newDiff balanceDiff) (*balanceChanges, error) {
 	// Changes for this key are already in the stor, retrieve them.
 	changes, err := s.balanceChanges(key)
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// Fresh changes with the first diff set.
 		return newBalanceChanges([]byte(key), newDiff), nil
 	} else if err != nil {
