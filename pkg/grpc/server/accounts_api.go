@@ -124,7 +124,7 @@ func (s *Server) GetDataEntries(req *g.DataRequest, srv g.AccountsApi_GetDataEnt
 	if req.Key != "" {
 		entry, err := s.state.RetrieveEntry(rcp, req.Key)
 		if err != nil {
-			if err.Error() == "not found" { // TODO: fix this error message comparison, use errors.Is instead
+			if stateerr.IsNotFound(err) {
 				return nil
 			}
 			return status.Error(codes.NotFound, err.Error())
