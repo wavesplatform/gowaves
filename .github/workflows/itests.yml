@@ -4,18 +4,52 @@ on:
   pull_request_review:
     types: [ submitted ]
     branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
 
 jobs:
+  itest-check:
+    name: integration_tests_run_check
+    runs-on: ubuntu-latest
+    if: (github.repository == 'wavesplatform/gowaves')
+    outputs:
+      can-run-itest: ${{ steps.set-output.outputs.CAN_RUN_ITEST }}
+    steps:
+      - name: Check permissions to run integration tests
+        id: set-output
+        run: |
+          if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
+            CAN_RUN_ITEST=true # if the workflow is triggered manually, we can run itests
+          elif [ "${{ github.event_name }}" == 'pull_request_review' ]; then
+            if [ "${{ github.event.review.state }}" == 'APPROVED' ]; then
+              CAN_RUN_ITEST=true # if the PR review is approved, we can run itests
+            else
+              CAN_RUN_ITEST=false # if the PR review is not approved, we cannot run itests
+            fi
+          else
+            # for 'pull_request' event we need to check if the last review is approved
+            sudo apt-get install jq curl || exit 1
+            curl -sSL -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" | \
+              jq -r '.[-1].state' | grep -qE "^APPROVED$" && CAN_RUN_ITEST=true || \
+            CAN_RUN_ITEST=false
+          fi
+          echo "CAN_RUN_ITEST=$CAN_RUN_ITEST" # for debugging
+          echo "CAN_RUN_ITEST=$CAN_RUN_ITEST" >> "$GITHUB_OUTPUT"
+
   itest:
     name: integration_tests
     runs-on: self-hosted
+    needs: [ itest-check ]
     environment:
       name: ITests
-    if: (github.event_name == 'workflow_dispatch' || github.event.review.state == 'APPROVED') && github.repository == 'wavesplatform/gowaves'
+    if: (needs.itest-check.outputs.can-run-itest == 'true' && github.repository == 'wavesplatform/gowaves')
 
     steps:
       - name: Check out code into the Go module directory
