@@ -105,9 +105,9 @@ func TestRollbackVote(t *testing.T) {
 
 func TestFinishRewardVoting(t *testing.T) {
 	sets := settings.MustMainNetSettings()
-	sets.FunctionalitySettings.BlockRewardTerm = 8
-	sets.FunctionalitySettings.BlockRewardTermAfter20 = 4
-	sets.FunctionalitySettings.BlockRewardVotingPeriod = 2
+	sets.BlockRewardTerm = 8
+	sets.BlockRewardTermAfter20 = 4
+	sets.BlockRewardVotingPeriod = 2
 	mo, storage := createTestObjects(t, sets)
 
 	const (

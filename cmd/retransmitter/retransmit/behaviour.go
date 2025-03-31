@@ -4,11 +4,11 @@ import (
 	"context"
 	"net"
 
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-	. "github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type BehaviourImpl struct {
@@ -45,7 +45,7 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 		if !a.tl.Exists(transaction) {
 			a.tl.Add(transaction)
 			a.counter.IncUniqueTransaction()
-			a.activeConnections.Each(func(c Peer) {
+			a.activeConnections.Each(func(c peer.Peer) {
 				if c != incomeMessage.ID {
 					c.SendMessage(incomeMessage.Message)
 					a.counter.IncEachTransaction()
@@ -67,7 +67,7 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 
 func (a *BehaviourImpl) Stop() {
 	a.knownPeers.Stop()
-	a.activeConnections.Each(func(p Peer) {
+	a.activeConnections.Each(func(p peer.Peer) {
 		_ = p.Close()
 	})
 	a.counter.Stop()
@@ -90,7 +90,7 @@ func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
 
 func (a *BehaviourImpl) AskAboutKnownPeers() {
 	zap.S().Debug("ask about peers")
-	a.activeConnections.Each(func(p Peer) {
+	a.activeConnections.Each(func(p peer.Peer) {
 		p.SendMessage(&proto.GetPeersMessage{})
 	})
 }
@@ -107,7 +107,7 @@ func (a *BehaviourImpl) SendAllMyKnownPeers() {
 	pm := proto.PeersMessage{
 		Peers: a.knownPeers.Addresses(),
 	}
-	a.activeConnections.Each(func(p Peer) {
+	a.activeConnections.Each(func(p peer.Peer) {
 		p.SendMessage(&pm)
 	})
 }

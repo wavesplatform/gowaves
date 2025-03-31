@@ -19,9 +19,9 @@ func makeErrorMessage(errMsg string, args ...interface{}) string {
 
 func StatusCodesCheck(t *testing.T, goCode, scalaCode int, b ConsideredTransaction, args ...interface{}) {
 	errMsg := makeErrorMessage("Response code mismatch", args...)
-	assert.Equalf(t, goCode, b.Resp.ResponseGo.Response.StatusCode, "Node Go: "+errMsg)
+	assert.Equalf(t, goCode, b.Resp.ResponseGo.StatusCode, "Node Go: "+errMsg)
 	if b.Resp.ResponseScala != nil {
-		assert.Equalf(t, scalaCode, b.Resp.ResponseScala.Response.StatusCode, "Node Scala: "+errMsg)
+		assert.Equalf(t, scalaCode, b.Resp.ResponseScala.StatusCode, "Node Scala: "+errMsg)
 	}
 }
 

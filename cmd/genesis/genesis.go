@@ -155,7 +155,7 @@ func parsePairs(s string, scheme byte, ts uint64) ([]genesis_generator.GenesisTr
 	r := make([]genesis_generator.GenesisTransactionInfo, 0, len(pairs))
 	for _, pair := range pairs {
 		parts := strings.Split(pair, ":")
-		amount, err := strconv.ParseUint(strings.Replace(parts[1], "_", "", -1), 10, 64)
+		amount, err := strconv.ParseUint(strings.ReplaceAll(parts[1], "_", ""), 10, 64)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid amount '%s'", parts[1])
 		}
@@ -183,7 +183,7 @@ func parseAmounts(s string) ([]uint64, error) {
 	parts := strings.Split(s, ",")
 	r := make([]uint64, 0, len(parts))
 	for _, p := range parts {
-		a, err := strconv.ParseUint(strings.Replace(p, "_", "", -1), 10, 64)
+		a, err := strconv.ParseUint(strings.ReplaceAll(p, "_", ""), 10, 64)
 		if err != nil {
 			return nil, errors.Wrapf(err, "invalid amount '%s'", p)
 		}

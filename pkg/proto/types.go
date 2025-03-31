@@ -1013,7 +1013,7 @@ func (o OrderV1) GetProofs() (*ProofsV1, error) {
 }
 
 func (o OrderV1) GetAmount() uint64 {
-	return o.OrderBody.Amount
+	return o.Amount
 }
 
 func (o OrderV1) GetTimestamp() uint64 {
@@ -1079,7 +1079,7 @@ func (o *OrderV1) GetAttachment() Attachment {
 }
 
 func (o OrderV1) BodyMarshalBinary() ([]byte, error) {
-	return o.OrderBody.marshalBinary()
+	return o.marshalBinary()
 }
 
 func (o OrderV1) BodySerialize(s *serializer.Serializer) error {
@@ -1313,7 +1313,7 @@ func (o OrderV2) BodyMarshalBinary() ([]byte, error) {
 	}
 	buf := make([]byte, orderV2FixedBodyLen+aal+pal)
 	buf[0] = byte(o.Version)
-	b, err := o.OrderBody.marshalBinary()
+	b, err := o.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV2 to bytes")
 	}
@@ -1552,7 +1552,7 @@ func (o *OrderV3) BodyMarshalBinary() ([]byte, error) {
 	pos := 0
 	buf[pos] = byte(o.Version)
 	pos++
-	b, err := o.OrderBody.marshalBinary()
+	b, err := o.marshalBinary()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal OrderV3 to bytes")
 	}

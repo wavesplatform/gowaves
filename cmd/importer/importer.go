@@ -126,10 +126,10 @@ func (c *cfg) validateFlags() error {
 func (c *cfg) params(maxFDs int) state.StateParams {
 	const clearance = 10
 	params := state.DefaultStateParams()
-	params.StorageParams.DbParams.OpenFilesCacheCapacity = maxFDs - clearance
+	params.DbParams.OpenFilesCacheCapacity = maxFDs - clearance
 	params.VerificationGoroutinesNum = c.verificationGoroutinesNum
 	params.DbParams.WriteBuffer = c.writeBufferSize * MiB
-	params.DbParams.BloomFilterParams.Disable = c.disableBloomFilter
+	params.DbParams.DisableBloomFilter = c.disableBloomFilter
 	params.StoreExtendedApiData = c.buildDataForExtendedAPI
 	params.BuildStateHashes = c.buildStateHashes
 	params.ProvideExtendedApi = false // We do not need to provide any APIs during import.

@@ -284,10 +284,7 @@ func (ws *WrappedState) NewestAssetInfo(asset crypto.Digest) (*proto.AssetInfo, 
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
 	}
-	scripted := false
-	if searchNewAsset.script != nil {
-		scripted = true
-	}
+	scripted := searchNewAsset.script != nil
 	sponsored, err := ws.NewestAssetIsSponsored(asset)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to find out sponsoring of the asset")
@@ -334,10 +331,7 @@ func (ws *WrappedState) NewestFullAssetInfo(asset crypto.Digest) (*proto.FullAss
 		return nil, errors.Wrap(err, "failed to get issuerPK from address in NewestAssetInfo")
 	}
 
-	scripted := false
-	if searchNewAsset.script != nil {
-		scripted = true
-	}
+	scripted := searchNewAsset.script != nil
 
 	sponsored, err := ws.NewestAssetIsSponsored(asset)
 	if err != nil {

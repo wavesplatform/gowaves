@@ -313,7 +313,7 @@ func (ia *invokeApplier) senderCredentialsFromScriptAction(a proto.ScriptAction,
 func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvokeInfo) (proto.TxFailureReason, txBalanceChanges, error) {
 	// Check smart asset scripts on payments.
 	for _, smartAsset := range info.paymentSmartAssets {
-		r, err := ia.sc.callAssetScript(tx, smartAsset, info.fallibleValidationParams.appendTxParams)
+		r, err := ia.sc.callAssetScript(tx, smartAsset, info.appendTxParams)
 		if err != nil {
 			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(err.Error(), smartAsset)
 		}
@@ -988,7 +988,7 @@ func (ia *invokeApplier) countScriptRuns(info *fallibleValidationParams,
 		// Since activation of RideV5 (16) feature
 		// we don't take fee for verifier execution if it's complexity is less than `FreeVerifierComplexity` limit,
 		// take fee in any other case
-		if !(info.rideV5Activated && treeEstimation.Verifier <= FreeVerifierComplexity) {
+		if !info.rideV5Activated || treeEstimation.Verifier > FreeVerifierComplexity {
 			// take fee
 			scriptRuns++
 		}
