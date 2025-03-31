@@ -4,6 +4,7 @@ import (
 	"context"
 	"net"
 	"reflect"
+	"sync"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -84,6 +85,12 @@ func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) 
 }
 
 func (a *Node) serveIncomingPeers(ctx context.Context) error {
+	var wg sync.WaitGroup
+	defer wg.Wait()
+	// it's important defer wg.Wait before deferring the context cancellation
+	ctx, cancel := context.WithCancel(ctx)
+	defer cancel()
+
 	// if empty declared address, listen on port doesn't make sense
 	if a.declAddr.Empty() {
 		zap.S().Warn("Declared address is empty")
@@ -101,13 +108,17 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 	if err != nil {
 		return err
 	}
-	defer func() {
-		if err := l.Close(); err != nil {
-			zap.S().Errorf("Failed to close %T on addr %q: %v", l, l.Addr().String(), err)
+
+	// Close the listener when the context is done
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		<-ctx.Done()
+		if clErr := l.Close(); clErr != nil {
+			zap.S().Errorf("Failed to close %T on addr %q: %v", l, l.Addr().String(), clErr)
 		}
 	}()
 
-	// TODO: implement good graceful shutdown
 	for {
 		conn, err := l.Accept()
 		if err != nil {
