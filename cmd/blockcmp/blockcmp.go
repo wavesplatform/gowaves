@@ -61,12 +61,12 @@ func (r *report) String() string {
 	sb := new(strings.Builder)
 	for i := 1; i < len(r.endpoints); i++ {
 		if r.blockIDs[0] != r.blockIDs[i] {
-			sb.WriteString(fmt.Sprintf("Endpoint %s has different block ID at height %d: %s != %s",
-				r.endpoints[i], r.height, r.blockIDs[0].String(), r.blockIDs[i].String()))
+			fmt.Fprintf(sb, "Endpoint %s has different block ID at height %d: %s != %s",
+				r.endpoints[i], r.height, r.blockIDs[0].String(), r.blockIDs[i].String())
 		}
 		if len(r.transactions[0]) != len(r.transactions[i]) {
-			sb.WriteString(fmt.Sprintf("Endpoint %s has different transactions count at height %d: %d != %d",
-				r.endpoints[i], r.height, len(r.transactions[0]), len(r.transactions[i])))
+			fmt.Fprintf(sb, "Endpoint %s has different transactions count at height %d: %d != %d",
+				r.endpoints[i], r.height, len(r.transactions[0]), len(r.transactions[i]))
 		}
 		for j := 0; j < len(r.transactions[0]); j++ {
 			if r.results[0][j] != r.results[i][j] {
@@ -76,8 +76,8 @@ func (r *report) String() string {
 				}
 				diff := resultDiff(r.results[0][j], r.results[i][j], r.scheme)
 				if diff != "" {
-					sb.WriteString(fmt.Sprintf("Endpoint %s has different result for transaction '%s':\n%s",
-						r.endpoints[i], base58.Encode(id), diff))
+					fmt.Fprintf(sb, "Endpoint %s has different result for transaction '%s':\n%s",
+						r.endpoints[i], base58.Encode(id), diff)
 					sb.WriteString("\n")
 				}
 			}
@@ -300,8 +300,7 @@ func resultDiff(a, b *waves.InvokeScriptResult, scheme byte) string {
 	}
 	if a.GetErrorMessage().GetText() != b.GetErrorMessage().GetText() {
 		sb.WriteString("\tError:\n")
-		sb.WriteString(fmt.Sprintf("\t-%s\n\t+%s\n",
-			a.GetErrorMessage().GetText(), b.GetErrorMessage().GetText()))
+		fmt.Fprintf(sb, "\t-%s\n\t+%s\n", a.GetErrorMessage().GetText(), b.GetErrorMessage().GetText())
 	}
 	return sb.String()
 }
@@ -313,15 +312,15 @@ func addDataDiff(sb *strings.Builder, a, b []internal.DataEntry) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !a[i].Equal(b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", a[i].String())
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	if lsb.Len() > 0 {
@@ -337,15 +336,15 @@ func addTransfersDiff(sb *strings.Builder, a, b []internal.Transfer) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !a[i].Equal(b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", a[i].String())
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	if lsb.Len() > 0 {
@@ -361,15 +360,15 @@ func addIssuesDiff(sb *strings.Builder, a, b []internal.Issue) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !a[i].Equal(b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", a[i].String())
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	if lsb.Len() > 0 {
@@ -385,15 +384,15 @@ func addReissuesDiff(sb *strings.Builder, a, b []internal.Reissue) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !a[i].Equal(b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", a[i].String())
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	if lsb.Len() > 0 {
@@ -409,15 +408,15 @@ func addBurnsDiff(sb *strings.Builder, a, b []internal.Burn) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !a[i].Equal(b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", a[i].String())
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	if lsb.Len() > 0 {
@@ -433,15 +432,15 @@ func addSponsorFeesDiff(sb *strings.Builder, a, b []internal.Sponsorship) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !a[i].Equal(b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", a[i].String())
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	if lsb.Len() > 0 {
@@ -457,15 +456,15 @@ func addLeasesDiff(sb *strings.Builder, a, b []internal.Lease) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !a[i].Equal(b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", a[i].String())
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	if lsb.Len() > 0 {
@@ -481,15 +480,15 @@ func addLeaseCancelsDiff(sb *strings.Builder, a, b []internal.LeaseCancel) {
 	lsb := new(strings.Builder)
 	for i := 0; i < min; i++ {
 		if !a[i].Equal(b[i]) {
-			lsb.WriteString(fmt.Sprintf("\t-%s\n", a[i].String()))
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	for i := min; i < max; i++ {
 		if la > lb {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", a[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", a[i].String())
 		} else {
-			lsb.WriteString(fmt.Sprintf("\t+%s\n", b[i].String()))
+			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
 		}
 	}
 	if lsb.Len() > 0 {

@@ -6,6 +6,7 @@ import (
 	"hash"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto/internal"
 )
 
@@ -160,7 +161,7 @@ func verifyVRFSignature(publicKey, m, signature []byte) (bool, []byte, error) {
 	internal.FeFromBytes(&u, pk)
 	var strict [32]byte
 	internal.FeToBytes(&strict, &u)
-	if !(internal.FeCompare(&strict, pk) == 0) {
+	if internal.FeCompare(&strict, pk) != 0 {
 		return false, nil, nil
 	}
 	var y internal.FieldElement

@@ -839,10 +839,7 @@ func (rw *blockReadWriter) rollback(newHeight uint64) error {
 	}
 	blockEnd := blockMeta.txEndOffset
 	headerEnd := blockMeta.headerEndOffset
-	removeProtobufInfo := false
-	if blockEnd < rw.protobufTxStart {
-		removeProtobufInfo = true
-	}
+	removeProtobufInfo := blockEnd < rw.protobufTxStart
 	return rw.truncate(newHeight, blockEnd, headerEnd, removeProtobufInfo)
 }
 

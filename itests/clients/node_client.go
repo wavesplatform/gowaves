@@ -187,7 +187,7 @@ func (c *NodesClients) reportFirstDivergedHeight(t *testing.T, height uint64) {
 	)
 	for h := height; h > 0; h-- {
 		goSH, scalaSH, _ = c.StateHashCmp(t, h)
-		if !goSH.FieldsHashes.Equal(scalaSH.FieldsHashes) {
+		if !goSH.Equal(scalaSH.FieldsHashes) {
 			first = h
 		} else {
 			break

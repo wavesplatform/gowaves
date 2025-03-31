@@ -35,7 +35,7 @@ func TestEmbeddedWalletImpl_SignTransactionWith(t *testing.T) {
 
 		w := NewEmbeddedWallet(nil, seederTest("test"), proto.TestNetScheme)
 		err = w.SignTransactionWith(crypto.PublicKey{}, tx)
-		require.Equal(t, PublicKeyNotFound, err)
+		require.Equal(t, ErrPublicKeyNotFound, err)
 	})
 }
 
