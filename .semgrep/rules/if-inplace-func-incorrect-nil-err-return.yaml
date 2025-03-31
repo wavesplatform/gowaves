@@ -1,6 +1,6 @@
 rules:
   - id: if-inplace-func-incorrect-nil-err-return
-    languages: [go]
+    languages: [ go ]
     severity: WARNING
     message: |
       WARNING: A local variable '$ERR' is checked for nil, but a different variable is returned.
@@ -10,12 +10,39 @@ rules:
           metavariable: $ERR
           regex: .*(?i)err # using .* to allow prefixes, because regex matching is left anchored.
 
-      - pattern: |
-          if $ERR := $FUNC(...); $ERR != nil {
-              ...
-              return ..., $OTHERERR
-          }
+      - pattern-either:
+          # inside multiple return values function or method
+          - pattern-inside: |
+              func $FUNCNAME(...) (..., error) {
+                ...
+              }
+          - pattern-inside: |
+              func ($ANYRCV $ANYTYPE) $METHNAME(...) (..., error) {
+                ...
+              }
+          # inside single return value function or method
+          - pattern-inside: |
+              func $FUNCNAME(...) error {
+                ...
+              }
+          - pattern-inside: |
+              func ($ANYRCV $ANYTYPE) $METHNAME(...) error {
+                ...
+              }
 
+      - pattern-either:
+          - pattern: | # multiple return values
+              if $ERR := $FUNC(...); $ERR != nil {
+                  ...
+                  return ..., $OTHERERR
+              }
+          - pattern: | # single return value
+              if $ERR := $FUNC(...); $ERR != nil {
+                  ...
+                  return $OTHERERR
+              }
+
+      # pattern-not for multiple return values
       - pattern-not: |
           if $ERR := $FUNC(...); $ERR != nil {
               ...
@@ -36,7 +63,7 @@ rules:
               ...
               $NEWERR := $ANYFUNC(..., $ERR, ...)
               ...
-              return nil, $NEWERR
+              return ..., $NEWERR
           }
       - pattern-not: |
           if $ERR := $FUNC(...); $ERR != nil {
@@ -44,4 +71,35 @@ rules:
               $NEWERR := $ANYFUNC(..., $ERR, ...)
               ...
               return ..., $ANYFUNC1(..., $NEWERR, ...)
+          }
+
+      # pattern-not for single return value
+      - pattern-not: |
+          if $ERR := $FUNC(...); $ERR != nil {
+              ...
+              return $ERR
+          }
+      - pattern-not: |
+          if $ERR := $FUNC(...); $ERR != nil {
+              ...
+              return $ANYFUNC(..., $ERR, ...)
+          }
+      - pattern-not: |
+          if $ERR := $FUNC(...); $ERR != nil {
+              ...
+              return $ANYFUNC(..., $ANYFUNC1(..., $ERR, ...), ...)
+          }
+      - pattern-not: |
+          if $ERR := $FUNC(...); $ERR != nil {
+              ...
+              $NEWERR := $ANYFUNC(..., $ERR, ...)
+              ...
+              return $NEWERR
+          }
+      - pattern-not: |
+          if $ERR := $FUNC(...); $ERR != nil {
+              ...
+              $NEWERR := $ANYFUNC(..., $ERR, ...)
+              ...
+              return $ANYFUNC1(..., $NEWERR, ...)
           }
