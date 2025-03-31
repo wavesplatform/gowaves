@@ -2,8 +2,6 @@ module github.com/wavesplatform/gowaves
 
 go 1.23.0
 
-toolchain go1.24.1
-
 require (
 	filippo.io/edwards25519 v1.1.0
 	github.com/beevik/ntp v1.4.3
