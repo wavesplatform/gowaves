@@ -14,7 +14,9 @@ import (
 )
 
 var (
-	errDeletedEntry = errors.New("entry has been deleted")
+	// errDeletedEntry is returned when the entry was deleted in during the script execution.
+	// Wrapped with proto.ErrNotFound to be compatible WrappedState.IsNotFound method.
+	errDeletedEntry = errors.Wrap(proto.ErrNotFound, "entry has been deleted")
 )
 
 type WrappedState struct {
@@ -482,7 +484,7 @@ func (ws *WrappedState) validateAsset(action proto.ScriptAction, asset proto.Opt
 
 	r, err := CallVerifier(localEnv, tree)
 	if err != nil {
-		return false, errs.NewTransactionNotAllowedByScript(err.Error(), asset.ID.Bytes())
+		return false, errs.NewTransactionNotAllowedByScript(fmt.Sprintf("asset script: %v", err), asset.ID.Bytes())
 	}
 	if !r.Result() {
 		return false, errs.NewTransactionNotAllowedByScript("Script returned False", asset.ID.Bytes())
@@ -708,9 +710,9 @@ func (ws *WrappedState) validateWavesBalance(addrID proto.AddressID, rideV6Activ
 	if rideV6Activated { // After activation of RideV6 we check that spendable balance is not negative
 		_, err := diff.checkedSpendableBalance()
 		if err != nil {
-			addr, err2 := addrID.ToWavesAddress(ws.scheme)
-			if err2 != nil {
-				return errors.Wrap(err, "failed to validate balances")
+			addr, wErr := addrID.ToWavesAddress(ws.scheme)
+			if wErr != nil {
+				return errors.Wrap(wErr, "failed to validate balances")
 			}
 			return errors.Wrapf(err, "failed validation of address %s", addr.String())
 		}

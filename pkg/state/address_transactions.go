@@ -259,7 +259,7 @@ func (at *addressTransactions) handleRecord(record []byte) error {
 	key := record[:proto.AddressIDSize]
 	newRecordBytes := record[proto.AddressIDSize:]
 	lastOffsetBytes, err := at.stor.newestLastRecordByKey(key)
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// The first record for this key.
 		if err := at.stor.addRecordBytes(key, newRecordBytes); err != nil {
 			return errors.Wrap(err, "batchedStorage: failed to add record")

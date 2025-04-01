@@ -2,10 +2,11 @@ package api
 
 import (
 	"github.com/pkg/errors"
+
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 )
 
 type Score struct {
@@ -157,7 +158,7 @@ func (a *App) BlocksGenerators() (Generators, error) {
 func (a *App) BlockByHeight(height proto.Height) (*proto.Block, error) {
 	block, err := a.state.BlockByHeight(height)
 	if err != nil {
-		if origErr := errors.Cause(err); state.IsInvalidInput(origErr) || state.IsNotFound(origErr) {
+		if origErr := errors.Cause(err); stateerr.IsInvalidInput(origErr) || stateerr.IsNotFound(origErr) {
 			return nil, notFound
 		}
 		return nil, errors.Wrapf(err, "failed to get block by height=%d", height)
@@ -168,7 +169,7 @@ func (a *App) BlockByHeight(height proto.Height) (*proto.Block, error) {
 func (a *App) Block(id proto.BlockID) (*proto.Block, error) {
 	block, err := a.state.Block(id)
 	if err != nil {
-		if origErr := errors.Cause(err); state.IsNotFound(origErr) {
+		if origErr := errors.Cause(err); stateerr.IsNotFound(origErr) {
 			return nil, notFound
 		}
 		return nil, errors.Wrapf(err, "failed to get block by id=%s", id.String())
@@ -179,7 +180,7 @@ func (a *App) Block(id proto.BlockID) (*proto.Block, error) {
 func (a *App) BlockIDToHeight(id proto.BlockID) (proto.Height, error) {
 	height, err := a.state.BlockIDToHeight(id)
 	if err != nil {
-		if origErr := errors.Cause(err); state.IsNotFound(origErr) {
+		if origErr := errors.Cause(err); stateerr.IsNotFound(origErr) {
 			return 0, notFound
 		}
 		return 0, errors.Wrapf(err, "failed to get block height for id=%s", id.String())
