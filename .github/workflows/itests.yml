@@ -34,9 +34,9 @@ jobs:
               CAN_RUN_ITEST=false # if the PR review is not approved, we cannot run itests
             fi
           else
+            sudo apt-get install jq curl || exit 1 # install jq and curl if not installed
             # for 'pull_request' event we need to check if the last review is approved
             echo "--> Checking whether the last PR review is approved"
-            sudo apt-get install jq curl || exit 1
             LAST_REVIEW_STATE=$(curl -sSL \
               -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
               -H "Accept: application/vnd.github+json" \
