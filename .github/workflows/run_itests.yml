@@ -6,6 +6,10 @@ on:
         required: true
         type: string
         description: "Integration tests type ('itest', 'itest-race', 'smoke')"
+      environment:
+        required: true
+        type: string
+        description: "Environment name for the job ('ITests' for manual approval or '' for no environment)"
 
 jobs:
   check-inputs:
@@ -13,17 +17,19 @@ jobs:
     runs-on: ubuntu-latest
     env:
       ITEST_TYPE: "${{ inputs.itest-type }}"
+      ENVIRONMENT: "${{ inputs.environment }}"
     steps:
       - name: Check inputs
         run: |
           echo "${{ env.ITEST_TYPE }}" | grep -E '^(itest|itest-race|smoke)$' || exit 1 # check if the itest type is valid
+          echo "${{ env.ENVIRONMENT }}" | grep -E '^(^$|ITests)$' || exit 1 # check if the environment is valid
 
   run-itest:
     name: run_integration_tests
     needs: [ check-inputs ]
     runs-on: self-hosted
     environment:
-      name: ITests
+      name: "${{ inputs.environment }}" # use the environment name from the input
     if: (github.repository == 'wavesplatform/gowaves')
     env:
       MAKEFILE_TARGET: "${{ inputs.itest-type }}" # type of integration test equal to the makefile target
