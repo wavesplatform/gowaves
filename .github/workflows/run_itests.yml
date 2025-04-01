@@ -1,19 +1,32 @@
 name: "RunITests"
 on:
-  workflow_dispatch:
   workflow_call:
-
-concurrency:
-  group: run-itest_${{ github.workflow }}-${{ github.ref }} # use a different group name to avoid deadlock because of workflow_call
-  cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
+    inputs:
+      itest-type:
+        required: true
+        type: string
+        description: "Integration tests type ('itest', 'itest-race', 'smoke')"
 
 jobs:
+  check-inputs:
+    name: check-inputs
+    runs-on: ubuntu-latest
+    env:
+      ITEST_TYPE: "${{ inputs.itest-type }}"
+    steps:
+      - name: Check inputs
+        run: |
+          echo "${{ env.ITEST_TYPE }}" | grep -E '^(itest|itest-race|smoke)$' || exit 1 # check if the itest type is valid
+
   run-itest:
     name: run_integration_tests
+    needs: [ check-inputs ]
     runs-on: self-hosted
     environment:
       name: ITests
     if: (github.repository == 'wavesplatform/gowaves')
+    env:
+      MAKEFILE_TARGET: "${{ inputs.itest-type }}" # type of integration test equal to the makefile target
 
     steps:
       - name: Check out code into the Go module directory
@@ -31,7 +44,7 @@ jobs:
         run: go mod vendor
 
       - name: Tests
-        run: make itest
+        run: make ${{ env.MAKEFILE_TARGET }} # run the integration tests
 
       - name: Upload itest logs and configs
         uses: actions/upload-artifact@v4

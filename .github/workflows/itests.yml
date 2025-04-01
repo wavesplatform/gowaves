@@ -59,3 +59,5 @@ jobs:
     if: (needs.itest-check.outputs.can-run-itest == 'true' && github.repository == 'wavesplatform/gowaves')
     secrets: inherit
     uses: "./.github/workflows/run_itests.yml"
+    with:
+      itest-type: 'itest' # run full set of integration tests
