@@ -28,7 +28,7 @@ jobs:
             CAN_RUN_ITEST=true # if the workflow is triggered manually, we can run itests
           elif [ "${{ github.event_name }}" == 'pull_request_review' ]; then
             echo "--> Checking whether the PR review is approved"
-            if [ "${{ github.event.review.state }}" == 'APPROVED' ]; then
+            if [ "${{ github.event.review.state }}" == 'approved' ]; then
               CAN_RUN_ITEST=true # if the PR review is approved, we can run itests
             else
               CAN_RUN_ITEST=false # if the PR review is not approved, we cannot run itests
