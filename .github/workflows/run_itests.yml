@@ -7,7 +7,7 @@ on:
         type: string
         description: "Integration tests type ('itest', 'itest-race', 'smoke')"
       environment:
-        required: true
+        required: false
         type: string
         description: "Environment name for the job ('ITests' for manual approval or '' for no environment)"
 

@@ -12,4 +12,3 @@ jobs:
     uses: "./.github/workflows/run_itests.yml"
     with:
       itest-type: 'itest-race'
-      environment: '' # no environment, run itests without approval
