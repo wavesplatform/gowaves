@@ -1682,7 +1682,7 @@ func (p *astParser) ruleGenericTypeHandler(node *node32) s.Type {
 	curNode = skipToNextRule(curNode.next)
 	T := p.ruleTypesHandler(curNode)
 	if T == nil {
-		return T
+		return nil
 	}
 	return s.ListType{Type: T}
 }

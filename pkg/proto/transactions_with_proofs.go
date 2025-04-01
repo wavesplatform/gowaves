@@ -3312,7 +3312,7 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 		var e DataEntry
 		t, err := extractValueType(data)
 		if err != nil {
-			return errors.Errorf("failed to extract type of data entry")
+			return errors.Wrap(err, "failed to extract type of data entry")
 		}
 		switch t {
 		case DataInteger:

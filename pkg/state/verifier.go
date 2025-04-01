@@ -115,7 +115,9 @@ func checkTx(
 		return verifyExchangeTransaction(t, params.Scheme, checkOrder1, checkOrder2)
 	case *proto.EthereumTransaction:
 		if _, err := t.Verify(); err != nil {
-			return errs.NewTxValidationError("EthereumTransaction transaction signature verification failed")
+			return errs.NewTxValidationError(fmt.Sprintf(
+				"EthereumTransaction transaction signature verification failed: %v", err,
+			))
 		}
 	case selfVerifier:
 		return verifyTransactionSignature(t, params.Scheme)
@@ -126,19 +128,22 @@ func checkTx(
 }
 
 func verifyExchangeTransaction(tx proto.Exchange, sch proto.Scheme, chOrd1, chOrd2 bool) error {
-	if ok, err := tx.Verify(sch, tx.GetSenderPK()); !ok {
-		if err != nil {
-			return errs.Extend(err, "Exchange transaction signature verification failed")
-		}
+	if ok, err := tx.Verify(sch, tx.GetSenderPK()); err != nil {
+		return errs.Extend(err, "Exchange transaction signature verification failed")
+	} else if !ok {
 		return errs.NewTxValidationError("Exchange tx signature verification failed")
 	}
 	if chOrd1 {
-		if ok, _ := tx.GetOrder1().Verify(sch); !ok {
+		if ok, err := tx.GetOrder1().Verify(sch); err != nil {
+			return errs.Extend(err, "first Order signature verification failed")
+		} else if !ok {
 			return errs.NewTxValidationError("first Order signature verification failed")
 		}
 	}
 	if chOrd2 {
-		if ok, _ := tx.GetOrder2().Verify(sch); !ok {
+		if ok, err := tx.GetOrder2().Verify(sch); err != nil {
+			return errs.Extend(err, "second Order signature verification failed")
+		} else if !ok {
 			return errs.NewTxValidationError("second Order signature verification failed")
 		}
 	}
