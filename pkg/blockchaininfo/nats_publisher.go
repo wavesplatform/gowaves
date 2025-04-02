@@ -2,6 +2,8 @@ package blockchaininfo
 
 import (
 	"context"
+	"strings"
+	"sync"
 	"time"
 
 	"go.uber.org/zap"
@@ -10,10 +12,11 @@ import (
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const StoreBlocksLimit = 200
-const ConnectionsTimeoutDefault = 5 * server.AUTH_TIMEOUT
+const ConnectionsTimeoutDefault = 10 * server.AUTH_TIMEOUT
 
 const portDefault = 4222
 const hostDefault = "127.0.0.1"
@@ -28,7 +31,8 @@ const (
 
 const L2RequestsTopic = "l2_requests_topic"
 const (
-	RequestRestartSubTopic = "restart"
+	RequestRestartSubTopic      = "restart"
+	RequestConstantKeysSubTopic = "constant_keys"
 )
 
 func ConcatenateContractTopics(contractAddress string) string {
@@ -36,30 +40,87 @@ func ConcatenateContractTopics(contractAddress string) string {
 }
 
 type BUpdatesExtensionState struct {
-	currentState      *BUpdatesInfo
-	previousState     *BUpdatesInfo // this information is what was just published
-	Limit             uint64
-	scheme            proto.Scheme
+	CurrentState         *proto.BUpdatesInfo
+	PreviousState        *proto.BUpdatesInfo // this information is what was just published
+	Limit                uint64
+	Scheme               proto.Scheme
+	constantContractKeys []string
+	L2ContractAddress    string
+	HistoryJournal       *HistoryJournal
+	St                   state.State
+}
+
+type UpdatesPublisher struct {
 	l2ContractAddress string
 }
 
-func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string) *BUpdatesExtensionState {
-	return &BUpdatesExtensionState{Limit: limit, scheme: scheme, l2ContractAddress: l2ContractAddress}
+func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string,
+	st state.State) (*BUpdatesExtensionState, error) {
+	stateCache := NewStateCache()
+	currentHeight, err := st.Height()
+	if err != nil {
+		return nil, err
+	}
+	l2address, cnvrtErr := proto.NewAddressFromString(l2ContractAddress)
+	if cnvrtErr != nil {
+		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %s", l2ContractAddress)
+	}
+	historyJournal := NewHistoryJournal()
+	for targetHeight := currentHeight - HistoryJournalLengthMax; targetHeight < currentHeight; targetHeight++ {
+		blockSnapshot, retrieveErr := st.SnapshotsAtHeight(targetHeight)
+		if retrieveErr != nil {
+			return nil, retrieveErr
+		}
+		blockInfo, pullErr := st.NewestBlockInfoByHeight(targetHeight)
+		if pullErr != nil {
+			return nil, errors.Wrap(pullErr, "failed to get newest block info")
+		}
+		blockHeader, blockErr := st.NewestHeaderByHeight(targetHeight)
+		if blockErr != nil {
+			return nil, errors.Wrap(blockErr, "failed to get newest block info")
+		}
+		bUpdatesInfo := state.BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot, l2address)
+
+		filteredDataEntries, filtrErr := filterDataEntries(targetHeight-limit,
+			bUpdatesInfo.ContractUpdatesInfo.AllDataEntries)
+		if filtrErr != nil {
+			return nil, errors.Wrap(filtrErr, "failed to initialize state cache, failed to filter data entries")
+		}
+
+		stateCache.AddCacheRecord(targetHeight, filteredDataEntries, bUpdatesInfo.BlockUpdatesInfo)
+
+		historyEntry := HistoryEntry{
+			Height:      targetHeight,
+			BlockID:     bUpdatesInfo.BlockUpdatesInfo.BlockID,
+			Entries:     filteredDataEntries,
+			VRF:         bUpdatesInfo.BlockUpdatesInfo.VRF,
+			BlockHeader: bUpdatesInfo.BlockUpdatesInfo.BlockHeader,
+		}
+		historyJournal.Push(historyEntry)
+	}
+	historyJournal.StateCache = stateCache
+
+	return &BUpdatesExtensionState{Limit: limit, Scheme: scheme,
+		L2ContractAddress: l2ContractAddress, HistoryJournal: historyJournal, St: st}, nil
 }
 
-func (bu *BUpdatesExtensionState) hasStateChanged() (bool, BUpdatesInfo, error) {
-	statesAreEqual, changes, err := bu.statesEqual(bu.scheme)
+func (bu *BUpdatesExtensionState) SetPreviousState(updates proto.BUpdatesInfo) {
+	bu.PreviousState = &updates
+}
+
+func (bu *BUpdatesExtensionState) HasStateChanged() (bool, proto.BUpdatesInfo, error) {
+	statesAreEqual, changes, err := bu.StatesEqual(bu.Scheme)
 	if err != nil {
-		return false, BUpdatesInfo{}, err
+		return false, proto.BUpdatesInfo{}, err
 	}
 	if statesAreEqual {
-		return false, BUpdatesInfo{}, nil
+		return false, proto.BUpdatesInfo{}, nil
 	}
 	return true, changes, nil
 }
 
-func (bu *BUpdatesExtensionState) statesEqual(scheme proto.Scheme) (bool, BUpdatesInfo, error) {
-	return CompareBUpdatesInfo(*bu.currentState, *bu.previousState, scheme)
+func (bu *BUpdatesExtensionState) StatesEqual(scheme proto.Scheme) (bool, proto.BUpdatesInfo, error) {
+	return CompareBUpdatesInfo(*bu.CurrentState, *bu.PreviousState, scheme)
 }
 
 func splitIntoChunks(array []byte, maxChunkSize int) [][]byte {
@@ -79,7 +140,8 @@ func splitIntoChunks(array []byte, maxChunkSize int) [][]byte {
 	return chunkedArray
 }
 
-func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2ContractDataEntries, nc *nats.Conn) error {
+func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nats.Conn,
+	l2ContractAddress string) error {
 	dataEntriesProtobuf, err := L2ContractDataEntriesToProto(contractUpdates).MarshalVTStrict()
 	if err != nil {
 		return err
@@ -89,12 +151,12 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 		var msg []byte
 		msg = append(msg, NoPaging)
 		msg = append(msg, dataEntriesProtobuf...)
-		err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
+		err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 		if err != nil {
-			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 			return err
 		}
-		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 		return nil
 	}
 
@@ -106,29 +168,29 @@ func (bu *BUpdatesExtensionState) publishContractUpdates(contractUpdates L2Contr
 		if i == len(chunkedPayload)-1 {
 			msg = append(msg, EndPaging)
 			msg = append(msg, chunk...)
-			err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
+			err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 			if err != nil {
-				zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+				zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 				return err
 			}
-			zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 			break
 		}
 		msg = append(msg, StartPaging)
 		msg = append(msg, chunk...)
-		err = nc.Publish(ConcatenateContractTopics(bu.l2ContractAddress), msg)
+		err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 		if err != nil {
-			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 			return err
 		}
-		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 		time.Sleep(publisherWaitingTime)
 	}
 
 	return nil
 }
 
-func (bu *BUpdatesExtensionState) publishBlockUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+func PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
 	blockInfo, err := BUpdatesInfoToProto(updates, scheme)
 	if err != nil {
 		return err
@@ -146,9 +208,10 @@ func (bu *BUpdatesExtensionState) publishBlockUpdates(updates BUpdatesInfo, nc *
 	return nil
 }
 
-func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
+func (p *UpdatesPublisher) PublishUpdates(updates proto.BUpdatesInfo,
+	nc *nats.Conn, scheme proto.Scheme, l2ContractAddress string) error {
 	/* first publish block data */
-	err := bu.publishBlockUpdates(updates, nc, scheme)
+	err := PublishBlockUpdates(updates, nc, scheme)
 	if err != nil {
 		zap.S().Errorf("failed to publish message on topic %s", BlockUpdates)
 		return err
@@ -156,82 +219,235 @@ func (bu *BUpdatesExtensionState) publishUpdates(updates BUpdatesInfo, nc *nats.
 
 	/* second publish contract data entries */
 	if updates.ContractUpdatesInfo.AllDataEntries != nil {
-		pblshErr := bu.publishContractUpdates(updates.ContractUpdatesInfo, nc)
+		pblshErr := PublishContractUpdates(updates.ContractUpdatesInfo, nc, l2ContractAddress)
 		if pblshErr != nil {
-			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(bu.l2ContractAddress))
+			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(p.L2ContractAddress()))
 			return pblshErr
 		}
-		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(bu.l2ContractAddress))
+		zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(p.L2ContractAddress()))
 	}
 
 	return nil
 }
 
-func handleBlockchainUpdate(updates BUpdatesInfo, bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
+func (p *UpdatesPublisher) L2ContractAddress() string {
+	return p.l2ContractAddress
+}
+
+func (bu *BUpdatesExtensionState) AddEntriesToHistoryJournalAndCache(updates proto.BUpdatesInfo) {
+	height := updates.BlockUpdatesInfo.Height
+	blockID := updates.BlockUpdatesInfo.BlockID
+
+	historyEntry := HistoryEntry{
+		Height:      height,
+		BlockID:     blockID,
+		Entries:     updates.ContractUpdatesInfo.AllDataEntries,
+		VRF:         updates.BlockUpdatesInfo.VRF,
+		BlockHeader: updates.BlockUpdatesInfo.BlockHeader,
+	}
+	bu.HistoryJournal.Push(historyEntry)
+	bu.HistoryJournal.StateCache.AddCacheRecord(height, updates.ContractUpdatesInfo.AllDataEntries,
+		updates.BlockUpdatesInfo)
+}
+
+func (bu *BUpdatesExtensionState) RollbackHappened(updates proto.BUpdatesInfo, previousState proto.BUpdatesInfo) bool {
+	if _, _, blockIDFound := bu.HistoryJournal.SearchByBlockID(updates.BlockUpdatesInfo.BlockHeader.Parent); blockIDFound {
+		return false
+	}
+	if updates.BlockUpdatesInfo.Height < previousState.BlockUpdatesInfo.Height {
+		return true
+	}
+	return false
+}
+
+func (bu *BUpdatesExtensionState) GeneratePatch(latestUpdates proto.BUpdatesInfo) (proto.BUpdatesInfo, error) {
+	keysForAnalysis, found := bu.HistoryJournal.FetchKeysUntilBlockID(latestUpdates.BlockUpdatesInfo.BlockID)
+	if !found {
+		previousHeight := bu.PreviousState.BlockUpdatesInfo.Height
+		newHeight := latestUpdates.BlockUpdatesInfo.Height
+		return proto.BUpdatesInfo{}, errors.Errorf("failed to fetch keys after rollback, the rollback is too deep."+
+			"Previous height %d, new height %d", previousHeight, newHeight)
+	}
+
+	// If the key is found in the state, fetch it. If it is not found, it creates a DeleteEntry.
+	patchDataEntries, patchBlockInfo, err := bu.BuildPatch(keysForAnalysis,
+		latestUpdates.BlockUpdatesInfo.Height-1) // Height.
+	// -1 because the current height is from the new block updates,
+	// and we need to return the client's state to the previous block
+	if err != nil {
+		return proto.BUpdatesInfo{}, err
+	}
+
+	// Clean the journal and cache after rollback
+	historyJournalLatestHeight, err := bu.HistoryJournal.TopHeight()
+	if err != nil {
+		return proto.BUpdatesInfo{}, err
+	}
+	err = bu.CleanRecordsAfterRollback(historyJournalLatestHeight, latestUpdates.BlockUpdatesInfo.Height)
+	if err != nil {
+		return proto.BUpdatesInfo{}, err
+	}
+
+	patch := proto.BUpdatesInfo{
+		BlockUpdatesInfo: patchBlockInfo, // wrong, must be the previous block
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
+			AllDataEntries: patchDataEntries,
+			Height:         latestUpdates.ContractUpdatesInfo.Height - 1,
+		},
+	}
+	return patch, nil
+}
+
+func (bu *BUpdatesExtensionState) IsKeyConstant(keyDataEntry string) bool {
+	for _, constantKey := range bu.constantContractKeys {
+		if constantKey == keyDataEntry {
+			return true
+		}
+	}
+	return false
+}
+
+func (bu *BUpdatesExtensionState) BuildPatch(keysForPatch []string, targetHeight uint64) (proto.DataEntries,
+	proto.BlockUpdatesInfo, error) {
+	l2WavesAddress, cnvrtErr := proto.NewAddressFromString(bu.L2ContractAddress)
+	if cnvrtErr != nil {
+		return nil, proto.BlockUpdatesInfo{}, errors.Wrapf(cnvrtErr,
+			"failed to convert L2 contract address %q", bu.L2ContractAddress)
+	}
+	patch := make(map[string]proto.DataEntry)
+	for _, dataEntryKey := range keysForPatch {
+		recipient := proto.NewRecipientFromAddress(l2WavesAddress)
+		dataEntry, ok, err := bu.HistoryJournal.StateCache.SearchValue(dataEntryKey, targetHeight)
+		if err != nil {
+			// If the key is constant, we will go to State, if not, consider it a DeleteDataEntry
+			if bu.IsKeyConstant(dataEntryKey) {
+				dataEntry, err = bu.St.RetrieveEntry(recipient, dataEntryKey)
+				if err != nil {
+					dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
+				}
+			} else {
+				dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
+			}
+		}
+		if !ok {
+			dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
+		}
+		patch[dataEntry.GetKey()] = dataEntry
+	}
+	var patchArray []proto.DataEntry
+	for _, elem := range patch {
+		patchArray = append(patchArray, elem)
+	}
+	blockInfo, err := bu.HistoryJournal.StateCache.SearchBlockInfo(targetHeight)
+	if err != nil {
+		return nil, proto.BlockUpdatesInfo{}, err
+	}
+	return patchArray, blockInfo, nil
+}
+
+func (bu *BUpdatesExtensionState) CleanRecordsAfterRollback(latestHeightFromHistory uint64,
+	heightAfterRollback uint64) error {
+	err := bu.HistoryJournal.CleanAfterRollback(latestHeightFromHistory, heightAfterRollback)
+	if err != nil {
+		return err
+	}
+
+	// This should never happen
+	if latestHeightFromHistory < heightAfterRollback {
+		return errors.New("the height after rollback is bigger than the last saved height")
+	}
+	for i := latestHeightFromHistory; i >= heightAfterRollback; i-- {
+		bu.HistoryJournal.StateCache.RemoveCacheRecord(i)
+	}
+	return nil
+}
+
+func HandleRollback(be *BUpdatesExtensionState, updates proto.BUpdatesInfo, updatesPublisher UpdatesPublisherInterface,
+	nc *nats.Conn, scheme proto.Scheme) proto.BUpdatesInfo {
+	patch, err := be.GeneratePatch(updates)
+	if err != nil {
+		zap.S().Errorf("failed to generate a patch, %v", err)
+	}
+	pblshErr := updatesPublisher.PublishUpdates(patch, nc, scheme, updatesPublisher.L2ContractAddress())
+	if pblshErr != nil {
+		zap.S().Errorf("failed to publish updates, %v", pblshErr)
+		return proto.BUpdatesInfo{}
+	}
+	be.AddEntriesToHistoryJournalAndCache(patch)
+	be.SetPreviousState(patch)
+	return patch
+}
+
+func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn,
+	updatesPublisher UpdatesPublisher, handleRollback bool) {
 	// update current state
-	bu.currentState = &updates
-	if bu.previousState == nil {
+	be.CurrentState = &updates
+	if be.PreviousState == nil {
 		// publish initial updates
-		filteredDataEntries, err := filterDataEntries(updates.BlockUpdatesInfo.Height-bu.Limit,
+		filteredDataEntries, err := filterDataEntries(updates.BlockUpdatesInfo.Height-be.Limit,
 			updates.ContractUpdatesInfo.AllDataEntries)
 		if err != nil {
 			return
 		}
 		updates.ContractUpdatesInfo.AllDataEntries = filteredDataEntries
-		pblshErr := bu.publishUpdates(updates, nc, scheme)
+		pblshErr := updatesPublisher.PublishUpdates(updates, nc, scheme, updatesPublisher.L2ContractAddress())
 		if pblshErr != nil {
 			zap.S().Errorf("failed to publish updates, %v", pblshErr)
 			return
 		}
-		bu.previousState = &updates
+		be.PreviousState = &updates
 		return
 	}
+	if handleRollback {
+		if be.RollbackHappened(updates, *be.PreviousState) {
+			HandleRollback(be, updates, &updatesPublisher, nc, scheme)
+		}
+	}
 	// compare the current state to the previous state
-	stateChanged, changes, cmprErr := bu.hasStateChanged()
+	stateChanged, changes, cmprErr := be.HasStateChanged()
 	if cmprErr != nil {
 		zap.S().Errorf("failed to compare current and previous states, %v", cmprErr)
 		return
 	}
 	// if there is any diff, send the update
 	if stateChanged {
-		pblshErr := bu.publishUpdates(changes, nc, scheme)
+		pblshErr := updatesPublisher.PublishUpdates(updates, nc, scheme, updatesPublisher.L2ContractAddress())
 		if pblshErr != nil {
 			zap.S().Errorf("failed to publish changes, %v", pblshErr)
 		}
-		bu.previousState = &updates
+		be.AddEntriesToHistoryJournalAndCache(changes)
+		be.PreviousState = &updates
 	}
 }
 
-func runPublisher(ctx context.Context, updatesChannel <-chan BUpdatesInfo,
-	bu *BUpdatesExtensionState, scheme proto.Scheme, nc *nats.Conn) {
+func runPublisher(ctx context.Context, extension *BlockchainUpdatesExtension, scheme proto.Scheme, nc *nats.Conn,
+	updatesPublisher UpdatesPublisher) {
 	for {
 		select {
-		case updates, ok := <-updatesChannel:
+		case updates, ok := <-extension.BUpdatesChannel:
 			if !ok {
 				zap.S().Errorf("the updates channel for publisher was closed")
 				return
 			}
-			handleBlockchainUpdate(updates, bu, scheme, nc)
+			handleBlockchainUpdate(updates, extension.blockchainExtensionState, scheme, nc, updatesPublisher, true)
 		case <-ctx.Done():
 			return
 		}
 	}
 }
 
-func runReceiver(requestsChannel chan<- L2Requests, nc *nats.Conn) error {
+func runReceiver(nc *nats.Conn, bu *BlockchainUpdatesExtension) error {
 	_, subErr := nc.Subscribe(L2RequestsTopic, func(request *nats.Msg) {
 		signal := string(request.Data)
 		switch signal {
 		case RequestRestartSubTopic:
-			l2Request := L2Requests{Restart: true}
-			requestsChannel <- l2Request
-
 			notNilResponse := "ok"
 			err := request.Respond([]byte(notNilResponse))
 			if err != nil {
 				zap.S().Errorf("failed to respond to a restart signal, %v", err)
 				return
 			}
+			bu.EmptyPreviousState()
 		default:
 			zap.S().Errorf("nats receiver received an unknown signal, %s", signal)
 		}
@@ -239,8 +455,8 @@ func runReceiver(requestsChannel chan<- L2Requests, nc *nats.Conn) error {
 	return subErr
 }
 
-func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Context,
-	updatesChannel <-chan BUpdatesInfo, scheme proto.Scheme, l2Requests chan<- L2Requests) error {
+func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.Context,
+	scheme proto.Scheme) error {
 	opts := &server.Options{
 		MaxPayload: natsMaxPayloadSize,
 		Host:       hostDefault,
@@ -268,10 +484,50 @@ func (bu *BUpdatesExtensionState) RunBlockchainUpdatesPublisher(ctx context.Cont
 	}
 	defer nc.Close()
 
-	receiverErr := runReceiver(l2Requests, nc)
+	var wg sync.WaitGroup
+	wg.Add(1)
+	reqErr := e.requestConstantKeys(nc, &wg)
+	if reqErr != nil {
+		return errors.Wrap(reqErr, "failed to request constant keys from the client")
+	}
+	wg.Wait()
+	e.MarkExtensionReady()
+	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String()}
+	// Publish the first 100 history entries for the rollback functionality.
+	publishHistoryBlocks(e, scheme, nc, updatesPublisher)
+
+	receiverErr := runReceiver(nc, e)
 	if receiverErr != nil {
 		return receiverErr
 	}
-	runPublisher(ctx, updatesChannel, bu, scheme, nc)
+	runPublisher(ctx, e, scheme, nc, updatesPublisher)
 	return nil
+}
+
+func (e *BlockchainUpdatesExtension) requestConstantKeys(nc *nats.Conn, wg *sync.WaitGroup) error {
+	_, subErr := nc.Subscribe(ConstantKeys, func(msg *nats.Msg) {
+		defer wg.Done()
+		constantKeys := strings.Split(string(msg.Data), ",")
+		e.blockchainExtensionState.constantContractKeys = constantKeys
+	})
+	return subErr
+}
+
+func publishHistoryBlocks(e *BlockchainUpdatesExtension, scheme proto.Scheme,
+	nc *nats.Conn, updatesPublisher UpdatesPublisher) {
+	for _, historyEntry := range e.blockchainExtensionState.HistoryJournal.historyJournal {
+		updates := proto.BUpdatesInfo{
+			BlockUpdatesInfo: proto.BlockUpdatesInfo{
+				Height:      historyEntry.Height,
+				BlockID:     historyEntry.BlockID,
+				VRF:         historyEntry.VRF,
+				BlockHeader: historyEntry.BlockHeader,
+			},
+			ContractUpdatesInfo: proto.L2ContractDataEntries{
+				Height:         historyEntry.Height,
+				AllDataEntries: historyEntry.Entries,
+			},
+		}
+		handleBlockchainUpdate(updates, e.blockchainExtensionState, scheme, nc, updatesPublisher, false)
+	}
 }

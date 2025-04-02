@@ -2,7 +2,11 @@ package blockchaininfo
 
 import (
 	"bytes"
+	"fmt"
+	"math"
+	"sync"
 
+	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -10,36 +14,239 @@ import (
 
 const (
 	RootHashSize = 32
+
+	HistoryJournalLengthMax = 100
 )
 
-// BlockUpdatesInfo Block updates.
-type BlockUpdatesInfo struct {
-	Height      uint64            `json:"height"`
-	VRF         proto.B58Bytes    `json:"vrf"`
-	BlockID     proto.BlockID     `json:"block_id"`
-	BlockHeader proto.BlockHeader `json:"block_header"`
+type UpdatesPublisherInterface interface {
+	PublishUpdates(updates proto.BUpdatesInfo,
+		nc *nats.Conn, scheme proto.Scheme, l2ContractAddress string) error
+	L2ContractAddress() string
 }
 
-// L2ContractDataEntries L2 contract data entries.
-type L2ContractDataEntries struct {
-	AllDataEntries []proto.DataEntry `json:"all_data_entries"`
-	Height         uint64            `json:"height"`
+type StateCacheRecord struct {
+	dataEntries map[string]proto.DataEntry
+	blockInfo   proto.BlockUpdatesInfo
 }
 
-type BUpdatesInfo struct {
-	BlockUpdatesInfo    BlockUpdatesInfo
-	ContractUpdatesInfo L2ContractDataEntries
+func NewStateCacheRecord(dataEntries []proto.DataEntry, blockInfo proto.BlockUpdatesInfo) StateCacheRecord {
+	var stateCacheRecord StateCacheRecord
+	stateCacheRecord.dataEntries = make(map[string]proto.DataEntry)
+
+	for _, dataEntry := range dataEntries {
+		stateCacheRecord.dataEntries[dataEntry.GetKey()] = dataEntry
+	}
+	stateCacheRecord.blockInfo = blockInfo
+	return stateCacheRecord
+}
+
+type StateCache struct {
+	lock    sync.Mutex
+	records map[proto.Height]StateCacheRecord
+	heights []uint64
+}
+
+func NewStateCache() *StateCache {
+	return &StateCache{
+		records: make(map[proto.Height]StateCacheRecord),
+	}
+}
+
+func (sc *StateCache) SearchValue(key string, height uint64) (proto.DataEntry, bool, error) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	if _, ok := sc.records[height]; !ok {
+		return nil, false, errors.New("the target height is not in cache")
+	}
+	if _, ok := sc.records[height].dataEntries[key]; !ok {
+		return nil, false, nil
+	}
+	return sc.records[height].dataEntries[key], true, nil
+}
+
+func (sc *StateCache) SearchBlockInfo(height uint64) (proto.BlockUpdatesInfo, error) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	if _, ok := sc.records[height]; !ok {
+		return proto.BlockUpdatesInfo{}, errors.New("the target height is not in cache")
+	}
+	return sc.records[height].blockInfo, nil
+}
+
+func (sc *StateCache) AddCacheRecord(height uint64, dataEntries []proto.DataEntry, blockInfo proto.BlockUpdatesInfo) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+	// clean the oldest record if the cache is too big
+	if len(sc.heights) > HistoryJournalLengthMax {
+		minHeight := sc.heights[0]
+		for _, v := range sc.heights {
+			if v < minHeight {
+				minHeight = v
+			}
+		}
+		delete(sc.records, minHeight)
+	}
+	stateCacheRecord := NewStateCacheRecord(dataEntries, blockInfo)
+	sc.records[height] = stateCacheRecord
+	sc.heights = append(sc.heights, height)
+}
+
+func (sc *StateCache) RemoveCacheRecord(targetHeight uint64) {
+	sc.lock.Lock()
+	defer sc.lock.Unlock()
+
+	delete(sc.records, targetHeight)
+
+	for i, item := range sc.heights {
+		if item == targetHeight {
+			sc.heights = append(sc.heights[:i], sc.heights[i+1:]...)
+		}
+	}
+}
+
+type HistoryEntry struct {
+	Height      uint64
+	BlockID     proto.BlockID
+	VRF         proto.B58Bytes
+	BlockHeader proto.BlockHeader
+
+	Entries proto.DataEntries
+}
+
+type HistoryJournal struct {
+	lock           sync.Mutex
+	StateCache     *StateCache
+	historyJournal [HistoryJournalLengthMax]HistoryEntry
+	top            int
+	size           int
+}
+
+// NewHistoryJournal создаёт и инициализирует новый экземпляр HistoryJournal.
+func NewHistoryJournal() *HistoryJournal {
+	return &HistoryJournal{
+		top:  0,
+		size: 0,
+	}
+}
+
+func (hj *HistoryJournal) SetStateCache(stateCache *StateCache) {
+	hj.StateCache = stateCache
+}
+
+// FetchKeysUntilBlockID TODO write tests.
+// FetchKeysUntilBlockID goes from top to bottom and fetches all keys.
+// If the blockID is found, it returns the keys up to and including that element and true.
+// If the blockID is not found - nil and false.
+func (hj *HistoryJournal) FetchKeysUntilBlockID(blockID proto.BlockID) ([]string, bool) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	var keys []string
+	for i := 0; i < hj.size; i++ {
+		idx := (hj.top - 1 - i + HistoryJournalLengthMax) % HistoryJournalLengthMax
+		historyEntry := hj.historyJournal[idx]
+
+		dataEntries := historyEntry.Entries
+		for _, dataEntry := range dataEntries {
+			keys = append(keys, dataEntry.GetKey())
+		}
+		if historyEntry.BlockID == blockID {
+			return keys, true
+		}
+	}
+
+	return nil, false
+}
+
+// SearchByBlockID TODO write tests.
+func (hj *HistoryJournal) SearchByBlockID(blockID proto.BlockID) (HistoryEntry, int, bool) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	// Iterate over the elements from the top (latest) to the bottom.
+	for i := 0; i < hj.size; i++ {
+		idx := (hj.top - 1 - i + HistoryJournalLengthMax) % HistoryJournalLengthMax
+		if hj.historyJournal[idx].BlockID == blockID {
+			return hj.historyJournal[idx], i, true
+		}
+	}
+	return HistoryEntry{}, -1, false
+}
+
+// SearchByBlockID TODO write tests.
+func (hj *HistoryJournal) TopHeight() (uint64, error) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	if hj.size == 0 {
+		return 0, errors.New("failed to pull the top height, history journal is empty")
+	}
+
+	// Shift "top" back.
+	hj.top = (hj.top - 1 + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	topHeight := hj.historyJournal[hj.top].Height
+	return topHeight, nil
+}
+
+// CleanAfterRollback TODO write tests.
+func (hj *HistoryJournal) CleanAfterRollback(latestHeightFromHistory uint64, heightAfterRollback uint64) error {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	distance := latestHeightFromHistory - heightAfterRollback
+	if distance > math.MaxInt64 {
+		return fmt.Errorf("distance too large to fit in an int64")
+	}
+	dist := int64(distance)
+
+	if int(dist) > hj.size {
+		return errors.New("distance out of range")
+	}
+
+	// Remove the number of elements from the top to `distance`.
+	hj.top = (hj.top - int(dist) + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	hj.size -= int(distance)
+	return nil
+}
+
+func (hj *HistoryJournal) Push(v HistoryEntry) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+	hj.historyJournal[hj.top] = v // Add to top or rewrite the oldest element.
+
+	hj.top = (hj.top + 1) % HistoryJournalLengthMax
+
+	if hj.size < HistoryJournalLengthMax {
+		hj.size++
+	}
+}
+
+func (hj *HistoryJournal) Pop() (HistoryEntry, error) {
+	hj.lock.Lock()
+	defer hj.lock.Unlock()
+
+	if hj.size == 0 {
+		return HistoryEntry{}, errors.New("failed to pop from the history journal, it's empty")
+	}
+
+	// Shift "top" back.
+	hj.top = (hj.top - 1 + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	entry := hj.historyJournal[hj.top]
+	hj.size--
+	return entry, nil
 }
 
 type L2Requests struct {
 	Restart bool
 }
 
-func CompareBUpdatesInfo(current, previous BUpdatesInfo,
-	scheme proto.Scheme) (bool, BUpdatesInfo, error) {
-	changes := BUpdatesInfo{
-		BlockUpdatesInfo:    BlockUpdatesInfo{},
-		ContractUpdatesInfo: L2ContractDataEntries{},
+func CompareBUpdatesInfo(current, previous proto.BUpdatesInfo,
+	scheme proto.Scheme) (bool, proto.BUpdatesInfo, error) {
+	changes := proto.BUpdatesInfo{
+		BlockUpdatesInfo:    proto.BlockUpdatesInfo{},
+		ContractUpdatesInfo: proto.L2ContractDataEntries{},
 	}
 
 	equal := true
@@ -58,7 +265,7 @@ func CompareBUpdatesInfo(current, previous BUpdatesInfo,
 	equalHeaders, err := compareBlockHeader(current.BlockUpdatesInfo.BlockHeader,
 		previous.BlockUpdatesInfo.BlockHeader, scheme)
 	if err != nil {
-		return false, BUpdatesInfo{}, err
+		return false, proto.BUpdatesInfo{}, err
 	}
 	if !equalHeaders {
 		equal = false
@@ -68,7 +275,7 @@ func CompareBUpdatesInfo(current, previous BUpdatesInfo,
 	equalEntries, dataEntryChanges, err := compareDataEntries(current.ContractUpdatesInfo.AllDataEntries,
 		previous.ContractUpdatesInfo.AllDataEntries)
 	if err != nil {
-		return false, BUpdatesInfo{}, err
+		return false, proto.BUpdatesInfo{}, err
 	}
 	if !equalEntries {
 		equal = false

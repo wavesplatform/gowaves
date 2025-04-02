@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 
-	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
@@ -37,9 +36,11 @@ type StateInfo interface {
 	TopBlock() *proto.Block
 	Block(blockID proto.BlockID) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
+	NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error)
 	// Header getters.
 	Header(blockID proto.BlockID) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
+	NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	// Height returns current blockchain height.
 	Height() (proto.Height, error)
 	// Height <---> blockID converters.
@@ -233,9 +234,9 @@ func NewState(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
-	bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension,
+	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo,
 ) (State, error) {
-	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode, bUpdatesExtension)
+	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode, bUpdatesPluginInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

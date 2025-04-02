@@ -159,6 +159,12 @@ func main() {
 	}
 	defer nc.Close()
 
+	keysErr := blockchaininfo.SendConstantKeys(nc)
+	if keysErr != nil {
+		zap.S().Fatalf("Failed to send constant keys: %v", keysErr)
+		return
+	}
+
 	_, err = nc.Subscribe(blockchaininfo.BlockUpdates, func(msg *nats.Msg) {
 		receiveBlockUpdates(msg)
 	})

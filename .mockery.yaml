@@ -1,6 +1,7 @@
 quiet: False
 dir: "{{.InterfaceDir}}/mocks"
-mockname: "Mock{{.InterfaceName}}"
+with-expecter: true
+issue-845-fix: True
 filename: "{{.InterfaceName | snakecase}}.go"
 
 packages:
@@ -9,3 +10,6 @@ packages:
       Header:
       Protocol:
       Handler:
+  github.com/wavesplatform/gowaves/pkg/blockchaininfo:
+    interfaces:
+      UpdatesPublisherInterface:
