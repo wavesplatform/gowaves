@@ -47,7 +47,7 @@ func bigFromStr(s string) *big.Int {
 
 func newTestState(t *testing.T, amend bool, params StateParams, settings *settings.BlockchainSettings) State {
 	dataDir := t.TempDir()
-	m, err := NewState(dataDir, amend, params, settings, false)
+	m, err := NewState(dataDir, amend, params, settings, false, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, m.Close(), "manager.Close() failed")
@@ -57,7 +57,7 @@ func newTestState(t *testing.T, amend bool, params StateParams, settings *settin
 
 func newTestStateManager(t *testing.T, amend bool, params StateParams, settings *settings.BlockchainSettings) *stateManager {
 	dataDir := t.TempDir()
-	m, err := newStateManager(dataDir, amend, params, settings, false)
+	m, err := newStateManager(dataDir, amend, params, settings, false, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, m.Close(), "manager.Close() failed")
@@ -69,7 +69,7 @@ func TestHandleAmendFlag(t *testing.T) {
 	dataDir := t.TempDir()
 	bs := settings.MustMainNetSettings()
 	// first open with false amend
-	manager, err := newStateManager(dataDir, false, DefaultTestingStateParams(), bs, false)
+	manager, err := newStateManager(dataDir, false, DefaultTestingStateParams(), bs, false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	t.Cleanup(func() {
 		assert.NoError(t, manager.Close(), "manager.Close() failed")
@@ -78,18 +78,20 @@ func TestHandleAmendFlag(t *testing.T) {
 
 	// open with true amend
 	assert.NoError(t, manager.Close(), "manager.Close() failed")
-	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), bs, false)
+	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), bs, false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.True(t, manager.stor.hs.amend)
 
 	// open with false amend again. Result amend should be true
 	assert.NoError(t, manager.Close(), "manager.Close() failed")
-	manager, err = newStateManager(dataDir, false, DefaultTestingStateParams(), bs, false)
+	manager, err = newStateManager(dataDir, false, DefaultTestingStateParams(), bs,
+		false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.True(t, manager.stor.hs.amend)
 
 	// first open with true amend
-	newManager, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), bs, false)
+	newManager, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), bs,
+		false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	t.Cleanup(func() {
 		assert.NoError(t, newManager.Close(), "newManager.Close() failed")
@@ -394,7 +396,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	bs := settings.MustMainNetSettings()
 	assert.NoError(t, err)
 	dataDir := t.TempDir()
-	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), bs, false)
+	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), bs, false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	t.Cleanup(func() {
@@ -428,7 +430,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	// Test after closure.
 	err = manager.Close()
 	assert.NoError(t, err, "manager.Close() failed")
-	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MustMainNetSettings(), false)
+	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MustMainNetSettings(), false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.Equal(t, correct, manager.TopBlock())
 }
@@ -523,6 +525,7 @@ func createMockStateManager(t *testing.T, bs *settings.BlockchainSettings) (*sta
 		state.stateDB,
 		state.atx,
 		&snapshotApplier,
+		nil,
 	)
 	require.NoError(t, err, "newTxAppender() failed")
 	state.appender = appender
