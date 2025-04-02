@@ -1,0 +1,64 @@
+name: "RunITests"
+on:
+  workflow_call:
+    inputs:
+      itest-type:
+        required: true
+        type: string
+        description: "Integration tests type ('itest', 'itest-race', 'smoke')"
+      environment:
+        required: false
+        type: string
+        description: "Environment name for the job ('ITests' for manual approval or '' for no environment)"
+
+jobs:
+  check-inputs:
+    name: check-inputs
+    runs-on: ubuntu-latest
+    env:
+      ITEST_TYPE: "${{ inputs.itest-type }}"
+      ENVIRONMENT: "${{ inputs.environment }}"
+    steps:
+      - name: Check inputs
+        run: |
+          echo "${{ env.ITEST_TYPE }}" | grep -E '^(itest|itest-race|smoke)$' || exit 1 # check if the itest type is valid
+          echo "${{ env.ENVIRONMENT }}" | grep -E '^(^$|ITests)$' || exit 1 # check if the environment is valid
+
+  run-itest:
+    name: run_integration_tests
+    needs: [ check-inputs ]
+    runs-on: self-hosted
+    environment:
+      name: "${{ inputs.environment }}" # use the environment name from the input
+    if: (github.repository == 'wavesplatform/gowaves')
+    env:
+      MAKEFILE_TARGET: "${{ inputs.itest-type }}" # type of integration test equal to the makefile target
+
+    steps:
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v4
+
+      - name: Set up Go 1.23
+        uses: actions/setup-go@v5.4.0
+        with:
+          go-version: 1.23.x
+          check-latest: true
+          cache: true
+        id: go
+
+      - name: Get dependencies
+        run: go mod vendor
+
+      - name: Tests
+        run: make ${{ env.MAKEFILE_TARGET }} # run the integration tests
+
+      - name: Upload itest logs and configs
+        uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: itest_logs_and_configs
+          path: |
+            build/logs/
+            build/config/
+          if-no-files-found: warn
+          retention-days: 5

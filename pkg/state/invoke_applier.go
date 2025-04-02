@@ -263,7 +263,7 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction) (ui
 		}
 		isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID)
 		if err != nil {
-			return 0, errors.Errorf("failed to count actions: failed to check whether the asset was smart")
+			return 0, errors.Wrap(err, "failed to count actions: failed to check whether the asset was smart")
 		}
 		if isSmartAsset {
 			scriptRuns++
@@ -272,9 +272,10 @@ func (ia *invokeApplier) countActionScriptRuns(actions []proto.ScriptAction) (ui
 	return scriptRuns, nil
 }
 
-func errorForSmartAsset(msg string, asset crypto.Digest) error {
+// errorForSmartAsset creates an error with scala compatible error message for smart asset script execution failure.
+func errorForSmartAsset(executionErr error, asset crypto.Digest) error {
 	var text string
-	if msg != "" {
+	if executionErr != nil {
 		text = fmt.Sprintf("Transaction is not allowed by token-script id %s: throw from asset script.", asset.String())
 	} else {
 		// scala compatible error message
@@ -315,10 +316,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 	for _, smartAsset := range info.paymentSmartAssets {
 		r, err := ia.sc.callAssetScript(tx, smartAsset, info.appendTxParams)
 		if err != nil {
-			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(err.Error(), smartAsset)
+			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(err, smartAsset)
 		}
 		if !r.Result() {
-			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset("", smartAsset)
+			return proto.SmartAssetOnPaymentFailure, info.failedChanges, errorForSmartAsset(nil, smartAsset)
 		}
 	}
 	// Resolve all aliases.
@@ -408,7 +409,9 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if a.Asset.Present {
 				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID))
 				if err != nil {
-					return proto.DAppError, info.failedChanges, errors.Errorf("transfer script actions: failed to check whether the asset was smart")
+					return proto.DAppError, info.failedChanges, errors.Wrap(err,
+						"transfer script actions: failed to check whether the asset was smart",
+					)
 				}
 			}
 			if isSmartAsset {
@@ -419,10 +422,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				// Call asset script if transferring smart asset.
 				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
 				if err != nil {
-					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.Asset.ID)
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err, a.Asset.ID)
 				}
 				if !res.Result() {
-					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset("", a.Asset.ID)
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(nil, a.Asset.ID)
 				}
 			}
 			txDiff, err := ia.newTxDiffFromScriptTransfer(senderAddress, a)
@@ -462,7 +465,9 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			if a.Asset.Present {
 				isSmartAsset, err = ia.stor.scriptsStorage.newestIsSmartAsset(proto.AssetIDFromDigest(a.Asset.ID))
 				if err != nil {
-					return proto.DAppError, info.failedChanges, errors.Errorf("attached payment script actions: failed to check whether the asset was smart")
+					return proto.DAppError, info.failedChanges, errors.Wrap(err,
+						"attached payment script actions: failed to check whether the asset was smart",
+					)
 				}
 			}
 			if isSmartAsset {
@@ -473,10 +478,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 				// Call asset script if transferring smart asset.
 				res, err := ia.sc.callAssetScriptWithScriptTransfer(fullTr, a.Asset.ID, info.appendTxParams)
 				if err != nil {
-					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.Asset.ID)
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err, a.Asset.ID)
 				}
 				if !res.Result() {
-					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset("", a.Asset.ID)
+					return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(nil, a.Asset.ID)
 				}
 			}
 			txDiff, err := ia.newTxDiffFromAttachedPaymentAction(senderAddress, a)
@@ -563,10 +568,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 			ok, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, txID, tx.GetTimestamp(), info.appendTxParams)
 			if err != nil {
-				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.AssetID)
+				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err, a.AssetID)
 			}
 			if !ok {
-				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset("", a.AssetID)
+				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(nil, a.AssetID)
 			}
 			// Update asset's info.
 			change := &assetReissueChange{
@@ -612,10 +617,10 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 			}
 			ok, err := ia.validateActionSmartAsset(a.AssetID, a, senderPK, txID, tx.GetTimestamp(), info.appendTxParams)
 			if err != nil {
-				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err.Error(), a.AssetID)
+				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(err, a.AssetID)
 			}
 			if !ok {
-				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset("", a.AssetID)
+				return proto.SmartAssetOnActionFailure, info.failedChanges, errorForSmartAsset(nil, a.AssetID)
 			}
 			// Update asset's info
 			// Modify asset.
@@ -660,7 +665,9 @@ func (ia *invokeApplier) fallibleValidation(tx proto.Transaction, info *addlInvo
 
 			isSmartAsset, err := ia.stor.scriptsStorage.newestIsSmartAsset(assetID)
 			if err != nil {
-				return proto.DAppError, info.failedChanges, errors.Errorf("sponsorships: failed to check whether the asset was smart")
+				return proto.DAppError, info.failedChanges, errors.Wrap(err,
+					"sponsorships: failed to check whether the asset was smart",
+				)
 			}
 			if isSmartAsset {
 				return proto.DAppError, info.failedChanges, errors.Errorf("can not sponsor smart asset %s", a.AssetID.String())

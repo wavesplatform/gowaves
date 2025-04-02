@@ -14,7 +14,7 @@ require (
 	github.com/coocood/freecache v1.2.4
 	github.com/elliotchance/orderedmap/v2 v2.7.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
-	github.com/fxamacker/cbor/v2 v2.7.0
+	github.com/fxamacker/cbor/v2 v2.8.0
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/go-test/deep v1.1.1
 	github.com/golang/mock v1.6.0
@@ -53,7 +53,7 @@ require (
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
 	golang.org/x/sync v0.12.0
 	golang.org/x/sys v0.31.0
-	google.golang.org/grpc v1.71.0
+	google.golang.org/grpc v1.71.1
 	google.golang.org/protobuf v1.36.6
 	moul.io/zapfilter v1.7.0
 )

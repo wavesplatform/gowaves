@@ -4,44 +4,61 @@ on:
   pull_request_review:
     types: [ submitted ]
     branches: [ master ]
+  pull_request:
+    branches: [ master ]
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
 
 jobs:
+  itest-check:
+    name: integration_tests_run_check
+    runs-on: ubuntu-latest
+    if: (github.repository == 'wavesplatform/gowaves')
+    outputs:
+      can-run-itest: ${{ steps.set-output.outputs.CAN_RUN_ITEST }}
+    steps:
+      - name: Check permissions to run integration tests
+        id: set-output
+        run: |
+          # Check if the workflow was triggered by a PR review, manually or by a PR
+          if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
+            echo "--> Running integration tests because the workflow was triggered manually"
+            CAN_RUN_ITEST=true # if the workflow is triggered manually, we can run itests
+          elif [ "${{ github.event_name }}" == 'pull_request_review' ]; then
+            echo "--> Checking whether the PR review is approved"
+            if [ "${{ github.event.review.state }}" == 'approved' ]; then
+              CAN_RUN_ITEST=true # if the PR review is approved, we can run itests
+            else
+              CAN_RUN_ITEST=false # if the PR review is not approved, we cannot run itests
+            fi
+          else
+            sudo apt-get install jq curl || exit 1 # install jq and curl if not installed
+            # for 'pull_request' event we need to check if the last review is approved
+            echo "--> Checking whether the last PR review is approved"
+            LAST_REVIEW_STATE=$(curl -sSL \
+              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Accept: application/vnd.github+json" \
+              -H "X-GitHub-Api-Version: 2022-11-28" \
+              "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" | \
+              jq -r '.[-1].state')
+            echo "--> LAST_REVIEW_STATE=$LAST_REVIEW_STATE" # for debugging
+            if [ "$LAST_REVIEW_STATE" == 'APPROVED' ]; then
+              CAN_RUN_ITEST=true # if the last PR review is approved, we can run itests
+            else
+              CAN_RUN_ITEST=false # if the last PR review is not approved, we cannot run itests
+            fi
+          fi
+          echo "--> CAN_RUN_ITEST=$CAN_RUN_ITEST" # for debugging
+          echo "CAN_RUN_ITEST=$CAN_RUN_ITEST" >> "$GITHUB_OUTPUT"
+
   itest:
     name: integration_tests
-    runs-on: self-hosted
-    environment:
-      name: ITests
-    if: (github.event_name == 'workflow_dispatch' || github.event.review.state == 'APPROVED') && github.repository == 'wavesplatform/gowaves'
-
-    steps:
-      - name: Check out code into the Go module directory
-        uses: actions/checkout@v4
-
-      - name: Set up Go 1.23
-        uses: actions/setup-go@v5.4.0
-        with:
-          go-version: 1.23.x
-          check-latest: true
-          cache: true
-        id: go
-
-      - name: Get dependencies
-        run: go mod vendor
-
-      - name: Tests
-        run: make itest
-
-      - name: Upload itest logs and configs
-        uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: itest_logs_and_configs
-          path: |
-            build/logs/
-            build/config/
-          if-no-files-found: warn
-          retention-days: 5
+    needs: [ itest-check ]
+    if: (needs.itest-check.outputs.can-run-itest == 'true' && github.repository == 'wavesplatform/gowaves')
+    secrets: inherit
+    uses: "./.github/workflows/run_itests.yml"
+    with:
+      itest-type: 'itest' # run full set of integration tests
+      environment: 'ITests' # use the environment name from the input

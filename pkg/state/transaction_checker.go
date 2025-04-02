@@ -1525,7 +1525,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	id := proto.AssetIDFromDigest(tx.AssetID)
 	assetInfo, err := tc.stor.assets.newestAssetInfo(id)
 	if err != nil {
-		return out, errs.NewUnknownAsset(fmt.Sprintf("unknown asset %s", tx.AssetID.String()))
+		return out, errs.NewUnknownAsset(fmt.Sprintf("unknown asset %s: %v", tx.AssetID.String(), err))
 	}
 	if !bytes.Equal(assetInfo.Issuer[:], tx.SenderPK[:]) {
 		return out, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")

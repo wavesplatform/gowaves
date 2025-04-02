@@ -176,6 +176,7 @@ func TestAssetBalanceV4(t *testing.T) {
 }
 
 func TestIntFromState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	correctAlias := proto.NewAlias('T', "good")
 	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
@@ -191,7 +192,10 @@ func TestIntFromState(t *testing.T) {
 					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -226,6 +230,7 @@ func TestIntFromState(t *testing.T) {
 }
 
 func TestBytesFromState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	correctAlias := proto.NewAlias('T', "good")
 	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
@@ -241,7 +246,10 @@ func TestBytesFromState(t *testing.T) {
 					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -276,6 +284,7 @@ func TestBytesFromState(t *testing.T) {
 }
 
 func TestStringFromState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	correctAlias := proto.NewAlias('T', "good")
 	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
@@ -291,7 +300,10 @@ func TestStringFromState(t *testing.T) {
 					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -326,6 +338,7 @@ func TestStringFromState(t *testing.T) {
 }
 
 func TestBooleanFromState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	correctAlias := proto.NewAlias('T', "good")
 	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
@@ -341,7 +354,10 @@ func TestBooleanFromState(t *testing.T) {
 					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -376,6 +392,7 @@ func TestBooleanFromState(t *testing.T) {
 }
 
 func TestIntFromSelfState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
@@ -384,7 +401,10 @@ func TestIntFromSelfState(t *testing.T) {
 					if *account.Address() == correctAddress && key == "key" {
 						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -414,6 +434,7 @@ func TestIntFromSelfState(t *testing.T) {
 }
 
 func TestBytesFromSelfState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
@@ -422,7 +443,10 @@ func TestBytesFromSelfState(t *testing.T) {
 					if *account.Address() == correctAddress && key == "key" {
 						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -452,6 +476,7 @@ func TestBytesFromSelfState(t *testing.T) {
 }
 
 func TestStringFromSelfState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
@@ -460,7 +485,10 @@ func TestStringFromSelfState(t *testing.T) {
 					if *account.Address() == correctAddress && key == "key" {
 						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -490,6 +518,7 @@ func TestStringFromSelfState(t *testing.T) {
 }
 
 func TestBooleanFromSelfState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
@@ -498,7 +527,10 @@ func TestBooleanFromSelfState(t *testing.T) {
 					if *account.Address() == correctAddress && key == "key" {
 						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -1004,6 +1036,7 @@ func TestCheckMerkleProof(t *testing.T) {
 }
 
 func TestIntValueFromState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	correctAlias := proto.NewAlias('T', "good")
 	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
@@ -1019,7 +1052,10 @@ func TestIntValueFromState(t *testing.T) {
 					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -1054,6 +1090,7 @@ func TestIntValueFromState(t *testing.T) {
 }
 
 func TestBytesValueFromState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	correctAlias := proto.NewAlias('T', "good")
 	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
@@ -1069,7 +1106,10 @@ func TestBytesValueFromState(t *testing.T) {
 					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -1104,6 +1144,7 @@ func TestBytesValueFromState(t *testing.T) {
 }
 
 func TestStringValueFromState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	correctAlias := proto.NewAlias('T', "good")
 	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
@@ -1119,7 +1160,10 @@ func TestStringValueFromState(t *testing.T) {
 					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -1154,6 +1198,7 @@ func TestStringValueFromState(t *testing.T) {
 }
 
 func TestBooleanValueFromState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	correctAlias := proto.NewAlias('T', "good")
 	incorrectAddress := proto.MustAddressFromString("3N3isZTp6tchjYox99bpxFkqxxySKY6FQsi")
@@ -1169,7 +1214,10 @@ func TestBooleanValueFromState(t *testing.T) {
 					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
 						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -1203,6 +1251,7 @@ func TestBooleanValueFromState(t *testing.T) {
 	}
 }
 func TestIntValueFromSelfState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
@@ -1211,7 +1260,10 @@ func TestIntValueFromSelfState(t *testing.T) {
 					if *account.Address() == correctAddress && key == "key" {
 						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -1241,6 +1293,7 @@ func TestIntValueFromSelfState(t *testing.T) {
 }
 
 func TestBytesValueFromSelfState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
@@ -1249,7 +1302,10 @@ func TestBytesValueFromSelfState(t *testing.T) {
 					if *account.Address() == correctAddress && key == "key" {
 						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -1279,6 +1335,7 @@ func TestBytesValueFromSelfState(t *testing.T) {
 }
 
 func TestStringValueFromSelfState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
@@ -1287,7 +1344,10 @@ func TestStringValueFromSelfState(t *testing.T) {
 					if *account.Address() == correctAddress && key == "key" {
 						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},
@@ -1317,6 +1377,7 @@ func TestStringValueFromSelfState(t *testing.T) {
 }
 
 func TestBooleanValueFromSelfState(t *testing.T) {
+	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
 	env := &mockRideEnvironment{
 		stateFunc: func() types.SmartState {
@@ -1325,7 +1386,10 @@ func TestBooleanValueFromSelfState(t *testing.T) {
 					if *account.Address() == correctAddress && key == "key" {
 						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 					}
-					return nil, errors.New("not found")
+					return nil, notFoundErr
+				},
+				IsNotFoundFunc: func(err error) bool {
+					return errors.Is(err, notFoundErr)
 				},
 			}
 		},

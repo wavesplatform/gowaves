@@ -127,8 +127,8 @@ func (a *BehaviourImpl) SpawnKnownPeers(ctx context.Context) {
 }
 
 func (a *BehaviourImpl) errorHandler(p peer.Peer, e error) {
-	_ = p.Close()
 	if p != nil {
+		_ = p.Close()
 		a.activeConnections.Delete(p)
 	}
 }
