@@ -214,7 +214,7 @@ func (s *InvokeDAppTargetFromDAppProxySuite) SetupSubTest() {
 func (s *InvokeDAppTargetFromDAppProxySuite) Test_InvokeDAppTargetFromDAppProxy() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
-			testData := testdata.GetInvokeDAppTargetFromDAppProxy(&s.BaseSuite, version, s.DAppProxy, s.DAppTarget)
+			testData := testdata.GetInvokeDAppTargetFromDAppProxy(&s.BaseSuite, s.DAppProxy, s.DAppTarget)
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
@@ -267,7 +267,7 @@ func (s *InvokeRecursiveScriptSuite) SetupSubTest() {
 func (s *InvokeRecursiveScriptSuite) Test_InvokeDAppRecursive() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
-			testData := testdata.GetInvokeScriptDAppRecursiveTestData(&s.BaseSuite, version, s.DApp)
+			testData := testdata.GetInvokeScriptDAppRecursiveTestData(&s.BaseSuite, s.DApp)
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)

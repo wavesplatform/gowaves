@@ -742,7 +742,7 @@ func GetInvokeDAppTargetFromDAppProxy(suite *f.BaseSuite, dAppProxy,
 	}
 }
 
-func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite, version byte,
+func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive] {
 
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive]{
