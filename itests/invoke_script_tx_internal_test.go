@@ -47,9 +47,9 @@ func (s *InvokeScriptTxSuite) SetupSubTest() {
 func (s *InvokeScriptTxSuite) Test_CheckThatAccountStorageIsUntouched() {
 	for _, version := range s.Versions {
 		s.Run("storage is untouched", func() {
-			testdata := testdata.GetInvokeScriptAccountStorageUntouchedTestData(&s.BaseSuite,
+			testData := testdata.GetInvokeScriptAccountStorageUntouchedTestData(&s.BaseSuite,
 				s.DApp, s.NewAccount)
-			for name, td := range testdata {
+			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
 				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
@@ -67,8 +67,8 @@ func (s *InvokeScriptTxSuite) Test_CheckThatAccountStorageIsUntouched() {
 func (s *InvokeScriptTxSuite) Test_CheckWrittenDataInAccountStorage() {
 	for _, version := range s.Versions {
 		s.Run("written data in account storage is correct", func() {
-			testdata := testdata.GetInvokeScriptWriteToStorageTestData(&s.BaseSuite, s.DApp)
-			for name, td := range testdata {
+			testData := testdata.GetInvokeScriptWriteToStorageTestData(&s.BaseSuite, s.DApp)
+			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
 				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
@@ -86,8 +86,8 @@ func (s *InvokeScriptTxSuite) Test_CheckWrittenDataInAccountStorage() {
 func (s *InvokeScriptTxSuite) Test_CheckWrittenStringDataInAccountStorage() {
 	for _, version := range s.Versions {
 		s.Run("written data in account storage is correct", func() {
-			testdata := testdata.GetInvokeScriptWriteToStorageStringTestData(&s.BaseSuite, version, s.DApp)
-			for name, td := range testdata {
+			testData := testdata.GetInvokeScriptWriteToStorageStringTestData(&s.BaseSuite, version, s.DApp)
+			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
 				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
@@ -146,9 +146,9 @@ func (s *InvokeScriptFromScriptSuite) SetupSubTest() {
 func (s *InvokeScriptFromScriptSuite) Test_InvokeDAppFromDApp() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
-			testdata := testdata.GetInvokeScriptDAppFromDAppTestData(&s.BaseSuite, version, s.DAppProxy1,
+			testData := testdata.GetInvokeScriptDAppFromDAppTestData(&s.BaseSuite, version, s.DAppProxy1,
 				s.DAppProxy2, s.DAppTarget)
-			for name, td := range testdata {
+			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
 				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
@@ -214,8 +214,8 @@ func (s *InvokeDAppTargetFromDAppProxySuite) SetupSubTest() {
 func (s *InvokeDAppTargetFromDAppProxySuite) Test_InvokeDAppTargetFromDAppProxy() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
-			testdata := testdata.GetInvokeDAppTargetFromDAppProxy(&s.BaseSuite, version, s.DAppProxy, s.DAppTarget)
-			for name, td := range testdata {
+			testData := testdata.GetInvokeDAppTargetFromDAppProxy(&s.BaseSuite, version, s.DAppProxy, s.DAppTarget)
+			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
 				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
@@ -267,8 +267,8 @@ func (s *InvokeRecursiveScriptSuite) SetupSubTest() {
 func (s *InvokeRecursiveScriptSuite) Test_InvokeDAppRecursive() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
-			testdata := testdata.GetInvokeScriptDAppRecursiveTestData(&s.BaseSuite, version, s.DApp)
-			for name, td := range testdata {
+			testData := testdata.GetInvokeScriptDAppRecursiveTestData(&s.BaseSuite, version, s.DApp)
+			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
 				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)

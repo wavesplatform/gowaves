@@ -223,17 +223,17 @@ func NewAvailableVersions(binary []byte, protobuf []byte) AvailableVersions {
 }
 
 func GetAvailableVersions(t *testing.T, txType proto.TransactionType, minVersion, maxVersion byte) AvailableVersions {
-	var binary, protobuf []byte
+	var binaryVersion, protobufVersion []byte
 	minPBVersion := proto.ProtobufTransactionsVersions[txType]
 	require.GreaterOrEqual(t, minPBVersion, minVersion,
-		"Min binary version greater then min protobuf version")
+		"Min binaryVersion version greater then min protobufVersion version")
 	for i := minVersion; i < minPBVersion; i++ {
-		binary = append(binary, i)
+		binaryVersion = append(binaryVersion, i)
 	}
 	for i := minPBVersion; i < maxVersion+1; i++ {
-		protobuf = append(protobuf, i)
+		protobufVersion = append(protobufVersion, i)
 	}
-	return NewAvailableVersions(binary, protobuf)
+	return NewAvailableVersions(binaryVersion, protobufVersion)
 }
 
 func RandStringBytes(n int, symbolSet string) string {

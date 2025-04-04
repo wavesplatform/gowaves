@@ -697,8 +697,7 @@ func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 	}
 }
 
-func GetInvokeDAppTargetFromDAppProxy(suite *f.BaseSuite, version byte,
-	dAppProxy,
+func GetInvokeDAppTargetFromDAppProxy(suite *f.BaseSuite, dAppProxy,
 	dAppTarget config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive] {
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive]{
 		"Total count of Data Entries is 100": NewInvokeScriptTestData(
