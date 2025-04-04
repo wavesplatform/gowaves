@@ -1,0 +1,74 @@
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let currentAccountAddress = toBase58String(this.bytes)
+
+
+@Callable(i)
+func writeMaxActions(DAppTarget: String, strValue: String, intValue: Int, boolValue: Boolean, binValue: ByteVector) = {
+
+  let callerAccountAddress = toBase58String(i.caller.bytes)
+  strict cp = invoke(addressFromStringValue(DAppTarget), "writeMaxActions", [strValue, intValue, boolValue, binValue], [])
+    [
+      StringEntry(callerAccountAddress + "_str1_1", strValue),
+      IntegerEntry(callerAccountAddress + "_int1_1", intValue),
+      BooleanEntry(callerAccountAddress + "_bool1_1", boolValue),
+      BinaryEntry(callerAccountAddress + "_bin1_1", binValue),
+      DeleteEntry(callerAccountAddress + "_str1_1"),
+      DeleteEntry(callerAccountAddress + "_int1_1"),
+      DeleteEntry(callerAccountAddress + "_bool1_1"),
+      DeleteEntry(callerAccountAddress + "_bin1_1"),
+
+      StringEntry(callerAccountAddress + "_str1_2", strValue),
+      IntegerEntry(callerAccountAddress + "_int1_2", intValue),
+      BooleanEntry(callerAccountAddress + "_bool1_2", boolValue),
+      BinaryEntry(callerAccountAddress + "_bin1_2", binValue),
+      DeleteEntry(callerAccountAddress + "_str1_2"),
+      DeleteEntry(callerAccountAddress + "_int1_2"),
+      DeleteEntry(callerAccountAddress + "_bool1_2"),
+      DeleteEntry(callerAccountAddress + "_bin1_2"),
+
+      StringEntry(callerAccountAddress + "_str1_3", strValue),
+      IntegerEntry(callerAccountAddress + "_int1_3", intValue),
+      BooleanEntry(callerAccountAddress + "_bool1_3", boolValue),
+      BinaryEntry(callerAccountAddress + "_bin1_3", binValue),
+      DeleteEntry(callerAccountAddress + "_str1_3"),
+      DeleteEntry(callerAccountAddress + "_int1_3"),
+      DeleteEntry(callerAccountAddress + "_bool1_3"),
+      DeleteEntry(callerAccountAddress + "_bin1_3"),
+
+      StringEntry(callerAccountAddress + "_str1_4", strValue),
+      IntegerEntry(callerAccountAddress + "_int1_4", intValue),
+      BooleanEntry(callerAccountAddress + "_bool1_4", boolValue),
+      BinaryEntry(callerAccountAddress + "_bin1_4", binValue),
+      DeleteEntry(callerAccountAddress + "_str1_4"),
+      DeleteEntry(callerAccountAddress + "_int1_4"),
+      DeleteEntry(callerAccountAddress + "_bool1_4"),
+      DeleteEntry(callerAccountAddress + "_bin1_4"),
+
+      StringEntry(callerAccountAddress + "_str1_5", strValue),
+      DeleteEntry(callerAccountAddress + "_str1_5"),
+      IntegerEntry(callerAccountAddress + "_int1_5", intValue),
+      DeleteEntry(callerAccountAddress + "_int1_5"),
+      BooleanEntry(callerAccountAddress + "_bool1_5", boolValue),
+      DeleteEntry(callerAccountAddress + "_bool1_5"),
+      BinaryEntry(callerAccountAddress + "_bin1_5", binValue),
+      DeleteEntry(callerAccountAddress + "_bin1_5"),
+
+      StringEntry(callerAccountAddress + "_str1", strValue),
+      DeleteEntry(callerAccountAddress + "_str1"),
+      StringEntry(callerAccountAddress + "_str1", strValue),
+      DeleteEntry(callerAccountAddress + "_str1"),
+      StringEntry(callerAccountAddress + "_str1", strValue),
+      DeleteEntry(callerAccountAddress + "_str1"),
+      StringEntry(callerAccountAddress + "_str1", strValue),
+      DeleteEntry(callerAccountAddress + "_str1"),
+
+      StringEntry(callerAccountAddress + "_str", strValue),
+      StringEntry(callerAccountAddress + "_str", strValue)
+    ]
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)

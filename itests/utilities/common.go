@@ -53,8 +53,10 @@ const (
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
-	SymbolSet                  = "~!|#$%^&*()+=;:/?><|][{}\\\\\\\".-_@`"
+	SymbolSet                  = " ~!|#$%^&*()+=;:÷/?><|][{}\\\\\\\".-_@`µ⌂¡¢£¤¥¦§¨©ª¬®¯°±²³´µ¶·¸¹º»¼½¾¿×ø"
 	RusLetters                 = "абвгдеёжзиЙклмнопрстуфхцчшщьыъэюяАБВГДЕЁЖЗИКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ"
+	Umlauts                    = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöùúûüýþÿ"
+	EscapeSeq                  = "\\t\\b\\n\\f"
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
 	DefaultTimeInterval        = 5 * time.Second
@@ -347,7 +349,7 @@ func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 		from = accountNumbers[0]
 		to = accountNumbers[1]
 	default:
-		return 0, 0, errors.New("More than two parameters")
+		return 0, 0, errors.New("more than two parameters")
 	}
 	return from, to, nil
 }
@@ -418,7 +420,7 @@ func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) prot
 	return address
 }
 
-// String representation of an Alias should have a following format: "alias:<scheme>:<alias>".
+// GetAliasFromString String representation of an Alias should have a following format: "alias:<scheme>:<alias>".
 // Scheme should be represented with a one-byte ASCII symbol.
 func GetAliasFromString(suite *f.BaseSuite, alias string, chainId proto.Scheme) *proto.Alias {
 	var newAliasStr string

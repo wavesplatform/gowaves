@@ -1,0 +1,756 @@
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+let accountAddress = toBase58String(this.bytes)
+
+@Callable(i)
+func writeMaxActions(strValue: String, intValue: Int, boolValue: Boolean, binValue: ByteVector) = {
+
+  strict cp = invoke(this, "writeMaxActionsProxy", [strValue, intValue, boolValue, binValue], [])
+    [
+      StringEntry(accountAddress + "_str1_1", strValue),
+      IntegerEntry(accountAddress + "_int1_1", intValue),
+      BooleanEntry(accountAddress + "_bool1_1", boolValue),
+      BinaryEntry(accountAddress + "_bin1_1", binValue),
+      DeleteEntry(accountAddress + "_str1_1"),
+      DeleteEntry(accountAddress + "_int1_1"),
+      DeleteEntry(accountAddress + "_bool1_1"),
+      DeleteEntry(accountAddress + "_bin1_1"),
+
+      StringEntry(accountAddress + "_str1_2", strValue),
+      IntegerEntry(accountAddress + "_int1_2", intValue),
+      BooleanEntry(accountAddress + "_bool1_2", boolValue),
+      BinaryEntry(accountAddress + "_bin1_2", binValue),
+      DeleteEntry(accountAddress + "_str1_2"),
+      DeleteEntry(accountAddress + "_int1_2"),
+      DeleteEntry(accountAddress + "_bool1_2"),
+      DeleteEntry(accountAddress + "_bin1_2"),
+
+      StringEntry(accountAddress + "_str1_3", strValue),
+      IntegerEntry(accountAddress + "_int1_3", intValue),
+      BooleanEntry(accountAddress + "_bool1_3", boolValue),
+      BinaryEntry(accountAddress + "_bin1_3", binValue),
+      DeleteEntry(accountAddress + "_str1_3"),
+      DeleteEntry(accountAddress + "_int1_3"),
+      DeleteEntry(accountAddress + "_bool1_3"),
+      DeleteEntry(accountAddress + "_bin1_3"),
+
+      StringEntry(accountAddress + "_str1_4", strValue),
+      IntegerEntry(accountAddress + "_int1_4", intValue),
+      BooleanEntry(accountAddress + "_bool1_4", boolValue),
+      BinaryEntry(accountAddress + "_bin1_4", binValue),
+      DeleteEntry(accountAddress + "_str1_4"),
+      DeleteEntry(accountAddress + "_int1_4"),
+      DeleteEntry(accountAddress + "_bool1_4"),
+      DeleteEntry(accountAddress + "_bin1_4"),
+
+      StringEntry(accountAddress + "_str1_5", strValue),
+      DeleteEntry(accountAddress + "_str1_5"),
+      IntegerEntry(accountAddress + "_int1_5", intValue),
+      DeleteEntry(accountAddress + "_int1_5"),
+      BooleanEntry(accountAddress + "_bool1_5", boolValue),
+      DeleteEntry(accountAddress + "_bool1_5"),
+      BinaryEntry(accountAddress + "_bin1_5", binValue),
+      DeleteEntry(accountAddress + "_bin1_5"),
+
+      StringEntry(accountAddress + "_str1", strValue),
+      DeleteEntry(accountAddress + "_str1"),
+      StringEntry(accountAddress + "_str1", strValue),
+      DeleteEntry(accountAddress + "_str1"),
+      StringEntry(accountAddress + "_str1", strValue),
+      DeleteEntry(accountAddress + "_str1"),
+      StringEntry(accountAddress + "_str1", strValue),
+      DeleteEntry(accountAddress + "_str1"),
+
+      StringEntry(accountAddress + "_str", strValue),
+      StringEntry(accountAddress + "_str", strValue)
+    ]
+}
+
+@Callable(i)
+func writeMaxActionsProxy(strValue: String, intValue: Int, boolValue: Boolean, binValue: ByteVector) = {
+
+  strict cp = invoke(this,"writeMaxActionsTarget", [strValue, intValue, boolValue, binValue], [])
+    [
+      StringEntry(accountAddress + "_str2_1", strValue),
+      IntegerEntry(accountAddress + "_int2_1", intValue),
+      BooleanEntry(accountAddress + "_bool2_1", boolValue),
+      BinaryEntry(accountAddress + "_bin2_1", binValue),
+      DeleteEntry(accountAddress + "_str2_1"),
+      DeleteEntry(accountAddress + "_int2_1"),
+      DeleteEntry(accountAddress + "_bool2_1"),
+      DeleteEntry(accountAddress + "_bin2_1"),
+
+      StringEntry(accountAddress + "_str2_2", strValue),
+      DeleteEntry(accountAddress + "_str2_2"),
+      IntegerEntry(accountAddress + "_int2_2", intValue),
+      DeleteEntry(accountAddress + "_int2_2"),
+      BooleanEntry(accountAddress + "_bool2_2", boolValue),
+      DeleteEntry(accountAddress + "_bool2_2"),
+      BinaryEntry(accountAddress + "_bin2_2", binValue),
+      DeleteEntry(accountAddress + "_bin2_2"),
+
+      StringEntry(accountAddress + "_str2", strValue),
+      DeleteEntry(accountAddress + "_str2"),
+      StringEntry(accountAddress + "_str2", strValue),
+      DeleteEntry(accountAddress + "_str2"),
+      StringEntry(accountAddress + "_str2", strValue),
+      DeleteEntry(accountAddress + "_str2"),
+      StringEntry(accountAddress + "_str2", strValue),
+      DeleteEntry(accountAddress + "_str2"),
+
+      StringEntry(accountAddress + "_str", strValue)
+
+    ]
+}
+
+@Callable(i)
+func writeMaxActionsTarget(strValue: String, intValue: Int, boolValue: Boolean, binValue: ByteVector) = {
+    [
+      StringEntry(accountAddress + "_str3_1", strValue),
+      IntegerEntry(accountAddress + "_int3_1", intValue),
+      BooleanEntry(accountAddress + "_bool3_1", boolValue),
+      BinaryEntry(accountAddress + "_bin3_1", binValue),
+      DeleteEntry(accountAddress + "_str3_1"),
+      DeleteEntry(accountAddress + "_int3_1"),
+      DeleteEntry(accountAddress + "_bool3_1"),
+      DeleteEntry(accountAddress + "_bin3_1"),
+
+      StringEntry(accountAddress + "_str3_2", strValue),
+      DeleteEntry(accountAddress + "_str3_2"),
+      IntegerEntry(accountAddress + "_int3_2", intValue),
+      DeleteEntry(accountAddress + "_int3_2"),
+      BooleanEntry(accountAddress + "_bool3_2", boolValue),
+      DeleteEntry(accountAddress + "_bool3_2"),
+      BinaryEntry(accountAddress + "_bin3_2", binValue),
+      DeleteEntry(accountAddress + "_bin3_2"),
+
+      StringEntry(accountAddress + "_str3", strValue),
+      DeleteEntry(accountAddress + "_str3"),
+      StringEntry(accountAddress + "_str3", strValue),
+      DeleteEntry(accountAddress + "_str3"),
+      StringEntry(accountAddress + "_str3", strValue),
+      DeleteEntry(accountAddress + "_str3"),
+      StringEntry(accountAddress + "_str3", strValue),
+      DeleteEntry(accountAddress + "_str3"),
+
+      StringEntry(accountAddress + "_str", strValue)
+    ]
+}
+
+
+@Callable(i)
+func recursiveCall( r: Int , strValue: String) = {
+    let callerAccountAddress = toBase58String(i.caller.bytes)
+    if ( r == 0 ) then [
+        StringEntry(callerAccountAddress + "_str", strValue)
+    ]
+    else
+        strict g = invoke( this, "recursiveCall", [r - 1, strValue], [] )
+        []
+}
+
+@Callable(i)
+func call1(strValue: String) = {
+  strict g = invoke(this, "call2", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call2(strValue: String) = {
+  strict g = invoke(this, "call3", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call3(strValue: String) = {
+  strict g = invoke(this, "call4", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call4(strValue: String) = {
+  strict g = invoke(this, "call5", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call5(strValue: String) = {
+  strict g = invoke(this, "call6", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call6(strValue: String) = {
+  strict g = invoke(this, "call7", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call7(strValue: String) = {
+  strict g = invoke(this, "call8", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call8(strValue: String) = {
+  strict g = invoke(this, "call9", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call9(strValue: String) = {
+  strict g = invoke(this, "call10", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call10(strValue: String) = {
+  strict g = invoke(this, "call11", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call11(strValue: String) = {
+  strict g = invoke(this, "call12", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call12(strValue: String) = {
+  strict g = invoke(this, "call13", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call13(strValue: String) = {
+  strict g = invoke(this, "call14", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call14(strValue: String) = {
+  strict g = invoke(this, "call15", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call15(strValue: String) = {
+  strict g = invoke(this, "call16", [strValue], [])
+  []
+}
+
+@Callable(i)
+func call16(strValue: String) = {
+  strict g = invoke(this, "call17", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call17(strValue: String) = {
+  strict g = invoke(this, "call18", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call18(strValue: String) = {
+  strict g = invoke(this, "call19", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call19(strValue: String) = {
+  strict g = invoke(this, "call20", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call20(strValue: String) = {
+  strict g = invoke(this, "call21", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call21(strValue: String) = {
+  strict g = invoke(this, "call22", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call22(strValue: String) = {
+  strict g = invoke(this, "call23", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call23(strValue: String) = {
+  strict g = invoke(this, "call24", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call24(strValue: String) = {
+  strict g = invoke(this, "call25", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call25(strValue: String) = {
+  strict g = invoke(this, "call26", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call26(strValue: String) = {
+  strict g = invoke(this, "call27", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call27(strValue: String) = {
+  strict g = invoke(this, "call28", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call28(strValue: String) = {
+  strict g = invoke(this, "call29", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call29(strValue: String) = {
+  strict g = invoke(this, "call30", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call30(strValue: String) = {
+  strict g = invoke(this, "call31", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call31(strValue: String) = {
+  strict g = invoke(this, "call32", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call32(strValue: String) = {
+  strict g = invoke(this, "call33", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call33(strValue: String) = {
+  strict g = invoke(this, "call34", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call34(strValue: String) = {
+  strict g = invoke(this, "call35", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call35(strValue: String) = {
+  strict g = invoke(this, "call36", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call36(strValue: String) = {
+  strict g = invoke(this, "call37", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call37(strValue: String) = {
+  strict g = invoke(this, "call38", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call38(strValue: String) = {
+  strict g = invoke(this, "call39", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call39(strValue: String) = {
+  strict g = invoke(this, "call40", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call40(strValue: String) = {
+  strict g = invoke(this, "call41", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call41(strValue: String) = {
+  strict g = invoke(this, "call42", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call42(strValue: String) = {
+  strict g = invoke(this, "call43", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call43(strValue: String) = {
+  strict g = invoke(this, "call44", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call44(strValue: String) = {
+  strict g = invoke(this, "call45", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call45(strValue: String) = {
+  strict g = invoke(this, "call46", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call46(strValue: String) = {
+  strict g = invoke(this, "call47", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call47(strValue: String) = {
+  strict g = invoke(this, "call48", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call48(strValue: String) = {
+  strict g = invoke(this, "call49", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call49(strValue: String) = {
+  strict g = invoke(this, "call50", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call50(strValue: String) = {
+  strict g = invoke(this, "call51", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call51(strValue: String) = {
+  strict g = invoke(this, "call52", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call52(strValue: String) = {
+  strict g = invoke(this, "call53", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call53(strValue: String) = {
+  strict g = invoke(this, "call54", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call54(strValue: String) = {
+  strict g = invoke(this, "call55", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call55(strValue: String) = {
+  strict g = invoke(this, "call56", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call56(strValue: String) = {
+  strict g = invoke(this, "call57", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call57(strValue: String) = {
+  strict g = invoke(this, "call58", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call58(strValue: String) = {
+  strict g = invoke(this, "call59", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call59(strValue: String) = {
+  strict g = invoke(this, "call60", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call60(strValue: String) = {
+  strict g = invoke(this, "call61", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call61(strValue: String) = {
+  strict g = invoke(this, "call62", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call62(strValue: String) = {
+  strict g = invoke(this, "call63", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call63(strValue: String) = {
+  strict g = invoke(this, "call64", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call64(strValue: String) = {
+  strict g = invoke(this, "call65", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call65(strValue: String) = {
+  strict g = invoke(this, "call66", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call66(strValue: String) = {
+  strict g = invoke(this, "call67", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call67(strValue: String) = {
+  strict g = invoke(this, "call68", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call68(strValue: String) = {
+  strict g = invoke(this, "call69", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call69(strValue: String) = {
+  strict g = invoke(this, "call70", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call70(strValue: String) = {
+  strict g = invoke(this, "call71", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call71(strValue: String) = {
+  strict g = invoke(this, "call72", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call72(strValue: String) = {
+  strict g = invoke(this, "call73", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call73(strValue: String) = {
+  strict g = invoke(this, "call74", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call74(strValue: String) = {
+  strict g = invoke(this, "call75", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call75(strValue: String) = {
+  strict g = invoke(this, "call76", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call76(strValue: String) = {
+  strict g = invoke(this, "call77", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call77(strValue: String) = {
+  strict g = invoke(this, "call78", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call78(strValue: String) = {
+  strict g = invoke(this, "call79", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call79(strValue: String) = {
+  strict g = invoke(this, "call80", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call80(strValue: String) = {
+  strict g = invoke(this, "call81", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call81(strValue: String) = {
+  strict g = invoke(this, "call82", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call82(strValue: String) = {
+  strict g = invoke(this, "call83", [strValue], [])
+  []
+}
+
+@Callable(i)
+func call83(strValue: String) = {
+  strict g = invoke(this, "call84", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call84(strValue: String) = {
+  strict g = invoke(this, "call85", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call85(strValue: String) = {
+  strict g = invoke(this, "call86", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call86(strValue: String) = {
+  strict g = invoke(this, "call87", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call87(strValue: String) = {
+  strict g = invoke(this, "call88", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call88(strValue: String) = {
+  strict g = invoke(this, "call89", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call89(strValue: String) = {
+  strict g = invoke(this, "call90", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call90(strValue: String) = {
+  strict g = invoke(this, "call91", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call91(strValue: String) = {
+  strict g = invoke(this, "call92", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call92(strValue: String) = {
+  strict g = invoke(this, "call93", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call93(strValue: String) = {
+  strict g = invoke(this, "call94", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call94(strValue: String) = {
+  strict g = invoke(this, "call95", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call95(strValue: String) = {
+  strict g = invoke(this, "call96", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call96(strValue: String) = {
+  strict g = invoke(this, "call97", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call97(strValue: String) = {
+  strict g = invoke(this, "call98", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call98(strValue: String) = {
+  strict g = invoke(this, "call99", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call99(strValue: String) = {
+  strict g = invoke(this, "call100", [strValue], [] )
+  []
+}
+
+@Callable(i)
+func call100(strValue: String) = {
+  [
+    StringEntry(accountAddress + "_str", strValue)
+  ]
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
