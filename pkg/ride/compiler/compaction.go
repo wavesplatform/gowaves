@@ -1,9 +1,10 @@
 package compiler
 
 import (
+	"maps"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
-	"golang.org/x/exp/maps"
 )
 
 const (

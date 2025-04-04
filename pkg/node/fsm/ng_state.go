@@ -268,10 +268,10 @@ func (a *NGState) mineMicro(
 ) (State, Async, error) {
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair)
 	switch {
-	case errors.Is(err, miner.NoTransactionsErr):
+	case errors.Is(err, miner.ErrNoTransactions):
 		zap.S().Named(logging.FSMNamespace).Debugf("[%s] No transactions to put in microblock: %v", a, err)
 		return a, tasks.Tasks(tasks.NewMineMicroTask(a.baseInfo.microblockInterval, minedBlock, rest, keyPair, vrf)), nil
-	case errors.Is(err, miner.StateChangedErr):
+	case errors.Is(err, miner.ErrStateChanged):
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	case err != nil:
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))

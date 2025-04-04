@@ -199,7 +199,7 @@ type StateModifier interface {
 	// State will provide extended API data after returning.
 	StartProvidingExtendedApi() error
 
-	// PersisAddressTransactions sorts and saves transactions to storage.
+	// PersistAddressTransactions sorts and saves transactions to storage.
 	PersistAddressTransactions() error
 
 	Close() error
@@ -248,11 +248,11 @@ type StorageParams struct {
 
 func DefaultStorageParams() StorageParams {
 	dbParams := keyvalue.KeyValParams{
-		CacheParams: keyvalue.CacheParams{Size: DefaultCacheSize},
+		CacheParams: keyvalue.CacheParams{CacheSize: DefaultCacheSize},
 		BloomFilterParams: keyvalue.BloomFilterParams{
-			N:                        DefaultBloomFilterSize,
+			BloomFilterCapacity:      DefaultBloomFilterSize,
 			FalsePositiveProbability: DefaultBloomFilterFalsePositiveProbability,
-			Store:                    keyvalue.NewStore(""),
+			BloomFilterStore:         keyvalue.NewStore(""),
 		},
 		WriteBuffer:            DefaultWriteBuffer,
 		CompactionTableSize:    DefaultCompactionTableSize,
@@ -268,7 +268,7 @@ func DefaultStorageParams() StorageParams {
 
 func DefaultTestingStorageParams() StorageParams {
 	d := DefaultStorageParams()
-	d.DbParams.N = 10
+	d.DbParams.BloomFilterCapacity = 10
 	return d
 }
 

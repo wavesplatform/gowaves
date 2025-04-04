@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"encoding/json"
+	stderrs "errors"
 	"io"
 
 	"github.com/jinzhu/copier"
@@ -229,7 +230,10 @@ func (id *BlockID) ReadFrom(r io.Reader) (int64, error) {
 func (id *BlockID) readSignatureFrom(r io.Reader) (int64, error) {
 	n, err := io.ReadFull(r, id.sig[:])
 	if err != nil {
-		return int64(n), ErrInvalidBlockIDDataSize
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			return int64(n), stderrs.Join(ErrInvalidBlockIDDataSize, err)
+		}
+		return int64(n), err
 	}
 	return int64(n), nil
 }
@@ -237,7 +241,10 @@ func (id *BlockID) readSignatureFrom(r io.Reader) (int64, error) {
 func (id *BlockID) readDigestFrom(r io.Reader) (int64, error) {
 	n, err := io.ReadFull(r, id.dig[:])
 	if err != nil {
-		return int64(n), ErrInvalidBlockIDDataSize
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			return int64(n), stderrs.Join(ErrInvalidBlockIDDataSize, err)
+		}
+		return int64(n), err
 	}
 	return int64(n), nil
 }
@@ -246,7 +253,10 @@ func (id *BlockID) readUndefinedFrom(r io.Reader) (int64, error) {
 	lr := io.LimitReader(r, crypto.SignatureSize)
 	n1, err := io.ReadFull(lr, id.dig[:])
 	if err != nil { // Not enough data to read even a digest.
-		return int64(n1), ErrInvalidBlockIDDataSize
+		if errors.Is(err, io.ErrUnexpectedEOF) || errors.Is(err, io.EOF) {
+			return int64(n1), stderrs.Join(ErrInvalidBlockIDDataSize, err)
+		}
+		return int64(n1), err
 	}
 	n2, err := io.ReadFull(lr, id.sig[crypto.DigestSize:])
 	if err != nil { // Not enough data to read a second half of a signature.
@@ -728,7 +738,7 @@ func (b *Block) VerifyTransactionsRoot(scheme Scheme) (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return bytes.Equal(b.BlockHeader.TransactionsRoot, rh), nil
+	return bytes.Equal(b.TransactionsRoot, rh), nil
 }
 
 // MarshalBinary encodes Block to binary form
@@ -796,7 +806,7 @@ func (b *Block) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (b *Block) ToProtobuf(scheme Scheme) (*g.Block, error) {
-	protoBlock, err := b.BlockHeader.HeaderToProtobuf(scheme)
+	protoBlock, err := b.HeaderToProtobuf(scheme)
 	if err != nil {
 		return nil, err
 	}
@@ -814,7 +824,7 @@ func (b *Block) ToProtobufWithHeight(
 	vrf []byte,
 	rewards Rewards,
 ) (*pb.BlockWithHeight, error) {
-	block, err := b.BlockHeader.HeaderToProtobufWithHeight(currentScheme, height, vrf, rewards)
+	block, err := b.HeaderToProtobufWithHeight(currentScheme, height, vrf, rewards)
 	if err != nil {
 		return nil, err
 	}

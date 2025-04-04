@@ -4,9 +4,11 @@ package itests
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -14,7 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/issue"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"golang.org/x/exp/maps"
 )
 
 type BurnTxSuite struct {
@@ -75,7 +76,7 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 				ttx := transfer.SendWithTestData(&suite.BaseSuite, transferNFT, v, true)
 				errMsg := fmt.Sprintf("Case: %s; Transfer tx: %s", caseName, ttx.TxID.String())
 
-				utl.TxInfoCheck(suite.BaseSuite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala, errMsg)
+				utl.TxInfoCheck(suite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala, errMsg)
 
 				//burn NFT from Account 3
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.SendBurnTxAndGetBalances(

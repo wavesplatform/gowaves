@@ -336,10 +336,7 @@ func (td *transactionDiffer) doMinerPayoutAfterNG(
 		// even if result miner fee value is 0
 	}
 
-	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
 	// Miner's balance diff is always forced for snapshot generation.
 	minerBalanceDiffForced := newMinerFeeForcedBalanceDiff(int64(minerBalanceDiffValue), updateMinIntermediateBalance)
 	// Add forced miner's fee balance diff to txDiff.
@@ -368,10 +365,7 @@ func (td *transactionDiffer) createDiffPayment(transaction proto.Transaction, in
 		return txBalanceChanges{}, errors.New("failed to convert interface to Payment transaction")
 	}
 	diff := newTxDiff()
-	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
 	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -440,10 +434,7 @@ func (td *transactionDiffer) payoutMinerWithSponsorshipHandling(
 		return errors.New("sponsorship is activated, but NG is not")
 	}
 	// Sponsorship logic.
-	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
 	feeAssetID := proto.AssetIDFromDigest(feeAsset.ID)
 	assetInfo, err := td.stor.assets.newestAssetInfo(feeAssetID)
 	if err != nil {
@@ -511,10 +502,7 @@ func (td *transactionDiffer) convertSponsorAssetToWavesAndDoPayout(
 
 func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differInfo) (txBalanceChanges, error) {
 	diff := newTxDiff()
-	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
 	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -554,10 +542,7 @@ func (td *transactionDiffer) createDiffTransfer(tx *proto.Transfer, info *differ
 func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
 	diff := newTxDiff()
 
-	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
 	// Append sender diff.
 	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)
 	if err != nil {
@@ -610,10 +595,7 @@ func (td *transactionDiffer) createDiffEthereumTransferWaves(tx *proto.EthereumT
 func (td *transactionDiffer) createDiffEthereumErc20(tx *proto.EthereumTransaction, info *differInfo) (txBalanceChanges, error) {
 	diff := newTxDiff()
 
-	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
 
 	txErc20Kind, ok := tx.TxKind.(*proto.EthereumTransferAssetsErc20TxKind)
 	if !ok {
@@ -1314,10 +1296,7 @@ func (td *transactionDiffer) createDiffMassTransferWithProofs(transaction proto.
 	}
 	diff := newTxDiff()
 	addresses := make([]proto.WavesAddress, len(tx.Transfers)+1)
-	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
 	// Append sender fee diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
 	if err != nil {
@@ -1571,10 +1550,8 @@ func (td *transactionDiffer) createDiffEthereumInvokeScript(tx *proto.EthereumTr
 	}
 
 	payments := txInvokeScriptKind.DecodedData().Payments
-	updateMinIntermediateBalance := false
-	if info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime && len(payments) > 0 {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime &&
+		len(payments) > 0
 	diff := newTxDiff()
 	// Append sender diff.
 	senderAddress, err := tx.WavesAddressFrom(td.settings.AddressSchemeCharacter)

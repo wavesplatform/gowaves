@@ -8,8 +8,9 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 )
 
 type pair struct {
@@ -162,7 +163,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 	if err != nil {
 		return nil, err
 	}
-	cache := freecache.NewCache(params.CacheParams.Size)
+	cache := freecache.NewCache(params.CacheSize)
 	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}}
 	if err := initBloomFilter(kv, params.BloomFilterParams); err != nil {
 		return nil, err

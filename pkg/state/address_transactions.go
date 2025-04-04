@@ -101,11 +101,12 @@ func (i *txIter) Release() {
 func manageFile(file *os.File, db keyvalue.IterableKeyVal) error {
 	var properFileSize uint64
 	fileSizeBytes, err := db.Get(fileSizeKeyBytes)
-	if err == keyvalue.ErrNotFound {
+	switch {
+	case errors.Is(err, keyvalue.ErrNotFound):
 		properFileSize = 0
-	} else if err == nil {
+	case err == nil:
 		properFileSize = binary.BigEndian.Uint64(fileSizeBytes)
-	} else {
+	default:
 		return err
 	}
 
@@ -258,7 +259,7 @@ func (at *addressTransactions) handleRecord(record []byte) error {
 	key := record[:proto.AddressIDSize]
 	newRecordBytes := record[proto.AddressIDSize:]
 	lastOffsetBytes, err := at.stor.newestLastRecordByKey(key)
-	if err == errNotFound {
+	if errors.Is(err, errNotFound) {
 		// The first record for this key.
 		if err := at.stor.addRecordBytes(key, newRecordBytes); err != nil {
 			return errors.Wrap(err, "batchedStorage: failed to add record")

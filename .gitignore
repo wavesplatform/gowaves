@@ -28,6 +28,7 @@ out/
 *.txt
 *.log
 *.mem
+*.bck.*
 !cmd/wmd/symbols.txt
 **/.DS_Store
 .DS_Store

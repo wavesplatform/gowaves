@@ -7,10 +7,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 )
 
-func notFound() state.StateError {
-	return state.NewStateError(state.NotFoundError, proto.ErrNotFound)
+func notFound() stateerr.StateError {
+	return stateerr.NewStateError(stateerr.NotFoundError, proto.ErrNotFound)
 }
 
 type MockStateManager struct {
@@ -135,7 +136,7 @@ func (a *MockStateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	}
 	score := big.NewInt(0)
 	for _, b := range a.state[:height] {
-		n, err := state.CalculateScore(b.NxtConsensus.BaseTarget)
+		n, err := state.CalculateScore(b.BaseTarget)
 		if err != nil {
 			panic(err)
 		}

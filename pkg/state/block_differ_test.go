@@ -83,10 +83,7 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 	minerAddr, err := proto.NewAddressFromPublicKey(to.stor.settings.AddressSchemeCharacter, block.GeneratorPublicKey)
 	require.NoError(t, err)
 	expected := txDiff{}
-	updateMinIntermediateBalance := false
-	if block.Timestamp >= to.stor.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := block.Timestamp >= to.stor.settings.CheckTempNegativeAfterTime
 	for _, tx := range block.Transactions {
 		var (
 			fee        = tx.GetFee()
@@ -208,8 +205,8 @@ func genBlockWithSingleTransaction(t *testing.T, prevID proto.BlockID, prevGenSi
 		nil,
 	)
 	require.NoError(t, err)
-	block.BlockHeader.Version = proto.RewardBlockVersion
-	block.BlockHeader.RewardVote = 700000000
+	block.Version = proto.RewardBlockVersion
+	block.RewardVote = 700000000
 	err = block.Sign(proto.TestNetScheme, testGlobal.minerInfo.sk)
 	require.NoError(t, err)
 	return block
@@ -243,7 +240,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	require.NoError(t, err)
 
 	fee := defaultFee - defaultFee/5*2
-	correctMinerWavesBalanceDiff := newBalanceDiff(int64(fee+to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward), 0, 0, false)
+	correctMinerWavesBalanceDiff := newBalanceDiff(int64(fee+to.blockDiffer.settings.InitialBlockReward), 0, 0, false)
 	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
 	correctMinerDiff := txDiff{testGlobal.minerInfo.wavesKey: correctMinerWavesBalanceDiff}
 	assert.Equal(t, correctMinerDiff, minerDiff)
@@ -282,7 +279,7 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 	require.NoError(t, err)
 
 	fee := int64(defaultFee - defaultFee/5*2)
-	reward := int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward)
+	reward := int64(to.blockDiffer.settings.InitialBlockReward)
 	additionalAddressReward := reward / 3
 	correctFirstRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, false)
 	correctSecondRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, false)
@@ -331,13 +328,13 @@ func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
 
 	fee := defaultFee - defaultFee/5*2
 	correctMinerWavesBalanceDiff := newBalanceDiff(
-		int64(fee+(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/3*2)),
+		int64(fee+(to.blockDiffer.settings.InitialBlockReward/3*2)),
 		0,
 		0,
 		false,
 	)
 	correctRewardAddressBalanceDiff := newBalanceDiff(
-		int64(to.blockDiffer.settings.FunctionalitySettings.InitialBlockReward/3),
+		int64(to.blockDiffer.settings.InitialBlockReward/3),
 		0,
 		0,
 		false,

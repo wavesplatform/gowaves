@@ -24,7 +24,7 @@ jobs:
       - name: Checkout Source
         uses: actions/checkout@v4
       - name: Run gosec security scanner
-        uses: securego/gosec@v2.22.1
+        uses: securego/gosec@v2.22.2
         with:
           # with '-no-fail' we let the report trigger content trigger a failure using the GitHub Security features.
           args: "-no-fail -fmt sarif -out gosec.sarif ./..."
@@ -48,7 +48,10 @@ jobs:
       - name: Run semgrep security scanner
         run: |
           cat << 'EOF' | bash
-              semgrep ci --config=auto --sarif --output=semgrep.sarif --max-target-bytes=2MB
+              semgrep ci --config="auto" --config="r/default" --config="r/go" --config="r/dgryski" \
+                --config="r/trailofbits" --config="r/dockerfile" --config="r/bash" \
+                --config="r/problem-based-packs" --config="r/generic" --config="r/yaml" --config="r/json" \
+                --config="./.semgrep/rules" --sarif --dataflow-traces --output=semgrep.sarif --max-target-bytes=2MB
               EXIT_CODE=$?
               if [ "$EXIT_CODE" = "0" ] || [ "$EXIT_CODE" = "1" ]
               then
@@ -69,7 +72,7 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
       - name: Set up Go
-        uses: actions/setup-go@v5.3.0
+        uses: actions/setup-go@v5.4.0
         with:
           go-version: 1.23.x
           check-latest: true

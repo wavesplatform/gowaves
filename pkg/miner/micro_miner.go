@@ -10,6 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -17,8 +18,8 @@ const (
 	maxMicroblockTransactions = 255
 )
 
-var NoTransactionsErr = errors.New("no transactions")
-var StateChangedErr = errors.New("state changed")
+var ErrNoTransactions = errors.New("no transactions")
+var ErrStateChanged = errors.New("state changed")
 
 type MicroMiner struct {
 	state  state.State
@@ -43,7 +44,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	topBlock := a.state.TopBlock()
 	if topBlock.BlockSignature != minedBlock.BlockSignature {
 		// block changed, exit
-		return nil, nil, rest, StateChangedErr
+		return nil, nil, rest, ErrStateChanged
 	}
 	zap.S().Debugf("[MICRO MINER] Top block ID '%s'", topBlock.BlockID())
 
@@ -73,10 +74,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	_ = a.state.Map(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
 
-		for {
-			if txCount >= maxMicroblockTransactions {
-				break
-			}
+		for txCount <= maxMicroblockTransactions {
 			t := a.utx.Pop()
 			if t == nil {
 				break
@@ -91,7 +89,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			// In the miner we pack transactions from UTX into new block.
 			// We should accept failed transactions here.
 			snapshot, errVal := s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
-			if state.IsTxCommitmentError(errVal) {
+			if stateerr.IsTxCommitmentError(errVal) {
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.
 				s.ResetValidationList()
@@ -123,7 +121,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 	// no transactions applied, skip
 	if txCount == 0 {
-		return nil, nil, rest, NoTransactionsErr
+		return nil, nil, rest, ErrNoTransactions
 	}
 
 	transactions := make([]proto.Transaction, len(appliedTransactions))

@@ -299,7 +299,7 @@ func defaultTestBloomFilterParams() keyvalue.BloomFilterParams {
 }
 
 func defaultTestCacheParams() keyvalue.CacheParams {
-	return keyvalue.CacheParams{Size: testCacheSize}
+	return keyvalue.CacheParams{CacheSize: testCacheSize}
 }
 
 func defaultTestKeyValParams() keyvalue.KeyValParams {

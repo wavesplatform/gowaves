@@ -4,6 +4,7 @@ package itests
 
 import (
 	"fmt"
+	"maps"
 	"testing"
 
 	"github.com/stretchr/testify/suite"
@@ -18,7 +19,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/sponsorship"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
 	"github.com/wavesplatform/gowaves/itests/utilities/updateassetinfo"
-	"golang.org/x/exp/maps"
 )
 
 type SmokeTxPositiveSuite struct {

@@ -63,10 +63,7 @@ func (d *blockDiffer) prevBlockFeeDistr(prevBlock proto.BlockID) (*feeDistributi
 // appendBlockInfoToBalanceDiff appends block ID and allowLeasedTransfer flag to balanceDiff.
 // This method does not modify blockDiffer itself, but modifies balanceDiff.
 func (d *blockDiffer) appendBlockInfoToBalanceDiff(diff *balanceDiff, block *proto.BlockHeader) {
-	allowLeasedTransfer := true
-	if block.Timestamp >= d.settings.AllowLeasedBalanceTransferUntilTime {
-		allowLeasedTransfer = false
-	}
+	allowLeasedTransfer := block.Timestamp < d.settings.AllowLeasedBalanceTransferUntilTime
 	diff.allowLeasedTransfer = allowLeasedTransfer
 	diff.blockID = block.BlockID()
 }
@@ -187,10 +184,7 @@ func (d *blockDiffer) doMinerPayoutBeforeNG(
 	if ngActivated { // no-op after NG activation
 		return nil
 	}
-	updateMinIntermediateBalance := false
-	if blockTimestamp >= d.settings.CheckTempNegativeAfterTime {
-		updateMinIntermediateBalance = true
-	}
+	updateMinIntermediateBalance := blockTimestamp >= d.settings.CheckTempNegativeAfterTime
 	for i, tx := range transactions {
 		var (
 			fee      = tx.GetFee()
@@ -234,7 +228,7 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 			return txDiff{}, err
 		}
 		if mpErr := d.doMinerPayoutBeforeNG(minerDiff, blockHeader.Timestamp, minerAddr, transactions); mpErr != nil {
-			return txDiff{}, errors.Wrap(err, "failed to count miner payout")
+			return txDiff{}, errors.Wrap(mpErr, "failed to count miner payout")
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, blockHeader)
 	}

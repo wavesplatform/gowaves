@@ -452,7 +452,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 		}
 		res, err := proto.EthereumWeiToWavelet(tx.Value())
 		if err != nil {
-			return out, errors.Errorf(
+			return out, errors.Wrapf(err,
 				"failed to convert wei amount from ethereum transaction to wavelets. value is %s",
 				tx.Value().String())
 		}
@@ -859,10 +859,10 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 		return nil, err
 	}
 	if errO1 := checkOrderWithMetamaskFeature(o1, metamaskActivated); errO1 != nil {
-		return nil, errors.Wrap(err, "order1 metamask feature checks failed")
+		return nil, errors.Wrap(errO1, "order1 metamask feature checks failed")
 	}
 	if errO2 := checkOrderWithMetamaskFeature(o2, metamaskActivated); errO2 != nil {
-		return nil, errors.Wrap(err, "order2 metamask feature checks failed")
+		return nil, errors.Wrap(errO2, "order2 metamask feature checks failed")
 	}
 
 	// Check assets.
@@ -894,7 +894,7 @@ func (tc *transactionChecker) checkExchange(transaction proto.Transaction, info 
 	}
 	txa := &txAssets{feeAsset: proto.NewOptionalAssetWaves(), smartAssets: ordersSmartAssets}
 	if errCF := tc.checkFee(transaction, txa, info); errCF != nil {
-		return nil, err
+		return nil, errCF
 	}
 	smartAssetsActivated, err := tc.stor.features.newestIsActivated(int16(settings.SmartAssets))
 	if err != nil {
@@ -1525,7 +1525,7 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 	id := proto.AssetIDFromDigest(tx.AssetID)
 	assetInfo, err := tc.stor.assets.newestAssetInfo(id)
 	if err != nil {
-		return out, errs.NewUnknownAsset(fmt.Sprintf("unknown asset %s", tx.AssetID.String()))
+		return out, errs.NewUnknownAsset(fmt.Sprintf("unknown asset %s: %v", tx.AssetID.String(), err))
 	}
 	if !bytes.Equal(assetInfo.Issuer[:], tx.SenderPK[:]) {
 		return out, errs.NewAssetIssuedByOtherAddress("asset was issued by other address")

@@ -238,7 +238,7 @@ var tests = []protocolMarshallingTest{
 func TestProtocolMarshalling(t *testing.T) {
 	for _, v := range tests {
 		t.Run(fmt.Sprintf("%T", v.testMessage), func(t *testing.T) {
-			trimmed := strings.Replace(v.testEncoded, " ", "", -1)
+			trimmed := strings.ReplaceAll(v.testEncoded, " ", "")
 			decoded, err := hex.DecodeString(trimmed)
 			require.NoError(t, err)
 

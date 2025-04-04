@@ -68,7 +68,7 @@ func spoilBlockVersion(block *proto.Block) {
 
 func stateParams() StateParams {
 	s := DefaultStorageParams()
-	s.DbParams.Store = keyvalue.NoOpStore{}
+	s.DbParams.BloomFilterStore = keyvalue.NoOpStore{}
 	return StateParams{
 		StorageParams: s,
 		ValidationParams: ValidationParams{
