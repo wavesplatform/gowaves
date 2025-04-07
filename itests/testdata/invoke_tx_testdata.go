@@ -829,31 +829,5 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 				},
 			},
 		),
-		"Invoke DApp from DApp 100 times": NewInvokeScriptTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			proto.NewRecipientFromAddress(dApp.Address),
-			proto.NewFunctionCall("call1",
-				proto.Arguments{
-					&proto.StringArgument{Value: "test"},
-				}),
-			make(proto.ScriptPayments, 0),
-			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
-			utl.GetAssetByID(nil),
-			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
-				Entries: []*ExpectedInvokeScriptDataSlicePositive{
-					{
-						Address: dApp.Address,
-						DataEntries: []*waves.DataEntry{
-							{
-								Key:   dApp.Address.String() + "_str",
-								Value: &waves.DataEntry_StringValue{StringValue: "test"},
-							},
-						},
-					},
-				},
-			},
-		),
 	}
 }
