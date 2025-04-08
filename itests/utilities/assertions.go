@@ -133,8 +133,11 @@ func dataEntrySliceSort(data []*waves.DataEntry) {
 }
 
 func DataEntriesAndKeysCheck(t *testing.T, expected []*waves.DataEntry, actualGo, actualScala []*waves.DataEntry) {
-	assert.Equalf(t, len(expected), len(actualScala), "Node Scala: Count of data entries is mismatch")
-	assert.Equalf(t, len(expected), len(actualGo), "Node Go: Count of data entries is mismatch")
+	resS := assert.Equalf(t, len(expected), len(actualScala), "Node Scala: Count of data entries is mismatch")
+	resG := assert.Equalf(t, len(expected), len(actualGo), "Node Go: Count of data entries is mismatch")
+	if !resS || !resG {
+		return // if count of data entries is mismatch, we don't need to check values
+	}
 	dataEntrySliceSort(expected)
 	dataEntrySliceSort(actualGo)
 	dataEntrySliceSort(actualScala)
