@@ -2,7 +2,10 @@ package itests
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/suite"
+
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -11,7 +14,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/invoke"
 	"github.com/wavesplatform/gowaves/itests/utilities/setscript"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
-	"testing"
 )
 
 type InvokeScriptTxSuite struct {
@@ -43,7 +45,7 @@ func (s *InvokeScriptTxSuite) SetupSubTest() {
 		&s.NewAccount, utl.MinTxFeeWaves)
 }
 
-// Positive test for dApp where is checked that account storage is untouched
+// Positive test for dApp where is checked that account storage is untouched.
 func (s *InvokeScriptTxSuite) Test_CheckThatAccountStorageIsUntouched() {
 	for _, version := range s.Versions {
 		s.Run("storage is untouched", func() {
@@ -63,7 +65,7 @@ func (s *InvokeScriptTxSuite) Test_CheckThatAccountStorageIsUntouched() {
 	}
 }
 
-// Positive test for dApp where is checked that data is written correct in dApp Account Storage
+// Positive test for dApp where is checked that data is written correct in dApp Account Storage.
 func (s *InvokeScriptTxSuite) Test_CheckWrittenDataInAccountStorage() {
 	for _, version := range s.Versions {
 		s.Run("written data in account storage is correct", func() {
@@ -82,7 +84,7 @@ func (s *InvokeScriptTxSuite) Test_CheckWrittenDataInAccountStorage() {
 	}
 }
 
-// Positive test for dApp where is checked that string data is written correct in dApp Account Storage
+// Positive test for dApp where is checked that string data is written correct in dApp Account Storage.
 func (s *InvokeScriptTxSuite) Test_CheckWrittenStringDataInAccountStorage() {
 	for _, version := range s.Versions {
 		s.Run("written data in account storage is correct", func() {

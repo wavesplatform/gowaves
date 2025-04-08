@@ -21,6 +21,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	pkgerr "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -294,7 +295,7 @@ func SafeInt64ToUint64(x int64) uint64 {
 	return uint64(x)
 }
 
-// StrToBase16Bytes gets string in utf8 and returns array of bytes of base16 string
+// StrToBase16Bytes gets string in utf8 and returns array of bytes of base16 string.
 func StrToBase16Bytes(t *testing.T, s string) []byte {
 	encodedStr := hex.EncodeToString([]byte(s))
 	result, err := hex.DecodeString(encodedStr)
@@ -317,8 +318,9 @@ func StrToBase64Bytes(t *testing.T, s string) []byte {
 }
 
 func IntToBase64Bytes(t *testing.T, i int64) []byte {
-	bs := make([]byte, 8)
-	binary.BigEndian.PutUint64(bs, uint64(i))
+	const sizeInt64 = 8
+	bs := make([]byte, sizeInt64)
+	binary.BigEndian.PutUint64(bs, uint64(i)) // #nosec: converting here to uint64 doesn't change the value in bytes
 	encodedStr := base64.StdEncoding.EncodeToString(bs)
 	result, err := base64.StdEncoding.DecodeString(encodedStr)
 	require.NoError(t, err, "failed to decode base64 string")
@@ -422,16 +424,17 @@ func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) prot
 
 // GetAliasFromString String representation of an Alias should have a following format: "alias:<scheme>:<alias>".
 // Scheme should be represented with a one-byte ASCII symbol.
-func GetAliasFromString(suite *f.BaseSuite, alias string, chainId proto.Scheme) *proto.Alias {
+func GetAliasFromString(suite *f.BaseSuite, alias string, chainID proto.Scheme) *proto.Alias {
 	var newAliasStr string
 	aliasPref := "alias:"
-	chainIdPref := string(chainId) + ":"
-	prefix := aliasPref + chainIdPref
-	if strings.HasPrefix(alias, prefix) {
+	chainIDPref := string(chainID) + ":"
+	prefix := aliasPref + chainIDPref
+	switch {
+	case strings.HasPrefix(alias, prefix):
 		newAliasStr = alias
-	} else if strings.HasPrefix(alias, chainIdPref) {
+	case strings.HasPrefix(alias, chainIDPref):
 		newAliasStr = aliasPref + alias
-	} else {
+	default:
 		newAliasStr = prefix + alias
 	}
 	newAlias, err := proto.NewAliasFromString(newAliasStr)
