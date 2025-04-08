@@ -2,6 +2,7 @@ package setscript
 
 import (
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
@@ -13,8 +14,7 @@ import (
 
 func NewSignedSetScriptTransaction(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
 	senderSK crypto.SecretKey, script []byte, fee, timestamp uint64) proto.Transaction {
-	var tx proto.Transaction
-	tx = proto.NewUnsignedSetScriptWithProofs(version, senderPK, script, fee, timestamp)
+	tx := proto.NewUnsignedSetScriptWithProofs(version, senderPK, script, fee, timestamp)
 	err := tx.Sign(scheme, senderSK)
 	txJSON := utl.GetTransactionJsonOrErrMsg(tx)
 	suite.T().Logf("Set Script Transaction:\n%s", txJSON)
