@@ -844,11 +844,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	}
 
 	// write updates into the updatesChannel here
-	if a.bUpdatesPluginInfo != nil && a.bUpdatesPluginInfo.EnableBlockchainUpdatesPlugin {
+	if a.bUpdatesPluginInfo != nil && a.bUpdatesPluginInfo.IsBlockchainUpdatesEnabled() {
 		if a.bUpdatesPluginInfo.IsReady() {
-			err = a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
-			if err != nil {
-				return errors.Errorf("failed to request blockchain info from L2 smart contract state, %v", err)
+			errUpdt := a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
+			if errUpdt != nil {
+				return errors.Wrapf(errUpdt, "failed to request blockchain info from L2 smart contract state")
 			}
 		}
 	}
@@ -879,9 +879,9 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 	bUpdatesInfo := BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot,
 		a.bUpdatesPluginInfo.L2ContractAddress)
 
-	if *a.bUpdatesPluginInfo.FirstBlock {
+	if a.bUpdatesPluginInfo.IsFirstBlockDone() {
 		dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesPluginInfo.L2ContractAddress))
-		if err != nil && !errors.Is(err, proto.ErrNotFound) {
+		if err != nil && !a.ia.state.IsNotFound(err) {
 			return err
 		}
 		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries

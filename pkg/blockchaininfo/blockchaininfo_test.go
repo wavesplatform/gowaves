@@ -476,7 +476,6 @@ func TestRollback(t *testing.T) {
 			}},
 		},
 	}
-
 	updatesExtensionState := &blockchaininfo.BUpdatesExtensionState{
 		CurrentState:      &currentState,
 		PreviousState:     &previousState,

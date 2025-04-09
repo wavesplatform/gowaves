@@ -29,12 +29,6 @@ const (
 	NoPaging
 )
 
-const L2RequestsTopic = "l2_requests_topic"
-const (
-	RequestRestartSubTopic      = "restart"
-	RequestConstantKeysSubTopic = "constant_keys"
-)
-
 func ConcatenateContractTopics(contractAddress string) string {
 	return ContractUpdates + contractAddress
 }
@@ -66,7 +60,7 @@ func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddr
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %s", l2ContractAddress)
 	}
 	historyJournal := NewHistoryJournal()
-	for targetHeight := currentHeight - HistoryJournalLengthMax; targetHeight < currentHeight; targetHeight++ {
+	for targetHeight := currentHeight - HistoryJournalLengthMax; targetHeight <= currentHeight; targetHeight++ {
 		blockSnapshot, retrieveErr := st.SnapshotsAtHeight(targetHeight)
 		if retrieveErr != nil {
 			return nil, retrieveErr
@@ -251,7 +245,7 @@ func (bu *BUpdatesExtensionState) AddEntriesToHistoryJournalAndCache(updates pro
 }
 
 func (bu *BUpdatesExtensionState) RollbackHappened(updates proto.BUpdatesInfo, previousState proto.BUpdatesInfo) bool {
-	if _, _, blockIDFound := bu.HistoryJournal.SearchByBlockID(updates.BlockUpdatesInfo.BlockHeader.Parent); blockIDFound {
+	if _, blockIDFound := bu.HistoryJournal.SearchByBlockID(updates.BlockUpdatesInfo.BlockHeader.Parent); blockIDFound {
 		return false
 	}
 	if updates.BlockUpdatesInfo.Height < previousState.BlockUpdatesInfo.Height {

@@ -2,8 +2,9 @@ package blockchaininfo
 
 import (
 	"bytes"
-	"fmt"
+	"github.com/ccoveille/go-safecast"
 	"math"
+	"slices"
 	"sync"
 
 	"github.com/nats-io/nats.go"
@@ -99,10 +100,8 @@ func (sc *StateCache) RemoveCacheRecord(targetHeight uint64) {
 
 	delete(sc.records, targetHeight)
 
-	for i, item := range sc.heights {
-		if item == targetHeight {
-			sc.heights = append(sc.heights[:i], sc.heights[i+1:]...)
-		}
+	if i := slices.Index(sc.heights, targetHeight); i != -1 {
+		sc.heights = append(sc.heights[:i], sc.heights[i+1:]...)
 	}
 }
 
@@ -161,7 +160,7 @@ func (hj *HistoryJournal) FetchKeysUntilBlockID(blockID proto.BlockID) ([]string
 }
 
 // SearchByBlockID TODO write tests.
-func (hj *HistoryJournal) SearchByBlockID(blockID proto.BlockID) (HistoryEntry, int, bool) {
+func (hj *HistoryJournal) SearchByBlockID(blockID proto.BlockID) (HistoryEntry, bool) {
 	hj.lock.Lock()
 	defer hj.lock.Unlock()
 
@@ -169,10 +168,10 @@ func (hj *HistoryJournal) SearchByBlockID(blockID proto.BlockID) (HistoryEntry, 
 	for i := 0; i < hj.size; i++ {
 		idx := (hj.top - 1 - i + HistoryJournalLengthMax) % HistoryJournalLengthMax
 		if hj.historyJournal[idx].BlockID == blockID {
-			return hj.historyJournal[idx], i, true
+			return hj.historyJournal[idx], true
 		}
 	}
-	return HistoryEntry{}, -1, false
+	return HistoryEntry{}, false
 }
 
 // SearchByBlockID TODO write tests.
@@ -197,16 +196,18 @@ func (hj *HistoryJournal) CleanAfterRollback(latestHeightFromHistory uint64, hei
 
 	distance := latestHeightFromHistory - heightAfterRollback
 	if distance > math.MaxInt64 {
-		return fmt.Errorf("distance too large to fit in an int64")
+		return errors.New("distance too large to fit in an int64")
 	}
-	dist := int64(distance)
-
-	if int(dist) > hj.size {
+	dist, err := safecast.ToInt(distance)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert int64 to int")
+	}
+	if dist > hj.size {
 		return errors.New("distance out of range")
 	}
 
 	// Remove the number of elements from the top to `distance`.
-	hj.top = (hj.top - int(dist) + HistoryJournalLengthMax) % HistoryJournalLengthMax
+	hj.top = (hj.top - dist + HistoryJournalLengthMax) % HistoryJournalLengthMax
 	hj.size -= int(distance)
 	return nil
 }

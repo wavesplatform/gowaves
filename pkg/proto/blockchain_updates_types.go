@@ -30,7 +30,7 @@ type L2ContractDataEntries struct {
 }
 
 type BlockchainUpdatesPluginInfo struct {
-	EnableBlockchainUpdatesPlugin bool
+	enableBlockchainUpdatesPlugin bool
 	L2ContractAddress             WavesAddress
 	FirstBlock                    *bool
 	Lock                          sync.Mutex
@@ -48,15 +48,19 @@ func NewBlockchainUpdatesPluginInfo(ctx context.Context,
 		FirstBlock:                    firstBlock,
 		BUpdatesChannel:               bUpdatesChannel,
 		ctx:                           ctx,
-		EnableBlockchainUpdatesPlugin: enableBlockchainUpdatesPlugin,
+		enableBlockchainUpdatesPlugin: enableBlockchainUpdatesPlugin,
 		Ready:                         false,
 	}
+}
+
+func (e *BlockchainUpdatesPluginInfo) IsBlockchainUpdatesEnabled() bool {
+	return e.enableBlockchainUpdatesPlugin
 }
 
 func (e *BlockchainUpdatesPluginInfo) IsReady() bool {
 	e.Lock.Lock()
 	defer e.Lock.Unlock()
-	return e.Ready
+	return e.enableBlockchainUpdatesPlugin && e.Ready
 }
 
 func (e *BlockchainUpdatesPluginInfo) MakeExtensionReady() {
@@ -75,8 +79,14 @@ func (e *BlockchainUpdatesPluginInfo) FirstBlockDone() {
 	*e.FirstBlock = false
 }
 
+func (e *BlockchainUpdatesPluginInfo) IsFirstBlockDone() bool {
+	e.Lock.Lock()
+	defer e.Lock.Unlock()
+	return *e.FirstBlock
+}
+
 func (e *BlockchainUpdatesPluginInfo) WriteBUpdates(bUpdates BUpdatesInfo) {
-	if e.BUpdatesChannel == nil {
+	if e.BUpdatesChannel == nil || e.IsReady() {
 		return
 	}
 	select {

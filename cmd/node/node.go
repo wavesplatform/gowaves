@@ -422,7 +422,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	bUpdatesPluginInfo, initErr := initBlockchainUpdatesPlugin(ctx, nc.BlockchainUpdatesL2Address,
 		nc.enableBlockchainUpdatesPlugin, updatesChannel, &firstBlock)
 	if initErr != nil {
-		return nil, errors.Wrap(err, "failed to initialize blockchain updates plugin")
+		return nil, errors.Wrap(initErr, "failed to initialize blockchain updates plugin")
 	}
 	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode, bUpdatesPluginInfo)
 	if err != nil {
