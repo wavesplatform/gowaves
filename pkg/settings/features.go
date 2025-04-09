@@ -2,6 +2,8 @@ package settings
 
 type Feature int16
 
+// Feature IDs.
+// Order is important, do not change implemented features IDs.
 const (
 	SmallerMinimalGeneratingBalance Feature = iota + 1
 	NG
@@ -26,7 +28,8 @@ const (
 	XTNBuyBackCessation     // 21
 	LightNode               // 22
 	BoostBlockReward        // 23
-	InvokeExpression        // 24
+	ecrecoverFix            // 24, intentionally package private
+	InvokeExpression        // 25
 )
 
 type FeatureInfo struct {
@@ -58,6 +61,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	XTNBuyBackCessation:             {true, "XTN Buy-back Cessation"},
 	LightNode:                       {true, "Light Node"},
 	BoostBlockReward:                {true, "Boost Block Reward"},
+	ecrecoverFix:                    {true, "Fixed ecrecover function"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
 
