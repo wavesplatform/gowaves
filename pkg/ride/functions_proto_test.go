@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	"fmt"
 	"math"
 	"math/big"
 	"strconv"
@@ -1532,7 +1533,93 @@ func TestBN256Groth16Verify(t *testing.T) {
 }
 
 func TestECRecover(t *testing.T) {
-	t.SkipNow()
+	te := &mockRideEnvironment{}
+	t.Run("Positive", func(t *testing.T) {
+		const (
+			msg = "da74793f1299abeb213430596f281261355e29af0fdf5d359fe23cd9aca824c8"
+			sig = "a57deea68952929239bd764d1f6966ea982af65fa6305f3bb71819a0376bd0ff42887b4496780434bd954af05f2b24ab54f10d63ba11e3ce0a2c73c6e25a77cd1c" //nolint:lll
+			pub = "0x0c9af283046995d88527c7acc82dc7f7e5a29a3119d68b8903789541348e008f4d0b8d7d8047c23818ec2063f6299ba469f79245d07d78f2b55f500f5d953e4f" //nolint:lll
+		)
+		msgBytes, err := hex.DecodeString(msg)
+		require.NoError(t, err)
+		sigBytes, err := hex.DecodeString(sig)
+		require.NoError(t, err)
+
+		res, err := ecRecover(te, rideByteVector(msgBytes), rideByteVector(sigBytes))
+		require.NoError(t, err)
+		pkBytes, ok := res.(rideByteVector)
+		require.True(t, ok)
+		pk, err := proto.NewEthereumPublicKeyFromBytes(pkBytes)
+		require.NoError(t, err)
+		assert.Equal(t, pk.String(), pub)
+	})
+	t.Run("Negative", func(t *testing.T) {
+		tests := []struct {
+			msg string
+			sig string
+			err string
+		}{
+			{
+				msg: "da74793f1299abeb213430596f281261355e29af0fdf5d359fe23cd9aca824c8",
+				sig: "a57deea68952929239bd764d1f6966ea982af65fa6305f3bb71819a0376bd0ff42887b",
+				err: "ecRecover: invalid signature size 35, expected 65 bytes",
+			},
+			{
+				msg: "da74793f1299abeb213430596f281261355e29af0fdf5d359fe23cd9aca824",
+				sig: "a57deea68952929239bd764d1f6966ea982af65fa6305f3bb71819a0376bd0ff42887b4496780434bd954af05f2b24ab54f10d63ba11e3ce0a2c73c6e25a77cd1c", //nolint:lll
+				err: "ecRecover: invalid message digest size 31, expected 32 bytes",
+			},
+			{
+				msg: "da74793f1299abeb213430596f281261355e29af0fdf5d359fe23cd9aca824c8",
+				sig: "a57deea68952929239bd764d1f6966ea982af65fa6305f3bb71819a0376bd0ff42887b4496780434bd954af05f2b24ab54f10d63ba11e3ce0a2c73c6e25a77cd1e", //nolint:lll
+				err: "ecRecover: invalid signature (v=30 is not 27 or 28)",
+			},
+		}
+		for i, tc := range tests {
+			t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+				msgBytes, err := hex.DecodeString(tc.msg)
+				require.NoError(t, err)
+				sigBytes, err := hex.DecodeString(tc.sig)
+				require.NoError(t, err)
+				_, rErr := ecRecover(te, rideByteVector(msgBytes), rideByteVector(sigBytes))
+				assert.EqualError(t, rErr, tc.err)
+			})
+		}
+	})
+	t.Run("InvalidArgumentTypes", func(t *testing.T) {
+		tests := []struct {
+			msg rideType
+			sig rideType
+			err string
+		}{
+			{
+				msg: rideUnit{},
+				sig: rideByteVector{},
+				err: "ecRecover: argument 1 is not of type 'ByteVector' but 'Unit'",
+			},
+			{
+				msg: rideString(""),
+				sig: rideByteVector{},
+				err: "ecRecover: argument 1 is not of type 'ByteVector' but 'String'",
+			},
+			{
+				msg: rideByteVector{},
+				sig: rideUnit{},
+				err: "ecRecover: argument 2 is not of type 'ByteVector' but 'Unit'",
+			},
+			{
+				msg: rideByteVector{},
+				sig: rideString(""),
+				err: "ecRecover: argument 2 is not of type 'ByteVector' but 'String'",
+			},
+		}
+		for i, tc := range tests {
+			t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+				_, rErr := ecRecover(te, tc.msg, tc.sig)
+				assert.EqualError(t, rErr, tc.err)
+			})
+		}
+	})
 }
 
 func TestAddressFromPublicKeyStrict(t *testing.T) {
