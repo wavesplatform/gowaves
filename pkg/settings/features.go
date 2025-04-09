@@ -61,7 +61,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	XTNBuyBackCessation:             {true, "XTN Buy-back Cessation"},
 	LightNode:                       {true, "Light Node"},
 	BoostBlockReward:                {true, "Boost Block Reward"},
-	ecrecoverFix:                    {true, "ecrecover fix"},
+	ecrecoverFix:                    {true, "Fixed ecrecover function"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
 
