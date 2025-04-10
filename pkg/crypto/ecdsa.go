@@ -10,6 +10,13 @@ import (
 	"github.com/pkg/errors"
 )
 
+// ECDSARecoverPublicKey recovers the public key from the given signature and digest.
+// The signature must be in the [R || S || V] format where V is 27 or 28 (legacy format, not [EIP-155]).
+// If V is lower than 27, it is converted to the legacy format by adding 27,
+// so acceptable values for V are 0, 1, 27, 28.
+// Signatures after [EIP-155] must be converted to the legacy format.
+//
+// [EIP-155]: https://eips.ethereum.org/EIPS/eip-155
 func ECDSARecoverPublicKey(digest, signature []byte) (*btcec.PublicKey, error) {
 	const (
 		signatureLen = 65
