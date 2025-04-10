@@ -2,11 +2,11 @@ package blockchaininfo
 
 import (
 	"bytes"
-	"github.com/ccoveille/go-safecast"
 	"math"
 	"slices"
 	"sync"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"

@@ -34,14 +34,12 @@ func (inf *stateInfo) unmarshalBinary(data []byte) error {
 	return cbor.Unmarshal(data, inf)
 }
 
-const forceUpdateStateVersion = false
-
 func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
 	has, err := db.Has(stateInfoKeyBytes)
 	if err != nil {
 		return err
 	}
-	if has && !forceUpdateStateVersion {
+	if has {
 		return nil
 	}
 	info := &stateInfo{
@@ -49,17 +47,6 @@ func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
 		HasExtendedApiData: params.StoreExtendedApiData,
 		HasStateHashes:     params.BuildStateHashes,
 	}
-	if has && forceUpdateStateVersion {
-		data, dbErr := db.Get(stateInfoKeyBytes)
-		if dbErr != nil {
-			return dbErr
-		}
-		if ubErr := info.unmarshalBinary(data); ubErr != nil {
-			return ubErr
-		}
-		info.Version = StateVersion
-	}
-
 	return putStateInfoToDB(db, info)
 }
 
