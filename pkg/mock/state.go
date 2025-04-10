@@ -688,6 +688,36 @@ func (mr *MockStateInfoMockRecorder) NewAddrTransactionsIterator(addr interface{
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAddrTransactionsIterator", reflect.TypeOf((*MockStateInfo)(nil).NewAddrTransactionsIterator), addr)
 }
 
+// NewestBlockInfoByHeight mocks base method.
+func (m *MockStateInfo) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestBlockInfoByHeight", height)
+	ret0, _ := ret[0].(*proto.BlockInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestBlockInfoByHeight indicates an expected call of NewestBlockInfoByHeight.
+func (mr *MockStateInfoMockRecorder) NewestBlockInfoByHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestBlockInfoByHeight", reflect.TypeOf((*MockStateInfo)(nil).NewestBlockInfoByHeight), height)
+}
+
+// NewestHeaderByHeight mocks base method.
+func (m *MockStateInfo) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestHeaderByHeight", height)
+	ret0, _ := ret[0].(*proto.BlockHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestHeaderByHeight indicates an expected call of NewestHeaderByHeight.
+func (mr *MockStateInfoMockRecorder) NewestHeaderByHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestHeaderByHeight", reflect.TypeOf((*MockStateInfo)(nil).NewestHeaderByHeight), height)
+}
+
 // NewestScriptByAccount mocks base method.
 func (m *MockStateInfo) NewestScriptByAccount(account proto.Recipient) (*ast.Tree, error) {
 	m.ctrl.T.Helper()
@@ -2089,6 +2119,36 @@ func (m *MockState) NewAddrTransactionsIterator(addr proto.Address) (state.Trans
 func (mr *MockStateMockRecorder) NewAddrTransactionsIterator(addr interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewAddrTransactionsIterator", reflect.TypeOf((*MockState)(nil).NewAddrTransactionsIterator), addr)
+}
+
+// NewestBlockInfoByHeight mocks base method.
+func (m *MockState) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestBlockInfoByHeight", height)
+	ret0, _ := ret[0].(*proto.BlockInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestBlockInfoByHeight indicates an expected call of NewestBlockInfoByHeight.
+func (mr *MockStateMockRecorder) NewestBlockInfoByHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestBlockInfoByHeight", reflect.TypeOf((*MockState)(nil).NewestBlockInfoByHeight), height)
+}
+
+// NewestHeaderByHeight mocks base method.
+func (m *MockState) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestHeaderByHeight", height)
+	ret0, _ := ret[0].(*proto.BlockHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestHeaderByHeight indicates an expected call of NewestHeaderByHeight.
+func (mr *MockStateMockRecorder) NewestHeaderByHeight(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestHeaderByHeight", reflect.TypeOf((*MockState)(nil).NewestHeaderByHeight), height)
 }
 
 // NewestScriptByAccount mocks base method.
