@@ -13,6 +13,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+var ErrNotInCache = errors.New("the target height is not in cache")
+
 const (
 	RootHashSize = 32
 
@@ -32,7 +34,7 @@ type StateCacheRecord struct {
 
 func NewStateCacheRecord(dataEntries []proto.DataEntry, blockInfo proto.BlockUpdatesInfo) StateCacheRecord {
 	var stateCacheRecord StateCacheRecord
-	stateCacheRecord.dataEntries = make(map[string]proto.DataEntry)
+	stateCacheRecord.dataEntries = make(map[string]proto.DataEntry, len(dataEntries))
 
 	for _, dataEntry := range dataEntries {
 		stateCacheRecord.dataEntries[dataEntry.GetKey()] = dataEntry
@@ -57,13 +59,12 @@ func (sc *StateCache) SearchValue(key string, height uint64) (proto.DataEntry, b
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 
-	if _, ok := sc.records[height]; !ok {
-		return nil, false, errors.New("the target height is not in cache")
+	record, found := sc.records[height]
+	if !found {
+		return nil, false, ErrNotInCache
 	}
-	if _, ok := sc.records[height].dataEntries[key]; !ok {
-		return nil, false, nil
-	}
-	return sc.records[height].dataEntries[key], true, nil
+	entry, ok := record.dataEntries[key]
+	return entry, ok, nil
 }
 
 func (sc *StateCache) SearchBlockInfo(height uint64) (proto.BlockUpdatesInfo, error) {
@@ -71,7 +72,7 @@ func (sc *StateCache) SearchBlockInfo(height uint64) (proto.BlockUpdatesInfo, er
 	defer sc.lock.Unlock()
 
 	if _, ok := sc.records[height]; !ok {
-		return proto.BlockUpdatesInfo{}, errors.New("the target height is not in cache")
+		return proto.BlockUpdatesInfo{}, ErrNotInCache
 	}
 	return sc.records[height].blockInfo, nil
 }
@@ -83,9 +84,7 @@ func (sc *StateCache) AddCacheRecord(height uint64, dataEntries []proto.DataEntr
 	if len(sc.heights) > HistoryJournalLengthMax {
 		minHeight := sc.heights[0]
 		for _, v := range sc.heights {
-			if v < minHeight {
-				minHeight = v
-			}
+			minHeight = min(minHeight, v)
 		}
 		delete(sc.records, minHeight)
 	}
@@ -122,7 +121,6 @@ type HistoryJournal struct {
 	size           int
 }
 
-// NewHistoryJournal создаёт и инициализирует новый экземпляр HistoryJournal.
 func NewHistoryJournal() *HistoryJournal {
 	return &HistoryJournal{
 		top:  0,
