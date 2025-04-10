@@ -10,11 +10,11 @@ import (
 type BlockchainUpdatesExtension struct {
 	ctx                      context.Context
 	l2ContractAddress        proto.WavesAddress
-	BUpdatesChannel          chan proto.BUpdatesInfo
+	bUpdatesChannel          chan proto.BUpdatesInfo
 	firstBlock               *bool
 	blockchainExtensionState *BUpdatesExtensionState
-	Lock                     sync.Mutex
-	extensionReady           chan<- struct{}
+	lock                     sync.Mutex
+	makeExtensionReadyFunc   func()
 }
 
 func NewBlockchainUpdatesExtension(
@@ -23,15 +23,15 @@ func NewBlockchainUpdatesExtension(
 	bUpdatesChannel chan proto.BUpdatesInfo,
 	blockchainExtensionState *BUpdatesExtensionState,
 	firstBlock *bool,
-	extensionReady chan<- struct{},
+	makeExtensionReadyFunc func(),
 ) *BlockchainUpdatesExtension {
 	return &BlockchainUpdatesExtension{
 		ctx:                      ctx,
 		l2ContractAddress:        l2ContractAddress,
-		BUpdatesChannel:          bUpdatesChannel,
+		bUpdatesChannel:          bUpdatesChannel,
 		firstBlock:               firstBlock,
 		blockchainExtensionState: blockchainExtensionState,
-		extensionReady:           extensionReady,
+		makeExtensionReadyFunc:   makeExtensionReadyFunc,
 	}
 }
 
@@ -40,9 +40,9 @@ func (e *BlockchainUpdatesExtension) L2ContractAddress() proto.WavesAddress {
 }
 
 func (e *BlockchainUpdatesExtension) MarkExtensionReady() {
-	e.Lock.Lock()
-	defer e.Lock.Unlock()
-	e.extensionReady <- struct{}{}
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	e.makeExtensionReadyFunc()
 }
 
 func (e *BlockchainUpdatesExtension) IsFirstRequestedBlock() bool {
@@ -50,15 +50,15 @@ func (e *BlockchainUpdatesExtension) IsFirstRequestedBlock() bool {
 }
 
 func (e *BlockchainUpdatesExtension) EmptyPreviousState() {
-	e.Lock.Lock()
+	e.lock.Lock()
+	defer e.lock.Unlock()
 	*e.firstBlock = true
 	e.blockchainExtensionState.PreviousState = nil
-	defer e.Lock.Unlock()
 }
 
 func (e *BlockchainUpdatesExtension) Close() {
-	if e.BUpdatesChannel != nil {
-		close(e.BUpdatesChannel)
+	if e.bUpdatesChannel != nil {
+		close(e.bUpdatesChannel)
 	}
-	e.BUpdatesChannel = nil
+	e.bUpdatesChannel = nil
 }

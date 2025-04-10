@@ -417,7 +417,6 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	}
 
 	updatesChannel := make(chan proto.BUpdatesInfo)
-	extensionReady := make(chan struct{})
 	firstBlock := false
 	bUpdatesPluginInfo, initErr := initBlockchainUpdatesPlugin(ctx, nc.BlockchainUpdatesL2Address,
 		nc.enableBlockchainUpdatesPlugin, updatesChannel, &firstBlock)
@@ -429,18 +428,17 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to initialize node's state")
 	}
 	defer func() { retErr = closeIfErrorf(st, retErr, "failed to close state") }()
-	go func() {
-		<-extensionReady
+	makeExtensionReadyFunc := func() {
 		bUpdatesPluginInfo.MakeExtensionReady()
-		close(extensionReady)
-	}()
+	}
 
 	var bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
 		var bUErr error
 		bUpdatesExtension, bUErr = initializeBlockchainUpdatesExtension(ctx, cfg, nc.BlockchainUpdatesL2Address,
-			updatesChannel, &firstBlock, st, extensionReady)
+			updatesChannel, &firstBlock, st, makeExtensionReadyFunc)
 		if bUErr != nil {
+			bUpdatesExtension.Close()
 			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
 		}
 		go func() {
@@ -857,7 +855,7 @@ func initializeBlockchainUpdatesExtension(
 	updatesChannel chan proto.BUpdatesInfo,
 	firstBlock *bool,
 	state state.State,
-	extensionReady chan<- struct{},
+	makeExtensionReady func(),
 ) (*blockchaininfo.BlockchainUpdatesExtension, error) {
 	bUpdatesExtensionState, err := blockchaininfo.NewBUpdatesExtensionState(
 		blockchaininfo.StoreBlocksLimit,
@@ -873,7 +871,7 @@ func initializeBlockchainUpdatesExtension(
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2ContractAddress)
 	}
 	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel,
-		bUpdatesExtensionState, firstBlock, extensionReady), nil
+		bUpdatesExtensionState, firstBlock, makeExtensionReady), nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {

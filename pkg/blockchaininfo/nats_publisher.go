@@ -418,7 +418,7 @@ func runPublisher(ctx context.Context, extension *BlockchainUpdatesExtension, sc
 	updatesPublisher UpdatesPublisher) {
 	for {
 		select {
-		case updates, ok := <-extension.BUpdatesChannel:
+		case updates, ok := <-extension.bUpdatesChannel:
 			if !ok {
 				zap.S().Errorf("the updates channel for publisher was closed")
 				return
