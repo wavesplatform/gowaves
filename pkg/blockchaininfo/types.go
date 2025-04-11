@@ -2,6 +2,7 @@ package blockchaininfo
 
 import (
 	"bytes"
+	"io"
 	"math"
 	"slices"
 	"sync"
@@ -363,13 +364,11 @@ type BlockMeta struct {
 }
 
 func readBytes(reader *bytes.Reader, length int) ([]byte, error) {
+
 	buf := make([]byte, length)
-	n, err := reader.Read(buf)
+	_, err := io.ReadFull(reader, buf)
 	if err != nil {
 		return nil, err
-	}
-	if n != length {
-		return nil, errors.Errorf("expected to read %d bytes, but read %d bytes", length, n)
 	}
 	return buf, nil
 }
