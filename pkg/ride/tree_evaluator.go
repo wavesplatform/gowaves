@@ -190,17 +190,55 @@ func selectConstantNames(v ast.LibraryVersion) ([]string, error) {
 }
 
 type treeEvaluator struct {
-	dapp bool
-	f    ast.Node
-	s    evaluationScope
-	env  environment
+	dapp  bool
+	f     ast.Node
+	fName string
+	s     evaluationScope
+	env   environment
 }
 
 func (e *treeEvaluator) complexity() int {
 	return e.env.complexityCalculator().complexity()
 }
 
-func (e *treeEvaluator) evaluate() (Result, error) {
+func errTypeFromComplexityCalcErr(err error) EvaluationError {
+	eet := Undefined
+	if ccErr := complexityCalculatorError(nil); errors.As(err, &ccErr) {
+		eet = ccErr.EvaluationErrorWrapType()
+	}
+	return eet
+}
+
+func (e *treeEvaluator) handleZeroComplexityCall(
+	initialComplexity int,
+	res Result, // if runErr != nil, then res is nil, otherwise res must not be nil
+	runErr error,
+) (Result, error) {
+	if runErr != nil {
+		return res, runErr // nothing to do in case of error
+	}
+	// check any error from complexity calculator
+	if err := e.env.complexityCalculator().error(); err != nil {
+		eet := errTypeFromComplexityCalcErr(err)
+		return res, eet.Wrapf(err,
+			"complexity calulator error detected at the end of evaluation in '%s'", e.fName,
+		)
+	}
+	cErr := e.env.complexityCalculator().testAdditionalUserFunctionComplexity(e.fName, initialComplexity)
+	if cErr != nil {
+		eet := errTypeFromComplexityCalcErr(cErr)
+		return res, eet.Wrapf(cErr, "failed to add complexity of user script invocation '%s'", e.fName)
+	}
+	// can safely call addAdditionalUserFunctionComplexity because we tested it above
+	e.env.complexityCalculator().addAdditionalUserFunctionComplexity(e.fName, initialComplexity)
+	return res.withComplexity(e.complexity()), nil
+}
+
+func (e *treeEvaluator) evaluate() (res Result, runErr error) { //nolint:nonamedreturns // necessary to handle results
+	defer func(initialComplexity int) {
+		res, runErr = e.handleZeroComplexityCall(initialComplexity, res, runErr)
+	}(e.complexity())
+
 	r, err := e.walk(e.f)
 	if err != nil {
 		return nil, err // Evaluation failed somehow, then result just an error
@@ -492,19 +530,21 @@ func treeVerifierEvaluator(env environment, tree *ast.Tree) (*treeEvaluator, err
 			}
 			s.constants[verifier.InvocationParameter] = esConstant{c: newTx}
 			return &treeEvaluator{
-				dapp: tree.IsDApp(),
-				f:    verifier.Body, // In DApp verifier is a function, so we have to pass its body
-				s:    s,
-				env:  env,
+				dapp:  tree.IsDApp(),
+				fName: verifier.Name,
+				f:     verifier.Body, // In DApp verifier is a function, so we have to pass its body
+				s:     s,
+				env:   env,
 			}, nil
 		}
 		return nil, EvaluationFailure.New("no verifier declaration")
 	}
 	return &treeEvaluator{
-		dapp: tree.IsDApp(),
-		f:    tree.Verifier, // In simple script verifier is an expression itself
-		s:    s,
-		env:  env,
+		dapp:  tree.IsDApp(),
+		fName: "verifier",
+		f:     tree.Verifier, // In simple script verifier is an expression itself
+		s:     s,
+		env:   env,
 	}, nil
 }
 
@@ -535,7 +575,7 @@ func treeFunctionEvaluator(env environment, tree *ast.Tree, name string, args []
 			for i, arg := range args {
 				s.pushValue(function.Arguments[i], arg)
 			}
-			return &treeEvaluator{dapp: true, f: function.Body, s: s, env: env}, nil
+			return &treeEvaluator{dapp: true, fName: name, f: function.Body, s: s, env: env}, nil
 		}
 	}
 	return nil, EvaluationFailure.Errorf("function '%s' not found", name)
