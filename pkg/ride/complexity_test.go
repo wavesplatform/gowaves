@@ -1,13 +1,17 @@
 package ride
 
 import (
+	"encoding/base64"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 )
 
 func checkVerifierSpentComplexity(t *testing.T, env environment, code string, complexity int, comment string) {
@@ -575,4 +579,137 @@ func TestComplexityOverflow(t *testing.T) {
 
 	_, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("call", proto.Arguments{}))
 	require.EqualError(t, err, "failed to test complexity of system function: node '500' with complexity 200 has exceeded the complexity limit 26000 with result complexity 26149") //nolint:lll
+}
+
+func TestInvokeDAppWithZeroComplexityFunctions(t *testing.T) {
+	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+
+	const src = `
+  {-# STDLIB_VERSION 5 #-}
+  {-# CONTENT_TYPE DAPP #-}
+  {-# SCRIPT_TYPE ACCOUNT #-}
+
+  # empty, but has 1 complexity after RideV6 activation
+  func nonInvokeLightCall() = nil
+
+  # has 2 complexity
+  func nonInvokeCall() = {
+    strict t = true
+    strict f = false
+    []
+  }
+
+  @Callable(i)
+  func entrypoint() = {
+    strict lc = invoke(this, "lightCall", [], []) # 77 complexity
+    strict nilc = nonInvokeLightCall() # 2 complexity
+    strict nlc = invoke(this, "nonLightCall", [], []) # 77 complexity
+    strict nic = nonInvokeCall() # 3 complexity
+    strict c = invoke(this, "call", [], []) # 78 complexity
+    []
+  }
+
+  # empty, but has 1 complexity after RideV6 activation
+  @Callable(i)
+  func lightCall() = nil
+
+  # has 1 complexity
+  @Callable(i)
+  func nonLightCall() = {
+    strict caller = i.caller
+    []
+  }
+
+  # has 2 complexity
+  @Callable(i)
+  func call() = {
+    strict c = i.caller
+    strict cc = i.caller
+    []
+  }
+
+  # has 2 complexity
+  @Callable(i)
+  func fail() = {
+    throw()
+  }
+
+  # has 1 complexity
+  @Callable(i)
+  func failMsg(msg: String) = {
+    throw(msg)
+  }
+`
+	const dAppInitialBalance = 10 * proto.PriceConstant
+
+	scriptData, errs := ridec.Compile(src, false, false)
+	require.Empty(t, errs)
+	script := base64.StdEncoding.EncodeToString(scriptData)
+
+	_, tree := parseBase64Script(t, script)
+
+	createEnv := func(t *testing.T, inv string, rideV6Activated bool) *testEnv {
+		complexity, err := MaxChainInvokeComplexityByVersion(ast.LibV5)
+		require.NoError(t, err)
+		env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(int(complexity)).
+			withBlockV5Activated().withProtobufTx().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(dApp1).withDApp(dApp1).withSender(sender).
+			withInvocation(inv, withTransactionID(crypto.Digest{})).withTree(dApp1, tree).
+			withWavesBalance(sender, 0).
+			withWavesBalance(dApp1, dAppInitialBalance, 0, 0, dAppInitialBalance)
+		if rideV6Activated {
+			env = env.withRideV6Activated()
+		}
+		return env.withWrappedState()
+	}
+
+	tests := []struct {
+		name                   string
+		complexityBeforeRideV6 int
+		complexityWithRideV6   int
+		err                    string
+		args                   proto.Arguments
+	}{
+		{name: "entrypoint", complexityBeforeRideV6: 286, complexityWithRideV6: 237},
+		{name: "lightCall", complexityBeforeRideV6: 1, complexityWithRideV6: 1},
+		{name: "nonLightCall", complexityBeforeRideV6: 7, complexityWithRideV6: 1},
+		{name: "call", complexityBeforeRideV6: 13, complexityWithRideV6: 2},
+		{
+			name: "fail", complexityBeforeRideV6: 1, complexityWithRideV6: 2,
+			err: "Explicit script termination",
+		},
+		{
+			name: "failMsg", complexityBeforeRideV6: 2, complexityWithRideV6: 1,
+			err: "!expected failure!", args: proto.Arguments{&proto.StringArgument{Value: "!expected failure!"}},
+		},
+	}
+	runTest := func(t *testing.T, i int, rideV6Activated bool) {
+		tc := &tests[i]
+		expectedComplexity := tc.complexityWithRideV6
+		if !rideV6Activated {
+			expectedComplexity = tc.complexityBeforeRideV6
+		}
+		t.Run(fmt.Sprintf("%s-RideV6=%t", tc.name, rideV6Activated), func(t *testing.T) {
+			inv := tc.name
+			env := createEnv(t, inv, rideV6Activated).toEnv()
+			fc := proto.NewFunctionCall(inv, tc.args)
+			res, fErr := CallFunction(env, tree, fc)
+			if tc.err != "" {
+				require.EqualError(t, fErr, tc.err)
+				require.Nil(t, res)
+				complexity := EvaluationErrorSpentComplexity(fErr)
+				require.Equal(t, expectedComplexity, complexity)
+			} else {
+				require.NoError(t, fErr)
+				require.NotNil(t, res)
+				require.Equal(t, expectedComplexity, res.Complexity())
+			}
+		})
+	}
+	for i := range tests {
+		runTest(t, i, false)
+		runTest(t, i, true)
+	}
 }
