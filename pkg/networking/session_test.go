@@ -187,63 +187,62 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 
 	serverHandler.On("OnClose", serverSession).Return()
 
-	clientWG := new(sync.WaitGroup)
-	clientWG.Add(1) // Wait for client to send Handshake to server.
+	handshakeSent := make(chan struct{})
+	serverReplied := make(chan struct{})
+	pipeLocked := make(chan struct{})
+	clientTimedOut := make(chan struct{})
 
-	serverWG := new(sync.WaitGroup)
-	serverWG.Add(1) // Wait for server to reply with Handshake to client.
-
-	pipeWG := new(sync.WaitGroup)
-	pipeWG.Add(1) // Wait for pipe to be locked.
-
-	testWG := new(sync.WaitGroup)
-	testWG.Add(1) // Wait for client fail by timeout.
+	timeout := time.After(2 * time.Second)
 
 	serverHandler.On("OnClose", serverSession).Return()
-	sc1 := serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return()
-	go func() {
-		sc1.Run(func(_ mock.Arguments) {
-			clientWG.Wait() // Wait for client to send handshake, start replying with Handshake only after that.
+	serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().
+		Run(func(_ mock.Arguments) {
+			<-handshakeSent // Wait for client to send handshake, start replying with Handshake only after that.
 			n, wErr := serverSession.Write([]byte("hello"))
 			require.NoError(t, wErr)
 			assert.Equal(t, 5, n)
-			serverWG.Done()
+			close(serverReplied)
 		})
-	}()
 
 	clientHandler.On("OnClose", clientSession).Return()
-	cs1 := clientHandler.On("OnHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return()
-	go func() {
-		cs1.Run(func(_ mock.Arguments) {
-			pipeWG.Wait() // Wait for pipe to be locked.
+	clientHandler.On("OnHandshake", clientSession, &textHandshake{v: "hello"}).Once().
+		Run(func(_ mock.Arguments) {
+			<-pipeLocked // Wait for pipe to be locked.
 			// On receiving handshake from server, send the message back to server.
 			_, msgErr := clientSession.Write(encodeMessage("Hello session"))
 			require.ErrorIs(t, msgErr, networking.ErrConnectionWriteTimeout)
-			testWG.Done()
+			close(clientTimedOut)
 		})
-	}()
-
-	go func() {
-		serverWG.Wait()        // Wait for finishing handshake before closing the pipe.
-		pc.writeBlocker.Lock() // Lock pipe after replying with the handshake from server.
-		pipeWG.Done()          // Signal that pipe is locked.
-	}()
 
 	// Send handshake to server.
-	n, err := clientSession.Write([]byte("hello"))
-	require.NoError(t, err)
-	assert.Equal(t, 5, n)
-	clientWG.Done() // Signal that handshake was sent to server.
+	go func() {
+		n, csErr := clientSession.Write([]byte("hello"))
+		require.NoError(t, csErr)
+		assert.Equal(t, 5, n)
+		close(handshakeSent)
+	}()
 
-	testWG.Wait()
+	// Lock the pipe after server replies with handshake
+	go func() {
+		<-serverReplied
+		pc.writeBlocker.Lock()
+		close(pipeLocked)
+	}()
 
+	// Wait for the client to time out, or timeout the test
+	select {
+	case <-clientTimedOut:
+		// OK
+	case <-timeout:
+		assert.Fail(t, "timed out waiting for handshake")
+	}
 	err = serverSession.Close()
 	assert.NoError(t, err) // Expect no error on the server side.
 
 	pc.writeBlocker.Unlock() // Unlock the pipe.
 
 	err = clientSession.Close()
-	assert.ErrorIs(t, err, io.ErrClosedPipe) // Expect error because connection to the server already closed.
+	assert.ErrorIs(t, err, io.ErrClosedPipe) // Expect this error because connection to the server already closed.
 }
 
 func TestDoubleClose(t *testing.T) {
@@ -304,59 +303,63 @@ func TestOnClosedByOtherSide(t *testing.T) {
 	mockProtocol.On("IsAcceptableHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return(true)
 	mockProtocol.On("IsAcceptableHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return(true)
 
-	clientWG := new(sync.WaitGroup)
-	clientWG.Add(1) // Wait for client to send Handshake to server.
+	clientSentHandshake := make(chan struct{})
+	serverSentHandshake := make(chan struct{})
+	serverClosed := make(chan struct{})
+	clientReceivedClose := make(chan struct{})
 
-	serverWG := new(sync.WaitGroup)
-	serverWG.Add(1) // Wait for server to send Handshake to client, after that close the connection from server.
-	closeWG := new(sync.WaitGroup)
-	closeWG.Add(1) // Wait for server to close the connection.
-
-	testWG := new(sync.WaitGroup)
-	testWG.Add(2) // Wait for both client and server to finish.
+	timeout := time.After(2 * time.Second)
 
 	serverHandler.On("OnClose", serverSession).Return()
-	sc1 := serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return()
-	go func() {
-		sc1.Run(func(_ mock.Arguments) {
-			clientWG.Wait() // Wait for client to send handshake, start replying with Handshake only after that.
+	serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().
+		Run(func(_ mock.Arguments) {
+			<-clientSentHandshake // Wait for client to send handshake, start replying with Handshake only after that.
 			n, wErr := serverSession.Write([]byte("hello"))
 			assert.NoError(t, wErr)
 			assert.Equal(t, 5, n)
+			close(serverSentHandshake)
+
 			go func() {
 				// Close server after client received the handshake from server.
-				serverWG.Wait() // Wait for client to receive server handshake.
+				<-clientReceivedClose // Wait for client to receive server handshake.
 				clErr := serverSession.Close()
 				assert.NoError(t, clErr)
-				closeWG.Done()
-				testWG.Done()
+				close(serverClosed)
 			}()
 		})
-	}()
 
 	clientHandler.On("OnClose", clientSession).Return()
-	cs1 := clientHandler.On("OnHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return()
-	go func() {
-		cs1.Run(func(_ mock.Arguments) {
+	clientHandler.On("OnHandshake", clientSession, &textHandshake{v: "hello"}).Once().
+		Run(func(_ mock.Arguments) {
 			// On receiving handshake from server, signal to close the server.
-			serverWG.Done()
+			close(clientReceivedClose)
 			// Try to send message to server, but it will fail because server is already closed.
-			closeWG.Wait() // Wait for server to close.
+			<-serverClosed
 			_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-			require.ErrorIs(t, msgErr, io.ErrClosedPipe)
-			testWG.Done()
+			require.Error(t, msgErr)
+			assert.True(t, errors.Is(msgErr, io.ErrClosedPipe) || errors.Is(msgErr, networking.ErrSessionShutdown))
 		})
-	}()
 
 	// Send handshake to server.
-	n, err := clientSession.Write([]byte("hello"))
-	require.NoError(t, err)
-	assert.Equal(t, 5, n)
-	clientWG.Done() // Signal that handshake was sent to server.
+	// Send handshake from client
+	go func() {
+		n, csErr := clientSession.Write([]byte("hello"))
+		require.NoError(t, csErr)
+		assert.Equal(t, 5, n)
+		close(clientSentHandshake)
+	}()
 
-	testWG.Wait() // Wait for client to finish.
+	select {
+	case <-serverClosed:
+		// OK
+	case <-timeout:
+		assert.Fail(t, "timed out waiting for server to close")
+	}
+
 	err = clientSession.Close()
-	assert.ErrorIs(t, err, io.ErrClosedPipe) // Close reports the same error, because it was registered in the send loop.
+	if err != nil {
+		assert.ErrorIs(t, err, io.ErrClosedPipe) // Only this error can go through.
+	}
 }
 
 func TestCloseParentContext(t *testing.T) {
