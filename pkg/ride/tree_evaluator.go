@@ -149,9 +149,9 @@ func newEvaluationScope(v ast.LibraryVersion, env environment, enableInvocation 
 	if err != nil {
 		return evaluationScope{}, err
 	}
-	ev := 1
+	ev := evaluatorV1
 	if env.rideV6Activated() {
-		ev = 2
+		ev = evaluatorV2
 	}
 	costs, err := selectEvaluationCostsProvider(v, ev)
 	if err != nil {
