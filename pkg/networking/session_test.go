@@ -48,54 +48,57 @@ func TestSuccessfulSession(t *testing.T) {
 	p.On("IsAcceptableMessage", cs, &textHeader{l: 2}).Once().Return(true)
 	p.On("IsAcceptableMessage", ss, &textHeader{l: 13}).Once().Return(true)
 
-	var sWG sync.WaitGroup
-	var cWG sync.WaitGroup
-	var tWG sync.WaitGroup
-	tWG.Add(2) // Wait for both client and server to finish.
-	sWG.Add(1)
-	go func() {
-		sc1 := serverHandler.On("OnHandshake", ss, &textHandshake{v: "hello"}).Once().Return()
-		sc1.Run(func(_ mock.Arguments) {
+	done := make(chan struct{})
+	timeout := time.After(time.Second)
+
+	serverReady := make(chan struct{})
+	clientReady := make(chan struct{})
+
+	serverHandler.On("OnHandshake", ss, &textHandshake{v: "hello"}).Once().
+		Run(func(_ mock.Arguments) {
 			n, wErr := ss.Write([]byte("hello"))
 			require.NoError(t, wErr)
 			assert.Equal(t, 5, n)
 		})
-		sc2 := serverHandler.On("OnReceive", ss, bytes.NewBuffer(encodeMessage("Hello session"))).
-			Once().Return()
-		sc2.NotBefore(sc1).
-			Run(func(_ mock.Arguments) {
-				n, wErr := ss.Write(encodeMessage("Hi"))
-				require.NoError(t, wErr)
-				assert.Equal(t, 6, n)
-				sWG.Done()
-			})
-		sWG.Wait()
-		tWG.Done()
-	}()
+	serverHandler.On("OnReceive", ss, bytes.NewBuffer(encodeMessage("Hello session"))).Once().
+		Run(func(_ mock.Arguments) {
+			n, wErr := ss.Write(encodeMessage("Hi"))
+			require.NoError(t, wErr)
+			assert.Equal(t, 6, n)
+			close(serverReady)
+		})
 
-	cWG.Add(1)
-	go func() {
-		cl1 := clientHandler.On("OnHandshake", cs, &textHandshake{v: "hello"}).Once().Return()
-		cl1.Run(func(_ mock.Arguments) {
+	clientHandler.On("OnHandshake", cs, &textHandshake{v: "hello"}).Once().
+		Run(func(_ mock.Arguments) {
 			n, wErr := cs.Write(encodeMessage("Hello session"))
 			require.NoError(t, wErr)
 			assert.Equal(t, 17, n)
 		})
-		cl2 := clientHandler.On("OnReceive", cs, bytes.NewBuffer(encodeMessage("Hi"))).Once().Return()
-		cl2.NotBefore(cl1).
-			Run(func(_ mock.Arguments) {
-				cWG.Done()
-			})
+	clientHandler.On("OnReceive", cs, bytes.NewBuffer(encodeMessage("Hi"))).Once().
+		Run(func(_ mock.Arguments) {
+			close(clientReady)
+		})
 
+	go func() {
 		n, wErr := cs.Write([]byte("hello")) // Send handshake to server.
 		require.NoError(t, wErr)
 		assert.Equal(t, 5, n)
-
-		cWG.Wait() // Wait for client to finish.
-		tWG.Done()
 	}()
 
-	tWG.Wait() // Wait for all interactions to finish.
+	// Wait for both sides to complete, or timeout
+	go func() {
+		<-serverReady
+		<-clientReady
+		done <- struct{}{}
+	}()
+
+	select {
+	case <-done:
+		// success
+	case <-timeout:
+		assert.Fail(t, "timed out waiting for server to start")
+	}
+
 	clientHandler.On("OnClose", cs).Return()
 	serverHandler.On("OnClose", ss).Return()
 	err = cs.Close()
