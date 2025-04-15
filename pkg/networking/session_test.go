@@ -49,8 +49,6 @@ func TestSuccessfulSession(t *testing.T) {
 	p.On("IsAcceptableMessage", ss, &textHeader{l: 13}).Once().Return(true)
 
 	done := make(chan struct{})
-	timeout := time.After(time.Second)
-
 	serverReady := make(chan struct{})
 	clientReady := make(chan struct{})
 
@@ -94,8 +92,8 @@ func TestSuccessfulSession(t *testing.T) {
 
 	select {
 	case <-done:
-		// success
-	case <-timeout:
+		// OK
+	case <-time.After(time.Second):
 		assert.Fail(t, "timed out waiting for server to start")
 	}
 
@@ -143,8 +141,7 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	err = serverSession.Close()
 	assert.NoError(t, err)
 
-	var tWG sync.WaitGroup
-	tWG.Add(1)
+	done := make(chan struct{})
 
 	// Unlock "timeout" and close client.
 	pc.writeBlocker.Unlock()
@@ -152,10 +149,15 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	go func() {
 		err = clientSession.Close()
 		assert.ErrorIs(t, err, io.ErrClosedPipe)
-		tWG.Done()
+		close(done)
 	}()
 
-	tWG.Wait()
+	select {
+	case <-done:
+		// OK
+	case <-time.After(time.Second):
+		assert.Fail(t, "timed out waiting for client to close")
+	}
 }
 
 func TestSessionTimeoutOnMessage(t *testing.T) {
@@ -191,8 +193,6 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 	serverReplied := make(chan struct{})
 	pipeLocked := make(chan struct{})
 	clientTimedOut := make(chan struct{})
-
-	timeout := time.After(2 * time.Second)
 
 	serverHandler.On("OnClose", serverSession).Return()
 	serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().
@@ -233,7 +233,7 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 	select {
 	case <-clientTimedOut:
 		// OK
-	case <-timeout:
+	case <-time.After(time.Second):
 		assert.Fail(t, "timed out waiting for handshake")
 	}
 	err = serverSession.Close()
@@ -304,11 +304,11 @@ func TestOnClosedByOtherSide(t *testing.T) {
 	mockProtocol.On("IsAcceptableHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return(true)
 
 	clientSentHandshake := make(chan struct{})
+	clientReceivedHandshake := make(chan struct{})
 	serverSentHandshake := make(chan struct{})
 	serverClosed := make(chan struct{})
-	clientReceivedClose := make(chan struct{})
-
-	timeout := time.After(2 * time.Second)
+	clientDone := make(chan struct{})
+	done := make(chan struct{})
 
 	serverHandler.On("OnClose", serverSession).Return()
 	serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().
@@ -321,9 +321,9 @@ func TestOnClosedByOtherSide(t *testing.T) {
 
 			go func() {
 				// Close server after client received the handshake from server.
-				<-clientReceivedClose // Wait for client to receive server handshake.
-				clErr := serverSession.Close()
-				assert.NoError(t, clErr)
+				<-clientReceivedHandshake // Wait for client to receive server's handshake.
+				csErr := serverSession.Close()
+				assert.NoError(t, csErr)
 				close(serverClosed)
 			}()
 		})
@@ -332,16 +332,18 @@ func TestOnClosedByOtherSide(t *testing.T) {
 	clientHandler.On("OnHandshake", clientSession, &textHandshake{v: "hello"}).Once().
 		Run(func(_ mock.Arguments) {
 			// On receiving handshake from server, signal to close the server.
-			close(clientReceivedClose)
-			// Try to send message to server, but it will fail because server is already closed.
-			<-serverClosed
-			_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-			require.Error(t, msgErr)
-			assert.True(t, errors.Is(msgErr, io.ErrClosedPipe) || errors.Is(msgErr, networking.ErrSessionShutdown))
+			close(clientReceivedHandshake)
+			go func() {
+				// Try to send message to server, but it will fail because server is already closed.
+				<-serverClosed
+				_, msgErr := clientSession.Write(encodeMessage("Hello session"))
+				require.Error(t, msgErr)
+				assert.True(t, errors.Is(msgErr, io.ErrClosedPipe) || errors.Is(msgErr, networking.ErrSessionShutdown))
+				close(clientDone)
+			}()
 		})
 
 	// Send handshake to server.
-	// Send handshake from client
 	go func() {
 		n, csErr := clientSession.Write([]byte("hello"))
 		require.NoError(t, csErr)
@@ -349,10 +351,17 @@ func TestOnClosedByOtherSide(t *testing.T) {
 		close(clientSentHandshake)
 	}()
 
+	// Wait for both sides to complete, or timeout
+	go func() {
+		<-serverClosed
+		<-clientDone
+		done <- struct{}{}
+	}()
+
 	select {
-	case <-serverClosed:
+	case <-done:
 		// OK
-	case <-timeout:
+	case <-time.After(time.Second):
 		assert.Fail(t, "timed out waiting for server to close")
 	}
 
@@ -385,54 +394,53 @@ func TestCloseParentContext(t *testing.T) {
 	mockProtocol.On("IsAcceptableHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return(true)
 	mockProtocol.On("IsAcceptableHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return(true)
 
-	clientWG := new(sync.WaitGroup)
-	clientWG.Add(1) // Wait for client to send Handshake to server.
-
-	serverWG := new(sync.WaitGroup)
-	serverWG.Add(1) // Wait for server to send Handshake to client, after that we will close the parent context.
-
-	testWG := new(sync.WaitGroup)
-	testWG.Add(2) // Wait for both client and server to finish.
+	clientSent := make(chan struct{})
+	serverReplied := make(chan struct{})
+	clientDone := make(chan struct{})
+	serverDone := make(chan struct{})
 
 	serverHandler.On("OnClose", serverSession).Return()
-	sc1 := serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return()
-	go func() {
-		sc1.Run(func(_ mock.Arguments) {
-			clientWG.Wait() // Wait for client to send handshake, start replying with Handshake only after that.
+	serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().
+		Run(func(_ mock.Arguments) {
+			<-clientSent // Wait for client to send handshake, start replying with Handshake only after that.
 			n, wErr := serverSession.Write([]byte("hello"))
 			assert.NoError(t, wErr)
 			assert.Equal(t, 5, n)
-			go func() {
-				serverWG.Wait() // Wait for client to receive server handshake.
-				cancel()        // Close parent context.
-				testWG.Done()
-			}()
+			<-serverReplied // Wait for client to receive server's handshake, close parent context after that.
+			cancel()
+			close(serverDone)
 		})
-	}()
-	clientHandler.On("OnClose", clientSession).Return()
 
-	cs1 := clientHandler.On("OnHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return()
-	go func() {
-		cs1.Run(func(_ mock.Arguments) {
-			// On receiving handshake from server, signal to close the server.
-			serverWG.Done()
-			go func() {
-				// Try to send message to server, but it will fail because server is already closed.
-				time.Sleep(10 * time.Millisecond) // Wait for server to close.
-				_, msgErr := clientSession.Write(encodeMessage("Hello session"))
-				require.ErrorIs(t, msgErr, networking.ErrSessionShutdown)
-				testWG.Done()
-			}()
+	clientHandler.On("OnClose", clientSession).Return()
+	clientHandler.On("OnHandshake", clientSession, &textHandshake{v: "hello"}).Once().
+		Run(func(_ mock.Arguments) {
+			close(serverReplied) // On receiving handshake from server, signal to close the server.
+			// Try to send message to server again, but it will fail because server is already closed.
+			time.Sleep(5 * time.Millisecond)
+			_, msgErr := clientSession.Write(encodeMessage("Hello session"))
+			require.ErrorIs(t, msgErr, networking.ErrSessionShutdown)
+			close(clientDone)
 		})
-	}()
 
 	// Send handshake to server.
-	n, err := clientSession.Write([]byte("hello"))
-	require.NoError(t, err)
-	assert.Equal(t, 5, n)
-	clientWG.Done() // Signal that handshake was sent to server.
+	go func() {
+		n, err := clientSession.Write([]byte("hello"))
+		require.NoError(t, err)
+		assert.Equal(t, 5, n)
+		close(clientSent) // Signal that handshake was sent to server.
+	}()
 
-	testWG.Wait() // Wait for all interactions to finish.
+	// Wait for both sides or timeout
+	select {
+	case <-clientDone:
+	case <-time.After(time.Second):
+		t.Fatal("timeout: client did not finish")
+	}
+	select {
+	case <-serverDone:
+	case <-time.After(time.Second):
+		t.Fatal("timeout: server did not finish")
+	}
 
 	err = clientSession.Close()
 	assert.NoError(t, err)
@@ -446,7 +454,7 @@ func testConfig(t testing.TB, p networking.Protocol, h networking.Handler, direc
 		WithProtocol(p).
 		WithHandler(h).
 		WithSlogHandler(log.Handler()).
-		WithWriteTimeout(1 * time.Second).
+		WithWriteTimeout(100 * time.Millisecond).
 		WithKeepAliveDisabled().
 		WithSlogAttribute(slog.String("direction", direction))
 }
