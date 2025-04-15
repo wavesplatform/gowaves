@@ -424,8 +424,8 @@ func TestCloseParentContext(t *testing.T) {
 
 	// Send handshake to server.
 	go func() {
-		n, err := clientSession.Write([]byte("hello"))
-		require.NoError(t, err)
+		n, ccErr := clientSession.Write([]byte("hello"))
+		require.NoError(t, ccErr)
 		assert.Equal(t, 5, n)
 		close(clientSent) // Signal that handshake was sent to server.
 	}()
