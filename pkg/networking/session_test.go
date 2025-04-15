@@ -87,14 +87,14 @@ func TestSuccessfulSession(t *testing.T) {
 	go func() {
 		<-serverReady
 		<-clientReady
-		done <- struct{}{}
+		close(done)
 	}()
 
 	select {
 	case <-done:
 		// OK
 	case <-time.After(time.Second):
-		assert.Fail(t, "timed out waiting for server to start")
+		assert.Fail(t, "timed out waiting for test to complete")
 	}
 
 	clientHandler.On("OnClose", cs).Return()
@@ -156,7 +156,7 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	case <-done:
 		// OK
 	case <-time.After(time.Second):
-		assert.Fail(t, "timed out waiting for client to close")
+		assert.Fail(t, "timed out waiting for test to complete")
 	}
 }
 
@@ -229,12 +229,12 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 		close(pipeLocked)
 	}()
 
-	// Wait for the client to time out, or timeout the test
+	// Wait for the client to time out, or timeout the test.
 	select {
 	case <-clientTimedOut:
 		// OK
 	case <-time.After(time.Second):
-		assert.Fail(t, "timed out waiting for handshake")
+		assert.Fail(t, "timed out waiting for test to complete")
 	}
 	err = serverSession.Close()
 	assert.NoError(t, err) // Expect no error on the server side.
@@ -355,14 +355,14 @@ func TestOnClosedByOtherSide(t *testing.T) {
 	go func() {
 		<-serverClosed
 		<-clientDone
-		done <- struct{}{}
+		close(done)
 	}()
 
 	select {
 	case <-done:
 		// OK
 	case <-time.After(time.Second):
-		assert.Fail(t, "timed out waiting for server to close")
+		assert.Fail(t, "timed out waiting for test to complete")
 	}
 
 	err = clientSession.Close()
@@ -398,6 +398,7 @@ func TestCloseParentContext(t *testing.T) {
 	serverReplied := make(chan struct{})
 	clientDone := make(chan struct{})
 	serverDone := make(chan struct{})
+	done := make(chan struct{})
 
 	serverHandler.On("OnClose", serverSession).Return()
 	serverHandler.On("OnHandshake", serverSession, &textHandshake{v: "hello"}).Once().
@@ -416,7 +417,7 @@ func TestCloseParentContext(t *testing.T) {
 		Run(func(_ mock.Arguments) {
 			close(serverReplied) // On receiving handshake from server, signal to close the server.
 			// Try to send message to server again, but it will fail because server is already closed.
-			time.Sleep(5 * time.Millisecond)
+			<-serverDone
 			_, msgErr := clientSession.Write(encodeMessage("Hello session"))
 			require.ErrorIs(t, msgErr, networking.ErrSessionShutdown)
 			close(clientDone)
@@ -430,16 +431,18 @@ func TestCloseParentContext(t *testing.T) {
 		close(clientSent) // Signal that handshake was sent to server.
 	}()
 
-	// Wait for both sides or timeout
+	// Wait for both sides to complete.
+	go func() {
+		<-serverDone
+		<-clientDone
+		close(done)
+	}()
+
+	// Wait for both sides done or timeout.
 	select {
-	case <-clientDone:
+	case <-done:
 	case <-time.After(time.Second):
-		t.Fatal("timeout: client did not finish")
-	}
-	select {
-	case <-serverDone:
-	case <-time.After(time.Second):
-		t.Fatal("timeout: server did not finish")
+		t.Fatal("timeout waiting for test to complete")
 	}
 
 	err = clientSession.Close()
