@@ -244,7 +244,7 @@ func (d *Docker) stopContainer(containerID string) (runErr error) {
 		return intErr
 	}
 	// call StopContainer to wait for the container to stop
-	const shutdownTimeout = 5 // In seconds.
+	const shutdownTimeout = 15 // In seconds.
 	if stErr := d.pool.Client.StopContainer(containerID, shutdownTimeout); stErr != nil {
 		var (
 			notRunningErr *dc.ContainerNotRunning
