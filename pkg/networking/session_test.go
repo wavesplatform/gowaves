@@ -466,7 +466,9 @@ func TestCloseParentContext(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func testConfig(t testing.TB, p networking.Protocol, h networking.Handler, direction string, timeout time.Duration) *networking.Config {
+func testConfig(
+	t testing.TB, p networking.Protocol, h networking.Handler, direction string, timeout time.Duration,
+) *networking.Config {
 	log := slogt.New(t)
 	return networking.NewConfig().
 		WithProtocol(p).
