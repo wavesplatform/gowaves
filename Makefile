@@ -2,7 +2,7 @@ PROJECT=gowaves
 ORGANISATION=wavesplatform
 MODULE=github.com/$(ORGANISATION)/$(PROJECT)
 SOURCE=$(shell find . -name '*.go' | grep -v vendor/)
-SOURCE_DIRS = cmd pkg
+SOURCE_DIRS = cmd pkg itests
 
 VERSION=$(shell git describe --tags --always --dirty)
 DEB_VER=$(shell echo $(VERSION) | cut -c 2-)
