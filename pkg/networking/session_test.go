@@ -21,6 +21,11 @@ import (
 	netmocks "github.com/wavesplatform/gowaves/pkg/networking/mocks"
 )
 
+const (
+	timeoutTestsTimeout = 100 * time.Millisecond
+	normalTestsTimeout  = 500 * time.Millisecond
+)
+
 func TestSuccessfulSession(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
@@ -37,9 +42,9 @@ func TestSuccessfulSession(t *testing.T) {
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
 
-	cs, err := net.NewSession(ctx, clientConn, testConfig(t, p, clientHandler, "client"))
+	cs, err := net.NewSession(ctx, clientConn, testConfig(t, p, clientHandler, "client", normalTestsTimeout))
 	require.NoError(t, err)
-	ss, err := net.NewSession(ctx, serverConn, testConfig(t, p, serverHandler, "server"))
+	ss, err := net.NewSession(ctx, serverConn, testConfig(t, p, serverHandler, "server", normalTestsTimeout))
 	require.NoError(t, err)
 
 	p.On("IsAcceptableHandshake", cs, &textHandshake{v: "hello"}).Once().Return(true)
@@ -120,11 +125,13 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
 
-	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
+	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client",
+		timeoutTestsTimeout))
 	require.NoError(t, err)
 	clientHandler.On("OnClose", clientSession).Return()
 
-	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
+	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server",
+		timeoutTestsTimeout))
 	require.NoError(t, err)
 	serverHandler.On("OnClose", serverSession).Return()
 
@@ -176,9 +183,11 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
 
-	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
+	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client",
+		timeoutTestsTimeout))
 	require.NoError(t, err)
-	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
+	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server",
+		timeoutTestsTimeout))
 	require.NoError(t, err)
 
 	mockProtocol.On("IsAcceptableHandshake", serverSession, &textHandshake{v: "hello"}).Once().Return(true)
@@ -260,9 +269,11 @@ func TestDoubleClose(t *testing.T) {
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
 
-	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
+	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client",
+		normalTestsTimeout))
 	require.NoError(t, err)
-	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
+	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server",
+		normalTestsTimeout))
 	require.NoError(t, err)
 
 	clientHandler.On("OnClose", clientSession).Return()
@@ -295,9 +306,11 @@ func TestOnClosedByOtherSide(t *testing.T) {
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
 
-	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
+	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client",
+		normalTestsTimeout))
 	require.NoError(t, err)
-	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
+	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server",
+		normalTestsTimeout))
 	require.NoError(t, err)
 
 	mockProtocol.On("IsAcceptableHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return(true)
@@ -386,9 +399,11 @@ func TestCloseParentContext(t *testing.T) {
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
 
-	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client"))
+	clientSession, err := net.NewSession(ctx, clientConn, testConfig(t, mockProtocol, clientHandler, "client",
+		normalTestsTimeout))
 	require.NoError(t, err)
-	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server"))
+	serverSession, err := net.NewSession(ctx, serverConn, testConfig(t, mockProtocol, serverHandler, "server",
+		normalTestsTimeout))
 	require.NoError(t, err)
 
 	mockProtocol.On("IsAcceptableHandshake", clientSession, &textHandshake{v: "hello"}).Once().Return(true)
@@ -451,13 +466,13 @@ func TestCloseParentContext(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func testConfig(t testing.TB, p networking.Protocol, h networking.Handler, direction string) *networking.Config {
+func testConfig(t testing.TB, p networking.Protocol, h networking.Handler, direction string, timeout time.Duration) *networking.Config {
 	log := slogt.New(t)
 	return networking.NewConfig().
 		WithProtocol(p).
 		WithHandler(h).
 		WithSlogHandler(log.Handler()).
-		WithWriteTimeout(100 * time.Millisecond).
+		WithWriteTimeout(timeout).
 		WithKeepAliveDisabled().
 		WithSlogAttribute(slog.String("direction", direction))
 }
