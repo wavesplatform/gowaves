@@ -215,14 +215,53 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 	cancel()
 }
 
-func (d *Docker) stopContainer(containerID string) error {
+func (d *Docker) killContainer(containerID string, signal dc.Signal) error {
+	killOpts := dc.KillContainerOptions{
+		ID:     containerID,
+		Signal: signal,
+	}
+	if klErr := d.pool.Client.KillContainer(killOpts); klErr != nil {
+		return errors.Wrapf(klErr, "failed to kill container %q with signal (%x)",
+			containerID, signal,
+		)
+	}
+	return nil
+}
+
+func (d *Docker) stopContainer(containerID string) (runErr error) {
+	defer func() {
+		if runErr == nil { // nothing to do
+			return
+		}
+		log.Printf("Killing container %q because some error happened during stop process", containerID)
+		if killErr := d.killContainer(containerID, dc.SIGKILL); killErr != nil {
+			runErr = stderrs.Join(runErr, killErr)
+		}
+	}()
+
+	// send interrupt signal to the container to initiate graceful shutdown
+	if intErr := d.killContainer(containerID, dc.SIGINT); intErr != nil {
+		return intErr
+	}
+	// call StopContainer to wait for the container to stop
 	const shutdownTimeout = 5 // In seconds.
 	if stErr := d.pool.Client.StopContainer(containerID, shutdownTimeout); stErr != nil {
-		if klErr := d.pool.Client.KillContainer(dc.KillContainerOptions{
-			ID:     containerID,
-			Signal: dc.SIGKILL,
-		}); klErr != nil {
-			return errors.Wrapf(stderrs.Join(stErr, klErr), "failed to stop container %q", containerID)
+		var (
+			notRunningErr *dc.ContainerNotRunning
+			noContainer   *dc.NoSuchContainer
+		)
+		var ( // check that types above implement error interface
+			_ = error(notRunningErr)
+			_ = error(noContainer)
+		)
+		switch {
+		case errors.As(stErr, &notRunningErr):
+			return nil // Container is already stopped.
+		case errors.As(stErr, &noContainer):
+			log.Printf("Trying to stop container %q, which wasn't found: %v", containerID, stErr)
+			return nil // Container is already removed.
+		default:
+			return errors.Wrapf(stErr, "failed to stop container %q", containerID)
 		}
 	}
 	return nil
