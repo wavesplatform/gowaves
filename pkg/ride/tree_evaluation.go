@@ -11,7 +11,11 @@ func CallVerifier(env environment, tree *ast.Tree) (Result, error) {
 	if err != nil {
 		return nil, RuntimeError.Wrap(err, "failed to call verifier")
 	}
-	return e.evaluate()
+	res, err := e.evaluate()
+	if err != nil {
+		return nil, handleEvaluationError(err, "verifier", e.complexity())
+	}
+	return res, nil
 }
 
 func CallFunction(env environment, tree *ast.Tree, fc proto.FunctionCall) (Result, error) {
@@ -31,18 +35,7 @@ func CallFunction(env environment, tree *ast.Tree, fc proto.FunctionCall) (Resul
 	// so result of the execution and spent complexity should be considered outside.
 	rideResult, err := e.evaluate()
 	if err != nil {
-		// Evaluation failed we have to return a DAppResult that contains spent execution complexity
-		// Produced actions are not stored for failed transactions, no need to return them here
-		et := GetEvaluationErrorType(err)
-		if et == Undefined {
-			return nil, EvaluationErrorSetComplexity(
-				et.Wrap(err, "unhandled error"),
-				// Error was not handled in wrapped state properly,
-				// so we need to add both complexity from current evaluation and from internal invokes
-				e.complexity(),
-			)
-		}
-		return nil, EvaluationErrorSetComplexity(err, e.complexity())
+		return nil, handleEvaluationError(err, name, e.complexity())
 	}
 	dAppResult, ok := rideResult.(DAppResult)
 	if !ok { // Unexpected result type
@@ -67,4 +60,19 @@ func wrappedStateActions(state types.SmartState) []proto.ScriptAction {
 		return nil
 	}
 	return ws.act
+}
+
+func handleEvaluationError(err error, funcName string, complexity int) error {
+	// Evaluation failed we have to return a result that contains spent execution complexity
+	// Produced actions are not stored for failed transactions, no need to return them here
+	et := GetEvaluationErrorType(err)
+	if et == Undefined {
+		return EvaluationErrorSetComplexity(
+			et.Wrapf(err, "unhandled error by '%s'", funcName),
+			// Error was not handled in wrapped state properly,
+			// so we need to add both complexity from current evaluation and from internal invokes
+			complexity,
+		)
+	}
+	return EvaluationErrorSetComplexity(err, complexity)
 }
