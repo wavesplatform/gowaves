@@ -49,9 +49,9 @@ func expressionFunctionsV2(name string) (rideFunction, bool) {
 }
 
 func checkFunctionV2(name string) (uint16, bool) {
-	for i := 0; i <= 82; i++ {
+	for i := uint16(0); i <= uint16(82); i++ {
 		if _names_V2[_index_V2[i]:_index_V2[i+1]] == name {
-			return uint16(i), true
+			return i, true
 		}
 	}
 	return 0, false
@@ -111,9 +111,9 @@ func expressionFunctionsV3(name string) (rideFunction, bool) {
 }
 
 func checkFunctionV3(name string) (uint16, bool) {
-	for i := 0; i <= 147; i++ {
+	for i := uint16(0); i <= uint16(147); i++ {
 		if _names_V3[_index_V3[i]:_index_V3[i+1]] == name {
-			return uint16(i), true
+			return i, true
 		}
 	}
 	return 0, false
@@ -173,9 +173,9 @@ func expressionFunctionsV4(name string) (rideFunction, bool) {
 }
 
 func checkFunctionV4(name string) (uint16, bool) {
-	for i := 0; i <= 246; i++ {
+	for i := uint16(0); i <= uint16(246); i++ {
 		if _names_V4[_index_V4[i]:_index_V4[i+1]] == name {
-			return uint16(i), true
+			return i, true
 		}
 	}
 	return 0, false
@@ -235,9 +235,9 @@ func expressionFunctionsV5(name string) (rideFunction, bool) {
 }
 
 func checkFunctionV5(name string) (uint16, bool) {
-	for i := 0; i <= 287; i++ {
+	for i := uint16(0); i <= uint16(287); i++ {
 		if _names_V5[_index_V5[i]:_index_V5[i+1]] == name {
-			return uint16(i), true
+			return i, true
 		}
 	}
 	return 0, false
@@ -297,9 +297,9 @@ func expressionFunctionsV6(name string) (rideFunction, bool) {
 }
 
 func checkFunctionV6(name string) (uint16, bool) {
-	for i := 0; i <= 301; i++ {
+	for i := uint16(0); i <= uint16(301); i++ {
 		if _names_V6[_index_V6[i]:_index_V6[i+1]] == name {
-			return uint16(i), true
+			return i, true
 		}
 	}
 	return 0, false
@@ -359,9 +359,9 @@ func expressionFunctionsV7(name string) (rideFunction, bool) {
 }
 
 func checkFunctionV7(name string) (uint16, bool) {
-	for i := 0; i <= 301; i++ {
+	for i := uint16(0); i <= uint16(301); i++ {
 		if _names_V7[_index_V7[i]:_index_V7[i+1]] == name {
-			return uint16(i), true
+			return i, true
 		}
 	}
 	return 0, false
@@ -421,9 +421,9 @@ func expressionFunctionsV8(name string) (rideFunction, bool) {
 }
 
 func checkFunctionV8(name string) (uint16, bool) {
-	for i := 0; i <= 303; i++ {
+	for i := uint16(0); i <= uint16(303); i++ {
 		if _names_V8[_index_V8[i]:_index_V8[i+1]] == name {
-			return uint16(i), true
+			return i, true
 		}
 	}
 	return 0, false
