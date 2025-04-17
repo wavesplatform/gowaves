@@ -3,6 +3,7 @@ package ride
 import (
 	"encoding/base64"
 	"encoding/json"
+	stderrs "errors"
 	"fmt"
 	"strings"
 	"testing"
@@ -6406,5 +6407,61 @@ func TestUpdateGeneratingBalanceDuringScriptExecutionAfterLightNode(t *testing.T
 		isBalanceUpdated, ok := res.userResult().(rideBoolean)
 		require.True(t, ok)
 		assert.True(t, bool(isBalanceUpdated))
+	})
+}
+
+func TestCallVerifierWithThrow(t *testing.T) {
+	const complexityLimit = 10
+
+	t.Run("account-script", func(t *testing.T) {
+		const script = `
+			{-# STDLIB_VERSION 7 #-}
+			{-# CONTENT_TYPE EXPRESSION #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			if (true) then throw("foo-bar-baz") else true`
+		tree, errs := ridec.CompileToTree(script)
+		require.NoError(t, stderrs.Join(errs...))
+
+		env := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(complexityLimit).
+			withBlockV5Activated().withProtobufTx().withRideV6Activated().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments()
+
+		res, err := CallVerifier(env.toEnv(), tree)
+		require.EqualError(t, err, "foo-bar-baz")
+		assert.Nil(t, res)
+		assert.Equal(t, 1, EvaluationErrorSpentComplexity(err))
+		assert.Equal(t, UserError, GetEvaluationErrorType(err))
+	})
+
+	t.Run("dapp-script", func(t *testing.T) {
+		dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+		sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+
+		const src1 = `
+			{-# STDLIB_VERSION 7 #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			@Verifier(tx)
+			func verify() = if (true) then throw("foo-bar-baz") else true`
+		tree1, errs := ridec.CompileToTree(src1)
+		require.Empty(t, errs)
+
+		env := newTestEnv(t).withLibVersion(tree1.LibVersion).withComplexityLimit(complexityLimit).
+			withBlockV5Activated().withProtobufTx().withRideV6Activated().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(dApp1).withDApp(dApp1).withSender(sender).
+			withInvocation("verify", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
+			withWrappedState()
+
+		res, err := CallFunction(env.toEnv(), tree1, proto.NewFunctionCall("verify", proto.Arguments{}))
+		require.EqualError(t, err, "failed to call function 'verify': function 'verify' not found")
+		assert.Nil(t, res)
+		assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
+
+		res, err = CallVerifier(env.toEnv(), tree1)
+		require.EqualError(t, err, "foo-bar-baz")
+		assert.Nil(t, res)
+		assert.Equal(t, 1, EvaluationErrorSpentComplexity(err))
+		assert.Equal(t, UserError, GetEvaluationErrorType(err))
 	})
 }
