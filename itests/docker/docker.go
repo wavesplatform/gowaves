@@ -83,6 +83,7 @@ func (c *NodeContainer) Close() error {
 		return errors.Wrapf(dcErr, "failed to disconnect container %q from network %q",
 			c.container.Container.ID, c.network.Network.Name)
 	}
+	// Close purges the container. If it is not stopped, it will be killed with SIGKILL.
 	if clErr := c.container.Close(); clErr != nil {
 		return errors.Wrapf(clErr, "failed to close container %q", c.container.Container.ID)
 	}
@@ -177,53 +178,38 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 	eg := errgroup.Group{}
 	if d.scalaNode != nil {
 		eg.Go(func() error {
-			if stErr := d.stopContainer(d.scalaNode.container.Container.ID); stErr != nil {
-				log.Printf("Failed to stop Scala node container: %v", stErr)
-			}
-			return nil
+			stErr := d.stopContainer(d.scalaNode.container.Container.ID)
+			clErr := d.scalaNode.Close()
+			return stderrs.Join(stErr, clErr)
 		})
 	}
 	if d.goNode != nil {
 		eg.Go(func() error {
-			if stErr := d.stopContainer(d.goNode.container.Container.ID); stErr != nil {
-				log.Printf("Failed to stop Go node container: %v", stErr)
-			}
-			return nil
+			stErr := d.stopContainer(d.goNode.container.Container.ID)
+			clErr := d.goNode.Close()
+			return stderrs.Join(stErr, clErr)
 		})
 	}
-	_ = eg.Wait()
-	if d.scalaNode != nil {
-		eg.Go(func() error {
-			if clErr := d.scalaNode.Close(); clErr != nil {
-				log.Printf("Failed to close scala-node: %s", clErr)
-			}
-			return nil
-		})
+	if err := eg.Wait(); err != nil {
+		log.Printf("[ERR] Failed to shutdown docker containers: %v", err)
 	}
-	if d.goNode != nil {
-		eg.Go(func() error {
-			if clErr := d.goNode.Close(); clErr != nil {
-				log.Printf("Failed to close go-node: %s", clErr)
-			}
-			return nil
-		})
-	}
-	_ = eg.Wait()
 	if err := d.pool.RemoveNetwork(d.network); err != nil {
-		log.Printf("Failed to remove docker network: %s", err)
+		log.Printf("[ERR] Failed to remove docker network: %s", err)
 	}
 	cancel()
 }
 
 func (d *Docker) stopContainer(containerID string) error {
-	const shutdownTimeout = 5 // In seconds.
-	if stErr := d.pool.Client.StopContainer(containerID, shutdownTimeout); stErr != nil {
-		if klErr := d.pool.Client.KillContainer(dc.KillContainerOptions{
-			ID:     containerID,
-			Signal: dc.SIGKILL,
-		}); klErr != nil {
-			return errors.Wrapf(stderrs.Join(stErr, klErr), "failed to stop container %q", containerID)
-		}
+	stopOpts := dc.KillContainerOptions{ID: containerID, Signal: dc.SIGINT}
+	if intErr := d.pool.Client.KillContainer(stopOpts); intErr != nil {
+		return errors.Wrapf(intErr, "failed to interrupt container %q", containerID)
+	}
+	const shutdownTimeout = 15 * time.Second
+	ctx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
+	defer cancel()
+	_, wErr := d.pool.Client.WaitContainerWithContext(containerID, ctx)
+	if wErr != nil {
+		return errors.Wrapf(wErr, "failed to wait for container %q to stop", containerID)
 	}
 	return nil
 }
