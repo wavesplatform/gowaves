@@ -40,7 +40,7 @@ type Session struct {
 
 	receiving   atomic.Bool // Indicates that receiveLoop already running.
 	established atomic.Bool // Indicates that incoming Handshake was successfully accepted.
-	closing     atomic.Bool // Indicates that the session is closing
+	closing     atomic.Bool // Indicates that the session is closing.
 }
 
 // NewSession is used to construct a new session.
@@ -214,29 +214,50 @@ func (s *Session) sendLoop() error {
 				s.asyncSendErr(packet.err, rErr)
 				return rErr
 			}
-			if s.logger.Enabled(s.ctx, slog.LevelDebug) {
-				s.logger.Debug("Sending data to connection",
-					"data", base64.StdEncoding.EncodeToString(dataBuf.Bytes()))
-			}
 			packet.mu.Unlock()
 
-			if dataBuf.Len() > 0 && !s.closing.Load() {
-				s.logger.Debug("Writing data into connection", "len", len(dataBuf.Bytes()))
-				s.connWriteLock.Lock()
-				_, err := s.conn.Write(dataBuf.Bytes()) // TODO: We are locking here, because no timeout set on connection itself.
-				s.connWriteLock.Unlock()
+			if dataBuf.Len() > 0 {
+				data := dataBuf.Bytes()
+				if s.logger.Enabled(s.ctx, slog.LevelDebug) {
+					s.logger.Debug("Sending data to connection",
+						"len", len(data),
+						"data", base64.StdEncoding.EncodeToString(data))
+				}
+				written, err := s.writeConnIfNotClosed(data)
 				if err != nil {
 					s.logger.Error("Failed to write data into connection", "error", err)
 					s.asyncSendErr(packet.err, err)
 					return err
 				}
-				s.logger.Debug("Data written into connection")
+				if written {
+					s.logger.Debug("Data written into connection")
+				}
 			}
 
 			// No error, close the channel.
 			close(packet.err)
 		}
 	}
+}
+
+func (s *Session) writeConnIfNotClosed(b []byte) (bool, error) {
+	s.connWriteLock.Lock()
+	defer s.connWriteLock.Unlock()
+
+	// Check if the session is closing.
+	if s.closing.Load() {
+		return false, nil
+	}
+
+	// Check if the context is done before writing to the connection (in case of parent context cancellation).
+	select {
+	case <-s.ctx.Done():
+		return false, nil
+	default:
+	}
+
+	_, err := s.conn.Write(b) // TODO: We are locking here, because no timeout set on connection itself.
+	return true, err
 }
 
 // receiveLoop continues to receive data until a fatal error is encountered or underlying connection is closed.
@@ -385,7 +406,7 @@ func (s *Session) keepaliveLoop() error {
 
 // sendPacket is used to send data.
 type sendPacket struct {
-	mu  sync.Mutex // Protects data from unsafe reads.
+	mu  sync.Mutex // Protects reading from r concurrently with sendLoop consumption.
 	r   io.Reader
 	err chan<- error
 }
