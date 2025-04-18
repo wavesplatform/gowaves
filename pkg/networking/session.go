@@ -244,16 +244,10 @@ func (s *Session) writeConnIfNotClosed(b []byte) (bool, error) {
 	s.connWriteLock.Lock()
 	defer s.connWriteLock.Unlock()
 
-	// Check if the session is closing.
-	if s.closing.Load() {
+	// Check if the session is closing or the context is done before writing to the connection
+	// (in case of parent context cancellation).
+	if s.closing.Load() || s.ctx.Err() != nil {
 		return false, nil
-	}
-
-	// Check if the context is done before writing to the connection (in case of parent context cancellation).
-	select {
-	case <-s.ctx.Done():
-		return false, nil
-	default:
 	}
 
 	_, err := s.conn.Write(b) // TODO: We are locking here, because no timeout set on connection itself.
