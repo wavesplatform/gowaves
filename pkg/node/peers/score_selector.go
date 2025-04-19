@@ -161,5 +161,5 @@ func (s *scoreSelector) selectBestPeer(currentBest peer.ID) (peer.ID, *proto.Sco
 		heap.Push(s.groups, g)
 		return g.peers[i], g.score
 	}
-	panic(fmt.Sprintf("scoreSelector: invalid element type of score selector: expeted (*group), got (%T)", e))
+	panic(fmt.Sprintf("scoreSelector: invalid element type of score selector: expected (*group), got (%T)", e))
 }

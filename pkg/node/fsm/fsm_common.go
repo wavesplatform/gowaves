@@ -129,7 +129,7 @@ func tryBroadcastTransaction(
 			if err != nil {
 				err = errors.Wrapf(err, "failed to broadcast transaction %q", txID)
 			} else {
-				zap.S().Named(logging.FSMNamespace).Debugf("[%s] Transaction %q broadcasted successfuly",
+				zap.S().Named(logging.FSMNamespace).Debugf("[%s] Transaction %q broadcasted successfully",
 					fsm.String(), txID)
 			}
 		}()
