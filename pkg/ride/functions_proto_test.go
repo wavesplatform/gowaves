@@ -1746,3 +1746,36 @@ func TestCalculateDelay(t *testing.T) {
 		}
 	}
 }
+
+func TestGroth16VerifyInvalidArguments(t *testing.T) {
+	te := &mockRideEnvironment{}
+	large := rideByteVector(make([]byte, 1000))
+	for i, tc := range []struct {
+		args []rideType
+		err  string
+	}{
+		{[]rideType{},
+			"0 is invalid number of arguments, expected 3"},
+		{[]rideType{rideByteVector{}},
+			"1 is invalid number of arguments, expected 3"},
+		{[]rideType{rideByteVector{}, rideByteVector{}},
+			"2 is invalid number of arguments, expected 3"},
+		{[]rideType{rideByteVector{}, rideByteVector{}, rideByteVector{}, rideByteVector{}},
+			"4 is invalid number of arguments, expected 3"},
+		{[]rideType{rideUnit{}, rideByteVector{}, rideByteVector{}},
+			"unexpected argument type 'Unit'"},
+		{[]rideType{rideByteVector{}, rideUnit{}, rideByteVector{}},
+			"unexpected argument type 'Unit'"},
+		{[]rideType{rideByteVector{}, rideByteVector{}, rideUnit{}},
+			"unexpected argument type 'Unit'"},
+		{[]rideType{rideByteVector{}, rideByteVector{}, large},
+			"invalid inputs size 1000 bytes, must be not greater than 512 bytes"},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			_, err := bls12Groth16Verify(te, tc.args...)
+			assert.ErrorContains(t, err, tc.err)
+			_, err = bn256Groth16Verify(te, tc.args...)
+			assert.ErrorContains(t, err, tc.err)
+		})
+	}
+}

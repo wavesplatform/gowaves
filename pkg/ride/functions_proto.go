@@ -22,7 +22,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-const invocationsLimit = 100
+const (
+	invocationsLimit = 100
+	maxInputsSize    = 16 * 32
+)
 
 func containsAddress(addr proto.WavesAddress, list []proto.WavesAddress) bool {
 	for _, v := range list {
@@ -1246,6 +1249,10 @@ func bls12Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, errors.Errorf("bls12Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
 	}
+	if len(inputs) > maxInputsSize {
+		return nil, errors.Errorf(
+			"bls12Groth16Verify: invalid inputs size %d bytes, must be not greater than 512 bytes", len(inputs))
+	}
 	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BLS12_381)
 	if err != nil {
 		return nil, errors.Wrap(err, "bls12Groth16Verify")
@@ -1268,6 +1275,10 @@ func bn256Groth16Verify(_ environment, args ...rideType) (rideType, error) {
 	inputs, ok := args[2].(rideByteVector)
 	if !ok {
 		return nil, errors.Errorf("bn256Groth16Verify: unexpected argument type '%s'", args[2].instanceOf())
+	}
+	if len(inputs) > maxInputsSize {
+		return nil, errors.Errorf(
+			"bn256Groth16Verify: invalid inputs size %d bytes, must be not greater than 512 bytes", len(inputs))
 	}
 	ok, err := crypto.Groth16Verify(key, proof, inputs, ecc.BN254)
 	if err != nil {
