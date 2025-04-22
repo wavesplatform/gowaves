@@ -2,6 +2,7 @@ package ride
 
 import (
 	"encoding/base64"
+	stderrs "errors"
 	"fmt"
 	"testing"
 
@@ -724,4 +725,103 @@ func TestInvokeDAppWithZeroComplexityFunctions(t *testing.T) {
 		runTest(t, i, false)
 		runTest(t, i, true)
 	}
+}
+
+func TestInvokeVerifierWithZeroComplexityFunction(t *testing.T) {
+	sender := newTestAccount(t, "SENDER")    // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
+	dAppAcc := newTestAccount(t, "DAPP1")    // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
+	veriferAcc := newTestAccount(t, "DAPP2") // 3N7Te7NXtGVoQqFqktwrFhQWAkc6J8vfPQ1
+
+	const initialBalance = 10 * proto.PriceConstant
+
+	const dAppScript = `
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE DAPP #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		
+		func foo() = true
+		
+		# empty, but has 1 complexity after RideV6 activation
+		@Callable(i)
+		func lightCall() = nil
+		
+		@Verifier(tx)
+		func verify() = foo()`
+	const verifierScript = `
+		{-# STDLIB_VERSION 5 #-}
+		{-# CONTENT_TYPE EXPRESSION #-}
+		{-# SCRIPT_TYPE ACCOUNT #-}
+		
+		func foo() = true
+		
+		foo()`
+
+	dApp, errs := ridec.CompileToTree(dAppScript)
+	require.NoError(t, stderrs.Join(errs...))
+	verifier, errs := ridec.CompileToTree(verifierScript)
+	require.NoError(t, stderrs.Join(errs...))
+
+	createEnv := func(t *testing.T, account *testAccount, tree *ast.Tree, inv string, rideV6Activated bool) *testEnv {
+		complexity, err := MaxChainInvokeComplexityByVersion(ast.LibV5)
+		require.NoError(t, err)
+		env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(int(complexity)).
+			withBlockV5Activated().withProtobufTx().
+			withDataEntriesSizeV2().withMessageLengthV3().withValidateInternalPayments().
+			withThis(account).withDApp(account).withSender(sender).
+			withInvocation(inv, withTransactionID(crypto.Digest{})).withTree(account, tree).
+			withWavesBalance(sender, 0).
+			withWavesBalance(account, initialBalance, 0, 0, initialBalance)
+		if rideV6Activated {
+			env = env.withRideV6Activated()
+		}
+		return env.withWrappedState()
+	}
+
+	t.Run("verifier-script", func(t *testing.T) {
+		doTest := func(t *testing.T, expectedComplexity int, rideV6Activated bool) {
+			env := createEnv(t, veriferAcc, verifier, "", rideV6Activated).toEnv()
+			res, err := CallVerifier(env, verifier)
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			_, ok := res.(ScriptResult)
+			require.True(t, ok)
+			assert.Equal(t, expectedComplexity, res.Complexity())
+			assert.Nil(t, res.userResult())
+			assert.True(t, res.Result())
+		}
+		t.Run("without-ride-v6", func(t *testing.T) { doTest(t, 0, false) })
+		t.Run("with-ride-v6", func(t *testing.T) { doTest(t, 1, true) })
+	})
+
+	t.Run("dapp-verifier-script", func(t *testing.T) {
+		doTest := func(t *testing.T, expectedComplexity int, rideV6Activated bool) {
+			env := createEnv(t, dAppAcc, dApp, "", rideV6Activated).toEnv()
+			res, err := CallVerifier(env, dApp)
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			_, ok := res.(ScriptResult)
+			require.True(t, ok)
+			assert.Equal(t, expectedComplexity, res.Complexity())
+			assert.Nil(t, res.userResult())
+			assert.True(t, res.Result())
+		}
+		t.Run("without-ride-v6", func(t *testing.T) { doTest(t, 0, false) })
+		t.Run("with-ride-v6", func(t *testing.T) { doTest(t, 1, true) })
+	})
+
+	t.Run("dapp-light-call", func(t *testing.T) {
+		doTest := func(t *testing.T, rideV6Activated bool) {
+			env := createEnv(t, dAppAcc, dApp, "lightCall", rideV6Activated).toEnv()
+			res, err := CallFunction(env, dApp, proto.NewFunctionCall("lightCall", proto.Arguments{}))
+			require.NoError(t, err)
+			require.NotNil(t, res)
+			_, ok := res.(DAppResult)
+			require.True(t, ok)
+			assert.Equal(t, 1, res.Complexity())
+			assert.Nil(t, res.userResult())
+			assert.True(t, res.Result())
+		}
+		t.Run("without-ride-v6", func(t *testing.T) { doTest(t, false) })
+		t.Run("with-ride-v6", func(t *testing.T) { doTest(t, true) })
+	})
 }
