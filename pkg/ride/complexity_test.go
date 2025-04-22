@@ -391,7 +391,7 @@ func TestOnEdgeComplexity2(t *testing.T) {
 }
 
 func TestComplexities(t *testing.T) {
-	for _, test := range []struct {
+	for i, test := range []struct {
 		comment      string
 		source       string
 		complexityV5 int
@@ -465,8 +465,10 @@ func TestComplexities(t *testing.T) {
 		{`V4: containsElement([base58'', base58''],base58'')`, "BAkBAAAAD2NvbnRhaW5zRWxlbWVudAAAAAIJAARMAAAAAgEAAAAACQAETAAAAAIBAAAAAAUAAAADbmlsAQAAAAAXL3j5", 15, 7},
 		{`V5: pow((100), 4, 5, 1, 2, FLOOR) == 10`, "BQkAAAAAAAACCQAAbAAAAAYAAAAAAAAAAGQAAAAAAAAAAAQAAAAAAAAAAAUAAAAAAAAAAAEAAAAAAAAAAAIFAAAABUZMT09SAAAAAAAAAAAK3GfUhw==", 102, 101},
 	} {
-		checkVerifierSpentComplexityV5(t, test.source, test.complexityV5, test.comment)
-		checkVerifierSpentComplexityV6(t, test.source, test.complexityV6, test.comment)
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			checkVerifierSpentComplexityV5(t, test.source, test.complexityV5, test.comment)
+			checkVerifierSpentComplexityV6(t, test.source, test.complexityV6, test.comment)
+		})
 	}
 }
 
