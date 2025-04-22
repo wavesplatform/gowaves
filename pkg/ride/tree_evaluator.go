@@ -218,7 +218,7 @@ func (e *treeEvaluator) handleZeroComplexityCall(
 		return res, runErr // nothing to do in case of error
 	}
 	if !e.dapp {
-		return res, nil // nothing to do in case of verifier call
+		return res, nil // nothing to do in case of expression script call
 	}
 	// check any error from complexity calculator
 	if err := e.env.complexityCalculator().error(); err != nil {
@@ -515,7 +515,7 @@ func treeVerifierEvaluator(env environment, tree *ast.Tree) (*treeEvaluator, err
 			}
 			s.constants[verifier.InvocationParameter] = esConstant{c: newTx}
 			return &treeEvaluator{
-				dapp:  false,
+				dapp:  tree.IsDApp(),
 				fName: verifier.Name,
 				f:     verifier.Body, // In DApp verifier is a function, so we have to pass its body
 				s:     s,
@@ -525,7 +525,7 @@ func treeVerifierEvaluator(env environment, tree *ast.Tree) (*treeEvaluator, err
 		return nil, EvaluationFailure.New("no verifier declaration")
 	}
 	return &treeEvaluator{
-		dapp:  false,
+		dapp:  tree.IsDApp(),
 		fName: "verifier",
 		f:     tree.Verifier, // In simple script verifier is an expression itself
 		s:     s,
