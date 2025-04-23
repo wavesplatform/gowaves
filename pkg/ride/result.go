@@ -7,6 +7,7 @@ type Result interface {
 	ScriptActions() []proto.ScriptAction
 	Complexity() int
 	userResult() rideType
+	withComplexity(c int) Result
 }
 
 type ScriptResult struct {
@@ -31,6 +32,14 @@ func (r ScriptResult) Complexity() int {
 	return r.complexity
 }
 
+func (r ScriptResult) withComplexity(c int) Result {
+	return ScriptResult{
+		res:        r.res,
+		param:      r.param,
+		complexity: c,
+	}
+}
+
 type DAppResult struct {
 	actions    []proto.ScriptAction
 	param      rideType
@@ -51,4 +60,12 @@ func (r DAppResult) ScriptActions() []proto.ScriptAction {
 
 func (r DAppResult) Complexity() int {
 	return r.complexity
+}
+
+func (r DAppResult) withComplexity(c int) Result {
+	return DAppResult{
+		actions:    r.actions,
+		param:      r.param,
+		complexity: c,
+	}
 }
