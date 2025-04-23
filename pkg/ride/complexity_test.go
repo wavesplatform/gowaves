@@ -699,13 +699,6 @@ func TestInvokeDAppWithZeroComplexityFunctions(t *testing.T) {
 			expectedComplexity = tc.complexityBeforeRideV6
 		}
 		t.Run(fmt.Sprintf("%s-RideV6=%t", tc.name, rideV6Activated), func(t *testing.T) {
-			if tc.name == "fail" && rideV6Activated == false {
-				// TODO: Error with complexity will be fixed in the next pull requests
-				//  Error: Not equal:
-				//         expected: 1
-				//         actual  : 2
-				t.Skip("skipping test with fail() function with deactivated RideV6")
-			}
 			inv := tc.name
 			env := createEnv(t, inv, rideV6Activated).toEnv()
 			fc := proto.NewFunctionCall(inv, tc.args)

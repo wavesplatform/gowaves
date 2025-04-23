@@ -172,6 +172,7 @@ func evaluationCatalogueV2EvaluatorV1() map[string]int {
 	m["wavesBalance"] = 102
 	m["Address"] = 0
 	m["Alias"] = 0
+	m["throw"] = 1
 	constructorsEvaluationCatalogueEvaluatorV1(ast.LibV2, m)
 
 	return m
@@ -181,6 +182,7 @@ func evaluationCatalogueV2EvaluatorV2() map[string]int {
 	m := catalogueV2()
 	m["Address"] = 1
 	m["Alias"] = 1
+	m["throw"] = 3
 	constructorsEvaluationCatalogueEvaluatorV2(ast.LibV2, m)
 	return m
 }
@@ -307,7 +309,7 @@ func catalogueV3() map[string]int {
 func evaluationCatalogueV3EvaluatorV1() map[string]int {
 	m := catalogueV3()
 	m["isDefined"] = 7
-	m["throw"] = 2
+	m["throw"] = 1
 	m["!="] = 5
 	m["-"] = 2
 	m["!"] = 2
@@ -544,7 +546,7 @@ func catalogueV4() map[string]int {
 func evaluationCatalogueV4EvaluatorV1() map[string]int {
 	m := catalogueV4()
 	m["isDefined"] = 7
-	m["throw"] = 2
+	m["throw"] = 1
 	m["!="] = 5
 	m["-"] = 2
 	m["!"] = 2
@@ -708,7 +710,7 @@ func catalogueV5() map[string]int {
 func evaluationCatalogueV5EvaluatorV1() map[string]int {
 	m := catalogueV5()
 	m["isDefined"] = 7
-	m["throw"] = 2
+	m["throw"] = 1
 	m["!="] = 5
 	m["-"] = 2
 	m["!"] = 2
@@ -916,19 +918,20 @@ func evaluationCatalogueBuilder(
 		constructorsComplexity          int
 		constructorsEvaluationCatalogue func(ast.LibraryVersion, map[string]int)
 	)
+	m := catalogue()
 	switch evaluatorVer {
 	case 1:
+		m["throw"] = 1
 		constructorsComplexity = 0
 		constructorsEvaluationCatalogue = constructorsEvaluationCatalogueEvaluatorV1
 	case 2:
+		m["throw"] = 2
 		constructorsComplexity = 1
 		constructorsEvaluationCatalogue = constructorsEvaluationCatalogueEvaluatorV2
 	default:
 		panic(fmt.Sprintf("evaluationCatalogueBuilder: unknown evaluator version %d", evaluatorVer))
 	}
 
-	m := catalogue()
-	m["throw"] = 2
 	constructorsList := []string{
 		"Ceiling",
 		"Floor",
@@ -1087,9 +1090,9 @@ func createFunctionsList(cd *Coder, ver string, m map[string]string, c, ec1, ec2
 	cd.Line("")
 
 	cd.Line("func checkFunction%s(name string) (uint16, bool) {", ver)
-	cd.Line("for i := 0; i <= %d; i++ {", len(keys)-1)
+	cd.Line("for i := uint16(0); i <= uint16(%d); i++ {", len(keys)-1)
 	cd.Line("if _names_%s[_index_%s[i]:_index_%s[i+1]] == name {", ver, ver, ver)
-	cd.Line("return uint16(i), true")
+	cd.Line("return i, true")
 	cd.Line("}")
 	cd.Line("}")
 	cd.Line("return 0, false")
