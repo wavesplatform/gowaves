@@ -165,6 +165,50 @@ func TestRegression(t *testing.T) {
 	})
 }
 
+func TestActivateRace(t *testing.T) {
+	var g execution.TaskGroup
+	start := make(chan struct{})
+	const goroutines = 1000
+	var wg sync.WaitGroup
+	wg.Add(goroutines)
+	for i := 0; i < goroutines; i++ {
+		go func() {
+			defer wg.Done()
+			<-start
+			g.Run(func() error {
+				return nil
+			})
+		}()
+	}
+	close(start)
+	wg.Wait()
+	err := g.Wait()
+	require.NoError(t, err)
+}
+
+func BenchmarkRunParallel(b *testing.B) {
+	const parallelism = 100
+	for n := 0; n < b.N; n++ {
+		var g execution.TaskGroup
+		var wg sync.WaitGroup
+		wg.Add(parallelism)
+		start := make(chan struct{})
+		for i := 0; i < parallelism; i++ {
+			go func() {
+				defer wg.Done()
+				<-start
+				g.Run(func() error {
+					return nil
+				})
+			}()
+		}
+		close(start)
+		wg.Wait()
+		err := g.Wait()
+		require.NoError(b, err)
+	}
+}
+
 func randomDuration(n int64) time.Duration {
 	return time.Duration(rand.Int64N(n)) * time.Millisecond
 }

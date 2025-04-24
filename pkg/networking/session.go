@@ -28,8 +28,9 @@ type Session struct {
 	logger *slog.Logger
 	tp     *timerPool
 
-	conn    io.ReadWriteCloser // conn is the underlying connection
-	bufRead *bufio.Reader      // buffered reader wrapped around the connection
+	connWriteLock sync.Mutex         // connLock is used to lock the connection for Write and Close.
+	conn          io.ReadWriteCloser // conn is the underlying connection
+	bufRead       *bufio.Reader      // buffered reader wrapped around the connection
 
 	receiveLock   sync.Mutex    // Guards the receiveBuffer.
 	receiveBuffer *bytes.Buffer // receiveBuffer is used to store the incoming data.
@@ -39,7 +40,7 @@ type Session struct {
 
 	receiving   atomic.Bool // Indicates that receiveLoop already running.
 	established atomic.Bool // Indicates that incoming Handshake was successfully accepted.
-	shutdown    sync.Once   // shutdown is used to safely close the Session.
+	closing     atomic.Bool // Indicates that the session is closing.
 }
 
 // NewSession is used to construct a new session.
@@ -117,9 +118,11 @@ func (s *Session) RemoteAddr() net.Addr {
 // subsequent calls do nothing.
 func (s *Session) Close() error {
 	var err error
-	s.shutdown.Do(func() {
+	if s.closing.CompareAndSwap(false, true) {
 		s.logger.Debug("Closing session")
+		s.connWriteLock.Lock()
 		clErr := s.conn.Close() // Close the underlying connection.
+		s.connWriteLock.Unlock()
 		if clErr != nil {
 			s.logger.Warn("Failed to close underlying connection", "error", clErr)
 		}
@@ -133,7 +136,7 @@ func (s *Session) Close() error {
 		err = errors.Join(err, clErr) // Combine loops finalization errors with connection close error.
 
 		s.logger.Debug("Session closed", "error", err)
-	})
+	}
 	return err
 }
 
@@ -152,7 +155,8 @@ func (s *Session) Write(msg []byte) (int, error) {
 // waitForSend waits to send a data, checking for a potential context cancellation.
 func (s *Session) waitForSend(data []byte) error {
 	// Channel to receive an error from sendLoop goroutine.
-	// We are not closing this channel, it will be GCed when the session is closed.
+	// This channel is created per send. It will be closed later by sendLoop in case of successful send.
+	// If we fail to send, the errCh is not closed and will be GCed when the Session is closed.
 	errCh := make(chan error, 1)
 
 	timer := s.tp.Get()
@@ -175,7 +179,7 @@ func (s *Session) waitForSend(data []byte) error {
 
 	select {
 	case err, ok := <-errCh:
-		if !ok {
+		if !ok { // Channel was closed by sendLoop (successful send).
 			s.logger.Debug("Data sent successfully")
 			return nil // No error, data was sent successfully.
 		}
@@ -210,27 +214,44 @@ func (s *Session) sendLoop() error {
 				s.asyncSendErr(packet.err, rErr)
 				return rErr
 			}
-			if s.logger.Enabled(s.ctx, slog.LevelDebug) {
-				s.logger.Debug("Sending data to connection",
-					"data", base64.StdEncoding.EncodeToString(dataBuf.Bytes()))
-			}
 			packet.mu.Unlock()
 
 			if dataBuf.Len() > 0 {
-				s.logger.Debug("Writing data into connection", "len", len(dataBuf.Bytes()))
-				_, err := s.conn.Write(dataBuf.Bytes()) // TODO: We are locking here, because no timeout set on connection itself.
+				data := dataBuf.Bytes()
+				if s.logger.Enabled(s.ctx, slog.LevelDebug) {
+					s.logger.Debug("Sending data to connection",
+						"len", len(data),
+						"data", base64.StdEncoding.EncodeToString(data))
+				}
+				written, err := s.writeConnIfNotClosed(data)
 				if err != nil {
 					s.logger.Error("Failed to write data into connection", "error", err)
 					s.asyncSendErr(packet.err, err)
 					return err
 				}
-				s.logger.Debug("Data written into connection")
+				if written {
+					s.logger.Debug("Data written into connection")
+				}
 			}
 
 			// No error, close the channel.
 			close(packet.err)
 		}
 	}
+}
+
+func (s *Session) writeConnIfNotClosed(b []byte) (bool, error) {
+	s.connWriteLock.Lock()
+	defer s.connWriteLock.Unlock()
+
+	// Check if the session is closing or the context is done before writing to the connection
+	// (in case of parent context cancellation).
+	if s.closing.Load() || s.ctx.Err() != nil {
+		return false, nil
+	}
+
+	_, err := s.conn.Write(b) // TODO: We are locking here, because no timeout set on connection itself.
+	return true, err
 }
 
 // receiveLoop continues to receive data until a fatal error is encountered or underlying connection is closed.
@@ -379,7 +400,7 @@ func (s *Session) keepaliveLoop() error {
 
 // sendPacket is used to send data.
 type sendPacket struct {
-	mu  sync.Mutex // Protects data from unsafe reads.
+	mu  sync.Mutex // Protects reading from r concurrently with sendLoop consumption.
 	r   io.Reader
 	err chan<- error
 }
