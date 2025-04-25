@@ -78,35 +78,41 @@ build-chaincmp-native:
 	@go build -o build/bin/native/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
 build-chaincmp-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
-build-chaincmp-darwin:
+build-chaincmp-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
+build-chaincmp-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/chaincmp -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
 build-chaincmp-windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/chaincmp.exe -ldflags="-X main.version=$(VERSION)" ./cmd/chaincmp
 
-release-chaincmp: ver build-chaincmp-linux build-chaincmp-darwin build-chaincmp-windows
+release-chaincmp: ver build-chaincmp-linux build-chaincmp-darwin-amd64 build-chaincmp-darwin-arm64 build-chaincmp-windows
 
 dist-chaincmp: release-chaincmp
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/chaincmp_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/chaincmp*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_Linux-amd64.tar.gz ./chaincmp*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_macOS-amd64.tar.gz ./chaincmp*
+	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/chaincmp_$(VERSION)_macOS-arm64.tar.gz ./chaincmp*
 
 build-blockcmp-native:
 	@go build -o build/bin/native/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
 build-blockcmp-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
-build-blockcmp-darwin:
+build-blockcmp-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
+build-blockcmp-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/blockcmp -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
 build-blockcmp-windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/blockcmp.exe -ldflags="-X main.version=$(VERSION)" ./cmd/blockcmp
 
-release-blockcmp: ver build-blockcmp-linux build-blockcmp-darwin build-blockcmp-windows
+release-blockcmp: ver build-blockcmp-linux build-blockcmp-darwin-amd64 build-blockcmp-darwin-arm64 build-blockcmp-windows
 
 dist-blockcmp: release-blockcmp
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/blockcmp_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/blockcmp*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/blockcmp_$(VERSION)_Linux-amd64.tar.gz ./blockcmp*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/blockcmp_$(VERSION)_macOS-amd64.tar.gz ./blockcmp*
+	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/blockcmp_$(VERSION)_macOS-arm64.tar.gz ./blockcmp*
 
 build-node-native:
 	@go build -o build/bin/native/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
@@ -124,10 +130,12 @@ build-node-linux-arm64:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -o build/bin/linux-arm64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
+build-node-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/node -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 build-node-windows-amd64:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 
-release-node: ver build-node-linux-amd64 build-node-linux-i386 build-node-linux-arm64 build-node-linux-arm build-node-darwin-amd64 build-node-windows-amd64
+release-node: ver build-node-linux-amd64 build-node-linux-i386 build-node-linux-arm64 build-node-linux-arm build-node-darwin-amd64 build-node-darwin-arm64 build-node-windows-amd64
 
 dist-node: release-node build-node-mainnet-amd64-deb-package build-node-mainnet-arm64-deb-package build-node-testnet-amd64-deb-package build-node-testnet-arm64-deb-package build-node-stagenet-amd64-deb-package build-node-stagenet-arm64-deb-package
 	@mkdir -p build/dist
@@ -135,96 +143,113 @@ dist-node: release-node build-node-mainnet-amd64-deb-package build-node-mainnet-
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/node_$(VERSION)_Linux-amd64.tar.gz ./node*
 	@cd ./build/bin/linux-arm64/; tar pzcvf ../../dist/node_$(VERSION)_Linux-arm64.tar.gz ./node*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/node_$(VERSION)_macOS-amd64.tar.gz ./node*
+	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/node_$(VERSION)_macOS-arm64.tar.gz ./node*
 
 build-importer-native:
 	@go build -pgo=importer.pgo -o build/bin/native/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -pgo=importer.pgo -o build/bin/linux-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
-build-importer-darwin:
+build-importer-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -pgo=importer.pgo -o build/bin/darwin-amd64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
+build-importer-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -pgo=importer.pgo -o build/bin/darwin-arm64/importer -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 build-importer-windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -pgo=importer.pgo -o build/bin/windows-amd64/importer.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/importer
 
-release-importer: ver build-importer-linux build-importer-darwin build-importer-windows
+release-importer: ver build-importer-linux build-importer-darwin-amd64 build-importer-darwin-arm64 build-importer-windows
 
 dist-importer: release-importer
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/importer_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/importer*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_Linux-amd64.tar.gz ./importer*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-amd64.tar.gz ./importer*
+	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/importer_$(VERSION)_macOS-arm64.tar.gz ./importer*
 
 build-wallet-native:
 	@go build -o build/bin/native/wallet ./cmd/wallet
 build-wallet-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/wallet ./cmd/wallet
-build-wallet-darwin:
+build-wallet-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/wallet ./cmd/wallet
+build-wallet-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/wallet ./cmd/wallet
 build-wallet-windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/wallet.exe ./cmd/wallet
 
-release-wallet: ver build-wallet-linux build-wallet-darwin build-wallet-windows
+release-wallet: ver build-wallet-linux build-wallet-darwin-amd64 build-wallet-darwin-arm64 build-wallet-windows
 
 dist-wallet: release-wallet
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/wallet_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/wallet*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_Linux-amd64.tar.gz ./wallet*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/wallet_$(VERSION)_macOS-amd64.tar.gz ./wallet*
+	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/wallet_$(VERSION)_macOS-arm64.tar.gz ./wallet*
 
 build-rollback-native:
 	@go build -o build/bin/native/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
 build-rollback-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
-build-rollback-darwin:
+build-rollback-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
+build-rollback-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/rollback -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
 build-rollback-windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/rollback.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/rollback
 
-release-rollback: ver build-rollback-linux build-rollback-darwin build-rollback-windows
+release-rollback: ver build-rollback-linux build-rollback-darwin-amd64 build-rollback-darwin-arm64 build-rollback-windows
 
 build-compiler-native:
 	@go build -o build/bin/native/compiler ./cmd/compiler
 build-compiler-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/compiler ./cmd/compiler
-build-compiler-darwin:
+build-compiler-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/compiler ./cmd/compiler
+build-compiler-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/compiler ./cmd/compiler
 build-compiler-windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/compiler.exe ./cmd/compiler
 
-release-compiler: ver build-compiler-linux build-compiler-darwin build-compiler-windows
+release-compiler: ver build-compiler-linux build-compiler-darwin-amd64 build-compiler-darwin-arm64 build-compiler-windows
 
 dist-compiler: release-compiler
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/compiler_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/compiler*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_Linux-amd64.tar.gz ./compiler*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/compiler_$(VERSION)_macOS-amd64.tar.gz ./compiler*
+	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/compiler_$(VERSION)_macOS-arm64.tar.gz ./compiler*
 
 build-statehash-native:
 	@go build -o build/bin/native/statehash ./cmd/statehash
 build-statehash-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/statehash ./cmd/statehash
-build-statehash-darwin:
+build-statehash-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/statehash ./cmd/statehash
+build-statehash-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/statehash ./cmd/statehash
 build-statehash-windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/statehash.exe ./cmd/statehash
 
-release-statehash: ver build-statehash-linux build-statehash-darwin build-statehash-windows
+release-statehash: ver build-statehash-linux build-statehash-darwin-amd64 build-statehash-darwin-arm64 build-statehash-windows
 
 build-convert-native:
 	@go build -o build/bin/native/convert ./cmd/convert
 build-convert-linux:
 	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/convert ./cmd/convert
-build-convert-darwin:
+build-convert-darwin-amd64:
 	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/convert ./cmd/convert
+build-convert-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/convert ./cmd/convert
 build-convert-windows:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/convert.exe ./cmd/convert
 
-release-convert: ver build-convert-linux build-convert-darwin build-convert-windows
+release-convert: ver build-convert-linux build-convert-darwin-amd64 build-convert-darwin-arm64 build-convert-windows
 
 dist-convert: release-convert
 	@mkdir -p build/dist
 	@cd ./build/; zip -j ./dist/convert_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/convert*
 	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/convert_$(VERSION)_Linux-amd64.tar.gz ./convert*
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/convert_$(VERSION)_macOS-amd64.tar.gz ./convert*
+	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/convert_$(VERSION)_macOS-arm64.tar.gz ./convert*
 
 dist: clean dist-chaincmp dist-importer dist-node dist-wallet dist-compiler
 
