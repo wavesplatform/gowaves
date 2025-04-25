@@ -785,8 +785,10 @@ func functionsV6() map[string]string {
 	delete(m, "fraction")
 	m["3"] = "getType"
 	m["110"] = "fractionIntRounds"
-	m["204"] = "takeRightBytes"
-	m["205"] = "dropRightBytes"
+	m["201"] = "takeBytesV6"
+	m["202"] = "dropBytesV6"
+	m["204"] = "takeRightBytesV6"
+	m["205"] = "dropRightBytesV6"
 	m["306"] = "takeRightString"
 	m["307"] = "dropRightString"
 	m["1350"] = "sizeTuple"

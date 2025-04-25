@@ -11,6 +11,10 @@ import (
 	"github.com/pkg/errors"
 )
 
+// dataTxMaxProtoBytes depends on DataTransaction.MaxProtoBytes.
+// But it SHOULD be equal proto.MaxDataWithProofsProtoBytes. But for unknown reason, it is not.
+const dataTxMaxProtoBytes = 165947
+
 func bytesArg(args []rideType) (rideByteVector, error) {
 	if len(args) != 1 {
 		return nil, errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
@@ -92,22 +96,59 @@ func sizeBytes(_ environment, args ...rideType) (rideType, error) {
 	return rideInt(len(b)), nil
 }
 
-func takeBytes(_ environment, args ...rideType) (rideType, error) {
+func checkBytesNumberLimit(checkLimits bool, n int, fName, rideFName string) error {
+	if !checkLimits {
+		return nil
+	}
+	if n < 0 {
+		return RuntimeError.Errorf("%s: unexpected negative number = %d passed to %s()",
+			fName, n, rideFName,
+		)
+	}
+	if n > dataTxMaxProtoBytes {
+		return RuntimeError.Errorf("%s: number = %d passed to %s() exceeds ByteVector limit = %d",
+			fName, n, rideFName, dataTxMaxProtoBytes,
+		)
+	}
+	return nil
+}
+
+func takeBytesGeneric(checkLimits bool, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
-	//TODO: `takeBytes` function must check `n` is less or equal 165947 (DataTxMaxProtoBytes) after activation of RideV6
 	if err != nil {
 		return nil, errors.Wrap(err, "takeBytes")
+	}
+	if lErr := checkBytesNumberLimit(checkLimits, n, "takeBytes", "take"); lErr != nil {
+		return nil, lErr
 	}
 	return takeRideBytes(b, n), nil
 }
 
-func dropBytes(_ environment, args ...rideType) (rideType, error) {
+func takeBytes(_ environment, args ...rideType) (rideType, error) {
+	return takeBytesGeneric(false, args...)
+}
+
+func takeBytesV6(_ environment, args ...rideType) (rideType, error) {
+	return takeBytesGeneric(true, args...)
+}
+
+func dropBytesGeneric(checkLimits bool, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
-	//TODO: `dropBytes` function must check `n` is less or equal 165947 (DataTxMaxProtoBytes) after activation of RideV6
 	if err != nil {
 		return nil, errors.Wrap(err, "dropBytes")
 	}
+	if lErr := checkBytesNumberLimit(checkLimits, n, "dropBytes", "drop"); lErr != nil {
+		return nil, lErr
+	}
 	return dropRideBytes(b, n), nil
+}
+
+func dropBytes(_ environment, args ...rideType) (rideType, error) {
+	return dropBytesGeneric(false, args...)
+}
+
+func dropBytesV6(_ environment, args ...rideType) (rideType, error) {
+	return dropBytesGeneric(true, args...)
 }
 
 func concatBytes(env environment, args ...rideType) (rideType, error) {
@@ -202,22 +243,42 @@ func fromBase16(_ environment, args ...rideType) (rideType, error) {
 	return rideByteVector(decoded), nil
 }
 
-func dropRightBytes(_ environment, args ...rideType) (rideType, error) {
+func dropRightBytesGeneric(checkLimits bool, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
-	//TODO: `dropRightBytes` function must check `n` is less or equal 165947 (DataTxMaxProtoBytes) after activation of RideV6
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightBytes")
+	}
+	if lErr := checkBytesNumberLimit(checkLimits, n, "dropRightBytes", "dropRight"); lErr != nil {
+		return nil, lErr
 	}
 	return takeRideBytes(b, len(b)-n), nil
 }
 
-func takeRightBytes(_ environment, args ...rideType) (rideType, error) {
+func dropRightBytes(_ environment, args ...rideType) (rideType, error) {
+	return dropRightBytesGeneric(false, args...)
+}
+
+func dropRightBytesV6(_ environment, args ...rideType) (rideType, error) {
+	return dropRightBytesGeneric(true, args...)
+}
+
+func takeRightBytesGeneric(checkLimits bool, args ...rideType) (rideType, error) {
 	b, n, err := bytesAndIntArgs(args)
-	//TODO: `takeRightBytes` function must check `n` is less or equal 165947 (DataTxMaxProtoBytes) after activation of RideV6
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightBytes")
 	}
+	if lErr := checkBytesNumberLimit(checkLimits, n, "takeRightBytes", "takeRight"); lErr != nil {
+		return nil, lErr
+	}
 	return dropRideBytes(b, len(b)-n), nil
+}
+
+func takeRightBytes(_ environment, args ...rideType) (rideType, error) {
+	return takeRightBytesGeneric(false, args...)
+}
+
+func takeRightBytesV6(_ environment, args ...rideType) (rideType, error) {
+	return takeRightBytesGeneric(true, args...)
 }
 
 func bytesToUTF8String(_ environment, args ...rideType) (rideType, error) {
