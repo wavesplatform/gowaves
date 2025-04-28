@@ -269,6 +269,8 @@ proto:
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-vtproto_out=./ --go-vtproto_opt=features=marshal_strict+unmarshal+size --go-vtproto_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/lang/*.proto
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-vtproto_out=./ --go-vtproto_opt=features=marshal_strict+unmarshal+size --go-vtproto_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/events/*.proto
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-grpc_out=./ --go-grpc_opt=require_unimplemented_servers=false --go-grpc_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/events/grpc/*.proto
+proto-l2:
+	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --proto_path=pkg/grpc/l2/blockchain_info/ --go_out=./ --go_opt=module=$(MODULE) --go-vtproto_out=./ --go-vtproto_opt=features=marshal_strict+unmarshal+size --go-vtproto_opt=module=$(MODULE) pkg/grpc/l2/blockchain_info/*.proto
 
 build-node-mainnet-amd64-deb-package: release-node
 	@mkdir -p build/dist
