@@ -77,42 +77,40 @@ func selectFunctionChecker(v ast.LibraryVersion) (func(name string) (uint16, boo
 	}
 }
 
-func selectEvaluationCostsProvider(v ast.LibraryVersion, ev int) (map[string]int, error) {
+type evaluatorVersion uint8
+
+const (
+	evaluatorV1 evaluatorVersion = 1
+	evaluatorV2 evaluatorVersion = 2
+)
+
+func selectByEvaluatorVersion(ev evaluatorVersion, catalogueEV1, catalogueEV2 map[string]int) (map[string]int, error) {
+	switch ev {
+	case evaluatorV1:
+		return catalogueEV1, nil
+	case evaluatorV2:
+		return catalogueEV2, nil
+	default:
+		return nil, EvaluationFailure.Errorf("catalogue not found for evaluator version '%d'", ev)
+	}
+}
+
+func selectEvaluationCostsProvider(v ast.LibraryVersion, ev evaluatorVersion) (map[string]int, error) {
 	switch v {
 	case ast.LibV1, ast.LibV2:
-		switch ev {
-		case 1:
-			return EvaluationCatalogueV2EvaluatorV1, nil
-		default:
-			return EvaluationCatalogueV2EvaluatorV2, nil
-		}
+		return selectByEvaluatorVersion(ev, EvaluationCatalogueV2EvaluatorV1, EvaluationCatalogueV2EvaluatorV2)
 	case ast.LibV3:
-		switch ev {
-		case 1:
-			return EvaluationCatalogueV3EvaluatorV1, nil
-		default:
-			return EvaluationCatalogueV3EvaluatorV2, nil
-		}
+		return selectByEvaluatorVersion(ev, EvaluationCatalogueV3EvaluatorV1, EvaluationCatalogueV3EvaluatorV2)
 	case ast.LibV4:
-		switch ev {
-		case 1:
-			return EvaluationCatalogueV4EvaluatorV1, nil
-		default:
-			return EvaluationCatalogueV4EvaluatorV2, nil
-		}
+		return selectByEvaluatorVersion(ev, EvaluationCatalogueV4EvaluatorV1, EvaluationCatalogueV4EvaluatorV2)
 	case ast.LibV5:
-		switch ev {
-		case 1:
-			return EvaluationCatalogueV5EvaluatorV1, nil
-		default:
-			return EvaluationCatalogueV5EvaluatorV2, nil
-		}
-	case ast.LibV6: // Only new version of evaluator works after activation of RideV6
-		return EvaluationCatalogueV6EvaluatorV2, nil
+		return selectByEvaluatorVersion(ev, EvaluationCatalogueV5EvaluatorV1, EvaluationCatalogueV5EvaluatorV2)
+	case ast.LibV6: // Only second version of evaluator actually works after activation of RideV6, but support both
+		return selectByEvaluatorVersion(ev, EvaluationCatalogueV6EvaluatorV1, EvaluationCatalogueV6EvaluatorV2)
 	case ast.LibV7:
-		return EvaluationCatalogueV7EvaluatorV2, nil
+		return selectByEvaluatorVersion(ev, EvaluationCatalogueV7EvaluatorV1, EvaluationCatalogueV7EvaluatorV2)
 	case ast.LibV8:
-		return EvaluationCatalogueV8EvaluatorV2, nil
+		return selectByEvaluatorVersion(ev, EvaluationCatalogueV8EvaluatorV1, EvaluationCatalogueV8EvaluatorV2)
 	default:
 		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
 	}
