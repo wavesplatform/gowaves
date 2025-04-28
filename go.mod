@@ -18,6 +18,7 @@ require (
 	github.com/go-chi/chi v4.1.2+incompatible
 	github.com/go-test/deep v1.1.1
 	github.com/golang/mock v1.6.0
+	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
@@ -27,6 +28,7 @@ require (
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.9.1
+	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	github.com/prometheus/client_golang v1.22.0
 	github.com/qmuntal/stateless v1.7.1
 	github.com/semrush/zenrpc/v2 v2.1.1
