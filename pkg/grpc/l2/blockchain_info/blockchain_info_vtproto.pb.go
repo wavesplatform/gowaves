@@ -148,6 +148,13 @@ func (m *L2ContractDataEntries) MarshalToSizedBufferVTStrict(dAtA []byte) (int, 
 			dAtA[i] = 0x2a
 		}
 	}
+	if len(m.BlockID) > 0 {
+		i -= len(m.BlockID)
+		copy(dAtA[i:], m.BlockID)
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.BlockID)))
+		i--
+		dAtA[i] = 0x12
+	}
 	if m.Height != 0 {
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.Height))
 		i--
@@ -195,6 +202,10 @@ func (m *L2ContractDataEntries) SizeVT() (n int) {
 	_ = l
 	if m.Height != 0 {
 		n += 1 + protohelpers.SizeOfVarint(uint64(m.Height))
+	}
+	l = len(m.BlockID)
+	if l > 0 {
+		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if len(m.DataEntries) > 0 {
 		for _, e := range m.DataEntries {
@@ -442,6 +453,40 @@ func (m *L2ContractDataEntries) UnmarshalVT(dAtA []byte) error {
 					break
 				}
 			}
+		case 2:
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field BlockID", wireType)
+			}
+			var byteLen int
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				byteLen |= int(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+			if byteLen < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			postIndex := iNdEx + byteLen
+			if postIndex < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.BlockID = append(m.BlockID[:0], dAtA[iNdEx:postIndex]...)
+			if m.BlockID == nil {
+				m.BlockID = []byte{}
+			}
+			iNdEx = postIndex
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field DataEntries", wireType)
