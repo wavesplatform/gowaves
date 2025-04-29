@@ -388,6 +388,7 @@ func functionsV4() map[string]string {
 	m["405"] = "median"
 	m["406"] = "listMax"
 	m["407"] = "listMin"
+	m["600"] = "toBase58V4"
 	m["602"] = "toBase64V4"
 	delete(m, "700") // remove CheckMerkleProof
 	m["701"] = "rebuildMerkleRoot"

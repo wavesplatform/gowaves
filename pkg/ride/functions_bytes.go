@@ -182,14 +182,24 @@ func checkByteStringLength(reduceLimit bool, s string) error {
 	return nil
 }
 
-func toBase58(_ environment, args ...rideType) (rideType, error) {
-	//TODO: Before activation of RideV4 length of the result string must not be more than 165947 (DataTxMaxProtoBytes) bytes,
-	// after no more than 32768 bytes.
+func toBase58Generic(reduceLimit bool, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase58")
 	}
-	return rideString(base58.Encode(b)), nil
+	s := base58.Encode(b)
+	if lErr := checkByteStringLength(reduceLimit, s); lErr != nil {
+		return nil, errors.Wrap(lErr, "toBase58")
+	}
+	return rideString(s), nil
+}
+
+func toBase58(_ environment, args ...rideType) (rideType, error) {
+	return toBase58Generic(false, args...)
+}
+
+func toBase58V4(_ environment, args ...rideType) (rideType, error) {
+	return toBase58Generic(true, args...)
 }
 
 func fromBase58(_ environment, args ...rideType) (rideType, error) {

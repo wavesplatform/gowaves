@@ -7,6 +7,7 @@ import (
 	"math"
 	"testing"
 
+	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
@@ -125,29 +126,46 @@ func TestConcatBytes(t *testing.T) {
 	}
 }
 
-func TestToBase58(t *testing.T) {
-	for _, test := range []struct {
-		args []rideType
-		fail bool
-		r    rideType
+func TestToBase58Generic(t *testing.T) {
+	var (
+		maxDataWithProofsBytesBV      = make([]byte, proto.MaxDataWithProofsBytes+1)
+		maxDataWithProofsBytesBVOK    = maxDataWithProofsBytesBV[:proto.MaxDataWithProofsBytes]
+		maxDataWithProofsBytesBVOKRes = base58.Encode(maxDataWithProofsBytesBVOK)
+	)
+	var (
+		maxDataEntryValueSizeBV      = maxDataWithProofsBytesBV[:proto.MaxDataEntryValueSize+1]
+		maxDataEntryValueSizeBVOK    = maxDataEntryValueSizeBV[:proto.MaxDataEntryValueSize]
+		maxDataEntryValueSizeBVOKRes = base58.Encode(maxDataEntryValueSizeBVOK)
+	)
+	for i, test := range []struct {
+		reduceLimit bool
+		args        []rideType
+		fail        bool
+		r           rideType
 	}{
-		{[]rideType{rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, rideString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")},
-		{[]rideType{rideByteVector{0, 0, 0, 0, 0}}, false, rideString("11111")},
-		{[]rideType{rideByteVector{}}, false, rideString("")},
-		{[]rideType{rideUnit{}}, false, rideString("")},
-		{[]rideType{rideByteVector{}, rideByteVector{}}, true, nil},
-		{[]rideType{rideByteVector{1, 2, 4}, rideInt(0)}, true, nil},
-		{[]rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
-		{[]rideType{rideInt(1), rideString("x")}, true, nil},
-		{[]rideType{}, true, nil},
+		{false, []rideType{rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, rideString("6gVbAXCUdsa14xdsSk2SKaNBXs271V3Mo4zjb2cvCrsM")}, //nolint:lll
+		{false, []rideType{rideByteVector{0, 0, 0, 0, 0}}, false, rideString("11111")},
+		{false, []rideType{rideByteVector{}}, false, rideString("")},
+		{false, []rideType{rideUnit{}}, false, rideString("")},
+		{false, []rideType{rideByteVector{}, rideByteVector{}}, true, nil},
+		{false, []rideType{rideByteVector{1, 2, 4}, rideInt(0)}, true, nil},
+		{false, []rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
+		{false, []rideType{rideInt(1), rideString("x")}, true, nil},
+		{false, []rideType{}, true, nil},
+		{false, []rideType{rideByteVector(maxDataWithProofsBytesBV)}, true, nil},
+		{false, []rideType{rideByteVector(maxDataWithProofsBytesBVOK)}, false, rideString(maxDataWithProofsBytesBVOKRes)}, //nolint:lll
+		{true, []rideType{rideByteVector(maxDataEntryValueSizeBV)}, true, nil},
+		{true, []rideType{rideByteVector(maxDataEntryValueSizeBVOK)}, false, rideString(maxDataEntryValueSizeBVOKRes)}, //nolint:lll
 	} {
-		r, err := toBase58(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
-		}
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := toBase58Generic(test.reduceLimit, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
 	}
 }
 
