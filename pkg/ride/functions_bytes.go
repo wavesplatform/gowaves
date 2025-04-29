@@ -13,6 +13,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	maxBase58StringToDecode = 100
+)
+
 // dataTxMaxProtoBytes depends on DataTransaction.MaxProtoBytes.
 // But it SHOULD be equal proto.MaxDataWithProofsProtoBytes. But for unknown reason, it is not.
 const dataTxMaxProtoBytes = 165947
@@ -206,6 +210,9 @@ func fromBase58(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
+	}
+	if l := len(s); l > maxBase58StringToDecode {
+		return nil, RuntimeError.Errorf("fromBase58: input is too long (%d), limit is %d", l, maxBase58StringToDecode)
 	}
 	str := string(s)
 	if str == "" {

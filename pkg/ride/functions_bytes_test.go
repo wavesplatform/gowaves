@@ -171,7 +171,15 @@ func TestToBase58Generic(t *testing.T) {
 }
 
 func TestFromBase58(t *testing.T) {
-	for _, test := range []struct {
+	var (
+		overMaxInputRes = make([]byte, maxBase58StringToDecode+1)
+		overMaxInput    = base58.Encode(overMaxInputRes)
+	)
+	var (
+		maxInputRes = overMaxInputRes[:maxBase58StringToDecode]
+		maxInput    = base58.Encode(maxInputRes)
+	)
+	for i, test := range []struct {
 		args []rideType
 		fail bool
 		r    rideType
@@ -184,14 +192,18 @@ func TestFromBase58(t *testing.T) {
 		{[]rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
+		{[]rideType{rideString(overMaxInput)}, true, nil},
+		{[]rideType{rideString(maxInput)}, false, rideByteVector(maxInputRes)},
 	} {
-		r, err := fromBase58(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
-		}
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := fromBase58(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
 	}
 }
 
