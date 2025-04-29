@@ -21,7 +21,7 @@ import (
 )
 
 func printBlockInfo(blockInfoProto *g.BlockInfo) error {
-	blockInfo, err := blockchaininfo.BUpdatesInfoFromProto(blockInfoProto)
+	blockInfo, err := blockchaininfo.BlockUpdatesInfoFromProto(blockInfoProto)
 	if err != nil {
 		return err
 	}

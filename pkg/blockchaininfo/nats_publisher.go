@@ -185,7 +185,7 @@ func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nat
 }
 
 func PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto.Scheme) error {
-	blockInfo, err := BUpdatesInfoToProto(updates, scheme)
+	blockInfo, err := BlockUpdatesInfoToProto(updates.BlockUpdatesInfo, scheme)
 	if err != nil {
 		return err
 	}
