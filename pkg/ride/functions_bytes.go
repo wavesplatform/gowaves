@@ -208,14 +208,24 @@ func fromBase58(_ environment, args ...rideType) (rideType, error) {
 	return rideByteVector(r), nil
 }
 
-func toBase64(_ environment, args ...rideType) (rideType, error) {
-	//TODO: Before activation of RideV4 length of the result string must not be more than 165947 (DataTxMaxProtoBytes) bytes,
-	// after no more than 32768 bytes.
+func toBase64Generic(reduceLimit bool, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase64")
 	}
-	return rideString(base64.StdEncoding.EncodeToString(b)), nil
+	s := base64.StdEncoding.EncodeToString(b)
+	if lErr := checkByteStringLength(reduceLimit, s); lErr != nil {
+		return nil, errors.Wrap(lErr, "toBase64")
+	}
+	return rideString(s), nil
+}
+
+func toBase64(_ environment, args ...rideType) (rideType, error) {
+	return toBase64Generic(false, args...)
+}
+
+func toBase64V4(_ environment, args ...rideType) (rideType, error) {
+	return toBase64Generic(true, args...)
 }
 
 func fromBase64(_ environment, args ...rideType) (rideType, error) {

@@ -3,6 +3,7 @@ package ride
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"math"
 	"testing"
 
@@ -175,29 +176,52 @@ func TestFromBase58(t *testing.T) {
 	}
 }
 
-func TestToBase64(t *testing.T) {
-	for _, test := range []struct {
-		args []rideType
-		fail bool
-		r    rideType
+func TestToBase64Generic(t *testing.T) {
+	const (
+		// base64 approximately expands to 4/3 of the original size
+		// divide by 4/3
+		maxDataWithProofsBytesB64 = proto.MaxDataWithProofsBytes * 3 / 4 // gives 153_600 bytes in base64
+		maxDataEntryValueSizeB64  = proto.MaxDataEntryValueSize*3/4 - 2  // gives 32_764 bytes in base64
+	)
+	var (
+		maxDataWithProofsBytesBV      = make([]byte, maxDataWithProofsBytesB64+1)
+		maxDataWithProofsBytesBVOK    = maxDataWithProofsBytesBV[:maxDataWithProofsBytesB64]
+		maxDataWithProofsBytesBVOKRes = base64.StdEncoding.EncodeToString(maxDataWithProofsBytesBVOK)
+	)
+	var (
+		maxDataEntryValueSizeBV      = maxDataWithProofsBytesBV[:maxDataEntryValueSizeB64+1]
+		maxDataEntryValueSizeBVOK    = maxDataEntryValueSizeBV[:maxDataEntryValueSizeB64]
+		maxDataEntryValueSizeBVOKRes = base64.StdEncoding.EncodeToString(maxDataEntryValueSizeBVOK)
+	)
+	for i, test := range []struct {
+		reduceLimit bool
+		args        []rideType
+		fail        bool
+		r           rideType
 	}{
-		{[]rideType{rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, rideString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")},
-		{[]rideType{rideByteVector{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}}, false, rideString("AQa3b8tH")},
-		{[]rideType{rideByteVector{}}, false, rideString("")},
-		{[]rideType{rideUnit{}}, false, rideString("")},
-		{[]rideType{rideByteVector{}, rideByteVector{}}, true, nil},
-		{[]rideType{rideByteVector{1, 2, 4}, rideInt(0)}, true, nil},
-		{[]rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
-		{[]rideType{rideInt(1), rideString("x")}, true, nil},
-		{[]rideType{}, true, nil},
+		{false, []rideType{rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, rideString("VGhpcyBpcyBhIHNpbXBsZSBzdHJpbmcgZm9yIHRlc3Q=")}, //nolint:lll
+		{false, []rideType{rideByteVector{0x1, 0x6, 0xb7, 0x6f, 0xcb, 0x47}}, false, rideString("AQa3b8tH")},
+		{false, []rideType{rideByteVector{}}, false, rideString("")},
+		{false, []rideType{rideUnit{}}, false, rideString("")},
+		{false, []rideType{rideByteVector{}, rideByteVector{}}, true, nil},
+		{false, []rideType{rideByteVector{1, 2, 4}, rideInt(0)}, true, nil},
+		{false, []rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
+		{false, []rideType{rideInt(1), rideString("x")}, true, nil},
+		{false, []rideType{}, true, nil},
+		{false, []rideType{rideByteVector(maxDataWithProofsBytesBV)}, true, nil},
+		{false, []rideType{rideByteVector(maxDataWithProofsBytesBVOK)}, false, rideString(maxDataWithProofsBytesBVOKRes)}, //nolint:lll
+		{true, []rideType{rideByteVector(maxDataEntryValueSizeBV)}, true, nil},
+		{true, []rideType{rideByteVector(maxDataEntryValueSizeBVOK)}, false, rideString(maxDataEntryValueSizeBVOKRes)}, //nolint:lll
 	} {
-		r, err := toBase64(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
-		}
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := toBase64Generic(test.reduceLimit, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
 	}
 }
 
