@@ -20,6 +20,7 @@ const (
 const (
 	maxBase64BytesToEncode = 32 * 1024 // 32 KiB
 	maxBase58BytesToEncode = 64
+	maxBase16BytesToEncode = 8 * 1024 // 8 KiB
 )
 
 // dataTxMaxProtoBytes depends on DataTransaction.MaxProtoBytes.
@@ -263,16 +264,27 @@ func fromBase64(_ environment, args ...rideType) (rideType, error) {
 	return rideByteVector(decoded), nil
 }
 
-func toBase16(_ environment, args ...rideType) (rideType, error) {
+func toBase16Generic(checkLength bool, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase16")
+	}
+	if l := len(b); checkLength && l > maxBase16BytesToEncode {
+		return nil, RuntimeError.Errorf("toBase16: input is too long (%d), limit is %d", l, maxBase16BytesToEncode)
 	}
 	s := hex.EncodeToString(b)
 	if lErr := checkByteStringLength(true, s); lErr != nil {
 		return nil, errors.Wrap(lErr, "toBase16")
 	}
 	return rideString(s), nil
+}
+
+func toBase16(_ environment, args ...rideType) (rideType, error) {
+	return toBase16Generic(false, args...)
+}
+
+func toBase16V4(_ environment, args ...rideType) (rideType, error) {
+	return toBase16Generic(true, args...)
 }
 
 func fromBase16(_ environment, args ...rideType) (rideType, error) {
