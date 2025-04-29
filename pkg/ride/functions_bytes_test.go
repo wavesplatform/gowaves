@@ -226,14 +226,18 @@ func TestToBase64Generic(t *testing.T) {
 		maxDataEntryValueSizeB64  = proto.MaxDataEntryValueSize*3/4 - 2  // gives 32_764 bytes in base64
 	)
 	var (
-		maxDataWithProofsBytesBV      = make([]byte, maxDataWithProofsBytesB64+1)
-		maxDataWithProofsBytesBVOK    = maxDataWithProofsBytesBV[:maxDataWithProofsBytesB64]
-		maxDataWithProofsBytesBVOKRes = base64.StdEncoding.EncodeToString(maxDataWithProofsBytesBVOK)
+		maxDataWithProofsBytesBV   = make([]byte, maxDataWithProofsBytesB64+1)
+		maxDataWithProofsBytesBVOK = maxDataWithProofsBytesBV[:maxDataWithProofsBytesB64]
 	)
 	var (
 		maxDataEntryValueSizeBV      = maxDataWithProofsBytesBV[:maxDataEntryValueSizeB64+1]
 		maxDataEntryValueSizeBVOK    = maxDataEntryValueSizeBV[:maxDataEntryValueSizeB64]
 		maxDataEntryValueSizeBVOKRes = base64.StdEncoding.EncodeToString(maxDataEntryValueSizeBVOK)
+	)
+	var (
+		overMaxInput = make([]byte, maxBase64BytesToEncode+1)
+		maxInput     = overMaxInput[:maxBase64BytesToEncode]
+		maxInputRes  = base64.StdEncoding.EncodeToString(maxInput)
 	)
 	for i, test := range []struct {
 		reduceLimit bool
@@ -250,10 +254,18 @@ func TestToBase64Generic(t *testing.T) {
 		{false, []rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
 		{false, []rideType{rideInt(1), rideString("x")}, true, nil},
 		{false, []rideType{}, true, nil},
+		//
 		{false, []rideType{rideByteVector(maxDataWithProofsBytesBV)}, true, nil},
-		{false, []rideType{rideByteVector(maxDataWithProofsBytesBVOK)}, false, rideString(maxDataWithProofsBytesBVOKRes)}, //nolint:lll
+		{false, []rideType{rideByteVector(maxDataWithProofsBytesBVOK)}, true, nil}, // fails because of huge input
+		//
 		{true, []rideType{rideByteVector(maxDataEntryValueSizeBV)}, true, nil},
 		{true, []rideType{rideByteVector(maxDataEntryValueSizeBVOK)}, false, rideString(maxDataEntryValueSizeBVOKRes)}, //nolint:lll
+		// both of these should fail because of huge input
+		{false, []rideType{rideByteVector(overMaxInput)}, true, nil},
+		{true, []rideType{rideByteVector(overMaxInput)}, true, nil},
+		//
+		{false, []rideType{rideByteVector(maxInput)}, false, rideString(maxInputRes)},
+		{true, []rideType{rideByteVector(maxInput)}, true, nil}, // fails because of huge output
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			r, err := toBase64Generic(test.reduceLimit, test.args...)

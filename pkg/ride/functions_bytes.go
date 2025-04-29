@@ -17,6 +17,7 @@ const (
 	maxBase58StringToDecode = 100
 )
 const (
+	maxBase64BytesToEncode = 32 * 1024 // 32 KiB
 	maxBase58BytesToEncode = 64
 )
 
@@ -235,6 +236,9 @@ func toBase64Generic(reduceLimit bool, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase64")
+	}
+	if l := len(b); l > maxBase64BytesToEncode {
+		return nil, RuntimeError.Errorf("toBase64: input is too long (%d), limit is %d", l, maxBase64BytesToEncode)
 	}
 	s := base64.StdEncoding.EncodeToString(b)
 	if lErr := checkByteStringLength(reduceLimit, s); lErr != nil {
