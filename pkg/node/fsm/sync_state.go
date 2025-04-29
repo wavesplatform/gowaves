@@ -102,7 +102,7 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
 			zap.S().Named(logging.FSMNamespace).Debugf(
-				"[Sync] Timed out after %s while syncronizing with peer '%s'",
+				"[Sync] Timed out after %s while synchronizing with peer '%s'",
 				a.conf.timeout.String(), a.conf.peerSyncWith.ID())
 			return newIdleState(a.baseInfo), nil, a.Errorf(TimeoutErr)
 		}
