@@ -86,7 +86,7 @@ func bytesOrUnitArgAsBytes(args ...rideType) ([]byte, error) {
 	case rideUnit:
 		return nil, nil
 	default:
-		return nil, errors.Errorf("toBase58: unexpected argument type '%s'", args[0].instanceOf())
+		return nil, errors.Errorf("unexpected argument type '%s'", args[0].instanceOf())
 	}
 }
 
