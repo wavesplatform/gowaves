@@ -130,13 +130,16 @@ func TestConcatBytes(t *testing.T) {
 func TestToBase58Generic(t *testing.T) {
 	var (
 		maxDataWithProofsBytesBV      = make([]byte, proto.MaxDataWithProofsBytes+1)
-		maxDataWithProofsBytesBVOK    = maxDataWithProofsBytesBV[:proto.MaxDataWithProofsBytes]
-		maxDataWithProofsBytesBVOKRes = base58.Encode(maxDataWithProofsBytesBVOK)
+		maxDataWithProofsBytesBVLower = maxDataWithProofsBytesBV[:proto.MaxDataWithProofsBytes]
 	)
 	var (
 		maxDataEntryValueSizeBV      = maxDataWithProofsBytesBV[:proto.MaxDataEntryValueSize+1]
-		maxDataEntryValueSizeBVOK    = maxDataEntryValueSizeBV[:proto.MaxDataEntryValueSize]
-		maxDataEntryValueSizeBVOKRes = base58.Encode(maxDataEntryValueSizeBVOK)
+		maxDataEntryValueSizeBVLower = maxDataEntryValueSizeBV[:proto.MaxDataEntryValueSize]
+	)
+	var (
+		overMaxBase58BytesSize = make([]byte, maxBase58BytesToEncode+1)
+		maxBase58BytesSize     = overMaxBase58BytesSize[:maxBase58BytesToEncode]
+		maxBase58BytesSizeRes  = base58.Encode(maxBase58BytesSize)
 	)
 	for i, test := range []struct {
 		reduceLimit bool
@@ -153,10 +156,18 @@ func TestToBase58Generic(t *testing.T) {
 		{false, []rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
 		{false, []rideType{rideInt(1), rideString("x")}, true, nil},
 		{false, []rideType{}, true, nil},
+		//
 		{false, []rideType{rideByteVector(maxDataWithProofsBytesBV)}, true, nil},
-		{false, []rideType{rideByteVector(maxDataWithProofsBytesBVOK)}, false, rideString(maxDataWithProofsBytesBVOKRes)}, //nolint:lll
+		{false, []rideType{rideByteVector(maxDataWithProofsBytesBVLower)}, true, nil},
+		//
 		{true, []rideType{rideByteVector(maxDataEntryValueSizeBV)}, true, nil},
-		{true, []rideType{rideByteVector(maxDataEntryValueSizeBVOK)}, false, rideString(maxDataEntryValueSizeBVOKRes)}, //nolint:lll
+		{true, []rideType{rideByteVector(maxDataEntryValueSizeBVLower)}, true, nil},
+		//
+		{false, []rideType{rideByteVector(overMaxBase58BytesSize)}, true, nil},
+		{true, []rideType{rideByteVector(overMaxBase58BytesSize)}, true, nil},
+		//
+		{false, []rideType{rideByteVector(maxBase58BytesSize)}, false, rideString(maxBase58BytesSizeRes)},
+		{true, []rideType{rideByteVector(maxBase58BytesSize)}, false, rideString(maxBase58BytesSizeRes)},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			r, err := toBase58Generic(test.reduceLimit, test.args...)

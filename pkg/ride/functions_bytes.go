@@ -16,6 +16,9 @@ import (
 const (
 	maxBase58StringToDecode = 100
 )
+const (
+	maxBase58BytesToEncode = 64
+)
 
 // dataTxMaxProtoBytes depends on DataTransaction.MaxProtoBytes.
 // But it SHOULD be equal proto.MaxDataWithProofsProtoBytes. But for unknown reason, it is not.
@@ -190,6 +193,9 @@ func toBase58Generic(reduceLimit bool, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase58")
+	}
+	if l := len(b); l > maxBase58BytesToEncode {
+		return nil, RuntimeError.Errorf("toBase58: input is too long (%d), limit is %d", l, maxBase58BytesToEncode)
 	}
 	s := base58.Encode(b)
 	if lErr := checkByteStringLength(reduceLimit, s); lErr != nil {
