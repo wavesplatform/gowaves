@@ -1,12 +1,15 @@
 package ride
 
 import (
+	"bytes"
 	"encoding/base64"
 	"math"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 func TestSizeBytes(t *testing.T) {
@@ -339,29 +342,44 @@ func TestTakeRightBytes(t *testing.T) {
 	}
 }
 
-func TestBytesToUTF8String(t *testing.T) {
+func TestBytesToUTF8StringGeneric(t *testing.T) {
 	broken, err := base64.StdEncoding.DecodeString("As7ayhU0UVXXiQ==")
 	require.NoError(t, err)
-	for _, test := range []struct {
-		args []rideType
-		fail bool
-		r    rideType
+	var (
+		maxDataWithProofsBytesBV   = bytes.Repeat([]byte{'f'}, proto.MaxDataWithProofsBytes+1)
+		maxDataWithProofsBytesBVOK = maxDataWithProofsBytesBV[:proto.MaxDataWithProofsBytes]
+	)
+	var (
+		maxDataEntryValueSizeBV   = maxDataWithProofsBytesBV[:proto.MaxDataEntryValueSize+1]
+		maxDataEntryValueSizeBVOK = maxDataEntryValueSizeBV[:proto.MaxDataEntryValueSize]
+	)
+	for i, test := range []struct {
+		reduceLimit bool
+		args        []rideType
+		fail        bool
+		r           rideType
 	}{
-		{[]rideType{rideByteVector("blah-blah-blah")}, false, rideString("blah-blah-blah")},
-		{[]rideType{rideByteVector("")}, false, rideString("")},
-		{[]rideType{rideByteVector{}}, false, rideString("")},
-		{[]rideType{rideByteVector(broken)}, true, nil},
-		{[]rideType{rideString("blah-blah-blah")}, true, nil},
-		{[]rideType{rideByteVector{0, 0, 0, 0, 0, 0, 0, 1}, rideInt(1)}, true, nil},
-		{[]rideType{}, true, nil},
+		{false, []rideType{rideByteVector("blah-blah-blah")}, false, rideString("blah-blah-blah")},
+		{false, []rideType{rideByteVector("")}, false, rideString("")},
+		{false, []rideType{rideByteVector{}}, false, rideString("")},
+		{false, []rideType{rideByteVector(broken)}, true, nil},
+		{false, []rideType{rideString("blah-blah-blah")}, true, nil},
+		{false, []rideType{rideByteVector{0, 0, 0, 0, 0, 0, 0, 1}, rideInt(1)}, true, nil},
+		{false, []rideType{}, true, nil},
+		{false, []rideType{rideByteVector(maxDataWithProofsBytesBV)}, true, nil},
+		{false, []rideType{rideByteVector(maxDataWithProofsBytesBVOK)}, false, rideString(maxDataWithProofsBytesBVOK)},
+		{true, []rideType{rideByteVector(maxDataEntryValueSizeBV)}, true, nil},
+		{true, []rideType{rideByteVector(maxDataEntryValueSizeBVOK)}, false, rideString(maxDataEntryValueSizeBVOK)},
 	} {
-		r, err := bytesToUTF8String(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
-		}
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, fErr := bytesToUTF8StringGeneric(test.reduceLimit, test.args...)
+			if test.fail {
+				assert.Error(t, fErr)
+			} else {
+				require.NoError(t, fErr)
+				assert.Equal(t, test.r, r)
+			}
+		})
 	}
 }
 

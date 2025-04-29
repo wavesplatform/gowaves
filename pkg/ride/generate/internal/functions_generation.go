@@ -408,6 +408,7 @@ func functionsV4() map[string]string {
 	m["1103"] = "indexOfList"
 	m["1104"] = "lastIndexOfList"
 	m["1105"] = "listRemoveByIndex"
+	m["1200"] = "bytesToUTF8StringV4"
 	m["1209"] = "makeString"
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		m[strconv.Itoa(2400+i)] = fmt.Sprintf("bls12Groth16Verify_%d", l)

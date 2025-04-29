@@ -9,6 +9,8 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 // dataTxMaxProtoBytes depends on DataTransaction.MaxProtoBytes.
@@ -169,6 +171,17 @@ func concatBytes(env environment, args ...rideType) (rideType, error) {
 	return rideByteVector(out), nil
 }
 
+func checkByteStringLength(reduceLimit bool, s string) error {
+	limit := proto.MaxDataWithProofsBytes
+	if reduceLimit {
+		limit = proto.MaxDataEntryValueSize
+	}
+	if size := len(s); size > limit { // utf8 bytes length
+		return RuntimeError.Errorf("string size=%d exceeds %d bytes", size, limit)
+	}
+	return nil
+}
+
 func toBase58(_ environment, args ...rideType) (rideType, error) {
 	//TODO: Before activation of RideV4 length of the result string must not be more than 165947 (DataTxMaxProtoBytes) bytes,
 	// after no more than 32768 bytes.
@@ -281,17 +294,27 @@ func takeRightBytesV6(_ environment, args ...rideType) (rideType, error) {
 	return takeRightBytesGeneric(true, args...)
 }
 
-func bytesToUTF8String(_ environment, args ...rideType) (rideType, error) {
-	//TODO: Before activation of RideV4 length of the result string must not be more than 165947 (DataTxMaxProtoBytes) bytes,
-	// after no more than 32768 bytes.
+func bytesToUTF8StringGeneric(reduceLimit bool, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToUTF8String")
 	}
-	if s := string(b); utf8.ValidString(s) {
-		return rideString(s), nil
+	s := string(b)
+	if !utf8.ValidString(s) {
+		return nil, errors.Errorf("invalid UTF-8 sequence")
 	}
-	return nil, errors.Errorf("invalid UTF-8 sequence")
+	if lErr := checkByteStringLength(reduceLimit, s); lErr != nil {
+		return nil, errors.Wrap(lErr, "bytesToUTF8String")
+	}
+	return rideString(s), nil
+}
+
+func bytesToUTF8String(_ environment, args ...rideType) (rideType, error) {
+	return bytesToUTF8StringGeneric(false, args...)
+}
+
+func bytesToUTF8StringV4(_ environment, args ...rideType) (rideType, error) {
+	return bytesToUTF8StringGeneric(true, args...)
 }
 
 func bytesToInt(_ environment, args ...rideType) (rideType, error) {
