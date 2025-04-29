@@ -108,20 +108,7 @@ func sizeBytes(_ environment, args ...rideType) (rideType, error) {
 }
 
 func checkBytesNumberLimit(checkLimits bool, n int, fName, rideFName string) error {
-	if !checkLimits {
-		return nil
-	}
-	if n < 0 {
-		return RuntimeError.Errorf("%s: unexpected negative number = %d passed to %s()",
-			fName, n, rideFName,
-		)
-	}
-	if n > dataTxMaxProtoBytes {
-		return RuntimeError.Errorf("%s: number = %d passed to %s() exceeds ByteVector limit = %d",
-			fName, n, rideFName, dataTxMaxProtoBytes,
-		)
-	}
-	return nil
+	return checkTakeDropNumberLimit("ByteVector", dataTxMaxProtoBytes, checkLimits, n, fName, rideFName)
 }
 
 func takeBytesGeneric(checkLimits bool, args ...rideType) (rideType, error) {
