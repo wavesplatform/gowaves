@@ -7,25 +7,25 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func BUpdatesInfoToProto(blockInfo proto.BUpdatesInfo, scheme proto.Scheme) (*g.BlockInfo, error) {
+func BlockUpdatesInfoToProto(blockInfo proto.BlockUpdatesInfo, scheme proto.Scheme) (*g.BlockInfo, error) {
 	var (
 		blockHeader *waves.Block_Header
 		err         error
 	)
 
-	blockHeader, err = blockInfo.BlockUpdatesInfo.BlockHeader.HeaderToProtobufHeader(scheme)
+	blockHeader, err = blockInfo.BlockHeader.HeaderToProtobufHeader(scheme)
 	if err != nil {
 		return nil, err
 	}
 	return &g.BlockInfo{
-		Height:      blockInfo.BlockUpdatesInfo.Height,
-		VRF:         blockInfo.BlockUpdatesInfo.VRF,
-		BlockID:     blockInfo.BlockUpdatesInfo.BlockID.Bytes(),
+		Height:      blockInfo.Height,
+		VRF:         blockInfo.VRF,
+		BlockID:     blockInfo.BlockID.Bytes(),
 		BlockHeader: blockHeader,
 	}, nil
 }
 
-func BUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (proto.BlockUpdatesInfo, error) {
+func BlockUpdatesInfoFromProto(blockInfoProto *g.BlockInfo) (proto.BlockUpdatesInfo, error) {
 	if blockInfoProto == nil {
 		return proto.BlockUpdatesInfo{}, errors.New("empty block info")
 	}

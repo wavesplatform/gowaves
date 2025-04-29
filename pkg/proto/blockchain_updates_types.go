@@ -13,8 +13,3 @@ type BlockUpdatesInfo struct {
 	BlockID     BlockID     `json:"block_id"`
 	BlockHeader BlockHeader `json:"block_header"`
 }
-
-type BUpdatesInfo struct {
-	BlockUpdatesInfo    BlockUpdatesInfo
-	ContractUpdatesInfo L2ContractDataEntries
-}
