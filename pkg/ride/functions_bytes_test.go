@@ -3,6 +3,7 @@ package ride
 import (
 	"bytes"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"math"
 	"testing"
@@ -273,7 +274,12 @@ func TestFromBase64(t *testing.T) {
 }
 
 func TestToBase16(t *testing.T) {
-	for _, test := range []struct {
+	var (
+		maxDataEntryValueSizeBV      = make([]byte, proto.MaxDataEntryValueSize/2+1)
+		maxDataEntryValueSizeBVOK    = maxDataEntryValueSizeBV[:proto.MaxDataEntryValueSize/2]
+		maxDataEntryValueSizeBVOKRes = hex.EncodeToString(maxDataEntryValueSizeBVOK)
+	)
+	for i, test := range []struct {
 		args []rideType
 		fail bool
 		r    rideType
@@ -286,14 +292,18 @@ func TestToBase16(t *testing.T) {
 		{[]rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
+		{[]rideType{rideByteVector(maxDataEntryValueSizeBV)}, true, nil},
+		{[]rideType{rideByteVector(maxDataEntryValueSizeBVOK)}, false, rideString(maxDataEntryValueSizeBVOKRes)},
 	} {
-		r, err := toBase16(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
-		}
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := toBase16(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
 	}
 }
 

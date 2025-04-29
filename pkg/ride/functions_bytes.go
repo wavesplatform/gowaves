@@ -260,7 +260,11 @@ func toBase16(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase16")
 	}
-	return rideString(hex.EncodeToString(b)), nil
+	s := hex.EncodeToString(b)
+	if lErr := checkByteStringLength(true, s); lErr != nil {
+		return nil, errors.Wrap(lErr, "toBase16")
+	}
+	return rideString(s), nil
 }
 
 func fromBase16(_ environment, args ...rideType) (rideType, error) {
