@@ -15,6 +15,7 @@ import (
 
 const (
 	maxBase58StringToDecode = 100
+	maxBase64StringToDecode = 44 * 1024 // 44 KiB
 )
 const (
 	maxBase64BytesToEncode = 32 * 1024 // 32 KiB
@@ -259,6 +260,9 @@ func fromBase64(_ environment, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase64")
+	}
+	if l := len(s); l > maxBase64StringToDecode {
+		return nil, RuntimeError.Errorf("fromBase64: input is too long (%d), limit is %d", l, maxBase64StringToDecode)
 	}
 	str := strings.TrimPrefix(string(s), "base64:")
 	decoded, err := base64.StdEncoding.DecodeString(str)

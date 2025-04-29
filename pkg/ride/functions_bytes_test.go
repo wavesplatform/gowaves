@@ -280,7 +280,15 @@ func TestToBase64Generic(t *testing.T) {
 }
 
 func TestFromBase64(t *testing.T) {
-	for _, test := range []struct {
+	var (
+		overMaxInput    = make([]byte, maxBase64StringToDecode*3/4+1)
+		overMaxInputB64 = base64.StdEncoding.EncodeToString(overMaxInput)
+	)
+	var (
+		maxInput    = overMaxInput[:maxBase64StringToDecode*3/4]
+		maxInputB64 = base64.StdEncoding.EncodeToString(maxInput)
+	)
+	for i, test := range []struct {
 		args []rideType
 		fail bool
 		r    rideType
@@ -297,14 +305,20 @@ func TestFromBase64(t *testing.T) {
 		{[]rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{}, true, nil},
+		//
+		{[]rideType{rideString(overMaxInputB64)}, true, nil},
+		{[]rideType{rideString(maxInputB64)}, false, rideByteVector(maxInput)},
+		{[]rideType{rideString("base64:" + maxInputB64)}, true, nil}, // prefix is also included in the length check
 	} {
-		r, err := fromBase64(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
-		}
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := fromBase64(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
 	}
 }
 
