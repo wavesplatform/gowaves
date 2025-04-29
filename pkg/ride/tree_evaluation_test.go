@@ -5183,9 +5183,9 @@ func TestInvokeActionsCountRestrictionsV6ToV5WithBlockRewardDistributionFailed(t
 	*/
 	_, tree3 := parseBase64Script(t, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAEY2FsbAAAAAAFAAAAA25pbAAAAACkYp5K")
 
-	const expectedSpentComplexity = 2293
+	const expectedSpentComplexity = 1827 // taken from the scala node test
 	env := newTestEnv(t).withLibVersion(ast.LibV6).withComplexityLimit(expectedSpentComplexity).
-		withBlockV5Activated().withProtobufTx().
+		withBlockV5Activated().withProtobufTx().withRideV6Activated().
 		withDataEntriesSizeV2().withMessageLengthV3().
 		withValidateInternalPayments().withThis(dApp1).
 		withDApp(dApp1).withAdditionalDApp(dApp2).withAdditionalDApp(dApp3).withSender(sender).

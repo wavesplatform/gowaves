@@ -1,0 +1,21 @@
+syntax = "proto3";
+
+package blockchain_info;
+option go_package = "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info";
+
+import "waves/transaction.proto";
+import "waves/block.proto";
+
+
+message BlockInfo {
+  uint64 Height = 1;
+  bytes  VRF = 2;
+  bytes  BlockID = 3;
+  waves.Block.Header BlockHeader = 4;
+}
+
+message L2ContractDataEntries {
+  repeated waves.DataEntry DataEntries = 5;
+  uint64 Height = 1;
+  bytes  BlockID = 2;
+}

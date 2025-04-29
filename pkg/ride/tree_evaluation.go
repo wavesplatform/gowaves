@@ -13,7 +13,7 @@ func CallVerifier(env environment, tree *ast.Tree) (Result, error) {
 	}
 	res, err := e.evaluate()
 	if err != nil {
-		return nil, handleEvaluationError(err, "verifier", e.complexity())
+		return nil, handleEvaluationError(err, e.fName, e.complexity())
 	}
 	return res, nil
 }
@@ -35,7 +35,7 @@ func CallFunction(env environment, tree *ast.Tree, fc proto.FunctionCall) (Resul
 	// so result of the execution and spent complexity should be considered outside.
 	rideResult, err := e.evaluate()
 	if err != nil {
-		return nil, handleEvaluationError(err, name, e.complexity())
+		return nil, handleEvaluationError(err, e.fName, e.complexity())
 	}
 	dAppResult, ok := rideResult.(DAppResult)
 	if !ok { // Unexpected result type
