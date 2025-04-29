@@ -369,30 +369,45 @@ func TestToBase16Generic(t *testing.T) {
 	}
 }
 
-func TestFromBase16(t *testing.T) {
-	for _, test := range []struct {
-		args []rideType
-		fail bool
-		r    rideType
+func TestFromBase16Generic(t *testing.T) {
+	var (
+		overMaxInput    = make([]byte, maxBase16StringToDecode/2+1)
+		overMaxInputRes = hex.EncodeToString(overMaxInput)
+		maxInput        = overMaxInput[:maxBase16StringToDecode/2]
+		maxInputRes     = hex.EncodeToString(maxInput)
+	)
+	for i, test := range []struct {
+		checkLength bool
+		args        []rideType
+		fail        bool
+		r           rideType
 	}{
-		{[]rideType{rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
-		{[]rideType{rideString("base16:5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},
-		{[]rideType{rideString("")}, false, rideByteVector{}},
-		{[]rideType{rideString("base16:")}, false, rideByteVector{}},
-		{[]rideType{rideString("base16")}, true, nil},
-		{[]rideType{rideString("base16:"), rideString("")}, true, nil},
-		{[]rideType{rideByteVector{1, 2, 4}}, true, nil},
-		{[]rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
-		{[]rideType{rideInt(1), rideString("x")}, true, nil},
-		{[]rideType{}, true, nil},
+		{false, []rideType{rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},        //nolint:lll
+		{false, []rideType{rideString("base16:5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, //nolint:lll
+		{false, []rideType{rideString("")}, false, rideByteVector{}},
+		{false, []rideType{rideString("base16:")}, false, rideByteVector{}},
+		{false, []rideType{rideString("base16")}, true, nil},
+		{false, []rideType{rideString("base16:"), rideString("")}, true, nil},
+		{false, []rideType{rideByteVector{1, 2, 4}}, true, nil},
+		{false, []rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
+		{false, []rideType{rideInt(1), rideString("x")}, true, nil},
+		{false, []rideType{}, true, nil},
+		//
+		{false, []rideType{rideString(overMaxInputRes)}, false, rideByteVector(overMaxInput)},
+		{true, []rideType{rideString(overMaxInputRes)}, true, nil},
+		//
+		{false, []rideType{rideString(maxInputRes)}, false, rideByteVector(maxInput)},
+		{true, []rideType{rideString(maxInputRes)}, false, rideByteVector(maxInput)},
 	} {
-		r, err := fromBase16(nil, test.args...)
-		if test.fail {
-			assert.Error(t, err)
-		} else {
-			require.NoError(t, err)
-			assert.Equal(t, test.r, r)
-		}
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := fromBase16Generic(test.checkLength, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
 	}
 }
 

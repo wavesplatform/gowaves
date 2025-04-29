@@ -391,6 +391,7 @@ func functionsV4() map[string]string {
 	m["600"] = "toBase58V4"
 	m["602"] = "toBase64V4"
 	m["604"] = "toBase16V4"
+	m["605"] = "fromBase16V4"
 	delete(m, "700") // remove CheckMerkleProof
 	m["701"] = "rebuildMerkleRoot"
 	m["800"] = "bls12Groth16Verify"

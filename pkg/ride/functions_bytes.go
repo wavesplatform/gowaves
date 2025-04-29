@@ -14,8 +14,9 @@ import (
 )
 
 const (
-	maxBase58StringToDecode = 100
 	maxBase64StringToDecode = 44 * 1024 // 44 KiB
+	maxBase58StringToDecode = 100
+	maxBase16StringToDecode = 32 * 1024 // 32 KiB
 )
 const (
 	maxBase64BytesToEncode = 32 * 1024 // 32 KiB
@@ -287,10 +288,13 @@ func toBase16V4(_ environment, args ...rideType) (rideType, error) {
 	return toBase16Generic(true, args...)
 }
 
-func fromBase16(_ environment, args ...rideType) (rideType, error) {
+func fromBase16Generic(checkLength bool, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
+	}
+	if l := len(s); checkLength && l > maxBase16StringToDecode {
+		return nil, RuntimeError.Errorf("fromBase16: input is too long (%d), limit is %d", l, maxBase16StringToDecode)
 	}
 	str := strings.TrimPrefix(string(s), "base16:")
 	decoded, err := hex.DecodeString(str)
@@ -298,6 +302,14 @@ func fromBase16(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "fromBase16")
 	}
 	return rideByteVector(decoded), nil
+}
+
+func fromBase16(_ environment, args ...rideType) (rideType, error) {
+	return fromBase16Generic(false, args...)
+}
+
+func fromBase16V4(_ environment, args ...rideType) (rideType, error) {
+	return fromBase16Generic(true, args...)
 }
 
 func dropRightBytesGeneric(checkLimits bool, args ...rideType) (rideType, error) {
