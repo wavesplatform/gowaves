@@ -4,6 +4,7 @@ package proto
 type L2ContractDataEntries struct {
 	AllDataEntries DataEntries `json:"all_data_entries"`
 	Height         uint64      `json:"height"`
+	BlockID        BlockID     `json:"block_id"`
 }
 
 // BlockUpdatesInfo Block updates.

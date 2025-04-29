@@ -57,6 +57,7 @@ func L2ContractDataEntriesToProto(contractData proto.L2ContractDataEntries) *g.L
 	return &g.L2ContractDataEntries{
 		DataEntries: protobufDataEntries,
 		Height:      contractData.Height,
+		BlockID:     contractData.BlockID.Bytes(),
 	}
 }
 
@@ -77,5 +78,10 @@ func L2ContractDataEntriesFromProto(
 		dataEntries = append(dataEntries, entry)
 	}
 
-	return proto.L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height}, nil
+	blockID, err := proto.NewBlockIDFromBytes(protoDataEntries.BlockID)
+	if err != nil {
+		return proto.L2ContractDataEntries{}, errors.Wrap(err, "failed to convert block ID")
+	}
+
+	return proto.L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height, BlockID: blockID}, nil
 }
