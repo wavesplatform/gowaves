@@ -1,9 +1,8 @@
 package proto
 
 import (
+	"github.com/ccoveille/go-safecast"
 	"github.com/pkg/errors"
-	"math"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
@@ -1769,11 +1768,10 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 	features := c.features(pbHeader.FeatureVotes)
 	consensus := c.consensus(pbHeader)
 	v := BlockVersion(c.byte(pbHeader.Version))
-	consensusSize := consensus.BinarySize()
-	if consensusSize < 0 || consensusSize > math.MaxUint32 {
-		return BlockHeader{}, errors.Errorf("binary block length%d overflows uint32", consensusSize)
+	consensusBlockLength, conversionErr := safecast.ToUint32(consensus.BinarySize())
+	if conversionErr != nil {
+		return BlockHeader{}, errors.Wrap(conversionErr, "consensus block length overflow")
 	}
-	consensusBlockLength := uint32(consensusSize) // now guaranteed safe
 	header := BlockHeader{
 		Version:              v,
 		Timestamp:            c.uint64(pbHeader.Timestamp),
