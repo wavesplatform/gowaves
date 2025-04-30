@@ -416,7 +416,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to create state parameters")
 	}
 
-	updatesChannel := make(chan proto.BUpdatesInfo)
+	updatesChannel := make(chan proto.BUpdatesInfo, blockchaininfo.UpdatesBufferedChannelSize)
 	firstBlock := false
 	bUpdatesPluginInfo, initErr := initBlockchainUpdatesPlugin(ctx, nc.BlockchainUpdatesL2Address,
 		nc.enableBlockchainUpdatesPlugin, updatesChannel, &firstBlock)
