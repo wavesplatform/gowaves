@@ -18,7 +18,7 @@ import (
 const StoreBlocksLimit = 200
 const ConnectionsTimeoutDefault = 10 * server.AUTH_TIMEOUT
 
-const UpdatesBufferedChannelSize = 100
+const UpdatesBufferedChannelSize = 256
 
 const portDefault = 4222
 const hostDefault = "127.0.0.1"
