@@ -152,7 +152,6 @@ func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nat
 			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 			return err
 		}
-		//zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 		return nil
 	}
 
@@ -169,7 +168,6 @@ func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nat
 				zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 				return err
 			}
-			//zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 			break
 		}
 		msg = append(msg, StartPaging)
@@ -179,7 +177,6 @@ func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nat
 			zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(l2ContractAddress))
 			return err
 		}
-		//zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(l2ContractAddress))
 		time.Sleep(publisherWaitingTime)
 	}
 
@@ -200,7 +197,6 @@ func PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto
 		zap.S().Errorf("failed to publish message on topic %s", BlockUpdates)
 		return err
 	}
-	//zap.S().Infof("Published on topic: %s\n", BlockUpdates)
 	return nil
 }
 
@@ -218,8 +214,6 @@ func (p *UpdatesPublisher) PublishUpdates(updates proto.BUpdatesInfo,
 		zap.S().Errorf("failed to publish message on topic %s", ConcatenateContractTopics(p.L2ContractAddress()))
 		return pblshErr
 	}
-	//zap.S().Infof("Published on topic: %s\n", ConcatenateContractTopics(p.L2ContractAddress()))
-
 	return nil
 }
 

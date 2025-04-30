@@ -364,7 +364,6 @@ type BlockMeta struct {
 }
 
 func readBytes(reader *bytes.Reader, length int) ([]byte, error) {
-
 	buf := make([]byte, length)
 	_, err := io.ReadFull(reader, buf)
 	if err != nil {
