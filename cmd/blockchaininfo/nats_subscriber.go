@@ -98,7 +98,6 @@ func receiveContractUpdates(msg *nats.Msg, contractMsg []byte, scheme proto.Sche
 				zap.S().Errorf("Failed to unmarshal contract updates: %v", err)
 				return contractMsg
 			}
-
 			go func() {
 				if err := printContractInfo(contractUpdatesInfo, scheme, path); err != nil {
 					zap.S().Errorf("Failed to print contract info updates: %v", err)

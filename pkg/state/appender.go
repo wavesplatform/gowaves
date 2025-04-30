@@ -907,6 +907,7 @@ func BuildBlockUpdatesInfoFromSnapshot(blockInfo *proto.BlockInfo, blockHeader *
 		ContractUpdatesInfo: proto.L2ContractDataEntries{
 			AllDataEntries: nil,
 			Height:         blockInfo.Height,
+			BlockID:        blockID,
 		},
 	}
 

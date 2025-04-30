@@ -27,6 +27,7 @@ type BlockUpdatesInfo struct {
 type L2ContractDataEntries struct {
 	AllDataEntries DataEntries `json:"all_data_entries"`
 	Height         uint64      `json:"height"`
+	BlockID        BlockID     `json:"block_id"`
 }
 
 type BlockchainUpdatesPluginInfo struct {
@@ -86,7 +87,7 @@ func (e *BlockchainUpdatesPluginInfo) IsFirstBlockDone() bool {
 }
 
 func (e *BlockchainUpdatesPluginInfo) WriteBUpdates(bUpdates BUpdatesInfo) {
-	if e.BUpdatesChannel == nil || e.IsReady() {
+	if e.BUpdatesChannel == nil || !e.IsReady() {
 		return
 	}
 	select {
