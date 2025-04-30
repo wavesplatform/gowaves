@@ -770,41 +770,70 @@ func NewRecipientFromString(s string) (Recipient, error) {
 	return NewRecipientFromAddress(a), nil
 }
 
+func errNilRecipient() error { return errors.New("recipient is <nil>") }
+
 func (r Recipient) Alias() *Alias {
+	if r.inner == nil {
+		return nil
+	}
 	return r.inner.Alias()
 }
 
 func (r Recipient) Address() *WavesAddress {
+	if r.inner == nil {
+		return nil
+	}
 	return r.inner.Address()
 }
 
 func (r *Recipient) BinarySize() int {
+	if r.inner == nil {
+		return 0
+	}
 	return r.inner.BinarySize()
 }
 
 func (r Recipient) Eq(r2 Recipient) bool {
+	if r.inner == nil {
+		return r2.inner == nil
+	}
 	return r.inner.Eq(r2)
 }
 
 func (r Recipient) EqAddr(addr WavesAddress) (bool, error) {
+	if r.inner == nil {
+		return false, errNilRecipient()
+	}
 	return r.inner.EqAddr(addr)
 }
 
 func (r Recipient) EqAlias(alias Alias) (bool, error) {
+	if r.inner == nil {
+		return false, errNilRecipient()
+	}
 	return r.inner.EqAlias(alias)
 }
 
 func (r Recipient) ToProtobuf() (*g.Recipient, error) {
+	if r.inner == nil {
+		return nil, errNilRecipient()
+	}
 	return r.inner.ToProtobuf()
 }
 
 // Valid checks that either an WavesAddress or an Alias is set then checks the validity of the set field.
 func (r Recipient) Valid(scheme Scheme) (bool, error) {
+	if r.inner == nil {
+		return false, errNilRecipient()
+	}
 	return r.inner.Valid(scheme)
 }
 
 // MarshalJSON converts the Recipient to its JSON representation.
 func (r Recipient) MarshalJSON() ([]byte, error) {
+	if r.inner == nil {
+		return nil, errNilRecipient()
+	}
 	return r.inner.MarshalJSON()
 }
 
@@ -831,6 +860,9 @@ func (r *Recipient) UnmarshalJSON(value []byte) error {
 
 // MarshalBinary makes bytes of the Recipient.
 func (r *Recipient) MarshalBinary() ([]byte, error) {
+	if r.inner == nil {
+		return nil, errNilRecipient()
+	}
 	return r.inner.MarshalBinary()
 }
 
@@ -844,6 +876,9 @@ func (r *Recipient) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (r *Recipient) Serialize(s *serializer.Serializer) error {
+	if r.inner == nil {
+		return errNilRecipient()
+	}
 	return r.inner.Serialize(s)
 }
 
@@ -872,5 +907,8 @@ func (r *Recipient) UnmarshalBinary(data []byte) error {
 
 // String gives the string representation of the Recipient.
 func (r *Recipient) String() string {
+	if r.inner == nil {
+		return "<nil>"
+	}
 	return r.inner.String()
 }

@@ -29,7 +29,7 @@ require (
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
 	github.com/pkg/errors v0.9.1
-	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
+	github.com/planetscale/vtprotobuf v0.6.1-0.20250313105119-ba97887b0a25
 	github.com/prometheus/client_golang v1.22.0
 	github.com/qmuntal/stateless v1.7.1
 	github.com/semrush/zenrpc/v2 v2.1.1
@@ -53,7 +53,7 @@ require (
 	golang.org/x/exp v0.0.0-20240904232852-e7e105dedf7e
 	golang.org/x/sync v0.13.0
 	golang.org/x/sys v0.32.0
-	google.golang.org/grpc v1.71.1
+	google.golang.org/grpc v1.72.0
 	google.golang.org/protobuf v1.36.6
 	moul.io/zapfilter v1.7.0
 )
@@ -121,7 +121,7 @@ require (
 	golang.org/x/term v0.31.0 // indirect
 	golang.org/x/text v0.24.0 // indirect
 	golang.org/x/time v0.5.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250115164207-1a7da9e5054f // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250218202821-56aae31c358a // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 	rsc.io/tmplfunc v0.0.3 // indirect

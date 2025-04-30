@@ -56,8 +56,10 @@ func (g *TaskGroup) OnError(handler func(error) error) *TaskGroup {
 // so the [execute] function should include the interruption logic.
 func (g *TaskGroup) Run(execute func() error) {
 	g.wg.Add(1)
-	if !g.active.Load() {
-		g.activate()
+	if g.active.CompareAndSwap(false, true) {
+		g.errLock.Lock()
+		g.err = nil
+		g.errLock.Unlock()
 	}
 	go func() {
 		defer g.wg.Done()
@@ -84,16 +86,6 @@ func (g *TaskGroup) Wait() error {
 	// If the group is still active, deactivate it now.
 	g.active.CompareAndSwap(true, false)
 	return g.err
-}
-
-// activate resets the state of the group and marks it as "active". This is triggered by adding a goroutine to
-// an empty group.
-func (g *TaskGroup) activate() {
-	g.errLock.Lock()
-	defer g.errLock.Unlock()
-	if g.active.CompareAndSwap(false, true) {
-		g.err = nil
-	}
 }
 
 // handleError synchronizes access to the error handler and captures the first non-nil error.

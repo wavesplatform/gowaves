@@ -1,8 +1,6 @@
 syntax = "proto3";
 
 package blockchain_info;
-option java_package = "com.wavesplatform.protobuf";
-option csharp_namespace = "Waves";
 option go_package = "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info";
 
 import "waves/transaction.proto";
@@ -21,6 +19,3 @@ message L2ContractDataEntries {
   uint64 Height = 1;
   bytes  BlockID = 2;
 }
-
-
-

@@ -89,7 +89,7 @@ jobs:
 
       - name: Copy deb package to the deployment server
         id: copy-deb
-        uses: appleboy/scp-action@v0.1.7
+        uses: appleboy/scp-action@v1.0.0
         with:
           host: ${{ secrets.DEPLOYMENT_SERVER }}
           username: ${{ secrets.DEPLOYMENT_USER }}
