@@ -2,6 +2,7 @@ package proto
 
 import (
 	"github.com/pkg/errors"
+	"math"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -1768,6 +1769,11 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 	features := c.features(pbHeader.FeatureVotes)
 	consensus := c.consensus(pbHeader)
 	v := BlockVersion(c.byte(pbHeader.Version))
+	consensusSize := consensus.BinarySize() // int (or uint64)
+	if consensusSize < 0 || consensusSize > math.MaxUint32 {
+		return BlockHeader{}, errors.Errorf("binary block length%d overflows uint32", consensusSize)
+	}
+	consensusBlockLength := uint32(consensusSize) // now guaranteed safe
 	header := BlockHeader{
 		Version:              v,
 		Timestamp:            c.uint64(pbHeader.Timestamp),
@@ -1775,7 +1781,7 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 		FeaturesCount:        len(features),
 		Features:             features,
 		RewardVote:           pbHeader.RewardVote,
-		ConsensusBlockLength: uint32(consensus.BinarySize()),
+		ConsensusBlockLength: consensusBlockLength,
 		NxtConsensus:         consensus,
 		TransactionCount:     0, // not set, can't be set without g.Block structure
 		GeneratorPublicKey:   c.publicKey(pbHeader.Generator),
