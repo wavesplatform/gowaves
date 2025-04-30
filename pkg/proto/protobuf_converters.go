@@ -1769,7 +1769,7 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 	features := c.features(pbHeader.FeatureVotes)
 	consensus := c.consensus(pbHeader)
 	v := BlockVersion(c.byte(pbHeader.Version))
-	consensusSize := consensus.BinarySize() // int (or uint64)
+	consensusSize := consensus.BinarySize()
 	if consensusSize < 0 || consensusSize > math.MaxUint32 {
 		return BlockHeader{}, errors.Errorf("binary block length%d overflows uint32", consensusSize)
 	}
