@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	stderrs "errors"
+	"maps"
 	"sync"
 	"testing"
 	"time"
@@ -266,9 +267,8 @@ func (c *NodesClients) SynchronizedWavesBalances(
 		if rrErr != nil {
 			t.Logf("Errors while requesting balances: %v", rrErr)
 		}
-		for k, v := range rr {
-			sbs[k] = v // Update the map with retry results.
-		}
+		// Update the map with retry results.
+		maps.Copy(sbs, rr)
 		if errors.Is(ctx.Err(), context.Canceled) {
 			t.Logf("Timeout reached, returning empty result")
 			return NewSynchronisedBalances()
