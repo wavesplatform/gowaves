@@ -388,6 +388,10 @@ func functionsV4() map[string]string {
 	m["405"] = "median"
 	m["406"] = "listMax"
 	m["407"] = "listMin"
+	m["600"] = "toBase58V4"
+	m["602"] = "toBase64V4"
+	m["604"] = "toBase16V4"
+	m["605"] = "fromBase16V4"
 	delete(m, "700") // remove CheckMerkleProof
 	m["701"] = "rebuildMerkleRoot"
 	m["800"] = "bls12Groth16Verify"
@@ -408,6 +412,7 @@ func functionsV4() map[string]string {
 	m["1103"] = "indexOfList"
 	m["1104"] = "lastIndexOfList"
 	m["1105"] = "listRemoveByIndex"
+	m["1200"] = "bytesToUTF8StringV4"
 	m["1209"] = "makeString"
 	for i, l := range []int{1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15} {
 		m[strconv.Itoa(2400+i)] = fmt.Sprintf("bls12Groth16Verify_%d", l)
@@ -785,10 +790,14 @@ func functionsV6() map[string]string {
 	delete(m, "fraction")
 	m["3"] = "getType"
 	m["110"] = "fractionIntRounds"
-	m["204"] = "takeRightBytes"
-	m["205"] = "dropRightBytes"
-	m["306"] = "takeRightString"
-	m["307"] = "dropRightString"
+	m["201"] = "takeBytesV6"
+	m["202"] = "dropBytesV6"
+	m["204"] = "takeRightBytesV6"
+	m["205"] = "dropRightBytesV6"
+	m["303"] = "takeStringV6"
+	m["304"] = "dropStringV6"
+	m["306"] = "takeRightStringV6"
+	m["307"] = "dropRightStringV6"
 	m["1350"] = "sizeTuple"
 	m["sqrt"] = "sqrt"
 	m["sqrtBigInt"] = "sqrtBigInt"
