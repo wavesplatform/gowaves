@@ -432,10 +432,8 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		bUpdatesPluginInfo.MakeExtensionReady()
 	}
 
-	var bUpdatesExtension *blockchaininfo.BlockchainUpdatesExtension
 	if nc.enableBlockchainUpdatesPlugin {
-		var bUErr error
-		bUpdatesExtension, bUErr = initializeBlockchainUpdatesExtension(ctx, cfg, nc.BlockchainUpdatesL2Address,
+		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(ctx, cfg, nc.BlockchainUpdatesL2Address,
 			updatesChannel, &firstBlock, st, makeExtensionReadyFunc)
 		if bUErr != nil {
 			bUpdatesExtension.Close()
