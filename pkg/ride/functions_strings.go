@@ -7,6 +7,8 @@ import (
 	"unicode/utf8"
 
 	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const maxMessageLength = 32 * 1024
@@ -108,20 +110,46 @@ func concatStrings(_ environment, args ...rideType) (rideType, error) {
 	return rideString(out), nil
 }
 
-func takeString(env environment, args ...rideType) (rideType, error) {
+func checkStringNumberLimit(checkLimits bool, n int, fName, rideFName string) error {
+	return checkTakeDropNumberLimit("String", proto.MaxDataEntryValueSize, checkLimits, n, fName, rideFName)
+}
+
+func takeStringGeneric(checkLimits bool, env environment, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeString")
 	}
+	if lErr := checkStringNumberLimit(checkLimits, n, "takeString", "take"); lErr != nil {
+		return nil, errors.Wrap(lErr, "takeString")
+	}
 	return env.takeString(s, n), nil
 }
 
-func dropString(_ environment, args ...rideType) (rideType, error) {
+func takeString(env environment, args ...rideType) (rideType, error) {
+	return takeStringGeneric(false, env, args...)
+}
+
+func takeStringV6(env environment, args ...rideType) (rideType, error) {
+	return takeStringGeneric(true, env, args...)
+}
+
+func dropStringGeneric(checkLimits bool, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropString")
 	}
+	if lErr := checkStringNumberLimit(checkLimits, n, "dropString", "drop"); lErr != nil {
+		return nil, errors.Wrap(lErr, "dropString")
+	}
 	return dropRideString(s, n), nil
+}
+
+func dropString(_ environment, args ...rideType) (rideType, error) {
+	return dropStringGeneric(false, args...)
+}
+
+func dropStringV6(_ environment, args ...rideType) (rideType, error) {
+	return dropStringGeneric(true, args...)
 }
 
 func sizeString(_ environment, args ...rideType) (rideType, error) {
@@ -167,20 +195,42 @@ func stringToBytes(_ environment, args ...rideType) (rideType, error) {
 	return rideByteVector(s), nil
 }
 
-func dropRightString(_ environment, args ...rideType) (rideType, error) {
+func dropRightStringGeneric(checkLimits bool, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "dropRightString")
 	}
+	if lErr := checkStringNumberLimit(checkLimits, n, "dropRightString", "dropRight"); lErr != nil {
+		return nil, errors.Wrap(lErr, "dropRightString")
+	}
 	return takeRideString(s, utf8.RuneCountInString(s)-n), nil
 }
 
-func takeRightString(_ environment, args ...rideType) (rideType, error) {
+func dropRightString(_ environment, args ...rideType) (rideType, error) {
+	return dropRightStringGeneric(false, args...)
+}
+
+func dropRightStringV6(_ environment, args ...rideType) (rideType, error) {
+	return dropRightStringGeneric(true, args...)
+}
+
+func takeRightStringGeneric(checkLimits bool, args ...rideType) (rideType, error) {
 	s, n, err := stringAndIntArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "takeRightString")
 	}
+	if lErr := checkStringNumberLimit(checkLimits, n, "takeRightString", "takeRight"); lErr != nil {
+		return nil, errors.Wrap(lErr, "takeRightString")
+	}
 	return dropRideString(s, utf8.RuneCountInString(s)-n), nil
+}
+
+func takeRightString(_ environment, args ...rideType) (rideType, error) {
+	return takeRightStringGeneric(false, args...)
+}
+
+func takeRightStringV6(_ environment, args ...rideType) (rideType, error) {
+	return takeRightStringGeneric(true, args...)
 }
 
 func split(s, sep string, stringLengthLimit, resultListSizeLimit int) (rideList, error) {
