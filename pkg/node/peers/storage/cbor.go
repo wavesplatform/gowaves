@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"io"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -430,9 +431,7 @@ func (bs *CBORStorage) unsafeSyncKnown(newEntries []KnownPeer, backup knownPeers
 		for _, k := range newEntries {
 			delete(bs.known, k)
 		}
-		for k, v := range backup {
-			bs.known[k] = v
-		}
+		maps.Copy(bs.known, backup)
 		return errors.Wrap(err, "failed to marshal known peers and sync storage")
 	}
 	return nil

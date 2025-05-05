@@ -2,6 +2,7 @@ package stdlib
 
 import (
 	"encoding/json"
+	"maps"
 	"strconv"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -88,9 +89,7 @@ func mustLoadFuncs() map[ast.LibraryVersion]FunctionsSignatures {
 		}
 		if v > 0 {
 			// copy prev version
-			for name, over := range res[ast.LibraryVersion(byte(v))].Funcs {
-				funcsInVersion.Funcs[name] = over
-			}
+			maps.Copy(funcsInVersion.Funcs, res[ast.LibraryVersion(byte(v))].Funcs)
 		}
 		for _, name := range funcs.Remove {
 			delete(funcsInVersion.Funcs, name)
