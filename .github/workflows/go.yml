@@ -39,7 +39,7 @@ jobs:
       - name: Get dependencies
         run: go mod vendor
       - name: golangci-lint-soft
-        uses: golangci/golangci-lint-action@v7
+        uses: golangci/golangci-lint-action@v8
         with:
           version: latest
           args: -c .golangci.yml
