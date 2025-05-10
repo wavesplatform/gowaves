@@ -72,7 +72,7 @@ jobs:
           fetch-tags: true
 
       - name: Set up Go 1.24
-        uses: actions/setup-go@v5.4.0
+        uses: actions/setup-go@v5.5.0
         with:
           go-version: 1.24.x
           check-latest: true
