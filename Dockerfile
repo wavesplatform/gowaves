@@ -20,7 +20,7 @@ USER $APP_USER
 
 COPY build/bin/$TARGETOS-$TARGETARCH/node /app/node
 
-HEALTHCHECK CMD curl -f http://localhost:6869/node/status || exit 1
+HEALTHCHECK CMD ["curl", "--fail", "--silent", "http://localhost:6869/node/status"]
 
 EXPOSE 6868 6869 7470
 VOLUME /home/gowaves/state
