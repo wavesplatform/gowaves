@@ -53,7 +53,7 @@ const (
 	MaxDataWithProofsBytes                   = 150 * 1024
 	MaxDataWithProofsProtoBytes              = 165_890
 	MaxDataWithProofsV6PayloadBytes          = 165_835 // (DataEntry.MaxPBKeySize + DataEntry.MaxValueSize) * 5
-	maxDataEntryValueSize                    = 32767
+	MaxDataEntryValueSize                    = 32767   // max positive value of 'int16' type
 	MaxDataEntriesScriptActionsSizeInBytesV1 = 5 * 1024
 	MaxDataEntriesScriptActionsSizeInBytesV2 = 15 * 1024
 	MaxScriptActionsV1                       = 10
@@ -2710,7 +2710,7 @@ func (e BinaryDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
-	if len(e.Value) > maxDataEntryValueSize {
+	if len(e.Value) > MaxDataEntryValueSize {
 		return errs.NewTooBigArray("value is too large")
 	}
 	return nil
@@ -2864,7 +2864,7 @@ func (e StringDataEntry) Valid(forbidEmptyKey, utf16KeyLen bool) error {
 			return errs.NewTooBigArray("key is too large")
 		}
 	}
-	if len(e.Value) > maxDataEntryValueSize {
+	if len(e.Value) > MaxDataEntryValueSize {
 		return errs.NewTooBigArray("value is too large")
 	}
 	return nil

@@ -2,7 +2,6 @@ package blockchaininfo
 
 import (
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -83,5 +82,6 @@ func L2ContractDataEntriesFromProto(
 	if err != nil {
 		return proto.L2ContractDataEntries{}, errors.Wrap(err, "failed to convert block ID")
 	}
+
 	return proto.L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height, BlockID: blockID}, nil
 }
