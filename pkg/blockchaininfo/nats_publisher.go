@@ -2,7 +2,6 @@ package blockchaininfo
 
 import (
 	"context"
-	"strings"
 	"sync"
 	"time"
 
@@ -24,12 +23,6 @@ const portDefault = 4222
 const hostDefault = "127.0.0.1"
 const natsMaxPayloadSize int32 = 1024 * 1024 // 1 MB
 const publisherWaitingTime = 100 * time.Millisecond
-
-const (
-	StartPaging = iota
-	EndPaging
-	NoPaging
-)
 
 func ConcatenateContractTopics(contractAddress string) string {
 	return ContractUpdates + contractAddress
@@ -495,7 +488,7 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 func (e *BlockchainUpdatesExtension) requestConstantKeys(nc *nats.Conn, wg *sync.WaitGroup) error {
 	_, subErr := nc.Subscribe(ConstantKeys, func(msg *nats.Msg) {
 		defer wg.Done()
-		constantKeys := strings.Split(string(msg.Data), ",")
+		constantKeys := DeserializeConstantKeys(msg.Data)
 		e.blockchainExtensionState.constantContractKeys = constantKeys
 	})
 	return subErr

@@ -517,3 +517,14 @@ func TestRollback(t *testing.T) {
 	assert.Equal(t, patch.ContractUpdatesInfo.AllDataEntries, expectedL2Patch.AllDataEntries)
 	assert.Equal(t, patch.ContractUpdatesInfo.Height, expectedL2Patch.Height)
 }
+
+// Rollback from block 5 to block 3.
+// On block 3, keys "1", "2", "3" had negative values, so the patch should generate the negative
+// values only found on that block.
+func TestKeysSerialization(t *testing.T) {
+	constantKeys := []string{"first", "second", "third"}
+	constantKeysMsg := blockchaininfo.SerializeConstantKeys(constantKeys)
+
+	expected := []byte("first,second,third")
+	assert.Equal(t, expected, constantKeysMsg)
+}

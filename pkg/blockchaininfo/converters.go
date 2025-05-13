@@ -5,6 +5,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"strings"
 )
 
 func BlockUpdatesInfoToProto(blockInfo proto.BlockUpdatesInfo, scheme proto.Scheme) (*g.BlockInfo, error) {
@@ -84,4 +85,14 @@ func L2ContractDataEntriesFromProto(
 	}
 
 	return proto.L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height, BlockID: blockID}, nil
+}
+
+func SerializeConstantKeys(constantKeys []string) []byte {
+	constantKeysMsg := strings.Join(constantKeys, ",")
+	return []byte(constantKeysMsg)
+}
+
+func DeserializeConstantKeys(constantKeysMsg []byte) []string {
+	constantKeys := strings.Split(string(constantKeysMsg), ",")
+	return constantKeys
 }
