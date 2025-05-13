@@ -1,11 +1,12 @@
 package blockchaininfo
 
 import (
+	"strings"
+
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"strings"
 )
 
 func BlockUpdatesInfoToProto(blockInfo proto.BlockUpdatesInfo, scheme proto.Scheme) (*g.BlockInfo, error) {

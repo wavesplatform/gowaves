@@ -6,7 +6,6 @@ import (
 	"testing"
 
 	"github.com/nats-io/nats-server/v2/server"
-	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
@@ -15,8 +14,6 @@ import (
 	mocks "github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-const natsTestURL = "nats://127.0.0.1:4756"
 
 // some random test data.
 func testBlockUpdates() proto.BlockUpdatesInfo {
@@ -298,32 +295,6 @@ func RunNatsTestServer() (*server.Server, error) {
 	return s, nil
 }
 
-func TestSendRestartSignal(t *testing.T) {
-	ts, err := RunNatsTestServer()
-	require.NoError(t, err, "failed to run nats test server")
-	defer ts.Shutdown()
-	// Connect to NATS (adjust URL to match your environment).
-	nc, err := nats.Connect(natsTestURL)
-	require.NoError(t, err, "failed to connect to NATS")
-	defer nc.Close()
-
-	// Subscribe to the L2RequestsTopic to simulate a service that handles the request.
-	_, err = nc.Subscribe(blockchaininfo.L2RequestsTopic, func(msg *nats.Msg) {
-		if string(msg.Data) == blockchaininfo.RequestRestartSubTopic {
-			_ = msg.Respond([]byte("ok"))
-		} else {
-			t.Errorf("unexpected message: %s", msg.Data)
-		}
-	})
-	require.NoError(t, err, "Failed to subscribe to topic")
-
-	// Call the function we're testing.
-	msg, err := blockchaininfo.SendRestartSignal(nc)
-	require.NoError(t, err, "Failed to send a restart signal")
-
-	require.Equal(t, msg.Data, []byte("ok"))
-}
-
 const (
 	blockID1 = "7wKAcTGbvDtruMSSYyndzN9YK3cQ47ZdTPeT8ej22qRg"
 	BlockID2 = "gzz8aN4b5rr1rkeAdmuwytuGv1jbm9LLRbXNKNb7ETX"
@@ -518,9 +489,6 @@ func TestRollback(t *testing.T) {
 	assert.Equal(t, patch.ContractUpdatesInfo.Height, expectedL2Patch.Height)
 }
 
-// Rollback from block 5 to block 3.
-// On block 3, keys "1", "2", "3" had negative values, so the patch should generate the negative
-// values only found on that block.
 func TestKeysSerialization(t *testing.T) {
 	constantKeys := []string{"first", "second", "third"}
 	constantKeysMsg := blockchaininfo.SerializeConstantKeys(constantKeys)

@@ -15,7 +15,6 @@ import (
 )
 
 const StoreBlocksLimit = 200
-const ConnectionsTimeoutDefault = 10 * server.AUTH_TIMEOUT
 
 const UpdatesBufferedChannelSize = 256
 
@@ -453,7 +452,7 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 		s.Shutdown()
 		s.WaitForShutdown()
 	}()
-	if !s.ReadyForConnections(ConnectionsTimeoutDefault) {
+	if !s.ReadyForConnections(NatsConnectionsTimeoutDefault) {
 		return errors.New("NATS server is not ready for connections")
 	}
 
