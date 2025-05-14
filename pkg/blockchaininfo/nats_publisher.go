@@ -487,7 +487,11 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 func (e *BlockchainUpdatesExtension) requestConstantKeys(nc *nats.Conn, wg *sync.WaitGroup) error {
 	_, subErr := nc.Subscribe(ConstantKeys, func(msg *nats.Msg) {
 		defer wg.Done()
-		constantKeys := DeserializeConstantKeys(msg.Data)
+		constantKeys, err := DeserializeConstantKeys(msg.Data)
+		if err != nil {
+			zap.S().Errorf("failed to deserialize constant keys %v", err)
+			return
+		}
 		e.blockchainExtensionState.constantContractKeys = constantKeys
 	})
 	return subErr
