@@ -16,6 +16,9 @@ all: vendor vetcheck fmtcheck gotest mod-clean build-node-native
 
 ci: vendor vetcheck fmtcheck release-node build-importer-native gotest-race-coverage mod-clean
 
+print-ver:
+	@echo $(VERSION)
+
 ver:
 	@echo Building version: $(VERSION)
 

@@ -6,11 +6,12 @@ on:
     inputs:
       dockerTag:
         description: 'Docker Tag'
-        required: true
+        required: false
         type: string
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
+  IMAGE_TAG: ${{ inputs.dockerTag }}
 
 jobs:
   build:
@@ -26,6 +27,16 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Set image tag if emtpy
+        run: |
+          if [ -z "${{ env.IMAGE_TAG }}" ]; then
+            IMAGE_TAG="$(make print-ver)"
+            echo "Setting IMAGE_TAG to: $IMAGE_TAG"
+            echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV    
+          else 
+            echo "Using user provided IMAGE_TAG: ${{ env.IMAGE_TAG }}"
+          fi
+
       - name: Set up Go 1.23
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
@@ -36,8 +47,8 @@ jobs:
       - name: Get dependencies
         run: go mod vendor
 
-      - name: Build and test with race detector
-        run: export PATH="$HOME/bin:$PATH"; make dist
+      - name: Build node
+        run: export PATH="$HOME/bin:$PATH"; make release-node
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
@@ -57,7 +68,7 @@ jobs:
           flavor: latest=false
           tags: |
             type=sha
-            type=raw,value=${{ inputs.dockerTag }}
+            type=raw,value=${{ env.IMAGE_TAG }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=MIT
@@ -71,7 +82,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           pull: true
-          build-args: baseImage=${{ inputs.baseImage }}
+          build-args:
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
