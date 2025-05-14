@@ -6,8 +6,9 @@ on:
     inputs:
       dockerTag:
         description: 'Docker Tag'
-        required: false
+        required: true
         type: string
+        default: 'latest'
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
@@ -26,16 +27,6 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 0
-
-      - name: Set image tag if emtpy
-        run: |
-          if [ -z "${{ env.IMAGE_TAG }}" ]; then
-            IMAGE_TAG="$(make print-ver)"
-            echo "Setting IMAGE_TAG to: $IMAGE_TAG"
-            echo "IMAGE_TAG=$IMAGE_TAG" >> $GITHUB_ENV    
-          else 
-            echo "Using user provided IMAGE_TAG: ${{ env.IMAGE_TAG }}"
-          fi
 
       - name: Set up Go 1.23
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
