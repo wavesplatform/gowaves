@@ -1,7 +1,7 @@
 package blockchaininfo
 
 import (
-	"strings"
+	"encoding/json"
 
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -88,12 +88,14 @@ func L2ContractDataEntriesFromProto(
 	return proto.L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height, BlockID: blockID}, nil
 }
 
-func SerializeConstantKeys(constantKeys []string) []byte {
-	constantKeysMsg := strings.Join(constantKeys, ",")
-	return []byte(constantKeysMsg)
+func SerializeConstantKeys(constantKeys []string) ([]byte, error) {
+	return json.Marshal(constantKeys)
 }
 
-func DeserializeConstantKeys(constantKeysMsg []byte) []string {
-	constantKeys := strings.Split(string(constantKeysMsg), ",")
-	return constantKeys
+func DeserializeConstantKeys(data []byte) ([]string, error) {
+	var keys []string
+	if err := json.Unmarshal(data, &keys); err != nil {
+		return nil, err
+	}
+	return keys, nil
 }
