@@ -1,0 +1,36 @@
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func callMaxComplexity(strValue: String) = {
+
+  let callerAccountAddress = toBase58String(i.caller.bytes)
+  let scripthash = scriptHash(this).valueOrErrorMessage("fail to get script hash")
+  let bigintValue = parseBigIntValue("6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042047")
+  let bigintBase = toBigInt(2)
+  let logValue = log(bigintValue, 0, bigintBase, 0, 0, HALFUP)
+  let bigintBase2 = toBigInt(-2)
+  let bigintExponent = toBigInt(511)
+  let powValue = pow(bigintBase2,0,bigintExponent,0,0,FLOOR)
+
+  let vk = "hwk883gUlTKCyXYA6XWZa8H9/xKIYZaJ0xEs0M5hQOMxiGpxocuX/8maSDmeCk3bo5ViaDBdO7ZBxAhLSe5k/5TFQyF5Lv7KN2tLKnwgoWMqB16OL8WdbePIwTCuPtJNAFKoTZylLDbSf02kckMcZQDPF9iGh+JC99Pio74vDpwTEjUx5tQ99gNQwxULtztsqDRsPnEvKvLmsxHt8LQVBkEBm2PBJFY+OXf1MNW021viDBpR10mX4WQ6zrsGL5L0GY4cwf4tlbh+Obit+LnN/SQTnREf8fPpdKZ1sa/ui3pGi8lMT6io4D7Ujlwx2RdCkBF+isfMf77HCEGsZANw0hSrO2FGg14Sl26xLAIohdaW8O7gEaag8JdVAZ3OVLd5Df1NkZBEr753Xb8WwaXsJjE7qxwINL1KdqA4+EiYW4edb7+a9bbBeOPtb67ZxmFqgyTNS/4obxahezNkjk00ytswsENg//Ee6dWBJZyLH+QGsaU2jO/W4WvRyZhmKKPdipOhiz4Rlrd2XYgsfHsfWf5v4GOTL+13ZB24dW1/m39n2woJ+v686fXbNW85XP/r"
+  let proof = "lvQLU/KqgFhsLkt/5C/scqs7nWR+eYtyPdWiLVBux9GblT4AhHYMdCgwQfSJcudvsgV6fXoK+DUSRgJ++Nqt+Wvb7GlYlHpxCysQhz26TTu8Nyo7zpmVPH92+UYmbvbQCSvX2BhWtvkfHmqDVjmSIQ4RUMfeveA1KZbSf999NE4qKK8Do+8oXcmTM4LZVmh1rlyqznIdFXPN7x3pD4E0gb6/y69xtWMChv9654FMg05bAdueKt9uA4BEcAbpkdHF"
+  let inputs = "LcMT3OOlkHLzJBKCKjjzzVMg+r+FVgd52LlhZPB4RFg="
+
+  let testGroth = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+    [
+    StringEntry(callerAccountAddress + "_str", strValue),
+    StringEntry(callerAccountAddress + "_big_int", toString(logValue)),
+    StringEntry(callerAccountAddress + "_big_int", toString(powValue)),
+    DeleteEntry(callerAccountAddress + "_big_int"),
+    BinaryEntry(callerAccountAddress + "_script_hash", scripthash),
+    DeleteEntry(callerAccountAddress + "_script_hash"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth),
+    DeleteEntry(callerAccountAddress + "_groth_bool")
+  ]
+}
+
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)

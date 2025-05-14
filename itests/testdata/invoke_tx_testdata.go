@@ -831,3 +831,37 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 		),
 	}
 }
+
+func GetInvokeScriptMaxComplexityTestData(suite *f.BaseSuite,
+	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive] {
+
+	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive]{
+
+		"Function with max complexity": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("callMaxComplexity",
+				proto.Arguments{
+					&proto.StringArgument{Value: "test"},
+				}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			utl.MinTxFeeWavesDApp,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs(),
+			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
+				Entries: []*ExpectedInvokeScriptDataSlicePositive{
+					{
+						Address: dApp.Address,
+						DataEntries: []*waves.DataEntry{
+							{
+								Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
+								Value: &waves.DataEntry_StringValue{StringValue: "test"},
+							},
+						},
+					},
+				},
+			},
+		),
+	}
+}

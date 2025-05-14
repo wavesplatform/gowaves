@@ -289,3 +289,50 @@ func TestInvokeDAppRecursive(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(InvokeRecursiveScriptSuite))
 }
+
+type InvokeScriptComplexitySuite struct {
+	f.BaseSettingSuite
+	Versions []byte
+	DApp     config.AccountInfo
+}
+
+func (s *InvokeScriptComplexitySuite) SetupSuite() {
+	s.BaseSettingSuite.SetupSuite()
+	s.Versions = invoke.GetVersionsInvokeScript(&s.BaseSuite)
+}
+
+func (s *InvokeScriptComplexitySuite) SetupSubTest() {
+	dAppAlias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
+	// create new proxy dApp account with deployed script
+	s.DApp = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
+		1000000000, "dapp_max_complexity.ride")
+	// set alias for proxy dApp account
+	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppAlias,
+		&s.DApp, utl.MinTxFeeWavesDApp)
+}
+
+func (s *InvokeScriptComplexitySuite) Test_InvokeDAppComplexity() {
+	for _, version := range s.Versions {
+		s.Run("check invoke dApp from dApp", func() {
+			testData := testdata.GetInvokeScriptMaxComplexityTestData(&s.BaseSuite, s.DApp)
+			for name, td := range testData {
+				caseName := utl.GetTestcaseNameWithVersion(name, version)
+				s.T().Logf("Test case: %s\n", caseName)
+				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
+				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
+				utl.TxInfoCheck(s.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+
+				utl.WaitForNewHeight(&s.BaseSuite)
+
+				dataDAppGo := utl.GetAccountDataGo(&s.BaseSuite, s.DApp.Address)
+				dataDAppScala := utl.GetAccountDataScala(&s.BaseSuite, s.DApp.Address)
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.Entries[0].DataEntries, dataDAppGo, dataDAppScala)
+			}
+		})
+	}
+}
+
+func TestInvokeScriptComplexitySuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(InvokeScriptComplexitySuite))
+}
