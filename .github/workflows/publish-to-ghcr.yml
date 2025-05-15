@@ -8,9 +8,11 @@ on:
         description: 'Docker Tag'
         required: true
         type: string
+        default: 'latest'
 
 env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
+  IMAGE_TAG: ${{ inputs.dockerTag }}
 
 jobs:
   build:
@@ -36,8 +38,8 @@ jobs:
       - name: Get dependencies
         run: go mod vendor
 
-      - name: Build and test with race detector
-        run: export PATH="$HOME/bin:$PATH"; make dist
+      - name: Build node
+        run: export PATH="$HOME/bin:$PATH"; make release-node
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
@@ -57,7 +59,7 @@ jobs:
           flavor: latest=false
           tags: |
             type=sha
-            type=raw,value=${{ inputs.dockerTag }}
+            type=raw,value=${{ env.IMAGE_TAG }}
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=MIT
@@ -71,7 +73,7 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           pull: true
-          build-args: baseImage=${{ inputs.baseImage }}
+          build-args: ''
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
