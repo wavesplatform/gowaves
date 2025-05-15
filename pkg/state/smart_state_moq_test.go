@@ -87,6 +87,9 @@ var _ types.EnrichedSmartState = &AnotherMockSmartState{}
 //			NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
 //				panic("mock out the NewestWavesBalance method")
 //			},
+//			RetrieveEntriesFunc: func(account proto.Recipient) ([]proto.DataEntry, error) {
+//				panic("mock out the RetrieveEntries method")
+//			},
 //			RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 //				panic("mock out the RetrieveNewestBinaryEntry method")
 //			},
@@ -174,6 +177,9 @@ type AnotherMockSmartState struct {
 
 	// NewestWavesBalanceFunc mocks the NewestWavesBalance method.
 	NewestWavesBalanceFunc func(account proto.Recipient) (uint64, error)
+
+	// RetrieveEntriesFunc mocks the RetrieveEntries method.
+	RetrieveEntriesFunc func(account proto.Recipient) ([]proto.DataEntry, error)
 
 	// RetrieveNewestBinaryEntryFunc mocks the RetrieveNewestBinaryEntry method.
 	RetrieveNewestBinaryEntryFunc func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error)
@@ -302,6 +308,11 @@ type AnotherMockSmartState struct {
 			// Account is the account argument value.
 			Account proto.Recipient
 		}
+		// RetrieveEntries holds details about calls to the RetrieveEntries method.
+		RetrieveEntries []struct {
+			// Account is the account argument value.
+			Account proto.Recipient
+		}
 		// RetrieveNewestBinaryEntry holds details about calls to the RetrieveNewestBinaryEntry method.
 		RetrieveNewestBinaryEntry []struct {
 			// Account is the account argument value.
@@ -358,6 +369,7 @@ type AnotherMockSmartState struct {
 	lockNewestTransactionByID         sync.RWMutex
 	lockNewestTransactionHeightByID   sync.RWMutex
 	lockNewestWavesBalance            sync.RWMutex
+	lockRetrieveEntries               sync.RWMutex
 	lockRetrieveNewestBinaryEntry     sync.RWMutex
 	lockRetrieveNewestBooleanEntry    sync.RWMutex
 	lockRetrieveNewestIntegerEntry    sync.RWMutex
@@ -1064,6 +1076,38 @@ func (mock *AnotherMockSmartState) NewestWavesBalanceCalls() []struct {
 	mock.lockNewestWavesBalance.RLock()
 	calls = mock.calls.NewestWavesBalance
 	mock.lockNewestWavesBalance.RUnlock()
+	return calls
+}
+
+// RetrieveEntries calls RetrieveEntriesFunc.
+func (mock *AnotherMockSmartState) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
+	if mock.RetrieveEntriesFunc == nil {
+		panic("AnotherMockSmartState.RetrieveEntriesFunc: method is nil but SmartState.RetrieveEntries was just called")
+	}
+	callInfo := struct {
+		Account proto.Recipient
+	}{
+		Account: account,
+	}
+	mock.lockRetrieveEntries.Lock()
+	mock.calls.RetrieveEntries = append(mock.calls.RetrieveEntries, callInfo)
+	mock.lockRetrieveEntries.Unlock()
+	return mock.RetrieveEntriesFunc(account)
+}
+
+// RetrieveEntriesCalls gets all the calls that were made to RetrieveEntries.
+// Check the length with:
+//
+//	len(mockedSmartState.RetrieveEntriesCalls())
+func (mock *AnotherMockSmartState) RetrieveEntriesCalls() []struct {
+	Account proto.Recipient
+} {
+	var calls []struct {
+		Account proto.Recipient
+	}
+	mock.lockRetrieveEntries.RLock()
+	calls = mock.calls.RetrieveEntries
+	mock.lockRetrieveEntries.RUnlock()
 	return calls
 }
 
