@@ -266,6 +266,7 @@ func (s *Session) receiveLoop() error {
 				s.config.handler.OnClose(s)
 				return nil // Exit normally on connection close.
 			}
+			s.config.handler.OnFailure(s, err)
 			return err
 		}
 	}

@@ -1,11 +1,9 @@
-quiet: False
-dir: "{{.InterfaceDir}}/mocks"
-mockname: "Mock{{.InterfaceName}}"
-filename: "{{.InterfaceName | snakecase}}.go"
-
+dir: '{{.InterfaceDir}}'
+structname: Mock{{.InterfaceName}}
+template: testify
 packages:
   github.com/wavesplatform/gowaves/pkg/networking:
     interfaces:
-      Header:
-      Protocol:
-      Handler:
+      Handler: {}
+      Header: {}
+      Protocol: {}
