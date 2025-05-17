@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"math/big"
 	"regexp"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -93,12 +94,7 @@ func (typedData *ethereumTypedData) HashStructMap(primaryType string,
 // Dependencies returns an array of custom types ordered by their hierarchical reference tree
 func (typedData *ethereumTypedData) Dependencies(primaryType string, found []string) []string {
 	includes := func(arr []string, str string) bool {
-		for _, obj := range arr {
-			if obj == str {
-				return true
-			}
-		}
-		return false
+		return slices.Contains(arr, str)
 	}
 
 	if includes(found, primaryType) {

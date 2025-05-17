@@ -7,6 +7,7 @@ import (
 	sh256 "crypto/sha256"
 	"crypto/x509"
 	"math/big"
+	"slices"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
@@ -28,12 +29,7 @@ const (
 )
 
 func containsAddress(addr proto.WavesAddress, list []proto.WavesAddress) bool {
-	for _, v := range list {
-		if v == addr {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(list, addr)
 }
 
 func extractOptionalAsset(v rideType) (proto.OptionalAsset, error) {

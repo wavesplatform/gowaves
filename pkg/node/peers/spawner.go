@@ -3,6 +3,7 @@ package peers
 import (
 	"context"
 	"net"
+	"slices"
 
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
@@ -19,12 +20,7 @@ type DuplicateChecker interface {
 func NewSkipFilter(list *messages.SkipMessageList) conn.SkipFilter {
 	return func(header proto.Header) bool {
 		return func(h proto.Header, l *messages.SkipMessageList) bool {
-			for _, id := range l.List() {
-				if h.ContentID == id {
-					return true
-				}
-			}
-			return false
+			return slices.Contains(l.List(), h.ContentID)
 		}(header, list)
 	}
 }
