@@ -3,6 +3,7 @@ package clients
 import (
 	"context"
 	stderrs "errors"
+	"github.com/wavesplatform/gowaves/pkg/client"
 	"maps"
 	"sync"
 	"testing"
@@ -288,15 +289,85 @@ func (c *NodesClients) Handshake() {
 	c.ScalaClient.Connection.SendHandshake()
 }
 
-func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, scala bool) {
+func (c *NodesClients) SendToScalaNode(t *testing.T, m proto.Message) {
+	t.Logf("Sending message to Scala node: %T", m)
+	c.ScalaClient.Connection.SendMessage(m)
+	t.Log("Message sent to Scala node")
+}
+
+func (c *NodesClients) SendToGoNode(t *testing.T, m proto.Message) {
 	t.Logf("Sending message to Go node: %T", m)
 	c.GoClient.Connection.SendMessage(m)
 	t.Log("Message sent to Go node")
-	if scala {
-		t.Logf("Sending message to Scala node: %T", m)
-		c.ScalaClient.Connection.SendMessage(m)
-		t.Log("Message sent to Scala node")
+}
+
+func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, nodes ...string) {
+	switch len(nodes) {
+	case 0:
+		c.SendToGoNode(t, m)
+	case 1:
+		switch nodes[0] {
+		case "go-node":
+			c.SendToGoNode(t, m)
+		case "scala-node":
+			c.SendToScalaNode(t, m)
+		default:
+			c.SendToGoNode(t, m)
+		}
+	case 2:
+		c.SendToGoNode(t, m)
+		c.SendToScalaNode(t, m)
+	default:
+		t.Fatalf("Unexpected number of nodes: %d", len(nodes))
 	}
+}
+
+func (c *NodesClients) BroadcastToGoNode(t *testing.T, tx proto.Transaction) (*client.Response, error) {
+	t.Logf("Broadcasting transaction to Go node: %T", tx)
+	respGo, errBrdCstGo := c.GoClient.HTTPClient.TransactionBroadcast(tx)
+	if errBrdCstGo != nil {
+		t.Logf("Error while broadcasting transaction to Go node: %v", errBrdCstGo)
+	} else {
+		t.Logf("Transaction was successfully Broadcast to Go node")
+	}
+	return respGo, errBrdCstGo
+}
+
+func (c *NodesClients) BroadcastToScalaNode(t *testing.T, tx proto.Transaction) (*client.Response, error) {
+	t.Logf("Broadcasting transaction to Scala node: %T", tx)
+	respScala, errBrdCstScala := c.ScalaClient.HTTPClient.TransactionBroadcast(tx)
+	if errBrdCstScala != nil {
+		t.Logf("Error while broadcasting transaction to Scala node: %v", errBrdCstScala)
+	} else {
+		t.Logf("Transaction was successfully Broadcast to Scala node")
+	}
+	return respScala, errBrdCstScala
+}
+
+func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction, nodes ...string) (*client.Response, error,
+	*client.Response, error) {
+	var respGo, respScala *client.Response = nil, nil
+	var errBrdCstGo, errBrdCstScala error = nil, nil
+
+	switch len(nodes) {
+	case 0:
+		respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
+	case 1:
+		switch nodes[0] {
+		case "go-node":
+			respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
+		case "scala-node":
+			respScala, errBrdCstScala = c.BroadcastToScalaNode(t, tx)
+		default:
+			respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
+		}
+	case 2:
+		respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
+		respScala, errBrdCstScala = c.BroadcastToScalaNode(t, tx)
+	default:
+		t.Fatalf("Unexpected number of nodes: %d", len(nodes))
+	}
+	return respGo, errBrdCstGo, respScala, errBrdCstScala
 }
 
 func (c *NodesClients) Close(t *testing.T) {
