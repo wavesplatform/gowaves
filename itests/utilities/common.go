@@ -741,9 +741,12 @@ func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 	scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
 	timeout := DefaultWaitTimeout
 	id := ExtractTxID(suite.T(), tx, scheme)
+	if waitForTx {
+		timeout = DefaultWaitTimeout
+	}
 
 	respGo, errBrdCstGo, respScala, errBrdCstScala := suite.Clients.BroadcastToNodes(suite.T(), tx, suite.SendToNode...)
-	suite.T().Log("Tx msg was successfully Broadcast to nodes")
+	suite.T().Log("Tx was successfully broadcast to nodes")
 
 	suite.T().Log("Waiting for Tx appears in Blockchain")
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
