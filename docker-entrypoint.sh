@@ -1,7 +1,6 @@
 #!/bin/sh
 set -e
 
-# Если аргументов нет — запускаем с параметрами по умолчанию из ENV
 if [ $# -eq 0 ]; then
   exec /app/node \
     -cfg-path="$CONFIG_PATH" \
@@ -16,6 +15,5 @@ if [ $# -eq 0 ]; then
     -build-state-hashes \
     -enable-grpc-api
 else
-  # Если аргументы переданы — используем их
   exec /app/node "$@"
 fi

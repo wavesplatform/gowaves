@@ -23,7 +23,6 @@ ENV CONFIG_PATH=/home/gowaves/config/gowaves-it.json \
     API_ADDR=0.0.0.0:6869 \
     GRPC_ADDR=0.0.0.0:7470
 
-# Копирование бинарника и entrypoint
 COPY docker-entrypoint.sh /app/
 COPY build/bin/$TARGETOS-$TARGETARCH/node /app/node
 
