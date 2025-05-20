@@ -59,7 +59,21 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	}
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
+func TestAliasTxApiSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(AliasTxApiSuite))
+}
+
+type AliasTxApiNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *AliasTxApiNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *AliasTxApiNegativeSuite) Test_AliasTxApiNegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -79,7 +93,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
+func (suite *AliasTxApiNegativeSuite) Test_SameAliasApiNegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Values for same alias"
 	//Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
@@ -125,7 +139,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 	suite.Lenf(actualTxIds, 2, "IDs: %#v", actualTxIds)
 }
 
-func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
+func (suite *AliasTxApiNegativeSuite) Test_SameAliasDiffAddressesApiNegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Same alias for different accounts "
 	var idsCount = 2
@@ -170,7 +184,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 	suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds)
 }
 
-func TestAliasTxApiSuite(t *testing.T) {
+func TestAliasTxApiNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(AliasTxApiSuite))
+	suite.Run(t, new(AliasTxApiNegativeSuite))
 }
