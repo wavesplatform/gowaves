@@ -591,8 +591,14 @@ func (a TCPAddr) String() string {
 	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 }
 
+// Empty checks if IP of TCPAddr is empty.
 func (a TCPAddr) Empty() bool {
 	return len(a.IP) == 0 || a.IP.IsUnspecified()
+}
+
+// EmptyNoPort checks if IP of TCPAddr is empty AND port is 0.
+func (a TCPAddr) EmptyNoPort() bool {
+	return a.Empty() && a.Port == 0
 }
 
 func (a TCPAddr) WriteTo(w io.Writer) (int64, error) {
