@@ -54,6 +54,7 @@ func NewNode(
 	enableLightMode bool,
 ) *Node {
 	if bindAddr.Empty() {
+		zap.S().Warnf("BindAddr is empty, using declared address %q", declAddr.String())
 		bindAddr = declAddr
 	}
 	return &Node{
