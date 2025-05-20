@@ -41,7 +41,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
+func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFeePositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -91,7 +91,21 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	}
 }
 
-func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
+func TestBurnTxApiSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(BurnTxApiSuite))
+}
+
+type BurnTxApiNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *BurnTxApiNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *BurnTxApiNegativeSuite) Test_BurnTxApiNegative() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -117,7 +131,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestBurnTxApiSuite(t *testing.T) {
+func TestBurnTxApiNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(BurnTxApiSuite))
+	suite.Run(t, new(BurnTxApiNegativeSuite))
 }

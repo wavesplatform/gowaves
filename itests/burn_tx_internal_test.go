@@ -88,7 +88,21 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnTxNegative() {
+func TestBurnTxSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(BurnTxSuite))
+}
+
+type BurnTxNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *BurnTxNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *BurnTxNegativeSuite) Test_BurnTxNegative() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -114,7 +128,7 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestBurnTxSuite(t *testing.T) {
+func TestBurnTxNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(BurnTxSuite))
+	suite.Run(t, new(BurnTxNegativeSuite))
 }
