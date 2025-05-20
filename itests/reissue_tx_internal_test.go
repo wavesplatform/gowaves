@@ -56,7 +56,21 @@ func (suite *ReissueTxSuite) Test_ReissueMaxQuantityPositive() {
 	}
 }
 
-func (suite *ReissueTxSuite) Test_ReissueNotReissuableNegative() {
+func TestReissueTxSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(ReissueTxSuite))
+}
+
+type ReissueTxNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *ReissueTxNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *ReissueTxNegativeSuite) Test_ReissueNotReissuableNegative() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -85,7 +99,7 @@ func (suite *ReissueTxSuite) Test_ReissueNotReissuableNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
+func (suite *ReissueTxNegativeSuite) Test_ReissueNFTNegative() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -107,7 +121,7 @@ func (suite *ReissueTxSuite) Test_ReissueNFTNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *ReissueTxSuite) Test_ReissueNegative() {
+func (suite *ReissueTxNegativeSuite) Test_ReissueNegative() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -133,7 +147,7 @@ func (suite *ReissueTxSuite) Test_ReissueNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestReissueTxSuite(t *testing.T) {
+func TestReissueTxNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(ReissueTxSuite))
+	suite.Run(t, new(ReissueTxNegativeSuite))
 }
