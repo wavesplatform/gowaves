@@ -53,7 +53,7 @@ func NewNode(
 	services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration,
 	enableLightMode bool,
 ) *Node {
-	if bindAddr.Empty() {
+	if bindAddr.Empty() && bindAddr.Port == 0 {
 		zap.S().Warnf("BindAddr is empty, using declared address %q", declAddr.String())
 		bindAddr = declAddr
 	}

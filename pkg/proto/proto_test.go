@@ -742,3 +742,8 @@ func TestChecksumReader(t *testing.T) {
 		})
 	}
 }
+
+func TestTCPAddr_Empty(t *testing.T) {
+	addr := NewTCPAddrFromString("0.0.0.0:6868")
+	require.True(t, addr.Empty())
+}
