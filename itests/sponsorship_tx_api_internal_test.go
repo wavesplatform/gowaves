@@ -39,7 +39,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
+func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValuesPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -62,7 +62,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
+func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApiPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
 	for _, v := range versions {
@@ -90,7 +90,21 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
+func TestSponsorshipTxApiSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(SponsorshipTxApiSuite))
+}
+
+type SponsorshipTxApiNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *SponsorshipTxApiNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *SponsorshipTxApiNegativeSuite) TestSponsorshipTxApiNegative() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -113,7 +127,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
+func (suite *SponsorshipTxApiNegativeSuite) Test_SponsorshipForSmartAssetApiNegative() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -135,7 +149,7 @@ func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestSponsorshipTxApiSuite(t *testing.T) {
+func TestSponsorshipTxApiNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SponsorshipTxApiSuite))
+	suite.Run(t, new(SponsorshipTxApiNegativeSuite))
 }
