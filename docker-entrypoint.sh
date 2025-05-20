@@ -1,10 +1,21 @@
 #!/bin/sh
 set -e
 
-# If no arguments provided, use defaults from CMD
+# Если аргументов нет — запускаем с параметрами по умолчанию из ENV
 if [ $# -eq 0 ]; then
-  exec /app/node "$@"
+  exec /app/node \
+    -cfg-path="$CONFIG_PATH" \
+    -wallet-path="$WALLET_PATH" \
+    -wallet-password="$WALLET_PASSWORD" \
+    -state-path="$STATE_PATH" \
+    -bind-address="$BIND_ADDR" \
+    -api-address="$API_ADDR" \
+    -grpc-address="$GRPC_ADDR" \
+    -build-extended-api \
+    -serve-extended-api \
+    -build-state-hashes \
+    -enable-grpc-api
 else
-  # Merge CMD + user-provided args
-  exec /app/node "$@" "-state-path=/home/gowaves/state" "-bind-address=0.0.0.0:6868" "-api-address=0.0.0.0:6869" "-build-extended-api" "-serve-extended-api" "-build-state-hashes" "-enable-grpc-api" "-grpc-address=0.0.0.0:7470"
+  # Если аргументы переданы — используем их
+  exec /app/node "$@"
 fi
