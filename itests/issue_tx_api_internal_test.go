@@ -56,7 +56,21 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 	}
 }
 
-func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
+func TestIssueTxApiSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(IssueTxApiSuite))
+}
+
+type IssueTxApiNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *IssueTxApiNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *IssueTxApiNegativeSuite) Test_IssueTxApiNegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -78,7 +92,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestIssueTxApiSuite(t *testing.T) {
+func TestIssueTxApiNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(IssueTxApiSuite))
+	suite.Run(t, new(IssueTxApiNegativeSuite))
 }
