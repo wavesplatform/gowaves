@@ -37,7 +37,21 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
 	}
 }
 
-func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
+func TestIssueSmartAssetApiSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(IssueSmartAssetApiSuite))
+}
+
+type IssueSmartAssetApiNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *IssueSmartAssetApiNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *IssueSmartAssetApiNegativeSuite) Test_IssueSmartAssetApiNegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -59,7 +73,7 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestIssueSmartAssetApiSuite(t *testing.T) {
+func TestIssueSmartAssetApiNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(IssueSmartAssetApiSuite))
+	suite.Run(t, new(IssueSmartAssetApiNegativeSuite))
 }
