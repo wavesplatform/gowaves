@@ -39,7 +39,21 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 	}
 }
 
-func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
+func TestSetAssetScriptSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(SetAssetScriptSuite))
+}
+
+type SetAssetScriptNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *SetAssetScriptNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *SetAssetScriptNegativeSuite) Test_SetAssetScriptNegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -63,7 +77,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
+func (suite *SetAssetScriptNegativeSuite) Test_SetScriptForNotScriptedAssetNegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -85,7 +99,7 @@ func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestSetAssetScriptSuite(t *testing.T) {
+func TestSetAssetScriptNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SetAssetScriptSuite))
+	suite.Run(t, new(SetAssetScriptNegativeSuite))
 }
