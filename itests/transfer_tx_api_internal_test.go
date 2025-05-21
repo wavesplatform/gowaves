@@ -87,7 +87,21 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
 	}
 }
 
-func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
+func TestTransferTxApiSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(TransferTxApiSuite))
+}
+
+type TransferTxApiNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *TransferTxApiNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *TransferTxApiNegativeSuite) Test_TransferTxApiNegative() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -109,7 +123,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
+func (suite *TransferTxApiNegativeSuite) Test_TransferTxApiChainIDNegative() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -142,7 +156,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestTransferTxApiSuite(t *testing.T) {
+func TestTransferTxApiNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TransferTxApiSuite))
+	suite.Run(t, new(TransferTxApiNegativeSuite))
 }
