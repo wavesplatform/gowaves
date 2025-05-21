@@ -159,7 +159,21 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipMaxValue
 	}
 }
 
-func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative() {
+func TestTransferWithSponsorshipTxSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(TransferWithSponsorshipTxSuite))
+}
+
+type TransferWithSponsorshipTxNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *TransferWithSponsorshipTxNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *TransferWithSponsorshipTxNegativeSuite) TestTransferWithSponsorshipNegative() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -199,7 +213,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *TransferWithSponsorshipTxSuite) TestSponsoredTransferFeeNegative() {
+func (suite *TransferWithSponsorshipTxNegativeSuite) TestSponsoredTransferFeeNegative() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
@@ -239,7 +253,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestSponsoredTransferFeeNegative() 
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestTransferWithSponsorshipTxSuite(t *testing.T) {
+func TestTransferWithSponsorshipTxNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TransferWithSponsorshipTxSuite))
+	suite.Run(t, new(TransferWithSponsorshipTxNegativeSuite))
 }
