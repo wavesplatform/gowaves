@@ -899,7 +899,7 @@ func filterToIPV4(ips []net.IP) []net.IP {
 
 func resolveHostToIPsv4(host string) ([]net.IP, error) {
 	if host == "" {
-		host = "0.0.0.0" // set default host to
+		host = "0.0.0.0" // set default host to 0.0.0.0
 	}
 	if ip := net.ParseIP(host); ip != nil { // try to parse host as IP address
 		ipV4 := ip.To4() // try to convert to IPv4
