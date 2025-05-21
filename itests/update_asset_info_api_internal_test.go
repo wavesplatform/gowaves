@@ -89,7 +89,21 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPosit
 	}
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableTokenNegative() {
+func TestUpdateAssetInfoTxApiSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(UpdateAssetInfoTxApiSuite))
+}
+
+type UpdateAssetInfoTxApiNegativeSuite struct {
+	f.BaseSuite
+}
+
+func (suite *UpdateAssetInfoTxApiNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}
+
+func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxApiReissuableTokenNegative() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -119,7 +133,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
+func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -149,7 +163,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxSmartAssetApiNegative() {
+func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxSmartAssetApiNegative() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -179,7 +193,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxSmartAssetApiNegat
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiWithoutWaitingNegative() {
+func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxApiWithoutWaitingNegative() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -210,7 +224,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiWithoutWaitingN
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestUpdateAssetInfoTxApiSuite(t *testing.T) {
+func TestUpdateAssetInfoTxApiNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(UpdateAssetInfoTxApiSuite))
+	suite.Run(t, new(UpdateAssetInfoTxApiNegativeSuite))
 }
