@@ -751,7 +751,6 @@ func TestTCPAddr_Empty(t *testing.T) {
 		{NewTCPAddrFromString("0.0.0.0:6868"), true},
 		{NewTCPAddrFromString("0.0.0.0:0"), true},
 		{NewTCPAddrFromString("127.0.0.1:6868"), false},
-		{NewTCPAddrFromString("127.0.0.1:6868"), false},
 		{NewTCPAddrFromString("127.0.0.1"), true}, // no port, returns empty
 		{NewTCPAddrFromString("fooo"), true},      // invalid address, returns empty
 		{NewTCPAddrFromString(":6868"), true},     // no host is specified, returns empty
