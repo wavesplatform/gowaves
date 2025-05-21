@@ -2,6 +2,7 @@ package compiler
 
 import (
 	"maps"
+	"slices"
 
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
@@ -93,12 +94,7 @@ func (c *Compaction) replaceName(oldName string) string {
 }
 
 func (c *Compaction) contains(oldName string) bool {
-	for _, n := range c.knownDecs {
-		if n == oldName {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(c.knownDecs, oldName)
 }
 
 func (c *Compaction) getReplacedName(oldName string) string {
