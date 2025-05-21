@@ -591,7 +591,7 @@ func (a TCPAddr) String() string {
 	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 }
 
-// Empty checks if IP of TCPAddr is empty.
+// Empty checks if IP of TCPAddr is empty or unspecified (e.g., 0.0.0.0 or ::).
 func (a TCPAddr) Empty() bool {
 	return len(a.IP) == 0 || a.IP.IsUnspecified()
 }
