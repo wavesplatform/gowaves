@@ -8,6 +8,7 @@ exec /app/node \
     -state-path="$STATE_PATH" \
     -bind-address="$BIND_ADDR" \
     -api-address="$API_ADDR" \
+    -grpc-address="$GRPC_ADDR" \
     -build-extended-api \
     -serve-extended-api \
     -build-state-hashes \
