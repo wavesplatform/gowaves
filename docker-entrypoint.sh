@@ -12,4 +12,5 @@ exec /app/node \
     -build-extended-api \
     -serve-extended-api \
     -build-state-hashes \
-    -enable-grpc-api
+    -enable-grpc-api \
+    "$@"
