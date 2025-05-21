@@ -17,11 +17,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type TransferTxApiPositiveSuite struct {
+type TransferTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *TransferTxApiPositiveSuite) Test_TransferTxApiPositive() {
+func (suite *TransferTxAPIPositiveSuite) Test_TransferTxAPIPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		aliasStr := utl.RandStringBytes(15, testdata.AliasSymbolSet)
@@ -45,7 +45,7 @@ func (suite *TransferTxApiPositiveSuite) Test_TransferTxApiPositive() {
 	}
 }
 
-func (suite *TransferTxApiPositiveSuite) Test_TransferSmartAssetApiPositive() {
+func (suite *TransferTxAPIPositiveSuite) Test_TransferSmartAssetAPIPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	saversions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	name := "Check transfer smart asset"
@@ -65,7 +65,7 @@ func (suite *TransferTxApiPositiveSuite) Test_TransferSmartAssetApiPositive() {
 	}
 }
 
-func (suite *TransferTxApiPositiveSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
+func (suite *TransferTxAPIPositiveSuite) Test_TransferTxAPIMaxAmountAndFeePositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -87,16 +87,16 @@ func (suite *TransferTxApiPositiveSuite) Test_TransferTxApiMaxAmountAndFeePositi
 	}
 }
 
-func TestTransferTxApiPositiveSuite(t *testing.T) {
+func TestTransferTxAPIPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TransferTxApiPositiveSuite))
+	suite.Run(t, new(TransferTxAPIPositiveSuite))
 }
 
-type TransferTxApiNegativeSuite struct {
+type TransferTxAPINegativeSuite struct {
 	f.BaseNegativeSuite
 }
 
-func (suite *TransferTxApiNegativeSuite) Test_TransferTxApiNegative() {
+func (suite *TransferTxAPINegativeSuite) Test_TransferTxAPINegative() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -118,7 +118,7 @@ func (suite *TransferTxApiNegativeSuite) Test_TransferTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *TransferTxApiNegativeSuite) Test_TransferTxApiChainIDNegative() {
+func (suite *TransferTxAPINegativeSuite) Test_TransferTxAPIChainIDNegative() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -151,7 +151,7 @@ func (suite *TransferTxApiNegativeSuite) Test_TransferTxApiChainIDNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestTransferTxApiNegativeSuite(t *testing.T) {
+func TestTransferTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TransferTxApiNegativeSuite))
+	suite.Run(t, new(TransferTxAPINegativeSuite))
 }

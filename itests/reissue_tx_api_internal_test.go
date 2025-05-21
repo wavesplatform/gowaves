@@ -17,11 +17,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type ReissueTxApiPositiveSuite struct {
+type ReissueTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *ReissueTxApiPositiveSuite) Test_ReissueTxApiPositive() {
+func (suite *ReissueTxAPIPositiveSuite) Test_ReissueTxAPIPositive() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -39,7 +39,7 @@ func (suite *ReissueTxApiPositiveSuite) Test_ReissueTxApiPositive() {
 	}
 }
 
-func (suite *ReissueTxApiPositiveSuite) Test_ReissueTxApiMaxQuantityPositive() {
+func (suite *ReissueTxAPIPositiveSuite) Test_ReissueTxAPIMaxQuantityPositive() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -57,16 +57,16 @@ func (suite *ReissueTxApiPositiveSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	}
 }
 
-func TestReissueTxApiPositiveSuite(t *testing.T) {
+func TestReissueTxAPIPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(ReissueTxApiPositiveSuite))
+	suite.Run(t, new(ReissueTxAPIPositiveSuite))
 }
 
-type ReissueTxApiNegativeSuite struct {
+type ReissueTxAPINegativeSuite struct {
 	f.BaseNegativeSuite
 }
 
-func (suite *ReissueTxApiNegativeSuite) Test_ReissueNotReissuableApiNegative() {
+func (suite *ReissueTxAPINegativeSuite) Test_ReissueNotReissuableAPINegative() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -96,7 +96,7 @@ func (suite *ReissueTxApiNegativeSuite) Test_ReissueNotReissuableApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *ReissueTxApiNegativeSuite) Test_ReissueTxApiNFTNegative() {
+func (suite *ReissueTxAPINegativeSuite) Test_ReissueTxAPINFTNegative() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -118,7 +118,7 @@ func (suite *ReissueTxApiNegativeSuite) Test_ReissueTxApiNFTNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *ReissueTxApiNegativeSuite) Test_ReissueTxApiNegative() {
+func (suite *ReissueTxAPINegativeSuite) Test_ReissueTxAPINegative() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -144,7 +144,7 @@ func (suite *ReissueTxApiNegativeSuite) Test_ReissueTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestReissueTxApiNegativeSuite(t *testing.T) {
+func TestReissueTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(ReissueTxApiNegativeSuite))
+	suite.Run(t, new(ReissueTxAPINegativeSuite))
 }

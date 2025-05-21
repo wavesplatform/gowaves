@@ -3,11 +3,12 @@ package clients
 import (
 	"context"
 	stderrs "errors"
-	"github.com/wavesplatform/gowaves/pkg/client"
 	"maps"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/client"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"

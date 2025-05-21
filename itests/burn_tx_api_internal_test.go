@@ -19,11 +19,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type BurnTxApiPositiveSuite struct {
+type BurnTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *BurnTxApiPositiveSuite) Test_BurnTxApiPositive() {
+func (suite *BurnTxAPIPositiveSuite) Test_BurnTxAPIPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -41,7 +41,7 @@ func (suite *BurnTxApiPositiveSuite) Test_BurnTxApiPositive() {
 	}
 }
 
-func (suite *BurnTxApiPositiveSuite) Test_BurnTxApiAssetWithMaxAvailableFeePositive() {
+func (suite *BurnTxAPIPositiveSuite) Test_BurnTxAPIAssetWithMaxAvailableFeePositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -61,7 +61,7 @@ func (suite *BurnTxApiPositiveSuite) Test_BurnTxApiAssetWithMaxAvailableFeePosit
 	}
 }
 
-func (suite *BurnTxApiPositiveSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
+func (suite *BurnTxAPIPositiveSuite) Test_BurnNFTFromOwnerAccountAPIPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
@@ -91,16 +91,16 @@ func (suite *BurnTxApiPositiveSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	}
 }
 
-func TestBurnTxApiPositiveSuite(t *testing.T) {
+func TestBurnTxAPIPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(BurnTxApiPositiveSuite))
+	suite.Run(t, new(BurnTxAPIPositiveSuite))
 }
 
-type BurnTxApiNegativeSuite struct {
+type BurnTxAPINegativeSuite struct {
 	f.BaseNegativeSuite
 }
 
-func (suite *BurnTxApiNegativeSuite) Test_BurnTxApiNegative() {
+func (suite *BurnTxAPINegativeSuite) Test_BurnTxAPINegative() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -126,7 +126,7 @@ func (suite *BurnTxApiNegativeSuite) Test_BurnTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestBurnTxApiNegativeSuite(t *testing.T) {
+func TestBurnTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(BurnTxApiNegativeSuite))
+	suite.Run(t, new(BurnTxAPINegativeSuite))
 }

@@ -15,11 +15,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type IssueTxApiPositiveSuite struct {
+type IssueTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *IssueTxApiPositiveSuite) Test_IssueTxApiPositive() {
+func (suite *IssueTxAPIPositiveSuite) Test_IssueTxAPIPositive() {
 	versions := issue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
@@ -36,7 +36,7 @@ func (suite *IssueTxApiPositiveSuite) Test_IssueTxApiPositive() {
 	}
 }
 
-func (suite *IssueTxApiPositiveSuite) Test_IssueTxApiWithSameDataPositive() {
+func (suite *IssueTxAPIPositiveSuite) Test_IssueTxAPIWithSameDataPositive() {
 	versions := issue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
@@ -56,16 +56,16 @@ func (suite *IssueTxApiPositiveSuite) Test_IssueTxApiWithSameDataPositive() {
 	}
 }
 
-func TestIssueTxApiPositiveSuite(t *testing.T) {
+func TestIssueTxAPIPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(IssueTxApiPositiveSuite))
+	suite.Run(t, new(IssueTxAPIPositiveSuite))
 }
 
-type IssueTxApiNegativeSuite struct {
+type IssueTxAPINegativeSuite struct {
 	f.BaseNegativeSuite
 }
 
-func (suite *IssueTxApiNegativeSuite) Test_IssueTxApiNegative() {
+func (suite *IssueTxAPINegativeSuite) Test_IssueTxAPINegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -87,7 +87,7 @@ func (suite *IssueTxApiNegativeSuite) Test_IssueTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestIssueTxApiNegativeSuite(t *testing.T) {
+func TestIssueTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(IssueTxApiNegativeSuite))
+	suite.Run(t, new(IssueTxAPINegativeSuite))
 }

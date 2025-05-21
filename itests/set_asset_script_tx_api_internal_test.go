@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type SetAssetScriptApiPositiveSuite struct {
+type SetAssetScriptAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *SetAssetScriptApiPositiveSuite) Test_SetAssetScriptApiPositive() {
+func (suite *SetAssetScriptAPIPositiveSuite) Test_SetAssetScriptAPIPositive() {
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
@@ -40,16 +40,16 @@ func (suite *SetAssetScriptApiPositiveSuite) Test_SetAssetScriptApiPositive() {
 	}
 }
 
-func TestSetAssetScriptApiPositiveSuite(t *testing.T) {
+func TestSetAssetScriptAPIPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SetAssetScriptApiPositiveSuite))
+	suite.Run(t, new(SetAssetScriptAPIPositiveSuite))
 }
 
-type SetAssetScriptApiNegativeSuite struct {
+type SetAssetScriptAPINegativeSuite struct {
 	f.BaseNegativeSuite
 }
 
-func (suite *SetAssetScriptApiNegativeSuite) Test_SetAssetScriptApiNegative() {
+func (suite *SetAssetScriptAPINegativeSuite) Test_SetAssetScriptAPINegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -74,7 +74,7 @@ func (suite *SetAssetScriptApiNegativeSuite) Test_SetAssetScriptApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *SetAssetScriptApiNegativeSuite) Test_SetScriptForNotScriptedAssetApiNegative() {
+func (suite *SetAssetScriptAPINegativeSuite) Test_SetScriptForNotScriptedAssetAPINegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -98,7 +98,7 @@ func (suite *SetAssetScriptApiNegativeSuite) Test_SetScriptForNotScriptedAssetAp
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestSetAssetScriptApiNegativeSuite(t *testing.T) {
+func TestSetAssetScriptAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SetAssetScriptApiNegativeSuite))
+	suite.Run(t, new(SetAssetScriptAPINegativeSuite))
 }

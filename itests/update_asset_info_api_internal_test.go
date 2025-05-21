@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type UpdateAssetInfoTxApiPositiveSuite struct {
+type UpdateAssetInfoTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiReissuableTokenPositive() {
+func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPIReissuableTokenPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		assets := issue.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -43,7 +43,7 @@ func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiReissua
 	}
 }
 
-func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
+func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPINFTPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := issue.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -66,7 +66,7 @@ func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiNFTPosi
 	}
 }
 
-func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiSmartAssetPositive() {
+func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPISmartAssetPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smart := issue.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -89,16 +89,16 @@ func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiSmartAs
 	}
 }
 
-func TestUpdateAssetInfoTxApiPositiveSuite(t *testing.T) {
+func TestUpdateAssetInfoTxAPIPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(UpdateAssetInfoTxApiPositiveSuite))
+	suite.Run(t, new(UpdateAssetInfoTxAPIPositiveSuite))
 }
 
-type UpdateAssetInfoTxApiNegativeSuite struct {
+type UpdateAssetInfoTxAPINegativeSuite struct {
 	f.BaseNegativeSuite
 }
 
-func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxApiReissuableTokenNegative() {
+func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxAPIReissuableTokenNegative() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -128,7 +128,7 @@ func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxApiReissua
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
+func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxNFTAPINegative() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -158,7 +158,7 @@ func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxNFTApiNega
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxSmartAssetApiNegative() {
+func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxSmartAssetAPINegative() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -188,7 +188,7 @@ func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxSmartAsset
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxApiWithoutWaitingNegative() {
+func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxAPIWithoutWaitingNegative() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -219,7 +219,7 @@ func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxApiWithout
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestUpdateAssetInfoTxApiNegativeSuite(t *testing.T) {
+func TestUpdateAssetInfoTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(UpdateAssetInfoTxApiNegativeSuite))
+	suite.Run(t, new(UpdateAssetInfoTxAPINegativeSuite))
 }

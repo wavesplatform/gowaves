@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type SponsorshipTxApiPositiveSuite struct {
+type SponsorshipTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *SponsorshipTxApiPositiveSuite) TestSponsorshipTxApiPositive() {
+func (suite *SponsorshipTxAPIPositiveSuite) TestSponsorshipTxAPIPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -39,7 +39,7 @@ func (suite *SponsorshipTxApiPositiveSuite) TestSponsorshipTxApiPositive() {
 	}
 }
 
-func (suite *SponsorshipTxApiPositiveSuite) TestSponsorshipTxApiMaxValuesPositive() {
+func (suite *SponsorshipTxAPIPositiveSuite) TestSponsorshipTxAPIMaxValuesPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -62,7 +62,7 @@ func (suite *SponsorshipTxApiPositiveSuite) TestSponsorshipTxApiMaxValuesPositiv
 	}
 }
 
-func (suite *SponsorshipTxApiPositiveSuite) TestSponsorshipDisabledTxApiPositive() {
+func (suite *SponsorshipTxAPIPositiveSuite) TestSponsorshipDisabledTxAPIPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
 	for _, v := range versions {
@@ -90,16 +90,16 @@ func (suite *SponsorshipTxApiPositiveSuite) TestSponsorshipDisabledTxApiPositive
 	}
 }
 
-func TestSponsorshipTxApiPositiveSuite(t *testing.T) {
+func TestSponsorshipTxAPIPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SponsorshipTxApiPositiveSuite))
+	suite.Run(t, new(SponsorshipTxAPIPositiveSuite))
 }
 
-type SponsorshipTxApiNegativeSuite struct {
+type SponsorshipTxAPINegativeSuite struct {
 	f.BaseNegativeSuite
 }
 
-func (suite *SponsorshipTxApiNegativeSuite) TestSponsorshipTxApiNegative() {
+func (suite *SponsorshipTxAPINegativeSuite) TestSponsorshipTxAPINegative() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -122,7 +122,7 @@ func (suite *SponsorshipTxApiNegativeSuite) TestSponsorshipTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *SponsorshipTxApiNegativeSuite) Test_SponsorshipForSmartAssetApiNegative() {
+func (suite *SponsorshipTxAPINegativeSuite) Test_SponsorshipForSmartAssetAPINegative() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -144,7 +144,7 @@ func (suite *SponsorshipTxApiNegativeSuite) Test_SponsorshipForSmartAssetApiNega
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestSponsorshipTxApiNegativeSuite(t *testing.T) {
+func TestSponsorshipTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SponsorshipTxApiNegativeSuite))
+	suite.Run(t, new(SponsorshipTxAPINegativeSuite))
 }
