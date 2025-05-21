@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type UpdateAssetInfoTxSuite struct {
+type UpdateAssetInfoTxPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxReissuableTokenPositive() {
+func (suite *UpdateAssetInfoTxPositiveSuite) Test_UpdateAssetInfoTxReissuableTokenPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		assets := issue.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -43,7 +43,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxReissuableTokenPositi
 	}
 }
 
-func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxNFTPositive() {
+func (suite *UpdateAssetInfoTxPositiveSuite) Test_UpdateAssetInfoTxNFTPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := issue.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -65,7 +65,7 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxNFTPositive() {
 	}
 }
 
-func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxSmartAssetPositive() {
+func (suite *UpdateAssetInfoTxPositiveSuite) Test_UpdateAssetInfoTxSmartAssetPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smart := issue.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -87,18 +87,13 @@ func (suite *UpdateAssetInfoTxSuite) Test_UpdateAssetInfoTxSmartAssetPositive() 
 	}
 }
 
-func TestUpdateAssetInfoTxSuite(t *testing.T) {
+func TestUpdateAssetInfoTxPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(UpdateAssetInfoTxSuite))
+	suite.Run(t, new(UpdateAssetInfoTxPositiveSuite))
 }
 
 type UpdateAssetInfoTxNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *UpdateAssetInfoTxNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *UpdateAssetInfoTxNegativeSuite) Test_UpdateAssetInfoTxReissuableTokenNegative() {

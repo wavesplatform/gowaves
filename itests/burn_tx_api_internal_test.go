@@ -19,11 +19,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type BurnTxApiSuite struct {
+type BurnTxApiPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
+func (suite *BurnTxApiPositiveSuite) Test_BurnTxApiPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -41,7 +41,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFeePositive() {
+func (suite *BurnTxApiPositiveSuite) Test_BurnTxApiAssetWithMaxAvailableFeePositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -61,7 +61,7 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFeePositive() {
 	}
 }
 
-func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
+func (suite *BurnTxApiPositiveSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
@@ -91,18 +91,13 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	}
 }
 
-func TestBurnTxApiSuite(t *testing.T) {
+func TestBurnTxApiPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(BurnTxApiSuite))
+	suite.Run(t, new(BurnTxApiPositiveSuite))
 }
 
 type BurnTxApiNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *BurnTxApiNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *BurnTxApiNegativeSuite) Test_BurnTxApiNegative() {

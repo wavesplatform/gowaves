@@ -71,3 +71,12 @@ func (suite *BaseSuite) SetupTest() {
 func (suite *BaseSuite) TearDownTest() {
 	suite.Clients.SendEndMessage(suite.T())
 }
+
+type BaseNegativeSuite struct {
+	BaseSuite
+}
+
+func (suite *BaseNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
+}

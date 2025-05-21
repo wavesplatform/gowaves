@@ -17,11 +17,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type ReissueTxApiSuite struct {
+type ReissueTxApiPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
+func (suite *ReissueTxApiPositiveSuite) Test_ReissueTxApiPositive() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -39,7 +39,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 	}
 }
 
-func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
+func (suite *ReissueTxApiPositiveSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -57,18 +57,13 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	}
 }
 
-func TestReissueTxApiSuite(t *testing.T) {
+func TestReissueTxApiPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(ReissueTxApiSuite))
+	suite.Run(t, new(ReissueTxApiPositiveSuite))
 }
 
 type ReissueTxApiNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *ReissueTxApiNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *ReissueTxApiNegativeSuite) Test_ReissueNotReissuableApiNegative() {

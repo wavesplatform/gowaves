@@ -17,11 +17,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type TransferTxApiSuite struct {
+type TransferTxApiPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
+func (suite *TransferTxApiPositiveSuite) Test_TransferTxApiPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		aliasStr := utl.RandStringBytes(15, testdata.AliasSymbolSet)
@@ -45,7 +45,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiPositive() {
 	}
 }
 
-func (suite *TransferTxApiSuite) Test_TransferSmartAssetApiPositive() {
+func (suite *TransferTxApiPositiveSuite) Test_TransferSmartAssetApiPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	saversions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	name := "Check transfer smart asset"
@@ -65,7 +65,7 @@ func (suite *TransferTxApiSuite) Test_TransferSmartAssetApiPositive() {
 	}
 }
 
-func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
+func (suite *TransferTxApiPositiveSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -87,18 +87,13 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
 	}
 }
 
-func TestTransferTxApiSuite(t *testing.T) {
+func TestTransferTxApiPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TransferTxApiSuite))
+	suite.Run(t, new(TransferTxApiPositiveSuite))
 }
 
 type TransferTxApiNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *TransferTxApiNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *TransferTxApiNegativeSuite) Test_TransferTxApiNegative() {

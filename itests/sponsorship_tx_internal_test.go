@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type SponsorshipTxSuite struct {
+type SponsorshipTxPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
+func (suite *SponsorshipTxPositiveSuite) TestSponsorshipTxPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -39,7 +39,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxPositive() {
 	}
 }
 
-func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValuesPositive() {
+func (suite *SponsorshipTxPositiveSuite) TestSponsorshipTxMaxValuesPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -62,7 +62,7 @@ func (suite *SponsorshipTxSuite) TestSponsorshipTxMaxValuesPositive() {
 	}
 }
 
-func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTxPositive() {
+func (suite *SponsorshipTxPositiveSuite) TestSponsorshipDisabledTxPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
 	for _, v := range versions {
@@ -90,18 +90,13 @@ func (suite *SponsorshipTxSuite) TestSponsorshipDisabledTxPositive() {
 	}
 }
 
-func TestSponsorshipTxSuite(t *testing.T) {
+func TestSponsorshipTxPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SponsorshipTxSuite))
+	suite.Run(t, new(SponsorshipTxPositiveSuite))
 }
 
 type SponsorshipTxNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *SponsorshipTxNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *SponsorshipTxNegativeSuite) TestSponsorshipTxNegative() {

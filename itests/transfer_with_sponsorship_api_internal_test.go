@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type TransferWithSponsorshipApiTxSuite struct {
+type TransferWithSponsorshipApiTxPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPositive() {
+func (suite *TransferWithSponsorshipApiTxPositiveSuite) TestTransferWithSponsorshipApiPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Sponsor creates a new token.
@@ -55,7 +55,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipApiPo
 	}
 }
 
-func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipToOneselfApiPositive() {
+func (suite *TransferWithSponsorshipApiTxPositiveSuite) TestTransferWithSponsorshipToOneselfApiPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Sponsor creates a new token.
@@ -84,7 +84,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipToOne
 	}
 }
 
-func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponsoredAssetApiPositive() {
+func (suite *TransferWithSponsorshipApiTxPositiveSuite) TestFeeInWavesAccordingMinSponsoredAssetApiPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Sponsor creates a new token.
@@ -121,7 +121,7 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestFeeInWavesAccordingMinSponso
 	}
 }
 
-func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxValuesApiPositive() {
+func (suite *TransferWithSponsorshipApiTxPositiveSuite) TestTransferWithSponsorshipMaxValuesApiPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Fill Sponsor's Waves balance.
@@ -158,18 +158,13 @@ func (suite *TransferWithSponsorshipApiTxSuite) TestTransferWithSponsorshipMaxVa
 	}
 }
 
-func TestTransferWithSponsorshipApiTxSuite(t *testing.T) {
+func TestTransferWithSponsorshipApiTxPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TransferWithSponsorshipApiTxSuite))
+	suite.Run(t, new(TransferWithSponsorshipApiTxPositiveSuite))
 }
 
 type TransferWithSponsorshipApiTxNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *TransferWithSponsorshipApiTxNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *TransferWithSponsorshipApiTxNegativeSuite) TestTransferWithSponsorshipApiNegative() {

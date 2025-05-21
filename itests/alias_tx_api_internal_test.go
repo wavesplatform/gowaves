@@ -17,11 +17,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type AliasTxApiSuite struct {
+type AliasTxApiPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
+func (suite *AliasTxApiPositiveSuite) Test_AliasTxApiPositive() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
@@ -39,7 +39,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 	}
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
+func (suite *AliasTxApiPositiveSuite) Test_AliasTxApiMaxValuesPositive() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -59,18 +59,13 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	}
 }
 
-func TestAliasTxApiSuite(t *testing.T) {
+func TestAliasTxApiPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(AliasTxApiSuite))
+	suite.Run(t, new(AliasTxApiPositiveSuite))
 }
 
 type AliasTxApiNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *AliasTxApiNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *AliasTxApiNegativeSuite) Test_AliasTxApiNegative() {

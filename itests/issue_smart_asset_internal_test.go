@@ -15,11 +15,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type IssueSmartAssetSuite struct {
+type IssueSmartAssetPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
+func (suite *IssueSmartAssetPositiveSuite) Test_IssueSmartAssetPositive() {
 	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveAssetScriptData(&suite.BaseSuite)
@@ -37,18 +37,13 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
 	}
 }
 
-func TestIssueSmartAssetSuite(t *testing.T) {
+func TestIssueSmartAssetPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(IssueSmartAssetSuite))
+	suite.Run(t, new(IssueSmartAssetPositiveSuite))
 }
 
 type IssueSmartAssetNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *IssueSmartAssetNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *IssueSmartAssetNegativeSuite) Test_IssueSmartAssetNegative() {

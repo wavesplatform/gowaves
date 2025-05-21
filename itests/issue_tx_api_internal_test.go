@@ -15,11 +15,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type IssueTxApiSuite struct {
+type IssueTxApiPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
+func (suite *IssueTxApiPositiveSuite) Test_IssueTxApiPositive() {
 	versions := issue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
@@ -36,7 +36,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 	}
 }
 
-func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
+func (suite *IssueTxApiPositiveSuite) Test_IssueTxApiWithSameDataPositive() {
 	versions := issue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
@@ -56,18 +56,13 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 	}
 }
 
-func TestIssueTxApiSuite(t *testing.T) {
+func TestIssueTxApiPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(IssueTxApiSuite))
+	suite.Run(t, new(IssueTxApiPositiveSuite))
 }
 
 type IssueTxApiNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *IssueTxApiNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *IssueTxApiNegativeSuite) Test_IssueTxApiNegative() {

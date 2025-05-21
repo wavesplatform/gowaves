@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type UpdateAssetInfoTxApiSuite struct {
+type UpdateAssetInfoTxApiPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableTokenPositive() {
+func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiReissuableTokenPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		assets := issue.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -43,7 +43,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 	}
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
+func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := issue.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -66,7 +66,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
 	}
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPositive() {
+func (suite *UpdateAssetInfoTxApiPositiveSuite) Test_UpdateAssetInfoTxApiSmartAssetPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smart := issue.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -89,18 +89,13 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPosit
 	}
 }
 
-func TestUpdateAssetInfoTxApiSuite(t *testing.T) {
+func TestUpdateAssetInfoTxApiPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(UpdateAssetInfoTxApiSuite))
+	suite.Run(t, new(UpdateAssetInfoTxApiPositiveSuite))
 }
 
 type UpdateAssetInfoTxApiNegativeSuite struct {
-	f.BaseSuite
-}
-
-func (suite *UpdateAssetInfoTxApiNegativeSuite) SetupSuite() {
-	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	f.BaseNegativeSuite
 }
 
 func (suite *UpdateAssetInfoTxApiNegativeSuite) Test_UpdateAssetInfoTxApiReissuableTokenNegative() {
