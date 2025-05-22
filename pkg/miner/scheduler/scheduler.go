@@ -9,6 +9,7 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/ccoveille/go-safecast"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -203,7 +204,7 @@ func (a internalImpl) scheduleWithVrf(
 			)
 			continue
 		}
-		ts := confirmedBlock.Timestamp + delay // May be in past of future.
+		ts := confirmedBlock.Timestamp + delay // Maybe in past or future.
 		if !generateInPast {
 			now := proto.NewTimestampFromTime(tm.Now())
 			if ts < now {
