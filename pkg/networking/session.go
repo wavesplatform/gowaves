@@ -266,6 +266,7 @@ func (s *Session) receiveLoop() error {
 				s.config.handler.OnClose(s)
 				return nil // Exit normally on connection close.
 			}
+			s.config.handler.OnFailure(s, err)
 			return err
 		}
 	}
@@ -381,18 +382,20 @@ func (s *Session) keepaliveLoop() error {
 		case <-s.ctx.Done():
 			return s.ctx.Err()
 		case <-time.After(s.config.keepAliveInterval):
-			// Get actual Ping message from Protocol.
-			p, err := s.config.protocol.Ping()
-			if err != nil {
-				s.logger.Error("Failed to get ping message", "error", err)
-				return ErrKeepAliveProtocolFailure
-			}
-			if sndErr := s.waitForSend(p); sndErr != nil {
-				if errors.Is(sndErr, ErrSessionShutdown) {
-					return nil // Exit normally on session termination.
+			if s.established.Load() {
+				// Get actual Ping message from Protocol.
+				p, err := s.config.protocol.Ping()
+				if err != nil {
+					s.logger.Error("Failed to get ping message", "error", err)
+					return ErrKeepAliveProtocolFailure
 				}
-				s.logger.Error("Failed to send ping message", "error", err)
-				return ErrKeepAliveTimeout
+				if sndErr := s.waitForSend(p); sndErr != nil {
+					if errors.Is(sndErr, ErrSessionShutdown) {
+						return nil // Exit normally on session termination.
+					}
+					s.logger.Error("Failed to send ping message", "error", err)
+					return ErrKeepAliveTimeout
+				}
 			}
 		}
 	}
