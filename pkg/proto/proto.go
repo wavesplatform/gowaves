@@ -591,8 +591,14 @@ func (a TCPAddr) String() string {
 	return net.JoinHostPort(a.IP.String(), strconv.Itoa(a.Port))
 }
 
+// Empty checks if IP of TCPAddr is empty or unspecified (e.g., 0.0.0.0 or ::).
 func (a TCPAddr) Empty() bool {
 	return len(a.IP) == 0 || a.IP.IsUnspecified()
+}
+
+// EmptyNoPort checks if IP of TCPAddr is empty AND port is 0.
+func (a TCPAddr) EmptyNoPort() bool {
+	return a.Empty() && a.Port == 0
 }
 
 func (a TCPAddr) WriteTo(w io.Writer) (int64, error) {
@@ -892,6 +898,9 @@ func filterToIPV4(ips []net.IP) []net.IP {
 }
 
 func resolveHostToIPsv4(host string) ([]net.IP, error) {
+	if host == "" {
+		host = "0.0.0.0" // set default host to 0.0.0.0
+	}
 	if ip := net.ParseIP(host); ip != nil { // try to parse host as IP address
 		ipV4 := ip.To4() // try to convert to IPv4
 		if ipV4 == nil {

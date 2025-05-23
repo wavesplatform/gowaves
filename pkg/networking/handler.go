@@ -15,4 +15,7 @@ type Handler interface {
 
 	// OnClose fired on Session closed.
 	OnClose(*Session)
+
+	// OnFailure fired on Session failure.
+	OnFailure(*Session, error)
 }

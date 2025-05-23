@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 quiet: False
 dir: "{{.InterfaceDir}}/mocks"
 mockname: "Mock{{.InterfaceName}}"
@@ -14,3 +15,14 @@ packages:
   github.com/wavesplatform/gowaves/pkg/blockchaininfo:
     interfaces:
       UpdatesPublisherInterface:
+=======
+dir: '{{.InterfaceDir}}'
+structname: Mock{{.InterfaceName}}
+template: testify
+packages:
+  github.com/wavesplatform/gowaves/pkg/networking:
+    interfaces:
+      Handler: {}
+      Header: {}
+      Protocol: {}
+>>>>>>> master

@@ -2,6 +2,7 @@ package stdlib
 
 import (
 	"encoding/json"
+	"slices"
 	"sort"
 	"strings"
 
@@ -291,13 +292,7 @@ func (t *UnionType) AppendType(rideType Type) {
 				t.Types = append(t.Types, newType)
 				continue
 			}
-			exist := false
-			for _, existType := range t.Types {
-				if newType.Equal(existType) {
-					exist = true
-					break
-				}
-			}
+			exist := slices.ContainsFunc(t.Types, newType.Equal)
 			if !exist {
 				if _, ok := newType.(ListType); ok && listExist {
 					list := t.Types[listIndex].(ListType)
