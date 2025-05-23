@@ -3,8 +3,10 @@ package blockchaininfo
 import (
 	"context"
 	"sync"
+	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type BlockchainUpdatesExtension struct {
@@ -15,6 +17,8 @@ type BlockchainUpdatesExtension struct {
 	blockchainExtensionState *BUpdatesExtensionState
 	lock                     sync.Mutex
 	makeExtensionReadyFunc   func()
+	obsolescencePeriod       time.Duration
+	ntpTime                  types.Time
 }
 
 func NewBlockchainUpdatesExtension(
@@ -24,6 +28,8 @@ func NewBlockchainUpdatesExtension(
 	blockchainExtensionState *BUpdatesExtensionState,
 	firstBlock *bool,
 	makeExtensionReadyFunc func(),
+	obsolescencePeriod time.Duration,
+	ntpTime types.Time,
 ) *BlockchainUpdatesExtension {
 	return &BlockchainUpdatesExtension{
 		ctx:                      ctx,
@@ -32,6 +38,8 @@ func NewBlockchainUpdatesExtension(
 		firstBlock:               firstBlock,
 		blockchainExtensionState: blockchainExtensionState,
 		makeExtensionReadyFunc:   makeExtensionReadyFunc,
+		obsolescencePeriod:       obsolescencePeriod,
+		ntpTime:                  ntpTime,
 	}
 }
 

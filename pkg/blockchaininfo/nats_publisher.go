@@ -10,8 +10,10 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const StoreBlocksLimit = 200
@@ -39,7 +41,9 @@ type BUpdatesExtensionState struct {
 }
 
 type UpdatesPublisher struct {
-	l2ContractAddress string
+	l2ContractAddress  string
+	obsolescencePeriod time.Duration
+	ntpTime            types.Time
 }
 
 func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddress string,
@@ -67,7 +71,10 @@ func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddr
 		if blockErr != nil {
 			return nil, errors.Wrap(blockErr, "failed to get newest block info")
 		}
-		bUpdatesInfo := state.BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot, l2address)
+		bUpdatesInfo, snapshotErr := state.BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot, l2address)
+		if snapshotErr != nil {
+			return nil, errors.Wrap(snapshotErr, "failed to build blocks from snapshot")
+		}
 
 		filteredDataEntries, filtrErr := filterDataEntries(targetHeight-limit,
 			bUpdatesInfo.ContractUpdatesInfo.AllDataEntries)
@@ -192,8 +199,25 @@ func PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto
 	return nil
 }
 
+func (p *UpdatesPublisher) isObsolete(lastReceivedBlock proto.BlockHeader) (bool, error) {
+	isObsolete, _, err := scheduler.IsBlockObsolete(p.ntpTime, p.obsolescencePeriod, lastReceivedBlock.Timestamp)
+	if err != nil {
+		return isObsolete, errors.Errorf("failed to check if block is obsolete, %v", err)
+	}
+	return isObsolete, nil
+}
+
 func (p *UpdatesPublisher) PublishUpdates(updates proto.BUpdatesInfo,
 	nc *nats.Conn, scheme proto.Scheme, l2ContractAddress string) error {
+	isObsolete, errObsolete := p.isObsolete(updates.BlockUpdatesInfo.BlockHeader)
+	if errObsolete != nil {
+		return errObsolete
+	}
+	if isObsolete {
+		/* No updates should be published yet */
+		return nil
+	}
+
 	/* first publish block data */
 	err := PublishBlockUpdates(updates, nc, scheme)
 	if err != nil {
@@ -472,7 +496,8 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 	}
 	wg.Wait()
 	e.MarkExtensionReady()
-	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String()}
+	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String(),
+		obsolescencePeriod: e.obsolescencePeriod, ntpTime: e.ntpTime}
 	// Publish the first 100 history entries for the rollback functionality.
 	publishHistoryBlocks(e, scheme, nc, updatesPublisher)
 

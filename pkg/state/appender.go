@@ -3,6 +3,7 @@ package state
 import (
 	stderrs "errors"
 	"fmt"
+	"github.com/ccoveille/go-safecast"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
@@ -876,13 +877,16 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
 	blockSnapshot proto.BlockSnapshot) error {
-	bUpdatesInfo := BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot,
+	bUpdatesInfo, err := BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot,
 		a.bUpdatesPluginInfo.L2ContractAddress)
-
+	if err != nil {
+		return err
+	}
 	if a.bUpdatesPluginInfo.IsFirstBlockDone() {
-		dataEntries, err := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(a.bUpdatesPluginInfo.L2ContractAddress))
-		if err != nil && !a.ia.state.IsNotFound(err) {
-			return err
+		dataEntries, entriesErr := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(
+			a.bUpdatesPluginInfo.L2ContractAddress))
+		if entriesErr != nil && !a.ia.state.IsNotFound(entriesErr) {
+			return entriesErr
 		}
 		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries
 		a.bUpdatesPluginInfo.FirstBlockDone()
@@ -895,8 +899,12 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 }
 
 func BuildBlockUpdatesInfoFromSnapshot(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
-	blockSnapshot proto.BlockSnapshot, l2ContractAddress proto.WavesAddress) proto.BUpdatesInfo {
+	blockSnapshot proto.BlockSnapshot, l2ContractAddress proto.WavesAddress) (proto.BUpdatesInfo, error) {
 	blockID := blockHeader.BlockID()
+	blockTimestamp, err := safecast.ToInt64(blockHeader.Timestamp)
+	if err != nil {
+		return proto.BUpdatesInfo{}, errors.Errorf("failed to convert uint64 timestamp into int64, %v", err)
+	}
 	bUpdatesInfo := proto.BUpdatesInfo{
 		BlockUpdatesInfo: proto.BlockUpdatesInfo{
 			Height:      blockInfo.Height,
@@ -908,6 +916,7 @@ func BuildBlockUpdatesInfoFromSnapshot(blockInfo *proto.BlockInfo, blockHeader *
 			AllDataEntries: nil,
 			Height:         blockInfo.Height,
 			BlockID:        blockID,
+			BlockTimestamp: blockTimestamp,
 		},
 	}
 
@@ -922,7 +931,7 @@ func BuildBlockUpdatesInfoFromSnapshot(blockInfo *proto.BlockInfo, blockHeader *
 			}
 		}
 	}
-	return bUpdatesInfo
+	return bUpdatesInfo, nil
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {

@@ -4,10 +4,11 @@ import (
 	"sync"
 	"time"
 
-	"github.com/mr-tron/base58"
-	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/ccoveille/go-safecast"
+	"github.com/mr-tron/base58"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -348,6 +349,21 @@ func (a *Default) Mine() chan Emit {
 	return a.mine
 }
 
+func IsBlockObsolete(ntpTime types.Time,
+	obsolescencePeriod time.Duration, lastBlockTimestamp uint64) (bool, time.Time, error) {
+	now := ntpTime.Now()
+	obsolescenceTime := now.Add(-obsolescencePeriod)
+	lastBlockTimeStampInt, err := safecast.ToInt64(lastBlockTimestamp)
+	if err != nil {
+		return false, time.Time{}, errors.Errorf("failed to convert uint64 timestamp to int64, %v", err)
+	}
+	lastBlockTime := time.UnixMilli(lastBlockTimeStampInt)
+	if obsolescenceTime.After(lastBlockTime) {
+		return true, obsolescenceTime, nil
+	}
+	return false, obsolescenceTime, nil
+}
+
 func (a *Default) Reschedule() {
 	if len(a.seeder.AccountSeeds()) == 0 {
 		zap.S().Debug("Scheduler: Mining is not possible because no seeds registered")
@@ -361,13 +377,16 @@ func (a *Default) Reschedule() {
 		return
 	}
 
-	now := a.tm.Now()
-	obsolescenceTime := now.Add(-a.obsolescence)
 	lastBlock := a.storage.TopBlock()
-	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
-	if obsolescenceTime.After(lastBlockTime) {
+	lastBlockTimestamp := lastBlock.Timestamp
+	isObsolete, obsolescenceTime, err := IsBlockObsolete(a.tm, a.obsolescence, lastBlock.Timestamp)
+	if err != nil {
+		zap.S().Error(err)
+		return
+	}
+	if isObsolete {
 		zap.S().Debugf("Scheduler: Mining is not allowed because last block (ID: %s) time %s is before the obsolesence time %s",
-			lastBlock.ID, lastBlockTime, obsolescenceTime)
+			lastBlock.ID, lastBlockTimestamp, obsolescenceTime)
 		return
 	}
 

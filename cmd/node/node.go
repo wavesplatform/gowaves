@@ -406,7 +406,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to get state path")
 	}
 
-	ntpTime, err := getNtp(ctx, nc.disableNTP)
+	ntpTime, err := GetNtp(ctx, nc.disableNTP)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get NTP time")
 	}
@@ -434,7 +434,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 
 	if nc.enableBlockchainUpdatesPlugin {
 		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(ctx, cfg, nc.BlockchainUpdatesL2Address,
-			updatesChannel, &firstBlock, st, makeExtensionReadyFunc)
+			updatesChannel, &firstBlock, st, makeExtensionReadyFunc, nc.obsolescencePeriod, ntpTime)
 		if bUErr != nil {
 			bUpdatesExtension.Close()
 			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
@@ -854,6 +854,8 @@ func initializeBlockchainUpdatesExtension(
 	firstBlock *bool,
 	state state.State,
 	makeExtensionReady func(),
+	obsolescencePeriod time.Duration,
+	ntpTime types.Time,
 ) (*blockchaininfo.BlockchainUpdatesExtension, error) {
 	bUpdatesExtensionState, err := blockchaininfo.NewBUpdatesExtensionState(
 		blockchaininfo.StoreBlocksLimit,
@@ -869,7 +871,7 @@ func initializeBlockchainUpdatesExtension(
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2ContractAddress)
 	}
 	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel,
-		bUpdatesExtensionState, firstBlock, makeExtensionReady), nil
+		bUpdatesExtensionState, firstBlock, makeExtensionReady, obsolescencePeriod, ntpTime), nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {
@@ -915,7 +917,7 @@ func grpcAPIRunOptsFromCLIFlags(c *config) *server.RunOptions {
 	return opts
 }
 
-func getNtp(ctx context.Context, disable bool) (types.Time, error) {
+func GetNtp(ctx context.Context, disable bool) (types.Time, error) {
 	if disable {
 		return ntptime.Stub{}, nil
 	}
