@@ -95,6 +95,7 @@ type L2ContractDataEntries struct {
 	DataEntries   []*waves.DataEntry     `protobuf:"bytes,5,rep,name=DataEntries,proto3" json:"DataEntries,omitempty"`
 	Height        uint64                 `protobuf:"varint,1,opt,name=Height,proto3" json:"Height,omitempty"`
 	BlockID       []byte                 `protobuf:"bytes,2,opt,name=BlockID,proto3" json:"BlockID,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,3,opt,name=Timestamp,proto3" json:"Timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
