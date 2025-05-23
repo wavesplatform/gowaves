@@ -1,21 +1,3 @@
-<<<<<<< HEAD
-quiet: False
-dir: "{{.InterfaceDir}}/mocks"
-mockname: "Mock{{.InterfaceName}}"
-with-expecter: true
-issue-845-fix: True
-filename: "{{.InterfaceName | snakecase}}.go"
-
-packages:
-  github.com/wavesplatform/gowaves/pkg/networking:
-    interfaces:
-      Header:
-      Protocol:
-      Handler:
-  github.com/wavesplatform/gowaves/pkg/blockchaininfo:
-    interfaces:
-      UpdatesPublisherInterface:
-=======
 dir: '{{.InterfaceDir}}'
 structname: Mock{{.InterfaceName}}
 template: testify
@@ -25,4 +7,6 @@ packages:
       Handler: {}
       Header: {}
       Protocol: {}
->>>>>>> master
+  github.com/wavesplatform/gowaves/pkg/blockchaininfo:
+    interfaces:
+      UpdatesPublisherInterface: {}
