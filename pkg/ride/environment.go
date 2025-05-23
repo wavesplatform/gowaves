@@ -86,6 +86,10 @@ func (ws *WrappedState) NewestTransactionByID(id []byte) (proto.Transaction, err
 	return ws.diff.state.NewestTransactionByID(id)
 }
 
+func (ws *WrappedState) RetrieveEntries(account proto.Recipient) ([]proto.DataEntry, error) {
+	return ws.diff.state.RetrieveEntries(account)
+}
+
 func (ws *WrappedState) NewestTransactionHeightByID(id []byte) (uint64, error) {
 	return ws.diff.state.NewestTransactionHeightByID(id)
 }

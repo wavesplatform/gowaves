@@ -24,6 +24,7 @@ require (
 	github.com/jinzhu/copier v0.4.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nats-io/nats-server/v2 v2.11.4
+	github.com/nats-io/nats.go v1.42.0
 	github.com/neilotoole/slogt v1.1.0
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
