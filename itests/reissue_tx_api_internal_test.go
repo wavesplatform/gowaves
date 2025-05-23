@@ -17,11 +17,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type ReissueTxApiSuite struct {
+type ReissueTxAPISuite struct {
 	f.BaseSuite
 }
 
-func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
+func (suite *ReissueTxAPISuite) Test_ReissueTxAPIPositive() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -39,7 +39,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiPositive() {
 	}
 }
 
-func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
+func (suite *ReissueTxAPISuite) Test_ReissueTxAPIMaxQuantityPositive() {
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -57,7 +57,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 	}
 }
 
-func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
+func (suite *ReissueTxAPISuite) Test_ReissueNotReissuableAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -88,7 +88,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
+func (suite *ReissueTxAPISuite) Test_ReissueTxAPINFTNegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -111,7 +111,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
+func (suite *ReissueTxAPISuite) Test_ReissueTxAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -138,7 +138,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestReissueTxApiSuite(t *testing.T) {
+func TestReissueTxAPISuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(ReissueTxApiSuite))
+	suite.Run(t, new(ReissueTxAPISuite))
 }

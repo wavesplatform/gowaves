@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type SponsorshipTxApiSuite struct {
+type SponsorshipTxAPISuite struct {
 	f.BaseSuite
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
+func (suite *SponsorshipTxAPISuite) TestSponsorshipTxAPIPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -39,7 +39,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValuesPositive() {
+func (suite *SponsorshipTxAPISuite) TestSponsorshipTxAPIMaxValuesPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -62,7 +62,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValuesPositive() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApiPositive() {
+func (suite *SponsorshipTxAPISuite) TestSponsorshipDisabledTxAPIPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
 	for _, v := range versions {
@@ -90,7 +90,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApiPositive() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
+func (suite *SponsorshipTxAPISuite) TestSponsorshipTxAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -114,7 +114,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
+func (suite *SponsorshipTxAPISuite) Test_SponsorshipForSmartAssetAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -137,7 +137,7 @@ func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestSponsorshipTxApiSuite(t *testing.T) {
+func TestSponsorshipTxAPISuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SponsorshipTxApiSuite))
+	suite.Run(t, new(SponsorshipTxAPISuite))
 }

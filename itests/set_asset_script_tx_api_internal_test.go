@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type SetAssetScriptApiSuite struct {
+type SetAssetScriptAPISuite struct {
 	f.BaseSuite
 }
 
-func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
+func (suite *SetAssetScriptAPISuite) Test_SetAssetScriptAPIPositive() {
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
@@ -40,7 +40,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
 	}
 }
 
-func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
+func (suite *SetAssetScriptAPISuite) Test_SetAssetScriptAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
@@ -66,7 +66,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegative() {
+func (suite *SetAssetScriptAPISuite) Test_SetScriptForNotScriptedAssetAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
@@ -91,7 +91,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegativ
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestSetAssetScriptApiSuite(t *testing.T) {
+func TestSetAssetScriptAPISuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SetAssetScriptApiSuite))
+	suite.Run(t, new(SetAssetScriptAPISuite))
 }

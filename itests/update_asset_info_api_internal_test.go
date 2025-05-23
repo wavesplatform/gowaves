@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type UpdateAssetInfoTxApiSuite struct {
+type UpdateAssetInfoTxAPISuite struct {
 	f.BaseSuite
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableTokenPositive() {
+func (suite *UpdateAssetInfoTxAPISuite) Test_UpdateAssetInfoTxAPIReissuableTokenPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		assets := issue.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -43,7 +43,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 	}
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
+func (suite *UpdateAssetInfoTxAPISuite) Test_UpdateAssetInfoTxAPINFTPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := issue.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -66,7 +66,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiNFTPositive() {
 	}
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPositive() {
+func (suite *UpdateAssetInfoTxAPISuite) Test_UpdateAssetInfoTxAPISmartAssetPositive() {
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smart := issue.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
@@ -89,7 +89,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiSmartAssetPosit
 	}
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableTokenNegative() {
+func (suite *UpdateAssetInfoTxAPISuite) Test_UpdateAssetInfoTxAPIReissuableTokenNegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
@@ -120,7 +120,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiReissuableToken
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
+func (suite *UpdateAssetInfoTxAPISuite) Test_UpdateAssetInfoTxNFTAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
@@ -151,7 +151,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxNFTApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxSmartAssetApiNegative() {
+func (suite *UpdateAssetInfoTxAPISuite) Test_UpdateAssetInfoTxSmartAssetAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
@@ -182,7 +182,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxSmartAssetApiNegat
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiWithoutWaitingNegative() {
+func (suite *UpdateAssetInfoTxAPISuite) Test_UpdateAssetInfoTxAPIWithoutWaitingNegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := updateassetinfo.GetVersions(&suite.BaseSuite)
 	issueVersions := issue.GetVersions(&suite.BaseSuite)
@@ -214,7 +214,7 @@ func (suite *UpdateAssetInfoTxApiSuite) Test_UpdateAssetInfoTxApiWithoutWaitingN
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestUpdateAssetInfoTxApiSuite(t *testing.T) {
+func TestUpdateAssetInfoTxAPISuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(UpdateAssetInfoTxApiSuite))
+	suite.Run(t, new(UpdateAssetInfoTxAPISuite))
 }

@@ -17,11 +17,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type AliasTxApiSuite struct {
+type AliasTxAPISuite struct {
 	f.BaseSuite
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
+func (suite *AliasTxAPISuite) Test_AliasTxAPIPositive() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
@@ -39,7 +39,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 	}
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
+func (suite *AliasTxAPISuite) Test_AliasTxAPIMaxValuesPositive() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -59,7 +59,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	}
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
+func (suite *AliasTxAPISuite) Test_AliasTxAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := alias.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -80,7 +80,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
+func (suite *AliasTxAPISuite) Test_SameAliasAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Values for same alias"
@@ -127,7 +127,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 	suite.Lenf(actualTxIds, 2, "IDs: %#v", actualTxIds)
 }
 
-func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
+func (suite *AliasTxAPISuite) Test_SameAliasDiffAddressesAPINegative() {
 	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Same alias for different accounts "
@@ -173,7 +173,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 	suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds)
 }
 
-func TestAliasTxApiSuite(t *testing.T) {
+func TestAliasTxAPISuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(AliasTxApiSuite))
+	suite.Run(t, new(AliasTxAPISuite))
 }
