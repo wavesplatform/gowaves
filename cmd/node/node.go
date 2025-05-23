@@ -116,6 +116,7 @@ type config struct {
 	disableNTP                 bool
 	microblockInterval         time.Duration
 	enableLightMode            bool
+	generateInPast             bool
 }
 
 var errConfigNotParsed = stderrs.New("config is not parsed")
@@ -168,6 +169,7 @@ func (c *config) logParameters() {
 	zap.S().Debugf("disable-ntp: %t", c.disableNTP)
 	zap.S().Debugf("microblock-interval: %s", c.microblockInterval)
 	zap.S().Debugf("enable-light-mode: %t", c.enableLightMode)
+	zap.S().Debugf("generate-in-past: %t", c.generateInPast)
 }
 
 func (c *config) parse() {
@@ -265,6 +267,8 @@ func (c *config) parse() {
 		"Interval between microblocks.")
 	flag.BoolVar(&c.enableLightMode, "enable-light-mode", false,
 		"Start node in light mode")
+	flag.BoolVar(&c.generateInPast, "generate-in-past", false,
+		"Enable block generation with timestamp in the past")
 	flag.Parse()
 	c.logLevel = *l
 }
@@ -671,7 +675,7 @@ func newMinerScheduler(
 		return scheduler.DisabledScheduler{}, nil
 	}
 	consensus := scheduler.NewMinerConsensus(peerManager, nc.minPeersMining)
-	ms, err := scheduler.NewScheduler(st, wal, cfg, ntpTime, consensus, nc.obsolescencePeriod)
+	ms, err := scheduler.NewScheduler(st, wal, cfg, ntpTime, consensus, nc.obsolescencePeriod, nc.generateInPast)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize miner scheduler")
 	}
