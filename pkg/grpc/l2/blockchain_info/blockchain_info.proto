@@ -18,4 +18,5 @@ message L2ContractDataEntries {
   repeated waves.DataEntry DataEntries = 5;
   uint64 Height = 1;
   bytes  BlockID = 2;
+  int64 Timestamp = 3;
 }

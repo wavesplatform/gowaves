@@ -60,6 +60,7 @@ func L2ContractDataEntriesToProto(contractData proto.L2ContractDataEntries) *g.L
 		DataEntries: protobufDataEntries,
 		Height:      contractData.Height,
 		BlockID:     contractData.BlockID.Bytes(),
+		Timestamp:   contractData.BlockTimestamp,
 	}
 }
 
@@ -85,7 +86,8 @@ func L2ContractDataEntriesFromProto(
 		return proto.L2ContractDataEntries{}, errors.Wrap(err, "failed to convert block ID")
 	}
 
-	return proto.L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height, BlockID: blockID}, nil
+	return proto.L2ContractDataEntries{AllDataEntries: dataEntries, Height: protoDataEntries.Height, BlockID: blockID,
+		BlockTimestamp: protoDataEntries.Timestamp}, nil
 }
 
 func SerializeConstantKeys(constantKeys []string) ([]byte, error) {
