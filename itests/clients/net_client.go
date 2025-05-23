@@ -314,6 +314,10 @@ func (h *handler) OnClose(s *networking.Session) {
 	}
 }
 
+func (h *handler) OnFailure(s *networking.Session, err error) {
+	h.t.Logf("Connection to %q failed: %v", s.RemoteAddr(), err)
+}
+
 func (h *handler) waitFor(messageType reflect.Type) error {
 	if messageType == nil {
 		return errors.New("nil message type")
