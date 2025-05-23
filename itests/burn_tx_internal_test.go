@@ -89,6 +89,7 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 }
 
 func (suite *BurnTxSuite) Test_BurnTxNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := burn.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

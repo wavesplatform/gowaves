@@ -56,6 +56,7 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 }
 
 func (suite *AliasTxSuite) Test_AliasNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := alias.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -76,6 +77,7 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 }
 
 func (suite *AliasTxSuite) Test_SameAliasNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Values for same alias"
 	//Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
@@ -117,6 +119,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 }
 
 func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Same alias for different accounts"
 	var idsCount = 2

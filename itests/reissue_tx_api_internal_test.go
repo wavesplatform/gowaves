@@ -58,6 +58,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiMaxQuantityPositive() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -88,6 +89,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueNotReissuableApiNegative() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -110,6 +112,7 @@ func (suite *ReissueTxApiSuite) Test_ReissueTxApiNFTNegative() {
 }
 
 func (suite *ReissueTxApiSuite) Test_ReissueTxApiNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := reissue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

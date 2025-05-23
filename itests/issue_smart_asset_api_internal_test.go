@@ -38,6 +38,7 @@ func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiPositive() {
 }
 
 func (suite *IssueSmartAssetApiSuite) Test_IssueSmartAssetApiNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)

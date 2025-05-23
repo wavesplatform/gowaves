@@ -88,6 +88,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiMaxAmountAndFeePositive() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -110,6 +111,7 @@ func (suite *TransferTxApiSuite) Test_TransferTxApiNegative() {
 }
 
 func (suite *TransferTxApiSuite) Test_TransferTxApiChainIDNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

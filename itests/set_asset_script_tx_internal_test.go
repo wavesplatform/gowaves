@@ -40,6 +40,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptPositive() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -64,6 +65,7 @@ func (suite *SetAssetScriptSuite) Test_SetAssetScriptNegative() {
 }
 
 func (suite *SetAssetScriptSuite) Test_SetScriptForNotScriptedAssetNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)

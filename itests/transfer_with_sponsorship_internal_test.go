@@ -160,6 +160,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipMaxValue
 }
 
 func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -200,6 +201,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative
 }
 
 func (suite *TransferWithSponsorshipTxSuite) TestSponsoredTransferFeeNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)

@@ -39,7 +39,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
+func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValuesPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -62,7 +62,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
+func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApiPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
 	for _, v := range versions {
@@ -91,6 +91,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
 }
 
 func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -114,6 +115,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
 }
 
 func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

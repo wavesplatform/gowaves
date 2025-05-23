@@ -41,7 +41,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
+func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFeePositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -92,6 +92,7 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 }
 
 func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
+	suite.SendToNode = append(suite.SendToNode, "scala-node")
 	versions := burn.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
