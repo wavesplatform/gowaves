@@ -6,6 +6,7 @@ package blockchain_info
 
 import (
 	fmt "fmt"
+	"github.com/ccoveille/go-safecast"
 	protohelpers "github.com/planetscale/vtprotobuf/protohelpers"
 	waves "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	proto "google.golang.org/protobuf/proto"
@@ -148,8 +149,12 @@ func (m *L2ContractDataEntries) MarshalToSizedBufferVTStrict(dAtA []byte) (int, 
 			dAtA[i] = 0x2a
 		}
 	}
+	timestamp, err := safecast.ToUint64(m.Timestamp)
+	if err != nil {
+		return 0, err
+	}
 	if m.Timestamp != 0 {
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.Timestamp))
+		i = protohelpers.EncodeVarint(dAtA, i, timestamp)
 		i--
 		dAtA[i] = 0x18
 	}
@@ -212,8 +217,12 @@ func (m *L2ContractDataEntries) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
+	timestamp, err := safecast.ToUint64(m.Timestamp)
+	if err != nil {
+		return
+	}
 	if m.Timestamp != 0 {
-		n += 1 + protohelpers.SizeOfVarint(uint64(m.Timestamp))
+		n += 1 + protohelpers.SizeOfVarint(timestamp)
 	}
 	if len(m.DataEntries) > 0 {
 		for _, e := range m.DataEntries {
