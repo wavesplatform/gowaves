@@ -5,6 +5,7 @@ type L2ContractDataEntries struct {
 	AllDataEntries DataEntries `json:"all_data_entries"`
 	Height         uint64      `json:"height"`
 	BlockID        BlockID     `json:"block_id"`
+	BlockTimestamp int64       `json:"block_timestamp"`
 }
 
 // BlockUpdatesInfo Block updates.

@@ -95,6 +95,7 @@ type L2ContractDataEntries struct {
 	DataEntries   []*waves.DataEntry     `protobuf:"bytes,5,rep,name=DataEntries,proto3" json:"DataEntries,omitempty"`
 	Height        uint64                 `protobuf:"varint,1,opt,name=Height,proto3" json:"Height,omitempty"`
 	BlockID       []byte                 `protobuf:"bytes,2,opt,name=BlockID,proto3" json:"BlockID,omitempty"`
+	Timestamp     int64                  `protobuf:"varint,3,opt,name=Timestamp,proto3" json:"Timestamp,omitempty"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
 }
@@ -150,6 +151,13 @@ func (x *L2ContractDataEntries) GetBlockID() []byte {
 	return nil
 }
 
+func (x *L2ContractDataEntries) GetTimestamp() int64 {
+	if x != nil {
+		return x.Timestamp
+	}
+	return 0
+}
+
 var File_blockchain_info_proto protoreflect.FileDescriptor
 
 const file_blockchain_info_proto_rawDesc = "" +
@@ -159,12 +167,12 @@ const file_blockchain_info_proto_rawDesc = "" +
 	"\x06Height\x18\x01 \x01(\x04R\x06Height\x12\x10\n" +
 	"\x03VRF\x18\x02 \x01(\fR\x03VRF\x12\x18\n" +
 	"\aBlockID\x18\x03 \x01(\fR\aBlockID\x125\n" +
-	"\vBlockHeader\x18\x04 \x01(\v2\x13.waves.Block.HeaderR\vBlockHeader\"}\n" +
+	"\vBlockHeader\x18\x04 \x01(\v2\x13.waves.Block.HeaderR\vBlockHeader\"\x9b\x01\n" +
 	"\x15L2ContractDataEntries\x122\n" +
 	"\vDataEntries\x18\x05 \x03(\v2\x10.waves.DataEntryR\vDataEntries\x12\x16\n" +
 	"\x06Height\x18\x01 \x01(\x04R\x06Height\x12\x18\n" +
-	"\aBlockID\x18\x02 \x01(\fR\aBlockIDBb\n" +
-	"\x1acom.wavesplatform.protobufZ<github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_info\xaa\x02\x05Wavesb\x06proto3"
+	"\aBlockID\x18\x02 \x01(\fR\aBlockID\x12\x1c\n" +
+	"\tTimestamp\x18\x03 \x01(\x03R\tTimestampB>Z<github.com/wavesplatform/gowaves/pkg/grpc/l2/blockchain_infob\x06proto3"
 
 var (
 	file_blockchain_info_proto_rawDescOnce sync.Once
