@@ -30,7 +30,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/planetscale/vtprotobuf v0.6.1-0.20250313105119-ba97887b0a25
 	github.com/prometheus/client_golang v1.22.0
-	github.com/qmuntal/stateless v1.7.1
+	github.com/qmuntal/stateless v1.7.2
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/afero v1.14.0
 	github.com/spf13/pflag v1.0.6
