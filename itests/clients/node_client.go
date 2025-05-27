@@ -305,7 +305,7 @@ func (c *NodesClients) SendToGoNode(t *testing.T, m proto.Message) {
 func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, nodes ...string) {
 	switch len(nodes) {
 	case 0:
-		c.SendToGoNode(t, m)
+		t.Fatalf("No node is specified: %d", len(nodes))
 	case 1:
 		switch nodes[0] {
 		case "go-node":
@@ -313,7 +313,7 @@ func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, nodes ...strin
 		case "scala-node":
 			c.SendToScalaNode(t, m)
 		default:
-			c.SendToGoNode(t, m)
+			t.Fatalf("Node name is incorrect: %d", len(nodes))
 		}
 	case 2:
 		c.SendToGoNode(t, m)
@@ -352,7 +352,7 @@ func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction, node
 
 	switch len(nodes) {
 	case 0:
-		respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
+		t.Fatalf("No node is specified: %d", len(nodes))
 	case 1:
 		switch nodes[0] {
 		case "go-node":
@@ -360,7 +360,7 @@ func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction, node
 		case "scala-node":
 			respScala, errBrdCstScala = c.BroadcastToScalaNode(t, tx)
 		default:
-			respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
+			t.Fatalf("Node name is incorrect: %d", len(nodes))
 		}
 	case 2:
 		respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)

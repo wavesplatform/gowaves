@@ -284,6 +284,20 @@ func SafeInt64ToUint64(x int64) uint64 {
 	return uint64(x)
 }
 
+func Unique[T comparable](slice []T) []T {
+	seen := make(map[T]bool)
+	result := []T{}
+
+	for _, v := range slice {
+		if _, ok := seen[v]; !ok {
+			seen[v] = true
+			result = append(result, v)
+		}
+	}
+
+	return result
+}
+
 func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 	var from, to int
 	switch len(accountNumbers) {
@@ -725,7 +739,7 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 		timeout = DefaultWaitTimeout
 	}
 
-	suite.Clients.SendToNodes(suite.T(), txMsg, suite.SendToNode...)
+	suite.Clients.SendToNodes(suite.T(), txMsg, Unique(suite.SendToNode)...)
 	suite.T().Log("Tx msg was successfully send to nodes")
 
 	suite.T().Log("Waiting for Tx appears in Blockchain")
@@ -739,13 +753,14 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 	scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
-	timeout := DefaultWaitTimeout
+	timeout := DefaultInitialTimeout
 	id := ExtractTxID(suite.T(), tx, scheme)
 	if waitForTx {
 		timeout = DefaultWaitTimeout
 	}
 
-	respGo, errBrdCstGo, respScala, errBrdCstScala := suite.Clients.BroadcastToNodes(suite.T(), tx, suite.SendToNode...)
+	respGo, errBrdCstGo, respScala, errBrdCstScala := suite.Clients.BroadcastToNodes(suite.T(), tx,
+		Unique(suite.SendToNode)...)
 	suite.T().Log("Tx was successfully broadcast to nodes")
 
 	suite.T().Log("Waiting for Tx appears in Blockchain")
