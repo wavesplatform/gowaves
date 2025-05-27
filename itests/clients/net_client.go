@@ -305,17 +305,26 @@ func (h *handler) OnHandshake(_ *networking.Session, _ networking.Handshake) {
 
 func (h *handler) OnHandshakeFailed(_ *networking.Session, _ networking.Handshake) {
 	h.t.Logf("Handshake with %q failed", h.client.impl.String())
+	// No need to close session here, the OnClose handler will be called next.
 }
 
 func (h *handler) OnClose(s *networking.Session) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
 	if h.client != nil && !h.client.closing.Load() {
+		if clErr := s.Close(); clErr != nil { // Attempt to close the session gracefully.
+			h.t.Logf("Failed to close session to %q: %v", s.RemoteAddr(), clErr)
+		}
 		h.client.reconnect()
 	}
 }
 
 func (h *handler) OnFailure(s *networking.Session, err error) {
 	h.t.Logf("Connection to %q failed: %v", s.RemoteAddr(), err)
+	if h.client != nil && !h.client.closing.Load() {
+		if clErr := s.Close(); clErr != nil { // Attempt to close the session gracefully.
+			h.t.Logf("Failed to close session to %q: %v", s.RemoteAddr(), clErr)
+		}
+	}
 }
 
 func (h *handler) waitFor(messageType reflect.Type) error {

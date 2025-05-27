@@ -212,6 +212,7 @@ func (s *Session) sendLoop() error {
 				packet.mu.Unlock()
 				s.logger.Error("Failed to copy data into buffer", "error", rErr)
 				s.asyncSendErr(packet.err, rErr)
+				s.cancel() // Cancel the context to stop neighbour goroutines.
 				return rErr
 			}
 			packet.mu.Unlock()
@@ -227,6 +228,7 @@ func (s *Session) sendLoop() error {
 				if err != nil {
 					s.logger.Error("Failed to write data into connection", "error", err)
 					s.asyncSendErr(packet.err, err)
+					s.cancel() // Cancel the context to stop neighbour goroutines.
 					return err
 				}
 				if written {
@@ -264,9 +266,11 @@ func (s *Session) receiveLoop() error {
 		if err := s.receive(); err != nil {
 			if errors.Is(err, ErrConnectionClosedOnRead) {
 				s.config.handler.OnClose(s)
+				s.cancel() // Cancel the context to stop neighbour goroutines.
 				return nil // Exit normally on connection close.
 			}
 			s.config.handler.OnFailure(s, err)
+			s.cancel() // Cancel the context to stop neighbour goroutines.
 			return err
 		}
 	}
@@ -387,6 +391,7 @@ func (s *Session) keepaliveLoop() error {
 				p, err := s.config.protocol.Ping()
 				if err != nil {
 					s.logger.Error("Failed to get ping message", "error", err)
+					s.cancel() // Cancel the context to stop neighbour goroutines.
 					return ErrKeepAliveProtocolFailure
 				}
 				if sndErr := s.waitForSend(p); sndErr != nil {
@@ -394,6 +399,7 @@ func (s *Session) keepaliveLoop() error {
 						return nil // Exit normally on session termination.
 					}
 					s.logger.Error("Failed to send ping message", "error", err)
+					s.cancel() // Cancel the context to stop neighbour goroutines.
 					return ErrKeepAliveTimeout
 				}
 			}
