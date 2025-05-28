@@ -97,6 +97,7 @@ func WithAbsencePeriod(period uint64) BlockchainOption {
 	}
 }
 
+// WithQuorum sets the quorum (number of connected peers) required to start block generation.
 func WithQuorum(quorum int) BlockchainOption {
 	return func(cfg *BlockchainConfig) error {
 		if quorum < 0 {
