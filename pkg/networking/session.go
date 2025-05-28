@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -29,9 +30,12 @@ type Session struct {
 	tp     *timerPool
 
 	connWriteLock sync.Mutex         // connLock is used to lock the connection for Write and Close.
-	conn          io.ReadWriteCloser // conn is the underlying connection
+	conn          io.ReadWriteCloser // conn is the underlying connection.
 	connErr       error              // Stores the error encountered while closing the underlying connection, if any.
-	bufRead       *bufio.Reader      // buffered reader wrapped around the connection
+	bufRead       *bufio.Reader      // buffered reader wrapped around the connection.
+
+	localAddrPort  netip.AddrPort // Connection local address.
+	remoteAddrPort netip.AddrPort // Connection remote address.
 
 	receiveLock   sync.Mutex    // Guards the receiveBuffer.
 	receiveBuffer *bytes.Buffer // receiveBuffer is used to store the incoming data.
@@ -66,14 +70,16 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 
 	sCtx, cancel := context.WithCancel(ctx)
 	s := &Session{
-		g:       execution.NewTaskGroup(suppressContextCancellationError),
-		ctx:     sCtx,
-		cancel:  cancel,
-		config:  config,
-		tp:      tp,
-		conn:    conn,
-		bufRead: bufio.NewReader(conn),
-		sendCh:  make(chan *sendPacket, 1), // TODO: Make the size of send channel configurable.
+		g:              execution.NewTaskGroup(suppressContextCancellationError),
+		ctx:            sCtx,
+		cancel:         cancel,
+		config:         config,
+		tp:             tp,
+		conn:           conn,
+		localAddrPort:  localAddressFromConnOrZero(conn),
+		remoteAddrPort: remoteAddressFromConnOrZero(conn),
+		bufRead:        bufio.NewReader(conn),
+		sendCh:         make(chan *sendPacket, 1), // TODO: Make the size of send channel configurable.
 	}
 
 	slogHandler := config.slogHandler
@@ -103,18 +109,26 @@ func (s *Session) String() string {
 
 // LocalAddr returns the local network address.
 func (s *Session) LocalAddr() net.Addr {
-	if a, ok := s.conn.(addressable); ok {
-		return a.LocalAddr()
+	if s.localAddrPort.IsValid() {
+		return net.TCPAddrFromAddrPort(s.localAddrPort)
 	}
 	return &sessionAddress{addr: "local"}
 }
 
+func (s *Session) LocalAddrPort() netip.AddrPort {
+	return s.localAddrPort
+}
+
 // RemoteAddr returns the remote network address.
 func (s *Session) RemoteAddr() net.Addr {
-	if a, ok := s.conn.(addressable); ok {
-		return a.RemoteAddr()
+	if s.remoteAddrPort.IsValid() {
+		return net.TCPAddrFromAddrPort(s.remoteAddrPort)
 	}
 	return &sessionAddress{addr: "remote"}
+}
+
+func (s *Session) RemoteAddrPort() netip.AddrPort {
+	return s.remoteAddrPort
 }
 
 // drain is used to close underlying connection and stop the session loops.
@@ -447,4 +461,29 @@ func suppressContextCancellationError(err error) error {
 		return nil
 	}
 	return err
+}
+
+func localAddressFromConnOrZero(conn io.ReadWriteCloser) netip.AddrPort {
+	if a, ok := conn.(addressable); ok {
+		return addressPortFromAddr(a.LocalAddr())
+	}
+	return netip.AddrPort{} // Return zero AddrPort if connection address is not recognized.
+}
+
+func remoteAddressFromConnOrZero(conn io.ReadWriteCloser) netip.AddrPort {
+	if a, ok := conn.(addressable); ok {
+		return addressPortFromAddr(a.RemoteAddr())
+	}
+	return netip.AddrPort{} // Return zero AddrPort if connection address is not recognized.
+}
+
+func addressPortFromAddr(addr net.Addr) netip.AddrPort {
+	if addr == nil {
+		return netip.AddrPort{} // Return zero AddrPort if address is nil.
+	}
+	ap, err := netip.ParseAddrPort(addr.String())
+	if err != nil {
+		return netip.AddrPort{} // Return zero AddrPort if parsing fails.
+	}
+	return ap
 }
