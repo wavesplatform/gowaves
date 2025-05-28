@@ -30,6 +30,7 @@ type Session struct {
 
 	connWriteLock sync.Mutex         // connLock is used to lock the connection for Write and Close.
 	conn          io.ReadWriteCloser // conn is the underlying connection
+	connErr       error              // Stores the error encountered while closing the underlying connection, if any.
 	bufRead       *bufio.Reader      // buffered reader wrapped around the connection
 
 	receiveLock   sync.Mutex    // Guards the receiveBuffer.
@@ -40,7 +41,9 @@ type Session struct {
 
 	receiving   atomic.Bool // Indicates that receiveLoop already running.
 	established atomic.Bool // Indicates that incoming Handshake was successfully accepted.
+	draining    atomic.Bool // Indicates that the session is draining, i.e. close is initiated.
 	closing     atomic.Bool // Indicates that the session is closing.
+	err         error       // Stores the error encountered during session operation, if any.
 }
 
 // NewSession is used to construct a new session.
@@ -114,30 +117,40 @@ func (s *Session) RemoteAddr() net.Addr {
 	return &sessionAddress{addr: "remote"}
 }
 
-// Close is used to close the session. It is safe to call Close multiple times from different goroutines,
-// subsequent calls do nothing.
-func (s *Session) Close() error {
-	var err error
-	if s.closing.CompareAndSwap(false, true) {
-		s.logger.Debug("Closing session")
+// drain is used to close underlying connection and stop the session loops.
+func (s *Session) drain() {
+	if s.draining.CompareAndSwap(false, true) {
+		s.logger.Debug("Closing underlying connection")
 		s.connWriteLock.Lock()
 		clErr := s.conn.Close() // Close the underlying connection.
+		s.connErr = clErr       // Store the connection close error to the session error.
 		s.connWriteLock.Unlock()
 		if clErr != nil {
 			s.logger.Warn("Failed to close underlying connection", "error", clErr)
+		} else {
+			s.logger.Debug("Underlying connection successfully closed")
 		}
-		s.logger.Debug("Underlying connection closed")
-
+		s.logger.Debug("Stopping session loops")
 		s.cancel() // Cancel the underlying context to interrupt the loops.
-
-		s.logger.Debug("Waiting for loops to finish")
-		err = s.g.Wait() // Wait for loops to finish.
-
-		err = errors.Join(err, clErr) // Combine loops finalization errors with connection close error.
-
-		s.logger.Debug("Session closed", "error", err)
 	}
-	return err
+}
+
+// Close is used to close the session. It is safe to call Close multiple times from different goroutines,
+// subsequent calls do nothing.
+func (s *Session) Close() error {
+	if s.closing.CompareAndSwap(false, true) {
+		s.logger.Debug("Closing session")
+		s.drain() // Close the underlying connection and stop the session loops.
+		s.logger.Debug("Waiting for loops to finish")
+		tgErr := s.g.Wait()                   // Wait for loops to finish.
+		s.err = errors.Join(tgErr, s.connErr) // Combine loops finalization errors with connection close error.
+		if s.err != nil {
+			s.logger.Warn("Session closed with errors", "error", s.err)
+		} else {
+			s.logger.Debug("Session closed successfully")
+		}
+	}
+	return s.err
 }
 
 // Write is used to write to the session. It is safe to call Write and/or Close concurrently.
@@ -197,6 +210,7 @@ func (s *Session) waitForSend(data []byte) error {
 // sendLoop is a long-running goroutine that sends data to the connection.
 func (s *Session) sendLoop() error {
 	var dataBuf bytes.Buffer
+	defer s.drain()
 	for {
 		dataBuf.Reset()
 
@@ -212,7 +226,6 @@ func (s *Session) sendLoop() error {
 				packet.mu.Unlock()
 				s.logger.Error("Failed to copy data into buffer", "error", rErr)
 				s.asyncSendErr(packet.err, rErr)
-				s.cancel() // Cancel the context to stop neighbour goroutines.
 				return rErr
 			}
 			packet.mu.Unlock()
@@ -228,7 +241,6 @@ func (s *Session) sendLoop() error {
 				if err != nil {
 					s.logger.Error("Failed to write data into connection", "error", err)
 					s.asyncSendErr(packet.err, err)
-					s.cancel() // Cancel the context to stop neighbour goroutines.
 					return err
 				}
 				if written {
@@ -262,15 +274,14 @@ func (s *Session) receiveLoop() error {
 	if !s.receiving.CompareAndSwap(false, true) {
 		return nil // Prevent running multiple receive loops.
 	}
+	defer s.drain()
 	for {
 		if err := s.receive(); err != nil {
 			if errors.Is(err, ErrConnectionClosedOnRead) {
 				s.config.handler.OnClose(s)
-				s.cancel() // Cancel the context to stop neighbour goroutines.
 				return nil // Exit normally on connection close.
 			}
 			s.config.handler.OnFailure(s, err)
-			s.cancel() // Cancel the context to stop neighbour goroutines.
 			return err
 		}
 	}
@@ -381,6 +392,7 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 
 // keepaliveLoop is a long-running goroutine that periodically sends a Ping message to keep the connection alive.
 func (s *Session) keepaliveLoop() error {
+	defer s.drain()
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -391,7 +403,6 @@ func (s *Session) keepaliveLoop() error {
 				p, err := s.config.protocol.Ping()
 				if err != nil {
 					s.logger.Error("Failed to get ping message", "error", err)
-					s.cancel() // Cancel the context to stop neighbour goroutines.
 					return ErrKeepAliveProtocolFailure
 				}
 				if sndErr := s.waitForSend(p); sndErr != nil {
@@ -399,7 +410,6 @@ func (s *Session) keepaliveLoop() error {
 						return nil // Exit normally on session termination.
 					}
 					s.logger.Error("Failed to send ping message", "error", err)
-					s.cancel() // Cancel the context to stop neighbour goroutines.
 					return ErrKeepAliveTimeout
 				}
 			}
