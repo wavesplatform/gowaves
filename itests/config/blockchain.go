@@ -70,6 +70,7 @@ type BlockchainConfig struct {
 	desiredReward      uint64
 	disableGoMining    bool
 	disableScalaMining bool
+	quorum             int
 
 	Settings        *settings.BlockchainSettings
 	Features        []FeatureInfo
@@ -118,6 +119,7 @@ func NewBlockchainConfig(options ...BlockchainOption) (*BlockchainConfig, error)
 		Settings:      bs,
 		accounts:      acs,
 		desiredReward: defaultDesiredBlockReward,
+		quorum:        defaultQuorum,
 	}
 
 	if ftErr := cfg.UpdatePreactivatedFeatures(gs.PreactivatedFeatures); ftErr != nil {
@@ -181,6 +183,10 @@ func (c *BlockchainConfig) EnableScalaMiningString() string {
 		return "no"
 	}
 	return "yes"
+}
+
+func (c *BlockchainConfig) QuorumString() string {
+	return strconv.Itoa(c.quorum)
 }
 
 func safeNow() uint64 {
