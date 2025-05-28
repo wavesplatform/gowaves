@@ -400,17 +400,19 @@ func (s *Session) keepaliveLoop() error {
 		case <-time.After(s.config.keepAliveInterval):
 			if s.established.Load() {
 				// Get actual Ping message from Protocol.
-				p, err := s.config.protocol.Ping()
-				if err != nil {
-					s.logger.Error("Failed to get ping message", "error", err)
-					return ErrKeepAliveProtocolFailure
+				p, pErr := s.config.protocol.Ping()
+				if pErr != nil {
+					s.logger.Error("Failed to get ping message", "error", pErr)
+					return errors.Join(ErrKeepAliveProtocolFailure, pErr)
 				}
 				if sndErr := s.waitForSend(p); sndErr != nil {
 					if errors.Is(sndErr, ErrSessionShutdown) {
 						return nil // Exit normally on session termination.
 					}
-					s.logger.Error("Failed to send ping message", "error", err)
-					return ErrKeepAliveTimeout
+					s.logger.Error("Failed to send ping message", "error", sndErr)
+					fErr := errors.Join(ErrKeepAliveTimeout, sndErr)
+					s.config.handler.OnFailure(s, fErr)
+					return fErr
 				}
 			}
 		}

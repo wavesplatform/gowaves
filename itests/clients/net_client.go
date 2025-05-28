@@ -305,7 +305,6 @@ func (h *handler) OnHandshake(_ *networking.Session, _ networking.Handshake) {
 
 func (h *handler) OnHandshakeFailed(_ *networking.Session, _ networking.Handshake) {
 	h.t.Logf("Handshake with %q failed", h.client.impl.String())
-	// No need to close session here, the OnClose handler will be called next.
 }
 
 func (h *handler) OnClose(s *networking.Session) {
