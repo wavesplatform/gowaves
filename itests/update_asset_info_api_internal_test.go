@@ -108,6 +108,9 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxAPIReissua
 			itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, iv, true)
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
+			//***wait n blocks***
+			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
+			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 			for name, td := range tdmatrix {
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
@@ -138,6 +141,9 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxNFTAPINega
 			itx := issue.BroadcastWithTestData(&suite.BaseSuite, nft, iv, true)
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
+			//***wait n blocks***
+			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
+			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 			for name, td := range tdmatrix {
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
@@ -168,6 +174,9 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxSmartAsset
 			itx := issue.BroadcastWithTestData(&suite.BaseSuite, smart, iv, true)
 			tdmatrix := testdata.GetUpdateSmartAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
+			//***wait n blocks***
+			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
+			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 			for name, td := range tdmatrix {
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
