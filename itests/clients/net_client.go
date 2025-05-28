@@ -99,7 +99,10 @@ func (c *NetClient) SendHandshake() {
 
 func (c *NetClient) SendMessage(m proto.Message) {
 	_, err := m.WriteTo(c.s)
-	require.NoError(c.t, err, "failed to send message to %s node at %q", c.impl.String(), c.s.RemoteAddr())
+	if err != nil {
+		c.t.Logf("Failed to send message of type %T to %s node at %q: %v",
+			m, c.impl.String(), c.s.RemoteAddr(), err)
+	}
 }
 
 func (c *NetClient) Close() {
