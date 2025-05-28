@@ -32,6 +32,7 @@ const (
 	defaultBlockRewardIncrement    = 100000000
 	defaultDesiredBlockReward      = 600000000
 	defaultMinXTNBuyBackPeriod     = 4
+	defaultQuorum                  = 1
 )
 
 var (

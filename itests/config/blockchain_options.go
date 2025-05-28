@@ -96,3 +96,13 @@ func WithAbsencePeriod(period uint64) BlockchainOption {
 		return nil
 	}
 }
+
+func WithQuorum(quorum int) BlockchainOption {
+	return func(cfg *BlockchainConfig) error {
+		if quorum < 0 {
+			return errors.Errorf("invalid quorum size %d", quorum)
+		}
+		cfg.quorum = quorum
+		return nil
+	}
+}
