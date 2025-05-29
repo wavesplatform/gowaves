@@ -80,6 +80,8 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 	to := createBlockDiffer(t)
 
 	block, _ := genBlocks(t, to)
+	to.stor.addBlock(t, block.BlockID())
+
 	minerAddr, err := proto.NewAddressFromPublicKey(to.stor.settings.AddressSchemeCharacter, block.GeneratorPublicKey)
 	require.NoError(t, err)
 	expected := txDiff{}
@@ -96,7 +98,8 @@ func TestCreateBlockDiffWithoutNg(t *testing.T) {
 		bdErr := expected.appendBalanceDiff(minerKey, bd)
 		require.NoError(t, bdErr)
 	}
-	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block.BlockHeader, true, block.Transactions)
+	h := to.stor.rw.recentHeight()
+	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block.BlockHeader, h, true, block.Transactions)
 	require.NoError(t, err, "createMinerAndRewardDiff() failed")
 	// Empty miner diff before NG activation.
 	assert.Equal(t, expected, minerDiff)
@@ -110,6 +113,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	to.stor.activateFeature(t, int16(settings.NG))
 	to.stor.addBlock(t, parent.BlockID())
 	to.stor.addBlock(t, child.BlockID())
+	hc := to.stor.rw.recentHeight()
 
 	// Create diff from parent block.
 	txs := parent.Transactions
@@ -124,7 +128,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
-	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&child.BlockHeader, true, child.Transactions)
+	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&child.BlockHeader, hc, true, child.Transactions)
 	require.NoError(t, err, "createMinerAndRewardDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
@@ -150,7 +154,9 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	assetCost := uint64(100500)
 	to.stor.addBlock(t, blockID0)
 	to.stor.addBlock(t, parent.BlockID())
+	hp := to.stor.rw.recentHeight()
 	to.stor.addBlock(t, child.BlockID())
+	hc := to.stor.rw.recentHeight()
 	err := to.stor.entities.sponsoredAssets.sponsorAsset(testGlobal.asset0.asset.ID, assetCost, blockID0)
 	require.NoError(t, err, "sponsorAsset() failed")
 
@@ -162,14 +168,14 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	}
 	err = to.blockDiffer.saveCurFeeDistr(&parent.BlockHeader)
 	require.NoError(t, err, "saveCurFeeDistr() failed")
-	_, err = to.blockDiffer.createMinerAndRewardDiff(&parent.BlockHeader, false, parent.Transactions)
+	_, err = to.blockDiffer.createMinerAndRewardDiff(&parent.BlockHeader, hp, false, parent.Transactions)
 	require.NoError(t, err, "createMinerAndRewardDiff() failed")
 	parentFeeTotal := int64(txs[0].GetFee() * FeeUnit / assetCost)
 	parentFeePrevBlock := parentFeeTotal / 5 * 2
 	parentFeeNextBlock := parentFeeTotal - parentFeePrevBlock
 
 	// Create diff from child block.
-	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&child.BlockHeader, true, child.Transactions)
+	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&child.BlockHeader, hc, true, child.Transactions)
 	require.NoError(t, err, "createMinerAndRewardDiff() failed")
 	// Verify child block miner's diff.
 	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
@@ -236,7 +242,8 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	// Second block
 	block2 := genBlockWithSingleTransaction(t, block1.BlockID(), block1.GenSignature, to)
 	to.stor.addBlock(t, block2.BlockID())
-	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block2.BlockHeader, true, block2.Transactions)
+	h2 := to.stor.rw.recentHeight()
+	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block2.BlockHeader, h2, true, block2.Transactions)
 	require.NoError(t, err)
 
 	fee := defaultFee - defaultFee/5*2
@@ -275,7 +282,8 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 	// Second block
 	block2 := genBlockWithSingleTransaction(t, block1.BlockID(), block1.GenSignature, to)
 	to.stor.addBlock(t, block2.BlockID())
-	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block2.BlockHeader, true, block2.Transactions)
+	h := to.stor.rw.recentHeight()
+	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block2.BlockHeader, h, true, block2.Transactions)
 	require.NoError(t, err)
 
 	fee := int64(defaultFee - defaultFee/5*2)
@@ -323,7 +331,8 @@ func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
 	// Second block
 	block2 := genBlockWithSingleTransaction(t, block1.BlockID(), block1.GenSignature, to)
 	to.stor.addBlock(t, block2.BlockID())
-	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block2.BlockHeader, true, block2.Transactions)
+	h := to.stor.rw.recentHeight()
+	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&block2.BlockHeader, h, true, block2.Transactions)
 	require.NoError(t, err)
 
 	fee := defaultFee - defaultFee/5*2
