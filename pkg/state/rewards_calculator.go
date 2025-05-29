@@ -88,7 +88,7 @@ func (c *rewardCalculator) performCalculation(
 	rewardAddresses := c.settings.RewardAddresses
 	feature21ActivatedAtHeight := c.features.newestIsActivatedAtHeight(int16(settings.XTNBuyBackCessation), height)
 	if feature21ActivatedAtHeight {
-		rewardAddresses = c.handleFeature21(height, rewardAddresses)
+		rewardAddresses = c.handleFeature21(height, rewardAddresses, reward)
 	}
 	// sanity check
 	if cnt := len(rewardAddresses); cnt > additionalAddressesCount {
@@ -128,7 +128,11 @@ func (c *rewardCalculator) appendRewards(
 	return appendMinerReward(minerReward)
 }
 
-func (c *rewardCalculator) handleFeature21(height proto.Height, rewardAddresses []proto.WavesAddress) []proto.WavesAddress {
+func (c *rewardCalculator) handleFeature21(
+	height proto.Height,
+	rewardAddresses []proto.WavesAddress,
+	reward uint64,
+) []proto.WavesAddress {
 	// If feature 21 activated we have to check that required number of blocks passed since activation of feature 19.
 	// To do so we subtract minBuyBackPeriod from the block height and check that feature 19 was activated at the
 	// resulting height. If feature 19 was activated at or before the start of the period it means that we can cease
@@ -144,6 +148,7 @@ func (c *rewardCalculator) handleFeature21(height proto.Height, rewardAddresses 
 	}
 	zap.L().Debug("RewardCalculator: handleFeature21",
 		zap.Uint64("height", height),
+		zap.Uint64("reward", reward),
 		zap.Bool("change_reward_addresses", changeRewardAddresses),
 		zap.Uint64("min_xtn_buy_back_period", c.settings.MinXTNBuyBackPeriod),
 		zap.Int64("min_buy_back_period_start_height", minBuyBackPeriodStartHeight),
