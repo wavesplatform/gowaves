@@ -99,7 +99,13 @@ func (c *NetClient) SendHandshake() {
 
 func (c *NetClient) SendMessage(m proto.Message) {
 	_, err := m.WriteTo(c.s)
-	require.NoError(c.t, err, "failed to send message to %s node at %q", c.impl.String(), c.s.RemoteAddr())
+	if err != nil {
+		//TODO: It is possible now to detect if the peer closed the connection during the write.
+		// We can use this to check for expected disconnects, for example,
+		// when we send a malformed transactions to a node.
+		c.t.Logf("Failed to send message of type %T to %s node at %q: %v",
+			m, c.impl.String(), c.s.RemoteAddr(), err)
+	}
 }
 
 func (c *NetClient) Close() {
@@ -310,12 +316,20 @@ func (h *handler) OnHandshakeFailed(_ *networking.Session, _ networking.Handshak
 func (h *handler) OnClose(s *networking.Session) {
 	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
 	if h.client != nil && !h.client.closing.Load() {
+		if clErr := s.Close(); clErr != nil { // Attempt to close the session gracefully.
+			h.t.Logf("Failed to close session to %q: %v", s.RemoteAddr(), clErr)
+		}
 		h.client.reconnect()
 	}
 }
 
 func (h *handler) OnFailure(s *networking.Session, err error) {
 	h.t.Logf("Connection to %q failed: %v", s.RemoteAddr(), err)
+	if h.client != nil && !h.client.closing.Load() {
+		if clErr := s.Close(); clErr != nil { // Attempt to close the session gracefully.
+			h.t.Logf("Failed to close session to %q: %v", s.RemoteAddr(), clErr)
+		}
+	}
 }
 
 func (h *handler) waitFor(messageType reflect.Type) error {
