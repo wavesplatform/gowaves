@@ -95,6 +95,7 @@ func (a *MicroblockMiner) MineKeyBlock(
 				"failed to regenerate key block ID with filled state hash field")
 		}
 		zap.L().Debug("Key block state hash field filled",
+			zap.Uint64("new_block_height", newBlockHeight),
 			zap.Stringer("block_id", b.BlockID()),
 			zap.Stringer("block_signature", b.BlockSignature),
 			zap.Stringer("state_hash", b.StateHash),
