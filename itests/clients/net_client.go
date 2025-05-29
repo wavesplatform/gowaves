@@ -100,6 +100,9 @@ func (c *NetClient) SendHandshake() {
 func (c *NetClient) SendMessage(m proto.Message) {
 	_, err := m.WriteTo(c.s)
 	if err != nil {
+		//TODO: It is possible now to detect if the peer closed the connection during the write.
+		// We can use this to check for expected disconnects, for example,
+		// when we send a malformed transactions to a node.
 		c.t.Logf("Failed to send message of type %T to %s node at %q: %v",
 			m, c.impl.String(), c.s.RemoteAddr(), err)
 	}
