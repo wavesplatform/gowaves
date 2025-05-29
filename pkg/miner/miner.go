@@ -94,6 +94,11 @@ func (a *MicroblockMiner) MineKeyBlock(
 			return nil, proto.MiningLimits{}, errors.Wrap(genErr,
 				"failed to regenerate key block ID with filled state hash field")
 		}
+		zap.L().Debug("Key block state hash field filled",
+			zap.Stringer("block_id", b.BlockID()),
+			zap.Stringer("block_signature", b.BlockSignature),
+			zap.Stringer("state_hash", b.StateHash),
+		)
 	}
 	activated, err := a.state.IsActivated(int16(settings.RideV5))
 	if err != nil {

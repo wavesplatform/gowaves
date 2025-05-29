@@ -1,6 +1,7 @@
 package state
 
 import (
+	"encoding/json"
 	stderrs "errors"
 	"fmt"
 
@@ -838,6 +839,17 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+
+	zap.L().Debug("Applied transactions to the state",
+		zap.Stringer("block_id", params.block.BlockID()),
+		zap.Int("tx_count", len(params.transactions)),
+		zap.Stringer("state_hash", stateHash),
+		zap.Uint64("current_block_height", currentBlockHeight),
+		zap.String("block_snapshot", mustJSON(blockSnapshot)),
+		zap.String("block_header", mustJSON(params.block)),
+		zap.String("transactions", mustJSON(params.transactions)),
+	)
+
 	// check whether the calculated snapshot state hash equals with the provided one
 	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
 		return errors.Wrapf(errBlockSnapshotStateHashMismatch,
@@ -891,6 +903,14 @@ type initialDiffAndStateHashParams struct {
 	lastSnapshotStateHash     crypto.Digest
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot
 	currentBlockHeight        proto.Height
+}
+
+func mustJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		panic(errors.Wrap(err, "failed to marshal value to JSON"))
+	}
+	return string(b)
 }
 
 // createInitialDiffAndStateHash creates the initial diff and state hash for the block.
@@ -953,6 +973,19 @@ func (a *txAppender) createInitialDiffAndStateHash(
 			params.blockHeader.BlockID(), params.currentBlockHeight,
 		)
 	}
+
+	zap.L().Debug("Created initial snapshot state hash for block",
+		zap.Stringer("block_id", params.blockHeader.BlockID()),
+		zap.String("block_header", mustJSON(params.blockHeader)),
+		zap.String("transactions", mustJSON(params.transactions)),
+		zap.Uint64("current_block_height", params.currentBlockHeight),
+		zap.Bool("has_parent", params.hasParent),
+		zap.Stringer("initial_snapshot_state_hash", stateHash),
+		zap.Stringer("last_snapshot_state_hash", params.lastSnapshotStateHash),
+		zap.Int("snapshots_to_hash_count", len(snapshotsToHash)),
+		zap.String("snapshots_to_hash", mustJSON(snapshotsToHash)),
+	)
+
 	return initialSnapshot, stateHash, nil
 }
 
