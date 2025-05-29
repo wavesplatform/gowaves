@@ -230,6 +230,7 @@ func (suite *RewardDaoXtnPreactivatedWithout19Suite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"2miners_dao_xtn_without_f19.json",
 		),
+		config.WithQuorum(2),
 	)
 }
 
@@ -252,6 +253,7 @@ func (suite *RewardDaoXtnPreactivatedWithout20Suite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"2miners_dao_xtn_without_f20.json",
 		),
+		config.WithQuorum(2),
 	)
 }
 
