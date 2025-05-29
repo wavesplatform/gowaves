@@ -2194,6 +2194,11 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 		return crypto.Digest{}, err
 	}
 	blockHeight := blockchainHeight + 1
+
+	zap.L().Debug("Creating next snapshot hash",
+		zap.String("blockID", block.BlockID().String()),
+		zap.Uint64("blockHeight", blockHeight),
+	)
 	// Generate blockchain fix snapshots for the given block in read only mode because all
 	// changes has been already applied in the context of the last applied block.
 	fixSnapshots, gbfErr := s.generateBlockchainFix(blockHeight, block.BlockID(), true)
