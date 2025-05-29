@@ -4,6 +4,8 @@ import (
 	"errors"
 	"fmt"
 
+	"go.uber.org/zap"
+
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -131,12 +133,24 @@ func (c *rewardCalculator) handleFeature21(height proto.Height, rewardAddresses 
 	// To do so we subtract minBuyBackPeriod from the block height and check that feature 19 was activated at the
 	// resulting height. If feature 19 was activated at or before the start of the period it means that we can cease
 	// XTN buy-back.
-	if minBuyBackPeriodStartHeight := int64(height) - int64(c.settings.MinXTNBuyBackPeriod); minBuyBackPeriodStartHeight > 0 {
-		minBuyBackPeriodPassed := c.features.newestIsActivatedAtHeight(int16(settings.BlockRewardDistribution), uint64(minBuyBackPeriodStartHeight))
-		if minBuyBackPeriodPassed {
-			rewardAddresses = c.settings.RewardAddressesAfter21
-		}
+	minBuyBackPeriodStartHeight := int64(height) - int64(c.settings.MinXTNBuyBackPeriod)
+	minBuyBackPeriodPassed := c.features.newestIsActivatedAtHeight(
+		int16(settings.BlockRewardDistribution),
+		uint64(minBuyBackPeriodStartHeight),
+	)
+	changeRewardAddresses := minBuyBackPeriodStartHeight > 0 && minBuyBackPeriodPassed
+	if changeRewardAddresses {
+		rewardAddresses = c.settings.RewardAddressesAfter21
 	}
+	zap.L().Debug("RewardCalculator: handleFeature21",
+		zap.Uint64("height", height),
+		zap.Bool("change_reward_addresses", changeRewardAddresses),
+		zap.Uint64("min_xtn_buy_back_period", c.settings.MinXTNBuyBackPeriod),
+		zap.Int64("min_buy_back_period_start_height", minBuyBackPeriodStartHeight),
+		zap.Bool("min_buy_back_period_passed", minBuyBackPeriodPassed),
+		zap.Stringers("reward_addresses", rewardAddresses),
+		zap.Stack("stacktrace"),
+	)
 	return rewardAddresses
 }
 
