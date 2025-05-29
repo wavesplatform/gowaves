@@ -24,10 +24,11 @@ type WavesBalanceSnapshot struct {
 }
 
 func (s WavesBalanceSnapshot) MarshalJSON() ([]byte, error) {
+	type shadowed WavesBalanceSnapshot
 	out := struct {
-		WavesBalanceSnapshot
+		shadowed
 		Asset OptionalAsset `json:"asset"`
-	}{s, NewOptionalAssetWaves()}
+	}{shadowed(s), NewOptionalAssetWaves()}
 	return json.Marshal(out)
 }
 
