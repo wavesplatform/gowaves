@@ -211,6 +211,7 @@ func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 			"WALLET_PASSWORD=itest",
 			"DESIRED_REWARD=" + c.cfg.DesiredBlockRewardString(),
 			"SUPPORTED_FEATURES=" + c.cfg.SupportedFeaturesString(),
+			"QUORUM=" + c.cfg.QuorumString(),
 			"DISABLE_MINER=" + c.cfg.DisableGoMiningString(),
 		},
 		ExposedPorts: []string{

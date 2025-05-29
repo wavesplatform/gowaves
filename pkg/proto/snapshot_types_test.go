@@ -2,6 +2,8 @@ package proto_test
 
 import (
 	"encoding/base64"
+	"encoding/json"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -11,7 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-func TestTxSnapshotMarshalToPBAndUnmarshalFromPB(t *testing.T) {
+func TestTxSnapshotMarshalToPBAndUnmarshalFromPBWithJSONRoundtrip(t *testing.T) {
 	const scheme = proto.TestNetScheme
 	testCases := []struct {
 		testCaseName string
@@ -108,6 +110,25 @@ func TestTxSnapshotMarshalToPBAndUnmarshalFromPB(t *testing.T) {
 			marshaledData, err := txSnapshotProto.MarshalVTStrict()
 			require.NoError(t, err)
 			assert.Equal(t, expectedData, marshaledData)
+
+			t.Run("json_marshal_and_unmarshal", func(t *testing.T) {
+				res, mErr := json.Marshal(txSnapshot)
+				require.NoError(t, mErr)
+
+				uTxSnapshot := make([]proto.AtomicSnapshot, 0, len(txSnapshot))
+				for _, snapshot := range txSnapshot {
+					v := reflect.New(reflect.TypeOf(snapshot).Elem())
+					uSnapshot, ok := v.Interface().(proto.AtomicSnapshot)
+					require.True(t, ok, "expected type %T, got %T", uSnapshot, v.Interface())
+					uTxSnapshot = append(uTxSnapshot, uSnapshot)
+				}
+
+				uErr := json.Unmarshal(res, &uTxSnapshot)
+				require.NoError(t, uErr)
+
+				assert.Equal(t, len(txSnapshot), len(uTxSnapshot))
+				assert.Equal(t, txSnapshot, uTxSnapshot)
+			})
 		})
 	}
 }
