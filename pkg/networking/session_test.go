@@ -103,10 +103,9 @@ func TestSuccessfulSession(t *testing.T) {
 
 	clientHandler.On("OnClose", cs).Return()
 	serverHandler.On("OnClose", ss).Return()
-	err = cs.Close()
-	assert.NoError(t, err)
-	err = ss.Close()
-	assert.NoError(t, err)
+
+	concurrentClose(t, cs, 2) // Close client session concurrently.
+	concurrentClose(t, ss, 2) // Close server session concurrently.
 }
 
 func TestSessionTimeoutOnHandshake(t *testing.T) {
@@ -458,11 +457,8 @@ func TestCloseParentContext(t *testing.T) {
 	case <-time.After(time.Second):
 		t.Fatal("timeout waiting for test to complete")
 	}
-
-	err = clientSession.Close()
-	assert.NoError(t, err)
-	err = serverSession.Close()
-	assert.NoError(t, err)
+	concurrentClose(t, clientSession, 2)
+	concurrentClose(t, serverSession, 2)
 }
 
 func testConfig(
@@ -476,6 +472,23 @@ func testConfig(
 		WithWriteTimeout(timeout).
 		WithKeepAliveDisabled().
 		WithSlogAttribute(slog.String("direction", direction))
+}
+
+func concurrentClose(t *testing.T, cs io.Closer, concurrency int) {
+	runSim := &sync.WaitGroup{}
+	runSim.Add(1)
+	wg := &sync.WaitGroup{}
+	for range concurrency - 1 {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			runSim.Wait()
+			assert.NoError(t, cs.Close())
+		}()
+	}
+	runSim.Done() // Start all goroutines, but don't wait for them to finish yet.
+	assert.NoError(t, cs.Close())
+	wg.Wait() // Wait for all goroutines to finish.
 }
 
 type pipeConn struct {

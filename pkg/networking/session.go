@@ -47,7 +47,9 @@ type Session struct {
 	established atomic.Bool // Indicates that incoming Handshake was successfully accepted.
 	draining    atomic.Bool // Indicates that the session is draining, i.e. close is initiated.
 	closing     atomic.Bool // Indicates that the session is closing.
-	err         error       // Stores the error encountered during session operation, if any.
+
+	errLock sync.Mutex // Guards the err field.
+	err     error      // Stores the error encountered during session operation, if any.
 }
 
 // NewSession is used to construct a new session.
@@ -152,6 +154,8 @@ func (s *Session) drain() {
 // Close is used to close the session. It is safe to call Close multiple times from different goroutines,
 // subsequent calls do nothing.
 func (s *Session) Close() error {
+	s.errLock.Lock()
+	defer s.errLock.Unlock()
 	if s.closing.CompareAndSwap(false, true) {
 		s.logger.Debug("Closing session")
 		s.drain() // Close the underlying connection and stop the session loops.
