@@ -5,6 +5,7 @@ import (
 	"math/big"
 
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 	"golang.org/x/exp/constraints"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1297,6 +1298,11 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			return nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
 		if isAccountableBalanceChange(txIsSuccessfulInvoke, diffAmount.balance) {
+			zap.L().Debug("Generating waves balance snapshot",
+				zap.Stringer("address", wavesAddress),
+				zap.Uint64("balance", fullBalance.balance),
+				zap.Int64("diff", diffAmount.balance.Value()),
+			)
 			newBalance, bErr := common.AddInt(int64(fullBalance.balance), diffAmount.balance.Value())
 			if bErr != nil {
 				return nil, nil, errors.Wrapf(bErr,
