@@ -518,6 +518,7 @@ func (e *BlockchainUpdatesExtension) requestConstantKeys(nc *nats.Conn, wg *sync
 			return
 		}
 		e.blockchainExtensionState.constantContractKeys = constantKeys
+		// TODO close.
 	})
 	return subErr
 }

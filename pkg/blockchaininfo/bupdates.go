@@ -53,10 +53,6 @@ func (e *BlockchainUpdatesExtension) MarkExtensionReady() {
 	e.makeExtensionReadyFunc()
 }
 
-func (e *BlockchainUpdatesExtension) IsFirstRequestedBlock() bool {
-	return *e.firstBlock
-}
-
 func (e *BlockchainUpdatesExtension) EmptyPreviousState() {
 	e.lock.Lock()
 	defer e.lock.Unlock()
