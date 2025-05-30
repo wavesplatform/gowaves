@@ -18,7 +18,6 @@ import (
 	"go.uber.org/goleak"
 
 	"github.com/wavesplatform/gowaves/pkg/networking"
-	netmocks "github.com/wavesplatform/gowaves/pkg/networking/mocks"
 )
 
 const (
@@ -29,12 +28,12 @@ const (
 func TestSuccessfulSession(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	p := netmocks.NewMockProtocol(t)
+	p := networking.NewMockProtocol(t)
 	p.On("EmptyHandshake").Return(&textHandshake{})
 	p.On("EmptyHandshake").Return(&textHandshake{})
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := networking.NewMockHandler(t)
+	serverHandler := networking.NewMockHandler(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -113,11 +112,11 @@ func TestSuccessfulSession(t *testing.T) {
 func TestSessionTimeoutOnHandshake(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := networking.NewMockProtocol(t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{})
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := networking.NewMockHandler(t)
+	serverHandler := networking.NewMockHandler(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -170,12 +169,12 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 func TestSessionTimeoutOnMessage(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := networking.NewMockProtocol(t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{})
 	mockProtocol.On("EmptyHeader").Return(&textHeader{})
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := networking.NewMockHandler(t)
+	serverHandler := networking.NewMockHandler(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -257,11 +256,11 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 func TestDoubleClose(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := networking.NewMockProtocol(t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{})
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := networking.NewMockHandler(t)
+	serverHandler := networking.NewMockHandler(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -293,12 +292,12 @@ func TestDoubleClose(t *testing.T) {
 func TestOnClosedByOtherSide(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := networking.NewMockProtocol(t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{})
 	mockProtocol.On("EmptyHeader").Return(&textHeader{})
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := networking.NewMockHandler(t)
+	serverHandler := networking.NewMockHandler(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -387,12 +386,12 @@ func TestOnClosedByOtherSide(t *testing.T) {
 func TestCloseParentContext(t *testing.T) {
 	defer goleak.VerifyNone(t)
 
-	mockProtocol := netmocks.NewMockProtocol(t)
+	mockProtocol := networking.NewMockProtocol(t)
 	mockProtocol.On("EmptyHandshake").Return(&textHandshake{})
 	mockProtocol.On("EmptyHeader").Return(&textHeader{})
 
-	clientHandler := netmocks.NewMockHandler(t)
-	serverHandler := netmocks.NewMockHandler(t)
+	clientHandler := networking.NewMockHandler(t)
+	serverHandler := networking.NewMockHandler(t)
 
 	ctx, cancel := context.WithCancel(context.Background())
 

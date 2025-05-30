@@ -742,3 +742,42 @@ func TestChecksumReader(t *testing.T) {
 		})
 	}
 }
+
+func TestTCPAddr_Empty(t *testing.T) {
+	tcs := []struct {
+		addr  TCPAddr
+		empty bool
+	}{
+		{NewTCPAddrFromString("0.0.0.0:6868"), true},
+		{NewTCPAddrFromString("0.0.0.0:0"), true},
+		{NewTCPAddrFromString("127.0.0.1:6868"), false},
+		{NewTCPAddrFromString("127.0.0.1"), true}, // no port, returns empty
+		{NewTCPAddrFromString("fooo"), true},      // invalid address, returns empty
+		{NewTCPAddrFromString(":6868"), true},     // no host is specified, returns empty
+	}
+	for i, tc := range tcs {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			assert.Equal(t, tc.empty, tc.addr.Empty())
+		})
+	}
+}
+
+func TestTCPAddr_EmptyNoPort(t *testing.T) {
+	tcs := []struct {
+		addr  TCPAddr
+		empty bool
+	}{
+		{NewTCPAddrFromString(":6868"), false}, // no host is specified, host by default is 0.0.0.0
+		{NewTCPAddrFromString("0.0.0.0:6868"), false},
+		{NewTCPAddrFromString("127.0.0.1:6868"), false},
+		{NewTCPAddrFromString("0.0.0.0:0"), true},
+		{NewTCPAddrFromString("127.0.0.1"), true}, // no port, returns empty
+		{NewTCPAddrFromString("fooo"), true},      // invalid address, returns empty
+
+	}
+	for i, tc := range tcs {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			assert.Equal(t, tc.empty, tc.addr.EmptyNoPort())
+		})
+	}
+}

@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"io"
+	"maps"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
@@ -204,9 +205,7 @@ func newScriptsStorage(hs *historyStorage, scheme proto.Scheme, calcHashes bool)
 
 func (ss *scriptsStorage) uncertainAssetScriptsCopy() map[proto.AssetID]assetScriptRecordWithAssetIDTail {
 	copyAssetScripts := make(map[proto.AssetID]assetScriptRecordWithAssetIDTail)
-	for key, elem := range ss.uncertainAssetScripts {
-		copyAssetScripts[key] = elem
-	}
+	maps.Copy(copyAssetScripts, ss.uncertainAssetScripts)
 	return copyAssetScripts
 }
 

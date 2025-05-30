@@ -1,8 +1,8 @@
 package proto
 
 import (
+	"github.com/ccoveille/go-safecast"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
@@ -1750,6 +1750,51 @@ func (c *ProtobufConverter) stateHash(stateHashBytes []byte) *crypto.Digest {
 		return nil
 	}
 	return &sh
+}
+
+// PartialBlockHeader converts protobuf block header to domain block header.
+// Some fields can't be set in this conversion because the information is not available in the protobuf message.
+// The following fields are not set:
+//
+// - BlockHeader.BlockSignature - the field is not set because it requires the whole block message;
+//
+// - BlockHeader.TransactionCount - the field is not set because it requires the whole block message;
+//
+// - BlockHeader.ID - the field is not set because it requires the scheme and filled block signature field.
+func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockHeader, error) {
+	if pbHeader == nil {
+		return BlockHeader{}, errors.New("empty block header")
+	}
+	features := c.features(pbHeader.FeatureVotes)
+	consensus := c.consensus(pbHeader)
+	v := BlockVersion(c.byte(pbHeader.Version))
+	consensusBlockLength, conversionErr := safecast.ToUint32(consensus.BinarySize())
+	if conversionErr != nil {
+		return BlockHeader{}, errors.Wrap(conversionErr, "consensus block length overflow")
+	}
+	header := BlockHeader{
+		Version:              v,
+		Timestamp:            c.uint64(pbHeader.Timestamp),
+		Parent:               c.blockID(pbHeader.Reference),
+		FeaturesCount:        len(features),
+		Features:             features,
+		RewardVote:           pbHeader.RewardVote,
+		ConsensusBlockLength: consensusBlockLength,
+		NxtConsensus:         consensus,
+		TransactionCount:     0, // not set, can't be set without g.Block structure
+		GeneratorPublicKey:   c.publicKey(pbHeader.Generator),
+		BlockSignature:       crypto.Signature{}, // not set, can't be set without g.Block structure
+		TransactionsRoot:     pbHeader.TransactionsRoot,
+		StateHash:            c.stateHash(pbHeader.StateHash),
+		ChallengedHeader:     c.challengedHeader(pbHeader.ChallengedHeader),
+		ID:                   BlockID{}, // not set, can't be calculated without the scheme and the block signature
+	}
+	if c.err != nil {
+		err := c.err
+		c.reset()
+		return BlockHeader{}, err
+	}
+	return header, nil
 }
 
 func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {

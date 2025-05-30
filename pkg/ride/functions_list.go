@@ -305,7 +305,7 @@ func limitedCreateList(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Errorf("limitedCreateList: unexpected argument type '%s'", args[1].instanceOf())
 	}
 	if len(tail) == maxListSize {
-		return nil, errors.Errorf("limitedCreateList: resulting list size exceeds %d elements", maxListSize)
+		return nil, RuntimeError.Errorf("limitedCreateList: resulting list size exceeds %d elements", maxListSize)
 	}
 	if len(tail) == 0 {
 		return rideList{args[0]}, nil

@@ -122,7 +122,7 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 		if !okS {
 			return a.Errorf(errors.Errorf("snapshot for block %s doesn't exist in cache", parentID.String()))
 		}
-		return a.Errorf(errors.Errorf("block %s doesn't existin cache", parentID.String()))
+		return a.Errorf(errors.Errorf("block %s doesn't exist in cache", parentID.String()))
 	}
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Re-applying block '%s' from cache",
 		a, blockFromCache.ID.String())

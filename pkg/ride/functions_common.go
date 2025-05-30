@@ -2,6 +2,7 @@ package ride
 
 import (
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -233,4 +234,21 @@ func extractValue(v rideType) (rideType, error) {
 		return nil, UserError.New("failed to extract from Unit value")
 	}
 	return v, nil
+}
+
+func checkTakeDropNumberLimit(inputArgType string, limit int, checkLimits bool, n int, fName, rideFName string) error {
+	if !checkLimits {
+		return nil
+	}
+	if n < 0 {
+		return RuntimeError.Errorf("%s: unexpected negative number = %d passed to %s()",
+			fName, n, rideFName,
+		)
+	}
+	if n > limit {
+		return RuntimeError.Errorf("%s: number = %d passed to %s() exceeds %s limit = %d",
+			fName, n, rideFName, inputArgType, limit,
+		)
+	}
+	return nil
 }

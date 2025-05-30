@@ -36,6 +36,15 @@ const (
 	instanceField = "$instance"
 )
 
+/*
+TODO(nickeskov): Every ride type in scala implementation has 'weight'.
+ Weight is used to calculate overall tuple or list weight.
+ It's necessary to add weight to the rideType interface and
+ and implement its calculation in all types.
+ Max weight for lists / tuple operation and 'eq' function can be
+ found in the 'ContractLimits.scala' file of the scala implementation.
+*/
+
 type rideType interface {
 	instanceOf() string
 	eq(other rideType) bool

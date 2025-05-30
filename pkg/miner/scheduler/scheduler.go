@@ -8,6 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/ccoveille/go-safecast"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -28,17 +30,18 @@ type Emit struct {
 }
 
 type Default struct {
-	seeder       seeder
-	mine         chan Emit
-	cancel       []func()
-	settings     *settings.BlockchainSettings
-	mu           sync.Mutex
-	internal     internal
-	emits        []Emit
-	storage      state.State
-	tm           types.Time
-	consensus    types.MinerConsensus
-	obsolescence time.Duration
+	seeder         seeder
+	mine           chan Emit
+	cancel         []func()
+	settings       *settings.BlockchainSettings
+	mu             sync.Mutex
+	internal       internal
+	emits          []Emit
+	storage        state.State
+	tm             types.Time
+	consensus      types.MinerConsensus
+	obsolescence   time.Duration
+	generateInPast bool
 }
 
 type internal interface {
@@ -48,6 +51,8 @@ type internal interface {
 		settings *settings.BlockchainSettings,
 		confirmedBlock *proto.Block,
 		confirmedBlockHeight uint64,
+		tm types.Time,
+		generateInPast bool,
 	) ([]Emit, error)
 }
 
@@ -59,15 +64,19 @@ func (a internalImpl) schedule(
 	blockchainSettings *settings.BlockchainSettings,
 	confirmedBlock *proto.Block,
 	confirmedBlockHeight uint64,
+	tm types.Time,
+	generateInPast bool,
 ) ([]Emit, error) {
 	vrfActivated, err := storage.IsActivated(int16(settings.BlockV5))
 	if err != nil {
 		return nil, errors.Wrap(err, "failed get vrfActivated")
 	}
 	if vrfActivated {
-		return a.scheduleWithVrf(storage, keyPairs, blockchainSettings, confirmedBlock, confirmedBlockHeight)
+		return a.scheduleWithVrf(storage, keyPairs, blockchainSettings, confirmedBlock, confirmedBlockHeight,
+			tm, generateInPast)
 	}
-	return a.scheduleWithoutVrf(storage, keyPairs, blockchainSettings, confirmedBlock, confirmedBlockHeight)
+	return a.scheduleWithoutVrf(storage, keyPairs, blockchainSettings, confirmedBlock, confirmedBlockHeight, tm,
+		generateInPast)
 }
 
 func (a internalImpl) prepareDataForSchedule(
@@ -110,6 +119,8 @@ func (a internalImpl) scheduleWithVrf(
 	blockchainSettings *settings.BlockchainSettings,
 	confirmedBlock *proto.Block,
 	confirmedBlockHeight uint64,
+	tm types.Time,
+	generateInPast bool,
 ) ([]Emit, error) {
 	greatGrandParentTimestamp, blockV5Activated, pos, err := a.prepareDataForSchedule(storage, confirmedBlockHeight,
 		blockchainSettings,
@@ -193,10 +204,21 @@ func (a internalImpl) scheduleWithVrf(
 			)
 			continue
 		}
+		ts := confirmedBlock.Timestamp + delay // Maybe in past or future.
+		if !generateInPast {
+			now := proto.NewTimestampFromTime(tm.Now())
+			if ts < now {
+				ts = now
+			}
+		}
+		sts, err := safecast.ToInt64(ts)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to cast timestamp to int64")
+		}
 		zap.S().Debugf("Scheduled generation by address '%s' at %s", addr.String(),
-			time.UnixMilli(int64(confirmedBlock.Timestamp+delay)).Format("2006-01-02 15:04:05.000 MST"))
+			time.UnixMilli(sts).Format("2006-01-02 15:04:05.000 MST"))
 		out = append(out, Emit{
-			Timestamp:    confirmedBlock.Timestamp + delay,
+			Timestamp:    ts,
 			KeyPair:      keyPair,
 			GenSignature: genSig,
 			VRF:          vrf,
@@ -213,6 +235,8 @@ func (a internalImpl) scheduleWithoutVrf(
 	blockchainSettings *settings.BlockchainSettings,
 	confirmedBlock *proto.Block,
 	confirmedBlockHeight uint64,
+	tm types.Time,
+	generateInPast bool,
 ) ([]Emit, error) {
 	greatGrandParentTimestamp, _, pos, err := a.prepareDataForSchedule(storage, confirmedBlockHeight, blockchainSettings)
 	if err != nil {
@@ -290,7 +314,13 @@ func (a internalImpl) scheduleWithoutVrf(
 			zap.S().Errorf("Scheduler: Failed to calculate base target for address %q: %v", addr.String(), err)
 			continue
 		}
-		ts := confirmedBlock.Timestamp + delay
+		ts := confirmedBlock.Timestamp + delay // Maybe in past or future.
+		if !generateInPast {
+			now := proto.NewTimestampFromTime(tm.Now())
+			if ts < now {
+				ts = now
+			}
+		}
 		zap.S().Debugf("  %s (%s): ", addr.String(), pk.String())
 		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
 		zap.S().Debugf("    Generation Balance: %d", generatingBalance)
@@ -319,28 +349,30 @@ func NewScheduler(
 	settings *settings.BlockchainSettings,
 	tm types.Time,
 	consensus types.MinerConsensus,
-	minerDelay time.Duration) (*Default, error) {
+	minerDelay time.Duration,
+	generateInPast bool) (*Default, error) {
 	if minerDelay <= 0 {
 		return nil, errors.New("minerDelay must be positive")
 	}
-	return newScheduler(internalImpl{}, state, seeder, settings, tm, consensus, minerDelay), nil
+	return newScheduler(internalImpl{}, state, seeder, settings, tm, consensus, minerDelay, generateInPast), nil
 }
 
 func newScheduler(internal internal, state state.State, seeder seeder, settings *settings.BlockchainSettings,
-	tm types.Time, consensus types.MinerConsensus, minerDelay time.Duration) *Default {
+	tm types.Time, consensus types.MinerConsensus, minerDelay time.Duration, generateInPast bool) *Default {
 	if seeder == nil {
 		seeder = wallet.NewWallet()
 	}
 	return &Default{
-		seeder:       seeder,
-		mine:         make(chan Emit, 1),
-		settings:     settings,
-		internal:     internal,
-		storage:      state,
-		mu:           sync.Mutex{},
-		tm:           tm,
-		consensus:    consensus,
-		obsolescence: minerDelay,
+		seeder:         seeder,
+		mine:           make(chan Emit, 1),
+		settings:       settings,
+		internal:       internal,
+		storage:        state,
+		mu:             sync.Mutex{},
+		tm:             tm,
+		consensus:      consensus,
+		obsolescence:   minerDelay,
+		generateInPast: generateInPast,
 	}
 }
 
@@ -407,7 +439,8 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 	}
 
 	rs, err := a.storage.MapR(func(info state.StateInfo) (i interface{}, err error) {
-		return a.internal.schedule(info, keyPairs, a.settings, confirmedBlock, confirmedBlockHeight)
+		return a.internal.schedule(info, keyPairs, a.settings, confirmedBlock, confirmedBlockHeight, a.tm,
+			a.generateInPast)
 	})
 	if err != nil {
 		zap.S().Errorf("Scheduler: Failed to schedule: %v", err)

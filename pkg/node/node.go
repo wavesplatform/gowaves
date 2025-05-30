@@ -53,7 +53,8 @@ func NewNode(
 	services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration,
 	enableLightMode bool,
 ) *Node {
-	if bindAddr.Empty() {
+	if bindAddr.EmptyNoPort() {
+		zap.S().Warnf("Bind IP address and port are empty, using declared address %q", declAddr.String())
 		bindAddr = declAddr
 	}
 	return &Node{
@@ -93,12 +94,12 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 
 	// if empty declared address, listen on port doesn't make sense
 	if a.declAddr.Empty() {
-		zap.S().Warn("Declared address is empty")
+		zap.S().Warn("Declared IP address is empty")
 		return nil
 	}
 
-	if a.bindAddr.Empty() {
-		zap.S().Warn("Bind address is empty")
+	if a.bindAddr.EmptyNoPort() {
+		zap.S().Warn("Bind IP address and port are empty")
 		return nil
 	}
 
