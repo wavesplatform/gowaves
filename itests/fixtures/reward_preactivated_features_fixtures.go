@@ -32,6 +32,7 @@ func (suite *RewardIncreaseDaoXtnPreactivatedSuite) SetupSuite() {
 			"7W_2miners_dao_xtn_increase.json",
 		),
 		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -54,6 +55,8 @@ func (suite *RewardUnchangedDaoXtnPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"6W_2miners_dao_xtn_not_changed.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -76,6 +79,8 @@ func (suite *RewardDecreaseDaoXtnPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"5W_2miners_dao_xtn_decrease.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -98,6 +103,8 @@ func (suite *RewardIncreaseDaoPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"7W_2miners_dao_increase.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -120,6 +127,8 @@ func (suite *RewardUnchangedXtnPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"6W_2miners_xtn_not_changed.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -142,6 +151,8 @@ func (suite *Reward2WUnchangedDaoXtnPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"2W_2miners_dao_xtn_not_changed.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -164,6 +175,8 @@ func (suite *RewardDecreaseDaoPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"5W_2miners_dao_decrease.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -186,6 +199,8 @@ func (suite *RewardDecreaseXtnPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"5W_2miners_xtn_decrease.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -208,6 +223,8 @@ func (suite *RewardIncreasePreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"2miners_increase.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -230,6 +247,8 @@ func (suite *RewardDaoXtnPreactivatedWithout19Suite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"2miners_dao_xtn_without_f19.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -252,6 +271,8 @@ func (suite *RewardDaoXtnPreactivatedWithout20Suite) SetupSuite() {
 			preactivatedFeaturesConfigFolder,
 			"2miners_dao_xtn_without_f20.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -276,6 +297,8 @@ func (suite *RewardIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() 
 			preactivatedFeaturesWith21ConfigFolder,
 			"7W_2miners_dao_xtn_increase.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -298,6 +321,8 @@ func (suite *RewardIncreaseXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesWith21ConfigFolder,
 			"7W_2miners_xtn_increase.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -320,6 +345,8 @@ func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite()
 			preactivatedFeaturesWith21ConfigFolder,
 			"6W_2miners_dao_xtn_not_changed.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -342,6 +369,8 @@ func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() 
 			preactivatedFeaturesWith21ConfigFolder,
 			"5W_2miners_xtn_dao_decrease.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -364,6 +393,8 @@ func (suite *RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() {
 			preactivatedFeaturesWith21ConfigFolder,
 			"5W_2miners_xtn_decrease.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -386,6 +417,8 @@ func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite
 			preactivatedFeaturesWith21ConfigFolder,
 			"2W_2miners_dao_xtn_not_changed.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -408,6 +441,8 @@ func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite) SetupSuite
 			preactivatedFeaturesWith21ConfigFolder,
 			"5W_2miners_increase.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -430,6 +465,8 @@ func (suite *RewardDaoXtnPreactivatedWith21Suite) SetupSuite() {
 			preactivatedFeaturesWith21ConfigFolder,
 			"6W_2miners_dao_xtn_increase_without_20.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
 
@@ -452,5 +489,7 @@ func (suite *RewardDaoXtnPreactivatedWithout19And20Suite) SetupSuite() {
 			preactivatedFeaturesWith21ConfigFolder,
 			"6W_2miners_dao_xtn_increase_without_19_20.json",
 		),
+		config.WithQuorum(2),
+		config.WithNoScalaMining(),
 	)
 }
