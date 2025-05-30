@@ -2210,7 +2210,7 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 	defer s.reset() // Reset in-memory storages and temporary changes after snapshot hash creation.
 	if simErr := s.beforeAddingBlock(block, lastAppliedBlock, blockchainHeight); simErr != nil {
 		return crypto.Digest{}, errors.Wrapf(simErr,
-			"failed to simulate before adding block for block %s at blockhain height %d, top block is %s",
+			"failed to simulate before adding block for block %s at blockchain height %d, top block is %s",
 			block.BlockID().String(), blockchainHeight, lastAppliedBlock.BlockID().String(),
 		)
 	}
