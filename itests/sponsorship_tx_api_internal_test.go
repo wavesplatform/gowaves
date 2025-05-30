@@ -71,7 +71,7 @@ func (suite *SponsorshipTxAPIPositiveSuite) TestSponsorshipDisabledTxAPIPositive
 		sponsorshipData := testdata.GetSponsorshipEnabledDisabledData(&suite.BaseSuite, itx.TxID)
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
-			//switch on sponsorship
+			// switch on sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				sponsorship.BroadcastSponsorshipTxAndGetBalances(&suite.BaseSuite, sponsorshipData.Enabled,
 					v, true)
@@ -79,7 +79,7 @@ func (suite *SponsorshipTxAPIPositiveSuite) TestSponsorshipDisabledTxAPIPositive
 			sponsorship.PositiveAPIChecks(suite.T(), tx, sponsorshipData.Enabled, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
 
-			//switch off sponsorship
+			// switch off sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset =
 				sponsorship.BroadcastSponsorshipTxAndGetBalances(&suite.BaseSuite, sponsorshipData.Disabled,
 					v, true)

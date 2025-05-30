@@ -25,7 +25,7 @@ func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPIReissua
 	for _, v := range versions {
 		assets := issue.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, assets)
-		//***wait n blocks***
+		// ***wait n blocks***
 		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
 		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 		for name, td := range tdmatrix {
@@ -48,7 +48,7 @@ func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPINFTPosi
 	for _, v := range versions {
 		nft := issue.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, nft)
-		//***wait n blocks***
+		// ***wait n blocks***
 		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
 		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 		for name, td := range tdmatrix {
@@ -71,7 +71,7 @@ func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPISmartAs
 	for _, v := range versions {
 		smart := issue.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 		tdmatrix := testdata.GetUpdateSmartAssetInfoPositiveDataMatrix(&suite.BaseSuite, smart)
-		//***wait n blocks***
+		// ***wait n blocks***
 		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
 		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 		for name, td := range tdmatrix {
@@ -108,7 +108,7 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxAPIReissua
 			itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, iv, true)
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
-			//***wait n blocks***
+			// ***wait n blocks***
 			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
 			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 			for name, td := range tdmatrix {
@@ -141,7 +141,7 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxNFTAPINega
 			itx := issue.BroadcastWithTestData(&suite.BaseSuite, nft, iv, true)
 			tdmatrix := testdata.GetUpdateAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
-			//***wait n blocks***
+			// ***wait n blocks***
 			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
 			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 			for name, td := range tdmatrix {
@@ -174,7 +174,7 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxSmartAsset
 			itx := issue.BroadcastWithTestData(&suite.BaseSuite, smart, iv, true)
 			tdmatrix := testdata.GetUpdateSmartAssetInfoNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
-			//***wait n blocks***
+			// ***wait n blocks***
 			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
 			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
 			for name, td := range tdmatrix {
