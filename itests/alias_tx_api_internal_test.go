@@ -17,11 +17,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type AliasTxApiSuite struct {
+type AliasTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
+func (suite *AliasTxAPIPositiveSuite) Test_AliasTxAPIPositive() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
@@ -39,7 +39,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiPositive() {
 	}
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
+func (suite *AliasTxAPIPositiveSuite) Test_AliasTxAPIMaxValuesPositive() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -59,7 +59,16 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiMaxValuesPositive() {
 	}
 }
 
-func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
+func TestAliasTxAPIPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(AliasTxAPIPositiveSuite))
+}
+
+type AliasTxAPINegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *AliasTxAPINegativeSuite) Test_AliasTxAPINegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -79,7 +88,7 @@ func (suite *AliasTxApiSuite) Test_AliasTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
+func (suite *AliasTxAPINegativeSuite) Test_SameAliasAPINegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Values for same alias"
 	//Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
@@ -115,7 +124,8 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 					errMsg)
 				utl.ErrorMessageCheck(suite.T(), td.Expected.ErrBrdCstGoMsg, td.Expected.ErrBrdCstScalaMsg,
 					tx2.BrdCstErr.ErrorBrdCstGo, tx2.BrdCstErr.ErrorBrdCstScala, errMsg)
-				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance, actualDiffBalanceInWaves.BalanceInWavesGo,
+				utl.WavesDiffBalanceCheck(suite.T(), td.Expected.WavesDiffBalance,
+					actualDiffBalanceInWaves.BalanceInWavesGo,
 					actualDiffBalanceInWaves.BalanceInWavesScala, errMsg)
 			})
 		}
@@ -125,7 +135,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasApiNegative() {
 	suite.Lenf(actualTxIds, 2, "IDs: %#v", actualTxIds)
 }
 
-func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
+func (suite *AliasTxAPINegativeSuite) Test_SameAliasDiffAddressesAPINegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Same alias for different accounts "
 	var idsCount = 2
@@ -170,7 +180,7 @@ func (suite *AliasTxApiSuite) Test_SameAliasDiffAddressesApiNegative() {
 	suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds)
 }
 
-func TestAliasTxApiSuite(t *testing.T) {
+func TestAliasTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(AliasTxApiSuite))
+	suite.Run(t, new(AliasTxAPINegativeSuite))
 }

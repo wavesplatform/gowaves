@@ -21,11 +21,11 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/updateassetinfo"
 )
 
-type SmokeTxApiPositiveSuite struct {
+type SmokeTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *SmokeTxApiPositiveSuite) Test_AliasTxApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) Test_AliasTxAPISmokePositive() {
 	v := byte(testdata.AliasMaxVersion)
 	tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
 	for name, td := range tdmatrix {
@@ -35,12 +35,13 @@ func (suite *SmokeTxApiPositiveSuite) Test_AliasTxApiSmokePositive() {
 				td, v, true)
 			errMsg := fmt.Sprintf("Case: %s; Broadcast Alias Tx: %s", caseName, tx.TxID.String())
 			addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
-			alias.PositiveAPIChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala, actualDiffBalanceInWaves, errMsg)
+			alias.PositiveAPIChecks(suite.T(), tx, td, addrByAliasGo, addrByAliasScala,
+				actualDiffBalanceInWaves, errMsg)
 		})
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) Test_BurnTxApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) Test_BurnTxAPISmokePositive() {
 	v := byte(testdata.BurnMaxVersion)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 	itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
@@ -56,7 +57,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_BurnTxApiSmokePositive() {
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) Test_IssueSmartAssetApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) Test_IssueSmartAssetAPISmokePositive() {
 	v := byte(testdata.IssueMaxVersion)
 	tdmatrix := testdata.GetPositiveAssetScriptData(&suite.BaseSuite)
 	for name, td := range tdmatrix {
@@ -72,7 +73,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_IssueSmartAssetApiSmokePositive() {
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) Test_IssueTxApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) Test_IssueTxAPISmokePositive() {
 	v := byte(testdata.IssueMaxVersion)
 	tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
 	for name, td := range tdmatrix {
@@ -86,7 +87,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_IssueTxApiSmokePositive() {
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) Test_ReissueTxApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) Test_ReissueTxAPISmokePositive() {
 	v := byte(testdata.ReissueMaxVersion)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 	itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
@@ -102,7 +103,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_ReissueTxApiSmokePositive() {
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) Test_SetAssetScriptApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) Test_SetAssetScriptAPISmokePositive() {
 	v := byte(testdata.SetAssetScriptMaxVersion)
 	smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
 	itx := issue.BroadcastWithTestData(&suite.BaseSuite, smartAsset, v, true)
@@ -120,7 +121,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_SetAssetScriptApiSmokePositive() {
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) TestSponsorshipTxApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) TestSponsorshipTxAPISmokePositive() {
 	v := byte(testdata.SponsorshipMaxVersion)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 	itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
@@ -137,7 +138,7 @@ func (suite *SmokeTxApiPositiveSuite) TestSponsorshipTxApiSmokePositive() {
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) Test_TransferTxApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) Test_TransferTxAPISmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	aliasStr := utl.RandStringBytes(15, testdata.AliasSymbolSet)
 	alias.SetAliasToAccountByAPI(&suite.BaseSuite, v, utl.TestChainID, aliasStr,
@@ -160,7 +161,7 @@ func (suite *SmokeTxApiPositiveSuite) Test_TransferTxApiSmokePositive() {
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) TestTransferWithSponsorshipApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) TestTransferWithSponsorshipAPISmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	//Sponsor creates a new token
 	sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
@@ -194,7 +195,7 @@ func (suite *SmokeTxApiPositiveSuite) TestTransferWithSponsorshipApiSmokePositiv
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) TestTransferWithSponsorshipToOneselfApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) TestTransferWithSponsorshipToOneselfAPISmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	//Sponsor creates a new token
 	sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
@@ -222,7 +223,7 @@ func (suite *SmokeTxApiPositiveSuite) TestTransferWithSponsorshipToOneselfApiSmo
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) TestFeeInWavesAccordingMinSponsoredAssetApiSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) TestFeeInWavesAccordingMinSponsoredAssetAPISmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	//Sponsor creates a new token
 	sponsoredAssetID := issue.IssuedAssetAmount(&suite.BaseSuite, testdata.IssueMaxVersion, utl.TestChainID,
@@ -257,7 +258,7 @@ func (suite *SmokeTxApiPositiveSuite) TestFeeInWavesAccordingMinSponsoredAssetAp
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiReissuableTokenSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) TestUpdateAssetInfoTxAPIReissuableTokenSmokePositive() {
 	v := byte(testdata.UpdateAssetInfoMaxVersion)
 	assets := issue.GetReissuableMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 	tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, assets)
@@ -278,7 +279,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiReissuableTokenSmo
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiNFTSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) TestUpdateAssetInfoTxAPINFTSmokePositive() {
 	v := byte(testdata.UpdateAssetInfoMaxVersion)
 	nft := issue.GetNFTMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 	tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, nft)
@@ -299,7 +300,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiNFTSmokePositive()
 	}
 }
 
-func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiSmartAssetSmokePositive() {
+func (suite *SmokeTxAPIPositiveSuite) TestUpdateAssetInfoTxAPISmartAssetSmokePositive() {
 	v := byte(testdata.UpdateAssetInfoMaxVersion)
 	smart := issue.GetSmartAssetMatrix(&suite.BaseSuite, testdata.PositiveCasesCount)
 	tdmatrix := testdata.GetUpdateSmartAssetInfoPositiveDataMatrix(&suite.BaseSuite, smart)
@@ -320,7 +321,7 @@ func (suite *SmokeTxApiPositiveSuite) TestUpdateAssetInfoTxApiSmartAssetSmokePos
 	}
 }
 
-func TestSmokeTxApiPositiveSuite(t *testing.T) {
+func TestSmokeTxAPIPositiveSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SmokeTxApiPositiveSuite))
+	suite.Run(t, new(SmokeTxAPIPositiveSuite))
 }
