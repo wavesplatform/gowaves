@@ -216,6 +216,7 @@ func (d *blockDiffer) saveCurFeeDistr(block *proto.BlockHeader) error {
 // This method MUST NOT modify the state.
 func (d *blockDiffer) createMinerAndRewardDiff(
 	blockHeader *proto.BlockHeader,
+	blockHeight proto.Height,
 	hasParent bool,
 	transactions []proto.Transaction,
 ) (txDiff, error) {
@@ -232,7 +233,7 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 		}
 		d.appendBlockInfoToTxDiff(minerDiff, blockHeader)
 	}
-	err = d.addBlockReward(minerDiff, minerAddr.ID(), blockHeader)
+	err = d.addBlockReward(minerDiff, minerAddr.ID(), blockHeader, blockHeight)
 	if err != nil {
 		return txDiff{}, err
 	}
@@ -242,11 +243,13 @@ func (d *blockDiffer) createMinerAndRewardDiff(
 // addBlockReward adds block reward to the miner's balance.
 // This method does not modify the state.
 // All changes are applied to the passed txDiff.
-func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *proto.BlockHeader) error {
-	activated, err := d.stor.features.newestIsActivated(int16(settings.BlockReward))
-	if err != nil {
-		return err
-	}
+func (d *blockDiffer) addBlockReward(
+	diff txDiff,
+	addr proto.AddressID,
+	block *proto.BlockHeader,
+	blockHeight proto.Height,
+) error {
+	activated := d.stor.features.newestIsActivatedAtHeight(int16(settings.BlockReward), blockHeight)
 	if !activated {
 		// Monetary policy is not working yet.
 		return nil
@@ -259,8 +262,8 @@ func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *p
 		return errors.New("reward overflows int64")
 	}
 	c := newRewardsCalculator(d.settings, d.stor.features)
-	if err := c.applyToDiff(diff, addr, d.stor.hs.stateDB.rw.addingBlockHeight(), reward); err != nil {
-		return err
+	if adErr := c.applyToDiff(diff, addr, blockHeight, reward); adErr != nil {
+		return adErr
 	}
 	d.appendBlockInfoToTxDiff(diff, block)
 	return nil
