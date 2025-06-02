@@ -786,6 +786,27 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
+func (a *NodeApi) WavesRegularBalanceByAddress(w http.ResponseWriter, r *http.Request) error {
+	addrStr := chi.URLParam(r, "address")
+	addr, err := proto.NewAddressFromString(addrStr)
+	if err != nil {
+		return apiErrs.InvalidAddress
+	}
+	if valid, vErr := addr.Valid(a.app.scheme()); !valid || vErr != nil {
+		return apiErrs.InvalidAddress
+	}
+
+	balance, err := a.app.WavesRegularBalanceByAddress(addr)
+	if err != nil {
+		return errors.Wrap(err, "failed to get Waves regular balance by address")
+	}
+
+	if jsErr := trySendJson(w, balance); jsErr != nil {
+		return errors.Wrap(jsErr, "WavesRegularBalanceByAddress")
+	}
+	return nil
+}
+
 func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
 	stateHash, err := a.state.LegacyStateHashAtHeight(height)
 	if err != nil {
