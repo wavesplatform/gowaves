@@ -29,6 +29,7 @@ const (
 	eventDeclined = "Declined"
 	eventMined    = "Mined"
 	eventScore    = "Score"
+	eventUtx      = "Utx"
 )
 
 /*
@@ -199,6 +200,15 @@ func Score(score *proto.Score, source string) {
 	reportBlock(t, f)
 }
 
+func Utx(utxCount int) {
+	if rep == nil {
+		return
+	}
+	t := emptyTags().node().withEvent(eventUtx)
+	f := emptyFields().withUtxCount(utxCount)
+	reportUtx(t, f)
+}
+
 type tags map[string]string
 
 func emptyTags() tags {
@@ -282,6 +292,11 @@ func (f fields) source(source string) fields {
 
 func (f fields) score(score *proto.Score) fields {
 	f["score"] = score.String()
+	return f
+}
+
+func (f fields) withUtxCount(utxCount int) fields {
+	f["score"] = utxCount
 	return f
 }
 
@@ -425,6 +440,15 @@ func reportBlock(t tags, f fields) {
 	p, err := influx.NewPoint("block", t, f, time.Now())
 	if err != nil {
 		zap.S().Warnf("Failed to create metrics point 'block': %v", err)
+		return
+	}
+	rep.in <- p
+}
+
+func reportUtx(t tags, f fields) {
+	p, err := influx.NewPoint("utx", t, f, time.Now())
+	if err != nil {
+		zap.S().Warnf("Failed to create metrics point 'utx': %v", err)
 		return
 	}
 	rep.in <- p

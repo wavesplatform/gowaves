@@ -217,6 +217,7 @@ func (a *SyncState) MinedBlock(
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
 	metrics.BlockApplied(block, height)
+	metrics.Utx(a.baseInfo.utx.Count())
 	a.baseInfo.scheduler.Reschedule()
 
 	// first we should send block
@@ -289,6 +290,7 @@ func (a *SyncState) applyBlocksWithSnapshots(
 	}
 	for _, b := range blocks {
 		metrics.BlockApplied(b, height)
+		metrics.Utx(a.baseInfo.utx.Count())
 		height++
 	}
 	a.baseInfo.scheduler.Reschedule()

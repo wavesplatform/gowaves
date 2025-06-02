@@ -122,7 +122,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 	metrics.BlockApplied(a.blockWaitingForSnapshot, height)
-
+	metrics.Utx(a.baseInfo.utx.Count())
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Handle received key block message: block '%s' applied to state",
 		a, blockID)
 

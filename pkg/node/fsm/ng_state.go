@@ -226,6 +226,7 @@ func (a *NGState) MinedBlock(
 		return a, nil, a.Errorf(err)
 	}
 	metrics.BlockApplied(block, height)
+	metrics.Utx(a.baseInfo.utx.Count())
 	zap.S().Infof("[%s] Generated key block '%s' successfully applied to state", a, block.ID.String())
 
 	a.blocksCache.Clear()
