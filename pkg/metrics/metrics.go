@@ -296,7 +296,7 @@ func (f fields) score(score *proto.Score) fields {
 }
 
 func (f fields) withUtxCount(utxCount int) fields {
-	f["score"] = utxCount
+	f["utx_count"] = utxCount
 	return f
 }
 
