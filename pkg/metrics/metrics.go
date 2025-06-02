@@ -28,6 +28,7 @@ const (
 	eventAppended = "Appended"
 	eventDeclined = "Declined"
 	eventMined    = "Mined"
+	eventScore    = "Score"
 )
 
 /*
@@ -193,7 +194,7 @@ func Score(score *proto.Score, source string) {
 	if rep == nil {
 		return
 	}
-	t := emptyTags().node().score().received()
+	t := emptyTags().node().withEvent(eventScore)
 	f := emptyFields().score(score).source(source)
 	reportBlock(t, f)
 }
@@ -218,16 +219,6 @@ func (t tags) withHost() tags {
 
 func (t tags) node() tags {
 	t["node"] = strconv.Itoa(rep.id)
-	return t
-}
-
-func (t tags) received() tags {
-	t["event"] = "received"
-	return t
-}
-
-func (t tags) score() tags {
-	t["object"] = "score"
 	return t
 }
 
