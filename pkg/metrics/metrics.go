@@ -107,12 +107,12 @@ func MicroBlockApplied(mb *proto.MicroBlock) {
 	reportBlock(t, f)
 }
 
-func BlockReceived(block *proto.Block, source string) {
+func BlockReceived(block *proto.Block, source string, height proto.Height) {
 	if rep == nil {
 		return
 	}
 	t := newTags().withBlock().withEvent(eventReceived).withID(block.ID).withBroadcast()
-	f := newFields().withSourceNode(source).withBaseTarget(block.BaseTarget).withID(block.ID)
+	f := newFields().withHeight(height).withSourceNode(source).withBaseTarget(block.BaseTarget).withID(block.ID)
 	reportBlock(t, f)
 }
 

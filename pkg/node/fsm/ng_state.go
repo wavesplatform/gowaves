@@ -152,7 +152,11 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		return a, nil, a.Errorf(proto.NewInfoMsg(errors.Errorf("Block '%s' already exists", block.BlockID().String())))
 	}
 
-	metrics.BlockReceived(block, peer.Handshake().NodeName)
+	height, errHeight := a.baseInfo.storage.Height()
+	if errHeight != nil {
+		return a, nil, a.Errorf(errHeight)
+	}
+	metrics.BlockReceived(block, peer.Handshake().NodeName, height)
 
 	top := a.baseInfo.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block

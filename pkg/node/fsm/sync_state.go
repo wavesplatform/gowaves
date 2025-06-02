@@ -167,7 +167,12 @@ func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error)
 	if !p.Equal(a.conf.peerSyncWith) {
 		return a, nil, nil
 	}
-	metrics.BlockReceived(block, p.Handshake().NodeName)
+
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return nil, nil, a.Errorf(heightErr)
+	}
+	metrics.BlockReceived(block, p.Handshake().NodeName, height)
 	zap.S().Named(logging.FSMNamespace).Debugf("[Sync][%s] Received block %s", p.ID(), block.ID.String())
 
 	internal, err := a.internal.Block(block)
