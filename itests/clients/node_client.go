@@ -356,8 +356,8 @@ func (c *NodesClients) BroadcastToScalaNode(t *testing.T, tx proto.Transaction) 
 	return respScala, errBrdCstScala
 }
 
-func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction, nodes []Implementation) (*client.Response, error,
-	*client.Response, error) {
+func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction,
+	nodes []Implementation) (*client.Response, error, *client.Response, error) {
 	var respGo, respScala *client.Response = nil, nil
 	var errBrdCstGo, errBrdCstScala error = nil, nil
 
