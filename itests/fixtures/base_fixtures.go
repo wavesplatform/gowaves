@@ -16,12 +16,12 @@ import (
 type BaseSuite struct {
 	suite.Suite
 
-	MainCtx    context.Context
-	Cancel     context.CancelFunc
-	Cfg        config.TestConfig
-	Docker     *d.Docker
-	Clients    *clients.NodesClients
-	SendToNode []string
+	MainCtx     context.Context
+	Cancel      context.CancelFunc
+	Cfg         config.TestConfig
+	Docker      *d.Docker
+	Clients     *clients.NodesClients
+	SendToNodes []clients.Implementation
 }
 
 func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
@@ -47,7 +47,7 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 
 	suite.Clients = clients.NewNodesClients(suite.MainCtx, suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
 	suite.Clients.Handshake()
-	suite.SendToNode = []string{"go-node"}
+	suite.SendToNodes = []clients.Implementation{clients.NodeGo}
 }
 
 func (suite *BaseSuite) SetupSuite() {
@@ -78,5 +78,5 @@ type BaseNegativeSuite struct {
 
 func (suite *BaseNegativeSuite) SetupSuite() {
 	suite.BaseSetup()
-	suite.SendToNode = append(suite.SendToNode, "scala-node")
+	suite.SendToNodes = append(suite.SendToNodes, clients.NodeScala)
 }

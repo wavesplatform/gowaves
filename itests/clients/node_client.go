@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrs "errors"
 	"maps"
+	"slices"
 	"sync"
 	"testing"
 	"time"
@@ -290,6 +291,23 @@ func (c *NodesClients) Handshake() {
 	c.ScalaClient.Connection.SendHandshake()
 }
 
+func compactAndSort(s []Implementation) []Implementation {
+	byteSlice := make([]byte, len(s))
+	for i := range s {
+		byteSlice[i] = byte(s[i])
+	}
+
+	slices.Sort(byteSlice)
+	compacted := slices.Compact(byteSlice)
+
+	result := make([]Implementation, len(compacted))
+	for i := range compacted {
+		result[i] = Implementation(compacted[i])
+	}
+
+	return result
+}
+
 func (c *NodesClients) SendToScalaNode(t *testing.T, m proto.Message) {
 	t.Logf("Sending message to Scala node: %T", m)
 	c.ScalaClient.Connection.SendMessage(m)
@@ -302,24 +320,17 @@ func (c *NodesClients) SendToGoNode(t *testing.T, m proto.Message) {
 	t.Log("Message sent to Go node")
 }
 
-func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, nodes ...string) {
-	switch len(nodes) {
-	case 0:
-		t.Fatalf("No node is specified: %d", len(nodes))
-	case 1:
-		switch nodes[0] {
-		case "go-node":
+func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, nodes []Implementation) {
+	resultNodes := compactAndSort(nodes)
+	for i := range resultNodes {
+		switch resultNodes[i].String() {
+		case "Go":
 			c.SendToGoNode(t, m)
-		case "scala-node":
+		case "Scala":
 			c.SendToScalaNode(t, m)
 		default:
-			t.Fatalf("Node name is incorrect: %d", len(nodes))
+			t.Fatalf("Node name is incorrect: %s", resultNodes[i].String())
 		}
-	case 2:
-		c.SendToGoNode(t, m)
-		c.SendToScalaNode(t, m)
-	default:
-		t.Fatalf("Unexpected number of nodes: %d", len(nodes))
 	}
 }
 
@@ -345,29 +356,23 @@ func (c *NodesClients) BroadcastToScalaNode(t *testing.T, tx proto.Transaction) 
 	return respScala, errBrdCstScala
 }
 
-func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction, nodes ...string) (*client.Response, error,
+func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction, nodes []Implementation) (*client.Response, error,
 	*client.Response, error) {
 	var respGo, respScala *client.Response = nil, nil
 	var errBrdCstGo, errBrdCstScala error = nil, nil
 
-	switch len(nodes) {
-	case 0:
-		t.Fatalf("No node is specified: %d", len(nodes))
-	case 1:
-		switch nodes[0] {
-		case "go-node":
+	resultNodes := compactAndSort(nodes)
+	for i := range resultNodes {
+		switch resultNodes[i].String() {
+		case "Go":
 			respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
-		case "scala-node":
+		case "Scala":
 			respScala, errBrdCstScala = c.BroadcastToScalaNode(t, tx)
 		default:
-			t.Fatalf("Node name is incorrect: %d", len(nodes))
+			t.Fatalf("Node name is incorrect: %s", resultNodes[i].String())
 		}
-	case 2:
-		respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
-		respScala, errBrdCstScala = c.BroadcastToScalaNode(t, tx)
-	default:
-		t.Fatalf("Unexpected number of nodes: %d", len(nodes))
 	}
+
 	return respGo, errBrdCstGo, respScala, errBrdCstScala
 }
 
