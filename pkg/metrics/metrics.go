@@ -195,7 +195,7 @@ func Score(score *proto.Score, source string) {
 	}
 	t := emptyTags().node().score().received()
 	f := emptyFields().score(score).source(source)
-	reportFSM(t, f)
+	reportBlock(t, f)
 }
 
 type tags map[string]string
@@ -434,15 +434,6 @@ func reportBlock(t tags, f fields) {
 	p, err := influx.NewPoint("block", t, f, time.Now())
 	if err != nil {
 		zap.S().Warnf("Failed to create metrics point 'block': %v", err)
-		return
-	}
-	rep.in <- p
-}
-
-func reportFSM(t tags, f fields) {
-	p, err := influx.NewPoint("fsm", t, f, time.Now())
-	if err != nil {
-		zap.S().Warnf("Failed to create metrics point 'fsm': %v", err)
 		return
 	}
 	rep.in <- p
