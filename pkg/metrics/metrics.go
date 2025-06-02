@@ -112,7 +112,7 @@ func BlockReceived(block *proto.Block, source string) {
 		return
 	}
 	t := newTags().withBlock().withEvent(eventReceived).withID(block.ID).withBroadcast()
-	f := newFields().withSourceNode(source).withBaseTarget(block.BaseTarget)
+	f := newFields().withSourceNode(source).withBaseTarget(block.BaseTarget).withID(block.ID)
 	reportBlock(t, f)
 }
 
@@ -139,7 +139,7 @@ func BlockApplied(block *proto.Block, height proto.Height) {
 		return
 	}
 	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withBroadcast()
-	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount)
+	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withID(block.ID)
 	reportBlock(t, f)
 }
 
@@ -147,7 +147,7 @@ func BlockDeclined(block *proto.Block) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withBroadcast()
+	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withBroadcast().withID(block.ID)
 	f := newFields()
 	reportBlock(t, f)
 }
@@ -175,7 +175,8 @@ func BlockMined(block *proto.Block, height proto.Height) {
 		return
 	}
 	t := newTags().withBlock().withEvent(eventMined).withID(block.ID).withParentID(block.Parent).withBroadcast()
-	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withBaseTarget(block.BaseTarget)
+	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withBaseTarget(block.BaseTarget).
+		withID(block.ID)
 	reportBlock(t, f)
 }
 
@@ -275,6 +276,11 @@ func emptyFields() fields {
 func newFields() fields {
 	f := emptyFields()
 	f["node"] = rep.id
+	return f
+}
+
+func (f fields) withID(id proto.BlockID) fields {
+	f["block_id"] = id.String()
 	return f
 }
 
