@@ -61,10 +61,10 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	}
 	// target errors
 	var (
-		badRequestError = &BadRequestError{}
-		authError       = &AuthError{}
-		unknownError    = &apiErrs.UnknownError{}
-		apiError        = apiErrs.ApiError(nil)
+		badRequestError *BadRequestError
+		authError       *AuthError
+		unknownError    *apiErrs.UnknownError
+		apiError        apiErrs.ApiError
 		// check that all targets implement the error interface
 		_, _, _, _ = error(badRequestError), error(authError), error(unknownError), error(apiError)
 	)
