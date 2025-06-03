@@ -291,21 +291,10 @@ func (c *NodesClients) Handshake() {
 	c.ScalaClient.Connection.SendHandshake()
 }
 
-func compactAndSort(s []Implementation) []Implementation {
-	byteSlice := make([]byte, len(s))
-	for i := range s {
-		byteSlice[i] = byte(s[i])
-	}
-
-	slices.Sort(byteSlice)
-	compacted := slices.Compact(byteSlice)
-
-	result := make([]Implementation, len(compacted))
-	for i := range compacted {
-		result[i] = Implementation(compacted[i])
-	}
-
-	return result
+func deduplicateImplementations(s []Implementation) []Implementation {
+	c := slices.Clone(s)
+	slices.Sort(c)
+	return slices.Compact(c)
 }
 
 func (c *NodesClients) SendToScalaNode(t *testing.T, m proto.Message) {
@@ -321,15 +310,15 @@ func (c *NodesClients) SendToGoNode(t *testing.T, m proto.Message) {
 }
 
 func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, nodes []Implementation) {
-	resultNodes := compactAndSort(nodes)
-	for i := range resultNodes {
-		switch resultNodes[i].String() {
-		case "Go":
+	ns := deduplicateImplementations(nodes)
+	for i := range ns {
+		switch ns[i] {
+		case NodeGo:
 			c.SendToGoNode(t, m)
-		case "Scala":
+		case NodeScala:
 			c.SendToScalaNode(t, m)
 		default:
-			t.Fatalf("Node name is incorrect: %s", resultNodes[i].String())
+			t.Fatalf("Unexpected node implementation %d", ns[i])
 		}
 	}
 }
@@ -361,15 +350,15 @@ func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction,
 	var respGo, respScala *client.Response = nil, nil
 	var errBrdCstGo, errBrdCstScala error = nil, nil
 
-	resultNodes := compactAndSort(nodes)
-	for i := range resultNodes {
-		switch resultNodes[i].String() {
-		case "Go":
+	ns := deduplicateImplementations(nodes)
+	for i := range ns {
+		switch ns[i] {
+		case NodeGo:
 			respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
-		case "Scala":
+		case NodeScala:
 			respScala, errBrdCstScala = c.BroadcastToScalaNode(t, tx)
 		default:
-			t.Fatalf("Node name is incorrect: %s", resultNodes[i].String())
+			t.Fatalf("Unexpected node implementation %d", ns[i])
 		}
 	}
 
