@@ -259,8 +259,8 @@ func (d *blockDiffer) addBlockReward(diff txDiff, addr proto.AddressID, block *p
 		return errors.New("reward overflows int64")
 	}
 	c := newRewardsCalculator(d.settings, d.stor.features)
-	if err := c.applyToDiff(diff, addr, d.stor.hs.stateDB.rw.addingBlockHeight(), reward); err != nil {
-		return err
+	if applyErr := c.applyToDiff(diff, addr, d.stor.hs.stateDB.rw.addingBlockHeight(), reward); applyErr != nil {
+		return applyErr
 	}
 	d.appendBlockInfoToTxDiff(diff, block)
 	return nil
