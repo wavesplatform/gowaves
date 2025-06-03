@@ -125,7 +125,7 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 
 			aErr := NewNodeAPI(a, nil).WavesRegularBalanceByAddress(resp, req)
 			assert.Error(t, aErr)
-			assert.Equal(t, apiErrs.InvalidAddress, aErr)
+			assert.ErrorIs(t, aErr, apiErrs.InvalidAddress)
 		}
 
 		t.Run("empty-address", func(t *testing.T) {
