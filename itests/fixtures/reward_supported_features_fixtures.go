@@ -19,8 +19,8 @@ type RewardIncreaseDaoXtnSupportedSuite struct {
 	BaseSuite
 }
 
-func (suite *RewardIncreaseDaoXtnSupportedSuite) SetupSuite() {
-	suite.BaseSetup(
+func (suite *RewardIncreaseDaoXtnSupportedSuite) BlockchainOpts() []config.BlockchainOption {
+	return []config.BlockchainOption{
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesConfigFolder,
@@ -32,7 +32,11 @@ func (suite *RewardIncreaseDaoXtnSupportedSuite) SetupSuite() {
 			"7W_2miners_dao_xtn_increase.json",
 		),
 		config.WithQuorum(2),
-	)
+	}
+}
+
+func (suite *RewardIncreaseDaoXtnSupportedSuite) SetupSuite() {
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
 
 // 2 miners, dao, xtn, initR=600000000, increment = 1, desiredR = 600000000
@@ -486,8 +490,8 @@ type RewardDistributionRollbackBefore21Suite struct {
 	BaseSuite
 }
 
-func (suite *RewardDistributionRollbackBefore21Suite) SetupSuite() {
-	suite.BaseSetup(
+func (suite *RewardDistributionRollbackBefore21Suite) BlockchainOpts() []config.BlockchainOption {
+	return []config.BlockchainOption{
 		config.WithFeatureSettingFromFile(
 			rewardSettingsFolder,
 			supportedFeaturesWith21ConfigFolder,
@@ -498,5 +502,9 @@ func (suite *RewardDistributionRollbackBefore21Suite) SetupSuite() {
 			supportedFeaturesWith21ConfigFolder,
 			"6W_2miners_dao_xtn_increase.json",
 		),
-	)
+	}
+}
+
+func (suite *RewardDistributionRollbackBefore21Suite) SetupSuite() {
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
