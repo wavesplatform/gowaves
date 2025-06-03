@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/itests/utilities/reward"
 
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
@@ -38,6 +39,28 @@ func (suite *RewardDistributionIncreaseDaoXtnSupportedSuite) Test_NODE815() {
 func TestRewardDistributionIncreaseDaoXtnSupportedSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(RewardDistributionIncreaseDaoXtnSupportedSuite))
+}
+
+// RewardDistributionIncreaseDaoXtnSupportedNoScalaMiningSuite does the same checks
+// as RewardDistributionIncreaseDaoXtnSupportedSuite, but without Scala mining.
+//
+// This is needed to verify that the reward distribution logic works correctly when only the Go node can mine blocks.
+type RewardDistributionIncreaseDaoXtnSupportedNoScalaMiningSuite struct {
+	RewardDistributionIncreaseDaoXtnSupportedSuite
+}
+
+func (suite *RewardDistributionIncreaseDaoXtnSupportedNoScalaMiningSuite) BlockchainOpts() []config.BlockchainOption {
+	opts := suite.RewardDistributionIncreaseDaoXtnSupportedSuite.BlockchainOpts()
+	return append(opts, config.WithNoScalaMining())
+}
+
+func (suite *RewardDistributionIncreaseDaoXtnSupportedNoScalaMiningSuite) SetupSuite() {
+	suite.BaseSetup(suite.BlockchainOpts()...)
+}
+
+func TestRewardDistributionIncreaseDaoXtnSupportedNoScalaMiningSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(RewardDistributionIncreaseDaoXtnSupportedNoScalaMiningSuite))
 }
 
 type RewardDistributionUnchangedDaoXtnSupportedSuite struct {
