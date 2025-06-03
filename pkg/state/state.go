@@ -1943,13 +1943,8 @@ func (s *stateManager) processBlockInPack(
 	blockchainCurHeight uint64,
 	chans *verifierChans,
 ) error {
-	if badErr := s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight); badErr != nil {
+	if badErr := s.beforeAddingBlock(block, lastAppliedBlock, blockchainCurHeight, chans); badErr != nil {
 		return badErr
-	}
-	if err := s.blockVerifyTaskWithHeaderValidation(block, lastAppliedBlock, blockchainCurHeight, chans); err != nil {
-		return wrapErr(stateerr.ValidationError, errors.Wrapf(err,
-			"failed to validate block %s", block.BlockID().String(),
-		))
 	}
 	sh, errSh := s.stor.stateHashes.newestSnapshotStateHash(blockchainCurHeight)
 	if errSh != nil {
@@ -1993,7 +1988,33 @@ func (s *stateManager) processBlockInPack(
 	return nil
 }
 
-func (s *stateManager) beforeAddingBlock(block, lastAppliedBlock *proto.Block, blockchainCurHeight proto.Height) error {
+func (s *stateManager) beforeAddingBlock(
+	block, lastAppliedBlock *proto.Block,
+	blockchainCurHeight proto.Height,
+	chans *verifierChans,
+) error {
+	if err := s.initBlockAdditionWithHeightActions(block, lastAppliedBlock, blockchainCurHeight); err != nil {
+		return errors.Wrapf(err, "failed to init block addition with height actions for block %s",
+			block.BlockID().String(),
+		)
+	}
+	if err := s.generateAndSaveBlockHitSource(block, blockchainCurHeight); err != nil {
+		return errors.Wrapf(err, "failed to generate and save block hit source for block %s",
+			block.BlockID().String(),
+		)
+	}
+	if err := s.blockVerifyTaskWithHeaderValidation(block, lastAppliedBlock, blockchainCurHeight, chans); err != nil {
+		return wrapErr(stateerr.ValidationError, errors.Wrapf(err,
+			"failed to validate block %s before adding it", block.BlockID().String(),
+		))
+	}
+	return nil
+}
+
+func (s *stateManager) initBlockAdditionWithHeightActions(
+	block, lastAppliedBlock *proto.Block,
+	blockchainCurHeight proto.Height,
+) error {
 	// Assign unique block number for this block ID, add this number to the list of valid blocks.
 	if blErr := s.stateDB.addBlock(block.BlockID()); blErr != nil {
 		return wrapErr(stateerr.ModificationError, blErr)
@@ -2003,7 +2024,10 @@ func (s *stateManager) beforeAddingBlock(block, lastAppliedBlock *proto.Block, b
 	if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
 		return wrapErr(stateerr.ModificationError, err)
 	}
+	return nil
+}
 
+func (s *stateManager) generateAndSaveBlockHitSource(block *proto.Block, blockchainCurHeight proto.Height) error {
 	hs, err := s.cv.GenerateHitSource(blockchainCurHeight, block.BlockHeader)
 	if err != nil {
 		return err
@@ -2208,7 +2232,7 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 	}
 
 	defer s.reset() // Reset in-memory storages and temporary changes after snapshot hash creation.
-	if simErr := s.beforeAddingBlock(block, lastAppliedBlock, blockchainHeight); simErr != nil {
+	if simErr := s.initBlockAdditionWithHeightActions(block, lastAppliedBlock, blockchainHeight); simErr != nil {
 		return crypto.Digest{}, errors.Wrapf(simErr,
 			"failed to simulate before adding block for block %s at blockchain height %d, top block is %s",
 			block.BlockID().String(), blockchainHeight, lastAppliedBlock.BlockID().String(),
