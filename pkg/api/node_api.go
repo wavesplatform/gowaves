@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	stderrs "errors"
 	"fmt"
 	"io"
 	"net"
@@ -782,6 +783,27 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	}
 	if err := trySendJson(w, addresses); err != nil {
 		return errors.Wrap(err, "Addresses")
+	}
+	return nil
+}
+
+func (a *NodeApi) WavesRegularBalanceByAddress(w http.ResponseWriter, r *http.Request) error {
+	addrStr := chi.URLParam(r, "address")
+	addr, err := proto.NewAddressFromString(addrStr)
+	if err != nil {
+		return stderrs.Join(apiErrs.InvalidAddress, err)
+	}
+	if valid, vErr := addr.Valid(a.app.scheme()); !valid || vErr != nil {
+		return stderrs.Join(apiErrs.InvalidAddress, vErr)
+	}
+
+	balance, err := a.app.WavesRegularBalanceByAddress(addr)
+	if err != nil {
+		return errors.Wrap(err, "failed to get Waves regular balance by address")
+	}
+
+	if jsErr := trySendJson(w, balance); jsErr != nil {
+		return errors.Wrap(jsErr, "WavesRegularBalanceByAddress")
 	}
 	return nil
 }
