@@ -156,7 +156,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	if errHeight != nil {
 		return a, nil, a.Errorf(errHeight)
 	}
-	metrics.BlockReceived(block, peer.Handshake().NodeName, height)
+	metrics.BlockReceived(block, peer.Handshake().NodeName)
 
 	top := a.baseInfo.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
@@ -194,6 +194,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
+	metrics.BlockApplied(block, height)
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
@@ -285,11 +286,7 @@ func (a *NGState) mineMicro(
 	case err != nil:
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))
 	}
-	height, err := a.baseInfo.storage.Height()
-	if err != nil {
-		return a, nil, a.Errorf(errors.Wrap(err, "failed to get height"))
-	}
-	metrics.MicroBlockMined(micro, height)
+	metrics.MicroBlockMined(micro)
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er

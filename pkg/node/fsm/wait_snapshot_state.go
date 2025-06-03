@@ -121,7 +121,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		zap.S().Errorf("%v", a.Errorf(errors.Wrapf(err, "Failed to apply block %s", a.blockWaitingForSnapshot.BlockID())))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
-	metrics.BlockApplied(a.blockWaitingForSnapshot, height)
+	metrics.SnapshotBlockApplied(a.blockWaitingForSnapshot, height)
 	metrics.Utx(a.baseInfo.utx.Count())
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Handle received key block message: block '%s' applied to state",
 		a, blockID)

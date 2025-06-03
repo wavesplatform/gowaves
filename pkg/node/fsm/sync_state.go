@@ -167,12 +167,7 @@ func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error)
 	if !p.Equal(a.conf.peerSyncWith) {
 		return a, nil, nil
 	}
-
-	height, heightErr := a.baseInfo.storage.Height()
-	if heightErr != nil {
-		return nil, nil, a.Errorf(heightErr)
-	}
-	metrics.BlockReceived(block, p.Handshake().NodeName, height)
+	metrics.BlockReceivedFromExtension(block, p.Handshake().NodeName)
 	zap.S().Named(logging.FSMNamespace).Debugf("[Sync][%s] Received block %s", p.ID(), block.ID.String())
 
 	internal, err := a.internal.Block(block)
@@ -216,7 +211,7 @@ func (a *SyncState) MinedBlock(
 		zap.S().Warnf("[Sync] Failed to apply mined block: %v", err)
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
-	metrics.BlockApplied(block, height)
+	metrics.BlockAppliedFromExtension(block, height)
 	metrics.Utx(a.baseInfo.utx.Count())
 	a.baseInfo.scheduler.Reschedule()
 
@@ -284,12 +279,12 @@ func (a *SyncState) applyBlocksWithSnapshots(
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
 		}
 		for _, b := range blocks {
-			metrics.BlockDeclined(b)
+			metrics.BlockDeclinedFromExtension(b)
 		}
 		return newIdleState(a.baseInfo), nil, a.Errorf(err)
 	}
 	for _, b := range blocks {
-		metrics.BlockApplied(b, height)
+		metrics.BlockAppliedFromExtension(b, height)
 		metrics.Utx(a.baseInfo.utx.Count())
 		height++
 	}

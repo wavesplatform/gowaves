@@ -104,17 +104,17 @@ func MicroBlockApplied(mb *proto.MicroBlock) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withMicro().withEvent(eventApplied).withID(mb.TotalBlockID)
+	t := newTags().withMicro().withEvent(eventApplied).withID(mb.TotalBlockID).withParentID(mb.Reference)
 	f := newFields().withTransactionsCount(int(mb.TransactionCount))
 	reportBlock(t, f)
 }
 
-func BlockReceived(block *proto.Block, source string, height proto.Height) {
+func BlockReceived(block *proto.Block, source string) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventReceived).withID(block.ID).withBroadcast()
-	f := newFields().withHeight(height).withSourceNode(source).withBaseTarget(block.BaseTarget).withID(block.ID)
+	t := newTags().withBlock().withEvent(eventReceived).withID(block.ID).withBroadcast().withParentID(block.Parent)
+	f := newFields().withSourceNode(source).withBaseTarget(block.BaseTarget).withID(block.ID)
 	reportBlock(t, f)
 }
 
@@ -127,6 +127,7 @@ func BlockReceivedFromExtension(block *proto.Block, source string) {
 	reportBlock(t, f)
 }
 
+// BlockAppended TODO remove it?
 func BlockAppended(block *proto.Block, complexity int) {
 	if rep == nil {
 		return
@@ -140,7 +141,16 @@ func BlockApplied(block *proto.Block, height proto.Height) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withBroadcast()
+	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withParentID(block.Parent).withBroadcast()
+	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withID(block.ID)
+	reportBlock(t, f)
+}
+
+func SnapshotBlockApplied(block *proto.Block, height proto.Height) {
+	if rep == nil {
+		return
+	}
+	t := newTags().withSnapshot().withEvent(eventApplied).withID(block.ID).withParentID(block.Parent).withBroadcast()
 	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withID(block.ID)
 	reportBlock(t, f)
 }
@@ -149,7 +159,7 @@ func BlockDeclined(block *proto.Block) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withBroadcast().withID(block.ID)
+	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withParentID(block.Parent).withBroadcast()
 	f := newFields()
 	reportBlock(t, f)
 }
@@ -158,7 +168,7 @@ func BlockDeclinedFromExtension(block *proto.Block) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withExtension()
+	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withParentID(block.Parent).withExtension()
 	f := newFields()
 	reportBlock(t, f)
 }
@@ -167,7 +177,7 @@ func BlockAppliedFromExtension(block *proto.Block, height proto.Height) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withExtension()
+	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withParentID(block.Parent).withExtension()
 	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount)
 	reportBlock(t, f)
 }
@@ -182,12 +192,12 @@ func BlockMined(block *proto.Block, height proto.Height) {
 	reportBlock(t, f)
 }
 
-func MicroBlockMined(mb *proto.MicroBlock, height proto.Height) {
+func MicroBlockMined(mb *proto.MicroBlock) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventMined).withID(mb.TotalBlockID)
-	f := newFields().withHeight(height).withTransactionsCount(int(mb.TransactionCount))
+	t := newTags().withMicro().withEvent(eventMined).withID(mb.TotalBlockID).withParentID(mb.Reference)
+	f := newFields().withTransactionsCount(int(mb.TransactionCount))
 	reportBlock(t, f)
 }
 
@@ -254,6 +264,11 @@ func (t tags) withBlock() tags {
 
 func (t tags) withMicro() tags {
 	t["type"] = "Micro"
+	return t
+}
+
+func (t tags) withSnapshot() tags {
+	t["type"] = "Snapshot"
 	return t
 }
 
