@@ -5,6 +5,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/itests/utilities/reward"
 
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
@@ -154,4 +155,26 @@ func (suite *RewardDistributionAPIRollbackBeforeF21Suite) Test_NODE862() {
 func TestRewardDistributionAPIRollbackBeforeF21Suite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(RewardDistributionAPIRollbackBeforeF21Suite))
+}
+
+// RewardDistributionAPIRollbackBeforeF21NoScalaMiningSuite does the same checks
+// as RewardDistributionAPIRollbackBeforeF21Suite, but without Scala mining.
+//
+// This is needed to verify that the reward distribution logic works correctly when only the Go node can mine blocks.
+type RewardDistributionAPIRollbackBeforeF21NoScalaMiningSuite struct {
+	RewardDistributionAPIRollbackBeforeF21Suite
+}
+
+func (suite *RewardDistributionAPIRollbackBeforeF21NoScalaMiningSuite) BlockchainOpts() []config.BlockchainOption {
+	opts := suite.RewardDistributionAPIRollbackBeforeF21Suite.BlockchainOpts()
+	return append(opts, config.WithNoScalaMining())
+}
+
+func (suite *RewardDistributionAPIRollbackBeforeF21NoScalaMiningSuite) SetupSuite() {
+	suite.BaseSetup(suite.BlockchainOpts()...)
+}
+
+func TestRewardDistributionAPIRollbackBeforeF21NoScalaMiningSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(RewardDistributionAPIRollbackBeforeF21NoScalaMiningSuite))
 }
