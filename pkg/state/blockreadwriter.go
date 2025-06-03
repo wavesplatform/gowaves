@@ -848,6 +848,7 @@ func (rw *blockReadWriter) reset() {
 	rw.height2IDCache = make(map[uint64]proto.BlockID)
 	rw.blockHeight2IDBuf.Reset(rw.blockHeight2ID)
 	rw.blockInfo = make(map[proto.BlockID]blockMeta)
+	rw.addingBlock = false
 }
 
 func (rw *blockReadWriter) flush() error {
