@@ -200,7 +200,7 @@ func (a *SyncState) MinedBlock(
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
 	}
-	metrics.BlockMined(block, height)
+	metrics.BlockMined(block, height+1)
 	zap.S().Named(logging.FSMNamespace).Infof("[Sync] New block '%s' mined", block.ID.String())
 
 	_, err := a.baseInfo.blocksApplier.Apply(
@@ -211,7 +211,7 @@ func (a *SyncState) MinedBlock(
 		zap.S().Warnf("[Sync] Failed to apply mined block: %v", err)
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
-	metrics.BlockAppliedFromExtension(block, height)
+	metrics.BlockAppliedFromExtension(block, height+1)
 	metrics.Utx(a.baseInfo.utx.Count())
 	a.baseInfo.scheduler.Reschedule()
 
@@ -284,7 +284,7 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		return newIdleState(a.baseInfo), nil, a.Errorf(err)
 	}
 	for _, b := range blocks {
-		metrics.BlockAppliedFromExtension(b, height)
+		metrics.BlockAppliedFromExtension(b, height+1)
 		metrics.Utx(a.baseInfo.utx.Count())
 		height++
 	}
