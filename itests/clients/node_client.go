@@ -4,9 +4,12 @@ import (
 	"context"
 	stderrs "errors"
 	"maps"
+	"slices"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/client"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
@@ -288,15 +291,78 @@ func (c *NodesClients) Handshake() {
 	c.ScalaClient.Connection.SendHandshake()
 }
 
-func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, scala bool) {
+func deduplicateImplementations(s []Implementation) []Implementation {
+	c := slices.Clone(s)
+	slices.Sort(c)
+	return slices.Compact(c)
+}
+
+func (c *NodesClients) SendToScalaNode(t *testing.T, m proto.Message) {
+	t.Logf("Sending message to Scala node: %T", m)
+	c.ScalaClient.Connection.SendMessage(m)
+	t.Log("Message sent to Scala node")
+}
+
+func (c *NodesClients) SendToGoNode(t *testing.T, m proto.Message) {
 	t.Logf("Sending message to Go node: %T", m)
 	c.GoClient.Connection.SendMessage(m)
 	t.Log("Message sent to Go node")
-	if scala {
-		t.Logf("Sending message to Scala node: %T", m)
-		c.ScalaClient.Connection.SendMessage(m)
-		t.Log("Message sent to Scala node")
+}
+
+func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, nodes []Implementation) {
+	ns := deduplicateImplementations(nodes)
+	for i := range ns {
+		switch ns[i] {
+		case NodeGo:
+			c.SendToGoNode(t, m)
+		case NodeScala:
+			c.SendToScalaNode(t, m)
+		default:
+			t.Fatalf("Unexpected node implementation %d", ns[i])
+		}
 	}
+}
+
+func (c *NodesClients) BroadcastToGoNode(t *testing.T, tx proto.Transaction) (*client.Response, error) {
+	t.Logf("Broadcasting transaction to Go node: %T", tx)
+	respGo, errBrdCstGo := c.GoClient.HTTPClient.TransactionBroadcast(tx)
+	if errBrdCstGo != nil {
+		t.Logf("Error while broadcasting transaction to Go node: %v", errBrdCstGo)
+	} else {
+		t.Logf("Transaction was successfully Broadcast to Go node")
+	}
+	return respGo, errBrdCstGo
+}
+
+func (c *NodesClients) BroadcastToScalaNode(t *testing.T, tx proto.Transaction) (*client.Response, error) {
+	t.Logf("Broadcasting transaction to Scala node: %T", tx)
+	respScala, errBrdCstScala := c.ScalaClient.HTTPClient.TransactionBroadcast(tx)
+	if errBrdCstScala != nil {
+		t.Logf("Error while broadcasting transaction to Scala node: %v", errBrdCstScala)
+	} else {
+		t.Logf("Transaction was successfully Broadcast to Scala node")
+	}
+	return respScala, errBrdCstScala
+}
+
+func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction,
+	nodes []Implementation) (*client.Response, error, *client.Response, error) {
+	var respGo, respScala *client.Response = nil, nil
+	var errBrdCstGo, errBrdCstScala error = nil, nil
+
+	ns := deduplicateImplementations(nodes)
+	for i := range ns {
+		switch ns[i] {
+		case NodeGo:
+			respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
+		case NodeScala:
+			respScala, errBrdCstScala = c.BroadcastToScalaNode(t, tx)
+		default:
+			t.Fatalf("Unexpected node implementation %d", ns[i])
+		}
+	}
+
+	return respGo, errBrdCstGo, respScala, errBrdCstScala
 }
 
 func (c *NodesClients) Close(t *testing.T) {

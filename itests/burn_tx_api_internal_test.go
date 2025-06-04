@@ -19,11 +19,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type BurnTxApiSuite struct {
+type BurnTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
+func (suite *BurnTxAPIPositiveSuite) Test_BurnTxAPIPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -41,7 +41,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
+func (suite *BurnTxAPIPositiveSuite) Test_BurnTxAPIAssetWithMaxAvailableFeePositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -61,7 +61,7 @@ func (suite *BurnTxSuite) Test_BurnTxApiAssetWithMaxAvailableFee() {
 	}
 }
 
-func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
+func (suite *BurnTxAPIPositiveSuite) Test_BurnNFTFromOwnerAccountAPIPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
@@ -91,7 +91,16 @@ func (suite *BurnTxApiSuite) Test_BurnNFTFromOwnerAccountApiPositive() {
 	}
 }
 
-func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
+func TestBurnTxAPIPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(BurnTxAPIPositiveSuite))
+}
+
+type BurnTxAPINegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *BurnTxAPINegativeSuite) Test_BurnTxAPINegative() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -117,7 +126,7 @@ func (suite *BurnTxApiSuite) Test_BurnTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestBurnTxApiSuite(t *testing.T) {
+func TestBurnTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(BurnTxApiSuite))
+	suite.Run(t, new(BurnTxAPINegativeSuite))
 }

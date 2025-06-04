@@ -688,23 +688,9 @@ func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transactio
 
 }
 
-func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme,
-	waitForTx bool) ConsideredTransaction {
-	timeout := DefaultInitialTimeout
-	id := ExtractTxID(suite.T(), tx, scheme)
-	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
-	if waitForTx {
-		timeout = DefaultWaitTimeout
-	}
-	scala := !waitForTx
-
-	suite.Clients.SendToNodes(suite.T(), txMsg, scala)
-	suite.T().Log("Tx msg was successfully send to nodes")
-
-	suite.T().Log("Waiting for Tx appears in Blockchain")
-	errGo, errScala := suite.Clients.WaitForTransaction(id, timeout)
-	if errGo != nil {
-		suite.T().Log(errors.Errorf("Errors after waiting: %s", errGo))
+func GetTransactionInfoAfterWaitingGo(suite *f.BaseSuite, id crypto.Digest, errWtGo error) {
+	if errWtGo != nil {
+		suite.T().Log(errors.Errorf("Go Errors after waiting: %s", errWtGo))
 	} else {
 		txInfoRawGo, respGo, goRqErr := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(id)
 		if goRqErr != nil {
@@ -714,8 +700,11 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 				GetTransactionJsonOrErrMsg(txInfoRawGo), respGo.Status)
 		}
 	}
-	if errScala != nil {
-		suite.T().Log(errors.Errorf("Errors after waiting: %s", errScala))
+}
+
+func GetTransactionInfoAfterWaitingScala(suite *f.BaseSuite, id crypto.Digest, errWtScala error) {
+	if errWtScala != nil {
+		suite.T().Log(errors.Errorf("Scala Errors after waiting: %s", errWtScala))
 	} else {
 		txInfoRawScala, respScala, scalaRqErr := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(id)
 		if scalaRqErr != nil {
@@ -725,46 +714,47 @@ func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme pro
 				GetTransactionJsonOrErrMsg(txInfoRawScala), respScala.Status)
 		}
 	}
-	return NewConsideredTransaction(id, nil, nil, errGo, errScala, nil, nil)
+}
+
+func SendAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction, scheme proto.Scheme,
+	waitForTx bool) ConsideredTransaction {
+	timeout := DefaultInitialTimeout
+	id := ExtractTxID(suite.T(), tx, scheme)
+	txMsg := MarshalTxAndGetTxMsg(suite.T(), scheme, tx)
+	if waitForTx {
+		timeout = DefaultWaitTimeout
+	}
+
+	suite.Clients.SendToNodes(suite.T(), txMsg, suite.SendToNodes)
+	suite.T().Log("Tx msg was successfully send to nodes")
+
+	suite.T().Log("Waiting for Tx appears in Blockchain")
+	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
+
+	GetTransactionInfoAfterWaitingGo(suite, id, errWtGo)
+	GetTransactionInfoAfterWaitingScala(suite, id, errWtScala)
+
+	return NewConsideredTransaction(id, nil, nil, errWtGo, errWtScala, nil, nil)
 }
 
 func BroadcastAndWaitTransaction(suite *f.BaseSuite, tx proto.Transaction,
 	scheme proto.Scheme, waitForTx bool) ConsideredTransaction {
-	timeout := DefaultWaitTimeout
+	timeout := DefaultInitialTimeout
 	id := ExtractTxID(suite.T(), tx, scheme)
-	respGo, errBrdCstGo := suite.Clients.GoClient.HTTPClient.TransactionBroadcast(tx)
-	var respScala *client.Response = nil
-	var errBrdCstScala error = nil
-	if !waitForTx {
-		timeout = DefaultInitialTimeout
-		respScala, errBrdCstScala = suite.Clients.ScalaClient.HTTPClient.TransactionBroadcast(tx)
+	if waitForTx {
+		timeout = DefaultWaitTimeout
 	}
-	suite.T().Log("Tx msg was successfully Broadcast to nodes")
+
+	respGo, errBrdCstGo, respScala, errBrdCstScala := suite.Clients.BroadcastToNodes(suite.T(), tx,
+		suite.SendToNodes)
+	suite.T().Log("Tx was successfully broadcast to nodes")
 
 	suite.T().Log("Waiting for Tx appears in Blockchain")
 	errWtGo, errWtScala := suite.Clients.WaitForTransaction(id, timeout)
-	if errWtGo != nil {
-		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtGo))
-	} else {
-		txInfoRawGo, responseGo, goRqErr := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(id)
-		if goRqErr != nil {
-			suite.T().Logf("Error on requesting Tx Info Go: %v", goRqErr)
-		} else {
-			suite.T().Logf("Tx Info Go after waiting: %s, Response Go: %s",
-				GetTransactionJsonOrErrMsg(txInfoRawGo), responseGo.Status)
-		}
-	}
-	if errWtScala != nil {
-		suite.T().Log(errors.Errorf("Errors after waiting: %s", errWtScala))
-	} else {
-		txInfoRawScala, responseScala, scalaRqErr := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(id)
-		if scalaRqErr != nil {
-			suite.T().Logf("Error on requesting Tx Info Scals: %v", scalaRqErr)
-		} else {
-			suite.T().Logf("Tx Info Scala after waiting: %s, Response Scala: %s",
-				GetTransactionJsonOrErrMsg(txInfoRawScala), responseScala.Status)
-		}
-	}
+
+	GetTransactionInfoAfterWaitingGo(suite, id, errWtGo)
+	GetTransactionInfoAfterWaitingScala(suite, id, errWtScala)
+
 	return NewConsideredTransaction(id, respGo, respScala, errWtGo, errWtScala, errBrdCstGo, errBrdCstScala)
 }
 
