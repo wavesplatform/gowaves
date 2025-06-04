@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type TransferWithSponsorshipTxSuite struct {
+type TransferWithSponsorshipTxPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipPositive() {
+func (suite *TransferWithSponsorshipTxPositiveSuite) TestTransferWithSponsorshipPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Sponsor creates a new token.
@@ -54,7 +54,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipPositive
 	}
 }
 
-func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipToOneselfPositive() {
+func (suite *TransferWithSponsorshipTxPositiveSuite) TestTransferWithSponsorshipToOneselfPositive() {
 	waitForTx := true
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
@@ -87,7 +87,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipToOnesel
 	}
 }
 
-func (suite *TransferWithSponsorshipTxSuite) TestFeeInWavesAccordingMinSponsoredAssetPositive() {
+func (suite *TransferWithSponsorshipTxPositiveSuite) TestFeeInWavesAccordingMinSponsoredAssetPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Sponsor creates a new token.
@@ -122,7 +122,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestFeeInWavesAccordingMinSponsored
 	}
 }
 
-func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipMaxValuesPositive() {
+func (suite *TransferWithSponsorshipTxPositiveSuite) TestTransferWithSponsorshipMaxValuesPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		// Fill Sponsor's Waves balance.
@@ -159,7 +159,16 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipMaxValue
 	}
 }
 
-func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative() {
+func TestTransferWithSponsorshipTxPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(TransferWithSponsorshipTxPositiveSuite))
+}
+
+type TransferWithSponsorshipTxNegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *TransferWithSponsorshipTxNegativeSuite) TestTransferWithSponsorshipNegative() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -199,7 +208,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestTransferWithSponsorshipNegative
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *TransferWithSponsorshipTxSuite) TestSponsoredTransferFeeNegative() {
+func (suite *TransferWithSponsorshipTxNegativeSuite) TestSponsoredTransferFeeNegative() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	waitForTx := true
 	txIds := make(map[string]*crypto.Digest)
@@ -239,7 +248,7 @@ func (suite *TransferWithSponsorshipTxSuite) TestSponsoredTransferFeeNegative() 
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestTransferWithSponsorshipTxSuite(t *testing.T) {
+func TestTransferWithSponsorshipTxNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(TransferWithSponsorshipTxSuite))
+	suite.Run(t, new(TransferWithSponsorshipTxNegativeSuite))
 }

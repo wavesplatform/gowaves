@@ -10,7 +10,10 @@
     {"feature": 4, "height": 1},
     {"feature": 5, "height": 1},
     {"feature": 6, "height": 1},
-    {"feature": 7, "height": 1},
+    {
+      "feature": 7,
+      "height": 0
+    },
     {"feature": 8, "height": 1},
     {"feature": 9, "height": 1},
     {"feature": 10, "height": 1},
