@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type SetAssetScriptApiSuite struct {
+type SetAssetScriptAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
+func (suite *SetAssetScriptAPIPositiveSuite) Test_SetAssetScriptAPIPositive() {
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		smartAsset := testdata.GetCommonIssueData(&suite.BaseSuite).Smart
@@ -40,7 +40,16 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiPositive() {
 	}
 }
 
-func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
+func TestSetAssetScriptAPIPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(SetAssetScriptAPIPositiveSuite))
+}
+
+type SetAssetScriptAPINegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *SetAssetScriptAPINegativeSuite) Test_SetAssetScriptAPINegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -65,7 +74,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetAssetScriptApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegative() {
+func (suite *SetAssetScriptAPINegativeSuite) Test_SetScriptForNotScriptedAssetAPINegative() {
 	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
 	versions := setassetscript.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
@@ -89,7 +98,7 @@ func (suite *SetAssetScriptApiSuite) Test_SetScriptForNotScriptedAssetApiNegativ
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestSetAssetScriptApiSuite(t *testing.T) {
+func TestSetAssetScriptAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SetAssetScriptApiSuite))
+	suite.Run(t, new(SetAssetScriptAPINegativeSuite))
 }
