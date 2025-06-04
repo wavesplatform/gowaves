@@ -18,11 +18,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type BurnTxSuite struct {
+type BurnTxPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *BurnTxSuite) Test_BurnTxPositive() {
+func (suite *BurnTxPositiveSuite) Test_BurnTxPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -40,7 +40,7 @@ func (suite *BurnTxSuite) Test_BurnTxPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
+func (suite *BurnTxPositiveSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -60,7 +60,7 @@ func (suite *BurnTxSuite) Test_BurnTxAssetWithMaxAvailableFeePositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
+func (suite *BurnTxPositiveSuite) Test_BurnNFTFromOwnerAccountPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
@@ -88,7 +88,16 @@ func (suite *BurnTxSuite) Test_BurnNFTFromOwnerAccountPositive() {
 	}
 }
 
-func (suite *BurnTxSuite) Test_BurnTxNegative() {
+func TestBurnTxPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(BurnTxPositiveSuite))
+}
+
+type BurnTxNegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *BurnTxNegativeSuite) Test_BurnTxNegative() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -114,7 +123,7 @@ func (suite *BurnTxSuite) Test_BurnTxNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestBurnTxSuite(t *testing.T) {
+func TestBurnTxNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(BurnTxSuite))
+	suite.Run(t, new(BurnTxNegativeSuite))
 }
