@@ -13,6 +13,11 @@ const (
 	chSizeInLightMode = defaultChSize * 2
 )
 
+const (
+	parentChSize            = 10000
+	parentChSizeInLightMode = parentChSize * 2
+)
+
 type Remote struct {
 	ToCh   chan []byte
 	FromCh chan *bytebufferpool.ByteBuffer
@@ -34,10 +39,10 @@ type Parent struct {
 }
 
 func NewParent(enableLightNode bool) Parent {
-	messageChSize := defaultChSize
+	messageChSize := parentChSize
 	if enableLightNode {
 		// because in light node we send block and snapshot request messages
-		messageChSize = chSizeInLightMode
+		messageChSize = parentChSizeInLightMode
 	}
 	return Parent{
 		MessageCh:       make(chan ProtoMessage, messageChSize),
