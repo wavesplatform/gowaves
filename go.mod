@@ -5,7 +5,7 @@ go 1.23.0
 require (
 	filippo.io/edwards25519 v1.1.0
 	github.com/beevik/ntp v1.4.3
-	github.com/btcsuite/btcd/btcec/v2 v2.3.4
+	github.com/btcsuite/btcd/btcec/v2 v2.3.5
 	github.com/ccoveille/go-safecast v1.6.1
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
