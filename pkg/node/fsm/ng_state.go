@@ -194,7 +194,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
-	metrics.BlockApplied(block, height)
+	metrics.BlockApplied(block, height+1)
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
@@ -219,7 +219,7 @@ func (a *NGState) MinedBlock(
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
 	}
-	metrics.BlockMined(block, height)
+	metrics.BlockMined(block, height+1)
 	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.baseInfo.blocksApplier.Apply(
@@ -233,7 +233,7 @@ func (a *NGState) MinedBlock(
 		metrics.BlockDeclined(block)
 		return a, nil, a.Errorf(err)
 	}
-	metrics.BlockApplied(block, height)
+	metrics.BlockApplied(block, height+1)
 	metrics.Utx(a.baseInfo.utx.Count())
 	zap.S().Infof("[%s] Generated key block '%s' successfully applied to state", a, block.ID.String())
 
