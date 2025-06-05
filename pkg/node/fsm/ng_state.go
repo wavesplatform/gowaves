@@ -203,6 +203,14 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 func (a *NGState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
+	// Defer rescheduling to the end of the function to ensure that
+	// the scheduler is rescheduled even if an error occurs.
+	//
+	// For example, an error may occur when applying a scheduled block after a rollback.
+	// Without this deferred call, the scheduler would not be rescheduled,
+	// and the next block would not be generated without an external trigger.
+	defer a.baseInfo.scheduler.Reschedule()
+
 	metrics.FSMKeyBlockGenerated("ng", block)
 	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
@@ -222,7 +230,6 @@ func (a *NGState) MinedBlock(
 
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
-	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()

@@ -16,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type SponsorshipTxApiSuite struct {
+type SponsorshipTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
+func (suite *SponsorshipTxAPIPositiveSuite) TestSponsorshipTxAPIPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
@@ -39,7 +39,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiPositive() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
+func (suite *SponsorshipTxAPIPositiveSuite) TestSponsorshipTxAPIMaxValuesPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -62,7 +62,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiMaxValues() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
+func (suite *SponsorshipTxAPIPositiveSuite) TestSponsorshipDisabledTxAPIPositive() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	name := "Sponsorship Enabled/Disabled"
 	for _, v := range versions {
@@ -71,7 +71,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
 		sponsorshipData := testdata.GetSponsorshipEnabledDisabledData(&suite.BaseSuite, itx.TxID)
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
-			//switch on sponsorship
+			// switch on sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 				sponsorship.BroadcastSponsorshipTxAndGetBalances(&suite.BaseSuite, sponsorshipData.Enabled,
 					v, true)
@@ -79,7 +79,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
 			sponsorship.PositiveAPIChecks(suite.T(), tx, sponsorshipData.Enabled, actualDiffBalanceInWaves,
 				actualDiffBalanceInAsset, errMsg)
 
-			//switch off sponsorship
+			// switch off sponsorship
 			tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset =
 				sponsorship.BroadcastSponsorshipTxAndGetBalances(&suite.BaseSuite, sponsorshipData.Disabled,
 					v, true)
@@ -90,7 +90,16 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipDisabledTxApi() {
 	}
 }
 
-func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
+func TestSponsorshipTxAPIPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(SponsorshipTxAPIPositiveSuite))
+}
+
+type SponsorshipTxAPINegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *SponsorshipTxAPINegativeSuite) TestSponsorshipTxAPINegative() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -113,7 +122,7 @@ func (suite *SponsorshipTxApiSuite) TestSponsorshipTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
+func (suite *SponsorshipTxAPINegativeSuite) Test_SponsorshipForSmartAssetAPINegative() {
 	versions := sponsorship.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -135,7 +144,7 @@ func (suite *SponsorshipTxApiSuite) Test_SponsorshipForSmartAssetApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestSponsorshipTxApiSuite(t *testing.T) {
+func TestSponsorshipTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(SponsorshipTxApiSuite))
+	suite.Run(t, new(SponsorshipTxAPINegativeSuite))
 }
