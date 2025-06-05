@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrs "errors"
 	"maps"
+	"net"
 	"slices"
 	"sync"
 	"testing"
@@ -30,18 +31,22 @@ type NodesClients struct {
 	ScalaClient *NodeUniversalClient
 }
 
-func NewNodesClients(ctx context.Context, t *testing.T, goPorts, scalaPorts *d.PortConfig) *NodesClients {
-	sp, err := proto.NewPeerInfoFromString(config.DefaultIP + ":" + scalaPorts.BindPort)
+func NewNodesClients(
+	ctx context.Context, t *testing.T, goIP, scalaIP string, goPorts, scalaPorts *d.PortConfig,
+) *NodesClients {
+	sp, err := proto.NewPeerInfoFromString(net.JoinHostPort(scalaIP, scalaPorts.BindPort))
 	require.NoError(t, err, "failed to create Scala peer info")
-	gp, err := proto.NewPeerInfoFromString(config.DefaultIP + ":" + goPorts.BindPort)
+	gp, err := proto.NewPeerInfoFromString(net.JoinHostPort(goIP, goPorts.BindPort))
 	require.NoError(t, err, "failed to create Go peer info")
 	peers := []proto.PeerInfo{sp, gp}
+	goNetAddress := net.JoinHostPort(config.DefaultIP, goPorts.BindPort)
+	scalaNetAddress := net.JoinHostPort(config.DefaultIP, scalaPorts.BindPort)
 	return &NodesClients{
 		GoClient: NewNodeUniversalClient(
-			ctx, t, NodeGo, goPorts.RESTAPIPort, goPorts.GRPCPort, goPorts.BindPort, peers,
+			ctx, t, NodeGo, goPorts.RESTAPIPort, goPorts.GRPCPort, goNetAddress, peers,
 		),
 		ScalaClient: NewNodeUniversalClient(
-			ctx, t, NodeScala, scalaPorts.RESTAPIPort, scalaPorts.GRPCPort, scalaPorts.BindPort, peers,
+			ctx, t, NodeScala, scalaPorts.RESTAPIPort, scalaPorts.GRPCPort, scalaNetAddress, peers,
 		),
 	}
 }
@@ -67,8 +72,7 @@ func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) (*proto.StateHa
 // Returns the height that was *before* generation of new block.
 func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
 	initialHeight := c.ScalaClient.HTTPClient.GetHeight(t).Height
-	c.WaitForHeight(t, initialHeight+1)
-	return initialHeight
+	return c.WaitForHeight(t, initialHeight+1)
 }
 
 // WaitForHeight waits for nodes to get on given height. Exits if nodes' height already equal or greater than requested.
@@ -81,29 +85,39 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
 	defer cancel()
 
-	g, _ := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		for {
+		for gCtx.Err() == nil {
 			hg = c.GoClient.HTTPClient.GetHeight(t).Height
 			if hg >= height {
-				break
+				return nil
 			}
-			time.Sleep(time.Second * 1)
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			case <-time.After(time.Second):
+				// Sleep for a second before checking the height again.
+			}
 		}
-		return nil
+		return gCtx.Err()
 	})
 	g.Go(func() error {
-		for {
+		for gCtx.Err() == nil {
 			hs = c.ScalaClient.HTTPClient.GetHeight(t).Height
 			if hs >= height {
-				break
+				return nil
 			}
-			time.Sleep(time.Second * 1)
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			case <-time.After(time.Second):
+				// Sleep for a second before checking the height again.
+			}
 		}
-		return nil
+		return gCtx.Err()
 	})
 	// Wait for both goroutines to finish.
-	if err := g.Wait(); err != nil {
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
 		t.Logf("Error while waiting for height: %v", err)
 	}
 	return min(hg, hs)
@@ -115,7 +129,7 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		goStateHash    *proto.StateHash
 		scalaStateHash *proto.StateHash
 	)
-	h := c.WaitForNewHeight(t)
+	h := c.WaitForNewHeight(t) - 1 // Check state hash at the previous height.
 	for i := 0; i < 3; i++ {
 		if goStateHash, scalaStateHash, equal = c.StateHashCmp(t, h); equal {
 			break
