@@ -313,7 +313,7 @@ func (s *InvokeScriptComplexitySuite) SetupSubTest() {
 
 func (s *InvokeScriptComplexitySuite) Test_InvokeDAppComplexity() {
 	for _, version := range s.Versions {
-		s.Run("check invoke dApp from dApp", func() {
+		s.Run("check dApp with max complexity", func() {
 			testData := testdata.GetInvokeScriptMaxComplexityTestData(&s.BaseSuite, s.DApp)
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
