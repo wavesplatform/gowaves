@@ -1,16 +1,17 @@
 package utxpool
 
 import (
+	"bytes"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
-	"go.uber.org/zap"
 )
 
 type Cleaner struct {
-	inner      BulkValidator
-	lastHeight proto.Height
-	state      stateWrapper
+	inner       BulkValidator
+	lastBlockID proto.BlockID
+	state       stateWrapper
 }
 
 func NewCleaner(state state.State, pool types.UtxPool, tm types.Time) *Cleaner {
@@ -29,15 +30,10 @@ func (a *Cleaner) Clean() {
 }
 
 func (a *Cleaner) work() {
-	height, err := a.state.Height()
-	if err != nil {
-		zap.S().Debug(err)
-		return
-	}
-
-	if height != a.lastHeight {
+	block := a.state.TopBlock()
+	if !bytes.Equal(block.ID.Bytes(), a.lastBlockID.Bytes()) {
 		a.inner.Validate()
-		a.lastHeight = height
+		a.lastBlockID = block.ID
 	}
 }
 
