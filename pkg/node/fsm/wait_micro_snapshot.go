@@ -199,6 +199,7 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.FSMMicroBlockApplied("ng", micro)
+	a.baseInfo.CleanUtx()
 	return newBlock, nil
 }
 
