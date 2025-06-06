@@ -10,12 +10,14 @@ type Handler interface {
 	// OnHandshake fired on new successful Handshake received.
 	OnHandshake(*Session, Handshake)
 
-	// OnHandshakeFailed fired on failed Handshake received.
+	// OnHandshakeFailed fired on unacceptable Handshake received.
 	OnHandshakeFailed(*Session, Handshake)
 
 	// OnClose fired on Session closed.
+	// This handler is a good place to clean up resources associated with the session and close it.
 	OnClose(*Session)
 
 	// OnFailure fired on Session failure.
+	// This handler is a good place to clean up resources associated with the session and close it.
 	OnFailure(*Session, error)
 }
