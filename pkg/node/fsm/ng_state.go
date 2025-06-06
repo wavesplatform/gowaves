@@ -298,6 +298,7 @@ func (a *NGState) mineMicro(
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
 	metrics.FSMMicroBlockApplied("ng", micro)
+	a.baseInfo.CleanUtx()
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
 		block.BlockID(),
@@ -380,6 +381,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.FSMMicroBlockApplied("ng", micro)
+	a.baseInfo.CleanUtx()
 	return newBlock, nil
 }
 
