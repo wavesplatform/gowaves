@@ -195,6 +195,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
 	metrics.BlockApplied(block, height+1)
+	metrics.Utx(a.baseInfo.utx.Count())
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
@@ -307,8 +308,8 @@ func (a *NGState) mineMicro(
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
 	metrics.MicroBlockApplied(micro)
-	a.baseInfo.CleanUtx()
 	metrics.Utx(a.baseInfo.utx.Count())
+	a.baseInfo.CleanUtx()
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
 		block.BlockID(),
@@ -391,8 +392,8 @@ func (a *NGState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.MicroBlockApplied(micro)
-	a.baseInfo.CleanUtx()
 	metrics.Utx(a.baseInfo.utx.Count())
+	a.baseInfo.CleanUtx()
 	return newBlock, nil
 }
 
