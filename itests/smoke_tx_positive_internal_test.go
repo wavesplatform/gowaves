@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/suite"
+
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -260,7 +262,8 @@ func (suite *SmokeTxPositiveSuite) TestUpdateAssetInfoTxReissuableTokenSmokePosi
 	tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, assets)
 	//***wait n blocks***
 	blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-	utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+	utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+		config.WaitWithTimeoutInBlocks(blocksToWait))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
@@ -280,7 +283,8 @@ func (suite *SmokeTxPositiveSuite) TestUpdateAssetInfoTxNFTSmokePositive() {
 	tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, nft)
 	//***wait n blocks***
 	blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-	utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+	utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+		config.WaitWithTimeoutInBlocks(blocksToWait))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
@@ -300,7 +304,8 @@ func (suite *SmokeTxPositiveSuite) TestUpdateAssetInfoTxSmartAssetSmokePositive(
 	tdmatrix := testdata.GetUpdateSmartAssetInfoPositiveDataMatrix(&suite.BaseSuite, smart)
 	//***wait n blocks***
 	blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-	utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+	utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+		config.WaitWithTimeoutInBlocks(blocksToWait))
 	for name, td := range tdmatrix {
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {

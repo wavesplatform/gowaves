@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -146,7 +147,8 @@ func getAssetsMatrix(suite *f.BaseSuite, data testdata.IssueTestData[testdata.Ex
 			txIds[name] = &itx.TxID
 		}
 	}
-	utl.GetTxIdsInBlockchain(suite, txIds)
+	actualTxIDs := utl.GetTxIdsInBlockchain(suite, txIds)
+	suite.Lenf(actualTxIDs, len(txIds)*2, "IDs: %#v", actualTxIDs)
 	return matrix
 }
 

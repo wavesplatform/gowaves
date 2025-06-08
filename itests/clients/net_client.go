@@ -118,25 +118,26 @@ func (c *NetClient) SendMessage(m proto.Message) {
 		//TODO: It is possible now to detect if the peer closed the connection during the write.
 		// We can use this to check for expected disconnects, for example,
 		// when we send a malformed transactions to a node.
-		c.t.Logf("Failed to send message of type %T to %s node at %q: %v",
-			m, c.impl.String(), c.s.RemoteAddr(), err)
+		c.t.Logf("[%s] Failed to send message of type %T to %s node at %q: %v",
+			time.Now().Format(time.RFC3339Nano), m, c.impl.String(), c.s.RemoteAddr(), err)
 	}
 }
 
 func (c *NetClient) Close() {
-	c.t.Logf("[%s] NetClient Close called", time.Now().Format(time.RFC3339Nano))
 	if c.closed.CompareAndSwap(false, true) {
-		c.t.Logf("[%s] Cancelling NetClient context for %s node at %q", time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr())
+		c.t.Logf("[%s] Closing NetClient to %s node at %q",
+			time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr())
 		c.cancel()
-		c.t.Logf("[%s] Closing connection to %s node at %q", time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String())
 		err := c.s.Close()
 		require.NoError(c.t, err, "failed to close session to %s node at %q", c.impl.String(), c.s.RemoteAddr())
 		c.h.close()
 		c.t.Logf("[%s] Waiting to watch loop to finish", time.Now().Format(time.RFC3339Nano))
 		if wErr := c.tg.Wait(); wErr != nil {
-			c.t.Logf("[%s] Waiting for the session to close finished with error: %v", time.Now().Format(time.RFC3339Nano), wErr)
+			c.t.Logf("[%s] Watch loop of NetClient to %s node at %q finished with error: %v",
+				time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr(), wErr)
 		}
-		c.t.Logf("[%s] Watch loop terminated", time.Now().Format(time.RFC3339Nano))
+		c.t.Logf("[%s] Closed NetClient to %s node at %q",
+			time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr())
 	}
 }
 
@@ -232,14 +233,14 @@ func (c *NetClient) watch() error {
 }
 
 func (c *NetClient) reconnect() {
-	c.t.Logf("[%s] Reconnecting to node", time.Now().Format(time.RFC3339Nano))
+	c.t.Logf("[%s] Reconnecting to %s node at %q",
+		time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String())
 	if c.closed.Load() {
-		c.t.Logf("[%s] Connection is closing, skipping reconnection", time.Now().Format(time.RFC3339Nano))
 		return
 	}
-	c.t.Logf("[%s] Closing session to %s node at %q", time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String())
 	if clErr := c.s.Close(); clErr != nil {
-		c.t.Logf("Failed to close session %s node at %q: %v", c.impl.String(), c.s.RemoteAddr().String(), clErr)
+		c.t.Logf("[%s] Failed to close session to %s node at %q: %v",
+			time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String(), clErr)
 	}
 	c.t.Logf("[%s] Reconnecting to %q", time.Now().Format(time.RFC3339Nano), c.s.RemoteAddr().String())
 	conn, err := net.Dial("tcp", c.s.RemoteAddr().String())
@@ -247,14 +248,11 @@ func (c *NetClient) reconnect() {
 		c.impl.String(), c.s.RemoteAddr().String())
 
 	s, err := c.n.NewSession(c.ctx, conn, c.c)
-	require.NoError(c.t, err, "failed to re-establish the session to %s node at %q",
-		c.impl.String(), s.RemoteAddr().String())
+	require.NoError(c.t, err, "failed to re-establish the session to %s node", c.impl.String())
 	c.s = s
-	c.t.Logf("[%s] Reconnected to node at %q", time.Now().Format(time.RFC3339Nano), c.s.RemoteAddr().String())
-
-	c.t.Logf("[%s] Sending handshake to node at %q", time.Now().Format(time.RFC3339Nano), c.s.RemoteAddr().String())
+	c.t.Logf("[%s] Reconnected to node %s at %q",
+		time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String())
 	c.SendHandshake()
-	c.t.Logf("[%s] Handshake sent to node at %q", time.Now().Format(time.RFC3339Nano), c.s.RemoteAddr().String())
 }
 
 type protocol struct {
@@ -377,7 +375,8 @@ func (h *handler) OnHandshakeFailed(s networking.EndpointWriter, _ networking.Ha
 }
 
 func (h *handler) OnClose(s networking.EndpointWriter) {
-	h.t.Logf("[%s] Connection to %s node at %q was closed", time.Now().Format(time.RFC3339Nano), h.impl.String(), s.RemoteAddrPort())
+	h.t.Logf("[%s] Connection to %s node at %q was closed", time.Now().Format(time.RFC3339Nano),
+		h.impl.String(), s.RemoteAddrPort())
 	select { // Signal that the session was closed and should be reconnected.
 	case h.reconnectCh <- struct{}{}:
 	default:

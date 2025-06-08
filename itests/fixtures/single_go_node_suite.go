@@ -42,7 +42,7 @@ func (suite *SingleGoNodeSuite) BaseSetup(options ...config.BlockchainOption) {
 		suite.Require().NoError(sErr, "couldn't start Go node container")
 	}
 
-	gp, err := proto.NewPeerInfoFromString(docker.GoNode().IP() + ":" + docker.GoNode().Ports().BindPort)
+	gp, err := proto.NewPeerInfoFromString(docker.GoNode().IP() + ":" + config.BindPort)
 	suite.Require().NoError(err, "failed to create Go peer info")
 	peers := []proto.PeerInfo{gp}
 	addr := net.JoinHostPort(config.DefaultIP, docker.GoNode().Ports().BindPort)

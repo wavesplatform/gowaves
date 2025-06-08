@@ -34,9 +34,9 @@ type NodesClients struct {
 func NewNodesClients(
 	ctx context.Context, t *testing.T, goIP, scalaIP string, goPorts, scalaPorts *d.PortConfig,
 ) *NodesClients {
-	sp, err := proto.NewPeerInfoFromString(net.JoinHostPort(scalaIP, scalaPorts.BindPort))
+	sp, err := proto.NewPeerInfoFromString(net.JoinHostPort(scalaIP, config.BindPort))
 	require.NoError(t, err, "failed to create Scala peer info")
-	gp, err := proto.NewPeerInfoFromString(net.JoinHostPort(goIP, goPorts.BindPort))
+	gp, err := proto.NewPeerInfoFromString(net.JoinHostPort(goIP, config.BindPort))
 	require.NoError(t, err, "failed to create Go peer info")
 	peers := []proto.PeerInfo{sp, gp}
 	goNetAddress := net.JoinHostPort(config.DefaultIP, goPorts.BindPort)
@@ -75,14 +75,37 @@ func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
 	return c.WaitForHeight(t, initialHeight+1)
 }
 
+func (c *NodesClients) GetMinNodesHeight(t *testing.T) uint64 {
+	goCh := make(chan uint64)
+	scalaCh := make(chan uint64)
+	go func() {
+		goCh <- c.GoClient.HTTPClient.GetHeight(t).Height
+		close(goCh)
+	}()
+	go func() {
+		scalaCh <- c.ScalaClient.HTTPClient.GetHeight(t).Height
+		close(scalaCh)
+	}()
+	goHeight, ok := <-goCh
+	if !ok {
+		t.Fatalf("failed to get height from Go node")
+	}
+	scalaHeight, ok := <-scalaCh
+	if !ok {
+		t.Fatalf("failed to get height from Scala node")
+	}
+	return min(goHeight, scalaHeight)
+}
+
 // WaitForHeight waits for nodes to get on given height. Exits if nodes' height already equal or greater than requested.
 // Function returns actual nodes' height.
-func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
+func (c *NodesClients) WaitForHeight(t *testing.T, height uint64, opts ...config.WaitOption) uint64 {
 	var (
 		hg, hs uint64
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	params := config.NewWaitParams(opts...)
+	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
 
 	g, gCtx := errgroup.WithContext(ctx)
@@ -118,7 +141,7 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
 	})
 	// Wait for both goroutines to finish.
 	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
-		t.Logf("Error while waiting for height: %v", err)
+		t.Fatalf("Failed to wait for height %d: %v", height, err)
 	}
 	return min(hg, hs)
 }
@@ -129,7 +152,7 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		goStateHash    *proto.StateHash
 		scalaStateHash *proto.StateHash
 	)
-	h := c.WaitForNewHeight(t) - 1 // Check state hash at the previous height.
+	h := c.GetMinNodesHeight(t) - 1
 	for i := 0; i < 3; i++ {
 		if goStateHash, scalaStateHash, equal = c.StateHashCmp(t, h); equal {
 			break

@@ -7,6 +7,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -251,7 +252,8 @@ func (suite *RewardDistributionIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) T
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardIncreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData)
 	})
@@ -279,7 +281,8 @@ func (suite *RewardDistributionIncreaseXtnCeaseXTNBuybackPreactivatedSuite) Test
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardIncreaseXtnCeaseXTNBuybackAfterPeriodTestData)
 	})
@@ -307,7 +310,8 @@ func (suite *RewardUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE825
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardUnchangedDaoXtnCeaseXTNBuybackAfterPeriodTestData)
 	})
@@ -335,7 +339,8 @@ func (suite *RewardDecreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE826(
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseDaoXtnCeaseXTNBuybackAfterPeriodTestData)
 	})
@@ -363,7 +368,8 @@ func (suite *RewardDecreaseXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE826_2()
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDecreaseXtnCeaseXTNBuybackAfterPeriodTestData)
 	})
@@ -391,7 +397,8 @@ func (suite *Reward2WUnchangedDaoXtnCeaseXTNBuybackPreactivatedSuite) Test_NODE8
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetReward2WUnchangedDaoXtnCeaseXTNBuybackTestData)
 	})
@@ -419,7 +426,8 @@ func (suite *Reward5W2MinersIncreaseCeaseXTNBuybackPreactivatedSuite) Test_NODE8
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetReward5W2MinersIncreaseCeaseXTNBuybackTestData)
 	})
@@ -446,7 +454,8 @@ func (suite *RewardDaoXtnPreactivatedWithout20Suite) Test_NODE830() {
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(&suite.BaseSuite,
 			settings.BlockRewardDistribution,
 			utl.GetHeight(&suite.BaseSuite)) + utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses,
 			testdata.GetRewardDaoXtnAfterPeriodWithout20TestData)
 	})
@@ -469,7 +478,8 @@ func (suite *RewardDaoXtnPreactivatedWithout19And20Suite) Test_NODE830_2() {
 		utl.GetActivationOfFeatures(&suite.BaseSuite, settings.BlockReward, settings.XTNBuyBackCessation)
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRewardDaoXtnWithout19And20TestData)
 		ceaseXtnBuybackHeight := utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)
-		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight)
+		utl.WaitForHeight(&suite.BaseSuite, ceaseXtnBuybackHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&suite.BaseSuite)))
 		reward.GetRewardDistributionAndChecks(&suite.BaseSuite, addresses, testdata.GetRewardDaoXtnWithout19And20TestData)
 	})
 }
