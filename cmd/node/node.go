@@ -118,7 +118,7 @@ type config struct {
 	microblockInterval            time.Duration
 	enableLightMode               bool
 	enableBlockchainUpdatesPlugin bool
-	BlockchainUpdatesL2Address    string
+	blockchainUpdatesL2Address    string
 	generateInPast                bool
 }
 
@@ -173,7 +173,7 @@ func (c *config) logParameters() {
 	zap.S().Debugf("microblock-interval: %s", c.microblockInterval)
 	zap.S().Debugf("enable-light-mode: %t", c.enableLightMode)
 	zap.S().Debugf("enable-blockchain-updates-plugin: %t", c.enableBlockchainUpdatesPlugin)
-	zap.S().Debugf("l2-contract-address: %s", c.BlockchainUpdatesL2Address)
+	zap.S().Debugf("l2-contract-address: %s", c.blockchainUpdatesL2Address)
 	zap.S().Debugf("generate-in-past: %t", c.generateInPast)
 }
 
@@ -274,7 +274,7 @@ func (c *config) parse() {
 		"Start node in light mode")
 	flag.BoolVar(&c.enableBlockchainUpdatesPlugin, "enable-blockchain-info", false,
 		"Turn on blockchain updates plugin")
-	flag.StringVar(&c.BlockchainUpdatesL2Address, "l2-contract-address", "",
+	flag.StringVar(&c.blockchainUpdatesL2Address, "l2-contract-address", "",
 		"Specify the smart contract address from which the updates will be pulled")
 	flag.BoolVar(&c.generateInPast, "generate-in-past", false,
 		"Enable block generation with timestamp in the past")
@@ -421,10 +421,14 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 
 	updatesChannel := make(chan proto.BUpdatesInfo, blockchaininfo.UpdatesBufferedChannelSize)
 	firstBlock := false
-	bUpdatesPluginInfo, initErr := initBlockchainUpdatesPlugin(ctx, nc.BlockchainUpdatesL2Address,
-		nc.enableBlockchainUpdatesPlugin, updatesChannel, &firstBlock)
-	if initErr != nil {
-		return nil, errors.Wrap(initErr, "failed to initialize blockchain updates plugin")
+	var bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo
+	if nc.enableBlockchainUpdatesPlugin {
+		var initErr error
+		bUpdatesPluginInfo, initErr = initBlockchainUpdatesPlugin(ctx, nc.blockchainUpdatesL2Address,
+			nc.enableBlockchainUpdatesPlugin, updatesChannel, &firstBlock)
+		if initErr != nil {
+			return nil, errors.Wrap(initErr, "failed to initialize blockchain updates plugin")
+		}
 	}
 	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode, bUpdatesPluginInfo)
 	if err != nil {
@@ -436,7 +440,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	}
 
 	if nc.enableBlockchainUpdatesPlugin {
-		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(ctx, cfg, nc.BlockchainUpdatesL2Address,
+		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(ctx, cfg, nc.blockchainUpdatesL2Address,
 			updatesChannel, &firstBlock, st, makeExtensionReadyFunc, nc.obsolescencePeriod, ntpTime)
 		if bUErr != nil {
 			bUpdatesExtension.Close()
@@ -450,7 +454,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 			}
 		}()
 		zap.S().Info("The blockchain info extension started pulling info from smart contract address",
-			nc.BlockchainUpdatesL2Address)
+			nc.blockchainUpdatesL2Address)
 	}
 
 	features, err := minerFeatures(st, nc.minerVoteFeatures)
