@@ -980,6 +980,7 @@ func (a *txAppender) createInitialDiffAndStateHash(
 	// Before NG activation it adds all transactions fees to the miner's balance.
 	minerAndRewardDiff, err := a.blockDiffer.createMinerAndRewardDiff(
 		params.blockHeader,
+		params.currentBlockHeight,
 		params.hasParent,
 		params.transactions,
 	)

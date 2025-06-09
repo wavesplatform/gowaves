@@ -31,7 +31,7 @@ gotest-real-node:
 itest:
 	mkdir -p build/config
 	mkdir -p build/logs
-	go test -timeout 40m -parallel 3 $$(go list ./... | grep "/itests")
+	go test -timeout 60m -parallel 3 $$(go list ./... | grep "/itests")
 
 itest-race:
 	mkdir -p build/config

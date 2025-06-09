@@ -45,10 +45,18 @@ type NodeContainer struct {
 	errors    *os.File
 	ports     *PortConfig
 	network   *dockertest.Network
+	ip        string // IP address of the container in the network.
 }
 
 func (c *NodeContainer) RestAPIURL() string {
 	return fmt.Sprintf("http://%s", net.JoinHostPort(config.DefaultIP, c.ports.RESTAPIPort))
+}
+
+// IP returns the IP address of the container in the Docker network.
+// This is the address that can be used to connect to the container from other containers in the same network.
+// This address should be used only for PeerInfo creation, not for REST API or gRPC connections.
+func (c *NodeContainer) IP() string {
+	return c.ip
 }
 
 func (c *NodeContainer) Ports() *PortConfig {
@@ -265,6 +273,7 @@ func (d *Docker) startNode(
 			BindPort:    res.GetPort(config.BindPort + config.NetTCP),
 		},
 		network: d.network,
+		ip:      res.GetIPInNetwork(d.network),
 	}
 
 	err = d.pool.Retry(func() error {

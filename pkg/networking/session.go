@@ -10,6 +10,7 @@ import (
 	"io"
 	"log/slog"
 	"net"
+	"net/netip"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -29,8 +30,12 @@ type Session struct {
 	tp     *timerPool
 
 	connWriteLock sync.Mutex         // connLock is used to lock the connection for Write and Close.
-	conn          io.ReadWriteCloser // conn is the underlying connection
-	bufRead       *bufio.Reader      // buffered reader wrapped around the connection
+	conn          io.ReadWriteCloser // conn is the underlying connection.
+	connErr       error              // Stores the error encountered while closing the underlying connection, if any.
+	bufRead       *bufio.Reader      // buffered reader wrapped around the connection.
+
+	localAddrPort  netip.AddrPort // Connection local address.
+	remoteAddrPort netip.AddrPort // Connection remote address.
 
 	receiveLock   sync.Mutex    // Guards the receiveBuffer.
 	receiveBuffer *bytes.Buffer // receiveBuffer is used to store the incoming data.
@@ -40,7 +45,11 @@ type Session struct {
 
 	receiving   atomic.Bool // Indicates that receiveLoop already running.
 	established atomic.Bool // Indicates that incoming Handshake was successfully accepted.
+	draining    atomic.Bool // Indicates that the session is draining, i.e. close is initiated.
 	closing     atomic.Bool // Indicates that the session is closing.
+
+	errLock sync.Mutex // Guards the err field.
+	err     error      // Stores the error encountered during session operation, if any.
 }
 
 // NewSession is used to construct a new session.
@@ -63,14 +72,16 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 
 	sCtx, cancel := context.WithCancel(ctx)
 	s := &Session{
-		g:       execution.NewTaskGroup(suppressContextCancellationError),
-		ctx:     sCtx,
-		cancel:  cancel,
-		config:  config,
-		tp:      tp,
-		conn:    conn,
-		bufRead: bufio.NewReader(conn),
-		sendCh:  make(chan *sendPacket, 1), // TODO: Make the size of send channel configurable.
+		g:              execution.NewTaskGroup(suppressContextCancellationError),
+		ctx:            sCtx,
+		cancel:         cancel,
+		config:         config,
+		tp:             tp,
+		conn:           conn,
+		localAddrPort:  localAddressFromConnOrZero(conn),
+		remoteAddrPort: remoteAddressFromConnOrZero(conn),
+		bufRead:        bufio.NewReader(conn),
+		sendCh:         make(chan *sendPacket, 1), // TODO: Make the size of send channel configurable.
 	}
 
 	slogHandler := config.slogHandler
@@ -100,44 +111,64 @@ func (s *Session) String() string {
 
 // LocalAddr returns the local network address.
 func (s *Session) LocalAddr() net.Addr {
-	if a, ok := s.conn.(addressable); ok {
-		return a.LocalAddr()
+	if s.localAddrPort.IsValid() {
+		return net.TCPAddrFromAddrPort(s.localAddrPort)
 	}
 	return &sessionAddress{addr: "local"}
 }
 
+func (s *Session) LocalAddrPort() netip.AddrPort {
+	return s.localAddrPort
+}
+
 // RemoteAddr returns the remote network address.
 func (s *Session) RemoteAddr() net.Addr {
-	if a, ok := s.conn.(addressable); ok {
-		return a.RemoteAddr()
+	if s.remoteAddrPort.IsValid() {
+		return net.TCPAddrFromAddrPort(s.remoteAddrPort)
 	}
 	return &sessionAddress{addr: "remote"}
+}
+
+func (s *Session) RemoteAddrPort() netip.AddrPort {
+	return s.remoteAddrPort
+}
+
+// drain is used to close underlying connection and stop the session loops.
+func (s *Session) drain() {
+	if s.draining.CompareAndSwap(false, true) {
+		s.logger.Debug("Closing underlying connection")
+		s.connWriteLock.Lock()
+		clErr := s.conn.Close() // Close the underlying connection.
+		s.connErr = clErr       // Store the connection close error to the session error.
+		s.connWriteLock.Unlock()
+		if clErr != nil {
+			s.logger.Warn("Failed to close underlying connection", "error", clErr)
+		} else {
+			s.logger.Debug("Underlying connection successfully closed")
+		}
+		s.logger.Debug("Stopping session loops")
+		s.cancel() // Cancel the underlying context to interrupt the loops.
+	}
 }
 
 // Close is used to close the session. It is safe to call Close multiple times from different goroutines,
 // subsequent calls do nothing.
 func (s *Session) Close() error {
-	var err error
+	s.errLock.Lock()
+	defer s.errLock.Unlock()
 	if s.closing.CompareAndSwap(false, true) {
 		s.logger.Debug("Closing session")
-		s.connWriteLock.Lock()
-		clErr := s.conn.Close() // Close the underlying connection.
-		s.connWriteLock.Unlock()
-		if clErr != nil {
-			s.logger.Warn("Failed to close underlying connection", "error", clErr)
-		}
-		s.logger.Debug("Underlying connection closed")
-
-		s.cancel() // Cancel the underlying context to interrupt the loops.
-
+		s.drain() // Close the underlying connection and stop the session loops.
 		s.logger.Debug("Waiting for loops to finish")
-		err = s.g.Wait() // Wait for loops to finish.
-
-		err = errors.Join(err, clErr) // Combine loops finalization errors with connection close error.
-
-		s.logger.Debug("Session closed", "error", err)
+		tgErr := s.g.Wait()                   // Wait for loops to finish.
+		s.err = errors.Join(tgErr, s.connErr) // Combine loops finalization errors with connection close error.
+		if s.err != nil {
+			s.logger.Warn("Session closed with errors", "error", s.err)
+		} else {
+			s.logger.Debug("Session closed successfully")
+		}
 	}
-	return err
+	return s.err
 }
 
 // Write is used to write to the session. It is safe to call Write and/or Close concurrently.
@@ -197,6 +228,7 @@ func (s *Session) waitForSend(data []byte) error {
 // sendLoop is a long-running goroutine that sends data to the connection.
 func (s *Session) sendLoop() error {
 	var dataBuf bytes.Buffer
+	defer s.drain()
 	for {
 		dataBuf.Reset()
 
@@ -260,6 +292,7 @@ func (s *Session) receiveLoop() error {
 	if !s.receiving.CompareAndSwap(false, true) {
 		return nil // Prevent running multiple receive loops.
 	}
+	defer s.drain()
 	for {
 		if err := s.receive(); err != nil {
 			if errors.Is(err, ErrConnectionClosedOnRead) {
@@ -377,6 +410,7 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 
 // keepaliveLoop is a long-running goroutine that periodically sends a Ping message to keep the connection alive.
 func (s *Session) keepaliveLoop() error {
+	defer s.drain()
 	for {
 		select {
 		case <-s.ctx.Done():
@@ -384,17 +418,19 @@ func (s *Session) keepaliveLoop() error {
 		case <-time.After(s.config.keepAliveInterval):
 			if s.established.Load() {
 				// Get actual Ping message from Protocol.
-				p, err := s.config.protocol.Ping()
-				if err != nil {
-					s.logger.Error("Failed to get ping message", "error", err)
-					return ErrKeepAliveProtocolFailure
+				p, pErr := s.config.protocol.Ping()
+				if pErr != nil {
+					s.logger.Error("Failed to get ping message", "error", pErr)
+					return errors.Join(ErrKeepAliveProtocolFailure, pErr)
 				}
 				if sndErr := s.waitForSend(p); sndErr != nil {
 					if errors.Is(sndErr, ErrSessionShutdown) {
 						return nil // Exit normally on session termination.
 					}
-					s.logger.Error("Failed to send ping message", "error", err)
-					return ErrKeepAliveTimeout
+					s.logger.Error("Failed to send ping message", "error", sndErr)
+					fErr := errors.Join(ErrKeepAliveTimeout, sndErr)
+					s.config.handler.OnFailure(s, fErr)
+					return fErr
 				}
 			}
 		}
@@ -429,4 +465,29 @@ func suppressContextCancellationError(err error) error {
 		return nil
 	}
 	return err
+}
+
+func localAddressFromConnOrZero(conn io.ReadWriteCloser) netip.AddrPort {
+	if a, ok := conn.(addressable); ok {
+		return addressPortFromAddr(a.LocalAddr())
+	}
+	return netip.AddrPort{} // Return zero AddrPort if connection address is not recognized.
+}
+
+func remoteAddressFromConnOrZero(conn io.ReadWriteCloser) netip.AddrPort {
+	if a, ok := conn.(addressable); ok {
+		return addressPortFromAddr(a.RemoteAddr())
+	}
+	return netip.AddrPort{} // Return zero AddrPort if connection address is not recognized.
+}
+
+func addressPortFromAddr(addr net.Addr) netip.AddrPort {
+	if addr == nil {
+		return netip.AddrPort{} // Return zero AddrPort if address is nil.
+	}
+	ap, err := netip.ParseAddrPort(addr.String())
+	if err != nil {
+		return netip.AddrPort{} // Return zero AddrPort if parsing fails.
+	}
+	return ap
 }

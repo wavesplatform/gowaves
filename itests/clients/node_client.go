@@ -4,9 +4,13 @@ import (
 	"context"
 	stderrs "errors"
 	"maps"
+	"net"
+	"slices"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/client"
 
 	"github.com/cenkalti/backoff/v4"
 	"github.com/pkg/errors"
@@ -27,18 +31,22 @@ type NodesClients struct {
 	ScalaClient *NodeUniversalClient
 }
 
-func NewNodesClients(ctx context.Context, t *testing.T, goPorts, scalaPorts *d.PortConfig) *NodesClients {
-	sp, err := proto.NewPeerInfoFromString(config.DefaultIP + ":" + scalaPorts.BindPort)
+func NewNodesClients(
+	ctx context.Context, t *testing.T, goIP, scalaIP string, goPorts, scalaPorts *d.PortConfig,
+) *NodesClients {
+	sp, err := proto.NewPeerInfoFromString(net.JoinHostPort(scalaIP, config.BindPort))
 	require.NoError(t, err, "failed to create Scala peer info")
-	gp, err := proto.NewPeerInfoFromString(config.DefaultIP + ":" + goPorts.BindPort)
+	gp, err := proto.NewPeerInfoFromString(net.JoinHostPort(goIP, config.BindPort))
 	require.NoError(t, err, "failed to create Go peer info")
 	peers := []proto.PeerInfo{sp, gp}
+	goNetAddress := net.JoinHostPort(config.DefaultIP, goPorts.BindPort)
+	scalaNetAddress := net.JoinHostPort(config.DefaultIP, scalaPorts.BindPort)
 	return &NodesClients{
 		GoClient: NewNodeUniversalClient(
-			ctx, t, NodeGo, goPorts.RESTAPIPort, goPorts.GRPCPort, goPorts.BindPort, peers,
+			ctx, t, NodeGo, goPorts.RESTAPIPort, goPorts.GRPCPort, goNetAddress, peers,
 		),
 		ScalaClient: NewNodeUniversalClient(
-			ctx, t, NodeScala, scalaPorts.RESTAPIPort, scalaPorts.GRPCPort, scalaPorts.BindPort, peers,
+			ctx, t, NodeScala, scalaPorts.RESTAPIPort, scalaPorts.GRPCPort, scalaNetAddress, peers,
 		),
 	}
 }
@@ -64,44 +72,76 @@ func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) (*proto.StateHa
 // Returns the height that was *before* generation of new block.
 func (c *NodesClients) WaitForNewHeight(t *testing.T) uint64 {
 	initialHeight := c.ScalaClient.HTTPClient.GetHeight(t).Height
-	c.WaitForHeight(t, initialHeight+1)
-	return initialHeight
+	return c.WaitForHeight(t, initialHeight+1)
+}
+
+func (c *NodesClients) GetMinNodesHeight(t *testing.T) uint64 {
+	goCh := make(chan uint64)
+	scalaCh := make(chan uint64)
+	go func() {
+		goCh <- c.GoClient.HTTPClient.GetHeight(t).Height
+		close(goCh)
+	}()
+	go func() {
+		scalaCh <- c.ScalaClient.HTTPClient.GetHeight(t).Height
+		close(scalaCh)
+	}()
+	goHeight, ok := <-goCh
+	if !ok {
+		t.Fatalf("failed to get height from Go node")
+	}
+	scalaHeight, ok := <-scalaCh
+	if !ok {
+		t.Fatalf("failed to get height from Scala node")
+	}
+	return min(goHeight, scalaHeight)
 }
 
 // WaitForHeight waits for nodes to get on given height. Exits if nodes' height already equal or greater than requested.
 // Function returns actual nodes' height.
-func (c *NodesClients) WaitForHeight(t *testing.T, height uint64) uint64 {
+func (c *NodesClients) WaitForHeight(t *testing.T, height uint64, opts ...config.WaitOption) uint64 {
 	var (
 		hg, hs uint64
 	)
 
-	ctx, cancel := context.WithTimeout(context.Background(), defaultTimeout)
+	params := config.NewWaitParams(opts...)
+	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
 
-	g, _ := errgroup.WithContext(ctx)
+	g, gCtx := errgroup.WithContext(ctx)
 	g.Go(func() error {
-		for {
+		for gCtx.Err() == nil {
 			hg = c.GoClient.HTTPClient.GetHeight(t).Height
 			if hg >= height {
-				break
+				return nil
 			}
-			time.Sleep(time.Second * 1)
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			case <-time.After(time.Second):
+				// Sleep for a second before checking the height again.
+			}
 		}
-		return nil
+		return gCtx.Err()
 	})
 	g.Go(func() error {
-		for {
+		for gCtx.Err() == nil {
 			hs = c.ScalaClient.HTTPClient.GetHeight(t).Height
 			if hs >= height {
-				break
+				return nil
 			}
-			time.Sleep(time.Second * 1)
+			select {
+			case <-gCtx.Done():
+				return gCtx.Err()
+			case <-time.After(time.Second):
+				// Sleep for a second before checking the height again.
+			}
 		}
-		return nil
+		return gCtx.Err()
 	})
 	// Wait for both goroutines to finish.
-	if err := g.Wait(); err != nil {
-		t.Logf("Error while waiting for height: %v", err)
+	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		t.Fatalf("Failed to wait for height %d: %v", height, err)
 	}
 	return min(hg, hs)
 }
@@ -112,7 +152,7 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		goStateHash    *proto.StateHash
 		scalaStateHash *proto.StateHash
 	)
-	h := c.WaitForNewHeight(t)
+	h := c.GetMinNodesHeight(t) - 1
 	for i := 0; i < 3; i++ {
 		if goStateHash, scalaStateHash, equal = c.StateHashCmp(t, h); equal {
 			break
@@ -288,15 +328,78 @@ func (c *NodesClients) Handshake() {
 	c.ScalaClient.Connection.SendHandshake()
 }
 
-func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, scala bool) {
+func deduplicateImplementations(s []Implementation) []Implementation {
+	c := slices.Clone(s)
+	slices.Sort(c)
+	return slices.Compact(c)
+}
+
+func (c *NodesClients) SendToScalaNode(t *testing.T, m proto.Message) {
+	t.Logf("Sending message to Scala node: %T", m)
+	c.ScalaClient.Connection.SendMessage(m)
+	t.Log("Message sent to Scala node")
+}
+
+func (c *NodesClients) SendToGoNode(t *testing.T, m proto.Message) {
 	t.Logf("Sending message to Go node: %T", m)
 	c.GoClient.Connection.SendMessage(m)
 	t.Log("Message sent to Go node")
-	if scala {
-		t.Logf("Sending message to Scala node: %T", m)
-		c.ScalaClient.Connection.SendMessage(m)
-		t.Log("Message sent to Scala node")
+}
+
+func (c *NodesClients) SendToNodes(t *testing.T, m proto.Message, nodes []Implementation) {
+	ns := deduplicateImplementations(nodes)
+	for i := range ns {
+		switch ns[i] {
+		case NodeGo:
+			c.SendToGoNode(t, m)
+		case NodeScala:
+			c.SendToScalaNode(t, m)
+		default:
+			t.Fatalf("Unexpected node implementation %d", ns[i])
+		}
 	}
+}
+
+func (c *NodesClients) BroadcastToGoNode(t *testing.T, tx proto.Transaction) (*client.Response, error) {
+	t.Logf("Broadcasting transaction to Go node: %T", tx)
+	respGo, errBrdCstGo := c.GoClient.HTTPClient.TransactionBroadcast(tx)
+	if errBrdCstGo != nil {
+		t.Logf("Error while broadcasting transaction to Go node: %v", errBrdCstGo)
+	} else {
+		t.Logf("Transaction was successfully Broadcast to Go node")
+	}
+	return respGo, errBrdCstGo
+}
+
+func (c *NodesClients) BroadcastToScalaNode(t *testing.T, tx proto.Transaction) (*client.Response, error) {
+	t.Logf("Broadcasting transaction to Scala node: %T", tx)
+	respScala, errBrdCstScala := c.ScalaClient.HTTPClient.TransactionBroadcast(tx)
+	if errBrdCstScala != nil {
+		t.Logf("Error while broadcasting transaction to Scala node: %v", errBrdCstScala)
+	} else {
+		t.Logf("Transaction was successfully Broadcast to Scala node")
+	}
+	return respScala, errBrdCstScala
+}
+
+func (c *NodesClients) BroadcastToNodes(t *testing.T, tx proto.Transaction,
+	nodes []Implementation) (*client.Response, error, *client.Response, error) {
+	var respGo, respScala *client.Response = nil, nil
+	var errBrdCstGo, errBrdCstScala error = nil, nil
+
+	ns := deduplicateImplementations(nodes)
+	for i := range ns {
+		switch ns[i] {
+		case NodeGo:
+			respGo, errBrdCstGo = c.BroadcastToGoNode(t, tx)
+		case NodeScala:
+			respScala, errBrdCstScala = c.BroadcastToScalaNode(t, tx)
+		default:
+			t.Fatalf("Unexpected node implementation %d", ns[i])
+		}
+	}
+
+	return respGo, errBrdCstGo, respScala, errBrdCstScala
 }
 
 func (c *NodesClients) Close(t *testing.T) {

@@ -15,11 +15,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type AliasTxSuite struct {
+type AliasTxPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *AliasTxSuite) Test_AliasPositive() {
+func (suite *AliasTxPositiveSuite) Test_AliasPositive() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetAliasPositiveDataMatrix(&suite.BaseSuite)
@@ -36,7 +36,7 @@ func (suite *AliasTxSuite) Test_AliasPositive() {
 	}
 }
 
-func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
+func (suite *AliasTxPositiveSuite) Test_AliasMaxValuesPositive() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		n := transfer.GetNewAccountWithFunds(&suite.BaseSuite, v, utl.TestChainID,
@@ -55,7 +55,16 @@ func (suite *AliasTxSuite) Test_AliasMaxValuesPositive() {
 	}
 }
 
-func (suite *AliasTxSuite) Test_AliasNegative() {
+func TestAliasTxPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(AliasTxPositiveSuite))
+}
+
+type AliasTxNegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *AliasTxNegativeSuite) Test_AliasNegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -75,7 +84,7 @@ func (suite *AliasTxSuite) Test_AliasNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func (suite *AliasTxSuite) Test_SameAliasNegative() {
+func (suite *AliasTxNegativeSuite) Test_SameAliasNegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Values for same alias"
 	//Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
@@ -116,7 +125,7 @@ func (suite *AliasTxSuite) Test_SameAliasNegative() {
 	suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds)
 }
 
-func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
+func (suite *AliasTxNegativeSuite) Test_SameAliasDiffAddressesNegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Same alias for different accounts"
 	var idsCount = 2
@@ -155,7 +164,7 @@ func (suite *AliasTxSuite) Test_SameAliasDiffAddressesNegative() {
 	suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds)
 }
 
-func TestAliasTxSuite(t *testing.T) {
+func TestAliasTxNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(AliasTxSuite))
+	suite.Run(t, new(AliasTxNegativeSuite))
 }

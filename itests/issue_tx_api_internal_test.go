@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -15,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type IssueTxApiSuite struct {
+type IssueTxAPIPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
+func (suite *IssueTxAPIPositiveSuite) Test_IssueTxAPIPositive() {
 	versions := issue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
@@ -36,7 +37,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiPositive() {
 	}
 }
 
-func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
+func (suite *IssueTxAPIPositiveSuite) Test_IssueTxAPIWithSameDataPositive() {
 	versions := issue.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveDataMatrix(&suite.BaseSuite)
@@ -56,8 +57,18 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiWithSameDataPositive() {
 	}
 }
 
-func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
-	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
+func TestIssueTxAPIPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(IssueTxAPIPositiveSuite))
+}
+
+type IssueTxAPINegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *IssueTxAPINegativeSuite) Test_IssueTxAPINegative() {
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight,
+		config.WaitWithTimeoutInBlocks(utl.DefaultSponsorshipActivationHeight))
 	versions := issue.GetVersions(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -78,7 +89,7 @@ func (suite *IssueTxApiSuite) Test_IssueTxApiNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestIssueTxApiSuite(t *testing.T) {
+func TestIssueTxAPINegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(IssueTxApiSuite))
+	suite.Run(t, new(IssueTxAPINegativeSuite))
 }

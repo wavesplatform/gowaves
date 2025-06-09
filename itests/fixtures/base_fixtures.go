@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -16,11 +17,12 @@ import (
 type BaseSuite struct {
 	suite.Suite
 
-	MainCtx context.Context
-	Cancel  context.CancelFunc
-	Cfg     config.TestConfig
-	Docker  *d.Docker
-	Clients *clients.NodesClients
+	MainCtx     context.Context
+	Cancel      context.CancelFunc
+	Cfg         config.TestConfig
+	Docker      *d.Docker
+	Clients     *clients.NodesClients
+	SendToNodes []clients.Implementation
 }
 
 func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
@@ -44,8 +46,10 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 		suite.Require().NoError(sErr, "couldn't start nodes")
 	}
 
-	suite.Clients = clients.NewNodesClients(suite.MainCtx, suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
+	suite.Clients = clients.NewNodesClients(suite.MainCtx, suite.T(), docker.GoNode().IP(), docker.ScalaNode().IP(),
+		docker.GoNode().Ports(), docker.ScalaNode().Ports())
 	suite.Clients.Handshake()
+	suite.SendToNodes = []clients.Implementation{clients.NodeGo}
 }
 
 func (suite *BaseSuite) SetupSuite() {
@@ -54,7 +58,9 @@ func (suite *BaseSuite) SetupSuite() {
 
 func (suite *BaseSuite) TearDownSuite() {
 	suite.Clients.WaitForStateHashEquality(suite.T())
+	slog.Info("Closing clients")
 	suite.Clients.Close(suite.T())
+	slog.Info("Closing Docker")
 	suite.Docker.Finish(suite.Cancel)
 }
 
@@ -68,4 +74,13 @@ func (suite *BaseSuite) SetupTest() {
 
 func (suite *BaseSuite) TearDownTest() {
 	suite.Clients.SendEndMessage(suite.T())
+}
+
+type BaseNegativeSuite struct {
+	BaseSuite
+}
+
+func (suite *BaseNegativeSuite) SetupSuite() {
+	suite.BaseSetup()
+	suite.SendToNodes = append(suite.SendToNodes, clients.NodeScala)
 }

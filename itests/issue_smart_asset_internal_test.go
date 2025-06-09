@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -15,11 +16,11 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
-type IssueSmartAssetSuite struct {
+type IssueSmartAssetPositiveSuite struct {
 	f.BaseSuite
 }
 
-func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
+func (suite *IssueSmartAssetPositiveSuite) Test_IssueSmartAssetPositive() {
 	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	for _, v := range versions {
 		tdmatrix := testdata.GetPositiveAssetScriptData(&suite.BaseSuite)
@@ -37,8 +38,18 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetPositive() {
 	}
 }
 
-func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetNegative() {
-	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
+func TestIssueSmartAssetPositiveSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(IssueSmartAssetPositiveSuite))
+}
+
+type IssueSmartAssetNegativeSuite struct {
+	f.BaseNegativeSuite
+}
+
+func (suite *IssueSmartAssetNegativeSuite) Test_IssueSmartAssetNegative() {
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight,
+		config.WaitWithTimeoutInBlocks(utl.DefaultSponsorshipActivationHeight))
 	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -59,7 +70,7 @@ func (suite *IssueSmartAssetSuite) Test_IssueSmartAssetNegative() {
 	suite.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
 }
 
-func TestIssueSmartAssetSuite(t *testing.T) {
+func TestIssueSmartAssetNegativeSuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(IssueSmartAssetSuite))
+	suite.Run(t, new(IssueSmartAssetNegativeSuite))
 }
