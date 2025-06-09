@@ -1,17 +1,14 @@
 package utxpool
 
 import (
-	"bytes"
-
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 type Cleaner struct {
-	inner       BulkValidator
-	lastBlockID proto.BlockID
-	state       stateWrapper
+	inner BulkValidator
+	state stateWrapper
 }
 
 func NewCleaner(state state.State, pool types.UtxPool, tm types.Time) *Cleaner {
@@ -30,11 +27,7 @@ func (a *Cleaner) Clean() {
 }
 
 func (a *Cleaner) work() {
-	block := a.state.TopBlock()
-	if !bytes.Equal(block.ID.Bytes(), a.lastBlockID.Bytes()) {
-		a.inner.Validate()
-		a.lastBlockID = block.ID
-	}
+	a.inner.Validate()
 }
 
 type stateWrapper interface {
