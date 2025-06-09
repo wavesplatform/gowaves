@@ -2,13 +2,12 @@ package fsm
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/ng"
