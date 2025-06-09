@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"context"
+	"net"
 
 	"github.com/stoewer/go-strcase"
 	"github.com/stretchr/testify/suite"
@@ -41,13 +42,12 @@ func (suite *SingleGoNodeSuite) BaseSetup(options ...config.BlockchainOption) {
 		suite.Require().NoError(sErr, "couldn't start Go node container")
 	}
 
-	gp, err := proto.NewPeerInfoFromString(config.DefaultIP + ":" + docker.GoNode().Ports().BindPort)
+	gp, err := proto.NewPeerInfoFromString(docker.GoNode().IP() + ":" + config.BindPort)
 	suite.Require().NoError(err, "failed to create Go peer info")
 	peers := []proto.PeerInfo{gp}
+	addr := net.JoinHostPort(config.DefaultIP, docker.GoNode().Ports().BindPort)
 	suite.Client = clients.NewNodeUniversalClient(suite.MainCtx, suite.T(), clients.NodeGo,
-		docker.GoNode().Ports().RESTAPIPort, docker.GoNode().Ports().GRPCPort, docker.GoNode().Ports().BindPort,
-		peers,
-	)
+		docker.GoNode().Ports().RESTAPIPort, docker.GoNode().Ports().GRPCPort, addr, peers)
 	suite.Client.Handshake()
 }
 

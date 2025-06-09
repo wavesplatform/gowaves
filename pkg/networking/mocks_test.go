@@ -38,8 +38,8 @@ func (_m *MockHandler) EXPECT() *MockHandler_Expecter {
 }
 
 // OnClose provides a mock function for the type MockHandler
-func (_mock *MockHandler) OnClose(session *Session) {
-	_mock.Called(session)
+func (_mock *MockHandler) OnClose(endpointWriter EndpointWriter) {
+	_mock.Called(endpointWriter)
 	return
 }
 
@@ -49,14 +49,20 @@ type MockHandler_OnClose_Call struct {
 }
 
 // OnClose is a helper method to define mock.On call
-//   - session
-func (_e *MockHandler_Expecter) OnClose(session interface{}) *MockHandler_OnClose_Call {
-	return &MockHandler_OnClose_Call{Call: _e.mock.On("OnClose", session)}
+//   - endpointWriter EndpointWriter
+func (_e *MockHandler_Expecter) OnClose(endpointWriter interface{}) *MockHandler_OnClose_Call {
+	return &MockHandler_OnClose_Call{Call: _e.mock.On("OnClose", endpointWriter)}
 }
 
-func (_c *MockHandler_OnClose_Call) Run(run func(session *Session)) *MockHandler_OnClose_Call {
+func (_c *MockHandler_OnClose_Call) Run(run func(endpointWriter EndpointWriter)) *MockHandler_OnClose_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*Session))
+		var arg0 EndpointWriter
+		if args[0] != nil {
+			arg0 = args[0].(EndpointWriter)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -66,14 +72,14 @@ func (_c *MockHandler_OnClose_Call) Return() *MockHandler_OnClose_Call {
 	return _c
 }
 
-func (_c *MockHandler_OnClose_Call) RunAndReturn(run func(session *Session)) *MockHandler_OnClose_Call {
+func (_c *MockHandler_OnClose_Call) RunAndReturn(run func(endpointWriter EndpointWriter)) *MockHandler_OnClose_Call {
 	_c.Run(run)
 	return _c
 }
 
 // OnFailure provides a mock function for the type MockHandler
-func (_mock *MockHandler) OnFailure(session *Session, err error) {
-	_mock.Called(session, err)
+func (_mock *MockHandler) OnFailure(endpointWriter EndpointWriter, err error) {
+	_mock.Called(endpointWriter, err)
 	return
 }
 
@@ -83,15 +89,26 @@ type MockHandler_OnFailure_Call struct {
 }
 
 // OnFailure is a helper method to define mock.On call
-//   - session
-//   - err
-func (_e *MockHandler_Expecter) OnFailure(session interface{}, err interface{}) *MockHandler_OnFailure_Call {
-	return &MockHandler_OnFailure_Call{Call: _e.mock.On("OnFailure", session, err)}
+//   - endpointWriter EndpointWriter
+//   - err error
+func (_e *MockHandler_Expecter) OnFailure(endpointWriter interface{}, err interface{}) *MockHandler_OnFailure_Call {
+	return &MockHandler_OnFailure_Call{Call: _e.mock.On("OnFailure", endpointWriter, err)}
 }
 
-func (_c *MockHandler_OnFailure_Call) Run(run func(session *Session, err error)) *MockHandler_OnFailure_Call {
+func (_c *MockHandler_OnFailure_Call) Run(run func(endpointWriter EndpointWriter, err error)) *MockHandler_OnFailure_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*Session), args[1].(error))
+		var arg0 EndpointWriter
+		if args[0] != nil {
+			arg0 = args[0].(EndpointWriter)
+		}
+		var arg1 error
+		if args[1] != nil {
+			arg1 = args[1].(error)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -101,14 +118,14 @@ func (_c *MockHandler_OnFailure_Call) Return() *MockHandler_OnFailure_Call {
 	return _c
 }
 
-func (_c *MockHandler_OnFailure_Call) RunAndReturn(run func(session *Session, err error)) *MockHandler_OnFailure_Call {
+func (_c *MockHandler_OnFailure_Call) RunAndReturn(run func(endpointWriter EndpointWriter, err error)) *MockHandler_OnFailure_Call {
 	_c.Run(run)
 	return _c
 }
 
 // OnHandshake provides a mock function for the type MockHandler
-func (_mock *MockHandler) OnHandshake(session *Session, handshake Handshake) {
-	_mock.Called(session, handshake)
+func (_mock *MockHandler) OnHandshake(endpointWriter EndpointWriter, handshake Handshake) {
+	_mock.Called(endpointWriter, handshake)
 	return
 }
 
@@ -118,15 +135,26 @@ type MockHandler_OnHandshake_Call struct {
 }
 
 // OnHandshake is a helper method to define mock.On call
-//   - session
-//   - handshake
-func (_e *MockHandler_Expecter) OnHandshake(session interface{}, handshake interface{}) *MockHandler_OnHandshake_Call {
-	return &MockHandler_OnHandshake_Call{Call: _e.mock.On("OnHandshake", session, handshake)}
+//   - endpointWriter EndpointWriter
+//   - handshake Handshake
+func (_e *MockHandler_Expecter) OnHandshake(endpointWriter interface{}, handshake interface{}) *MockHandler_OnHandshake_Call {
+	return &MockHandler_OnHandshake_Call{Call: _e.mock.On("OnHandshake", endpointWriter, handshake)}
 }
 
-func (_c *MockHandler_OnHandshake_Call) Run(run func(session *Session, handshake Handshake)) *MockHandler_OnHandshake_Call {
+func (_c *MockHandler_OnHandshake_Call) Run(run func(endpointWriter EndpointWriter, handshake Handshake)) *MockHandler_OnHandshake_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*Session), args[1].(Handshake))
+		var arg0 EndpointWriter
+		if args[0] != nil {
+			arg0 = args[0].(EndpointWriter)
+		}
+		var arg1 Handshake
+		if args[1] != nil {
+			arg1 = args[1].(Handshake)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -136,14 +164,14 @@ func (_c *MockHandler_OnHandshake_Call) Return() *MockHandler_OnHandshake_Call {
 	return _c
 }
 
-func (_c *MockHandler_OnHandshake_Call) RunAndReturn(run func(session *Session, handshake Handshake)) *MockHandler_OnHandshake_Call {
+func (_c *MockHandler_OnHandshake_Call) RunAndReturn(run func(endpointWriter EndpointWriter, handshake Handshake)) *MockHandler_OnHandshake_Call {
 	_c.Run(run)
 	return _c
 }
 
 // OnHandshakeFailed provides a mock function for the type MockHandler
-func (_mock *MockHandler) OnHandshakeFailed(session *Session, handshake Handshake) {
-	_mock.Called(session, handshake)
+func (_mock *MockHandler) OnHandshakeFailed(endpointWriter EndpointWriter, handshake Handshake) {
+	_mock.Called(endpointWriter, handshake)
 	return
 }
 
@@ -153,15 +181,26 @@ type MockHandler_OnHandshakeFailed_Call struct {
 }
 
 // OnHandshakeFailed is a helper method to define mock.On call
-//   - session
-//   - handshake
-func (_e *MockHandler_Expecter) OnHandshakeFailed(session interface{}, handshake interface{}) *MockHandler_OnHandshakeFailed_Call {
-	return &MockHandler_OnHandshakeFailed_Call{Call: _e.mock.On("OnHandshakeFailed", session, handshake)}
+//   - endpointWriter EndpointWriter
+//   - handshake Handshake
+func (_e *MockHandler_Expecter) OnHandshakeFailed(endpointWriter interface{}, handshake interface{}) *MockHandler_OnHandshakeFailed_Call {
+	return &MockHandler_OnHandshakeFailed_Call{Call: _e.mock.On("OnHandshakeFailed", endpointWriter, handshake)}
 }
 
-func (_c *MockHandler_OnHandshakeFailed_Call) Run(run func(session *Session, handshake Handshake)) *MockHandler_OnHandshakeFailed_Call {
+func (_c *MockHandler_OnHandshakeFailed_Call) Run(run func(endpointWriter EndpointWriter, handshake Handshake)) *MockHandler_OnHandshakeFailed_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*Session), args[1].(Handshake))
+		var arg0 EndpointWriter
+		if args[0] != nil {
+			arg0 = args[0].(EndpointWriter)
+		}
+		var arg1 Handshake
+		if args[1] != nil {
+			arg1 = args[1].(Handshake)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -171,14 +210,14 @@ func (_c *MockHandler_OnHandshakeFailed_Call) Return() *MockHandler_OnHandshakeF
 	return _c
 }
 
-func (_c *MockHandler_OnHandshakeFailed_Call) RunAndReturn(run func(session *Session, handshake Handshake)) *MockHandler_OnHandshakeFailed_Call {
+func (_c *MockHandler_OnHandshakeFailed_Call) RunAndReturn(run func(endpointWriter EndpointWriter, handshake Handshake)) *MockHandler_OnHandshakeFailed_Call {
 	_c.Run(run)
 	return _c
 }
 
 // OnReceive provides a mock function for the type MockHandler
-func (_mock *MockHandler) OnReceive(session *Session, reader io.Reader) {
-	_mock.Called(session, reader)
+func (_mock *MockHandler) OnReceive(endpointWriter EndpointWriter, reader io.Reader) {
+	_mock.Called(endpointWriter, reader)
 	return
 }
 
@@ -188,15 +227,26 @@ type MockHandler_OnReceive_Call struct {
 }
 
 // OnReceive is a helper method to define mock.On call
-//   - session
-//   - reader
-func (_e *MockHandler_Expecter) OnReceive(session interface{}, reader interface{}) *MockHandler_OnReceive_Call {
-	return &MockHandler_OnReceive_Call{Call: _e.mock.On("OnReceive", session, reader)}
+//   - endpointWriter EndpointWriter
+//   - reader io.Reader
+func (_e *MockHandler_Expecter) OnReceive(endpointWriter interface{}, reader interface{}) *MockHandler_OnReceive_Call {
+	return &MockHandler_OnReceive_Call{Call: _e.mock.On("OnReceive", endpointWriter, reader)}
 }
 
-func (_c *MockHandler_OnReceive_Call) Run(run func(session *Session, reader io.Reader)) *MockHandler_OnReceive_Call {
+func (_c *MockHandler_OnReceive_Call) Run(run func(endpointWriter EndpointWriter, reader io.Reader)) *MockHandler_OnReceive_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*Session), args[1].(io.Reader))
+		var arg0 EndpointWriter
+		if args[0] != nil {
+			arg0 = args[0].(EndpointWriter)
+		}
+		var arg1 io.Reader
+		if args[1] != nil {
+			arg1 = args[1].(io.Reader)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -206,7 +256,7 @@ func (_c *MockHandler_OnReceive_Call) Return() *MockHandler_OnReceive_Call {
 	return _c
 }
 
-func (_c *MockHandler_OnReceive_Call) RunAndReturn(run func(session *Session, reader io.Reader)) *MockHandler_OnReceive_Call {
+func (_c *MockHandler_OnReceive_Call) RunAndReturn(run func(endpointWriter EndpointWriter, reader io.Reader)) *MockHandler_OnReceive_Call {
 	_c.Run(run)
 	return _c
 }
@@ -358,14 +408,20 @@ type MockHeader_ReadFrom_Call struct {
 }
 
 // ReadFrom is a helper method to define mock.On call
-//   - r
+//   - r io.Reader
 func (_e *MockHeader_Expecter) ReadFrom(r interface{}) *MockHeader_ReadFrom_Call {
 	return &MockHeader_ReadFrom_Call{Call: _e.mock.On("ReadFrom", r)}
 }
 
 func (_c *MockHeader_ReadFrom_Call) Run(run func(r io.Reader)) *MockHeader_ReadFrom_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(io.Reader))
+		var arg0 io.Reader
+		if args[0] != nil {
+			arg0 = args[0].(io.Reader)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -412,14 +468,20 @@ type MockHeader_WriteTo_Call struct {
 }
 
 // WriteTo is a helper method to define mock.On call
-//   - w
+//   - w io.Writer
 func (_e *MockHeader_Expecter) WriteTo(w interface{}) *MockHeader_WriteTo_Call {
 	return &MockHeader_WriteTo_Call{Call: _e.mock.On("WriteTo", w)}
 }
 
 func (_c *MockHeader_WriteTo_Call) Run(run func(w io.Writer)) *MockHeader_WriteTo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(io.Writer))
+		var arg0 io.Writer
+		if args[0] != nil {
+			arg0 = args[0].(io.Writer)
+		}
+		run(
+			arg0,
+		)
 	})
 	return _c
 }
@@ -576,15 +638,26 @@ type MockProtocol_IsAcceptableHandshake_Call struct {
 }
 
 // IsAcceptableHandshake is a helper method to define mock.On call
-//   - session
-//   - handshake
+//   - session *Session
+//   - handshake Handshake
 func (_e *MockProtocol_Expecter) IsAcceptableHandshake(session interface{}, handshake interface{}) *MockProtocol_IsAcceptableHandshake_Call {
 	return &MockProtocol_IsAcceptableHandshake_Call{Call: _e.mock.On("IsAcceptableHandshake", session, handshake)}
 }
 
 func (_c *MockProtocol_IsAcceptableHandshake_Call) Run(run func(session *Session, handshake Handshake)) *MockProtocol_IsAcceptableHandshake_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*Session), args[1].(Handshake))
+		var arg0 *Session
+		if args[0] != nil {
+			arg0 = args[0].(*Session)
+		}
+		var arg1 Handshake
+		if args[1] != nil {
+			arg1 = args[1].(Handshake)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }
@@ -622,15 +695,26 @@ type MockProtocol_IsAcceptableMessage_Call struct {
 }
 
 // IsAcceptableMessage is a helper method to define mock.On call
-//   - session
-//   - header
+//   - session *Session
+//   - header Header
 func (_e *MockProtocol_Expecter) IsAcceptableMessage(session interface{}, header interface{}) *MockProtocol_IsAcceptableMessage_Call {
 	return &MockProtocol_IsAcceptableMessage_Call{Call: _e.mock.On("IsAcceptableMessage", session, header)}
 }
 
 func (_c *MockProtocol_IsAcceptableMessage_Call) Run(run func(session *Session, header Header)) *MockProtocol_IsAcceptableMessage_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		run(args[0].(*Session), args[1].(Header))
+		var arg0 *Session
+		if args[0] != nil {
+			arg0 = args[0].(*Session)
+		}
+		var arg1 Header
+		if args[1] != nil {
+			arg1 = args[1].(Header)
+		}
+		run(
+			arg0,
+			arg1,
+		)
 	})
 	return _c
 }

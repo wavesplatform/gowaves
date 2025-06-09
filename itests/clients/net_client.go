@@ -18,7 +18,7 @@ import (
 	"github.com/neilotoole/slogt"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wavesplatform/gowaves/itests/config"
+	"github.com/wavesplatform/gowaves/pkg/execution"
 	"github.com/wavesplatform/gowaves/pkg/networking"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -31,24 +31,28 @@ const (
 )
 
 type NetClient struct {
-	ctx  context.Context
-	t    testing.TB
-	impl Implementation
-	n    *networking.Network
-	c    *networking.Config
-	h    *handler
-	s    *networking.Session
-
-	closing atomic.Bool
-	closed  sync.Once
+	ctx    context.Context
+	cancel context.CancelFunc
+	t      testing.TB
+	impl   Implementation
+	n      *networking.Network
+	c      *networking.Config
+	h      *handler
+	s      *networking.Session
+	tg     *execution.TaskGroup
+	closed atomic.Bool
 }
 
+// NewNetClient creates a new NetClient instance that connects to the specified Waves node.
+// It establishes a TCP connection to given address.
+// Parameter peers is a list of peer information that the client will use to respond to GetPeersMessage requests.
 func NewNetClient(
-	ctx context.Context, t testing.TB, impl Implementation, port string, peers []proto.PeerInfo,
+	ctx context.Context, t testing.TB, impl Implementation, address string, peers []proto.PeerInfo,
 ) *NetClient {
+	ctx, cancel := context.WithCancel(ctx)
 	n := networking.NewNetwork()
 	p := newProtocol(t, nil)
-	h := newHandler(t, peers)
+	h := newHandler(t, impl, peers)
 
 	f := slogt.Factory(func(w io.Writer) slog.Handler {
 		opts := &slog.HandlerOptions{
@@ -68,15 +72,26 @@ func NewNetClient(
 		WithKeepAliveInterval(pingInterval).
 		WithSlogAttributes(slog.String("suite", t.Name()), slog.String("impl", impl.String()))
 
-	conn, err := net.Dial("tcp", config.DefaultIP+":"+port)
-	require.NoError(t, err, "failed to dial TCP to %s node", impl.String())
+	conn, err := net.Dial("tcp", address)
+	require.NoError(t, err, "failed to dial TCP to %s node at %q", impl.String(), address)
 
 	s, err := n.NewSession(ctx, conn, conf)
 	require.NoError(t, err, "failed to establish new session to %s node", impl.String())
 
-	cli := &NetClient{ctx: ctx, t: t, impl: impl, n: n, c: conf, h: h, s: s}
-	h.client = cli // Set client reference in handler.
-	return cli
+	nc := &NetClient{
+		ctx:    ctx,
+		cancel: cancel,
+		t:      t,
+		impl:   impl,
+		n:      n,
+		c:      conf,
+		h:      h,
+		s:      s,
+		tg:     execution.NewTaskGroup(suppressContextCancellationError),
+	}
+	nc.tg.Run(nc.watch)
+
+	return nc
 }
 
 func (c *NetClient) SendHandshake() {
@@ -99,18 +114,31 @@ func (c *NetClient) SendHandshake() {
 
 func (c *NetClient) SendMessage(m proto.Message) {
 	_, err := m.WriteTo(c.s)
-	require.NoError(c.t, err, "failed to send message to %s node at %q", c.impl.String(), c.s.RemoteAddr())
+	if err != nil {
+		//TODO: It is possible now to detect if the peer closed the connection during the write.
+		// We can use this to check for expected disconnects, for example,
+		// when we send a malformed transactions to a node.
+		c.t.Logf("[%s] Failed to send message of type %T to %s node at %q: %v",
+			time.Now().Format(time.RFC3339Nano), m, c.impl.String(), c.s.RemoteAddr(), err)
+	}
 }
 
 func (c *NetClient) Close() {
-	c.closed.Do(func() {
-		if c.closing.CompareAndSwap(false, true) {
-			c.t.Logf("Closing connection to %s node at %q", c.impl.String(), c.s.RemoteAddr().String())
-		}
+	if c.closed.CompareAndSwap(false, true) {
+		c.t.Logf("[%s] Closing NetClient to %s node at %q",
+			time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr())
+		c.cancel()
 		err := c.s.Close()
 		require.NoError(c.t, err, "failed to close session to %s node at %q", c.impl.String(), c.s.RemoteAddr())
 		c.h.close()
-	})
+		c.t.Logf("[%s] Waiting to watch loop to finish", time.Now().Format(time.RFC3339Nano))
+		if wErr := c.tg.Wait(); wErr != nil {
+			c.t.Logf("[%s] Watch loop of NetClient to %s node at %q finished with error: %v",
+				time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr(), wErr)
+		}
+		c.t.Logf("[%s] Closed NetClient to %s node at %q",
+			time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr())
+	}
 }
 
 // SubscribeForMessages adds specified types to the message waiting queue.
@@ -184,15 +212,46 @@ func (c *NetClient) AwaitMicroblockRequest(timeout time.Duration) (proto.BlockID
 	return mbr.TotalBlockSig, nil
 }
 
+func (c *NetClient) watch() error {
+	for {
+		select {
+		case <-c.ctx.Done():
+			c.t.Logf("[%s] Context done, stopping watch loop", time.Now().Format(time.RFC3339Nano))
+			return c.ctx.Err()
+		case _, ok := <-c.h.reconnectChan():
+			c.t.Logf("[%s] Got a reconnect event", time.Now().Format(time.RFC3339Nano))
+			if !ok {
+				c.t.Logf("[%s] Reconnect channel was closed, exiting watch loop", time.Now().Format(time.RFC3339Nano))
+				return nil // Channel was closed, exit the watch loop.
+			}
+			c.reconnect()
+		case <-c.h.closeChan():
+			c.t.Logf("[%s] Got a close event", time.Now().Format(time.RFC3339Nano))
+			return nil
+		}
+	}
+}
+
 func (c *NetClient) reconnect() {
-	c.t.Logf("Reconnecting to %q", c.s.RemoteAddr().String())
+	c.t.Logf("[%s] Reconnecting to %s node at %q",
+		time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String())
+	if c.closed.Load() {
+		return
+	}
+	if clErr := c.s.Close(); clErr != nil {
+		c.t.Logf("[%s] Failed to close session to %s node at %q: %v",
+			time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String(), clErr)
+	}
+	c.t.Logf("[%s] Reconnecting to %q", time.Now().Format(time.RFC3339Nano), c.s.RemoteAddr().String())
 	conn, err := net.Dial("tcp", c.s.RemoteAddr().String())
-	require.NoError(c.t, err, "failed to dial TCP to %s node", c.impl.String())
+	require.NoError(c.t, err, "failed to dial TCP to %s node at %q",
+		c.impl.String(), c.s.RemoteAddr().String())
 
 	s, err := c.n.NewSession(c.ctx, conn, c.c)
 	require.NoError(c.t, err, "failed to re-establish the session to %s node", c.impl.String())
 	c.s = s
-
+	c.t.Logf("[%s] Reconnected to node %s at %q",
+		time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String())
 	c.SendHandshake()
 }
 
@@ -259,19 +318,27 @@ func (p *protocol) IsAcceptableMessage(_ *networking.Session, h networking.Heade
 }
 
 type handler struct {
-	peers  []proto.PeerInfo
-	t      testing.TB
-	client *NetClient
-	queue  []reflect.Type
-	ch     chan proto.Message
+	peers       []proto.PeerInfo
+	t           testing.TB
+	impl        Implementation
+	queue       []reflect.Type
+	reconnectCh chan struct{}      // Channel to signal that the session should be reconnected.
+	closeCh     chan struct{}      // Channel to signal that the session should be closed.
+	ch          chan proto.Message // Channel to notify about received messages.
 }
 
-func newHandler(t testing.TB, peers []proto.PeerInfo) *handler {
-	ch := make(chan proto.Message, 1)
-	return &handler{t: t, peers: peers, ch: ch}
+func newHandler(t testing.TB, impl Implementation, peers []proto.PeerInfo) *handler {
+	return &handler{
+		t:           t,
+		impl:        impl,
+		peers:       peers,
+		reconnectCh: make(chan struct{}),
+		closeCh:     make(chan struct{}),
+		ch:          make(chan proto.Message, 1),
+	}
 }
 
-func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
+func (h *handler) OnReceive(s networking.EndpointWriter, r io.Reader) {
 	msg, _, err := proto.ReadMessageFrom(r)
 	if err != nil {
 		h.t.Logf("Failed to read message from %q: %v", s.RemoteAddr(), err)
@@ -299,23 +366,29 @@ func (h *handler) OnReceive(s *networking.Session, r io.Reader) {
 	}
 }
 
-func (h *handler) OnHandshake(_ *networking.Session, _ networking.Handshake) {
-	h.t.Logf("Connection to %s node at %q was established", h.client.impl.String(), h.client.s.RemoteAddr())
+func (h *handler) OnHandshake(s networking.EndpointWriter, _ networking.Handshake) {
+	h.t.Logf("Connection to %s node at %q was established", h.impl.String(), s.RemoteAddrPort())
 }
 
-func (h *handler) OnHandshakeFailed(_ *networking.Session, _ networking.Handshake) {
-	h.t.Logf("Handshake with %q failed", h.client.impl.String())
+func (h *handler) OnHandshakeFailed(s networking.EndpointWriter, _ networking.Handshake) {
+	h.t.Logf("Handshake with %q node at %q failed", h.impl.String(), s.RemoteAddrPort())
 }
 
-func (h *handler) OnClose(s *networking.Session) {
-	h.t.Logf("Connection to %q was closed", s.RemoteAddr())
-	if h.client != nil && !h.client.closing.Load() {
-		h.client.reconnect()
+func (h *handler) OnClose(s networking.EndpointWriter) {
+	h.t.Logf("[%s] Connection to %s node at %q was closed", time.Now().Format(time.RFC3339Nano),
+		h.impl.String(), s.RemoteAddrPort())
+	select { // Signal that the session was closed and should be reconnected.
+	case h.reconnectCh <- struct{}{}:
+	default:
 	}
 }
 
-func (h *handler) OnFailure(s *networking.Session, err error) {
-	h.t.Logf("Connection to %q failed: %v", s.RemoteAddr(), err)
+func (h *handler) OnFailure(s networking.EndpointWriter, err error) {
+	h.t.Logf("[%s] Connection to %q failed: %v", time.Now().Format(time.RFC3339Nano), s.RemoteAddr(), err)
+	select { // Signal that the session failed and should be closed.
+	case h.closeCh <- struct{}{}:
+	default:
+	}
 }
 
 func (h *handler) waitFor(messageType reflect.Type) error {
@@ -333,9 +406,28 @@ func (h *handler) receiveChan() <-chan proto.Message {
 	return h.ch
 }
 
+func (h *handler) reconnectChan() <-chan struct{} {
+	return h.reconnectCh
+}
+
+func (h *handler) closeChan() <-chan struct{} {
+	return h.closeCh
+}
+
 func (h *handler) close() {
-	if h.ch != nil {
-		close(h.ch)
-		h.ch = nil
+	h.t.Log("Closing handler")
+	close(h.closeCh)
+	h.closeCh = nil
+	close(h.reconnectCh)
+	h.reconnectCh = nil
+	close(h.ch)
+	h.ch = nil
+	h.t.Log("Closed handler channels")
+}
+
+func suppressContextCancellationError(err error) error {
+	if errors.Is(err, context.Canceled) {
+		return nil
 	}
+	return err
 }
