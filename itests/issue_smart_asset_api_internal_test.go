@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -47,7 +48,8 @@ type IssueSmartAssetAPINegativeSuite struct {
 }
 
 func (suite *IssueSmartAssetAPINegativeSuite) Test_IssueSmartAssetAPINegative() {
-	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight)
+	utl.WaitForHeight(&suite.BaseSuite, utl.DefaultSponsorshipActivationHeight,
+		config.WaitWithTimeoutInBlocks(utl.DefaultSponsorshipActivationHeight))
 	versions := issue.GetVersionsSmartAsset(&suite.BaseSuite)
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {

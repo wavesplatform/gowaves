@@ -276,6 +276,7 @@ func (suite *RewardIncreaseDaoXtnCeaseXTNBuybackPreactivatedSuite) SetupSuite() 
 			preactivatedFeaturesWith21ConfigFolder,
 			"7W_2miners_dao_xtn_increase.json",
 		),
+		config.WithQuorum(2),
 	)
 }
 

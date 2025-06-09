@@ -234,6 +234,7 @@ func (suite *RewardDaoXtnSupportedWithout19Suite) SetupSuite() {
 			supportedFeaturesConfigFolder,
 			"2miners_dao_xtn_without_f19.json",
 		),
+		config.WithQuorum(2),
 	)
 }
 
@@ -280,6 +281,7 @@ func (suite *RewardIncreaseXtnCeaseXTNBuybackSupportedSuite) SetupSuite() {
 			supportedFeaturesWith21ConfigFolder,
 			"7W_2miners_xtn_increase.json",
 		),
+		config.WithQuorum(2),
 	)
 }
 

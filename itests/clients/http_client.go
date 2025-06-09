@@ -37,16 +37,18 @@ func NewHTTPClient(t *testing.T, impl Implementation, port string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) GetHeight(t *testing.T) *client.BlocksHeight {
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+func (c *HTTPClient) GetHeight(t *testing.T, opts ...config.WaitOption) *client.BlocksHeight {
+	params := config.NewWaitParams(opts...)
+	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
 	h, _, err := c.cli.Blocks.Height(ctx)
 	require.NoError(t, err, "failed to get height from %s node", c.impl.String())
 	return h
 }
 
-func (c *HTTPClient) StateHash(t *testing.T, height uint64) *proto.StateHash {
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+func (c *HTTPClient) StateHash(t *testing.T, height uint64, opts ...config.WaitOption) *proto.StateHash {
+	params := config.NewWaitParams(opts...)
+	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
 	stateHash, _, err := c.cli.Debug.StateHash(ctx, height)
 	require.NoError(t, err, "failed to get stateHash from %s node", c.impl.String())

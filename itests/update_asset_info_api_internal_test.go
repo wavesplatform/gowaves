@@ -8,6 +8,7 @@ import (
 
 	"github.com/stretchr/testify/suite"
 
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -27,7 +28,8 @@ func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPIReissua
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, assets)
 		// ***wait n blocks***
 		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+			config.WaitWithTimeoutInBlocks(blocksToWait))
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
@@ -50,7 +52,8 @@ func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPINFTPosi
 		tdmatrix := testdata.GetUpdateAssetInfoPositiveDataMatrix(&suite.BaseSuite, nft)
 		// ***wait n blocks***
 		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+			config.WaitWithTimeoutInBlocks(blocksToWait))
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
@@ -73,7 +76,8 @@ func (suite *UpdateAssetInfoTxAPIPositiveSuite) Test_UpdateAssetInfoTxAPISmartAs
 		tdmatrix := testdata.GetUpdateSmartAssetInfoPositiveDataMatrix(&suite.BaseSuite, smart)
 		// ***wait n blocks***
 		blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+		utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+			config.WaitWithTimeoutInBlocks(blocksToWait))
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
@@ -110,7 +114,8 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxAPIReissua
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			// ***wait n blocks***
 			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+				config.WaitWithTimeoutInBlocks(blocksToWait))
 			for name, td := range tdmatrix {
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
@@ -143,7 +148,8 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxNFTAPINega
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			// ***wait n blocks***
 			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+				config.WaitWithTimeoutInBlocks(blocksToWait))
 			for name, td := range tdmatrix {
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
@@ -176,7 +182,8 @@ func (suite *UpdateAssetInfoTxAPINegativeSuite) Test_UpdateAssetInfoTxSmartAsset
 			initAssetDetails := utl.GetAssetInfoGrpc(&suite.BaseSuite, itx.TxID)
 			// ***wait n blocks***
 			blocksToWait := suite.Cfg.BlockchainSettings.MinUpdateAssetInfoInterval
-			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait)
+			utl.WaitForHeight(&suite.BaseSuite, utl.GetHeight(&suite.BaseSuite)+blocksToWait,
+				config.WaitWithTimeoutInBlocks(blocksToWait))
 			for name, td := range tdmatrix {
 				caseName := utl.GetTestcaseNameWithVersion(name, v) + utl.AssetWithVersion(itx.TxID, int(iv))
 				suite.Run(caseName, func() {
