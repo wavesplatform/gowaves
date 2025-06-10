@@ -12,6 +12,7 @@ import (
 	"regexp"
 	"strconv"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -410,8 +411,9 @@ func GetHeight(suite *f.BaseSuite) uint64 {
 	return scalaHeight
 }
 
-func WaitForHeight(suite *f.BaseSuite, height uint64) uint64 {
-	return suite.Clients.WaitForHeight(suite.T(), height)
+func WaitForHeight(suite *f.BaseSuite, height uint64, opts ...config.WaitOption) uint64 {
+	opts = append(opts, config.WaitWithContext(suite.MainCtx))
+	return suite.Clients.WaitForHeight(suite.T(), height, opts...)
 }
 
 func WaitForNewHeight(suite *f.BaseSuite) uint64 {
@@ -551,19 +553,27 @@ func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID settings.Feat
 
 func WaitForFeatureActivation(suite *f.BaseSuite, featureID settings.Feature, height uint64) proto.Height {
 	waitingBlocks := GetWaitingBlocks(suite, height, featureID)
-	h := WaitForHeight(suite, height+waitingBlocks)
+	h := WaitForHeight(suite, height+waitingBlocks, config.WaitWithTimeoutInBlocks(waitingBlocks))
 
 	goCh := make(chan proto.Height)
 	scalaCh := make(chan proto.Height)
 
 	go func() {
 		goCh <- GetFeatureActivationHeightGo(suite, featureID, h)
+		close(goCh)
 	}()
 	go func() {
 		scalaCh <- GetFeatureActivationHeightScala(suite, featureID, h)
+		close(scalaCh)
 	}()
-	activationHeightGo := <-goCh
-	activationHeightScala := <-scalaCh
+	activationHeightGo, ok := <-goCh
+	if !ok {
+		suite.FailNowf("Failed to get activation height from Go node", "Feature ID is %d", featureID)
+	}
+	activationHeightScala, ok := <-scalaCh
+	if !ok {
+		suite.FailNowf("Failed to get activation height from Scala node", "Feature ID is %d", featureID)
+	}
 
 	if activationHeightScala == activationHeightGo {
 		return activationHeightGo
@@ -628,44 +638,63 @@ func GetActualDiffBalanceInAssets(suite *f.BaseSuite, address proto.WavesAddress
 	return NewBalanceInAsset(actualDiffBalanceInAssetGo, actualDiffBalanceInAssetScala)
 }
 
+type txRsp struct {
+	Name string
+	ID   string
+}
+
 func GetTxIdsInBlockchain(suite *f.BaseSuite, ids map[string]*crypto.Digest) map[string]string {
-	tick := time.Second
-	timeout := DefaultWaitTimeout
-	var (
-		ticker      = time.NewTicker(tick)
-		ctx, cancel = context.WithTimeout(context.Background(), timeout)
-		txIDs       = make(map[string]string, 2*len(ids))
-	)
-	defer func() {
-		ticker.Stop()
-		cancel()
-	}()
-	for {
+	ctx, cancel := context.WithTimeout(suite.MainCtx, 2*DefaultWaitTimeout)
+	defer cancel()
+
+	txIDs := make(map[string]string, 2*len(ids))
+	for ctx.Err() == nil {
 		if len(txIDs) == 2*len(ids) { // fast path
 			return txIDs
 		}
 		select {
 		case <-ctx.Done():
 			return txIDs
-		case <-ticker.C:
+		case <-time.After(time.Second):
+			ch := make(chan txRsp, 2*len(ids))
+			wg := sync.WaitGroup{}
 			for name, id := range ids {
 				goTxID := "Go " + name
 				if _, ok := txIDs[goTxID]; !ok {
-					_, _, errGo := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(*id)
-					if errGo == nil {
-						txIDs[goTxID] = id.String()
-					}
+					wg.Add(1)
+					go func(name string, id crypto.Digest) {
+						defer wg.Done()
+						_, _, errGo := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(id)
+						if errGo == nil {
+							ch <- txRsp{Name: name, ID: id.String()}
+						}
+					}(goTxID, *id)
 				}
 				scalaTxID := "Scala " + name
 				if _, ok := txIDs[scalaTxID]; !ok {
-					_, _, errScala := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(*id)
-					if errScala == nil {
-						txIDs[scalaTxID] = id.String()
-					}
+					wg.Add(1)
+					go func(name string, id crypto.Digest) {
+						defer wg.Done()
+						_, _, errScala := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(id)
+						if errScala == nil {
+							ch <- txRsp{Name: name, ID: id.String()}
+						}
+					}(scalaTxID, *id)
+				}
+			}
+			wg.Wait()
+			close(ch)
+			for rsp := range ch {
+				if rsp.Name == "" || rsp.ID == "" {
+					continue
+				}
+				if _, ok := txIDs[rsp.Name]; !ok {
+					txIDs[rsp.Name] = rsp.ID
 				}
 			}
 		}
 	}
+	return txIDs
 }
 
 func ExtractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto.Digest {

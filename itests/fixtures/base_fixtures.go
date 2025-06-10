@@ -2,6 +2,7 @@ package fixtures
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/stretchr/testify/suite"
@@ -45,7 +46,8 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 		suite.Require().NoError(sErr, "couldn't start nodes")
 	}
 
-	suite.Clients = clients.NewNodesClients(suite.MainCtx, suite.T(), docker.GoNode().Ports(), docker.ScalaNode().Ports())
+	suite.Clients = clients.NewNodesClients(suite.MainCtx, suite.T(), docker.GoNode().IP(), docker.ScalaNode().IP(),
+		docker.GoNode().Ports(), docker.ScalaNode().Ports())
 	suite.Clients.Handshake()
 	suite.SendToNodes = []clients.Implementation{clients.NodeGo}
 }
@@ -56,7 +58,9 @@ func (suite *BaseSuite) SetupSuite() {
 
 func (suite *BaseSuite) TearDownSuite() {
 	suite.Clients.WaitForStateHashEquality(suite.T())
+	slog.Info("Closing clients")
 	suite.Clients.Close(suite.T())
+	slog.Info("Closing Docker")
 	suite.Docker.Finish(suite.Cancel)
 }
 

@@ -73,9 +73,3 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 
 	return transactions, nil
 }
-
-type noOnBulkValidator struct {
-}
-
-func (noOnBulkValidator) Validate() {
-}
