@@ -3,7 +3,6 @@ package fsm
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"reflect"
 	"time"
 
@@ -14,6 +13,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
