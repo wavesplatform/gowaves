@@ -482,10 +482,7 @@ func bytesToBigIntLim(_ environment, args ...rideType) (rideType, error) {
 	if size <= 0 || size > 64 { // No more than 64 bytes can be converted to BigInt, max size of BigInt value is 512 bit.
 		return nil, errors.Errorf("bytesToBigIntLim: size %d is out of ranger [1; 64]", size)
 	}
-	end := int(offset + size)
-	if end > l {
-		end = l
-	}
+	end := min(int(offset+size), l)
 	r := common.Decode2CBigInt(bts[offset:end])
 	if r.Cmp(math.MinBigInt) < 0 || r.Cmp(math.MaxBigInt) > 0 {
 		return nil, errors.Errorf("bytesToBigIntLim: %s result is out of range", r.String())

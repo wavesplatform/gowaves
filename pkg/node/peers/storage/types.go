@@ -113,10 +113,7 @@ func (a knownPeers) OldestFirst(limit int) []KnownPeer {
 		i++
 	}
 	sort.Sort(ps)
-	l := len(ps)
-	if l > limit {
-		l = limit
-	}
+	l := min(len(ps), limit)
 	r := make([]KnownPeer, l)
 	for i := 0; i < l; i++ {
 		r[i] = ps[i].peer
