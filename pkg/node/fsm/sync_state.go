@@ -200,7 +200,7 @@ func (a *SyncState) MinedBlock(
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
 	}
-	metrics.BlockMined(block, height+1)
+	metrics.BlockMined(block)
 	zap.S().Named(logging.FSMNamespace).Infof("[Sync] New block '%s' mined", block.ID.String())
 
 	_, err := a.baseInfo.blocksApplier.Apply(

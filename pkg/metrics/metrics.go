@@ -182,12 +182,12 @@ func BlockAppliedFromExtension(block *proto.Block, height proto.Height) {
 	reportBlock(t, f)
 }
 
-func BlockMined(block *proto.Block, height proto.Height) {
+func BlockMined(block *proto.Block) {
 	if rep == nil {
 		return
 	}
 	t := newTags().withBlock().withEvent(eventMined).withID(block.ID).withParentID(block.Parent).withBroadcast()
-	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withBaseTarget(block.BaseTarget).
+	f := newFields().withTransactionsCount(block.TransactionCount).withBaseTarget(block.BaseTarget).
 		withID(block.ID)
 	reportBlock(t, f)
 }

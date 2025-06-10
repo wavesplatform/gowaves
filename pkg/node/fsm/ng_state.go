@@ -220,7 +220,7 @@ func (a *NGState) MinedBlock(
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
 	}
-	metrics.BlockMined(block, height+1)
+	metrics.BlockMined(block)
 	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.baseInfo.blocksApplier.Apply(
