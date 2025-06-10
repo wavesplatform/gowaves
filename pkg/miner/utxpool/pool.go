@@ -8,7 +8,6 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -75,12 +74,7 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	addErr := a.addWithBytes(t, bts)
-	if addErr != nil {
-		return addErr
-	}
-	metrics.Utx(a.Count())
-	return nil
+	return a.addWithBytes(t, bts)
 }
 
 func (a *UtxImpl) AddBytes(bts []byte) error {

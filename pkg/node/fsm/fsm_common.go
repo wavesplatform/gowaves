@@ -3,6 +3,7 @@ package fsm
 import (
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"reflect"
 	"time"
 
@@ -146,12 +147,12 @@ func tryBroadcastTransaction(
 		}
 		return fsm, nil, err
 	}
-
 	if err = baseInfo.utx.Add(t); err != nil {
 		err = errors.Wrap(err, "failed to add transaction to utx")
 		return fsm, nil, err
 	}
 	baseInfo.BroadcastTransaction(t, p)
+	metrics.Utx(baseInfo.utx.Count())
 	return fsm, nil, nil
 }
 
