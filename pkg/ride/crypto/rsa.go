@@ -63,10 +63,7 @@ func encrypt(c *big.Int, pub *rsa.PublicKey, m *big.Int) *big.Int {
 }
 
 func leftPad(input []byte, size int) (out []byte) {
-	n := len(input)
-	if n > size {
-		n = size
-	}
+	n := min(len(input), size)
 	out = make([]byte, size)
 	copy(out[len(out)-n:], input)
 	return
