@@ -293,7 +293,7 @@ func (a *NGState) mineMicro(
 	case err != nil:
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))
 	}
-	metrics.MicroBlockMined(micro)
+	metrics.MicroBlockMined(micro, block.TransactionCount)
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er

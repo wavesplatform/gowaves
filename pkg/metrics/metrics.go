@@ -192,12 +192,13 @@ func BlockMined(block *proto.Block) {
 	reportBlock(t, f)
 }
 
-func MicroBlockMined(mb *proto.MicroBlock) {
+// MicroBlockMined must show the total tx count in block.
+func MicroBlockMined(mb *proto.MicroBlock, totalTxCount int) {
 	if rep == nil {
 		return
 	}
 	t := newTags().withMicro().withEvent(eventMined).withID(mb.TotalBlockID).withParentID(mb.Reference)
-	f := newFields().withTransactionsCount(int(mb.TransactionCount))
+	f := newFields().withTransactionsCount(totalTxCount)
 	reportBlock(t, f)
 }
 
