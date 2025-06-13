@@ -593,7 +593,6 @@ func (hs *historyStorage) getHistory(key []byte, update bool) (*historyRecord, e
 	// So we do both read and write under same lock.
 	hs.writeLock.Lock()
 	defer hs.writeLock.Unlock()
-
 	historyBytes, err := hs.db.Get(key)
 	if err != nil {
 		return nil, err // `keyvalue.ErrNotFound` is possible here along with other unwrapped DB errors
