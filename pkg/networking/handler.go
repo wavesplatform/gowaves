@@ -18,20 +18,23 @@ type EndpointWriter interface {
 // All handler functions are called synchronously in goroutines of internal loops.
 // Synchronously calling functions of Session itself inside handlers may lead to deadlocks.
 type Handler interface {
-	// OnReceive fired on new message received.
+	// OnReceive is triggered when a new message is received.
+	// The message is available for reading from the provided io.Reader.
 	OnReceive(EndpointWriter, io.Reader)
 
-	// OnHandshake fired on new successful Handshake received.
+	// OnHandshake is triggered when a valid handshake is received.
+	// Called after the protocol verifies that the received handshake is acceptable.
 	OnHandshake(EndpointWriter, Handshake)
 
-	// OnHandshakeFailed fired on unacceptable Handshake received.
+	// OnHandshakeFailed is triggered when an invalid or unacceptable handshake is received.
+	// Called after the protocol rejects the handshake.
 	OnHandshakeFailed(EndpointWriter, Handshake)
 
-	// OnClose fired on Session closed.
-	// Don't call Session.Close inside this handler synchronously it will cause deadlock.
+	// OnClose is triggered when the session is closed.
+	// Called when the underlying network connection is detected as closed during a read operation.
 	OnClose(EndpointWriter)
 
-	// OnFailure fired on Session failure.
-	// Don't call Session.Close inside this handler synchronously it will cause deadlock.
+	// OnFailure is triggered when a session fails due to a network error.
+	// Called when an unexpected error occurs while reading from the connection or sending keep-alive messages.
 	OnFailure(EndpointWriter, error)
 }
