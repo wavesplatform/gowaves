@@ -3,12 +3,12 @@ package utxpool
 import (
 	"container/heap"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"sync"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -80,7 +80,7 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	if errAdd != nil {
 		return errAdd
 	}
-	metrics.Utx(a.Count())
+	metrics.UtxSampler().Update(a.Count())
 	return nil
 }
 

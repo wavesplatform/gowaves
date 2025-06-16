@@ -69,9 +69,14 @@ Use the following conventions when naming your tag and field keys:
   - Avoid more than one piece of information in one tag
 */
 var (
-	once sync.Once
-	rep  *reporter = nil
+	once              sync.Once
+	rep               *reporter = nil
+	defaultUtxSampler           = NewRangeSampler(0)
 )
+
+func UtxSampler() *RangeSampler {
+	return defaultUtxSampler
+}
 
 func MicroBlockInv(mb *proto.MicroBlockInv, source string) {
 	if rep == nil {
@@ -211,12 +216,13 @@ func Score(score *proto.Score, source string) {
 	reportBlock(t, f)
 }
 
-func Utx(utxCount int) {
+func UtxCollect() {
 	if rep == nil {
 		return
 	}
+	curV, minV, maxV := UtxSampler().Sample()
 	t := emptyTags().node().withEvent(eventUtx)
-	f := emptyFields().withUtxCount(utxCount)
+	f := emptyFields().withUtxCount(curV, minV, maxV)
 	reportUtx(t, f)
 }
 
@@ -311,8 +317,10 @@ func (f fields) score(score *proto.Score) fields {
 	return f
 }
 
-func (f fields) withUtxCount(utxCount int) fields {
-	f["utx_count"] = utxCount
+func (f fields) withUtxCount(currentValue, minValue, maxValue int) fields {
+	f["utx_current"] = currentValue
+	f["utx_min"] = minValue
+	f["utx_max"] = maxValue
 	return f
 }
 
@@ -397,6 +405,7 @@ func (r *reporter) run(ctx context.Context) {
 			}
 			return
 		case <-ticker.C:
+			UtxCollect()
 			err := r.report()
 			if err != nil {
 				zap.S().Warnf("Failed to report metrics: %v", err)
@@ -472,4 +481,40 @@ func reportUtx(t tags, f fields) {
 
 func shortID(id proto.BlockID) string {
 	return id.String()[:6]
+}
+
+type RangeSampler struct {
+	sync.Mutex
+	current int
+	min     int
+	max     int
+}
+
+func NewRangeSampler(initial int) *RangeSampler {
+	return &RangeSampler{
+		current: initial,
+		min:     initial,
+		max:     initial,
+	}
+}
+
+func (r *RangeSampler) Update(value int) {
+	r.Lock()
+	defer r.Unlock()
+	r.current = value
+	if value < r.min {
+		r.min = value
+	}
+	if value > r.max {
+		r.max = value
+	}
+}
+
+func (r *RangeSampler) Sample() (int, int, int) {
+	r.Lock()
+	defer r.Unlock()
+	curV, minV, maxV := r.current, r.min, r.max
+	r.min = r.current
+	r.max = r.current
+	return curV, minV, maxV
 }

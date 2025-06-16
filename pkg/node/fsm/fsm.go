@@ -94,7 +94,7 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 func (a *BaseInfo) CleanUtx() {
 	go func() {
 		utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
-		metrics.Utx(a.utx.Count())
+		metrics.UtxSampler().Update(a.utx.Count())
 	}()
 }
 
