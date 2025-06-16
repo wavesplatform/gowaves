@@ -294,7 +294,6 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			}
 		}
 	})
-
 	for _, knowPeer := range known {
 		ipPort := knowPeer.IpPort()
 		if _, ok := active[ipPort]; ok {

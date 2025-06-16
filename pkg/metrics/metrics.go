@@ -9,12 +9,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	influx "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"go.uber.org/zap"
 )
 
 const (
@@ -93,11 +92,20 @@ func MicroBlockReceived(mb *proto.MicroBlock, source string) {
 	reportBlock(t, f)
 }
 
+func MicroBlockDeclined(mb *proto.MicroBlock) {
+	if rep == nil {
+		return
+	}
+	t := newTags().withMicro().withEvent(eventDeclined).withID(mb.TotalBlockID).withParentID(mb.Reference)
+	f := newFields()
+	reportBlock(t, f)
+}
+
 func MicroBlockApplied(mb *proto.MicroBlock) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withMicro().withEvent(eventApplied).withID(mb.TotalBlockID)
+	t := newTags().withMicro().withEvent(eventApplied).withID(mb.TotalBlockID).withParentID(mb.Reference)
 	f := newFields().withTransactionsCount(int(mb.TransactionCount))
 	reportBlock(t, f)
 }
@@ -106,8 +114,8 @@ func BlockReceived(block *proto.Block, source string) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventReceived).withID(block.ID).withBroadcast()
-	f := newFields().withSourceNode(source).withBaseTarget(block.BaseTarget)
+	t := newTags().withBlock().withEvent(eventReceived).withID(block.ID).withBroadcast().withParentID(block.Parent)
+	f := newFields().withSourceNode(source).withBaseTarget(block.BaseTarget).withID(block.ID)
 	reportBlock(t, f)
 }
 
@@ -120,6 +128,7 @@ func BlockReceivedFromExtension(block *proto.Block, source string) {
 	reportBlock(t, f)
 }
 
+// BlockAppended TODO remove it?
 func BlockAppended(block *proto.Block, complexity int) {
 	if rep == nil {
 		return
@@ -133,8 +142,17 @@ func BlockApplied(block *proto.Block, height proto.Height) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withBroadcast()
-	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount)
+	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withParentID(block.Parent).withBroadcast()
+	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withID(block.ID)
+	reportBlock(t, f)
+}
+
+func SnapshotBlockApplied(block *proto.Block, height proto.Height) {
+	if rep == nil {
+		return
+	}
+	t := newTags().withSnapshot().withEvent(eventApplied).withID(block.ID).withParentID(block.Parent).withBroadcast()
+	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withID(block.ID)
 	reportBlock(t, f)
 }
 
@@ -142,7 +160,7 @@ func BlockDeclined(block *proto.Block) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withBroadcast()
+	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withParentID(block.Parent).withBroadcast()
 	f := newFields()
 	reportBlock(t, f)
 }
@@ -151,7 +169,7 @@ func BlockDeclinedFromExtension(block *proto.Block) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withExtension()
+	t := newTags().withBlock().withEvent(eventDeclined).withID(block.ID).withParentID(block.Parent).withExtension()
 	f := newFields()
 	reportBlock(t, f)
 }
@@ -160,99 +178,47 @@ func BlockAppliedFromExtension(block *proto.Block, height proto.Height) {
 	if rep == nil {
 		return
 	}
-	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withExtension()
+	t := newTags().withBlock().withEvent(eventApplied).withID(block.ID).withParentID(block.Parent).withExtension()
 	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount)
 	reportBlock(t, f)
 }
 
-func BlockMined(block *proto.Block, height proto.Height) {
+func BlockMined(block *proto.Block) {
 	if rep == nil {
 		return
 	}
 	t := newTags().withBlock().withEvent(eventMined).withID(block.ID).withParentID(block.Parent).withBroadcast()
-	f := newFields().withHeight(height).withTransactionsCount(block.TransactionCount).withBaseTarget(block.BaseTarget)
+	f := newFields().withTransactionsCount(block.TransactionCount).withBaseTarget(block.BaseTarget).
+		withID(block.ID)
 	reportBlock(t, f)
 }
 
-func FSMKeyBlockReceived(fsm string, block *proto.Block, source string) {
+// MicroBlockMined must show the total tx count in block.
+func MicroBlockMined(mb *proto.MicroBlock, totalTxCount int) {
 	if rep == nil {
 		return
 	}
-	t := emptyTags().node().fsm(fsm).block().received()
-	f := emptyFields().blockID(block.BlockID()).referenceID(block.Parent).source(source).blockTS(block.Timestamp).genPK(block.GeneratorPublicKey)
-	reportFSM(t, f)
+	t := newTags().withMicro().withEvent(eventMined).withID(mb.TotalBlockID).withParentID(mb.Reference)
+	f := newFields().withTransactionsCount(totalTxCount)
+	reportBlock(t, f)
 }
 
-func FSMKeyBlockGenerated(fsm string, block *proto.Block) {
+func Score(score *proto.Score, source string) {
 	if rep == nil {
 		return
 	}
-	t := emptyTags().node().fsm(fsm).block().generated()
-	f := emptyFields().blockID(block.BlockID()).referenceID(block.Parent)
-	reportFSM(t, f)
-}
-
-func FSMKeyBlockApplied(fsm string, block *proto.Block) {
-	if rep == nil {
-		return
-	}
-	t := emptyTags().node().fsm(fsm).block().applied()
-	f := emptyFields().blockID(block.BlockID()).referenceID(block.Parent)
-	reportFSM(t, f)
-}
-
-func FSMKeyBlockDeclined(fsm string, block *proto.Block, err error) {
-	if rep == nil {
-		return
-	}
-	t := emptyTags().node().fsm(fsm).block().declined()
-	f := emptyFields().blockID(block.BlockID()).referenceID(block.Parent).error(err)
-	reportFSM(t, f)
-}
-
-func FSMMicroBlockReceived(fsm string, microblock *proto.MicroBlock, source string) {
-	if rep == nil {
-		return
-	}
-	t := emptyTags().node().fsm(fsm).microblock().received()
-	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).source(source)
-	reportFSM(t, f)
-}
-
-func FSMMicroBlockGenerated(fsm string, microblock *proto.MicroBlock) {
-	if rep == nil {
-		return
-	}
-	t := emptyTags().node().fsm(fsm).microblock().generated()
-	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).signature(microblock.TotalResBlockSigField)
-	reportFSM(t, f)
-}
-
-func FSMMicroBlockDeclined(fsm string, microblock *proto.MicroBlock, err error) {
-	if rep == nil {
-		return
-	}
-	t := emptyTags().node().fsm(fsm).microblock().declined()
-	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).signature(microblock.TotalResBlockSigField).error(err)
-	reportFSM(t, f)
-}
-
-func FSMMicroBlockApplied(fsm string, microblock *proto.MicroBlock) {
-	if rep == nil {
-		return
-	}
-	t := emptyTags().node().fsm(fsm).microblock().applied()
-	f := emptyFields().blockID(microblock.TotalBlockID).referenceID(microblock.Reference).signature(microblock.TotalResBlockSigField)
-	reportFSM(t, f)
-}
-
-func FSMScore(fsm string, score *proto.Score, source string) {
-	if rep == nil {
-		return
-	}
-	t := emptyTags().node().fsm(fsm).score().received()
+	t := emptyTags().node().withEvent(eventScore)
 	f := emptyFields().score(score).source(source)
-	reportFSM(t, f)
+	reportBlock(t, f)
+}
+
+func Utx(utxCount int) {
+	if rep == nil {
+		return
+	}
+	t := emptyTags().node().withEvent(eventUtx)
+	f := emptyFields().withUtxCount(utxCount)
+	reportUtx(t, f)
 }
 
 func FSMChannelLength(length int) {
@@ -287,46 +253,6 @@ func (t tags) node() tags {
 	return t
 }
 
-func (t tags) fsm(fsm string) tags {
-	t["fsm"] = fsm
-	return t
-}
-
-func (t tags) block() tags {
-	t["object"] = "block"
-	return t
-}
-
-func (t tags) microblock() tags {
-	t["object"] = "micro"
-	return t
-}
-
-func (t tags) received() tags {
-	t["event"] = "received"
-	return t
-}
-
-func (t tags) generated() tags {
-	t["event"] = "generated"
-	return t
-}
-
-func (t tags) declined() tags {
-	t["event"] = "declined"
-	return t
-}
-
-func (t tags) applied() tags {
-	t["event"] = "applied"
-	return t
-}
-
-func (t tags) score() tags {
-	t["object"] = "score"
-	return t
-}
-
 func (t tags) withEvent(event string) tags {
 	t["event"] = event
 	return t
@@ -349,6 +275,11 @@ func (t tags) withBlock() tags {
 
 func (t tags) withMicro() tags {
 	t["type"] = "Micro"
+	return t
+}
+
+func (t tags) withSnapshot() tags {
+	t["type"] = "Snapshot"
 	return t
 }
 
@@ -375,7 +306,7 @@ func newFields() fields {
 	return f
 }
 
-func (f fields) blockID(id proto.BlockID) fields {
+func (f fields) withID(id proto.BlockID) fields {
 	f["block_id"] = id.String()
 	return f
 }
@@ -385,38 +316,22 @@ func (f fields) source(source string) fields {
 	return f
 }
 
-func (f fields) referenceID(id proto.BlockID) fields {
-	f["reference_id"] = id.String()
-	return f
-}
-
-func (f fields) error(err error) fields {
-	f["error"] = err.Error()
-	return f
-}
-
 func (f fields) score(score *proto.Score) fields {
 	f["score"] = score.String()
 	return f
 }
 
-func (f fields) blockTS(ts uint64) fields {
-	f["block_ts"] = ts
-	return f
-}
-
-func (f fields) genPK(pk crypto.PublicKey) fields {
-	f["gen_pk"] = pk.String()
-	return f
-}
-
-func (f fields) signature(sig crypto.Signature) fields {
-	f["sig"] = sig.String()
+func (f fields) withUtxCount(utxCount int) fields {
+	f["utx_count"] = utxCount
 	return f
 }
 
 func (f fields) withBaseTarget(bt uint64) fields {
-	f["bt"] = int(bt)
+	baseTarget, err := safecast.ToInt64(bt)
+	if err != nil {
+		zap.S().Errorf("failed to execute withBaseTarget, %v", err)
+	}
+	f["bt"] = baseTarget
 	return f
 }
 
@@ -561,10 +476,10 @@ func reportBlock(t tags, f fields) {
 	rep.in <- p
 }
 
-func reportFSM(t tags, f fields) {
-	p, err := influx.NewPoint("fsm", t, f, time.Now())
+func reportUtx(t tags, f fields) {
+	p, err := influx.NewPoint("utx", t, f, time.Now())
 	if err != nil {
-		zap.S().Warnf("Failed to create metrics point 'fsm': %v", err)
+		zap.S().Warnf("Failed to create metrics point 'utx': %v", err)
 		return
 	}
 	rep.in <- p

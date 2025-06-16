@@ -6,8 +6,8 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/ng"
@@ -93,6 +93,7 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 
 func (a *BaseInfo) CleanUtx() {
 	utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
+	metrics.Utx(a.utx.Count())
 }
 
 // States.
