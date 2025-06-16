@@ -79,7 +79,7 @@ func (a *IdleState) Task(task tasks.AsyncTask) (State, Async, error) {
 }
 
 func (a *IdleState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
-	metrics.FSMScore("idle", score, p.Handshake().NodeName)
+	metrics.Score(score, p.Handshake().NodeName)
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}

@@ -154,7 +154,7 @@ func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State,
 }
 
 func (a *SyncState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
-	metrics.FSMScore("sync", score, p.Handshake().NodeName)
+	metrics.Score(score, p.Handshake().NodeName)
 	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Score message received from peer '%s', score %s",
 		p.ID().String(), score.String())
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
@@ -167,7 +167,7 @@ func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error)
 	if !p.Equal(a.conf.peerSyncWith) {
 		return a, nil, nil
 	}
-	metrics.FSMKeyBlockReceived("sync", block, p.Handshake().NodeName)
+	metrics.BlockReceivedFromExtension(block, p.Handshake().NodeName)
 	zap.S().Named(logging.FSMNamespace).Debugf("[Sync][%s] Received block %s", p.ID(), block.ID.String())
 
 	internal, err := a.internal.Block(block)
@@ -196,8 +196,13 @@ func (a *SyncState) BlockSnapshot(
 func (a *SyncState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
-	metrics.FSMKeyBlockGenerated("sync", block)
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
+	metrics.BlockMined(block)
 	zap.S().Named(logging.FSMNamespace).Infof("[Sync] New block '%s' mined", block.ID.String())
+
 	_, err := a.baseInfo.blocksApplier.Apply(
 		a.baseInfo.storage,
 		[]*proto.Block{block},
@@ -206,7 +211,8 @@ func (a *SyncState) MinedBlock(
 		zap.S().Warnf("[Sync] Failed to apply mined block: %v", err)
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
-	metrics.FSMKeyBlockApplied("sync", block)
+	metrics.BlockAppliedFromExtension(block, height+1)
+	metrics.Utx(a.baseInfo.utx.Count())
 	a.baseInfo.scheduler.Reschedule()
 
 	// first we should send block
@@ -247,6 +253,10 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")
 		return newSyncState(baseInfo, conf, internal), nil, nil
 	}
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
 	var err error
 	if a.baseInfo.enableLightMode {
 		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
@@ -261,7 +271,6 @@ func (a *SyncState) applyBlocksWithSnapshots(
 			return errApply
 		})
 	}
-
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
 			zap.S().Named(logging.FSMNamespace).Debugf(
@@ -270,12 +279,14 @@ func (a *SyncState) applyBlocksWithSnapshots(
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
 		}
 		for _, b := range blocks {
-			metrics.FSMKeyBlockDeclined("sync", b, err)
+			metrics.BlockDeclinedFromExtension(b)
 		}
 		return newIdleState(a.baseInfo), nil, a.Errorf(err)
 	}
 	for _, b := range blocks {
-		metrics.FSMKeyBlockApplied("sync", b)
+		metrics.BlockAppliedFromExtension(b, height+1)
+		metrics.Utx(a.baseInfo.utx.Count())
+		height++
 	}
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
