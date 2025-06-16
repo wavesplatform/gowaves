@@ -86,7 +86,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 }
 
 func (a *WaitMicroSnapshotState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
-	metrics.FSMScore("ng", score, p.Handshake().NodeName)
+	metrics.Score(score, p.Handshake().NodeName)
 	if len(a.receivedScores) < scoresSliceMaxSize {
 		a.receivedScores = append(a.receivedScores, ReceivedScore{Peer: p, Score: score})
 	}
@@ -106,7 +106,7 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	// the TopBlock() is used here
 	block, err := a.checkAndAppendMicroBlock(a.microBlockWaitingForSnapshot, &snapshot)
 	if err != nil {
-		metrics.FSMMicroBlockDeclined("ng", a.microBlockWaitingForSnapshot, err)
+		metrics.MicroBlockDeclined(a.microBlockWaitingForSnapshot)
 		zap.S().Errorf("%v", a.Errorf(err))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
@@ -146,7 +146,7 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
 			micro.TotalBlockID.String(), micro.Reference.String(), top.BlockID().String())
-		metrics.FSMMicroBlockDeclined("ng", micro, err)
+		metrics.MicroBlockDeclined(micro)
 		return &proto.Block{}, proto.NewInfoMsg(err)
 	}
 	ok, err := micro.VerifySignature(a.baseInfo.scheme)
@@ -195,10 +195,12 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	})
 
 	if err != nil {
-		metrics.FSMMicroBlockDeclined("ng", micro, err)
+		metrics.MicroBlockDeclined(micro)
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
-	metrics.FSMMicroBlockApplied("ng", micro)
+	metrics.MicroBlockApplied(micro)
+	metrics.Utx(a.baseInfo.utx.Count())
+	a.baseInfo.CleanUtx()
 	return newBlock, nil
 }
 

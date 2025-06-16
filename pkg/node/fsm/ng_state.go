@@ -79,7 +79,7 @@ func (a *NGState) Task(task tasks.AsyncTask) (State, Async, error) {
 }
 
 func (a *NGState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
-	metrics.FSMScore("ng", score, p.Handshake().NodeName)
+	metrics.Score(score, p.Handshake().NodeName)
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
@@ -152,7 +152,11 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		return a, nil, a.Errorf(proto.NewInfoMsg(errors.Errorf("Block '%s' already exists", block.BlockID().String())))
 	}
 
-	metrics.FSMKeyBlockReceived("ng", block, peer.Handshake().NodeName)
+	height, errHeight := a.baseInfo.storage.Height()
+	if errHeight != nil {
+		return a, nil, a.Errorf(errHeight)
+	}
+	metrics.BlockReceived(block, peer.Handshake().NodeName)
 
 	top := a.baseInfo.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
@@ -190,6 +194,8 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
+	metrics.BlockApplied(block, height+1)
+	metrics.Utx(a.baseInfo.utx.Count())
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
@@ -210,8 +216,11 @@ func (a *NGState) MinedBlock(
 	// Without this deferred call, the scheduler would not be rescheduled,
 	// and the next block would not be generated without an external trigger.
 	defer a.baseInfo.scheduler.Reschedule()
-
-	metrics.FSMKeyBlockGenerated("ng", block)
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
+	metrics.BlockMined(block)
 	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.baseInfo.blocksApplier.Apply(
@@ -222,10 +231,11 @@ func (a *NGState) MinedBlock(
 	})
 	if err != nil {
 		zap.S().Warnf("[%s] Failed to apply generated key block '%s': %v", a, block.ID.String(), err)
-		metrics.FSMKeyBlockDeclined("ng", block, err)
+		metrics.BlockDeclined(block)
 		return a, nil, a.Errorf(err)
 	}
-	metrics.FSMKeyBlockApplied("ng", block)
+	metrics.BlockApplied(block, height+1)
+	metrics.Utx(a.baseInfo.utx.Count())
 	zap.S().Infof("[%s] Generated key block '%s' successfully applied to state", a, block.ID.String())
 
 	a.blocksCache.Clear()
@@ -238,11 +248,11 @@ func (a *NGState) MinedBlock(
 }
 
 func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async, error) {
-	metrics.FSMMicroBlockReceived("ng", micro, p.Handshake().NodeName)
+	metrics.MicroBlockReceived(micro, p.Handshake().NodeName)
 	if !a.baseInfo.enableLightMode {
 		block, err := a.checkAndAppendMicroBlock(micro) // the TopBlock() is used here
 		if err != nil {
-			metrics.FSMMicroBlockDeclined("ng", micro, err)
+			metrics.MicroBlockDeclined(micro)
 			return a, nil, a.Errorf(err)
 		}
 		zap.S().Named(logging.FSMNamespace).Debugf(
@@ -283,7 +293,7 @@ func (a *NGState) mineMicro(
 	case err != nil:
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))
 	}
-	metrics.FSMMicroBlockGenerated("ng", micro)
+	metrics.MicroBlockMined(micro, block.TransactionCount)
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er
@@ -297,7 +307,9 @@ func (a *NGState) mineMicro(
 	)
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
-	metrics.FSMMicroBlockApplied("ng", micro)
+	metrics.MicroBlockApplied(micro)
+	metrics.Utx(a.baseInfo.utx.Count())
+	a.baseInfo.CleanUtx()
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
 		block.BlockID(),
@@ -342,7 +354,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
 			micro.TotalBlockID.String(), micro.Reference.String(), top.BlockID().String())
-		metrics.FSMMicroBlockDeclined("ng", micro, err)
+		metrics.MicroBlockDeclined(micro)
 		return &proto.Block{}, proto.NewInfoMsg(err)
 	}
 	ok, err := micro.VerifySignature(a.baseInfo.scheme)
@@ -376,10 +388,12 @@ func (a *NGState) checkAndAppendMicroBlock(
 	})
 
 	if err != nil {
-		metrics.FSMMicroBlockDeclined("ng", micro, err)
+		metrics.MicroBlockDeclined(micro)
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
-	metrics.FSMMicroBlockApplied("ng", micro)
+	metrics.MicroBlockApplied(micro)
+	metrics.Utx(a.baseInfo.utx.Count())
+	a.baseInfo.CleanUtx()
 	return newBlock, nil
 }
 
