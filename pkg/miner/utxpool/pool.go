@@ -3,6 +3,7 @@ package utxpool
 import (
 	"container/heap"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"sync"
 
 	"github.com/mr-tron/base58"
@@ -74,7 +75,13 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.addWithBytes(t, bts)
+
+	errAdd := a.addWithBytes(t, bts)
+	if errAdd != nil {
+		return errAdd
+	}
+	metrics.Utx(a.Count())
+	return nil
 }
 
 func (a *UtxImpl) AddBytes(bts []byte) error {
