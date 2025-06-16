@@ -480,10 +480,7 @@ func runesTake(s string, n int) string {
 
 func takeRideString(s string, n int) rideString {
 	l := utf8.RuneCountInString(s)
-	t := n
-	if t > l {
-		t = l
-	}
+	t := min(n, l)
 	if t < 0 {
 		t = 0
 	}
@@ -494,10 +491,7 @@ func takeRideString(s string, n int) rideString {
 func takeRideStringWrong(s string, n int) rideString {
 	b := utf16.Encode([]rune(s))
 	l := len(b)
-	t := n
-	if t > l {
-		t = l
-	}
+	t := min(n, l)
 	if t < 0 {
 		t = 0
 	}
@@ -506,10 +500,7 @@ func takeRideStringWrong(s string, n int) rideString {
 
 func dropRideString(s string, n int) rideString {
 	l := utf8.RuneCountInString(s)
-	d := n
-	if d > l {
-		d = l
-	}
+	d := min(n, l)
 	if d < 0 {
 		d = 0
 	}
