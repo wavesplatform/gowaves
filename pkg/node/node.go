@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -151,12 +152,21 @@ func (a *Node) logErrors(err error) {
 	}
 }
 
+func monitorChanLength(messageCh <-chan peer.ProtoMessage) {
+	ticker := time.NewTicker(time.Second)
+	defer ticker.Stop()
+	for range ticker.C {
+		metrics.FSMChannelLength(len(messageCh))
+	}
+}
+
 func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
 ) {
 	go a.runOutgoingConnections(ctx)
 	go a.runInternalMetrics(ctx, p.MessageCh)
+	go monitorChanLength(p.MessageCh)
 	go a.runIncomingConnections(ctx)
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
