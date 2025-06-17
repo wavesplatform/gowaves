@@ -71,12 +71,8 @@ Use the following conventions when naming your tag and field keys:
 var (
 	once              sync.Once
 	rep               *reporter = nil
-	defaultUtxSampler           = NewRangeSampler(0)
+	DefaultUtxSampler *RangeSampler
 )
-
-func UtxSampler() *RangeSampler {
-	return defaultUtxSampler
-}
 
 func MicroBlockInv(mb *proto.MicroBlockInv, source string) {
 	if rep == nil {
@@ -220,7 +216,7 @@ func UtxCollect() {
 	if rep == nil {
 		return
 	}
-	curV, minV, maxV := UtxSampler().Sample()
+	curV, minV, maxV := DefaultUtxSampler.Sample()
 	t := emptyTags().node().withEvent(eventUtx)
 	f := emptyFields().withUtxCount(curV, minV, maxV)
 	reportUtx(t, f)
@@ -387,6 +383,7 @@ func Start(ctx context.Context, id int, url string) error {
 			interval:  reportInterval,
 			in:        make(chan *influx.Point, bufferSize),
 		}
+		DefaultUtxSampler = NewRangeSampler(0)
 		go rep.run(ctx)
 	})
 	return nil
