@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"hash/maphash"
 	"net"
 	"reflect"
 	"sync"
@@ -152,6 +153,129 @@ func (a *Node) logErrors(err error) {
 	}
 }
 
+type safeMap[K comparable, V any] struct {
+	mu sync.Mutex
+	m  map[K]V
+}
+
+func newSafeMap[K comparable, V any]() *safeMap[K, V] {
+	return &safeMap[K, V]{
+		m: make(map[K]V),
+	}
+}
+
+func (s *safeMap[K, V]) SetIfNew(key K, value V) bool {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if _, exists := s.m[key]; exists {
+		return false
+	}
+	s.m[key] = value
+	return true
+}
+
+func (s *safeMap[K, V]) Delete(key K) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.m, key)
+}
+
+type protoMessageWrapper struct {
+	protoMsg      peer.ProtoMessage
+	payloadDigest uint64
+}
+
+func messagesSplitter(
+	ctx context.Context,
+	origMessageCh <-chan peer.ProtoMessage,
+	noTxChan, txChan chan<- protoMessageWrapper,
+	sm *safeMap[uint64, struct{}],
+) {
+	seed := maphash.MakeSeed()
+	for {
+		var (
+			msg           peer.ProtoMessage
+			payloadDigest uint64
+		)
+		outCh := noTxChan
+		select {
+		case <-ctx.Done():
+			return
+		case msg = <-origMessageCh:
+			switch protoMsg := msg.Message.(type) {
+			case *proto.TransactionMessage:
+				payloadDigest = maphash.Bytes(seed, protoMsg.Transaction)
+				outCh = txChan
+			case *proto.PBTransactionMessage:
+				payloadDigest = maphash.Bytes(seed, protoMsg.Transaction)
+				outCh = txChan
+			}
+		}
+		needToWrite := payloadDigest == 0 || sm.SetIfNew(payloadDigest, struct{}{})
+		if !needToWrite {
+			zap.S().Named(logging.NetworkNamespace).Debugf( // TODO: should it be a network layer message?
+				"[%s] Skipping message (%T): payload already exist in protocol messages channel",
+				msg.ID.ID(), msg.Message,
+			)
+			continue
+		}
+		select {
+		case <-ctx.Done():
+			return
+		case outCh <- protoMessageWrapper{msg, payloadDigest}:
+		}
+	}
+}
+
+func runMessagesMerger(
+	ctx context.Context, wg *sync.WaitGroup,
+	noTxChan, txChan <-chan protoMessageWrapper,
+	sm *safeMap[uint64, struct{}],
+) <-chan peer.ProtoMessage {
+	wg.Add(1)
+	outMessageCh := make(chan peer.ProtoMessage) // intentionally unbuffered channel because of map usage
+	go func() {
+		defer wg.Done()
+		for {
+			var wMsg protoMessageWrapper
+			select {
+			case <-ctx.Done():
+				return
+			case wMsg = <-noTxChan:
+			case wMsg = <-txChan:
+			}
+			select {
+			case <-ctx.Done():
+				return
+			case outMessageCh <- wMsg.protoMsg:
+				if wMsg.payloadDigest != 0 {
+					sm.Delete(wMsg.payloadDigest) // remove payload digest from the map after sending the message
+				}
+			}
+		}
+	}()
+	return outMessageCh
+}
+
+func wrapParentProtoMessagesChan(
+	ctx context.Context, origMessageCh <-chan peer.ProtoMessage,
+) (<-chan peer.ProtoMessage, interface{ Wait() }) {
+	const noTxChanSize = 1000
+	wg := &sync.WaitGroup{}
+	sm := newSafeMap[uint64, struct{}]()
+
+	noTxChan := make(chan protoMessageWrapper, noTxChanSize)
+	txChan := make(chan protoMessageWrapper, max(cap(origMessageCh)-noTxChanSize, noTxChanSize))
+
+	wg.Add(1)
+	go func() { // run messages splitter with filtering
+		defer wg.Done()
+		messagesSplitter(ctx, origMessageCh, noTxChan, txChan, sm)
+	}()
+
+	return runMessagesMerger(ctx, wg, noTxChan, txChan, sm), wg
+}
+
 func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
@@ -159,9 +283,11 @@ func (a *Node) Run(
 	protoMessagesChan := chanLenProvider[peer.ProtoMessage](p.MessageCh)
 
 	go a.runOutgoingConnections(ctx)
-	go a.runInternalMetrics(ctx, protoMessagesChan)
+	go a.runInternalMetrics(ctx, protoMessagesChan) // TODO: fix this metric with the new wrappedChan
 	go a.runIncomingConnections(ctx)
 
+	messageCh, wg := wrapParentProtoMessagesChan(ctx, p.MessageCh)
+	defer wg.Wait()
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
 	// TODO: Consider using context `ctx` in FSM, for now FSM works in the background context.
@@ -207,7 +333,7 @@ func (a *Node) Run(
 			default:
 				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.State, msg)
 			}
-		case mess := <-p.MessageCh:
+		case mess := <-messageCh:
 			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Network message '%T' received from '%s'",
 				m.State.State, mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
