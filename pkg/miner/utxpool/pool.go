@@ -80,11 +80,6 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	if errAdd != nil {
 		return errAdd
 	}
-
-	bbb := a.Count()
-	if bbb != 0 {
-		fmt.Println("utx count is ", bbb)
-	}
 	metrics.DefaultUtxSampler.Update(a.Count())
 	return nil
 }
