@@ -58,6 +58,7 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error 
 			zap.S().Errorf("Failed to close '%s' peer '%s': %v", p.Direction(), p.ID(), err)
 		}
 	}(peer)
+	// TODO: context cancellation should be performed when peer.Close() is called.
 	connectedMsg := InfoMessage{Peer: peer, Value: &Connected{Peer: peer}}
 	parent.InfoCh <- connectedMsg // notify parent about new connection
 
