@@ -2,7 +2,6 @@ package fsm
 
 import (
 	"context"
-	"fmt"
 	"time"
 
 	"github.com/pkg/errors"
@@ -95,10 +94,6 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 func (a *BaseInfo) CleanUtx() {
 	go func() {
 		utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
-		bbb := a.utx.Count()
-		if bbb != 0 {
-			fmt.Println("utx count is ", bbb)
-		}
 		metrics.DefaultUtxSampler.Update(a.utx.Count())
 	}()
 }
