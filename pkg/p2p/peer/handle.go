@@ -58,14 +58,13 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error 
 			zap.S().Errorf("Failed to close '%s' peer '%s': %v", p.Direction(), p.ID(), err)
 		}
 	}(peer)
-	// TODO: context cancellation should be performed when peer.Close() is called.
 	connectedMsg := InfoMessage{Peer: peer, Value: &Connected{Peer: peer}}
 	parent.InfoCh <- connectedMsg // notify parent about new connection
 
 	var errSentToParent bool // if errSentToParent is true then we need to wait ctx cancellation
 	for {
 		select {
-		case <-ctx.Done():
+		case <-ctx.Done(): // context is unique for each peer, so when passed 'peer' arg is closed, context is canceled
 			//TODO: On Done() Err() contains only Canceled or DeadlineExceeded.
 			// Actually, those errors are only logged in different places and not used to alter behavior.
 			// Consider removing wrapping. For now, if context was canceled no error is passed by.
