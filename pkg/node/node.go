@@ -152,21 +152,12 @@ func (a *Node) logErrors(err error) {
 	}
 }
 
-func monitorChanLength(messageCh <-chan peer.ProtoMessage) {
-	ticker := time.NewTicker(time.Second)
-	defer ticker.Stop()
-	for range ticker.C {
-		metrics.FSMChannelLength(len(messageCh))
-	}
-}
-
 func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
 ) {
 	go a.runOutgoingConnections(ctx)
 	go a.runInternalMetrics(ctx, p.MessageCh)
-	go monitorChanLength(p.MessageCh)
 	go a.runIncomingConnections(ctx)
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
@@ -239,19 +230,16 @@ func (a *Node) runIncomingConnections(ctx context.Context) {
 }
 
 func (a *Node) runInternalMetrics(ctx context.Context, ch chan peer.ProtoMessage) {
+	ticker := time.NewTicker(metricInternalChannelSizeUpdateInterval)
+	defer ticker.Stop()
 	for {
-		timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
 		select {
 		case <-ctx.Done():
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
 			return
-		case <-timer.C:
-			metricInternalChannelSize.Set(float64(len(ch)))
+		case <-ticker.C:
+			l := len(ch)
+			metrics.FSMChannelLength(l)
+			metricInternalChannelSize.Set(float64(l))
 		}
 	}
 }
