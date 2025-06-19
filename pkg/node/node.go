@@ -213,11 +213,7 @@ func messagesSplitter(
 		}
 		needToWrite := payloadDigest == 0 || sm.SetIfNew(payloadDigest, struct{}{})
 		if !needToWrite {
-			zap.S().Named(logging.NetworkNamespace).Debugf( // TODO: should it be a network layer message?
-				"[%s] Skipping message (%T): payload already exist in protocol messages channel",
-				msg.ID.ID(), msg.Message,
-			)
-			continue
+			continue // skip a message if payload digest already exists in the map
 		}
 		select {
 		case <-ctx.Done():
