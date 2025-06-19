@@ -67,15 +67,16 @@ func (s *safeMap[K, V]) Delete(key K) {
 }
 
 type protoMessageWrapper struct {
-	protoMsg      peer.ProtoMessage
-	payloadDigest uint64
+	protoMsg  peer.ProtoMessage
+	messageID uint64
 }
 
-// payloadIDFilterFunc is a function type that takes a proto.Message and returns a uint64
-// representing the payload ID. This is used to filter messages based on their payload.
+// messageIDFilterFunc is a function type that takes a proto.Message and returns a uint64
+// representing the deterministic message ID. This is used to filter messages based on
+// their message ID: it can be calculated from the message payload, or from the whole message itself.
 //
-// If the payload ID is 0, the message bypasses filtering.
-type payloadIDFilterFunc func(message proto.Message) uint64
+// If the returned message ID is 0, the message bypasses filtering.
+type messageIDFilterFunc func(message proto.Message) uint64
 
 type txMessagePayloadIDFilter struct {
 	seed maphash.Seed
@@ -97,23 +98,23 @@ func messagesSplitter(
 	origMessageCh <-chan peer.ProtoMessage,
 	noFilteredChan, filteredChan chan<- protoMessageWrapper,
 	sm *safeMap[uint64, struct{}],
-	payloadIDFilter payloadIDFilterFunc,
+	messageIDFilter messageIDFilterFunc,
 ) {
 	for {
 		var (
-			msg           peer.ProtoMessage
-			payloadDigest uint64
+			msg       peer.ProtoMessage
+			messageID uint64
 		)
 		select {
 		case <-ctx.Done():
 			return
 		case msg = <-origMessageCh:
-			payloadDigest = payloadIDFilter(msg.Message)
+			messageID = messageIDFilter(msg.Message)
 		}
-		bypassesFiltering := payloadDigest == 0 // if payloadDigest is 0, it means the message no need to be filtered.
-		needToWrite := bypassesFiltering || sm.SetIfNew(payloadDigest, struct{}{})
+		bypassesFiltering := messageID == 0 // if messageID is 0, it means the message no need to be filtered.
+		needToWrite := bypassesFiltering || sm.SetIfNew(messageID, struct{}{})
 		if !needToWrite {
-			continue // skip a message if payload digest already exists in the map
+			continue // skip a message if message ID already exists in the map
 		}
 		outCh := noFilteredChan
 		if !bypassesFiltering {
@@ -122,7 +123,7 @@ func messagesSplitter(
 		select {
 		case <-ctx.Done():
 			return
-		case outCh <- protoMessageWrapper{msg, payloadDigest}:
+		case outCh <- protoMessageWrapper{msg, messageID}:
 		}
 	}
 }
@@ -148,8 +149,8 @@ func runMessagesMerger(
 			case <-ctx.Done():
 				return
 			case outMessageCh <- wMsg.protoMsg:
-				if wMsg.payloadDigest != 0 {
-					sm.Delete(wMsg.payloadDigest) // remove payload digest from the map after sending the message
+				if wMsg.messageID != 0 {
+					sm.Delete(wMsg.messageID) // remove message ID from the map after sending the message
 				}
 			}
 		}
@@ -177,7 +178,7 @@ type waiter interface {
 
 func deduplicateProtoMessages(
 	ctx context.Context, origMessageCh <-chan peer.ProtoMessage,
-	payloadIDFilter payloadIDFilterFunc,
+	messageIDFilter messageIDFilterFunc,
 ) (<-chan peer.ProtoMessage, lenProvider, waiter) {
 	const noFilteredChanSize = 1000
 
@@ -190,7 +191,7 @@ func deduplicateProtoMessages(
 	wg.Add(1)
 	go func() { // run messages splitter with filtering
 		defer wg.Done()
-		messagesSplitter(ctx, origMessageCh, noFilteredChan, filteredChan, sm, payloadIDFilter)
+		messagesSplitter(ctx, origMessageCh, noFilteredChan, filteredChan, sm, messageIDFilter)
 	}()
 
 	out := runMessagesMerger(ctx, wg, noFilteredChan, filteredChan, sm)
