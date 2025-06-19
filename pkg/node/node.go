@@ -156,10 +156,11 @@ func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
 ) {
-	protoMessagesChan := chanLenProvider[peer.ProtoMessage](p.MessageCh)
+	messageCh, protoMessagesLenProvider, wg := deduplicateProtoTxMessages(ctx, p.MessageCh)
+	defer wg.Wait()
 
 	go a.runOutgoingConnections(ctx)
-	go a.runInternalMetrics(ctx, protoMessagesChan)
+	go a.runInternalMetrics(ctx, protoMessagesLenProvider)
 	go a.runIncomingConnections(ctx)
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
@@ -207,7 +208,7 @@ func (a *Node) Run(
 			default:
 				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.State, msg)
 			}
-		case mess := <-p.MessageCh:
+		case mess := <-messageCh:
 			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Network message '%T' received from '%s'",
 				m.State.State, mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
@@ -234,10 +235,6 @@ func (a *Node) runIncomingConnections(ctx context.Context) {
 type lenProvider interface {
 	Len() int
 }
-
-type chanLenProvider[T any] <-chan T
-
-func (c chanLenProvider[T]) Len() int { return len(c) }
 
 func (a *Node) runInternalMetrics(ctx context.Context, protoMessagesChan lenProvider) {
 	ticker := time.NewTicker(metricInternalChannelSizeUpdateInterval)
