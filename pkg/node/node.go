@@ -253,9 +253,19 @@ func runMessagesMerger(
 	return outMessageCh
 }
 
+type aggregatedLenProvider []lenProvider
+
+func (a aggregatedLenProvider) Len() int {
+	l := 0
+	for _, p := range a {
+		l += p.Len()
+	}
+	return l
+}
+
 func wrapParentProtoMessagesChan(
 	ctx context.Context, origMessageCh <-chan peer.ProtoMessage,
-) (<-chan peer.ProtoMessage, interface{ Wait() }) {
+) (<-chan peer.ProtoMessage, lenProvider, interface{ Wait() }) {
 	const noTxChanSize = 1000
 	wg := &sync.WaitGroup{}
 	sm := newSafeMap[uint64, struct{}]()
@@ -269,21 +279,28 @@ func wrapParentProtoMessagesChan(
 		messagesSplitter(ctx, origMessageCh, noTxChan, txChan, sm)
 	}()
 
-	return runMessagesMerger(ctx, wg, noTxChan, txChan, sm), wg
+	out := runMessagesMerger(ctx, wg, noTxChan, txChan, sm)
+
+	lp := aggregatedLenProvider{
+		chanLenProvider[peer.ProtoMessage](origMessageCh),
+		chanLenProvider[protoMessageWrapper](noTxChan),
+		chanLenProvider[protoMessageWrapper](txChan),
+		chanLenProvider[peer.ProtoMessage](out),
+	}
+	return out, lp, wg
 }
 
 func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
 ) {
-	protoMessagesChan := chanLenProvider[peer.ProtoMessage](p.MessageCh)
+	messageCh, protoMessagesLenProvider, wg := wrapParentProtoMessagesChan(ctx, p.MessageCh)
+	defer wg.Wait()
 
 	go a.runOutgoingConnections(ctx)
-	go a.runInternalMetrics(ctx, protoMessagesChan) // TODO: fix this metric with the new wrappedChan
+	go a.runInternalMetrics(ctx, protoMessagesLenProvider)
 	go a.runIncomingConnections(ctx)
 
-	messageCh, wg := wrapParentProtoMessagesChan(ctx, p.MessageCh)
-	defer wg.Wait()
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
 	// TODO: Consider using context `ctx` in FSM, for now FSM works in the background context.
