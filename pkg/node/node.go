@@ -156,7 +156,7 @@ func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
 ) {
-	messageCh, protoMessagesLenProvider, wg := wrapParentProtoMessagesChan(ctx, p.MessageCh)
+	messageCh, protoMessagesLenProvider, wg := deduplicateProtoTxMessages(ctx, p.MessageCh)
 	defer wg.Wait()
 
 	go a.runOutgoingConnections(ctx)
