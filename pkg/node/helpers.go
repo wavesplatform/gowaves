@@ -71,35 +71,53 @@ type protoMessageWrapper struct {
 	payloadDigest uint64
 }
 
+// payloadIDFilterFunc is a function type that takes a proto.Message and returns a uint64
+// representing the payload ID. This is used to filter messages based on their payload.
+//
+// If the payload ID is 0, the message bypasses filtering.
+type payloadIDFilterFunc func(message proto.Message) uint64
+
+type txMessagePayloadIDFilter struct {
+	seed maphash.Seed
+}
+
+func (f txMessagePayloadIDFilter) Filter(message proto.Message) uint64 {
+	switch msg := message.(type) {
+	case *proto.TransactionMessage:
+		return maphash.Bytes(f.seed, msg.Transaction)
+	case *proto.PBTransactionMessage:
+		return maphash.Bytes(f.seed, msg.Transaction)
+	default:
+		return 0 // non-transaction messages bypass filtering
+	}
+}
+
 func messagesSplitter(
 	ctx context.Context,
 	origMessageCh <-chan peer.ProtoMessage,
-	noTxChan, txChan chan<- protoMessageWrapper,
+	noFilteredChan, filteredChan chan<- protoMessageWrapper,
 	sm *safeMap[uint64, struct{}],
+	payloadIDFilter payloadIDFilterFunc,
 ) {
-	seed := maphash.MakeSeed()
 	for {
 		var (
 			msg           peer.ProtoMessage
 			payloadDigest uint64
 		)
-		outCh := noTxChan
 		select {
 		case <-ctx.Done():
 			return
 		case msg = <-origMessageCh:
-			switch protoMsg := msg.Message.(type) {
-			case *proto.TransactionMessage:
-				payloadDigest = maphash.Bytes(seed, protoMsg.Transaction)
-				outCh = txChan
-			case *proto.PBTransactionMessage:
-				payloadDigest = maphash.Bytes(seed, protoMsg.Transaction)
-				outCh = txChan
-			}
+			payloadDigest = payloadIDFilter(msg.Message)
 		}
-		needToWrite := payloadDigest == 0 || sm.SetIfNew(payloadDigest, struct{}{})
+		bypassesFiltering := payloadDigest == 0 // if payloadDigest is 0, it means the message no need to be filtered.
+		needToWrite := bypassesFiltering || sm.SetIfNew(payloadDigest, struct{}{})
 		if !needToWrite {
 			continue // skip a message if payload digest already exists in the map
+		}
+		outCh := noFilteredChan
+		if !bypassesFiltering {
+			outCh = filteredChan
 		}
 		select {
 		case <-ctx.Done():
@@ -111,7 +129,7 @@ func messagesSplitter(
 
 func runMessagesMerger(
 	ctx context.Context, wg *sync.WaitGroup,
-	noTxChan, txChan <-chan protoMessageWrapper,
+	noFilteredChan, filteredChan <-chan protoMessageWrapper,
 	sm *safeMap[uint64, struct{}],
 ) <-chan peer.ProtoMessage {
 	wg.Add(1)
@@ -123,8 +141,8 @@ func runMessagesMerger(
 			select {
 			case <-ctx.Done():
 				return
-			case wMsg = <-noTxChan:
-			case wMsg = <-txChan:
+			case wMsg = <-noFilteredChan:
+			case wMsg = <-filteredChan:
 			}
 			select {
 			case <-ctx.Done():
@@ -153,29 +171,42 @@ func (a aggregatedLenProvider) Len() int {
 	return l
 }
 
-func wrapParentProtoMessagesChan(
+type waiter interface {
+	Wait()
+}
+
+func deduplicateProtoMessages(
 	ctx context.Context, origMessageCh <-chan peer.ProtoMessage,
-) (<-chan peer.ProtoMessage, lenProvider, interface{ Wait() }) {
-	const noTxChanSize = 1000
+	payloadIDFilter payloadIDFilterFunc,
+) (<-chan peer.ProtoMessage, lenProvider, waiter) {
+	const noFilteredChanSize = 1000
+
 	wg := &sync.WaitGroup{}
 	sm := newSafeMap[uint64, struct{}]()
 
-	noTxChan := make(chan protoMessageWrapper, noTxChanSize)
-	txChan := make(chan protoMessageWrapper, max(cap(origMessageCh)-noTxChanSize, noTxChanSize))
+	noFilteredChan := make(chan protoMessageWrapper, noFilteredChanSize)
+	filteredChan := make(chan protoMessageWrapper, max(cap(origMessageCh)-noFilteredChanSize, noFilteredChanSize))
 
 	wg.Add(1)
 	go func() { // run messages splitter with filtering
 		defer wg.Done()
-		messagesSplitter(ctx, origMessageCh, noTxChan, txChan, sm)
+		messagesSplitter(ctx, origMessageCh, noFilteredChan, filteredChan, sm, payloadIDFilter)
 	}()
 
-	out := runMessagesMerger(ctx, wg, noTxChan, txChan, sm)
+	out := runMessagesMerger(ctx, wg, noFilteredChan, filteredChan, sm)
 
 	lp := aggregatedLenProvider{
 		chanLenProvider[peer.ProtoMessage](origMessageCh),
-		chanLenProvider[protoMessageWrapper](noTxChan),
-		chanLenProvider[protoMessageWrapper](txChan),
+		chanLenProvider[protoMessageWrapper](noFilteredChan),
+		chanLenProvider[protoMessageWrapper](filteredChan),
 		chanLenProvider[peer.ProtoMessage](out),
 	}
 	return out, lp, wg
+}
+
+func deduplicateProtoTxMessages(
+	ctx context.Context, origMessageCh <-chan peer.ProtoMessage,
+) (<-chan peer.ProtoMessage, lenProvider, waiter) {
+	payloadIDFilter := txMessagePayloadIDFilter{seed: maphash.MakeSeed()}
+	return deduplicateProtoMessages(ctx, origMessageCh, payloadIDFilter.Filter)
 }
