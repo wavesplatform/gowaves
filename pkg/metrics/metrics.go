@@ -22,14 +22,15 @@ const (
 	reportInterval = time.Second
 	bufferSize     = 2000
 
-	eventInv      = "Inv"
-	eventReceived = "Received"
-	eventApplied  = "Applied"
-	eventAppended = "Appended"
-	eventDeclined = "Declined"
-	eventMined    = "Mined"
-	eventScore    = "Score"
-	eventUtx      = "Utx"
+	eventInv           = "Inv"
+	eventReceived      = "Received"
+	eventApplied       = "Applied"
+	eventAppended      = "Appended"
+	eventDeclined      = "Declined"
+	eventMined         = "Mined"
+	eventScore         = "Score"
+	eventUtx           = "Utx"
+	eventFSMChannelLen = "FSMChannelLength"
 )
 
 /*
@@ -220,6 +221,15 @@ func Utx(utxCount int) {
 	reportUtx(t, f)
 }
 
+func FSMChannelLength(length int) {
+	if rep == nil {
+		return
+	}
+	t := emptyTags().node().withEvent(eventFSMChannelLen)
+	f := emptyFields().withChannelLength(length)
+	reportFSMChannelLength(t, f)
+}
+
 type tags map[string]string
 
 func emptyTags() tags {
@@ -345,6 +355,11 @@ func (f fields) withHeight(height proto.Height) fields {
 	return f
 }
 
+func (f fields) withChannelLength(chLength int) fields {
+	f["channel-size"] = chLength
+	return f
+}
+
 type reporter struct {
 	c         influx.Client
 	id        int
@@ -465,6 +480,15 @@ func reportUtx(t tags, f fields) {
 	p, err := influx.NewPoint("utx", t, f, time.Now())
 	if err != nil {
 		zap.S().Warnf("Failed to create metrics point 'utx': %v", err)
+		return
+	}
+	rep.in <- p
+}
+
+func reportFSMChannelLength(t tags, f fields) {
+	p, err := influx.NewPoint("fsm-channel", t, f, time.Now())
+	if err != nil {
+		zap.S().Warnf("Failed to create metrics point 'fsm-channel': %v", err)
 		return
 	}
 	rep.in <- p
