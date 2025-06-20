@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"hash/maphash"
 	"testing"
 	"time"
 
@@ -83,10 +84,26 @@ func TestDeduplicateProtoTxMessages(t *testing.T) {
 		&proto.ScoreMessage{Score: []byte{21}},
 	}
 
+	payloadIDFilter := txMessagePayloadIDFilter{seed: maphash.MakeSeed()}
+	messagesProcessedChan := make(chan struct{})
+	filterFunc := func(message proto.Message) uint64 {
+		if len(messages) == 0 {
+			close(messagesProcessedChan) // signal that all messages have been processed
+		}
+		return payloadIDFilter.Filter(message)
+	}
+
 	ctx, cancel := testContext(t)
-	deduplicated, _, wg := deduplicateProtoTxMessages(ctx, messages)
+	deduplicated, _, wg := deduplicateProtoMessages(ctx, messages, filterFunc)
 	defer wg.Wait()
 	defer cancel()
+
+	select {
+	case <-time.After(5 * time.Second):
+		t.Fatal("timed out waiting for messages to be processed")
+	case <-messagesProcessedChan:
+		// All messages have been processed, this is expected.
+	}
 
 	actual := readProtoMessages(t, deduplicated, len(expected))
 	assert.ElementsMatch(t, expected, actual)
