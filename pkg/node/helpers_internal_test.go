@@ -2,6 +2,7 @@ package node
 
 import (
 	"context"
+	"hash/maphash"
 	"testing"
 	"time"
 
@@ -29,12 +30,13 @@ func filledMsgChan(values ...proto.Message) chan peer.ProtoMessage {
 	return ch
 }
 
-func readProtoMessages(t *testing.T, ch <-chan peer.ProtoMessage, expectedMsgCount int) []proto.Message {
-	timeout := time.NewTimer(5 * time.Second)
+func readProtoMessages(
+	ctx context.Context, t *testing.T, ch <-chan peer.ProtoMessage, expectedMsgCount int,
+) []proto.Message {
 	messages := make([]proto.Message, 0, expectedMsgCount)
 	for range expectedMsgCount {
 		select {
-		case <-timeout.C:
+		case <-ctx.Done():
 			t.Fatalf("timed out waiting for messages, check expectedMsgCount=%d", expectedMsgCount)
 		case msg := <-ch:
 			messages = append(messages, msg.Message)
@@ -83,11 +85,32 @@ func TestDeduplicateProtoTxMessages(t *testing.T) {
 		&proto.ScoreMessage{Score: []byte{21}},
 	}
 
+	payloadIDFilter := txMessagePayloadIDFilter{seed: maphash.MakeSeed()}
+	messagesProcessedChan := make(chan struct{})
+	filterFunc := func(message proto.Message) uint64 {
+		if len(messages) == 0 {
+			close(messagesProcessedChan) // signal that all messages have been processed
+		}
+		return payloadIDFilter.Filter(message)
+	}
+
 	ctx, cancel := testContext(t)
-	deduplicated, _, wg := deduplicateProtoTxMessages(ctx, messages)
+	defer cancel()
+	const testTimeout = 5 * time.Second
+	ctx, cancel = context.WithTimeout(ctx, testTimeout) // set global timeout for the test
+
+	deduplicated, lp, wg := deduplicateProtoMessages(ctx, messages, filterFunc)
 	defer wg.Wait()
 	defer cancel()
 
-	actual := readProtoMessages(t, deduplicated, len(expected))
+	select {
+	case <-ctx.Done():
+		t.Fatal("timed out waiting for messages to be processed")
+	case <-messagesProcessedChan:
+		// All messages have been processed, this is expected.
+	}
+
+	actual := readProtoMessages(ctx, t, deduplicated, len(expected))
+	assert.Equal(t, 0, lp.Len()) // no messages left in the channels
 	assert.ElementsMatch(t, expected, actual)
 }
