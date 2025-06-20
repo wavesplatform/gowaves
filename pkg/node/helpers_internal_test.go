@@ -94,7 +94,7 @@ func TestDeduplicateProtoTxMessages(t *testing.T) {
 	}
 
 	ctx, cancel := testContext(t)
-	deduplicated, _, wg := deduplicateProtoMessages(ctx, messages, filterFunc)
+	deduplicated, lp, wg := deduplicateProtoMessages(ctx, messages, filterFunc)
 	defer wg.Wait()
 	defer cancel()
 
@@ -106,5 +106,6 @@ func TestDeduplicateProtoTxMessages(t *testing.T) {
 	}
 
 	actual := readProtoMessages(t, deduplicated, len(expected))
+	assert.Equal(t, 0, lp.Len()) // no messages left in the channels
 	assert.ElementsMatch(t, expected, actual)
 }
