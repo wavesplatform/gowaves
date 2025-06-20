@@ -30,12 +30,13 @@ func filledMsgChan(values ...proto.Message) chan peer.ProtoMessage {
 	return ch
 }
 
-func readProtoMessages(t *testing.T, ch <-chan peer.ProtoMessage, expectedMsgCount int) []proto.Message {
-	timeout := time.NewTimer(5 * time.Second)
+func readProtoMessages(
+	ctx context.Context, t *testing.T, ch <-chan peer.ProtoMessage, expectedMsgCount int,
+) []proto.Message {
 	messages := make([]proto.Message, 0, expectedMsgCount)
 	for range expectedMsgCount {
 		select {
-		case <-timeout.C:
+		case <-ctx.Done():
 			t.Fatalf("timed out waiting for messages, check expectedMsgCount=%d", expectedMsgCount)
 		case msg := <-ch:
 			messages = append(messages, msg.Message)
@@ -94,18 +95,22 @@ func TestDeduplicateProtoTxMessages(t *testing.T) {
 	}
 
 	ctx, cancel := testContext(t)
+	defer cancel()
+	const testTimeout = 5 * time.Second
+	ctx, cancel = context.WithTimeout(ctx, testTimeout) // set global timeout for the test
+
 	deduplicated, lp, wg := deduplicateProtoMessages(ctx, messages, filterFunc)
 	defer wg.Wait()
 	defer cancel()
 
 	select {
-	case <-time.After(5 * time.Second):
+	case <-ctx.Done():
 		t.Fatal("timed out waiting for messages to be processed")
 	case <-messagesProcessedChan:
 		// All messages have been processed, this is expected.
 	}
 
-	actual := readProtoMessages(t, deduplicated, len(expected))
+	actual := readProtoMessages(ctx, t, deduplicated, len(expected))
 	assert.Equal(t, 0, lp.Len()) // no messages left in the channels
 	assert.ElementsMatch(t, expected, actual)
 }
