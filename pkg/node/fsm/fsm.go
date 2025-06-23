@@ -98,6 +98,15 @@ func (a *BaseInfo) CleanUtx() {
 	}()
 }
 
+func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
+	if err := a.utx.Add(t); err != nil {
+		err = errors.Wrap(err, "failed to add transaction to utx")
+		return err
+	}
+	metrics.Utx(a.utx.Count())
+	return nil
+}
+
 // States.
 const (
 	IdleStateName              = "Idle"
