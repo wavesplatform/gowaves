@@ -302,7 +302,10 @@ func (c *NodesClients) SynchronizedWavesBalances(
 		}
 
 		t.Logf("Heights differ, retrying for %d addresses", len(toRetry))
-		time.Sleep(time.Second)
+		select {
+		case <-ctx.Done():
+		case <-time.After(1 * time.Second): // Wait for a second before retrying
+		}
 		rr, rrErr := c.requestAvailableBalancesForAddresses(ctx, toRetry)
 		if rrErr != nil {
 			t.Logf("Errors while requesting balances: %v", rrErr)
