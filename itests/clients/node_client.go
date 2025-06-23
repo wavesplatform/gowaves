@@ -309,8 +309,12 @@ func (c *NodesClients) SynchronizedWavesBalances(
 		}
 		// Update the map with retry results.
 		maps.Copy(sbs, rr)
-		if errors.Is(ctx.Err(), context.Canceled) {
-			t.Logf("Timeout reached, returning empty result")
+		if errors.Is(ctx.Err(), context.Canceled) { // handle context cancellation
+			t.Logf("Context cancelled, returning empty result")
+			return NewSynchronisedBalances()
+		}
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) { // handle context deadline exceeded
+			t.Logf("Deadline exceeded, returning empty result")
 			return NewSynchronisedBalances()
 		}
 	}
