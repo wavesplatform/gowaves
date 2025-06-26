@@ -203,6 +203,7 @@ func NewFSM(
 		skipMessageList: services.SkipMessageList,
 		syncPeer:        syncPeer,
 		enableLightMode: enableLightMode,
+		cleanUtxRunning: &atomic.Bool{},
 	}
 
 	info.scheduler.Reschedule()
