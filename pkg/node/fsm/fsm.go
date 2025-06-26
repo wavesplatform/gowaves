@@ -83,7 +83,7 @@ type BaseInfo struct {
 
 	enableLightMode bool
 
-	cleanUtxRunning atomic.Bool
+	cleanUtxRunning *atomic.Bool
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
