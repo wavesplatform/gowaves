@@ -117,6 +117,8 @@ func (n *Network) handleConnected(msg *peer.Connected) {
 			msg.Peer.Direction(), msg.Peer.ID(), err)
 		return
 	}
+	zap.S().Named(logging.NetworkNamespace).Debugf("Established connection with %s peer '%s' (total: %d)",
+		msg.Peer.Direction(), msg.Peer.ID(), n.peers.ConnectedCount())
 	if n.peers.ConnectedCount() == n.minPeerMining { // TODO: Consider producing duplicate events here
 		n.networkInfoCh <- StartMining{}
 	}
@@ -129,6 +131,8 @@ func (n *Network) handleConnected(msg *peer.Connected) {
 
 func (n *Network) handleInternalErr(msg peer.InfoMessage) {
 	n.peers.Disconnect(msg.Peer)
+	zap.S().Named(logging.NetworkNamespace).Debugf("Disconnected %s peer '%s' (total: %d)",
+		msg.Peer.Direction(), msg.Peer.ID(), n.peers.ConnectedCount())
 	if n.peers.ConnectedCount() < n.minPeerMining {
 		// TODO: Consider handling of duplicate events in consumer
 		n.networkInfoCh <- StopMining{}

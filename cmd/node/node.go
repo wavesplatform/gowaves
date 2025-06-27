@@ -437,7 +437,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to initialize application")
 	}
 
-	if pErr := spawnPeersByAddresses(ctx, conf.Addresses, peerManager); pErr != nil {
+	if pErr := spawnPeersByAddresses(conf.Addresses, peerManager); pErr != nil {
 		return nil, errors.Wrap(pErr, "failed to spawn peers by addresses")
 	}
 
@@ -637,7 +637,7 @@ func embeddedWallet(nc *config, scheme proto.Scheme) (types.EmbeddedWallet, erro
 	return wal, nil
 }
 
-func spawnPeersByAddresses(ctx context.Context, addressesByComma string, pm *peers.PeerManagerImpl) error {
+func spawnPeersByAddresses(addressesByComma string, pm *peers.PeerManagerImpl) error {
 	if addressesByComma == "" { // That means that we don't have any peers to connect to
 		return nil
 	}
@@ -654,7 +654,7 @@ func spawnPeersByAddresses(ctx context.Context, addressesByComma string, pm *pee
 					fmt.Stringer(pi.Addr), pi.Port,
 				)
 			}
-			if pErr := pm.AddAddress(ctx, tcpAddr); pErr != nil {
+			if pErr := pm.AddAddress(tcpAddr); pErr != nil {
 				// That means that we have problems with peers storage
 				return errors.Wrapf(pErr, "failed to add address %q into known peers storage", tcpAddr.String())
 			}
