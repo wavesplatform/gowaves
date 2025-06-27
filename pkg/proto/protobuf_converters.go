@@ -1804,36 +1804,18 @@ func (c *ProtobufConverter) BlockHeader(block *g.Block) (BlockHeader, error) {
 	if block.Header == nil {
 		return BlockHeader{}, errors.New("empty block header")
 	}
-	features := c.features(block.Header.FeatureVotes)
-	consensus := c.consensus(block.Header)
-	v := BlockVersion(c.byte(block.Header.Version))
-	header := BlockHeader{
-		Version:              v,
-		Timestamp:            c.uint64(block.Header.Timestamp),
-		Parent:               c.blockID(block.Header.Reference),
-		FeaturesCount:        len(features),
-		Features:             features,
-		RewardVote:           block.Header.RewardVote,
-		ConsensusBlockLength: uint32(consensus.BinarySize()),
-		NxtConsensus:         consensus,
-		TransactionCount:     len(block.Transactions),
-		GeneratorPublicKey:   c.publicKey(block.Header.Generator),
-		BlockSignature:       c.signature(block.Signature),
-		TransactionsRoot:     block.Header.TransactionsRoot,
-		StateHash:            c.stateHash(block.Header.StateHash),
-		ChallengedHeader:     c.challengedHeader(block.Header.ChallengedHeader),
-	}
-	if c.err != nil {
-		err := c.err
-		c.reset()
+	header, err := c.PartialBlockHeader(block.Header)
+	if err != nil {
 		return BlockHeader{}, err
 	}
+	header.TransactionCount = len(block.Transactions)    // set tx count from whole block message
+	header.BlockSignature = c.signature(block.Signature) // set block signature from whole block message
 	scheme := c.byte(block.Header.ChainId)
 	if scheme == 0 {
 		scheme = c.FallbackChainID
 	}
-	if err := header.GenerateBlockID(scheme); err != nil {
-		return BlockHeader{}, err
+	if gbErr := header.GenerateBlockID(scheme); gbErr != nil { // generate block ID after setting all fields
+		return BlockHeader{}, gbErr
 	}
 	return header, nil
 }
