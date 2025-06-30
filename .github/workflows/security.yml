@@ -41,7 +41,7 @@ jobs:
     # Skip any created PR or push by dependabot to avoid permission issues and skip this check for PRs from forks
     if: github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == 'wavesplatform/gowaves')
     container:
-      image: returntocorp/semgrep:latest
+      image: docker://semgrep/semgrep@sha256:ab68a1c0fe35f41be66e2392903aeea64b6228c16456c8c7058275bbab4c297d
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
