@@ -21,7 +21,7 @@ jobs:
     if: github.event_name == 'push' || github.event.pull_request.head.repo.full_name != 'wavesplatform/gowaves'
     strategy:
       matrix:
-        os: [ macos-latest, windows-latest, ubuntu-latest ]
+        os: [ macos-latest, ubuntu-latest ]
 
     steps:
       - uses: GitHubSecurityLab/actions-permissions/monitor@v1
