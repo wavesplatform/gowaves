@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"sync"
 	"sync/atomic"
 	"time"
 
@@ -48,6 +49,10 @@ type BlocksApplier interface {
 	) (proto.Height, error)
 }
 
+type safeEnvironment struct {
+	stateMutex sync.Mutex
+}
+
 type BaseInfo struct {
 	// peers
 	peers peers.PeerManager
@@ -84,6 +89,8 @@ type BaseInfo struct {
 	enableLightMode bool
 
 	cleanUtxRunning *atomic.Bool
+
+	safeEnv *safeEnvironment
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -99,6 +106,8 @@ func (a *BaseInfo) CleanUtx() {
 		return
 	}
 	go func() {
+		a.safeEnv.stateMutex.Lock()
+		defer a.safeEnv.stateMutex.Unlock()
 		defer func() {
 			a.cleanUtxRunning.Store(false)
 		}()
@@ -204,6 +213,7 @@ func NewFSM(
 		syncPeer:        syncPeer,
 		enableLightMode: enableLightMode,
 		cleanUtxRunning: &atomic.Bool{},
+		safeEnv:         &safeEnvironment{},
 	}
 
 	info.scheduler.Reschedule()
