@@ -37,29 +37,26 @@ type ExpectedInvokeScriptDataSlicePositive struct {
 	_           struct{}
 }
 
-type ExpectedInvokeScriptDataDAppFromDAppPositive struct {
-	Entries []*ExpectedInvokeScriptDataPositive
-	_       struct{}
-}
-
 type ExpectedInvokeScriptDataDAppFromDAppSlicePositive struct {
 	Entries []*ExpectedInvokeScriptDataSlicePositive
 	_       struct{}
 }
 
 type ExpectedInvokeScriptDataNegative struct {
-	WavesDiffBalanceSender    int64
-	AssetDiffBalanceSender    int64
-	FeeAssetDiffBalanceSender int64
-	WavesDiffBalanceRecipient int64
-	AssetDiffBalanceRecipient int64
-	WavesDiffBalanceSponsor   int64
-	AssetDiffBalanceSponsor   int64
-	ErrGoMsg                  string
-	ErrScalaMsg               string
-	ErrBrdCstGoMsg            string
-	ErrBrdCstScalaMsg         string
-	_                         struct{}
+	Address          proto.Address
+	DataEntries      []*waves.DataEntry
+	WavesDiffBalance int64
+	ErrGoMsg         string
+	ErrScalaMsg      string
+	_                struct{}
+}
+
+type ExpectedInvokeScriptExecutionFailed struct {
+	Address           proto.Address
+	DataEntries       []*waves.DataEntry
+	WavesDiffBalance  int64
+	ApplicationStatus string
+	_                 struct{}
 }
 
 func NewInvokeScriptTestData[T any](senderAccount config.AccountInfo, scriptRecipient proto.Recipient,
@@ -836,7 +833,6 @@ func GetInvokeScriptMaxComplexityTestData(suite *f.BaseSuite,
 	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive] {
 
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive]{
-
 		"Function with max complexity": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(dApp.Address),
@@ -861,6 +857,49 @@ func GetInvokeScriptMaxComplexityTestData(suite *f.BaseSuite,
 						},
 					},
 				},
+			},
+		),
+	}
+}
+func GetInvokeScriptExecutionFailedTestData(suite *f.BaseSuite,
+	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptExecutionFailed] {
+	return map[string]InvokeScriptTestData[ExpectedInvokeScriptExecutionFailed]{
+		"Complexity threshold for saving failed transactions (less than 1000)": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("complexityThresholdFailedTxBefore1000",
+				proto.Arguments{
+					&proto.StringArgument{Value: "test"},
+				}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			utl.MinTxFeeWavesDApp,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs(),
+			ExpectedInvokeScriptExecutionFailed{
+				Address:           dApp.Address,
+				DataEntries:       []*waves.DataEntry{},
+				WavesDiffBalance:  0,
+				ApplicationStatus: "UNKNOWN",
+			},
+		),
+		"Complexity threshold for saving failed transactions (more than 1000)": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("complexityThresholdFailedTxAfter1000",
+				proto.Arguments{
+					&proto.StringArgument{Value: "test"},
+				}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			utl.MinTxFeeWavesDApp,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs(),
+			ExpectedInvokeScriptExecutionFailed{
+				Address:           dApp.Address,
+				DataEntries:       []*waves.DataEntry{},
+				WavesDiffBalance:  utl.MinTxFeeWavesDApp,
+				ApplicationStatus: "SCRIPT_EXECUTION_FAILED",
 			},
 		),
 	}

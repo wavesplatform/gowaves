@@ -1069,3 +1069,33 @@ func GetAccountDataGo(suite *f.BaseSuite, address proto.WavesAddress) []*waves.D
 func GetAccountDataScala(suite *f.BaseSuite, address proto.WavesAddress) []*waves.DataEntry {
 	return suite.Clients.ScalaClient.GRPCClient.GetDataEntries(suite.T(), address)
 }
+
+func GetTransactionsStatusesGo(suite *f.BaseSuite, txIds []crypto.Digest) []*g.TransactionStatus {
+	return suite.Clients.GoClient.GRPCClient.GetTransactionsStatuses(suite.T(), txIds)
+}
+
+func GetApplicationStatusGo(suite *f.BaseSuite, txId crypto.Digest) g.ApplicationStatus {
+	statuses := GetTransactionsStatusesGo(suite, []crypto.Digest{txId})
+	var applicationStatus g.ApplicationStatus
+	if len(statuses) == 1 {
+		applicationStatus = statuses[0].GetApplicationStatus()
+	} else {
+		suite.FailNow("transactions statuses is not found")
+	}
+	return applicationStatus
+}
+
+func GetTransactionsStatusesScala(suite *f.BaseSuite, txIds []crypto.Digest) []*g.TransactionStatus {
+	return suite.Clients.ScalaClient.GRPCClient.GetTransactionsStatuses(suite.T(), txIds)
+}
+
+func GetApplicationStatusScala(suite *f.BaseSuite, txId crypto.Digest) g.ApplicationStatus {
+	statuses := GetTransactionsStatusesScala(suite, []crypto.Digest{txId})
+	var applicationStatus g.ApplicationStatus
+	if len(statuses) == 1 {
+		applicationStatus = statuses[0].GetApplicationStatus()
+	} else {
+		suite.FailNow("transactions statuses is not found")
+	}
+	return applicationStatus
+}

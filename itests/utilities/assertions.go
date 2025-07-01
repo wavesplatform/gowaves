@@ -149,3 +149,8 @@ func DataEntriesAndKeysCheck(t *testing.T, expected []*waves.DataEntry, actualGo
 			"Node Scala: Data entries values %v %v are mismatch", entry.Value, actualScala[i].Value)
 	}
 }
+func ApplicationStatusCheck(t *testing.T, expected, actualGo, actualScala string, args ...interface{}) {
+	errMsg := makeErrorMessage("Application status mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
+}

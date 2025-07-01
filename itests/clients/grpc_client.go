@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"io"
 	"math"
 	"testing"
@@ -181,4 +182,32 @@ func (c *GRPCClient) GetDataEntries(t *testing.T, address proto.WavesAddress) []
 		de = append(de, d.GetEntry())
 	}
 	return de
+}
+
+func (c *GRPCClient) GetTransactionsStatuses(t *testing.T, txIds []crypto.Digest) []*g.TransactionStatus {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	var grpcStatuses []*g.TransactionStatus
+	defer cancel()
+
+	ids := make([][]byte, len(txIds))
+	for i, digest := range txIds {
+		ids[i] = digest.Bytes()
+	}
+
+	tx := g.TransactionsByIdRequest{
+		TransactionIds: ids,
+	}
+	stream, err := g.NewTransactionsApiClient(c.conn).GetStatuses(ctx, &tx, grpc.EmptyCallOption{})
+	assert.NoError(t, err, "failed to get transaction statuses from %s node with error: %s",
+		c.impl.String(), err)
+	for {
+		tr, err := stream.Recv()
+		if err == io.EOF {
+			break
+		}
+		assert.NoError(t, err, "failed to get transaction status from %s node with error: %s",
+			c.impl.String(), err)
+		grpcStatuses = append(grpcStatuses, tr)
+	}
+	return grpcStatuses
 }

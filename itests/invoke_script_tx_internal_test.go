@@ -336,3 +336,57 @@ func TestInvokeScriptComplexitySuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(InvokeScriptComplexitySuite))
 }
+
+type InvokeScriptExecutionFailedSuite struct {
+	f.BaseSettingScriptExecutionFailedSuite
+	Versions []byte
+	DApp     config.AccountInfo
+}
+
+func (s *InvokeScriptExecutionFailedSuite) SetupSuite() {
+	s.BaseSettingScriptExecutionFailedSuite.SetupSuite()
+	s.Versions = invoke.GetVersionsInvokeScript(&s.BaseSuite)
+}
+
+func (s *InvokeScriptExecutionFailedSuite) SetupSubTest() {
+	dAppAlias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
+	// create new proxy dApp account with deployed script
+	s.DApp = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
+		1000000000, "dapp_negative.ride")
+	// set alias for proxy dApp account
+	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppAlias,
+		&s.DApp, utl.MinTxFeeWavesDApp)
+}
+
+func (s *InvokeScriptExecutionFailedSuite) Test_InvokeScriptExecutionFailed() {
+	for _, version := range s.Versions {
+		s.Run("check invoke dApp with script execution failed status", func() {
+			testData := testdata.GetInvokeScriptExecutionFailedTestData(&s.BaseSuite, s.DApp)
+			for name, td := range testData {
+				caseName := utl.GetTestcaseNameWithVersion(name, version)
+				s.T().Logf("Test case: %s\n", caseName)
+				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, true)
+				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
+
+				dataDAppGo := utl.GetAccountDataGo(&s.BaseSuite, s.DApp.Address)
+				dataDAppScala := utl.GetAccountDataScala(&s.BaseSuite, s.DApp.Address)
+
+				statusScala := utl.GetApplicationStatusScala(&s.BaseSuite, tx.TxID)
+				statusGo := utl.GetApplicationStatusGo(&s.BaseSuite, tx.TxID)
+
+				utl.ApplicationStatusCheck(s.T(), td.Expected.ApplicationStatus, statusGo.String(), statusScala.String())
+
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.DataEntries, dataDAppGo, dataDAppScala)
+
+				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
+					diffBalances.BalanceInWavesScala, errMsg)
+
+			}
+		})
+	}
+}
+
+func TestInvokeScriptExecutionFailedSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(InvokeScriptExecutionFailedSuite))
+}

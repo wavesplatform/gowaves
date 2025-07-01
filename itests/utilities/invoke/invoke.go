@@ -29,7 +29,6 @@ func MakeTxAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.Invok
 	waitForTx bool, makeTx MakeTx[T]) (utl.ConsideredTransaction, utl.BalanceInWaves) {
 	initBalanceGo, initBalanceScala := utl.GetAvailableBalanceInWaves(suite, testdata.Sender.Address)
 	tx := makeTx(suite, testdata, version, waitForTx)
-
 	actualDiffBalanceInWaves := utl.GetActualDiffBalanceInWaves(
 		suite, testdata.Sender.Address, initBalanceGo, initBalanceScala)
 	return utl.NewConsideredTransaction(tx.TxID, tx.Resp.ResponseGo, tx.Resp.ResponseScala, tx.WtErr.ErrWtGo,
@@ -54,6 +53,11 @@ func BroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.InvokeSc
 	waitForTx bool) utl.ConsideredTransaction {
 	tx := NewSignedInvokeScriptTransactionWithTestData(suite, version, testdata)
 	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
+}
+
+func SendWithTestDataAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.InvokeScriptTestData[T],
+	version byte, waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves) {
+	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SendWithTestData[T])
 }
 
 func GetVersionsInvokeScript(suite *f.BaseSuite) []byte {
