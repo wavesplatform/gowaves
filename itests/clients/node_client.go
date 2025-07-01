@@ -302,15 +302,22 @@ func (c *NodesClients) SynchronizedWavesBalances(
 		}
 
 		t.Logf("Heights differ, retrying for %d addresses", len(toRetry))
-		time.Sleep(time.Second)
+		select {
+		case <-ctx.Done():
+		case <-time.After(1 * time.Second): // Wait for a second before retrying
+		}
 		rr, rrErr := c.requestAvailableBalancesForAddresses(ctx, toRetry)
 		if rrErr != nil {
 			t.Logf("Errors while requesting balances: %v", rrErr)
 		}
 		// Update the map with retry results.
 		maps.Copy(sbs, rr)
-		if errors.Is(ctx.Err(), context.Canceled) {
-			t.Logf("Timeout reached, returning empty result")
+		if errors.Is(ctx.Err(), context.Canceled) { // handle context cancellation
+			t.Logf("Context cancelled, returning empty result")
+			return NewSynchronisedBalances()
+		}
+		if errors.Is(ctx.Err(), context.DeadlineExceeded) { // handle context deadline exceeded
+			t.Logf("Deadline exceeded, returning empty result")
 			return NewSynchronisedBalances()
 		}
 	}

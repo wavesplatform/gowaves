@@ -23,7 +23,7 @@ require (
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/jinzhu/copier v0.4.0
 	github.com/mr-tron/base58 v1.2.0
-	github.com/nats-io/nats-server/v2 v2.11.4
+	github.com/nats-io/nats-server/v2 v2.11.5
 	github.com/neilotoole/slogt v1.1.0
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
@@ -73,7 +73,7 @@ require (
 	github.com/docker/docker v27.1.1+incompatible // indirect
 	github.com/docker/go-connections v0.5.0 // indirect
 	github.com/docker/go-units v0.5.0 // indirect
-	github.com/go-viper/mapstructure/v2 v2.1.0 // indirect
+	github.com/go-viper/mapstructure/v2 v2.3.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
@@ -118,7 +118,7 @@ require (
 	golang.org/x/net v0.41.0 // indirect
 	golang.org/x/term v0.32.0 // indirect
 	golang.org/x/text v0.26.0 // indirect
-	golang.org/x/time v0.11.0 // indirect
+	golang.org/x/time v0.12.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

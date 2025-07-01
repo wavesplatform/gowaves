@@ -261,7 +261,6 @@ func (a *PeerManagerImpl) Close() error {
 func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	if a.unsafeConnectedCount() > a.limitConnections*2 {
 		return
 	}
@@ -273,6 +272,9 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			}
 		},
 	)
+
+	zap.S().Named(logging.NetworkNamespace).Debugf("Spawning outgoing connections (outgoing: %d, limit: %d)",
+		outCnt, a.limitConnections)
 
 	if outCnt > a.limitConnections {
 		return
@@ -294,6 +296,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			}
 		}
 	})
+	zap.S().Named(logging.NetworkNamespace).Debugf("Known peers: %d, active: %d", len(known), len(active))
 	for _, knowPeer := range known {
 		ipPort := knowPeer.IpPort()
 		if _, ok := active[ipPort]; ok {
@@ -419,20 +422,11 @@ func (a *PeerManagerImpl) Run(ctx context.Context) {
 	}
 }
 
-func (a *PeerManagerImpl) AddAddress(ctx context.Context, addr proto.TCPAddr) error {
+func (a *PeerManagerImpl) AddAddress(addr proto.TCPAddr) error {
 	known := storage.KnownPeer(addr.ToIpPort())
 	if err := a.peerStorage.AddOrUpdateKnown([]storage.KnownPeer{known}, time.Now()); err != nil {
 		return errors.Wrapf(err, "failed to add addr %q into known peers storage", addr.String())
 	}
-	go func() {
-		if err := a.spawner.SpawnOutgoing(ctx, addr); err != nil {
-			// TODO(nickeskov): maybe don't remove from known peers in this case?
-			if removeErr := a.peerStorage.DeleteKnown([]storage.KnownPeer{known}); removeErr != nil {
-				zap.S().Errorf("Failed to remove peer %q from known peers storage", known.String())
-			}
-			zap.S().Named(logging.NetworkNamespace).Debugf("Error: %v", err)
-		}
-	}()
 	return nil
 }
 

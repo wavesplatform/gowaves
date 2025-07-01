@@ -82,10 +82,6 @@ func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
 	a.peers.SpawnOutgoingConnections(ctx)
 }
 
-func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error {
-	return a.peers.Connect(ctx, addr)
-}
-
 func (a *Node) serveIncomingPeers(ctx context.Context) error {
 	var wg sync.WaitGroup
 	defer wg.Wait()
