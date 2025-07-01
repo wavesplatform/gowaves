@@ -64,8 +64,6 @@ jobs:
     name: integration_tests
     needs: [ itest-check ]
     if: (needs.itest-check.outputs.can-run-itest == 'true' && github.repository == 'wavesplatform/gowaves')
-    secrets:
-      GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
     uses: "./.github/workflows/run_itests.yml"
     with:
       itest-type: 'itest' # run full set of integration tests

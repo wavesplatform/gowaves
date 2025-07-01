@@ -11,6 +11,8 @@ on:
         type: string
         description: "Environment name for the job ('ITests' for manual approval or '' for no environment)"
 
+permissions: { }
+
 jobs:
   check-inputs:
     name: check-inputs
