@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"io"
 	"os"
+	"slices"
 	"time"
 
 	"github.com/pkg/errors"
@@ -268,10 +269,5 @@ func (im *Importer) extractTransactions(transactions []proto.Transaction, miner 
 }
 
 func (im *Importer) checkMatchers(pk crypto.PublicKey) bool {
-	for _, m := range im.matchers {
-		if m == pk {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(im.matchers, pk)
 }

@@ -90,7 +90,7 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 }
 
 func (a *WaitSnapshotState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
-	metrics.FSMScore("ng", score, p.Handshake().NodeName)
+	metrics.Score(score, p.Handshake().NodeName)
 	if len(a.receivedScores) < scoresSliceMaxSize {
 		a.receivedScores = append(a.receivedScores, ReceivedScore{Peer: p, Score: score})
 	}
@@ -108,6 +108,10 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	}
 
 	defer a.cleanupBeforeTransition()
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
 	_, err := a.baseInfo.blocksApplier.ApplyWithSnapshots(
 		a.baseInfo.storage,
 		[]*proto.Block{a.blockWaitingForSnapshot},
@@ -117,8 +121,8 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		zap.S().Errorf("%v", a.Errorf(errors.Wrapf(err, "Failed to apply block %s", a.blockWaitingForSnapshot.BlockID())))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
-
-	metrics.FSMKeyBlockApplied("ng", a.blockWaitingForSnapshot)
+	metrics.SnapshotBlockApplied(a.blockWaitingForSnapshot, height+1)
+	metrics.Utx(a.baseInfo.utx.Count())
 	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Handle received key block message: block '%s' applied to state",
 		a, blockID)
 

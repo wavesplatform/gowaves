@@ -3,6 +3,7 @@ package internal
 import (
 	"bytes"
 	"context"
+	"slices"
 	"strings"
 	"time"
 
@@ -447,10 +448,5 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 }
 
 func (s *Synchronizer) checkMatcher(pk crypto.PublicKey) bool {
-	for _, m := range s.matchers {
-		if m == pk {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(s.matchers, pk)
 }

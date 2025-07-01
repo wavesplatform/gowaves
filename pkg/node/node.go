@@ -13,6 +13,7 @@ import (
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
@@ -79,10 +80,6 @@ func (a *Node) Close() error {
 
 func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
 	a.peers.SpawnOutgoingConnections(ctx)
-}
-
-func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error {
-	return a.peers.Connect(ctx, addr)
 }
 
 func (a *Node) serveIncomingPeers(ctx context.Context) error {
@@ -155,8 +152,11 @@ func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
 ) {
+	messageCh, protoMessagesLenProvider, wg := deduplicateProtoTxMessages(ctx, p.MessageCh)
+	defer wg.Wait()
+
 	go a.runOutgoingConnections(ctx)
-	go a.runInternalMetrics(ctx, p.MessageCh)
+	go a.runInternalMetrics(ctx, protoMessagesLenProvider)
 	go a.runIncomingConnections(ctx)
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
@@ -204,7 +204,7 @@ func (a *Node) Run(
 			default:
 				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.State, msg)
 			}
-		case mess := <-p.MessageCh:
+		case mess := <-messageCh:
 			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Network message '%T' received from '%s'",
 				m.State.State, mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
@@ -228,20 +228,21 @@ func (a *Node) runIncomingConnections(ctx context.Context) {
 	}
 }
 
-func (a *Node) runInternalMetrics(ctx context.Context, ch chan peer.ProtoMessage) {
+type lenProvider interface {
+	Len() int
+}
+
+func (a *Node) runInternalMetrics(ctx context.Context, protoMessagesChan lenProvider) {
+	ticker := time.NewTicker(metricInternalChannelSizeUpdateInterval)
+	defer ticker.Stop()
 	for {
-		timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
 		select {
 		case <-ctx.Done():
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
 			return
-		case <-timer.C:
-			metricInternalChannelSize.Set(float64(len(ch)))
+		case <-ticker.C:
+			l := protoMessagesChan.Len()
+			metrics.FSMChannelLength(l)
+			metricInternalChannelSize.Set(float64(l))
 		}
 	}
 }

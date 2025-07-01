@@ -1,1 +1,7 @@
 CVE-2024-34478 # False positive, fixed in version 0.24.0
+# CVE-2021-43668 - problem in go ethereum at leveldb level, links:
+# - https://ossindex.sonatype.org/vulnerability/CVE-2021-43668
+# - https://nvd.nist.gov/vuln/detail/CVE-2021-43668 - related to go-ethereum problem
+# - https://github.com/ethereum/go-ethereum/issues/23866 - original issue in go-ethereum, closed due to lack of information
+# - https://github.com/syndtr/goleveldb/issues/373 - issue in syndtr/goleveldb
+CVE-2021-43668 # Ignored because we can't fix it and no update is available at the moment

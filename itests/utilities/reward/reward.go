@@ -60,7 +60,7 @@ func GetBlockRewardDistribution(suite *f.BaseSuite, addresses testdata.Addresses
 	suite.T().Log("Balances before applied block: ")
 	initSumMinersBalance, initDaoBalance, initXtnBalance, initHeight := getSynchronizedBalances(suite, addresses)
 	// Wait for 1 block.
-	utl.WaitForNewHeight(suite)
+	utl.WaitForHeight(suite, initHeight+1)
 	// Get balances after block applied.
 	suite.T().Log("Balances after applied block: ")
 	currentSumMinersBalance, currentDaoBalance, currentXtnBalance, currentHeight := getSynchronizedBalances(suite,
