@@ -3,6 +3,7 @@ package state
 import (
 	"math/big"
 	"sync"
+	"sync/atomic"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -425,8 +426,8 @@ type ThreadSafeWriteWrapper struct {
 }
 
 func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) error {
-	a.lock()
-	defer a.unlock()
+	a.mapStateLock()
+	defer a.mapStateUnlock()
 	return f(a.s)
 }
 
@@ -531,12 +532,31 @@ func NewThreadSafeWriteWrapper(i *int32, mu *sync.RWMutex, s State) StateModifie
 	}
 }
 
+// A state change in a parallel thread is allowed.
+func (a *ThreadSafeWriteWrapper) mapStateLock() {
+	a.mu.Lock()
+}
+
+// A state change in a parallel thread is allowed.
+func (a *ThreadSafeWriteWrapper) mapStateUnlock() {
+	a.mu.Unlock()
+}
+
 func (a *ThreadSafeWriteWrapper) lock() {
+	if !atomic.CompareAndSwapInt32(a.i, 0, 1) {
+		// previous value was not `0`, so it means we already locked
+		// this should never happen, cause all write action happens in only 1 thread.
+		// most likely than we change state in another thread and it's forbidden
+		panic("already modifying state")
+	}
 	a.mu.Lock()
 }
 
 func (a *ThreadSafeWriteWrapper) unlock() {
 	a.mu.Unlock()
+	if !atomic.CompareAndSwapInt32(a.i, 1, 0) {
+		panic("state was already unlocked")
+	}
 }
 
 type ThreadSafeState struct {
