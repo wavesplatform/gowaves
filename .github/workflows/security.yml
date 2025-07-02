@@ -19,7 +19,7 @@ jobs:
     name: gosec check
     runs-on: ubuntu-latest
     # Skip any created PR or push by dependabot to avoid permission issues
-    if: github.actor != 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == github.event.pull_request.head.repo.full_name
     env:
       GO111MODULE: on
     steps:
