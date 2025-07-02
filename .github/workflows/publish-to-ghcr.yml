@@ -14,8 +14,11 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   IMAGE_TAG: ${{ inputs.dockerTag }}
 
+permissions: { }
+
 jobs:
   build:
+    name: Build and Push Docker Image to GitHub Container Registry
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -34,7 +37,7 @@ jobs:
         with:
           go-version: 1.23.x
           check-latest: true
-          cache: true
+          cache: false
 
       - name: Get dependencies
         run: go mod vendor
