@@ -41,7 +41,7 @@ jobs:
     name: semgrep scan
     runs-on: ubuntu-latest
     # Skip any created PR or push by dependabot to avoid permission issues and skip this check for PRs from forks
-    if: github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == 'wavesplatform/gowaves')
+    if: github.event.pull_request.user.login != 'dependabot[bot]' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == 'wavesplatform/gowaves')
     container:
       image: docker://semgrep/semgrep@sha256:ab68a1c0fe35f41be66e2392903aeea64b6228c16456c8c7058275bbab4c297d
     steps:
