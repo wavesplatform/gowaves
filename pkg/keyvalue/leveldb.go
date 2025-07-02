@@ -159,9 +159,9 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		CompactionTotalSize:    params.CompactionTotalSize,
 		OpenFilesCacheCapacity: openFilesCacheCapacity,
 	}
-	db, err := leveldb.OpenFile(path, dbOptions)
+	db, err := openLevelDB(path, dbOptions)
 	if err != nil {
-		return nil, errors.Wrapf(err, "failed to open leveldb db by path '%s'", path)
+		return nil, errors.Wrapf(err, "failed to open key-value db by path '%s'", path)
 	}
 	cache := freecache.NewCache(params.CacheSize)
 	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}}
@@ -169,6 +169,21 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		return nil, errors.Wrap(bfErr, "failed to initialize bloom filter")
 	}
 	return kv, nil
+}
+
+func openLevelDB(path string, dbOptions *opt.Options) (*leveldb.DB, error) {
+	db, err := leveldb.OpenFile(path, dbOptions)
+	if err == nil { // If no error, then the database is opened successfully.
+		return db, nil
+	}
+	zap.S().Warnf("Failed to open leveldb db by path '%s': %v", path, err)
+	zap.S().Infof("Attempting to recover corrupted leveldb by path '%s', may take a while...", path)
+	db, rErr := leveldb.RecoverFile(path, dbOptions)
+	if rErr != nil {
+		return nil, errors.Wrap(rErr, "failed to recover leveldb")
+	}
+	zap.S().Infof("Recovered leveldb db by path '%s'", path)
+	return db, nil
 }
 
 func (k *KeyVal) NewBatch() (Batch, error) {
