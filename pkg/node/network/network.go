@@ -2,12 +2,12 @@ package network
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"sync"
 	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -91,11 +91,11 @@ func (n *Network) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			zap.S().Named(logging.NetworkNamespace).Info("Network terminated")
+			zap.S().Named(p2p.Namespace).Info("Network terminated")
 			return
 		case m, ok := <-n.infoCh:
 			if !ok {
-				zap.S().Named(logging.NetworkNamespace).Warn("Incoming message channel was closed by producer")
+				zap.S().Named(p2p.Namespace).Warn("Incoming message channel was closed by producer")
 				return
 			}
 			switch t := m.Value.(type) {
@@ -113,11 +113,11 @@ func (n *Network) Run(ctx context.Context) {
 func (n *Network) handleConnected(msg *peer.Connected) {
 	err := n.peers.NewConnection(msg.Peer)
 	if err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Established connection with %s peer '%s': %s",
+		zap.S().Named(p2p.Namespace).Debugf("Established connection with %s peer '%s': %s",
 			msg.Peer.Direction(), msg.Peer.ID(), err)
 		return
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("Established connection with %s peer '%s' (total: %d)",
+	zap.S().Named(p2p.Namespace).Debugf("Established connection with %s peer '%s' (total: %d)",
 		msg.Peer.Direction(), msg.Peer.ID(), n.peers.ConnectedCount())
 	if n.peers.ConnectedCount() == n.minPeerMining { // TODO: Consider producing duplicate events here
 		n.networkInfoCh <- StartMining{}
@@ -131,7 +131,7 @@ func (n *Network) handleConnected(msg *peer.Connected) {
 
 func (n *Network) handleInternalErr(msg peer.InfoMessage) {
 	n.peers.Disconnect(msg.Peer)
-	zap.S().Named(logging.NetworkNamespace).Debugf("Disconnected %s peer '%s' (total: %d)",
+	zap.S().Named(p2p.Namespace).Debugf("Disconnected %s peer '%s' (total: %d)",
 		msg.Peer.Direction(), msg.Peer.ID(), n.peers.ConnectedCount())
 	if n.peers.ConnectedCount() < n.minPeerMining {
 		// TODO: Consider handling of duplicate events in consumer

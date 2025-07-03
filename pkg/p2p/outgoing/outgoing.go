@@ -2,13 +2,13 @@ package outgoing
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"net"
 	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -39,7 +39,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	connection, handshake, err := p.connect(ctx, addr, outgoingPeerDialTimeout, v)
 	if err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Outgoing connection to address '%s' failed with error: %v",
+		zap.S().Named(p2p.Namespace).Debugf("Outgoing connection to address '%s' failed with error: %v",
 			addr, err)
 		return errors.Wrapf(err, "%q", addr)
 	}
@@ -49,11 +49,11 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		if err := connection.Close(); err != nil {
 			zap.S().Errorf("Failed to close outgoing connection to '%s': %v", addr, err)
 		}
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to create new peer impl for outgoing conn to %s: %v",
+		zap.S().Named(p2p.Namespace).Debugf("Failed to create new peer impl for outgoing conn to %s: %v",
 			addr, err)
 		return errors.Wrapf(err, "failed to establish connection to %s", addr)
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("Connected outgoing peer with addr '%s', id '%s'",
+	zap.S().Named(p2p.Namespace).Debugf("Connected outgoing peer with addr '%s', id '%s'",
 		addr, peerImpl.ID())
 	return peer.Handle(ctx, peerImpl, params.Parent, remote)
 }
@@ -88,7 +88,7 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 
 	if _, err := handshake.WriteTo(c); err != nil {
 		addr := a.params.Address.String()
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to send handshake with addr %q: %v", addr, err)
+		zap.S().Named(p2p.Namespace).Debugf("Failed to send handshake with addr %q: %v", addr, err)
 		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to send handshake with addr %q", addr)
 	}
 	select {
@@ -99,7 +99,7 @@ func (a *connector) connect(ctx context.Context, addr string, dialTimeout time.D
 
 	if _, err := handshake.ReadFrom(c); err != nil {
 		addr := a.params.Address.String()
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to read handshake with addr %q: %v",
+		zap.S().Named(p2p.Namespace).Debugf("Failed to read handshake with addr %q: %v",
 			a.params.Address.String(), err)
 		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to read handshake with addr %q", addr)
 	}

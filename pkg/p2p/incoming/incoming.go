@@ -2,13 +2,13 @@ package incoming
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"net"
 	"time"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -37,7 +37,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debug("Failed to read handshake: ", err)
+		zap.S().Named(p2p.Namespace).Debug("Failed to read handshake: ", err)
 		_ = c.Close()
 		return err
 	}
@@ -60,7 +60,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debug("Failed to write handshake: ", err)
+		zap.S().Named(p2p.Namespace).Debug("Failed to write handshake: ", err)
 		_ = c.Close()
 		return err
 	}

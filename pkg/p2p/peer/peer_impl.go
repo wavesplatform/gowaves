@@ -3,13 +3,13 @@ package peer
 import (
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"net"
 	"net/netip"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -80,7 +80,8 @@ func (a *PeerImpl) SendMessage(m proto.Message) {
 		zap.S().Errorf("Failed to send message %T: %v", m, err)
 		return
 	}
-	zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Sending to network: %s", a.id, proto.B64Bytes(b))
+	zap.S().Named(p2p.DataNamespace).Debugf("[%s] Sending to network: %s", a.id, proto.B64Bytes(b))
+
 	select {
 	case a.remote.ToCh <- b:
 	default:

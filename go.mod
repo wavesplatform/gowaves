@@ -12,6 +12,7 @@ require (
 	github.com/consensys/gnark v0.13.0
 	github.com/consensys/gnark-crypto v0.18.0
 	github.com/coocood/freecache v1.2.4
+	github.com/dpotapov/slogpfx v0.0.0-20230917063348-41a73c95c536
 	github.com/elliotchance/orderedmap/v2 v2.7.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.8.0
@@ -22,6 +23,8 @@ require (
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
 	github.com/jinzhu/copier v0.4.0
+	github.com/lmittmann/tint v1.1.2
+	github.com/mattn/go-isatty v0.0.20
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nats-io/nats-server/v2 v2.11.5
 	github.com/neilotoole/slogt v1.1.0
@@ -86,7 +89,6 @@ require (
 	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
 	github.com/klauspost/compress v1.18.0 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
-	github.com/mattn/go-isatty v0.0.20 // indirect
 	github.com/minio/highwayhash v1.0.3 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect
 	github.com/moby/sys/user v0.3.0 // indirect

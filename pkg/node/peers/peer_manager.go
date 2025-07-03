@@ -3,12 +3,12 @@ package peers
 import (
 	"context"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"math/big"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 
 	"github.com/pkg/errors"
@@ -185,7 +185,7 @@ func (a *PeerManagerImpl) Suspend(p peer.Peer, suspendTime time.Time, reason str
 	if err := a.peerStorage.AddSuspended([]storage.SuspendedPeer{suspended}); err != nil {
 		zap.S().Errorf("[%s] Failed to suspend peer, reason %q: %v", p.ID(), reason, err)
 	} else {
-		zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Suspend peer, reason: %s ", p.ID(), reason)
+		zap.S().Named(p2p.Namespace).Debugf("[%s] Suspend peer, reason: %s ", p.ID(), reason)
 	}
 }
 
@@ -210,7 +210,7 @@ func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reaso
 	if err := a.peerStorage.AddToBlackList([]storage.BlackListedPeer{blackListed}); err != nil {
 		zap.S().Errorf("[%s] Failed to add peer to black list, reason %q: %v", p.ID(), reason, err)
 	} else {
-		zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Peer added to black list, reason: %s ",
+		zap.S().Named(p2p.Namespace).Debugf("[%s] Peer added to black list, reason: %s ",
 			p.ID(), reason)
 	}
 }
@@ -273,7 +273,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 		},
 	)
 
-	zap.S().Named(logging.NetworkNamespace).Debugf("Spawning outgoing connections (outgoing: %d, limit: %d)",
+	zap.S().Named(p2p.Namespace).Debugf("Spawning outgoing connections (outgoing: %d, limit: %d)",
 		outCnt, a.limitConnections)
 
 	if outCnt > a.limitConnections {
@@ -296,7 +296,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			}
 		}
 	})
-	zap.S().Named(logging.NetworkNamespace).Debugf("Known peers: %d, active: %d", len(known), len(active))
+	zap.S().Named(p2p.Namespace).Debugf("Known peers: %d, active: %d", len(known), len(active))
 	for _, knowPeer := range known {
 		ipPort := knowPeer.IpPort()
 		if _, ok := active[ipPort]; ok {
@@ -315,7 +315,7 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			addr := proto.NewTCPAddr(ipPort.Addr(), ipPort.Port())
 			defer a.removeSpawned(addr)
 			if err := a.spawner.SpawnOutgoing(ctx, addr); err != nil {
-				zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Failed to establish outbound connection: %v",
+				zap.S().Named(p2p.Namespace).Debugf("[%s] Failed to establish outbound connection: %v",
 					ipPort.String(), err)
 			}
 			if err := a.UpdateKnownPeers([]storage.KnownPeer{storage.KnownPeer(ipPort)}); err != nil {
@@ -402,10 +402,10 @@ func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 	pid := p.ID()
 	a.active.remove(pid)
 	if err := p.Close(); err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Disconnection of peer '%s' faled with error: %v",
+		zap.S().Named(p2p.Namespace).Debugf("Disconnection of peer '%s' faled with error: %v",
 			pid, err)
 	} else {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Disconnected peer '%s'", pid)
+		zap.S().Named(p2p.Namespace).Debugf("Disconnected peer '%s'", pid)
 	}
 }
 
@@ -446,16 +446,16 @@ func (a *PeerManagerImpl) CheckPeerWithMaxScore(p peer.Peer) (peer.Peer, bool) {
 	}
 	npi, ok := a.active.getPeerWithMaxScore()
 	if !ok { // No need to change peer
-		zap.S().Named(logging.NetworkNamespace).Debugf("No need to change peer with max score '%s'", pIDStr)
+		zap.S().Named(p2p.Namespace).Debugf("No need to change peer with max score '%s'", pIDStr)
 		return p, false
 	}
 
 	if cpi.score.Cmp(npi.score) < 0 { // npi has a bigger score - switch to it
-		zap.S().Named(logging.NetworkNamespace).Debugf("Changing peer with max score from '%s' to '%s'",
+		zap.S().Named(p2p.Namespace).Debugf("Changing peer with max score from '%s' to '%s'",
 			pIDStr, npi.peer.ID().String())
 		return npi.peer, true
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("No need to change peer with max score '%s'", pIDStr)
+	zap.S().Named(p2p.Namespace).Debugf("No need to change peer with max score '%s'", pIDStr)
 	return p, false // Otherwise stick to currently used peer
 }
 
@@ -470,10 +470,10 @@ func (a *PeerManagerImpl) CheckPeerInLargestScoreGroup(p peer.Peer) (peer.Peer, 
 
 	np, ok := a.active.getPeerFromLargestPeerGroup(p)
 	if !ok { // No need to change peer
-		zap.S().Named(logging.NetworkNamespace).Debugf("No need to change peer '%s'", pid)
+		zap.S().Named(p2p.Namespace).Debugf("No need to change peer '%s'", pid)
 		return p, false
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("Changing best peer from '%s' to '%s'",
+	zap.S().Named(p2p.Namespace).Debugf("Changing best peer from '%s' to '%s'",
 		pid, np.peer.ID().String())
 	return np.peer, true
 }

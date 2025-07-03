@@ -8,7 +8,6 @@ import (
 	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -25,17 +24,17 @@ func (a *HaltState) Errorf(err error) error {
 }
 
 func newHaltState(info BaseInfo) (State, Async, error) {
-	zap.S().Named(logging.FSMNamespace).Debugf("[Halt] Entered the Halt state")
+	zap.S().Named(Namespace).Debugf("[Halt] Entered the Halt state")
 	var errs []error
 	if err := info.peers.Close(); err != nil {
 		errs = append(errs, errors.Wrap(err, "failed to close peers"))
 	}
-	zap.S().Named(logging.FSMNamespace).Debugf("[Halt] Peers closed")
+	zap.S().Named(Namespace).Debugf("[Halt] Peers closed")
 	err := info.storage.Close()
 	if err != nil {
 		errs = append(errs, errors.Wrap(err, "failed to close storage"))
 	}
-	zap.S().Named(logging.FSMNamespace).Debugf("[Halt] Storage closed")
+	zap.S().Named(Namespace).Debugf("[Halt] Storage closed")
 	info.syncPeer.Clear()
 	return &HaltState{
 		baseInfo: info,

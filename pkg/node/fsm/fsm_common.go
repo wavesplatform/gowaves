@@ -12,7 +12,6 @@ import (
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
@@ -97,7 +96,7 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		peerSyncWith: p,
 		timeout:      defaultSyncTimeout,
 	}
-	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Starting synchronization with peer '%s'",
+	zap.S().Named(Namespace).Debugf("[%s] Starting synchronization with peer '%s'",
 		state.String(), p.ID())
 	baseInfo.syncPeer.SetPeer(p)
 	return &SyncState{
@@ -130,7 +129,7 @@ func tryBroadcastTransaction(
 			if err != nil {
 				err = errors.Wrapf(err, "failed to broadcast transaction %q", txID)
 			} else {
-				zap.S().Named(logging.FSMNamespace).Debugf("[%s] Transaction %q broadcasted successfully",
+				zap.S().Named(Namespace).Debugf("[%s] Transaction %q broadcasted successfully",
 					fsm.String(), txID)
 			}
 		}()
@@ -232,7 +231,7 @@ func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
 		cnt++
 	})
 	info.invRequester.Add2Cache(inv.TotalBlockID) // prevent further unnecessary microblock request
-	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: blockID='%s', ref='%s'",
+	zap.S().Named(Namespace).Debugf("Network message '%T' sent to %d peers: blockID='%s', ref='%s'",
 		msg, cnt, inv.TotalBlockID, inv.Reference,
 	)
 	return nil
@@ -246,12 +245,12 @@ func processScoreAfterApplyingOrReturnToNG(
 ) (State, Async, error) {
 	for _, s := range scores {
 		if err := baseInfo.peers.UpdateScore(s.Peer, s.Score); err != nil {
-			zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", proto.NewInfoMsg(err))
+			zap.S().Named(Namespace).Debugf("Error: %v", proto.NewInfoMsg(err))
 			continue
 		}
 		nodeScore, err := baseInfo.storage.CurrentScore()
 		if err != nil {
-			zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", proto.NewInfoMsg(err))
+			zap.S().Named(Namespace).Debugf("Error: %v", proto.NewInfoMsg(err))
 			continue
 		}
 		if s.Score.Cmp(nodeScore) == 1 {

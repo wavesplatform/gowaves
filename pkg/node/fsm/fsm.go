@@ -23,6 +23,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+const Namespace = "FSM"
+
 type Async []tasks.Task
 
 type BlocksApplier interface {

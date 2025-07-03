@@ -2,13 +2,13 @@ package peer
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -26,7 +26,7 @@ func bytesToMessage(data []byte, resendTo chan ProtoMessage, p Peer) error {
 	select {
 	case resendTo <- mess:
 	default:
-		zap.S().Named(logging.NetworkNamespace).Debugf(
+		zap.S().Named(p2p.Namespace).Debugf(
 			"[%s] Failed to resend message of type '%T' because upstream channel is full", p.ID(), m)
 	}
 	return nil
@@ -75,7 +75,7 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote) error 
 
 		case bb := <-remote.FromCh:
 			if !errSentToParent {
-				zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Receiving from network: %s",
+				zap.S().Named(p2p.DataNamespace).Debugf("[%s] Receiving from network: %s",
 					peer.ID(), proto.B64Bytes(bb.Bytes()),
 				)
 				err := bytesToMessage(bb.Bytes(), parent.MessageCh, peer)
