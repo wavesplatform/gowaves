@@ -39,6 +39,8 @@ concurrency:
   group: deploy-node-${{ inputs.network }}-${{ inputs.arch }} # run only one deployment at a time for the same network and architecture
   cancel-in-progress: false # don't cancel the previous deployment if a new one is triggered
 
+permissions: {}
+
 jobs:
   check-inputs:
     name: check-inputs
@@ -49,8 +51,11 @@ jobs:
     steps:
       - name: Check inputs
         run: |
-          echo "${{ env.NETWORK }}" | grep -E '^(mainnet|testnet|stagenet)$' || exit 1 # check if the network is valid
-          echo "${{ env.ARCH }}" | grep -E '^(amd64|arm64)$' || exit 1 # check if the architecture is valid
+          echo "${NETWORK}" | grep -E '^(mainnet|testnet|stagenet)$' || exit 1 # check if the network is valid
+          echo "${ARCH}" | grep -E '^(amd64|arm64)$' || exit 1 # check if the architecture is valid
+        env:
+          NETWORK: ${{ env.NETWORK }}
+          ARCH: ${{ env.ARCH }}
 
   deploy:
     name: deploy
@@ -70,6 +75,7 @@ jobs:
         with:
           fetch-depth: 0
           fetch-tags: true
+          persist-credentials: false
 
       - name: Set up Go 1.24
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
@@ -83,9 +89,11 @@ jobs:
 
       - name: Build ${{ inputs.network }}-${{ inputs.arch }} deb package
         run: |
-          make ${{ env.MAKEFILE_TARGET }} # build the deb package
+          make ${MAKEFILE_TARGET} # build the deb package
           mv build/dist/*.deb ./ # move the deb package to the root directory
           echo "PACKAGE_NAME=$(ls ./*.deb | xargs -n 1 basename)" >> $GITHUB_ENV # set the package name for the next steps
+        env:
+          MAKEFILE_TARGET: ${{ env.MAKEFILE_TARGET }}
 
       - name: Copy deb package to the deployment server
         id: copy-deb

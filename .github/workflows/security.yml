@@ -12,17 +12,21 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
 
+permissions: { }
+
 jobs:
   gosec:
     name: gosec check
     runs-on: ubuntu-latest
     # Skip any created PR or push by dependabot to avoid permission issues
-    if: github.actor != 'dependabot[bot]'
+    if: github.event.pull_request.user.login == 'dependabot[bot]' && github.repository == github.event.pull_request.head.repo.full_name
     env:
       GO111MODULE: on
     steps:
       - name: Checkout Source
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
       - name: Run gosec security scanner
         uses: securego/gosec@d2d3ae66bd8d340b78b5142b6fe610691783c2fe # v2.22.5
         with:
@@ -37,12 +41,14 @@ jobs:
     name: semgrep scan
     runs-on: ubuntu-latest
     # Skip any created PR or push by dependabot to avoid permission issues and skip this check for PRs from forks
-    if: github.actor != 'dependabot[bot]' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == 'wavesplatform/gowaves')
+    if: github.event.pull_request.user.login != 'dependabot[bot]' && (github.event_name == 'push' || github.event.pull_request.head.repo.full_name == 'wavesplatform/gowaves')
     container:
-      image: returntocorp/semgrep:latest
+      image: docker://semgrep/semgrep@sha256:ab68a1c0fe35f41be66e2392903aeea64b6228c16456c8c7058275bbab4c297d
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
         # we let the report trigger content trigger a failure using the GitHub Security features.
         # see https://semgrep.dev/docs/cli-usage/#exit-codes for more details.
       - name: Run semgrep security scanner
@@ -71,6 +77,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        with:
+          persist-credentials: false
       - name: Set up Go
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:

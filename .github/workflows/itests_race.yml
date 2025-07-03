@@ -4,11 +4,12 @@ on:
   schedule:
     - cron: '21 22,23,00,01,02,03 * * *' # UTC time
 
+permissions: { }
+
 jobs:
   itest-race:
     name: integration_tests_with_race_detector
     if: (github.repository == 'wavesplatform/gowaves')
-    secrets: inherit
     uses: "./.github/workflows/run_itests.yml"
     with:
       itest-type: 'itest-race'
