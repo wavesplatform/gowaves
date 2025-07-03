@@ -158,6 +158,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		CompactionTableSize:    params.CompactionTableSize,
 		CompactionTotalSize:    params.CompactionTotalSize,
 		OpenFilesCacheCapacity: openFilesCacheCapacity,
+		Strict:                 opt.DefaultStrict | opt.StrictManifest,
 	}
 	db, err := openLevelDB(path, dbOptions)
 	if err != nil {
