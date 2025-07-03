@@ -806,7 +806,7 @@ func (rw *blockReadWriter) truncate(newHeight, newBlockchainLen, newHeadersLen u
 	newOffset := int64(rw.heightToIDOffset(newHeight))
 	if err := rw.blockHeight2ID.Truncate(newOffset); err != nil {
 		name := rw.blockHeight2ID.Name()
-		return errors.Wrapf(err, "failed to truncate blockHeight2ID file %q to %d bytes", name, newHeight)
+		return errors.Wrapf(err, "failed to truncate blockHeight2ID file %q to %d bytes", name, newOffset)
 	}
 	if _, err := rw.blockHeight2ID.Seek(newOffset, 0); err != nil {
 		name := rw.blockHeight2ID.Name()
