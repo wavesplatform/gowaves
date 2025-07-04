@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"sync"
 	"testing"
@@ -11,8 +12,8 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type server struct {
@@ -69,8 +70,7 @@ func (a *server) listen(l net.Listener) {
 		b := make([]byte, 1024)
 		_, err = conn.Read(b)
 		if err != nil {
-			//fmt.Println(err)
-			zap.S().Error(err)
+			slog.Error("Error", "error", err)
 			return
 		}
 		a.addReadBytes(b)

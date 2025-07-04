@@ -2,11 +2,11 @@ package network
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"time"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -46,7 +46,7 @@ func (id outgoingPeerID) String() string {
 
 func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	if params.DeclAddr.String() == params.Address {
-		zap.S().Errorf("trying to connect to myself")
+		slog.Error("Trying to connect to myself")
 		return
 	}
 
@@ -60,7 +60,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	}
 	connection, handshake, err := peerConnector.connect(ctx, params.WavesNetwork, remote, params.DeclAddr)
 	if err != nil {
-		zap.S().Error(err, params.Address)
+		slog.Error("Failed to connect", "error", err, "address", params.Address)
 		return
 	}
 	p := &OutgoingPeer{
@@ -72,9 +72,9 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 		handshake:  handshake,
 	}
 
-	zap.S().Debugf("connected %s", params.Address)
+	slog.Debug("Connected", "address", params.Address)
 	if err = peer.Handle(ctx, p, params.Parent, remote); err != nil {
-		zap.S().Errorf("peer.Handle(): %v\n", err)
+		slog.Error("Peer.Handle()", "error", err)
 		return
 	}
 }
@@ -95,7 +95,7 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 	for i := 0; i < len(possibleVersions); i++ {
 		c, err := dialer.DialContext(ctx, "tcp", a.Address)
 		if err != nil {
-			zap.S().Infof("failed to connect, %s ID %s", err, a.Address)
+			slog.Info("Failed to connect", "error", err, "address", a.Address)
 			select {
 			case <-ctx.Done():
 				return nil, proto.Handshake{}, errors.Wrap(ctx.Err(), "OutgoingPeer.connect")
@@ -116,7 +116,7 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 		_, err = handshake.WriteTo(c)
 		if err != nil {
 			_ = c.Close()
-			zap.S().Error("failed to send handshake: ", err, a.Address)
+			slog.Error("Failed to send handshake", "error", err, "address", a.Address)
 			continue
 		}
 
@@ -130,7 +130,7 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 		_, err = handshake.ReadFrom(c)
 		if err != nil {
 			_ = c.Close()
-			zap.S().Debugf("failed to read handshake: %s %s", err, a.Address)
+			slog.Debug("Failed to read handshake", "error", err, "address", a.Address)
 			index += 1
 			select {
 			case <-ctx.Done():
@@ -148,13 +148,13 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 func (a *OutgoingPeer) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to marshal message", "error", err)
 		return
 	}
 	select {
 	case a.remote.ToCh <- b:
 	default:
-		zap.S().Warnf("can't send bytes to Remote, chan is full ID %s", a.params.Address)
+		slog.Warn("Can't send bytes to Remote, chan is full", "address", a.params.Address)
 	}
 }
 
