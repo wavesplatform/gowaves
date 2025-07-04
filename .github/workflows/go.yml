@@ -14,6 +14,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
 
+permissions: {}
+
 jobs:
   golangci:
     name: lint
@@ -28,6 +30,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go 1.23
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
@@ -57,6 +60,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
         with:
           fetch-depth: 0
+          persist-credentials: false
 
       - name: Set up Go 1.23
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
@@ -87,7 +91,6 @@ jobs:
     name: smoke_tests
     if: ${{ (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' && github.event.inputs.smoke_tests) &&
       github.repository == 'wavesplatform/gowaves'}}
-    secrets: inherit
     uses: "./.github/workflows/run_itests.yml"
     with:
       itest-type: 'smoke'
