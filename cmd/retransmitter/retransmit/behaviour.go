@@ -2,9 +2,8 @@ package retransmit
 
 import (
 	"context"
+	"log/slog"
 	"net"
-
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -38,7 +37,7 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 	case *proto.TransactionMessage:
 		transaction, err := getTransaction(t, a.scheme)
 		if err != nil {
-			zap.S().Error(err, incomeMessage.ID, t)
+			slog.Error("Failed to get transaction", "error", err, "from", incomeMessage.ID, "type", t)
 			return
 		}
 
@@ -56,12 +55,12 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 	case *proto.GetPeersMessage:
 		a.sendToPeerMyKnownHosts(incomeMessage.ID)
 	case *proto.PeersMessage:
-		zap.S().Debugf("got *proto.PeersMessage, from %s len=%d", incomeMessage.ID, len(t.Peers))
+		slog.Debug("Got *proto.PeersMessage", "from", incomeMessage.ID, "len", len(t.Peers))
 		for _, p := range t.Peers {
 			a.knownPeers.Add(proto.NewTCPAddr(p.Addr, int(p.Port)), proto.Version{})
 		}
 	default:
-		zap.S().Warnf("got unknown incomeMessage.Message of type %T\n", incomeMessage.Message)
+		slog.Warn("Got unknown incomeMessage.Message", "type", incomeMessage.Message)
 	}
 }
 
@@ -76,7 +75,7 @@ func (a *BehaviourImpl) Stop() {
 func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
 	switch t := info.Value.(type) {
 	case error:
-		zap.S().Infof("got error message %s from %s", t, info.Peer)
+		slog.Info("Got error message", "type", t, "from", info.Peer)
 		a.errorHandler(info.Peer, t)
 	case *peer.Connected:
 		a.activeConnections.Add(t.Peer.RemoteAddr().String(), t.Peer)
@@ -84,12 +83,12 @@ func (a *BehaviourImpl) InfoMessage(info peer.InfoMessage) {
 			a.knownPeers.Add(proto.TCPAddr(t.Peer.Handshake().DeclaredAddr), t.Peer.Handshake().Version)
 		}
 	default:
-		zap.S().Warnf("got unknown info message of type %T\n", info.Value)
+		slog.Warn("Got unknown info message", "type", info.Value)
 	}
 }
 
 func (a *BehaviourImpl) AskAboutKnownPeers() {
-	zap.S().Debug("ask about peers")
+	slog.Debug("Ask about peers")
 	a.activeConnections.Each(func(p peer.Peer) {
 		p.SendMessage(&proto.GetPeersMessage{})
 	})

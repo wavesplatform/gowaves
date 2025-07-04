@@ -8,7 +8,6 @@ import (
 	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -56,7 +55,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Requesting peers", a)
+		zap.S().Named(Namespace).Debugf("[%s] Requesting peers", a)
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro:
@@ -72,7 +71,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 			return a, nil, nil
 		case tasks.MicroBlockSnapshot:
 			defer a.cleanupBeforeTransition()
-			zap.S().Named(logging.FSMNamespace).Errorf("%v", a.Errorf(errors.Errorf(
+			zap.S().Named(Namespace).Errorf("%v", a.Errorf(errors.Errorf(
 				"Failed to get snapshot for microBlock '%s' - timeout", t.BlockID)))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		default:
@@ -111,7 +110,7 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 
-	zap.S().Named(logging.FSMNamespace).Debugf(
+	zap.S().Named(Namespace).Debugf(
 		"[%s] Received snapshot for microblock '%s' successfully applied to state", a, block.BlockID(),
 	)
 	a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), a.microBlockWaitingForSnapshot, &snapshot)

@@ -7,12 +7,13 @@ import (
 	"net"
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/p2p"
+
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"go.uber.org/atomic"
 	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -150,7 +151,7 @@ func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.By
 		case fromRemoteCh <- b:
 		default:
 			bytebufferpool.Put(b)
-			zap.S().Named(logging.NetworkNamespace).Debugf(
+			zap.S().Named(p2p.Namespace).Debugf(
 				"[%s] Failed to send bytes from network to upstream channel because it's full", addr)
 		}
 	}

@@ -3,12 +3,12 @@ package internal
 import (
 	"bytes"
 	"context"
+	"log/slog"
 	"slices"
 	"strings"
 	"time"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -37,7 +37,7 @@ func NewSynchronizer(interrupt <-chan struct{}, storage *state.Storage, scheme b
 	if err != nil {
 		return nil, errors.Wrapf(err, "Failed to create new synchronizer")
 	}
-	zap.S().Infof("Synchronization interval set to %v", interval)
+	slog.Info("Synchronization interval", "value", interval)
 	done := make(chan struct{})
 	s := Synchronizer{interrupt: interrupt, done: done, conn: conn, storage: storage, scheme: scheme, matchers: matchers, interval: interval, lag: lag, symbols: symbols}
 	go s.run()
@@ -57,7 +57,7 @@ func (s *Synchronizer) run() {
 	for {
 		select {
 		case <-s.interrupt:
-			zap.S().Info("Shutting down synchronizer...")
+			slog.Info("Shutting down synchronizer...")
 			return
 		case <-ticker.C:
 			s.synchronize()
@@ -78,34 +78,34 @@ func (s *Synchronizer) synchronize() {
 	rh, err := s.nodeHeight()
 	rh = rh - s.lag
 	if err != nil {
-		zap.S().Errorf("Failed to synchronize with node: %v", err)
+		slog.Error("Failed to synchronize with node", "error", err)
 		return
 	}
 	lh, err := s.storage.Height()
 	if err != nil {
-		zap.S().Errorf("Failed to synchronize with node: %v", err)
+		slog.Error("Failed to synchronize with node", "error", err)
 		return
 	}
 	if s.interrupted() {
 		return
 	}
 	if rh > lh {
-		zap.S().Infof("Local height %d, node height %d", lh, rh)
+		slog.Info("Heights", "localHeight", lh, "nodeHeight", rh)
 		ch, err := s.findLastCommonHeight(1, lh)
 		if err != nil {
-			zap.S().Errorf("Failed to find last common height: %v", err)
+			slog.Error("Failed to find last common height", "error", err)
 			return
 		}
 		if ch < lh {
 			rollbackHeight, err := s.storage.SafeRollbackHeight(ch)
 			if err != nil {
-				zap.S().Errorf("Failed to get rollback height: %v", err)
+				slog.Error("Failed to get rollback height", "error", err)
 				return
 			}
-			zap.S().Warnf("Rolling back to safe height %d", rollbackHeight)
+			slog.Warn("Rolling back to safe height", "height", rollbackHeight)
 			err = s.storage.Rollback(rollbackHeight)
 			if err != nil {
-				zap.S().Errorf("Failed to rollback to height %d: %v", rollbackHeight, err)
+				slog.Error("Failed to rollback to height", "height", rollbackHeight, "error", err)
 				return
 			}
 			ch = rollbackHeight - 1
@@ -113,20 +113,20 @@ func (s *Synchronizer) synchronize() {
 		const delta = 10
 		err = s.applyBlocksRange(ch+1, rh, delta)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
-			zap.S().Errorf("Failed to apply blocks: %v", err)
+			slog.Error("Failed to apply blocks", "error", err)
 			return
 		}
 		if s.symbols != nil {
 			err = s.symbols.UpdateFromOracle(s.conn)
 			if err != nil {
-				zap.S().Warnf("Failed to update tickers from oracle: %v", err)
+				slog.Warn("Failed to update tickers from oracle", "error", err)
 			}
 		}
 	}
 }
 
 func (s *Synchronizer) applyBlocksRange(start, end, delta int) error {
-	zap.S().Infof("Synchronizing %d blocks in range starting from height %d with delta %d", end-start+1, start, delta)
+	slog.Info("Synchronizing blocks range", "count", end-start+1, "startHeight", start, "delta", delta)
 	cnv := proto.ProtobufConverter{FallbackChainID: s.scheme}
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -199,18 +199,18 @@ func (s *Synchronizer) applyBlock(height int, id proto.BlockID, txs []proto.Tran
 	if id == emptyID {
 		return errors.Errorf("Empty block id at height: %d", height)
 	}
-	zap.S().Infof("Applying block '%s' at %d containing %d transactions", id.String(), height, len(txs))
+	slog.Info("Applying block", "ID", id.String(), "height", height, "transactions", len(txs))
 	trades, issues, assets, accounts, aliases, err := s.extractTransactions(txs, miner)
 	if err != nil {
 		return err
 	}
 	err = s.storage.PutBalances(height, id, issues, assets, accounts, aliases)
 	if err != nil {
-		zap.S().Errorf("Failed to update state: %s", err.Error())
+		slog.Error("Failed to update state", "error", err)
 	}
 	err = s.storage.PutTrades(height, id, trades)
 	if err != nil {
-		zap.S().Errorf("Failed to update state: %s", err.Error())
+		slog.Error("Failed to update state", "error", err)
 	}
 	return nil
 }
@@ -297,7 +297,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 	for i, tx := range txs {
 		switch t := tx.(type) {
 		case *proto.IssueWithSig:
-			zap.S().Debugf("#%d: IssueWithSig: %v", i, t)
+			slog.Debug("IssueWithSig", "#", i, "tx", t)
 			ic, ac, err := data.FromIssueWithSig(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithSig")
@@ -306,7 +306,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.IssueWithProofs:
-			zap.S().Debugf("%d: IssueWithProofs: %v", i, t)
+			slog.Debug("IssueWithProofs", "#", i, "tx", t)
 			ic, ac, err := data.FromIssueWithProofs(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithProofs")
@@ -315,7 +315,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.TransferWithSig:
-			zap.S().Debugf("%d: TransferWithSig: %v", i, t)
+			slog.Debug("TransferWithSig", "#", i, "tx", t)
 			if t.AmountAsset.Present || t.FeeAsset.Present {
 				u, err := data.FromTransferWithSig(s.scheme, t, miner)
 				if err != nil {
@@ -325,7 +325,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			}
 
 		case *proto.TransferWithProofs:
-			zap.S().Debugf("%d: TransferWithProofs: %v", i, t)
+			slog.Debug("TransferWithProofs", "#", i, "tx", t)
 			if t.AmountAsset.Present || t.FeeAsset.Present {
 				u, err := data.FromTransferWithProofs(s.scheme, t, miner)
 				if err != nil {
@@ -335,7 +335,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			}
 
 		case *proto.ReissueWithSig:
-			zap.S().Debugf("%d: ReissueWithSig: %v", i, t)
+			slog.Debug("ReissueWithSig", "#", i, "tx", t)
 			as, ac, err := data.FromReissueWithSig(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithSig")
@@ -344,7 +344,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.ReissueWithProofs:
-			zap.S().Debugf("%d: ReissueWithProofs: %v", i, t)
+			slog.Debug("ReissueWithProofs", "#", i, "tx", t)
 			as, ac, err := data.FromReissueWithProofs(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithProofs")
@@ -353,7 +353,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.BurnWithSig:
-			zap.S().Debugf("%d: BurnWithSig: %v", i, t)
+			slog.Debug("BurnWithSig", "#", i, "tx", t)
 			as, ac, err := data.FromBurnWithSig(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithSig")
@@ -362,7 +362,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.BurnWithProofs:
-			zap.S().Debugf("%d: BurnWithProofs: %v", i, t)
+			slog.Debug("BurnWithProofs", "#", i, "tx", t)
 			as, ac, err := data.FromBurnWithProofs(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithProofs")
@@ -371,7 +371,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.ExchangeWithSig:
-			zap.S().Debugf("%d: ExchangeWithSig: %v", i, t)
+			slog.Debug("ExchangeWithSig: %v", "#", i, "tx", t)
 			if s.checkMatcher(t.SenderPK) {
 				t, err := data.NewTradeFromExchangeWithSig(s.scheme, t)
 				if err != nil {
@@ -386,7 +386,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac...)
 
 		case *proto.ExchangeWithProofs:
-			zap.S().Debugf("%d: ExchangeWithProofs: %v", i, t)
+			slog.Debug("ExchangeWithProofs", "#", i, "tx", t)
 			if s.checkMatcher(t.SenderPK) {
 				t, err := data.NewTradeFromExchangeWithProofs(s.scheme, t)
 				if err != nil {
@@ -401,11 +401,11 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac...)
 
 		case *proto.SponsorshipWithProofs:
-			zap.S().Debugf("%d: SponsorshipWithProofs: %v", i, t)
+			slog.Debug("SponsorshipWithProofs", "#", i, "tx", t)
 			assetChanges = append(assetChanges, data.FromSponsorshipWithProofs(t))
 
 		case *proto.CreateAliasWithSig:
-			zap.S().Debugf("%d: CreateAliasWithSig: %v", i, t)
+			slog.Debug("CreateAliasWithSig", "#", i, "tx", t)
 			b, err := data.FromCreateAliasWithSig(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithSig")
@@ -413,7 +413,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			binds = append(binds, b)
 
 		case *proto.CreateAliasWithProofs:
-			zap.S().Debugf("%d: CreateAliasWithProofs: %v", i, t)
+			slog.Debug("CreateAliasWithProofs", "#", i, "tx", t)
 			b, err := data.FromCreateAliasWithProofs(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithProofs")
@@ -421,7 +421,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			binds = append(binds, b)
 
 		case *proto.MassTransferWithProofs:
-			zap.S().Debugf("%d: MassTransferWithProofs: %v", i, t)
+			slog.Debug("MassTransferWithProofs", "#", i, "tx", t)
 			if t.Asset.Present {
 				ac, err := data.FromMassTransferWithProofs(s.scheme, t)
 				if err != nil {
@@ -441,7 +441,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 		case *proto.SetAssetScriptWithProofs:
 		case *proto.InvokeScriptWithProofs:
 		default:
-			zap.S().Warnf("%d: Unknown transaction type", i)
+			slog.Warn("Unknown transaction type", "#", i)
 		}
 	}
 	return trades, issueChanges, assetChanges, accountChanges, binds, nil

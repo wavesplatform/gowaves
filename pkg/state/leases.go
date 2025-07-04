@@ -3,10 +3,10 @@ package state
 import (
 	"bytes"
 	"io"
+	"log/slog"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -96,13 +96,14 @@ func (l *leases) generateCancelledLeaseSnapshots(
 	defer func() {
 		leaseIter.Release()
 		if err := leaseIter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+			slog.Error("Iterator error", "error", err)
+			panic(err)
 		}
 	}()
 
 	var leasesToCancel []proto.CancelledLeaseSnapshot
 	// Iterate all the leases.
-	zap.S().Info("Started to cancel leases")
+	slog.Info("Started to cancel leases")
 	for leaseIter.Next() {
 		key := keyvalue.SafeKey(leaseIter)
 		leaseBytes := keyvalue.SafeValue(leaseIter)
@@ -124,13 +125,13 @@ func (l *leases) generateCancelledLeaseSnapshots(
 			if err := k.unmarshal(key); err != nil {
 				return nil, errors.Wrap(err, "failed to unmarshal lease key")
 			}
-			zap.S().Infof("State: cancelling lease %s", k.leaseID.String())
+			slog.Info("State: cancelling lease", "ID", k.leaseID.String())
 			leasesToCancel = append(leasesToCancel, proto.CancelledLeaseSnapshot{
 				LeaseID: k.leaseID,
 			})
 		}
 	}
-	zap.S().Info("Finished to cancel leases")
+	slog.Info("Finished to cancel leases")
 	return leasesToCancel, nil
 }
 
@@ -140,7 +141,7 @@ func (l *leases) cancelLeasesToDisabledAliases(
 	if scheme != proto.MainNetScheme { // no-op
 		return nil, nil, nil
 	}
-	zap.S().Info("Started cancelling leases to disabled aliases")
+	slog.Info("Started cancelling leases to disabled aliases")
 	leasesToCancelMainnet := leasesToDisabledAliasesMainnet()
 	cancelledLeasesSnapshots := make([]proto.CancelledLeaseSnapshot, 0, len(leasesToCancelMainnet))
 	changes := make(map[proto.WavesAddress]balanceDiff, len(leasesToCancelMainnet))
@@ -149,7 +150,7 @@ func (l *leases) cancelLeasesToDisabledAliases(
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to get newest leasing info by id %q", leaseID.String())
 		}
-		zap.S().Infof("State: canceling lease %s", leaseID)
+		slog.Info("State: canceling lease", "ID", leaseID)
 		cancelledLeasesSnapshots = append(cancelledLeasesSnapshots, proto.CancelledLeaseSnapshot{
 			LeaseID: leaseID,
 		})
@@ -183,7 +184,7 @@ func (l *leases) cancelLeasesToDisabledAliases(
 			changes[record.RecipientAddr] = newBalanceDiff(0, -int64(record.Amount), 0, false)
 		}
 	}
-	zap.S().Info("Finished cancelling leases to disabled aliases")
+	slog.Info("Finished cancelling leases to disabled aliases")
 	return cancelledLeasesSnapshots, changes, nil
 }
 
@@ -197,13 +198,14 @@ func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 	defer func() {
 		leaseIter.Release()
 		if err := leaseIter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+			slog.Error("Iterator error", "error", err)
+			panic(err)
 		}
 	}()
 
 	leaseIns := make(map[proto.WavesAddress]int64)
 	// Iterate all the leases.
-	zap.S().Info("Started collecting leases")
+	slog.Info("Started collecting leases")
 	for leaseIter.Next() {
 		leaseBytes := keyvalue.SafeValue(leaseIter)
 		record := new(leasing)
@@ -214,7 +216,7 @@ func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 			leaseIns[record.RecipientAddr] += int64(record.Amount)
 		}
 	}
-	zap.S().Info("Finished collecting leases")
+	slog.Info("Finished collecting leases")
 	return leaseIns, nil
 }
 
