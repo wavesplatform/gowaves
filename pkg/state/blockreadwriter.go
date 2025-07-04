@@ -277,8 +277,8 @@ func newBlockReadWriter(
 		height:                     height,
 		protobufInfoWithActivation: pbInfo,
 	}
-	if err := rw.syncWithDb(); err != nil {
-		return nil, err // no need to close rw because all resources will be closed above
+	if sErr := rw.syncWithDb(); sErr != nil { // no need to close rw because all resources will be closed above
+		return nil, errors.Wrap(sErr, "failed to sync with db")
 	}
 	return rw, nil
 }
@@ -786,25 +786,31 @@ func (rw *blockReadWriter) truncate(newHeight, newBlockchainLen, newHeadersLen u
 
 	// Remove transactions.
 	if err := rw.blockchain.Truncate(int64(newBlockchainLen)); err != nil {
-		return err
+		name := rw.blockchain.Name()
+		return errors.Wrapf(err, "failed to truncate blockchain file %q to %d bytes", name, newBlockchainLen)
 	}
 	if _, err := rw.blockchain.Seek(int64(newBlockchainLen), 0); err != nil {
-		return err
+		name := rw.blockchain.Name()
+		return errors.Wrapf(err, "failed to seek blockchain file %q to %d bytes", name, newBlockchainLen)
 	}
 	// Remove headers.
 	if err := rw.headers.Truncate(int64(newHeadersLen)); err != nil {
-		return err
+		name := rw.headers.Name()
+		return errors.Wrapf(err, "failed to truncate headers file %q to %d bytes", name, newHeadersLen)
 	}
 	if _, err := rw.headers.Seek(int64(newHeadersLen), 0); err != nil {
-		return err
+		name := rw.headers.Name()
+		return errors.Wrapf(err, "failed to seek headers file %q to %d bytes", name, newHeadersLen)
 	}
 	// Remove blockIDs from blockHeight2ID file.
 	newOffset := int64(rw.heightToIDOffset(newHeight))
 	if err := rw.blockHeight2ID.Truncate(newOffset); err != nil {
-		return err
+		name := rw.blockHeight2ID.Name()
+		return errors.Wrapf(err, "failed to truncate blockHeight2ID file %q to %d bytes", name, newOffset)
 	}
 	if _, err := rw.blockHeight2ID.Seek(newOffset, 0); err != nil {
-		return err
+		name := rw.blockHeight2ID.Name()
+		return errors.Wrapf(err, "failed to seek blockHeight2ID file %q to %d bytes", name, newOffset)
 	}
 	if removeProtobufInfo {
 		// Protobuf.
@@ -828,16 +834,22 @@ func (rw *blockReadWriter) truncate(newHeight, newBlockchainLen, newHeadersLen u
 func (rw *blockReadWriter) rollback(newHeight uint64) error {
 	if newHeight == 0 {
 		// Remove everything.
-		return rw.truncate(0, 0, 0, true)
+		if tErr := rw.truncate(0, 0, 0, true); tErr != nil {
+			return errors.Wrap(tErr, "failed to truncate blockchain files to zero")
+		}
+		return nil
 	}
 	blockMeta, err := rw.blockMetaByHeight(newHeight)
 	if err != nil {
-		return err
+		return errors.Wrapf(err, "failed to find block meta by height %d", newHeight)
 	}
 	blockEnd := blockMeta.txEndOffset
 	headerEnd := blockMeta.headerEndOffset
 	removeProtobufInfo := blockEnd < rw.protobufTxStart
-	return rw.truncate(newHeight, blockEnd, headerEnd, removeProtobufInfo)
+	if tErr := rw.truncate(newHeight, blockEnd, headerEnd, removeProtobufInfo); tErr != nil {
+		return errors.Wrapf(tErr, "failed to truncate to height %d", newHeight)
+	}
+	return nil
 }
 
 func (rw *blockReadWriter) reset() {
@@ -991,10 +1003,10 @@ func (rw *blockReadWriter) txByBounds(start, end uint64) (proto.Transaction, err
 func (rw *blockReadWriter) syncWithDb() error {
 	dbHeight, err := rw.stateDB.getHeight()
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to retrieve height from state")
 	}
-	if err := rw.rollback(dbHeight); err != nil {
-		return errors.Errorf("failed to remove blocks from block storage: %v", err)
+	if rErr := rw.rollback(dbHeight); rErr != nil {
+		return errors.Wrapf(rErr, "failed to remove blocks from block read writer to height %d", dbHeight)
 	}
 	zap.S().Infof("Synced to state height %d", dbHeight)
 	return nil
