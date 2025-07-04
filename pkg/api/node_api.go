@@ -6,6 +6,7 @@ import (
 	stderrs "errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"net"
 	"net/http"
 	"strconv"
@@ -14,7 +15,6 @@ import (
 
 	"github.com/go-chi/chi"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -416,7 +416,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 
 	apiServer := &http.Server{Addr: address, Handler: routes, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	apiServer.RegisterOnShutdown(func() {
-		zap.S().Info("Shutting down API server ...")
+		slog.Info("Shutting down API server ...")
 	})
 	done := make(chan struct{})
 	defer func() { <-done }() // wait for server shutdown
@@ -427,7 +427,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 		defer cancel()
 		sErr := apiServer.Shutdown(shutdownCtx)
 		if sErr != nil {
-			zap.S().Errorf("Failed to shutdown API server: %v", sErr)
+			slog.Error("Failed to shutdown API server", "error", sErr)
 		}
 	}()
 
@@ -442,7 +442,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 		}
 
 		ln = limit_listener.LimitListener(ln, opts.MaxConnections)
-		zap.S().Debugf("Set limit for number of simultaneous connections for REST API to %d", opts.MaxConnections)
+		slog.Debug("Set limit for number of simultaneous connections for REST API", "limit", opts.MaxConnections)
 
 		err = apiServer.Serve(ln)
 	} else {
@@ -564,7 +564,7 @@ func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
+func (a *NodeApi) NodeStatus(w http.ResponseWriter, _ *http.Request) error {
 	type resp struct {
 		BlockchainHeight uint64 `json:"blockchainHeight"`
 		StateHeight      uint64 `json:"stateHeight"`
@@ -1050,6 +1050,6 @@ func (a *NodeApi) debugPrint(_ http.ResponseWriter, r *http.Request) error {
 		trimmedStr = req.Message[:maxDebugMessageLength]
 	}
 	safeStr := strings.NewReplacer("\n", "", "\r", "").Replace(trimmedStr)
-	zap.S().Debug(safeStr)
+	slog.Debug(safeStr)
 	return nil
 }

@@ -1,13 +1,13 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi"
 	"github.com/go-chi/chi/middleware"
 	"github.com/pkg/errors"
 	"github.com/semrush/zenrpc/v2"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/api/metamask"
 )
@@ -45,14 +45,14 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 		r.Use(middleware.RequestID)
 	}
 	if opts.LogHttpRequestOpts {
-		r.Use(createLoggerMiddleware(zap.L()))
+		r.Use(createLoggerMiddleware(slog.Default()))
 	}
 	if opts.RouteNotFoundHandler != nil {
 		r.NotFound(opts.RouteNotFoundHandler)
 	}
 
 	// nickeskov: middlewares and custom handlers
-	errHandler := NewErrorHandler(zap.L())
+	errHandler := NewErrorHandler(slog.Default())
 	checkAuthMiddleware := createCheckAuthMiddleware(a.app, errHandler.Handle)
 
 	wrapper := func(handlerFunc HandlerFunc) http.HandlerFunc {
@@ -62,7 +62,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 	if opts.EnableHeartbeatRoute {
 		r.Get("/go/node/healthz", func(w http.ResponseWriter, r *http.Request) {
 			if _, err := w.Write([]byte("OK")); err != nil {
-				zap.S().Errorf("Can't write 'OK' to ResponseWriter: %+v", err)
+				slog.Error("Can't write 'OK' to ResponseWriter", "error", err)
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 		})
