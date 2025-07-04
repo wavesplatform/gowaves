@@ -65,14 +65,13 @@ func (p *printer) printDifferentResults(height uint64, res map[proto.FieldsHashe
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	slog.Info("Following state hashes are different", "height", height)
 	for fh, nodes := range res {
 		hashJs, err := json.Marshal(fh)
 		if err != nil {
 			panic(err)
 		}
-		slog.Info(string(hashJs))
-		slog.Info("Nodes: %v\n", nodes.nodes)
+		slog.Info("Following state hashes are different",
+			"height", height, "stateHash", string(hashJs), "nodes", nodes.nodes)
 	}
 }
 
@@ -183,15 +182,15 @@ func main() {
 			"Number of goroutines that will run for downloading state hashes.")
 		tries = flag.Int("tries-num", defaultTriesNumber, "Number of tries to download.")
 	)
-
+	lp.Initialize()
 	flag.Parse()
+
 	if err := lp.Parse(); err != nil {
 		slog.Error("Failed to parse application parameters", "error", err)
 		os.Exit(1)
 	}
 
-	logger := slog.New(logging.DefaultHandler(lp))
-	slog.SetDefault(logger)
+	slog.SetDefault(slog.New(logging.DefaultHandler(lp)))
 	if *endHeight <= *startHeight {
 		slog.Error("End height must be greater than start height",
 			"endHeight", *endHeight, "startHeight", *startHeight)

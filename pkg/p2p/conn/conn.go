@@ -3,10 +3,11 @@ package conn
 import (
 	"bytes"
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"io"
 	"net"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"

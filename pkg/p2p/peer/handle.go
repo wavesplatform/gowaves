@@ -2,8 +2,9 @@ package peer
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"sync"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"

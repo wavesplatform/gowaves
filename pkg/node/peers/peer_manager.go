@@ -3,11 +3,12 @@ package peers
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"math/big"
 	"net"
 	"sync"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 
 	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 

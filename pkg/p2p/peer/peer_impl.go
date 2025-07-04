@@ -3,9 +3,10 @@ package peer
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"net"
 	"net/netip"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"

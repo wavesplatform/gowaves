@@ -2,9 +2,10 @@ package outgoing
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"net"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 
 	"github.com/pkg/errors"
 	"go.uber.org/zap"

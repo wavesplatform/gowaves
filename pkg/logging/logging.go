@@ -15,19 +15,24 @@ const NamespaceKey = "namespace"
 
 // DefaultHandler creates a new slog handler with the specified parameters.
 func DefaultHandler(params Parameters) slog.Handler {
-	switch params.Type {
+	return NewHandler(params.Type, params.Level)
+}
+
+// NewHandler creates a new slog handler based on the specified logger type and level.
+func NewHandler(loggerType LoggerType, level slog.Level) slog.Handler {
+	switch loggerType {
 	case LoggerText:
-		return slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: params.Level})
+		return slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level})
 	case LoggerJSON:
-		return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: params.Level})
+		return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
 	case LoggerPretty:
 		w := os.Stdout
 		colorize := isatty.IsTerminal(w.Fd())
-		return buildPrettyHandler(w, params.Level, colorize)
+		return buildPrettyHandler(w, level, colorize)
 	case LoggerPrettyNoColor:
-		return buildPrettyHandler(os.Stdout, params.Level, false)
+		return buildPrettyHandler(os.Stdout, level, false)
 	default:
-		panic(fmt.Sprintf("unsupported logger type %d", params.Type))
+		panic(fmt.Sprintf("unsupported logger type %d", loggerType))
 	}
 }
 

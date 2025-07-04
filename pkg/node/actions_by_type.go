@@ -2,9 +2,10 @@ package node
 
 import (
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"math/big"
 	"reflect"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 
 	"go.uber.org/zap"
 

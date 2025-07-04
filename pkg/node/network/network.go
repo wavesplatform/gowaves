@@ -2,9 +2,10 @@ package network
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"sync"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 
 	"go.uber.org/zap"
 

@@ -2,11 +2,12 @@ package node
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"net"
 	"reflect"
 	"sync"
 	"time"
+
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 
 	"github.com/wavesplatform/gowaves/pkg/node/network"
 

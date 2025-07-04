@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/binary"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
