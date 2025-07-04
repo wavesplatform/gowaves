@@ -2,11 +2,11 @@ package ntptime
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/beevik/ntp"
-	"go.uber.org/zap"
 )
 
 type inner interface {
@@ -79,7 +79,7 @@ func (a *ntpTimeImpl) Run(ctx context.Context, duration time.Duration) {
 		case <-timer.C:
 			tm, err := a.inner.Query(a.addr)
 			if err != nil {
-				zap.S().Debug("ntpTimeImpl Run: ", err)
+				slog.Debug("Failed to run NTP time provider", "error", err)
 				continue
 			}
 			a.mu.Lock()
