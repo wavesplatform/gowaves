@@ -426,8 +426,8 @@ type ThreadSafeWriteWrapper struct {
 }
 
 func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) error {
-	a.lock()
-	defer a.unlock()
+	a.mapStateLock()
+	defer a.mapStateUnlock()
 	return f(a.s)
 }
 
@@ -530,6 +530,16 @@ func NewThreadSafeWriteWrapper(i *int32, mu *sync.RWMutex, s State) StateModifie
 		i:  i,
 		s:  s,
 	}
+}
+
+// A state change in a parallel thread is allowed.
+func (a *ThreadSafeWriteWrapper) mapStateLock() {
+	a.mu.Lock()
+}
+
+// A state change in a parallel thread is allowed.
+func (a *ThreadSafeWriteWrapper) mapStateUnlock() {
+	a.mu.Unlock()
 }
 
 func (a *ThreadSafeWriteWrapper) lock() {
