@@ -157,17 +157,17 @@ func (m *monetaryPolicy) saveVotes(votes rewardVotesRecord, blockID proto.BlockI
 }
 
 func (m *monetaryPolicy) updateBlockReward(
-	lastBlockID proto.BlockID,
-	height proto.Height,
+	nextBlockID proto.BlockID, // the same as adding block ID
+	lastBlockHeight proto.Height,
 	blockRewardActivationHeight proto.Height,
 	isCappedRewardsActive bool,
 ) error {
 	zap.S().Debugf(
 		"[MONETARY POLICY] Updating block reward at height %d, last block ID %s, blockRewardActivationHeight %d, isCappedRewardsActive %t",
-		height, lastBlockID.String(),
+		lastBlockHeight, nextBlockID.String(),
 		blockRewardActivationHeight, isCappedRewardsActive,
 	)
-	votes, err := m.newestVotes(height, blockRewardActivationHeight, isCappedRewardsActive)
+	votes, err := m.newestVotes(lastBlockHeight, blockRewardActivationHeight, isCappedRewardsActive)
 	if err != nil {
 		return err
 	}
@@ -187,9 +187,10 @@ func (m *monetaryPolicy) updateBlockReward(
 	}
 	zap.S().Debugf(
 		"[MONETARY POLICY] Block reward changed from %d to %d at height %d, last block ID %s",
-		prevReward, reward, height, lastBlockID.String(),
+		prevReward, reward, lastBlockHeight, nextBlockID.String(),
 	)
-	return m.saveNewRewardChange(reward, height, lastBlockID)
+	nextBlockHeight := lastBlockHeight + 1 // we should save the reward for the next block that we are going to add
+	return m.saveNewRewardChange(reward, nextBlockHeight, nextBlockID)
 }
 
 func (m *monetaryPolicy) blockRewardVotingPeriod(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {
