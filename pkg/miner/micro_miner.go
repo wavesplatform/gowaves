@@ -71,7 +71,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	var inapplicable []*types.TransactionWithBytes
 	var txSnapshots [][]proto.AtomicSnapshot
 
-	_ = a.state.Map(func(s state.NonThreadSafeState) error {
+	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
 
 		for txCount <= maxMicroblockTransactions {

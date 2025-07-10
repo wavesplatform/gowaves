@@ -279,8 +279,6 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 
 func (a *NGState) microMine(minedBlock *proto.Block,
 	rest proto.MiningLimits, keyPair proto.KeyPair) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
-	a.baseInfo.safeEnv.stateMutex.Lock()
-	defer a.baseInfo.safeEnv.stateMutex.Unlock()
 	return a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair)
 }
 

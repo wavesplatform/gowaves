@@ -46,7 +46,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
 
-	_ = a.state.Map(func(s state.NonThreadSafeState) error {
+	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
 
 		for {
