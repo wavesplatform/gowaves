@@ -38,6 +38,7 @@ func (a *ValidatorImpl) Validate(tx proto.Transaction) error {
 	if now.Add(-a.obsolescence).After(lastBlockTime) {
 		return errors.New("state outdated, transaction not accepted")
 	}
+	// TxValidation - reset validation list.
 	return a.state.TxValidation(func(validation state.TxValidation) error {
 		_, err := validation.ValidateNextTx(tx, uint64(now.UnixMilli()), lastBlock.Timestamp, lastBlock.Version, false)
 		return err

@@ -28,13 +28,17 @@ func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bul
 }
 
 func (a bulkValidator) Validate() {
-	transactions, err := a.validate()
+	transactions, err := a.validate() // Pop transactions from UTX, clean UTX
 	if err != nil {
 		zap.S().Debug(err)
 		return
 	}
 	for _, t := range transactions {
-		_ = a.utx.AddWithBytes(t.T, t.B)
+		err := a.utx.AddWithBytes(t.T, t.B)
+		if err != nil {
+			zap.S().Errorf("failed to add a transaction to UTX, %v", err)
+			return
+		}
 	}
 }
 
@@ -48,14 +52,15 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 
 	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
-
-		for {
+		utxLen := len(a.utx.AllTransactions())
+		for i := 0; i < utxLen; i++ {
 			t := a.utx.Pop()
 			if t == nil {
 				break
 			}
 			_, err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
 			if stateerr.IsTxCommitmentError(err) {
+				zap.S().Errorf("failed to unpack a transaction from utx, %v", err)
 				// This should not happen in practice.
 				// Reset state, return applied transactions to UTX.
 				s.ResetValidationList()

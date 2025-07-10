@@ -220,7 +220,7 @@ func (a *NGState) MinedBlock(
 		return a, nil, a.Errorf(heightErr)
 	}
 	metrics.BlockMined(block)
-	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
+	err := a.baseInfo.storage.MapUnsafe(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.baseInfo.blocksApplier.Apply(
 			state,
@@ -297,7 +297,7 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))
 	}
 	metrics.MicroBlockMined(micro, block.TransactionCount)
-	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
+	err = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er
 	})
@@ -384,7 +384,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 	if err != nil {
 		return nil, errors.Wrap(err, "NGState microBlockByID: failed generate block id")
 	}
-	err = a.baseInfo.storage.Map(func(state state.State) error {
+	err = a.baseInfo.storage.MapUnsafe(func(state state.State) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(state, newBlock)
 		return er
 	})
