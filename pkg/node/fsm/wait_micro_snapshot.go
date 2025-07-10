@@ -189,7 +189,7 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	topBlockSnapshots.AppendTxSnapshots(snapshot.TxSnapshots)
 
 	snapshotsToApply = &topBlockSnapshots
-	err = a.baseInfo.storage.MapUnsafe(func(state state.State) error {
+	err = a.baseInfo.storage.Map(func(state state.State) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicroWithSnapshots(state, newBlock, snapshotsToApply)
 		return er
 	})

@@ -34,9 +34,9 @@ func (a bulkValidator) Validate() {
 		return
 	}
 	for _, t := range transactions {
-		err := a.utx.AddWithBytes(t.T, t.B)
-		if err != nil {
-			zap.S().Errorf("failed to add a transaction to UTX, %v", err)
+		errAdd := a.utx.AddWithBytesRow(t.T, t.B)
+		if errAdd != nil {
+			zap.S().Errorf("failed to add a transaction to UTX, %v", errAdd)
 			return
 		}
 	}
@@ -65,7 +65,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 				// Reset state, return applied transactions to UTX.
 				s.ResetValidationList()
 				for _, tx := range transactions {
-					_ = a.utx.AddWithBytes(tx.T, tx.B)
+					_ = a.utx.AddWithBytesRow(tx.T, tx.B)
 				}
 				transactions = nil
 				continue

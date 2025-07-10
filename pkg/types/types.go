@@ -24,6 +24,7 @@ type Handler interface {
 type UtxPool interface {
 	Add(t proto.Transaction) error
 	AddWithBytes(t proto.Transaction, b []byte) error
+	AddWithBytesRow(t proto.Transaction, b []byte) error
 	Exists(t proto.Transaction) bool
 	Pop() *TransactionWithBytes
 	AllTransactions() []*TransactionWithBytes

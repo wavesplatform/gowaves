@@ -67,6 +67,7 @@ func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 	return res
 }
 
+// Add Can only be called for synchronous operations, because it locks state inside the validation method.
 func (a *UtxImpl) Add(t proto.Transaction) error {
 	bts, err := proto.MarshalTx(a.settings.AddressSchemeCharacter, t)
 	if err != nil {
@@ -77,16 +78,7 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	return a.addWithBytes(t, bts)
 }
 
-func (a *UtxImpl) AddBytes(bts []byte) error {
-	t, err := proto.BytesToTransaction(bts, a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return err
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.addWithBytes(t, bts)
-}
-
+// AddWithBytes Can only be called for synchronous operations, because it locks state inside the validation method.
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	// TODO: add flag here to distinguish adding using API and accepting
 	//  through the network from other nodes.
@@ -97,6 +89,43 @@ func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	return a.addWithBytes(t, b)
 }
 
+func (a *UtxImpl) AddWithBytesRow(t proto.Transaction, b []byte) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.addWithBytesRow(t, b)
+}
+
+// addWithBytesRow has no tx validation. Can be called wherever.
+func (a *UtxImpl) addWithBytesRow(t proto.Transaction, b []byte) error {
+	if len(b) == 0 {
+		return errors.New("transaction with empty bytes")
+	}
+	// exceed limit
+	if a.curSize+uint64(len(b)) > a.sizeLimit {
+		return errors.Errorf("size overflow, curSize: %d, limit: %d", a.curSize, a.sizeLimit)
+	}
+	if err := t.GenerateID(a.settings.AddressSchemeCharacter); err != nil {
+		return errors.Errorf("failed to generate ID: %v", err)
+	}
+	tID, err := t.GetID(a.settings.AddressSchemeCharacter)
+	if err != nil {
+		return err
+	}
+	if a.exists(t) {
+		return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
+	}
+	tb := &types.TransactionWithBytes{
+		T: t,
+		B: b,
+	}
+	heap.Push(&a.transactions, tb)
+	id := makeDigest(t.GetID(a.settings.AddressSchemeCharacter))
+	a.transactionIds[id] = struct{}{}
+	a.curSize += uint64(len(b))
+	return nil
+}
+
+// Can only be called for synchronous operations, because it locks state inside the validation method.
 func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")
@@ -114,6 +143,10 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	}
 	if a.exists(t) {
 		return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
+	}
+	err = a.validator.Validate(t)
+	if err != nil {
+		return err
 	}
 	tb := &types.TransactionWithBytes{
 		T: t,

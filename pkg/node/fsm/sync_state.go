@@ -69,13 +69,13 @@ func (a *SyncState) StopSync() (State, Async, error) {
 	if len(blocks) > 0 {
 		var err error
 		if a.baseInfo.enableLightMode {
-			err = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+			err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 				var errApply error
 				_, errApply = a.baseInfo.blocksApplier.ApplyWithSnapshots(s, blocks, snapshots)
 				return errApply
 			})
 		} else {
-			err = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+			err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 				var errApply error
 				_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks)
 				return errApply
@@ -258,13 +258,13 @@ func (a *SyncState) applyBlocksWithSnapshots(
 	}
 	var err error
 	if a.baseInfo.enableLightMode {
-		err = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 			var errApply error
 			_, errApply = a.baseInfo.blocksApplier.ApplyWithSnapshots(s, blocks, snapshots)
 			return errApply
 		})
 	} else {
-		err = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+		err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 			var errApply error
 			_, errApply = a.baseInfo.blocksApplier.Apply(s, blocks)
 			return errApply

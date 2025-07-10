@@ -97,7 +97,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 				s.ResetValidationList()
 				txCount = 0
 				for _, appliedTx := range appliedTransactions {
-					_ = a.utx.AddWithBytes(appliedTx.T, appliedTx.B)
+					_ = a.utx.AddWithBytesRow(appliedTx.T, appliedTx.B)
 				}
 				appliedTransactions = nil
 				txSnapshots = nil
@@ -116,7 +116,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 		// return inapplicable transactions to utx
 		for _, tx := range inapplicable {
-			_ = a.utx.AddWithBytes(tx.T, tx.B)
+			_ = a.utx.AddWithBytesRow(tx.T, tx.B)
 		}
 		return nil
 	})
