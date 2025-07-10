@@ -4,6 +4,7 @@ import (
 	stderrs "errors"
 	"fmt"
 
+	"github.com/davecgh/go-spew/spew"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"go.uber.org/zap"
@@ -719,11 +720,13 @@ func (a *txAppender) appendTxs(
 				},
 				internal: nil,
 			}
+			zap.S().Debugf("Applying elided tx (ID=%q) snapshot: %v", base58.Encode(txID), spew.Sdump(txSnap))
 			if aErr := txSnap.Apply(a.txHandler.sa, tx, appendTxArgs.validatingUtx); aErr != nil {
 				return proto.BlockSnapshot{}, crypto.Digest{},
 					errors.Wrapf(aErr, "failed to apply elided tx (ID=%q) snapshot", base58.Encode(txID))
 			}
 		}
+		zap.S().Debugf("Applying tx (ID=%q) snapshot: %v", base58.Encode(txID), spew.Sdump(txSnap))
 		bs.AppendTxSnapshot(txSnap.regular)
 
 		if len(txSnap.regular) == 0 { // sanity check
@@ -824,6 +827,10 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to create initial diff and state hash at height %d", currentBlockHeight)
 	}
+	blockID := params.block.BlockID()
+	zap.S().Debugf("Initial snapshot for block %d (%s): %v",
+		currentBlockHeight, blockID.String(), spew.Sdump(initialSnapshot),
+	)
 	// apply generated initial snapshot to the state
 	if applyErr := initialSnapshot.ApplyInitialSnapshot(a.txHandler.sa); applyErr != nil {
 		return errors.Wrapf(applyErr, "failed to apply an initial snapshot at height %d", currentBlockHeight)
@@ -841,12 +848,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// check whether the calculated snapshot state hash equals with the provided one
 	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
 		return errors.Wrapf(errBlockSnapshotStateHashMismatch,
-			"block %d state hash mismatch — provided '%s', calculated '%s'",
-			currentBlockHeight, blockStateHash.String(), stateHash.String(),
+			"block %d (%s) state hash mismatch — provided '%s', calculated '%s'",
+			currentBlockHeight, blockID.String(), blockStateHash.String(), stateHash.String(),
 		)
 	}
 
-	blockID := params.block.BlockID()
 	if ssErr := a.stor.snapshots.saveSnapshots(blockID, currentBlockHeight, blockSnapshot); ssErr != nil {
 		return ssErr
 	}
