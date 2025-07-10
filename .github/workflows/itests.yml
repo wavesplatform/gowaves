@@ -11,6 +11,8 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
 
+permissions: { }
+
 jobs:
   itest-check:
     name: integration_tests_run_check
@@ -23,12 +25,12 @@ jobs:
         id: set-output
         run: |
           # Check if the workflow was triggered by a PR review, manually or by a PR
-          if [ "${{ github.event_name }}" == 'workflow_dispatch' ]; then
+          if [ "${GITHUB_EVENT_NAME}" == 'workflow_dispatch' ]; then
             echo "--> Running integration tests because the workflow was triggered manually"
             CAN_RUN_ITEST=true # if the workflow is triggered manually, we can run itests
-          elif [ "${{ github.event_name }}" == 'pull_request_review' ]; then
+          elif [ "${GITHUB_EVENT_NAME}" == 'pull_request_review' ]; then
             echo "--> Checking whether the PR review is approved"
-            if [ "${{ github.event.review.state }}" == 'approved' ]; then
+            if [ "${GITHUB_EVENT_REVIEW_STATE}" == 'approved' ]; then
               CAN_RUN_ITEST=true # if the PR review is approved, we can run itests
             else
               CAN_RUN_ITEST=false # if the PR review is not approved, we cannot run itests
@@ -38,10 +40,10 @@ jobs:
             # for 'pull_request' event we need to check if the last review is approved
             echo "--> Checking whether the last PR review is approved"
             LAST_REVIEW_STATE=$(curl -sSL \
-              -H "Authorization: Bearer ${{ secrets.GITHUB_TOKEN }}" \
+              -H "Authorization: Bearer ${SECRETS.GITHUB_TOKEN}" \
               -H "Accept: application/vnd.github+json" \
               -H "X-GitHub-Api-Version: 2022-11-28" \
-              "https://api.github.com/repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/reviews" | \
+              "https://api.github.com/repos/${GITHUB_REPOSITORY}/pulls/${GITHUB_PULL_REQUEST_NUMBER}/reviews" | \
               jq -r '.[-1].state')
             echo "--> LAST_REVIEW_STATE=$LAST_REVIEW_STATE" # for debugging
             if [ "$LAST_REVIEW_STATE" == 'APPROVED' ]; then
@@ -52,12 +54,16 @@ jobs:
           fi
           echo "--> CAN_RUN_ITEST=$CAN_RUN_ITEST" # for debugging
           echo "CAN_RUN_ITEST=$CAN_RUN_ITEST" >> "$GITHUB_OUTPUT"
-
+        env:
+          GITHUB_EVENT_NAME: ${{ github.event_name }}
+          GITHUB_EVENT_REVIEW_STATE: ${{ github.event.review.state }}
+          SECRETS.GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_PULL_REQUEST_NUMBER: ${{ github.event.pull_request.number }}
   itest:
     name: integration_tests
     needs: [ itest-check ]
     if: (needs.itest-check.outputs.can-run-itest == 'true' && github.repository == 'wavesplatform/gowaves')
-    secrets: inherit
     uses: "./.github/workflows/run_itests.yml"
     with:
       itest-type: 'itest' # run full set of integration tests
