@@ -1692,6 +1692,9 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 	if err != nil {
 		return err
 	}
+	zap.S().Debugf("blockchainHeight %d, lastBlock %s, nextBlock %s, termIsOver %t",
+		blockchainHeight, lastBlock.String(), nextBlock.String(), termIsOver,
+	)
 	if termIsOver {
 		if ubrErr := s.updateBlockReward(lastBlock, blockchainHeight); ubrErr != nil {
 			return ubrErr

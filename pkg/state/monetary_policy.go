@@ -5,6 +5,7 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
+	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -161,6 +162,11 @@ func (m *monetaryPolicy) updateBlockReward(
 	blockRewardActivationHeight proto.Height,
 	isCappedRewardsActive bool,
 ) error {
+	zap.S().Debugf(
+		"[MONETARY POLICY] Updating block reward at height %d, last block ID %s, blockRewardActivationHeight %d, isCappedRewardsActive %t",
+		height, lastBlockID.String(),
+		blockRewardActivationHeight, isCappedRewardsActive,
+	)
 	votes, err := m.newestVotes(height, blockRewardActivationHeight, isCappedRewardsActive)
 	if err != nil {
 		return err
@@ -170,6 +176,7 @@ func (m *monetaryPolicy) updateBlockReward(
 		return err
 	}
 	threshold := uint32(m.settings.BlockRewardVotingThreshold())
+	prevReward := reward
 	switch {
 	case votes.increase >= threshold:
 		reward += m.settings.BlockRewardIncrement
@@ -178,6 +185,10 @@ func (m *monetaryPolicy) updateBlockReward(
 	default:
 		return nil // nothing to do, reward remains the same
 	}
+	zap.S().Debugf(
+		"[MONETARY POLICY] Block reward changed from %d to %d at height %d, last block ID %s",
+		prevReward, reward, height, lastBlockID.String(),
+	)
 	return m.saveNewRewardChange(reward, height, lastBlockID)
 }
 
