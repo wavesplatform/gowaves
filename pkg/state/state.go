@@ -1696,7 +1696,7 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		blockchainHeight, lastBlock.String(), nextBlock.String(), termIsOver,
 	)
 	if termIsOver {
-		if ubrErr := s.updateBlockReward(lastBlock, blockchainHeight); ubrErr != nil {
+		if ubrErr := s.updateBlockReward(lastBlock, nextBlock, blockchainHeight); ubrErr != nil {
 			return ubrErr
 		}
 	}
@@ -1711,7 +1711,7 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(lastBlockID proto.BlockID, height proto.Height) error {
+func (s *stateManager) updateBlockReward(lastBlockID, nextBlock proto.BlockID, height proto.Height) error {
 	blockRewardActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
 	if err != nil {
 		return err
@@ -1721,7 +1721,7 @@ func (s *stateManager) updateBlockReward(lastBlockID proto.BlockID, height proto
 		return err
 	}
 	return s.stor.monetaryPolicy.updateBlockReward(
-		lastBlockID,
+		lastBlockID, nextBlock,
 		height,
 		blockRewardActivationHeight,
 		isCappedRewardsActivated,

@@ -158,6 +158,7 @@ func (m *monetaryPolicy) saveVotes(votes rewardVotesRecord, blockID proto.BlockI
 
 func (m *monetaryPolicy) updateBlockReward(
 	lastBlockID proto.BlockID,
+	nextBlockID proto.BlockID,
 	height proto.Height,
 	blockRewardActivationHeight proto.Height,
 	isCappedRewardsActive bool,
@@ -189,7 +190,7 @@ func (m *monetaryPolicy) updateBlockReward(
 		"[MONETARY POLICY] Block reward changed from %d to %d at height %d, last block ID %s",
 		prevReward, reward, height, lastBlockID.String(),
 	)
-	return m.saveNewRewardChange(reward, height, lastBlockID)
+	return m.saveNewRewardChange(reward, height, nextBlockID)
 }
 
 func (m *monetaryPolicy) blockRewardVotingPeriod(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {
