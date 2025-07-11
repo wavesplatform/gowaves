@@ -156,12 +156,13 @@ func (m *monetaryPolicy) saveVotes(votes rewardVotesRecord, blockID proto.BlockI
 }
 
 func (m *monetaryPolicy) updateBlockReward(
-	lastBlockID proto.BlockID,
-	height proto.Height,
+	nextBlockID proto.BlockID, // the same as adding block ID
+	lastBlockHeight proto.Height,
 	blockRewardActivationHeight proto.Height,
 	isCappedRewardsActive bool,
 ) error {
-	votes, err := m.newestVotes(height, blockRewardActivationHeight, isCappedRewardsActive)
+
+	votes, err := m.newestVotes(lastBlockHeight, blockRewardActivationHeight, isCappedRewardsActive)
 	if err != nil {
 		return err
 	}
@@ -178,7 +179,9 @@ func (m *monetaryPolicy) updateBlockReward(
 	default:
 		return nil // nothing to do, reward remains the same
 	}
-	return m.saveNewRewardChange(reward, height, lastBlockID)
+
+	nextBlockHeight := lastBlockHeight + 1 // we should save the reward for the next block that we are going to add
+	return m.saveNewRewardChange(reward, nextBlockHeight, nextBlockID)
 }
 
 func (m *monetaryPolicy) blockRewardVotingPeriod(height, activation proto.Height, isCappedRewardsActivated bool) (start, end uint64) {

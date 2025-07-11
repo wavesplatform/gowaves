@@ -170,7 +170,7 @@ func TestFinishRewardVoting(t *testing.T) {
 		if h == end {
 			nextID := ids[i+1]
 			storage.prepareBlock(t, nextID)
-			err = mo.updateBlockReward(id, h, blockRewardActivationHeight, step.isCappedRewardsActivated)
+			err = mo.updateBlockReward(nextID, h, blockRewardActivationHeight, step.isCappedRewardsActivated)
 			require.NoError(t, err)
 		}
 	}

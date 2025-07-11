@@ -1688,12 +1688,15 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 		}
 	}
 
-	termIsOver, err := s.isBlockRewardTermOver(blockchainHeight)
+	termIsOver, err := s.isBlockRewardTermOver(blockchainHeight) // check that last block is the last in the term
 	if err != nil {
 		return err
 	}
-	if termIsOver {
-		if ubrErr := s.updateBlockReward(lastBlock, blockchainHeight); ubrErr != nil {
+	if termIsOver { // if the term is over, we need to update block reward for the next (adding) block
+		//nolint:lll
+		// In the Scala node, the reward is calculated specifically for the next height:
+		// https://github.com/wavesplatform/Waves/blob/8fa8c53a89c0d357d48667bcae99acce7308916f/node/src/main/scala/com/wavesplatform/state/BlockchainUpdaterImpl.scala#L159
+		if ubrErr := s.updateBlockReward(nextBlock, blockchainHeight); ubrErr != nil {
 			return ubrErr
 		}
 	}
@@ -1708,7 +1711,7 @@ func (s *stateManager) finishVoting(height uint64, blockID proto.BlockID) error 
 	return nil
 }
 
-func (s *stateManager) updateBlockReward(lastBlockID proto.BlockID, height proto.Height) error {
+func (s *stateManager) updateBlockReward(nextBlockID proto.BlockID, lastBlockHeight proto.Height) error {
 	blockRewardActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.BlockReward))
 	if err != nil {
 		return err
@@ -1718,8 +1721,8 @@ func (s *stateManager) updateBlockReward(lastBlockID proto.BlockID, height proto
 		return err
 	}
 	return s.stor.monetaryPolicy.updateBlockReward(
-		lastBlockID,
-		height,
+		nextBlockID,
+		lastBlockHeight,
 		blockRewardActivationHeight,
 		isCappedRewardsActivated,
 	)
