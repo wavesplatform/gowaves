@@ -398,7 +398,7 @@ func (a *Default) Reschedule() {
 	lastBlock := a.storage.TopBlock()
 	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
 	if obsolescenceTime.After(lastBlockTime) {
-		zap.S().Debugf("Scheduler: Mining is not allowed because last block (ID: %s) time %s is before the obsolesence time %s",
+		zap.S().Debugf("Scheduler: Mining is not allowed because last block (ID: %s) time %s is before the obsolescence time %s",
 			lastBlock.ID, lastBlockTime, obsolescenceTime)
 		return
 	}
