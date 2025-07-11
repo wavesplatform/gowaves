@@ -35,5 +35,6 @@ type stateWrapper interface {
 	TopBlock() *proto.Block
 	TxValidation(func(validation state.TxValidation) error) error
 	Map(func(state state.NonThreadSafeState) error) error
+	MapUnsafe(func(state state.NonThreadSafeState) error) error
 	IsActivated(featureID int16) (bool, error)
 }

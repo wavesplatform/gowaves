@@ -71,7 +71,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	var inapplicable []*types.TransactionWithBytes
 	var txSnapshots [][]proto.AtomicSnapshot
 
-	_ = a.state.Map(func(s state.NonThreadSafeState) error {
+	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
 
 		for txCount <= maxMicroblockTransactions {
@@ -88,14 +88,16 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 			// In the miner we pack transactions from UTX into new block.
 			// We should accept failed transactions here.
+			// Validate and apply tx to state.
 			snapshot, errVal := s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
 			if stateerr.IsTxCommitmentError(errVal) {
+				zap.S().Errorf("failed to unpack a transaction from utx, %v", errVal)
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.
 				s.ResetValidationList()
 				txCount = 0
 				for _, appliedTx := range appliedTransactions {
-					_ = a.utx.AddWithBytes(appliedTx.T, appliedTx.B)
+					_ = a.utx.AddWithBytesRow(appliedTx.T, appliedTx.B)
 				}
 				appliedTransactions = nil
 				txSnapshots = nil
@@ -111,13 +113,13 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			appliedTransactions = append(appliedTransactions, t)
 			txSnapshots = append(txSnapshots, snapshot)
 		}
+
+		// return inapplicable transactions to utx
+		for _, tx := range inapplicable {
+			_ = a.utx.AddWithBytesRow(tx.T, tx.B)
+		}
 		return nil
 	})
-
-	// return inapplicable transactions
-	for _, tx := range inapplicable {
-		_ = a.utx.AddWithBytes(tx.T, tx.B)
-	}
 
 	// no transactions applied, skip
 	if txCount == 0 {

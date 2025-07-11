@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
@@ -82,6 +83,8 @@ type BaseInfo struct {
 	syncPeer *network.SyncPeer
 
 	enableLightMode bool
+
+	cleanUtxRunning *atomic.Bool
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -93,8 +96,25 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 }
 
 func (a *BaseInfo) CleanUtx() {
-	utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
+	if !a.cleanUtxRunning.CompareAndSwap(false, true) {
+		return
+	}
+	go func() {
+		defer func() {
+			a.cleanUtxRunning.Store(false)
+		}()
+		utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
+		metrics.Utx(a.utx.Count())
+	}()
+}
+
+func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
+	if err := a.utx.Add(t); err != nil {
+		err = errors.Wrap(err, "failed to add transaction to utx")
+		return err
+	}
 	metrics.Utx(a.utx.Count())
+	return nil
 }
 
 // States.
@@ -184,6 +204,7 @@ func NewFSM(
 		skipMessageList: services.SkipMessageList,
 		syncPeer:        syncPeer,
 		enableLightMode: enableLightMode,
+		cleanUtxRunning: &atomic.Bool{},
 	}
 
 	info.scheduler.Reschedule() // Reschedule mining just before starting the FSM (i.e. before starting the node).

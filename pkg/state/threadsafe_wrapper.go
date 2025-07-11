@@ -431,6 +431,12 @@ func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) err
 	return f(a.s)
 }
 
+func (a *ThreadSafeWriteWrapper) MapUnsafe(f func(state NonThreadSafeState) error) error {
+	a.lockUnsafe()
+	defer a.unlockUnsafe()
+	return f(a.s)
+}
+
 func (a *ThreadSafeWriteWrapper) ValidateNextTx(
 	_ proto.Transaction,
 	_, _ uint64,
@@ -530,6 +536,16 @@ func NewThreadSafeWriteWrapper(i *int32, mu *sync.RWMutex, s State) StateModifie
 		i:  i,
 		s:  s,
 	}
+}
+
+// A state change in a parallel thread is allowed.
+func (a *ThreadSafeWriteWrapper) lockUnsafe() {
+	a.mu.Lock()
+}
+
+// A state change in a parallel thread is allowed.
+func (a *ThreadSafeWriteWrapper) unlockUnsafe() {
+	a.mu.Unlock()
 }
 
 func (a *ThreadSafeWriteWrapper) lock() {

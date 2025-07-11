@@ -698,6 +698,10 @@ func (s *stateManager) Map(func(State) error) error {
 	panic("call Map on non thread safe state")
 }
 
+func (s *stateManager) MapUnsafe(func(State) error) error {
+	panic("call Map on non thread safe state")
+}
+
 func (s *stateManager) addGenesisBlock() error {
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
