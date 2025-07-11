@@ -7,7 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/p2p"
+
 	"github.com/wavesplatform/gowaves/pkg/node/network"
 
 	"github.com/pkg/errors"
@@ -129,7 +130,7 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 
 		go func() {
 			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
-				zap.S().Named(logging.NetworkNamespace).Debugf("Incoming connection failed with addr %q: %v",
+				zap.S().Named(p2p.Namespace).Debugf("Incoming connection failed with addr %q: %v",
 					conn.RemoteAddr().String(), err)
 				return
 			}
@@ -142,7 +143,7 @@ func (a *Node) logErrors(err error) {
 	_ = error(infoMsg) // compile time check
 	switch {
 	case errors.As(err, &infoMsg):
-		zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", infoMsg)
+		zap.S().Named(fsm.Namespace).Debugf("Error: %v", infoMsg)
 	default:
 		zap.S().Errorf("%v", err)
 	}
@@ -205,7 +206,7 @@ func (a *Node) Run(
 				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.State, msg)
 			}
 		case mess := <-messageCh:
-			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Network message '%T' received from '%s'",
+			zap.S().Named(fsm.Namespace).Debugf("[%s] Network message '%T' received from '%s'",
 				m.State.State, mess.Message, mess.ID.ID())
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {

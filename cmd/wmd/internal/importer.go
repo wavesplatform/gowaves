@@ -4,12 +4,12 @@ import (
 	"bufio"
 	"encoding/binary"
 	"io"
+	"log/slog"
 	"os"
 	"slices"
 	"time"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
@@ -33,7 +33,7 @@ func (im *Importer) Import(n string) error {
 
 	defer func() {
 		elapsed := time.Since(start)
-		zap.S().Infof("Import took %s", elapsed)
+		slog.Info("Import complete", "duration", elapsed)
 	}()
 
 	f, err := os.Open(n) // #nosec: in this case check for prevent G304 (CWE-22) is not necessary
@@ -43,7 +43,7 @@ func (im *Importer) Import(n string) error {
 	defer func() {
 		closeErr := f.Close()
 		if closeErr != nil {
-			zap.S().Errorf("Failed to close blockchain file: %s", closeErr.Error())
+			slog.Error("Failed to close blockchain file", "error", closeErr)
 		}
 	}()
 
@@ -51,7 +51,7 @@ func (im *Importer) Import(n string) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get file info")
 	}
-	zap.S().Infof("Importing blockchain file '%s' of size %d bytes", n, st.Size())
+	slog.Info("Importing blockchain file", "file", n, "size", st.Size())
 
 	err = im.readBlocks(f)
 	if err != nil {
@@ -70,17 +70,17 @@ func (im *Importer) readBlocks(f io.Reader) error {
 	for {
 		select {
 		case <-im.interruptChannel:
-			zap.S().Warnf("Block reading aborted")
+			slog.Warn("Block reading aborted")
 			return nil
 		default:
 			h++
 			_, err := io.ReadFull(r, sb)
 			if err != nil {
 				if err != io.EOF {
-					zap.S().Errorf("Unable to read data size: %s", err.Error())
+					slog.Error("Unable to read data size", "error", err)
 					return err
 				}
-				zap.S().Debug("EOF received while reading size")
+				slog.Debug("EOF received while reading size")
 				return err
 			}
 
@@ -89,10 +89,10 @@ func (im *Importer) readBlocks(f io.Reader) error {
 			_, err = io.ReadFull(r, bb)
 			if err != nil {
 				if err != io.EOF {
-					zap.S().Errorf("Unable to read block: %s", err.Error())
+					slog.Error("Unable to read block", "error", err.Error())
 					return err
 				}
-				zap.S().Debug("EOF received while reading block")
+				slog.Debug("EOF received while reading block")
 				return err
 			}
 			var b proto.Block
@@ -100,23 +100,23 @@ func (im *Importer) readBlocks(f io.Reader) error {
 			if err != nil {
 				err = b.UnmarshalFromProtobuf(bb)
 				if err != nil {
-					zap.S().Error("Failed to unmarshal block")
+					slog.Error("Failed to unmarshal block")
 					return err
 				}
 			}
 			id := b.BlockID()
 			blockExists, err := im.storage.HasBlock(h, id)
 			if err != nil {
-				zap.S().Errorf("Failed to check block existence: %s", err.Error())
+				slog.Error("Failed to check block existence", "error", err)
 				return err
 			}
 			if !blockExists {
 				validSig, err := b.VerifySignature(im.scheme)
 				if err != nil {
-					zap.S().Errorf("Failed to verify block signature: %s", err.Error())
+					slog.Error("Failed to verify block signature", "error", err)
 				}
 				if !validSig {
-					zap.S().Errorf("Block %s has invalid signature. Aborting.", b.BlockID().String())
+					slog.Error("Block has invalid signature. Aborting.", "blockID", b.BlockID().String())
 					return err
 				}
 				trades, issues, assets, accounts, aliases, err := im.extractTransactions(b.Transactions, b.GeneratorPublicKey)
@@ -125,25 +125,25 @@ func (im *Importer) readBlocks(f io.Reader) error {
 				}
 				err = im.storage.PutBalances(h, id, issues, assets, accounts, aliases)
 				if err != nil {
-					zap.S().Errorf("Failed to update state: %s", err.Error())
+					slog.Error("Failed to update state", "error", err.Error())
 					return err
 				}
 				err = im.storage.PutTrades(h, id, trades)
 				if err != nil {
-					zap.S().Errorf("Failed to update state: %s", err.Error())
+					slog.Error("Failed to update state", "error", err.Error())
 					return err
 				}
 				c := len(trades)
 				total += c
 				th := total / 10000
 				if th > thousands {
-					zap.S().Infof("Imported %4d transactions at height %8d so far", total, h)
+					slog.Info("Transactions imported", "count", total, "height", h)
 					thousands = th
 				}
-				zap.S().Debugf("Collected %4d transaction at height %8d, total transactions so far %8d", c, h, total)
+				slog.Debug("Transaction collected", "count", c, "height", h, "total", total)
 			}
 			if h%10000 == 0 {
-				zap.S().Infof("Scanned %8d blocks", h)
+				slog.Info("Blocks scanned", "count", h)
 			}
 		}
 	}

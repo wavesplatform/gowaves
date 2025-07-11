@@ -3,6 +3,7 @@ package metrics
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/url"
 	"path"
 	"strconv"
@@ -12,8 +13,8 @@ import (
 	"github.com/ccoveille/go-safecast"
 	influx "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const (
@@ -329,7 +330,7 @@ func (f fields) withUtxCount(utxCount int) fields {
 func (f fields) withBaseTarget(bt uint64) fields {
 	baseTarget, err := safecast.ToInt64(bt)
 	if err != nil {
-		zap.S().Errorf("failed to execute withBaseTarget, %v", err)
+		slog.Error("Failed to execute withBaseTarget", "error", err)
 	}
 	f["bt"] = baseTarget
 	return f
@@ -382,7 +383,7 @@ func Start(ctx context.Context, id int, url string) error {
 	if err != nil {
 		return err
 	}
-	zap.S().Infof("InfluxDB/Telegraf %s replied in %s", v, d)
+	slog.Info("InfluxDB/Telegraf replied", "reply", v, "duration", d)
 	if id < 0 {
 		return errors.Errorf("invalid metrics ID %d", id)
 	}
@@ -408,13 +409,13 @@ func (r *reporter) run(ctx context.Context) {
 			rep = nil
 			err := r.c.Close()
 			if err != nil {
-				zap.S().Warnf("Failed to close connection to InfluxDB: %v", err)
+				slog.Warn("Failed to close connection to InfluxDB", "error", err)
 			}
 			return
 		case <-ticker.C:
 			err := r.report()
 			if err != nil {
-				zap.S().Warnf("Failed to report metrics: %v", err)
+				slog.Warn("Failed to report metrics", "error", err)
 			}
 			r.points = r.points[:0]
 		case p := <-r.in:
@@ -470,7 +471,7 @@ func parseURL(s string) (influx.HTTPConfig, string, error) {
 func reportBlock(t tags, f fields) {
 	p, err := influx.NewPoint("block", t, f, time.Now())
 	if err != nil {
-		zap.S().Warnf("Failed to create metrics point 'block': %v", err)
+		slog.Warn("Failed to create metrics point 'block'", "error", err)
 		return
 	}
 	rep.in <- p
@@ -479,7 +480,7 @@ func reportBlock(t tags, f fields) {
 func reportUtx(t tags, f fields) {
 	p, err := influx.NewPoint("utx", t, f, time.Now())
 	if err != nil {
-		zap.S().Warnf("Failed to create metrics point 'utx': %v", err)
+		slog.Warn("Failed to create metrics point 'utx'", "error", err)
 		return
 	}
 	rep.in <- p
@@ -488,7 +489,7 @@ func reportUtx(t tags, f fields) {
 func reportFSMChannelLength(t tags, f fields) {
 	p, err := influx.NewPoint("fsm-channel", t, f, time.Now())
 	if err != nil {
-		zap.S().Warnf("Failed to create metrics point 'fsm-channel': %v", err)
+		slog.Warn("Failed to create metrics point 'fsm-channel'", "error", err)
 		return
 	}
 	rep.in <- p

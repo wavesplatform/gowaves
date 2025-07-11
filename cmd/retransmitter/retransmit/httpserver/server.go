@@ -12,6 +12,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 
 	"github.com/gorilla/mux"
+
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )

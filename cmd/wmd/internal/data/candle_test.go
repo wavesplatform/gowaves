@@ -1,9 +1,10 @@
 package data
 
 import (
-	"github.com/stretchr/testify/assert"
 	"math"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStartOfTheFrame(t *testing.T) {

@@ -6,6 +6,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -15,9 +16,6 @@ import (
 	"strings"
 	"time"
 	"unicode"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/wavesplatform/gowaves/pkg/importer"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -37,25 +35,23 @@ func main() {
 
 func realMain() int {
 	c := parseFlags()
-
-	logSync := c.setupLogger()
-	defer logSync()
+	slog.SetDefault(slog.New(logging.DefaultHandler(c.lp)))
 
 	if err := c.validateFlags(); err != nil {
-		zap.S().Error(capitalize(err.Error()))
+		slog.Error(capitalize(err.Error()))
 		return 1
 	}
 
 	err := runImporter(&c)
 	if err != nil {
-		zap.S().Error(capitalize(err.Error()))
+		slog.Error(capitalize(err.Error()))
 		return 1
 	}
 	return 0
 }
 
 type cfg struct {
-	logLevel                  *zapcore.Level
+	lp                        logging.Parameters
 	cfgPath                   string
 	blockchainType            string
 	blockchainPath            string
@@ -79,8 +75,7 @@ func parseFlags() cfg {
 		defaultBufferSize   = 16
 	)
 	c := cfg{}
-	c.logLevel = zap.LevelFlag("log-level", zapcore.InfoLevel,
-		"Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+	c.lp.Initialize()
 	flag.StringVar(&c.cfgPath, "cfg-path", "",
 		"Path to blockchain settings JSON file for custom blockchains. Not set by default.")
 	flag.StringVar(&c.blockchainType, "blockchain-type", "mainnet",
@@ -136,15 +131,6 @@ func (c *cfg) params(maxFDs int) state.StateParams {
 	return params
 }
 
-func (c *cfg) setupLogger() func() {
-	logger := logging.SetupSimpleLogger(*c.logLevel)
-	return func() {
-		if sErr := logger.Sync(); sErr != nil && errors.Is(sErr, os.ErrInvalid) {
-			zap.S().Errorf("Failed to close logging subsystem: %v", sErr)
-		}
-	}
-}
-
 func (c *cfg) setupCPUProfile() (func(), error) {
 	if c.cpuProfilePath == "" {
 		return func() {}, nil
@@ -159,13 +145,13 @@ func (c *cfg) setupCPUProfile() (func(), error) {
 	return func() {
 		pprof.StopCPUProfile()
 		if clErr := f.Close(); clErr != nil {
-			zap.S().Errorf("Failed to close CPU profile: %v", clErr)
+			slog.Error("Failed to close CPU profile", "error", clErr)
 		}
 	}, nil
 }
 
 func runImporter(c *cfg) error {
-	zap.S().Infof("Gowaves Importer version: %s", versioning.Version)
+	slog.Info("Gowaves Importer", "version", versioning.Version)
 
 	fds, err := riseFDLimit()
 	if err != nil {
@@ -180,7 +166,7 @@ func runImporter(c *cfg) error {
 	defer cpfClose()
 	defer func() { // Debug.
 		if mpfErr := configureMemProfile(c.memProfilePath); mpfErr != nil {
-			zap.S().Errorf("Failed to configure memory profile: %v", mpfErr)
+			slog.Error("Failed to configure memory profile", "error", mpfErr)
 		}
 	}()
 
@@ -198,7 +184,7 @@ func runImporter(c *cfg) error {
 	}
 	defer func() {
 		if clErr := st.Close(); clErr != nil {
-			zap.S().Errorf("Failed to close State: %v", clErr)
+			slog.Error("Failed to close State", "error", clErr)
 		}
 	}()
 
@@ -220,12 +206,13 @@ func runImporter(c *cfg) error {
 	start := time.Now()
 	defer func() {
 		elapsed := time.Since(start)
-		zap.S().Infof("Import took %s", elapsed)
+		slog.Info("Import complete", "duration", elapsed)
 	}()
 	if impErr := importer.ApplyFromFile(ctx, params, st, uint64(c.nBlocks), height); impErr != nil {
 		currentHeight, hErr := st.Height()
 		if hErr != nil {
-			zap.S().Fatalf("Failed to get current height: %v", hErr)
+			slog.Error("Failed to get current height", "error", hErr)
+			return hErr
 		}
 		if resErr := handleError(impErr, currentHeight); resErr != nil {
 			return resErr
@@ -244,10 +231,10 @@ func runImporter(c *cfg) error {
 func handleError(err error, height uint64) error {
 	switch {
 	case errors.Is(err, context.Canceled):
-		zap.S().Infof("Interrupted by user, height %d", height)
+		slog.Info("Interrupted by user", "height", height)
 		return nil
 	case errors.Is(err, io.EOF):
-		zap.S().Infof("End of blockchain file reached, height %d", height)
+		slog.Info("End of blockchain file reached", "height", height)
 		return nil
 	default:
 		return fmt.Errorf("failed to apply blocks after height %d: %w", height, err)
@@ -264,7 +251,7 @@ func configureMemProfile(memProfilePath string) error {
 	}
 	defer func() {
 		if clErr := f.Close(); clErr != nil {
-			zap.S().Errorf("Failed to close memory profile: %v", clErr)
+			slog.Error("Failed to close memory profile", "error", clErr)
 		}
 	}()
 	runtime.GC() // get up-to-date statistics
@@ -283,7 +270,7 @@ func configureBlockchainSettings(blockchainType, cfgPath string) (*settings.Bloc
 		}
 		defer func() {
 			if clErr := f.Close(); clErr != nil {
-				zap.S().Errorf("Failed to close custom blockchain settings: %v", clErr)
+				slog.Error("Failed to close custom blockchain settings", "error", clErr)
 			}
 		}()
 		ss, err = settings.ReadBlockchainSettings(f)

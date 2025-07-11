@@ -1,10 +1,10 @@
 package extension
 
 import (
+	"github.com/wavesplatform/gowaves/pkg/p2p"
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -52,30 +52,30 @@ func (a PeerWrapperImpl) AskBlocksIDs(ids []proto.BlockID) {
 		for i, b := range ids {
 			sigs[i] = b.Signature()
 		}
-		zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Requesting signatures for signatures range [%s...%s]",
+		zap.S().Named(p2p.Namespace).Debugf("[%s] Requesting signatures for signatures range [%s...%s]",
 			a.p.ID().String(), sigs[0].ShortString(), sigs[len(sigs)-1].ShortString())
 		a.p.SendMessage(&proto.GetSignaturesMessage{Signatures: sigs})
 	} else {
-		zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Requesting blocks IDs for IDs range [%s...%s]",
+		zap.S().Named(p2p.Namespace).Debugf("[%s] Requesting blocks IDs for IDs range [%s...%s]",
 			a.p.ID().String(), ids[0].ShortString(), ids[len(ids)-1].ShortString())
 		a.p.SendMessage(&proto.GetBlockIDsMessage{Blocks: ids})
 	}
 }
 
 func (a PeerWrapperImpl) AskBlock(id proto.BlockID) {
-	zap.S().Named(logging.NetworkNamespace).Debugf("[%s] Requesting block %s", a.p.ID().String(), id.ShortString())
+	zap.S().Named(p2p.Namespace).Debugf("[%s] Requesting block %s", a.p.ID().String(), id.ShortString())
 	a.p.SendMessage(&proto.GetBlockMessage{BlockID: id})
 }
 
 func (a PeerWrapperImpl) AskBlockSnapshot(id proto.BlockID) {
-	zap.S().Named(logging.NetworkNamespace).Debugf(
+	zap.S().Named(p2p.Namespace).Debugf(
 		"[%s] Requesting block snapshot for block %s", a.p.ID().String(), id.ShortString(),
 	)
 	a.p.SendMessage(&proto.GetBlockSnapshotMessage{BlockID: id})
 }
 
 func (a PeerWrapperImpl) AskMicroBlockSnapshot(id proto.BlockID) {
-	zap.S().Named(logging.NetworkNamespace).Debugf(
+	zap.S().Named(p2p.Namespace).Debugf(
 		"[%s] Requesting micro block snapshot for micro block %s", a.p.ID().String(), id.ShortString(),
 	)
 	a.p.SendMessage(&proto.MicroBlockSnapshotRequestMessage{BlockID: id})

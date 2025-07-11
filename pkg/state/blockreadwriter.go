@@ -4,13 +4,13 @@ import (
 	"bufio"
 	"encoding/binary"
 	stderrs "errors"
+	"log/slog"
 	"math"
 	"os"
 	"path/filepath"
 	"sync"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -346,7 +346,7 @@ func (rw *blockReadWriter) marshalTransaction(tx proto.Transaction) ([]byte, err
 	return txBytesTotal, nil
 }
 
-func (rw *blockReadWriter) writeTranasctionToMemImpl(
+func (rw *blockReadWriter) writeTransactionToMemImpl(
 	tx proto.Transaction,
 	txID []byte,
 	status proto.TransactionStatus,
@@ -369,7 +369,7 @@ func (rw *blockReadWriter) writeTransactionToMem(tx proto.Transaction, status pr
 	if err != nil {
 		return err
 	}
-	rw.writeTranasctionToMemImpl(tx, txID, status)
+	rw.writeTransactionToMemImpl(tx, txID, status)
 	return nil
 }
 
@@ -381,7 +381,7 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, status proto.T
 		return err
 	}
 	// Save transaction to local storage.
-	rw.writeTranasctionToMemImpl(tx, txID, status)
+	rw.writeTransactionToMemImpl(tx, txID, status)
 	// Write transaction information to DB batch.
 	key := txInfoKey{txID: txID}
 	val := txInfo{offset: rw.blockchainLen, txStatus: status, height: rw.height + 1}
@@ -410,7 +410,7 @@ func (rw *blockReadWriter) marshalHeader(h *proto.BlockHeader) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	// Put addl info that is missing in Protobuf.
+	// Put additional info that is missing in Protobuf.
 	headerBytes := make([]byte, 8+len(protoBytes))
 	binary.BigEndian.PutUint32(headerBytes[:4], uint32(h.TransactionCount))
 	binary.BigEndian.PutUint32(headerBytes[4:8], h.TransactionBlockLength)
@@ -1008,7 +1008,7 @@ func (rw *blockReadWriter) syncWithDb() error {
 	if rErr := rw.rollback(dbHeight); rErr != nil {
 		return errors.Wrapf(rErr, "failed to remove blocks from block read writer to height %d", dbHeight)
 	}
-	zap.S().Infof("Synced to state height %d", dbHeight)
+	slog.Info("Synced to state height", "height", dbHeight)
 	return nil
 }
 
