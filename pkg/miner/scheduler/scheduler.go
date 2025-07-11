@@ -189,6 +189,7 @@ func (a internalImpl) scheduleWithVrf(
 			zap.S().Errorf("Scheduler: Failed to schedule mining for address %q, failed to calculate delay: %v", addr.String(), err)
 			continue
 		}
+		ts := adjustTimestamp(confirmedBlock.Timestamp, delay, tm, generateInPast)
 
 		baseTarget, err := pos.CalculateBaseTarget(
 			blockchainSettings.AverageBlockDelaySeconds,
@@ -196,20 +197,13 @@ func (a internalImpl) scheduleWithVrf(
 			confirmedBlock.BaseTarget,
 			confirmedBlock.Timestamp,
 			greatGrandParentTimestamp,
-			delay+confirmedBlock.Timestamp,
+			ts,
 		)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to schedule mining for address %q, failed to calculate base target: %v",
 				addr.String(), err,
 			)
 			continue
-		}
-		ts := confirmedBlock.Timestamp + delay // Maybe in past or future.
-		if !generateInPast {
-			now := proto.NewTimestampFromTime(tm.Now())
-			if ts < now {
-				ts = now
-			}
 		}
 		sts, err := safecast.ToInt64(ts)
 		if err != nil {
@@ -301,6 +295,7 @@ func (a internalImpl) scheduleWithoutVrf(
 			)
 			continue
 		}
+		ts := adjustTimestamp(confirmedBlock.Timestamp, delay, tm, generateInPast)
 
 		baseTarget, err := pos.CalculateBaseTarget(
 			blockchainSettings.AverageBlockDelaySeconds,
@@ -308,18 +303,11 @@ func (a internalImpl) scheduleWithoutVrf(
 			confirmedBlock.BaseTarget,
 			confirmedBlock.Timestamp,
 			greatGrandParentTimestamp,
-			delay+confirmedBlock.Timestamp,
+			ts,
 		)
 		if err != nil {
 			zap.S().Errorf("Scheduler: Failed to calculate base target for address %q: %v", addr.String(), err)
 			continue
-		}
-		ts := confirmedBlock.Timestamp + delay // Maybe in past or future.
-		if !generateInPast {
-			now := proto.NewTimestampFromTime(tm.Now())
-			if ts < now {
-				ts = now
-			}
 		}
 		zap.S().Debugf("  %s (%s): ", addr.String(), pk.String())
 		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
@@ -489,4 +477,20 @@ func makeKeyPairs(seeds [][]byte) ([]proto.KeyPair, error) {
 		out = append(out, kp)
 	}
 	return out, nil
+}
+
+func adjustTimestamp(
+	confirmedBlockTimestamp proto.Timestamp,
+	delay uint64,
+	tm types.Time,
+	generateInPast bool,
+) proto.Timestamp {
+	ts := confirmedBlockTimestamp + delay // Maybe in past or future.
+	if !generateInPast {
+		now := proto.NewTimestampFromTime(tm.Now())
+		if ts < now {
+			ts = now
+		}
+	}
+	return ts
 }
