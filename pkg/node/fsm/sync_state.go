@@ -65,6 +65,7 @@ func (a *SyncState) Transaction(p peer.Peer, t proto.Transaction) (State, Async,
 }
 
 func (a *SyncState) StopSync() (State, Async, error) {
+	zap.S().Infof("StopSync")
 	_, blocks, snapshots, _ := a.internal.Blocks()
 	if len(blocks) > 0 {
 		var err error
@@ -247,6 +248,7 @@ func (a *SyncState) changePeerIfRequired() (peer.Peer, bool) {
 func (a *SyncState) applyBlocksWithSnapshots(
 	baseInfo BaseInfo, conf conf, internal sync_internal.Internal,
 ) (State, Async, error) {
+	zap.S().Infof("applyBlocksWithSnapshots\n")
 	internal, blocks, snapshots, eof := internal.Blocks()
 	if len(blocks) == 0 {
 		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")

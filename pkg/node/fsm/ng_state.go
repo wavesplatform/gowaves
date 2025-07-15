@@ -2,7 +2,6 @@ package fsm
 
 import (
 	"context"
-
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
@@ -208,6 +207,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 func (a *NGState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
+	zap.S().Infof("MinedBlock\n")
 	// Defer rescheduling to the end of the function to ensure that
 	// the scheduler is rescheduled even if an error occurs.
 	//
@@ -286,6 +286,7 @@ func (a *NGState) microMine(minedBlock *proto.Block,
 func (a *NGState) mineMicro(
 	minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
+	zap.S().Infof("mineMicro\n")
 	block, micro, rest, err := a.microMine(minedBlock, rest, keyPair)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions):
@@ -352,6 +353,7 @@ func (a *NGState) mineMicro(
 func (a *NGState) checkAndAppendMicroBlock(
 	micro *proto.MicroBlock,
 ) (*proto.Block, error) {
+	zap.S().Infof("checkAndAppendMicroBlock\n")
 	top := a.baseInfo.storage.TopBlock()  // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
