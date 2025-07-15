@@ -1,7 +1,7 @@
 package utxpool
 
 import (
-	"go.uber.org/zap"
+	"log/slog"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -30,7 +30,7 @@ func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bul
 func (a bulkValidator) Validate() {
 	transactions, err := a.validate()
 	if err != nil {
-		zap.S().Debug(err)
+		slog.Debug("Validation failure", "error", err)
 		return
 	}
 	for _, t := range transactions {
