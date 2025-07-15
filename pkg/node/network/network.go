@@ -2,12 +2,10 @@ package network
 
 import (
 	"context"
+	"log/slog"
+	"reflect"
 	"sync"
 	"time"
-
-	"github.com/wavesplatform/gowaves/pkg/p2p"
-
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -58,6 +56,7 @@ type Network struct {
 	infoCh        <-chan peer.InfoMessage
 	networkInfoCh chan<- InfoMessage
 	syncPeer      *SyncPeer
+	logger        *slog.Logger
 
 	peers         peers.PeerManager
 	storage       state.State
@@ -70,12 +69,14 @@ func NewNetwork(
 	services services.Services,
 	p peer.Parent,
 	obsolescence time.Duration,
+	l *slog.Logger,
 ) (Network, <-chan InfoMessage) {
 	nch := make(chan InfoMessage, defaultChannelSize)
 	return Network{
 		infoCh:        p.InfoCh,
 		networkInfoCh: nch,
 		syncPeer:      new(SyncPeer),
+		logger:        l,
 		peers:         services.Peers,
 		storage:       services.State,
 		tm:            services.Time,
@@ -92,11 +93,11 @@ func (n *Network) Run(ctx context.Context) {
 	for {
 		select {
 		case <-ctx.Done():
-			zap.S().Named(p2p.Namespace).Info("Network terminated")
+			n.logger.Info("Network terminated")
 			return
 		case m, ok := <-n.infoCh:
 			if !ok {
-				zap.S().Named(p2p.Namespace).Warn("Incoming message channel was closed by producer")
+				n.logger.Warn("Incoming message channel was closed by producer")
 				return
 			}
 			switch t := m.Value.(type) {
@@ -105,7 +106,7 @@ func (n *Network) Run(ctx context.Context) {
 			case *peer.InternalErr:
 				n.handleInternalErr(m)
 			default:
-				zap.S().Warnf("Unknown peer info message '%T'", m)
+				n.logger.Warn("Unknown peer info message", "type", reflect.TypeOf(m))
 			}
 		}
 	}
@@ -114,12 +115,12 @@ func (n *Network) Run(ctx context.Context) {
 func (n *Network) handleConnected(msg *peer.Connected) {
 	err := n.peers.NewConnection(msg.Peer)
 	if err != nil {
-		zap.S().Named(p2p.Namespace).Debugf("Established connection with %s peer '%s': %s",
-			msg.Peer.Direction(), msg.Peer.ID(), err)
+		n.logger.Debug("Failed to establish connection with peer", "direction", msg.Peer.Direction(),
+			"peer", msg.Peer.ID(), "error", err)
 		return
 	}
-	zap.S().Named(p2p.Namespace).Debugf("Established connection with %s peer '%s' (total: %d)",
-		msg.Peer.Direction(), msg.Peer.ID(), n.peers.ConnectedCount())
+	n.logger.Debug("Established connection with peer", "direction", msg.Peer.Direction(),
+		"peer", msg.Peer.ID(), "count", n.peers.ConnectedCount())
 	if n.peers.ConnectedCount() == n.minPeerMining { // TODO: Consider producing duplicate events here
 		n.networkInfoCh <- StartMining{}
 	}
@@ -132,8 +133,8 @@ func (n *Network) handleConnected(msg *peer.Connected) {
 
 func (n *Network) handleInternalErr(msg peer.InfoMessage) {
 	n.peers.Disconnect(msg.Peer)
-	zap.S().Named(p2p.Namespace).Debugf("Disconnected %s peer '%s' (total: %d)",
-		msg.Peer.Direction(), msg.Peer.ID(), n.peers.ConnectedCount())
+	n.logger.Debug("Disconnected from peer", "direction", msg.Peer.Direction(), "peer", msg.Peer.ID(),
+		"count", n.peers.ConnectedCount())
 	if n.peers.ConnectedCount() < n.minPeerMining {
 		// TODO: Consider handling of duplicate events in consumer
 		n.networkInfoCh <- StopMining{}
@@ -170,7 +171,7 @@ func (n *Network) switchToNewPeerIfRequired() {
 func sendScore(p peer.Peer, storage state.State) {
 	curScore, err := storage.CurrentScore()
 	if err != nil {
-		zap.S().Errorf("Failed to send current score to peer %q: %v", p.RemoteAddr().String(), err)
+		slog.Error("Failed to send current score to peer", "address", p.RemoteAddr().String(), "error", err)
 		return
 	}
 

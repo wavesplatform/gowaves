@@ -115,6 +115,8 @@ type config struct {
 	microblockInterval         time.Duration
 	enableLightMode            bool
 	generateInPast             bool
+
+	h slog.Handler
 }
 
 var errConfigNotParsed = stderrs.New("config is not parsed")
@@ -261,7 +263,8 @@ func main() {
 func realMain() int {
 	nc := new(config)
 	nc.parse()
-	slog.SetDefault(slog.New(logging.DefaultHandler(nc.lp)))
+	nc.h = logging.DefaultHandler(nc.lp)
+	slog.SetDefault(slog.New(nc.h))
 	err := run(nc)
 	if err != nil {
 		slog.Error("Failed to run node", "error", err)
@@ -421,15 +424,31 @@ func startNode(
 	mine := miner.NewMicroblockMiner(svs, features, nc.reward)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
-	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
+	const (
+		netNamespace = "NET"
+		fsmNamespace = "FSM"
+	)
+	nl := buildLogger(nc.h, netNamespace, nc.logNetwork)
+	fl := buildLogger(nc.h, fsmNamespace, nc.logFSM)
+
+	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod, nl)
 	go ntw.Run(ctx)
 
-	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode)
+	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode, nl, fl)
 	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer())
 
 	go minerScheduler.Reschedule() // Reschedule mining after node start
 
 	return n
+}
+
+func buildLogger(h slog.Handler, namespace string, enabled bool) *slog.Logger {
+	if !enabled {
+		return slog.New(slog.DiscardHandler)
+	}
+	const namespaceKey = "namespace"
+
+	return slog.New(h).With(slog.String(namespaceKey, namespace))
 }
 
 func raiseToMaxFDs(nc *config) error {
