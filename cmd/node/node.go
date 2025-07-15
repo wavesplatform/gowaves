@@ -57,6 +57,11 @@ const (
 	fileDescriptorsReserve = 10
 )
 
+const (
+	netNamespace = "NET"
+	fsmNamespace = "FSM"
+)
+
 const profilerAddr = "localhost:6060"
 
 const utxPoolMaxSizeBytes = 1024 * mb
@@ -377,7 +382,9 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	parent := peer.NewParent(nc.enableLightMode)
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
-	peerManager, err := createPeerManager(nc, conf, parent, declAddr)
+	nl := buildLogger(nc.h, netNamespace, nc.logNetwork)
+
+	peerManager, err := createPeerManager(nc, conf, parent, declAddr, nl)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create peer manager")
 	}
@@ -407,7 +414,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(apiErr, "failed to run APIs")
 	}
 
-	return startNode(ctx, nc, svs, features, minerScheduler, parent, declAddr), nil
+	return startNode(ctx, nc, svs, features, minerScheduler, parent, declAddr, nl), nil
 }
 
 func startNode(
@@ -418,17 +425,13 @@ func startNode(
 	minerScheduler Scheduler,
 	parent peer.Parent,
 	declAddr proto.TCPAddr,
+	nl *slog.Logger,
 ) *node.Node {
 	bindAddr := proto.NewTCPAddrFromString(nc.bindAddress)
 
 	mine := miner.NewMicroblockMiner(svs, features, nc.reward)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
-	const (
-		netNamespace = "NET"
-		fsmNamespace = "FSM"
-	)
-	nl := buildLogger(nc.h, netNamespace, nc.logNetwork)
 	fl := buildLogger(nc.h, fsmNamespace, nc.logFSM)
 
 	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod, nl)
@@ -688,6 +691,7 @@ func createPeerManager(
 	conf *settings.NodeSettings,
 	parent peer.Parent,
 	declAddr proto.TCPAddr,
+	logger *slog.Logger,
 ) (*peers.PeerManagerImpl, error) {
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxInt32))
 	if err != nil {
@@ -721,6 +725,7 @@ func createPeerManager(
 		!nc.disableOutgoingConnections,
 		nc.newConnectionsLimit,
 		nc.blackListResidenceTime,
+		logger,
 	), nil
 }
 
