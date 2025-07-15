@@ -2,14 +2,12 @@ package tasks
 
 import (
 	"context"
+	"log/slog"
+	"reflect"
 	"time"
-
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
-
-const namespace = "FSM.TASK"
 
 const (
 	Ping = iota + 1
@@ -24,7 +22,7 @@ func SendAsyncTask(output chan AsyncTask, task AsyncTask) {
 	select {
 	case output <- task:
 	default:
-		zap.S().Named(namespace).Debugf("Tasks channel is full on task '%T'", task)
+		slog.Debug("Tasks channel is full", "task", reflect.TypeOf(task))
 	}
 }
 

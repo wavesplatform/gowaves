@@ -5,7 +5,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
@@ -62,7 +61,7 @@ func (a *IdleState) Task(task tasks.AsyncTask) (State, Async, error) {
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		zap.S().Named(Namespace).Debug("[Idle] Requesting peers")
+		a.baseInfo.logger.Debug("Requesting peers", "state", IdleStateName)
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro: // Do nothing
