@@ -441,9 +441,6 @@ func startNode(
 
 	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode, nl, fl)
 	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer(), fl, nl)
-
-	go minerScheduler.Reschedule() // Reschedule mining after node start
-
 	return n
 }
 
