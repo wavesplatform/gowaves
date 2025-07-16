@@ -30,6 +30,10 @@ func main() {
 	)
 	lp.Initialize()
 	flag.Parse()
+	if err := lp.Parse(); err != nil {
+		slog.Error("Failed to parse application parameters", "error", err)
+		os.Exit(1)
+	}
 
 	slog.SetDefault(slog.New(logging.DefaultHandler(lp)))
 	slog.Info("Gowaves Rollback", "version", versioning.Version)

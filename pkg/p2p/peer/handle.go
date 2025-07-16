@@ -27,7 +27,7 @@ func bytesToMessage(data []byte, resendTo chan ProtoMessage, p Peer, logger *slo
 	case resendTo <- mess:
 	default:
 		logger.Debug("Failed to resend message because upstream channel is full", "peer", p.ID(),
-			"message", reflect.TypeOf(m).Name())
+			"type", reflect.TypeOf(m))
 	}
 	return nil
 }

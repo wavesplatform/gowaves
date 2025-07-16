@@ -170,7 +170,7 @@ func (c *config) parse() {
 		defaultNewConnectionLimit         = 10
 		defaultMicroblockInterval         = 5 * time.Second
 	)
-	lp := logging.Parameters{}
+	c.lp = logging.Parameters{}
 	flag.BoolVar(&c.logNetwork, "log-network", false,
 		"Log the operation of network stack. Turned off by default.")
 	flag.BoolVar(&c.logNetworkData, "log-network-data", false,
@@ -252,7 +252,7 @@ func (c *config) parse() {
 		"Start node in light mode")
 	flag.BoolVar(&c.generateInPast, "generate-in-past", false,
 		"Enable block generation with timestamp in the past")
-	lp.Initialize()
+	c.lp.Initialize()
 	flag.Parse()
 }
 
@@ -269,6 +269,10 @@ func main() {
 func realMain() int {
 	nc := new(config)
 	nc.parse()
+	if err := nc.lp.Parse(); err != nil {
+		slog.Error("Failed to parse application parameters", "error", err)
+		return 1
+	}
 	nc.h = logging.DefaultHandler(nc.lp)
 	slog.SetDefault(slog.New(nc.h))
 	err := run(nc)

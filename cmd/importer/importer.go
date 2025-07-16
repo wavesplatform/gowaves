@@ -115,6 +115,9 @@ func (c *cfg) validateFlags() error {
 	if c.lightNodeMode && c.snapshotsPath == "" {
 		return errors.New("option snapshots-path is not specified in light mode, please specify it")
 	}
+	if err := c.lp.Parse(); err != nil {
+		return err
+	}
 	return nil
 }
 

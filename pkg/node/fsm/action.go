@@ -39,7 +39,7 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 		peer.SendMessage(msg)
 		cnt++
 	})
-	a.logger.Debug("Network message sent to peers", "message", reflect.TypeOf(msg), "count", cnt,
+	a.logger.Debug("Network message sent to peers", "type", reflect.TypeOf(msg), "count", cnt,
 		"currentScore", curScore)
 }
 
@@ -69,6 +69,6 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 		p.SendMessage(msg)
 		cnt++
 	})
-	a.logger.Debug("Network message sent to peers", "message", reflect.TypeOf(msg), "count", cnt,
+	a.logger.Debug("Network message sent to peers", "type", reflect.TypeOf(msg), "count", cnt,
 		"blockID", block.BlockID())
 }

@@ -63,6 +63,9 @@ func run() error {
 	)
 	lp.Initialize()
 	flag.Parse()
+	if err := lp.Parse(); err != nil {
+		return err
+	}
 
 	// Set up log
 	lh := logging.DefaultHandler(lp)
