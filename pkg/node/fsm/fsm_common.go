@@ -87,7 +87,7 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		return state, nil, err
 	}
 	internal := sync_internal.InternalFromLastSignatures(
-		extension.NewPeerExtension(p, baseInfo.scheme),
+		extension.NewPeerExtension(p, baseInfo.scheme, baseInfo.nl),
 		lastSignatures,
 		baseInfo.enableLightMode,
 	)

@@ -132,7 +132,7 @@ func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State,
 			"peer", peer.ID().String(), "expectedPeer", a.baseInfo.syncPeer.GetPeer().ID().String())
 		return a, nil, nil
 	}
-	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), signatures)
+	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme, a.baseInfo.nl), signatures)
 	if err != nil {
 		a.baseInfo.logger.Debug("No signatures expected from peer, but received", "state", a.String(),
 			"peer", peer.ID().String())
@@ -308,7 +308,7 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		a.baseInfo.logger.Debug("Changing sync peer", "state", a.String(), "peer", np.ID().String())
 		return syncWithNewPeer(a, a.baseInfo, np)
 	}
-	a.internal.AskBlocksIDs(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
+	a.internal.AskBlocksIDs(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme, a.baseInfo.nl))
 	return newSyncState(baseInfo, conf, internal), nil, nil
 }
 

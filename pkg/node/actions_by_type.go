@@ -16,7 +16,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
-type Action func(services services.Services, msg peer.ProtoMessage, fsm *fsm.FSM, log *slog.Logger) (fsm.Async, error)
+type Action func(services services.Services, msg peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger) (fsm.Async, error)
 
 func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	b := new(big.Int)
@@ -170,7 +170,7 @@ func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 
 // MicroBlockRequestAction handles microblock requests.
 func MicroBlockRequestAction(
-	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger,
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, nl *slog.Logger,
 ) (fsm.Async, error) {
 	msg, ok := mess.Message.(*proto.MicroBlockRequestMessage)
 	if !ok {
@@ -178,7 +178,7 @@ func MicroBlockRequestAction(
 	}
 	micro, ok := services.MicroBlockCache.GetBlock(msg.TotalBlockSig)
 	if ok {
-		_ = extension.NewPeerExtension(mess.ID, services.Scheme).SendMicroBlock(micro)
+		_ = extension.NewPeerExtension(mess.ID, services.Scheme, nl).SendMicroBlock(micro)
 	}
 	return nil, nil
 }
@@ -195,25 +195,25 @@ func MicroBlockAction(
 }
 
 // PBBlockAction handles protobuf block message.
-func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, logger *slog.Logger) (fsm.Async, error) {
+func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger) (fsm.Async, error) {
 	b := &proto.Block{}
 	if err := b.UnmarshalFromProtobuf(mess.Message.(*proto.PBBlockMessage).PBBlockBytes); err != nil {
-		logger.Debug("Failed to deserialize protobuf block", "error", err)
+		nl.Debug("Failed to deserialize protobuf block", "error", err)
 		return nil, err
 	}
-	logger.Debug("Protobuf block received", "blockID", b.ID.String())
+	nl.Debug("Protobuf block received", "blockID", b.ID.String())
 	return fsm.Block(mess.ID, b)
 }
 
 func PBMicroBlockAction(
-	_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, logger *slog.Logger,
+	_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger,
 ) (fsm.Async, error) {
 	micro := &proto.MicroBlock{}
 	if err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes); err != nil {
-		logger.Debug("Failed to deserialize microblock", "error", err)
+		nl.Debug("Failed to deserialize microblock", "error", err)
 		return nil, err
 	}
-	logger.Debug("Microblock received", "blockID", micro.TotalBlockID.String())
+	nl.Debug("Microblock received", "blockID", micro.TotalBlockID.String())
 	return fsm.MicroBlock(mess.ID, micro)
 }
 
@@ -321,11 +321,11 @@ func GetSnapshotAction(
 }
 
 func BlockSnapshotAction(
-	services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, logger *slog.Logger,
+	services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger,
 ) (fsm.Async, error) {
 	protoMess := g.BlockSnapshot{}
 	if err := protoMess.UnmarshalVT(mess.Message.(*proto.BlockSnapshotMessage).Bytes); err != nil {
-		logger.Debug("Failed to deserialize block snapshot", "error", err)
+		nl.Debug("Failed to deserialize block snapshot", "error", err)
 		return nil, err
 	}
 	blockID, err := proto.NewBlockIDFromBytes(protoMess.BlockId)
@@ -336,16 +336,16 @@ func BlockSnapshotAction(
 	if err != nil {
 		return nil, err
 	}
-	logger.Debug("Snapshot received", "blockID", blockID.String())
+	nl.Debug("Snapshot received", "blockID", blockID.String())
 	return fsm.BlockSnapshot(mess.ID, blockID, blockSnapshot)
 }
 
 func MicroBlockSnapshotAction(
-	services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, logger *slog.Logger,
+	services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger,
 ) (fsm.Async, error) {
 	protoMess := g.MicroBlockSnapshot{}
 	if err := protoMess.UnmarshalVT(mess.Message.(*proto.MicroBlockSnapshotMessage).Bytes); err != nil {
-		logger.Debug("Failed to deserialize micro block snapshot", "error", err)
+		nl.Debug("Failed to deserialize micro block snapshot", "error", err)
 		return nil, err
 	}
 	blockID, err := proto.NewBlockIDFromBytes(protoMess.TotalBlockId)

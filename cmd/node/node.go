@@ -58,8 +58,9 @@ const (
 )
 
 const (
-	netNamespace = "NET"
-	fsmNamespace = "FSM"
+	netNamespace     = "NET"
+	netDataNamespace = "NET.DATA"
+	fsmNamespace     = "FSM"
 )
 
 const profilerAddr = "localhost:6060"
@@ -383,8 +384,9 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
 	nl := buildLogger(nc.h, netNamespace, nc.logNetwork)
+	ndl := buildLogger(nc.h, netDataNamespace, nc.logNetworkData)
 
-	peerManager, err := createPeerManager(nc, conf, parent, declAddr, nl)
+	peerManager, err := createPeerManager(nc, conf, parent, declAddr, nl, ndl)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create peer manager")
 	}
@@ -438,7 +440,7 @@ func startNode(
 	go ntw.Run(ctx)
 
 	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode, nl, fl)
-	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer(), fl)
+	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer(), fl, nl)
 
 	go minerScheduler.Reschedule() // Reschedule mining after node start
 
@@ -691,7 +693,7 @@ func createPeerManager(
 	conf *settings.NodeSettings,
 	parent peer.Parent,
 	declAddr proto.TCPAddr,
-	logger *slog.Logger,
+	logger, dl *slog.Logger,
 ) (*peers.PeerManagerImpl, error) {
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxInt32))
 	if err != nil {
@@ -705,6 +707,8 @@ func createPeerManager(
 		nc.nodeName,
 		nodeNonce.Uint64(),
 		proto.ProtocolVersion(),
+		logger,
+		dl,
 	)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(nc.statePath, time.Now())
 	if err != nil {

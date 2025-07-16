@@ -178,7 +178,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 
 	if a.baseInfo.enableLightMode {
 		defer func() {
-			pe := extension.NewPeerExtension(peer, a.baseInfo.scheme)
+			pe := extension.NewPeerExtension(peer, a.baseInfo.scheme, a.baseInfo.nl)
 			pe.AskBlockSnapshot(block.BlockID())
 		}()
 		st, timeoutTask := newWaitSnapshotState(a.baseInfo, block, a.blocksCache)
@@ -269,7 +269,7 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 		return a, nil, nil
 	}
 	defer func() {
-		pe := extension.NewPeerExtension(p, a.baseInfo.scheme)
+		pe := extension.NewPeerExtension(p, a.baseInfo.scheme, a.baseInfo.nl)
 		pe.AskMicroBlockSnapshot(micro.TotalBlockID)
 	}()
 	st, timeoutTask := newWaitMicroSnapshotState(a.baseInfo, micro, a.blocksCache)

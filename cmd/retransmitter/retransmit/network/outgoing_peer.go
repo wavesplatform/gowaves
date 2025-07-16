@@ -21,6 +21,8 @@ type OutgoingPeerParams struct {
 	Parent       peer.Parent
 	DeclAddr     proto.TCPAddr
 	Skip         conn.SkipFilter
+	logger       *slog.Logger
+	dl           *slog.Logger
 }
 
 type OutgoingPeer struct {
@@ -57,6 +59,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	peerConnector := connector{
 		Address: params.Address,
 		Skip:    params.Skip,
+		logger:  params.logger,
 	}
 	connection, handshake, err := peerConnector.connect(ctx, params.WavesNetwork, remote, params.DeclAddr)
 	if err != nil {
@@ -73,7 +76,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	}
 
 	slog.Debug("Connected", "address", params.Address)
-	if err = peer.Handle(ctx, p, params.Parent, remote); err != nil {
+	if err = peer.Handle(ctx, p, params.Parent, remote, params.logger, params.dl); err != nil {
 		slog.Error("Peer.Handle()", "error", err)
 		return
 	}
@@ -82,6 +85,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 type connector struct {
 	Address string
 	Skip    conn.SkipFilter
+	logger  *slog.Logger
 }
 
 func (a *connector) connect(ctx context.Context, wavesNetwork string, remote peer.Remote, declAddr proto.TCPAddr) (conn.Connection, proto.Handshake, error) {
@@ -139,7 +143,7 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 				continue
 			}
 		}
-		return conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, a.Skip), handshake, nil
+		return conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, a.Skip, a.logger), handshake, nil
 	}
 
 	return nil, proto.Handshake{}, errors.Errorf("can't connect 20 times")

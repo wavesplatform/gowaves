@@ -83,12 +83,13 @@ type BaseInfo struct {
 
 	enableLightMode bool
 	logger          *slog.Logger
+	nl              *slog.Logger
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
 	a.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
 		if p != receivedFrom {
-			_ = extension.NewPeerExtension(p, a.scheme).SendTransaction(t)
+			_ = extension.NewPeerExtension(p, a.scheme, a.nl).SendTransaction(t)
 		}
 	})
 }
@@ -153,7 +154,7 @@ func NewFSM(
 	microblockInterval, obsolescence time.Duration,
 	syncPeer *network.SyncPeer,
 	enableLightMode bool,
-	logger *slog.Logger,
+	logger, nl *slog.Logger,
 ) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
@@ -186,6 +187,8 @@ func NewFSM(
 		skipMessageList: services.SkipMessageList,
 		syncPeer:        syncPeer,
 		enableLightMode: enableLightMode,
+		logger:          logger,
+		nl:              nl,
 	}
 
 	info.scheduler.Reschedule()
