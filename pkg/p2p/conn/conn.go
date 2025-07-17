@@ -4,15 +4,14 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"net"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 	"go.uber.org/atomic"
-	"go.uber.org/zap"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -97,7 +96,11 @@ func (mr *multiReader) Reset(readers ...io.Reader) {
 // SkipFilter indicates that the network message should be skipped.
 type SkipFilter func(proto.Header) bool
 
-func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string, now func() time.Time) error {
+//nolint:gocognit // It will be replaced soon with new networking.
+func receiveFromRemote(
+	conn deadlineReader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string,
+	now func() time.Time, logger *slog.Logger,
+) error {
 	var (
 		firstByteBuff   = make([]byte, 1)
 		firstByteReader = bytes.NewReader(firstByteBuff)
@@ -150,8 +153,8 @@ func receiveFromRemote(conn deadlineReader, fromRemoteCh chan *bytebufferpool.By
 		case fromRemoteCh <- b:
 		default:
 			bytebufferpool.Put(b)
-			zap.S().Named(logging.NetworkNamespace).Debugf(
-				"[%s] Failed to send bytes from network to upstream channel because it's full", addr)
+			logger.Debug("Failed to send bytes from network to upstream channel because it's full",
+				"address", addr)
 		}
 	}
 }

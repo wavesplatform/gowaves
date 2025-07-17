@@ -1,9 +1,9 @@
 package fsm
 
 import (
-	"go.uber.org/zap"
+	"log/slog"
+	"reflect"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -21,13 +21,14 @@ type Actions interface {
 }
 
 type ActionsImpl struct {
+	logger   *slog.Logger
 	services services.Services
 }
 
 func (a *ActionsImpl) SendScore(s currentScorer) {
 	curScore, err := s.CurrentScore()
 	if err != nil {
-		zap.S().Errorf("Failed to get current score: %v", err)
+		a.logger.Error("Failed to get current score", "error", err)
 		return
 	}
 	var (
@@ -38,20 +39,20 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 		peer.SendMessage(msg)
 		cnt++
 	})
-	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: currentScore=%s",
-		msg, cnt, curScore)
+	a.logger.Debug("Network message sent to peers", "type", reflect.TypeOf(msg), "count", cnt,
+		"currentScore", curScore)
 }
 
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
 	bts, err := block.Marshaller().Marshal(a.services.Scheme)
 	if err != nil {
-		zap.S().Errorf("Failed to marshal block with ID %q: %v", block.BlockID().String(), err)
+		a.logger.Error("Failed to marshal block", "blockID", block.BlockID().String(), "error", err)
 		return
 	}
 
 	activated, err := a.services.State.IsActivated(int16(settings.BlockV5))
 	if err != nil {
-		zap.S().Errorf("Failed to get feature (%d) activation status: %v", settings.BlockV5, err)
+		a.logger.Error("Failed to get feature activation status", "feature", settings.BlockV5, "error", err)
 		return
 	}
 
@@ -68,6 +69,6 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 		p.SendMessage(msg)
 		cnt++
 	})
-	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: blockID='%s'",
-		msg, cnt, block.BlockID())
+	a.logger.Debug("Network message sent to peers", "type", reflect.TypeOf(msg), "count", cnt,
+		"blockID", block.BlockID())
 }

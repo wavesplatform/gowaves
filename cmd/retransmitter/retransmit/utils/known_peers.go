@@ -3,11 +3,11 @@ package utils
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"sync"
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 const defaultInterval = 5 * time.Minute
@@ -62,7 +62,7 @@ func (a *KnownPeers) periodicallySave(ctx context.Context, interval time.Duratio
 		case <-ticker.C:
 			err := a.save()
 			if err != nil {
-				zap.S().Error(err)
+				slog.Error("Failed to save", "error", err)
 			}
 		case <-ctx.Done():
 			return
@@ -75,9 +75,9 @@ func (a *KnownPeers) Addresses() []proto.PeerInfo {
 	defer a.mu.Unlock()
 	var out []proto.PeerInfo
 	for addr := range a.knownPeers {
-		rs, err := proto.NewPeerInfoFromString(string(addr))
+		rs, err := proto.NewPeerInfoFromString(addr)
 		if err != nil {
-			zap.S().Error(err)
+			slog.Error("Failed to get peer info", "error", err)
 			continue
 		}
 		out = append(out, rs)
@@ -127,7 +127,7 @@ func (a *KnownPeers) Stop() {
 	a.cancel()
 	err := a.save()
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to stop", "error", err)
 	}
 	a.storage.Close()
 }

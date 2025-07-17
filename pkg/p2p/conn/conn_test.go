@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"io"
+	"log/slog"
 	"net"
 	"testing"
 	"time"
@@ -13,14 +14,10 @@ import (
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
-	"go.uber.org/zap"
 )
 
 // check on calling close method spawned goroutines exited
 func TestConnectionImpl_Close(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-	zap.ReplaceGlobals(logger)
-
 	listener, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
 
@@ -47,6 +44,7 @@ func TestConnectionImpl_Close(t *testing.T) {
 		errCh:        make(chan error, 2),
 		sendFunc:     sendToRemote,
 		receiveFunc:  receiveFromRemote,
+		logger:       slog.New(slog.DiscardHandler),
 	}
 
 	conn := wrapConnection(context.Background(), params)
@@ -60,9 +58,6 @@ func TestConnectionImpl_Close(t *testing.T) {
 }
 
 func TestRecvFromRemote_Transaction(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-	zap.ReplaceGlobals(logger)
-
 	messBytes := byte_helpers.TransferWithSig.MessageBytes
 	fromRemoteCh := make(chan *bytebufferpool.ByteBuffer, 2)
 
@@ -83,7 +78,7 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 		},
 	}
 
-	err := receiveFromRemote(rdr, fromRemoteCh, filter, "test", nowFn)
+	err := receiveFromRemote(rdr, fromRemoteCh, filter, "test", nowFn, slog.New(slog.DiscardHandler))
 	require.ErrorIs(t, err, io.EOF)
 	assert.Len(t, rdr.SetReadDeadlineCalls(), 3)
 

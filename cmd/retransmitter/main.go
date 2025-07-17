@@ -2,7 +2,7 @@ package main
 
 import (
 	"context"
-	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"path/filepath"
@@ -13,11 +13,11 @@ import (
 
 	"github.com/spf13/afero"
 	flag "github.com/spf13/pflag"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/httpserver"
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -26,10 +26,12 @@ func cpuProfile(filename string) func() {
 	cleanFilename := filepath.Clean(filename)
 	f, err := os.Create(cleanFilename)
 	if err != nil {
-		zap.S().Fatal(err)
+		slog.Error("Failed to create CPU profile", "error", err)
+		os.Exit(1)
 	}
 	if err := pprof.StartCPUProfile(f); err != nil {
-		zap.S().Fatal(err)
+		slog.Error("Failed to start CPU profile", "error", err)
+		os.Exit(1)
 	}
 	return pprof.StopCPUProfile
 }
@@ -38,10 +40,12 @@ func memProfile(filename string) {
 	cleanFilename := filepath.Clean(filename)
 	f, err := os.Create(cleanFilename)
 	if err != nil {
-		zap.S().Fatal(err)
+		slog.Error("Failed to create memory profile", "error", err)
+		os.Exit(1)
 	}
 	if err := pprof.WriteHeapProfile(f); err != nil {
-		zap.S().Fatal(err)
+		slog.Error("Failed to write memory profile", "error", err)
+		os.Exit(1)
 	}
 	_ = f.Close()
 }
@@ -75,13 +79,7 @@ func main() {
 
 	var err error
 
-	cfg := zap.NewDevelopmentConfig()
-	logger, err := cfg.Build()
-	if err != nil {
-		fmt.Println(err)
-		return
-	}
-	zap.ReplaceGlobals(logger)
+	slog.SetDefault(slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, slog.LevelInfo)))
 
 	var bind string
 	var decl string
@@ -104,7 +102,7 @@ func main() {
 	switch wavesNetwork {
 	case "wavesW", "wavesT", "wavesS":
 	default:
-		zap.S().Errorf("expected waves network to be wavesW or wavesT or wavesD, found %s", wavesNetwork)
+		slog.Error("Invalid waves network, expected wavesW or wavesT or wavesD", "network", wavesNetwork)
 		return
 	}
 
@@ -119,14 +117,14 @@ func main() {
 
 	storage, err := utils.NewFileBasedStorage(fs, "known_peers.json")
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to open peers storage", "error", err)
 		cancel()
 		return
 	}
 
 	knownPeers, err := utils.NewKnownPeers(storage)
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to load known peers", "error", err)
 		cancel()
 		return
 	}
@@ -152,7 +150,7 @@ func main() {
 	if bind != "" {
 		err = r.ServeIncomingConnections(ctx, bind)
 		if err != nil {
-			zap.S().Error(err)
+			slog.Error("Failed to serve incoming connections", "error", err)
 			cancel()
 			return
 		}
@@ -163,7 +161,7 @@ func main() {
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil {
-			zap.S().Error(err)
+			slog.Error("Failed to listen", "error", err)
 		}
 	}()
 
@@ -175,7 +173,7 @@ func main() {
 	if memprofile != "" {
 		memProfile(memprofile)
 	}
-	zap.S().Infof("Caught signal '%s', stopping...", sig)
+	slog.Info("Caught signal, stopping...", "signal", sig)
 	_ = srv.Shutdown(ctx)
 	cancel()
 }
