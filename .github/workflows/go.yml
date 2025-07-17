@@ -32,10 +32,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Go 1.23
+      - name: Set up Go 1.24
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version: 1.23.x
+          go-version: 1.24.x
           check-latest: true
           cache: false # don't save & restore build caches because golangci-lint action does it internally
 
@@ -62,10 +62,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Go 1.23
+      - name: Set up Go 1.24
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
         with:
-          go-version: 1.23.x
+          go-version: 1.24.x
           check-latest: true
           cache: true
 
