@@ -201,7 +201,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
-	_ = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
 		a.baseInfo.CleanUtx()
 		return nil
 	})
@@ -245,7 +245,7 @@ func (a *NGState) MinedBlock(
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-	_ = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
 		a.baseInfo.CleanUtx()
 		return nil
 	})
@@ -320,7 +320,7 @@ func (a *NGState) mineMicro(
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
 	metrics.MicroBlockApplied(micro)
-	_ = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
 		a.baseInfo.CleanUtx()
 		return nil
 	})
@@ -407,7 +407,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.MicroBlockApplied(micro)
-	_ = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
 		a.baseInfo.CleanUtx()
 		return nil
 	})

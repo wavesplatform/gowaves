@@ -200,7 +200,7 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.MicroBlockApplied(micro)
-	_ = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
 		a.baseInfo.CleanUtx()
 		return nil
 	})

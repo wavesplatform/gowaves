@@ -3,7 +3,6 @@ package utxpool
 import (
 	"container/heap"
 	"fmt"
-	"go.uber.org/zap"
 	"sync"
 
 	"github.com/mr-tron/base58"
@@ -60,11 +59,8 @@ func New(sizeLimit uint64, validator Validator, settings *settings.BlockchainSet
 }
 
 func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	res := make([]*types.TransactionWithBytes, len(a.transactions))
 	copy(res, a.transactions)
 	return res
@@ -72,47 +68,35 @@ func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 
 // Add Can only be called for synchronous operations, because it locks state inside the validation method.
 func (a *UtxImpl) Add(t proto.Transaction) error {
-
 	bts, err := proto.MarshalTx(a.settings.AddressSchemeCharacter, t)
 	if err != nil {
 		return err
 	}
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	return a.addWithBytes(t, bts)
 }
 
 // AddWithBytes Can only be called for synchronous operations, because it locks state inside the validation method.
-// Used for tests
+// Use state Map or MapUnsafe.
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	// TODO: add flag here to distinguish adding using API and accepting
 	//  through the network from other nodes.
 	//  When API is used, we should check all scripts completely.
 	//  When adding from the network, only free complexity limit is checked.
-	zap.S().Info("Trying to lock UTX mutex\n")
-
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	return a.addWithBytes(t, b)
 }
 
-func (a *UtxImpl) AddWithBytesRow(t proto.Transaction, b []byte) error {
-	zap.S().Info("Trying to lock UTX mutex\n")
+func (a *UtxImpl) AddWithBytesRaw(t proto.Transaction, b []byte) error {
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
-	return a.addWithBytesRow(t, b)
+	return a.addWithBytesRaw(t, b)
 }
 
-// addWithBytesRow has no tx validation. Can be called wherever.
-func (a *UtxImpl) addWithBytesRow(t proto.Transaction, b []byte) error {
+// addWithBytesRaw has no tx validation. Can be called wherever.
+func (a *UtxImpl) addWithBytesRaw(t proto.Transaction, b []byte) error {
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")
 	}
@@ -176,11 +160,8 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 }
 
 func (a *UtxImpl) Count() int {
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	return len(a.transactions)
 }
 
@@ -196,20 +177,14 @@ func (a *UtxImpl) exists(t proto.Transaction) bool {
 }
 
 func (a *UtxImpl) Exists(t proto.Transaction) bool {
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	return a.exists(t)
 }
 
 func (a *UtxImpl) ExistsByID(id []byte) bool {
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	digest, err := crypto.NewDigestFromBytes(id)
 	if err != nil {
 		return false
@@ -219,11 +194,8 @@ func (a *UtxImpl) ExistsByID(id []byte) bool {
 }
 
 func (a *UtxImpl) Pop() *types.TransactionWithBytes {
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	if a.transactions.Len() > 0 {
 		tb := heap.Pop(&a.transactions).(*types.TransactionWithBytes)
 		delete(a.transactionIds, makeDigest(tb.T.GetID(a.settings.AddressSchemeCharacter)))
@@ -237,19 +209,13 @@ func (a *UtxImpl) Pop() *types.TransactionWithBytes {
 }
 
 func (a *UtxImpl) CurSize() uint64 {
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	return a.curSize
 }
 
 func (a *UtxImpl) Len() int {
-	zap.S().Info("Trying to lock UTX mutex\n")
 	a.mu.Lock()
-	zap.S().Info("Done locking UTX mutex\n")
 	defer a.mu.Unlock()
-	defer zap.S().Info("Unlocked UTX mutex\n")
 	return a.transactions.Len()
 }

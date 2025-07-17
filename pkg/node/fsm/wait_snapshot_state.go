@@ -2,7 +2,6 @@ package fsm
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/state"
 	"time"
 
 	"github.com/pkg/errors"
@@ -14,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const (
@@ -132,7 +132,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendBlock(a.blockWaitingForSnapshot)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-	_ = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
 		a.baseInfo.CleanUtx()
 		return nil
 	})

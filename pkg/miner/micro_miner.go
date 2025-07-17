@@ -2,8 +2,6 @@ package miner
 
 import (
 	"errors"
-	"github.com/xenolf/lego/log"
-
 	"github.com/mr-tron/base58"
 	"go.uber.org/zap"
 
@@ -37,7 +35,6 @@ func NewMicroMiner(services services.Services) *MicroMiner {
 }
 
 func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
-	log.Infof("Started Micro function\n")
 	// way to stop mine microblocks
 	if minedBlock == nil {
 		return nil, nil, rest, errors.New("no block provided")
@@ -74,7 +71,6 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	var txSnapshots [][]proto.AtomicSnapshot
 
 	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
-		log.Infof("Started MapUnsafe in Micro\n")
 		defer s.ResetValidationList()
 
 		for txCount <= maxMicroblockTransactions {
@@ -100,7 +96,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 				s.ResetValidationList()
 				txCount = 0
 				for _, appliedTx := range appliedTransactions {
-					_ = a.utx.AddWithBytesRow(appliedTx.T, appliedTx.B)
+					_ = a.utx.AddWithBytesRaw(appliedTx.T, appliedTx.B)
 				}
 				appliedTransactions = nil
 				txSnapshots = nil
@@ -119,9 +115,8 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 		// return inapplicable transactions to utx
 		for _, tx := range inapplicable {
-			_ = a.utx.AddWithBytesRow(tx.T, tx.B)
+			_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
 		}
-		log.Infof("Finished MapUnsafe in Micro\n")
 		return nil
 	})
 

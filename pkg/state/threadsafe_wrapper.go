@@ -1,7 +1,6 @@
 package state
 
 import (
-	"github.com/xenolf/lego/log"
 	"math/big"
 	"sync"
 	"sync/atomic"
@@ -539,20 +538,15 @@ func NewThreadSafeWriteWrapper(i *int32, mu *sync.RWMutex, s State) StateModifie
 
 // A state change in a parallel thread is allowed.
 func (a *ThreadSafeWriteWrapper) lockUnsafe() {
-	log.Infof("Trying State Lock unsafe\n")
 	a.mu.Lock()
-	log.Infof("Done State Lock unsafe\n")
 }
 
 // A state change in a parallel thread is allowed.
 func (a *ThreadSafeWriteWrapper) unlockUnsafe() {
-	log.Infof("Trying State Unlock unsafe\n")
 	a.mu.Unlock()
-	log.Infof("Done State Unlock unsafe\n")
 }
 
 func (a *ThreadSafeWriteWrapper) lock() {
-	log.Infof("Trying State Lock\n")
 	if !atomic.CompareAndSwapInt32(a.i, 0, 1) {
 		// previous value was not `0`, so it means we already locked
 		// this should never happen, cause all write action happens in only 1 thread.
@@ -560,16 +554,13 @@ func (a *ThreadSafeWriteWrapper) lock() {
 		panic("already modifying state")
 	}
 	a.mu.Lock()
-	log.Infof("Done State Lock\n")
 }
 
 func (a *ThreadSafeWriteWrapper) unlock() {
-	log.Infof("Trying State Unlock\n")
 	a.mu.Unlock()
 	if !atomic.CompareAndSwapInt32(a.i, 1, 0) {
 		panic("state was already unlocked")
 	}
-	log.Infof("Done State Unlock\n")
 }
 
 type ThreadSafeState struct {

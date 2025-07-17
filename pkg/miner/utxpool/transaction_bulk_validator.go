@@ -1,7 +1,6 @@
 package utxpool
 
 import (
-	"github.com/xenolf/lego/log"
 	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -35,7 +34,7 @@ func (a bulkValidator) Validate() {
 		return
 	}
 	for _, t := range transactions {
-		errAdd := a.utx.AddWithBytesRow(t.T, t.B)
+		errAdd := a.utx.AddWithBytesRaw(t.T, t.B)
 		if errAdd != nil {
 			zap.S().Errorf("failed to add a transaction to UTX, %v", errAdd)
 			return
@@ -52,7 +51,6 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	lastKnownBlock := a.state.TopBlock()
 
 	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
-		log.Infof("MapUnsafe started in validate()\n")
 		defer s.ResetValidationList()
 		utxLen := len(a.utx.AllTransactions())
 		for i := 0; i < utxLen; i++ {
@@ -67,7 +65,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 				// Reset state, return applied transactions to UTX.
 				s.ResetValidationList()
 				for _, tx := range transactions {
-					_ = a.utx.AddWithBytesRow(tx.T, tx.B)
+					_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
 				}
 				transactions = nil
 				continue
@@ -75,7 +73,6 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 				transactions = append(transactions, t)
 			}
 		}
-		log.Infof("MapUnsafe finished in validate()\n")
 		return nil
 	})
 
