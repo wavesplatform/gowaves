@@ -66,7 +66,7 @@ func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 	return res
 }
 
-// Add Can only be called for synchronous operations, because it locks state inside the validation method.
+// Add Must only be called inside state Map or MapUnsafe.
 func (a *UtxImpl) Add(t proto.Transaction) error {
 	bts, err := proto.MarshalTx(a.settings.AddressSchemeCharacter, t)
 	if err != nil {
@@ -77,8 +77,7 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	return a.addWithBytes(t, bts)
 }
 
-// AddWithBytes Can only be called for synchronous operations, because it locks state inside the validation method.
-// Use state Map or MapUnsafe.
+// AddWithBytes Must only be called inside state Map or MapUnsafe.
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	// TODO: add flag here to distinguish adding using API and accepting
 	//  through the network from other nodes.
@@ -125,7 +124,7 @@ func (a *UtxImpl) addWithBytesRaw(t proto.Transaction, b []byte) error {
 	return nil
 }
 
-// Can only be called for synchronous operations, because it locks state inside the validation method.
+// addWithBytes Must only be called inside state Map or MapUnsafe.
 func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")
