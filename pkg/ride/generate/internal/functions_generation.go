@@ -812,20 +812,6 @@ func functionsV6() map[string]string {
 	return m
 }
 
-func functionsV7() map[string]string {
-	m := functionsV6()
-	constructorsFunctions(ast.LibV7, m)
-	return m
-}
-
-func functionsV8() map[string]string {
-	m := functionsV7()
-	m["901"] = "calculateDelay"
-	m["1106"] = "listReplaceByIndex"
-	constructorsFunctions(ast.LibV8, m)
-	return m
-}
-
 func catalogueV6() map[string]int {
 	m := catalogueV5()
 	m["3"] = 1
@@ -874,9 +860,23 @@ func catalogueV6() map[string]int {
 	return m
 }
 
+func functionsV7() map[string]string {
+	m := functionsV6()
+	constructorsFunctions(ast.LibV7, m)
+	return m
+}
+
 func catalogueV7() map[string]int {
 	m := catalogueV6()
 	constructorsCatalogue(ast.LibV7, m)
+	return m
+}
+
+func functionsV8() map[string]string {
+	m := functionsV7()
+	m["901"] = "calculateDelay"
+	m["1106"] = "listReplaceByIndex"
+	constructorsFunctions(ast.LibV8, m)
 	return m
 }
 
@@ -902,6 +902,20 @@ func catalogueV8() map[string]int {
 	m["1105"] = 4
 	m["1106"] = 4
 	constructorsCatalogue(ast.LibV8, m)
+	return m
+}
+
+func functionsV9() map[string]string {
+	m := functionsV8()
+	m["1107"] = "fillList"
+	constructorsFunctions(ast.LibV9, m)
+	return m
+}
+
+func catalogueV9() map[string]int {
+	m := catalogueV8()
+	m["1107"] = 2
+	constructorsCatalogue(ast.LibV9, m)
 	return m
 }
 
@@ -999,6 +1013,14 @@ func evaluationCatalogueV8EvaluatorV1() map[string]int {
 
 func evaluationCatalogueV8EvaluatorV2() map[string]int {
 	return evaluationCatalogueEvaluatorV2Builder(ast.LibV8, catalogueV8)
+}
+
+func evaluationCatalogueV9EvaluatorV1() map[string]int {
+	return evaluationCatalogueEvaluatorV1Builder(ast.LibV9, catalogueV9)
+}
+
+func evaluationCatalogueV9EvaluatorV2() map[string]int {
+	return evaluationCatalogueEvaluatorV2Builder(ast.LibV9, catalogueV9)
 }
 
 func constructorsFromConstants(m map[string]string, c map[string]constantDescription) {
@@ -1132,6 +1154,8 @@ func GenerateFunctions(fn string) {
 		evaluationCatalogueV7EvaluatorV2())
 	createFunctionsList(cd, "V8", functionsV8(), catalogueV8(), evaluationCatalogueV8EvaluatorV1(),
 		evaluationCatalogueV8EvaluatorV2())
+	createFunctionsList(cd, "V9", functionsV9(), catalogueV9(), evaluationCatalogueV9EvaluatorV1(),
+		evaluationCatalogueV9EvaluatorV2())
 	if err := cd.Save(fn); err != nil {
 		panic(err)
 	}
