@@ -86,7 +86,7 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 
 	slogHandler := config.slogHandler
 	if slogHandler == nil {
-		slogHandler = discardingHandler{}
+		slogHandler = slog.DiscardHandler
 	}
 
 	sa := [...]any{
