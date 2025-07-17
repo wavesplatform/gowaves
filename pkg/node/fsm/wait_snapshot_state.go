@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"time"
 
 	"github.com/pkg/errors"
@@ -131,7 +132,10 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendBlock(a.blockWaitingForSnapshot)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-	a.baseInfo.CleanUtx()
+	_ = a.baseInfo.storage.MapUnsafe(func(s state.NonThreadSafeState) error {
+		a.baseInfo.CleanUtx()
+		return nil
+	})
 	return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 }
 

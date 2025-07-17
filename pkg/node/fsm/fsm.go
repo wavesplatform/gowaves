@@ -95,6 +95,7 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 	})
 }
 
+// Must be only called inside Map and MapUnsafe
 func (a *BaseInfo) CleanUtx() {
 	if !a.cleanUtxRunning.CompareAndSwap(false, true) {
 		return

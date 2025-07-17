@@ -79,6 +79,7 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 }
 
 // AddWithBytes Can only be called for synchronous operations, because it locks state inside the validation method.
+// Used for tests
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	// TODO: add flag here to distinguish adding using API and accepting
 	//  through the network from other nodes.
