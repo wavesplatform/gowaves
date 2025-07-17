@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
+
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -206,7 +207,7 @@ func NewFSM(
 		cleanUtxRunning: &atomic.Bool{},
 	}
 
-	info.scheduler.Reschedule()
+	info.scheduler.Reschedule() // Reschedule mining just before starting the FSM (i.e. before starting the node).
 
 	state := &StateData{
 		Name:  IdleStateName,
