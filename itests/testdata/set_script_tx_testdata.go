@@ -9,7 +9,6 @@ import (
 )
 
 const (
-	SetScriptMinVersion = 2
 	SetScriptMaxVersion = 2
 	ScriptDir           = "dApp_scripts"
 )
@@ -20,12 +19,6 @@ type SetScriptData struct {
 	ChainID       proto.Scheme
 	Fee           uint64
 	Timestamp     uint64
-}
-
-func readDAppScript(suite *f.BaseSuite, name string) proto.Script {
-	script, err := utl.ReadScript(ScriptDir, name)
-	require.NoError(suite.T(), err, "unable to read dApp script")
-	return script
 }
 
 func getDAppScript(suite *f.BaseSuite, name string) proto.Script {
