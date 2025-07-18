@@ -42,8 +42,8 @@ jobs:
 
       - name: Build node with -race
         run: |
-          mkdir -p bin
-          GOOS=linux GOARCH=amd64 go build -race -o bin/node ./cmd/node
+          mkdir -p bin/linux-amd64
+          GOOS=linux GOARCH=amd64 go build -race -o bin/linux-amd64/node ./cmd/node
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
@@ -79,7 +79,7 @@ jobs:
           push: true
           pull: true
           build-args: |
-            NODE_BINARY=bin/node
+            NODE_BINARY=bin/linux-amd64/node
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
