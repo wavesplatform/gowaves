@@ -109,11 +109,11 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	zap.S().Info("Rebuilding bloom filter from DB can take up a few minutes")
 	filter, err = newBloomFilter(params)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create new bloom filter")
 	}
 	iter, err := kv.NewKeyIterator([]byte{})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create new bloom filter iterator")
 	}
 	defer func() {
 		iter.Release()
@@ -123,8 +123,8 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	}()
 
 	for iter.Next() {
-		if err := filter.add(iter.Key()); err != nil {
-			return err
+		if kErr := filter.add(iter.Key()); kErr != nil {
+			return errors.Wrap(kErr, "failed to add key to bloom filter")
 		}
 	}
 	kv.filter = filter
@@ -158,17 +158,33 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		CompactionTableSize:    params.CompactionTableSize,
 		CompactionTotalSize:    params.CompactionTotalSize,
 		OpenFilesCacheCapacity: openFilesCacheCapacity,
+		Strict:                 opt.DefaultStrict | opt.StrictManifest,
 	}
-	db, err := leveldb.OpenFile(path, dbOptions)
+	db, err := openLevelDB(path, dbOptions)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to open key-value db by path '%s'", path)
 	}
 	cache := freecache.NewCache(params.CacheSize)
 	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}}
-	if err := initBloomFilter(kv, params.BloomFilterParams); err != nil {
-		return nil, err
+	if bfErr := initBloomFilter(kv, params.BloomFilterParams); bfErr != nil {
+		return nil, errors.Wrap(bfErr, "failed to initialize bloom filter")
 	}
 	return kv, nil
+}
+
+func openLevelDB(path string, dbOptions *opt.Options) (*leveldb.DB, error) {
+	db, err := leveldb.OpenFile(path, dbOptions)
+	if err == nil { // If no error, then the database is opened successfully.
+		return db, nil
+	}
+	zap.S().Warnf("Failed to open leveldb db by path '%s': %v", path, err)
+	zap.S().Infof("Attempting to recover corrupted leveldb by path '%s', may take a while...", path)
+	db, rErr := leveldb.RecoverFile(path, dbOptions)
+	if rErr != nil {
+		return nil, errors.Wrap(rErr, "failed to recover leveldb")
+	}
+	zap.S().Infof("Recovered leveldb db by path '%s'", path)
+	return db, nil
 }
 
 func (k *KeyVal) NewBatch() (Batch, error) {
