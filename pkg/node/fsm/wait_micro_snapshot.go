@@ -142,6 +142,7 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	micro *proto.MicroBlock,
 	snapshot *proto.BlockSnapshot,
 ) (*proto.Block, error) {
+	zap.S().Info("checkAndAppendMicroBlock\n")
 	top := a.baseInfo.storage.TopBlock()  // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
@@ -199,7 +200,10 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.MicroBlockApplied(micro)
-	a.baseInfo.CleanUtx()
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
+		a.baseInfo.CleanUtx()
+		return nil
+	})
 	return newBlock, nil
 }
 

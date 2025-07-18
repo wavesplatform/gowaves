@@ -18,7 +18,7 @@ RUN chmod +x /app/docker-entrypoint.sh
 
 USER $APP_USER
 
-COPY build/bin/$TARGETOS-$TARGETARCH/node /app/node
+COPY build/bin/linux-amd64/node /app/node
 
 HEALTHCHECK CMD ["curl", "--fail", "--silent", "http://localhost:6869/node/status"]
 

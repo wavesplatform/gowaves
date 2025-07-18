@@ -19,6 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const (
@@ -146,10 +147,17 @@ func tryBroadcastTransaction(
 		}
 		return fsm, nil, err
 	}
-	if err = baseInfo.AddToUtx(t); err != nil {
-		err = errors.Wrap(err, "failed to add transaction to utx")
+	err = baseInfo.storage.Map(func(_ state.NonThreadSafeState) error {
+		if err = baseInfo.AddToUtx(t); err != nil {
+			err = errors.Wrap(err, "failed to add transaction to utx")
+			return err
+		}
+		return nil
+	})
+	if err != nil {
 		return fsm, nil, err
 	}
+
 	baseInfo.BroadcastTransaction(t, p)
 	return fsm, nil, nil
 }

@@ -61,13 +61,12 @@ func New(sizeLimit uint64, validator Validator, settings *settings.BlockchainSet
 func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	res := make([]*types.TransactionWithBytes, len(a.transactions))
 	copy(res, a.transactions)
 	return res
 }
 
-// Add Can only be called for synchronous operations, because it locks state inside the validation method.
+// Add Must only be called inside state Map or MapUnsafe.
 func (a *UtxImpl) Add(t proto.Transaction) error {
 	bts, err := proto.MarshalTx(a.settings.AddressSchemeCharacter, t)
 	if err != nil {
@@ -78,7 +77,7 @@ func (a *UtxImpl) Add(t proto.Transaction) error {
 	return a.addWithBytes(t, bts)
 }
 
-// AddWithBytes Can only be called for synchronous operations, because it locks state inside the validation method.
+// AddWithBytes Must only be called inside state Map or MapUnsafe.
 func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	// TODO: add flag here to distinguish adding using API and accepting
 	//  through the network from other nodes.
@@ -89,14 +88,14 @@ func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
 	return a.addWithBytes(t, b)
 }
 
-func (a *UtxImpl) AddWithBytesRow(t proto.Transaction, b []byte) error {
+func (a *UtxImpl) AddWithBytesRaw(t proto.Transaction, b []byte) error {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.addWithBytesRow(t, b)
+	return a.addWithBytesRaw(t, b)
 }
 
-// addWithBytesRow has no tx validation. Can be called wherever.
-func (a *UtxImpl) addWithBytesRow(t proto.Transaction, b []byte) error {
+// addWithBytesRaw has no tx validation. Can be called wherever.
+func (a *UtxImpl) addWithBytesRaw(t proto.Transaction, b []byte) error {
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")
 	}
@@ -125,7 +124,7 @@ func (a *UtxImpl) addWithBytesRow(t proto.Transaction, b []byte) error {
 	return nil
 }
 
-// Can only be called for synchronous operations, because it locks state inside the validation method.
+// addWithBytes Must only be called inside state Map or MapUnsafe.
 func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")

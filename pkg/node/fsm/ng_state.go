@@ -2,7 +2,6 @@ package fsm
 
 import (
 	"context"
-
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 	"go.uber.org/zap"
@@ -202,12 +201,18 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
+		a.baseInfo.CleanUtx()
+		return nil
+	})
+
 	return newNGState(a.baseInfo), nil, nil
 }
 
 func (a *NGState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
+	zap.S().Infof("MinedBlock\n")
 	// Defer rescheduling to the end of the function to ensure that
 	// the scheduler is rescheduled even if an error occurs.
 	//
@@ -240,7 +245,10 @@ func (a *NGState) MinedBlock(
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-	a.baseInfo.CleanUtx()
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
+		a.baseInfo.CleanUtx()
+		return nil
+	})
 
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
@@ -286,6 +294,7 @@ func (a *NGState) microMine(minedBlock *proto.Block,
 func (a *NGState) mineMicro(
 	minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
+	zap.S().Infof("mineMicro\n")
 	block, micro, rest, err := a.microMine(minedBlock, rest, keyPair)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions):
@@ -311,7 +320,10 @@ func (a *NGState) mineMicro(
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
 	metrics.MicroBlockApplied(micro)
-	a.baseInfo.CleanUtx()
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
+		a.baseInfo.CleanUtx()
+		return nil
+	})
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
 		block.BlockID(),
@@ -352,6 +364,7 @@ func (a *NGState) mineMicro(
 func (a *NGState) checkAndAppendMicroBlock(
 	micro *proto.MicroBlock,
 ) (*proto.Block, error) {
+	zap.S().Infof("checkAndAppendMicroBlock\n")
 	top := a.baseInfo.storage.TopBlock()  // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
@@ -394,7 +407,10 @@ func (a *NGState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.MicroBlockApplied(micro)
-	a.baseInfo.CleanUtx()
+	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
+		a.baseInfo.CleanUtx()
+		return nil
+	})
 	return newBlock, nil
 }
 
