@@ -14,7 +14,7 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   IMAGE_TAG: ${{ inputs.dockerTag }}
 
-permissions: { }
+permissions: {}
 
 jobs:
   build:
@@ -25,12 +25,10 @@ jobs:
       packages: write
       attestations: write
       id-token: write
+
     steps:
       - name: Check out code into the Go module directory
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
-        with:
-          fetch-depth: 0
-          persist-credentials: false
 
       - name: Set up Go 1.23
         uses: actions/setup-go@d35c59abb061a4a6fb18e82ac0862c26744d6ab5 # v5.5.0
@@ -42,8 +40,10 @@ jobs:
       - name: Get dependencies
         run: go mod vendor
 
-      - name: Build node
-        run: export PATH="$HOME/bin:$PATH"; make release-node
+      - name: Build node with -race
+        run: |
+          mkdir -p bin
+          GOOS=linux GOARCH=amd64 go build -race -o bin/node ./cmd/node
 
       - name: Login to GitHub Container Registry
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
@@ -67,17 +67,19 @@ jobs:
           labels: |
             org.opencontainers.image.source=https://github.com/${{ github.repository }}
             org.opencontainers.image.licenses=MIT
-            org.opencontainers.image.description="Waves Node"
+            org.opencontainers.image.description="Waves Node (built with race detector)"
 
       - name: Build and Push Docker Image
         uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v5
         id: push
         with:
           context: .
-          platforms: linux/amd64,linux/arm64
+          file: ./Dockerfile
+          platforms: linux/amd64
           push: true
           pull: true
-          build-args: ''
+          build-args: |
+            NODE_BINARY=bin/node
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
