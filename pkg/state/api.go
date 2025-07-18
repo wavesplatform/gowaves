@@ -196,6 +196,8 @@ type StateModifier interface {
 	// Way to call multiple operations under same lock.
 	Map(func(state NonThreadSafeState) error) error
 
+	MapUnsafe(func(state NonThreadSafeState) error) error
+
 	// State will provide extended API data after returning.
 	StartProvidingExtendedApi() error
 
