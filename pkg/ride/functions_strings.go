@@ -97,6 +97,35 @@ func twoStringsArgs(args []rideType) (string, string, error) {
 	return string(s1), string(s2), nil
 }
 
+func threeStringsArgs(args []rideType) (string, string, string, error) {
+	const numArgs = 3
+	if len(args) != numArgs {
+		return "", "", "", errors.Errorf("%d is invalid number of arguments, expected %d", len(args), numArgs)
+	}
+	if args[0] == nil {
+		return "", "", "", errors.Errorf("argument 1 is empty")
+	}
+	if args[1] == nil {
+		return "", "", "", errors.Errorf("argument 2 is empty")
+	}
+	if args[2] == nil {
+		return "", "", "", errors.Errorf("argument 3 is empty")
+	}
+	s1, ok := args[0].(rideString)
+	if !ok {
+		return "", "", "", errors.Errorf("unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	s2, ok := args[1].(rideString)
+	if !ok {
+		return "", "", "", errors.Errorf("unexpected type of argument 2 '%s'", args[1].instanceOf())
+	}
+	s3, ok := args[2].(rideString)
+	if !ok {
+		return "", "", "", errors.Errorf("unexpected type of argument 3 '%s'", args[2].instanceOf())
+	}
+	return string(s1), string(s2), string(s3), nil
+}
+
 func concatStrings(_ environment, args ...rideType) (rideType, error) {
 	s1, s2, err := twoStringsArgs(args)
 	if err != nil {
@@ -454,6 +483,28 @@ func contains(_ environment, args ...rideType) (rideType, error) {
 		return nil, errors.Wrap(err, "contains")
 	}
 	return rideBoolean(strings.Contains(s1, s2)), nil
+}
+
+func replaceFirst(_ environment, args ...rideType) (rideType, error) {
+	s, o, n, err := threeStringsArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "replaceFirst")
+	}
+	if len(o) == 0 {
+		return rideString(s), nil // No replacement if empty target substring.
+	}
+	return rideString(strings.Replace(s, o, n, 1)), nil
+}
+
+func replaceAll(_ environment, args ...rideType) (rideType, error) {
+	s, o, n, err := threeStringsArgs(args)
+	if err != nil {
+		return nil, errors.Wrap(err, "replaceAll")
+	}
+	if len(o) == 0 {
+		return rideString(s), nil // No replacement if empty target substring.
+	}
+	return rideString(strings.ReplaceAll(s, o, n)), nil
 }
 
 func runesIndex(s, sub string) int {

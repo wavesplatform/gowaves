@@ -2626,13 +2626,13 @@
         ],
         "replaceByIndex": [
           {
-              "arguments": [
-                "List[Any]",
-                "Int",
-                "Any"
-              ],
-              "return_type": "List[Any]",
-              "id": "1106"
+            "arguments": [
+              "List[Any]",
+              "Int",
+              "Any"
+            ],
+            "return_type": "List[Any]",
+            "id": "1106"
           }
         ]
       },
@@ -2648,6 +2648,28 @@
             ],
             "return_type": "List[Any]",
             "id": "1107"
+          }
+        ],
+        "replaceFirst": [
+          {
+            "arguments": [
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "1214"
+          }
+        ],
+        "replaceAll": [
+          {
+            "arguments": [
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "1215"
           }
         ]
       },

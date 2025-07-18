@@ -908,6 +908,8 @@ func catalogueV8() map[string]int {
 func functionsV9() map[string]string {
 	m := functionsV8()
 	m["1107"] = "fillList"
+	m["1214"] = "replaceFirst"
+	m["1215"] = "replaceAll"
 	constructorsFunctions(ast.LibV9, m)
 	return m
 }
@@ -915,6 +917,8 @@ func functionsV9() map[string]string {
 func catalogueV9() map[string]int {
 	m := catalogueV8()
 	m["1107"] = 2
+	m["1214"] = 2
+	m["1215"] = 2
 	constructorsCatalogue(ast.LibV9, m)
 	return m
 }
