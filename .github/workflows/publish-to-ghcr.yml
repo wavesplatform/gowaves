@@ -14,7 +14,7 @@ env:
   IMAGE_NAME: ghcr.io/${{ github.repository }}
   IMAGE_TAG: ${{ inputs.dockerTag }}
 
-permissions: {}
+permissions: { }
 
 jobs:
   build:
