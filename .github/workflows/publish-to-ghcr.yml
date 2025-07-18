@@ -75,7 +75,9 @@ jobs:
           platforms: linux/amd64
           push: true
           pull: true
-          build-args: ''
+          build-args: |
+            TARGETOS=linux
+            TARGETARCH=amd64
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
