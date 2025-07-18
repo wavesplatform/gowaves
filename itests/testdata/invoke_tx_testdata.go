@@ -25,26 +25,26 @@ type InvokeScriptTestData[T any] struct {
 	Expected        T
 }
 
-type ExpectedInvokeScriptDataPositive struct {
-	Address   proto.Address
-	DataEntry *waves.DataEntry
-	_         struct{}
-}
-
-type ExpectedInvokeScriptDataSlicePositive struct {
+type AccountStorage struct {
 	Address     proto.Address
 	DataEntries []*waves.DataEntry
 	_           struct{}
 }
 
-type ExpectedInvokeScriptDataDAppFromDAppSlicePositive struct {
-	Entries []*ExpectedInvokeScriptDataSlicePositive
-	_       struct{}
+type ExpectedInvokeScriptDataPositive struct {
+	AccountStorage   AccountStorage
+	WavesDiffBalance int64
+	_                struct{}
+}
+
+type ExpectedInvokeScriptDataDAppFromDAppPositive struct {
+	AccountStorages  []*AccountStorage
+	WavesDiffBalance int64
+	_                struct{}
 }
 
 type ExpectedInvokeScriptDataNegative struct {
-	Address          proto.Address
-	DataEntries      []*waves.DataEntry
+	AccountStorage   AccountStorage
 	WavesDiffBalance int64
 	ErrGoMsg         string
 	ErrScalaMsg      string
@@ -52,8 +52,7 @@ type ExpectedInvokeScriptDataNegative struct {
 }
 
 type ExpectedInvokeScriptExecutionFailed struct {
-	Address           proto.Address
-	DataEntries       []*waves.DataEntry
+	AccountStorage    AccountStorage
 	WavesDiffBalance  int64
 	ApplicationStatus string
 	_                 struct{}
@@ -85,15 +84,20 @@ func GetInvokeScriptAccountStorageUntouchedTestData(suite *f.BaseSuite, dApp,
 				proto.Arguments{proto.NewStringArgument(account.Address.String())}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
 			ExpectedInvokeScriptDataPositive{
-				Address: dApp.Address,
-				DataEntry: &waves.DataEntry{
-					Key:   "test",
-					Value: &waves.DataEntry_BoolValue{BoolValue: true},
+				AccountStorage: AccountStorage{
+					Address: dApp.Address,
+					DataEntries: []*waves.DataEntry{
+						{
+							Key:   "test",
+							Value: &waves.DataEntry_BoolValue{BoolValue: true},
+						},
+					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			},
 		),
 		"Check account storage is untouched by alias": NewInvokeScriptTestData(
@@ -103,23 +107,28 @@ func GetInvokeScriptAccountStorageUntouchedTestData(suite *f.BaseSuite, dApp,
 				proto.Arguments{proto.NewStringArgument(account.Alias.Alias)}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
 			ExpectedInvokeScriptDataPositive{
-				Address: dApp.Address,
-				DataEntry: &waves.DataEntry{
-					Key:   "test",
-					Value: &waves.DataEntry_BoolValue{BoolValue: true},
+				AccountStorage: AccountStorage{
+					Address: dApp.Address,
+					DataEntries: []*waves.DataEntry{
+						{
+							Key:   "test",
+							Value: &waves.DataEntry_BoolValue{BoolValue: true},
+						},
+					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			},
 		),
 	}
 }
 
 func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
-	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataSlicePositive] {
-	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataSlicePositive]{
+	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataPositive] {
+	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataPositive]{
 		"Max argument values": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(dApp.Address),
@@ -148,182 +157,184 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 					&proto.StringArgument{Value: "test13"},
 					&proto.StringArgument{Value: "test14"},
 				}),
-
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataSlicePositive{
-				Address: dApp.Address,
-				DataEntries: []*waves.DataEntry{
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase16",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase58",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase64",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean1",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), false)},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean2",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), true)},
-					},
-					{
-						Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger1",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
-							-9223372036854775808)},
-					},
-					{
-						Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger2",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
-							9223372036854775807)},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString0",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString1",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test1")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString2",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test2")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString3",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test3")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString4",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test4")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString5",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test5")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString6",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test6")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString7",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test7")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString8",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test8")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString9",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test9")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString10",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test10")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString11",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test11")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString12",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test12")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString13",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test13")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString14",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test14")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool1",
-						Value: &waves.DataEntry_BoolValue{BoolValue: false},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool2",
-						Value: &waves.DataEntry_BoolValue{BoolValue: true},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int1",
-						Value: &waves.DataEntry_IntValue{IntValue: -9223372036854775808},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int2",
-						Value: &waves.DataEntry_IntValue{IntValue: 9223372036854775807},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str0",
-						Value: &waves.DataEntry_StringValue{StringValue: ""},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str1",
-						Value: &waves.DataEntry_StringValue{StringValue: "test1"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str2",
-						Value: &waves.DataEntry_StringValue{StringValue: "test2"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str3",
-						Value: &waves.DataEntry_StringValue{StringValue: "test3"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str4",
-						Value: &waves.DataEntry_StringValue{StringValue: "test4"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str5",
-						Value: &waves.DataEntry_StringValue{StringValue: "test5"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str6",
-						Value: &waves.DataEntry_StringValue{StringValue: "test6"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str7",
-						Value: &waves.DataEntry_StringValue{StringValue: "test7"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str8",
-						Value: &waves.DataEntry_StringValue{StringValue: "test8"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str9",
-						Value: &waves.DataEntry_StringValue{StringValue: "test9"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str10",
-						Value: &waves.DataEntry_StringValue{StringValue: "test10"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str11",
-						Value: &waves.DataEntry_StringValue{StringValue: "test11"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str12",
-						Value: &waves.DataEntry_StringValue{StringValue: "test12"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str13",
-						Value: &waves.DataEntry_StringValue{StringValue: "test13"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str14",
-						Value: &waves.DataEntry_StringValue{StringValue: "test14"},
+			ExpectedInvokeScriptDataPositive{
+				AccountStorage: AccountStorage{
+					Address: dApp.Address,
+					DataEntries: []*waves.DataEntry{
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase16",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase58",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase64",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean1",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), false)},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean2",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), true)},
+						},
+						{
+							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger1",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
+								-9223372036854775808)},
+						},
+						{
+							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger2",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
+								9223372036854775807)},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString0",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString1",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test1")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString2",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test2")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString3",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test3")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString4",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test4")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString5",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test5")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString6",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test6")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString7",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test7")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString8",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test8")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString9",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test9")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString10",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test10")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString11",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test11")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString12",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test12")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString13",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test13")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString14",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test14")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool1",
+							Value: &waves.DataEntry_BoolValue{BoolValue: false},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool2",
+							Value: &waves.DataEntry_BoolValue{BoolValue: true},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int1",
+							Value: &waves.DataEntry_IntValue{IntValue: -9223372036854775808},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int2",
+							Value: &waves.DataEntry_IntValue{IntValue: 9223372036854775807},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str0",
+							Value: &waves.DataEntry_StringValue{StringValue: ""},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str1",
+							Value: &waves.DataEntry_StringValue{StringValue: "test1"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str2",
+							Value: &waves.DataEntry_StringValue{StringValue: "test2"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str3",
+							Value: &waves.DataEntry_StringValue{StringValue: "test3"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str4",
+							Value: &waves.DataEntry_StringValue{StringValue: "test4"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str5",
+							Value: &waves.DataEntry_StringValue{StringValue: "test5"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str6",
+							Value: &waves.DataEntry_StringValue{StringValue: "test6"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str7",
+							Value: &waves.DataEntry_StringValue{StringValue: "test7"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str8",
+							Value: &waves.DataEntry_StringValue{StringValue: "test8"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str9",
+							Value: &waves.DataEntry_StringValue{StringValue: "test9"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str10",
+							Value: &waves.DataEntry_StringValue{StringValue: "test10"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str11",
+							Value: &waves.DataEntry_StringValue{StringValue: "test11"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str12",
+							Value: &waves.DataEntry_StringValue{StringValue: "test12"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str13",
+							Value: &waves.DataEntry_StringValue{StringValue: "test13"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str14",
+							Value: &waves.DataEntry_StringValue{StringValue: "test14"},
+						},
 					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			}),
 		"Update storage values": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -353,182 +364,184 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 					&proto.StringArgument{Value: "test_test13"},
 					&proto.StringArgument{Value: "test_test14"},
 				}),
-
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataSlicePositive{
-				Address: dApp.Address,
-				DataEntries: []*waves.DataEntry{
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase16",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase58",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase64",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean1",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), true)},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean2",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), false)},
-					},
-					{
-						Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger1",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
-							9223372036854775807)},
-					},
-					{
-						Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger2",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
-							-9223372036854775808)},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString0",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test0")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString1",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test1")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString2",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test2")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString3",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test3")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString4",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test4")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString5",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test5")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString6",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test6")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString7",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test7")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString8",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test8")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString9",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test9")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString10",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test10")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString11",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test11")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString12",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test12")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString13",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test13")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString14",
-						Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test14")},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool1",
-						Value: &waves.DataEntry_BoolValue{BoolValue: true},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool2",
-						Value: &waves.DataEntry_BoolValue{BoolValue: false},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int1",
-						Value: &waves.DataEntry_IntValue{IntValue: 9223372036854775807},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int2",
-						Value: &waves.DataEntry_IntValue{IntValue: -9223372036854775808},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str0",
-						Value: &waves.DataEntry_StringValue{StringValue: "test0"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str1",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test1"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str2",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test2"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str3",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test3"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str4",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test4"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str5",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test5"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str6",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test6"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str7",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test7"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str8",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test8"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str9",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test9"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str10",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test10"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str11",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test11"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str12",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test12"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str13",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test13"},
-					},
-					{
-						Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str14",
-						Value: &waves.DataEntry_StringValue{StringValue: "test_test14"},
+			ExpectedInvokeScriptDataPositive{
+				AccountStorage: AccountStorage{
+					Address: dApp.Address,
+					DataEntries: []*waves.DataEntry{
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase16",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase58",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBase64",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean1",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), true)},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean2",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), false)},
+						},
+						{
+							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger1",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
+								9223372036854775807)},
+						},
+						{
+							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger2",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
+								-9223372036854775808)},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString0",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test0")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString1",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test1")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString2",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test2")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString3",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test3")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString4",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test4")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString5",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test5")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString6",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test6")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString7",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test7")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString8",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test8")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString9",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test9")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString10",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test10")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString11",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test11")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString12",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test12")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString13",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test13")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString14",
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: []byte("test_test14")},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool1",
+							Value: &waves.DataEntry_BoolValue{BoolValue: true},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_bool2",
+							Value: &waves.DataEntry_BoolValue{BoolValue: false},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int1",
+							Value: &waves.DataEntry_IntValue{IntValue: 9223372036854775807},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int2",
+							Value: &waves.DataEntry_IntValue{IntValue: -9223372036854775808},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str0",
+							Value: &waves.DataEntry_StringValue{StringValue: "test0"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str1",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test1"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str2",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test2"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str3",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test3"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str4",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test4"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str5",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test5"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str6",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test6"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str7",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test7"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str8",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test8"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str9",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test9"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str10",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test10"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str11",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test11"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str12",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test12"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str13",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test13"},
+						},
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str14",
+							Value: &waves.DataEntry_StringValue{StringValue: "test_test14"},
+						},
 					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			}),
 	}
 }
@@ -552,15 +565,20 @@ func GetInvokeScriptWriteToStorageStringTestData(suite *f.BaseSuite, version byt
 					&proto.StringArgument{Value: maxStrVal}}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
 			ExpectedInvokeScriptDataPositive{
-				Address: dApp.Address,
-				DataEntry: &waves.DataEntry{
-					Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
-					Value: &waves.DataEntry_StringValue{StringValue: maxStrVal},
+				AccountStorage: AccountStorage{
+					Address: dApp.Address,
+					DataEntries: []*waves.DataEntry{
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
+							Value: &waves.DataEntry_StringValue{StringValue: maxStrVal},
+						},
+					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			}),
 		"Max value for function name and variable name in dApp": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -573,22 +591,27 @@ func GetInvokeScriptWriteToStorageStringTestData(suite *f.BaseSuite, version byt
 					&proto.StringArgument{Value: "test"}}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
 			ExpectedInvokeScriptDataPositive{
-				Address: dApp.Address,
-				DataEntry: &waves.DataEntry{
-					Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
-					Value: &waves.DataEntry_StringValue{StringValue: "test"},
+				AccountStorage: AccountStorage{
+					Address: dApp.Address,
+					DataEntries: []*waves.DataEntry{
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
+							Value: &waves.DataEntry_StringValue{StringValue: "test"},
+						},
+					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			}),
 	}
 }
 
 func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 	dAppProxy1, dAppProxy2,
-	dAppTarget config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive] {
+	dAppTarget config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppPositive] {
 	var maxStrVal string
 	if version == 1 {
 		maxStrVal = utl.EscapeSeq + utl.Umlauts + utl.SymbolSet + utl.RusLetters +
@@ -597,7 +620,7 @@ func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 		maxStrVal = utl.EscapeSeq + utl.Umlauts + utl.SymbolSet + utl.RusLetters +
 			utl.RandStringBytes(4625, utl.LettersAndDigits)
 	}
-	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive]{
+	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppPositive]{
 		"Total size of invoke 15 KB": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(dAppProxy1.Address),
@@ -608,11 +631,11 @@ func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 					&proto.StringArgument{Value: maxStrVal}}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
-				Entries: []*ExpectedInvokeScriptDataSlicePositive{
+			ExpectedInvokeScriptDataDAppFromDAppPositive{
+				AccountStorages: []*AccountStorage{
 					{
 						Address: dAppProxy1.Address,
 						DataEntries: []*waves.DataEntry{
@@ -641,6 +664,7 @@ func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 						},
 					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			}),
 		"Total count of Data Entries is 100": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -656,11 +680,11 @@ func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 				}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
-				Entries: []*ExpectedInvokeScriptDataSlicePositive{
+			ExpectedInvokeScriptDataDAppFromDAppPositive{
+				AccountStorages: []*AccountStorage{
 					{
 						Address: dAppProxy1.Address,
 						DataEntries: []*waves.DataEntry{
@@ -689,61 +713,15 @@ func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 						},
 					},
 				},
-			},
-		),
-	}
-}
-
-func GetInvokeDAppTargetFromDAppProxy(suite *f.BaseSuite, dAppProxy,
-	dAppTarget config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive] {
-	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive]{
-		"Total count of Data Entries is 100": NewInvokeScriptTestData(
-			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
-			proto.NewRecipientFromAddress(dAppProxy.Address),
-			proto.NewFunctionCall("writeMaxActions",
-				proto.Arguments{
-					&proto.StringArgument{Value: dAppTarget.Address.String()},
-					&proto.StringArgument{Value: "test"},
-					&proto.IntegerArgument{Value: 0},
-					&proto.BooleanArgument{Value: true},
-					&proto.BinaryArgument{Value: []byte{1, 2, 3}},
-				}),
-			make(proto.ScriptPayments, 0),
-			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
-			utl.GetAssetByID(nil),
-			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
-				Entries: []*ExpectedInvokeScriptDataSlicePositive{
-					{
-						Address: dAppProxy.Address,
-						DataEntries: []*waves.DataEntry{
-							{
-								Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
-								Value: &waves.DataEntry_StringValue{StringValue: "test"},
-							},
-						},
-					},
-					{
-						Address: dAppTarget.Address,
-						DataEntries: []*waves.DataEntry{
-							{
-								Key:   dAppProxy.Address.String() + "_str",
-								Value: &waves.DataEntry_StringValue{StringValue: "test"},
-							},
-						},
-					},
-				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			},
 		),
 	}
 }
 
 func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
-	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive] {
-
-	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive]{
-
+	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppPositive] {
+	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppPositive]{
 		"Total count of Data Entries is 100": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(dApp.Address),
@@ -756,11 +734,11 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 				}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
-				Entries: []*ExpectedInvokeScriptDataSlicePositive{
+			ExpectedInvokeScriptDataDAppFromDAppPositive{
+				AccountStorages: []*AccountStorage{
 					{
 						Address: dApp.Address,
 						DataEntries: []*waves.DataEntry{
@@ -771,6 +749,7 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 						},
 					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			},
 		),
 		"Invoke DApp from DApp 100 times (recursive)": NewInvokeScriptTestData(
@@ -783,11 +762,11 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 				}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
-				Entries: []*ExpectedInvokeScriptDataSlicePositive{
+			ExpectedInvokeScriptDataDAppFromDAppPositive{
+				AccountStorages: []*AccountStorage{
 					{
 						Address: dApp.Address,
 						DataEntries: []*waves.DataEntry{
@@ -798,6 +777,7 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 						},
 					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			},
 		),
 		"Invoke DApp from DApp 100 times (in one script)": NewInvokeScriptTestData(
@@ -809,11 +789,11 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 				}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
-				Entries: []*ExpectedInvokeScriptDataSlicePositive{
+			ExpectedInvokeScriptDataDAppFromDAppPositive{
+				AccountStorages: []*AccountStorage{
 					{
 						Address: dApp.Address,
 						DataEntries: []*waves.DataEntry{
@@ -824,15 +804,15 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 						},
 					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			},
 		),
 	}
 }
 
 func GetInvokeScriptMaxComplexityTestData(suite *f.BaseSuite,
-	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive] {
-
-	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppSlicePositive]{
+	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataPositive] {
+	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataPositive]{
 		"Function with max complexity": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			proto.NewRecipientFromAddress(dApp.Address),
@@ -842,25 +822,25 @@ func GetInvokeScriptMaxComplexityTestData(suite *f.BaseSuite,
 				}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
-			ExpectedInvokeScriptDataDAppFromDAppSlicePositive{
-				Entries: []*ExpectedInvokeScriptDataSlicePositive{
-					{
-						Address: dApp.Address,
-						DataEntries: []*waves.DataEntry{
-							{
-								Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
-								Value: &waves.DataEntry_StringValue{StringValue: "test"},
-							},
+			ExpectedInvokeScriptDataPositive{
+				AccountStorage: AccountStorage{
+					Address: dApp.Address,
+					DataEntries: []*waves.DataEntry{
+						{
+							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str",
+							Value: &waves.DataEntry_StringValue{StringValue: "test"},
 						},
 					},
 				},
+				WavesDiffBalance: utl.MinTxFeeWavesInvokeDApp,
 			},
 		),
 	}
 }
+
 func GetInvokeScriptExecutionFailedTestData(suite *f.BaseSuite,
 	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptExecutionFailed] {
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptExecutionFailed]{
@@ -873,12 +853,14 @@ func GetInvokeScriptExecutionFailedTestData(suite *f.BaseSuite,
 				}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
 			ExpectedInvokeScriptExecutionFailed{
-				Address:           dApp.Address,
-				DataEntries:       []*waves.DataEntry{},
+				AccountStorage: AccountStorage{
+					Address:     dApp.Address,
+					DataEntries: []*waves.DataEntry{},
+				},
 				WavesDiffBalance:  0,
 				ApplicationStatus: "UNKNOWN",
 			},
@@ -892,14 +874,122 @@ func GetInvokeScriptExecutionFailedTestData(suite *f.BaseSuite,
 				}),
 			make(proto.ScriptPayments, 0),
 			utl.TestChainID,
-			utl.MinTxFeeWavesDApp,
+			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
 			utl.GetCurrentTimestampInMs(),
 			ExpectedInvokeScriptExecutionFailed{
-				Address:           dApp.Address,
-				DataEntries:       []*waves.DataEntry{},
-				WavesDiffBalance:  utl.MinTxFeeWavesDApp,
+				AccountStorage: AccountStorage{
+					Address:     dApp.Address,
+					DataEntries: []*waves.DataEntry{},
+				},
+				WavesDiffBalance:  utl.MinTxFeeWavesInvokeDApp,
 				ApplicationStatus: "SCRIPT_EXECUTION_FAILED",
+			},
+		),
+	}
+}
+
+func GetInvokeScriptNegativeTestData(suite *f.BaseSuite,
+	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataNegative] {
+	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataNegative]{
+		"Invalid fee (fee > max)": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("call",
+				proto.Arguments{}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			utl.MaxAmount+1,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs(),
+			ExpectedInvokeScriptDataNegative{
+				AccountStorage: AccountStorage{
+					Address:     dApp.Address,
+					DataEntries: []*waves.DataEntry{},
+				},
+				WavesDiffBalance: 0,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			},
+		),
+		"Invalid fee (0 < fee < min)": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("call",
+				proto.Arguments{}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			utl.MinTxFeeWaves,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs(),
+			ExpectedInvokeScriptDataNegative{
+				AccountStorage: AccountStorage{
+					Address:     dApp.Address,
+					DataEntries: []*waves.DataEntry{},
+				},
+				WavesDiffBalance: 0,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			},
+		),
+		"Invalid fee (fee = 0)": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("call",
+				proto.Arguments{}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			0,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs(),
+			ExpectedInvokeScriptDataNegative{
+				AccountStorage: AccountStorage{
+					Address:     dApp.Address,
+					DataEntries: []*waves.DataEntry{},
+				},
+				WavesDiffBalance: 0,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			},
+		),
+		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("call",
+				proto.Arguments{}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			utl.MinTxFeeWavesInvokeDApp,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs()-7260000,
+			ExpectedInvokeScriptDataNegative{
+				AccountStorage: AccountStorage{
+					Address:     dApp.Address,
+					DataEntries: []*waves.DataEntry{},
+				},
+				WavesDiffBalance: 0,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
+			},
+		),
+		"Timestamp more than 5400000ms in the future relative to previous block timestamp": NewInvokeScriptTestData(
+			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
+			proto.NewRecipientFromAddress(dApp.Address),
+			proto.NewFunctionCall("call",
+				proto.Arguments{}),
+			make(proto.ScriptPayments, 0),
+			utl.TestChainID,
+			utl.MinTxFeeWavesInvokeDApp,
+			utl.GetAssetByID(nil),
+			utl.GetCurrentTimestampInMs()+54160000,
+			ExpectedInvokeScriptDataNegative{
+				AccountStorage: AccountStorage{
+					Address:     dApp.Address,
+					DataEntries: []*waves.DataEntry{},
+				},
+				WavesDiffBalance: 0,
+				ErrGoMsg:         errMsg,
+				ErrScalaMsg:      errMsg,
 			},
 		),
 	}

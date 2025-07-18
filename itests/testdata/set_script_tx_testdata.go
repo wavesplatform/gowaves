@@ -54,16 +54,3 @@ func GetDataForDAppAccount(suite *f.BaseSuite, account config.AccountInfo, scrip
 		utl.GetCurrentTimestampInMs(),
 	)
 }
-
-func GetSetScriptDataMatrix(suite *f.BaseSuite) map[string]SetScriptData {
-	return map[string]SetScriptData{
-		"Check invoke script tx": NewSetScriptData(
-			utl.GetAccount(suite, utl.DefaultRecipientNotMiner),
-			//readDAppScript(suite, "issue_0_assets.base64"),
-			getDAppScript(suite, "src1.ride"),
-			utl.TestChainID,
-			10000000,
-			utl.GetCurrentTimestampInMs(),
-		),
-	}
-}

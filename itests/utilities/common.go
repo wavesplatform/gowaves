@@ -49,7 +49,7 @@ const (
 	MinSetAssetScriptFeeWaves  = 100000000
 	MinTxFeeWaves              = 100000
 	MinTxFeeWavesSmartAsset    = 500000
-	MinTxFeeWavesDApp          = 500000
+	MinTxFeeWavesInvokeDApp    = 500000
 	MaxDecimals                = 8
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"

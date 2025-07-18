@@ -1,3 +1,5 @@
+//go:build !smoke
+
 package itests
 
 import (
@@ -11,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/invoke"
 	"github.com/wavesplatform/gowaves/itests/utilities/setscript"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"testing"
 )
 
@@ -34,7 +37,7 @@ func (s *InvokeScriptTxSuite) SetupSubTest() {
 		1000000000, "account_data_storage.ride")
 	// set alias for dApp account
 	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppAlias, &s.DApp,
-		utl.MinTxFeeWavesDApp)
+		utl.MinTxFeeWavesInvokeDApp)
 	// create new account with funds
 	s.NewAccount = utl.GetAccount(&s.BaseSuite, transfer.GetNewAccountWithFunds(&s.BaseSuite,
 		testdata.TransferMaxVersion, utl.TestChainID, utl.DefaultAccountForLoanFunds, 1000000000))
@@ -52,18 +55,23 @@ func (s *InvokeScriptTxSuite) Test_CheckThatAccountStorageIsUntouched() {
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
-				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
-				dataGo := utl.GetAccountDataGoByKey(&s.BaseSuite, s.DApp.Address, td.Expected.DataEntry.Key)
-				dataScala := utl.GetAccountDataScalaByKey(&s.BaseSuite, s.DApp.Address, td.Expected.DataEntry.Key)
+				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, true)
+				dataGo := utl.GetAccountDataGoByKey(&s.BaseSuite, s.DApp.Address,
+					td.Expected.AccountStorage.DataEntries[0].Key)
+				dataScala := utl.GetAccountDataScalaByKey(&s.BaseSuite, s.DApp.Address,
+					td.Expected.AccountStorage.DataEntries[0].Key)
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
+
 				utl.TxInfoCheck(s.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.DataEntryAndKeyCheck(s.T(), td.Expected.DataEntry, dataGo, dataScala)
+				utl.DataEntryAndKeyCheck(s.T(), td.Expected.AccountStorage.DataEntries[0], dataGo, dataScala)
+				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
+					diffBalances.BalanceInWavesScala, errMsg)
 			}
 		})
 	}
 }
 
-// Positive test for dApp where is checked that data is written correct in dApp Account Storage
+// Positive tests for dApp where is checked that data is written correct in dApp Account Storage
 func (s *InvokeScriptTxSuite) Test_CheckWrittenDataInAccountStorage() {
 	for _, version := range s.Versions {
 		s.Run("written data in account storage is correct", func() {
@@ -71,18 +79,22 @@ func (s *InvokeScriptTxSuite) Test_CheckWrittenDataInAccountStorage() {
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
-				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
+				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, true)
 				dataGo := utl.GetAccountDataGo(&s.BaseSuite, s.DApp.Address)
 				dataScala := utl.GetAccountDataScala(&s.BaseSuite, s.DApp.Address)
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
+
 				utl.TxInfoCheck(s.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.DataEntries, dataGo, dataScala)
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.AccountStorage.DataEntries, dataGo, dataScala)
+				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
+					diffBalances.BalanceInWavesScala, errMsg)
 			}
 		})
 	}
 }
 
-// Positive test for dApp where is checked that string data is written correct in dApp Account Storage
+// Positive tests for dApp where is checked that max value of string data and function name is written correct
+// in dApp Account Storage
 func (s *InvokeScriptTxSuite) Test_CheckWrittenStringDataInAccountStorage() {
 	for _, version := range s.Versions {
 		s.Run("written data in account storage is correct", func() {
@@ -90,12 +102,17 @@ func (s *InvokeScriptTxSuite) Test_CheckWrittenStringDataInAccountStorage() {
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
-				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
-				dataGo := utl.GetAccountDataGoByKey(&s.BaseSuite, s.DApp.Address, td.Expected.DataEntry.Key)
-				dataScala := utl.GetAccountDataScalaByKey(&s.BaseSuite, s.DApp.Address, td.Expected.DataEntry.Key)
+				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, true)
+				dataGo := utl.GetAccountDataGoByKey(&s.BaseSuite, s.DApp.Address,
+					td.Expected.AccountStorage.DataEntries[0].Key)
+				dataScala := utl.GetAccountDataScalaByKey(&s.BaseSuite, s.DApp.Address,
+					td.Expected.AccountStorage.DataEntries[0].Key)
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
+
 				utl.TxInfoCheck(s.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-				utl.DataEntryAndKeyCheck(s.T(), td.Expected.DataEntry, dataGo, dataScala)
+				utl.DataEntryAndKeyCheck(s.T(), td.Expected.AccountStorage.DataEntries[0], dataGo, dataScala)
+				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
+					diffBalances.BalanceInWavesScala, errMsg)
 			}
 		})
 	}
@@ -120,29 +137,18 @@ func (s *InvokeScriptFromScriptSuite) SetupSuite() {
 }
 
 func (s *InvokeScriptFromScriptSuite) SetupSubTest() {
-	dAppProxy1Alias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
-	dAppProxy2Alias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
-	dAppTargetAlias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
 	// create new proxy dApp account with deployed script
 	s.DAppProxy1 = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
 		1000000000, "proxy_dapp1.ride")
-	// set alias for proxy dApp account
-	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppProxy1Alias,
-		&s.DAppProxy1, utl.MinTxFeeWavesDApp)
 	// create new proxy dApp account with deployed script
 	s.DAppProxy2 = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
 		1000000000, "proxy_dapp2.ride")
-	// set alias for proxy dApp account
-	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppProxy2Alias,
-		&s.DAppProxy2, utl.MinTxFeeWavesDApp)
 	// create new target dApp account with funds
 	s.DAppTarget = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
 		1000000000, "target_dapp.ride")
-	// set alias for target dApp account
-	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppTargetAlias,
-		&s.DAppTarget, utl.MinTxFeeWavesDApp)
 }
 
+// Positive tests for dApp where is checked that dApp is invoked from another dApp correctly
 func (s *InvokeScriptFromScriptSuite) Test_InvokeDAppFromDApp() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
@@ -151,7 +157,7 @@ func (s *InvokeScriptFromScriptSuite) Test_InvokeDAppFromDApp() {
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
-				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
+				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, true)
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
 				utl.TxInfoCheck(s.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
@@ -159,18 +165,21 @@ func (s *InvokeScriptFromScriptSuite) Test_InvokeDAppFromDApp() {
 
 				dataDAppProxy1Go := utl.GetAccountDataGo(&s.BaseSuite, s.DAppProxy1.Address)
 				dataDAppProxy1Scala := utl.GetAccountDataScala(&s.BaseSuite, s.DAppProxy1.Address)
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.Entries[0].DataEntries, dataDAppProxy1Go,
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.AccountStorages[0].DataEntries, dataDAppProxy1Go,
 					dataDAppProxy1Scala)
 
 				dataDAppProxy2Go := utl.GetAccountDataGo(&s.BaseSuite, s.DAppProxy2.Address)
 				dataDAppProxy2Scala := utl.GetAccountDataScala(&s.BaseSuite, s.DAppProxy2.Address)
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.Entries[1].DataEntries, dataDAppProxy2Go,
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.AccountStorages[1].DataEntries, dataDAppProxy2Go,
 					dataDAppProxy2Scala)
 
 				dataDAppTargetGo := utl.GetAccountDataGo(&s.BaseSuite, s.DAppTarget.Address)
 				dataDAppTargetScala := utl.GetAccountDataScala(&s.BaseSuite, s.DAppTarget.Address)
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.Entries[2].DataEntries, dataDAppTargetGo,
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.AccountStorages[2].DataEntries, dataDAppTargetGo,
 					dataDAppTargetScala)
+
+				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
+					diffBalances.BalanceInWavesScala, errMsg)
 			}
 		})
 	}
@@ -179,68 +188,6 @@ func (s *InvokeScriptFromScriptSuite) Test_InvokeDAppFromDApp() {
 func TestInvokeScriptFromScriptSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(InvokeScriptFromScriptSuite))
-}
-
-type InvokeDAppTargetFromDAppProxySuite struct {
-	f.BaseSettingSuite
-	Versions   []byte
-	DAppProxy  config.AccountInfo
-	DAppTarget config.AccountInfo
-}
-
-func (s *InvokeDAppTargetFromDAppProxySuite) SetupSuite() {
-	s.BaseSettingSuite.SetupSuite()
-	s.Versions = invoke.GetVersionsInvokeScript(&s.BaseSuite)
-}
-
-func (s *InvokeDAppTargetFromDAppProxySuite) SetupSubTest() {
-	dAppProxyAlias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
-	dAppTargetAlias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
-	// create new proxy dApp account with deployed script
-	s.DAppProxy = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
-		1000000000, "temp_proxy.ride")
-	// set alias for proxy dApp account
-	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppProxyAlias,
-		&s.DAppProxy, utl.MinTxFeeWavesDApp)
-
-	// create new target dApp account with funds
-	s.DAppTarget = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
-		1000000000, "temp_target.ride")
-	// set alias for target dApp account
-	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppTargetAlias,
-		&s.DAppTarget, utl.MinTxFeeWavesDApp)
-}
-
-func (s *InvokeDAppTargetFromDAppProxySuite) Test_InvokeDAppTargetFromDAppProxy() {
-	for _, version := range s.Versions {
-		s.Run("check invoke dApp from dApp", func() {
-			testData := testdata.GetInvokeDAppTargetFromDAppProxy(&s.BaseSuite, s.DAppProxy, s.DAppTarget)
-			for name, td := range testData {
-				caseName := utl.GetTestcaseNameWithVersion(name, version)
-				s.T().Logf("Test case: %s\n", caseName)
-				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
-				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
-				utl.TxInfoCheck(s.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-
-				utl.WaitForNewHeight(&s.BaseSuite)
-
-				dataDAppProxyGo := utl.GetAccountDataGo(&s.BaseSuite, s.DAppProxy.Address)
-				dataDAppProxyScala := utl.GetAccountDataScala(&s.BaseSuite, s.DAppProxy.Address)
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.Entries[0].DataEntries, dataDAppProxyGo,
-					dataDAppProxyScala)
-
-				dataDAppTargetGo := utl.GetAccountDataGo(&s.BaseSuite, s.DAppTarget.Address)
-				dataDAppTargetScala := utl.GetAccountDataScala(&s.BaseSuite, s.DAppTarget.Address)
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.Entries[1].DataEntries, dataDAppTargetGo,
-					dataDAppTargetScala)
-			}
-		})
-	}
-}
-
-func TestInvokeDAppTargetFromDAppProxySuite(t *testing.T) {
-	t.Parallel()
-	suite.Run(t, new(InvokeDAppTargetFromDAppProxySuite))
 }
 
 type InvokeRecursiveScriptSuite struct {
@@ -255,15 +202,12 @@ func (s *InvokeRecursiveScriptSuite) SetupSuite() {
 }
 
 func (s *InvokeRecursiveScriptSuite) SetupSubTest() {
-	dAppAlias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
 	// create new proxy dApp account with deployed script
 	s.DApp = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
-		1000000000, "dapp_all_data_entries.ride")
-	// set alias for proxy dApp account
-	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppAlias,
-		&s.DApp, utl.MinTxFeeWavesDApp)
+		1000000000, "dapp_data_entries_recursive.ride")
 }
 
+// Positive tests for dApp where is checked that dApp is invoked recursively
 func (s *InvokeRecursiveScriptSuite) Test_InvokeDAppRecursive() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
@@ -271,7 +215,7 @@ func (s *InvokeRecursiveScriptSuite) Test_InvokeDAppRecursive() {
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
-				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
+				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, true)
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
 				utl.TxInfoCheck(s.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
@@ -279,46 +223,46 @@ func (s *InvokeRecursiveScriptSuite) Test_InvokeDAppRecursive() {
 
 				dataDAppGo := utl.GetAccountDataGo(&s.BaseSuite, s.DApp.Address)
 				dataDAppScala := utl.GetAccountDataScala(&s.BaseSuite, s.DApp.Address)
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.Entries[0].DataEntries, dataDAppGo, dataDAppScala)
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.AccountStorages[0].DataEntries,
+					dataDAppGo, dataDAppScala)
+				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
+					diffBalances.BalanceInWavesScala, errMsg)
 			}
 		})
 	}
 }
 
-func TestInvokeDAppRecursive(t *testing.T) {
+func TestInvokeDAppRecursiveSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(InvokeRecursiveScriptSuite))
 }
 
-type InvokeScriptComplexitySuite struct {
+type InvokeScriptMaxComplexitySuite struct {
 	f.BaseSettingSuite
 	Versions []byte
 	DApp     config.AccountInfo
 }
 
-func (s *InvokeScriptComplexitySuite) SetupSuite() {
+func (s *InvokeScriptMaxComplexitySuite) SetupSuite() {
 	s.BaseSettingSuite.SetupSuite()
 	s.Versions = invoke.GetVersionsInvokeScript(&s.BaseSuite)
 }
 
-func (s *InvokeScriptComplexitySuite) SetupSubTest() {
-	dAppAlias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
+func (s *InvokeScriptMaxComplexitySuite) SetupSubTest() {
 	// create new proxy dApp account with deployed script
 	s.DApp = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
 		1000000000, "dapp_max_complexity.ride")
-	// set alias for proxy dApp account
-	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppAlias,
-		&s.DApp, utl.MinTxFeeWavesDApp)
 }
 
-func (s *InvokeScriptComplexitySuite) Test_InvokeDAppComplexity() {
+// Positive test for dApp where is checked that dApp with max complexity is invoked correctly
+func (s *InvokeScriptMaxComplexitySuite) Test_InvokeDAppComplexity() {
 	for _, version := range s.Versions {
 		s.Run("check dApp with max complexity", func() {
 			testData := testdata.GetInvokeScriptMaxComplexityTestData(&s.BaseSuite, s.DApp)
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
-				tx := invoke.SendWithTestData(&s.BaseSuite, td, version, true)
+				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, true)
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
 				utl.TxInfoCheck(s.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 
@@ -326,7 +270,9 @@ func (s *InvokeScriptComplexitySuite) Test_InvokeDAppComplexity() {
 
 				dataDAppGo := utl.GetAccountDataGo(&s.BaseSuite, s.DApp.Address)
 				dataDAppScala := utl.GetAccountDataScala(&s.BaseSuite, s.DApp.Address)
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.Entries[0].DataEntries, dataDAppGo, dataDAppScala)
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.AccountStorage.DataEntries, dataDAppGo, dataDAppScala)
+				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
+					diffBalances.BalanceInWavesScala, errMsg)
 			}
 		})
 	}
@@ -334,7 +280,7 @@ func (s *InvokeScriptComplexitySuite) Test_InvokeDAppComplexity() {
 
 func TestInvokeScriptComplexitySuite(t *testing.T) {
 	t.Parallel()
-	suite.Run(t, new(InvokeScriptComplexitySuite))
+	suite.Run(t, new(InvokeScriptMaxComplexitySuite))
 }
 
 type InvokeScriptExecutionFailedSuite struct {
@@ -349,15 +295,12 @@ func (s *InvokeScriptExecutionFailedSuite) SetupSuite() {
 }
 
 func (s *InvokeScriptExecutionFailedSuite) SetupSubTest() {
-	dAppAlias := utl.RandStringBytes(5, testdata.AliasSymbolSet)
 	// create new proxy dApp account with deployed script
 	s.DApp = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
 		1000000000, "dapp_negative.ride")
-	// set alias for proxy dApp account
-	alias.SetAliasToAccount(&s.BaseSuite, testdata.AliasMaxVersion, utl.TestChainID, dAppAlias,
-		&s.DApp, utl.MinTxFeeWavesDApp)
 }
 
+// Tests for Dapp where is checked that Dapp has script execution failed status when saving failed transactions
 func (s *InvokeScriptExecutionFailedSuite) Test_InvokeScriptExecutionFailed() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp with script execution failed status", func() {
@@ -374,10 +317,9 @@ func (s *InvokeScriptExecutionFailedSuite) Test_InvokeScriptExecutionFailed() {
 				statusScala := utl.GetApplicationStatusScala(&s.BaseSuite, tx.TxID)
 				statusGo := utl.GetApplicationStatusGo(&s.BaseSuite, tx.TxID)
 
-				utl.ApplicationStatusCheck(s.T(), td.Expected.ApplicationStatus, statusGo.String(), statusScala.String())
-
-				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.DataEntries, dataDAppGo, dataDAppScala)
-
+				utl.ApplicationStatusCheck(s.T(), td.Expected.ApplicationStatus,
+					statusGo.String(), statusScala.String())
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.AccountStorage.DataEntries, dataDAppGo, dataDAppScala)
 				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
 					diffBalances.BalanceInWavesScala, errMsg)
 
@@ -389,4 +331,53 @@ func (s *InvokeScriptExecutionFailedSuite) Test_InvokeScriptExecutionFailed() {
 func TestInvokeScriptExecutionFailedSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(InvokeScriptExecutionFailedSuite))
+}
+
+type InvokeScriptNegativeSuite struct {
+	f.BaseNegativeSuite
+	Versions []byte
+	DApp     config.AccountInfo
+}
+
+func (s *InvokeScriptNegativeSuite) SetupSuite() {
+	s.BaseNegativeSuite.SetupSuite()
+	s.Versions = invoke.GetVersionsInvokeScript(&s.BaseSuite)
+}
+
+func (s *InvokeScriptNegativeSuite) SetupSubTest() {
+	// create new proxy dApp account with deployed script
+	s.DApp = setscript.CreateDAppAccount(&s.BaseSuite, utl.DefaultAccountForLoanFunds,
+		1000000000, "dapp_negative.ride")
+}
+
+func (s *InvokeScriptNegativeSuite) Test_InvokeScriptNegative() {
+	txIds := make(map[string]*crypto.Digest)
+	for _, version := range s.Versions {
+		s.Run("check invoke dApp with invalid data", func() {
+			testData := testdata.GetInvokeScriptNegativeTestData(&s.BaseSuite, s.DApp)
+			for name, td := range testData {
+				caseName := utl.GetTestcaseNameWithVersion(name, version)
+				s.T().Logf("Test case: %s\n", caseName)
+				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, false)
+				txIds[name] = &tx.TxID
+				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
+
+				dataDAppGo := utl.GetAccountDataGo(&s.BaseSuite, s.DApp.Address)
+				dataDAppScala := utl.GetAccountDataScala(&s.BaseSuite, s.DApp.Address)
+
+				utl.ErrorMessageCheck(s.T(), td.Expected.ErrGoMsg, td.Expected.ErrScalaMsg,
+					tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+				utl.DataEntriesAndKeysCheck(s.T(), td.Expected.AccountStorage.DataEntries, dataDAppGo, dataDAppScala)
+				utl.WavesDiffBalanceCheck(s.T(), td.Expected.WavesDiffBalance, diffBalances.BalanceInWavesGo,
+					diffBalances.BalanceInWavesScala, errMsg)
+			}
+		})
+	}
+	actualTxIds := utl.GetTxIdsInBlockchain(&s.BaseSuite, txIds)
+	s.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
+}
+
+func TestInvokeScriptNegativeSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(InvokeScriptNegativeSuite))
 }

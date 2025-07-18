@@ -27,5 +27,12 @@ func complexityThresholdFailedTxAfter1000(strValue: String) = {
   ]
 }
 
+@Callable(i)
+func call() = {
+  [
+    IntegerEntry("int", 1)
+  ]
+}
+
 @Verifier(tx)
 func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
