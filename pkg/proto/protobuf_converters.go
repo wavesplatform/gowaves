@@ -1086,7 +1086,7 @@ func (c *ProtobufConverter) reset() {
 
 func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) {
 	if tx == nil {
-		return nil, errors.New("emtpy transaction")
+		return nil, errors.New("empty transaction")
 	}
 	ts := c.uint64(tx.Timestamp)
 	scheme := c.byte(tx.ChainId)
