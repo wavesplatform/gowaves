@@ -4,6 +4,8 @@ package itests
 
 import (
 	"fmt"
+	"testing"
+
 	"github.com/stretchr/testify/suite"
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
@@ -14,7 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/utilities/setscript"
 	"github.com/wavesplatform/gowaves/itests/utilities/transfer"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"testing"
 )
 
 type InvokeScriptTxSuite struct {
@@ -350,7 +351,7 @@ func (s *InvokeScriptNegativeSuite) SetupSubTest() {
 }
 
 func (s *InvokeScriptNegativeSuite) Test_InvokeScriptNegative() {
-	txIds := make(map[string]*crypto.Digest)
+	txIDs := make(map[string]*crypto.Digest)
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp with invalid data", func() {
 			testData := testdata.GetInvokeScriptNegativeTestData(&s.BaseSuite, s.DApp)
@@ -358,7 +359,7 @@ func (s *InvokeScriptNegativeSuite) Test_InvokeScriptNegative() {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
 				s.T().Logf("Test case: %s\n", caseName)
 				tx, diffBalances := invoke.SendWithTestDataAndGetDiffBalances(&s.BaseSuite, td, version, false)
-				txIds[name] = &tx.TxID
+				txIDs[name] = &tx.TxID
 				errMsg := fmt.Sprintf("Case: %s; Invoke script tx: %s", caseName, tx.TxID.String())
 
 				dataDAppGo := utl.GetAccountDataGo(&s.BaseSuite, s.DApp.Address)
@@ -372,8 +373,8 @@ func (s *InvokeScriptNegativeSuite) Test_InvokeScriptNegative() {
 			}
 		})
 	}
-	actualTxIds := utl.GetTxIdsInBlockchain(&s.BaseSuite, txIds)
-	s.Lenf(actualTxIds, 0, "IDs: %#v", actualTxIds)
+	actualTxIDs := utl.GetTxIdsInBlockchain(&s.BaseSuite, txIDs)
+	s.Lenf(actualTxIDs, 0, "IDs: %#v", actualTxIDs)
 }
 
 func TestInvokeScriptNegativeSuite(t *testing.T) {

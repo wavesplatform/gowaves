@@ -185,13 +185,13 @@ func (c *GRPCClient) GetDataEntries(t *testing.T, address proto.WavesAddress) []
 	return de
 }
 
-func (c *GRPCClient) GetTransactionsStatuses(t *testing.T, txIds []crypto.Digest) []*g.TransactionStatus {
+func (c *GRPCClient) GetTransactionsStatuses(t *testing.T, txIDs []crypto.Digest) []*g.TransactionStatus {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	var grpcStatuses []*g.TransactionStatus
 	defer cancel()
 
-	ids := make([][]byte, len(txIds))
-	for i, digest := range txIds {
+	ids := make([][]byte, len(txIDs))
+	for i, digest := range txIDs {
 		ids[i] = digest.Bytes()
 	}
 

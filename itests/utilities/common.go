@@ -318,7 +318,11 @@ func StrToBase64Bytes(t *testing.T, s string) []byte {
 }
 
 func IntToBase64Bytes(t *testing.T, i int64) []byte {
-	bs := make([]byte, 8)
+	const bufferLength = 8
+	if i < 0 {
+		require.FailNow(t, fmt.Sprintf("integer %d is less than 0", i))
+	}
+	bs := make([]byte, bufferLength)
 	binary.BigEndian.PutUint64(bs, uint64(i))
 	encodedStr := base64.StdEncoding.EncodeToString(bs)
 	result, err := base64.StdEncoding.DecodeString(encodedStr)
@@ -423,15 +427,15 @@ func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) prot
 
 // GetAliasFromString String representation of an Alias should have a following format: "alias:<scheme>:<alias>".
 // Scheme should be represented with a one-byte ASCII symbol.
-func GetAliasFromString(suite *f.BaseSuite, alias string, chainId proto.Scheme) *proto.Alias {
+func GetAliasFromString(suite *f.BaseSuite, alias string, chainID proto.Scheme) *proto.Alias {
 	var newAliasStr string
 	aliasPref := "alias:"
-	chainIdPref := string(chainId) + ":"
-	prefix := aliasPref + chainIdPref
+	chainIDPref := string(chainID) + ":"
+	prefix := aliasPref + chainIDPref
 	switch {
 	case strings.HasPrefix(alias, prefix):
 		newAliasStr = alias
-	case strings.HasPrefix(alias, chainIdPref):
+	case strings.HasPrefix(alias, chainIDPref):
 		newAliasStr = aliasPref + alias
 	default:
 		newAliasStr = prefix + alias
@@ -1099,12 +1103,12 @@ func GetAccountDataScala(suite *f.BaseSuite, address proto.WavesAddress) []*wave
 	return suite.Clients.ScalaClient.GRPCClient.GetDataEntries(suite.T(), address)
 }
 
-func GetTransactionsStatusesGo(suite *f.BaseSuite, txIds []crypto.Digest) []*g.TransactionStatus {
-	return suite.Clients.GoClient.GRPCClient.GetTransactionsStatuses(suite.T(), txIds)
+func GetTransactionsStatusesGo(suite *f.BaseSuite, txIDs []crypto.Digest) []*g.TransactionStatus {
+	return suite.Clients.GoClient.GRPCClient.GetTransactionsStatuses(suite.T(), txIDs)
 }
 
-func GetApplicationStatusGo(suite *f.BaseSuite, txId crypto.Digest) g.ApplicationStatus {
-	statuses := GetTransactionsStatusesGo(suite, []crypto.Digest{txId})
+func GetApplicationStatusGo(suite *f.BaseSuite, txID crypto.Digest) g.ApplicationStatus {
+	statuses := GetTransactionsStatusesGo(suite, []crypto.Digest{txID})
 	var applicationStatus g.ApplicationStatus
 	if len(statuses) == 1 {
 		applicationStatus = statuses[0].GetApplicationStatus()
@@ -1114,12 +1118,12 @@ func GetApplicationStatusGo(suite *f.BaseSuite, txId crypto.Digest) g.Applicatio
 	return applicationStatus
 }
 
-func GetTransactionsStatusesScala(suite *f.BaseSuite, txIds []crypto.Digest) []*g.TransactionStatus {
-	return suite.Clients.ScalaClient.GRPCClient.GetTransactionsStatuses(suite.T(), txIds)
+func GetTransactionsStatusesScala(suite *f.BaseSuite, txIDs []crypto.Digest) []*g.TransactionStatus {
+	return suite.Clients.ScalaClient.GRPCClient.GetTransactionsStatuses(suite.T(), txIDs)
 }
 
-func GetApplicationStatusScala(suite *f.BaseSuite, txId crypto.Digest) g.ApplicationStatus {
-	statuses := GetTransactionsStatusesScala(suite, []crypto.Digest{txId})
+func GetApplicationStatusScala(suite *f.BaseSuite, txID crypto.Digest) g.ApplicationStatus {
+	statuses := GetTransactionsStatusesScala(suite, []crypto.Digest{txID})
 	var applicationStatus g.ApplicationStatus
 	if len(statuses) == 1 {
 		applicationStatus = statuses[0].GetApplicationStatus()

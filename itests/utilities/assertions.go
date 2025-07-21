@@ -127,7 +127,6 @@ func DataEntryAndKeyCheck(t *testing.T, expected *waves.DataEntry, actualGo, act
 
 func dataEntrySliceSort(data []*waves.DataEntry) {
 	slices.SortFunc(data, func(a, b *waves.DataEntry) int {
-
 		return strings.Compare(a.Key, b.Key)
 	})
 }
