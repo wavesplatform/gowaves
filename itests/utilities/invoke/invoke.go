@@ -48,12 +48,6 @@ func SendWithTestData[T any](suite *f.BaseSuite, testdata testdata.InvokeScriptT
 	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
 }
 
-func BroadcastWithTestData[T any](suite *f.BaseSuite, testdata testdata.InvokeScriptTestData[T], version byte,
-	waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignedInvokeScriptTransactionWithTestData(suite, version, testdata)
-	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
-}
-
 func SendWithTestDataAndGetDiffBalances[T any](suite *f.BaseSuite, testdata testdata.InvokeScriptTestData[T],
 	version byte, waitForTx bool) (utl.ConsideredTransaction, utl.BalanceInWaves) {
 	return MakeTxAndGetDiffBalances(suite, testdata, version, waitForTx, SendWithTestData[T])

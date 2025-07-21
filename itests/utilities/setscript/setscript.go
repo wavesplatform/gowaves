@@ -27,18 +27,6 @@ func NewSignedSetScriptTransactionWithTestData(suite *f.BaseSuite, version byte,
 		testdata.SenderAccount.SecretKey, testdata.Script, testdata.Fee, testdata.Timestamp)
 }
 
-func SendWithTestData(suite *f.BaseSuite, version byte, testdata testdata.SetScriptData,
-	waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignedSetScriptTransactionWithTestData(suite, version, testdata)
-	return utl.SendAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
-}
-
-func BroadcastWithTestData(suite *f.BaseSuite, version byte, testdata testdata.SetScriptData,
-	waitForTx bool) utl.ConsideredTransaction {
-	tx := NewSignedSetScriptTransactionWithTestData(suite, version, testdata)
-	return utl.BroadcastAndWaitTransaction(suite, tx, testdata.ChainID, waitForTx)
-}
-
 func CreateDAppAccount(suite *f.BaseSuite, from int, amount uint64,
 	scriptName string) config.AccountInfo {
 	accNumber := transfer.GetNewAccountWithFunds(suite, testdata.TransferMaxVersion, utl.TestChainID, from, amount)
