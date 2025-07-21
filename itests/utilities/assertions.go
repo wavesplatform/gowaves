@@ -125,11 +125,11 @@ func DataEntryAndKeyCheck(t *testing.T, expected *waves.DataEntry, actualGo, act
 	assert.Equalf(t, expected.Value, actualScala.Value, "Node Scala: "+errMsg)
 }
 
-func dataEntrySliceSort(data []*waves.DataEntry) []*waves.DataEntry {
+func dataEntrySliceSort(data []*waves.DataEntry) {
 	slices.SortFunc(data, func(a, b *waves.DataEntry) int {
+
 		return strings.Compare(a.Key, b.Key)
 	})
-	return data
 }
 
 func DataEntriesAndKeysCheck(t *testing.T, expected []*waves.DataEntry, actualGo, actualScala []*waves.DataEntry) {

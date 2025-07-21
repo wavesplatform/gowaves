@@ -295,7 +295,7 @@ func SafeInt64ToUint64(x int64) uint64 {
 	return uint64(x)
 }
 
-// StrToBase16Bytes gets string in utf8 and returns array of bytes of base16 string
+// StrToBase16Bytes gets string in utf8 and returns array of bytes of base16 string.
 func StrToBase16Bytes(t *testing.T, s string) []byte {
 	encodedStr := hex.EncodeToString([]byte(s))
 	result, err := hex.DecodeString(encodedStr)
@@ -428,11 +428,12 @@ func GetAliasFromString(suite *f.BaseSuite, alias string, chainId proto.Scheme) 
 	aliasPref := "alias:"
 	chainIdPref := string(chainId) + ":"
 	prefix := aliasPref + chainIdPref
-	if strings.HasPrefix(alias, prefix) {
+	switch {
+	case strings.HasPrefix(alias, prefix):
 		newAliasStr = alias
-	} else if strings.HasPrefix(alias, chainIdPref) {
+	case strings.HasPrefix(alias, chainIdPref):
 		newAliasStr = aliasPref + alias
-	} else {
+	default:
 		newAliasStr = prefix + alias
 	}
 	newAlias, err := proto.NewAliasFromString(newAliasStr)
@@ -796,7 +797,6 @@ func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transactio
 	} else {
 		return &proto.TransactionMessage{Transaction: bts}
 	}
-
 }
 
 func GetTransactionInfoAfterWaitingGo(suite *f.BaseSuite, id crypto.Digest, errWtGo error) {

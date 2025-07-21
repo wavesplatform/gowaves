@@ -2,7 +2,6 @@ package clients
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"io"
 	"math"
 	"testing"
@@ -18,6 +17,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -148,7 +148,7 @@ func (c *GRPCClient) syncedWavesAvailableBalance(
 	return balanceAtHeight{impl: c.impl, balance: available, height: after}, nil
 }
 
-// GetDataEntryByKey return data entries for account by key
+// GetDataEntryByKey return data entries for account by key.
 func (c *GRPCClient) GetDataEntryByKey(t *testing.T, address proto.WavesAddress, key string) *waves.DataEntry {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
@@ -163,7 +163,7 @@ func (c *GRPCClient) GetDataEntryByKey(t *testing.T, address proto.WavesAddress,
 	return d.GetEntry()
 }
 
-// GetDataEntries returns all data entries for account
+// GetDataEntries returns all data entries for account.
 func (c *GRPCClient) GetDataEntries(t *testing.T, address proto.WavesAddress) []*waves.DataEntry {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	de := make([]*waves.DataEntry, 0)
@@ -174,11 +174,12 @@ func (c *GRPCClient) GetDataEntries(t *testing.T, address proto.WavesAddress) []
 	stream, err := g.NewAccountsApiClient(c.conn).GetDataEntries(ctx, &dr, grpc.EmptyCallOption{})
 	assert.NoError(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
 	for {
-		d, err := stream.Recv()
-		if err == io.EOF {
+		d, errStrm := stream.Recv()
+		if errors.Is(errStrm, io.EOF) {
 			break
 		}
-		assert.NoError(t, err, "failed to get data entry from %s node with error: %s", c.impl.String(), err)
+		assert.NoError(t, errStrm, "failed to get data entry from %s node with error: %s",
+			c.impl.String(), errStrm)
 		de = append(de, d.GetEntry())
 	}
 	return de
@@ -201,12 +202,12 @@ func (c *GRPCClient) GetTransactionsStatuses(t *testing.T, txIds []crypto.Digest
 	assert.NoError(t, err, "failed to get transaction statuses from %s node with error: %s",
 		c.impl.String(), err)
 	for {
-		tr, err := stream.Recv()
-		if err == io.EOF {
+		tr, errStrm := stream.Recv()
+		if errors.Is(errStrm, io.EOF) {
 			break
 		}
-		assert.NoError(t, err, "failed to get transaction status from %s node with error: %s",
-			c.impl.String(), err)
+		assert.NoError(t, errStrm, "failed to get transaction status from %s node with error: %s",
+			c.impl.String(), errStrm)
 		grpcStatuses = append(grpcStatuses, tr)
 	}
 	return grpcStatuses

@@ -66,7 +66,6 @@ func SetAliasToAccountByAPI(suite *f.BaseSuite, version byte, scheme proto.Schem
 		fee, utl.GetCurrentTimestampInMs(), true)
 	errMsg := "alias transaction failed"
 	utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
-	//account.Alias = *utl.GetAliasFromString(suite, alias, scheme)
 }
 
 func AliasBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, accountPK crypto.PublicKey,

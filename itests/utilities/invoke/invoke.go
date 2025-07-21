@@ -12,8 +12,7 @@ import (
 func NewSignedInvokeScriptTransaction(suite *f.BaseSuite, version byte, scheme proto.Scheme, senderPK crypto.PublicKey,
 	senderSK crypto.SecretKey, scriptRecipient proto.Recipient, call proto.FunctionCall, payments proto.ScriptPayments,
 	feeAsset proto.OptionalAsset, fee, timestamp uint64) proto.Transaction {
-	var tx proto.Transaction
-	tx = proto.NewUnsignedInvokeScriptWithProofs(version, senderPK, scriptRecipient, call, payments,
+	tx := proto.NewUnsignedInvokeScriptWithProofs(version, senderPK, scriptRecipient, call, payments,
 		feeAsset, fee, timestamp)
 	err := tx.Sign(scheme, senderSK)
 	txJSON := utl.GetTransactionJsonOrErrMsg(tx)
