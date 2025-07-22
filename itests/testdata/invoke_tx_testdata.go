@@ -139,8 +139,8 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 					&proto.BinaryArgument{Value: utl.StrToBase64Bytes(suite.T(), "test")},
 					&proto.BooleanArgument{Value: false},
 					&proto.BooleanArgument{Value: true},
-					&proto.IntegerArgument{Value: -9223372036854775808},
-					&proto.IntegerArgument{Value: 9223372036854775807},
+					&proto.IntegerArgument{Value: utl.MinAmount},
+					&proto.IntegerArgument{Value: utl.MaxAmount},
 					&proto.StringArgument{Value: ""},
 					&proto.StringArgument{Value: "test1"},
 					&proto.StringArgument{Value: "test2"},
@@ -189,12 +189,12 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 						{
 							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger1",
 							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
-								-9223372036854775808)},
+								utl.MinAmount)},
 						},
 						{
 							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger2",
 							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
-								9223372036854775807)},
+								utl.MaxAmount)},
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString0",
@@ -266,11 +266,11 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int1",
-							Value: &waves.DataEntry_IntValue{IntValue: -9223372036854775808},
+							Value: &waves.DataEntry_IntValue{IntValue: utl.MinAmount},
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int2",
-							Value: &waves.DataEntry_IntValue{IntValue: 9223372036854775807},
+							Value: &waves.DataEntry_IntValue{IntValue: utl.MaxAmount},
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str0",
@@ -346,8 +346,8 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 					&proto.BinaryArgument{Value: utl.StrToBase64Bytes(suite.T(), "test_test")},
 					&proto.BooleanArgument{Value: true},
 					&proto.BooleanArgument{Value: false},
-					&proto.IntegerArgument{Value: 9223372036854775807},
-					&proto.IntegerArgument{Value: -9223372036854775808},
+					&proto.IntegerArgument{Value: utl.MaxAmount},
+					&proto.IntegerArgument{Value: utl.MinAmount},
 					&proto.StringArgument{Value: "test0"},
 					&proto.StringArgument{Value: "test_test1"},
 					&proto.StringArgument{Value: "test_test2"},
@@ -396,12 +396,12 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 						{
 							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger1",
 							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
-								9223372036854775807)},
+								utl.MaxAmount)},
 						},
 						{
 							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger2",
 							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.IntToBase64Bytes(suite.T(),
-								-9223372036854775808)},
+								utl.MinAmount)},
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binString0",
@@ -473,11 +473,11 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int1",
-							Value: &waves.DataEntry_IntValue{IntValue: 9223372036854775807},
+							Value: &waves.DataEntry_IntValue{IntValue: utl.MaxAmount},
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_int2",
-							Value: &waves.DataEntry_IntValue{IntValue: -9223372036854775808},
+							Value: &waves.DataEntry_IntValue{IntValue: utl.MinAmount},
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_str0",
@@ -548,13 +548,17 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 
 func GetInvokeScriptWriteToStorageStringTestData(suite *f.BaseSuite, version byte,
 	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataPositive] {
+	const (
+		MaxStrLenV1 = 4572
+		MaxStrLen   = 4695
+	)
 	var maxStrVal string
 	if version == 1 {
 		maxStrVal = utl.EscapeSeq + utl.Umlauts + utl.SymbolSet + utl.RusLetters +
-			utl.RandStringBytes(4572, utl.LettersAndDigits)
+			utl.RandStringBytes(MaxStrLenV1, utl.LettersAndDigits)
 	} else {
 		maxStrVal = utl.EscapeSeq + utl.Umlauts + utl.SymbolSet + utl.RusLetters +
-			utl.RandStringBytes(4695, utl.LettersAndDigits)
+			utl.RandStringBytes(MaxStrLen, utl.LettersAndDigits)
 	}
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataPositive]{
 		"Max value for string variable": NewInvokeScriptTestData(
@@ -612,13 +616,17 @@ func GetInvokeScriptWriteToStorageStringTestData(suite *f.BaseSuite, version byt
 func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 	dAppProxy1, dAppProxy2,
 	dAppTarget config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppPositive] {
+	const (
+		MaxStrLenV1 = 4502
+		MaxStrLen   = 4625
+	)
 	var maxStrVal string
 	if version == 1 {
 		maxStrVal = utl.EscapeSeq + utl.Umlauts + utl.SymbolSet + utl.RusLetters +
-			utl.RandStringBytes(4502, utl.LettersAndDigits)
+			utl.RandStringBytes(MaxStrLenV1, utl.LettersAndDigits)
 	} else {
 		maxStrVal = utl.EscapeSeq + utl.Umlauts + utl.SymbolSet + utl.RusLetters +
-			utl.RandStringBytes(4625, utl.LettersAndDigits)
+			utl.RandStringBytes(MaxStrLen, utl.LettersAndDigits)
 	}
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppPositive]{
 		"Total size of invoke 15 KB": NewInvokeScriptTestData(
@@ -721,6 +729,9 @@ func GetInvokeScriptDAppFromDAppTestData(suite *f.BaseSuite, version byte,
 
 func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 	dApp config.AccountInfo) map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppPositive] {
+	const (
+		CountOfCalls = 100
+	)
 	return map[string]InvokeScriptTestData[ExpectedInvokeScriptDataDAppFromDAppPositive]{
 		"Total count of Data Entries is 100": NewInvokeScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
@@ -757,7 +768,7 @@ func GetInvokeScriptDAppRecursiveTestData(suite *f.BaseSuite,
 			proto.NewRecipientFromAddress(dApp.Address),
 			proto.NewFunctionCall("recursiveCall",
 				proto.Arguments{
-					&proto.IntegerArgument{Value: 100},
+					&proto.IntegerArgument{Value: CountOfCalls},
 					&proto.StringArgument{Value: "test"},
 				}),
 			make(proto.ScriptPayments, 0),
@@ -961,7 +972,7 @@ func GetInvokeScriptNegativeTestData(suite *f.BaseSuite,
 			utl.TestChainID,
 			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
-			utl.GetCurrentTimestampInMs()-7260000,
+			utl.GetCurrentTimestampInMs()-utl.TimeInMsPast,
 			ExpectedInvokeScriptDataNegative{
 				AccountStorage: AccountStorage{
 					Address:     dApp.Address,
@@ -981,7 +992,7 @@ func GetInvokeScriptNegativeTestData(suite *f.BaseSuite,
 			utl.TestChainID,
 			utl.MinTxFeeWavesInvokeDApp,
 			utl.GetAssetByID(nil),
-			utl.GetCurrentTimestampInMs()+54160000,
+			utl.GetCurrentTimestampInMs()+utl.TimeInMsFuture,
 			ExpectedInvokeScriptDataNegative{
 				AccountStorage: AccountStorage{
 					Address:     dApp.Address,

@@ -120,7 +120,7 @@ func DataEntryAndKeyCheck(t *testing.T, expected *waves.DataEntry, actualGo, act
 	args ...interface{}) {
 	errMsg := makeErrorMessage("DataEntry parameters are mismatch", args...)
 	assert.Equalf(t, expected.Key, actualGo.Key, "Node Go: "+errMsg)
-	assert.Equalf(t, expected.Key, actualScala.Key, "Node Go: "+errMsg)
+	assert.Equalf(t, expected.Key, actualScala.Key, "Node Scala: "+errMsg)
 	assert.Equalf(t, expected.Value, actualGo.Value, "Node Go: "+errMsg)
 	assert.Equalf(t, expected.Value, actualScala.Value, "Node Scala: "+errMsg)
 }

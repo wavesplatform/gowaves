@@ -45,6 +45,7 @@ const (
 	XTNBuyBackAccount          = 6
 	DefaultAccountForLoanFunds = 9
 	MaxAmount                  = math.MaxInt64
+	MinAmount                  = math.MinInt64
 	MinIssueFeeWaves           = 100000000
 	MinSetAssetScriptFeeWaves  = 100000000
 	MinTxFeeWaves              = 100000
@@ -61,7 +62,8 @@ const (
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
 	DefaultTimeInterval        = 5 * time.Second
-
+	TimeInMsPast               = 7260000
+	TimeInMsFuture             = 54160000
 	// DefaultSponsorshipActivationHeight sets the height at which Fee Sponsorship takes effect.
 	// Although the feature itself is activated at height 1 by default, it takes 2 additional voting periods (2 blocks)
 	// for it to become effective.
@@ -227,7 +229,7 @@ func GetAvailableVersions(t *testing.T, txType proto.TransactionType, minVersion
 	var binaryVersion, protobufVersion []byte
 	minPBVersion := proto.ProtobufTransactionsVersions[txType]
 	require.GreaterOrEqual(t, minPBVersion, minVersion,
-		"Min binaryVersion version greater then min protobufVersion version")
+		"Min binary version greater than min protobuf version")
 	for i := minVersion; i < minPBVersion; i++ {
 		binaryVersion = append(binaryVersion, i)
 	}
@@ -1113,7 +1115,7 @@ func GetApplicationStatusGo(suite *f.BaseSuite, txID crypto.Digest) g.Applicatio
 	if len(statuses) == 1 {
 		applicationStatus = statuses[0].GetApplicationStatus()
 	} else {
-		suite.FailNow("transactions statuses is not found")
+		suite.FailNow("transactions statuses are not found")
 	}
 	return applicationStatus
 }
@@ -1128,7 +1130,7 @@ func GetApplicationStatusScala(suite *f.BaseSuite, txID crypto.Digest) g.Applica
 	if len(statuses) == 1 {
 		applicationStatus = statuses[0].GetApplicationStatus()
 	} else {
-		suite.FailNow("transactions statuses is not found")
+		suite.FailNow("transactions statuses are not found")
 	}
 	return applicationStatus
 }

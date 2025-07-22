@@ -17,7 +17,7 @@ func NewSignedSetScriptTransaction(suite *f.BaseSuite, version byte, scheme prot
 	err := tx.Sign(scheme, senderSK)
 	txJSON := utl.GetTransactionJsonOrErrMsg(tx)
 	suite.T().Logf("Set Script Transaction:\n%s", txJSON)
-	require.NoError(suite.T(), err, "failed to create proofs for set scri[t tx from signature")
+	require.NoError(suite.T(), err, "failed to create proofs for set script tx from signature")
 	return tx
 }
 
