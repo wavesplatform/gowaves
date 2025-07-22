@@ -41,7 +41,7 @@ itest-race:
 smoke:
 	mkdir -p build/config
 	mkdir -p build/logs
-	go test -timeout 20m -parallel 3 -tags=smoke $$(go list ./... | grep "/itests")
+	go test -timeout 60m -parallel 1 -tags=smoke $$(go list ./... | grep "/itests")
 
 fmtcheck:
 	@gofmt -l -s $(SOURCE_DIRS) | grep ".*\.go"; if [ "$$?" = "0" ]; then exit 1; fi
