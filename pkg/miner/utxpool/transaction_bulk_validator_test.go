@@ -9,10 +9,13 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 func TestBulkValidator_Validate(t *testing.T) {
+	var noState types.UtxPoolValidatorState
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -23,7 +26,11 @@ func TestBulkValidator_Validate(t *testing.T) {
 	m.EXPECT().TopBlock().Return(emptyBlock)
 	m.EXPECT().MapUnsafe(gomock.Any()).Return(nil)
 	utx := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
-	require.NoError(t, utx.AddWithBytes(byte_helpers.TransferWithSig.Transaction, byte_helpers.TransferWithSig.TransactionBytes))
+	require.NoError(t,
+		utx.AddWithBytes(
+			noState, byte_helpers.TransferWithSig.Transaction, byte_helpers.TransferWithSig.TransactionBytes,
+		),
+	)
 
 	validator := newBulkValidator(m, utx, tm(now))
 	validator.Validate()

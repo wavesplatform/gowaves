@@ -209,7 +209,7 @@ type StateModifier interface {
 
 type NonThreadSafeState = State
 
-type TxValidation interface {
+type TxValidation = interface {
 	ValidateNextTx(
 		tx proto.Transaction,
 		currentTimestamp, parentTimestamp uint64,

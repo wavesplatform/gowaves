@@ -34,7 +34,7 @@ func TestGetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	ctx := withAutoCancel(t, context.Background())
 	sch := createTestNetWallet(t)
-	validator, err := utxpool.NewValidator(st, ntptime.Stub{}, 24*time.Hour)
+	validator, err := utxpool.NewValidator(ntptime.Stub{}, 24*time.Hour)
 	require.NoError(t, err)
 	err = server.initServer(st, utxpool.New(utxSize, validator, sets), sch)
 	require.NoError(t, err)
@@ -132,7 +132,7 @@ func TestGetStatuses(t *testing.T) {
 	txBytes, err := tx.MarshalBinary(scheme)
 	require.NoError(t, err)
 	// Add tx to UTX.
-	err = utx.AddWithBytes(tx, txBytes)
+	err = utx.AddWithBytes(st, tx, txBytes)
 	require.NoError(t, err)
 
 	cl := g.NewTransactionsApiClient(conn)
@@ -188,7 +188,7 @@ func TestGetUnconfirmed(t *testing.T) {
 	txBytes, err := tx.MarshalBinary(scheme)
 	require.NoError(t, err)
 	// Add tx to UTX.
-	err = utx.AddWithBytes(tx, txBytes)
+	err = utx.AddWithBytes(st, tx, txBytes)
 	require.NoError(t, err)
 
 	cl := g.NewTransactionsApiClient(conn)

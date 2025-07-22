@@ -7,6 +7,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -67,25 +68,25 @@ func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 }
 
 // Add Must only be called inside state Map or MapUnsafe.
-func (a *UtxImpl) Add(t proto.Transaction) error {
+func (a *UtxImpl) Add(st types.UtxPoolValidatorState, t proto.Transaction) error {
 	bts, err := proto.MarshalTx(a.settings.AddressSchemeCharacter, t)
 	if err != nil {
 		return err
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.addWithBytes(t, bts)
+	return a.addWithBytes(st, t, bts)
 }
 
 // AddWithBytes Must only be called inside state Map or MapUnsafe.
-func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
+func (a *UtxImpl) AddWithBytes(st types.UtxPoolValidatorState, t proto.Transaction, b []byte) error {
 	// TODO: add flag here to distinguish adding using API and accepting
 	//  through the network from other nodes.
 	//  When API is used, we should check all scripts completely.
 	//  When adding from the network, only free complexity limit is checked.
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.addWithBytes(t, b)
+	return a.addWithBytes(st, t, b)
 }
 
 func (a *UtxImpl) AddWithBytesRaw(t proto.Transaction, b []byte) error {
@@ -125,7 +126,7 @@ func (a *UtxImpl) addWithBytesRaw(t proto.Transaction, b []byte) error {
 }
 
 // addWithBytes Must only be called inside state Map or MapUnsafe.
-func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
+func (a *UtxImpl) addWithBytes(st types.UtxPoolValidatorState, t proto.Transaction, b []byte) error {
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")
 	}
@@ -143,7 +144,7 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	if a.exists(t) {
 		return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
 	}
-	err = a.validator.Validate(t)
+	err = a.validator.Validate(st, t)
 	if err != nil {
 		return err
 	}
