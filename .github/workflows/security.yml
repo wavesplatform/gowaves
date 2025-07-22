@@ -32,7 +32,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run gosec security scanner
-        uses: securego/gosec@d2d3ae66bd8d340b78b5142b6fe610691783c2fe # v2.22.5
+        uses: securego/gosec@32975f4bab0d7b683a88756aaf3fa5502188b476 # v2.22.7
         with:
           # with '-no-fail' we let the report trigger content trigger a failure using the GitHub Security features.
           args: "-no-fail -fmt sarif -out gosec.sarif ./..."
