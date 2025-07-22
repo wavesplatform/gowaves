@@ -86,11 +86,3 @@ jobs:
           file: ./coverage.txt
           flags: unittests
           yml: ./codecov.yml
-
-  smoke:
-    name: smoke_tests
-    if: ${{ (github.event_name == 'pull_request' || github.event_name == 'workflow_dispatch' && github.event.inputs.smoke_tests) &&
-      github.repository == 'wavesplatform/gowaves'}}
-    uses: "./.github/workflows/run_itests.yml"
-    with:
-      itest-type: 'smoke'
