@@ -1,7 +1,7 @@
 package ride
 
 import (
-	"strconv"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -94,7 +94,7 @@ func TestFill(t *testing.T) {
 		{[]rideType{rideUnit{}}, true, nil},
 		{[]rideType{}, true, nil},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			r, err := fillList(nil, test.args...)
 			if test.fail {
 				assert.Error(t, err)

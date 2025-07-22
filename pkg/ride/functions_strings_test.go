@@ -3,7 +3,6 @@ package ride
 import (
 	"fmt"
 	"math"
-	"strconv"
 	"strings"
 	"testing"
 
@@ -687,8 +686,8 @@ func TestReplaceFirst(t *testing.T) {
 			false, rideString("cafe baby dead beef cafe bebe")},
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("red"), rideString("brown")},
 			false, rideString("quick brown fox jumps over the lazy dog")},
-		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString(""), rideString("xxx")},
-			false, rideString("quick brown fox jumps over the lazy dog")},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString(""), rideString(" ")},
+			false, rideString(" quick brown fox jumps over the lazy dog")},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideString("x"), rideString("y"), rideString("z"), rideInt(0)}, true, nil},
@@ -701,7 +700,7 @@ func TestReplaceFirst(t *testing.T) {
 		{[]rideType{rideString("冬weqwe"), rideString("we"), rideString(" ")}, false, rideString("冬 qwe")},
 		{[]rideType{rideString(""), rideString("x冬x"), rideString("xxx")}, false, rideString("")},
 	} {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			r, err := replaceFirst(nil, test.args...)
 			if test.fail {
 				assert.Error(t, err)
@@ -725,8 +724,8 @@ func TestReplaceAll(t *testing.T) {
 			false, rideString("cafe baby dead beef cafe baby")},
 		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("red"), rideString("brown")},
 			false, rideString("quick brown fox jumps over the lazy dog")},
-		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString(""), rideString("xxx")},
-			false, rideString("quick brown fox jumps over the lazy dog")},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString(""), rideString(" ")},
+			false, rideString(" q u i c k   b r o w n   f o x   j u m p s   o v e r   t h e   l a z y   d o g ")},
 		{[]rideType{rideString("")}, true, nil},
 		{[]rideType{rideString(""), rideInt(3)}, true, nil},
 		{[]rideType{rideString("x"), rideString("y"), rideString("z"), rideInt(0)}, true, nil},
@@ -738,8 +737,10 @@ func TestReplaceAll(t *testing.T) {
 			rideString("xxxeqwe")},
 		{[]rideType{rideString("冬weqwe"), rideString("we"), rideString(" ")}, false, rideString("冬 q ")},
 		{[]rideType{rideString(""), rideString("x冬x"), rideString("xxx")}, false, rideString("")},
+		{[]rideType{rideString("AAAAAAA"), rideString(""), rideString("B")}, false,
+			rideString("BABABABABABABAB")},
 	} {
-		t.Run(strconv.Itoa(i), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
 			r, err := replaceAll(nil, test.args...)
 			if test.fail {
 				assert.Error(t, err)

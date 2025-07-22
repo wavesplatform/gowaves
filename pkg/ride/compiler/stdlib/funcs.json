@@ -2671,6 +2671,42 @@
             "return_type": "String",
             "id": "1215"
           }
+        ],
+        "toBase64String_1C": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "String",
+            "id": "606"
+          }
+        ],
+        "fromBase64String_1C": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "607"
+          }
+        ],
+        "toBase16String_1C": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "String",
+            "id": "608"
+          }
+        ],
+        "fromBase16String_1C": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "609"
+          }
         ]
       },
       "remove": []

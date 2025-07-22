@@ -169,147 +169,208 @@ func concatBytes(env environment, args ...rideType) (rideType, error) {
 	return rideByteVector(out), nil
 }
 
-func checkByteStringLength(reduceLimit bool, s string) error {
-	limit := proto.MaxDataWithProofsBytes
-	if reduceLimit {
-		limit = proto.MaxDataEntryValueSize
-	}
-	if size := len(s); size > limit { // utf8 bytes length
+// limits holds input and output limits for string to bytes conversion functions.
+type limits struct {
+	input  int
+	output int
+}
+
+func checkStringLength(s string, limit int) error {
+	if size := len(s); limit > 0 && size > limit { // utf8 bytes length
 		return RuntimeError.Errorf("string size=%d exceeds %d bytes", size, limit)
 	}
 	return nil
 }
 
-func toBase58Generic(reduceLimit bool, args ...rideType) (rideType, error) {
+func checkByteVectorLength(b []byte, limit int) error {
+	if size := len(b); limit > 0 && size > limit {
+		return RuntimeError.Errorf("byte vector size=%d exceeds %d bytes", size, limit)
+	}
+	return nil
+}
+
+func toBase58Limited(limits limits, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase58")
 	}
-	if l := len(b); l > maxBase58BytesToEncode {
-		return nil, RuntimeError.Errorf("toBase58: input is too long (%d), limit is %d", l, maxBase58BytesToEncode)
+	if l := len(b); l > limits.input {
+		return nil, RuntimeError.Errorf("toBase58: input is too long (%d), limit is %d", l, limits.input)
 	}
 	s := base58.Encode(b)
-	if lErr := checkByteStringLength(reduceLimit, s); lErr != nil {
+	if lErr := checkStringLength(s, limits.output); lErr != nil {
 		return nil, errors.Wrap(lErr, "toBase58")
 	}
 	return rideString(s), nil
 }
 
 func toBase58(_ environment, args ...rideType) (rideType, error) {
-	return toBase58Generic(false, args...)
+	return toBase58Limited(limits{maxBase58BytesToEncode, proto.MaxDataWithProofsBytes}, args...)
 }
 
 func toBase58V4(_ environment, args ...rideType) (rideType, error) {
-	return toBase58Generic(true, args...)
+	return toBase58Limited(limits{maxBase58BytesToEncode, proto.MaxDataEntryValueSize}, args...)
 }
 
-func fromBase58(_ environment, args ...rideType) (rideType, error) {
+func fromBase58Limited(limits limits, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
 	}
-	if l := len(s); l > maxBase58StringToDecode {
-		return nil, RuntimeError.Errorf("fromBase58: input is too long (%d), limit is %d", l, maxBase58StringToDecode)
+	if l := len(s); limits.input > 0 && l > limits.input /*maxBase58StringToDecode*/ {
+		return nil, RuntimeError.Errorf("fromBase58: input is too long (%d), limit is %d", l, limits.input)
 	}
-	str := string(s)
-	if str == "" {
+	if s == "" {
 		return rideByteVector{}, nil
 	}
-	r, err := base58.Decode(str)
+	r, err := base58.Decode(s)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
+	}
+	if lErr := checkByteVectorLength(r, limits.output); lErr != nil {
+		return nil, errors.Wrap(lErr, "fromBase58")
 	}
 	return rideByteVector(r), nil
 }
 
-func toBase64Generic(reduceLimit bool, args ...rideType) (rideType, error) {
+func fromBase58(_ environment, args ...rideType) (rideType, error) {
+	return fromBase58Limited(limits{maxBase58StringToDecode, proto.MaxDataEntryValueSize}, args...)
+}
+
+func toBase64Limited(limits limits, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase64")
 	}
-	if l := len(b); l > maxBase64BytesToEncode {
-		return nil, RuntimeError.Errorf("toBase64: input is too long (%d), limit is %d", l, maxBase64BytesToEncode)
+	if l := len(b); limits.input > 0 && l > limits.input {
+		return nil, RuntimeError.Errorf("toBase64: input is too long (%d), limit is %d", l, limits.input)
 	}
 	s := base64.StdEncoding.EncodeToString(b)
-	if lErr := checkByteStringLength(reduceLimit, s); lErr != nil {
+	if lErr := checkStringLength(s, limits.output); lErr != nil {
 		return nil, errors.Wrap(lErr, "toBase64")
 	}
 	return rideString(s), nil
 }
 
 func toBase64(_ environment, args ...rideType) (rideType, error) {
-	return toBase64Generic(false, args...)
+	return toBase64Limited(limits{maxBase64BytesToEncode, proto.MaxDataWithProofsBytes}, args...)
 }
 
 func toBase64V4(_ environment, args ...rideType) (rideType, error) {
-	return toBase64Generic(true, args...)
+	return toBase64Limited(limits{maxBase64BytesToEncode, proto.MaxDataEntryValueSize}, args...)
 }
 
-func fromBase64(_ environment, args ...rideType) (rideType, error) {
+func toBase641C(_ environment, args ...rideType) (rideType, error) {
+	const limit = 1024
+	return toBase64Limited(limits{limit, proto.MaxDataEntryValueSize}, args...)
+}
+
+func decodeBase64(s string) ([]byte, error) {
+	const prefix = "base64:"
+	ss := strings.TrimPrefix(s, prefix)
+	decoded, err := base64.StdEncoding.DecodeString(ss)
+	if err != nil {
+		decoded, err = base64.RawStdEncoding.DecodeString(ss) // Try no padding.
+		if err != nil {
+			return nil, err
+		}
+		return decoded, nil
+	}
+	return decoded, nil
+}
+
+func fromBase64Limited(limits limits, args ...rideType) (rideType, error) {
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase64")
 	}
-	if l := len(s); l > maxBase64StringToDecode {
-		return nil, RuntimeError.Errorf("fromBase64: input is too long (%d), limit is %d", l, maxBase64StringToDecode)
+	if l := len(s); limits.input > 0 && l > limits.input {
+		return nil, RuntimeError.Errorf("fromBase64: input is too long (%d), limit is %d", l, limits.input)
 	}
-	str := strings.TrimPrefix(string(s), "base64:")
-	decoded, err := base64.StdEncoding.DecodeString(str)
+	decoded, err := decodeBase64(s)
 	if err != nil {
-		decoded, err = base64.RawStdEncoding.DecodeString(str) // Try no padding.
-		if err != nil {
-			return nil, errors.Wrap(err, "fromBase64")
-		}
-		return rideByteVector(decoded), nil
+		return nil, errors.Wrap(err, "fromBase64")
+	}
+	if lErr := checkByteVectorLength(decoded, limits.output); lErr != nil {
+		return nil, errors.Wrap(lErr, "fromBase64")
 	}
 	return rideByteVector(decoded), nil
 }
 
-func toBase16Generic(checkLength bool, args ...rideType) (rideType, error) {
+func fromBase64(_ environment, args ...rideType) (rideType, error) {
+	return fromBase64Limited(limits{maxBase64StringToDecode, proto.MaxDataEntryValueSize}, args...)
+}
+
+func fromBase641C(_ environment, args ...rideType) (rideType, error) {
+	const (
+		inputLimit  = 1368 + 7 // Base64-encoded 1024 bytes is 1368 chars long plus 7 for prefix.
+		outputLimit = 1024
+	)
+	return fromBase64Limited(limits{inputLimit, outputLimit}, args...)
+}
+
+func toBase16Limited(limits limits, args ...rideType) (rideType, error) {
 	b, err := bytesOrUnitArgAsBytes(args...)
 	if err != nil {
 		return nil, errors.Wrap(err, "toBase16")
 	}
-	if l := len(b); checkLength && l > maxBase16BytesToEncode {
-		return nil, RuntimeError.Errorf("toBase16: input is too long (%d), limit is %d", l, maxBase16BytesToEncode)
+	if l := len(b); limits.input > 0 && l > limits.input {
+		return nil, RuntimeError.Errorf("toBase16: input is too long (%d), limit is %d", l, limits.input)
 	}
 	s := hex.EncodeToString(b)
-	if lErr := checkByteStringLength(true, s); lErr != nil {
+	if lErr := checkStringLength(s, limits.output); lErr != nil {
 		return nil, errors.Wrap(lErr, "toBase16")
 	}
 	return rideString(s), nil
 }
 
 func toBase16(_ environment, args ...rideType) (rideType, error) {
-	return toBase16Generic(false, args...)
+	return toBase16Limited(limits{0, proto.MaxDataEntryValueSize}, args...)
 }
 
 func toBase16V4(_ environment, args ...rideType) (rideType, error) {
-	return toBase16Generic(true, args...)
+	return toBase16Limited(limits{maxBase16BytesToEncode, proto.MaxDataEntryValueSize}, args...)
 }
 
-func fromBase16Generic(checkLength bool, args ...rideType) (rideType, error) {
+func toBase161C(_ environment, args ...rideType) (rideType, error) {
+	const limit = 1024
+	return toBase16Limited(limits{limit, proto.MaxDataEntryValueSize}, args...)
+}
+
+func fromBase16Limited(limits limits, args ...rideType) (rideType, error) {
+	const prefix = "base16:"
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
 	}
-	if l := len(s); checkLength && l > maxBase16StringToDecode {
-		return nil, RuntimeError.Errorf("fromBase16: input is too long (%d), limit is %d", l, maxBase16StringToDecode)
+	if l := len(s); limits.input > 0 && l > limits.input {
+		return nil, RuntimeError.Errorf("fromBase16: input is too long (%d), limit is %d", l, limits.input)
 	}
-	str := strings.TrimPrefix(string(s), "base16:")
+	str := strings.TrimPrefix(s, prefix)
 	decoded, err := hex.DecodeString(str)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
+	}
+	if lErr := checkByteVectorLength(decoded, limits.output); lErr != nil {
+		return nil, errors.Wrap(lErr, "fromBase16")
 	}
 	return rideByteVector(decoded), nil
 }
 
 func fromBase16(_ environment, args ...rideType) (rideType, error) {
-	return fromBase16Generic(false, args...)
+	return fromBase16Limited(limits{0, proto.MaxDataEntryValueSize}, args...)
 }
 
 func fromBase16V4(_ environment, args ...rideType) (rideType, error) {
-	return fromBase16Generic(true, args...)
+	return fromBase16Limited(limits{input: maxBase16StringToDecode, output: proto.MaxDataEntryValueSize}, args...)
+}
+
+func fromBase161C(_ environment, args ...rideType) (rideType, error) {
+	const (
+		outputLimit = 1024
+		inputLimit  = outputLimit*2 + 7
+	)
+	return fromBase16Limited(limits{input: inputLimit, output: outputLimit}, args...)
 }
 
 func dropRightBytesGeneric(checkLimits bool, args ...rideType) (rideType, error) {
@@ -350,7 +411,7 @@ func takeRightBytesV6(_ environment, args ...rideType) (rideType, error) {
 	return takeRightBytesGeneric(true, args...)
 }
 
-func bytesToUTF8StringGeneric(reduceLimit bool, args ...rideType) (rideType, error) {
+func bytesToUTF8StringLimited(limits limits, args ...rideType) (rideType, error) {
 	b, err := bytesArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "bytesToUTF8String")
@@ -359,18 +420,18 @@ func bytesToUTF8StringGeneric(reduceLimit bool, args ...rideType) (rideType, err
 	if !utf8.ValidString(s) {
 		return nil, errors.Errorf("invalid UTF-8 sequence")
 	}
-	if lErr := checkByteStringLength(reduceLimit, s); lErr != nil {
+	if lErr := checkStringLength(s, limits.output); lErr != nil {
 		return nil, errors.Wrap(lErr, "bytesToUTF8String")
 	}
 	return rideString(s), nil
 }
 
 func bytesToUTF8String(_ environment, args ...rideType) (rideType, error) {
-	return bytesToUTF8StringGeneric(false, args...)
+	return bytesToUTF8StringLimited(limits{0, proto.MaxDataWithProofsBytes}, args...)
 }
 
 func bytesToUTF8StringV4(_ environment, args ...rideType) (rideType, error) {
-	return bytesToUTF8StringGeneric(true, args...)
+	return bytesToUTF8StringLimited(limits{0, proto.MaxDataEntryValueSize}, args...)
 }
 
 func bytesToInt(_ environment, args ...rideType) (rideType, error) {

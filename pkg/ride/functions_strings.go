@@ -13,7 +13,7 @@ import (
 
 const maxMessageLength = 32 * 1024
 
-func stringArg(args []rideType) (rideString, error) {
+func stringArg(args []rideType) (string, error) {
 	if len(args) != 1 {
 		return "", errors.Errorf("%d is invalid number of arguments, expected 1", len(args))
 	}
@@ -24,7 +24,7 @@ func stringArg(args []rideType) (rideString, error) {
 	if !ok {
 		return "", errors.Errorf("argument 1 is not of type 'String' but '%s'", args[0].instanceOf())
 	}
-	return s, nil
+	return string(s), nil
 }
 
 func stringAndIntArgs(args []rideType) (string, int, error) {
@@ -490,9 +490,6 @@ func replaceFirst(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "replaceFirst")
 	}
-	if len(o) == 0 {
-		return rideString(s), nil // No replacement if empty target substring.
-	}
 	return rideString(strings.Replace(s, o, n, 1)), nil
 }
 
@@ -500,9 +497,6 @@ func replaceAll(_ environment, args ...rideType) (rideType, error) {
 	s, o, n, err := threeStringsArgs(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "replaceAll")
-	}
-	if len(o) == 0 {
-		return rideString(s), nil // No replacement if empty target substring.
 	}
 	return rideString(strings.ReplaceAll(s, o, n)), nil
 }
