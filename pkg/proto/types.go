@@ -616,7 +616,7 @@ func (m OrderPriceMode) MarshalJSON() ([]byte, error) {
 	case OrderPriceModeDefault:
 		return []byte(jsonNull), nil
 	default:
-		return []byte(fmt.Sprintf("\"%s\"", m.String())), nil
+		return fmt.Appendf(nil, "\"%s\"", m.String()), nil
 	}
 }
 
