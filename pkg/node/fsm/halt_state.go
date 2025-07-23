@@ -65,7 +65,7 @@ func initHaltStateInFSM(_ *StateData, fsm *stateless.StateMachine, info BaseInfo
 		proto.ContentIDMicroBlockSnapshotRequest,
 	}
 	fsm.Configure(HaltStateName).
-		OnEntry(func(ctx context.Context, args ...any) error {
+		OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(haltSkipMessageList)
 			return nil
 		}).

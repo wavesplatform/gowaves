@@ -32,7 +32,7 @@ func (a *Alias) Get(ctx context.Context, alias string) (proto.WavesAddress, *Res
 	out := struct {
 		Address proto.WavesAddress `json:"address"`
 	}{}
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return proto.WavesAddress{}, response, err
 	}
@@ -52,7 +52,7 @@ func (a *Alias) GetByAddress(ctx context.Context, address proto.WavesAddress) ([
 	}
 
 	var out []*proto.Alias
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}

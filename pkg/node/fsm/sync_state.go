@@ -331,7 +331,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		Ignore(StartMiningEvent).
 		Ignore(StopMiningEvent).
 		Ignore(MicroBlockSnapshotEvent).
-		OnEntry(func(ctx context.Context, args ...any) error {
+		OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(syncSkipMessageList)
 			return nil
 		}).
@@ -345,7 +345,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.ChangeSyncPeer(convertToInterface[peer.Peer](args[0]))
 			})).
 		PermitDynamic(StopSyncEvent,
-			createPermitDynamicCallback(StopSyncEvent, state, func(args ...any) (State, Async, error) {
+			createPermitDynamicCallback(StopSyncEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -410,7 +410,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 					convertToInterface[proto.Transaction](args[1]))
 			})).
 		PermitDynamic(HaltEvent,
-			createPermitDynamicCallback(HaltEvent, state, func(args ...any) (State, Async, error) {
+			createPermitDynamicCallback(HaltEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(

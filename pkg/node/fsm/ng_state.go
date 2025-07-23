@@ -467,7 +467,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 		proto.ContentIDBlockSnapshot,
 	}
 	fsm.Configure(NGStateName).
-		OnEntry(func(ctx context.Context, args ...any) error {
+		OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(ngSkipMessageList)
 			return nil
 		}).
@@ -478,7 +478,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 		Ignore(BlockSnapshotEvent).
 		Ignore(MicroBlockSnapshotEvent).
 		PermitDynamic(StopMiningEvent,
-			createPermitDynamicCallback(StopMiningEvent, state, func(args ...any) (State, Async, error) {
+			createPermitDynamicCallback(StopMiningEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -552,7 +552,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 				return a.MicroBlockInv(convertToInterface[peer.Peer](args[0]), args[1].(*proto.MicroBlockInv))
 			})).
 		PermitDynamic(HaltEvent,
-			createPermitDynamicCallback(HaltEvent, state, func(args ...any) (State, Async, error) {
+			createPermitDynamicCallback(HaltEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(

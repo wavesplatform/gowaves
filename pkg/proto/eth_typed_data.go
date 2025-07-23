@@ -81,9 +81,7 @@ func (typedData *ethereumTypedData) Hash() (EthereumHash, error) {
 }
 
 // HashStructMap generates a keccak256 hash of the encoding of the provided data
-func (typedData *ethereumTypedData) HashStructMap(primaryType string,
-	data map[string]any) (EthereumHash, error) {
-
+func (typedData *ethereumTypedData) HashStructMap(primaryType string, data map[string]any) (EthereumHash, error) {
 	encodedData, err := typedData.EncodeData(primaryType, data, 1)
 	if err != nil {
 		return EthereumHash{}, err
@@ -182,8 +180,8 @@ func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[stri
 			parsedType := strings.Split(encType, "[")[0]
 			for _, item := range arrayValue {
 				if typedData.Types[parsedType] != nil {
-					mapValue, ok := item.(map[string]any)
-					if !ok {
+					mapValue, has := item.(map[string]any)
+					if !has {
 						return nil, dataMismatchError(parsedType, item)
 					}
 					encodedData, err := typedData.EncodeData(parsedType, mapValue, depth+1)
@@ -592,7 +590,8 @@ func (domain *ethereumTypedDataDomain) validate() error {
 
 // Map is a helper function to generate a map version of the domain
 func (domain *ethereumTypedDataDomain) Map() map[string]any {
-	dataMap := make(map[string]any, 3)
+	const size = 3
+	dataMap := make(map[string]any, size)
 
 	if domain.ChainId != nil {
 		dataMap["chainId"] = domain.ChainId

@@ -115,7 +115,7 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		proto.ContentIDMicroBlockSnapshotRequest,
 	}
 	fsm.Configure(IdleStateName).
-		OnEntry(func(ctx context.Context, args ...any) error {
+		OnEntry(func(_ context.Context, _ ...any) error {
 			b.skipMessageList.SetList(idleSkipMessageList)
 			return nil
 		}).
@@ -129,7 +129,7 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		Ignore(BlockSnapshotEvent).
 		Ignore(MicroBlockSnapshotEvent).
 		PermitDynamic(StartMiningEvent,
-			createPermitDynamicCallback(StartMiningEvent, state, func(args ...any) (State, Async, error) {
+			createPermitDynamicCallback(StartMiningEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*IdleState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf("unexpected type '%T' expected '*IdleState'",
@@ -176,7 +176,7 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 					args[3].([]byte))
 			})).
 		PermitDynamic(HaltEvent,
-			createPermitDynamicCallback(HaltEvent, state, func(args ...any) (State, Async, error) {
+			createPermitDynamicCallback(HaltEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*IdleState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf("unexpected type '%T' expected '*IdleState'",

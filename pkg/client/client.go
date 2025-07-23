@@ -115,10 +115,10 @@ func newResponse(response *http.Response) *Response {
 }
 
 func (a *Client) Do(ctx context.Context, req *http.Request, v any) (*Response, error) {
-	return doHttp(ctx, a.options, req, v)
+	return doHTTP(ctx, a.options, req, v)
 }
 
-func doHttp(ctx context.Context, options Options, req *http.Request, v any) (*Response, error) {
+func doHTTP(ctx context.Context, options Options, req *http.Request, v any) (*Response, error) {
 	req = withContext(ctx, req)
 	if req.Header.Get("Accept") == "" {
 		req.Header.Set("Accept", "application/json")

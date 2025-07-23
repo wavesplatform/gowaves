@@ -53,11 +53,11 @@ func (a *FIFOCache) Add2(key []byte, value any) {
 	})
 }
 
-func (a *FIFOCache) Get(key []byte) (value any, ok bool) {
+func (a *FIFOCache) Get(key []byte) (any, bool) {
 	b := [idSize]byte{}
 	copy(b[:], key)
-	value, ok = a.cache[b]
-	return
+	value, ok := a.cache[b]
+	return value, ok
 }
 
 func (a *FIFOCache) replace(keyValue KeyValue) {

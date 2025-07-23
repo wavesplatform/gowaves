@@ -94,7 +94,7 @@ func GeScalarMult(r *ExtendedGroupElement, a *[32]byte, A *ExtendedGroupElement)
 	var p, q ExtendedGroupElement
 	q.Zero()
 	ExtendedGroupElementCopy(&p, A)
-	for i := range uint(256) {
+	for i := range uint(256) { //nolint:mnd // library specification
 		bit := int32(a[i>>3]>>(i&7)) & 1
 		var t ExtendedGroupElement
 		GeAdd(&t, &q, &p)

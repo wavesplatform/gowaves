@@ -143,9 +143,7 @@ func BenchmarkTransactionPool(b *testing.B) {
 	a := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
 
 	for b.Loop() {
-
 		n := rand.Intn(1000000)
-
 		_ = a.AddWithBytes(tr(uint64(n)), []byte{1})
 	}
 
