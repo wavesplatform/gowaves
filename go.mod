@@ -52,7 +52,7 @@ require (
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476
 	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.34.0
-	google.golang.org/grpc v1.74.0
+	google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf v1.36.6
 	moul.io/zapfilter v1.7.0
 )
