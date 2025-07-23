@@ -60,6 +60,7 @@ func main() {
 		cfg, err = settings.ReadBlockchainSettings(f)
 		if err != nil {
 			slog.Error("Failed to read configuration file", "error", err)
+			os.Exit(1)
 			return
 		}
 	} else {
