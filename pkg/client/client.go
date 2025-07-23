@@ -54,8 +54,6 @@ type Response struct {
 	*http.Response
 }
 
-type HttpClient any
-
 // NewClient creates new client instance.
 // If no options provided will use default.
 func NewClient(options ...Options) (*Client, error) {
