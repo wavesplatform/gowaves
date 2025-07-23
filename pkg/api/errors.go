@@ -76,28 +76,22 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 		// nickeskov: this error type will be removed in future
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", authError.Error()), http.StatusForbidden)
 	case errors.As(err, &unknownError):
-		// TODO: remove logger nil check after switching to slog.DiscardHandler in Go 1.24 .
-		if eh.logger != nil {
-			eh.logger.Error("UnknownError",
-				slog.String("proto", r.Proto),
-				slog.String("path", r.URL.Path),
-				slog.String("request_id", middleware.GetReqID(r.Context())),
-				slog.String("remote_addr", r.RemoteAddr),
-				"error", err)
-		}
+		eh.logger.Error("UnknownError",
+			slog.String("proto", r.Proto),
+			slog.String("path", r.URL.Path),
+			slog.String("request_id", middleware.GetReqID(r.Context())),
+			slog.String("remote_addr", r.RemoteAddr),
+			"error", err)
 		eh.sendApiErrJSON(w, r, unknownError)
 	case errors.As(err, &apiError):
 		eh.sendApiErrJSON(w, r, apiError)
 	default:
-		// TODO: remove logger nil check after switching to slog.DiscardHandler in Go 1.24 .
-		if eh.logger != nil {
-			eh.logger.Error("InternalServerError",
-				slog.String("proto", r.Proto),
-				slog.String("path", r.URL.Path),
-				slog.String("request_id", middleware.GetReqID(r.Context())),
-				slog.String("remote_addr", r.RemoteAddr),
-				"error", err)
-		}
+		eh.logger.Error("InternalServerError",
+			slog.String("proto", r.Proto),
+			slog.String("path", r.URL.Path),
+			slog.String("request_id", middleware.GetReqID(r.Context())),
+			slog.String("remote_addr", r.RemoteAddr),
+			"error", err)
 		unknownErrWrapper := apiErrs.NewUnknownError(err)
 		eh.sendApiErrJSON(w, r, unknownErrWrapper)
 	}
@@ -105,8 +99,7 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 
 func (eh *ErrorHandler) sendApiErrJSON(w http.ResponseWriter, r *http.Request, apiErr apiErrs.ApiError) {
 	w.WriteHeader(apiErr.GetHttpCode())
-	// TODO: remove logger nil check after switching to slog.DiscardHandler in Go 1.24 .
-	if encodeErr := json.NewEncoder(w).Encode(apiErr); encodeErr != nil && eh.logger != nil {
+	if encodeErr := json.NewEncoder(w).Encode(apiErr); encodeErr != nil {
 		eh.logger.Error("Failed to marshal API Error to JSON",
 			slog.String("proto", r.Proto),
 			slog.String("path", r.URL.Path),

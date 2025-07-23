@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -79,8 +80,7 @@ func TestErrorHandler_Handle(t *testing.T) {
 				w = httptest.NewRecorder()
 				r = httptest.NewRequest(http.MethodGet, "http://localhost:8080", nil)
 			)
-			// TODO: replace with DiscardLogger after switching to Go 1.24.
-			h := NewErrorHandler(nil)
+			h := NewErrorHandler(slog.New(slog.DiscardHandler))
 			h.Handle(w, r, test.err)
 			assert.Equal(t, test.expectedCode, w.Code)
 			assert.Equal(t, test.expectedBody, w.Body.String())
