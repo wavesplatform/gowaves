@@ -171,40 +171,17 @@ func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[stri
 		encType := field.Type
 		encValue := data[field.Name]
 		if encType[len(encType)-1:] == "]" {
-			arrayValue, ok := encValue.([]any)
-			if !ok {
-				return nil, dataMismatchError(encType, encValue)
+			arrayBytes, err := typedData.handleEncodeDataArray(encType, encValue, depth)
+			if err != nil {
+				return nil, err
 			}
-
-			arrayBuffer := bytes.Buffer{}
-			parsedType := strings.Split(encType, "[")[0]
-			for _, item := range arrayValue {
-				if typedData.Types[parsedType] != nil {
-					mapValue, has := item.(map[string]any)
-					if !has {
-						return nil, dataMismatchError(parsedType, item)
-					}
-					encodedData, err := typedData.EncodeData(parsedType, mapValue, depth+1)
-					if err != nil {
-						return nil, err
-					}
-					arrayBuffer.Write(encodedData)
-				} else {
-					bytesValue, err := typedData.EncodePrimitiveValue(parsedType, item, depth)
-					if err != nil {
-						return nil, err
-					}
-					arrayBuffer.Write(bytesValue)
-				}
-			}
-
-			buffer.Write(crypto.MustKeccak256(arrayBuffer.Bytes()).Bytes())
+			buffer.Write(crypto.MustKeccak256(arrayBytes).Bytes())
 		} else if typedData.Types[field.Type] != nil {
 			mapValue, ok := encValue.(map[string]any)
 			if !ok {
 				return nil, dataMismatchError(encType, encValue)
 			}
-			encodedData, err := typedData.EncodeData(field.Type, mapValue, depth+1)
+			encodedData, err := typedData.EncodeData(field.Type, mapValue, depth+1) // nested structures increase depth
 			if err != nil {
 				return nil, err
 			}
@@ -218,6 +195,35 @@ func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[stri
 		}
 	}
 	return buffer.Bytes(), nil
+}
+
+func (typedData *ethereumTypedData) handleEncodeDataArray(encType string, encValue any, depth int) ([]byte, error) {
+	arrayValue, ok := encValue.([]any)
+	if !ok {
+		return nil, dataMismatchError(encType, encValue)
+	}
+	arrayBuffer := bytes.Buffer{}
+	parsedType := strings.Split(encType, "[")[0]
+	for _, item := range arrayValue {
+		if typedData.Types[parsedType] != nil {
+			mapValue, has := item.(map[string]any)
+			if !has {
+				return nil, dataMismatchError(parsedType, item)
+			}
+			encodedData, err := typedData.EncodeData(parsedType, mapValue, depth+1) // nested structures increase depth
+			if err != nil {
+				return nil, err
+			}
+			arrayBuffer.Write(encodedData)
+		} else {
+			bytesValue, err := typedData.EncodePrimitiveValue(parsedType, item, depth)
+			if err != nil {
+				return nil, err
+			}
+			arrayBuffer.Write(bytesValue)
+		}
+	}
+	return arrayBuffer.Bytes(), nil
 }
 
 // Attempt to parse bytes in different formats: byte array, hex string, []byte.
@@ -330,34 +336,16 @@ func parseInteger(encType string, encValue any) (*big.Int, error) {
 	return b, nil
 }
 
+const ethABISlotSize = 32
+
 // EncodePrimitiveValue deals with the primitive values found
 // while searching through the typed data
-func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValue any, depth int) ([]byte, error) {
+func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValue any, _ int) ([]byte, error) {
 	switch encType {
 	case "address":
-		stringValue, ok := encValue.(string)
-		if !ok {
-			return nil, dataMismatchError(encType, encValue)
-		}
-
-		b, err := DecodeFromHexString(stringValue)
-		if err != nil {
-			return nil, dataMismatchErrorWrap(err, encType, encValue)
-		}
-
-		retval := make([]byte, 32)
-		copy(retval[12:], BytesToEthereumAddress(b).Bytes())
-
-		return retval, nil
+		return encodeAddress(encType, encValue)
 	case "bool":
-		boolValue, ok := encValue.(bool)
-		if !ok {
-			return nil, dataMismatchError(encType, encValue)
-		}
-		if boolValue {
-			return paddedEthereumBigIntToBytes(big1, 32), nil
-		}
-		return paddedEthereumBigIntToBytes(big0, 32), nil
+		return encodeBool(encType, encValue)
 	case "string":
 		strVal, ok := encValue.(string)
 		if !ok {
@@ -377,14 +365,14 @@ func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValu
 		if err != nil {
 			return nil, errors.Errorf("invalid size on bytes: %v", lengthStr)
 		}
-		if length < 0 || length > 32 {
+		if length < 0 || length > ethABISlotSize {
 			return nil, errors.Errorf("invalid size on bytes: %d", length)
 		}
 		if byteValue, ok := parseBytes(encValue); !ok || len(byteValue) != length {
 			return nil, dataMismatchError(encType, encValue)
 		} else {
 			// Right-pad the bits
-			dst := make([]byte, 32)
+			dst := make([]byte, ethABISlotSize)
 			copy(dst, byteValue)
 			return dst, nil
 		}
@@ -397,7 +385,36 @@ func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValu
 		return ethereumU256ToBytes(b), nil
 	}
 	return nil, errors.Errorf("unrecognized type '%s'", encType)
+}
 
+func encodeAddress(encType string, encValue any) ([]byte, error) {
+	stringValue, ok := encValue.(string)
+	if !ok {
+		return nil, dataMismatchError(encType, encValue)
+	}
+
+	b, err := DecodeFromHexString(stringValue)
+	if err != nil {
+		return nil, dataMismatchErrorWrap(err, encType, encValue)
+	}
+
+	const offset = ethABISlotSize - EthereumAddressSize // offset to the right (12 bytes)
+	addr := BytesToEthereumAddress(b)
+	retval := make([]byte, ethABISlotSize)
+	copy(retval[offset:], addr.Bytes())
+
+	return retval, nil
+}
+
+func encodeBool(encType string, encValue any) ([]byte, error) {
+	boolValue, ok := encValue.(bool)
+	if !ok {
+		return nil, dataMismatchError(encType, encValue)
+	}
+	if boolValue {
+		return paddedEthereumBigIntToBytes(big1, ethABISlotSize), nil
+	}
+	return paddedEthereumBigIntToBytes(big0, ethABISlotSize), nil
 }
 
 // dataMismatchError generates an error for a mismatch between the provided type and data.
