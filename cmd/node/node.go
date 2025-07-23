@@ -638,8 +638,8 @@ func spawnPeersByAddresses(addressesByComma string, pm *peers.PeerManagerImpl) e
 	if addressesByComma == "" { // That means that we don't have any peers to connect to
 		return nil
 	}
-	addresses := strings.Split(addressesByComma, ",")
-	for _, addr := range addresses {
+	addresses := strings.SplitSeq(addressesByComma, ",")
+	for addr := range addresses {
 		peerInfos, err := proto.NewPeerInfosFromString(addr)
 		if err != nil {
 			return errors.Wrapf(err, "failed to resolve TCP addresses from string %q", addr)
@@ -692,7 +692,7 @@ func minerFeatures(st state.State, minerVoteFeaturesByComma string) (miner.Featu
 	return features, nil
 }
 
-func closeIfErrorf(closer io.Closer, retErr error, format string, args ...interface{}) error {
+func closeIfErrorf(closer io.Closer, retErr error, format string, args ...any) error {
 	if retErr != nil {
 		if clErr := closer.Close(); clErr != nil {
 			return stderrs.Join(retErr, errors.Wrapf(clErr, format, args...))

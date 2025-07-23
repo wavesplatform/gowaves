@@ -127,7 +127,7 @@ type StateInfo interface {
 	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
-	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
+	MapR(func(StateInfo) (any, error)) (any, error)
 
 	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)

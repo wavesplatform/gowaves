@@ -261,7 +261,7 @@ func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
 	t.Run("serialize", func(b *testing.B) {
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			err = o.Serialize(s)
 		}
 		b.StopTimer()
@@ -273,7 +273,7 @@ func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
 		var bts []byte
 		b.ReportAllocs()
 		b.ResetTimer()
-		for i := 0; i < b.N; i++ {
+		for b.Loop() {
 			bts, err = o.MarshalBinary()
 		}
 		b.StopTimer()
@@ -1191,7 +1191,7 @@ func TestProofsV1_Valid(t *testing.T) {
 	assert.Error(t, err)
 
 	p2 := NewProofs()
-	for i := 0; i < 9; i++ {
+	for range 9 {
 		p2.Proofs = append(p2.Proofs, smallProof)
 	}
 	err = p2.Valid()

@@ -227,11 +227,10 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 	require.NoError(b, err)
 	defer hasher.Release()
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		b.Run(testCase.testCaseName, func(b *testing.B) {
 			b.ReportAllocs()
-			for j := 0; j < b.N; j++ {
+			for b.Loop() {
 				h, hErr := calculateTxSnapshotStateHash(hasher, txID, blockHeight, prevHash, txSnapshot)
 				if hErr != nil {
 					b.Fatalf("error occurred: %+v", err)

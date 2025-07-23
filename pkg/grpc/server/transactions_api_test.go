@@ -291,8 +291,7 @@ func TestBroadcast(t *testing.T) {
 	h.EXPECT().Broadcast(gomock.Any(), gomock.Any()).Return(&pb.SignedTransaction{}, nil)
 
 	gRPCServer := createGRPCServerWithHandlers(h)
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	lis, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)

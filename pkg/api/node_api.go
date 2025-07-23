@@ -1019,7 +1019,7 @@ func (a *NodeApi) version(w http.ResponseWriter, _ *http.Request) error {
 }
 
 // tryParseJson receives reader and out params. out MUST be a pointer
-func tryParseJson(r io.Reader, out interface{}) error {
+func tryParseJson(r io.Reader, out any) error {
 	// TODO(nickeskov): check empty reader
 	err := json.NewDecoder(r).Decode(out)
 	if err != nil {
@@ -1028,7 +1028,7 @@ func tryParseJson(r io.Reader, out interface{}) error {
 	return nil
 }
 
-func trySendJson(w io.Writer, v interface{}) error {
+func trySendJson(w io.Writer, v any) error {
 	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
 		return errors.Wrapf(err, "failed to marshal %T to JSON and write it to %T", v, w)

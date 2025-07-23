@@ -218,7 +218,7 @@ func launchVerifier(ctx context.Context, goroutinesNum int, scheme proto.Scheme)
 	errgr, ctx := errgroup.WithContext(ctx)
 	// run verifier goroutines
 	tasksChan := make(chan *verifyTask)
-	for i := 0; i < goroutinesNum; i++ {
+	for range goroutinesNum {
 		errgr.Go(func() error {
 			return verify(ctx, tasksChan, scheme)
 		})

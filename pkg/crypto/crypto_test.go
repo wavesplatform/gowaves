@@ -177,7 +177,7 @@ func BenchmarkBase58Decode(b *testing.B) {
 			}
 			s := base58.Encode(bytes)
 			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				if _, err := base58.Decode(s); err != nil {
 					b.Fatalf("base58.Decode(): %v\n", err)
 				}
@@ -194,7 +194,7 @@ func BenchmarkBase58Encode(b *testing.B) {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				base58.Encode(bytes)
 			}
 		})
@@ -214,7 +214,7 @@ func BenchmarkSign(b *testing.B) {
 			}
 			sk := GenerateSecretKey(seed)
 			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				if _, err := Sign(sk, data); err != nil {
 					b.Fatalf("Sign() failed: %v\n", err)
 				}
@@ -243,7 +243,7 @@ func BenchmarkVerify(b *testing.B) {
 				b.Fatalf("Sign() failed: %v\n", err)
 			}
 			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				Verify(pk, s, data)
 			}
 		})
@@ -258,7 +258,7 @@ func BenchmarkFastHash(b *testing.B) {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				if _, err := FastHash(data); err != nil {
 					b.Fatalf("FastHash(): %v\n", err)
 				}
@@ -275,7 +275,7 @@ func BenchmarkSecureHash(b *testing.B) {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				if _, err := SecureHash(data); err != nil {
 					b.Fatalf("SecureHash(): %v\n", err)
 				}

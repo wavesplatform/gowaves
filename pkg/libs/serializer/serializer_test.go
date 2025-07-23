@@ -59,12 +59,10 @@ func TestSerializer_Write(t *testing.T) {
 
 func BenchmarkSerializer_Bytes(b *testing.B) {
 	b.ReportAllocs()
-	b.StopTimer()
-	b.ResetTimer()
 
 	buf := bytes.NewBuffer(make([]byte, 1024))
 	s := New(buf)
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		b.StartTimer()
 		_, _ = s.Write([]byte{1, 2})
 		b.StopTimer()

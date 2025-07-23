@@ -18,7 +18,7 @@ import (
 
 const defaultChannelSize = 100
 
-type InfoMessage interface{}
+type InfoMessage any
 
 type StopSync struct{}
 

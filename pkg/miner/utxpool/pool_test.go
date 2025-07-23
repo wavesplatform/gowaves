@@ -142,11 +142,10 @@ func BenchmarkTransactionPool(b *testing.B) {
 	b.ReportAllocs()
 	a := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
 
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
+	for b.Loop() {
+
 		n := rand.Intn(1000000)
-		b.StartTimer()
+
 		_ = a.AddWithBytes(tr(uint64(n)), []byte{1})
 	}
 
@@ -154,7 +153,7 @@ func BenchmarkTransactionPool(b *testing.B) {
 		b.Fatal("not all elements were pushed")
 	}
 
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		a.Pop()
 	}
 

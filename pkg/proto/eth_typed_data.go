@@ -50,7 +50,7 @@ type ethereumTypedDataDomain struct {
 	ChainId *hexOrDecimal256 `json:"chainId,omitempty"`
 }
 
-type ethereumTypedDataMessage map[string]interface{}
+type ethereumTypedDataMessage map[string]any
 
 type ethereumTypedData struct {
 	Types       ethereumTypedDataTypes   `json:"types"`
@@ -82,7 +82,7 @@ func (typedData *ethereumTypedData) Hash() (EthereumHash, error) {
 
 // HashStructMap generates a keccak256 hash of the encoding of the provided data
 func (typedData *ethereumTypedData) HashStructMap(primaryType string,
-	data map[string]interface{}) (EthereumHash, error) {
+	data map[string]any) (EthereumHash, error) {
 
 	encodedData, err := typedData.EncodeData(primaryType, data, 1)
 	if err != nil {
@@ -153,7 +153,7 @@ func (typedData *ethereumTypedData) TypeHash(primaryType string) []byte {
 // `enc(value₁) ‖ enc(value₂) ‖ … ‖ enc(valueₙ)`
 //
 // each encoded member is 32-byte long
-func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[string]interface{}, depth int) ([]byte, error) {
+func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[string]any, depth int) ([]byte, error) {
 	if err := typedData.validate(); err != nil {
 		return nil, err
 	}
@@ -173,7 +173,7 @@ func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[stri
 		encType := field.Type
 		encValue := data[field.Name]
 		if encType[len(encType)-1:] == "]" {
-			arrayValue, ok := encValue.([]interface{})
+			arrayValue, ok := encValue.([]any)
 			if !ok {
 				return nil, dataMismatchError(encType, encValue)
 			}
@@ -182,7 +182,7 @@ func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[stri
 			parsedType := strings.Split(encType, "[")[0]
 			for _, item := range arrayValue {
 				if typedData.Types[parsedType] != nil {
-					mapValue, ok := item.(map[string]interface{})
+					mapValue, ok := item.(map[string]any)
 					if !ok {
 						return nil, dataMismatchError(parsedType, item)
 					}
@@ -202,7 +202,7 @@ func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[stri
 
 			buffer.Write(crypto.MustKeccak256(arrayBuffer.Bytes()).Bytes())
 		} else if typedData.Types[field.Type] != nil {
-			mapValue, ok := encValue.(map[string]interface{})
+			mapValue, ok := encValue.(map[string]any)
 			if !ok {
 				return nil, dataMismatchError(encType, encValue)
 			}
@@ -223,7 +223,7 @@ func (typedData *ethereumTypedData) EncodeData(primaryType string, data map[stri
 }
 
 // Attempt to parse bytes in different formats: byte array, hex string, []byte.
-func parseBytes(encType interface{}) ([]byte, bool) {
+func parseBytes(encType any) ([]byte, bool) {
 	switch v := encType.(type) {
 	case []byte:
 		return v, true
@@ -243,7 +243,7 @@ func bigUint64(x uint64) *big.Int {
 	return i.SetUint64(x)
 }
 
-func parseInteger(encType string, encValue interface{}) (*big.Int, error) {
+func parseInteger(encType string, encValue any) (*big.Int, error) {
 	var (
 		length int
 		signed = strings.HasPrefix(encType, "int")
@@ -254,8 +254,8 @@ func parseInteger(encType string, encValue interface{}) (*big.Int, error) {
 		length = 256
 	} else {
 		lengthStr := ""
-		if strings.HasPrefix(encType, "uint") {
-			lengthStr = strings.TrimPrefix(encType, "uint")
+		if after, ok := strings.CutPrefix(encType, "uint"); ok {
+			lengthStr = after
 		} else {
 			lengthStr = strings.TrimPrefix(encType, "int")
 		}
@@ -334,7 +334,7 @@ func parseInteger(encType string, encValue interface{}) (*big.Int, error) {
 
 // EncodePrimitiveValue deals with the primitive values found
 // while searching through the typed data
-func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValue interface{}, depth int) ([]byte, error) {
+func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValue any, depth int) ([]byte, error) {
 	switch encType {
 	case "address":
 		stringValue, ok := encValue.(string)
@@ -373,8 +373,8 @@ func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValu
 		}
 		return crypto.MustKeccak256(bytesValue).Bytes(), nil
 	}
-	if strings.HasPrefix(encType, "bytes") {
-		lengthStr := strings.TrimPrefix(encType, "bytes")
+	if after, ok := strings.CutPrefix(encType, "bytes"); ok {
+		lengthStr := after
 		length, err := strconv.Atoi(lengthStr)
 		if err != nil {
 			return nil, errors.Errorf("invalid size on bytes: %v", lengthStr)
@@ -403,12 +403,12 @@ func (typedData *ethereumTypedData) EncodePrimitiveValue(encType string, encValu
 }
 
 // dataMismatchError generates an error for a mismatch between the provided type and data.
-func dataMismatchError(encType string, encValue interface{}) error {
+func dataMismatchError(encType string, encValue any) error {
 	return errors.Errorf("provided data '%v' doesn't match type '%s'", encValue, encType)
 }
 
 // dataMismatchErrorWrap enriches an error with an info of a mismatch between the provided type and data.
-func dataMismatchErrorWrap(inner error, encType string, encValue interface{}) error {
+func dataMismatchErrorWrap(inner error, encType string, encValue any) error {
 	return errors.Wrapf(inner, "provided data '%v' doesn't match type '%s'", encValue, encType)
 }
 
@@ -424,8 +424,8 @@ func (typedData *ethereumTypedData) validate() error {
 }
 
 // Map generates a map version of the typed data
-func (typedData *ethereumTypedData) Map() map[string]interface{} {
-	dataMap := map[string]interface{}{
+func (typedData *ethereumTypedData) Map() map[string]any {
+	dataMap := map[string]any{
 		"types":       typedData.Types,
 		"domain":      typedData.Domain.Map(),
 		"primaryType": typedData.PrimaryType,
@@ -591,8 +591,8 @@ func (domain *ethereumTypedDataDomain) validate() error {
 }
 
 // Map is a helper function to generate a map version of the domain
-func (domain *ethereumTypedDataDomain) Map() map[string]interface{} {
-	dataMap := make(map[string]interface{}, 3)
+func (domain *ethereumTypedDataDomain) Map() map[string]any {
+	dataMap := make(map[string]any, 3)
 
 	if domain.ChainId != nil {
 		dataMap["chainId"] = domain.ChainId

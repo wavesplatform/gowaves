@@ -171,7 +171,7 @@ func (a *Peers) Connect(ctx context.Context, host string, port uint16) (*PeersCo
 		return nil, nil, err
 	}
 
-	bts, err := json.Marshal(map[string]interface{}{"host": host, "port": port})
+	bts, err := json.Marshal(map[string]any{"host": host, "port": port})
 	if err != nil {
 		return nil, nil, err
 	}

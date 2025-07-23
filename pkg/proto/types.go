@@ -275,8 +275,8 @@ func (v *ByteVector) UnmarshalJSON(value []byte) error {
 		*v = []byte{}
 		return nil
 	}
-	if strings.HasPrefix(s, base64EncodingPrefix) {
-		s = strings.TrimPrefix(s, base64EncodingPrefix)
+	if after, ok := strings.CutPrefix(s, base64EncodingPrefix); ok {
+		s = after
 		err := v.decodeFromBase64String(s)
 		if err != nil {
 			return errors.Wrap(err, "failed to decode ByteVector from Base64 string")
@@ -1919,7 +1919,7 @@ func (w *ethereumPublicKeyBase58Wrapper) UnmarshalJSON(bytes []byte) error {
 
 type EthereumOrderV4 struct {
 	SenderPK        ethereumPublicKeyBase58Wrapper `json:"senderPublicKey"`
-	Eip712Signature EthereumSignature              `json:"eip712Signature,omitempty"`
+	Eip712Signature EthereumSignature              `json:"eip712Signature"`
 	OrderV4
 }
 
@@ -2224,7 +2224,7 @@ func (p *ProofsV1) UnmarshalBinary(data []byte) error {
 		return errors.Errorf("too many proofs in ProofsV1, expected no more than %d, received %d", proofsMaxCount, n)
 	}
 	data = data[2:]
-	for i := 0; i < n; i++ {
+	for range n {
 		el := binary.BigEndian.Uint16(data)
 		if el > proofMaxSize {
 			return errors.Errorf("proof size %d bytes exceeds maximum allowed %d", el, proofMaxSize)
