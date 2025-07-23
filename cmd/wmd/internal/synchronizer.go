@@ -297,7 +297,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 	for i, tx := range txs {
 		switch t := tx.(type) {
 		case *proto.IssueWithSig:
-			slog.Debug("IssueWithSig", "#", i, "tx", t)
+			slog.Debug("IssueWithSig", "index", i, "tx", t)
 			ic, ac, err := data.FromIssueWithSig(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithSig")
