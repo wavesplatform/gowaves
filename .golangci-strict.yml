@@ -178,6 +178,9 @@ linters:
           - noctx
           - wrapcheck
         path: _test\.go
+      - text: "(slog)\\.\\w+"
+        linters:
+          - noctx
     paths:
       - third_party$
       - builtin$
