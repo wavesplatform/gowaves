@@ -1,6 +1,8 @@
 name: "ITestsWithRaceDetector"
 on:
   workflow_dispatch:
+  schedule:
+    - cron: '21 21,00,03 * * *' # UTC time
 
 permissions: { }
 
