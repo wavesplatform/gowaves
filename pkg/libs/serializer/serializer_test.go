@@ -3,8 +3,9 @@ package serializer
 import (
 	"bytes"
 	"encoding/binary"
-	"github.com/stretchr/testify/require"
 	"testing"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestSerializer_Byte(t *testing.T) {
@@ -62,10 +63,9 @@ func BenchmarkSerializer_Bytes(b *testing.B) {
 
 	buf := bytes.NewBuffer(make([]byte, 1024))
 	s := New(buf)
+	data := []byte{1, 2}
 	for b.Loop() {
-		b.StartTimer()
-		_, _ = s.Write([]byte{1, 2})
-		b.StopTimer()
+		_, _ = s.Write(data)
 	}
 }
 
