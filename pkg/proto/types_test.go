@@ -229,7 +229,7 @@ func TestOrderV1SigningRoundTrip(t *testing.T) {
 	}
 }
 
-func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
+func BenchmarkOrderV1SigningRoundTrip(b *testing.B) {
 	tests := []struct {
 		seed        string
 		matcher     string
@@ -253,30 +253,26 @@ func BenchmarkOrderV1SigningRoundTrip(t *testing.B) {
 	exp := ts + 100*1000
 	o := NewUnsignedOrderV1(pk, mpk, *aa, *pa, tc.orderType, tc.price, tc.amount, ts, exp, tc.fee)
 	err := o.Sign(TestNetScheme, sk)
-	require.NoError(t, err)
+	require.NoError(b, err)
 	s := serializer.New(io.Discard)
 
-	t.StopTimer()
+	b.StopTimer()
 
-	t.Run("serialize", func(b *testing.B) {
+	b.Run("serialize", func(b *testing.B) {
 		b.ReportAllocs()
-		b.ResetTimer()
 		for b.Loop() {
 			err = o.Serialize(s)
 		}
-		b.StopTimer()
 		if err != nil {
 			b.FailNow()
 		}
 	})
-	t.Run("marshal", func(b *testing.B) {
+	b.Run("marshal", func(b *testing.B) {
 		var bts []byte
 		b.ReportAllocs()
-		b.ResetTimer()
 		for b.Loop() {
 			bts, err = o.MarshalBinary()
 		}
-		b.StopTimer()
 		if err != nil || len(bts) == 0 {
 			b.FailNow()
 		}
