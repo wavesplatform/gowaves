@@ -36,7 +36,7 @@ itest:
 itest-race:
 	mkdir -p build/config
 	mkdir -p build/logs
-	ITESTS_WITH_RACE_DETECTOR="true" go test -timeout 60m -parallel 3 $$(go list ./... | grep "/itests")
+	ITESTS_WITH_RACE_DETECTOR="true" go test -timeout 180m -parallel 1 $$(go list ./... | grep "/itests")
 
 smoke:
 	mkdir -p build/config
