@@ -227,18 +227,16 @@ func BenchmarkTxSnapshotHasher(b *testing.B) {
 	require.NoError(b, err)
 	defer hasher.Release()
 
-	for b.Loop() {
-		b.Run(testCase.testCaseName, func(b *testing.B) {
-			b.ReportAllocs()
-			for b.Loop() {
-				h, hErr := calculateTxSnapshotStateHash(hasher, txID, blockHeight, prevHash, txSnapshot)
-				if hErr != nil {
-					b.Fatalf("error occurred: %+v", err)
-				}
-				if h != expectedHash {
-					b.Fatalf("expectedHash=%s  != actual=%s", expectedHash.Hex(), h.Hex())
-				}
+	b.Run(testCase.testCaseName, func(b *testing.B) {
+		b.ReportAllocs()
+		for b.Loop() {
+			h, hErr := calculateTxSnapshotStateHash(hasher, txID, blockHeight, prevHash, txSnapshot)
+			if hErr != nil {
+				b.Fatalf("error occurred: %+v", err)
 			}
-		})
-	}
+			if h != expectedHash {
+				b.Fatalf("expectedHash=%s  != actual=%s", expectedHash.Hex(), h.Hex())
+			}
+		}
+	})
 }
