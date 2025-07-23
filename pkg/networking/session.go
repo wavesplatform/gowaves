@@ -7,6 +7,7 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"io"
 	"log/slog"
 	"net"
@@ -90,7 +91,7 @@ func newSession(ctx context.Context, config *Config, conn io.ReadWriteCloser, tp
 	}
 
 	sa := [...]any{
-		slog.String("namespace", Namespace),
+		slog.String(logging.NamespaceKey, Namespace),
 		slog.String("remote", s.RemoteAddr().String()),
 	}
 	attrs := append(sa[:], config.attributes...)

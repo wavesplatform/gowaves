@@ -19,7 +19,7 @@ func APILogMiddleware(handler zenrpc.InvokeFunc) zenrpc.InvokeFunc {
 			ip = req.RemoteAddr
 		}
 		response := handler(ctx, method, params)
-		slog.Debug("MetaMaskRPC", "ip", ip, "namespace", zenrpc.NamespaceFromContext(ctx), "method", method,
+		slog.Debug("MetaMaskRPC", "ip", ip, "ns", zenrpc.NamespaceFromContext(ctx), "method", method,
 			"duration", time.Since(start), "params", params, "response", response.JSON())
 		return response
 	}

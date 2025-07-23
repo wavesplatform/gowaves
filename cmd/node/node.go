@@ -452,9 +452,7 @@ func buildLogger(h slog.Handler, namespace string, enabled bool) *slog.Logger {
 	if !enabled {
 		return slog.New(slog.DiscardHandler)
 	}
-	const namespaceKey = "namespace"
-
-	return slog.New(h).With(slog.String(namespaceKey, namespace))
+	return slog.New(h).With(slog.String(logging.NamespaceKey, namespace))
 }
 
 func raiseToMaxFDs(nc *config) error {
