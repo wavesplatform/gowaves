@@ -41,8 +41,8 @@ type IncomingPeerParams struct {
 	Parent       peer.Parent
 	DeclAddr     proto.TCPAddr
 	Skip         conn.SkipFilter
-	logger       *slog.Logger
-	dl           *slog.Logger
+	Logger       *slog.Logger
+	DataLogger   *slog.Logger
 }
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
@@ -90,7 +90,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	}
 
 	remote := peer.NewRemote()
-	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip, params.logger)
+	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip, params.Logger)
 	ctx, cancel := context.WithCancel(ctx)
 
 	p := &IncomingPeer{
@@ -109,7 +109,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 }
 
 func (a *IncomingPeer) run(ctx context.Context) error {
-	return peer.Handle(ctx, a, a.params.Parent, a.remote, a.params.logger, a.params.dl)
+	return peer.Handle(ctx, a, a.params.Parent, a.remote, a.params.Logger, a.params.DataLogger)
 }
 
 func (a *IncomingPeer) Close() error {

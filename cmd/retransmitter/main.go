@@ -79,7 +79,8 @@ func main() {
 
 	var err error
 
-	slog.SetDefault(slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, slog.LevelInfo)))
+	logger := slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, slog.LevelInfo))
+	slog.SetDefault(logger)
 
 	var bind string
 	var decl string
@@ -102,7 +103,7 @@ func main() {
 	switch wavesNetwork {
 	case "wavesW", "wavesT", "wavesS":
 	default:
-		slog.Error("Invalid waves network, expected wavesW or wavesT or wavesD", "network", wavesNetwork)
+		slog.Error("Invalid waves network, expected wavesW, wavesT or wavesS", "network", wavesNetwork)
 		return
 	}
 
@@ -130,7 +131,7 @@ func main() {
 	}
 
 	parent := peer.NewParent(false)
-	spawner := retransmit.NewPeerSpawner(skipUselessMessages, parent, wavesNetwork, declAddr)
+	spawner := retransmit.NewPeerSpawner(skipUselessMessages, parent, wavesNetwork, declAddr, logger)
 	scheme := schemes[wavesNetwork]
 	behaviour := retransmit.NewBehaviour(knownPeers, spawner, scheme)
 	r := retransmit.NewRetransmitter(behaviour, parent)

@@ -98,9 +98,11 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	}
 
 	params := OutgoingPeerParams{
-		Address:  server.Addr().String(),
-		Parent:   parent,
-		DeclAddr: proto.TCPAddr{},
+		Address:    server.Addr().String(),
+		Parent:     parent,
+		DeclAddr:   proto.TCPAddr{},
+		Logger:     slog.New(slog.DiscardHandler),
+		DataLogger: slog.New(slog.DiscardHandler),
 	}
 	go RunOutgoingPeer(ctx, params)
 

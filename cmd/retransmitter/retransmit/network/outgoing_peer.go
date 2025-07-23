@@ -21,8 +21,8 @@ type OutgoingPeerParams struct {
 	Parent       peer.Parent
 	DeclAddr     proto.TCPAddr
 	Skip         conn.SkipFilter
-	logger       *slog.Logger
-	dl           *slog.Logger
+	Logger       *slog.Logger
+	DataLogger   *slog.Logger
 }
 
 type OutgoingPeer struct {
@@ -59,7 +59,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	peerConnector := connector{
 		Address: params.Address,
 		Skip:    params.Skip,
-		logger:  params.logger,
+		logger:  params.Logger,
 	}
 	connection, handshake, err := peerConnector.connect(ctx, params.WavesNetwork, remote, params.DeclAddr)
 	if err != nil {
@@ -76,7 +76,7 @@ func RunOutgoingPeer(ctx context.Context, params OutgoingPeerParams) {
 	}
 
 	slog.Debug("Connected", "address", params.Address)
-	if err = peer.Handle(ctx, p, params.Parent, remote, params.logger, params.dl); err != nil {
+	if err = peer.Handle(ctx, p, params.Parent, remote, params.Logger, params.DataLogger); err != nil {
 		slog.Error("Peer.Handle()", "error", err)
 		return
 	}
