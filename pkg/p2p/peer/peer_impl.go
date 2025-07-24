@@ -6,10 +6,10 @@ import (
 	"log/slog"
 	"net"
 	"net/netip"
-	"reflect"
 
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -82,7 +82,7 @@ func (a *PeerImpl) Close() error {
 func (a *PeerImpl) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {
-		slog.Error("Failed to send message", "type", reflect.TypeOf(m), "error", err)
+		slog.Error("Failed to send message", logging.Type(m), "error", err)
 		return
 	}
 	a.logger.Debug("Sending to network", "peer", a.id, "data", proto.B64Bytes(b))

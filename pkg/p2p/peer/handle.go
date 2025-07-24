@@ -3,12 +3,12 @@ package peer
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"sync"
 
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -27,7 +27,7 @@ func bytesToMessage(data []byte, resendTo chan ProtoMessage, p Peer, logger *slo
 	case resendTo <- mess:
 	default:
 		logger.Debug("Failed to resend message because upstream channel is full", "peer", p.ID(),
-			"type", reflect.TypeOf(m))
+			logging.Type(m))
 	}
 	return nil
 }

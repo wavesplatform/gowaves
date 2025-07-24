@@ -11,6 +11,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
@@ -228,8 +229,8 @@ func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
 		cnt++
 	})
 	info.invRequester.Add2Cache(inv.TotalBlockID) // prevent further unnecessary microblock request
-	info.logger.Debug("Network message sent to peers", "type", reflect.TypeOf(msg),
-		"count", cnt, "blockID", inv.TotalBlockID, "ref", inv.Reference)
+	info.logger.Debug("Network message sent to peers", logging.Type(msg), "count", cnt,
+		"blockID", inv.TotalBlockID, "ref", inv.Reference)
 	return nil
 }
 

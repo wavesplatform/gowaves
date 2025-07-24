@@ -3,10 +3,10 @@ package network
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"sync"
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -106,7 +106,7 @@ func (n *Network) Run(ctx context.Context) {
 			case *peer.InternalErr:
 				n.handleInternalErr(m)
 			default:
-				n.logger.Warn("Unknown peer info message", "type", reflect.TypeOf(m))
+				n.logger.Warn("Unknown peer info message", logging.Type(m))
 			}
 		}
 	}

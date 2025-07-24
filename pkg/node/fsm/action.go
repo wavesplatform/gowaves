@@ -2,8 +2,8 @@ package fsm
 
 import (
 	"log/slog"
-	"reflect"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
@@ -39,8 +39,7 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 		peer.SendMessage(msg)
 		cnt++
 	})
-	a.logger.Debug("Network message sent to peers", "type", reflect.TypeOf(msg), "count", cnt,
-		"currentScore", curScore)
+	a.logger.Debug("Network message sent to peers", logging.Type(msg), "count", cnt, "currentScore", curScore)
 }
 
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
@@ -69,6 +68,5 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 		p.SendMessage(msg)
 		cnt++
 	})
-	a.logger.Debug("Network message sent to peers", "type", reflect.TypeOf(msg), "count", cnt,
-		"blockID", block.BlockID())
+	a.logger.Debug("Network message sent to peers", logging.Type(msg), "count", cnt, "blockID", block.BlockID())
 }

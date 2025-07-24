@@ -7,7 +7,6 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/logging"
 	"io"
 	"log/slog"
 	"net"
@@ -18,6 +17,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/execution"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 )
 
 // Session is used to wrap a reliable ordered connection.

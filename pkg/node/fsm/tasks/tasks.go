@@ -3,9 +3,9 @@ package tasks
 import (
 	"context"
 	"log/slog"
-	"reflect"
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -22,7 +22,7 @@ func SendAsyncTask(output chan AsyncTask, task AsyncTask) {
 	select {
 	case output <- task:
 	default:
-		slog.Debug("Tasks channel is full", "task", reflect.TypeOf(task))
+		slog.Debug("Tasks channel is full", logging.Type(task))
 	}
 }
 
