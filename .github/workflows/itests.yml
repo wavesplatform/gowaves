@@ -66,5 +66,5 @@ jobs:
     if: (needs.itest-check.outputs.can-run-itest == 'true' && github.repository == 'wavesplatform/gowaves')
     uses: "./.github/workflows/run_itests.yml"
     with:
-      itest-type: 'smoke' # run smoke set of integration tests
+      itest-type: 'itest' # run full set of integration tests
       environment: 'ITests' # use the environment name from the input
