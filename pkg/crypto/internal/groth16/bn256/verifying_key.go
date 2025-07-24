@@ -26,7 +26,7 @@ type BellmanVerifyingKeyBn256 struct {
 // ReadFrom reads the verifying key in bellman format from the reader r.
 func (vk *BellmanVerifyingKeyBn256) ReadFrom(r io.Reader) (int64, error) {
 	dec := curveBn254.NewDecoder(r)
-	toDecode := []interface{}{
+	toDecode := []any{
 		&vk.G1.Alpha,
 		&vk.G2.Beta,
 		&vk.G2.Gamma,

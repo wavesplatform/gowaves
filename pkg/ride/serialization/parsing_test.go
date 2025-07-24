@@ -104,8 +104,8 @@ func BenchmarkParseScript(b *testing.B) {
 	if err != nil {
 		b.Fail()
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		tree, err := Parse(src)
 		if err != nil {
 			b.Fail()
@@ -121,8 +121,8 @@ func BenchmarkParseDApp(b *testing.B) {
 	if err != nil {
 		b.Fail()
 	}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		tree, err := Parse(src)
 		if err != nil {
 			b.Fail()

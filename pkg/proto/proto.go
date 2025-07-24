@@ -1134,7 +1134,7 @@ func (m *PeersMessage) UnmarshalBinary(data []byte) error {
 	}
 	peersCount := binary.BigEndian.Uint32(data[0:4])
 	data = data[4:]
-	for i := uint32(0); i < peersCount; i++ {
+	for range peersCount {
 		var peer PeerInfo
 		if uint32(len(data)) < 8 {
 			return errors.Errorf("PeersMessage UnmarshalBinary: invalid peers count: expected %d, found %d", peersCount, len(m.Peers))
@@ -1215,7 +1215,7 @@ func (m *GetSignaturesMessage) UnmarshalBinary(data []byte) error {
 	data = data[4:]
 
 	pos := 0
-	for i := uint32(0); i < blockCount; i++ {
+	for range blockCount {
 		var b crypto.Signature
 		if len(data[pos:]) < 64 {
 			return fmt.Errorf("message too short %v", len(data))
@@ -1299,7 +1299,7 @@ func (m *SignaturesMessage) UnmarshalBinary(data []byte) error {
 	sigCount := binary.BigEndian.Uint32(data[0:4])
 	data = data[4:]
 
-	for i := uint32(0); i < sigCount; i++ {
+	for i := range sigCount {
 		var sig crypto.Signature
 		offset := i * 64
 		if len(data[offset:]) < 64 {
@@ -2204,7 +2204,7 @@ func unmarshalBlockIDs(data []byte) ([]BlockID, error) {
 	pos := 0
 	dl := len(data)
 	ids := make([]BlockID, count)
-	for i := uint32(0); i < count; i++ {
+	for i := range count {
 		if pos+1 > dl {
 			return nil, fmt.Errorf("message too short %v", dl)
 		}

@@ -109,7 +109,7 @@ func (a *NodeApi) blockchainRewards(w http.ResponseWriter, _ *http.Request) erro
 	if err != nil {
 		return err
 	}
-	if err = trySendJson(w, res); err != nil {
+	if err = trySendJSON(w, res); err != nil {
 		return errors.Wrap(err, "BlockchainRewards")
 	}
 	return nil
@@ -125,7 +125,7 @@ func (a *NodeApi) blockchainRewardsAtHeight(w http.ResponseWriter, r *http.Reque
 	if err != nil {
 		return err
 	}
-	if err = trySendJson(w, res); err != nil {
+	if err = trySendJSON(w, res); err != nil {
 		return errors.Wrap(err, "BlockchainRewards")
 	}
 	return nil

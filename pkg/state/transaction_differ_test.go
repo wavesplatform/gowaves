@@ -1148,7 +1148,7 @@ func TestCreateDiffCreateAliasWithProofs(t *testing.T) {
 
 func generateMassTransferEntries(t *testing.T, entriesNum int) []proto.MassTransferEntry {
 	res := make([]proto.MassTransferEntry, entriesNum)
-	for i := 0; i < entriesNum; i++ {
+	for i := range entriesNum {
 		amount := uint64(i)
 		rcp := generateRandomRecipient(t)
 		entry := proto.MassTransferEntry{Recipient: rcp, Amount: amount}
@@ -1199,7 +1199,7 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 
 func createDataWithProofs(t *testing.T, entriesNum int) *proto.DataWithProofs {
 	tx := proto.NewUnsignedDataWithProofs(1, testGlobal.senderInfo.pk, defaultFee, defaultTimestamp)
-	for i := 0; i < entriesNum; i++ {
+	for range entriesNum {
 		entry := &proto.IntegerDataEntry{Key: "TheKey", Value: int64(666)}
 		tx.Entries = append(tx.Entries, entry)
 	}

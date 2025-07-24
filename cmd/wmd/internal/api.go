@@ -629,7 +629,7 @@ func (a *DataFeedAPI) candlesRange(w http.ResponseWriter, r *http.Request) {
 
 func (a *DataFeedAPI) convertToTradesInfos(trades []data.Trade, amountAssetDecimals, priceAssetDecimals byte) ([]data.TradeInfo, error) {
 	var r []data.TradeInfo
-	for i := 0; i < len(trades); i++ {
+	for i := range trades {
 		ti := data.NewTradeInfo(trades[i], uint(amountAssetDecimals), uint(priceAssetDecimals))
 		r = append(r, ti)
 	}

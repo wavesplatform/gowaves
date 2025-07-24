@@ -5760,7 +5760,7 @@ func TestHitInBreadthInvocationsLimit(t *testing.T) {
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 
 	lines := make([]string, 101)
-	for i := 0; i < 101; i++ {
+	for i := range 101 {
 		lines[i] = fmt.Sprintf("strict n_%d  = this.invoke(\"bar\", [], [])", i)
 	}
 	src1 := `

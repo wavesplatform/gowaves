@@ -28,7 +28,7 @@ func (a *ThreadSafeReadWrapper) BlockVRF(blockHeader *proto.BlockHeader, blockHe
 	return a.s.BlockVRF(blockHeader, blockHeight)
 }
 
-func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (interface{}, error)) (interface{}, error) {
+func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (any, error)) (any, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return f(a.s)

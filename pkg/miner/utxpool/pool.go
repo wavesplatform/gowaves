@@ -26,12 +26,12 @@ func (a transactionsHeap) Swap(i, j int) {
 	a[i], a[j] = a[j], a[i]
 }
 
-func (a *transactionsHeap) Push(x interface{}) {
+func (a *transactionsHeap) Push(x any) {
 	item := x.(*types.TransactionWithBytes)
 	*a = append(*a, item)
 }
 
-func (a *transactionsHeap) Pop() interface{} {
+func (a *transactionsHeap) Pop() any {
 	old := *a
 	n := len(old)
 	item := old[n-1]
