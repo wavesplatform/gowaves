@@ -1,0 +1,79 @@
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func callProxy(DAppProxy: String, DAppTarget: String, strValue: String) = {
+  let accountAddress = toBase58String(i.caller.bytes)
+  strict cp = invoke(addressFromStringValue(DAppProxy),"callProxy", [DAppTarget, strValue], [])
+    [
+      StringEntry(accountAddress + "_str", strValue)
+    ]
+}
+
+@Callable(i)
+func writeMaxActions(DAppProxy: String, DAppTarget: String, strValue: String, intValue: Int, boolValue: Boolean, binValue: ByteVector) = {
+  let accountAddress = toBase58String(i.caller.bytes)
+  strict cp = invoke(addressFromStringValue(DAppProxy), "writeMaxActionsProxy", [DAppTarget, strValue, intValue, boolValue, binValue], [])
+    [
+      StringEntry(accountAddress + "_str1_1", strValue),
+      IntegerEntry(accountAddress + "_int1_1", intValue),
+      BooleanEntry(accountAddress + "_bool1_1", boolValue),
+      BinaryEntry(accountAddress + "_bin1_1", binValue),
+      DeleteEntry(accountAddress + "_str1_1"),
+      DeleteEntry(accountAddress + "_int1_1"),
+      DeleteEntry(accountAddress + "_bool1_1"),
+      DeleteEntry(accountAddress + "_bin1_1"),
+
+      StringEntry(accountAddress + "_str1_2", strValue),
+      IntegerEntry(accountAddress + "_int1_2", intValue),
+      BooleanEntry(accountAddress + "_bool1_2", boolValue),
+      BinaryEntry(accountAddress + "_bin1_2", binValue),
+      DeleteEntry(accountAddress + "_str1_2"),
+      DeleteEntry(accountAddress + "_int1_2"),
+      DeleteEntry(accountAddress + "_bool1_2"),
+      DeleteEntry(accountAddress + "_bin1_2"),
+
+      StringEntry(accountAddress + "_str1_3", strValue),
+      IntegerEntry(accountAddress + "_int1_3", intValue),
+      BooleanEntry(accountAddress + "_bool1_3", boolValue),
+      BinaryEntry(accountAddress + "_bin1_3", binValue),
+      DeleteEntry(accountAddress + "_str1_3"),
+      DeleteEntry(accountAddress + "_int1_3"),
+      DeleteEntry(accountAddress + "_bool1_3"),
+      DeleteEntry(accountAddress + "_bin1_3"),
+
+      StringEntry(accountAddress + "_str1_4", strValue),
+      IntegerEntry(accountAddress + "_int1_4", intValue),
+      BooleanEntry(accountAddress + "_bool1_4", boolValue),
+      BinaryEntry(accountAddress + "_bin1_4", binValue),
+      DeleteEntry(accountAddress + "_str1_4"),
+      DeleteEntry(accountAddress + "_int1_4"),
+      DeleteEntry(accountAddress + "_bool1_4"),
+      DeleteEntry(accountAddress + "_bin1_4"),
+
+      StringEntry(accountAddress + "_str1_5", strValue),
+      DeleteEntry(accountAddress + "_str1_5"),
+      IntegerEntry(accountAddress + "_int1_5", intValue),
+      DeleteEntry(accountAddress + "_int1_5"),
+      BooleanEntry(accountAddress + "_bool1_5", boolValue),
+      DeleteEntry(accountAddress + "_bool1_5"),
+      BinaryEntry(accountAddress + "_bin1_5", binValue),
+      DeleteEntry(accountAddress + "_bin1_5"),
+
+      StringEntry(accountAddress + "_str1", strValue),
+      DeleteEntry(accountAddress + "_str1"),
+      StringEntry(accountAddress + "_str1", strValue),
+      DeleteEntry(accountAddress + "_str1"),
+      StringEntry(accountAddress + "_str1", strValue),
+      DeleteEntry(accountAddress + "_str1"),
+      StringEntry(accountAddress + "_str1", strValue),
+      DeleteEntry(accountAddress + "_str1"),
+
+      StringEntry(accountAddress + "_str", strValue),
+      StringEntry(accountAddress + "_str", strValue)
+    ]
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)

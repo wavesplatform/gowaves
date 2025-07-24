@@ -5,7 +5,10 @@
   "delay_delta": 0,
   "preactivated_features": [
     {"feature": 1, "height": 1},
-    {"feature": 2, "height": 1},
+    {
+      "feature": 2,
+      "height": 0
+    },
     {"feature": 3, "height": 1},
     {"feature": 4, "height": 1},
     {"feature": 5, "height": 1},

@@ -2,9 +2,12 @@ package utilities
 
 import (
 	"fmt"
+	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
 func makeErrorMessage(errMsg string, args ...any) string {
@@ -111,4 +114,42 @@ func NextCheckParameterCheck(t *testing.T, expected uint64, actualGo, actualScal
 	errMsg := makeErrorMessage("NextChecks are mismatch", args...)
 	assert.Equalf(t, int(expected), int(actualGo), "Node Go: "+errMsg)
 	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
+}
+
+func DataEntryAndKeyCheck(t *testing.T, expected *waves.DataEntry, actualGo, actualScala *waves.DataEntry,
+	args ...interface{}) {
+	errMsg := makeErrorMessage("DataEntry parameters are mismatch", args...)
+	assert.Equalf(t, expected.Key, actualGo.Key, "Node Go: "+errMsg)
+	assert.Equalf(t, expected.Key, actualScala.Key, "Node Scala: "+errMsg)
+	assert.Equalf(t, expected.Value, actualGo.Value, "Node Go: "+errMsg)
+	assert.Equalf(t, expected.Value, actualScala.Value, "Node Scala: "+errMsg)
+}
+
+func dataEntrySliceSort(data []*waves.DataEntry) {
+	slices.SortFunc(data, func(a, b *waves.DataEntry) int {
+		return strings.Compare(a.Key, b.Key)
+	})
+}
+
+func DataEntriesAndKeysCheck(t *testing.T, expected []*waves.DataEntry, actualGo, actualScala []*waves.DataEntry) {
+	assert.Equalf(t, len(expected), len(actualScala), "Node Scala: Count of data entries is mismatch")
+	assert.Equalf(t, len(expected), len(actualGo), "Node Go: Count of data entries is mismatch")
+	dataEntrySliceSort(expected)
+	dataEntrySliceSort(actualGo)
+	dataEntrySliceSort(actualScala)
+	for i, entry := range expected {
+		assert.Equalf(t, entry.Key, actualGo[i].Key,
+			"Node Go: Data entries keys %s %s are mismatch", entry.Key, actualGo[i].Key)
+		assert.Equalf(t, entry.Key, actualScala[i].Key,
+			"Node Scala: Data entries keys %s %s are mismatch", entry.Key, actualScala[i].Key)
+		assert.Equalf(t, entry.Value, actualGo[i].Value,
+			"Node Go: Data entries values %v %v are mismatch", entry.Value, actualGo[i].Value)
+		assert.Equalf(t, entry.Value, actualScala[i].Value,
+			"Node Scala: Data entries values %v %v are mismatch", entry.Value, actualScala[i].Value)
+	}
+}
+func ApplicationStatusCheck(t *testing.T, expected, actualGo, actualScala string, args ...interface{}) {
+	errMsg := makeErrorMessage("Application status mismatch", args...)
+	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
+	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
 }

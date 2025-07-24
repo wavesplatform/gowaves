@@ -87,7 +87,7 @@ func (suite *AliasTxNegativeSuite) Test_AliasNegative() {
 func (suite *AliasTxNegativeSuite) Test_SameAliasNegative() {
 	versions := alias.GetVersions(&suite.BaseSuite)
 	name := "Values for same alias"
-	//Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
+	// Count of tx id in blockchain after tx, for v1 and v2 it should be 2: 1 for each node
 	var idsCount = 2
 	txIds := make(map[string]*crypto.Digest)
 	for _, v := range versions {
@@ -95,7 +95,7 @@ func (suite *AliasTxNegativeSuite) Test_SameAliasNegative() {
 		for _, td := range tdslice {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				//first alias tx should be successful
+				// first alias tx should be successful
 				tx1, _, actualDiffBalanceInWaves1 := alias.SendAliasTxAndGetWavesBalances(&suite.BaseSuite,
 					td, v, true)
 				addrByAliasGo, addrByAliasScala := utl.GetAddressesByAlias(&suite.BaseSuite, td.Alias)
@@ -108,10 +108,10 @@ func (suite *AliasTxNegativeSuite) Test_SameAliasNegative() {
 					actualDiffBalanceInWaves1.BalanceInWavesGo, actualDiffBalanceInWaves1.BalanceInWavesScala,
 					errMsg)
 
-				//second alias tx with same alias had same ID for v1 and v2
+				// second alias tx with same alias had same ID for v1 and v2
 				tx2, _, actualDiffBalanceInWaves2 := alias.SendAliasTxAndGetWavesBalances(&suite.BaseSuite,
 					td, v, false)
-				//already there for v1 and v2, and should be new for v3
+				// already there for v1 and v2, and should be new for v3
 				txIds[name] = &tx2.TxID
 				errMsg = fmt.Sprintf("Case: %s; Alias Tx2: %s", caseName, tx2.TxID.String())
 
@@ -120,7 +120,7 @@ func (suite *AliasTxNegativeSuite) Test_SameAliasNegative() {
 			})
 		}
 	}
-	//should have same tx ID for Go and Scala v1 and v2
+	// should have same tx ID for Go and Scala v1 and v2
 	actualTxIds := utl.GetTxIdsInBlockchain(&suite.BaseSuite, txIds)
 	suite.Lenf(actualTxIds, idsCount, "IDs: %#v", actualTxIds)
 }
@@ -134,7 +134,7 @@ func (suite *AliasTxNegativeSuite) Test_SameAliasDiffAddressesNegative() {
 		tdSlice := testdata.GetSameAliasDiffAddressNegativeDataMatrix(&suite.BaseSuite)
 		caseName := utl.GetTestcaseNameWithVersion(name, v)
 		suite.Run(caseName, func() {
-			//send alias tx from account that is in first element of testdata slice
+			// send alias tx from account that is in first element of testdata slice
 			tx1, _, actualDiffBalanceInWaves1 := alias.SendAliasTxAndGetWavesBalances(
 				&suite.BaseSuite, tdSlice[0], v, true)
 			errMsg := fmt.Sprintf("Case: %s; Alias Tx1: %s", caseName, tx1.TxID.String())
@@ -142,7 +142,7 @@ func (suite *AliasTxNegativeSuite) Test_SameAliasDiffAddressesNegative() {
 			utl.TxInfoCheck(suite.T(), tx1.WtErr.ErrWtGo, tx1.WtErr.ErrWtScala, errMsg)
 			utl.WavesDiffBalanceCheck(suite.T(), tdSlice[0].Expected.WavesDiffBalanceAfterFirstTx,
 				actualDiffBalanceInWaves1.BalanceInWavesGo, actualDiffBalanceInWaves1.BalanceInWavesScala, errMsg)
-			//send alias tx from account that is in each next slice element
+			// send alias tx from account that is in each next slice element
 			for j := 1; j < len(tdSlice); j++ {
 				tx2, _, actualDiffBalanceInWaves2 := alias.SendAliasTxAndGetWavesBalances(
 					&suite.BaseSuite, tdSlice[j], v, false)
@@ -151,7 +151,7 @@ func (suite *AliasTxNegativeSuite) Test_SameAliasDiffAddressesNegative() {
 
 				utl.WavesDiffBalanceCheck(suite.T(), tdSlice[j].Expected.WavesDiffBalance,
 					actualDiffBalanceInWaves2.BalanceInWavesGo, actualDiffBalanceInWaves2.BalanceInWavesGo, errMsg)
-				//because of new IDs for v3
+				// because of new IDs for v3
 				if v == 3 {
 					idsCount = 0
 					utl.ErrorMessageCheck(suite.T(), tdSlice[j].Expected.ErrGoMsg, tdSlice[j].Expected.ErrScalaMsg,

@@ -33,6 +33,8 @@ const (
 	defaultDesiredBlockReward      = 600000000
 	defaultMinXTNBuyBackPeriod     = 4
 	defaultQuorum                  = 1 // Default quorum is 1 to allow mining without waiting for testnet client.
+
+	lightNodeBlockFieldsAbsenceInterval = 2
 )
 
 var (
@@ -97,6 +99,7 @@ type AccountInfo struct {
 	SecretKey crypto.SecretKey
 	Amount    uint64
 	Address   proto.WavesAddress
+	Alias     proto.Alias
 }
 
 func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {

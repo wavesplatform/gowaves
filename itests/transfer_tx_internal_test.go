@@ -25,7 +25,9 @@ func (suite *TransferTxPositiveSuite) Test_TransferTxPositive() {
 	versions := transfer.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		aliasStr := utl.RandStringBytes(15, testdata.AliasSymbolSet)
-		alias.SetAliasToAccount(&suite.BaseSuite, v, utl.TestChainID, aliasStr, utl.DefaultRecipientNotMiner)
+		account := utl.GetAccount(&suite.BaseSuite, utl.DefaultRecipientNotMiner)
+		alias.SetAliasToAccount(&suite.BaseSuite, v, utl.TestChainID, aliasStr,
+			&account, utl.MinTxFeeWaves)
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue.SendWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetTransferPositiveData(&suite.BaseSuite, itx.TxID, aliasStr)

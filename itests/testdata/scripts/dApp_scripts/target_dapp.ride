@@ -1,0 +1,50 @@
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func writeDataToStorage(strValue: String) = {
+  let accountAddress = toBase58String(i.caller.bytes)
+  [
+    StringEntry(accountAddress + "_str", strValue)
+  ]
+}
+
+@Callable(i)
+func writeMaxActionsTarget(strValue: String, intValue: Int, boolValue: Boolean, binValue: ByteVector) = {
+  let accountAddress = toBase58String(i.caller.bytes)
+    [
+      StringEntry(accountAddress + "_str3_1", strValue),
+      IntegerEntry(accountAddress + "_int3_1", intValue),
+      BooleanEntry(accountAddress + "_bool3_1", boolValue),
+      BinaryEntry(accountAddress + "_bin3_1", binValue),
+      DeleteEntry(accountAddress + "_str3_1"),
+      DeleteEntry(accountAddress + "_int3_1"),
+      DeleteEntry(accountAddress + "_bool3_1"),
+      DeleteEntry(accountAddress + "_bin3_1"),
+
+      StringEntry(accountAddress + "_str3_2", strValue),
+      DeleteEntry(accountAddress + "_str3_2"),
+      IntegerEntry(accountAddress + "_int3_2", intValue),
+      DeleteEntry(accountAddress + "_int3_2"),
+      BooleanEntry(accountAddress + "_bool3_2", boolValue),
+      DeleteEntry(accountAddress + "_bool3_2"),
+      BinaryEntry(accountAddress + "_bin3_2", binValue),
+      DeleteEntry(accountAddress + "_bin3_2"),
+
+      StringEntry(accountAddress + "_str3", strValue),
+      DeleteEntry(accountAddress + "_str3"),
+      StringEntry(accountAddress + "_str3", strValue),
+      DeleteEntry(accountAddress + "_str3"),
+      StringEntry(accountAddress + "_str3", strValue),
+      DeleteEntry(accountAddress + "_str3"),
+      StringEntry(accountAddress + "_str3", strValue),
+      DeleteEntry(accountAddress + "_str3"),
+
+      StringEntry(accountAddress + "_str", strValue)
+
+    ]
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)

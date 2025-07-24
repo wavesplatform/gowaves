@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"io"
 	"math"
 	"testing"
 	"time"
@@ -16,6 +17,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -144,4 +146,69 @@ func (c *GRPCClient) syncedWavesAvailableBalance(
 			"syncedWavesAvailableBalance: height changed during balance check on %s node", c.impl.String())
 	}
 	return balanceAtHeight{impl: c.impl, balance: available, height: after}, nil
+}
+
+// GetDataEntryByKey return data entries for account by key.
+func (c *GRPCClient) GetDataEntryByKey(t *testing.T, address proto.WavesAddress, key string) *waves.DataEntry {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+	dr := g.DataRequest{
+		Address: address.Bytes(),
+		Key:     key,
+	}
+	stream, err := g.NewAccountsApiClient(c.conn).GetDataEntries(ctx, &dr, grpc.EmptyCallOption{})
+	assert.NoError(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
+	d, err := stream.Recv()
+	assert.NoError(t, err, "failed to get data entry from %s node with error: %s", c.impl.String(), err)
+	return d.GetEntry()
+}
+
+// GetDataEntries returns all data entries for account.
+func (c *GRPCClient) GetDataEntries(t *testing.T, address proto.WavesAddress) []*waves.DataEntry {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	de := make([]*waves.DataEntry, 0)
+	defer cancel()
+	dr := g.DataRequest{
+		Address: address.Bytes(),
+	}
+	stream, err := g.NewAccountsApiClient(c.conn).GetDataEntries(ctx, &dr, grpc.EmptyCallOption{})
+	assert.NoError(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
+	for {
+		d, errStrm := stream.Recv()
+		if errors.Is(errStrm, io.EOF) {
+			break
+		}
+		assert.NoError(t, errStrm, "failed to get data entry from %s node with error: %s",
+			c.impl.String(), errStrm)
+		de = append(de, d.GetEntry())
+	}
+	return de
+}
+
+func (c *GRPCClient) GetTransactionsStatuses(t *testing.T, txIDs []crypto.Digest) []*g.TransactionStatus {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	var grpcStatuses []*g.TransactionStatus
+	defer cancel()
+
+	ids := make([][]byte, len(txIDs))
+	for i, digest := range txIDs {
+		ids[i] = digest.Bytes()
+	}
+
+	tx := g.TransactionsByIdRequest{
+		TransactionIds: ids,
+	}
+	stream, err := g.NewTransactionsApiClient(c.conn).GetStatuses(ctx, &tx, grpc.EmptyCallOption{})
+	assert.NoError(t, err, "failed to get transaction statuses from %s node with error: %s",
+		c.impl.String(), err)
+	for {
+		tr, errStrm := stream.Recv()
+		if errors.Is(errStrm, io.EOF) {
+			break
+		}
+		assert.NoError(t, errStrm, "failed to get transaction status from %s node with error: %s",
+			c.impl.String(), errStrm)
+		grpcStatuses = append(grpcStatuses, tr)
+	}
+	return grpcStatuses
 }

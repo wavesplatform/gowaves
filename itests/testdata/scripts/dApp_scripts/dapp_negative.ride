@@ -1,0 +1,38 @@
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func complexityThresholdFailedTxBefore1000(strValue: String) = {
+  let callerAccountAddress = toBase58String(i.caller.bytes)
+  strict sv = sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || true
+  let bigInt = parseBigIntValue(strValue)
+  [
+    StringEntry(callerAccountAddress + "_str", toString(bigInt))
+  ]
+}
+
+@Callable(i)
+func complexityThresholdFailedTxAfter1000(strValue: String) = {
+  let callerAccountAddress = toBase58String(i.caller.bytes)
+  strict sv = sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'')
+    || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'')
+    || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'')
+    || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'')
+    || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'')
+    || sigVerify(base58'', base58'', base58'') || sigVerify(base58'', base58'', base58'') || true
+  let bigInt = parseBigIntValue(strValue)
+  [
+    StringEntry(callerAccountAddress + "_str", toString(bigInt))
+  ]
+}
+
+@Callable(i)
+func call() = {
+  [
+    IntegerEntry("int", 1)
+  ]
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)

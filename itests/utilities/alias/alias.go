@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	"github.com/wavesplatform/gowaves/itests/testdata"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
@@ -50,16 +51,21 @@ func AliasSend(suite *f.BaseSuite, version byte, scheme proto.Scheme, accountPK 
 	return utl.SendAndWaitTransaction(suite, tx, scheme, waitForTx)
 }
 
-func SetAliasToAccount(suite *f.BaseSuite, version byte, scheme proto.Scheme, alias string, accNumber int) {
-	account := utl.GetAccount(suite, accNumber)
-	AliasSend(suite, version, scheme, account.PublicKey, account.SecretKey, alias,
-		100000, utl.GetCurrentTimestampInMs(), true)
+func SetAliasToAccount(suite *f.BaseSuite, version byte, scheme proto.Scheme, alias string, account *config.AccountInfo,
+	fee uint64) {
+	tx := AliasSend(suite, version, scheme, account.PublicKey, account.SecretKey, alias,
+		fee, utl.GetCurrentTimestampInMs(), true)
+	errMsg := "alias transaction failed"
+	utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
+	account.Alias = *utl.GetAliasFromString(suite, alias, scheme)
 }
 
-func SetAliasToAccountByAPI(suite *f.BaseSuite, version byte, scheme proto.Scheme, alias string, accNumber int) {
-	account := utl.GetAccount(suite, accNumber)
-	AliasBroadcast(suite, version, scheme, account.PublicKey, account.SecretKey, alias,
-		100000, utl.GetCurrentTimestampInMs(), true)
+func SetAliasToAccountByAPI(suite *f.BaseSuite, version byte, scheme proto.Scheme, alias string,
+	account config.AccountInfo, fee uint64) {
+	tx := AliasBroadcast(suite, version, scheme, account.PublicKey, account.SecretKey, alias,
+		fee, utl.GetCurrentTimestampInMs(), true)
+	errMsg := "alias transaction failed"
+	utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 }
 
 func AliasBroadcast(suite *f.BaseSuite, version byte, scheme proto.Scheme, accountPK crypto.PublicKey,
