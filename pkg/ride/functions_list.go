@@ -478,6 +478,28 @@ func listReplaceByIndex(_ environment, args ...rideType) (rideType, error) {
 	return r, nil
 }
 
+// fillList creates a list of the specified length, filled with the specified element.
+func fillList(_ environment, args ...rideType) (rideType, error) {
+	if err := checkArgs(args, 2); err != nil {
+		return nil, errors.Wrap(err, "fill")
+	}
+	l, ok := args[0].(rideInt)
+	if !ok {
+		return nil, errors.Errorf("fill: unexpected type of argument 1 '%s'", args[0].instanceOf())
+	}
+	if l <= 0 || l > maxListSize {
+		return nil, errors.New("fill: invalid length of list")
+	}
+
+	e := args[1]
+
+	r := make(rideList, l)
+	for i := range l {
+		r[i] = e
+	}
+	return r, nil
+}
+
 func findFirstEntry(list rideList, key rideString, expectedValueType string) rideType {
 	for _, item := range list {
 		switch ti := item.(type) {
