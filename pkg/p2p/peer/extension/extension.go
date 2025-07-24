@@ -47,6 +47,10 @@ func NewPeerExtension(p peer.Peer, scheme proto.Scheme, logger *slog.Logger) Pee
 }
 
 func (a PeerWrapperImpl) AskBlocksIDs(ids []proto.BlockID) {
+	if len(ids) == 0 {
+		a.logger.Debug("No block IDs to request", "peer", a.p.ID().String())
+		return
+	}
 	if a.p.Handshake().Version.Cmp(peerVersionWithProtobuf) < 0 {
 		sigs := make([]crypto.Signature, len(ids))
 		for i, b := range ids {

@@ -88,7 +88,7 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		return state, nil, err
 	}
 	internal := sync_internal.InternalFromLastSignatures(
-		extension.NewPeerExtension(p, baseInfo.scheme, baseInfo.nl),
+		extension.NewPeerExtension(p, baseInfo.scheme, baseInfo.netLogger),
 		lastSignatures,
 		baseInfo.enableLightMode,
 	)
@@ -242,19 +242,22 @@ func processScoreAfterApplyingOrReturnToNG(
 ) (State, Async, error) {
 	for _, s := range scores {
 		if err := baseInfo.peers.UpdateScore(s.Peer, s.Score); err != nil {
-			baseInfo.logger.Debug("Failed to update score", "error", proto.NewInfoMsg(err))
+			baseInfo.logger.Debug("Failed to update score", "error", proto.NewInfoMsg(err),
+				"state", state.String())
 			continue
 		}
 		nodeScore, err := baseInfo.storage.CurrentScore()
 		if err != nil {
-			baseInfo.logger.Debug("Failed to get current score", "error", proto.NewInfoMsg(err))
+			baseInfo.logger.Debug("Failed to get current score", "error", proto.NewInfoMsg(err),
+				"state", state.String())
 			continue
 		}
 		if s.Score.Cmp(nodeScore) == 1 {
 			// received score is larger than local score
 			newS, task, errS := syncWithNewPeer(state, baseInfo, s.Peer)
 			if errS != nil {
-				baseInfo.logger.Error("Failed to sync with peer", "error", state.Errorf(errS))
+				slog.Error("Failed to sync with peer", "error", state.Errorf(errS),
+					"state", state.String())
 				continue
 			}
 			if newSName := newS.String(); newSName != SyncStateName { // sanity check

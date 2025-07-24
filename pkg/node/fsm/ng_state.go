@@ -25,7 +25,7 @@ func newNGState(baseInfo BaseInfo) State {
 	baseInfo.syncPeer.Clear()
 	return &NGState{
 		baseInfo:    baseInfo,
-		blocksCache: newBlockStatesCache(baseInfo.logger),
+		blocksCache: newBlockStatesCache(baseInfo.logger, NGStateName),
 	}
 }
 
@@ -58,7 +58,7 @@ func (a *NGState) Task(task tasks.AsyncTask) (State, Async, error) {
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		a.baseInfo.logger.Debug("Requesting peers", "state", NGStateName)
+		a.baseInfo.logger.Debug("Requesting peers", "state", a.String())
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro:
@@ -178,7 +178,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 
 	if a.baseInfo.enableLightMode {
 		defer func() {
-			pe := extension.NewPeerExtension(peer, a.baseInfo.scheme, a.baseInfo.nl)
+			pe := extension.NewPeerExtension(peer, a.baseInfo.scheme, a.baseInfo.netLogger)
 			pe.AskBlockSnapshot(block.BlockID())
 		}()
 		st, timeoutTask := newWaitSnapshotState(a.baseInfo, block, a.blocksCache)
@@ -269,7 +269,7 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 		return a, nil, nil
 	}
 	defer func() {
-		pe := extension.NewPeerExtension(p, a.baseInfo.scheme, a.baseInfo.nl)
+		pe := extension.NewPeerExtension(p, a.baseInfo.scheme, a.baseInfo.netLogger)
 		pe.AskMicroBlockSnapshot(micro.TotalBlockID)
 	}()
 	st, timeoutTask := newWaitMicroSnapshotState(a.baseInfo, micro, a.blocksCache)
@@ -414,32 +414,34 @@ type blockStatesCache struct {
 	blockStates map[proto.BlockID]proto.Block
 	snapshots   map[proto.BlockID]proto.BlockSnapshot
 	logger      *slog.Logger
+	stateName   string
 }
 
-func newBlockStatesCache(logger *slog.Logger) blockStatesCache {
+func newBlockStatesCache(logger *slog.Logger, stateName string) blockStatesCache {
 	return blockStatesCache{
 		blockStates: map[proto.BlockID]proto.Block{},
 		snapshots:   map[proto.BlockID]proto.BlockSnapshot{},
 		logger:      logger,
+		stateName:   stateName,
 	}
 }
 
 func (c *blockStatesCache) AddBlockState(block *proto.Block) {
 	c.blockStates[block.ID] = *block
-	c.logger.Debug("Block added to cache", "state", NGStateName, "blockID", block.ID.String(),
+	c.logger.Debug("Block added to cache", "state", c.stateName, "blockID", block.ID.String(),
 		"size", len(c.blockStates))
 }
 
 func (c *blockStatesCache) AddSnapshot(blockID proto.BlockID, snapshot proto.BlockSnapshot) {
 	c.snapshots[blockID] = snapshot
-	c.logger.Debug("Snapshot added to cache", "state", NGStateName, "blockID", blockID.String(),
+	c.logger.Debug("Snapshot added to cache", "state", c.stateName, "blockID", blockID.String(),
 		"size", len(c.snapshots))
 }
 
 func (c *blockStatesCache) Clear() {
 	c.blockStates = map[proto.BlockID]proto.Block{}
 	c.snapshots = map[proto.BlockID]proto.BlockSnapshot{}
-	c.logger.Debug("Block cache is empty", "state", NGStateName)
+	c.logger.Debug("Block cache is empty", "state", c.stateName)
 }
 
 func (c *blockStatesCache) Get(blockID proto.BlockID) (*proto.Block, bool) {

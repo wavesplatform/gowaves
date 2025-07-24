@@ -22,7 +22,7 @@ func SendAsyncTask(output chan AsyncTask, task AsyncTask) {
 	select {
 	case output <- task:
 	default:
-		slog.Debug("Tasks channel is full", logging.Type(task))
+		slog.Debug("Tasks channel is full", logging.Type(task), "taskType", task.TaskType)
 	}
 }
 

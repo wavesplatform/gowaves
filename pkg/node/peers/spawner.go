@@ -40,7 +40,7 @@ type PeerSpawnerImpl struct {
 	nodeNonce    uint64
 	version      proto.Version
 	logger       *slog.Logger
-	dl           *slog.Logger
+	dataLogger   *slog.Logger
 }
 
 func NewPeerSpawner(
@@ -56,7 +56,7 @@ func NewPeerSpawner(
 		nodeNonce:    nodeNonce,
 		version:      version,
 		logger:       logger,
-		dl:           dl,
+		dataLogger:   dl,
 	}
 }
 
@@ -71,7 +71,7 @@ func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address proto.TCPAd
 		NodeNonce:    a.nodeNonce,
 	}
 
-	return outgoing.EstablishConnection(ctx, params, a.version, a.logger, a.dl)
+	return outgoing.EstablishConnection(ctx, params, a.version, a.logger, a.dataLogger)
 }
 
 func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) error {
@@ -86,5 +86,5 @@ func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) error {
 		Version:      a.version,
 	}
 
-	return incoming.RunIncomingPeer(ctx, params, a.logger, a.dl)
+	return incoming.RunIncomingPeer(ctx, params, a.logger, a.dataLogger)
 }

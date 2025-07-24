@@ -61,7 +61,7 @@ func (a *IdleState) Task(task tasks.AsyncTask) (State, Async, error) {
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		a.baseInfo.logger.Debug("Requesting peers", "state", IdleStateName)
+		a.baseInfo.logger.Debug("Requesting peers", "state", a.String())
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro: // Do nothing

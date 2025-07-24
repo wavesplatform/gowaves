@@ -98,7 +98,7 @@ func (a *connector) connect(
 
 	if _, err := handshake.ReadFrom(c); err != nil {
 		addr := a.params.Address.String()
-		logger.Debug("Failed to read handshake ", "address", a.params.Address.String(), "error", err)
+		logger.Debug("Failed to read handshake", "address", a.params.Address.String(), "error", err)
 		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to read handshake with addr %q", addr)
 	}
 	select {

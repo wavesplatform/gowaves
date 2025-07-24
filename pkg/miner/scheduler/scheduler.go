@@ -206,8 +206,8 @@ func (a internalImpl) scheduleWithVrf(
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to cast timestamp to int64")
 		}
-		slog.Debug("Scheduled generation", "address", addr.String(),
-			"time", time.UnixMilli(sts).Format("2006-01-02 15:04:05.000 MST"))
+		const format = "2006-01-02 15:04:05.000 MST"
+		slog.Debug("Scheduled generation", "address", addr.String(), "time", time.UnixMilli(sts).Format(format))
 		out = append(out, Emit{
 			Timestamp:    ts,
 			KeyPair:      keyPair,
@@ -362,7 +362,7 @@ func (a *Default) Reschedule() {
 		return
 	}
 
-	slog.Debug("Scheduler: Trying to mine", "accounts", len(a.seeder.AccountSeeds()))
+	slog.Debug("Scheduler: Trying to mine", "accountsCount", len(a.seeder.AccountSeeds()))
 
 	if !a.consensus.IsMiningAllowed() {
 		slog.Debug("Scheduler: Mining is not allowed because of lack of connected nodes")
