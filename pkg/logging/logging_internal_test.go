@@ -4,6 +4,7 @@ import (
 	"context"
 	stderrors "errors"
 	"fmt"
+	"io"
 	"log/slog"
 	"testing"
 
@@ -79,4 +80,25 @@ func TestError(t *testing.T) {
 				slog.String("test", "attribute"), Error(test.err), ErrorTrace(test.err))
 		})
 	}
+}
+
+func TestNewHandler(t *testing.T) {
+	pkgE := errors.New("pkg errors error")
+	stdE := stderrors.New("standard error")
+	t.Run("Trace=true", func(t *testing.T) {
+		const trace = true
+		logger := slogt.New(t, slogt.Factory(func(w io.Writer) slog.Handler {
+			return newHandler(LoggerText, slog.LevelDebug, w, trace)
+		}))
+		logger.Info("Test standard error", Error(stdE))
+		logger.Error("Test pkg errors error", Error(pkgE))
+	})
+	t.Run("Trace=false", func(t *testing.T) {
+		const trace = false
+		logger := slogt.New(t, slogt.Factory(func(w io.Writer) slog.Handler {
+			return newHandler(LoggerText, slog.LevelDebug, w, trace)
+		}))
+		logger.Info("Test standard error", Error(stdE))
+		logger.Error("Test pkg errors error", Error(pkgE))
+	})
 }
