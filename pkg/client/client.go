@@ -54,9 +54,6 @@ type Response struct {
 	*http.Response
 }
 
-type HttpClient interface {
-}
-
 // NewClient creates new client instance.
 // If no options provided will use default.
 func NewClient(options ...Options) (*Client, error) {
@@ -115,11 +112,11 @@ func newResponse(response *http.Response) *Response {
 	}
 }
 
-func (a *Client) Do(ctx context.Context, req *http.Request, v interface{}) (*Response, error) {
-	return doHttp(ctx, a.options, req, v)
+func (a *Client) Do(ctx context.Context, req *http.Request, v any) (*Response, error) {
+	return doHTTP(ctx, a.options, req, v)
 }
 
-func doHttp(ctx context.Context, options Options, req *http.Request, v interface{}) (*Response, error) {
+func doHTTP(ctx context.Context, options Options, req *http.Request, v any) (*Response, error) {
 	req = withContext(ctx, req)
 	if req.Header.Get("Accept") == "" {
 		req.Header.Set("Accept", "application/json")

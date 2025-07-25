@@ -241,7 +241,7 @@ func transactionResults(c *g.ClientConn, scheme byte, txs []proto.Transaction) (
 
 	api := grpc.NewTransactionsApiClient(c)
 	r := make([]*waves.InvokeScriptResult, len(txs))
-	for i := 0; i < len(txs); i++ {
+	for i := range txs {
 		id, err := txs[i].GetID(scheme)
 		if err != nil {
 			return nil, err
@@ -305,7 +305,7 @@ func addDataDiff(sb *strings.Builder, a, b []internal.DataEntry) {
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if !a[i].Equal(b[i]) {
 			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
 			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
@@ -329,7 +329,7 @@ func addTransfersDiff(sb *strings.Builder, a, b []internal.Transfer) {
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if !a[i].Equal(b[i]) {
 			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
 			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
@@ -353,7 +353,7 @@ func addIssuesDiff(sb *strings.Builder, a, b []internal.Issue) {
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if !a[i].Equal(b[i]) {
 			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
 			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
@@ -377,7 +377,7 @@ func addReissuesDiff(sb *strings.Builder, a, b []internal.Reissue) {
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if !a[i].Equal(b[i]) {
 			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
 			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
@@ -401,7 +401,7 @@ func addBurnsDiff(sb *strings.Builder, a, b []internal.Burn) {
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if !a[i].Equal(b[i]) {
 			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
 			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
@@ -425,7 +425,7 @@ func addSponsorFeesDiff(sb *strings.Builder, a, b []internal.Sponsorship) {
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if !a[i].Equal(b[i]) {
 			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
 			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
@@ -449,7 +449,7 @@ func addLeasesDiff(sb *strings.Builder, a, b []internal.Lease) {
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if !a[i].Equal(b[i]) {
 			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
 			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())
@@ -473,7 +473,7 @@ func addLeaseCancelsDiff(sb *strings.Builder, a, b []internal.LeaseCancel) {
 	lb := len(b)
 	min, max := minmax(la, lb)
 	lsb := new(strings.Builder)
-	for i := 0; i < min; i++ {
+	for i := range min {
 		if !a[i].Equal(b[i]) {
 			fmt.Fprintf(lsb, "\t-%s\n", a[i].String())
 			fmt.Fprintf(lsb, "\t+%s\n", b[i].String())

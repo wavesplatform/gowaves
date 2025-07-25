@@ -2,7 +2,6 @@ package utxpool
 
 import (
 	"bytes"
-	"math/rand"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -111,10 +110,6 @@ func (a transaction) GetSender(_ proto.Scheme) (proto.Address, error) {
 	panic("not implemented")
 }
 
-func tr(fee uint64) *transaction {
-	return &transaction{fee: fee}
-}
-
 func id(b []byte, fee uint64) *transaction {
 	return &transaction{fee: fee, id: b}
 }
@@ -136,31 +131,6 @@ func TestTransactionPool(t *testing.T) {
 	require.Nil(t, a.Pop())
 
 	require.EqualValues(t, 0, a.CurSize())
-}
-
-func BenchmarkTransactionPool(b *testing.B) {
-	b.ReportAllocs()
-	a := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
-
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
-		b.StopTimer()
-		n := rand.Intn(1000000)
-		b.StartTimer()
-		_ = a.AddWithBytes(tr(uint64(n)), []byte{1})
-	}
-
-	if a.Len() != b.N {
-		b.Fatal("not all elements were pushed")
-	}
-
-	for i := 0; i < b.N; i++ {
-		a.Pop()
-	}
-
-	if a.Len() != 0 {
-		b.Fatal("size should be equal 0")
-	}
 }
 
 func TestTransactionPool_Exists(t *testing.T) {

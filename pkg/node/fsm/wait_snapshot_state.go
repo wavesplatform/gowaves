@@ -163,7 +163,7 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 		proto.ContentIDGetBlockIDs,
 	}
 	fsm.Configure(WaitSnapshotStateName). //nolint:dupl // it's state setup
-						OnEntry(func(_ context.Context, _ ...interface{}) error {
+						OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(waitSnapshotSkipMessageList)
 			return nil
 		}).
@@ -180,7 +180,7 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 		Ignore(HaltEvent).
 		Ignore(MicroBlockSnapshotEvent).
 		PermitDynamic(TaskEvent,
-			createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TaskEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*WaitSnapshotState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -189,7 +189,7 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 				return a.Task(args[0].(tasks.AsyncTask))
 			})).
 		PermitDynamic(BlockSnapshotEvent,
-			createPermitDynamicCallback(BlockSnapshotEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(BlockSnapshotEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*WaitSnapshotState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -202,7 +202,7 @@ func initWaitSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachine, i
 				)
 			})).
 		PermitDynamic(ScoreEvent,
-			createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(ScoreEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*WaitSnapshotState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(

@@ -67,7 +67,7 @@ func (a *Debug) Info(ctx context.Context) (*DebugInfo, *Response, error) {
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := new(DebugInfo)
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -100,7 +100,7 @@ func (a *Debug) MinerInfo(ctx context.Context) ([]*DebugMinerInfo, *Response, er
 	req.Header.Set(ApiKeyHeader, a.options.ApiKey)
 
 	var out []*DebugMinerInfo
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -127,7 +127,7 @@ func (a *Debug) ConfigInfo(ctx context.Context, full bool) ([]byte, *Response, e
 	req.Header.Set(ApiKeyHeader, a.options.ApiKey)
 
 	buf := new(bytes.Buffer)
-	response, err := doHttp(ctx, a.options, req, buf)
+	response, err := doHTTP(ctx, a.options, req, buf)
 	if err != nil {
 		return nil, response, err
 	}
@@ -146,7 +146,7 @@ func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHash,
 		return nil, nil, err
 	}
 	out := new(proto.StateHash)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -164,7 +164,7 @@ func (a *Debug) stateHashDebugAtPath(ctx context.Context, path string) (*proto.S
 		return nil, nil, err
 	}
 	out := new(proto.StateHashDebug)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -196,7 +196,7 @@ func (a *Debug) BalancesHistory(ctx context.Context, address proto.WavesAddress)
 	}
 
 	var out []*BalancesHistoryRow
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -225,7 +225,7 @@ func (a *Debug) PrintMsg(ctx context.Context, msg string) (*Response, error) {
 	req.Header.Add(ApiKeyHeader, a.options.ApiKey)
 	req.Header.Add("Accept", "*/*")
 
-	return doHttp(ctx, a.options, req, nil)
+	return doHTTP(ctx, a.options, req, nil)
 }
 
 type rollbackResponse struct {
@@ -259,7 +259,7 @@ func (a *Debug) RollbackToHeight(
 	req.Header.Add("Accept", "*/*")
 
 	out := new(rollbackResponse)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -281,7 +281,7 @@ func (a *Debug) RollbackTo(ctx context.Context, blockID proto.BlockID) (*proto.B
 	req.Header.Add("Accept", "*/*")
 
 	out := new(rollbackResponse)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}

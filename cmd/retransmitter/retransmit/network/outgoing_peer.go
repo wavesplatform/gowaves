@@ -96,7 +96,7 @@ func (a *connector) connect(ctx context.Context, wavesNetwork string, remote pee
 	index := 0
 
 	dialer := net.Dialer{Timeout: outgoingPeerDialTimeout}
-	for i := 0; i < len(possibleVersions); i++ {
+	for range possibleVersions {
 		c, err := dialer.DialContext(ctx, "tcp", a.Address)
 		if err != nil {
 			slog.Info("Failed to connect", "error", err, "address", a.Address)

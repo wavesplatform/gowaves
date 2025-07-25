@@ -94,7 +94,7 @@ func GeScalarMult(r *ExtendedGroupElement, a *[32]byte, A *ExtendedGroupElement)
 	var p, q ExtendedGroupElement
 	q.Zero()
 	ExtendedGroupElementCopy(&p, A)
-	for i := uint(0); i < 256; i++ {
+	for i := range uint(256) { //nolint:mnd // library specification
 		bit := int32(a[i>>3]>>(i&7)) & 1
 		var t ExtendedGroupElement
 		GeAdd(&t, &q, &p)
@@ -120,7 +120,7 @@ func feIsNonzero(f FieldElement) int {
 
 func FeCompare(x, y *[32]byte) int {
 	d := 0
-	for i := 0; i < 32; i++ {
+	for i := range 32 {
 		d |= int(x[i]) ^ int(y[i])
 	}
 	return (1 & ((d - 1) >> 8)) - 1

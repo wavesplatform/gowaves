@@ -46,7 +46,7 @@ func (a *MicroblockMiner) MineKeyBlock(
 		BaseTarget:   baseTarget,
 		GenSignature: gs,
 	}
-	bi, err := a.state.MapR(func(info state.StateInfo) (interface{}, error) {
+	bi, err := a.state.MapR(func(info state.StateInfo) (any, error) {
 		v, err := blockVersion(info)
 		if err != nil {
 			return nil, err
