@@ -10,6 +10,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
@@ -712,7 +713,8 @@ func (a *txAppender) appendTxs(
 			if !isBlockWithChallenge {
 				return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
 			}
-			slog.Debug("Elided tx detected", "ID", base58.Encode(txID), "error", errAppendTx)
+			slog.Debug("Elided tx detected", slog.String("ID", base58.Encode(txID)), logging.Error(errAppendTx),
+				logging.ErrorTrace(errAppendTx))
 			txSnap = txSnapshot{
 				regular: []proto.AtomicSnapshot{
 					&proto.TransactionStatusSnapshot{Status: proto.TransactionElided},
@@ -1007,7 +1009,8 @@ func (a *txAppender) handleInvoke(
 	}
 	invocationRes, applicationRes, err := a.ia.applyInvokeScript(tx, info)
 	if err != nil {
-		slog.Debug("Failed to apply InvokeScript transaction to state", "ID", ID.String(), "error", err)
+		slog.Debug("Failed to apply InvokeScript transaction to state", slog.String("ID", ID.String()),
+			logging.Error(err), logging.ErrorTrace(err))
 		return nil, nil, err
 	}
 	return invocationRes, applicationRes, nil

@@ -8,6 +8,7 @@ import (
 	"github.com/mr-tron/base58"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -128,7 +129,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	for i, appliedTx := range appliedTransactions {
 		if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 			if id, idErr := appliedTx.T.GetID(a.scheme); idErr != nil {
-				slog.Error("Failed to get transaction ID", "error", idErr)
+				slog.Error("Failed to get transaction ID", logging.Error(idErr), logging.ErrorTrace(idErr))
 			} else {
 				slog.Debug("[MICRO MINER] Appending transaction", "TxID", base58.Encode(id))
 			}

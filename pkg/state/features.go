@@ -7,6 +7,7 @@ import (
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -466,9 +467,9 @@ func (f *features) resetVotes(blockID proto.BlockID) error {
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -496,9 +497,9 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -540,9 +541,9 @@ func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) err
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -595,9 +596,9 @@ func (f *features) allFeatures() ([]int16, error) {
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 

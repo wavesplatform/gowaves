@@ -13,6 +13,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -300,9 +301,9 @@ func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.Leas
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -345,9 +346,9 @@ func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -390,9 +391,9 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -493,9 +494,9 @@ func (s *balances) nftList(
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -563,9 +564,9 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 

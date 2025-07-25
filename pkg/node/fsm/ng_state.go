@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
@@ -227,8 +228,8 @@ func (a *NGState) MinedBlock(
 		return err
 	})
 	if err != nil {
-		slog.Warn("Failed to apply generated key block", "state", a.String(),
-			"blockID", block.ID.String(), "error", err)
+		slog.Warn("Failed to apply generated key block", slog.String("state", a.String()),
+			slog.String("blockID", block.ID.String()), logging.Error(err), logging.ErrorTrace(err))
 		metrics.BlockDeclined(block)
 		return a, nil, a.Errorf(err)
 	}
@@ -283,7 +284,8 @@ func (a *NGState) mineMicro(
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions):
-		a.baseInfo.logger.Debug("No transactions to put in microblock", "state", a.String(), "error", err)
+		a.baseInfo.logger.Debug("No transactions to put in microblock", slog.String("state", a.String()),
+			logging.Error(err), logging.ErrorTrace(err))
 		return a, tasks.Tasks(tasks.NewMineMicroTask(a.baseInfo.microblockInterval, minedBlock, rest, keyPair, vrf)), nil
 	case errors.Is(err, miner.ErrStateChanged):
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))

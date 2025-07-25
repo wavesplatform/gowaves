@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -302,7 +303,7 @@ func (a *aliases) disableStolenAliases(blockID proto.BlockID) error {
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
+			slog.Error("Iterator error", logging.Error(err), logging.ErrorTrace(err))
 			panic(err)
 		}
 	}()

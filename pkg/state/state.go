@@ -21,6 +21,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -1404,7 +1405,7 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
 			fErr := stderrs.Join(err, syncErr)
 			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
-				"error", fErr)
+				logging.Error(fErr), logging.ErrorTrace(fErr))
 			panic(fErr)
 		}
 		return nil, err
@@ -1419,7 +1420,7 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
 			fErr := stderrs.Join(err, syncErr)
 			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
-				"error", fErr)
+				logging.Error(fErr), logging.ErrorTrace(fErr))
 			panic(fErr)
 		}
 		return nil, err
@@ -1433,7 +1434,7 @@ func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
 			fErr := stderrs.Join(err, syncErr)
 			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
-				"error", fErr)
+				logging.Error(fErr), logging.ErrorTrace(fErr))
 			panic(fErr)
 		}
 		return err
@@ -1449,7 +1450,7 @@ func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
 			fErr := stderrs.Join(err, syncErr)
 			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
-				"error", fErr)
+				logging.Error(fErr), logging.ErrorTrace(fErr))
 			panic(fErr)
 		}
 		return err
@@ -1466,7 +1467,7 @@ func (s *stateManager) AddDeserializedBlocks(
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
 			fErr := stderrs.Join(err, syncErr)
 			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
-				"error", fErr)
+				logging.Error(fErr), logging.ErrorTrace(fErr))
 			panic(fErr)
 		}
 		return nil, err
@@ -1486,7 +1487,7 @@ func (s *stateManager) AddDeserializedBlocksWithSnapshots(
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
 			fErr := stderrs.Join(err, syncErr)
 			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
-				"error", fErr)
+				logging.Error(fErr), logging.ErrorTrace(fErr))
 			panic(fErr)
 		}
 		return nil, err
@@ -1869,7 +1870,7 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 		s.reset()
 		if lbErr := s.loadLastBlock(); lbErr != nil {
 			fErr := stderrs.Join(retErr, lbErr)
-			slog.Error("Failed to load last block", "error", fErr)
+			slog.Error("Failed to load last block", logging.Error(fErr), logging.ErrorTrace(fErr))
 			panic(fErr)
 		}
 		s.newBlocks.reset()
@@ -2106,24 +2107,25 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	// because exiting would lead to incorrect state.
 	// Remove blocks from block storage by syncing block storage with the database.
 	if err := s.rw.syncWithDb(); err != nil {
-		slog.Error("Failed to sync block storage with db", "error", err)
+		slog.Error("Failed to sync block storage with db", logging.Error(err), logging.ErrorTrace(err))
 		panic(err)
 	}
 	// Clear scripts cache after rollback.
 	if err := s.stor.scriptsStorage.clearCache(); err != nil {
-		slog.Error("Failed to clear scripts cache after rollback", "error", err)
+		slog.Error("Failed to clear scripts cache after rollback", logging.Error(err), logging.ErrorTrace(err))
 		panic(err)
 	}
 	// Clear features cache
 	s.stor.features.clearCache()
 
 	if err := s.stor.flush(); err != nil {
-		slog.Error("Failed to flush history storage cache after rollback", "error", err)
+		slog.Error("Failed to flush history storage cache after rollback",
+			logging.Error(err), logging.ErrorTrace(err))
 		panic(err)
 	}
 
 	if err := s.loadLastBlock(); err != nil {
-		slog.Error("Failed to load last block after rollback", "error", err)
+		slog.Error("Failed to load last block after rollback", logging.Error(err), logging.ErrorTrace(err))
 		panic(err)
 	}
 	slog.Info("Rollback to block completed", "blockID", removalEdge.String())
@@ -2214,7 +2216,8 @@ func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error
 func (s *stateManager) ResetValidationList() {
 	s.reset()
 	if err := s.stor.scriptsStorage.clearCache(); err != nil {
-		slog.Error("Failed to clearCache scripts cache after UTX validation", "error", err)
+		slog.Error("Failed to clearCache scripts cache after UTX validation",
+			logging.Error(err), logging.ErrorTrace(err))
 		panic(err)
 	}
 }

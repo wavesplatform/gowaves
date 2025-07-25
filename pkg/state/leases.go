@@ -10,6 +10,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state/internal"
 )
@@ -95,9 +96,9 @@ func (l *leases) generateCancelledLeaseSnapshots(
 	}
 	defer func() {
 		leaseIter.Release()
-		if err := leaseIter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if liErr := leaseIter.Error(); liErr != nil {
+			slog.Error("Iterator error", logging.Error(liErr), logging.ErrorTrace(liErr))
+			panic(liErr)
 		}
 	}()
 
@@ -197,9 +198,9 @@ func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 	}
 	defer func() {
 		leaseIter.Release()
-		if err := leaseIter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if liErr := leaseIter.Error(); liErr != nil {
+			slog.Error("Iterator error", logging.Error(liErr), logging.ErrorTrace(liErr))
+			panic(liErr)
 		}
 	}()
 

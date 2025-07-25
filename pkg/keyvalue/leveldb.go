@@ -10,6 +10,7 @@ import (
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 )
 
@@ -117,9 +118,9 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -175,7 +176,8 @@ func openLevelDB(path string, dbOptions *opt.Options) (*leveldb.DB, error) {
 	if err == nil { // If no error, then the database is opened successfully.
 		return db, nil
 	}
-	slog.Warn("Failed to open leveldb DB", "path", path, "error", err)
+	slog.Warn("Failed to open leveldb DB", slog.String("path", path), logging.Error(err),
+		logging.ErrorTrace(err))
 	slog.Info("Attempting to recover corrupted leveldb, may take a while...", "path", path)
 	db, rErr := leveldb.RecoverFile(path, dbOptions)
 	if rErr != nil {
@@ -292,7 +294,7 @@ func (k *KeyVal) Close() error {
 	slog.Info("Cache hit rate", "rate", k.cache.HitRate())
 	err := storeBloomFilter(k.filter)
 	if err != nil {
-		slog.Error("Failed to save bloom filter", "error", err)
+		slog.Error("Failed to save bloom filter", logging.Error(err), logging.ErrorTrace(err))
 	} else {
 		slog.Info("Bloom filter stored successfully")
 	}

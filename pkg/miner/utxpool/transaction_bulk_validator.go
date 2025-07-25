@@ -3,6 +3,7 @@ package utxpool
 import (
 	"log/slog"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
@@ -30,7 +31,7 @@ func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bul
 func (a bulkValidator) Validate() {
 	transactions, err := a.validate()
 	if err != nil {
-		slog.Debug("Validation failure", "error", err)
+		slog.Debug("Validation failure", logging.Error(err), logging.ErrorTrace(err))
 		return
 	}
 	for _, t := range transactions {

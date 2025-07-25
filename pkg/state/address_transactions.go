@@ -14,6 +14,7 @@ import (
 	"github.com/starius/emsort"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -310,9 +311,8 @@ func (at *addressTransactions) persist() error {
 		return errors.Wrap(err, "failed to create temp file for emsort")
 	}
 	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			slog.Warn("Failed to remove temporary file", "error", err)
+		if rmErr := os.Remove(name); rmErr != nil {
+			slog.Warn("Failed to remove temporary file", logging.Error(rmErr), logging.ErrorTrace(rmErr))
 		}
 	}(tempFile.Name())
 	sort, err := emsort.NewFixedSize(addrTxRecordSize, maxEmsortMem, tempFile)

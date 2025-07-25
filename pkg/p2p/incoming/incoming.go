@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -36,7 +37,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		logger.Debug("Failed to read handshake", "error", err)
+		logger.Debug("Failed to read handshake", logging.Error(err), logging.ErrorTrace(err))
 		_ = c.Close()
 		return err
 	}
@@ -59,7 +60,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		logger.Debug("Failed to write handshake", "error", err)
+		logger.Debug("Failed to write handshake", logging.Error(err), logging.ErrorTrace(err))
 		_ = c.Close()
 		return err
 	}
@@ -75,10 +76,10 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip, logger)
 	peerImpl, err := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel, dl)
 	if err != nil {
-		if err := connection.Close(); err != nil {
-			slog.Error("Failed to close incoming connection", "error", err)
+		if clErr := connection.Close(); clErr != nil {
+			slog.Error("Failed to close incoming connection", logging.Error(clErr), logging.ErrorTrace(clErr))
 		}
-		slog.Warn("Failed to create new peer impl", "error", err)
+		slog.Warn("Failed to create new peer impl", logging.Error(err), logging.ErrorTrace(err))
 		return errors.Wrap(err, "failed to run incoming peer")
 	}
 	return peer.Handle(ctx, peerImpl, params.Parent, remote, logger, dl)

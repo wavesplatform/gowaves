@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -117,8 +118,8 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		[]*proto.BlockSnapshot{&snapshot},
 	)
 	if err != nil {
-		slog.Error("Failed to apply block with snapshot", "state", a.String(), "error", err,
-			"blockID", a.blockWaitingForSnapshot.BlockID())
+		slog.Error("Failed to apply block with snapshot", slog.String("state", a.String()),
+			logging.Error(err), logging.ErrorTrace(err), slog.Any("blockID", a.blockWaitingForSnapshot.BlockID()))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 	metrics.SnapshotBlockApplied(a.blockWaitingForSnapshot, height+1)
