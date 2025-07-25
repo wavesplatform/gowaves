@@ -2,6 +2,7 @@ package conn
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"testing"
 	"time"
@@ -11,14 +12,10 @@ import (
 	"github.com/valyala/bytebufferpool"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
-	"go.uber.org/zap"
 )
 
 // test that we are receiving bytes
 func TestWrapConnection(t *testing.T) {
-	logger, _ := zap.NewDevelopment()
-	zap.ReplaceGlobals(logger)
-
 	listener, err := net.Listen("tcp", "127.0.0.1:")
 	require.NoError(t, err)
 	go func() {
@@ -36,7 +33,7 @@ func TestWrapConnection(t *testing.T) {
 	ch := make(chan *bytebufferpool.ByteBuffer, 1)
 	wrapped := WrapConnection(context.Background(), conn, nil, ch, nil, func(bytes proto.Header) bool {
 		return false
-	})
+	}, slog.New(slog.DiscardHandler))
 
 	select {
 	case <-time.After(10 * time.Millisecond):

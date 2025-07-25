@@ -1,0 +1,95 @@
+package logging
+
+import (
+	"encoding"
+	"fmt"
+	"io"
+	"log/slog"
+	"os"
+
+	"github.com/dpotapov/slogpfx"
+	"github.com/lmittmann/tint"
+	"github.com/mattn/go-isatty"
+	"github.com/pkg/errors"
+)
+
+const NamespaceKey = "namespace"
+
+// DefaultHandler creates a new slog handler with the specified parameters.
+func DefaultHandler(params Parameters) slog.Handler {
+	return NewHandler(params.Type, params.Level)
+}
+
+// NewHandler creates a new slog handler based on the specified logger type and level.
+func NewHandler(loggerType LoggerType, level slog.Level) slog.Handler {
+	switch loggerType {
+	case LoggerText:
+		return slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+	case LoggerJSON:
+		return slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{Level: level})
+	case LoggerPretty:
+		w := os.Stdout
+		colorize := isatty.IsTerminal(w.Fd())
+		return buildPrettyHandler(w, level, colorize)
+	case LoggerPrettyNoColor:
+		return buildPrettyHandler(os.Stdout, level, false)
+	default:
+		panic(fmt.Sprintf("unsupported logger type %d", loggerType))
+	}
+}
+
+func buildPrettyHandler(w io.Writer, level slog.Level, colorize bool) slog.Handler {
+	tintHandler := tint.NewHandler(w, &tint.Options{
+		Level:      level,
+		TimeFormat: "2006-01-02T15:04:05.000Z07:00",
+		NoColor:    !colorize,
+	})
+	formatter := slogpfx.DefaultPrefixFormatter
+	if colorize {
+		formatter = slogpfx.ColorizePrefix(formatter)
+	}
+	prefixed := slogpfx.NewHandler(tintHandler, &slogpfx.HandlerOptions{
+		PrefixKeys:      []string{NamespaceKey},
+		PrefixFormatter: formatter,
+	})
+	return prefixed
+}
+
+// textMarshaler is a helper function that formats a value as a slog.Attr
+// and checks if the value implements encoding.TextMarshaler.
+func textMarshaler(key string, value encoding.TextMarshaler) slog.Attr { return slog.Any(key, value) }
+
+type typenamePrinter struct{ v any }
+
+func (t typenamePrinter) MarshalText() ([]byte, error) {
+	return fmt.Appendf(nil, "%T", t.v), nil
+}
+
+// Type returns a slog.Attr that contains the type name of the value.
+func Type(value any) slog.Attr {
+	const key = "type"
+	return textMarshaler(key, typenamePrinter{v: value})
+}
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
+func Error(err error) slog.Attr {
+	const key = "error"
+	if err == nil {
+		return slog.Any("", nil)
+	}
+	return slog.String(key, err.Error())
+}
+
+func ErrorTrace(err error) slog.Attr {
+	const key = "trace"
+	if err == nil {
+		return slog.Any("", nil)
+	}
+	if st, ok := err.(stackTracer); ok {
+		return slog.Any(key, fmt.Sprintf("%+v", st.StackTrace()))
+	}
+	return slog.Any("", nil)
+}

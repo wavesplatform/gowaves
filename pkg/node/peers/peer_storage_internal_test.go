@@ -1,6 +1,7 @@
 package peers
 
 import (
+	"log/slog"
 	"testing"
 	"time"
 
@@ -37,6 +38,7 @@ func TestPeerManagerImpl_Suspend(t *testing.T) {
 
 	manager := PeerManagerImpl{
 		peerStorage: peerStorage,
+		logger:      slog.New(slog.DiscardHandler),
 	}
 
 	manager.Suspend(p, now, reason)

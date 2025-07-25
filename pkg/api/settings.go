@@ -1,13 +1,13 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
 	"strings"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 const (
@@ -51,7 +51,7 @@ func DefaultRunOptions() *RunOptions {
 		RequestIDMiddleware:  true,
 		CollectMetrics:       true,
 		RouteNotFoundHandler: func(w http.ResponseWriter, r *http.Request) {
-			zap.S().Debugf("NodeApi not found %+v, %s", r, r.URL.Path)
+			slog.Debug("NodeApi not found", "request", r, "path", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 		},
 		MaxConnections:       DefaultMaxConnections,

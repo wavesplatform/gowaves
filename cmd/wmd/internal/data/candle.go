@@ -2,9 +2,10 @@ package data
 
 import (
 	"encoding/binary"
-	"github.com/pkg/errors"
 	"math"
 	"math/big"
+
+	"github.com/pkg/errors"
 )
 
 const (

@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"log/slog"
 	"net"
 	"sync"
 	"time"
@@ -13,7 +14,8 @@ import (
 	"go.uber.org/atomic"
 )
 
-func WrapConnection(ctx context.Context, conn net.Conn, toRemoteCh chan []byte, fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter) Connection {
+func WrapConnection(ctx context.Context, conn net.Conn, toRemoteCh chan []byte,
+	fromRemoteCh chan *bytebufferpool.ByteBuffer, errCh chan error, skip SkipFilter, logger *slog.Logger) Connection {
 	return wrapConnection(ctx, wrapParams{
 		conn:         conn,
 		toRemoteCh:   toRemoteCh,
@@ -22,6 +24,7 @@ func WrapConnection(ctx context.Context, conn net.Conn, toRemoteCh chan []byte, 
 		sendFunc:     sendToRemote,
 		receiveFunc:  receiveFromRemote,
 		skip:         skip,
+		logger:       logger,
 	})
 }
 
@@ -31,8 +34,10 @@ type wrapParams struct {
 	fromRemoteCh chan *bytebufferpool.ByteBuffer
 	errCh        chan error
 	sendFunc     func(ctx context.Context, conn deadlineWriter, toRemoteCh chan []byte, now func() time.Time) error
-	receiveFunc  func(reader deadlineReader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string, now func() time.Time) error
-	skip         SkipFilter
+	receiveFunc  func(reader deadlineReader, fromRemoteCh chan *bytebufferpool.ByteBuffer, skip SkipFilter, addr string,
+		now func() time.Time, logger *slog.Logger) error
+	skip   SkipFilter
+	logger *slog.Logger
 }
 
 func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
@@ -67,7 +72,7 @@ func wrapConnection(ctx context.Context, params wrapParams) *ConnectionImpl {
 			readDeadlineSetter
 		}{bufio.NewReader(params.conn), params.conn}
 		remoteAddr := params.conn.RemoteAddr().String()
-		err := params.receiveFunc(bufReader, params.fromRemoteCh, params.skip, remoteAddr, now)
+		err := params.receiveFunc(bufReader, params.fromRemoteCh, params.skip, remoteAddr, now, params.logger)
 		if err != nil {
 			notifyAboutError(errors.Wrapf(err, "receiveFunc failed with addr %q", remoteAddr))
 		}

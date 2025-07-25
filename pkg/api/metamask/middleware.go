@@ -3,10 +3,10 @@ package metamask
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"time"
 
 	"github.com/semrush/zenrpc/v2"
-	"go.uber.org/zap"
 )
 
 func APILogMiddleware(handler zenrpc.InvokeFunc) zenrpc.InvokeFunc {
@@ -19,10 +19,8 @@ func APILogMiddleware(handler zenrpc.InvokeFunc) zenrpc.InvokeFunc {
 			ip = req.RemoteAddr
 		}
 		response := handler(ctx, method, params)
-		zap.S().Debugf(
-			"MetaMaskRPC: ip='%s' method='%s.%s' duration=%v params='%s' response='%s'",
-			ip, zenrpc.NamespaceFromContext(ctx), method, time.Since(start), params, response.JSON(),
-		)
+		slog.Debug("MetaMaskRPC", "ip", ip, "ns", zenrpc.NamespaceFromContext(ctx), "method", method,
+			"duration", time.Since(start), "params", params, "response", response.JSON())
 		return response
 	}
 }
