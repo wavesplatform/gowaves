@@ -61,6 +61,7 @@ linters:
     - usetesting
     - wastedassign
     - whitespace
+    - sloglint
   settings:
     cyclop:
       max-complexity: 30

@@ -82,7 +82,7 @@ func (a *PeerImpl) Close() error {
 func (a *PeerImpl) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {
-		slog.Error("Failed to send message", logging.Type(m), "error", err)
+		slog.Error("Failed to send message", logging.Type(m), logging.Error(err), logging.ErrorTrace(err))
 		return
 	}
 	a.logger.Debug("Sending to network", "peer", a.id, "data", proto.B64Bytes(b))

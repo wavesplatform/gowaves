@@ -229,8 +229,8 @@ func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
 		cnt++
 	})
 	info.invRequester.Add2Cache(inv.TotalBlockID) // prevent further unnecessary microblock request
-	info.logger.Debug("Network message sent to peers", logging.Type(msg), "count", cnt,
-		"blockID", inv.TotalBlockID, "ref", inv.Reference)
+	info.logger.Debug("Network message sent to peers", logging.Type(msg), slog.Int("count", cnt),
+		slog.Any("blockID", inv.TotalBlockID), slog.Any("ref", inv.Reference))
 	return nil
 }
 

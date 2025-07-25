@@ -10,6 +10,7 @@ import (
 	"github.com/dpotapov/slogpfx"
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
+	"github.com/pkg/errors"
 )
 
 const NamespaceKey = "namespace"
@@ -68,4 +69,27 @@ func (t typenamePrinter) MarshalText() ([]byte, error) {
 func Type(value any) slog.Attr {
 	const key = "type"
 	return textMarshaler(key, typenamePrinter{v: value})
+}
+
+type stackTracer interface {
+	StackTrace() errors.StackTrace
+}
+
+func Error(err error) slog.Attr {
+	const key = "error"
+	if err == nil {
+		return slog.Any("", nil)
+	}
+	return slog.String(key, err.Error())
+}
+
+func ErrorTrace(err error) slog.Attr {
+	const key = "trace"
+	if err == nil {
+		return slog.Any("", nil)
+	}
+	if st, ok := err.(stackTracer); ok {
+		return slog.Any(key, fmt.Sprintf("%+v", st.StackTrace()))
+	}
+	return slog.Any("", nil)
 }

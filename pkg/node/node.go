@@ -190,7 +190,7 @@ func (a *Node) Run(
 				default:
 				}
 			default:
-				slog.Error("Unknown internal message", "state", m.State.State, logging.Type(t))
+				slog.Error("Unknown internal message", slog.Any("state", m.State.State), logging.Type(t))
 				continue
 			}
 		case task := <-tasksCh:
@@ -206,15 +206,15 @@ func (a *Node) Run(
 			case network.StopMining:
 				async, err = m.StopMining()
 			default:
-				slog.Warn("Unknown network info message", "state", m.State.State, logging.Type(msg))
+				slog.Warn("Unknown network info message", slog.Any("state", m.State.State), logging.Type(msg))
 			}
 		case mess := <-messageCh:
-			a.fsmLogger.Debug("Network message received", "state", m.State.State, logging.Type(mess.Message),
-				"peer", mess.ID.ID())
+			a.fsmLogger.Debug("Network message received", slog.Any("state", m.State.State),
+				logging.Type(mess.Message), slog.Any("peer", mess.ID.ID()))
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
-				slog.Error("Unknown network message", "state", m.State.State, logging.Type(mess.Message),
-					"peer", mess.ID.ID())
+				slog.Error("Unknown network message", slog.Any("state", m.State.State),
+					logging.Type(mess.Message), slog.Any("peer", mess.ID.ID()))
 				continue
 			}
 			async, err = action(a.services, mess, m, a.netLogger)
@@ -274,7 +274,8 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, a fsm.Async) {
 		go func(t tasks.Task) {
 			err := t.Run(ctx, ch)
 			if err != nil && !errors.Is(err, context.Canceled) {
-				slog.Warn("Async task finished with error", logging.Type(t), "error", err)
+				slog.Warn("Async task finished with error", logging.Type(t), logging.Error(err),
+					logging.ErrorTrace(err))
 			}
 		}(t)
 	}
