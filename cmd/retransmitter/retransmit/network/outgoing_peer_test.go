@@ -8,11 +8,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -70,7 +70,7 @@ func (a *server) listen(l net.Listener) {
 		b := make([]byte, 1024)
 		_, err = conn.Read(b)
 		if err != nil {
-			slog.Error("Error", "error", err)
+			slog.Error("Error", logging.Error(err), logging.ErrorTrace(err))
 			return
 		}
 		a.addReadBytes(b)

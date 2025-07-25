@@ -6,6 +6,7 @@ import (
 	"github.com/pkg/errors"
 
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -62,7 +63,7 @@ func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, fi
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
+			slog.Error("Iterator error", logging.Error(err), logging.ErrorTrace(err))
 			panic(err)
 		}
 	}()

@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -38,7 +39,8 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	connection, handshake, err := p.connect(ctx, addr, outgoingPeerDialTimeout, v, logger)
 	if err != nil {
-		logger.Debug("Failed to establish outgoing connection", "address", addr, "error", err)
+		logger.Debug("Failed to establish outgoing connection", slog.String("address", addr),
+			logging.Error(err), logging.ErrorTrace(err))
 		return errors.Wrapf(err, "%q", addr)
 	}
 
@@ -47,7 +49,8 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		if err := connection.Close(); err != nil {
 			slog.Error("Failed to close outgoing connection to '%s': %v", addr, err)
 		}
-		logger.Debug("Failed to create peer for outgoing connection", "address", addr, "error", err)
+		logger.Debug("Failed to create peer for outgoing connection", slog.String("address", addr),
+			logging.Error(err), logging.ErrorTrace(err))
 		return errors.Wrapf(err, "failed to establish connection to %s", addr)
 	}
 	logger.Debug("Connected outgoing peer", "address", addr, "peer", peerImpl.ID())
@@ -70,8 +73,9 @@ func (a *connector) connect(
 	}
 	defer func() {
 		if err != nil { // close connection on error
-			if err := c.Close(); err != nil {
-				slog.Error("Failed to close outgoing connection", "address", addr, "error", err)
+			if clErr := c.Close(); clErr != nil {
+				slog.Error("Failed to close outgoing connection", slog.String("address", addr),
+					logging.Error(clErr), logging.ErrorTrace(clErr))
 			}
 		}
 	}()
@@ -85,10 +89,11 @@ func (a *connector) connect(
 		Timestamp:    proto.NewTimestampFromTime(time.Now()),
 	}
 
-	if _, err := handshake.WriteTo(c); err != nil {
-		addr := a.params.Address.String()
-		logger.Debug("Failed to send handshake", "address", addr, "error", err)
-		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to send handshake with addr %q", addr)
+	if _, wErr := handshake.WriteTo(c); wErr != nil {
+		pa := a.params.Address.String()
+		logger.Debug("Failed to send handshake", slog.String("address", pa),
+			logging.Error(wErr), logging.ErrorTrace(wErr))
+		return nil, proto.Handshake{}, errors.Wrapf(wErr, "failed to send handshake with addr %q", pa)
 	}
 	select {
 	case <-ctx.Done():
@@ -96,10 +101,11 @@ func (a *connector) connect(
 	default:
 	}
 
-	if _, err := handshake.ReadFrom(c); err != nil {
-		addr := a.params.Address.String()
-		logger.Debug("Failed to read handshake", "address", a.params.Address.String(), "error", err)
-		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to read handshake with addr %q", addr)
+	if _, rErr := handshake.ReadFrom(c); rErr != nil {
+		pa := a.params.Address.String()
+		logger.Debug("Failed to read handshake", slog.String("address", pa),
+			logging.Error(rErr), logging.ErrorTrace(rErr))
+		return nil, proto.Handshake{}, errors.Wrapf(rErr, "failed to read handshake with addr %q", pa)
 	}
 	select {
 	case <-ctx.Done():

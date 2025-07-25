@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/beevik/ntp"
+
+	"github.com/wavesplatform/gowaves/pkg/logging"
 )
 
 type inner interface {
@@ -79,7 +81,7 @@ func (a *ntpTimeImpl) Run(ctx context.Context, duration time.Duration) {
 		case <-timer.C:
 			tm, err := a.inner.Query(a.addr)
 			if err != nil {
-				slog.Debug("Failed to run NTP time provider", "error", err)
+				slog.Debug("Failed to run NTP time provider", logging.Error(err), logging.ErrorTrace(err))
 				continue
 			}
 			a.mu.Lock()

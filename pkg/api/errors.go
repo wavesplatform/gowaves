@@ -10,6 +10,7 @@ import (
 	"github.com/pkg/errors"
 
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 )
 
 // internal node api errors
@@ -81,7 +82,8 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 			slog.String("path", r.URL.Path),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 			slog.String("remote_addr", r.RemoteAddr),
-			"error", err)
+			logging.Error(err),
+			logging.ErrorTrace(err))
 		eh.sendApiErrJSON(w, r, unknownError)
 	case errors.As(err, &apiError):
 		eh.sendApiErrJSON(w, r, apiError)
@@ -91,7 +93,8 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 			slog.String("path", r.URL.Path),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 			slog.String("remote_addr", r.RemoteAddr),
-			"error", err)
+			logging.Error(err),
+			logging.ErrorTrace(err))
 		unknownErrWrapper := apiErrs.NewUnknownError(err)
 		eh.sendApiErrJSON(w, r, unknownErrWrapper)
 	}
@@ -105,7 +108,8 @@ func (eh *ErrorHandler) sendApiErrJSON(w http.ResponseWriter, r *http.Request, a
 			slog.String("path", r.URL.Path),
 			slog.String("request_id", middleware.GetReqID(r.Context())),
 			slog.String("remote_addr", r.RemoteAddr),
-			"error", encodeErr,
+			logging.Error(encodeErr),
+			logging.ErrorTrace(encodeErr),
 			slog.String("api_error", apiErr.Error()),
 		)
 		// nickeskov: Type which implements ApiError interface MUST be serializable to JSON.

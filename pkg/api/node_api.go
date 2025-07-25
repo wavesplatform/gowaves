@@ -19,6 +19,7 @@ import (
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
@@ -427,7 +428,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 		defer cancel()
 		sErr := apiServer.Shutdown(shutdownCtx)
 		if sErr != nil {
-			slog.Error("Failed to shutdown API server", "error", sErr)
+			slog.Error("Failed to shutdown API server", logging.Error(sErr), logging.ErrorTrace(sErr))
 		}
 	}()
 

@@ -116,24 +116,26 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 		defer wg.Done()
 		<-ctx.Done()
 		if clErr := l.Close(); clErr != nil {
-			slog.Error("Failed to close listener", "address", l.Addr().String(), "error", clErr)
+			slog.Error("Failed to close listener", slog.String("address", l.Addr().String()),
+				logging.Error(clErr), logging.ErrorTrace(clErr))
 		}
 	}()
 
 	for {
-		conn, err := l.Accept()
-		if err != nil {
+		conn, acErr := l.Accept()
+		if acErr != nil {
 			if ctx.Err() != nil { // context has been canceled
 				return nil
 			}
-			slog.Error("Failed to accept new peer", "error", err)
+			slog.Error("Failed to accept new peer", logging.Error(acErr), logging.ErrorTrace(acErr))
 			continue
 		}
 
 		go func() {
-			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
-				a.netLogger.Debug("Failed to establish incoming connection", "address", conn.RemoteAddr().String(),
-					"error", err)
+			if sErr := a.peers.SpawnIncomingConnection(ctx, conn); sErr != nil {
+				a.netLogger.Debug("Failed to establish incoming connection",
+					slog.String("address", conn.RemoteAddr().String()),
+					logging.Error(sErr), logging.ErrorTrace(sErr))
 				return
 			}
 		}()
@@ -145,9 +147,9 @@ func (a *Node) logErrors(err error) {
 	_ = error(infoMsg) // compile time check
 	switch {
 	case errors.As(err, &infoMsg):
-		a.netLogger.Debug("Node failure", "error", infoMsg)
+		a.netLogger.Debug("Node failure", logging.Error(infoMsg), logging.ErrorTrace(infoMsg))
 	default:
-		slog.Error("Node failure", "error", err)
+		slog.Error("Node failure", logging.Error(err), logging.ErrorTrace(err))
 	}
 }
 
@@ -168,7 +170,7 @@ func (a *Node) Run(
 	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer, a.enableLightMode,
 		a.fsmLogger, a.netLogger)
 	if err != nil {
-		slog.Error("Failed to create FSM", "error", err)
+		slog.Error("Failed to create FSM", logging.Error(err), logging.ErrorTrace(err))
 		return
 	}
 	spawnAsync(ctx, tasksCh, async)
@@ -228,7 +230,7 @@ func (a *Node) Run(
 
 func (a *Node) runIncomingConnections(ctx context.Context) {
 	if err := a.serveIncomingPeers(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		slog.Error("Failed to continue serving incoming peers", "error", err)
+		slog.Error("Failed to continue serving incoming peers", logging.Error(err), logging.ErrorTrace(err))
 	}
 }
 

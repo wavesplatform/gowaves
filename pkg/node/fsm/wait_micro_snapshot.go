@@ -8,6 +8,7 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -106,7 +107,9 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	block, err := a.checkAndAppendMicroBlock(a.microBlockWaitingForSnapshot, &snapshot)
 	if err != nil {
 		metrics.MicroBlockDeclined(a.microBlockWaitingForSnapshot)
-		slog.Error("Failed to check and append microblock", "state", a.String(), "error", a.Errorf(err))
+		ae := a.Errorf(err)
+		slog.Error("Failed to check and append microblock", slog.String("state", a.String()),
+			logging.Error(ae), logging.ErrorTrace(ae))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 
@@ -120,8 +123,9 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
 		//TODO: We have to exclude from recipients peers that already have this microblock
 		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
-			slog.Error("Failed to broadcast microblock", "state", a.String(),
-				"error", a.Errorf(errors.Wrap(err, "Failed to handle micro block message")))
+			ae := a.Errorf(errors.Wrap(err, "Failed to handle micro block message"))
+			slog.Error("Failed to broadcast microblock", slog.String("state", a.String()),
+				logging.Error(ae), logging.ErrorTrace(ae))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		}
 	}

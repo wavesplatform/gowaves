@@ -9,10 +9,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
-
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -183,7 +183,8 @@ func (a *PeerManagerImpl) Suspend(p peer.Peer, suspendTime time.Time, reason str
 		reason,
 	)
 	if err := a.peerStorage.AddSuspended([]storage.SuspendedPeer{suspended}); err != nil {
-		slog.Error("Failed to suspend peer", "peer", p.ID(), "reason", reason, "error", err)
+		slog.Error("Failed to suspend peer", slog.Any("peer", p.ID()), slog.String("reason", reason),
+			logging.Error(err), logging.ErrorTrace(err))
 	} else {
 		a.logger.Debug("Suspending peer", "peer", p.ID(), "reason", reason)
 	}
@@ -208,7 +209,8 @@ func (a *PeerManagerImpl) AddToBlackList(p peer.Peer, blockTime time.Time, reaso
 		reason,
 	)
 	if err := a.peerStorage.AddToBlackList([]storage.BlackListedPeer{blackListed}); err != nil {
-		slog.Error("Failed to add peer to black list", "peer", p.ID(), "reason", reason, "error", err)
+		slog.Error("Failed to add peer to black list", slog.Any("peer", p.ID()),
+			slog.String("reason", reason), logging.Error(err), logging.ErrorTrace(err))
 	} else {
 		a.logger.Debug("Peer added to black list", "peer", p.ID(), "reason", reason)
 	}
@@ -313,12 +315,12 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			addr := proto.NewTCPAddr(ipPort.Addr(), ipPort.Port())
 			defer a.removeSpawned(addr)
 			if err := a.spawner.SpawnOutgoing(ctx, addr); err != nil {
-				a.logger.Debug("Failed to establish outbound connection", "address", ipPort.String(),
-					"error", err)
+				a.logger.Debug("Failed to establish outbound connection",
+					slog.String("address", ipPort.String()), logging.Error(err), logging.ErrorTrace(err))
 			}
 			if err := a.UpdateKnownPeers([]storage.KnownPeer{storage.KnownPeer(ipPort)}); err != nil {
-				slog.Error("Failed to update peer info in peer storage", "address", ipPort.String(),
-					"error", err)
+				slog.Error("Failed to update peer info in peer storage",
+					slog.String("address", ipPort.String()), logging.Error(err), logging.ErrorTrace(err))
 			}
 
 		}(ipPort)
@@ -369,7 +371,8 @@ func (a *PeerManagerImpl) Connect(ctx context.Context, addr proto.TCPAddr) error
 		defer a.removeSpawned(addr)
 		err := a.spawner.SpawnOutgoing(ctx, addr)
 		if err != nil {
-			slog.Error("Failed to spawn outgoing peer", "address", addr.String(), "error", err)
+			slog.Error("Failed to spawn outgoing peer", slog.String("address", addr.String()),
+				logging.Error(err), logging.ErrorTrace(err))
 		}
 	}(addr)
 
@@ -401,7 +404,8 @@ func (a *PeerManagerImpl) Disconnect(p peer.Peer) {
 	pid := p.ID()
 	a.active.remove(pid)
 	if err := p.Close(); err != nil {
-		a.logger.Debug("Failed to disconnect the peer", "peer", pid, "error", err)
+		a.logger.Debug("Failed to disconnect the peer", slog.Any("peer", pid),
+			logging.Error(err), logging.ErrorTrace(err))
 	} else {
 		a.logger.Debug("Peer disconnected", "peer", pid)
 	}
@@ -490,10 +494,10 @@ func (a *PeerManagerImpl) clearRestrictedPeers(now time.Time) {
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	if err := a.peerStorage.RefreshSuspended(now); err != nil {
-		slog.Error("Failed to clear suspended peers", "error", err)
+		slog.Error("Failed to clear suspended peers", logging.Error(err), logging.ErrorTrace(err))
 	}
 	if err := a.peerStorage.RefreshBlackList(now); err != nil {
-		slog.Error("Failed to clear black listed peers", "error", err)
+		slog.Error("Failed to clear black listed peers", logging.Error(err), logging.ErrorTrace(err))
 	}
 }
 

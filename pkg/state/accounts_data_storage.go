@@ -9,6 +9,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -252,9 +253,9 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address) ([]proto.DataE
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -303,9 +304,9 @@ func (s *accountsDataStorage) newestEntryExists(addr proto.Address) (bool, error
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil && !errors.Is(iter.Error(), keyvalue.ErrNotFound) {
-			slog.Error("Iterator error", "error", err)
-			panic(err)
+		if itErr := iter.Error(); itErr != nil && !errors.Is(itErr, keyvalue.ErrNotFound) {
+			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			panic(itErr)
 		}
 	}()
 	for iter.Next() {

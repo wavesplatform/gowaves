@@ -11,6 +11,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -949,7 +950,8 @@ func (ia *invokeApplier) handleFallibleValidationError(err error,
 	r ride.Result) (*invocationResult, error) {
 	var invocationRes *invocationResult
 	if err != nil {
-		slog.Debug("Fallible validation error", "tx", txID.String(), "error", err.Error())
+		slog.Debug("Fallible validation error", slog.String("tx", txID.String()), logging.Error(err),
+			logging.ErrorTrace(err))
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed ||
 			(ia.sc.recentTxComplexity <= FailFreeInvokeComplexity &&

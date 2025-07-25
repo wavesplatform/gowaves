@@ -116,12 +116,14 @@ func tryBroadcastTransaction(
 	if baseInfo.logger.Enabled(context.Background(), slog.LevelDebug) {
 		defer func() {
 			if genIDErr := t.GenerateID(baseInfo.scheme); genIDErr != nil {
-				slog.Error("Failed to generate ID for transaction", "state", fsm.String(), "error", genIDErr)
+				slog.Error("Failed to generate ID for transaction", slog.String("state", fsm.String()),
+					logging.Error(genIDErr), logging.ErrorTrace(genIDErr))
 				return
 			}
 			txIDBytes, getIDErr := t.GetID(baseInfo.scheme)
 			if getIDErr != nil {
-				slog.Error("Failed to get ID for transaction", "state", fsm.String(), "error", getIDErr)
+				slog.Error("Failed to get ID for transaction", slog.String("state", fsm.String()),
+					logging.Error(getIDErr), logging.ErrorTrace(getIDErr))
 				return
 			}
 			txID := base58.Encode(txIDBytes)
@@ -242,22 +244,25 @@ func processScoreAfterApplyingOrReturnToNG(
 ) (State, Async, error) {
 	for _, s := range scores {
 		if err := baseInfo.peers.UpdateScore(s.Peer, s.Score); err != nil {
-			baseInfo.logger.Debug("Failed to update score", "error", proto.NewInfoMsg(err),
-				"state", state.String())
+			info := proto.NewInfoMsg(err)
+			baseInfo.logger.Debug("Failed to update score", slog.String("state", state.String()),
+				logging.Error(info), logging.ErrorTrace(info))
 			continue
 		}
 		nodeScore, err := baseInfo.storage.CurrentScore()
 		if err != nil {
-			baseInfo.logger.Debug("Failed to get current score", "error", proto.NewInfoMsg(err),
-				"state", state.String())
+			info := proto.NewInfoMsg(err)
+			baseInfo.logger.Debug("Failed to get current score", slog.String("state", state.String()),
+				logging.Error(info), logging.ErrorTrace(info))
 			continue
 		}
 		if s.Score.Cmp(nodeScore) == 1 {
 			// received score is larger than local score
 			newS, task, errS := syncWithNewPeer(state, baseInfo, s.Peer)
 			if errS != nil {
-				slog.Error("Failed to sync with peer", "error", state.Errorf(errS),
-					"state", state.String())
+				se := state.Errorf(errS)
+				slog.Error("Failed to sync with peer", slog.String("state", state.String()),
+					logging.Error(se), logging.ErrorTrace(se))
 				continue
 			}
 			if newSName := newS.String(); newSName != SyncStateName { // sanity check

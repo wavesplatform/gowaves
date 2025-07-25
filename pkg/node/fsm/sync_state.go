@@ -9,6 +9,7 @@ import (
 	"github.com/qmuntal/stateless"
 
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
@@ -211,7 +212,8 @@ func (a *SyncState) MinedBlock(
 		[]*proto.Block{block},
 	)
 	if err != nil {
-		slog.Warn("Failed to apply mined block", "state", a.String(), "error", err)
+		slog.Warn("Failed to apply mined block", slog.String("state", a.String()),
+			logging.Error(err), logging.ErrorTrace(err))
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
 	metrics.BlockAppliedFromExtension(block, height+1)
@@ -277,7 +279,9 @@ func (a *SyncState) applyBlocksWithSnapshots(
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
 			a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
-				"state", a.String(), "peer", a.baseInfo.syncPeer.GetPeer().ID().String(), "error", err)
+				slog.String("state", a.String()),
+				slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()),
+				logging.Error(err), logging.ErrorTrace(err))
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
 		}
 		for _, b := range blocks {

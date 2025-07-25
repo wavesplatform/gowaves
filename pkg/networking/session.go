@@ -143,7 +143,8 @@ func (s *Session) drain() {
 		s.connErr = clErr       // Store the connection close error to the session error.
 		s.connWriteLock.Unlock()
 		if clErr != nil {
-			s.logger.Warn("Failed to close underlying connection", "error", clErr)
+			s.logger.Warn("Failed to close underlying connection",
+				logging.Error(clErr), logging.ErrorTrace(clErr))
 		} else {
 			s.logger.Debug("Underlying connection successfully closed")
 		}
@@ -164,7 +165,7 @@ func (s *Session) Close() error {
 		tgErr := s.g.Wait()                   // Wait for loops to finish.
 		s.err = errors.Join(tgErr, s.connErr) // Combine loops finalization errors with connection close error.
 		if s.err != nil {
-			s.logger.Warn("Session closed with errors", "error", s.err)
+			s.logger.Warn("Session closed with errors", logging.Error(s.err), logging.ErrorTrace(s.err))
 		} else {
 			s.logger.Debug("Session closed successfully")
 		}
@@ -215,7 +216,7 @@ func (s *Session) waitForSend(data []byte) error {
 			s.logger.Debug("Data sent successfully")
 			return nil // No error, data was sent successfully.
 		}
-		s.logger.Debug("Error sending data", "error", err)
+		s.logger.Debug("Error sending data", logging.Error(err), logging.ErrorTrace(err))
 		return err
 	case <-s.ctx.Done():
 		s.logger.Debug("Session shutdown while waiting send error")
@@ -243,7 +244,7 @@ func (s *Session) sendLoop() error {
 			_, rErr := dataBuf.ReadFrom(packet.r)
 			if rErr != nil {
 				packet.mu.Unlock()
-				s.logger.Error("Failed to copy data into buffer", "error", rErr)
+				s.logger.Error("Failed to copy data into buffer", logging.Error(rErr), logging.ErrorTrace(rErr))
 				s.asyncSendErr(packet.err, rErr)
 				return rErr
 			}
@@ -258,7 +259,8 @@ func (s *Session) sendLoop() error {
 				}
 				written, err := s.writeConnIfNotClosed(data)
 				if err != nil {
-					s.logger.Error("Failed to write data into connection", "error", err)
+					s.logger.Error("Failed to write data into connection", logging.Error(err),
+						logging.ErrorTrace(err))
 					s.asyncSendErr(packet.err, err)
 					return err
 				}
@@ -327,7 +329,7 @@ func (s *Session) readHandshake() error {
 			strings.Contains(errMsg, "reset by peer") {
 			return errors.Join(ErrConnectionClosedOnRead, err) // Wrap the error with ErrConnectionClosedOnRead.
 		}
-		s.logger.Error("Failed to read handshake from connection", "error", err)
+		s.logger.Error("Failed to read handshake from connection", logging.Error(err), logging.ErrorTrace(err))
 		return err
 	}
 	s.logger.Debug("Handshake successfully read")
@@ -354,19 +356,19 @@ func (s *Session) readMessage(hdr Header) error {
 			strings.Contains(errMsg, "broken pipe") { // In Docker network built on top of pipe, we get this error on close.
 			return errors.Join(ErrConnectionClosedOnRead, err) // Wrap the error with ErrConnectionClosedOnRead.
 		}
-		s.logger.Error("Failed to read header", "error", err)
+		s.logger.Error("Failed to read header", logging.Error(err), logging.ErrorTrace(err))
 		return err
 	}
 	if !s.config.protocol.IsAcceptableMessage(s, hdr) {
 		// We have to discard the remaining part of the message.
 		if _, err := io.CopyN(io.Discard, s.bufRead, int64(hdr.PayloadLength())); err != nil {
-			s.logger.Error("Failed to discard message", "error", err)
+			s.logger.Error("Failed to discard message", logging.Error(err), logging.ErrorTrace(err))
 			return err
 		}
 	}
 	// Read the new data
 	if err := s.readMessagePayload(hdr, s.bufRead); err != nil {
-		s.logger.Error("Failed to read message", "error", err)
+		s.logger.Error("Failed to read message", logging.Error(err), logging.ErrorTrace(err))
 		return err
 	}
 	return nil
@@ -388,12 +390,12 @@ func (s *Session) readMessagePayload(hdr Header, conn io.Reader) error {
 	defer s.receiveBuffer.Reset()
 	_, err := hdr.WriteTo(s.receiveBuffer)
 	if err != nil {
-		s.logger.Error("Failed to write header to receiving buffer", "error", err)
+		s.logger.Error("Failed to write header to receiving buffer", logging.Error(err), logging.ErrorTrace(err))
 		return err
 	}
 	n, err := io.Copy(s.receiveBuffer, conn)
 	if err != nil {
-		s.logger.Error("Failed to copy payload to receiving buffer", "error", err)
+		s.logger.Error("Failed to copy payload to receiving buffer", logging.Error(err), logging.ErrorTrace(err))
 		return err
 	}
 	s.logger.Debug("Message payload successfully read", "len", n)
@@ -421,14 +423,14 @@ func (s *Session) keepaliveLoop() error {
 				// Get actual Ping message from Protocol.
 				p, pErr := s.config.protocol.Ping()
 				if pErr != nil {
-					s.logger.Error("Failed to get ping message", "error", pErr)
+					s.logger.Error("Failed to get ping message", logging.Error(pErr), logging.ErrorTrace(pErr))
 					return errors.Join(ErrKeepAliveProtocolFailure, pErr)
 				}
 				if sndErr := s.waitForSend(p); sndErr != nil {
 					if errors.Is(sndErr, ErrSessionShutdown) {
 						return nil // Exit normally on session termination.
 					}
-					s.logger.Error("Failed to send ping message", "error", sndErr)
+					s.logger.Error("Failed to send ping message", logging.Error(sndErr), logging.ErrorTrace(sndErr))
 					fErr := errors.Join(ErrKeepAliveTimeout, sndErr)
 					s.config.handler.OnFailure(s, fErr)
 					return fErr
@@ -456,7 +458,7 @@ func (s *Session) asyncSendErr(ch chan<- error, err error) {
 	}
 	select {
 	case ch <- err:
-		s.logger.Debug("Error sent to channel", "error", err)
+		s.logger.Debug("Error sent to channel", logging.Error(err), logging.ErrorTrace(err))
 	default:
 	}
 }
