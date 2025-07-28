@@ -46,7 +46,7 @@ func (a *Peers) All(ctx context.Context) ([]*PeerAllRow, *Response, error) {
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := new(peersAllResp)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -85,7 +85,7 @@ func (a *Peers) Connected(ctx context.Context) ([]*PeersConnectedRow, *Response,
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := new(peersConnected)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -117,7 +117,7 @@ func (a *Peers) Blacklisted(ctx context.Context) ([]*PeersBlacklistedRow, *Respo
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	var out []*PeersBlacklistedRow
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -148,7 +148,7 @@ func (a *Peers) Suspended(ctx context.Context) ([]*PeersSuspendedRow, *Response,
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	var out []*PeersSuspendedRow
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -171,7 +171,7 @@ func (a *Peers) Connect(ctx context.Context, host string, port uint16) (*PeersCo
 		return nil, nil, err
 	}
 
-	bts, err := json.Marshal(map[string]interface{}{"host": host, "port": port})
+	bts, err := json.Marshal(map[string]any{"host": host, "port": port})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -184,7 +184,7 @@ func (a *Peers) Connect(ctx context.Context, host string, port uint16) (*PeersCo
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := new(PeersConnect)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -210,7 +210,7 @@ func (a *Peers) ClearBlacklist(ctx context.Context) (string, *Response, error) {
 	req.Header.Set("X-API-Key", a.options.ApiKey)
 
 	out := make(map[string]string)
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return "", response, err
 	}

@@ -19,7 +19,7 @@ const (
 func TestBloomFilter(t *testing.T) {
 	filter, err := newBloomFilter(BloomFilterParams{n, falsePositiveProbability, nil, false})
 	assert.NoError(t, err, "newBloomFilter() failed")
-	for i := 0; i < n; i++ {
+	for range n {
 		data := make([]byte, 100)
 		_, err := rand.Read(data)
 		require.NoError(t, err, "rand.Read() failed")

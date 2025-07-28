@@ -177,7 +177,7 @@ func TestVRFVerificationFailureBySignature(t *testing.T) {
 }
 
 func TestVRFMultipleRoundTrips(t *testing.T) {
-	for i := 0; i < 100; i++ {
+	for range 100 {
 		ml := mrand.Intn(2048)
 		msg := make([]byte, ml)
 		seed := make([]byte, 256)
@@ -219,8 +219,7 @@ func BenchmarkSignVRF(b *testing.B) {
 				b.Fatalf("rand.Read(): %v\n", err)
 			}
 			sk := GenerateSecretKey(seed)
-			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				if _, err := SignVRF(sk, msg); err != nil {
 					b.Fatalf("SignVRF() failed: %v\n", err)
 				}
@@ -248,8 +247,7 @@ func BenchmarkVerifyVRF(b *testing.B) {
 			if err != nil {
 				b.Fatalf("SignVRF() failed: %v\n", err)
 			}
-			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				ok, _, err := VerifyVRF(pk, msg, s)
 				if err != nil {
 					b.Fatalf("VerifyVRF() failed: %v\n", err)
@@ -277,8 +275,7 @@ func BenchmarkComputeVRF(b *testing.B) {
 			if err != nil {
 				b.Fatalf("GenerateKeyPair() failed: %v\n", err)
 			}
-			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				vrf := ComputeVRF(sk, msg)
 				_ = vrf
 			}

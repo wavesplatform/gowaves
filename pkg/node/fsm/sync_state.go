@@ -331,12 +331,12 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		Ignore(StartMiningEvent).
 		Ignore(StopMiningEvent).
 		Ignore(MicroBlockSnapshotEvent).
-		OnEntry(func(ctx context.Context, args ...interface{}) error {
+		OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(syncSkipMessageList)
 			return nil
 		}).
 		PermitDynamic(ChangeSyncPeerEvent,
-			createPermitDynamicCallback(ChangeSyncPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(ChangeSyncPeerEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -345,7 +345,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.ChangeSyncPeer(convertToInterface[peer.Peer](args[0]))
 			})).
 		PermitDynamic(StopSyncEvent,
-			createPermitDynamicCallback(StopSyncEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(StopSyncEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -354,7 +354,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.StopSync()
 			})).
 		PermitDynamic(TaskEvent,
-			createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TaskEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -363,7 +363,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.Task(args[0].(tasks.AsyncTask))
 			})).
 		PermitDynamic(ScoreEvent,
-			createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(ScoreEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -372,7 +372,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.Score(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Score))
 			})).
 		PermitDynamic(BlockEvent,
-			createPermitDynamicCallback(BlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(BlockEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -381,7 +381,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
 			})).
 		PermitDynamic(BlockIDsEvent,
-			createPermitDynamicCallback(BlockIDsEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(BlockIDsEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -390,7 +390,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.BlockIDs(convertToInterface[peer.Peer](args[0]), args[1].([]proto.BlockID))
 			})).
 		PermitDynamic(MinedBlockEvent,
-			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -400,7 +400,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 					args[2].(proto.KeyPair), args[3].([]byte))
 			})).
 		PermitDynamic(TransactionEvent,
-			createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TransactionEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -410,7 +410,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 					convertToInterface[proto.Transaction](args[1]))
 			})).
 		PermitDynamic(HaltEvent,
-			createPermitDynamicCallback(HaltEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(HaltEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -419,7 +419,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.Halt()
 			})).
 		PermitDynamic(BlockSnapshotEvent,
-			createPermitDynamicCallback(BlockSnapshotEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(BlockSnapshotEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(

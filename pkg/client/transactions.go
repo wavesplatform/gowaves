@@ -39,7 +39,7 @@ func (a *Transactions) UnconfirmedInfo(ctx context.Context, id crypto.Digest) (p
 
 	buf := new(bytes.Buffer)
 	buf.WriteRune('[')
-	response, err := doHttp(ctx, a.options, req, buf)
+	response, err := doHTTP(ctx, a.options, req, buf)
 	if err != nil {
 		return nil, response, err
 	}
@@ -70,7 +70,7 @@ func (a *Transactions) UnconfirmedSize(ctx context.Context) (uint64, *Response, 
 	}
 
 	out := make(map[string]uint64)
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return 0, response, err
 	}
@@ -91,7 +91,7 @@ func (a *Transactions) Unconfirmed(ctx context.Context) ([]proto.Transaction, *R
 	}
 
 	out := TransactionsField{}
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -112,7 +112,7 @@ func (a *Transactions) Info(ctx context.Context, id crypto.Digest) (TransactionI
 	}
 
 	buf := new(bytes.Buffer)
-	response, err := doHttp(ctx, a.options, req, buf)
+	response, err := doHTTP(ctx, a.options, req, buf)
 	if err != nil {
 		return nil, response, err
 	}
@@ -148,7 +148,7 @@ func (a *Transactions) Address(ctx context.Context, address proto.WavesAddress, 
 	}
 
 	var out []TransactionsField
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -180,5 +180,5 @@ func (a *Transactions) Broadcast(ctx context.Context, transaction proto.Transact
 	if err != nil {
 		return nil, err
 	}
-	return doHttp(ctx, a.options, req, nil)
+	return doHTTP(ctx, a.options, req, nil)
 }
