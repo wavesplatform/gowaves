@@ -97,7 +97,7 @@ func (l *leases) generateCancelledLeaseSnapshots(
 	defer func() {
 		leaseIter.Release()
 		if liErr := leaseIter.Error(); liErr != nil {
-			slog.Error("Iterator error", logging.Error(liErr), logging.ErrorTrace(liErr))
+			slog.Error("Iterator error", logging.Error(liErr))
 			panic(liErr)
 		}
 	}()
@@ -199,7 +199,7 @@ func (l *leases) validLeaseIns() (map[proto.WavesAddress]int64, error) {
 	defer func() {
 		leaseIter.Release()
 		if liErr := leaseIter.Error(); liErr != nil {
-			slog.Error("Iterator error", logging.Error(liErr), logging.ErrorTrace(liErr))
+			slog.Error("Iterator error", logging.Error(liErr))
 			panic(liErr)
 		}
 	}()

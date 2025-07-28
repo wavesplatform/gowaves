@@ -129,7 +129,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	for i, appliedTx := range appliedTransactions {
 		if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 			if id, idErr := appliedTx.T.GetID(a.scheme); idErr != nil {
-				slog.Error("Failed to get transaction ID", logging.Error(idErr), logging.ErrorTrace(idErr))
+				slog.Error("Failed to get transaction ID", logging.Error(idErr))
 			} else {
 				slog.Debug("[MICRO MINER] Appending transaction", "TxID", base58.Encode(id))
 			}

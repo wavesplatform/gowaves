@@ -468,7 +468,7 @@ func (f *features) resetVotes(blockID proto.BlockID) error {
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()
@@ -498,7 +498,7 @@ func (f *features) approveFeatures(curHeight uint64, blockID proto.BlockID) erro
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()
@@ -542,7 +542,7 @@ func (f *features) activateFeatures(curHeight uint64, blockID proto.BlockID) err
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()
@@ -597,7 +597,7 @@ func (f *features) allFeatures() ([]int16, error) {
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()

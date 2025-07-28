@@ -90,7 +90,7 @@ func (a internalImpl) prepareDataForSchedule(
 		greatGrandParent, err := storage.HeaderByHeight(greatGrandParentHeight)
 		if err != nil {
 			slog.Error("Scheduler: Failed to get blockID by height",
-				slog.Any("height", greatGrandParentHeight), logging.Error(err), logging.ErrorTrace(err))
+				slog.Any("height", greatGrandParentHeight), logging.Error(err))
 			return 0, false, nil, err
 		}
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
@@ -139,7 +139,7 @@ func (a internalImpl) scheduleWithVrf(
 	hitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
 	if err != nil {
 		slog.Error("Scheduler: Failed to get hit source at height", slog.Any("height", heightForHit),
-			logging.Error(err), logging.ErrorTrace(err))
+			logging.Error(err))
 		return nil, err
 	}
 	slog.Debug("Scheduler: Top block", "BlockID", confirmedBlock.BlockID().String(),
@@ -151,13 +151,13 @@ func (a internalImpl) scheduleWithVrf(
 		genSig, gsErr := gsp.GenerationSignature(sk, hitSourceAtHeight)
 		if gsErr != nil {
 			slog.Error("Scheduler: Failed to schedule mining, can't get generation signature at height",
-				slog.Any("height", heightForHit), logging.Error(gsErr), logging.ErrorTrace(gsErr))
+				slog.Any("height", heightForHit), logging.Error(gsErr))
 			continue
 		}
 		source, hsErr := gsp.HitSource(sk, hitSourceAtHeight)
 		if hsErr != nil {
 			slog.Error("Scheduler: Failed to schedule mining, failed to get hit source at height",
-				slog.Any("height", heightForHit), logging.Error(hsErr), logging.ErrorTrace(hsErr))
+				slog.Any("height", heightForHit), logging.Error(hsErr))
 			continue
 		}
 		var vrf []byte
@@ -167,14 +167,14 @@ func (a internalImpl) scheduleWithVrf(
 		hit, ghErr := consensus.GenHit(source)
 		if ghErr != nil {
 			slog.Error("Scheduler: Failed to schedule mining, failed to generate hit from source",
-				logging.Error(ghErr), logging.ErrorTrace(ghErr))
+				logging.Error(ghErr))
 			continue
 		}
 
 		addr, aErr := keyPair.Addr(blockchainSettings.AddressSchemeCharacter)
 		if aErr != nil {
 			slog.Error("Scheduler: Failed to schedule mining, failed to create address from PK",
-				logging.Error(aErr), logging.ErrorTrace(aErr))
+				logging.Error(aErr))
 			continue
 		}
 
@@ -182,14 +182,14 @@ func (a internalImpl) scheduleWithVrf(
 		if gbErr != nil {
 			slog.Debug("Scheduler: Failed to get generating balance for address",
 				slog.String("address", addr.String()), slog.Any("height", confirmedBlockHeight),
-				logging.Error(gbErr), logging.ErrorTrace(gbErr))
+				logging.Error(gbErr))
 			continue
 		}
 
 		delay, cdErr := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
 		if cdErr != nil {
 			slog.Error("Scheduler: Failed to schedule mining for address %q, failed to calculate delay",
-				slog.String("address", addr.String()), logging.Error(cdErr), logging.ErrorTrace(cdErr))
+				slog.String("address", addr.String()), logging.Error(cdErr))
 			continue
 		}
 		ts := adjustTimestamp(confirmedBlock.Timestamp, delay, tm, generateInPast)
@@ -204,7 +204,7 @@ func (a internalImpl) scheduleWithVrf(
 		)
 		if btErr != nil {
 			slog.Error("Scheduler: Failed to schedule mining for address, failed to calculate base target",
-				slog.String("address", addr.String()), logging.Error(btErr), logging.ErrorTrace(btErr))
+				slog.String("address", addr.String()), logging.Error(btErr))
 			continue
 		}
 		sts, err := safecast.ToInt64(ts)
@@ -245,7 +245,7 @@ func (a internalImpl) scheduleWithoutVrf(
 	hitSourceHeader, err := storage.HeaderByHeight(heightForHit)
 	if err != nil {
 		slog.Error("Scheduler: Failed to get header by height", slog.Any("height", heightForHit),
-			logging.Error(err), logging.ErrorTrace(err))
+			logging.Error(err))
 		return nil, err
 	}
 
@@ -260,40 +260,40 @@ func (a internalImpl) scheduleWithoutVrf(
 		genSig, gsErr := gsp.GenerationSignature(pk, genSigBlock.GenSignature)
 		if gsErr != nil {
 			slog.Error("Scheduler: Failed to get generation signature for PK", slog.String("PK", pk.String()),
-				logging.Error(gsErr), logging.ErrorTrace(gsErr))
+				logging.Error(gsErr))
 			continue
 		}
 		source, hsErr := gsp.HitSource(pk, hitSourceHeader.GenSignature)
 		if hsErr != nil {
 			slog.Error("Scheduler: Failed to generate hit source for PK", slog.String("PK", pk.String()),
-				logging.Error(hsErr), logging.ErrorTrace(hsErr))
+				logging.Error(hsErr))
 			continue
 		}
 		hit, ghErr := consensus.GenHit(source)
 		if ghErr != nil {
 			slog.Error("Scheduler: Failed to generate hit for PK", slog.String("PK", pk.String()),
-				logging.Error(ghErr), logging.ErrorTrace(ghErr))
+				logging.Error(ghErr))
 			continue
 		}
 
 		addr, naErr := proto.NewAddressFromPublicKey(blockchainSettings.AddressSchemeCharacter, pk)
 		if naErr != nil {
 			slog.Error("Scheduler: Failed to create new address from PK", slog.String("PK", pk.String()),
-				logging.Error(naErr), logging.ErrorTrace(naErr))
+				logging.Error(naErr))
 			continue
 		}
 
 		generatingBalance, gbErr := storage.GeneratingBalance(proto.NewRecipientFromAddress(addr), confirmedBlockHeight)
 		if gbErr != nil {
 			slog.Debug("Scheduler: Failed to get generating balance", slog.String("address", addr.String()),
-				slog.Any("height", confirmedBlockHeight), logging.Error(gbErr), logging.ErrorTrace(gbErr))
+				slog.Any("height", confirmedBlockHeight), logging.Error(gbErr))
 			continue
 		}
 
 		delay, cdErr := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
 		if cdErr != nil {
 			slog.Error("Scheduler: Failed to calculate delay for address", slog.String("address", addr.String()),
-				slog.Any("balance", generatingBalance), logging.Error(cdErr), logging.ErrorTrace(cdErr))
+				slog.Any("balance", generatingBalance), logging.Error(cdErr))
 			continue
 		}
 		ts := adjustTimestamp(confirmedBlock.Timestamp, delay, tm, generateInPast)
@@ -308,7 +308,7 @@ func (a internalImpl) scheduleWithoutVrf(
 		)
 		if btErr != nil {
 			slog.Error("Scheduler: Failed to calculate base target", slog.String("address", addr.String()),
-				logging.Error(btErr), logging.ErrorTrace(btErr))
+				logging.Error(btErr))
 			continue
 		}
 		slog.Debug("Schedule generation", "address", addr.String(), "pk", pk.String(), "hit", hit.String(),
@@ -392,14 +392,13 @@ func (a *Default) Reschedule() {
 
 	h, err := a.storage.Height()
 	if err != nil {
-		slog.Error("Scheduler: Failed to get state height", logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("Scheduler: Failed to get state height", logging.Error(err))
 		return
 	}
 
 	block, err := a.storage.BlockByHeight(h)
 	if err != nil {
-		slog.Error("Scheduler: Failed to get block by height", slog.Any("height", h),
-			logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("Scheduler: Failed to get block by height", slog.Any("height", h), logging.Error(err))
 		return
 	}
 
@@ -422,7 +421,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 
 	keyPairs, err := makeKeyPairs(a.seeder.AccountSeeds())
 	if err != nil {
-		slog.Error("Scheduler: Failed to make key pairs from seeds", logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("Scheduler: Failed to make key pairs from seeds", logging.Error(err))
 		return
 	}
 
@@ -431,7 +430,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 			a.generateInPast)
 	})
 	if err != nil {
-		slog.Error("Scheduler: Failed to schedule", logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("Scheduler: Failed to schedule", logging.Error(err))
 	}
 	emits := rs.([]Emit)
 

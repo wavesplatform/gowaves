@@ -713,8 +713,7 @@ func (a *txAppender) appendTxs(
 			if !isBlockWithChallenge {
 				return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
 			}
-			slog.Debug("Elided tx detected", slog.String("ID", base58.Encode(txID)), logging.Error(errAppendTx),
-				logging.ErrorTrace(errAppendTx))
+			slog.Debug("Elided tx detected", slog.String("ID", base58.Encode(txID)), logging.Error(errAppendTx))
 			txSnap = txSnapshot{
 				regular: []proto.AtomicSnapshot{
 					&proto.TransactionStatusSnapshot{Status: proto.TransactionElided},
@@ -1010,7 +1009,7 @@ func (a *txAppender) handleInvoke(
 	invocationRes, applicationRes, err := a.ia.applyInvokeScript(tx, info)
 	if err != nil {
 		slog.Debug("Failed to apply InvokeScript transaction to state", slog.String("ID", ID.String()),
-			logging.Error(err), logging.ErrorTrace(err))
+			logging.Error(err))
 		return nil, nil, err
 	}
 	return invocationRes, applicationRes, nil

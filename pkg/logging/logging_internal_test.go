@@ -1,23 +1,29 @@
 package logging
 
 import (
-	"context"
+	"bytes"
+	"encoding/json"
 	stderrors "errors"
 	"fmt"
-	"io"
 	"log/slog"
 	"testing"
 
-	"github.com/neilotoole/slogt"
 	"github.com/pkg/errors"
-	slogmock "github.com/samber/slog-mock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
-func TestError(t *testing.T) {
-	log := slogt.New(t, slogt.JSON())
+func traceJSON(t testing.TB, st []errors.Frame) []any {
+	r := make([]any, len(st))
+	for i, f := range st {
+		fb, err := f.MarshalText()
+		require.NoError(t, err)
+		r[i] = string(fb)
+	}
+	return r
+}
 
+func TestError(t *testing.T) {
 	e1 := stderrors.New("standard error")
 	e2 := fmt.Errorf("wrapped error: %w", e1)
 	e3 := errors.New("pkg errors error")
@@ -27,78 +33,74 @@ func TestError(t *testing.T) {
 	st4, ok := e4.(stackTracer)
 	require.True(t, ok)
 	for i, test := range []struct {
-		err   error
-		attrs map[string]slog.Attr
+		err      error
+		expected map[string]any
+		dev      bool
 	}{
-		{nil, map[string]slog.Attr{
-			"test": slog.String("test", "attribute"),
-			"":     slog.Any("", nil),
-		}},
-		{e1, map[string]slog.Attr{
-			"test":  slog.String("test", "attribute"),
-			"error": slog.String("error", "standard error"),
-			"":      slog.Any("", nil),
-		}},
-		{e2, map[string]slog.Attr{
-			"test":  slog.String("test", "attribute"),
-			"error": slog.String("error", "wrapped error: standard error"),
-			"":      slog.Any("", nil),
-		}},
-		{e3, map[string]slog.Attr{
-			"test":  slog.String("test", "attribute"),
-			"error": slog.String("error", "pkg errors error"),
-			"trace": slog.Any("trace", fmt.Sprintf("%+v", st3.StackTrace())),
-		}},
-		{e4, map[string]slog.Attr{
-			"test":  slog.String("test", "attribute"),
-			"error": slog.String("error", "wrapped pkg error: pkg errors error"),
-			"trace": slog.Any("trace", fmt.Sprintf("%+v", st4.StackTrace())),
-		}},
+		{nil, map[string]any{
+			"test": "attribute",
+		}, false},
+		{nil, map[string]any{
+			"test": "attribute",
+		}, true},
+		{e1, map[string]any{
+			"test":  "attribute",
+			"error": map[string]any{"message": "standard error"},
+		}, false},
+		{e1, map[string]any{
+			"test":  "attribute",
+			"error": map[string]any{"message": "standard error"},
+		}, true},
+		{e2, map[string]any{
+			"test":  "attribute",
+			"error": map[string]any{"message": "wrapped error: standard error"},
+		}, false},
+		{e2, map[string]any{
+			"test":  "attribute",
+			"error": map[string]any{"message": "wrapped error: standard error"},
+		}, true},
+		{e3, map[string]any{
+			"test":  "attribute",
+			"error": map[string]any{"message": "pkg errors error"},
+		}, false},
+		{e3, map[string]any{
+			"test": "attribute",
+			"error": map[string]any{
+				"message": "pkg errors error",
+				"trace":   traceJSON(t, st3.StackTrace()),
+			},
+		}, true},
+		{e4, map[string]any{
+			"test":  "attribute",
+			"error": map[string]any{"message": "wrapped pkg error: pkg errors error"},
+		}, false},
+		{e4, map[string]any{
+			"test": "attribute",
+			"error": map[string]any{
+				"message": "wrapped pkg error: pkg errors error",
+				"trace":   traceJSON(t, st4.StackTrace()),
+			},
+		}, true},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
-			mh := slogmock.Option{
-				Enabled: func(_ context.Context, _ slog.Level) bool {
-					return true
-				},
-				Handle: func(_ context.Context, record slog.Record) error {
-					assert.Equal(t, slog.LevelError, record.Level, "expected error level")
-					assert.Equal(t, "Test error", record.Message, "expected error msg")
-					record.Attrs(func(attr slog.Attr) bool {
-						exp, aok := test.attrs[attr.Key]
-						assert.True(t, aok, "unexpected attribute key: %s", attr.Key)
-						assert.Equal(t, exp.Value.Any(), attr.Value.Any(),
-							"unexpected attribute value for key: %s", attr.Key)
-						return true
-					})
-					return nil
-				},
-			}.NewMockHandler()
-			logger := slog.New(mh)
-			logger.Error("Test error",
-				slog.String("test", "attribute"), Error(test.err), ErrorTrace(test.err))
-			log.Info("Test error",
-				slog.String("test", "attribute"), Error(test.err), ErrorTrace(test.err))
+			var buf bytes.Buffer
+			var h = newHandler(LoggerJSON, slog.LevelDebug, &buf)
+			if test.dev {
+				h = newHandler(LoggerJSONDev, slog.LevelDebug, &buf)
+			}
+			logger := slog.New(h)
+			logger.Error("Test error", slog.String("test", "attribute"), Error(test.err))
+			var actual map[string]any
+			str := buf.String()
+			t.Log(str)
+			err := json.Unmarshal([]byte(str), &actual)
+			require.NoError(t, err)
+			for k, v := range test.expected {
+				assert.Contains(t, actual, k, "missing key %q in log output", k)
+				if v != "" {
+					assert.Equal(t, v, actual[k], "unexpected value for key %q", k)
+				}
+			}
 		})
 	}
-}
-
-func TestNewHandler(t *testing.T) {
-	pkgE := errors.New("pkg errors error")
-	stdE := stderrors.New("standard error")
-	t.Run("Trace=true", func(t *testing.T) {
-		const trace = true
-		logger := slogt.New(t, slogt.Factory(func(w io.Writer) slog.Handler {
-			return newHandler(LoggerText, slog.LevelDebug, w, trace)
-		}))
-		logger.Info("Test standard error", Error(stdE))
-		logger.Error("Test pkg errors error", Error(pkgE))
-	})
-	t.Run("Trace=false", func(t *testing.T) {
-		const trace = false
-		logger := slogt.New(t, slogt.Factory(func(w io.Writer) slog.Handler {
-			return newHandler(LoggerText, slog.LevelDebug, w, trace)
-		}))
-		logger.Info("Test standard error", Error(stdE))
-		logger.Error("Test pkg errors error", Error(pkgE))
-	})
 }

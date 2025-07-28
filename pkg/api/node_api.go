@@ -428,7 +428,7 @@ func Run(ctx context.Context, address string, n *NodeApi, opts *RunOptions) erro
 		defer cancel()
 		sErr := apiServer.Shutdown(shutdownCtx)
 		if sErr != nil {
-			slog.Error("Failed to shutdown API server", logging.Error(sErr), logging.ErrorTrace(sErr))
+			slog.Error("Failed to shutdown API server", logging.Error(sErr))
 		}
 	}()
 

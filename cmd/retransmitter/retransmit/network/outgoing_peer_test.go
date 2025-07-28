@@ -70,7 +70,7 @@ func (a *server) listen(l net.Listener) {
 		b := make([]byte, 1024)
 		_, err = conn.Read(b)
 		if err != nil {
-			slog.Error("Error", logging.Error(err), logging.ErrorTrace(err))
+			slog.Error("Error", logging.Error(err))
 			return
 		}
 		a.addReadBytes(b)

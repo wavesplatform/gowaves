@@ -31,7 +31,7 @@ func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bul
 func (a bulkValidator) Validate() {
 	transactions, err := a.validate()
 	if err != nil {
-		slog.Debug("Validation failure", logging.Error(err), logging.ErrorTrace(err))
+		slog.Debug("Validation failure", logging.Error(err))
 		return
 	}
 	for _, t := range transactions {

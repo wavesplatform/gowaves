@@ -37,7 +37,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		logger.Debug("Failed to read handshake", logging.Error(err), logging.ErrorTrace(err))
+		logger.Debug("Failed to read handshake", logging.Error(err))
 		_ = c.Close()
 		return err
 	}
@@ -60,7 +60,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		logger.Debug("Failed to write handshake", logging.Error(err), logging.ErrorTrace(err))
+		logger.Debug("Failed to write handshake", logging.Error(err))
 		_ = c.Close()
 		return err
 	}
@@ -77,9 +77,9 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	peerImpl, err := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel, dl)
 	if err != nil {
 		if clErr := connection.Close(); clErr != nil {
-			slog.Error("Failed to close incoming connection", logging.Error(clErr), logging.ErrorTrace(clErr))
+			slog.Error("Failed to close incoming connection", logging.Error(clErr))
 		}
-		slog.Warn("Failed to create new peer impl", logging.Error(err), logging.ErrorTrace(err))
+		slog.Warn("Failed to create new peer impl", logging.Error(err))
 		return errors.Wrap(err, "failed to run incoming peer")
 	}
 	return peer.Handle(ctx, peerImpl, params.Parent, remote, logger, dl)

@@ -147,7 +147,7 @@ func Run(ctx context.Context, a types.Miner, s Mine, internalCh chan<- messages.
 			block, limits, err := a.MineKeyBlock(ctx, v.Timestamp, v.KeyPair, v.Parent, v.BaseTarget, v.GenSignature,
 				v.VRF)
 			if err != nil {
-				slog.Error("Failed to mine key block", logging.Error(err), logging.ErrorTrace(err))
+				slog.Error("Failed to mine key block", logging.Error(err))
 				continue
 			}
 			internalCh <- messages.NewMinedBlockInternalMessage(block, limits, v.KeyPair, v.VRF)

@@ -34,7 +34,6 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20250313105119-ba97887b0a25
 	github.com/prometheus/client_golang v1.22.0
 	github.com/qmuntal/stateless v1.7.2
-	github.com/samber/slog-mock v0.1.0
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/afero v1.14.0
 	github.com/spf13/pflag v1.0.7
@@ -105,7 +104,6 @@ require (
 	github.com/prometheus/procfs v0.15.1 // indirect
 	github.com/ronanh/intcomp v1.1.1 // indirect
 	github.com/rs/zerolog v1.34.0 // indirect
-	github.com/samber/lo v1.44.0 // indirect
 	github.com/sirupsen/logrus v1.9.3 // indirect
 	github.com/steakknife/hamming v0.0.0-20180906055917-c99c65617cd3 // indirect
 	github.com/stretchr/objx v0.5.2 // indirect

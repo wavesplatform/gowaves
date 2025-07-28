@@ -154,7 +154,7 @@ func (a *storeImpl) saveData(f io.WriterTo) error {
 	}
 	defer func() {
 		if clErr := file.Close(); clErr != nil {
-			slog.Warn("Failed to save bloom filter", logging.Error(clErr), logging.ErrorTrace(clErr))
+			slog.Warn("Failed to save bloom filter", logging.Error(clErr))
 		}
 	}()
 
@@ -169,7 +169,7 @@ func (a *storeImpl) saveData(f io.WriterTo) error {
 	buffer := bufio.NewWriter(file)
 	defer func() {
 		if flErr := buffer.Flush(); flErr != nil {
-			slog.Warn("Failed to save bloom filter", logging.Error(flErr), logging.ErrorTrace(flErr))
+			slog.Warn("Failed to save bloom filter", logging.Error(flErr))
 		}
 	}()
 

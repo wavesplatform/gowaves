@@ -16,38 +16,48 @@ import (
 
 const NamespaceKey = "namespace"
 
+const errorKey = "error"
+
 // DefaultHandler creates a new slog handler with the specified parameters.
 func DefaultHandler(params Parameters) slog.Handler {
 	return NewHandler(params.Type, params.Level)
 }
 
 // NewHandler creates a new slog handler based on the specified logger type and level.
-func NewHandler(loggerType LoggerType, level slog.Level) (h slog.Handler) {
-	return newHandler(loggerType, level, os.Stdout, true)
+func NewHandler(loggerType LoggerType, level slog.Level) slog.Handler {
+	return newHandler(loggerType, level, os.Stdout)
 }
 
-func newHandler(loggerType LoggerType, level slog.Level, w io.Writer, trace bool) (h slog.Handler) {
-	defer func() { // TODO: temporary workaround
-		h = newTraceHandler(h, trace)
-	}()
+func newHandler(loggerType LoggerType, level slog.Level, w io.Writer) slog.Handler {
 	switch loggerType {
 	case LoggerText:
-		return slog.NewTextHandler(w, &slog.HandlerOptions{Level: level})
+		return newTraceHandler(slog.NewTextHandler(w, &slog.HandlerOptions{Level: level}), false)
 	case LoggerJSON:
-		return slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level})
+		return newTraceHandler(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level}), false)
 	case LoggerPretty:
-		type fd interface{ Fd() uintptr }
-		_ = fd(os.Stdout) // Ensure that os.Stdout implements fd interface
-		colorize := false
-		if f, ok := w.(fd); ok {
-			colorize = isatty.IsTerminal(f.Fd())
-		}
-		return buildPrettyHandler(w, level, colorize)
+		return newTraceHandler(buildPrettyHandler(w, level, isColorized(w)), false)
 	case LoggerPrettyNoColor:
-		return buildPrettyHandler(w, level, false)
+		return newTraceHandler(buildPrettyHandler(w, level, false), false)
+	case LoggerTextDev:
+		return newTraceHandler(slog.NewTextHandler(w, &slog.HandlerOptions{Level: level}), true)
+	case LoggerJSONDev:
+		return newTraceHandler(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level}), true)
+	case LoggerPrettyDev:
+		return newTraceHandler(buildPrettyHandler(w, level, isColorized(w)), true)
+	case LoggerPrettyNoColorDev:
+		return newTraceHandler(buildPrettyHandler(w, level, false), true)
 	default:
 		panic(fmt.Sprintf("unsupported logger type %d", loggerType))
 	}
+}
+
+func isColorized(w io.Writer) bool {
+	// Check if the writer is a terminal and supports colorization.
+	type fd interface{ Fd() uintptr }
+	if f, ok := w.(fd); ok {
+		return isatty.IsTerminal(f.Fd())
+	}
+	return false
 }
 
 func buildPrettyHandler(w io.Writer, level slog.Level, colorize bool) slog.Handler {
@@ -73,7 +83,7 @@ type attrVisitorHandler struct {
 }
 
 func (h *attrVisitorHandler) Handle(ctx context.Context, r slog.Record) error {
-	if !h.Handler.Enabled(ctx, r.Level) {
+	if !h.Enabled(ctx, r.Level) {
 		return nil // skip handling if the level is not enabled
 	}
 	if h.attrVisitor != nil {
@@ -154,8 +164,6 @@ func (e errorLogValuer) LogValue() slog.Value {
 	return slog.GroupValue(attrs[:]...)
 }
 
-const errorKey = "error"
-
 func Error(err error) slog.Attr {
 	if err == nil {
 		return slog.Attr{}
@@ -166,15 +174,4 @@ func Error(err error) slog.Attr {
 		opts: new(errorLogValuerOpts),
 	}
 	return slog.Any(errorKey, lvErr)
-}
-
-func ErrorTrace(err error) slog.Attr {
-	const key = "trace"
-	if err == nil {
-		return slog.Any("", nil)
-	}
-	if st, ok := err.(stackTracer); ok {
-		return slog.Any(key, fmt.Sprintf("%+v", st.StackTrace()))
-	}
-	return slog.Any("", nil)
 }

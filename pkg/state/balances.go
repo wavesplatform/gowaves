@@ -302,7 +302,7 @@ func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.Leas
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()
@@ -347,7 +347,7 @@ func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()
@@ -392,7 +392,7 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()
@@ -495,7 +495,7 @@ func (s *balances) nftList(
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()
@@ -565,7 +565,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()

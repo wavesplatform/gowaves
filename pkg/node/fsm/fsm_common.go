@@ -117,13 +117,13 @@ func tryBroadcastTransaction(
 		defer func() {
 			if genIDErr := t.GenerateID(baseInfo.scheme); genIDErr != nil {
 				slog.Error("Failed to generate ID for transaction", slog.String("state", fsm.String()),
-					logging.Error(genIDErr), logging.ErrorTrace(genIDErr))
+					logging.Error(genIDErr))
 				return
 			}
 			txIDBytes, getIDErr := t.GetID(baseInfo.scheme)
 			if getIDErr != nil {
 				slog.Error("Failed to get ID for transaction", slog.String("state", fsm.String()),
-					logging.Error(getIDErr), logging.ErrorTrace(getIDErr))
+					logging.Error(getIDErr))
 				return
 			}
 			txID := base58.Encode(txIDBytes)
@@ -246,14 +246,14 @@ func processScoreAfterApplyingOrReturnToNG(
 		if err := baseInfo.peers.UpdateScore(s.Peer, s.Score); err != nil {
 			info := proto.NewInfoMsg(err)
 			baseInfo.logger.Debug("Failed to update score", slog.String("state", state.String()),
-				logging.Error(info), logging.ErrorTrace(info))
+				logging.Error(info))
 			continue
 		}
 		nodeScore, err := baseInfo.storage.CurrentScore()
 		if err != nil {
 			info := proto.NewInfoMsg(err)
 			baseInfo.logger.Debug("Failed to get current score", slog.String("state", state.String()),
-				logging.Error(info), logging.ErrorTrace(info))
+				logging.Error(info))
 			continue
 		}
 		if s.Score.Cmp(nodeScore) == 1 {
@@ -261,8 +261,7 @@ func processScoreAfterApplyingOrReturnToNG(
 			newS, task, errS := syncWithNewPeer(state, baseInfo, s.Peer)
 			if errS != nil {
 				se := state.Errorf(errS)
-				slog.Error("Failed to sync with peer", slog.String("state", state.String()),
-					logging.Error(se), logging.ErrorTrace(se))
+				slog.Error("Failed to sync with peer", slog.String("state", state.String()), logging.Error(se))
 				continue
 			}
 			if newSName := newS.String(); newSName != SyncStateName { // sanity check

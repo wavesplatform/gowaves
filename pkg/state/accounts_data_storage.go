@@ -254,7 +254,7 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address) ([]proto.DataE
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()
@@ -305,7 +305,7 @@ func (s *accountsDataStorage) newestEntryExists(addr proto.Address) (bool, error
 	defer func() {
 		iter.Release()
 		if itErr := iter.Error(); itErr != nil && !errors.Is(itErr, keyvalue.ErrNotFound) {
-			slog.Error("Iterator error", logging.Error(itErr), logging.ErrorTrace(itErr))
+			slog.Error("Iterator error", logging.Error(itErr))
 			panic(itErr)
 		}
 	}()

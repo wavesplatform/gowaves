@@ -119,7 +119,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 	)
 	if err != nil {
 		slog.Error("Failed to apply block with snapshot", slog.String("state", a.String()),
-			logging.Error(err), logging.ErrorTrace(err), slog.Any("blockID", a.blockWaitingForSnapshot.BlockID()))
+			logging.Error(err), slog.Any("blockID", a.blockWaitingForSnapshot.BlockID()))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 	metrics.SnapshotBlockApplied(a.blockWaitingForSnapshot, height+1)

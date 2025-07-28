@@ -117,7 +117,7 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 		<-ctx.Done()
 		if clErr := l.Close(); clErr != nil {
 			slog.Error("Failed to close listener", slog.String("address", l.Addr().String()),
-				logging.Error(clErr), logging.ErrorTrace(clErr))
+				logging.Error(clErr))
 		}
 	}()
 
@@ -127,15 +127,14 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 			if ctx.Err() != nil { // context has been canceled
 				return nil
 			}
-			slog.Error("Failed to accept new peer", logging.Error(acErr), logging.ErrorTrace(acErr))
+			slog.Error("Failed to accept new peer", logging.Error(acErr))
 			continue
 		}
 
 		go func() {
 			if sErr := a.peers.SpawnIncomingConnection(ctx, conn); sErr != nil {
 				a.netLogger.Debug("Failed to establish incoming connection",
-					slog.String("address", conn.RemoteAddr().String()),
-					logging.Error(sErr), logging.ErrorTrace(sErr))
+					slog.String("address", conn.RemoteAddr().String()), logging.Error(sErr))
 				return
 			}
 		}()
@@ -147,9 +146,9 @@ func (a *Node) logErrors(err error) {
 	_ = error(infoMsg) // compile time check
 	switch {
 	case errors.As(err, &infoMsg):
-		a.netLogger.Debug("Node failure", logging.Error(infoMsg), logging.ErrorTrace(infoMsg))
+		a.netLogger.Debug("Node failure", logging.Error(infoMsg))
 	default:
-		slog.Error("Node failure", logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("Node failure", logging.Error(err))
 	}
 }
 
@@ -170,7 +169,7 @@ func (a *Node) Run(
 	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer, a.enableLightMode,
 		a.fsmLogger, a.netLogger)
 	if err != nil {
-		slog.Error("Failed to create FSM", logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("Failed to create FSM", logging.Error(err))
 		return
 	}
 	spawnAsync(ctx, tasksCh, async)
@@ -230,7 +229,7 @@ func (a *Node) Run(
 
 func (a *Node) runIncomingConnections(ctx context.Context) {
 	if err := a.serveIncomingPeers(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		slog.Error("Failed to continue serving incoming peers", logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("Failed to continue serving incoming peers", logging.Error(err))
 	}
 }
 
@@ -276,8 +275,7 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, a fsm.Async) {
 		go func(t tasks.Task) {
 			err := t.Run(ctx, ch)
 			if err != nil && !errors.Is(err, context.Canceled) {
-				slog.Warn("Async task finished with error", logging.Type(t), logging.Error(err),
-					logging.ErrorTrace(err))
+				slog.Warn("Async task finished with error", logging.Type(t), logging.Error(err))
 			}
 		}(t)
 	}

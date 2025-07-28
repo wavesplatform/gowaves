@@ -62,7 +62,7 @@ func (LastSignaturesImpl) LastBlockIDs(state storage.State) (*ReverseOrdering, e
 
 	height, err := state.Height()
 	if err != nil {
-		slog.Error("LastBlockIDs: Failed to get height from state", logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("LastBlockIDs: Failed to get height from state", logging.Error(err))
 		return nil, err
 	}
 
@@ -70,7 +70,7 @@ func (LastSignaturesImpl) LastBlockIDs(state storage.State) (*ReverseOrdering, e
 		sig, hErr := state.HeightToBlockID(height)
 		if hErr != nil {
 			slog.Error("LastBlockIDs: Failed to get blockID for height", slog.Any("height", height),
-				logging.Error(hErr), logging.ErrorTrace(hErr))
+				logging.Error(hErr))
 			return nil, hErr
 		}
 		signatures = append(signatures, sig)

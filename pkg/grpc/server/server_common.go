@@ -63,7 +63,7 @@ func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, fi
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			slog.Error("Iterator error", logging.Error(err), logging.ErrorTrace(err))
+			slog.Error("Iterator error", logging.Error(err))
 			panic(err)
 		}
 	}()

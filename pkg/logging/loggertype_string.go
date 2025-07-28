@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-const _LoggerTypeName = "TextJSONPrettyPrettyNoColor"
+const _LoggerTypeName = "TextJSONPrettyPrettyNoColorTextDevJSONDevPrettyDevPrettyNoColorDev"
 
-var _LoggerTypeIndex = [...]uint8{0, 4, 8, 14, 27}
+var _LoggerTypeIndex = [...]uint8{0, 4, 8, 14, 27, 34, 41, 50, 66}
 
-const _LoggerTypeLowerName = "textjsonprettyprettynocolor"
+const _LoggerTypeLowerName = "textjsonprettyprettynocolortextdevjsondevprettydevprettynocolordev"
 
 func (i LoggerType) String() string {
 	if i < 0 || i >= LoggerType(len(_LoggerTypeIndex)-1) {
@@ -28,9 +28,13 @@ func _LoggerTypeNoOp() {
 	_ = x[LoggerJSON-(1)]
 	_ = x[LoggerPretty-(2)]
 	_ = x[LoggerPrettyNoColor-(3)]
+	_ = x[LoggerTextDev-(4)]
+	_ = x[LoggerJSONDev-(5)]
+	_ = x[LoggerPrettyDev-(6)]
+	_ = x[LoggerPrettyNoColorDev-(7)]
 }
 
-var _LoggerTypeValues = []LoggerType{LoggerText, LoggerJSON, LoggerPretty, LoggerPrettyNoColor}
+var _LoggerTypeValues = []LoggerType{LoggerText, LoggerJSON, LoggerPretty, LoggerPrettyNoColor, LoggerTextDev, LoggerJSONDev, LoggerPrettyDev, LoggerPrettyNoColorDev}
 
 var _LoggerTypeNameToValueMap = map[string]LoggerType{
 	_LoggerTypeName[0:4]:        LoggerText,
@@ -41,6 +45,14 @@ var _LoggerTypeNameToValueMap = map[string]LoggerType{
 	_LoggerTypeLowerName[8:14]:  LoggerPretty,
 	_LoggerTypeName[14:27]:      LoggerPrettyNoColor,
 	_LoggerTypeLowerName[14:27]: LoggerPrettyNoColor,
+	_LoggerTypeName[27:34]:      LoggerTextDev,
+	_LoggerTypeLowerName[27:34]: LoggerTextDev,
+	_LoggerTypeName[34:41]:      LoggerJSONDev,
+	_LoggerTypeLowerName[34:41]: LoggerJSONDev,
+	_LoggerTypeName[41:50]:      LoggerPrettyDev,
+	_LoggerTypeLowerName[41:50]: LoggerPrettyDev,
+	_LoggerTypeName[50:66]:      LoggerPrettyNoColorDev,
+	_LoggerTypeLowerName[50:66]: LoggerPrettyNoColorDev,
 }
 
 var _LoggerTypeNames = []string{
@@ -48,6 +60,10 @@ var _LoggerTypeNames = []string{
 	_LoggerTypeName[4:8],
 	_LoggerTypeName[8:14],
 	_LoggerTypeName[14:27],
+	_LoggerTypeName[27:34],
+	_LoggerTypeName[34:41],
+	_LoggerTypeName[41:50],
+	_LoggerTypeName[50:66],
 }
 
 // LoggerTypeString retrieves an enum value from the enum constants string name.

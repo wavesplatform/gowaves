@@ -39,8 +39,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	connection, handshake, err := p.connect(ctx, addr, outgoingPeerDialTimeout, v, logger)
 	if err != nil {
-		logger.Debug("Failed to establish outgoing connection", slog.String("address", addr),
-			logging.Error(err), logging.ErrorTrace(err))
+		logger.Debug("Failed to establish outgoing connection", slog.String("address", addr), logging.Error(err))
 		return errors.Wrapf(err, "%q", addr)
 	}
 
@@ -50,7 +49,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 			slog.Error("Failed to close outgoing connection to '%s': %v", addr, err)
 		}
 		logger.Debug("Failed to create peer for outgoing connection", slog.String("address", addr),
-			logging.Error(err), logging.ErrorTrace(err))
+			logging.Error(err))
 		return errors.Wrapf(err, "failed to establish connection to %s", addr)
 	}
 	logger.Debug("Connected outgoing peer", "address", addr, "peer", peerImpl.ID())
@@ -74,8 +73,7 @@ func (a *connector) connect(
 	defer func() {
 		if err != nil { // close connection on error
 			if clErr := c.Close(); clErr != nil {
-				slog.Error("Failed to close outgoing connection", slog.String("address", addr),
-					logging.Error(clErr), logging.ErrorTrace(clErr))
+				slog.Error("Failed to close outgoing connection", slog.String("address", addr), logging.Error(clErr))
 			}
 		}
 	}()
@@ -91,8 +89,7 @@ func (a *connector) connect(
 
 	if _, wErr := handshake.WriteTo(c); wErr != nil {
 		pa := a.params.Address.String()
-		logger.Debug("Failed to send handshake", slog.String("address", pa),
-			logging.Error(wErr), logging.ErrorTrace(wErr))
+		logger.Debug("Failed to send handshake", slog.String("address", pa), logging.Error(wErr))
 		return nil, proto.Handshake{}, errors.Wrapf(wErr, "failed to send handshake with addr %q", pa)
 	}
 	select {
@@ -103,8 +100,7 @@ func (a *connector) connect(
 
 	if _, rErr := handshake.ReadFrom(c); rErr != nil {
 		pa := a.params.Address.String()
-		logger.Debug("Failed to read handshake", slog.String("address", pa),
-			logging.Error(rErr), logging.ErrorTrace(rErr))
+		logger.Debug("Failed to read handshake", slog.String("address", pa), logging.Error(rErr))
 		return nil, proto.Handshake{}, errors.Wrapf(rErr, "failed to read handshake with addr %q", pa)
 	}
 	select {

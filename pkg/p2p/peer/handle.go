@@ -56,7 +56,7 @@ func Handle(ctx context.Context, peer Peer, parent Parent, remote Remote, logger
 	defer func(p Peer) {
 		if err := p.Close(); err != nil {
 			slog.Error("Failed to close peer", slog.Any("direction", p.Direction()),
-				slog.Any("peer", p.ID()), logging.Error(err), logging.ErrorTrace(err))
+				slog.Any("peer", p.ID()), logging.Error(err))
 		}
 	}(peer)
 	connectedMsg := InfoMessage{Peer: peer, Value: &Connected{Peer: peer}}

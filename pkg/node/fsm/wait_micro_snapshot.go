@@ -108,8 +108,7 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	if err != nil {
 		metrics.MicroBlockDeclined(a.microBlockWaitingForSnapshot)
 		ae := a.Errorf(err)
-		slog.Error("Failed to check and append microblock", slog.String("state", a.String()),
-			logging.Error(ae), logging.ErrorTrace(ae))
+		slog.Error("Failed to check and append microblock", slog.String("state", a.String()), logging.Error(ae))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 
@@ -124,8 +123,7 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 		//TODO: We have to exclude from recipients peers that already have this microblock
 		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
 			ae := a.Errorf(errors.Wrap(err, "Failed to handle micro block message"))
-			slog.Error("Failed to broadcast microblock", slog.String("state", a.String()),
-				logging.Error(ae), logging.ErrorTrace(ae))
+			slog.Error("Failed to broadcast microblock", slog.String("state", a.String()), logging.Error(ae))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		}
 	}

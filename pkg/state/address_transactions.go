@@ -312,7 +312,7 @@ func (at *addressTransactions) persist() error {
 	}
 	defer func(name string) {
 		if rmErr := os.Remove(name); rmErr != nil {
-			slog.Warn("Failed to remove temporary file", logging.Error(rmErr), logging.ErrorTrace(rmErr))
+			slog.Warn("Failed to remove temporary file", logging.Error(rmErr))
 		}
 	}(tempFile.Name())
 	sort, err := emsort.NewFixedSize(addrTxRecordSize, maxEmsortMem, tempFile)

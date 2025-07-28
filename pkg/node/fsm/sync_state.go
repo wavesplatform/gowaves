@@ -212,8 +212,7 @@ func (a *SyncState) MinedBlock(
 		[]*proto.Block{block},
 	)
 	if err != nil {
-		slog.Warn("Failed to apply mined block", slog.String("state", a.String()),
-			logging.Error(err), logging.ErrorTrace(err))
+		slog.Warn("Failed to apply mined block", slog.String("state", a.String()), logging.Error(err))
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
 	metrics.BlockAppliedFromExtension(block, height+1)
@@ -280,8 +279,7 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
 			a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
 				slog.String("state", a.String()),
-				slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()),
-				logging.Error(err), logging.ErrorTrace(err))
+				slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()), logging.Error(err))
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
 		}
 		for _, b := range blocks {

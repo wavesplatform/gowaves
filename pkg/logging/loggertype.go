@@ -15,4 +15,8 @@ const (
 	LoggerJSON
 	LoggerPretty
 	LoggerPrettyNoColor
+	LoggerTextDev
+	LoggerJSONDev
+	LoggerPrettyDev
+	LoggerPrettyNoColorDev
 )

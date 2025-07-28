@@ -331,7 +331,7 @@ func (f fields) withUtxCount(utxCount int) fields {
 func (f fields) withBaseTarget(bt uint64) fields {
 	baseTarget, err := safecast.ToInt64(bt)
 	if err != nil {
-		slog.Error("Failed to execute withBaseTarget", logging.Error(err), logging.ErrorTrace(err))
+		slog.Error("Failed to execute withBaseTarget", logging.Error(err))
 	}
 	f["bt"] = baseTarget
 	return f
@@ -410,13 +410,13 @@ func (r *reporter) run(ctx context.Context) {
 			rep = nil
 			err := r.c.Close()
 			if err != nil {
-				slog.Warn("Failed to close connection to InfluxDB", logging.Error(err), logging.ErrorTrace(err))
+				slog.Warn("Failed to close connection to InfluxDB", logging.Error(err))
 			}
 			return
 		case <-ticker.C:
 			err := r.report()
 			if err != nil {
-				slog.Warn("Failed to report metrics", logging.Error(err), logging.ErrorTrace(err))
+				slog.Warn("Failed to report metrics", logging.Error(err))
 			}
 			r.points = r.points[:0]
 		case p := <-r.in:
@@ -472,7 +472,7 @@ func parseURL(s string) (influx.HTTPConfig, string, error) {
 func reportBlock(t tags, f fields) {
 	p, err := influx.NewPoint("block", t, f, time.Now())
 	if err != nil {
-		slog.Warn("Failed to create metrics point 'block'", logging.Error(err), logging.ErrorTrace(err))
+		slog.Warn("Failed to create metrics point 'block'", logging.Error(err))
 		return
 	}
 	rep.in <- p
@@ -481,7 +481,7 @@ func reportBlock(t tags, f fields) {
 func reportUtx(t tags, f fields) {
 	p, err := influx.NewPoint("utx", t, f, time.Now())
 	if err != nil {
-		slog.Warn("Failed to create metrics point 'utx'", logging.Error(err), logging.ErrorTrace(err))
+		slog.Warn("Failed to create metrics point 'utx'", logging.Error(err))
 		return
 	}
 	rep.in <- p
@@ -490,7 +490,7 @@ func reportUtx(t tags, f fields) {
 func reportFSMChannelLength(t tags, f fields) {
 	p, err := influx.NewPoint("fsm-channel", t, f, time.Now())
 	if err != nil {
-		slog.Warn("Failed to create metrics point 'fsm-channel'", logging.Error(err), logging.ErrorTrace(err))
+		slog.Warn("Failed to create metrics point 'fsm-channel'", logging.Error(err))
 		return
 	}
 	rep.in <- p

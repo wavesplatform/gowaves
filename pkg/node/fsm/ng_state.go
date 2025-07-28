@@ -229,7 +229,7 @@ func (a *NGState) MinedBlock(
 	})
 	if err != nil {
 		slog.Warn("Failed to apply generated key block", slog.String("state", a.String()),
-			slog.String("blockID", block.ID.String()), logging.Error(err), logging.ErrorTrace(err))
+			slog.String("blockID", block.ID.String()), logging.Error(err))
 		metrics.BlockDeclined(block)
 		return a, nil, a.Errorf(err)
 	}
@@ -285,7 +285,7 @@ func (a *NGState) mineMicro(
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions):
 		a.baseInfo.logger.Debug("No transactions to put in microblock", slog.String("state", a.String()),
-			logging.Error(err), logging.ErrorTrace(err))
+			logging.Error(err))
 		return a, tasks.Tasks(tasks.NewMineMicroTask(a.baseInfo.microblockInterval, minedBlock, rest, keyPair, vrf)), nil
 	case errors.Is(err, miner.ErrStateChanged):
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
