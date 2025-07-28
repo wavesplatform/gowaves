@@ -29,8 +29,7 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	require.NoError(t, err)
 
 	m.EXPECT().TopBlock().Return(emptyBlock)
-	m.EXPECT().
-		TxValidation(gomock.Any())
+	m.EXPECT().ResetListUnsafe(gomock.Any())
 
 	err = v.Validate(byte_helpers.BurnWithSig.Transaction)
 	require.NoError(t, err)

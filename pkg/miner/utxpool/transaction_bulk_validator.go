@@ -14,16 +14,18 @@ type BulkValidator interface {
 }
 
 type bulkValidator struct {
-	state stateWrapper
-	utx   types.UtxPool
-	tm    types.Time
+	state      stateWrapper
+	utx        types.UtxPool
+	tm         types.Time
+	cancelChan <-chan struct{}
 }
 
-func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bulkValidator {
+func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time, cancelChan <-chan struct{}) *bulkValidator {
 	return &bulkValidator{
-		state: state,
-		utx:   utx,
-		tm:    tm,
+		state:      state,
+		utx:        utx,
+		tm:         tm,
+		cancelChan: cancelChan,
 	}
 }
 
@@ -50,20 +52,27 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
 
-	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
-		defer s.ResetValidationList()
-		utxLen := len(a.utx.AllTransactions())
-		for i := 0; i < utxLen; i++ {
+	utxLen := len(a.utx.AllTransactions())
+
+	for i := 0; i < utxLen; i++ {
+		select {
+		case <-a.cancelChan:
+			zap.S().Info("Validation cancelled — exiting loop early, preserving remaining UTX transactions")
+			return transactions, nil
+		default:
 			t := a.utx.Pop()
 			if t == nil {
 				break
 			}
-			_, err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+			err := a.state.TxValidation(func(validation state.TxValidation) error {
+				_, err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+				return err
+			})
 			if stateerr.IsTxCommitmentError(err) {
 				zap.S().Errorf("failed to unpack a transaction from utx, %v", err)
 				// This should not happen in practice.
 				// Reset state, return applied transactions to UTX.
-				s.ResetValidationList()
+				a.state.ResetList()
 				for _, tx := range transactions {
 					_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
 				}
@@ -73,8 +82,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 				transactions = append(transactions, t)
 			}
 		}
-		return nil
-	})
-
+	}
+	a.state.ResetList()
 	return transactions, nil
 }

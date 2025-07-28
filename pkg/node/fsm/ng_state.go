@@ -143,6 +143,10 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 }
 
 func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error) {
+	select {
+	case a.baseInfo.utxCleaningCancelChan <- struct{}{}:
+	default:
+	}
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
@@ -199,12 +203,8 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-	a.baseInfo.CleanUtx()
 
-	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
-		a.baseInfo.CleanUtx()
-		return nil
-	})
+	a.baseInfo.CleanUtx()
 
 	return newNGState(a.baseInfo), nil, nil
 }
@@ -245,10 +245,7 @@ func (a *NGState) MinedBlock(
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
-		a.baseInfo.CleanUtx()
-		return nil
-	})
+	a.baseInfo.CleanUtx()
 
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
@@ -320,10 +317,7 @@ func (a *NGState) mineMicro(
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
 	metrics.MicroBlockApplied(micro)
-	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
-		a.baseInfo.CleanUtx()
-		return nil
-	})
+	a.baseInfo.CleanUtx()
 	inv := proto.NewUnsignedMicroblockInv(
 		micro.SenderPK,
 		block.BlockID(),
@@ -407,10 +401,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.MicroBlockApplied(micro)
-	_ = a.baseInfo.storage.MapUnsafe(func(_ state.NonThreadSafeState) error {
-		a.baseInfo.CleanUtx()
-		return nil
-	})
+	a.baseInfo.CleanUtx()
 	return newBlock, nil
 }
 

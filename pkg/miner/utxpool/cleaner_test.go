@@ -7,5 +7,5 @@ import (
 )
 
 func TestNewCleaner(t *testing.T) {
-	require.NotNil(t, NewCleaner(nil, nil, nil))
+	require.NotNil(t, NewCleaner(nil, nil, nil, nil))
 }

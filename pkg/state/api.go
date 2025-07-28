@@ -193,6 +193,10 @@ type StateModifier interface {
 	// Func internally calls ResetValidationList.
 	TxValidation(func(validation TxValidation) error) error
 
+	ResetList()
+
+	ResetListUnsafe(func(validation TxValidation) error) error
+
 	// Way to call multiple operations under same lock.
 	Map(func(state NonThreadSafeState) error) error
 
