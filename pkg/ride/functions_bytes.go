@@ -338,7 +338,6 @@ func toBase161C(_ environment, args ...rideType) (rideType, error) {
 }
 
 func fromBase16Limited(limits limits, args ...rideType) (rideType, error) {
-	const prefix = "base16:"
 	s, err := stringArg(args)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
@@ -346,8 +345,7 @@ func fromBase16Limited(limits limits, args ...rideType) (rideType, error) {
 	if l := len(s); limits.input > 0 && l > limits.input {
 		return nil, RuntimeError.Errorf("fromBase16: input is too long (%d), limit is %d", l, limits.input)
 	}
-	str := strings.TrimPrefix(s, prefix)
-	decoded, err := hex.DecodeString(str)
+	decoded, err := hex.DecodeString(s)
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase16")
 	}

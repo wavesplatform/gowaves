@@ -6,6 +6,7 @@ import (
 	"encoding/hex"
 	"fmt"
 	"math"
+	"strings"
 	"testing"
 
 	"github.com/mr-tron/base58"
@@ -447,6 +448,35 @@ func TestToBase16Generic(t *testing.T) {
 	}
 }
 
+func TestToBase161C(t *testing.T) {
+	for i, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, false, rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, //nolint:lll
+		{[]rideType{rideByteVector{}}, false, rideString("")},
+		{[]rideType{rideUnit{}}, false, rideString("")},
+		{[]rideType{rideByteVector{}, rideByteVector{}}, true, nil},
+		{[]rideType{rideByteVector{1, 2, 4}, rideInt(0)}, true, nil},
+		{[]rideType{rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}, rideByteVector{1, 2, 3}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideByteVector(bytes.Repeat([]byte{0xff}, 1025))}, true, nil},
+		{[]rideType{rideByteVector(bytes.Repeat([]byte{0xff}, 1024))}, false, rideString(strings.Repeat("ff", 1024))},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := toBase161C(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
+	}
+}
+
 func TestFromBase16AndBase16V4(t *testing.T) {
 	var (
 		overMaxInput    = make([]byte, maxBase16StringToDecode/2+1)
@@ -460,10 +490,10 @@ func TestFromBase16AndBase16V4(t *testing.T) {
 		fail        bool
 		r           rideType
 	}{
-		{false, []rideType{rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},        //nolint:lll
-		{false, []rideType{rideString("base16:5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, //nolint:lll
+		{false, []rideType{rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, //nolint:lll
+		{false, []rideType{rideString("base16:5468697320697320612073696d706c6520737472696e6720666f722074657374")}, true, nil}, //nolint:lll
 		{false, []rideType{rideString("")}, false, rideByteVector{}},
-		{false, []rideType{rideString("base16:")}, false, rideByteVector{}},
+		{false, []rideType{rideString("base16:")}, true, nil},
 		{false, []rideType{rideString("base16")}, true, nil},
 		{false, []rideType{rideString("base16:"), rideString("")}, true, nil},
 		{false, []rideType{rideByteVector{1, 2, 4}}, true, nil},
@@ -474,9 +504,9 @@ func TestFromBase16AndBase16V4(t *testing.T) {
 		{true, []rideType{rideString(overMaxInputRes)}, true, nil},
 		{false, []rideType{rideString(maxInputRes)}, false, rideByteVector(maxInput)},
 		{true, []rideType{rideString(maxInputRes)}, false, rideByteVector(maxInput)},
-		{false, []rideType{rideString("base16:" + overMaxInputRes)}, false, rideByteVector(overMaxInput)},
+		{false, []rideType{rideString("base16:" + overMaxInputRes)}, true, nil},
 		{true, []rideType{rideString("base16:" + overMaxInputRes)}, true, nil},
-		{false, []rideType{rideString("base16:" + maxInputRes)}, false, rideByteVector(maxInput)},
+		{false, []rideType{rideString("base16:" + maxInputRes)}, true, nil},
 		// Prefix is also included in the length check.
 		{true, []rideType{rideString("base16:" + maxInputRes)}, true, nil},
 	} {
@@ -510,10 +540,10 @@ func TestFromBase161C(t *testing.T) {
 		fail bool
 		r    rideType
 	}{
-		{[]rideType{rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}},        //nolint:lll
-		{[]rideType{rideString("base16:5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, //nolint:lll
+		{[]rideType{rideString("5468697320697320612073696d706c6520737472696e6720666f722074657374")}, false, rideByteVector{0x54, 0x68, 0x69, 0x73, 0x20, 0x69, 0x73, 0x20, 0x61, 0x20, 0x73, 0x69, 0x6d, 0x70, 0x6c, 0x65, 0x20, 0x73, 0x74, 0x72, 0x69, 0x6e, 0x67, 0x20, 0x66, 0x6f, 0x72, 0x20, 0x74, 0x65, 0x73, 0x74}}, //nolint:lll
+		{[]rideType{rideString("base16:5468697320697320612073696d706c6520737472696e6720666f722074657374")}, true, nil}, //nolint:lll
 		{[]rideType{rideString("")}, false, rideByteVector{}},
-		{[]rideType{rideString("base16:")}, false, rideByteVector{}},
+		{[]rideType{rideString("base16:")}, true, nil},
 		{[]rideType{rideString("base16")}, true, nil},
 		{[]rideType{rideString("base16:"), rideString("")}, true, nil},
 		{[]rideType{rideByteVector{1, 2, 4}}, true, nil},
@@ -523,7 +553,13 @@ func TestFromBase161C(t *testing.T) {
 		{[]rideType{rideString(overMaxInputRes)}, true, nil},
 		{[]rideType{rideString(maxInputRes)}, false, rideByteVector(maxInput)},
 		{[]rideType{rideString("base16:" + overMaxInputRes)}, true, nil},
-		{[]rideType{rideString("base16:" + maxInputRes)}, false, rideByteVector(maxInput)},
+		{[]rideType{rideString("base16:" + maxInputRes)}, true, nil},
+		{[]rideType{rideString(strings.Repeat("FF", 1024))}, false,
+			rideByteVector(bytes.Repeat([]byte{0xFF}, 1024))},
+		{[]rideType{rideString(strings.Repeat("FF", 1025))}, true, nil},
+		{[]rideType{rideString(strings.Repeat("FF", 1025))}, true, nil},
+		{[]rideType{rideString("base16:FFFF")}, true, nil},
+		{[]rideType{rideString("base16:FF")}, true, nil},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			r, err := fromBase161C(nil, test.args...)
