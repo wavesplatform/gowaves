@@ -59,7 +59,7 @@ func main() {
 
 	parsedVersion, err := proto.NewVersionFromString(*version)
 	if err != nil {
-		slog.Error("Failed to parse version", "error", err)
+		slog.Error("Failed to parse version", logging.Error(err))
 		return
 	}
 
@@ -74,19 +74,19 @@ func main() {
 
 	conn, err := net.Dial("tcp", *address)
 	if err != nil {
-		slog.Error("Failed to dial", "error", err)
+		slog.Error("Failed to dial", logging.Error(err))
 		return
 	}
 
 	defer func() {
-		if err := conn.Close(); err != nil {
-			slog.Error("Failed to close connection", "error", err)
+		if clErr := conn.Close(); clErr != nil {
+			slog.Error("Failed to close connection", logging.Error(clErr))
 		}
 	}()
 
 	_, err = handshake.WriteTo(conn)
 	if err != nil {
-		slog.Error("Failed to write handshake", "error", err)
+		slog.Error("Failed to write handshake", logging.Error(err))
 		return
 	}
 
@@ -94,7 +94,7 @@ func main() {
 	readH := proto.Handshake{}
 	_, err = readH.ReadFrom(bufio.NewReader(conn))
 	if err != nil {
-		slog.Error("Failed to read handshake", "error", err)
+		slog.Error("Failed to read handshake", logging.Error(err))
 		return
 	}
 
@@ -104,9 +104,9 @@ func main() {
 		const expectedContentID = byte(proto.ContentIDSignatures)
 
 		for {
-			bts, err := readPacket(conn)
-			if err != nil {
-				slog.Error("Failed to read packet", "error", err)
+			bts, rErr := readPacket(conn)
+			if rErr != nil {
+				slog.Error("Failed to read packet", logging.Error(rErr))
 				return
 			}
 
@@ -128,7 +128,7 @@ func main() {
 	slog.Info("Sending GetSignatures message")
 	_, err = sigs.WriteTo(conn)
 	if err != nil {
-		slog.Error("Failed to write GetSignatures message", "error", err)
+		slog.Error("Failed to write GetSignatures message", logging.Error(err))
 		return
 	}
 

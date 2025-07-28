@@ -104,41 +104,41 @@ func run() error {
 	flag.Parse()
 
 	if err := lp.Parse(); err != nil {
-		slog.Error("Failed to parse application parameters", "error", err)
+		slog.Error("Failed to parse application parameters", logging.Error(err))
 		return err
 	}
 	slog.SetDefault(slog.New(logging.DefaultHandler(lp)))
 
 	if *nodes == "" {
 		err := errors.New("empty nodes list")
-		slog.Error("Failed to parse nodes' gRPC API addresses", "error", err)
+		slog.Error("Failed to parse nodes' gRPC API addresses", logging.Error(err))
 		return err
 	}
 	if *height == 0 {
 		err := errors.Errorf("zero height")
-		slog.Error("Failed to initialize", "error", err)
+		slog.Error("Failed to initialize", logging.Error(err))
 		return err
 	}
 	bs, err := settings.BlockchainSettingsByTypeName(*blockchainType)
 	if err != nil {
-		slog.Error("Failed to load blockchain settings", "error", err)
+		slog.Error("Failed to load blockchain settings", logging.Error(err))
 		return err
 	}
 
 	endpoints := parseNodesList(*nodes)
 	if len(endpoints) < 2 {
 		err := errors.New("not enough nodes to compare")
-		slog.Error("Failed to initialize", "error", err)
+		slog.Error("Failed to initialize", logging.Error(err))
 		return err
 	}
 	clients, err := dialEndpoints(endpoints)
 	if err != nil {
-		slog.Error("Failed to connect to gRPC endpoints", "error", err)
+		slog.Error("Failed to connect to gRPC endpoints", logging.Error(err))
 		return err
 	}
 	rep, err := compareBlocks(clients, bs.AddressSchemeCharacter, *height)
 	if err != nil {
-		slog.Error("Failed to compare blocks", "error", err)
+		slog.Error("Failed to compare blocks", logging.Error(err))
 		return err
 	}
 	fmt.Println(rep.String())

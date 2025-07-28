@@ -8,6 +8,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm"
 	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -108,7 +109,8 @@ func sendSignatures(services services.Services, block *proto.BlockHeader, p peer
 	height, err := services.State.BlockIDToHeight(block.BlockID())
 	if err != nil {
 		slog.Error("Failed to get height for blockID and send signatures to peer",
-			"blockID", block.BlockID().String(), "peer", p.RemoteAddr().String(), "error", err)
+			slog.String("blockID", block.BlockID().String()), slog.String("peer", p.RemoteAddr().String()),
+			logging.Error(err))
 		return
 	}
 

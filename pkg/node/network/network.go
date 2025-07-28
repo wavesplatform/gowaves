@@ -115,8 +115,8 @@ func (n *Network) Run(ctx context.Context) {
 func (n *Network) handleConnected(msg *peer.Connected) {
 	err := n.peers.NewConnection(msg.Peer)
 	if err != nil {
-		n.logger.Debug("Failed to establish connection with peer", "direction", msg.Peer.Direction(),
-			"peer", msg.Peer.ID(), "error", err)
+		n.logger.Debug("Failed to establish connection with peer", slog.Any("direction", msg.Peer.Direction()),
+			slog.Any("peer", msg.Peer.ID()), logging.Error(err))
 		return
 	}
 	n.logger.Debug("Established connection with peer", "direction", msg.Peer.Direction(),
@@ -171,7 +171,8 @@ func (n *Network) switchToNewPeerIfRequired() {
 func sendScore(p peer.Peer, storage state.State) {
 	curScore, err := storage.CurrentScore()
 	if err != nil {
-		slog.Error("Failed to send current score to peer", "address", p.RemoteAddr().String(), "error", err)
+		slog.Error("Failed to send current score to peer", slog.String("address", p.RemoteAddr().String()),
+			logging.Error(err))
 		return
 	}
 

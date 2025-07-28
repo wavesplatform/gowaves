@@ -28,7 +28,7 @@ type ActionsImpl struct {
 func (a *ActionsImpl) SendScore(s currentScorer) {
 	curScore, err := s.CurrentScore()
 	if err != nil {
-		a.logger.Error("Failed to get current score", "error", err)
+		a.logger.Error("Failed to get current score", logging.Error(err))
 		return
 	}
 	var (
@@ -46,13 +46,15 @@ func (a *ActionsImpl) SendScore(s currentScorer) {
 func (a *ActionsImpl) SendBlock(block *proto.Block) {
 	bts, err := block.Marshaller().Marshal(a.services.Scheme)
 	if err != nil {
-		a.logger.Error("Failed to marshal block", "blockID", block.BlockID().String(), "error", err)
+		a.logger.Error("Failed to marshal block", slog.String("blockID", block.BlockID().String()),
+			logging.Error(err))
 		return
 	}
 
 	activated, err := a.services.State.IsActivated(int16(settings.BlockV5))
 	if err != nil {
-		a.logger.Error("Failed to get feature activation status", "feature", settings.BlockV5, "error", err)
+		a.logger.Error("Failed to get feature activation status", slog.Any("feature", settings.BlockV5),
+			logging.Error(err))
 		return
 	}
 

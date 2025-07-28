@@ -81,12 +81,12 @@ func run() error {
 
 	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
-		slog.Error("Initialization failed", "error", err)
+		slog.Error("Initialization failed", logging.Error(err))
 		os.Exit(1)
 	}
 	_, err = fdlimit.RaiseMaxFDs(maxFDs)
 	if err != nil {
-		slog.Error("Initialization failed", "error", err)
+		slog.Error("Initialization failed", logging.Error(err))
 		os.Exit(1)
 	}
 
@@ -97,7 +97,7 @@ func run() error {
 
 	ss, err := settings.BlockchainSettingsByTypeName(blockchainType)
 	if err != nil {
-		slog.Error("Failed to load blockchain settings", "error", err)
+		slog.Error("Failed to load blockchain settings", logging.Error(err))
 		return err
 	}
 
@@ -111,12 +111,12 @@ func run() error {
 
 	st, err := state.NewState(statePath, false, params, ss, false)
 	if err != nil {
-		slog.Error("Failed to open state", "path", statePath, "error", err)
+		slog.Error("Failed to open state", slog.String("path", statePath), logging.Error(err))
 		return err
 	}
 	defer func(st state.StateModifier) {
 		if err := st.Close(); err != nil {
-			slog.Error("Failed to close state", "error", err)
+			slog.Error("Failed to close state", logging.Error(err))
 			os.Exit(1)
 		}
 	}(st)
@@ -134,21 +134,21 @@ func run() error {
 	if height == 0 { // determine the topmost height
 		h, err := st.Height()
 		if err != nil {
-			slog.Error("Failed to get current blockchain height", "error", err)
+			slog.Error("Failed to get current blockchain height", logging.Error(err))
 			return err
 		}
 		height = h
 	}
 	lsh, err := getLocalStateHash(st, height)
 	if err != nil {
-		slog.Error("Failed to get state hash", "height", height, "error", err)
+		slog.Error("Failed to get state hash", slog.Any("height", height), logging.Error(err))
 		return err
 	}
 	slog.Info("State hash at height", "height", height, "stateHash", stateHashToString(lsh))
 	if compare {
 		ok, rsh, cmpErr := compareWithRemote(lsh, c, height, onlyLegacy)
 		if cmpErr != nil {
-			slog.Error("Failed to compare", "error", cmpErr)
+			slog.Error("Failed to compare", logging.Error(cmpErr))
 			return cmpErr
 		}
 		if !ok {
@@ -173,12 +173,12 @@ func createClient(node string) (*client.Client, error) {
 	}
 	node, err := checkAndUpdateURL(node)
 	if err != nil {
-		slog.Error("Incorrect node's URL", "error", err)
+		slog.Error("Incorrect node's URL", logging.Error(err))
 		return nil, err
 	}
 	c, err := client.NewClient(client.Options{BaseUrl: node, Client: &http.Client{}})
 	if err != nil {
-		slog.Error("Failed to create client", "URL", node, "error", err)
+		slog.Error("Failed to create client", slog.String("URL", node), logging.Error(err))
 		return nil, err
 	}
 	return c, nil
@@ -187,17 +187,17 @@ func createClient(node string) (*client.Client, error) {
 func compareAtHeight(st state.StateInfo, c *client.Client, h uint64, onlyLegacy bool) error {
 	rsh, err := getRemoteStateHash(c, h)
 	if err != nil {
-		slog.Error("Failed to get remote state hash", "height", h, "error", err)
+		slog.Error("Failed to get remote state hash", slog.Any("height", h), logging.Error(err))
 		return err
 	}
 	lsh, err := getLocalStateHash(st, h)
 	if err != nil {
-		slog.Error("Failed to get local state hash", "height", h, "error", err)
+		slog.Error("Failed to get local state hash", slog.Any("height", h), logging.Error(err))
 		return err
 	}
 	_, err = compareStateHashes(lsh, rsh, onlyLegacy)
 	if err != nil {
-		slog.Error("State hashes are different", "height", h, "error", err)
+		slog.Error("State hashes are different", slog.Any("height", h), logging.Error(err))
 		return err
 	}
 	return nil
@@ -206,19 +206,19 @@ func compareAtHeight(st state.StateInfo, c *client.Client, h uint64, onlyLegacy 
 func searchLastEqualStateLash(c *client.Client, st state.State, height proto.Height, onlyLegacy bool) error {
 	h, err := findLastEqualStateHashes(c, st, height, onlyLegacy)
 	if err != nil {
-		slog.Error("Failed to find equal hashes", "error", err)
+		slog.Error("Failed to find equal hashes", logging.Error(err))
 		return err
 	}
 	slog.Info("State hashes are equal", "height", h)
 	lsh, err := getLocalStateHash(st, h+1)
 	if err != nil {
-		slog.Error("Failed to get state hash", "height", h+1, "error", err)
+		slog.Error("Failed to get state hash", slog.Any("height", h+1), logging.Error(err))
 		return err
 	}
 	slog.Info("Local state hash at height", "height", h+1, "stateHash", stateHashToString(lsh))
 	rsh, err := getRemoteStateHash(c, h+1)
 	if err != nil {
-		slog.Error("Failed to get remote state hash at height 1", "error", err)
+		slog.Error("Failed to get remote state hash at height 1", logging.Error(err))
 		return err
 	}
 	slog.Info("Remote state hash at height", "height", h+1, "stateHash", stateHashToString(rsh))
@@ -258,7 +258,7 @@ func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64, onl
 func stateHashToString(sh *proto.StateHashDebug) string {
 	js, err := json.Marshal(sh)
 	if err != nil {
-		slog.Error("Failed to render state hash to text", "error", err)
+		slog.Error("Failed to render state hash to text", logging.Error(err))
 		os.Exit(1)
 	}
 	return string(js)

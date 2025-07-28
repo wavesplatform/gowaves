@@ -270,14 +270,14 @@ func realMain() int {
 	nc := new(config)
 	nc.parse()
 	if err := nc.lp.Parse(); err != nil {
-		slog.Error("Failed to parse application parameters", "error", err)
+		slog.Error("Failed to parse application parameters", logging.Error(err))
 		return 1
 	}
 	nc.h = logging.DefaultHandler(nc.lp)
 	slog.SetDefault(slog.New(nc.h))
 	err := run(nc)
 	if err != nil {
-		slog.Error("Failed to run node", "error", err)
+		slog.Error("Failed to run node", logging.Error(err))
 		return 1
 	}
 	return 0
@@ -316,7 +316,7 @@ func run(nc *config) (retErr error) {
 	if nc.metricsURL != "" && nc.metricsID != -1 {
 		err := metrics.Start(ctx, nc.metricsID, nc.metricsURL)
 		if err != nil {
-			slog.Warn("Metrics reporting failed to start", "error", err)
+			slog.Warn("Metrics reporting failed to start", logging.Error(err))
 			slog.Warn("Proceeding without reporting any metrics")
 		} else {
 			slog.Info("Metrics reporting activated")
@@ -535,7 +535,7 @@ func runProfiler(ctx context.Context) <-chan struct{} {
 			"URL", fmt.Sprintf("http://%s/debug/pprof/", profilerAddr))
 		err := s.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Failed to start profiler", "error", err)
+			slog.Error("Failed to start profiler", logging.Error(err))
 		}
 	}()
 	done := make(chan struct{})
@@ -545,7 +545,7 @@ func runProfiler(ctx context.Context) <-chan struct{} {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := s.Shutdown(shutdownCtx); err != nil {
-			slog.Error("Failed to shutdown profiler", "error", err)
+			slog.Error("Failed to shutdown profiler", logging.Error(err))
 		}
 	}()
 	return done
@@ -567,7 +567,7 @@ func runPrometheusMetricsServer(ctx context.Context, prometheusAddr string) <-ch
 		slog.Info("Starting prometheus metrics server", "address", prometheusAddr)
 		err := s.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Failed to start prometheus metrics server", "error", err)
+			slog.Error("Failed to start prometheus metrics server", logging.Error(err))
 		}
 	}()
 	done := make(chan struct{})
@@ -577,7 +577,7 @@ func runPrometheusMetricsServer(ctx context.Context, prometheusAddr string) <-ch
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := s.Shutdown(shutdownCtx); err != nil {
-			slog.Error("Failed to shutdown prometheus", "error", err)
+			slog.Error("Failed to shutdown prometheus", logging.Error(err))
 		}
 	}()
 	return done
@@ -590,7 +590,7 @@ func runGRPCServer(ctx context.Context, addr string, nc *config, svs services.Se
 	}
 	go func() {
 		if runErr := srv.Run(ctx, addr, grpcAPIRunOptsFromCLIFlags(nc)); runErr != nil {
-			slog.Error("Failed to run gRPC server", "error", runErr)
+			slog.Error("Failed to run gRPC server", logging.Error(runErr))
 		}
 	}()
 	return nil
@@ -779,7 +779,7 @@ func runAPIs(
 	go func() {
 		slog.Info("Starting node HTTP API", "address", conf.HttpAddr)
 		if runErr := api.Run(ctx, conf.HttpAddr, webAPI, apiRunOptsFromCLIFlags(nc)); runErr != nil {
-			slog.Error("Failed to start API", "error", runErr)
+			slog.Error("Failed to start API", logging.Error(runErr))
 
 		}
 	}()
@@ -817,7 +817,8 @@ func apiRunOptsFromCLIFlags(c *config) *api.RunOptions {
 		if err == nil {
 			opts.RateLimiterOpts = rlo
 		} else {
-			slog.Error("Invalid rate limiter options", "options", c.rateLimiterOptions, "error", err)
+			slog.Error("Invalid rate limiter options", slog.Any("options", c.rateLimiterOptions),
+				logging.Error(err))
 		}
 	}
 	return opts

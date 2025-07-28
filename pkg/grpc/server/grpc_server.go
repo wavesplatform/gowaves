@@ -12,6 +12,7 @@ import (
 	"google.golang.org/grpc/reflection"
 
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -95,7 +96,7 @@ func (s *Server) Run(ctx context.Context, address string, opts *RunOptions) erro
 	defer func(conn net.Listener) {
 		clErr := conn.Close()
 		if clErr != nil && !errors.Is(clErr, net.ErrClosed) {
-			slog.Error("Failed to close gRPC server connection", "error", clErr)
+			slog.Error("Failed to close gRPC server connection", logging.Error(clErr))
 		}
 	}(conn)
 

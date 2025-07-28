@@ -10,6 +10,7 @@ import (
 	"github.com/semrush/zenrpc/v2"
 
 	"github.com/wavesplatform/gowaves/pkg/api/metamask"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 )
 
 type HandleErrorFunc func(w http.ResponseWriter, r *http.Request, err error)
@@ -62,7 +63,7 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 	if opts.EnableHeartbeatRoute {
 		r.Get("/go/node/healthz", func(w http.ResponseWriter, r *http.Request) {
 			if _, err := w.Write([]byte("OK")); err != nil {
-				slog.Error("Can't write 'OK' to ResponseWriter", "error", err)
+				slog.Error("Can't write 'OK' to ResponseWriter", logging.Error(err))
 				w.WriteHeader(http.StatusInternalServerError)
 			}
 		})

@@ -8,7 +8,7 @@ import (
 	"path/filepath"
 
 	"github.com/pkg/errors"
-
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -92,7 +92,7 @@ func ApplyFromFile(
 	}
 	defer func() {
 		if clErr := imp.Close(); clErr != nil {
-			slog.Error("Failed to close importer", "error", clErr)
+			slog.Error("Failed to close importer", logging.Error(clErr))
 			panic(clErr)
 		}
 	}()
@@ -133,7 +133,7 @@ func CheckBalances(st State, balancesPath string) error {
 	}
 	defer func() {
 		if closeErr := balances.Close(); closeErr != nil {
-			slog.Error("Failed to close balances file", "error", closeErr)
+			slog.Error("Failed to close balances file", logging.Error(closeErr))
 			panic(closeErr)
 		}
 	}()

@@ -17,7 +17,7 @@ import (
 
 func main() {
 	if err := run(); err != nil {
-		slog.Error("Failed to rollback", "error", err)
+		slog.Error("Failed to rollback", logging.Error(err))
 		os.Exit(1)
 	}
 	slog.Info("Rollback completed successfully")
@@ -71,7 +71,7 @@ func run() error {
 	}
 	defer func() {
 		if clErr := s.Close(); clErr != nil {
-			slog.Error("Failed to close state", "error", clErr)
+			slog.Error("Failed to close state", logging.Error(clErr))
 		}
 	}()
 
