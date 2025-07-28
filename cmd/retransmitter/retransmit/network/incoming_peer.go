@@ -7,9 +7,9 @@ import (
 	"net"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -50,7 +50,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		slog.Error("Failed to read handshake", "error", err)
+		slog.Error("Failed to read handshake", logging.Error(err))
 		_ = c.Close()
 		return
 	}
@@ -77,7 +77,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		slog.Error("Failed to write handshake", "error", err)
+		slog.Error("Failed to write handshake", logging.Error(err))
 		_ = c.Close()
 		return
 	}
@@ -104,7 +104,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 
 	slog.Debug("Handshake read", "remote", c.RemoteAddr().String(), "handshake", readHandshake)
 	if err := p.run(ctx); err != nil {
-		slog.Error("Failed peer.run()", "error", err)
+		slog.Error("Failed peer.run()", logging.Error(err))
 	}
 }
 
@@ -120,7 +120,7 @@ func (a *IncomingPeer) Close() error {
 func (a *IncomingPeer) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {
-		slog.Error("Failed to send message", "error", err)
+		slog.Error("Failed to send message", logging.Error(err))
 		return
 	}
 	select {

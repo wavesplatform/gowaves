@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -62,7 +63,7 @@ func (a *KnownPeers) periodicallySave(ctx context.Context, interval time.Duratio
 		case <-ticker.C:
 			err := a.save()
 			if err != nil {
-				slog.Error("Failed to save", "error", err)
+				slog.Error("Failed to save", logging.Error(err))
 			}
 		case <-ctx.Done():
 			return
@@ -77,7 +78,7 @@ func (a *KnownPeers) Addresses() []proto.PeerInfo {
 	for addr := range a.knownPeers {
 		rs, err := proto.NewPeerInfoFromString(addr)
 		if err != nil {
-			slog.Error("Failed to get peer info", "error", err)
+			slog.Error("Failed to get peer info", logging.Error(err))
 			continue
 		}
 		out = append(out, rs)
@@ -127,7 +128,7 @@ func (a *KnownPeers) Stop() {
 	a.cancel()
 	err := a.save()
 	if err != nil {
-		slog.Error("Failed to stop", "error", err)
+		slog.Error("Failed to stop", logging.Error(err))
 	}
 	a.storage.Close()
 }

@@ -137,7 +137,8 @@ func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.P
 	height, err := services.State.BlockIDToHeight(block.BlockID())
 	if err != nil {
 		slog.Error("Failed to get height for blockID and send blockIDs to peer",
-			"blockID", block.BlockID().String(), "peer", p.RemoteAddr().String(), "error", err)
+			slog.String("blockID", block.BlockID().String()), slog.String("peer", p.RemoteAddr().String()),
+			logging.Error(err))
 		return
 	}
 
@@ -200,7 +201,7 @@ func MicroBlockAction(
 func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger) (fsm.Async, error) {
 	b := &proto.Block{}
 	if err := b.UnmarshalFromProtobuf(mess.Message.(*proto.PBBlockMessage).PBBlockBytes); err != nil {
-		nl.Debug("Failed to deserialize protobuf block", "error", err)
+		nl.Debug("Failed to deserialize protobuf block", logging.Error(err))
 		return nil, err
 	}
 	nl.Debug("Protobuf block received", "blockID", b.ID.String())
@@ -212,7 +213,7 @@ func PBMicroBlockAction(
 ) (fsm.Async, error) {
 	micro := &proto.MicroBlock{}
 	if err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes); err != nil {
-		nl.Debug("Failed to deserialize microblock", "error", err)
+		nl.Debug("Failed to deserialize microblock", logging.Error(err))
 		return nil, err
 	}
 	nl.Debug("Microblock received", "blockID", micro.TotalBlockID.String())
@@ -327,7 +328,7 @@ func BlockSnapshotAction(
 ) (fsm.Async, error) {
 	protoMess := g.BlockSnapshot{}
 	if err := protoMess.UnmarshalVT(mess.Message.(*proto.BlockSnapshotMessage).Bytes); err != nil {
-		nl.Debug("Failed to deserialize block snapshot", "error", err)
+		nl.Debug("Failed to deserialize block snapshot", logging.Error(err))
 		return nil, err
 	}
 	blockID, err := proto.NewBlockIDFromBytes(protoMess.BlockId)
@@ -347,7 +348,7 @@ func MicroBlockSnapshotAction(
 ) (fsm.Async, error) {
 	protoMess := g.MicroBlockSnapshot{}
 	if err := protoMess.UnmarshalVT(mess.Message.(*proto.MicroBlockSnapshotMessage).Bytes); err != nil {
-		nl.Debug("Failed to deserialize micro block snapshot", "error", err)
+		nl.Debug("Failed to deserialize micro block snapshot", logging.Error(err))
 		return nil, err
 	}
 	blockID, err := proto.NewBlockIDFromBytes(protoMess.TotalBlockId)

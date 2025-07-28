@@ -92,7 +92,7 @@ func run() error {
 				ReadTimeout:       defaultTimeout,
 			}
 			if lErr := s.ListenAndServe(); lErr != nil {
-				slog.Error("Failed to listen", "error", lErr)
+				slog.Error("Failed to listen", logging.Error(lErr))
 			}
 		}()
 	}
@@ -101,33 +101,33 @@ func run() error {
 	if *cpuProfileFile != "" {
 		f, err := os.Create(*cpuProfileFile)
 		if err != nil {
-			slog.Error("Unable to create CPU profile", "error", err)
+			slog.Error("Unable to create CPU profile", logging.Error(err))
 			return err
 		}
 		err = pprof.StartCPUProfile(f)
 		if err != nil {
-			slog.Error("Failed to start CPU profiling", "error", err)
+			slog.Error("Failed to start CPU profiling", logging.Error(err))
 			return err
 		}
 		defer func() {
 			pprof.StopCPUProfile()
 			err := f.Close()
 			if err != nil {
-				slog.Error("Failed to close CPU profile file", "error", err)
+				slog.Error("Failed to close CPU profile file", logging.Error(err))
 			}
 		}()
 	}
 
 	if len(*scheme) != 1 {
 		err := errors.Errorf("incorrect blockchain scheme '%s', expected one character", *scheme)
-		slog.Error("Invalid configuration", "error", err)
+		slog.Error("Invalid configuration", logging.Error(err))
 		return err
 	}
 	sch := (*scheme)[0]
 
 	if *node == "" {
 		err := errors.New("empty node address")
-		slog.Error("Failed to parse node's API address", "error", err)
+		slog.Error("Failed to parse node's API address", logging.Error(err))
 		return err
 	}
 	if *interval <= 0 {
@@ -139,21 +139,21 @@ func run() error {
 
 	if *db == "" {
 		err := errors.Errorf("no database path")
-		slog.Error("Invalid configuration", "error", err)
+		slog.Error("Invalid configuration", logging.Error(err))
 		return err
 	}
 
 	storage := state.Storage{Path: *db, Scheme: sch}
 	err := storage.Open()
 	if err != nil {
-		slog.Error("Failed to open the storage", "error", err)
+		slog.Error("Failed to open the storage", logging.Error(err))
 		return err
 	}
 	defer func() {
 		slog.Info("Closing the storage...")
 		err := storage.Close()
 		if err != nil {
-			slog.Error("Failed to close the storage", "error", err)
+			slog.Error("Failed to close the storage", logging.Error(err))
 		}
 		slog.Info("Storage closed")
 	}()
@@ -166,13 +166,13 @@ func run() error {
 		slog.Info("Rollback was requested, rolling back...", "height", *rollback)
 		rh, err := storage.SafeRollbackHeight(*rollback)
 		if err != nil {
-			slog.Error("Failed to find the correct height of rollback", "error", err)
+			slog.Error("Failed to find the correct height of rollback", logging.Error(err))
 			return nil
 		}
 		slog.Info("Nearest correct height of rollback", "height", rh)
 		err = storage.Rollback(rh)
 		if err != nil {
-			slog.Error("Failed to rollback", "height", rh, "error", err)
+			slog.Error("Failed to rollback", slog.Int("height", rh), logging.Error(err))
 			return nil
 		}
 		slog.Info("Successfully rolled back", "height", rh)
@@ -186,7 +186,7 @@ func run() error {
 	for ms := range strings.SplitSeq(*matchersList, ",") {
 		pk, err := crypto.NewPublicKeyFromBase58(strings.TrimSpace(ms))
 		if err != nil {
-			slog.Error("Failed to parse matcher's public key", "key", ms, "error", err)
+			slog.Error("Failed to parse matcher's public key", slog.String("key", ms), logging.Error(err))
 			return err
 		}
 		matchers = append(matchers, pk)
@@ -198,20 +198,20 @@ func run() error {
 
 	oracleAddr, err := proto.NewAddressFromString(*oracle)
 	if err != nil {
-		slog.Error("Incorrect oracle's address", "error", err)
+		slog.Error("Incorrect oracle's address", logging.Error(err))
 		return err
 	}
 
 	symbols, err := data.NewSymbolsFromFile(*symbolsFile, oracleAddr, sch)
 	if err != nil {
-		slog.Error("Failed to load symbol substitutions", "error", err)
+		slog.Error("Failed to load symbol substitutions", logging.Error(err))
 		return nil
 	}
 	slog.Info("Imported symbol substitutions", "count", symbols.Count())
 
 	h, err := storage.Height()
 	if err != nil {
-		slog.Warn("Failed to get current height", "error", err.Error())
+		slog.Warn("Failed to get current height", logging.Error(err))
 	}
 	slog.Info("Last stored height", "height", h)
 
@@ -221,13 +221,13 @@ func run() error {
 
 	if *importFile != "" {
 		if _, err := os.Stat(*importFile); errors.Is(err, fs.ErrNotExist) {
-			slog.Error("Failed to import blockchain from file", "error", err)
+			slog.Error("Failed to import blockchain from file", logging.Error(err))
 			return err
 		}
 		importer := internal.NewImporter(interrupt, sch, &storage, matchers)
 		err := importer.Import(*importFile)
 		if err != nil {
-			slog.Error("Failed to import blockchain file", "file", *importFile, "error", err)
+			slog.Error("Failed to import blockchain file", slog.String("file", *importFile), logging.Error(err))
 			return err
 		}
 	}
@@ -250,7 +250,7 @@ func run() error {
 	s, err := internal.NewSynchronizer(interrupt, &storage, sch, matchers, *node,
 		time.Duration(*interval)*time.Second, *lag, symbols)
 	if err != nil {
-		slog.Error("Failed to start synchronization", "error", err)
+		slog.Error("Failed to start synchronization", logging.Error(err))
 		return err
 	}
 	synchronizerDone = s.Done()

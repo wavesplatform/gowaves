@@ -6,6 +6,7 @@ import (
 	"net"
 
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/utils"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -37,7 +38,8 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 	case *proto.TransactionMessage:
 		transaction, err := getTransaction(t, a.scheme)
 		if err != nil {
-			slog.Error("Failed to get transaction", "error", err, "from", incomeMessage.ID, "type", t)
+			slog.Error("Failed to get transaction", logging.Error(err), slog.Any("from", incomeMessage.ID),
+				logging.Type(incomeMessage.Message))
 			return
 		}
 
@@ -60,7 +62,7 @@ func (a *BehaviourImpl) ProtoMessage(incomeMessage peer.ProtoMessage) {
 			a.knownPeers.Add(proto.NewTCPAddr(p.Addr, int(p.Port)), proto.Version{})
 		}
 	default:
-		slog.Warn("Got unknown incomeMessage.Message", "type", incomeMessage.Message)
+		slog.Warn("Got unknown incomeMessage.Message", logging.Type(incomeMessage.Message))
 	}
 }
 

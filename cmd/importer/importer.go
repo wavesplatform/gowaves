@@ -148,7 +148,7 @@ func (c *cfg) setupCPUProfile() (func(), error) {
 	return func() {
 		pprof.StopCPUProfile()
 		if clErr := f.Close(); clErr != nil {
-			slog.Error("Failed to close CPU profile", "error", clErr)
+			slog.Error("Failed to close CPU profile", logging.Error(clErr))
 		}
 	}, nil
 }
@@ -169,7 +169,7 @@ func runImporter(c *cfg) error {
 	defer cpfClose()
 	defer func() { // Debug.
 		if mpfErr := configureMemProfile(c.memProfilePath); mpfErr != nil {
-			slog.Error("Failed to configure memory profile", "error", mpfErr)
+			slog.Error("Failed to configure memory profile", logging.Error(mpfErr))
 		}
 	}()
 
@@ -187,7 +187,7 @@ func runImporter(c *cfg) error {
 	}
 	defer func() {
 		if clErr := st.Close(); clErr != nil {
-			slog.Error("Failed to close State", "error", clErr)
+			slog.Error("Failed to close State", logging.Error(clErr))
 		}
 	}()
 
@@ -214,7 +214,7 @@ func runImporter(c *cfg) error {
 	if impErr := importer.ApplyFromFile(ctx, params, st, uint64(c.nBlocks), height); impErr != nil {
 		currentHeight, hErr := st.Height()
 		if hErr != nil {
-			slog.Error("Failed to get current height", "error", hErr)
+			slog.Error("Failed to get current height", logging.Error(hErr))
 			return hErr
 		}
 		if resErr := handleError(impErr, currentHeight); resErr != nil {
@@ -254,7 +254,7 @@ func configureMemProfile(memProfilePath string) error {
 	}
 	defer func() {
 		if clErr := f.Close(); clErr != nil {
-			slog.Error("Failed to close memory profile", "error", clErr)
+			slog.Error("Failed to close memory profile", logging.Error(clErr))
 		}
 	}()
 	runtime.GC() // get up-to-date statistics
@@ -273,7 +273,7 @@ func configureBlockchainSettings(blockchainType, cfgPath string) (*settings.Bloc
 		}
 		defer func() {
 			if clErr := f.Close(); clErr != nil {
-				slog.Error("Failed to close custom blockchain settings", "error", clErr)
+				slog.Error("Failed to close custom blockchain settings", logging.Error(clErr))
 			}
 		}()
 		ss, err = settings.ReadBlockchainSettings(f)

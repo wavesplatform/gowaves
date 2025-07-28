@@ -155,7 +155,7 @@ func download(
 			for height := range heightChan {
 				if err := manageHeight(ctx, height, nodes, clients, p, tries); err != nil {
 					cancel()
-					slog.Error("Failed to load hashes", "error", err)
+					slog.Error("Failed to load hashes", logging.Error(err))
 					errChan <- err
 					break
 				}
@@ -186,7 +186,7 @@ func main() {
 	flag.Parse()
 
 	if err := lp.Parse(); err != nil {
-		slog.Error("Failed to parse application parameters", "error", err)
+		slog.Error("Failed to parse application parameters", logging.Error(err))
 		os.Exit(1)
 	}
 
@@ -206,12 +206,12 @@ func main() {
 	for i, nu := range nodes {
 		u, err := checkAndUpdateURL(nu)
 		if err != nil {
-			slog.Error("Failed to update URL", "error", err)
+			slog.Error("Failed to update URL", logging.Error(err))
 			os.Exit(1)
 		}
 		clients[i], err = client.NewClient(client.Options{BaseUrl: u, Client: &http.Client{}})
 		if err != nil {
-			slog.Error("Failed to create client", "URL", u, "error", err)
+			slog.Error("Failed to create client", slog.String("URL", u), logging.Error(err))
 			os.Exit(1)
 		}
 	}

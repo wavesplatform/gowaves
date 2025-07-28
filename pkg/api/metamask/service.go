@@ -12,6 +12,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
@@ -222,7 +223,7 @@ func (s RPCService) Eth_Call(params ethCallParams, blockOrTag string) (string, e
 	slog.Debug("Eth_Call was called", "params", params, "blockOrTag", blockOrTag)
 	abiVal, err := ethCall(s.nodeRPCApp.State, s.nodeRPCApp.Scheme, params)
 	if err != nil {
-		slog.Debug("Eth_Call failed", "error", err)
+		slog.Debug("Eth_Call failed", logging.Error(err))
 		return "0x", err
 	}
 	return proto.EncodeToHexString(abiVal), nil
@@ -251,14 +252,16 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) ([]by
 	case erc20SymbolSelector:
 		fullInfo, err := state.FullAssetInfo(shortAssetID)
 		if err != nil {
-			slog.Debug("Eth_Call: failed to fetch full asset info", "params", params.String(), "error", err)
+			slog.Debug("Eth_Call: failed to fetch full asset info", slog.String("params", params.String()),
+				logging.Error(err))
 			return nil, err
 		}
 		return ethabi.String(fullInfo.Name).EncodeToABI(), nil
 	case erc20DecimalsSelector:
 		info, err := state.AssetInfo(shortAssetID)
 		if err != nil {
-			slog.Debug("Eth_Call: failed to fetch asset info", "params", params.String(), "error", err)
+			slog.Debug("Eth_Call: failed to fetch asset info", slog.String("params", params.String()),
+				logging.Error(err))
 			return nil, err
 		}
 		return ethabi.Int(info.Decimals).EncodeToABI(), nil
@@ -283,8 +286,8 @@ func ethCall(state state.State, scheme proto.Scheme, params ethCallParams) ([]by
 		}
 		accountBalance, err := state.AssetBalance(proto.NewRecipientFromAddress(wavesAddr), shortAssetID)
 		if err != nil {
-			slog.Error("Eth_Call: failed to fetch account balance", "addr", wavesAddr.String(),
-				"params", params.String(), "error", err)
+			slog.Error("Eth_Call: failed to fetch account balance", slog.String("addr", wavesAddr.String()),
+				slog.String("params", params.String()), logging.Error(err))
 			return nil, err
 		}
 		return ethabi.Int(accountBalance).EncodeToABI(), nil
@@ -318,15 +321,16 @@ func (s RPCService) Eth_GetCode(ethAddr proto.EthereumAddress, blockOrTag string
 			// address has no script and it's not an asset
 			return "0x", nil
 		case err != nil:
-			slog.Error("Eth_GetCode: failed to get asset info", "assetID", assetID.String(), "error", err)
+			slog.Error("Eth_GetCode: failed to get asset info", slog.String("assetID", assetID.String()),
+				logging.Error(err))
 			return "", err
 		default:
 			// it's an asset
 			return "0xff", nil
 		}
 	case err != nil:
-		slog.Error("Eth_GetCode: failed to get script info by account", "addr",
-			wavesAddr.String(), "error", err)
+		slog.Error("Eth_GetCode: failed to get script info by account", slog.String("addr", wavesAddr.String()),
+			logging.Error(err))
 		return "", err
 	case si.IsDApp:
 		// it's a DApp
@@ -353,7 +357,7 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 
 	data, err := proto.DecodeFromHexString(signedTxData)
 	if err != nil {
-		slog.Debug("Eth_SendRawTransaction: failed to decode ethereum transaction", "error", err)
+		slog.Debug("Eth_SendRawTransaction: failed to decode ethereum transaction", logging.Error(err))
 		return proto.EthereumHash{}, err
 	}
 
@@ -362,13 +366,13 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 	var tx proto.EthereumTransaction
 	err = tx.DecodeCanonical(data)
 	if err != nil {
-		slog.Debug("Eth_SendRawTransaction: failed to unmarshal rlp encoded ethereum transaction", "error", err)
+		slog.Debug("Eth_SendRawTransaction: failed to unmarshal rlp encoded ethereum transaction", logging.Error(err))
 		return proto.EthereumHash{}, err
 	}
 
 	txID, err := tx.GetID(s.nodeRPCApp.Scheme)
 	if err != nil {
-		slog.Error("Eth_SendRawTransaction: failed to get ID of ethereum transaction", "error", err)
+		slog.Error("Eth_SendRawTransaction: failed to get ID of ethereum transaction", logging.Error(err))
 		return proto.EthereumHash{}, err
 	}
 	ethTxID := proto.BytesToEthereumHash(txID)
@@ -376,7 +380,7 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 	from, err := tx.From()
 	if err != nil {
 		slog.Debug("Eth_SendRawTransaction: failed to get sender of ethereum transaction",
-			"ethTxID", ethTxID.String(), "to", to.String(), "error", err)
+			slog.String("ethTxID", ethTxID.String()), slog.String("to", to.String()), logging.Error(err))
 		return proto.EthereumHash{}, err
 	}
 
@@ -399,7 +403,8 @@ func (s RPCService) Eth_SendRawTransaction(signedTxData string) (proto.EthereumH
 		}
 		if err != nil {
 			slog.Debug("Eth_SendRawTransaction: error from internal FSM for ethereum tx",
-				"ethTxID", ethTxID.String(), "to", to.String(), "from", from.String(), "error", err)
+				slog.String("ethTxID", ethTxID.String()), slog.String("to", to.String()),
+				slog.String("from", from.String()), logging.Error(err))
 			return proto.EthereumHash{}, err
 		}
 		return ethTxID, nil
@@ -440,14 +445,14 @@ func (s RPCService) Eth_GetTransactionReceipt(ethTxID proto.EthereumHash) (*GetT
 	from, err := ethTx.From()
 	if err != nil {
 		slog.Error("Eth_GetTransactionReceipt: failed to get sender (from) for tx",
-			"ID", txID, "ethID", ethTxID, "error", err)
+			slog.Any("ID", txID), slog.Any("ethID", ethTxID), logging.Error(err))
 		return nil, errors.Wrap(err, "failed to get sender from tx")
 	}
 
 	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
 	if err != nil {
 		slog.Error("Eth_GetTransactionReceipt: failed to get block height for tx",
-			"ID", txID, "ethID", ethTxID, "error", err)
+			slog.Any("ID", txID), slog.Any("ethID", ethTxID), logging.Error(err))
 		return nil, errors.Wrap(err, "failed to get blockNumber for transaction")
 	}
 
@@ -512,14 +517,14 @@ func (s RPCService) Eth_GetTransactionByHash(ethTxID proto.EthereumHash) (*GetTr
 	fromPK, err := ethTx.FromPK()
 	if err != nil {
 		slog.Error("Eth_GetTransactionByHash: failed to get sender (from) public key for tx",
-			"ID", txID, "ethID", ethTxID, "error", err)
+			slog.Any("ID", txID), slog.Any("ethID", ethTxID), logging.Error(err))
 		return nil, errors.Wrap(err, "failed to get sender from tx")
 	}
 
 	blockHeight, err := s.nodeRPCApp.State.TransactionHeightByID(txID.Bytes())
 	if err != nil {
 		slog.Error("Eth_GetTransactionByHash: failed to get block height for tx",
-			"ID", txID, "ethID", ethTxID, "error", err)
+			slog.Any("ID", txID), slog.Any("ethID", ethTxID), logging.Error(err))
 		return nil, errors.Wrap(err, "failed to get blockNumber for transaction")
 	}
 

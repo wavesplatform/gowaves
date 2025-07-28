@@ -26,11 +26,11 @@ func cpuProfile(filename string) func() {
 	cleanFilename := filepath.Clean(filename)
 	f, err := os.Create(cleanFilename)
 	if err != nil {
-		slog.Error("Failed to create CPU profile", "error", err)
+		slog.Error("Failed to create CPU profile", logging.Error(err))
 		os.Exit(1)
 	}
 	if err := pprof.StartCPUProfile(f); err != nil {
-		slog.Error("Failed to start CPU profile", "error", err)
+		slog.Error("Failed to start CPU profile", logging.Error(err))
 		os.Exit(1)
 	}
 	return pprof.StopCPUProfile
@@ -40,11 +40,11 @@ func memProfile(filename string) {
 	cleanFilename := filepath.Clean(filename)
 	f, err := os.Create(cleanFilename)
 	if err != nil {
-		slog.Error("Failed to create memory profile", "error", err)
+		slog.Error("Failed to create memory profile", logging.Error(err))
 		os.Exit(1)
 	}
 	if err := pprof.WriteHeapProfile(f); err != nil {
-		slog.Error("Failed to write memory profile", "error", err)
+		slog.Error("Failed to write memory profile", logging.Error(err))
 		os.Exit(1)
 	}
 	_ = f.Close()
@@ -118,14 +118,14 @@ func main() {
 
 	storage, err := utils.NewFileBasedStorage(fs, "known_peers.json")
 	if err != nil {
-		slog.Error("Failed to open peers storage", "error", err)
+		slog.Error("Failed to open peers storage", logging.Error(err))
 		cancel()
 		return
 	}
 
 	knownPeers, err := utils.NewKnownPeers(storage)
 	if err != nil {
-		slog.Error("Failed to load known peers", "error", err)
+		slog.Error("Failed to load known peers", logging.Error(err))
 		cancel()
 		return
 	}
@@ -151,7 +151,7 @@ func main() {
 	if bind != "" {
 		err = r.ServeIncomingConnections(ctx, bind)
 		if err != nil {
-			slog.Error("Failed to serve incoming connections", "error", err)
+			slog.Error("Failed to serve incoming connections", logging.Error(err))
 			cancel()
 			return
 		}
@@ -162,7 +162,7 @@ func main() {
 	go func() {
 		err := srv.ListenAndServe()
 		if err != nil {
-			slog.Error("Failed to listen", "error", err)
+			slog.Error("Failed to listen", logging.Error(err))
 		}
 	}()
 

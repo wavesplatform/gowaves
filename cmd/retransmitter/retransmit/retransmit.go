@@ -9,6 +9,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -111,7 +112,7 @@ func (a *Retransmitter) ServeIncomingConnections(ctx context.Context, listenAddr
 func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 	lst, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		slog.Error("Failed to listen", "error", err)
+		slog.Error("Failed to listen", logging.Error(err))
 		return
 	}
 	slog.Info("Started listen", "address", listenAddr)
@@ -119,7 +120,7 @@ func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 	for {
 		c, err := lst.Accept()
 		if err != nil {
-			slog.Error("Failed to accept", "error", err)
+			slog.Error("Failed to accept", logging.Error(err))
 			continue
 		}
 

@@ -14,6 +14,7 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -43,7 +44,7 @@ func (im *Importer) Import(n string) error {
 	defer func() {
 		closeErr := f.Close()
 		if closeErr != nil {
-			slog.Error("Failed to close blockchain file", "error", closeErr)
+			slog.Error("Failed to close blockchain file", logging.Error(closeErr))
 		}
 	}()
 
@@ -77,7 +78,7 @@ func (im *Importer) readBlocks(f io.Reader) error {
 			_, err := io.ReadFull(r, sb)
 			if err != nil {
 				if err != io.EOF {
-					slog.Error("Unable to read data size", "error", err)
+					slog.Error("Unable to read data size", logging.Error(err))
 					return err
 				}
 				slog.Debug("EOF received while reading size")
@@ -89,7 +90,7 @@ func (im *Importer) readBlocks(f io.Reader) error {
 			_, err = io.ReadFull(r, bb)
 			if err != nil {
 				if err != io.EOF {
-					slog.Error("Unable to read block", "error", err.Error())
+					slog.Error("Unable to read block", logging.Error(err))
 					return err
 				}
 				slog.Debug("EOF received while reading block")
@@ -107,13 +108,13 @@ func (im *Importer) readBlocks(f io.Reader) error {
 			id := b.BlockID()
 			blockExists, err := im.storage.HasBlock(h, id)
 			if err != nil {
-				slog.Error("Failed to check block existence", "error", err)
+				slog.Error("Failed to check block existence", logging.Error(err))
 				return err
 			}
 			if !blockExists {
 				validSig, err := b.VerifySignature(im.scheme)
 				if err != nil {
-					slog.Error("Failed to verify block signature", "error", err)
+					slog.Error("Failed to verify block signature", logging.Error(err))
 				}
 				if !validSig {
 					slog.Error("Block has invalid signature. Aborting.", "blockID", b.BlockID().String())
@@ -125,12 +126,12 @@ func (im *Importer) readBlocks(f io.Reader) error {
 				}
 				err = im.storage.PutBalances(h, id, issues, assets, accounts, aliases)
 				if err != nil {
-					slog.Error("Failed to update state", "error", err.Error())
+					slog.Error("Failed to update state", logging.Error(err))
 					return err
 				}
 				err = im.storage.PutTrades(h, id, trades)
 				if err != nil {
-					slog.Error("Failed to update state", "error", err.Error())
+					slog.Error("Failed to update state", logging.Error(err))
 					return err
 				}
 				c := len(trades)

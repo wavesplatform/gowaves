@@ -89,14 +89,14 @@ func run() error {
 	}
 	node, err := checkAndUpdateURL(node)
 	if err != nil {
-		slog.Error("Incorrect node's URL", "error", err)
+		slog.Error("Incorrect node's URL", logging.Error(err))
 		return errInvalidParameters
 	}
 	other := strings.Fields(reference)
 	for i, u := range other {
 		u, err = checkAndUpdateURL(u)
 		if err != nil {
-			slog.Error("Incorrect reference's URL", "error", err)
+			slog.Error("Incorrect reference's URL", logging.Error(err))
 			return errInvalidParameters
 		}
 		other[i] = u
@@ -114,7 +114,7 @@ func run() error {
 	for i, u := range urls {
 		c, err := client.NewClient(client.Options{BaseUrl: u, Client: &http.Client{}})
 		if err != nil {
-			slog.Error("Failed to create client", "URL", u, "error", err)
+			slog.Error("Failed to create client", slog.String("URL", u), logging.Error(err))
 			return errFailure
 		}
 		clients[i] = c
@@ -122,7 +122,7 @@ func run() error {
 
 	hs, err := heights(interrupt, clients)
 	if err != nil {
-		slog.Error("Failed to retrieve heights from all nodes", "error", err)
+		slog.Error("Failed to retrieve heights from all nodes", logging.Error(err))
 		if interrupted(interrupt) {
 			return errUserTermination
 		}
@@ -137,7 +137,7 @@ func run() error {
 
 	ch, err := findLastCommonHeight(interrupt, clients, 1, stop)
 	if err != nil {
-		slog.Error("Failed to find last common height", "error", err)
+		slog.Error("Failed to find last common height", logging.Error(err))
 		if interrupted(interrupt) {
 			return errUserTermination
 		}

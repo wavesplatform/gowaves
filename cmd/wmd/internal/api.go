@@ -25,6 +25,7 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -102,7 +103,7 @@ func NewDataFeedAPI(
 	apiServer := &http.Server{Addr: address, Handler: r, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	go func() {
 		if err = apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			slog.Error("Failed to start API", "error", err)
+			slog.Error("Failed to start API", logging.Error(err))
 			os.Exit(1)
 			return
 		}
@@ -112,7 +113,7 @@ func NewDataFeedAPI(
 		slog.Info("Shutting down API...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err = apiServer.Shutdown(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			slog.Error("Failed to shutdown API server", "error", err)
+			slog.Error("Failed to shutdown API server", logging.Error(err))
 		}
 		cancel()
 		close(a.done)
@@ -190,12 +191,12 @@ func (a *DataFeedAPI) markets(w http.ResponseWriter, _ *http.Request) {
 		}
 		aai, err := a.Storage.AssetInfo(m.AmountAsset)
 		if err != nil {
-			slog.Warn("Failed to load AssetInfo", "error", err)
+			slog.Warn("Failed to load AssetInfo", logging.Error(err))
 			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		pai, err := a.Storage.AssetInfo(m.PriceAsset)
 		if err != nil {
-			slog.Warn("Failed to load AssetInfo", "error", err)
+			slog.Warn("Failed to load AssetInfo", logging.Error(err))
 			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		aab, err := a.getIssuerBalance(aai.IssuerAddress, m.AmountAsset)
@@ -235,12 +236,12 @@ func (a *DataFeedAPI) tickers(w http.ResponseWriter, _ *http.Request) {
 		}
 		aai, err := a.Storage.AssetInfo(m.AmountAsset)
 		if err != nil {
-			slog.Warn("Failed to load AssetInfo", "error", err)
+			slog.Warn("Failed to load AssetInfo", logging.Error(err))
 			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		pai, err := a.Storage.AssetInfo(m.PriceAsset)
 		if err != nil {
-			slog.Warn("Failed to load AssetInfo", "error", err)
+			slog.Warn("Failed to load AssetInfo", logging.Error(err))
 			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		aab, err := a.getIssuerBalance(aai.IssuerAddress, m.AmountAsset)

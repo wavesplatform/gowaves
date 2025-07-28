@@ -17,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -78,12 +79,12 @@ func (s *Synchronizer) synchronize() {
 	rh, err := s.nodeHeight()
 	rh = rh - s.lag
 	if err != nil {
-		slog.Error("Failed to synchronize with node", "error", err)
+		slog.Error("Failed to synchronize with node", logging.Error(err))
 		return
 	}
 	lh, err := s.storage.Height()
 	if err != nil {
-		slog.Error("Failed to synchronize with node", "error", err)
+		slog.Error("Failed to synchronize with node", logging.Error(err))
 		return
 	}
 	if s.interrupted() {
@@ -93,19 +94,19 @@ func (s *Synchronizer) synchronize() {
 		slog.Info("Heights", "localHeight", lh, "nodeHeight", rh)
 		ch, err := s.findLastCommonHeight(1, lh)
 		if err != nil {
-			slog.Error("Failed to find last common height", "error", err)
+			slog.Error("Failed to find last common height", logging.Error(err))
 			return
 		}
 		if ch < lh {
 			rollbackHeight, err := s.storage.SafeRollbackHeight(ch)
 			if err != nil {
-				slog.Error("Failed to get rollback height", "error", err)
+				slog.Error("Failed to get rollback height", logging.Error(err))
 				return
 			}
 			slog.Warn("Rolling back to safe height", "height", rollbackHeight)
 			err = s.storage.Rollback(rollbackHeight)
 			if err != nil {
-				slog.Error("Failed to rollback to height", "height", rollbackHeight, "error", err)
+				slog.Error("Failed to rollback to height", slog.Any("height", rollbackHeight), logging.Error(err))
 				return
 			}
 			ch = rollbackHeight - 1
@@ -113,13 +114,13 @@ func (s *Synchronizer) synchronize() {
 		const delta = 10
 		err = s.applyBlocksRange(ch+1, rh, delta)
 		if err != nil && !strings.Contains(err.Error(), "Invalid status code") {
-			slog.Error("Failed to apply blocks", "error", err)
+			slog.Error("Failed to apply blocks", logging.Error(err))
 			return
 		}
 		if s.symbols != nil {
 			err = s.symbols.UpdateFromOracle(s.conn)
 			if err != nil {
-				slog.Warn("Failed to update tickers from oracle", "error", err)
+				slog.Warn("Failed to update tickers from oracle", logging.Error(err))
 			}
 		}
 	}
@@ -206,11 +207,11 @@ func (s *Synchronizer) applyBlock(height int, id proto.BlockID, txs []proto.Tran
 	}
 	err = s.storage.PutBalances(height, id, issues, assets, accounts, aliases)
 	if err != nil {
-		slog.Error("Failed to update state", "error", err)
+		slog.Error("Failed to update state", logging.Error(err))
 	}
 	err = s.storage.PutTrades(height, id, trades)
 	if err != nil {
-		slog.Error("Failed to update state", "error", err)
+		slog.Error("Failed to update state", logging.Error(err))
 	}
 	return nil
 }
