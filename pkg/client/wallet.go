@@ -35,7 +35,7 @@ func (a *Wallet) Seed(ctx context.Context) (string, *Response, error) {
 	var out struct {
 		Seed string `json:"seed"`
 	}
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return "", response, err
 	}

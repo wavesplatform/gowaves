@@ -690,7 +690,7 @@ func (s *stateManager) TxValidation(func(TxValidation) error) error {
 	panic("call TxValidation method on non thread safe state")
 }
 
-func (s *stateManager) MapR(func(StateInfo) (interface{}, error)) (interface{}, error) {
+func (s *stateManager) MapR(func(StateInfo) (any, error)) (any, error) {
 	panic("call MapR on non thread safe state")
 }
 

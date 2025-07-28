@@ -142,7 +142,7 @@ func main() {
 		addresses = defaultPeers[wavesNetwork]
 	}
 
-	for _, a := range strings.Split(addresses, ",") {
+	for a := range strings.SplitSeq(addresses, ",") {
 		a = strings.Trim(a, " ")
 		if a != "" {
 			r.Address(ctx, a)
