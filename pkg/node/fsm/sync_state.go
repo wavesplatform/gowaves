@@ -248,7 +248,6 @@ func (a *SyncState) changePeerIfRequired() (peer.Peer, bool) {
 func (a *SyncState) applyBlocksWithSnapshots(
 	baseInfo BaseInfo, conf conf, internal sync_internal.Internal,
 ) (State, Async, error) {
-	zap.S().Infof("applyBlocksWithSnapshots\n")
 	internal, blocks, snapshots, eof := internal.Blocks()
 	if len(blocks) == 0 {
 		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")
