@@ -345,13 +345,13 @@ func TestSplitString(t *testing.T) {
 func BenchmarkSplitString(b *testing.B) {
 	item := strings.Repeat("x", 31)
 	list := make([]string, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		list[i] = item
 	}
 	s := strings.Join(list, ",")
 	args := []rideType{rideString(s), rideString(",")}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := splitString(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
@@ -383,13 +383,13 @@ func TestSplit(t *testing.T) {
 func BenchmarkSplitStringV6(b *testing.B) {
 	item := strings.Repeat("x", 24)
 	list := make([]string, 20)
-	for i := 0; i < 20; i++ {
+	for i := range 20 {
 		list[i] = item
 	}
 	s := strings.Join(list, ",")
 	args := []rideType{rideString(s), rideString(",")}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := splitStringV6(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
@@ -399,13 +399,13 @@ func BenchmarkSplitStringV6(b *testing.B) {
 func BenchmarkSplitString4C(b *testing.B) {
 	item := strings.Repeat("x", 59)
 	list := make([]string, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		list[i] = item
 	}
 	s := strings.Join(list, ",")
 	args := []rideType{rideString(s), rideString(",")}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := splitString4C(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
@@ -589,12 +589,12 @@ func TestMkStringStrict(t *testing.T) {
 func BenchmarkMakeStringV6(b *testing.B) {
 	item := "123456"
 	list := make([]rideType, 70)
-	for i := 0; i < 70; i++ {
+	for i := range 70 {
 		list[i] = rideString(item)
 	}
-	b.ResetTimer()
+
 	args := []rideType{rideList(list), rideString(",")}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		r, err := makeStringV6(nil, args...)
 		require.NoError(b, err)
 		require.NotEmpty(b, r)
@@ -604,12 +604,12 @@ func BenchmarkMakeStringV6(b *testing.B) {
 func BenchmarkMakeString2C(b *testing.B) {
 	item := strings.Repeat("x", 59)
 	list := make([]rideType, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		list[i] = rideString(item)
 	}
 	args := []rideType{rideList(list), rideString(",")}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := makeString2C(nil, args...)
 		require.NoError(b, err)
 		require.NotEmpty(b, r)

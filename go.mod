@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.23.0
+go 1.24.0
 
 require (
 	filippo.io/edwards25519 v1.1.0
@@ -15,7 +15,7 @@ require (
 	github.com/elliotchance/orderedmap/v2 v2.7.0
 	github.com/ericlagergren/decimal v0.0.0-20210307182354-5f8425a47c58
 	github.com/fxamacker/cbor/v2 v2.9.0
-	github.com/go-chi/chi v4.1.2+incompatible
+	github.com/go-chi/chi/v5 v5.2.2
 	github.com/go-test/deep v1.1.1
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.1
@@ -33,7 +33,7 @@ require (
 	github.com/qmuntal/stateless v1.7.2
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/afero v1.14.0
-	github.com/spf13/pflag v1.0.6
+	github.com/spf13/pflag v1.0.7
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/stoewer/go-strcase v1.3.1
@@ -52,7 +52,7 @@ require (
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476
 	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.34.0
-	google.golang.org/grpc v1.73.0
+	google.golang.org/grpc v1.74.2
 	google.golang.org/protobuf v1.36.6
 	moul.io/zapfilter v1.7.0
 )
@@ -119,7 +119,7 @@ require (
 	golang.org/x/term v0.33.0 // indirect
 	golang.org/x/text v0.27.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250324211829-b45e905df463 // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )

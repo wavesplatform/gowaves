@@ -221,7 +221,7 @@ func convertFunctions(typeConverter func([]byte) ([]Type, error), functions []*g
 
 func parseUnion(t byte) Type {
 	r := make([]SimpleType, 0, basicTypesCount)
-	for i := 0; i < basicTypesCount; i++ {
+	for i := range basicTypesCount {
 		m := byte(1 << i)
 		if t&m == m {
 			r = append(r, SimpleType(m))

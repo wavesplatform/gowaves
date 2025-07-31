@@ -275,8 +275,8 @@ func TestFraction(t *testing.T) {
 
 func BenchmarkFraction(b *testing.B) {
 	args := []rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(math.MinInt64)}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := fraction(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
@@ -336,8 +336,8 @@ func TestFractionIntRounds(t *testing.T) {
 
 func BenchmarkFractionIntRounds(b *testing.B) {
 	args := []rideType{rideInt(math.MaxInt64), rideInt(math.MinInt64), rideInt(math.MinInt64), newHalfEven(nil)}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := fractionIntRounds(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
@@ -411,8 +411,8 @@ func BenchmarkPow(b *testing.B) {
 	}
 	//98765432, 8, -$max, 0, 8, DOWN -> error
 	args := []rideType{rideInt(98765432), rideInt(8), rideInt(math.MinInt64), rideInt(0), rideInt(8), newDown(nil)}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := pow(e, args...)
 		require.Error(b, err)
 		require.Nil(b, r)
