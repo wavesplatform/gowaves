@@ -188,7 +188,7 @@ func (a internalImpl) scheduleWithVrf(
 
 		delay, cdErr := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
 		if cdErr != nil {
-			slog.Error("Scheduler: Failed to schedule mining for address %q, failed to calculate delay",
+			slog.Error("Scheduler: Failed to schedule mining, failed to calculate delay",
 				slog.String("address", addr.String()), logging.Error(cdErr))
 			continue
 		}

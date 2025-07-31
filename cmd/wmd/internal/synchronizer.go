@@ -307,7 +307,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.IssueWithProofs:
-			slog.Debug("IssueWithProofs", "#", i, "tx", t)
+			slog.Debug("IssueWithProofs", "i", i, "tx", t)
 			ic, ac, err := data.FromIssueWithProofs(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "IssueWithProofs")
@@ -316,7 +316,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.TransferWithSig:
-			slog.Debug("TransferWithSig", "#", i, "tx", t)
+			slog.Debug("TransferWithSig", "i", i, "tx", t)
 			if t.AmountAsset.Present || t.FeeAsset.Present {
 				u, err := data.FromTransferWithSig(s.scheme, t, miner)
 				if err != nil {
@@ -326,7 +326,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			}
 
 		case *proto.TransferWithProofs:
-			slog.Debug("TransferWithProofs", "#", i, "tx", t)
+			slog.Debug("TransferWithProofs", "i", i, "tx", t)
 			if t.AmountAsset.Present || t.FeeAsset.Present {
 				u, err := data.FromTransferWithProofs(s.scheme, t, miner)
 				if err != nil {
@@ -336,7 +336,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			}
 
 		case *proto.ReissueWithSig:
-			slog.Debug("ReissueWithSig", "#", i, "tx", t)
+			slog.Debug("ReissueWithSig", "i", i, "tx", t)
 			as, ac, err := data.FromReissueWithSig(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithSig")
@@ -345,7 +345,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.ReissueWithProofs:
-			slog.Debug("ReissueWithProofs", "#", i, "tx", t)
+			slog.Debug("ReissueWithProofs", "i", i, "tx", t)
 			as, ac, err := data.FromReissueWithProofs(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "ReissueWithProofs")
@@ -354,7 +354,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.BurnWithSig:
-			slog.Debug("BurnWithSig", "#", i, "tx", t)
+			slog.Debug("BurnWithSig", "i", i, "tx", t)
 			as, ac, err := data.FromBurnWithSig(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithSig")
@@ -363,7 +363,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.BurnWithProofs:
-			slog.Debug("BurnWithProofs", "#", i, "tx", t)
+			slog.Debug("BurnWithProofs", "i", i, "tx", t)
 			as, ac, err := data.FromBurnWithProofs(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "BurnWithProofs")
@@ -372,7 +372,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac)
 
 		case *proto.ExchangeWithSig:
-			slog.Debug("ExchangeWithSig: %v", "#", i, "tx", t)
+			slog.Debug("ExchangeWithSig", "i", i, "tx", t)
 			if s.checkMatcher(t.SenderPK) {
 				t, err := data.NewTradeFromExchangeWithSig(s.scheme, t)
 				if err != nil {
@@ -387,7 +387,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac...)
 
 		case *proto.ExchangeWithProofs:
-			slog.Debug("ExchangeWithProofs", "#", i, "tx", t)
+			slog.Debug("ExchangeWithProofs", "i", i, "tx", t)
 			if s.checkMatcher(t.SenderPK) {
 				t, err := data.NewTradeFromExchangeWithProofs(s.scheme, t)
 				if err != nil {
@@ -402,11 +402,11 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			accountChanges = append(accountChanges, ac...)
 
 		case *proto.SponsorshipWithProofs:
-			slog.Debug("SponsorshipWithProofs", "#", i, "tx", t)
+			slog.Debug("SponsorshipWithProofs", "i", i, "tx", t)
 			assetChanges = append(assetChanges, data.FromSponsorshipWithProofs(t))
 
 		case *proto.CreateAliasWithSig:
-			slog.Debug("CreateAliasWithSig", "#", i, "tx", t)
+			slog.Debug("CreateAliasWithSig", "i", i, "tx", t)
 			b, err := data.FromCreateAliasWithSig(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithSig")
@@ -414,7 +414,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			binds = append(binds, b)
 
 		case *proto.CreateAliasWithProofs:
-			slog.Debug("CreateAliasWithProofs", "#", i, "tx", t)
+			slog.Debug("CreateAliasWithProofs", "i", i, "tx", t)
 			b, err := data.FromCreateAliasWithProofs(s.scheme, t)
 			if err != nil {
 				return nil, nil, nil, nil, nil, wrapErr(err, "CreateAliasWithProofs")
@@ -422,7 +422,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 			binds = append(binds, b)
 
 		case *proto.MassTransferWithProofs:
-			slog.Debug("MassTransferWithProofs", "#", i, "tx", t)
+			slog.Debug("MassTransferWithProofs", "i", i, "tx", t)
 			if t.Asset.Present {
 				ac, err := data.FromMassTransferWithProofs(s.scheme, t)
 				if err != nil {
@@ -442,7 +442,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 		case *proto.SetAssetScriptWithProofs:
 		case *proto.InvokeScriptWithProofs:
 		default:
-			slog.Warn("Unknown transaction type", "#", i)
+			slog.Warn("Unknown transaction type", "i", i)
 		}
 	}
 	return trades, issueChanges, assetChanges, accountChanges, binds, nil

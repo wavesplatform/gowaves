@@ -46,7 +46,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 	peerImpl, err := peer.NewPeerImpl(handshake, connection, peer.Outgoing, remote, cancel, dl)
 	if err != nil {
 		if err := connection.Close(); err != nil {
-			slog.Error("Failed to close outgoing connection to '%s': %v", addr, err)
+			slog.Error("Failed to close outgoing connection", slog.String("address", addr), logging.Error(err))
 		}
 		logger.Debug("Failed to create peer for outgoing connection", slog.String("address", addr),
 			logging.Error(err))
