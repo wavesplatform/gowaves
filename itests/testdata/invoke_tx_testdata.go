@@ -180,11 +180,11 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean1",
-							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), false)},
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(false)},
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean2",
-							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), true)},
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(true)},
 						},
 						{
 							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger1",
@@ -387,11 +387,11 @@ func GetInvokeScriptWriteToStorageTestData(suite *f.BaseSuite,
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean1",
-							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), true)},
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(true)},
 						},
 						{
 							Key:   utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binBoolean2",
-							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(suite.T(), false)},
+							Value: &waves.DataEntry_BinaryValue{BinaryValue: utl.BoolToBase64Bytes(false)},
 						},
 						{
 							Key: utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address.String() + "_binInteger1",

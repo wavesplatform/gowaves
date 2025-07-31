@@ -324,7 +324,7 @@ func IntToBase64Bytes(t *testing.T, i int64) []byte {
 	return []byte(base64.StdEncoding.EncodeToString(bs))
 }
 
-func BoolToBase64Bytes(t *testing.T, b bool) []byte {
+func BoolToBase64Bytes(b bool) []byte {
 	var value byte
 	if b {
 		value = 1
