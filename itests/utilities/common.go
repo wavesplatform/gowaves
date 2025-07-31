@@ -899,7 +899,7 @@ func ReadAndCompileRideScript(scriptDir, fileName string) ([]byte, error) {
 	if err != nil {
 		return nil, err
 	}
-	scriptPath := filepath.Join(dir, testDataDir, scriptDir, fileName)
+	scriptPath := filepath.Join(dir, testDataDir, scriptsDir, scriptDir, fileName)
 	scriptFileContent, err := os.ReadFile(filepath.Clean(scriptPath))
 	if err != nil {
 		return nil, err
