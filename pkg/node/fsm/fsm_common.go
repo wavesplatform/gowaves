@@ -165,9 +165,9 @@ func fsmErrorf(state State, err error) error {
 }
 
 func createPermitDynamicCallback(
-	event stateless.Trigger, state *StateData, actionFunc func(...interface{}) (State, Async, error),
+	event stateless.Trigger, state *StateData, actionFunc func(...any) (State, Async, error),
 ) stateless.DestinationSelectorFunc {
-	return func(_ context.Context, args ...interface{}) (stateless.State, error) {
+	return func(_ context.Context, args ...any) (stateless.State, error) {
 		validateEventArgs(event, args...)
 		newState, asyncNew, err := actionFunc(args[1:]...)
 		async, ok := args[0].(*Async)
@@ -181,7 +181,7 @@ func createPermitDynamicCallback(
 	}
 }
 
-func convertToInterface[T any](arg interface{}) T {
+func convertToInterface[T any](arg any) T {
 	var res T
 	if arg == nil {
 		return res
@@ -194,7 +194,7 @@ func isCanBeNil(t reflect.Type) bool {
 		t.Kind() == reflect.Chan || t.Kind() == reflect.Func || t.Kind() == reflect.Ptr
 }
 
-func validateEventArgs(event stateless.Trigger, args ...interface{}) {
+func validateEventArgs(event stateless.Trigger, args ...any) {
 	if len(args) != len(eventArgsTypes(event)) {
 		panic(fmt.Sprintf("Invalid number of arguments for event %q: expected %d, got %d", event,
 			len(eventArgsTypes(event)), len(args)),

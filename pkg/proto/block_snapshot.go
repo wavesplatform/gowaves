@@ -47,7 +47,7 @@ func (bs *BlockSnapshot) UnmarshalBinary(data []byte, scheme Scheme) error {
 	txSnCnt := binary.BigEndian.Uint32(data[0:uint32Size])
 	data = data[uint32Size:]
 	var txSnapshots [][]AtomicSnapshot
-	for i := uint32(0); i < txSnCnt; i++ {
+	for range txSnCnt {
 		if len(data) < uint32Size {
 			return errors.Errorf("BlockSnapshot UnmarshallBinary: invalid data size")
 		}

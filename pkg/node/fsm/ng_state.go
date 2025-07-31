@@ -467,7 +467,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 		proto.ContentIDBlockSnapshot,
 	}
 	fsm.Configure(NGStateName).
-		OnEntry(func(ctx context.Context, args ...interface{}) error {
+		OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(ngSkipMessageList)
 			return nil
 		}).
@@ -478,7 +478,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 		Ignore(BlockSnapshotEvent).
 		Ignore(MicroBlockSnapshotEvent).
 		PermitDynamic(StopMiningEvent,
-			createPermitDynamicCallback(StopMiningEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(StopMiningEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -487,7 +487,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 				return a.StopMining()
 			})).
 		PermitDynamic(TransactionEvent,
-			createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TransactionEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -497,7 +497,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 					convertToInterface[proto.Transaction](args[1]))
 			})).
 		PermitDynamic(TaskEvent,
-			createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TaskEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -506,7 +506,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 				return a.Task(args[0].(tasks.AsyncTask))
 			})).
 		PermitDynamic(ScoreEvent,
-			createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(ScoreEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -515,7 +515,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 				return a.Score(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Score))
 			})).
 		PermitDynamic(BlockEvent,
-			createPermitDynamicCallback(BlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(BlockEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -524,7 +524,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 				return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
 			})).
 		PermitDynamic(MinedBlockEvent,
-			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -534,7 +534,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 					args[2].(proto.KeyPair), args[3].([]byte))
 			})).
 		PermitDynamic(MicroBlockEvent,
-			createPermitDynamicCallback(MicroBlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(MicroBlockEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -543,7 +543,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 				return a.MicroBlock(convertToInterface[peer.Peer](args[0]), args[1].(*proto.MicroBlock))
 			})).
 		PermitDynamic(MicroBlockInvEvent,
-			createPermitDynamicCallback(MicroBlockInvEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(MicroBlockInvEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -552,7 +552,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 				return a.MicroBlockInv(convertToInterface[peer.Peer](args[0]), args[1].(*proto.MicroBlockInv))
 			})).
 		PermitDynamic(HaltEvent,
-			createPermitDynamicCallback(HaltEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(HaltEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*NGState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
