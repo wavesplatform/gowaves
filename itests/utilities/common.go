@@ -8,7 +8,6 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
-	"github.com/ccoveille/go-safecast"
 	"math"
 	"math/rand"
 	"os"
@@ -20,6 +19,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58/base58"
 	pkgerr "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
