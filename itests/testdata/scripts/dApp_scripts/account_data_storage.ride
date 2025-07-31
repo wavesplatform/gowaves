@@ -139,4 +139,3 @@ func maxValueForFunctionNameleViTzlwxjekBw9tUO5BONNIXSLhEoQJ2Y0voSups40mBcWxngZ6
 
 @Verifier(tx)
 func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
-        

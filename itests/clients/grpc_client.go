@@ -150,7 +150,7 @@ func (c *GRPCClient) syncedWavesAvailableBalance(
 
 // GetDataEntryByKey return data entries for account by key.
 func (c *GRPCClient) GetDataEntryByKey(t *testing.T, address proto.WavesAddress, key string) *waves.DataEntry {
-	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	ctx, cancel := context.WithTimeout(t.Context(), c.timeout)
 	defer cancel()
 	dr := g.DataRequest{
 		Address: address.Bytes(),

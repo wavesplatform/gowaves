@@ -43,7 +43,7 @@ func GetDataForDAppAccount(suite *f.BaseSuite, account config.AccountInfo, scrip
 		account,
 		getDAppScript(suite, scriptName),
 		utl.TestChainID,
-		10000000,
+		utl.SetDAppScriptFeeWaves,
 		utl.GetCurrentTimestampInMs(),
 	)
 }

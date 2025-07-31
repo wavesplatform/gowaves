@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/ccoveille/go-safecast"
 	"math"
 	"math/rand"
 	"os"
@@ -48,6 +49,7 @@ const (
 	MinAmount                  = math.MinInt64
 	MinIssueFeeWaves           = 100000000
 	MinSetAssetScriptFeeWaves  = 100000000
+	SetDAppScriptFeeWaves      = 100000000
 	MinTxFeeWaves              = 100000
 	MinTxFeeWavesSmartAsset    = 500000
 	MinTxFeeWavesInvokeDApp    = 500000
@@ -62,8 +64,11 @@ const (
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
 	DefaultTimeInterval        = 5 * time.Second
-	TimeInMsPast               = 7260000
-	TimeInMsFuture             = 54160000
+	// TimeInMsPast and TimeInMsFuture are used for generating transaction timestamps outside the [±X ms] validity
+	// window by adding predefined time intervals to the current timestamp. Validates system response to
+	// timestamp-related errors.
+	TimeInMsPast   = 7260000
+	TimeInMsFuture = 54160000
 	// DefaultSponsorshipActivationHeight sets the height at which Fee Sponsorship takes effect.
 	// Although the feature itself is activated at height 1 by default, it takes 2 additional voting periods (2 blocks)
 	// for it to become effective.
@@ -297,50 +302,35 @@ func SafeInt64ToUint64(x int64) uint64 {
 	return uint64(x)
 }
 
-// StrToBase16Bytes gets string in utf8 and returns array of bytes of base16 string.
-func StrToBase16Bytes(t *testing.T, s string) []byte {
-	encodedStr := hex.EncodeToString([]byte(s))
-	result, err := hex.DecodeString(encodedStr)
-	require.NoError(t, err, "failed to decode hex string")
-	return result
+// Base16EncodeBytes gets string in utf8 and returns array of bytes of base16 string.
+func Base16EncodeBytes(s string) []byte {
+	return []byte(hex.EncodeToString([]byte(s)))
 }
 
-func StrToBase58Bytes(t *testing.T, s string) []byte {
-	encodedStr := base58.Encode([]byte(s))
-	result, err := base58.Decode(encodedStr)
-	require.NoError(t, err, "failed to decode base58 string")
-	return result
+func Base58EncodeBytes(s string) []byte {
+	return []byte(base58.Encode([]byte(s)))
 }
 
-func StrToBase64Bytes(t *testing.T, s string) []byte {
-	encodedStr := base64.StdEncoding.EncodeToString([]byte(s))
-	result, err := base64.StdEncoding.DecodeString(encodedStr)
-	require.NoError(t, err, "failed to decode base64 string")
-	return result
+func Base64EncodeBytes(s string) []byte {
+	return []byte(base64.StdEncoding.EncodeToString([]byte(s)))
 }
 
 func IntToBase64Bytes(t *testing.T, i int64) []byte {
 	const bufferLength = 8
-	if i < 0 {
-		require.FailNow(t, fmt.Sprintf("integer %d is less than 0", i))
-	}
+	value, err := safecast.ToUint64(i)
+	require.NoError(t, err, "failed to cast int64 to uint64")
 	bs := make([]byte, bufferLength)
-	binary.BigEndian.PutUint64(bs, uint64(i))
-	encodedStr := base64.StdEncoding.EncodeToString(bs)
-	result, err := base64.StdEncoding.DecodeString(encodedStr)
-	require.NoError(t, err, "failed to decode base64 string")
-	return result
+	binary.BigEndian.PutUint64(bs, value)
+	return []byte(base64.StdEncoding.EncodeToString(bs))
 }
 
 func BoolToBase64Bytes(t *testing.T, b bool) []byte {
-	bs := make([]byte, 1)
+	var value byte
 	if b {
-		bs[0] = 1
+		value = 1
 	}
-	encodedStr := base64.StdEncoding.EncodeToString(bs)
-	result, err := base64.StdEncoding.DecodeString(encodedStr)
-	require.NoError(t, err, "failed to decode base64 string")
-	return result
+	encoded := base64.StdEncoding.EncodeToString([]byte{value})
+	return []byte(encoded)
 }
 
 func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
@@ -431,7 +421,7 @@ func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) prot
 // Scheme should be represented with a one-byte ASCII symbol.
 func GetAliasFromString(suite *f.BaseSuite, alias string, chainID proto.Scheme) *proto.Alias {
 	var newAliasStr string
-	aliasPref := "alias:"
+	const aliasPref = "alias:"
 	chainIDPref := string(chainID) + ":"
 	prefix := aliasPref + chainIDPref
 	switch {
@@ -901,11 +891,15 @@ func ReadScript(scriptDir, fileName string) ([]byte, error) {
 }
 
 func ReadAndCompileRideScript(scriptDir, fileName string) ([]byte, error) {
+	const (
+		testDataDir = "testdata"
+		scriptsDir  = "scripts"
+	)
 	dir, err := getItestsDir()
 	if err != nil {
 		return nil, err
 	}
-	scriptPath := filepath.Join(dir, "testdata", "scripts", scriptDir, fileName)
+	scriptPath := filepath.Join(dir, testDataDir, scriptDir, fileName)
 	scriptFileContent, err := os.ReadFile(filepath.Clean(scriptPath))
 	if err != nil {
 		return nil, err

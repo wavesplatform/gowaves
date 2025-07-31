@@ -100,7 +100,7 @@ func GetSetAssetScriptPositiveData(suite *f.BaseSuite, assetID crypto.Digest) ma
 
 func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) map[string]SetAssetScriptTestData[SetAssetScriptExpectedValuesNegative] {
 	return map[string]SetAssetScriptTestData[SetAssetScriptExpectedValuesNegative]{
-		/*"Empty script": NewSetAssetScriptTestData(
+		"Empty script": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			readAssetScript(suite, "empty_script.base64"),
@@ -204,7 +204,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "json data validation error",
-			}),*/
+			}),
 		"Invalid fee (0 < fee < min)": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
@@ -220,7 +220,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "(10 in WAVES) does not exceed minimal value",
 			}),
-		/*"Invalid fee (fee = 0)": NewSetAssetScriptTestData(
+		"Invalid fee (fee = 0)": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
 			readAssetScript(suite, "valid_script_true_as_expression.base64"),
@@ -294,7 +294,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 				ErrScalaMsg:       errMsg,
 				ErrBrdCstGoMsg:    errBrdCstMsg,
 				ErrBrdCstScalaMsg: "Referenced assetId not found",
-			}),*/
+			}),
 	}
 }
 

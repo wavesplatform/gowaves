@@ -13,6 +13,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
+const (
+	errMsg = "alias transaction failed"
+)
+
 type MakeTx[T any] func(suite *f.BaseSuite, testdata testdata.AliasTestData[T], version byte,
 	waitForTx bool) utl.ConsideredTransaction
 
@@ -55,7 +59,6 @@ func SetAliasToAccount(suite *f.BaseSuite, version byte, scheme proto.Scheme, al
 	fee uint64) {
 	tx := AliasSend(suite, version, scheme, account.PublicKey, account.SecretKey, alias,
 		fee, utl.GetCurrentTimestampInMs(), true)
-	errMsg := "alias transaction failed"
 	utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 	account.Alias = *utl.GetAliasFromString(suite, alias, scheme)
 }
@@ -64,7 +67,6 @@ func SetAliasToAccountByAPI(suite *f.BaseSuite, version byte, scheme proto.Schem
 	account config.AccountInfo, fee uint64) {
 	tx := AliasBroadcast(suite, version, scheme, account.PublicKey, account.SecretKey, alias,
 		fee, utl.GetCurrentTimestampInMs(), true)
-	errMsg := "alias transaction failed"
 	utl.TxInfoCheck(suite.T(), tx.WtErr.ErrWtGo, tx.WtErr.ErrWtScala, errMsg)
 }
 
