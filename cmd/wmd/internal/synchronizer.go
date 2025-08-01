@@ -442,7 +442,7 @@ func (s *Synchronizer) extractTransactions(txs []proto.Transaction, miner crypto
 		case *proto.SetAssetScriptWithProofs:
 		case *proto.InvokeScriptWithProofs:
 		default:
-			slog.Warn("Unknown transaction type", "i", i)
+			slog.Warn("Unknown transaction type", slog.Int("i", i), logging.Type(tx))
 		}
 	}
 	return trades, issueChanges, assetChanges, accountChanges, binds, nil

@@ -35,17 +35,17 @@ func newHandler(loggerType LoggerType, level slog.Level, w io.Writer) slog.Handl
 	case LoggerJSON:
 		return newTraceHandler(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level}), false)
 	case LoggerPretty:
-		return newTraceHandler(buildPrettyHandler(w, level, isColorized(w)), false)
+		return newTraceHandler(buildPrettyHandler(w, level, isColorized(w), false), false)
 	case LoggerPrettyNoColor:
-		return newTraceHandler(buildPrettyHandler(w, level, false), false)
+		return newTraceHandler(buildPrettyHandler(w, level, false, false), false)
 	case LoggerTextDev:
-		return newTraceHandler(slog.NewTextHandler(w, &slog.HandlerOptions{Level: level}), true)
+		return newTraceHandler(slog.NewTextHandler(w, &slog.HandlerOptions{AddSource: true, Level: level}), true)
 	case LoggerJSONDev:
-		return newTraceHandler(slog.NewJSONHandler(w, &slog.HandlerOptions{Level: level}), true)
+		return newTraceHandler(slog.NewJSONHandler(w, &slog.HandlerOptions{AddSource: true, Level: level}), true)
 	case LoggerPrettyDev:
-		return newTraceHandler(buildPrettyHandler(w, level, isColorized(w)), true)
+		return newTraceHandler(buildPrettyHandler(w, level, isColorized(w), true), true)
 	case LoggerPrettyNoColorDev:
-		return newTraceHandler(buildPrettyHandler(w, level, false), true)
+		return newTraceHandler(buildPrettyHandler(w, level, false, true), true)
 	default:
 		panic(fmt.Sprintf("unsupported logger type %d", loggerType))
 	}
@@ -60,11 +60,12 @@ func isColorized(w io.Writer) bool {
 	return false
 }
 
-func buildPrettyHandler(w io.Writer, level slog.Level, colorize bool) slog.Handler {
+func buildPrettyHandler(w io.Writer, level slog.Level, colorize, addSource bool) slog.Handler {
 	tintHandler := tint.NewHandler(w, &tint.Options{
 		Level:      level,
 		TimeFormat: "2006-01-02T15:04:05.000Z07:00",
 		NoColor:    !colorize,
+		AddSource:  addSource,
 	})
 	formatter := slogpfx.DefaultPrefixFormatter
 	if colorize {
@@ -154,7 +155,7 @@ func (e errorLogValuer) LogValue() slog.Value {
 		traceKey = "trace"
 	)
 	attrs := [2]slog.Attr{
-		slog.Any(msgKey, errTextMarshaler{e.err}),
+		textMarshaler(msgKey, errTextMarshaler{e.err}),
 	}
 	if e.opts != nil && e.opts.trace {
 		if st, ok := e.err.(stackTracer); ok {
