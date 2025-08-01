@@ -1,6 +1,7 @@
 package utilities
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
 	"encoding/binary"
@@ -19,7 +20,6 @@ import (
 	"testing"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58/base58"
 	pkgerr "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
@@ -315,22 +315,19 @@ func Base64EncodeBytes(s string) []byte {
 	return []byte(base64.StdEncoding.EncodeToString([]byte(s)))
 }
 
-func IntToBase64Bytes(t *testing.T, i int64) []byte {
-	const bufferLength = 8
-	value, err := safecast.ToUint64(i)
-	require.NoError(t, err, "failed to cast int64 to uint64")
-	bs := make([]byte, bufferLength)
-	binary.BigEndian.PutUint64(bs, value)
-	return []byte(base64.StdEncoding.EncodeToString(bs))
+func IntToBytes(t *testing.T, i int64) []byte {
+	bs := new(bytes.Buffer)
+	err := binary.Write(bs, binary.BigEndian, i)
+	require.NoError(t, err, "failed to write to buffer")
+	return bs.Bytes()
 }
 
-func BoolToBase64Bytes(b bool) []byte {
+func BoolToBytes(b bool) []byte {
 	var value byte
 	if b {
 		value = 1
 	}
-	encoded := base64.StdEncoding.EncodeToString([]byte{value})
-	return []byte(encoded)
+	return []byte{value}
 }
 
 func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
