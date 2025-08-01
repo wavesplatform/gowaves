@@ -13,7 +13,7 @@ import (
 	"strings"
 	"time"
 
-	"github.com/go-chi/chi"
+	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"

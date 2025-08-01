@@ -6,7 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
-	"github.com/go-chi/chi/middleware"
+	"github.com/go-chi/chi/v5/middleware"
 	"github.com/pkg/errors"
 
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
