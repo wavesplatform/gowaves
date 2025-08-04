@@ -3,13 +3,14 @@ package state
 import (
 	stderrs "errors"
 	"fmt"
+	"log/slog"
 
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
@@ -292,9 +293,8 @@ func (a *txAppender) checkScriptsLimits(scriptsRuns uint64, blockID proto.BlockI
 					a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
 				)
 			}
-			zap.S().Warnf("Complexity of scripts (%d) in block '%s' exceeds limit of %d",
-				a.sc.getTotalComplexity(), blockID.String(), maxBlockComplexity,
-			)
+			slog.Warn("Complexity of scripts in block exceeds limit", "complexity", a.sc.getTotalComplexity(),
+				"block", blockID.String(), "limit", maxBlockComplexity)
 		}
 		return nil
 	} else if smartAccountsActivated {
@@ -610,7 +610,8 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	// invocationResult may be empty if it was not an Invoke Transaction
 	snapshot, err := a.commitTxApplication(tx, params, invocationResult, applicationRes)
 	if err != nil {
-		zap.S().Errorf("failed to commit transaction (id %s) after successful validation; this should NEVER happen", base58.Encode(txID))
+		slog.Error("Failed to commit transaction after successful validation; this should NEVER happen",
+			"ID", base58.Encode(txID))
 		return txSnapshot{}, err
 	}
 	// Store additional data for API: transaction by address.
@@ -712,7 +713,7 @@ func (a *txAppender) appendTxs(
 			if !isBlockWithChallenge {
 				return proto.BlockSnapshot{}, crypto.Digest{}, errAppendTx
 			}
-			zap.S().Debugf("Elided tx detected (ID=%q): %v", base58.Encode(txID), errAppendTx)
+			slog.Debug("Elided tx detected", slog.String("ID", base58.Encode(txID)), logging.Error(errAppendTx))
 			txSnap = txSnapshot{
 				regular: []proto.AtomicSnapshot{
 					&proto.TransactionStatusSnapshot{Status: proto.TransactionElided},
@@ -1007,7 +1008,8 @@ func (a *txAppender) handleInvoke(
 	}
 	invocationRes, applicationRes, err := a.ia.applyInvokeScript(tx, info)
 	if err != nil {
-		zap.S().Debugf("failed to apply InvokeScript transaction %s to state: %v", ID.String(), err)
+		slog.Debug("Failed to apply InvokeScript transaction to state", slog.String("ID", ID.String()),
+			logging.Error(err))
 		return nil, nil, err
 	}
 	return invocationRes, applicationRes, nil

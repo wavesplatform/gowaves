@@ -2,15 +2,16 @@ package state
 
 import (
 	"fmt"
+	"log/slog"
 	"math"
 	"math/big"
 	"strings"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
@@ -949,7 +950,7 @@ func (ia *invokeApplier) handleFallibleValidationError(err error,
 	r ride.Result) (*invocationResult, error) {
 	var invocationRes *invocationResult
 	if err != nil {
-		zap.S().Debugf("fallibleValidation error in tx %s. Error: %s", txID.String(), err.Error())
+		slog.Debug("Fallible validation error", slog.String("tx", txID.String()), logging.Error(err))
 		// If fallibleValidation fails, we should save transaction to blockchain when acceptFailed is true.
 		if !info.acceptFailed ||
 			(ia.sc.recentTxComplexity <= FailFreeInvokeComplexity &&

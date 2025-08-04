@@ -2,6 +2,7 @@ package peers
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"slices"
 
@@ -38,17 +39,24 @@ type PeerSpawnerImpl struct {
 	nodeName     string
 	nodeNonce    uint64
 	version      proto.Version
+	logger       *slog.Logger
+	dataLogger   *slog.Logger
 }
 
-func NewPeerSpawner(parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64, version proto.Version) *PeerSpawnerImpl {
+func NewPeerSpawner(
+	parent peer.Parent, wavesNetwork string, declAddr proto.TCPAddr, nodeName string, nodeNonce uint64,
+	version proto.Version, logger, dl *slog.Logger,
+) *PeerSpawnerImpl {
 	return &PeerSpawnerImpl{
 		skipFunc:     NewSkipFilter(parent.SkipMessageList),
 		parent:       parent,
-		wavesNetwork: WavesNetwork,
+		wavesNetwork: wavesNetwork,
 		declAddr:     declAddr,
 		nodeName:     nodeName,
 		nodeNonce:    nodeNonce,
 		version:      version,
+		logger:       logger,
+		dataLogger:   dl,
 	}
 }
 
@@ -63,7 +71,7 @@ func (a *PeerSpawnerImpl) SpawnOutgoing(ctx context.Context, address proto.TCPAd
 		NodeNonce:    a.nodeNonce,
 	}
 
-	return outgoing.EstablishConnection(ctx, params, a.version)
+	return outgoing.EstablishConnection(ctx, params, a.version, a.logger, a.dataLogger)
 }
 
 func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) error {
@@ -78,5 +86,5 @@ func (a *PeerSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn) error {
 		Version:      a.version,
 	}
 
-	return incoming.RunIncomingPeer(ctx, params)
+	return incoming.RunIncomingPeer(ctx, params, a.logger, a.dataLogger)
 }

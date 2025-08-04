@@ -2,14 +2,16 @@ package retransmit
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"runtime"
 	"time"
 
 	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 var invalidTransaction = errors.New("invalid transaction")
@@ -110,15 +112,15 @@ func (a *Retransmitter) ServeIncomingConnections(ctx context.Context, listenAddr
 func (a *Retransmitter) serve(ctx context.Context, listenAddr string) {
 	lst, err := net.Listen("tcp", listenAddr)
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to listen", logging.Error(err))
 		return
 	}
-	zap.S().Infof("started listen on %s", listenAddr)
+	slog.Info("Started listen", "address", listenAddr)
 
 	for {
 		c, err := lst.Accept()
 		if err != nil {
-			zap.S().Error(err)
+			slog.Error("Failed to accept", logging.Error(err))
 			continue
 		}
 

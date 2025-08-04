@@ -2,11 +2,11 @@ package fsm
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
@@ -56,7 +56,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Requesting peers", a)
+		a.baseInfo.logger.Debug("Requesting peers", "state", a.String())
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro:
@@ -72,8 +72,8 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 			return a, nil, nil
 		case tasks.MicroBlockSnapshot:
 			defer a.cleanupBeforeTransition()
-			zap.S().Named(logging.FSMNamespace).Errorf("%v", a.Errorf(errors.Errorf(
-				"Failed to get snapshot for microBlock '%s' - timeout", t.BlockID)))
+			slog.Error("Timed out to get snapshot for microBlock", "state", a.String(),
+				"blockID", t.BlockID)
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		default:
 			return a, nil, a.Errorf(errors.New("undefined Snapshot Task type"))
@@ -107,13 +107,13 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	block, err := a.checkAndAppendMicroBlock(a.microBlockWaitingForSnapshot, &snapshot)
 	if err != nil {
 		metrics.MicroBlockDeclined(a.microBlockWaitingForSnapshot)
-		zap.S().Errorf("%v", a.Errorf(err))
+		ae := a.Errorf(err)
+		slog.Error("Failed to check and append microblock", slog.String("state", a.String()), logging.Error(ae))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 
-	zap.S().Named(logging.FSMNamespace).Debugf(
-		"[%s] Received snapshot for microblock '%s' successfully applied to state", a, block.BlockID(),
-	)
+	a.baseInfo.logger.Debug("Received snapshot for microblock successfully applied to state",
+		"state", a.String(), "blockID", block.BlockID())
 	a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), a.microBlockWaitingForSnapshot, &snapshot)
 	a.blocksCache.AddBlockState(block)
 	a.blocksCache.AddSnapshot(block.BlockID(), snapshot)
@@ -122,7 +122,8 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
 		//TODO: We have to exclude from recipients peers that already have this microblock
 		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
-			zap.S().Errorf("%v", a.Errorf(errors.Wrap(err, "Failed to handle micro block message")))
+			ae := a.Errorf(errors.Wrap(err, "Failed to handle micro block message"))
+			slog.Error("Failed to broadcast microblock", slog.String("state", a.String()), logging.Error(ae))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		}
 	}

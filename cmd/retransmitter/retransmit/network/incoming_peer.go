@@ -3,14 +3,13 @@ package network
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-
-	"go.uber.org/zap"
-
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -42,6 +41,8 @@ type IncomingPeerParams struct {
 	Parent       peer.Parent
 	DeclAddr     proto.TCPAddr
 	Skip         conn.SkipFilter
+	Logger       *slog.Logger
+	DataLogger   *slog.Logger
 }
 
 func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
@@ -49,7 +50,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		zap.S().Error("failed to read handshake: ", err)
+		slog.Error("Failed to read handshake", logging.Error(err))
 		_ = c.Close()
 		return
 	}
@@ -62,7 +63,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	}
 
 	id := newPeerID(c.RemoteAddr(), c.LocalAddr())
-	zap.S().Infof("read handshake from %s %+v", id, readHandshake)
+	slog.Info("Read handshake", "from", id, "handshake", readHandshake)
 
 	writeHandshake := proto.Handshake{
 		AppName: params.WavesNetwork,
@@ -76,7 +77,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		zap.S().Error("failed to write handshake: ", err)
+		slog.Error("Failed to write handshake", logging.Error(err))
 		_ = c.Close()
 		return
 	}
@@ -89,7 +90,7 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 	}
 
 	remote := peer.NewRemote()
-	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
+	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip, params.Logger)
 	ctx, cancel := context.WithCancel(ctx)
 
 	p := &IncomingPeer{
@@ -101,14 +102,14 @@ func RunIncomingPeer(ctx context.Context, params IncomingPeerParams) {
 		handshake: readHandshake,
 	}
 
-	zap.S().Debugf("%s, readhandshake %+v", c.RemoteAddr().String(), readHandshake)
+	slog.Debug("Handshake read", "remote", c.RemoteAddr().String(), "handshake", readHandshake)
 	if err := p.run(ctx); err != nil {
-		zap.S().Error("peer.run(): ", err)
+		slog.Error("Failed peer.run()", logging.Error(err))
 	}
 }
 
 func (a *IncomingPeer) run(ctx context.Context) error {
-	return peer.Handle(ctx, a, a.params.Parent, a.remote)
+	return peer.Handle(ctx, a, a.params.Parent, a.remote, a.params.Logger, a.params.DataLogger)
 }
 
 func (a *IncomingPeer) Close() error {
@@ -119,13 +120,13 @@ func (a *IncomingPeer) Close() error {
 func (a *IncomingPeer) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to send message", logging.Error(err))
 		return
 	}
 	select {
 	case a.remote.ToCh <- b:
 	default:
-		zap.S().Warnf("can't send bytes to Remote, chan is full ID %s", a.uniqueID)
+		slog.Warn("Can't send bytes to Remote, chan is full ID", "ID", a.uniqueID)
 	}
 }
 

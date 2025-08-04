@@ -2,6 +2,7 @@ package peer
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"testing"
 	"time"
@@ -32,7 +33,7 @@ func TestHandleStopContext(t *testing.T) {
 	parent := NewParent(false)
 	remote := NewRemote()
 	peer := &mockPeer{CloseFunc: func() error { return nil }}
-	err := Handle(ctx, peer, parent, remote)
+	err := Handle(ctx, peer, parent, remote, slog.New(slog.DiscardHandler), slog.New(slog.DiscardHandler))
 	assert.NoError(t, err)
 	assert.Len(t, peer.CloseCalls(), 1)
 	require.Len(t, parent.InfoCh, 1)
@@ -52,7 +53,7 @@ func TestHandleReceive(t *testing.T) {
 			CloseFunc: func() error { return nil },
 			IDFunc:    func() ID { return &mockID{id: "test-peer-id"} },
 		}
-		_ = Handle(ctx, peer, parent, remote)
+		_ = Handle(ctx, peer, parent, remote, slog.New(slog.DiscardHandler), slog.New(slog.DiscardHandler))
 		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()
@@ -74,7 +75,7 @@ func TestHandleError(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		peer := &mockPeer{CloseFunc: func() error { return nil }}
-		_ = Handle(ctx, peer, parent, remote)
+		_ = Handle(ctx, peer, parent, remote, slog.New(slog.DiscardHandler), slog.New(slog.DiscardHandler))
 		assert.Len(t, peer.CloseCalls(), 1)
 		wg.Done()
 	}()

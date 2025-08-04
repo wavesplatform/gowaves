@@ -3,6 +3,7 @@ package storage
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"maps"
 	"os"
 	"path/filepath"
@@ -12,7 +13,6 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 )
 
 const (
@@ -108,11 +108,8 @@ func newCBORStorageInDir(storageDir string, now time.Time, currVersion int) (*CB
 
 	if oldVersion != currVersion {
 		// Invalidating old peers storage
-		zap.S().Debugf(
-			"Detected different peers storage versions: old='%d', current='%d'. Removing old peers storage.",
-			oldVersion,
-			currVersion,
-		)
+		slog.Debug("Detected different peers storage versions, removing old peers storage",
+			"old", oldVersion, "current", currVersion)
 		if err := storage.invalidateStorageAndUpdateVersion(versionFile, currVersion, oldVersion); err != nil {
 			return nil, errors.Wrap(err, "failed invalidate storage and set new version to peers storage")
 		}

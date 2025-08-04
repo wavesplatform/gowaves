@@ -6,20 +6,22 @@ import (
 	stderrs "errors"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"math/big"
 	"os"
 	"path/filepath"
 	"sync"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"go.uber.org/atomic"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -444,13 +446,13 @@ func initDatabase(
 	params StateParams,
 ) (_ *keyvalue.KeyVal, _ keyvalue.Batch, _ *stateDB, _ bool, retErr error) {
 	dbDir := filepath.Join(dataDir, keyvalueDir)
-	zap.S().Info("Initializing state database, will take up to few minutes...")
+	slog.Info("Initializing state database, will take up to few minutes...")
 	params.DbParams.BloomFilterStore.WithPath(filepath.Join(blockStorageDir, "bloom"))
 	db, err := keyvalue.NewKeyVal(dbDir, params.DbParams)
 	if err != nil {
 		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to create db"))
 	}
-	zap.S().Info("Finished initializing database")
+	slog.Info("Finished initializing database")
 	dbBatch, err := db.NewBatch()
 	if err != nil {
 		if dbCloseErr := db.Close(); dbCloseErr != nil {
@@ -1401,9 +1403,10 @@ func (s *stateManager) AddBlock(block []byte) (*proto.Block, error) {
 	rs, err := s.addBlocks()
 	if err != nil {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
-				stderrs.Join(err, syncErr),
-			)
+			fErr := stderrs.Join(err, syncErr)
+			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
+				logging.Error(fErr))
+			panic(fErr)
 		}
 		return nil, err
 	}
@@ -1415,9 +1418,10 @@ func (s *stateManager) AddDeserializedBlock(block *proto.Block) (*proto.Block, e
 	rs, err := s.addBlocks()
 	if err != nil {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
-				stderrs.Join(err, syncErr),
-			)
+			fErr := stderrs.Join(err, syncErr)
+			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
+				logging.Error(fErr))
+			panic(fErr)
 		}
 		return nil, err
 	}
@@ -1428,9 +1432,10 @@ func (s *stateManager) AddBlocks(blockBytes [][]byte) error {
 	s.newBlocks.setNewBinary(blockBytes)
 	if _, err := s.addBlocks(); err != nil {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
-				stderrs.Join(err, syncErr),
-			)
+			fErr := stderrs.Join(err, syncErr)
+			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
+				logging.Error(fErr))
+			panic(fErr)
 		}
 		return err
 	}
@@ -1443,9 +1448,10 @@ func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*
 	}
 	if _, err := s.addBlocks(); err != nil {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
-				stderrs.Join(err, syncErr),
-			)
+			fErr := stderrs.Join(err, syncErr)
+			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
+				logging.Error(fErr))
+			panic(fErr)
 		}
 		return err
 	}
@@ -1459,9 +1465,10 @@ func (s *stateManager) AddDeserializedBlocks(
 	lastBlock, err := s.addBlocks()
 	if err != nil {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
-				stderrs.Join(err, syncErr),
-			)
+			fErr := stderrs.Join(err, syncErr)
+			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
+				logging.Error(fErr))
+			panic(fErr)
 		}
 		return nil, err
 	}
@@ -1478,9 +1485,10 @@ func (s *stateManager) AddDeserializedBlocksWithSnapshots(
 	lastBlock, err := s.addBlocks()
 	if err != nil {
 		if syncErr := s.rw.syncWithDb(); syncErr != nil {
-			zap.S().Fatalf("Failed to add blocks and can not sync block storage with the database after failure: %v",
-				stderrs.Join(err, syncErr),
-			)
+			fErr := stderrs.Join(err, syncErr)
+			slog.Error("Failed to add blocks and can not sync block storage with the database after failure",
+				logging.Error(fErr))
+			panic(fErr)
 		}
 		return nil, err
 	}
@@ -1618,16 +1626,13 @@ func (s *stateManager) generateBlockchainFix(
 	if !cancelLeases { // no need to generate snapshots
 		return nil, nil
 	}
-	zap.S().Infof("Generating fix snapshots for the block %s and its height %d",
-		applyingBlockID.String(), applyingBlockHeight,
-	)
+	slog.Info("Generating fix snapshots", "block", applyingBlockID.String(), "height", applyingBlockHeight)
 	fixSnapshots, err := s.generateCancelLeasesSnapshots(applyingBlockHeight, readOnly)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to generate fix snapshots for block %s", applyingBlockID.String())
 	}
-	zap.S().Infof("Generated fix snapshots count is %d for the block %s and its height %d",
-		len(fixSnapshots), applyingBlockID.String(), applyingBlockHeight,
-	)
+	slog.Info("Generated fix snapshots", "count", len(fixSnapshots), "block", applyingBlockID.String(),
+		"height", applyingBlockHeight)
 	return fixSnapshots, nil
 }
 
@@ -1864,12 +1869,18 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 		// Reset in-memory storages and load last block in defer.
 		s.reset()
 		if lbErr := s.loadLastBlock(); lbErr != nil {
-			zap.S().Fatalf("Failed to load last block: %v", stderrs.Join(retErr, lbErr))
+			fErr := stderrs.Join(retErr, lbErr)
+			slog.Error("Failed to load last block", logging.Error(fErr))
+			panic(fErr)
 		}
 		s.newBlocks.reset()
 	}()
 
-	blocksNumber := s.newBlocks.len()
+	blocksNumber, err := safecast.ToUint64(s.newBlocks.len())
+	if err != nil {
+		return nil, wrapErr(stateerr.InvalidInputError,
+			errors.Wrapf(err, "failed to cast blocks number %d to uint64", s.newBlocks.len()))
+	}
 	if blocksNumber == 0 {
 		return nil, wrapErr(stateerr.InvalidInputError, errors.New("no blocks provided"))
 	}
@@ -1879,7 +1890,8 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 	if tbErr != nil {
 		return nil, wrapErr(stateerr.RetrievalError, tbErr)
 	}
-	zap.S().Debugf("StateManager: parent (top) block ID: %s, ts: %d", lastAppliedBlock.BlockID().String(), lastAppliedBlock.Timestamp)
+	slog.Debug("StateManager: parent (top) block", "ID", lastAppliedBlock.BlockID().String(),
+		"ts", lastAppliedBlock.Timestamp)
 	height, hErr := s.Height()
 	if hErr != nil {
 		return nil, wrapErr(stateerr.RetrievalError, hErr)
@@ -1929,13 +1941,9 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 	if fErr := s.flush(); fErr != nil {
 		return nil, wrapErr(stateerr.ModificationError, fErr)
 	}
-	zap.S().Infof(
-		"Height: %d; Block ID: %s, GenSig: %s, ts: %d",
-		height+uint64(blocksNumber),
-		lastAppliedBlock.BlockID().String(),
-		base58.Encode(lastAppliedBlock.GenSignature),
-		lastAppliedBlock.Timestamp,
-	)
+	slog.Info("New height", "height", height+blocksNumber,
+		"BlockID", lastAppliedBlock.BlockID().String(), "GenSig", base58.Encode(lastAppliedBlock.GenSignature),
+		"ts", lastAppliedBlock.Timestamp)
 	return lastAppliedBlock, nil
 }
 
@@ -2099,23 +2107,28 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	// because exiting would lead to incorrect state.
 	// Remove blocks from block storage by syncing block storage with the database.
 	if err := s.rw.syncWithDb(); err != nil {
-		zap.S().Fatalf("Failed to sync block storage with db: %v", err)
+		slog.Error("Failed to sync block storage with db", logging.Error(err))
+		panic(err)
 	}
 	// Clear scripts cache after rollback.
 	if err := s.stor.scriptsStorage.clearCache(); err != nil {
-		zap.S().Fatalf("Failed to clear scripts cache after rollback: %v", err)
+		slog.Error("Failed to clear scripts cache after rollback", logging.Error(err))
+		panic(err)
 	}
 	// Clear features cache
 	s.stor.features.clearCache()
 
 	if err := s.stor.flush(); err != nil {
-		zap.S().Fatalf("Failed to flush history storage cache after rollback: %v", err)
+		slog.Error("Failed to flush history storage cache after rollback",
+			logging.Error(err))
+		panic(err)
 	}
 
 	if err := s.loadLastBlock(); err != nil {
-		zap.S().Fatalf("Failed to load last block after rollback: %v", err)
+		slog.Error("Failed to load last block after rollback", logging.Error(err))
+		panic(err)
 	}
-	zap.S().Infof("Rollback to block with ID '%s' completed", removalEdge.String())
+	slog.Info("Rollback to block completed", "blockID", removalEdge.String())
 	return nil
 }
 
@@ -2203,7 +2216,8 @@ func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error
 func (s *stateManager) ResetValidationList() {
 	s.reset()
 	if err := s.stor.scriptsStorage.clearCache(); err != nil {
-		zap.S().Fatalf("Failed to clearCache scripts cache after UTX validation: %v", err)
+		slog.Error("Failed to clearCache scripts cache after UTX validation", logging.Error(err))
+		panic(err)
 	}
 }
 
@@ -2252,11 +2266,8 @@ func (s *stateManager) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest
 		)
 	}
 	if len(fixSnapshots) != 0 {
-		zap.S().Infof(
-			"Last fix snapshots has been generated for the snapshot hash calculation of the block %s with height %d",
-			block.BlockID().String(),
-			blockHeight,
-		)
+		slog.Info("Last fix snapshots has been generated for the snapshot hash calculation",
+			"blockID", block.BlockID().String(), "height", blockHeight)
 	}
 	return s.appender.createNextSnapshotHash(block, blockHeight, lastSnapshotStateHash, fixSnapshots)
 }

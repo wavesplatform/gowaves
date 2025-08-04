@@ -2,16 +2,17 @@ package server
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"time"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/keepalive"
 	"google.golang.org/grpc/reflection"
 
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -88,22 +89,23 @@ func (s *Server) Run(ctx context.Context, address string, opts *RunOptions) erro
 
 	if opts.MaxConnections > 0 {
 		conn = limit_listener.LimitListener(conn, opts.MaxConnections)
-		zap.S().Debugf("Set limit for number of simultaneous connections for gRPC API to %d", opts.MaxConnections)
+		slog.Debug("Set limit for number of simultaneous connections for gRPC API",
+			"MaxConnections", opts.MaxConnections)
 	}
 
 	defer func(conn net.Listener) {
 		clErr := conn.Close()
 		if clErr != nil && !errors.Is(clErr, net.ErrClosed) {
-			zap.S().Errorf("Failed to close gRPC server connection: %v", clErr)
+			slog.Error("Failed to close gRPC server connection", logging.Error(clErr))
 		}
 	}(conn)
 
 	go func() {
 		<-ctx.Done()
-		zap.S().Info("Shutting down gRPC server...")
+		slog.Info("Shutting down gRPC server...")
 		s.Stop()
 	}()
-	zap.S().Infof("Starting gRPC server on '%s'", address)
+	slog.Info("Starting gRPC server", "address", address)
 	return s.Serve(conn)
 }
 
