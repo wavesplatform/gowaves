@@ -178,7 +178,7 @@ func (c *GRPCClient) GetDataEntries(t *testing.T, address proto.WavesAddress) []
 		if errors.Is(errStrm, io.EOF) {
 			break
 		}
-		assert.NoErrorf(t, errStrm, "failed to get data entry from %s node with error: %s",
+		require.NoErrorf(t, errStrm, "failed to get data entry from %s node with error: %s",
 			c.impl.String(), errStrm)
 		de = append(de, d.GetEntry())
 	}
@@ -206,7 +206,7 @@ func (c *GRPCClient) GetTransactionsStatuses(t *testing.T, txIDs []crypto.Digest
 		if errors.Is(errStrm, io.EOF) {
 			break
 		}
-		assert.NoErrorf(t, errStrm, "failed to get transaction status from %s node with error: %s",
+		require.NoErrorf(t, errStrm, "failed to get transaction status from %s node with error: %s",
 			c.impl.String(), errStrm)
 		grpcStatuses = append(grpcStatuses, tr)
 	}
