@@ -39,7 +39,7 @@ type GRPCClient struct {
 
 func NewGRPCClient(t *testing.T, impl Implementation, port string) *GRPCClient {
 	conn, err := grpc.NewClient(config.DefaultIP+":"+port, grpc.WithTransportCredentials(insecure.NewCredentials()))
-	assert.NoError(t, err, "failed to dial GRPC to %s", impl.String())
+	assert.NoErrorf(t, err, "failed to dial GRPC to %s", impl.String())
 	return &GRPCClient{impl: impl, conn: conn, timeout: defaultTimeout}
 }
 
@@ -47,7 +47,7 @@ func (c *GRPCClient) GetFeatureActivationStatusInfo(t *testing.T, h int32) *g.Ac
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	response, err := g.NewBlockchainApiClient(c.conn).GetActivationStatus(ctx, &g.ActivationStatusRequest{Height: h})
-	require.NoError(t, err, "[GRPC] failed to get feature activation status from %s node", c.impl.String())
+	require.NoErrorf(t, err, "[GRPC] failed to get feature activation status from %s node", c.impl.String())
 	return response
 }
 
@@ -55,7 +55,7 @@ func (c *GRPCClient) GetHeight(t *testing.T) *client.BlocksHeight {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	h, err := g.NewBlocksApiClient(c.conn).GetCurrentHeight(ctx, &emptypb.Empty{}, grpc.EmptyCallOption{})
-	assert.NoError(t, err, "[GRPC] failed to get height from %s node", c.impl.String())
+	assert.NoErrorf(t, err, "[GRPC] failed to get height from %s node", c.impl.String())
 	return &client.BlocksHeight{Height: uint64(h.Value)}
 }
 
@@ -67,7 +67,7 @@ func (c *GRPCClient) GetBlock(t *testing.T, height uint64) *g.BlockWithHeight {
 	defer cancel()
 	block, err := g.NewBlocksApiClient(c.conn).GetBlock(ctx,
 		&g.BlockRequest{Request: &g.BlockRequest_Height{Height: int32(height)}, IncludeTransactions: true})
-	assert.NoError(t, err, "[GRPC] failed to get block from %s node", c.impl.String())
+	assert.NoErrorf(t, err, "[GRPC] failed to get block from %s node", c.impl.String())
 	return block
 }
 
@@ -76,7 +76,7 @@ func (c *GRPCClient) GetWavesBalance(t *testing.T, address proto.WavesAddress) *
 }
 
 func (c *GRPCClient) GetAssetBalance(t *testing.T, address proto.WavesAddress, id []byte) *waves.Amount {
-	require.NotEmpty(t, id, "asset bytes must not be empty than calling %s node", c.impl.String())
+	require.NotEmptyf(t, id, "asset bytes must not be empty than calling %s node", c.impl.String())
 	return c.getBalance(t, &g.BalancesRequest{Address: address.Bytes(), Assets: [][]byte{id}}).GetAsset()
 }
 
@@ -84,7 +84,7 @@ func (c *GRPCClient) GetAddressByAlias(t *testing.T, alias string) []byte {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	addr, err := g.NewAccountsApiClient(c.conn).ResolveAlias(ctx, &wrapperspb.StringValue{Value: alias})
-	assert.NoError(t, err, "failed to get address by alias from %s node", c.impl.String())
+	assert.NoErrorf(t, err, "failed to get address by alias from %s node", c.impl.String())
 	return addr.GetValue()
 }
 
@@ -92,22 +92,22 @@ func (c *GRPCClient) GetAssetsInfo(t *testing.T, id []byte) *g.AssetInfoResponse
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	assetInfo, err := g.NewAssetsApiClient(c.conn).GetInfo(ctx, &g.AssetRequest{AssetId: id})
-	assert.NoError(t, err, "failed to get asset info from %s node", c.impl.String())
+	assert.NoErrorf(t, err, "failed to get asset info from %s node", c.impl.String())
 	return assetInfo
 }
 
 func (c *GRPCClient) Close(t testing.TB) {
 	err := c.conn.Close()
-	assert.NoError(t, err, "failed to close GRPC connection to %s node", c.impl.String())
+	assert.NoErrorf(t, err, "failed to close GRPC connection to %s node", c.impl.String())
 }
 
 func (c *GRPCClient) getBalance(t *testing.T, req *g.BalancesRequest) *g.BalanceResponse {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	stream, err := g.NewAccountsApiClient(c.conn).GetBalances(ctx, req, grpc.EmptyCallOption{})
-	assert.NoError(t, err, "[GRPC] failed to get stream from %s node", c.impl.String())
+	assert.NoErrorf(t, err, "[GRPC] failed to get stream from %s node", c.impl.String())
 	b, err := stream.Recv()
-	assert.NoError(t, err, "[GRPC] failed to get balance from %s node", c.impl.String())
+	assert.NoErrorf(t, err, "[GRPC] failed to get balance from %s node", c.impl.String())
 	return b
 }
 
@@ -157,9 +157,9 @@ func (c *GRPCClient) GetDataEntryByKey(t *testing.T, address proto.WavesAddress,
 		Key:     key,
 	}
 	stream, err := g.NewAccountsApiClient(c.conn).GetDataEntries(ctx, &dr, grpc.EmptyCallOption{})
-	assert.NoError(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
+	assert.NoErrorf(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
 	d, err := stream.Recv()
-	assert.NoError(t, err, "failed to get data entry from %s node with error: %s", c.impl.String(), err)
+	assert.NoErrorf(t, err, "failed to get data entry from %s node with error: %s", c.impl.String(), err)
 	return d.GetEntry()
 }
 
@@ -172,13 +172,13 @@ func (c *GRPCClient) GetDataEntries(t *testing.T, address proto.WavesAddress) []
 		Address: address.Bytes(),
 	}
 	stream, err := g.NewAccountsApiClient(c.conn).GetDataEntries(ctx, &dr, grpc.EmptyCallOption{})
-	assert.NoError(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
+	assert.NoErrorf(t, err, "failed to get data entries from %s node with error: %s", c.impl.String(), err)
 	for {
 		d, errStrm := stream.Recv()
 		if errors.Is(errStrm, io.EOF) {
 			break
 		}
-		assert.NoError(t, errStrm, "failed to get data entry from %s node with error: %s",
+		assert.NoErrorf(t, errStrm, "failed to get data entry from %s node with error: %s",
 			c.impl.String(), errStrm)
 		de = append(de, d.GetEntry())
 	}
@@ -199,14 +199,14 @@ func (c *GRPCClient) GetTransactionsStatuses(t *testing.T, txIDs []crypto.Digest
 		TransactionIds: ids,
 	}
 	stream, err := g.NewTransactionsApiClient(c.conn).GetStatuses(ctx, &tx, grpc.EmptyCallOption{})
-	assert.NoError(t, err, "failed to get transaction statuses from %s node with error: %s",
+	assert.NoErrorf(t, err, "failed to get transaction statuses from %s node with error: %s",
 		c.impl.String(), err)
 	for {
 		tr, errStrm := stream.Recv()
 		if errors.Is(errStrm, io.EOF) {
 			break
 		}
-		assert.NoError(t, errStrm, "failed to get transaction status from %s node with error: %s",
+		assert.NoErrorf(t, errStrm, "failed to get transaction status from %s node with error: %s",
 			c.impl.String(), errStrm)
 		grpcStatuses = append(grpcStatuses, tr)
 	}
