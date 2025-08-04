@@ -1,12 +1,14 @@
 package miner
 
 import (
+	"context"
 	"errors"
+	"log/slog"
 
 	"github.com/mr-tron/base58"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -46,13 +48,12 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		// block changed, exit
 		return nil, nil, rest, ErrStateChanged
 	}
-	zap.S().Debugf("[MICRO MINER] Top block ID '%s'", topBlock.BlockID())
 
 	height, err := a.state.Height()
 	if err != nil {
 		return nil, nil, rest, err
 	}
-	zap.S().Debugf("[MICRO MINER] Height %d", height)
+	slog.Debug("[MICRO MINER] Generating micro block", "TopBlockID", topBlock.BlockID(), "height", height)
 
 	parentTimestamp := topBlock.Timestamp
 	if height > 1 {
@@ -126,11 +127,11 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 	transactions := make([]proto.Transaction, len(appliedTransactions))
 	for i, appliedTx := range appliedTransactions {
-		if zap.S().Level() <= zap.DebugLevel {
+		if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
 			if id, idErr := appliedTx.T.GetID(a.scheme); idErr != nil {
-				zap.S().Errorf("Failed to get transaction ID: %v", idErr)
+				slog.Error("Failed to get transaction ID", logging.Error(idErr))
 			} else {
-				zap.S().Debugf("[MICRO MINER] Appending transaction '%s'", base58.Encode(id))
+				slog.Debug("[MICRO MINER] Appending transaction", "TxID", base58.Encode(id))
 			}
 		}
 		transactions[i] = appliedTx.T
@@ -200,7 +201,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		return nil, nil, rest, err
 	}
 
-	zap.S().Debugf("micro_miner mined %+v", micro)
+	slog.Debug("[MICRO MINER] Micro block mined", "micro", micro)
 
 	newRest := proto.MiningLimits{
 		MaxScriptRunsInBlock:        rest.MaxScriptRunsInBlock,

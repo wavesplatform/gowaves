@@ -3,14 +3,16 @@ package main
 import (
 	"bufio"
 	"encoding/binary"
+	"encoding/hex"
 	"flag"
 	"io"
+	"log/slog"
 	"net"
+	"os"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -32,30 +34,32 @@ func printCLIArgsToLog() {
 		version:      *version,
 	}
 
-	zap.S().Infof("CLI args: %+v", cli)
+	slog.Info("Application arguments", "args", cli)
 }
 
 func init() {
 	flag.Parse()
-	logger, _ := zap.NewDevelopment()
-	zap.ReplaceGlobals(logger)
+	slog.SetDefault(slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, slog.LevelDebug)))
 	printCLIArgsToLog()
 }
 
 func main() {
 	if *wavesNetwork == "" {
-		zap.S().Fatal("please, provide 'waves-network' CLI argument")
+		slog.Error("Please, provide 'waves-network' CLI argument")
+		os.Exit(1)
 	}
 	if *address == "" {
-		zap.S().Fatal("please, provide 'address' CLI argument")
+		slog.Error("Please, provide 'address' CLI argument")
+		os.Exit(1)
 	}
 	if *version == "" {
-		zap.S().Fatal("please, provide 'version' CLI argument")
+		slog.Error("Please, provide 'version' CLI argument")
+		os.Exit(1)
 	}
 
 	parsedVersion, err := proto.NewVersionFromString(*version)
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to parse version", logging.Error(err))
 		return
 	}
 
@@ -70,46 +74,46 @@ func main() {
 
 	conn, err := net.Dial("tcp", *address)
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to dial", logging.Error(err))
 		return
 	}
 
 	defer func() {
-		if err := conn.Close(); err != nil {
-			zap.S().Errorf("failed to close connection: %v", err)
+		if clErr := conn.Close(); clErr != nil {
+			slog.Error("Failed to close connection", logging.Error(clErr))
 		}
 	}()
 
 	_, err = handshake.WriteTo(conn)
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to write handshake", logging.Error(err))
 		return
 	}
 
-	zap.S().Info("reading handshake")
+	slog.Info("Reading handshake")
 	readH := proto.Handshake{}
 	_, err = readH.ReadFrom(bufio.NewReader(conn))
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to read handshake", logging.Error(err))
 		return
 	}
 
-	zap.S().Infof("readed handshake %+v", readH)
+	slog.Info("Handshake complete", "handshake", readH)
 
 	go func() {
 		const expectedContentID = byte(proto.ContentIDSignatures)
 
 		for {
-			bts, err := readPacket(conn)
-			if err != nil {
-				zap.S().Error(err)
+			bts, rErr := readPacket(conn)
+			if rErr != nil {
+				slog.Error("Failed to read packet", logging.Error(rErr))
 				return
 			}
 
-			zap.S().Info("readed==", bts)
+			slog.Info("Got packet", "data", hex.EncodeToString(bts))
 
 			if bts[proto.HeaderContentIDPosition] == expectedContentID {
-				zap.S().Info(bts)
+				slog.Info("Received Signatures message", "data", hex.EncodeToString(bts))
 			}
 			continue
 		}
@@ -121,10 +125,10 @@ func main() {
 		Signatures: []crypto.Signature{sig},
 	}
 
-	zap.S().Info("writing GetSignaturesMessage bytes")
+	slog.Info("Sending GetSignatures message")
 	_, err = sigs.WriteTo(conn)
 	if err != nil {
-		zap.S().Error(err)
+		slog.Error("Failed to write GetSignatures message", logging.Error(err))
 		return
 	}
 

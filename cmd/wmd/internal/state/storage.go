@@ -2,19 +2,19 @@ package state
 
 import (
 	"bytes"
+	"log/slog"
 	"math"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/pkg/errors"
+
+	"github.com/syndtr/goleveldb/leveldb"
+	"github.com/syndtr/goleveldb/leveldb/opt"
+
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
-)
-
-import (
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
 )
 
 type Storage struct {
@@ -129,14 +129,15 @@ func (s *Storage) Rollback(removeHeight int) error {
 		return err
 	}
 	defer snapshot.Release()
-	max, err := height(snapshot)
+	mx, err := height(snapshot)
 	if err != nil {
 		return err
 	}
-	if removeHeight > max {
-		return errors.Errorf("nothing to rollback, current height is %d", max)
+	if removeHeight > mx {
+		return errors.Errorf("nothing to rollback, current height is %d", mx)
 	} else {
-		zap.S().Infof("Rolling back from height %d to height %d, removing %d blocks", max, removeHeight-1, max-removeHeight+1)
+		slog.Info("Rolling back and removing blocks",
+			"fromHeight", mx, "toHeight", removeHeight-1, "blocksCount", mx-removeHeight+1)
 	}
 	batch := new(leveldb.Batch)
 	rh := uint32(removeHeight)
@@ -236,25 +237,38 @@ func (s *Storage) CandlesRange(amountAsset, priceAsset crypto.Digest, from, to u
 }
 
 func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (data.Candle, error) {
-	now := uint64(time.Now().Unix() * 1000)
+	const millis = 1000
+	now, err := safecast.ToUint64(time.Now().Unix() * millis)
+	if err != nil {
+		return data.Candle{}, errors.Wrap(err, "failed to convert current time to int64")
+	}
 	ttf := data.TimeFrameFromTimestampMS(now)
-	ftf := ttf - 289
-	zap.S().Debugf("DayCandle: %s - %s", time.Unix(int64(data.TimestampMSFromTimeFrame(ftf)/1000), 0), time.Unix(int64(data.TimestampMSFromTimeFrame(ttf)/1000), 0))
+	const candleWidth = 289
+	ftf := ttf - candleWidth
+	sts, err := safecast.ToInt64(data.TimestampMSFromTimeFrame(ftf) / millis)
+	if err != nil {
+		return data.Candle{}, errors.Wrap(err, "failed to convert timestamp to int64")
+	}
+	ets, err := safecast.ToInt64(data.TimestampMSFromTimeFrame(ttf) / millis)
+	if err != nil {
+		return data.Candle{}, errors.Wrap(err, "failed to convert timestamp to int64")
+	}
+	slog.Debug("DayCandle", "start", time.Unix(sts, 0), "end", time.Unix(ets, 0))
 	snapshot, err := s.db.GetSnapshot()
 	if err != nil {
 		return data.Candle{}, err
 	}
 	defer snapshot.Release()
 	cs, err := candles(snapshot, amountAsset, priceAsset, ftf, ttf, math.MaxInt32)
-	zap.S().Debugf("Combining %d candles", len(cs))
+	slog.Debug("Combining candles", "count", len(cs))
 	if err != nil {
 		return data.Candle{}, err
 	}
 	r := data.Candle{}
-	zap.S().Debugf("Empty candle: %v", r)
+	slog.Debug("Empty candle", "candle", r)
 	for _, c := range cs {
 		r.Combine(c)
-		zap.S().Debugf("Appended candle: %v, with result: %v", c, r)
+		slog.Debug("Appended to candle", "candle", c, "result", r)
 	}
 	return r, nil
 }

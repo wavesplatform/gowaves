@@ -1,7 +1,7 @@
 package main
 
 import (
-	"go.uber.org/zap"
+	"log/slog"
 	"os"
 	"os/signal"
 )
@@ -19,17 +19,17 @@ func interruptListener() <-chan struct{} {
 		signal.Notify(signals, interruptSignals...)
 		select {
 		case sig := <-signals:
-			zap.S().Infof("Caught signal '%s', shutting down...", sig)
+			slog.Info("Caught signal, shutting down...", "signal", sig)
 		case <-shutdownRequestChannel:
-			zap.S().Info("Shutdown requested, shutting down...")
+			slog.Info("Shutdown requested, shutting down...")
 		}
 		close(r)
 		for {
 			select {
 			case sig := <-signals:
-				zap.S().Infof("Caught signal '%s' again, already shutting down", sig)
+				slog.Info("Caught signal again, already shutting down", "signal", sig)
 			case <-shutdownRequestChannel:
-				zap.S().Info("Repetitive shutdown request, already shutting down")
+				slog.Info("Repetitive shutdown request, already shutting down")
 			}
 		}
 	}()

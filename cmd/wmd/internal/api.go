@@ -8,7 +8,9 @@ import (
 	"encoding/json"
 	"fmt"
 	"io/fs"
+	"log/slog"
 	"net/http"
+	"os"
 	"sort"
 	"strconv"
 	"strings"
@@ -19,11 +21,11 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/xenolf/lego/log"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/state"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -47,7 +49,7 @@ var (
 // Logger is a middleware that logs the start and end of each request, along
 // with some useful data about what was requested, what the response status was,
 // and how long it took to return.
-func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
+func Logger(l *slog.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ww := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
@@ -55,12 +57,12 @@ func Logger(l *zap.Logger) func(next http.Handler) http.Handler {
 			t1 := time.Now()
 			defer func() {
 				l.Info("Served",
-					zap.String("proto", r.Proto),
-					zap.String("path", r.URL.Path),
-					zap.Duration("lat", time.Since(t1)),
-					zap.Int("status", ww.Status()),
-					zap.Int("size", ww.BytesWritten()),
-					zap.String("reqId", middleware.GetReqID(r.Context())))
+					slog.String("proto", r.Proto),
+					slog.String("path", r.URL.Path),
+					slog.Duration("lat", time.Since(t1)),
+					slog.Int("status", ww.Status()),
+					slog.Int("size", ww.BytesWritten()),
+					slog.String("reqId", middleware.GetReqID(r.Context())))
 			}()
 
 			next.ServeHTTP(ww, r)
@@ -81,7 +83,9 @@ type DataFeedAPI struct {
 	Symbols   *data.Symbols
 }
 
-func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *state.Storage, address string, symbols *data.Symbols) *DataFeedAPI {
+func NewDataFeedAPI(
+	interrupt <-chan struct{}, loggerHandler slog.Handler, storage *state.Storage, address string, symbols *data.Symbols,
+) *DataFeedAPI {
 	a := DataFeedAPI{interrupt: interrupt, done: make(chan struct{}), Storage: storage, Symbols: symbols}
 	swaggerFS, err := fs.Sub(res, "swagger")
 	if err != nil {
@@ -91,7 +95,7 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	r := chi.NewRouter()
 	r.Use(middleware.RequestID)
 	r.Use(middleware.RealIP)
-	r.Use(Logger(logger))
+	r.Use(Logger(slog.New(loggerHandler)))
 	r.Use(middleware.Recoverer)
 	r.Use(middleware.Compress(flate.DefaultCompression))
 	r.Mount("/", a.swagger(swaggerFS))
@@ -99,16 +103,17 @@ func NewDataFeedAPI(interrupt <-chan struct{}, logger *zap.Logger, storage *stat
 	apiServer := &http.Server{Addr: address, Handler: r, ReadHeaderTimeout: defaultTimeout, ReadTimeout: defaultTimeout}
 	go func() {
 		if err = apiServer.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
-			zap.S().Fatalf("Failed to start API: %v", err)
+			slog.Error("Failed to start API", logging.Error(err))
+			os.Exit(1)
 			return
 		}
 	}()
 	go func() {
 		<-a.interrupt
-		zap.S().Info("Shutting down API...")
+		slog.Info("Shutting down API...")
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		if err = apiServer.Shutdown(ctx); err != nil && !errors.Is(err, context.Canceled) {
-			zap.S().Errorf("Failed to shutdown API server: %v", err)
+			slog.Error("Failed to shutdown API server", logging.Error(err))
 		}
 		cancel()
 		close(a.done)
@@ -186,12 +191,12 @@ func (a *DataFeedAPI) markets(w http.ResponseWriter, _ *http.Request) {
 		}
 		aai, err := a.Storage.AssetInfo(m.AmountAsset)
 		if err != nil {
-			zap.S().Warnf("Failed to load AssetInfo: %s", err.Error())
+			slog.Warn("Failed to load AssetInfo", logging.Error(err))
 			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		pai, err := a.Storage.AssetInfo(m.PriceAsset)
 		if err != nil {
-			zap.S().Warnf("Failed to load AssetInfo: %s", err.Error())
+			slog.Warn("Failed to load AssetInfo", logging.Error(err))
 			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		aab, err := a.getIssuerBalance(aai.IssuerAddress, m.AmountAsset)
@@ -231,12 +236,12 @@ func (a *DataFeedAPI) tickers(w http.ResponseWriter, _ *http.Request) {
 		}
 		aai, err := a.Storage.AssetInfo(m.AmountAsset)
 		if err != nil {
-			zap.S().Warnf("Failed to load AssetInfo: %s", err.Error())
+			slog.Warn("Failed to load AssetInfo", logging.Error(err))
 			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		pai, err := a.Storage.AssetInfo(m.PriceAsset)
 		if err != nil {
-			zap.S().Warnf("Failed to load AssetInfo: %s", err.Error())
+			slog.Warn("Failed to load AssetInfo", logging.Error(err))
 			continue // Skip assets with unavailable info, probably issued by InvokeScript transaction
 		}
 		aab, err := a.getIssuerBalance(aai.IssuerAddress, m.AmountAsset)

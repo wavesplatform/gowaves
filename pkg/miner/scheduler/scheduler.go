@@ -1,16 +1,16 @@
 package scheduler
 
 import (
+	"log/slog"
 	"sync"
 	"time"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-
-	"github.com/ccoveille/go-safecast"
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -89,7 +89,8 @@ func (a internalImpl) prepareDataForSchedule(
 		greatGrandParentHeight := confirmedBlockHeight - 2
 		greatGrandParent, err := storage.HeaderByHeight(greatGrandParentHeight)
 		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to get blockID by height %d: %v", greatGrandParentHeight, err)
+			slog.Error("Scheduler: Failed to get blockID by height",
+				slog.Any("height", greatGrandParentHeight), logging.Error(err))
 			return 0, false, nil, err
 		}
 		greatGrandParentTimestamp = greatGrandParent.Timestamp
@@ -137,61 +138,63 @@ func (a internalImpl) scheduleWithVrf(
 	heightForHit := pos.HeightForHit(confirmedBlockHeight)
 	hitSourceAtHeight, err := storage.HitSourceAtHeight(heightForHit)
 	if err != nil {
-		zap.S().Errorf("Scheduler: Failed to get hit source at height %d: %v", heightForHit, err)
+		slog.Error("Scheduler: Failed to get hit source at height", slog.Any("height", heightForHit),
+			logging.Error(err))
 		return nil, err
 	}
-	zap.S().Debugf("Scheduler: topBlock: id %s, gensig: %s, topBlockHeight: %d",
-		confirmedBlock.BlockID().String(), confirmedBlock.GenSignature, confirmedBlockHeight,
-	)
+	slog.Debug("Scheduler: Top block", "BlockID", confirmedBlock.BlockID().String(),
+		"GenSig", confirmedBlock.GenSignature, "height", confirmedBlockHeight)
 
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		sk := keyPair.Secret
-		genSig, err := gsp.GenerationSignature(sk, hitSourceAtHeight)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining, can't get generation signature at height %d: %v",
-				heightForHit, err,
-			)
+		genSig, gsErr := gsp.GenerationSignature(sk, hitSourceAtHeight)
+		if gsErr != nil {
+			slog.Error("Scheduler: Failed to schedule mining, can't get generation signature at height",
+				slog.Any("height", heightForHit), logging.Error(gsErr))
 			continue
 		}
-		source, err := gsp.HitSource(sk, hitSourceAtHeight)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining, failed to get hit source at height %d: %v",
-				heightForHit, err,
-			)
+		source, hsErr := gsp.HitSource(sk, hitSourceAtHeight)
+		if hsErr != nil {
+			slog.Error("Scheduler: Failed to schedule mining, failed to get hit source at height",
+				slog.Any("height", heightForHit), logging.Error(hsErr))
 			continue
 		}
 		var vrf []byte
 		if blockV5Activated {
 			vrf = source
 		}
-		hit, err := consensus.GenHit(source)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining, failed to generate hit from source: %v", err)
+		hit, ghErr := consensus.GenHit(source)
+		if ghErr != nil {
+			slog.Error("Scheduler: Failed to schedule mining, failed to generate hit from source",
+				logging.Error(ghErr))
 			continue
 		}
 
-		addr, err := keyPair.Addr(blockchainSettings.AddressSchemeCharacter)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining, failed to create address from PK: %v", err)
+		addr, aErr := keyPair.Addr(blockchainSettings.AddressSchemeCharacter)
+		if aErr != nil {
+			slog.Error("Scheduler: Failed to schedule mining, failed to create address from PK",
+				logging.Error(aErr))
 			continue
 		}
 
-		generatingBalance, err := storage.GeneratingBalance(proto.NewRecipientFromAddress(addr), confirmedBlockHeight)
-		if err != nil {
-			zap.S().Debugf("Scheduler: Failed to get generating balance for address %q on height=%d: %v",
-				addr.String(), confirmedBlockHeight, err)
+		generatingBalance, gbErr := storage.GeneratingBalance(proto.NewRecipientFromAddress(addr), confirmedBlockHeight)
+		if gbErr != nil {
+			slog.Debug("Scheduler: Failed to get generating balance for address",
+				slog.String("address", addr.String()), slog.Any("height", confirmedBlockHeight),
+				logging.Error(gbErr))
 			continue
 		}
 
-		delay, err := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining for address %q, failed to calculate delay: %v", addr.String(), err)
+		delay, cdErr := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
+		if cdErr != nil {
+			slog.Error("Scheduler: Failed to schedule mining, failed to calculate delay",
+				slog.String("address", addr.String()), logging.Error(cdErr))
 			continue
 		}
 		ts := adjustTimestamp(confirmedBlock.Timestamp, delay, tm, generateInPast)
 
-		baseTarget, err := pos.CalculateBaseTarget(
+		baseTarget, btErr := pos.CalculateBaseTarget(
 			blockchainSettings.AverageBlockDelaySeconds,
 			confirmedBlockHeight,
 			confirmedBlock.BaseTarget,
@@ -199,18 +202,17 @@ func (a internalImpl) scheduleWithVrf(
 			greatGrandParentTimestamp,
 			ts,
 		)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to schedule mining for address %q, failed to calculate base target: %v",
-				addr.String(), err,
-			)
+		if btErr != nil {
+			slog.Error("Scheduler: Failed to schedule mining for address, failed to calculate base target",
+				slog.String("address", addr.String()), logging.Error(btErr))
 			continue
 		}
 		sts, err := safecast.ToInt64(ts)
 		if err != nil {
 			return nil, errors.Wrap(err, "failed to cast timestamp to int64")
 		}
-		zap.S().Debugf("Scheduled generation by address '%s' at %s", addr.String(),
-			time.UnixMilli(sts).Format("2006-01-02 15:04:05.000 MST"))
+		const format = "2006-01-02 15:04:05.000 MST"
+		slog.Debug("Scheduled generation", "address", addr.String(), "time", time.UnixMilli(sts).Format(format))
 		out = append(out, Emit{
 			Timestamp:    ts,
 			KeyPair:      keyPair,
@@ -242,62 +244,61 @@ func (a internalImpl) scheduleWithoutVrf(
 	heightForHit := pos.HeightForHit(confirmedBlockHeight)
 	hitSourceHeader, err := storage.HeaderByHeight(heightForHit)
 	if err != nil {
-		zap.S().Errorf("Scheduler: Failed to get header by height %d for hit: %v", heightForHit, err)
+		slog.Error("Scheduler: Failed to get header by height", slog.Any("height", heightForHit),
+			logging.Error(err))
 		return nil, err
 	}
 
-	zap.S().Debugf("Scheduling generation on top of block (%d) '%s'\n"+
-		"  block timestamp: %d (%s)\n"+
-		"  block base target: %d\n"+
-		"Generation accounts:",
-		confirmedBlockHeight, confirmedBlock.BlockID().String(),
-		confirmedBlock.Timestamp, time.UnixMilli(int64(confirmedBlock.Timestamp)), // #nosec: used only for logging
-		confirmedBlock.BaseTarget,
-	)
+	slog.Debug("Scheduling generation", "height", confirmedBlockHeight,
+		"BlockID", confirmedBlock.BlockID().String(), "BlockTS", confirmedBlock.Timestamp, "BlockTime",
+		time.UnixMilli(int64(confirmedBlock.Timestamp)), // #nosec: used only for logging
+		"BaseTarget", confirmedBlock.BaseTarget)
 	var out []Emit
 	for _, keyPair := range keyPairs {
 		pk := keyPair.Public
 		genSigBlock := confirmedBlock.BlockHeader
-		genSig, err := gsp.GenerationSignature(pk, genSigBlock.GenSignature)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to get generation signature for PK %q: %v", pk.String(), err)
+		genSig, gsErr := gsp.GenerationSignature(pk, genSigBlock.GenSignature)
+		if gsErr != nil {
+			slog.Error("Scheduler: Failed to get generation signature for PK", slog.String("PK", pk.String()),
+				logging.Error(gsErr))
 			continue
 		}
-		source, err := gsp.HitSource(pk, hitSourceHeader.GenSignature)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to generate hit source for PK %q: %v", pk.String(), err)
+		source, hsErr := gsp.HitSource(pk, hitSourceHeader.GenSignature)
+		if hsErr != nil {
+			slog.Error("Scheduler: Failed to generate hit source for PK", slog.String("PK", pk.String()),
+				logging.Error(hsErr))
 			continue
 		}
-		hit, err := consensus.GenHit(source)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to generate hit for PK %q: %v", pk.String(), err)
-			continue
-		}
-
-		addr, err := proto.NewAddressFromPublicKey(blockchainSettings.AddressSchemeCharacter, pk)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to create new address from PK %q: %v", pk.String(), err)
+		hit, ghErr := consensus.GenHit(source)
+		if ghErr != nil {
+			slog.Error("Scheduler: Failed to generate hit for PK", slog.String("PK", pk.String()),
+				logging.Error(ghErr))
 			continue
 		}
 
-		generatingBalance, err := storage.GeneratingBalance(proto.NewRecipientFromAddress(addr), confirmedBlockHeight)
-		if err != nil {
-			zap.S().Debugf("Scheduler: Failed to get generating balance for address %q on height=%d: %v",
-				addr.String(), confirmedBlockHeight, err,
-			)
+		addr, naErr := proto.NewAddressFromPublicKey(blockchainSettings.AddressSchemeCharacter, pk)
+		if naErr != nil {
+			slog.Error("Scheduler: Failed to create new address from PK", slog.String("PK", pk.String()),
+				logging.Error(naErr))
 			continue
 		}
 
-		delay, err := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to calculate delay for address %q with effective balance %d: %v",
-				addr, generatingBalance, err,
-			)
+		generatingBalance, gbErr := storage.GeneratingBalance(proto.NewRecipientFromAddress(addr), confirmedBlockHeight)
+		if gbErr != nil {
+			slog.Debug("Scheduler: Failed to get generating balance", slog.String("address", addr.String()),
+				slog.Any("height", confirmedBlockHeight), logging.Error(gbErr))
+			continue
+		}
+
+		delay, cdErr := pos.CalculateDelay(hit, confirmedBlock.BaseTarget, generatingBalance)
+		if cdErr != nil {
+			slog.Error("Scheduler: Failed to calculate delay for address", slog.String("address", addr.String()),
+				slog.Any("balance", generatingBalance), logging.Error(cdErr))
 			continue
 		}
 		ts := adjustTimestamp(confirmedBlock.Timestamp, delay, tm, generateInPast)
 
-		baseTarget, err := pos.CalculateBaseTarget(
+		baseTarget, btErr := pos.CalculateBaseTarget(
 			blockchainSettings.AverageBlockDelaySeconds,
 			confirmedBlockHeight,
 			confirmedBlock.BaseTarget,
@@ -305,16 +306,14 @@ func (a internalImpl) scheduleWithoutVrf(
 			greatGrandParentTimestamp,
 			ts,
 		)
-		if err != nil {
-			zap.S().Errorf("Scheduler: Failed to calculate base target for address %q: %v", addr.String(), err)
+		if btErr != nil {
+			slog.Error("Scheduler: Failed to calculate base target", slog.String("address", addr.String()),
+				logging.Error(btErr))
 			continue
 		}
-		zap.S().Debugf("  %s (%s): ", addr.String(), pk.String())
-		zap.S().Debugf("    Hit: %s (%s)", hit.String(), base58.Encode(source))
-		zap.S().Debugf("    Generation Balance: %d", generatingBalance)
-		zap.S().Debugf("    Delay: %d", delay)
-		zap.S().Debugf("    Timestamp: %d (%s)",
-			ts, common.UnixMillisToTime(int64(ts)).String()) // #nosec: used only for logging
+		slog.Debug("Schedule generation", "address", addr.String(), "pk", pk.String(), "hit", hit.String(),
+			"hitSource", base58.Encode(source), "generationBalance", generatingBalance, "delay", delay,
+			"timestamp", ts, "time", common.UnixMillisToTime(int64(ts)).String()) // #nosec: used only for logging
 		out = append(out, Emit{
 			Timestamp:    ts,
 			KeyPair:      keyPair,
@@ -370,14 +369,14 @@ func (a *Default) Mine() chan Emit {
 
 func (a *Default) Reschedule() {
 	if len(a.seeder.AccountSeeds()) == 0 {
-		zap.S().Debug("Scheduler: Mining is not possible because no seeds registered")
+		slog.Debug("Scheduler: Mining is not possible because no seeds registered")
 		return
 	}
 
-	zap.S().Debugf("Scheduler: Trying to mine with %d seeds", len(a.seeder.AccountSeeds()))
+	slog.Debug("Scheduler: Trying to mine", "accountsCount", len(a.seeder.AccountSeeds()))
 
 	if !a.consensus.IsMiningAllowed() {
-		zap.S().Debug("Scheduler: Mining is not allowed because of lack of connected nodes")
+		slog.Debug("Scheduler: Mining is not allowed because of lack of connected nodes")
 		return
 	}
 
@@ -386,20 +385,20 @@ func (a *Default) Reschedule() {
 	lastBlock := a.storage.TopBlock()
 	lastBlockTime := time.UnixMilli(int64(lastBlock.Timestamp))
 	if obsolescenceTime.After(lastBlockTime) {
-		zap.S().Debugf("Scheduler: Mining is not allowed because last block (ID: %s) time %s is before the obsolesence time %s",
-			lastBlock.ID, lastBlockTime, obsolescenceTime)
+		slog.Debug("Scheduler: Mining is not allowed because last block is before the obsolescence time",
+			"BlockID", lastBlock.ID, "BlockTime", lastBlockTime, "ObsolescenceTime", obsolescenceTime)
 		return
 	}
 
 	h, err := a.storage.Height()
 	if err != nil {
-		zap.S().Errorf("Scheduler: Failed to get state height: %v", err)
+		slog.Error("Scheduler: Failed to get state height", logging.Error(err))
 		return
 	}
 
 	block, err := a.storage.BlockByHeight(h)
 	if err != nil {
-		zap.S().Errorf("Scheduler: Failed to get block by height %d: %v", h, err)
+		slog.Error("Scheduler: Failed to get block by height", slog.Any("height", h), logging.Error(err))
 		return
 	}
 
@@ -422,7 +421,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 
 	keyPairs, err := makeKeyPairs(a.seeder.AccountSeeds())
 	if err != nil {
-		zap.S().Errorf("Scheduler: Failed to make key pairs from seeds: %v", err)
+		slog.Error("Scheduler: Failed to make key pairs from seeds", logging.Error(err))
 		return
 	}
 
@@ -431,7 +430,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 			a.generateInPast)
 	})
 	if err != nil {
-		zap.S().Errorf("Scheduler: Failed to schedule: %v", err)
+		slog.Error("Scheduler: Failed to schedule", logging.Error(err))
 	}
 	emits := rs.([]Emit)
 
@@ -447,7 +446,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 				select {
 				case a.mine <- emit_:
 				default:
-					zap.S().Debug("Scheduler: cannot emit a.mine, chan is full")
+					slog.Debug("Scheduler: cannot emit a.mine, chan is full")
 				}
 			})
 			a.cancel = append(a.cancel, cancel)
@@ -455,7 +454,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 			select {
 			case a.mine <- emit:
 			default:
-				zap.S().Debug("Scheduler: cannot emit a.mine, chan is full")
+				slog.Debug("Scheduler: cannot emit a.mine, chan is full")
 			}
 		}
 	}

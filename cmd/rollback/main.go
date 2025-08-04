@@ -1,14 +1,12 @@
 package main
 
 import (
-	"errors"
 	"flag"
 	"fmt"
+	"log/slog"
 	"os"
 
 	"github.com/ccoveille/go-safecast"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -18,9 +16,16 @@ import (
 )
 
 func main() {
+	if err := run(); err != nil {
+		slog.Error("Failed to rollback", logging.Error(err))
+		os.Exit(1)
+	}
+	slog.Info("Rollback completed successfully")
+}
+
+func run() error {
 	var (
-		logLevel = zap.LevelFlag("log-level", zapcore.InfoLevel,
-			"Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL. Default logging level INFO.")
+		lp               = logging.Parameters{}
 		statePath        = flag.String("state-path", "", "Path to node's state directory")
 		blockchainType   = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
 		height           = flag.Uint64("height", 0, "Height to rollback")
@@ -32,89 +37,87 @@ func main() {
 		cfgPath            = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
 		disableBloomFilter = flag.Bool("disable-bloom", false, "Disable bloom filter for state.")
 	)
-
+	lp.Initialize()
 	flag.Parse()
-
-	logger := logging.SetupSimpleLogger(*logLevel)
-	defer func() {
-		err := logger.Sync()
-		if err != nil && errors.Is(err, os.ErrInvalid) {
-			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
-		}
-	}()
-	zap.S().Infof("Gowaves Rollback version: %s", versioning.Version)
-
-	maxFDs, err := fdlimit.MaxFDs()
-	if err != nil {
-		zap.S().Fatalf("Initialization error: %v", err)
+	if err := lp.Parse(); err != nil {
+		return fmt.Errorf("failed to parse application parameters: %w", err)
 	}
-	_, err = fdlimit.RaiseMaxFDs(maxFDs)
-	if err != nil {
-		zap.S().Fatalf("Initialization error: %v", err)
-	}
+
+	slog.SetDefault(slog.New(logging.DefaultHandler(lp)))
+	slog.Info("Gowaves Rollback", "version", versioning.Version)
 
 	var cfg *settings.BlockchainSettings
+	var err error
 	if *cfgPath != "" {
-		f, err := os.Open(*cfgPath)
-		if err != nil {
-			zap.S().Fatalf("Failed to open configuration file: %v", err)
+		f, fErr := os.Open(*cfgPath)
+		if fErr != nil {
+			return fmt.Errorf("failed to open configuration file: %w", fErr)
 		}
 		defer func() { _ = f.Close() }()
 		cfg, err = settings.ReadBlockchainSettings(f)
 		if err != nil {
-			zap.S().Fatalf("Failed to read configuration file: %v", err)
+			return fmt.Errorf("failed to read configuration file: %w", err)
 		}
 	} else {
 		cfg, err = settings.BlockchainSettingsByTypeName(*blockchainType)
 		if err != nil {
-			zap.S().Error(err)
-			return
+			return fmt.Errorf("failed to load blockchain settins: %w", err)
 		}
+	}
+
+	s, err := openState(*statePath, cfg, *buildExtendedAPI, *buildStateHashes, *disableBloomFilter)
+	if err != nil {
+		return fmt.Errorf("failed to open state: %w", err)
+	}
+	defer func() {
+		if clErr := s.Close(); clErr != nil {
+			slog.Error("Failed to close state", logging.Error(clErr))
+		}
+	}()
+
+	curHeight, err := s.Height()
+	if err != nil {
+		return fmt.Errorf("failed to get current height: %w", err)
+	}
+
+	slog.Info("Current height", "height", curHeight)
+
+	err = s.RollbackToHeight(*height)
+	if err != nil {
+		return fmt.Errorf("failed to rollback: %w", err)
+	}
+
+	curHeight, err = s.Height()
+	if err != nil {
+		return fmt.Errorf("failed to get current height: %w", err)
+	}
+
+	slog.Info("Current height", "height", curHeight)
+	return nil
+}
+
+func openState(
+	statePath string, cfg *settings.BlockchainSettings, buildExtendedAPI, buildStateHashes, disableBloomFilter bool,
+) (state.State, error) {
+	maxFDs, err := fdlimit.MaxFDs()
+	if err != nil {
+		return nil, fmt.Errorf("initialization failed: %w", err)
+	}
+	_, err = fdlimit.RaiseMaxFDs(maxFDs)
+	if err != nil {
+		return nil, fmt.Errorf("initialization failed: %w", err)
 	}
 
 	params := state.DefaultStateParams()
 	const fdSigma = 10
 	c, err := safecast.ToInt(maxFDs - fdSigma)
 	if err != nil {
-		zap.S().Errorf("Failed to initialize: %s", err)
-		return
+		return nil, fmt.Errorf("state initialization failed: %w", err)
 	}
 	params.DbParams.OpenFilesCacheCapacity = c
-	params.DbParams.DisableBloomFilter = *disableBloomFilter
-	params.BuildStateHashes = *buildStateHashes
-	params.StoreExtendedApiData = *buildExtendedAPI
+	params.DbParams.DisableBloomFilter = disableBloomFilter
+	params.BuildStateHashes = buildStateHashes
+	params.StoreExtendedApiData = buildExtendedAPI
 
-	s, err := state.NewState(*statePath, true, params, cfg, false)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-	defer func() {
-		err = s.Close()
-		if err != nil {
-			zap.S().Errorf("Failed to close state: %v", err)
-		}
-	}()
-
-	curHeight, err := s.Height()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	zap.S().Infof("Current height: %d", curHeight)
-
-	err = s.RollbackToHeight(*height)
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	curHeight, err = s.Height()
-	if err != nil {
-		zap.S().Error(err)
-		return
-	}
-
-	zap.S().Infof("Current height: %d", curHeight)
+	return state.NewState(statePath, true, params, cfg, false)
 }

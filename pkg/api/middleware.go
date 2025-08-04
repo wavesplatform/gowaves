@@ -1,19 +1,19 @@
 package api
 
 import (
+	"log/slog"
 	"net/http"
 	"strconv"
 	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
-	"go.uber.org/zap"
 )
 
 // createLoggerMiddleware creates a middleware that logs the start and end of each request, along
 // with some useful data about what was requested, what the response status was,
 // and how long it took to return.
-func createLoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler {
+func createLoggerMiddleware(l *slog.Logger) func(next http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		fn := func(w http.ResponseWriter, r *http.Request) {
 			ww, ok := w.(middleware.WrapResponseWriter)
@@ -24,13 +24,13 @@ func createLoggerMiddleware(l *zap.Logger) func(next http.Handler) http.Handler 
 			t1 := time.Now()
 			defer func() {
 				l.Info("ServedHttpRequest",
-					zap.String("proto", r.Proto),
-					zap.String("path", r.URL.Path),
-					zap.Duration("duration", time.Since(t1)),
-					zap.Int("status", ww.Status()),
-					zap.Int("response-size", ww.BytesWritten()),
-					zap.String("request_id", middleware.GetReqID(r.Context())),
-					zap.String("remote_addr", r.RemoteAddr),
+					slog.String("proto", r.Proto),
+					slog.String("path", r.URL.Path),
+					slog.Duration("duration", time.Since(t1)),
+					slog.Int("status", ww.Status()),
+					slog.Int("response-size", ww.BytesWritten()),
+					slog.String("request_id", middleware.GetReqID(r.Context())),
+					slog.String("remote_addr", r.RemoteAddr),
 				)
 			}()
 

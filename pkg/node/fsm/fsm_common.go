@@ -3,14 +3,13 @@ package fsm
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"reflect"
 	"time"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-	"go.uber.org/zap"
-
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
@@ -89,7 +88,7 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		return state, nil, err
 	}
 	internal := sync_internal.InternalFromLastSignatures(
-		extension.NewPeerExtension(p, baseInfo.scheme),
+		extension.NewPeerExtension(p, baseInfo.scheme, baseInfo.netLogger),
 		lastSignatures,
 		baseInfo.enableLightMode,
 	)
@@ -97,8 +96,7 @@ func syncWithNewPeer(state State, baseInfo BaseInfo, p peer.Peer) (State, Async,
 		peerSyncWith: p,
 		timeout:      defaultSyncTimeout,
 	}
-	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Starting synchronization with peer '%s'",
-		state.String(), p.ID())
+	baseInfo.logger.Debug("Starting synchronization with peer", "state", state.String(), "peer", p.ID())
 	baseInfo.syncPeer.SetPeer(p)
 	return &SyncState{
 		baseInfo: baseInfo,
@@ -115,23 +113,24 @@ func tryBroadcastTransaction(
 			err = fsm.Errorf(proto.NewInfoMsg(err))
 		}
 	}()
-	if zap.S().Level() <= zap.DebugLevel {
+	if baseInfo.logger.Enabled(context.Background(), slog.LevelDebug) {
 		defer func() {
 			if genIDErr := t.GenerateID(baseInfo.scheme); genIDErr != nil {
-				zap.S().Errorf("[%s] Failed to generate ID for transaction: %v", fsm.String(), genIDErr)
+				slog.Error("Failed to generate ID for transaction", slog.String("state", fsm.String()),
+					logging.Error(genIDErr))
 				return
 			}
 			txIDBytes, getIDErr := t.GetID(baseInfo.scheme)
 			if getIDErr != nil {
-				zap.S().Errorf("[%s] Failed to get ID for transaction: %v", fsm.String(), getIDErr)
+				slog.Error("Failed to get ID for transaction", slog.String("state", fsm.String()),
+					logging.Error(getIDErr))
 				return
 			}
 			txID := base58.Encode(txIDBytes)
 			if err != nil {
 				err = errors.Wrapf(err, "failed to broadcast transaction %q", txID)
 			} else {
-				zap.S().Named(logging.FSMNamespace).Debugf("[%s] Transaction %q broadcasted successfully",
-					fsm.String(), txID)
+				baseInfo.logger.Debug("Transaction broadcasted successfully", "state", fsm.String(), "txID", txID)
 			}
 		}()
 	}
@@ -232,9 +231,8 @@ func broadcastMicroBlockInv(info BaseInfo, inv *proto.MicroBlockInv) error {
 		cnt++
 	})
 	info.invRequester.Add2Cache(inv.TotalBlockID) // prevent further unnecessary microblock request
-	zap.S().Named(logging.FSMNamespace).Debugf("Network message '%T' sent to %d peers: blockID='%s', ref='%s'",
-		msg, cnt, inv.TotalBlockID, inv.Reference,
-	)
+	info.logger.Debug("Network message sent to peers", logging.Type(msg), slog.Int("count", cnt),
+		slog.Any("blockID", inv.TotalBlockID), slog.Any("ref", inv.Reference))
 	return nil
 }
 
@@ -246,19 +244,24 @@ func processScoreAfterApplyingOrReturnToNG(
 ) (State, Async, error) {
 	for _, s := range scores {
 		if err := baseInfo.peers.UpdateScore(s.Peer, s.Score); err != nil {
-			zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", proto.NewInfoMsg(err))
+			info := proto.NewInfoMsg(err)
+			baseInfo.logger.Debug("Failed to update score", slog.String("state", state.String()),
+				logging.Error(info))
 			continue
 		}
 		nodeScore, err := baseInfo.storage.CurrentScore()
 		if err != nil {
-			zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", proto.NewInfoMsg(err))
+			info := proto.NewInfoMsg(err)
+			baseInfo.logger.Debug("Failed to get current score", slog.String("state", state.String()),
+				logging.Error(info))
 			continue
 		}
 		if s.Score.Cmp(nodeScore) == 1 {
 			// received score is larger than local score
 			newS, task, errS := syncWithNewPeer(state, baseInfo, s.Peer)
 			if errS != nil {
-				zap.S().Errorf("%v", state.Errorf(errS))
+				se := state.Errorf(errS)
+				slog.Error("Failed to sync with peer", slog.String("state", state.String()), logging.Error(se))
 				continue
 			}
 			if newSName := newS.String(); newSName != SyncStateName { // sanity check

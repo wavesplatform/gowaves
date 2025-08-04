@@ -2,6 +2,7 @@ package api
 
 import (
 	"encoding/json"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -9,8 +10,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
-	"go.uber.org/zap"
 )
 
 func TestErrorHandler_Handle(t *testing.T) {
@@ -79,7 +80,7 @@ func TestErrorHandler_Handle(t *testing.T) {
 				w = httptest.NewRecorder()
 				r = httptest.NewRequest(http.MethodGet, "http://localhost:8080", nil)
 			)
-			h := NewErrorHandler(zap.NewNop())
+			h := NewErrorHandler(slog.New(slog.DiscardHandler))
 			h.Handle(w, r, test.err)
 			assert.Equal(t, test.expectedCode, w.Code)
 			assert.Equal(t, test.expectedBody, w.Body.String())

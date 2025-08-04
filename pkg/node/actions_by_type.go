@@ -2,10 +2,9 @@ package node
 
 import (
 	"fmt"
+	"log/slog"
 	"math/big"
 	"reflect"
-
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -18,15 +17,15 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/services"
 )
 
-type Action func(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error)
+type Action func(services services.Services, msg peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger) (fsm.Async, error)
 
-func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func ScoreAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	b := new(big.Int)
 	b.SetBytes(mess.Message.(*proto.ScoreMessage).Score)
 	return fsm.Score(mess.ID, b)
 }
 
-func GetPeersAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
+func GetPeersAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	metricGetPeersMessage.Inc()
 	rs := services.Peers.KnownPeers()
 
@@ -42,7 +41,7 @@ func GetPeersAction(services services.Services, mess peer.ProtoMessage, _ *fsm.F
 	return nil, nil
 }
 
-func PeersAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
+func PeersAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	metricPeersMessage.Inc()
 	rs := services.Peers.KnownPeers()
 
@@ -57,7 +56,7 @@ func PeersAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM)
 	return nil, services.Peers.UpdateKnownPeers(rs)
 }
 
-func BlockAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func BlockAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	metricBlockMessage.Inc()
 	b := &proto.Block{}
 	err := b.UnmarshalBinary(mess.Message.(*proto.BlockMessage).BlockBytes, services.Scheme)
@@ -67,7 +66,7 @@ func BlockAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FS
 	return fsm.Block(mess.ID, b)
 }
 
-func GetBlockAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
+func GetBlockAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	metricGetBlockMessage.Inc()
 	block, err := services.State.Block(mess.Message.(*proto.GetBlockMessage).BlockID)
 	if err != nil {
@@ -82,7 +81,7 @@ func GetBlockAction(services services.Services, mess peer.ProtoMessage, _ *fsm.F
 }
 
 // SignaturesAction receives requested earlier signatures
-func SignaturesAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func SignaturesAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	signatures := mess.Message.(*proto.SignaturesMessage).Signatures
 	blockIDs := make([]proto.BlockID, len(signatures))
 	for i, sig := range signatures {
@@ -93,7 +92,7 @@ func SignaturesAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM)
 
 // GetSignaturesAction replies to signature requests
 func GetSignaturesAction(
-	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger,
 ) (fsm.Async, error) {
 	for _, sig := range mess.Message.(*proto.GetSignaturesMessage).Signatures {
 		block, err := services.State.Header(proto.NewBlockIDFromSignature(sig))
@@ -109,9 +108,9 @@ func GetSignaturesAction(
 func sendSignatures(services services.Services, block *proto.BlockHeader, p peer.Peer) {
 	height, err := services.State.BlockIDToHeight(block.BlockID())
 	if err != nil {
-		zap.S().Errorf("Failed to get height for blockID %q and send signatures to peer %q: %v",
-			block.BlockID().String(), p.RemoteAddr().String(), err,
-		)
+		slog.Error("Failed to get height for blockID and send signatures to peer",
+			slog.String("blockID", block.BlockID().String()), slog.String("peer", p.RemoteAddr().String()),
+			logging.Error(err))
 		return
 	}
 
@@ -137,9 +136,9 @@ func sendSignatures(services services.Services, block *proto.BlockHeader, p peer
 func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.Peer) {
 	height, err := services.State.BlockIDToHeight(block.BlockID())
 	if err != nil {
-		zap.S().Errorf("Failed to get height for blockID %q and send blockIDs to peer %q: %v",
-			block.BlockID().String(), p.RemoteAddr().String(), err,
-		)
+		slog.Error("Failed to get height for blockID and send blockIDs to peer",
+			slog.String("blockID", block.BlockID().String()), slog.String("peer", p.RemoteAddr().String()),
+			logging.Error(err))
 		return
 	}
 
@@ -163,7 +162,7 @@ func sendBlockIds(services services.Services, block *proto.BlockHeader, p peer.P
 }
 
 // MicroBlockInvAction handles notification about new microblock.
-func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	inv := &proto.MicroBlockInv{}
 	err := inv.UnmarshalBinary(mess.Message.(*proto.MicroBlockInvMessage).Body)
 	if err != nil {
@@ -174,7 +173,7 @@ func MicroBlockInvAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 
 // MicroBlockRequestAction handles microblock requests.
 func MicroBlockRequestAction(
-	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, nl *slog.Logger,
 ) (fsm.Async, error) {
 	msg, ok := mess.Message.(*proto.MicroBlockRequestMessage)
 	if !ok {
@@ -182,12 +181,14 @@ func MicroBlockRequestAction(
 	}
 	micro, ok := services.MicroBlockCache.GetBlock(msg.TotalBlockSig)
 	if ok {
-		_ = extension.NewPeerExtension(mess.ID, services.Scheme).SendMicroBlock(micro)
+		_ = extension.NewPeerExtension(mess.ID, services.Scheme, nl).SendMicroBlock(micro)
 	}
 	return nil, nil
 }
 
-func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func MicroBlockAction(
+	services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger,
+) (fsm.Async, error) {
 	micro := &proto.MicroBlock{}
 	err := micro.UnmarshalBinary(mess.Message.(*proto.MicroBlockMessage).Body, services.Scheme)
 	if err != nil {
@@ -197,28 +198,30 @@ func MicroBlockAction(services services.Services, mess peer.ProtoMessage, fsm *f
 }
 
 // PBBlockAction handles protobuf block message.
-func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func PBBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger) (fsm.Async, error) {
 	b := &proto.Block{}
 	if err := b.UnmarshalFromProtobuf(mess.Message.(*proto.PBBlockMessage).PBBlockBytes); err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to deserializa protobuf block: %v", err)
+		nl.Debug("Failed to deserialize protobuf block", logging.Error(err))
 		return nil, err
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("Protobuf block received '%s'", b.ID.String())
+	nl.Debug("Protobuf block received", "blockID", b.ID.String())
 	return fsm.Block(mess.ID, b)
 }
 
-func PBMicroBlockAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func PBMicroBlockAction(
+	_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger,
+) (fsm.Async, error) {
 	micro := &proto.MicroBlock{}
 	if err := micro.UnmarshalFromProtobuf(mess.Message.(*proto.PBMicroBlockMessage).MicroBlockBytes); err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to deserialize microblock: %v", err)
+		nl.Debug("Failed to deserialize microblock", logging.Error(err))
 		return nil, err
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("Microblock received '%s'", micro.TotalBlockID.String())
+	nl.Debug("Microblock received", "blockID", micro.TotalBlockID.String())
 	return fsm.MicroBlock(mess.ID, micro)
 }
 
 func GetBlockIdsAction(
-	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM,
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger,
 ) (fsm.Async, error) {
 	msg, ok := mess.Message.(*proto.GetBlockIDsMessage)
 	if !ok {
@@ -235,7 +238,7 @@ func GetBlockIdsAction(
 	return nil, nil
 }
 
-func BlockIdsAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func BlockIDsAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	msg, ok := mess.Message.(*proto.BlockIDsMessage)
 	if !ok {
 		return nil, fmt.Errorf("unexpected message type %T", mess.Message)
@@ -244,7 +247,7 @@ func BlockIdsAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (
 }
 
 // TransactionAction handles new transaction message.
-func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	b := mess.Message.(*proto.TransactionMessage).Transaction
 	tx, err := proto.BytesToTransaction(b, s.Scheme)
 	if err != nil {
@@ -254,7 +257,7 @@ func TransactionAction(s services.Services, mess peer.ProtoMessage, fsm *fsm.FSM
 }
 
 // PBTransactionAction handles protobuf transaction message.
-func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	b := mess.Message.(*proto.PBTransactionMessage).Transaction
 	t, err := proto.SignedTxFromProtobuf(b)
 	if err != nil {
@@ -264,7 +267,9 @@ func PBTransactionAction(_ services.Services, mess peer.ProtoMessage, fsm *fsm.F
 	return fsm.Transaction(mess.ID, t)
 }
 
-func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
+func MicroSnapshotRequestAction(
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger,
+) (fsm.Async, error) {
 	msg, ok := mess.Message.(*proto.MicroBlockSnapshotRequestMessage)
 	if !ok {
 		return nil, fmt.Errorf("unexpected message type %T", mess.Message)
@@ -289,7 +294,9 @@ func MicroSnapshotRequestAction(services services.Services, mess peer.ProtoMessa
 	return nil, nil
 }
 
-func GetSnapshotAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM) (fsm.Async, error) {
+func GetSnapshotAction(
+	services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger,
+) (fsm.Async, error) {
 	blockID := mess.Message.(*proto.GetBlockSnapshotMessage).BlockID
 	h, err := services.State.BlockIDToHeight(blockID)
 	if err != nil {
@@ -316,10 +323,12 @@ func GetSnapshotAction(services services.Services, mess peer.ProtoMessage, _ *fs
 	return nil, nil
 }
 
-func BlockSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func BlockSnapshotAction(
+	services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger,
+) (fsm.Async, error) {
 	protoMess := g.BlockSnapshot{}
 	if err := protoMess.UnmarshalVT(mess.Message.(*proto.BlockSnapshotMessage).Bytes); err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to deserialize block snapshot: %v", err)
+		nl.Debug("Failed to deserialize block snapshot", logging.Error(err))
 		return nil, err
 	}
 	blockID, err := proto.NewBlockIDFromBytes(protoMess.BlockId)
@@ -330,14 +339,16 @@ func BlockSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm
 	if err != nil {
 		return nil, err
 	}
-	zap.S().Named(logging.NetworkNamespace).Debugf("Snapshot for block '%s' received", blockID.String())
+	nl.Debug("Snapshot received", "blockID", blockID.String())
 	return fsm.BlockSnapshot(mess.ID, blockID, blockSnapshot)
 }
 
-func MicroBlockSnapshotAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM) (fsm.Async, error) {
+func MicroBlockSnapshotAction(
+	services services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger,
+) (fsm.Async, error) {
 	protoMess := g.MicroBlockSnapshot{}
 	if err := protoMess.UnmarshalVT(mess.Message.(*proto.MicroBlockSnapshotMessage).Bytes); err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debugf("Failed to deserialize micro block snapshot: %v", err)
+		nl.Debug("Failed to deserialize micro block snapshot", logging.Error(err))
 		return nil, err
 	}
 	blockID, err := proto.NewBlockIDFromBytes(protoMess.TotalBlockId)
@@ -366,7 +377,7 @@ func createActions() map[reflect.Type]Action {
 		reflect.TypeOf(&proto.PBBlockMessage{}):                   PBBlockAction,
 		reflect.TypeOf(&proto.PBMicroBlockMessage{}):              PBMicroBlockAction,
 		reflect.TypeOf(&proto.GetBlockIDsMessage{}):               GetBlockIdsAction,
-		reflect.TypeOf(&proto.BlockIDsMessage{}):                  BlockIdsAction,
+		reflect.TypeOf(&proto.BlockIDsMessage{}):                  BlockIDsAction,
 		reflect.TypeOf(&proto.TransactionMessage{}):               TransactionAction,
 		reflect.TypeOf(&proto.PBTransactionMessage{}):             PBTransactionAction,
 		reflect.TypeOf(&proto.GetBlockSnapshotMessage{}):          GetSnapshotAction,
