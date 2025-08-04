@@ -381,7 +381,7 @@ func MustGetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) con
 			return account
 		}
 	}
-	require.FailNow(suite.T(), "Account with address %q wasn't found", address.String())
+	require.FailNowf(suite.T(), "Account with address %q wasn't found", address.String())
 	panic("unreachable point reached")
 }
 
