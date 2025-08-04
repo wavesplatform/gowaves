@@ -54,7 +54,7 @@ func NewSetAssetScriptTestData[T any](account config.AccountInfo, assetID crypto
 	}
 }
 
-func readScript(suite *f.BaseSuite, name string) proto.Script {
+func readAssetScript(suite *f.BaseSuite, name string) proto.Script {
 	script, err := utl.ReadScript(AssetScriptDir, name)
 	require.NoError(suite.T(), err, "unable to read asset script")
 	return script
@@ -65,7 +65,7 @@ func GetSetAssetScriptPositiveData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Valid script, true as expression": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -76,7 +76,7 @@ func GetSetAssetScriptPositiveData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Valid script, size 8192 bytes": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "valid_8192_bytes_3910_complexity.base64"),
+			readAssetScript(suite, "valid_8192_bytes_3910_complexity.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -87,7 +87,7 @@ func GetSetAssetScriptPositiveData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Script with complexity 4000": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "script_with_complexity_4000.base64"),
+			readAssetScript(suite, "script_with_complexity_4000.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -103,7 +103,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Empty script": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "empty_script.base64"),
+			readAssetScript(suite, "empty_script.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -118,7 +118,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Complexity more than 4000": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "invalid_script_complexity_more_4000.base64"),
+			readAssetScript(suite, "invalid_script_complexity_more_4000.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -178,7 +178,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Asset was issued by other Account": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultRecipientNotMiner),
 			assetID,
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -193,7 +193,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Invalid fee (fee > max)": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			utl.MaxAmount+1,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -208,7 +208,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Invalid fee (0 < fee < min)": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			10,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -223,7 +223,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Invalid fee (fee = 0)": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			0,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -238,7 +238,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Timestamp more than 7200000ms in the past relative to previous block timestamp": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs()-7260000,
 			utl.TestChainID,
@@ -253,7 +253,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Timestamp more than 5400000ms in the future relative to previous block timestamp": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs()+54160000,
 			utl.TestChainID,
@@ -268,7 +268,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Try to do sponsorship when fee more than funds on the sender balance": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetID,
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			uint64(100000000+utl.GetAvailableBalanceInWavesGo(suite, utl.GetAccount(suite, utl.DefaultSenderNotMiner).Address)),
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -283,7 +283,7 @@ func GetSetAssetScriptNegativeData(suite *f.BaseSuite, assetID crypto.Digest) ma
 		"Invalid asset ID (asset ID not exist)": NewSetAssetScriptTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			utl.RandDigest(suite.T(), 32, utl.LettersAndDigits),
-			readScript(suite, "valid_script_true_as_expression.base64"),
+			readAssetScript(suite, "valid_script_true_as_expression.base64"),
 			utl.MinSetAssetScriptFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,
@@ -302,7 +302,7 @@ func GetSimpleSmartAssetNegativeData(suite *f.BaseSuite, assetID crypto.Digest) 
 	return NewSetAssetScriptTestData(
 		utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 		assetID,
-		readScript(suite, "valid_script_true_as_expression.base64"),
+		readAssetScript(suite, "valid_script_true_as_expression.base64"),
 		utl.MinSetAssetScriptFeeWaves,
 		utl.GetCurrentTimestampInMs(),
 		utl.TestChainID,

@@ -65,15 +65,15 @@ func (suite *BurnTxAPIPositiveSuite) Test_BurnNFTFromOwnerAccountAPIPositive() {
 	versions := burn.GetVersions(&suite.BaseSuite)
 	for _, v := range versions {
 		nft := testdata.GetCommonIssueData(&suite.BaseSuite).NFT
-		//get NFT
+		// get NFT
 		itx := issue.BroadcastWithTestData(&suite.BaseSuite, nft, v, true)
-		//data for transfer
+		// data for transfer
 		transferNFT := testdata.GetCommonTransferData(&suite.BaseSuite, &itx.TxID).NFT
 		tdmatrix := testdata.GetBurnNFTFromOwnerAccount(&suite.BaseSuite, itx.TxID)
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				//transfer NFT from Account 2 to Account 3
+				// transfer NFT from Account 2 to Account 3
 				ttx := transfer.BroadcastWithTestData(&suite.BaseSuite, transferNFT, v, true)
 				errMsg := fmt.Sprintf("Case: %s; Broadcast Transfer tx: %s", caseName, ttx.TxID.String())
 
@@ -81,7 +81,7 @@ func (suite *BurnTxAPIPositiveSuite) Test_BurnNFTFromOwnerAccountAPIPositive() {
 				utl.TxInfoCheck(suite.T(), ttx.WtErr.ErrWtGo, ttx.WtErr.ErrWtScala,
 					errMsg)
 
-				//burn NFT from Account 3
+				// burn NFT from Account 3
 				tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset := burn.BroadcastBurnTxAndGetBalances(
 					&suite.BaseSuite, td, v, true)
 				errMsg = fmt.Sprintf("Case: %s; Broadcast Burn tx: %s", caseName, tx.TxID.String())
@@ -107,7 +107,7 @@ func (suite *BurnTxAPINegativeSuite) Test_BurnTxAPINegative() {
 		reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 		itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 		tdmatrix := testdata.GetBurnNegativeDataMatrix(&suite.BaseSuite, itx.TxID)
-		//TODO (ipereiaslavskaia) For v1 of burn tx negative cases for chainID will be ignored
+		// TODO (ipereiaslavskaia) For v1 of burn tx negative cases for chainID will be ignored
 		if v >= 2 {
 			maps.Copy(tdmatrix, testdata.GetBurnChainIDNegativeDataMatrix(&suite.BaseSuite, itx.TxID))
 		}
