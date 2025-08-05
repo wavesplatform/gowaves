@@ -20,10 +20,10 @@ var (
 )
 
 type stateInfo struct {
-	Version            uint16 `cbor:"0,keyasint,omitemtpy"`
-	Amend              bool   `cbor:"1,keyasint,omitemtpy"`
-	HasExtendedApiData bool   `cbor:"2,keyasint,omitemtpy"`
-	HasStateHashes     bool   `cbor:"3,keyasint,omitemtpy"`
+	Version            uint16 `cbor:"0,keyasint,omitempty"`
+	Amend              bool   `cbor:"1,keyasint,omitempty"`
+	HasExtendedAPIData bool   `cbor:"2,keyasint,omitempty"`
+	HasStateHashes     bool   `cbor:"3,keyasint,omitempty"`
 }
 
 func (inf *stateInfo) marshalBinary() ([]byte, error) {
@@ -44,7 +44,7 @@ func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
 	}
 	info := &stateInfo{
 		Version:            StateVersion,
-		HasExtendedApiData: params.StoreExtendedApiData,
+		HasExtendedAPIData: params.StoreExtendedApiData,
 		HasStateHashes:     params.BuildStateHashes,
 	}
 	return putStateInfoToDB(db, info)
@@ -360,7 +360,7 @@ func (s *stateDB) stateStoresApiData() (bool, error) {
 	if err != nil {
 		return false, err
 	}
-	return info.HasExtendedApiData, nil
+	return info.HasExtendedAPIData, nil
 }
 
 func (s *stateDB) calculateNewRollbackMinHeight(newHeight uint64) (uint64, error) {

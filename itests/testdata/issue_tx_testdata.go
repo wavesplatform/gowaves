@@ -112,7 +112,7 @@ func GetCommonIssueData(suite *f.BaseSuite) CommonIssueData {
 			100000000000,
 			4,
 			true,
-			readScript(suite, "script_for_common_usage.base64"),
+			readAssetScript(suite, "script_for_common_usage.base64"),
 			utl.MinIssueFeeWaves,
 			utl.GetCurrentTimestampInMs(),
 			utl.TestChainID,

@@ -2,20 +2,20 @@ package node
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"reflect"
 	"sync"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/logging"
-	"github.com/wavesplatform/gowaves/pkg/node/network"
-
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
+	"github.com/wavesplatform/gowaves/pkg/node/network"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -47,14 +47,16 @@ type Node struct {
 	microblockInterval time.Duration
 	obsolescence       time.Duration
 	enableLightMode    bool
+	netLogger          *slog.Logger
+	fsmLogger          *slog.Logger
 }
 
 func NewNode(
 	services services.Services, declAddr proto.TCPAddr, bindAddr proto.TCPAddr, microblockInterval time.Duration,
-	enableLightMode bool,
+	enableLightMode bool, netLogger, fsmLogger *slog.Logger,
 ) *Node {
 	if bindAddr.EmptyNoPort() {
-		zap.S().Warnf("Bind IP address and port are empty, using declared address %q", declAddr.String())
+		slog.Warn("Bind IP address and port are empty, using declared address", "address", declAddr.String())
 		bindAddr = declAddr
 	}
 	return &Node{
@@ -67,6 +69,8 @@ func NewNode(
 		services:           services,
 		microblockInterval: microblockInterval,
 		enableLightMode:    enableLightMode,
+		netLogger:          netLogger,
+		fsmLogger:          fsmLogger,
 	}
 }
 
@@ -81,10 +85,6 @@ func (a *Node) SpawnOutgoingConnections(ctx context.Context) {
 	a.peers.SpawnOutgoingConnections(ctx)
 }
 
-func (a *Node) SpawnOutgoingConnection(ctx context.Context, addr proto.TCPAddr) error {
-	return a.peers.Connect(ctx, addr)
-}
-
 func (a *Node) serveIncomingPeers(ctx context.Context) error {
 	var wg sync.WaitGroup
 	defer wg.Wait()
@@ -94,16 +94,16 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 
 	// if empty declared address, listen on port doesn't make sense
 	if a.declAddr.Empty() {
-		zap.S().Warn("Declared IP address is empty")
+		slog.Warn("Declared IP address is empty")
 		return nil
 	}
 
 	if a.bindAddr.EmptyNoPort() {
-		zap.S().Warn("Bind IP address and port are empty")
+		slog.Warn("Bind IP address and port are empty")
 		return nil
 	}
 
-	zap.S().Infof("Start listening on %s", a.bindAddr.String())
+	slog.Info("Start listening", "address", a.bindAddr.String())
 	var lc net.ListenConfig
 	l, err := lc.Listen(ctx, "tcp", a.bindAddr.String())
 	if err != nil {
@@ -116,24 +116,25 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 		defer wg.Done()
 		<-ctx.Done()
 		if clErr := l.Close(); clErr != nil {
-			zap.S().Errorf("Failed to close %T on addr %q: %v", l, l.Addr().String(), clErr)
+			slog.Error("Failed to close listener", slog.String("address", l.Addr().String()),
+				logging.Error(clErr))
 		}
 	}()
 
 	for {
-		conn, err := l.Accept()
-		if err != nil {
+		conn, acErr := l.Accept()
+		if acErr != nil {
 			if ctx.Err() != nil { // context has been canceled
 				return nil
 			}
-			zap.S().Errorf("Failed to accept new peer: %v", err)
+			slog.Error("Failed to accept new peer", logging.Error(acErr))
 			continue
 		}
 
 		go func() {
-			if err := a.peers.SpawnIncomingConnection(ctx, conn); err != nil {
-				zap.S().Named(logging.NetworkNamespace).Debugf("Incoming connection failed with addr %q: %v",
-					conn.RemoteAddr().String(), err)
+			if sErr := a.peers.SpawnIncomingConnection(ctx, conn); sErr != nil {
+				a.netLogger.Debug("Failed to establish incoming connection",
+					slog.String("address", conn.RemoteAddr().String()), logging.Error(sErr))
 				return
 			}
 		}()
@@ -145,9 +146,9 @@ func (a *Node) logErrors(err error) {
 	_ = error(infoMsg) // compile time check
 	switch {
 	case errors.As(err, &infoMsg):
-		zap.S().Named(logging.FSMNamespace).Debugf("Error: %v", infoMsg)
+		a.netLogger.Debug("Node failure", logging.Error(infoMsg))
 	default:
-		zap.S().Errorf("%v", err)
+		slog.Error("Node failure", logging.Error(err))
 	}
 }
 
@@ -155,16 +156,20 @@ func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
 ) {
+	messageCh, protoMessagesLenProvider, wg := deduplicateProtoTxMessages(ctx, p.MessageCh)
+	defer wg.Wait()
+
 	go a.runOutgoingConnections(ctx)
-	go a.runInternalMetrics(ctx, p.MessageCh)
+	go a.runInternalMetrics(ctx, protoMessagesLenProvider)
 	go a.runIncomingConnections(ctx)
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
 
 	// TODO: Consider using context `ctx` in FSM, for now FSM works in the background context.
-	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer, a.enableLightMode)
+	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer, a.enableLightMode,
+		a.fsmLogger, a.netLogger)
 	if err != nil {
-		zap.S().Errorf("Failed to create FSM: %v", err)
+		slog.Error("Failed to create FSM", logging.Error(err))
 		return
 	}
 	spawnAsync(ctx, tasksCh, async)
@@ -186,7 +191,7 @@ func (a *Node) Run(
 				default:
 				}
 			default:
-				zap.S().Errorf("[%s] Unknown internal message '%T'", m.State.State, t)
+				slog.Error("Unknown internal message", slog.Any("state", m.State.State), logging.Type(t))
 				continue
 			}
 		case task := <-tasksCh:
@@ -202,18 +207,18 @@ func (a *Node) Run(
 			case network.StopMining:
 				async, err = m.StopMining()
 			default:
-				zap.S().Warnf("[%s] Unknown network info message '%T'", m.State.State, msg)
+				slog.Warn("Unknown network info message", slog.Any("state", m.State.State), logging.Type(msg))
 			}
-		case mess := <-p.MessageCh:
-			zap.S().Named(logging.FSMNamespace).Debugf("[%s] Network message '%T' received from '%s'",
-				m.State.State, mess.Message, mess.ID.ID())
+		case mess := <-messageCh:
+			a.fsmLogger.Debug("Network message received", slog.Any("state", m.State.State),
+				logging.Type(mess.Message), slog.Any("peer", mess.ID.ID()))
 			action, ok := actions[reflect.TypeOf(mess.Message)]
 			if !ok {
-				zap.S().Errorf("[%s] Unknown network message '%T' from '%s'",
-					m.State.State, mess.Message, mess.ID.ID())
+				slog.Error("Unknown network message", slog.Any("state", m.State.State),
+					logging.Type(mess.Message), slog.Any("peer", mess.ID.ID()))
 				continue
 			}
-			async, err = action(a.services, mess, m)
+			async, err = action(a.services, mess, m, a.netLogger)
 		}
 		if err != nil {
 			a.logErrors(err)
@@ -224,24 +229,25 @@ func (a *Node) Run(
 
 func (a *Node) runIncomingConnections(ctx context.Context) {
 	if err := a.serveIncomingPeers(ctx); err != nil && !errors.Is(err, context.Canceled) {
-		zap.S().Errorf("Failed to continue serving incoming peers: %v", err)
+		slog.Error("Failed to continue serving incoming peers", logging.Error(err))
 	}
 }
 
-func (a *Node) runInternalMetrics(ctx context.Context, ch chan peer.ProtoMessage) {
+type lenProvider interface {
+	Len() int
+}
+
+func (a *Node) runInternalMetrics(ctx context.Context, protoMessagesChan lenProvider) {
+	ticker := time.NewTicker(metricInternalChannelSizeUpdateInterval)
+	defer ticker.Stop()
 	for {
-		timer := time.NewTimer(metricInternalChannelSizeUpdateInterval)
 		select {
 		case <-ctx.Done():
-			if !timer.Stop() {
-				select {
-				case <-timer.C:
-				default:
-				}
-			}
 			return
-		case <-timer.C:
-			metricInternalChannelSize.Set(float64(len(ch)))
+		case <-ticker.C:
+			l := protoMessagesChan.Len()
+			metrics.FSMChannelLength(l)
+			metricInternalChannelSize.Set(float64(l))
 		}
 	}
 }
@@ -269,7 +275,7 @@ func spawnAsync(ctx context.Context, ch chan tasks.AsyncTask, a fsm.Async) {
 		go func(t tasks.Task) {
 			err := t.Run(ctx, ch)
 			if err != nil && !errors.Is(err, context.Canceled) {
-				zap.S().Warnf("Async task '%T' finished with error: %q", t, err)
+				slog.Warn("Async task finished with error", logging.Type(t), logging.Error(err))
 			}
 		}(t)
 	}

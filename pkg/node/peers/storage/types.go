@@ -43,10 +43,10 @@ func (kp *KnownPeer) String() string {
 }
 
 type restrictedPeer struct {
-	IP                      IP            `cbor:"0,keyasint,omitemtpy"`
-	RestrictTimestampMillis int64         `cbor:"1,keyasint,omitemtpy"`
-	RestrictDuration        time.Duration `cbor:"2,keyasint,omitemtpy"`
-	Reason                  string        `cbor:"3,keyasint,omitemtpy"`
+	IP                      IP            `cbor:"0,keyasint,omitempty"`
+	RestrictTimestampMillis int64         `cbor:"1,keyasint,omitempty"`
+	RestrictDuration        time.Duration `cbor:"2,keyasint,omitempty"`
+	Reason                  string        `cbor:"3,keyasint,omitempty"`
 }
 
 func (sp *restrictedPeer) RestrictTime() time.Time {
@@ -113,12 +113,9 @@ func (a knownPeers) OldestFirst(limit int) []KnownPeer {
 		i++
 	}
 	sort.Sort(ps)
-	l := len(ps)
-	if l > limit {
-		l = limit
-	}
+	l := min(len(ps), limit)
 	r := make([]KnownPeer, l)
-	for i := 0; i < l; i++ {
+	for i := range l {
 		r[i] = ps[i].peer
 	}
 	return r

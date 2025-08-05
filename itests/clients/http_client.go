@@ -28,7 +28,7 @@ func NewHTTPClient(t *testing.T, impl Implementation, port string) *HTTPClient {
 		ApiKey:  d.DefaultAPIKey,
 		ChainID: 'L', // I tried to use constant `utilities.TestChainID`, but after all decided that a little duplication is better in this case.
 	})
-	require.NoError(t, err, "couldn't create %s node HTTP API client", impl.String())
+	require.NoErrorf(t, err, "couldn't create %s node HTTP API client", impl.String())
 	return &HTTPClient{
 		impl: impl,
 		cli:  c,
@@ -42,7 +42,7 @@ func (c *HTTPClient) GetHeight(t *testing.T, opts ...config.WaitOption) *client.
 	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
 	h, _, err := c.cli.Blocks.Height(ctx)
-	require.NoError(t, err, "failed to get height from %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to get height from %s node", c.impl.String())
 	return h
 }
 
@@ -51,7 +51,7 @@ func (c *HTTPClient) StateHash(t *testing.T, height uint64, opts ...config.WaitO
 	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
 	stateHash, _, err := c.cli.Debug.StateHash(ctx, height)
-	require.NoError(t, err, "failed to get stateHash from %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to get stateHash from %s node", c.impl.String())
 	return stateHash
 }
 
@@ -59,7 +59,7 @@ func (c *HTTPClient) PrintMsg(t *testing.T, msg string) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	_, err := c.cli.Debug.PrintMsg(ctx, msg)
-	require.NoError(t, err, "failed to send Msg to %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to send Msg to %s node", c.impl.String())
 }
 
 func (c *HTTPClient) GetAssetDetails(assetID crypto.Digest) (*client.AssetsDetail, error) {
@@ -73,7 +73,7 @@ func (c *HTTPClient) TransactionInfo(t *testing.T, id crypto.Digest) proto.Trans
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	info, _, err := c.cli.Transactions.Info(ctx, id)
-	require.NoError(t, err, "failed to get TransactionInfo from %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to get TransactionInfo from %s node", c.impl.String())
 	return info
 }
 
@@ -93,7 +93,7 @@ func (c *HTTPClient) WavesBalance(t *testing.T, address proto.WavesAddress) *cli
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	balance, _, err := c.cli.Addresses.Balance(ctx, address)
-	require.NoError(t, err, "failed to get waves balance from %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to get waves balance from %s node", c.impl.String())
 	return balance
 }
 
@@ -103,7 +103,7 @@ func (c *HTTPClient) AssetBalance(
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	balance, _, err := c.cli.Assets.BalanceByAddressAndAsset(ctx, address, assetID)
-	require.NoError(t, err, "failed to get asset balance from %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to get asset balance from %s node", c.impl.String())
 	return balance
 }
 
@@ -123,7 +123,7 @@ func (c *HTTPClient) BlockHeader(t *testing.T, height proto.Height) *client.Head
 	defer cancel()
 
 	header, _, err := c.cli.Blocks.HeadersAt(ctx, height)
-	require.NoError(t, err, "failed to get block header from %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to get block header from %s node", c.impl.String())
 	return header
 }
 
@@ -132,7 +132,7 @@ func (c *HTTPClient) Rewards(t *testing.T) *client.RewardInfo {
 	defer cancel()
 
 	rewardInfo, _, err := c.cli.Blockchain.Rewards(ctx)
-	require.NoError(t, err, "failed to get rewards from %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to get rewards from %s node", c.impl.String())
 	return rewardInfo
 }
 
@@ -141,7 +141,7 @@ func (c *HTTPClient) RewardsAtHeight(t *testing.T, height proto.Height) *client.
 	defer cancel()
 
 	rewardInfo, _, err := c.cli.Blockchain.RewardsAtHeight(ctx, height)
-	require.NoError(t, err, "failed to get rewards from %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to get rewards from %s node", c.impl.String())
 	return rewardInfo
 }
 
@@ -150,6 +150,6 @@ func (c *HTTPClient) RollbackToHeight(t *testing.T, height uint64, returnTxToUtx
 	defer cancel()
 
 	blockID, _, err := c.cli.Debug.RollbackToHeight(ctx, height, returnTxToUtx)
-	require.NoError(t, err, "failed to rollback to height on %s node", c.impl.String())
+	require.NoErrorf(t, err, "failed to rollback to height on %s node", c.impl.String())
 	return blockID
 }

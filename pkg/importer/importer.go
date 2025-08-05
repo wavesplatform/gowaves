@@ -3,12 +3,12 @@ package importer
 import (
 	"context"
 	"encoding/json"
+	"log/slog"
 	"os"
 	"path/filepath"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -92,17 +92,18 @@ func ApplyFromFile(
 	}
 	defer func() {
 		if clErr := imp.Close(); clErr != nil {
-			zap.S().Fatalf("Failed to close importer: %v", clErr)
+			slog.Error("Failed to close importer", logging.Error(clErr))
+			panic(clErr)
 		}
 	}()
-	zap.S().Infof("Skipping to height %d", startHeight)
+	slog.Info("Skipping to height", "height", startHeight)
 	if err = imp.SkipToHeight(ctx, startHeight); err != nil {
 		return errors.Wrap(err, "failed to skip to state height")
 	}
 	if params.LightNodeMode {
-		zap.S().Infof("Start importing %d blocks in light mode", nBlocks)
+		slog.Info("Starting import in light mode", "blocks", nBlocks)
 	} else {
-		zap.S().Infof("Start importing %d blocks in full mode", nBlocks)
+		slog.Info("Starting import in full mode", "blocks", nBlocks)
 	}
 	return imp.Import(ctx, nBlocks)
 }
@@ -132,7 +133,8 @@ func CheckBalances(st State, balancesPath string) error {
 	}
 	defer func() {
 		if closeErr := balances.Close(); closeErr != nil {
-			zap.S().Fatalf("Failed to close balances file: %v", closeErr)
+			slog.Error("Failed to close balances file", logging.Error(closeErr))
+			panic(closeErr)
 		}
 	}()
 	var state map[string]uint64

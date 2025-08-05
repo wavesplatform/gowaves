@@ -2,12 +2,14 @@ package fsm
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
+	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/ng"
@@ -81,18 +83,21 @@ type BaseInfo struct {
 	syncPeer *network.SyncPeer
 
 	enableLightMode bool
+	logger          *slog.Logger
+	netLogger       *slog.Logger
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
 	a.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
 		if p != receivedFrom {
-			_ = extension.NewPeerExtension(p, a.scheme).SendTransaction(t)
+			_ = extension.NewPeerExtension(p, a.scheme, a.netLogger).SendTransaction(t)
 		}
 	})
 }
 
 func (a *BaseInfo) CleanUtx() {
 	utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
+	metrics.Utx(a.utx.Count())
 }
 
 // States.
@@ -150,6 +155,7 @@ func NewFSM(
 	microblockInterval, obsolescence time.Duration,
 	syncPeer *network.SyncPeer,
 	enableLightMode bool,
+	logger, netLogger *slog.Logger,
 ) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
@@ -173,7 +179,7 @@ func NewFSM(
 		MicroBlockInvCache: microblock_cache.NewMicroblockInvCache(),
 		microblockInterval: microblockInterval,
 
-		actions: &ActionsImpl{services: services},
+		actions: &ActionsImpl{services: services, logger: logger},
 
 		utx: services.UtxPool,
 
@@ -182,9 +188,11 @@ func NewFSM(
 		skipMessageList: services.SkipMessageList,
 		syncPeer:        syncPeer,
 		enableLightMode: enableLightMode,
+		logger:          logger,
+		netLogger:       netLogger,
 	}
 
-	info.scheduler.Reschedule()
+	info.scheduler.Reschedule() // Reschedule mining just before starting the FSM (i.e. before starting the node).
 
 	state := &StateData{
 		Name:  IdleStateName,

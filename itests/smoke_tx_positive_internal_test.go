@@ -141,7 +141,9 @@ func (suite *SmokeTxPositiveSuite) TestSponsorshipTxSmokePositive() {
 func (suite *SmokeTxPositiveSuite) Test_TransferTxSmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	aliasStr := utl.RandStringBytes(15, testdata.AliasSymbolSet)
-	alias.SetAliasToAccount(&suite.BaseSuite, v, utl.TestChainID, aliasStr, utl.DefaultRecipientNotMiner)
+	account := utl.GetAccount(&suite.BaseSuite, utl.DefaultRecipientNotMiner)
+	alias.SetAliasToAccount(&suite.BaseSuite, v, utl.TestChainID, aliasStr,
+		&account, utl.MinTxFeeWaves)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 	itx := issue.SendWithTestData(&suite.BaseSuite, reissuable, v, true)
 	tdmatrix := testdata.GetTransferPositiveData(&suite.BaseSuite, itx.TxID, aliasStr)

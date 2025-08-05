@@ -7,6 +7,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"math"
 	"math/big"
 	"net/http"
@@ -19,9 +20,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	"golang.org/x/sync/errgroup"
 
 	"github.com/wavesplatform/gowaves/pkg/api"
@@ -60,6 +58,12 @@ const (
 	fileDescriptorsReserve = 10
 )
 
+const (
+	netNamespace     = "NET"
+	netDataNamespace = "NET.DATA"
+	fsmNamespace     = "FSM"
+)
+
 const profilerAddr = "localhost:6060"
 
 const utxPoolMaxSizeBytes = 1024 * mb
@@ -71,9 +75,9 @@ var defaultPeers = map[string]string{
 }
 
 type config struct {
-	isParsed                      bool
-	logLevel                      zapcore.Level
-	logDevelopment                bool
+	isParsed bool
+
+	lp                            logging.Parameters
 	logNetwork                    bool
 	logNetworkData                bool
 	logFSM                        bool
@@ -117,9 +121,10 @@ type config struct {
 	disableNTP                    bool
 	microblockInterval            time.Duration
 	enableLightMode               bool
+	generateInPast                bool
 	enableBlockchainUpdatesPlugin bool
 	blockchainUpdatesL2Address    string
-	generateInPast                bool
+	h                             slog.Handler
 }
 
 var errConfigNotParsed = stderrs.New("config is not parsed")
@@ -138,43 +143,23 @@ func (c *config) StatePath() (string, error) {
 	return path, nil
 }
 
-func (c *config) logParameters() {
-	zap.S().Debugf("log-level: %s", c.logLevel)
-	zap.S().Debugf("log-dev: %t", c.logDevelopment)
-	zap.S().Debugf("log-network: %t", c.logNetwork)
-	zap.S().Debugf("log-fsm: %t", c.logFSM)
-	zap.S().Debugf("state-path: %s", c.statePath)
-	zap.S().Debugf("blockchain-type: %s", c.blockchainType)
-	zap.S().Debugf("peers: %s", c.peerAddresses)
-	zap.S().Debugf("declared-address: %s", c.declAddr)
-	zap.S().Debugf("api-address: %s", c.apiAddr)
-	zap.S().Debugf("api-key: %s", crypto.MustKeccak256([]byte(c.apiKey)).Hex())
-	zap.S().Debugf("grpc-address: %s", c.grpcAddr)
-	zap.S().Debugf("enable-grpc-api: %t", c.enableGrpcAPI)
-	zap.S().Debugf("black-list-residence-time: %s", c.blackListResidenceTime)
-	zap.S().Debugf("build-extended-api: %t", c.buildExtendedAPI)
-	zap.S().Debugf("serve-extended-api: %t", c.serveExtendedAPI)
-	zap.S().Debugf("build-state-hashes: %t", c.buildStateHashes)
-	zap.S().Debugf("bind-address: %s", c.bindAddress)
-	zap.S().Debugf("vote: %s", c.minerVoteFeatures)
-	zap.S().Debugf("reward: %d", c.reward)
-	zap.S().Debugf("obsolescence: %s", c.obsolescencePeriod)
-	zap.S().Debugf("disable-miner %t", c.disableMiner)
-	zap.S().Debugf("wallet-path: %s", c.walletPath)
-	zap.S().Debugf("hashed wallet-password: %s", crypto.MustKeccak256([]byte(c.walletPassword)).Hex())
-	zap.S().Debugf("limit-connections: %d", c.limitAllConnections)
-	zap.S().Debugf("profiler: %t", c.profiler)
-	zap.S().Debugf("disable-bloom: %t", c.disableBloomFilter)
-	zap.S().Debugf("drop-peers: %t", c.dropPeers)
-	zap.S().Debugf("db-file-descriptors: %v", c.dbFileDescriptors)
-	zap.S().Debugf("new-connections-limit: %v", c.newConnectionsLimit)
-	zap.S().Debugf("enable-metamask: %t", c.enableMetaMaskAPI)
-	zap.S().Debugf("disable-ntp: %t", c.disableNTP)
-	zap.S().Debugf("microblock-interval: %s", c.microblockInterval)
-	zap.S().Debugf("enable-light-mode: %t", c.enableLightMode)
-	zap.S().Debugf("enable-blockchain-updates-plugin: %t", c.enableBlockchainUpdatesPlugin)
-	zap.S().Debugf("l2-contract-address: %s", c.blockchainUpdatesL2Address)
-	zap.S().Debugf("generate-in-past: %t", c.generateInPast)
+func (c *config) String() string {
+	return fmt.Sprintf("{Logger: %s, log-network: %t, log-fsm: %t, state-path: %s, blockchain-type: %s, "+
+		"peers: %s, declared-address: %s, api-address: %s, api-key: %s, grpc-address: %s, "+
+		"enable-grpc-api: %t, black-list-residence-time: %s, build-extended-api: %t, serve-extended-api: %t, "+
+		"build-state-hashes: %t, bind-address: %s, vote: %s, reward: %d, obsolescence: %s, disable-miner: %t, "+
+		"wallet-path: %s, hashed wallet-password: %s, limit-connections: %d, profiler: %t, "+
+		"disable-bloom: %t, drop-peers: %t, db-file-descriptors: %d, new-connections-limit: %d, "+
+		"enable-metamask: %t, disable-ntp: %t, microblock-interval: %s, enable-light-mode: %t, generate-in-past: %t, "+
+		"enable-blockchain-updates-plugin: %t, l2-contract-address: %s}",
+		c.lp.String(), c.logNetwork, c.logFSM, c.statePath, c.blockchainType,
+		c.peerAddresses, c.declAddr, c.apiAddr, crypto.MustKeccak256([]byte(c.apiKey)).Hex(), c.grpcAddr,
+		c.enableGrpcAPI, c.blackListResidenceTime, c.buildExtendedAPI, c.serveExtendedAPI,
+		c.buildStateHashes, c.bindAddress, c.minerVoteFeatures, c.reward, c.obsolescencePeriod, c.disableMiner,
+		c.walletPath, crypto.MustKeccak256([]byte(c.walletPassword)).Hex(), c.limitAllConnections, c.profiler,
+		c.disableBloomFilter, c.dropPeers, c.dbFileDescriptors, c.newConnectionsLimit,
+		c.enableMetaMaskAPI, c.disableNTP, c.microblockInterval, c.enableLightMode, c.generateInPast,
+		c.enableBlockchainUpdatesPlugin, c.blockchainUpdatesL2Address)
 }
 
 func (c *config) parse() {
@@ -189,10 +174,7 @@ func (c *config) parse() {
 		defaultNewConnectionLimit         = 10
 		defaultMicroblockInterval         = 5 * time.Second
 	)
-	l := zap.LevelFlag("log-level", zapcore.InfoLevel,
-		"Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL.")
-	flag.BoolVar(&c.logDevelopment, "log-dev", false,
-		"Log with development setup for the logger. Switched off by default.")
+	c.lp = logging.Parameters{}
 	flag.BoolVar(&c.logNetwork, "log-network", false,
 		"Log the operation of network stack. Turned off by default.")
 	flag.BoolVar(&c.logNetworkData, "log-network-data", false,
@@ -278,22 +260,8 @@ func (c *config) parse() {
 		"Specify the smart contract address from which the updates will be pulled")
 	flag.BoolVar(&c.generateInPast, "generate-in-past", false,
 		"Enable block generation with timestamp in the past")
+	c.lp.Initialize()
 	flag.Parse()
-	c.logLevel = *l
-}
-
-func loggerSetup(nc *config) func() {
-	logger := logging.SetupLogger(nc.logLevel,
-		logging.DevelopmentFlag(nc.logDevelopment),
-		logging.NetworkFilter(nc.logNetwork),
-		logging.NetworkDataFilter(nc.logNetworkData),
-		logging.FSMFilter(nc.logFSM),
-	)
-	return func() {
-		if err := logger.Sync(); err != nil && stderrs.Is(err, os.ErrInvalid) {
-			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
-		}
-	}
 }
 
 type Scheduler interface {
@@ -309,20 +277,24 @@ func main() {
 func realMain() int {
 	nc := new(config)
 	nc.parse()
-	syncFn := loggerSetup(nc)
-	defer syncFn()
+	if err := nc.lp.Parse(); err != nil {
+		slog.Error("Failed to parse application parameters", logging.Error(err))
+		return 1
+	}
+	nc.h = logging.DefaultHandler(nc.lp)
+	slog.SetDefault(slog.New(nc.h))
 	err := run(nc)
 	if err != nil {
-		zap.S().Errorf("Failed to run: %v", err)
+		slog.Error("Failed to run node", logging.Error(err))
 		return 1
 	}
 	return 0
 }
 
 func run(nc *config) (retErr error) {
-	errg, ctx := errgroup.WithContext(context.Background())
+	eg, ctx := errgroup.WithContext(context.Background())
 	defer func() {
-		if wErr := errg.Wait(); !errors.Is(wErr, context.Canceled) {
+		if wErr := eg.Wait(); !errors.Is(wErr, context.Canceled) {
 			retErr = stderrs.Join(retErr, wErr)
 		}
 	}()
@@ -330,21 +302,20 @@ func run(nc *config) (retErr error) {
 	defer cancel()
 
 	if nc.profiler {
-		errg.Go(func() error {
+		eg.Go(func() error {
 			<-runProfiler(ctx)
 			return nil
 		})
 	}
 	if nc.prometheus != "" {
-		errg.Go(func() error {
+		eg.Go(func() error {
 			<-runPrometheusMetricsServer(ctx, nc.prometheus)
 			return nil
 		})
 	}
 
-	zap.S().Infof("Gowaves Node version: %s", versioning.Version)
-
-	nc.logParameters() // print all parsed parameters
+	slog.Info("Gowaves Node", "version", versioning.Version)
+	slog.Debug("Starting with parameters", "parameters", nc.String())
 
 	if err := raiseToMaxFDs(nc); err != nil { // raiseToMaxFDs raises the limit of file descriptors
 		return errors.Wrap(err, "failed to raise file descriptors limit")
@@ -353,10 +324,10 @@ func run(nc *config) (retErr error) {
 	if nc.metricsURL != "" && nc.metricsID != -1 {
 		err := metrics.Start(ctx, nc.metricsID, nc.metricsURL)
 		if err != nil {
-			zap.S().Warnf("Metrics reporting failed to start: %v", err)
-			zap.S().Warn("Proceeding without reporting any metrics")
+			slog.Warn("Metrics reporting failed to start", logging.Error(err))
+			slog.Warn("Proceeding without reporting any metrics")
 		} else {
-			zap.S().Info("Metrics reporting activated")
+			slog.Info("Metrics reporting activated")
 		}
 	}
 
@@ -366,7 +337,7 @@ func run(nc *config) (retErr error) {
 	}
 
 	<-ctx.Done()
-	zap.S().Info("User termination in progress...")
+	slog.Info("User termination in progress...")
 	defer func() { <-time.After(1 * time.Second) }() // give some time to close internal node processes
 	if clErr := nodeCloser.Close(); clErr != nil {
 		return errors.Wrap(clErr, "failed to close node")
@@ -450,11 +421,11 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 			publshrErr := bUpdatesExtension.RunBlockchainUpdatesPublisher(ctx,
 				cfg.AddressSchemeCharacter)
 			if publshrErr != nil {
-				zap.S().Fatalf("Failed to run blockchain updates publisher: %v", publshrErr)
+				slog.Error("Failed to run blockchain updates publisher", logging.Error(publshrErr))
 			}
 		}()
-		zap.S().Info("The blockchain info extension started pulling info from smart contract address",
-			nc.blockchainUpdatesL2Address)
+		slog.Info("The blockchain info extension started pulling info from smart contract address",
+			"address", nc.blockchainUpdatesL2Address)
 	}
 
 	features, err := minerFeatures(st, nc.minerVoteFeatures)
@@ -463,14 +434,17 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	}
 
 	// Check if we need to start serving extended API right now.
-	if eapiErr := node.MaybeEnableExtendedApi(st, ntpTime); eapiErr != nil {
-		return nil, errors.Wrap(eapiErr, "failed to enable extended API")
+	if eaErr := node.MaybeEnableExtendedApi(st, ntpTime); eaErr != nil {
+		return nil, errors.Wrap(eaErr, "failed to enable extended API")
 	}
 
 	parent := peer.NewParent(nc.enableLightMode)
 	declAddr := proto.NewTCPAddrFromString(conf.DeclaredAddr)
 
-	peerManager, err := createPeerManager(nc, conf, parent, declAddr)
+	nl := buildLogger(nc.h, netNamespace, nc.logNetwork)
+	ndl := buildLogger(nc.h, netDataNamespace, nc.logNetworkData)
+
+	peerManager, err := createPeerManager(nc, conf, parent, declAddr, nl, ndl)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create peer manager")
 	}
@@ -492,7 +466,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to initialize application")
 	}
 
-	if pErr := spawnPeersByAddresses(ctx, conf.Addresses, peerManager); pErr != nil {
+	if pErr := spawnPeersByAddresses(conf.Addresses, peerManager); pErr != nil {
 		return nil, errors.Wrap(pErr, "failed to spawn peers by addresses")
 	}
 
@@ -500,7 +474,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(apiErr, "failed to run APIs")
 	}
 
-	return startNode(ctx, nc, svs, features, minerScheduler, parent, declAddr), nil
+	return startNode(ctx, nc, svs, features, minerScheduler, parent, declAddr, nl), nil
 }
 
 func startNode(
@@ -511,21 +485,28 @@ func startNode(
 	minerScheduler Scheduler,
 	parent peer.Parent,
 	declAddr proto.TCPAddr,
+	nl *slog.Logger,
 ) *node.Node {
 	bindAddr := proto.NewTCPAddrFromString(nc.bindAddress)
 
 	mine := miner.NewMicroblockMiner(svs, features, nc.reward)
 	go miner.Run(ctx, mine, minerScheduler, svs.InternalChannel)
 
-	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod)
+	fl := buildLogger(nc.h, fsmNamespace, nc.logFSM)
+
+	ntw, networkInfoCh := network.NewNetwork(svs, parent, nc.obsolescencePeriod, nl)
 	go ntw.Run(ctx)
 
-	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode)
+	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode, nl, fl)
 	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer())
-
-	go minerScheduler.Reschedule() // Reschedule mining after node start
-
 	return n
+}
+
+func buildLogger(h slog.Handler, namespace string, enabled bool) *slog.Logger {
+	if !enabled {
+		return slog.New(slog.DiscardHandler)
+	}
+	return slog.New(h).With(slog.String(logging.NamespaceKey, namespace))
 }
 
 func raiseToMaxFDs(nc *config) error {
@@ -601,13 +582,14 @@ func runProfiler(ctx context.Context) <-chan struct{} {
 		ReadTimeout:       defaultTimeout,
 	}
 	s.RegisterOnShutdown(func() {
-		zap.S().Info("Profiler is shutting down...")
+		slog.Info("Profiler is shutting down...")
 	})
 	go func() {
-		zap.S().Infof("Starting built-in profiler on 'http://%s/debug/pprof/'", profilerAddr)
+		slog.Info("Starting built-in profiler",
+			"URL", fmt.Sprintf("http://%s/debug/pprof/", profilerAddr))
 		err := s.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			zap.S().Errorf("Failed to start profiler: %v", err)
+			slog.Error("Failed to start profiler", logging.Error(err))
 		}
 	}()
 	done := make(chan struct{})
@@ -617,7 +599,7 @@ func runProfiler(ctx context.Context) <-chan struct{} {
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := s.Shutdown(shutdownCtx); err != nil {
-			zap.S().Errorf("Failed to shutdown profiler: %v", err)
+			slog.Error("Failed to shutdown profiler", logging.Error(err))
 		}
 	}()
 	return done
@@ -633,13 +615,13 @@ func runPrometheusMetricsServer(ctx context.Context, prometheusAddr string) <-ch
 		ReadTimeout:       defaultTimeout,
 	}
 	s.RegisterOnShutdown(func() {
-		zap.S().Info("Prometheus metrics server is shutting down...")
+		slog.Info("Prometheus metrics server is shutting down...")
 	})
 	go func() {
-		zap.S().Infof("Starting prometheus metrics server on '%s'", prometheusAddr)
+		slog.Info("Starting prometheus metrics server", "address", prometheusAddr)
 		err := s.ListenAndServe()
 		if err != nil && !errors.Is(err, http.ErrServerClosed) {
-			zap.S().Errorf("Failed to start prometheus metrics server: %v", err)
+			slog.Error("Failed to start prometheus metrics server", logging.Error(err))
 		}
 	}()
 	done := make(chan struct{})
@@ -649,7 +631,7 @@ func runPrometheusMetricsServer(ctx context.Context, prometheusAddr string) <-ch
 		shutdownCtx, cancel := context.WithTimeout(context.Background(), shutdownTimeout)
 		defer cancel()
 		if err := s.Shutdown(shutdownCtx); err != nil {
-			zap.S().Errorf("Failed to shutdown prometheus: %v", err)
+			slog.Error("Failed to shutdown prometheus", logging.Error(err))
 		}
 	}()
 	return done
@@ -662,7 +644,7 @@ func runGRPCServer(ctx context.Context, addr string, nc *config, svs services.Se
 	}
 	go func() {
 		if runErr := srv.Run(ctx, addr, grpcAPIRunOptsFromCLIFlags(nc)); runErr != nil {
-			zap.S().Errorf("grpcServer.Run(): %v", runErr)
+			slog.Error("Failed to run gRPC server", logging.Error(runErr))
 		}
 	}()
 	return nil
@@ -692,12 +674,12 @@ func embeddedWallet(nc *config, scheme proto.Scheme) (types.EmbeddedWallet, erro
 	return wal, nil
 }
 
-func spawnPeersByAddresses(ctx context.Context, addressesByComma string, pm *peers.PeerManagerImpl) error {
+func spawnPeersByAddresses(addressesByComma string, pm *peers.PeerManagerImpl) error {
 	if addressesByComma == "" { // That means that we don't have any peers to connect to
 		return nil
 	}
-	addresses := strings.Split(addressesByComma, ",")
-	for _, addr := range addresses {
+	addresses := strings.SplitSeq(addressesByComma, ",")
+	for addr := range addresses {
 		peerInfos, err := proto.NewPeerInfosFromString(addr)
 		if err != nil {
 			return errors.Wrapf(err, "failed to resolve TCP addresses from string %q", addr)
@@ -709,7 +691,7 @@ func spawnPeersByAddresses(ctx context.Context, addressesByComma string, pm *pee
 					fmt.Stringer(pi.Addr), pi.Port,
 				)
 			}
-			if pErr := pm.AddAddress(ctx, tcpAddr); pErr != nil {
+			if pErr := pm.AddAddress(tcpAddr); pErr != nil {
 				// That means that we have problems with peers storage
 				return errors.Wrapf(pErr, "failed to add address %q into known peers storage", tcpAddr.String())
 			}
@@ -750,7 +732,7 @@ func minerFeatures(st state.State, minerVoteFeaturesByComma string) (miner.Featu
 	return features, nil
 }
 
-func closeIfErrorf(closer io.Closer, retErr error, format string, args ...interface{}) error {
+func closeIfErrorf(closer io.Closer, retErr error, format string, args ...any) error {
 	if retErr != nil {
 		if clErr := closer.Close(); clErr != nil {
 			return stderrs.Join(retErr, errors.Wrapf(clErr, format, args...))
@@ -764,6 +746,7 @@ func createPeerManager(
 	conf *settings.NodeSettings,
 	parent peer.Parent,
 	declAddr proto.TCPAddr,
+	logger, dl *slog.Logger,
 ) (*peers.PeerManagerImpl, error) {
 	nodeNonce, err := rand.Int(rand.Reader, new(big.Int).SetUint64(math.MaxInt32))
 	if err != nil {
@@ -777,6 +760,8 @@ func createPeerManager(
 		nc.nodeName,
 		nodeNonce.Uint64(),
 		proto.ProtocolVersion(),
+		logger,
+		dl,
 	)
 	peerStorage, err := peersPersistentStorage.NewCBORStorage(nc.statePath, time.Now())
 	if err != nil {
@@ -786,7 +771,7 @@ func createPeerManager(
 		if err := peerStorage.DropStorage(); err != nil {
 			return nil, errors.Wrap(err, "failed to drop peers storage (drop peers storage manually)")
 		}
-		zap.S().Info("Successfully dropped peers storage")
+		slog.Info("Successfully dropped peers storage")
 	}
 	return peers.NewPeerManager(
 		peerSpawnerImpl,
@@ -797,6 +782,7 @@ func createPeerManager(
 		!nc.disableOutgoingConnections,
 		nc.newConnectionsLimit,
 		nc.blackListResidenceTime,
+		logger,
 	), nil
 }
 
@@ -845,9 +831,10 @@ func runAPIs(
 
 	webAPI := api.NewNodeAPI(app, svs.State)
 	go func() {
-		zap.S().Infof("Starting node HTTP API on '%v'", conf.HttpAddr)
+		slog.Info("Starting node HTTP API", "address", conf.HttpAddr)
 		if runErr := api.Run(ctx, conf.HttpAddr, webAPI, apiRunOptsFromCLIFlags(nc)); runErr != nil {
-			zap.S().Errorf("Failed to start API: %v", runErr)
+			slog.Error("Failed to start API", logging.Error(runErr))
+
 		}
 	}()
 	return nil
@@ -904,7 +891,7 @@ func apiRunOptsFromCLIFlags(c *config) *api.RunOptions {
 			opts.EnableMetaMaskAPI = c.enableMetaMaskAPI
 			opts.EnableMetaMaskAPILog = c.enableMetaMaskAPILog
 		} else {
-			zap.S().Warn("'enable-metamask' flag requires activated 'build-extended-api' flag")
+			slog.Warn("'enable-metamask' flag requires activated 'build-extended-api' flag")
 		}
 	}
 	if c.rateLimiterOptions != "" {
@@ -912,7 +899,8 @@ func apiRunOptsFromCLIFlags(c *config) *api.RunOptions {
 		if err == nil {
 			opts.RateLimiterOpts = rlo
 		} else {
-			zap.S().Errorf("Invalid rate limiter options '%s': %v", c.rateLimiterOptions, err)
+			slog.Error("Invalid rate limiter options", slog.Any("options", c.rateLimiterOptions),
+				logging.Error(err))
 		}
 	}
 	return opts

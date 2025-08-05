@@ -1,6 +1,7 @@
 package keyvalue
 
 import (
+	"log/slog"
 	"sync"
 
 	"github.com/coocood/freecache"
@@ -8,8 +9,8 @@ import (
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/opt"
 	"github.com/syndtr/goleveldb/leveldb/util"
-	"go.uber.org/zap"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
 )
 
@@ -98,33 +99,34 @@ type KeyVal struct {
 }
 
 func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
-	zap.S().Info("Loading stored bloom filter...")
+	slog.Info("Loading stored bloom filter...")
 	filter, err := newBloomFilterFromStore(params)
 	if err == nil {
 		kv.filter = filter
-		zap.S().Info("Bloom filter loaded successfully")
+		slog.Info("Bloom filter loaded successfully")
 		return nil
 	}
-	zap.S().Info("No stored bloom filter found")
-	zap.S().Info("Rebuilding bloom filter from DB can take up a few minutes")
+	slog.Info("No stored bloom filter found")
+	slog.Info("Rebuilding bloom filter from DB can take up a few minutes")
 	filter, err = newBloomFilter(params)
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create new bloom filter")
 	}
 	iter, err := kv.NewKeyIterator([]byte{})
 	if err != nil {
-		return err
+		return errors.Wrap(err, "failed to create new bloom filter iterator")
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr))
+			panic(itErr)
 		}
 	}()
 
 	for iter.Next() {
-		if err := filter.add(iter.Key()); err != nil {
-			return err
+		if kErr := filter.add(iter.Key()); kErr != nil {
+			return errors.Wrap(kErr, "failed to add key to bloom filter")
 		}
 	}
 	kv.filter = filter
@@ -147,28 +149,41 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 	}
 	openFilesCacheCapacity := params.OpenFilesCacheCapacity
 
-	zap.S().Debugf(
-		"leveldb.opt.Options.OpenFilesCacheCapacity has been evaluated to %d. CurrentFDs=%d",
-		openFilesCacheCapacity,
-		currentFDs,
-	)
+	slog.Debug("Parameter leveldb.opt.Options.OpenFilesCacheCapacity has been evaluated",
+		"value", openFilesCacheCapacity, "CurrentFDs", currentFDs)
 
 	dbOptions := &opt.Options{
 		WriteBuffer:            params.WriteBuffer,
 		CompactionTableSize:    params.CompactionTableSize,
 		CompactionTotalSize:    params.CompactionTotalSize,
 		OpenFilesCacheCapacity: openFilesCacheCapacity,
+		Strict:                 opt.DefaultStrict | opt.StrictManifest,
 	}
-	db, err := leveldb.OpenFile(path, dbOptions)
+	db, err := openLevelDB(path, dbOptions)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrapf(err, "failed to open key-value db by path '%s'", path)
 	}
 	cache := freecache.NewCache(params.CacheSize)
 	kv := &KeyVal{db: db, cache: cache, mu: &sync.RWMutex{}}
-	if err := initBloomFilter(kv, params.BloomFilterParams); err != nil {
-		return nil, err
+	if bfErr := initBloomFilter(kv, params.BloomFilterParams); bfErr != nil {
+		return nil, errors.Wrap(bfErr, "failed to initialize bloom filter")
 	}
 	return kv, nil
+}
+
+func openLevelDB(path string, dbOptions *opt.Options) (*leveldb.DB, error) {
+	db, err := leveldb.OpenFile(path, dbOptions)
+	if err == nil { // If no error, then the database is opened successfully.
+		return db, nil
+	}
+	slog.Warn("Failed to open leveldb DB", slog.String("path", path), logging.Error(err))
+	slog.Info("Attempting to recover corrupted leveldb, may take a while...", "path", path)
+	db, rErr := leveldb.RecoverFile(path, dbOptions)
+	if rErr != nil {
+		return nil, errors.Wrap(rErr, "failed to recover leveldb")
+	}
+	slog.Info("Recovered leveldb db", "path", path)
+	return db, nil
 }
 
 func (k *KeyVal) NewBatch() (Batch, error) {
@@ -199,7 +214,7 @@ func (k *KeyVal) Get(key []byte) ([]byte, error) {
 		}
 	}
 	val, err := k.db.Get(key, nil)
-	if err == leveldb.ErrNotFound {
+	if errors.Is(err, leveldb.ErrNotFound) {
 		return nil, ErrNotFound
 	}
 	k.addToCache(key, val)
@@ -275,12 +290,12 @@ func (k *KeyVal) NewKeyIterator(prefix []byte) (Iterator, error) {
 func (k *KeyVal) Close() error {
 	k.mu.Lock()
 	defer k.mu.Unlock()
-	zap.S().Infof("Cache hit rate: %v", k.cache.HitRate())
+	slog.Info("Cache hit rate", "rate", k.cache.HitRate())
 	err := storeBloomFilter(k.filter)
 	if err != nil {
-		zap.S().Errorf("Failed to save bloom filter: %v", err)
+		slog.Error("Failed to save bloom filter", logging.Error(err))
 	} else {
-		zap.S().Info("Bloom filter stored successfully")
+		slog.Info("Bloom filter stored successfully")
 	}
 	return k.db.Close()
 }

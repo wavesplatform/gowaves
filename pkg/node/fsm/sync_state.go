@@ -2,11 +2,11 @@ package fsm
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -87,23 +87,23 @@ func (a *SyncState) StopSync() (State, Async, error) {
 }
 
 func (a *SyncState) ChangeSyncPeer(p peer.Peer) (State, Async, error) {
-	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Changed sync peer to '%s'", p.ID().String())
+	a.baseInfo.logger.Debug("Sync peer changed", "state", a.String(),
+		"peer", p.ID().String())
 	return syncWithNewPeer(a, a.baseInfo, p)
 }
 
 func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 	switch task.TaskType {
 	case tasks.AskPeers:
-		zap.S().Named(logging.FSMNamespace).Debug("[Sync] Requesting peers")
+		a.baseInfo.logger.Debug("Requesting peers", "state", a.String())
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.Ping:
-		zap.S().Named(logging.FSMNamespace).Debug("[Sync] Checking timeout")
+		a.baseInfo.logger.Debug("Checking timeout", "state", a.String())
 		timeout := a.conf.lastReceiveTime.Add(a.conf.timeout).Before(a.baseInfo.tm.Now())
 		if timeout {
-			zap.S().Named(logging.FSMNamespace).Debugf(
-				"[Sync] Timed out after %s while synchronizing with peer '%s'",
-				a.conf.timeout.String(), a.conf.peerSyncWith.ID())
+			a.baseInfo.logger.Debug("Synchronization with peer timed out", "state", a.String(),
+				"timeout", a.conf.timeout.String(), "peer", a.conf.peerSyncWith.ID())
 			return newIdleState(a.baseInfo), nil, a.Errorf(TimeoutErr)
 		}
 		return a, nil, nil
@@ -121,30 +121,32 @@ func (a *SyncState) Task(task tasks.AsyncTask) (State, Async, error) {
 
 func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State, Async, error) {
 	if len(signatures) == 0 {
-		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Empty IDs received from peer '%s'",
-			peer.ID().String())
+		a.baseInfo.logger.Debug("Empty IDs received from peer", "state", a.String(),
+			"peer", peer.ID().String())
 		return a, nil, nil
 	}
-	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Block IDs [%s...%s] received from peer %s",
-		signatures[0].ShortString(), signatures[len(signatures)-1].ShortString(), peer.ID().String())
+	a.baseInfo.logger.Debug("Block IDs received from peer", "state", a.String(),
+		"from", signatures[0].ShortString(), "to", signatures[len(signatures)-1].ShortString(),
+		"peer", peer.ID().String())
 	if !peer.Equal(a.conf.peerSyncWith) {
-		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Block IDs received from incorrect peer %s, expected %s",
-			peer.ID().String(), a.baseInfo.syncPeer.GetPeer().ID().String())
+		a.baseInfo.logger.Debug("Block IDs received from incorrect peer", "state", a.String(),
+			"peer", peer.ID().String(), "expectedPeer", a.baseInfo.syncPeer.GetPeer().ID().String())
 		return a, nil, nil
 	}
-	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme), signatures)
+	internal, err := a.internal.BlockIDs(extension.NewPeerExtension(peer, a.baseInfo.scheme, a.baseInfo.netLogger),
+		signatures)
 	if err != nil {
-		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] No signatures expected from peer '%s' but received",
-			peer.ID().String())
+		a.baseInfo.logger.Debug("No signatures expected from peer, but received", "state", a.String(),
+			"peer", peer.ID().String())
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
 	}
 	if internal.RequestedCount() > 0 {
 		// Blocks were requested waiting for them to receive and apply
-		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Waiting for %d blocks to receive",
-			internal.RequestedCount())
+		a.baseInfo.logger.Debug("Waiting for blocks to receive", "state", a.String(),
+			"count", internal.RequestedCount())
 		return newSyncState(a.baseInfo, a.conf.Now(a.baseInfo.tm), internal), nil, nil
 	}
-	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Continue to NG state")
+	a.baseInfo.logger.Debug("Continue to NG state", "state", a.String())
 	// No blocks were request, switching to NG working mode
 	err = a.baseInfo.storage.StartProvidingExtendedApi()
 	if err != nil {
@@ -154,9 +156,9 @@ func (a *SyncState) BlockIDs(peer peer.Peer, signatures []proto.BlockID) (State,
 }
 
 func (a *SyncState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
-	metrics.FSMScore("sync", score, p.Handshake().NodeName)
-	zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Score message received from peer '%s', score %s",
-		p.ID().String(), score.String())
+	metrics.Score(score, p.Handshake().NodeName)
+	a.baseInfo.logger.Debug("Score message received from peer", "state", a.String(),
+		"peer", p.ID().String(), "score", score.String())
 	if err := a.baseInfo.peers.UpdateScore(p, score); err != nil {
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
 	}
@@ -167,8 +169,9 @@ func (a *SyncState) Block(p peer.Peer, block *proto.Block) (State, Async, error)
 	if !p.Equal(a.conf.peerSyncWith) {
 		return a, nil, nil
 	}
-	metrics.FSMKeyBlockReceived("sync", block, p.Handshake().NodeName)
-	zap.S().Named(logging.FSMNamespace).Debugf("[Sync][%s] Received block %s", p.ID(), block.ID.String())
+	metrics.BlockReceivedFromExtension(block, p.Handshake().NodeName)
+	a.baseInfo.logger.Debug("Block received", "state", a.String(), "peer", p.ID(),
+		"blockID", block.ID.String())
 
 	internal, err := a.internal.Block(block)
 	if err != nil {
@@ -185,7 +188,8 @@ func (a *SyncState) BlockSnapshot(
 	if !p.Equal(a.conf.peerSyncWith) {
 		return a, nil, nil
 	}
-	zap.S().Named(logging.FSMNamespace).Debugf("[Sync][%s] Received snapshot for block %s", p.ID(), blockID.String())
+	a.baseInfo.logger.Debug("Received snapshot for block", "state", a.String(), "peer", p.ID(),
+		"blockID", blockID.String())
 	internal, err := a.internal.SetSnapshot(blockID, &snapshot)
 	if err != nil {
 		return newSyncState(a.baseInfo, a.conf, internal), nil, a.Errorf(err)
@@ -196,17 +200,23 @@ func (a *SyncState) BlockSnapshot(
 func (a *SyncState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
-	metrics.FSMKeyBlockGenerated("sync", block)
-	zap.S().Named(logging.FSMNamespace).Infof("[Sync] New block '%s' mined", block.ID.String())
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
+	metrics.BlockMined(block)
+	a.baseInfo.logger.Info("New block mined", "state", a.String(), "blockID", block.ID.String())
+
 	_, err := a.baseInfo.blocksApplier.Apply(
 		a.baseInfo.storage,
 		[]*proto.Block{block},
 	)
 	if err != nil {
-		zap.S().Warnf("[Sync] Failed to apply mined block: %v", err)
+		slog.Warn("Failed to apply mined block", slog.String("state", a.String()), logging.Error(err))
 		return a, nil, nil // We've failed to apply mined block, it's not an error
 	}
-	metrics.FSMKeyBlockApplied("sync", block)
+	metrics.BlockAppliedFromExtension(block, height+1)
+	metrics.Utx(a.baseInfo.utx.Count())
 	a.baseInfo.scheduler.Reschedule()
 
 	// first we should send block
@@ -244,8 +254,12 @@ func (a *SyncState) applyBlocksWithSnapshots(
 ) (State, Async, error) {
 	internal, blocks, snapshots, eof := internal.Blocks()
 	if len(blocks) == 0 {
-		zap.S().Named(logging.FSMNamespace).Debug("[Sync] No blocks to apply")
+		a.baseInfo.logger.Debug("No blocks to apply", "state", a.String())
 		return newSyncState(baseInfo, conf, internal), nil, nil
+	}
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
 	}
 	var err error
 	if a.baseInfo.enableLightMode {
@@ -261,21 +275,22 @@ func (a *SyncState) applyBlocksWithSnapshots(
 			return errApply
 		})
 	}
-
 	if err != nil {
 		if errs.IsValidationError(err) || errs.IsValidationError(errors.Cause(err)) {
-			zap.S().Named(logging.FSMNamespace).Debugf(
-				"[Sync] Suspending peer '%s' because of blocks application error: %v",
-				a.baseInfo.syncPeer.GetPeer().ID().String(), err)
+			a.baseInfo.logger.Debug("Suspending peer because of blocks application error",
+				slog.String("state", a.String()),
+				slog.String("peer", a.baseInfo.syncPeer.GetPeer().ID().String()), logging.Error(err))
 			a.baseInfo.peers.Suspend(conf.peerSyncWith, time.Now(), err.Error())
 		}
 		for _, b := range blocks {
-			metrics.FSMKeyBlockDeclined("sync", b, err)
+			metrics.BlockDeclinedFromExtension(b)
 		}
 		return newIdleState(a.baseInfo), nil, a.Errorf(err)
 	}
 	for _, b := range blocks {
-		metrics.FSMKeyBlockApplied("sync", b)
+		metrics.BlockAppliedFromExtension(b, height+1)
+		metrics.Utx(a.baseInfo.utx.Count())
+		height++
 	}
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
@@ -293,10 +308,10 @@ func (a *SyncState) applyBlocksWithSnapshots(
 		return newNGState(a.baseInfo), nil, nil
 	}
 	if np, ok := a.changePeerIfRequired(); ok {
-		zap.S().Named(logging.FSMNamespace).Debugf("[Sync] Changing sync peer to '%s'", np.ID().String())
+		a.baseInfo.logger.Debug("Changing sync peer", "state", a.String(), "peer", np.ID().String())
 		return syncWithNewPeer(a, a.baseInfo, np)
 	}
-	a.internal.AskBlocksIDs(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme))
+	a.internal.AskBlocksIDs(extension.NewPeerExtension(a.conf.peerSyncWith, a.baseInfo.scheme, a.baseInfo.netLogger))
 	return newSyncState(baseInfo, conf, internal), nil, nil
 }
 
@@ -320,12 +335,12 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 		Ignore(StartMiningEvent).
 		Ignore(StopMiningEvent).
 		Ignore(MicroBlockSnapshotEvent).
-		OnEntry(func(ctx context.Context, args ...interface{}) error {
+		OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(syncSkipMessageList)
 			return nil
 		}).
 		PermitDynamic(ChangeSyncPeerEvent,
-			createPermitDynamicCallback(ChangeSyncPeerEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(ChangeSyncPeerEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -334,7 +349,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.ChangeSyncPeer(convertToInterface[peer.Peer](args[0]))
 			})).
 		PermitDynamic(StopSyncEvent,
-			createPermitDynamicCallback(StopSyncEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(StopSyncEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -343,7 +358,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.StopSync()
 			})).
 		PermitDynamic(TaskEvent,
-			createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TaskEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -352,7 +367,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.Task(args[0].(tasks.AsyncTask))
 			})).
 		PermitDynamic(ScoreEvent,
-			createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(ScoreEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -361,7 +376,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.Score(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Score))
 			})).
 		PermitDynamic(BlockEvent,
-			createPermitDynamicCallback(BlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(BlockEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -370,7 +385,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
 			})).
 		PermitDynamic(BlockIDsEvent,
-			createPermitDynamicCallback(BlockIDsEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(BlockIDsEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -379,7 +394,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.BlockIDs(convertToInterface[peer.Peer](args[0]), args[1].([]proto.BlockID))
 			})).
 		PermitDynamic(MinedBlockEvent,
-			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -389,7 +404,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 					args[2].(proto.KeyPair), args[3].([]byte))
 			})).
 		PermitDynamic(TransactionEvent,
-			createPermitDynamicCallback(TransactionEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TransactionEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -399,7 +414,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 					convertToInterface[proto.Transaction](args[1]))
 			})).
 		PermitDynamic(HaltEvent,
-			createPermitDynamicCallback(HaltEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(HaltEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -408,7 +423,7 @@ func initSyncStateInFSM(state *StateData, fsm *stateless.StateMachine, info Base
 				return a.Halt()
 			})).
 		PermitDynamic(BlockSnapshotEvent,
-			createPermitDynamicCallback(BlockSnapshotEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(BlockSnapshotEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*SyncState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(

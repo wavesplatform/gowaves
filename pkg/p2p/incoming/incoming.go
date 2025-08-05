@@ -2,11 +2,11 @@ package incoming
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"time"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
@@ -25,19 +25,19 @@ type PeerParams struct {
 	Version      proto.Version
 }
 
-func RunIncomingPeer(ctx context.Context, params PeerParams) error {
+func RunIncomingPeer(ctx context.Context, params PeerParams, logger, dl *slog.Logger) error {
 	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
-	return runIncomingPeer(ctx, cancel, params)
+	return runIncomingPeer(ctx, cancel, params, logger, dl)
 }
 
-func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params PeerParams) error {
+func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params PeerParams, logger, dl *slog.Logger) error {
 	c := params.Conn
 
 	readHandshake := proto.Handshake{}
 	_, err := readHandshake.ReadFrom(c)
 	if err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debug("Failed to read handshake: ", err)
+		logger.Debug("Failed to read handshake", logging.Error(err))
 		_ = c.Close()
 		return err
 	}
@@ -60,7 +60,7 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 
 	_, err = writeHandshake.WriteTo(c)
 	if err != nil {
-		zap.S().Named(logging.NetworkNamespace).Debug("Failed to write handshake: ", err)
+		logger.Debug("Failed to write handshake", logging.Error(err))
 		_ = c.Close()
 		return err
 	}
@@ -73,14 +73,14 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	}
 
 	remote := peer.NewRemote()
-	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip)
-	peerImpl, err := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel)
+	connection := conn.WrapConnection(ctx, c, remote.ToCh, remote.FromCh, remote.ErrCh, params.Skip, logger)
+	peerImpl, err := peer.NewPeerImpl(readHandshake, connection, peer.Incoming, remote, cancel, dl)
 	if err != nil {
-		if err := connection.Close(); err != nil {
-			zap.S().Errorf("Failed to close incoming connection: %v", err)
+		if clErr := connection.Close(); clErr != nil {
+			slog.Error("Failed to close incoming connection", logging.Error(clErr))
 		}
-		zap.S().Warn("Failed to create new peer impl: ", err)
+		slog.Warn("Failed to create new peer impl", logging.Error(err))
 		return errors.Wrap(err, "failed to run incoming peer")
 	}
-	return peer.Handle(ctx, peerImpl, params.Parent, remote)
+	return peer.Handle(ctx, peerImpl, params.Parent, remote, logger, dl)
 }

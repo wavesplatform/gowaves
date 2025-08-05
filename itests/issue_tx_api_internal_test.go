@@ -44,7 +44,7 @@ func (suite *IssueTxAPIPositiveSuite) Test_IssueTxAPIWithSameDataPositive() {
 		for name, td := range tdmatrix {
 			caseName := utl.GetTestcaseNameWithVersion(name, v)
 			suite.Run(caseName, func() {
-				for j := 0; j < 2; j++ {
+				for range 2 {
 					tx, actualDiffBalanceInWaves, actualDiffBalanceInAsset :=
 						issue.BroadcastIssueTxAndGetBalances(
 							&suite.BaseSuite, testdata.DataChangedTimestamp(&td), v, true)

@@ -45,7 +45,7 @@ func newNodeExpectation(t *testing.T, s string) nodeExpectation {
 
 func checkAST(t *testing.T, expected string, ast *node32, buffer string) {
 	exps := make([]nodeExpectation, 0)
-	for _, s := range strings.Split(strings.TrimSuffix(expected, ";"), ";") {
+	for s := range strings.SplitSeq(strings.TrimSuffix(expected, ";"), ";") {
 		exps = append(exps, newNodeExpectation(t, s))
 	}
 	i := 0
@@ -493,7 +493,7 @@ Type #comment
 
 func TestHugeScript(t *testing.T) {
 	sb := strings.Builder{}
-	for i := 0; i < 10000; i++ {
+	for i := range 10000 {
 		sb.WriteString(fmt.Sprintf("let i%d = true\n", i))
 	}
 	sb.WriteString("i9999\n")

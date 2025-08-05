@@ -44,7 +44,7 @@ func (vk *BellmanVerifyingKeyBl12381) ReadFrom(r io.Reader) (int64, error) {
 	dec := curveBls12.NewDecoder(r)
 
 	// Read [α]1,[β]2,[γ]2,[δ]2
-	toDecode := []interface{}{
+	toDecode := []any{
 		&vk.G1.Alpha,
 		&vk.G2.Beta,
 		&vk.G2.Gamma,

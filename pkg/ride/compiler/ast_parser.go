@@ -117,7 +117,7 @@ func (p *astParser) addError(token token32, format string, args ...any) {
 func (p *astParser) loadBuildInVarsToStackByVersion() {
 	resVars := make(map[string]s.Variable)
 	ver := int(p.tree.LibVersion)
-	for i := 0; i < ver; i++ {
+	for i := range ver {
 		for _, v := range s.Vars().Vars[i].Append {
 			resVars[v.Name] = v
 		}

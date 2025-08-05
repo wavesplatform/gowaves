@@ -4,6 +4,7 @@ import (
 	"bufio"
 	"context"
 	"io"
+	"log/slog"
 	"os"
 	"sort"
 	"strings"
@@ -11,12 +12,12 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
+	"google.golang.org/grpc"
+	"google.golang.org/grpc/connectivity"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
-	"google.golang.org/grpc"
-	"google.golang.org/grpc/connectivity"
 )
 
 type Substitution struct {
@@ -164,7 +165,7 @@ func (s *Symbols) UpdateFromOracle(conn *grpc.ClientConn) error {
 	if err != io.EOF {
 		return err
 	}
-	zap.S().Infof("Oracle: %d tickers updated", count)
+	slog.Info("Oracle: tickers updated", "count", count)
 	return nil
 }
 

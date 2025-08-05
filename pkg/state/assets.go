@@ -46,12 +46,12 @@ func (ai *assetInfo) equal(ai1 *assetInfo) bool {
 
 // assetConstInfo is part of asset info which is constant.
 type assetConstInfo struct {
-	Tail                 [proto.AssetIDTailSize]byte `cbor:"0,keyasint,omitemtpy"`
-	Issuer               crypto.PublicKey            `cbor:"1,keyasint,omitemtpy"`
-	Decimals             uint8                       `cbor:"2,keyasint,omitemtpy"`
-	IssueHeight          proto.Height                `cbor:"3,keyasint,omitemtpy"`
-	IsNFT                bool                        `cbor:"4,keyasint,omitemtpy"`
-	IssueSequenceInBlock uint32                      `cbor:"5,keyasint,omitemtpy"`
+	Tail                 [proto.AssetIDTailSize]byte `cbor:"0,keyasint,omitempty"`
+	Issuer               crypto.PublicKey            `cbor:"1,keyasint,omitempty"`
+	Decimals             uint8                       `cbor:"2,keyasint,omitempty"`
+	IssueHeight          proto.Height                `cbor:"3,keyasint,omitempty"`
+	IsNFT                bool                        `cbor:"4,keyasint,omitempty"`
+	IssueSequenceInBlock uint32                      `cbor:"5,keyasint,omitempty"`
 }
 
 func (ai *assetConstInfo) marshalBinary() ([]byte, error) { return cbor.Marshal(ai) }

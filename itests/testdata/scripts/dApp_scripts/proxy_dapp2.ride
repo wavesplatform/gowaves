@@ -1,0 +1,52 @@
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func callProxy(DApp: String, strValue: String) = {
+  let accountAddress = toBase58String(i.caller.bytes)
+  strict cp = invoke(addressFromStringValue(DApp),"writeDataToStorage", [strValue], [])
+    [
+      StringEntry(accountAddress + "_str", strValue)
+    ]
+}
+
+@Callable(i)
+func writeMaxActionsProxy(DApp: String, strValue: String, intValue: Int, boolValue: Boolean, binValue: ByteVector) = {
+  let accountAddress = toBase58String(i.caller.bytes)
+  strict cp = invoke(addressFromStringValue(DApp),"writeMaxActionsTarget", [strValue, intValue, boolValue, binValue], [])
+    [
+      StringEntry(accountAddress + "_str2_1", strValue),
+      IntegerEntry(accountAddress + "_int2_1", intValue),
+      BooleanEntry(accountAddress + "_bool2_1", boolValue),
+      BinaryEntry(accountAddress + "_bin2_1", binValue),
+      DeleteEntry(accountAddress + "_str2_1"),
+      DeleteEntry(accountAddress + "_int2_1"),
+      DeleteEntry(accountAddress + "_bool2_1"),
+      DeleteEntry(accountAddress + "_bin2_1"),
+
+      StringEntry(accountAddress + "_str2_2", strValue),
+      DeleteEntry(accountAddress + "_str2_2"),
+      IntegerEntry(accountAddress + "_int2_2", intValue),
+      DeleteEntry(accountAddress + "_int2_2"),
+      BooleanEntry(accountAddress + "_bool2_2", boolValue),
+      DeleteEntry(accountAddress + "_bool2_2"),
+      BinaryEntry(accountAddress + "_bin2_2", binValue),
+      DeleteEntry(accountAddress + "_bin2_2"),
+
+      StringEntry(accountAddress + "_str2", strValue),
+      DeleteEntry(accountAddress + "_str2"),
+      StringEntry(accountAddress + "_str2", strValue),
+      DeleteEntry(accountAddress + "_str2"),
+      StringEntry(accountAddress + "_str2", strValue),
+      DeleteEntry(accountAddress + "_str2"),
+      StringEntry(accountAddress + "_str2", strValue),
+      DeleteEntry(accountAddress + "_str2"),
+
+      StringEntry(accountAddress + "_str", strValue)
+
+    ]
+}
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)

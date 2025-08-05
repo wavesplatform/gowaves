@@ -148,9 +148,9 @@ func BenchmarkMerkleTreeEven(b *testing.B) {
 	}
 	tree, err := NewMerkleTree()
 	require.NoError(b, err)
-	b.ResetTimer()
+
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, v := range a {
 			tree.Push(v)
 		}
@@ -169,9 +169,9 @@ func BenchmarkMerkleTreeOdd(b *testing.B) {
 	}
 	tree, err := NewMerkleTree()
 	require.NoError(b, err)
-	b.ResetTimer()
+
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, v := range a {
 			tree.Push(v)
 		}
@@ -193,9 +193,9 @@ func BenchmarkMerkleTreeRootEven(b *testing.B) {
 	for _, v := range a {
 		tree.Push(v)
 	}
-	b.ResetTimer()
+
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		d := tree.Root()
 		_ = d
 	}
@@ -214,9 +214,9 @@ func BenchmarkMerkleTreeRootOdd(b *testing.B) {
 	for _, v := range a {
 		tree.Push(v)
 	}
-	b.ResetTimer()
+
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		d := tree.Root()
 		_ = d
 	}

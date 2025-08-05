@@ -34,7 +34,7 @@ func (a *ThreadSafeReadWrapper) NewestBlockInfoByHeight(height proto.Height) (*p
 	return a.s.NewestBlockInfoByHeight(height)
 }
 
-func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (interface{}, error)) (interface{}, error) {
+func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (any, error)) (any, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return f(a.s)

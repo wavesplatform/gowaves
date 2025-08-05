@@ -2,11 +2,11 @@ package fsm
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
@@ -56,7 +56,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Requesting peers", a)
+		a.baseInfo.logger.Debug("Requesting peers", "state", a.String())
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro:
@@ -72,8 +72,8 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 			return a, nil, nil
 		case tasks.MicroBlockSnapshot:
 			defer a.cleanupBeforeTransition()
-			zap.S().Named(logging.FSMNamespace).Errorf("%v", a.Errorf(errors.Errorf(
-				"Failed to get snapshot for microBlock '%s' - timeout", t.BlockID)))
+			slog.Error("Timed out to get snapshot for microBlock", "state", a.String(),
+				"blockID", t.BlockID)
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		default:
 			return a, nil, a.Errorf(errors.New("undefined Snapshot Task type"))
@@ -86,7 +86,7 @@ func (a *WaitMicroSnapshotState) Task(task tasks.AsyncTask) (State, Async, error
 }
 
 func (a *WaitMicroSnapshotState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
-	metrics.FSMScore("ng", score, p.Handshake().NodeName)
+	metrics.Score(score, p.Handshake().NodeName)
 	if len(a.receivedScores) < scoresSliceMaxSize {
 		a.receivedScores = append(a.receivedScores, ReceivedScore{Peer: p, Score: score})
 	}
@@ -106,14 +106,14 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	// the TopBlock() is used here
 	block, err := a.checkAndAppendMicroBlock(a.microBlockWaitingForSnapshot, &snapshot)
 	if err != nil {
-		metrics.FSMMicroBlockDeclined("ng", a.microBlockWaitingForSnapshot, err)
-		zap.S().Errorf("%v", a.Errorf(err))
+		metrics.MicroBlockDeclined(a.microBlockWaitingForSnapshot)
+		ae := a.Errorf(err)
+		slog.Error("Failed to check and append microblock", slog.String("state", a.String()), logging.Error(ae))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 
-	zap.S().Named(logging.FSMNamespace).Debugf(
-		"[%s] Received snapshot for microblock '%s' successfully applied to state", a, block.BlockID(),
-	)
+	a.baseInfo.logger.Debug("Received snapshot for microblock successfully applied to state",
+		"state", a.String(), "blockID", block.BlockID())
 	a.baseInfo.MicroBlockCache.AddMicroBlockWithSnapshot(block.BlockID(), a.microBlockWaitingForSnapshot, &snapshot)
 	a.blocksCache.AddBlockState(block)
 	a.blocksCache.AddSnapshot(block.BlockID(), snapshot)
@@ -122,7 +122,8 @@ func (a *WaitMicroSnapshotState) MicroBlockSnapshot(
 	if inv, ok := a.baseInfo.MicroBlockInvCache.Get(block.BlockID()); ok {
 		//TODO: We have to exclude from recipients peers that already have this microblock
 		if err = broadcastMicroBlockInv(a.baseInfo, inv); err != nil {
-			zap.S().Errorf("%v", a.Errorf(errors.Wrap(err, "Failed to handle micro block message")))
+			ae := a.Errorf(errors.Wrap(err, "Failed to handle micro block message"))
+			slog.Error("Failed to broadcast microblock", slog.String("state", a.String()), logging.Error(ae))
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		}
 	}
@@ -146,7 +147,7 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
 			micro.TotalBlockID.String(), micro.Reference.String(), top.BlockID().String())
-		metrics.FSMMicroBlockDeclined("ng", micro, err)
+		metrics.MicroBlockDeclined(micro)
 		return &proto.Block{}, proto.NewInfoMsg(err)
 	}
 	ok, err := micro.VerifySignature(a.baseInfo.scheme)
@@ -195,10 +196,12 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 	})
 
 	if err != nil {
-		metrics.FSMMicroBlockDeclined("ng", micro, err)
+		metrics.MicroBlockDeclined(micro)
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
-	metrics.FSMMicroBlockApplied("ng", micro)
+	metrics.MicroBlockApplied(micro)
+	metrics.Utx(a.baseInfo.utx.Count())
+	a.baseInfo.CleanUtx()
 	return newBlock, nil
 }
 
@@ -221,7 +224,7 @@ func initWaitMicroSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachi
 		proto.ContentIDBlockSnapshot,
 	}
 	fsm.Configure(WaitMicroSnapshotStateName). //nolint:dupl // it's state setup
-							OnEntry(func(_ context.Context, _ ...interface{}) error {
+							OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(waitSnapshotSkipMessageList)
 			return nil
 		}).
@@ -238,7 +241,7 @@ func initWaitMicroSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachi
 		Ignore(HaltEvent).
 		Ignore(BlockSnapshotEvent).
 		PermitDynamic(TaskEvent,
-			createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TaskEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*WaitMicroSnapshotState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -247,7 +250,7 @@ func initWaitMicroSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachi
 				return a.Task(args[0].(tasks.AsyncTask))
 			})).
 		PermitDynamic(MicroBlockSnapshotEvent,
-			createPermitDynamicCallback(MicroBlockSnapshotEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(MicroBlockSnapshotEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*WaitMicroSnapshotState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -260,7 +263,7 @@ func initWaitMicroSnapshotStateInFSM(state *StateData, fsm *stateless.StateMachi
 				)
 			})).
 		PermitDynamic(ScoreEvent,
-			createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(ScoreEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*WaitMicroSnapshotState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
