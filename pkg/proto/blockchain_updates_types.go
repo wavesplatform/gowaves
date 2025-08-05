@@ -33,25 +33,22 @@ type BlockUpdatesInfo struct {
 
 type BlockchainUpdatesPluginInfo struct {
 	enableBlockchainUpdatesPlugin bool
-	L2ContractAddress             WavesAddress
-	FirstBlock                    *bool
-	Lock                          sync.Mutex
-	Ready                         bool
-	BUpdatesChannel               chan<- BUpdatesInfo
+	l2ContractAddress             WavesAddress
+	lock                          sync.Mutex
+	ready                         bool
+	bUpdatesChannel               chan<- BUpdatesInfo
 	ctx                           context.Context
 }
 
 func NewBlockchainUpdatesPluginInfo(ctx context.Context,
 	l2Address WavesAddress, bUpdatesChannel chan<- BUpdatesInfo,
-	firstBlock *bool,
 	enableBlockchainUpdatesPlugin bool) *BlockchainUpdatesPluginInfo {
 	return &BlockchainUpdatesPluginInfo{
-		L2ContractAddress:             l2Address,
-		FirstBlock:                    firstBlock,
-		BUpdatesChannel:               bUpdatesChannel,
+		l2ContractAddress:             l2Address,
+		bUpdatesChannel:               bUpdatesChannel,
 		ctx:                           ctx,
 		enableBlockchainUpdatesPlugin: enableBlockchainUpdatesPlugin,
-		Ready:                         false,
+		ready:                         false,
 	}
 }
 
@@ -59,16 +56,20 @@ func (e *BlockchainUpdatesPluginInfo) IsBlockchainUpdatesEnabled() bool {
 	return e.enableBlockchainUpdatesPlugin
 }
 
+func (e *BlockchainUpdatesPluginInfo) L2ContractAddress() WavesAddress {
+	return e.l2ContractAddress
+}
+
 func (e *BlockchainUpdatesPluginInfo) IsReady() bool {
-	e.Lock.Lock()
-	defer e.Lock.Unlock()
-	return e.enableBlockchainUpdatesPlugin && e.Ready
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	return e.enableBlockchainUpdatesPlugin && e.ready
 }
 
 func (e *BlockchainUpdatesPluginInfo) MakeExtensionReady() {
-	e.Lock.Lock()
-	defer e.Lock.Unlock()
-	e.Ready = true
+	e.lock.Lock()
+	defer e.lock.Unlock()
+	e.ready = true
 }
 
 func (e *BlockchainUpdatesPluginInfo) Ctx() context.Context {
@@ -76,23 +77,16 @@ func (e *BlockchainUpdatesPluginInfo) Ctx() context.Context {
 }
 
 func (e *BlockchainUpdatesPluginInfo) FirstBlockDone() {
-	e.Lock.Lock()
-	defer e.Lock.Unlock()
-	*e.FirstBlock = false
-}
-
-func (e *BlockchainUpdatesPluginInfo) IsFirstBlockDone() bool {
-	e.Lock.Lock()
-	defer e.Lock.Unlock()
-	return *e.FirstBlock
+	e.lock.Lock()
+	defer e.lock.Unlock()
 }
 
 func (e *BlockchainUpdatesPluginInfo) WriteBUpdates(bUpdates BUpdatesInfo) {
-	if e.BUpdatesChannel == nil || !e.IsReady() {
+	if e.bUpdatesChannel == nil || !e.IsReady() {
 		return
 	}
 	select {
-	case e.BUpdatesChannel <- bUpdates:
+	case e.bUpdatesChannel <- bUpdates:
 	case <-time.After(ChannelWriteTimeout):
 		zap.S().Errorf("failed to write into the blockchain updates channel, out of time")
 		return
@@ -103,8 +97,7 @@ func (e *BlockchainUpdatesPluginInfo) WriteBUpdates(bUpdates BUpdatesInfo) {
 }
 
 func (e *BlockchainUpdatesPluginInfo) Close() {
-	if e.BUpdatesChannel != nil {
-		close(e.BUpdatesChannel)
+	if e.bUpdatesChannel != nil {
+		close(e.bUpdatesChannel)
 	}
-	e.BUpdatesChannel = nil
 }

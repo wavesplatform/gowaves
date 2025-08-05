@@ -2,12 +2,12 @@ package blockchaininfo
 
 import (
 	"context"
-	"sync"
+	"maps"
+	"slices"
 	"time"
 
 	"go.uber.org/zap"
 
-	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
@@ -93,8 +93,7 @@ func NewBUpdatesExtensionState(limit uint64, scheme proto.Scheme, l2ContractAddr
 		}
 		historyJournal.Push(historyEntry)
 	}
-	historyJournal.StateCache = stateCache
-
+	historyJournal.SetStateCache(stateCache)
 	return &BUpdatesExtensionState{Limit: limit, Scheme: scheme,
 		L2ContractAddress: l2ContractAddress, HistoryJournal: historyJournal, St: st}, nil
 }
@@ -249,7 +248,7 @@ func (bu *BUpdatesExtensionState) AddEntriesToHistoryJournalAndCache(updates pro
 		BlockHeader: updates.BlockUpdatesInfo.BlockHeader,
 	}
 	bu.HistoryJournal.Push(historyEntry)
-	bu.HistoryJournal.StateCache.AddCacheRecord(height, updates.ContractUpdatesInfo.AllDataEntries,
+	bu.HistoryJournal.stateCache.AddCacheRecord(height, updates.ContractUpdatesInfo.AllDataEntries,
 		updates.BlockUpdatesInfo)
 }
 
@@ -321,10 +320,11 @@ func (bu *BUpdatesExtensionState) BuildPatch(keysForPatch []string, targetHeight
 	patch := make(map[string]proto.DataEntry)
 	for _, dataEntryKey := range keysForPatch {
 		recipient := proto.NewRecipientFromAddress(l2WavesAddress)
-		dataEntry, ok, err := bu.HistoryJournal.StateCache.SearchValue(dataEntryKey, targetHeight)
-		if err != nil {
+		dataEntry, ok := bu.HistoryJournal.stateCache.SearchValue(dataEntryKey, targetHeight)
+		if !ok {
 			// If the key is constant, we will go to State, if not, consider it a DeleteDataEntry
 			if bu.IsKeyConstant(dataEntryKey) {
+				var err error
 				dataEntry, err = bu.St.RetrieveEntry(recipient, dataEntryKey)
 				if err != nil {
 					dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
@@ -333,16 +333,10 @@ func (bu *BUpdatesExtensionState) BuildPatch(keysForPatch []string, targetHeight
 				dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
 			}
 		}
-		if !ok {
-			dataEntry = &proto.DeleteDataEntry{Key: dataEntryKey}
-		}
 		patch[dataEntry.GetKey()] = dataEntry
 	}
-	var patchArray []proto.DataEntry
-	for _, elem := range patch {
-		patchArray = append(patchArray, elem)
-	}
-	blockInfo, err := bu.HistoryJournal.StateCache.SearchBlockInfo(targetHeight)
+	patchArray := slices.Collect(maps.Values(patch))
+	blockInfo, err := bu.HistoryJournal.stateCache.SearchBlockInfo(targetHeight)
 	if err != nil {
 		return nil, proto.BlockUpdatesInfo{}, err
 	}
@@ -361,7 +355,7 @@ func (bu *BUpdatesExtensionState) CleanRecordsAfterRollback(latestHeightFromHist
 		return errors.New("the height after rollback is bigger than the last saved height")
 	}
 	for i := latestHeightFromHistory; i >= heightAfterRollback; i-- {
-		bu.HistoryJournal.StateCache.RemoveCacheRecord(i)
+		bu.HistoryJournal.stateCache.RemoveCacheRecord(i)
 	}
 	return nil
 }
@@ -455,70 +449,6 @@ func runReceiver(nc *nats.Conn, bu *BlockchainUpdatesExtension) error {
 		default:
 			zap.S().Errorf("nats receiver received an unknown signal, %s", signal)
 		}
-	})
-	return subErr
-}
-
-func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.Context,
-	scheme proto.Scheme) error {
-	opts := &server.Options{
-		MaxPayload: natsMaxPayloadSize,
-		Host:       hostDefault,
-		Port:       portDefault,
-		NoSigs:     true,
-	}
-	s, err := server.NewServer(opts)
-	if err != nil {
-		return errors.Wrap(err, "failed to create NATS server")
-	}
-	go s.Start()
-	defer func() {
-		s.Shutdown()
-		s.WaitForShutdown()
-	}()
-	if !s.ReadyForConnections(NatsConnectionsTimeoutDefault) {
-		return errors.New("NATS server is not ready for connections")
-	}
-
-	zap.S().Infof("NATS Server is running on port %d", portDefault)
-
-	nc, err := nats.Connect(nats.DefaultURL)
-	if err != nil {
-		return errors.Wrap(err, "failed to connect to NATS server")
-	}
-	defer nc.Close()
-
-	var wg sync.WaitGroup
-	wg.Add(1)
-	reqErr := e.requestConstantKeys(nc, &wg)
-	if reqErr != nil {
-		return errors.Wrap(reqErr, "failed to request constant keys from the client")
-	}
-	wg.Wait()
-	e.MarkExtensionReady()
-	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String(),
-		obsolescencePeriod: e.obsolescencePeriod, ntpTime: e.ntpTime}
-	// Publish the first 100 history entries for the rollback functionality.
-	publishHistoryBlocks(e, scheme, nc, updatesPublisher)
-
-	receiverErr := runReceiver(nc, e)
-	if receiverErr != nil {
-		return receiverErr
-	}
-	runPublisher(ctx, e, scheme, nc, updatesPublisher)
-	return nil
-}
-
-func (e *BlockchainUpdatesExtension) requestConstantKeys(nc *nats.Conn, wg *sync.WaitGroup) error {
-	_, subErr := nc.Subscribe(ConstantKeys, func(msg *nats.Msg) {
-		defer wg.Done()
-		constantKeys, err := DeserializeConstantKeys(msg.Data)
-		if err != nil {
-			zap.S().Errorf("failed to deserialize constant keys %v", err)
-			return
-		}
-		e.blockchainExtensionState.constantContractKeys = constantKeys
-		// TODO close.
 	})
 	return subErr
 }

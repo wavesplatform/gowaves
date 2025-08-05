@@ -878,20 +878,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
 	blockSnapshot proto.BlockSnapshot) error {
 	bUpdatesInfo, err := BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot,
-		a.bUpdatesPluginInfo.L2ContractAddress)
+		a.bUpdatesPluginInfo.L2ContractAddress())
 	if err != nil {
 		return err
-	}
-	if a.bUpdatesPluginInfo.IsFirstBlockDone() {
-		dataEntries, entriesErr := a.ia.state.RetrieveEntries(proto.NewRecipientFromAddress(
-			a.bUpdatesPluginInfo.L2ContractAddress))
-		if entriesErr != nil && !a.ia.state.IsNotFound(entriesErr) {
-			return entriesErr
-		}
-		bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = dataEntries
-		a.bUpdatesPluginInfo.FirstBlockDone()
-		a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)
-		return nil
 	}
 
 	a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)

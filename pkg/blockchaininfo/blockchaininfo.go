@@ -10,7 +10,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
-const EpochKeyPrefix = "epoch_"
+const epochKeyPrefix = "epoch_"
 const blockMeta0xKeyPrefix = "block_0x"
 
 // Helper function to read uint64 from bytes.
@@ -37,7 +37,7 @@ func extractEpochFromBlockMeta(blockMetaValue []byte) (int64, error) {
 func filterEpochEntry(entry proto.DataEntry, beforeHeight uint64) ([]proto.DataEntry, error) {
 	key := entry.GetKey()
 	// Extract the part after "epoch_"
-	epochStr := key[len(EpochKeyPrefix):]
+	epochStr := key[len(epochKeyPrefix):]
 
 	epochNumber, err := strconv.ParseUint(epochStr, 10, 64)
 	if err != nil {
@@ -80,7 +80,7 @@ func filterDataEntries(beforeHeight uint64, dataEntries []proto.DataEntry) ([]pr
 
 		switch {
 		// Filter "epoch_" prefixed keys.
-		case strings.HasPrefix(key, EpochKeyPrefix):
+		case strings.HasPrefix(key, epochKeyPrefix):
 			entryOrNil, err := filterEpochEntry(entry, beforeHeight)
 			if err != nil {
 				return nil, err

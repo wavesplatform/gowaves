@@ -56,16 +56,16 @@ func NewStateCache() *StateCache {
 	}
 }
 
-func (sc *StateCache) SearchValue(key string, height uint64) (proto.DataEntry, bool, error) {
+func (sc *StateCache) SearchValue(key string, height uint64) (proto.DataEntry, bool) {
 	sc.lock.Lock()
 	defer sc.lock.Unlock()
 
 	record, found := sc.records[height]
 	if !found {
-		return nil, false, ErrNotInCache
+		return nil, false
 	}
 	entry, ok := record.dataEntries[key]
-	return entry, ok, nil
+	return entry, ok
 }
 
 func (sc *StateCache) SearchBlockInfo(height uint64) (proto.BlockUpdatesInfo, error) {
@@ -83,10 +83,7 @@ func (sc *StateCache) AddCacheRecord(height uint64, dataEntries []proto.DataEntr
 	defer sc.lock.Unlock()
 	// clean the oldest record if the cache is too big
 	if len(sc.heights) > HistoryJournalLengthMax {
-		minHeight := sc.heights[0]
-		for _, v := range sc.heights {
-			minHeight = min(minHeight, v)
-		}
+		minHeight := slices.Min(sc.heights)
 		delete(sc.records, minHeight)
 	}
 	stateCacheRecord := NewStateCacheRecord(dataEntries, blockInfo)
@@ -116,7 +113,7 @@ type HistoryEntry struct {
 
 type HistoryJournal struct {
 	lock           sync.Mutex
-	StateCache     *StateCache
+	stateCache     *StateCache
 	historyJournal [HistoryJournalLengthMax]HistoryEntry
 	top            int
 	size           int
@@ -130,7 +127,7 @@ func NewHistoryJournal() *HistoryJournal {
 }
 
 func (hj *HistoryJournal) SetStateCache(stateCache *StateCache) {
-	hj.StateCache = stateCache
+	hj.stateCache = stateCache
 }
 
 // FetchKeysUntilBlockID TODO write tests.
@@ -238,10 +235,6 @@ func (hj *HistoryJournal) Pop() (HistoryEntry, error) {
 	return entry, nil
 }
 
-type L2Requests struct {
-	Restart bool
-}
-
 func CompareBUpdatesInfo(current, previous proto.BUpdatesInfo,
 	scheme proto.Scheme) (bool, proto.BUpdatesInfo, error) {
 	changes := proto.BUpdatesInfo{
@@ -301,8 +294,8 @@ func compareBlockHeader(a, b proto.BlockHeader, scheme proto.Scheme) (bool, erro
 }
 
 func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.DataEntry, error) {
-	currentMap := make(map[string][]byte)  // Data entries.
-	previousMap := make(map[string][]byte) // Data entries.
+	currentMap := make(map[string][]byte)
+	previousMap := make(map[string][]byte)
 
 	for _, dataEntry := range current {
 		value, err := dataEntry.MarshalValue()

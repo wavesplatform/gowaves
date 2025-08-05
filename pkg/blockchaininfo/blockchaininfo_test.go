@@ -5,8 +5,6 @@ import (
 	"strconv"
 	"testing"
 
-	"github.com/nats-io/nats-server/v2/server"
-	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
@@ -277,24 +275,6 @@ func TestDecodeBlockMeta(t *testing.T) {
 	require.Equal(t, blockMeta.BlockEpoch, int64(3310807))
 }
 
-func RunNatsTestServer() (*server.Server, error) {
-	opts := &server.Options{
-		MaxPayload: 1024 * 1024,
-		Host:       "127.0.0.1",
-		Port:       4756,
-		NoSigs:     true,
-	}
-	s, err := server.NewServer(opts)
-	if err != nil {
-		return nil, errors.Wrap(err, "failed to create NATS server")
-	}
-	go s.Start()
-	if !s.ReadyForConnections(5 * server.AUTH_TIMEOUT) {
-		return nil, errors.New("NATS server is not ready for connections")
-	}
-	return s, nil
-}
-
 const (
 	blockID1 = "7wKAcTGbvDtruMSSYyndzN9YK3cQ47ZdTPeT8ej22qRg"
 	BlockID2 = "gzz8aN4b5rr1rkeAdmuwytuGv1jbm9LLRbXNKNb7ETX"
@@ -360,7 +340,7 @@ func fillHistoryJournal(t *testing.T, stateCache *blockchaininfo.StateCache) *bl
 		historyJorunal.Push(historyEntry)
 		continue
 	}
-	historyJorunal.StateCache = stateCache
+	historyJorunal.SetStateCache(stateCache)
 	return &historyJorunal
 }
 

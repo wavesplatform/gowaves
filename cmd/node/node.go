@@ -348,14 +348,14 @@ func run(nc *config) (retErr error) {
 func initBlockchainUpdatesPlugin(ctx context.Context,
 	l2addressContract string,
 	enableBlockchainUpdatesPlugin bool,
-	updatesChannel chan<- proto.BUpdatesInfo, firstBlock *bool,
+	updatesChannel chan<- proto.BUpdatesInfo,
 ) (*proto.BlockchainUpdatesPluginInfo, error) {
 	l2address, cnvrtErr := proto.NewAddressFromString(l2addressContract)
 	if cnvrtErr != nil {
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2addressContract)
 	}
 	bUpdatesPluginInfo := proto.NewBlockchainUpdatesPluginInfo(ctx, l2address, updatesChannel,
-		firstBlock, enableBlockchainUpdatesPlugin)
+		enableBlockchainUpdatesPlugin)
 	return bUpdatesPluginInfo, nil
 }
 
@@ -391,12 +391,11 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	}
 
 	updatesChannel := make(chan proto.BUpdatesInfo, blockchaininfo.UpdatesBufferedChannelSize)
-	firstBlock := false
 	var bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo
 	if nc.enableBlockchainUpdatesPlugin {
 		var initErr error
 		bUpdatesPluginInfo, initErr = initBlockchainUpdatesPlugin(ctx, nc.blockchainUpdatesL2Address,
-			nc.enableBlockchainUpdatesPlugin, updatesChannel, &firstBlock)
+			nc.enableBlockchainUpdatesPlugin, updatesChannel)
 		if initErr != nil {
 			return nil, errors.Wrap(initErr, "failed to initialize blockchain updates plugin")
 		}
@@ -412,7 +411,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 
 	if nc.enableBlockchainUpdatesPlugin {
 		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(ctx, cfg, nc.blockchainUpdatesL2Address,
-			updatesChannel, &firstBlock, st, makeExtensionReadyFunc, nc.obsolescencePeriod, ntpTime)
+			updatesChannel, st, makeExtensionReadyFunc, nc.obsolescencePeriod, ntpTime)
 		if bUErr != nil {
 			bUpdatesExtension.Close()
 			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
@@ -845,7 +844,6 @@ func initializeBlockchainUpdatesExtension(
 	cfg *settings.BlockchainSettings,
 	l2ContractAddress string,
 	updatesChannel chan proto.BUpdatesInfo,
-	firstBlock *bool,
 	state state.State,
 	makeExtensionReady func(),
 	obsolescencePeriod time.Duration,
@@ -865,7 +863,7 @@ func initializeBlockchainUpdatesExtension(
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2ContractAddress)
 	}
 	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel,
-		bUpdatesExtensionState, firstBlock, makeExtensionReady, obsolescencePeriod, ntpTime), nil
+		bUpdatesExtensionState, makeExtensionReady, obsolescencePeriod, ntpTime), nil
 }
 
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {
