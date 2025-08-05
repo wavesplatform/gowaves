@@ -2,10 +2,9 @@ package proto
 
 import (
 	"context"
+	"log/slog"
 	"sync"
 	"time"
-
-	"go.uber.org/zap"
 )
 
 const ChannelWriteTimeout = 10 * time.Second
@@ -88,7 +87,7 @@ func (e *BlockchainUpdatesPluginInfo) WriteBUpdates(bUpdates BUpdatesInfo) {
 	select {
 	case e.bUpdatesChannel <- bUpdates:
 	case <-time.After(ChannelWriteTimeout):
-		zap.S().Errorf("failed to write into the blockchain updates channel, out of time")
+		slog.Error("failed to write into the blockchain updates channel, out of time")
 		return
 	case <-e.ctx.Done():
 		e.Close()

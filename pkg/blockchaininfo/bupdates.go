@@ -6,8 +6,6 @@ import (
 	"sync"
 	"time"
 
-	"go.uber.org/zap"
-
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
@@ -90,7 +88,7 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 		return errors.New("NATS server is not ready for connections")
 	}
 
-	zap.S().Infof("NATS Server is running on port %d", portDefault)
+	slog.Info("NATS Server is running on port", "port", portDefault)
 
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
