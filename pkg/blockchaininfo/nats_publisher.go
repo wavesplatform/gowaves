@@ -9,6 +9,7 @@ import (
 
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -146,7 +147,9 @@ func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nat
 		msg = append(msg, dataEntriesProtobuf...)
 		err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 		if err != nil {
-			slog.Error("failed to publish message on topic", "topic", ConcatenateContractTopics(l2ContractAddress))
+			slog.Error("failed to publish message on topic",
+				slog.Any("topic", ConcatenateContractTopics(l2ContractAddress)),
+				logging.Error(err))
 			return err
 		}
 		return nil
@@ -162,7 +165,9 @@ func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nat
 			msg = append(msg, chunk...)
 			err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 			if err != nil {
-				slog.Error("failed to publish message on topic", "topic", ConcatenateContractTopics(l2ContractAddress))
+				slog.Error("failed to publish message on topic",
+					slog.Any("topic", ConcatenateContractTopics(l2ContractAddress)),
+					logging.Error(err))
 				return err
 			}
 			break
@@ -171,7 +176,9 @@ func PublishContractUpdates(contractUpdates proto.L2ContractDataEntries, nc *nat
 		msg = append(msg, chunk...)
 		err = nc.Publish(ConcatenateContractTopics(l2ContractAddress), msg)
 		if err != nil {
-			slog.Error("failed to publish message on topic", "topic", ConcatenateContractTopics(l2ContractAddress))
+			slog.Error("failed to publish message on topic",
+				slog.Any("topic", ConcatenateContractTopics(l2ContractAddress)),
+				logging.Error(err))
 			return err
 		}
 		time.Sleep(publisherWaitingTime)
@@ -191,7 +198,9 @@ func PublishBlockUpdates(updates proto.BUpdatesInfo, nc *nats.Conn, scheme proto
 	}
 	err = nc.Publish(BlockUpdates, blockInfoProtobuf)
 	if err != nil {
-		slog.Error("failed to publish message on topic", "topic", BlockUpdates)
+		slog.Error("failed to publish message on topic",
+			slog.Any("topic", BlockUpdates),
+			logging.Error(err))
 		return err
 	}
 	return nil
@@ -219,13 +228,17 @@ func (p *UpdatesPublisher) PublishUpdates(updates proto.BUpdatesInfo,
 	/* first publish block data */
 	err := PublishBlockUpdates(updates, nc, scheme)
 	if err != nil {
-		slog.Error("failed to publish message on topic", "topic", BlockUpdates)
+		slog.Error("failed to publish message on topic",
+			slog.Any("topic", BlockUpdates),
+			logging.Error(err))
 		return err
 	}
 	/* second publish contract data entries */
 	pblshErr := PublishContractUpdates(updates.ContractUpdatesInfo, nc, l2ContractAddress)
 	if pblshErr != nil {
-		slog.Error("failed to publish message on topic", "topic", ConcatenateContractTopics(p.L2ContractAddress()))
+		slog.Error("failed to publish message on topic",
+			slog.Any("topic", ConcatenateContractTopics(p.L2ContractAddress())),
+			logging.Error(pblshErr))
 		return pblshErr
 	}
 	return nil
@@ -363,11 +376,11 @@ func HandleRollback(be *BUpdatesExtensionState, updates proto.BUpdatesInfo, upda
 	nc *nats.Conn, scheme proto.Scheme) proto.BUpdatesInfo {
 	patch, err := be.GeneratePatch(updates)
 	if err != nil {
-		slog.Error("failed to generate a patch", "err", err)
+		slog.Error("failed to generate a patch", logging.Error(err))
 	}
 	pblshErr := updatesPublisher.PublishUpdates(patch, nc, scheme, updatesPublisher.L2ContractAddress())
 	if pblshErr != nil {
-		slog.Error("failed to publish updates", "err", pblshErr)
+		slog.Error("failed to publish updates", logging.Error(pblshErr))
 		return proto.BUpdatesInfo{}
 	}
 	be.AddEntriesToHistoryJournalAndCache(patch)
@@ -389,7 +402,7 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionSta
 		updates.ContractUpdatesInfo.AllDataEntries = filteredDataEntries
 		pblshErr := updatesPublisher.PublishUpdates(updates, nc, scheme, updatesPublisher.L2ContractAddress())
 		if pblshErr != nil {
-			slog.Error("failed to publish updates", "err", pblshErr)
+			slog.Error("failed to publish updates", logging.Error(pblshErr))
 			return
 		}
 		be.PreviousState = &updates
@@ -403,14 +416,14 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionSta
 	// compare the current state to the previous state
 	stateChanged, changes, cmprErr := be.HasStateChanged()
 	if cmprErr != nil {
-		slog.Error("failed to compare current and previous states", "err", cmprErr)
+		slog.Error("failed to compare current and previous states", logging.Error(cmprErr))
 		return
 	}
 	// if there is any diff, send the update
 	if stateChanged {
 		pblshErr := updatesPublisher.PublishUpdates(updates, nc, scheme, updatesPublisher.L2ContractAddress())
 		if pblshErr != nil {
-			slog.Error("failed to publish changes", "err", pblshErr)
+			slog.Error("failed to publish changes", logging.Error(pblshErr))
 		}
 		be.AddEntriesToHistoryJournalAndCache(changes)
 		be.PreviousState = &updates
@@ -441,12 +454,12 @@ func runReceiver(nc *nats.Conn, bu *BlockchainUpdatesExtension) error {
 			notNilResponse := "ok"
 			err := request.Respond([]byte(notNilResponse))
 			if err != nil {
-				slog.Error("failed to respond to a restart signal", "err", err)
+				slog.Error("failed to respond to a restart signal", logging.Error(err))
 				return
 			}
 			bu.EmptyPreviousState()
 		default:
-			slog.Error("nats receiver received an unknown signal", "signal", signal)
+			slog.Error("nats receiver received an unknown signal", slog.Any("signal", signal))
 		}
 	})
 	return subErr

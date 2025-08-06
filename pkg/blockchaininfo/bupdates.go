@@ -9,6 +9,7 @@ import (
 	"github.com/nats-io/nats-server/v2/server"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -88,7 +89,7 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 		return errors.New("NATS server is not ready for connections")
 	}
 
-	slog.Info("NATS Server is running on port", "port", portDefault)
+	slog.Info("NATS Server is running on port", slog.Any("port", portDefault))
 
 	nc, err := nats.Connect(nats.DefaultURL)
 	if err != nil {
@@ -122,7 +123,7 @@ func (e *BlockchainUpdatesExtension) requestConstantKeys(nc *nats.Conn) error {
 	defer func(sub *nats.Subscription) {
 		unSubErr := sub.Unsubscribe()
 		if unSubErr != nil {
-			slog.Error("failed to unsubscribe from constant keys topic", "err", unSubErr)
+			slog.Error("failed to unsubscribe from constant keys topic", logging.Error(unSubErr))
 		}
 	}(sub)
 	// Block until first message or timeout.
