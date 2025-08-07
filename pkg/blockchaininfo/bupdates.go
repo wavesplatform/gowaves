@@ -15,7 +15,6 @@ import (
 )
 
 type BlockchainUpdatesExtension struct {
-	ctx                      context.Context
 	l2ContractAddress        proto.WavesAddress
 	bUpdatesChannel          chan proto.BUpdatesInfo
 	blockchainExtensionState *BUpdatesExtensionState
@@ -26,7 +25,6 @@ type BlockchainUpdatesExtension struct {
 }
 
 func NewBlockchainUpdatesExtension(
-	ctx context.Context,
 	l2ContractAddress proto.WavesAddress,
 	bUpdatesChannel chan proto.BUpdatesInfo,
 	blockchainExtensionState *BUpdatesExtensionState,
@@ -35,7 +33,6 @@ func NewBlockchainUpdatesExtension(
 	ntpTime types.Time,
 ) *BlockchainUpdatesExtension {
 	return &BlockchainUpdatesExtension{
-		ctx:                      ctx,
 		l2ContractAddress:        l2ContractAddress,
 		bUpdatesChannel:          bUpdatesChannel,
 		blockchainExtensionState: blockchainExtensionState,
@@ -55,7 +52,7 @@ func (e *BlockchainUpdatesExtension) MarkExtensionReady() {
 	e.makeExtensionReadyFunc()
 }
 
-func (e *BlockchainUpdatesExtension) EmptyPreviousState() {
+func (e *BlockchainUpdatesExtension) ClearPreviousState() {
 	e.lock.Lock()
 	defer e.lock.Unlock()
 	e.blockchainExtensionState.PreviousState = nil

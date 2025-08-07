@@ -457,7 +457,7 @@ func runReceiver(nc *nats.Conn, bu *BlockchainUpdatesExtension) error {
 				slog.Error("failed to respond to a restart signal", logging.Error(err))
 				return
 			}
-			bu.EmptyPreviousState()
+			bu.ClearPreviousState()
 		default:
 			slog.Error("nats receiver received an unknown signal", slog.Any("signal", signal))
 		}

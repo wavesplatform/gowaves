@@ -410,10 +410,9 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	}
 
 	if nc.enableBlockchainUpdatesPlugin {
-		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(ctx, cfg, nc.blockchainUpdatesL2Address,
+		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(cfg, nc.blockchainUpdatesL2Address,
 			updatesChannel, st, makeExtensionReadyFunc, nc.obsolescencePeriod, ntpTime)
 		if bUErr != nil {
-			bUpdatesExtension.Close()
 			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
 		}
 		go func() {
@@ -840,7 +839,6 @@ func runAPIs(
 }
 
 func initializeBlockchainUpdatesExtension(
-	ctx context.Context,
 	cfg *settings.BlockchainSettings,
 	l2ContractAddress string,
 	updatesChannel chan proto.BUpdatesInfo,
@@ -862,7 +860,7 @@ func initializeBlockchainUpdatesExtension(
 	if cnvrtErr != nil {
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2ContractAddress)
 	}
-	return blockchaininfo.NewBlockchainUpdatesExtension(ctx, l2address, updatesChannel,
+	return blockchaininfo.NewBlockchainUpdatesExtension(l2address, updatesChannel,
 		bUpdatesExtensionState, makeExtensionReady, obsolescencePeriod, ntpTime), nil
 }
 

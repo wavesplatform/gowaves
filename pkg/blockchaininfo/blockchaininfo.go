@@ -36,6 +36,11 @@ func extractEpochFromBlockMeta(blockMetaValue []byte) (int64, error) {
 
 func filterEpochEntry(entry proto.DataEntry, beforeHeight uint64) ([]proto.DataEntry, error) {
 	key := entry.GetKey()
+
+	if !strings.HasPrefix(key, epochKeyPrefix) {
+		return nil, errors.Errorf("failed to filter epoch entry, the key %s doesn't have prefix %s",
+			key, epochKeyPrefix)
+	}
 	// Extract the part after "epoch_"
 	epochStr := key[len(epochKeyPrefix):]
 
