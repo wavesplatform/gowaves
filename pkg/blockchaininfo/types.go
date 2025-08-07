@@ -2,6 +2,7 @@ package blockchaininfo
 
 import (
 	"bytes"
+	"context"
 	"io"
 	"math"
 	"slices"
@@ -23,7 +24,7 @@ const (
 )
 
 type UpdatesPublisherInterface interface {
-	PublishUpdates(updates proto.BUpdatesInfo,
+	PublishUpdates(ctx context.Context, updates proto.BUpdatesInfo,
 		nc *nats.Conn, scheme proto.Scheme, l2ContractAddress string) error
 	L2ContractAddress() string
 }

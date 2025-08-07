@@ -93,7 +93,7 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 	updatesPublisher := UpdatesPublisher{l2ContractAddress: e.l2ContractAddress.String(),
 		obsolescencePeriod: e.obsolescencePeriod, ntpTime: e.ntpTime}
 	// Publish the first 100 history entries for the rollback functionality.
-	publishHistoryBlocks(e, scheme, nc, updatesPublisher)
+	publishHistoryBlocks(ctx, e, scheme, nc, updatesPublisher)
 
 	receiverErr := runReceiver(nc, e)
 	if receiverErr != nil {
