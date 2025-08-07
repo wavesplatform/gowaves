@@ -10,7 +10,6 @@ import (
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
-	mocks "github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -378,8 +377,8 @@ func fillCache(t *testing.T) *blockchaininfo.StateCache {
 // On block 3, keys "1", "2", "3" had negative values, so the patch should generate the negative
 // values only found on that block.
 func TestRollback(t *testing.T) {
-	mockPublisherInterface := mocks.NewMockUpdatesPublisherInterface(t)
-	mockPublisherInterface.EXPECT().PublishUpdates(mock.Anything, mock.Anything, proto.TestNetScheme,
+	mockPublisherInterface := blockchaininfo.NewMockUpdatesPublisherInterface(t)
+	mockPublisherInterface.EXPECT().PublishUpdates(mock.Anything, mock.Anything, mock.Anything, proto.TestNetScheme,
 		l2ContractAddress).Return(nil)
 	mockPublisherInterface.EXPECT().L2ContractAddress().Return(l2ContractAddress)
 
