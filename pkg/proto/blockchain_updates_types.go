@@ -71,15 +71,6 @@ func (e *BlockchainUpdatesPluginInfo) MakeExtensionReady() {
 	e.ready = true
 }
 
-func (e *BlockchainUpdatesPluginInfo) Ctx() context.Context {
-	return e.ctx
-}
-
-func (e *BlockchainUpdatesPluginInfo) FirstBlockDone() {
-	e.lock.Lock()
-	defer e.lock.Unlock()
-}
-
 func (e *BlockchainUpdatesPluginInfo) WriteBUpdates(bUpdates BUpdatesInfo) {
 	if e.bUpdatesChannel == nil || !e.IsReady() {
 		return

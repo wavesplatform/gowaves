@@ -1,6 +1,7 @@
 package blockchaininfo_test
 
 import (
+	"context"
 	"sort"
 	"strconv"
 	"testing"
@@ -436,9 +437,9 @@ func TestRollback(t *testing.T) {
 		HistoryJournal:    fillHistoryJournal(t, fillCache(t)),
 		St:                nil,
 	}
-
+	ctx := context.Background()
 	// Rollback from block 5 to 3
-	patch := blockchaininfo.HandleRollback(updatesExtensionState, updates, mockPublisherInterface,
+	patch := blockchaininfo.HandleRollback(ctx, updatesExtensionState, updates, mockPublisherInterface,
 		nil, proto.TestNetScheme)
 
 	expectedPatchEntries := []proto.DataEntry{

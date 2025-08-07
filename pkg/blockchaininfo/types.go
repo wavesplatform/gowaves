@@ -333,7 +333,7 @@ func compareDataEntries(current, previous proto.DataEntries) (bool, []proto.Data
 			entryChange.SetKey(key)
 			changes = append(changes, entryChange)
 		}
-	}
+	} // Else, the keys were deleted, the flow goes on.
 
 	// Keys existing in the previous state, not found in the current state. This means that these keys were deleted.
 	for key := range previousMap {

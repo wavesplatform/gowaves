@@ -644,10 +644,10 @@ func (mr *MockStateInfoMockRecorder) LegacyStateHashAtHeight(height interface{})
 }
 
 // MapR mocks base method.
-func (m *MockStateInfo) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
+func (m *MockStateInfo) MapR(arg0 func(state.StateInfo) (any, error)) (any, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "MapR", arg0)
-	ret0, _ := ret[0].(interface{})
+	ret0, _ := ret[0].(any)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -2077,10 +2077,10 @@ func (mr *MockStateMockRecorder) Map(arg0 interface{}) *gomock.Call {
 }
 
 // MapR mocks base method.
-func (m *MockState) MapR(arg0 func(state.StateInfo) (interface{}, error)) (interface{}, error) {
+func (m *MockState) MapR(arg0 func(state.StateInfo) (any, error)) (any, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "MapR", arg0)
-	ret0, _ := ret[0].(interface{})
+	ret0, _ := ret[0].(any)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
