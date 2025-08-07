@@ -16,7 +16,6 @@ import (
 
 type BlockchainUpdatesExtension struct {
 	l2ContractAddress        proto.WavesAddress
-	bUpdatesChannel          chan proto.BUpdatesInfo
 	blockchainExtensionState *BUpdatesExtensionState
 	lock                     sync.Mutex
 	makeExtensionReadyFunc   func()
@@ -26,7 +25,6 @@ type BlockchainUpdatesExtension struct {
 
 func NewBlockchainUpdatesExtension(
 	l2ContractAddress proto.WavesAddress,
-	bUpdatesChannel chan proto.BUpdatesInfo,
 	blockchainExtensionState *BUpdatesExtensionState,
 	makeExtensionReadyFunc func(),
 	obsolescencePeriod time.Duration,
@@ -34,7 +32,6 @@ func NewBlockchainUpdatesExtension(
 ) *BlockchainUpdatesExtension {
 	return &BlockchainUpdatesExtension{
 		l2ContractAddress:        l2ContractAddress,
-		bUpdatesChannel:          bUpdatesChannel,
 		blockchainExtensionState: blockchainExtensionState,
 		makeExtensionReadyFunc:   makeExtensionReadyFunc,
 		obsolescencePeriod:       obsolescencePeriod,
@@ -59,7 +56,8 @@ func (e *BlockchainUpdatesExtension) ClearPreviousState() {
 }
 
 func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.Context,
-	scheme proto.Scheme) error {
+	scheme proto.Scheme,
+	updatesChannel <-chan proto.BUpdatesInfo) error {
 	opts := &server.Options{
 		MaxPayload: natsMaxPayloadSize,
 		Host:       hostDefault,
@@ -101,7 +99,7 @@ func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.C
 	if receiverErr != nil {
 		return receiverErr
 	}
-	runPublisher(ctx, e, scheme, nc, updatesPublisher)
+	runPublisher(ctx, e, scheme, nc, updatesPublisher, updatesChannel)
 	return nil
 }
 

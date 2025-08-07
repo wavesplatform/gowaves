@@ -431,10 +431,10 @@ func handleBlockchainUpdate(updates proto.BUpdatesInfo, be *BUpdatesExtensionSta
 }
 
 func runPublisher(ctx context.Context, extension *BlockchainUpdatesExtension, scheme proto.Scheme, nc *nats.Conn,
-	updatesPublisher UpdatesPublisher) {
+	updatesPublisher UpdatesPublisher, updatesChannel <-chan proto.BUpdatesInfo) {
 	for {
 		select {
-		case updates, ok := <-extension.bUpdatesChannel:
+		case updates, ok := <-updatesChannel:
 			if !ok {
 				slog.Error("the updates channel for publisher was closed")
 				return

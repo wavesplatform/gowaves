@@ -411,13 +411,13 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 
 	if nc.enableBlockchainUpdatesPlugin {
 		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(cfg, nc.blockchainUpdatesL2Address,
-			updatesChannel, st, makeExtensionReadyFunc, nc.obsolescencePeriod, ntpTime)
+			st, makeExtensionReadyFunc, nc.obsolescencePeriod, ntpTime)
 		if bUErr != nil {
 			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
 		}
 		go func() {
 			publshrErr := bUpdatesExtension.RunBlockchainUpdatesPublisher(ctx,
-				cfg.AddressSchemeCharacter)
+				cfg.AddressSchemeCharacter, updatesChannel)
 			if publshrErr != nil {
 				slog.Error("Failed to run blockchain updates publisher", logging.Error(publshrErr))
 			}
@@ -841,7 +841,6 @@ func runAPIs(
 func initializeBlockchainUpdatesExtension(
 	cfg *settings.BlockchainSettings,
 	l2ContractAddress string,
-	updatesChannel chan proto.BUpdatesInfo,
 	state state.State,
 	makeExtensionReady func(),
 	obsolescencePeriod time.Duration,
@@ -860,7 +859,7 @@ func initializeBlockchainUpdatesExtension(
 	if cnvrtErr != nil {
 		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2ContractAddress)
 	}
-	return blockchaininfo.NewBlockchainUpdatesExtension(l2address, updatesChannel,
+	return blockchaininfo.NewBlockchainUpdatesExtension(l2address,
 		bUpdatesExtensionState, makeExtensionReady, obsolescencePeriod, ntpTime), nil
 }
 
