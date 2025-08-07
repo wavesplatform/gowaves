@@ -58,13 +58,6 @@ func (e *BlockchainUpdatesExtension) ClearPreviousState() {
 	e.blockchainExtensionState.PreviousState = nil
 }
 
-func (e *BlockchainUpdatesExtension) Close() {
-	if e.bUpdatesChannel != nil {
-		close(e.bUpdatesChannel)
-	}
-	e.bUpdatesChannel = nil
-}
-
 func (e *BlockchainUpdatesExtension) RunBlockchainUpdatesPublisher(ctx context.Context,
 	scheme proto.Scheme) error {
 	opts := &server.Options{
