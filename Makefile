@@ -135,6 +135,9 @@ build-node-darwin-arm64:
 build-node-windows-amd64:
 	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/node.exe -ldflags="-X 'github.com/wavesplatform/gowaves/pkg/versioning.Version=$(VERSION)'" ./cmd/node
 
+- name: Build node with race detector
+  run: make release-node-race
+
 release-node: ver build-node-linux-amd64 build-node-linux-i386 build-node-linux-arm64 build-node-linux-arm build-node-darwin-amd64 build-node-darwin-arm64 build-node-windows-amd64
 
 release-node-race: ver build-node-linux-amd64-with-race
