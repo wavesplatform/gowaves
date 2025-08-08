@@ -506,8 +506,8 @@ func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID) error {
 }
 
 func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) error) error {
-	a.lock()
-	defer a.unlock()
+	a.lockUnsafe()
+	defer a.unlockUnsafe()
 	return f(a.s)
 }
 
