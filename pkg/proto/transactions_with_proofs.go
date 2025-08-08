@@ -2933,7 +2933,7 @@ func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
 	n := int(binary.BigEndian.Uint16(data))
 	data = data[2:]
 	var entries []MassTransferEntry
-	for i := 0; i < n; i++ {
+	for range n {
 		var e MassTransferEntry
 		err := e.UnmarshalBinary(data)
 		if err != nil {
@@ -3308,7 +3308,7 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 	data = data[crypto.PublicKeySize:]
 	n := int(binary.BigEndian.Uint16(data))
 	data = data[2:]
-	for i := 0; i < n; i++ {
+	for range n {
 		var e DataEntry
 		t, err := extractValueType(data)
 		if err != nil {

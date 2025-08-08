@@ -13,6 +13,7 @@ import (
 )
 
 func TestBulkValidator_Validate(t *testing.T) {
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -21,10 +22,12 @@ func TestBulkValidator_Validate(t *testing.T) {
 
 	m := NewMockstateWrapper(ctrl)
 	m.EXPECT().TopBlock().Return(emptyBlock)
-	m.EXPECT().MapUnsafe(gomock.Any()).Return(nil)
+	m.EXPECT().ResetList().AnyTimes()
+	m.EXPECT().TxValidation(gomock.Any()).
+		Return(nil).AnyTimes()
 	utx := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
-	require.NoError(t, utx.AddWithBytes(byte_helpers.TransferWithSig.Transaction, byte_helpers.TransferWithSig.TransactionBytes))
-
-	validator := newBulkValidator(m, utx, tm(now))
+	require.NoError(t, utx.AddWithBytesRaw(byte_helpers.TransferWithSig.Transaction,
+		byte_helpers.TransferWithSig.TransactionBytes))
+	validator := newBulkValidator(m, utx, tm(now), nil)
 	validator.Validate()
 }

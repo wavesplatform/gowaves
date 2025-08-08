@@ -33,7 +33,7 @@ func (a *Utils) Seed(ctx context.Context) (string, *Response, error) {
 	var out struct {
 		Seed string `json:"seed"`
 	}
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return "", response, err
 	}
@@ -59,7 +59,7 @@ func (a *Utils) HashSecure(ctx context.Context, message string) (*UtilsHashSecur
 	}
 
 	out := new(UtilsHashSecure)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -85,7 +85,7 @@ func (a *Utils) HashFast(ctx context.Context, message string) (*UtilsHashFast, *
 	}
 
 	out := new(UtilsHashFast)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -111,7 +111,7 @@ func (a *Utils) Time(ctx context.Context) (*UtilsTime, *Response, error) {
 	}
 
 	out := new(UtilsTime)
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -134,7 +134,7 @@ func (a *Utils) SeedByLength(ctx context.Context, length uint16) (string, *Respo
 	var out struct {
 		Seed string `json:"seed"`
 	}
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return "", response, err
 	}
@@ -169,7 +169,7 @@ func (a *Utils) ScriptCompileCode(ctx context.Context, code string, compaction b
 	}
 
 	out := new(UtilsScriptCompile)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -199,7 +199,7 @@ func (a *Utils) ScriptEstimate(ctx context.Context, base64code string) (*UtilsSc
 	}
 
 	out := new(UtilsScriptEstimate)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}

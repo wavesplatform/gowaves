@@ -50,7 +50,7 @@ func loadStateHash(ctx context.Context, cl *client.Client, height uint64, tries 
 	defer cancel()
 	var sh *proto.StateHash
 	var err error
-	for i := 0; i < tries; i++ {
+	for range tries {
 		sh, _, err = cl.Debug.StateHash(ctx, height)
 		if err == nil {
 			return sh, nil
@@ -153,7 +153,7 @@ func download(
 	defer cancel()
 	p := &printer{}
 	var wg sync.WaitGroup
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

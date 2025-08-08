@@ -93,6 +93,32 @@ func (mr *MockstateWrapperMockRecorder) MapUnsafe(arg0 interface{}) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapUnsafe", reflect.TypeOf((*MockstateWrapper)(nil).MapUnsafe), arg0)
 }
 
+// ResetList mocks base method.
+func (m *MockstateWrapper) ResetList() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ResetList")
+}
+
+// ResetList indicates an expected call of ResetList.
+func (mr *MockstateWrapperMockRecorder) ResetList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetList", reflect.TypeOf((*MockstateWrapper)(nil).ResetList))
+}
+
+// ResetListUnsafe mocks base method.
+func (m *MockstateWrapper) ResetListUnsafe(arg0 func(state.TxValidation) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetListUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ResetListUnsafe indicates an expected call of ResetListUnsafe.
+func (mr *MockstateWrapperMockRecorder) ResetListUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetListUnsafe", reflect.TypeOf((*MockstateWrapper)(nil).ResetListUnsafe), arg0)
+}
+
 // TopBlock mocks base method.
 func (m *MockstateWrapper) TopBlock() *proto.Block {
 	m.ctrl.T.Helper()

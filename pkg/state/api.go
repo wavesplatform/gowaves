@@ -127,7 +127,7 @@ type StateInfo interface {
 	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
-	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
+	MapR(func(StateInfo) (any, error)) (any, error)
 
 	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
@@ -193,6 +193,10 @@ type StateModifier interface {
 	// Func internally calls ResetValidationList.
 	TxValidation(func(validation TxValidation) error) error
 
+	ResetList()
+
+	ResetListUnsafe(func(validation TxValidation) error) error
+
 	// Way to call multiple operations under same lock.
 	Map(func(state NonThreadSafeState) error) error
 
@@ -209,7 +213,7 @@ type StateModifier interface {
 
 type NonThreadSafeState = State
 
-type TxValidation interface {
+type TxValidation = interface {
 	ValidateNextTx(
 		tx proto.Transaction,
 		currentTimestamp, parentTimestamp uint64,

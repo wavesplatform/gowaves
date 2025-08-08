@@ -287,7 +287,7 @@ func unpackPayments(paymentsSliceIndex int, output []byte) (_ []Payment, slotsRe
 
 	elemSize := getTypeSize(*paymentsType.Elem) // we know that elem size here is fixed (and equal 32)
 	payments := make([]Payment, 0, size)
-	for i := 0; i < size; i++ {
+	for i := range size {
 		payment, slotsRead, err := unpackPayment(output[i*elemSize:])
 		if err != nil {
 			return nil, 0, errors.Wrap(err, "failed to unpack payment")

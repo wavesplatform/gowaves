@@ -35,8 +35,7 @@ func TestSuccessfulSession(t *testing.T) {
 	clientHandler := networking.NewMockHandler(t)
 	serverHandler := networking.NewMockHandler(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
@@ -117,8 +116,7 @@ func TestSessionTimeoutOnHandshake(t *testing.T) {
 	clientHandler := networking.NewMockHandler(t)
 	serverHandler := networking.NewMockHandler(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
@@ -175,8 +173,7 @@ func TestSessionTimeoutOnMessage(t *testing.T) {
 	clientHandler := networking.NewMockHandler(t)
 	serverHandler := networking.NewMockHandler(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
@@ -261,8 +258,7 @@ func TestDoubleClose(t *testing.T) {
 	clientHandler := networking.NewMockHandler(t)
 	serverHandler := networking.NewMockHandler(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()
@@ -298,8 +294,7 @@ func TestOnClosedByOtherSide(t *testing.T) {
 	clientHandler := networking.NewMockHandler(t)
 	serverHandler := networking.NewMockHandler(t)
 
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 
 	clientConn, serverConn := testConnPipe()
 	net := networking.NewNetwork()

@@ -284,7 +284,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 			cancel()
 		}
 	}()
-	for i := 0; i < readersNumber; i++ {
+	for range readersNumber {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -328,7 +328,7 @@ func TestReadNewest(t *testing.T) {
 			cancel()
 		}
 	}()
-	for i := 0; i < readersNumber; i++ {
+	for range readersNumber {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()
@@ -450,7 +450,7 @@ func TestProtobufReadWrite(t *testing.T) {
 			cancel()
 		}
 	}()
-	for i := 0; i < readersNumber; i++ {
+	for range readersNumber {
 		wg.Add(1)
 		go func() {
 			defer wg.Done()

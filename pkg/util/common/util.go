@@ -113,7 +113,7 @@ func FromBase58JSON(value []byte, size int, name string) ([]byte, error) {
 }
 
 func ToHexJSON(b []byte) []byte {
-	return []byte(fmt.Sprintf("\"0x%x\"", b))
+	return fmt.Appendf(nil, "\"0x%x\"", b)
 }
 
 func FromHexJSONUnchecked(value []byte, name string) ([]byte, error) {

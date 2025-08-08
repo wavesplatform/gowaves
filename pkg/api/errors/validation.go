@@ -14,7 +14,7 @@ type validationError struct {
 }
 
 // TODO(nickeskov): IMPLEMENT ME
-type transaction interface{}
+type transaction any
 
 type validationErrorWithTransaction struct {
 	validationError
@@ -32,7 +32,7 @@ type (
 		// TODO(nickeskov): implement more optimized way for fields embedding
 		// for converting any structs to map[string]interface{}
 		// in a convenient way use "github.com/mitchellh/mapstructure"
-		embeddedFields map[string]interface{}
+		embeddedFields map[string]any
 	}
 	OverflowError                validationError
 	ToSelfError                  validationError

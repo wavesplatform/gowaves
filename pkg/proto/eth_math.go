@@ -68,7 +68,7 @@ func (i *hexOrDecimal256) MarshalText() ([]byte, error) {
 	if i == nil {
 		return []byte("0x0"), nil
 	}
-	return []byte(fmt.Sprintf("%#x", (*big.Int)(i))), nil
+	return fmt.Appendf(nil, "%#x", (*big.Int)(i)), nil
 }
 
 // paddedEthereumBigIntToBytes encodes a big integer as a big-endian byte slice. The length

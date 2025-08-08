@@ -628,7 +628,7 @@ func genRandBlockId(t *testing.T) proto.BlockID {
 func genRandBlockIds(t *testing.T, number int) []proto.BlockID {
 	ids := make([]proto.BlockID, number)
 	idsDict := make(map[proto.BlockID]bool)
-	for i := 0; i < number; i++ {
+	for i := range number {
 		for {
 			blockID := genRandBlockId(t)
 			if _, ok := idsDict[blockID]; ok {
@@ -644,7 +644,7 @@ func genRandBlockIds(t *testing.T, number int) []proto.BlockID {
 
 func genBlockId(fillWith byte) proto.BlockID {
 	var s crypto.Signature
-	for i := 0; i < crypto.SignatureSize; i++ {
+	for i := range crypto.SignatureSize {
 		s[i] = fillWith
 	}
 	return proto.NewBlockIDFromSignature(s)

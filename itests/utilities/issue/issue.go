@@ -138,9 +138,9 @@ func getAssetsMatrix(suite *f.BaseSuite, data testdata.IssueTestData[testdata.Ex
 	issueVersions []byte, casesCount int) [][]crypto.Digest {
 	txIds := make(map[string]*crypto.Digest)
 	matrix := make([][]crypto.Digest, len(issueVersions))
-	for i := 0; i < len(issueVersions); i++ {
+	for i := range issueVersions {
 		matrix[i] = make([]crypto.Digest, casesCount)
-		for j := 0; j < casesCount; j++ {
+		for j := range casesCount {
 			itx := SendWithTestData(suite, testdata.DataChangedTimestamp(&data), issueVersions[i], false)
 			matrix[i][j] = itx.TxID
 			name := fmt.Sprintf("i: %d, j: %d", i, j)

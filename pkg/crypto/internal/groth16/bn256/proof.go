@@ -18,7 +18,7 @@ type BellmanProofBn256 struct {
 
 func (proof *BellmanProofBn256) ReadFrom(r io.Reader) (int64, error) {
 	dec := curveBn254.NewDecoder(r)
-	toDecode := []interface{}{
+	toDecode := []any{
 		&proof.Ar,
 		&proof.Bs,
 		&proof.Krs,

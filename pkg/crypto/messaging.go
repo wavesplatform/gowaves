@@ -204,7 +204,7 @@ func trimPKCS7Padding(data []byte) ([]byte, error) {
 	if n == 0 || n > len(data) {
 		return nil, errors.Errorf("invalid PKCS7 padding: invalid padding byte value %d", n)
 	}
-	for i := 0; i < n; i++ {
+	for i := range n {
 		if b := data[len(data)-n+i]; b != c {
 			return nil, errors.Errorf("invalid PKCS7 padding: unexpected padding byte value %d", b)
 		}

@@ -272,7 +272,7 @@ func (p *parser) parseNext() (ast.Node, error) {
 		}
 		ac := int(argumentsCount)
 		arguments := make([]ast.Node, ac)
-		for i := 0; i < ac; i++ {
+		for i := range ac {
 			arg, err := p.parseNext()
 			if err != nil {
 				return nil, err
@@ -371,7 +371,7 @@ func (p *parser) readDeclaration() (ast.Node, error) {
 		}
 		ac := int(argumentsCount)
 		arguments := make([]string, ac)
-		for i := 0; i < ac; i++ {
+		for i := range ac {
 			arg, err := p.readString()
 			if err != nil {
 				return nil, err

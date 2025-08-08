@@ -32,7 +32,7 @@ func (a *Leasing) Active(ctx context.Context, address proto.WavesAddress) ([]*pr
 	}
 
 	var out []*proto.LeaseWithSig
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}

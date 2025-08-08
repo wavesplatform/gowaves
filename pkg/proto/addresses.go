@@ -154,7 +154,7 @@ func (ea EthereumAddress) ToWavesAddress(scheme Scheme) (WavesAddress, error) {
 
 func (ea EthereumAddress) MarshalJSON() ([]byte, error) {
 	hexString := ea.Hex()
-	return []byte(fmt.Sprintf("\"%s\"", hexString)), nil
+	return fmt.Appendf(nil, "\"%s\"", hexString), nil
 }
 
 func (ea *EthereumAddress) UnmarshalJSON(bytes []byte) error {

@@ -426,7 +426,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 		return
 	}
 
-	rs, err := a.storage.MapR(func(info state.StateInfo) (i interface{}, err error) {
+	rs, err := a.storage.MapR(func(info state.StateInfo) (any, error) {
 		return a.internal.schedule(info, keyPairs, a.settings, confirmedBlock, confirmedBlockHeight, a.tm,
 			a.generateInPast)
 	})

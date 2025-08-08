@@ -16,7 +16,7 @@ func (a impl) Key() []byte {
 	return a.key
 }
 
-func (a impl) Value() interface{} {
+func (a impl) Value() any {
 	return a.val
 }
 

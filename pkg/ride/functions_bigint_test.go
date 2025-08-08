@@ -55,8 +55,8 @@ func BenchmarkPowBigInt(b *testing.B) {
 	d18, ok := new(big.Int).SetString("987654321012345678", 10)
 	require.True(b, ok)
 	args := []rideType{rideBigInt{v: d18}, rideInt(18), rideBigInt{v: rideMath.MaxBigInt}, rideInt(0), rideInt(18), newDown(nil)}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := powBigInt(nil, args...)
 		require.Error(b, err)
 		require.Nil(b, r)
@@ -319,8 +319,8 @@ func TestFractionBigInt(t *testing.T) {
 
 func BenchmarkFractionBigInt(b *testing.B) {
 	args := []rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := fractionBigInt(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
@@ -378,8 +378,8 @@ func TestFractionBigIntRounds(t *testing.T) {
 
 func BenchmarkFractionBigIntRounds(b *testing.B) {
 	args := []rideType{rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, rideBigInt{v: rideMath.MaxBigInt}, newCeiling(nil)}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := fractionBigIntRounds(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)
@@ -680,8 +680,8 @@ func BenchmarkBigIntToString(b *testing.B) {
 	v, ok := new(big.Int).SetString("52785833603464895924505196455835395749861094195642486808108138863402869537852026544579466671752822414281401856143643660416162921950916138504990605852480", 10)
 	require.True(b, ok)
 	args := []rideType{rideBigInt{v: v}}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		r, err := bigIntToString(nil, args...)
 		require.NoError(b, err)
 		require.NotNil(b, r)

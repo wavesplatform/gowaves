@@ -125,7 +125,7 @@ func (itb intTextBuilder) MarshalText() (text []byte, err error) {
 	if itb.unsigned {
 		unsignedPrefix = "u"
 	}
-	return []byte(fmt.Sprintf("%sint%d", unsignedPrefix, itb.size)), nil
+	return fmt.Appendf(nil, "%sint%d", unsignedPrefix, itb.size), nil
 }
 
 type fixedBytesTextBuilder struct {
@@ -136,7 +136,7 @@ func (fbtb fixedBytesTextBuilder) MarshalText() (text []byte, err error) {
 	if fbtb.size < 1 || fbtb.size > abiSlotSize {
 		return nil, errors.Errorf("invalid fixed bytes type size (%d)", fbtb.size)
 	}
-	return []byte(fmt.Sprintf("bytes%d", fbtb.size)), nil
+	return fmt.Appendf(nil, "bytes%d", fbtb.size), nil
 }
 
 type bytesTextBuilder struct{}
@@ -166,7 +166,7 @@ func (stb sliceTextBuilder) MarshalText() (text []byte, err error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to marshal %T", stb.inner)
 	}
-	return []byte(fmt.Sprintf("%s[]", marshaled)), nil
+	return fmt.Appendf(nil, "%s[]", marshaled), nil
 }
 
 type tupleTextBuilder []encoding.TextMarshaler
@@ -180,7 +180,7 @@ func (ttb tupleTextBuilder) MarshalText() (text []byte, err error) {
 		}
 		elements = append(elements, string(marshaled))
 	}
-	return []byte(fmt.Sprintf("(%s)", strings.Join(elements, ","))), nil
+	return fmt.Appendf(nil, "(%s)", strings.Join(elements, ",")), nil
 }
 
 type paymentTextBuilder struct{}
@@ -233,5 +233,5 @@ func (ftb functionTextBuilder) MarshalText() (text []byte, err error) {
 		}
 		elements = append(elements, string(payments))
 	}
-	return []byte(fmt.Sprintf("%s(%s)", ftb.functionMeta.Name, strings.Join(elements, ","))), nil
+	return fmt.Appendf(nil, "%s(%s)", ftb.functionMeta.Name, strings.Join(elements, ",")), nil
 }

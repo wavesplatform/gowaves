@@ -1021,7 +1021,7 @@ func GeDoubleScalarMultVartime(r *ProjectiveGroupElement, a *[32]byte, A *Extend
 	A.Double(&t)
 	t.ToExtended(&A2)
 
-	for i := 0; i < 7; i++ {
+	for i := range 7 {
 		geAdd(&t, &A2, &Ai[i])
 		t.ToExtended(&u)
 		u.ToCached(&Ai[i+1])
@@ -1083,7 +1083,7 @@ func selectPoint(t *PreComputedGroupElement, pos int32, b int32) {
 	bAbs := b - (((-bNegative) & b) << 1)
 
 	t.Zero()
-	for i := int32(0); i < 8; i++ {
+	for i := range int32(8) { //nolint:mnd // library specification
 		PreComputedGroupElementCMove(t, &base[pos][i], equal(bAbs, i+1))
 	}
 	FeCopy(&minusT.yPlusX, &t.yMinusX)
@@ -1111,7 +1111,7 @@ func GeScalarMultBase(h *ExtendedGroupElement, a *[32]byte) {
 	// each e[i] is between 0 and 15 and e[63] is between 0 and 7.
 
 	carry := int8(0)
-	for i := 0; i < 63; i++ {
+	for i := range 63 {
 		e[i] += carry
 		carry = (e[i] + 8) >> 4
 		e[i] -= carry << 4

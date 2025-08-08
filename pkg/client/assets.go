@@ -47,7 +47,7 @@ func (a *Assets) BalanceByAddress(ctx context.Context, address proto.WavesAddres
 	}
 
 	out := new(AssetsBalances)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -74,7 +74,7 @@ func (a *Assets) BalanceByAddressAndAsset(ctx context.Context, address proto.Wav
 	}
 
 	out := new(AssetsBalanceAndAsset)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -108,7 +108,7 @@ func (a *Assets) Details(ctx context.Context, assetId crypto.Digest) (*AssetsDet
 	}
 
 	out := new(AssetsDetail)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -142,7 +142,7 @@ func (a *Assets) DistributionAtHeight(ctx context.Context, assetId crypto.Digest
 	}
 
 	out := new(AssetsDistributionAtHeight)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -166,7 +166,7 @@ func (a *Assets) Distribution(ctx context.Context, assetId crypto.Digest) (Asset
 	}
 
 	out := make(AssetsDistribution)
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}

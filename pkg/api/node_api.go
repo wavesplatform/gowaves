@@ -53,7 +53,7 @@ func (a *NodeApi) TransactionsBroadcast(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast")
 	}
-	err = trySendJson(w, tx)
+	err = trySendJSON(w, tx)
 	if err != nil {
 		return errors.Wrap(err, "TransactionsBroadcast")
 	}
@@ -101,7 +101,7 @@ func (a *NodeApi) TransactionInfo(w http.ResponseWriter, r *http.Request) error 
 			"TransactionsInfo: expected NotFound in state error, but received other error = %s", s,
 		)
 	}
-	err = trySendJson(w, tx)
+	err = trySendJSON(w, tx)
 	if err != nil {
 		return errors.Wrap(err, "TransactionsInfo")
 	}
@@ -113,7 +113,7 @@ func (a *NodeApi) BlocksLast(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "BlocksLast: failed to get last block")
 	}
-	err = trySendJson(w, apiBlock)
+	err = trySendJSON(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlocksLast")
 	}
@@ -125,7 +125,7 @@ func (a *NodeApi) BlocksFirst(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "BlocksFirst: failed to get first block")
 	}
-	err = trySendJson(w, apiBlock)
+	err = trySendJSON(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlocksFirst: failed to marshal block to JSON and write to ResponseWriter")
 	}
@@ -137,7 +137,7 @@ func (a *NodeApi) BlocksHeadersLast(w http.ResponseWriter, _ *http.Request) erro
 	if err != nil {
 		return errors.Wrap(err, "BlocksHeadersLast: failed to get last block header")
 	}
-	err = trySendJson(w, lastBlockHeader)
+	err = trySendJSON(w, lastBlockHeader)
 	if err != nil {
 		return errors.Wrap(err, "BlocksHeadersLast: failed to marshal block header to JSON and write to ResponseWriter")
 	}
@@ -157,7 +157,7 @@ func (a *NodeApi) BlocksHeadersAt(w http.ResponseWriter, r *http.Request) error 
 		}
 		return errors.Wrapf(err, "BlocksHeadersAt: failed to get block header at height %d", h)
 	}
-	err = trySendJson(w, header)
+	err = trySendJSON(w, header)
 	if err != nil {
 		return errors.Wrap(err, "BlocksHeadersAt: failed to marshal block header to JSON and write to ResponseWriter")
 	}
@@ -181,7 +181,7 @@ func (a *NodeApi) BlockHeadersID(w http.ResponseWriter, r *http.Request) error {
 		}
 		return errors.Wrapf(err, "BlockHeadersID: failed to get block header by ID=%q", s)
 	}
-	err = trySendJson(w, header)
+	err = trySendJSON(w, header)
 	if err != nil {
 		return errors.Wrap(err, "BlockHeadersID: failed to marshal block header to JSON and write to ResponseWriter")
 	}
@@ -205,7 +205,7 @@ func (a *NodeApi) BlocksHeadersSeqFromTo(w http.ResponseWriter, r *http.Request)
 	if err != nil {
 		return errors.Wrapf(err, "BlocksHeadersSeqFromTo: failed to get block sequence from %d to %d", from, to)
 	}
-	err = trySendJson(w, seq)
+	err = trySendJSON(w, seq)
 	if err != nil {
 		return errors.Wrap(err, "BlocksHeadersSeqFromTo: failed to marshal block header to JSON and write to ResponseWriter")
 	}
@@ -260,7 +260,7 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create API block")
 	}
-	err = trySendJson(w, apiBlock)
+	err = trySendJSON(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockEncodeJson: failed to marshal block to JSON and write to ResponseWriter")
 	}
@@ -306,7 +306,7 @@ func (a *NodeApi) BlockIDAt(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to create API block")
 	}
-	err = trySendJson(w, apiBlock)
+	err = trySendJSON(w, apiBlock)
 	if err != nil {
 		return errors.Wrap(err, "BlockIDAt: failed to marshal block to JSON and write to ResponseWriter")
 	}
@@ -330,7 +330,7 @@ func (a *NodeApi) BlocksSnapshotAt(w http.ResponseWriter, r *http.Request) error
 
 	_ = json.Marshaler(blockSnapshot) // check that blockSnapshot implements json.Marshaler
 
-	err = trySendJson(w, blockSnapshot)
+	err = trySendJSON(w, blockSnapshot)
 	if err != nil {
 		return errors.Wrap(err,
 			"BlocksSnapshotAt: failed to marshal block snapshot to JSON and write to ResponseWriter")
@@ -348,8 +348,8 @@ func (a *NodeApi) BlockHeight(w http.ResponseWriter, _ *http.Request) error {
 		return errors.Wrap(err, "BlockHeight: failed to bet blocks height")
 	}
 
-	if err := trySendJson(w, blockHeightResponse{Height: height}); err != nil {
-		return errors.Wrap(err, "BlockHeight")
+	if jsErr := trySendJSON(w, blockHeightResponse{Height: height}); jsErr != nil {
+		return errors.Wrap(jsErr, "BlockHeight")
 	}
 	return nil
 }
@@ -378,8 +378,8 @@ func (a *NodeApi) BlockHeightByID(w http.ResponseWriter, r *http.Request) error 
 		)
 	}
 
-	if err := trySendJson(w, blockHeightByIDResponse{Height: height}); err != nil {
-		return errors.Wrap(err, "BlockHeightByID")
+	if jsErr := trySendJSON(w, blockHeightByIDResponse{Height: height}); jsErr != nil {
+		return errors.Wrap(jsErr, "BlockHeightByID")
 	}
 	return nil
 }
@@ -398,8 +398,8 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 		// TODO(nickeskov): which error it should send?
 		return errors.Wrapf(err, "failed get blocks score at for id %d", id)
 	}
-	if err := trySendJson(w, rs); err != nil {
-		return errors.Wrap(err, "BlockScoreAt")
+	if jsErr := trySendJSON(w, rs); jsErr != nil {
+		return errors.Wrap(jsErr, "BlockScoreAt")
 	}
 	return nil
 }
@@ -460,8 +460,8 @@ func (a *NodeApi) PeersAll(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch all peers")
 	}
-	if err := trySendJson(w, rs); err != nil {
-		return errors.Wrap(err, "PeersAll")
+	if jsErr := trySendJSON(w, rs); jsErr != nil {
+		return errors.Wrap(jsErr, "PeersAll")
 	}
 	return nil
 }
@@ -471,15 +471,15 @@ func (a *NodeApi) PeersKnown(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to fetch known peers")
 	}
-	if err := trySendJson(w, rs); err != nil {
-		return errors.Wrap(err, "PeersKnown")
+	if jsErr := trySendJSON(w, rs); jsErr != nil {
+		return errors.Wrap(jsErr, "PeersKnown")
 	}
 	return nil
 }
 
 func (a *NodeApi) PeersSpawned(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersSpawned()
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "PeersSpawned")
 	}
 	return nil
@@ -492,7 +492,7 @@ type PeersConnectRequest struct {
 
 func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) error {
 	req := &PeersConnectRequest{}
-	if err := tryParseJson(r.Body, req); err != nil {
+	if err := tryParseJSON(r.Body, req); err != nil {
 		return errors.Wrap(err, "failed to parse PeersConnect request body as JSON")
 	}
 	// TODO(nickeskov): remove this and use auth middleware
@@ -503,8 +503,8 @@ func (a *NodeApi) PeersConnect(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrapf(err, "failed to connect to new peer, addr %s", addr)
 	}
 
-	if err := trySendJson(w, rs); err != nil {
-		return errors.Wrap(err, "PeersConnect")
+	if jsErr := trySendJSON(w, rs); jsErr != nil {
+		return errors.Wrap(jsErr, "PeersConnect")
 	}
 	return nil
 }
@@ -532,8 +532,8 @@ func (a *NodeApi) AddrByAlias(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	resp := addrResponse{Address: addr.String()}
-	if err := trySendJson(w, resp); err != nil {
-		return errors.Wrap(err, "AddrByAlias")
+	if jsErr := trySendJSON(w, resp); jsErr != nil {
+		return errors.Wrap(jsErr, "AddrByAlias")
 	}
 	return nil
 }
@@ -558,8 +558,8 @@ func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
 	if aliases == nil {
 		aliases = []proto.Alias{} // ensure that empty array will be return instead of nil
 	}
-	if err := trySendJson(w, aliases); err != nil {
-		return errors.Wrap(err, "AliasesByAddr")
+	if jsErr := trySendJSON(w, aliases); jsErr != nil {
+		return errors.Wrap(jsErr, "AliasesByAddr")
 	}
 	return nil
 }
@@ -587,8 +587,8 @@ func (a *NodeApi) NodeStatus(w http.ResponseWriter, r *http.Request) error {
 		UpdatedTimestamp: updatedTimestampMillis,
 		UpdatedDate:      time.UnixMilli(updatedTimestampMillis).UTC().Format(time.RFC3339Nano),
 	}
-	if err := trySendJson(w, out); err != nil {
-		return errors.Wrap(err, "NodeStatus")
+	if jsErr := trySendJSON(w, out); jsErr != nil {
+		return errors.Wrap(jsErr, "NodeStatus")
 	}
 	return nil
 }
@@ -604,7 +604,7 @@ func (a *NodeApi) walletSeed(w http.ResponseWriter, _ *http.Request) error {
 		seeds = append(seeds, seed{Seed: seed58})
 	}
 
-	if err := trySendJson(w, seeds); err != nil {
+	if err := trySendJSON(w, seeds); err != nil {
 		return errors.Wrap(err, "walletSeed")
 	}
 	return nil
@@ -612,7 +612,7 @@ func (a *NodeApi) walletSeed(w http.ResponseWriter, _ *http.Request) error {
 
 func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersConnected()
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "PeersConnected")
 	}
 	return nil
@@ -620,7 +620,7 @@ func (a *NodeApi) PeersConnected(w http.ResponseWriter, _ *http.Request) error {
 
 func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersSuspended()
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "PeersSuspended")
 	}
 	return nil
@@ -628,7 +628,7 @@ func (a *NodeApi) PeersSuspended(w http.ResponseWriter, _ *http.Request) error {
 
 func (a *NodeApi) PeersBlackListed(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersBlackListed()
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "PeersBlackListed")
 	}
 	return nil
@@ -636,7 +636,7 @@ func (a *NodeApi) PeersBlackListed(w http.ResponseWriter, _ *http.Request) error
 
 func (a *NodeApi) PeersClearBlackList(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.PeersClearBlackList()
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "PeersBlackListed")
 	}
 	return nil
@@ -647,8 +647,8 @@ func (a *NodeApi) BlocksGenerators(w http.ResponseWriter, _ *http.Request) error
 	if err != nil {
 		return errors.Wrap(err, "failed to get BlocksGenerators")
 	}
-	if err := trySendJson(w, rs); err != nil {
-		return errors.Wrap(err, "BlocksGenerators")
+	if jsErr := trySendJSON(w, rs); jsErr != nil {
+		return errors.Wrap(jsErr, "BlocksGenerators")
 	}
 	return nil
 }
@@ -661,7 +661,7 @@ func (a *NodeApi) poolTransactions(w http.ResponseWriter, _ *http.Request) error
 	rs := poolTransactions{
 		Count: a.app.PoolTransactions(),
 	}
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "poolTransactions")
 	}
 	return nil
@@ -675,7 +675,7 @@ func (a *NodeApi) unconfirmedSize(w http.ResponseWriter, _ *http.Request) error 
 	rs := unconfirmedSize{
 		Size: a.app.PoolTransactions(),
 	}
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "unconfirmedSize")
 	}
 	return nil
@@ -692,7 +692,7 @@ func (a *NodeApi) RollbackToHeight(w http.ResponseWriter, r *http.Request) error
 	}
 
 	rollbackReq := &rollbackRequest{}
-	if err := tryParseJson(r.Body, rollbackReq); err != nil {
+	if err := tryParseJSON(r.Body, rollbackReq); err != nil {
 		return errors.Wrap(err, "failed to parse RollbackToHeight body as JSON")
 	}
 	err := a.state.RollbackToHeight(rollbackReq.Height)
@@ -710,7 +710,7 @@ func (a *NodeApi) RollbackToHeight(w http.ResponseWriter, r *http.Request) error
 		}
 		return errors.Wrap(err, "expected NotFound in state error, but received other error")
 	}
-	if err = trySendJson(w, rollbackResponse{block.BlockID()}); err != nil {
+	if err = trySendJSON(w, rollbackResponse{block.BlockID()}); err != nil {
 		return errors.Wrap(err, "RollbackToHeight")
 	}
 	return nil
@@ -728,7 +728,7 @@ func (a *NodeApi) RollbackTo(w http.ResponseWriter, r *http.Request) error {
 	if err = a.state.RollbackTo(id); err != nil {
 		return errors.Wrapf(err, "failed to rollback to block %s", id)
 	}
-	if err = trySendJson(w, rollbackResponse{id}); err != nil {
+	if err = trySendJSON(w, rollbackResponse{id}); err != nil {
 		return errors.Wrap(err, "RollbackTo")
 	}
 	return nil
@@ -745,7 +745,7 @@ type walletLoadKeys interface {
 func WalletLoadKeys(app walletLoadKeys) HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) error {
 		js := &walletLoadKeysRequest{}
-		if err := tryParseJson(r.Body, js); err != nil {
+		if err := tryParseJSON(r.Body, js); err != nil {
 			return errors.Wrap(err, "failed to parse WalletLoadKeys body as JSON")
 		}
 		// TODO(nickeskov): remove this and use auth middleware
@@ -762,15 +762,15 @@ func (a *NodeApi) WalletAccounts(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get Accounts")
 	}
-	if err := trySendJson(w, rs); err != nil {
-		return errors.Wrap(err, "WalletAccounts")
+	if jsErr := trySendJSON(w, rs); jsErr != nil {
+		return errors.Wrap(jsErr, "WalletAccounts")
 	}
 	return nil
 }
 
 func (a *NodeApi) GoMinerInfo(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.Miner()
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "GoMinerInfo")
 	}
 	return nil
@@ -781,8 +781,8 @@ func (a *NodeApi) Addresses(w http.ResponseWriter, _ *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to get Addresses")
 	}
-	if err := trySendJson(w, addresses); err != nil {
-		return errors.Wrap(err, "Addresses")
+	if jsErr := trySendJSON(w, addresses); jsErr != nil {
+		return errors.Wrap(jsErr, "Addresses")
 	}
 	return nil
 }
@@ -802,7 +802,7 @@ func (a *NodeApi) WavesRegularBalanceByAddress(w http.ResponseWriter, r *http.Re
 		return errors.Wrap(err, "failed to get Waves regular balance by address")
 	}
 
-	if jsErr := trySendJson(w, balance); jsErr != nil {
+	if jsErr := trySendJSON(w, balance); jsErr != nil {
 		return errors.Wrap(jsErr, "WavesRegularBalanceByAddress")
 	}
 	return nil
@@ -840,8 +840,8 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 		return errors.Wrap(err, "failed to get state hash debug")
 	}
 
-	if err := trySendJson(w, stateHashDebug); err != nil {
-		return errors.Wrap(err, "stateHash")
+	if jsErr := trySendJSON(w, stateHashDebug); jsErr != nil {
+		return errors.Wrap(jsErr, "stateHash")
 	}
 	return nil
 }
@@ -862,8 +862,8 @@ func (a *NodeApi) stateHashLast(w http.ResponseWriter, _ *http.Request) error {
 		}
 		return errors.Wrap(err, "failed to get last state hash")
 	}
-	if err := trySendJson(w, stateHashDebug); err != nil {
-		return errors.Wrap(err, "stateHash")
+	if jsErr := trySendJSON(w, stateHashDebug); jsErr != nil {
+		return errors.Wrap(jsErr, "stateHash")
 	}
 	return nil
 }
@@ -888,7 +888,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	type out struct {
 		StateHash proto.HexBytes `json:"stateHash"`
 	}
-	if sendErr := trySendJson(w, out{StateHash: sh.Bytes()}); sendErr != nil {
+	if sendErr := trySendJSON(w, out{StateHash: sh.Bytes()}); sendErr != nil {
 		return errors.Wrap(sendErr, "snapshotStateHash")
 	}
 	return nil
@@ -920,8 +920,8 @@ func (a *NodeApi) EthereumDAppABI(w http.ResponseWriter, r *http.Request) error 
 		}
 		return errors.Wrapf(err, "failed to get EthereumDAppMethods by address=%q", addr.String())
 	}
-	if err := trySendJson(w, methods); err != nil {
-		return errors.Wrap(err, "EthereumDAppABI")
+	if jsErr := trySendJSON(w, methods); jsErr != nil {
+		return errors.Wrap(jsErr, "EthereumDAppABI")
 	}
 	return nil
 }
@@ -947,8 +947,8 @@ func (a *NodeApi) AssetsDetailsByID(w http.ResponseWriter, r *http.Request) erro
 		}
 		return errors.Wrapf(err, "failed to get asset details by assetID=%q", fullAssetID)
 	}
-	if err := trySendJson(w, assetDetails); err != nil {
-		return errors.Wrap(err, "AssetsDetailsByID")
+	if jsErr := trySendJSON(w, assetDetails); jsErr != nil {
+		return errors.Wrap(jsErr, "AssetsDetailsByID")
 	}
 	return nil
 }
@@ -963,7 +963,7 @@ func (a *NodeApi) AssetsDetailsByIDsPost(w http.ResponseWriter, r *http.Request)
 	var data struct {
 		IDs []string `json:"ids"`
 	}
-	if err := tryParseJson(r.Body, &data); err != nil {
+	if err := tryParseJSON(r.Body, &data); err != nil {
 		return err
 	}
 	query := r.URL.Query()
@@ -1004,22 +1004,22 @@ func (a *NodeApi) assetsDetailsByIDs(w http.ResponseWriter, fullQueryParam strin
 	if err != nil {
 		return errors.Wrapf(err, "failed to get asset details by list of assets")
 	}
-	if err := trySendJson(w, assetsDetails); err != nil {
-		return errors.Wrap(err, "AssetsDetails")
+	if jsErr := trySendJSON(w, assetsDetails); jsErr != nil {
+		return errors.Wrap(jsErr, "AssetsDetails")
 	}
 	return nil
 }
 
 func (a *NodeApi) version(w http.ResponseWriter, _ *http.Request) error {
 	rs := a.app.version()
-	if err := trySendJson(w, rs); err != nil {
+	if err := trySendJSON(w, rs); err != nil {
 		return errors.Wrap(err, "Version")
 	}
 	return nil
 }
 
-// tryParseJson receives reader and out params. out MUST be a pointer
-func tryParseJson(r io.Reader, out interface{}) error {
+// tryParseJSON receives reader and out params. out MUST be a pointer.
+func tryParseJSON(r io.Reader, out any) error {
 	// TODO(nickeskov): check empty reader
 	err := json.NewDecoder(r).Decode(out)
 	if err != nil {
@@ -1028,7 +1028,7 @@ func tryParseJson(r io.Reader, out interface{}) error {
 	return nil
 }
 
-func trySendJson(w io.Writer, v interface{}) error {
+func trySendJSON(w io.Writer, v any) error {
 	err := json.NewEncoder(w).Encode(v)
 	if err != nil {
 		return errors.Wrapf(err, "failed to marshal %T to JSON and write it to %T", v, w)
@@ -1042,7 +1042,7 @@ func (a *NodeApi) debugPrint(_ http.ResponseWriter, r *http.Request) error {
 	}
 
 	req := &debugPrintRequest{}
-	if err := tryParseJson(r.Body, req); err != nil {
+	if err := tryParseJSON(r.Body, req); err != nil {
 		return errors.Wrap(err, "failed to parse DebugPrint request body as JSON")
 	}
 	trimmedStr := req.Message

@@ -155,8 +155,8 @@ func BenchmarkNewWavesAddressFromPublicKey(b *testing.B) {
 	}
 
 	b.ReportAllocs()
-	b.ResetTimer()
-	for n := 0; n < b.N; n++ {
+
+	for b.Loop() {
 		addr, err = NewAddressFromPublicKey(TestNetScheme, pk)
 	}
 	b.StopTimer()

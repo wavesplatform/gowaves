@@ -37,6 +37,7 @@ func (a *crypt) Encrypt(plaintext []byte) ([]byte, error) {
 	if _, err := io.ReadFull(rand.Reader, iv); err != nil {
 		return nil, err
 	}
+	//nolint:staticcheck // For compatibility
 	cipher.NewCFBEncrypter(block, iv).XORKeyStream(ciphertext[aes.BlockSize:], plaintext)
 	return ciphertext, nil
 }
@@ -54,6 +55,7 @@ func (a *crypt) Decrypt(ciphertext []byte) ([]byte, error) {
 	iv := ciphertext[:aes.BlockSize]
 	ciphertext = ciphertext[aes.BlockSize:]
 
+	//nolint:staticcheck // For compatibility
 	cipher.NewCFBDecrypter(block, iv).XORKeyStream(ciphertext, ciphertext)
 
 	return ciphertext, nil

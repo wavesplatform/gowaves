@@ -171,7 +171,7 @@ func TestActivateRace(t *testing.T) {
 	const goroutines = 1000
 	var wg sync.WaitGroup
 	wg.Add(goroutines)
-	for i := 0; i < goroutines; i++ {
+	for range goroutines {
 		go func() {
 			defer wg.Done()
 			<-start
@@ -188,12 +188,12 @@ func TestActivateRace(t *testing.T) {
 
 func BenchmarkRunParallel(b *testing.B) {
 	const parallelism = 100
-	for n := 0; n < b.N; n++ {
+	for b.Loop() {
 		var g execution.TaskGroup
 		var wg sync.WaitGroup
 		wg.Add(parallelism)
 		start := make(chan struct{})
-		for i := 0; i < parallelism; i++ {
+		for range parallelism {
 			go func() {
 				defer wg.Done()
 				<-start

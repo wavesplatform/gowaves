@@ -43,7 +43,7 @@ func (a *Addresses) Balance(ctx context.Context, address proto.WavesAddress) (*A
 	}
 
 	out := new(AddressesBalance)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -72,7 +72,7 @@ func (a *Addresses) BalanceDetails(ctx context.Context, address proto.WavesAddre
 	}
 
 	out := new(AddressesBalanceDetails)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -104,7 +104,7 @@ func (a *Addresses) ScriptInfo(ctx context.Context, address proto.WavesAddress) 
 	}
 
 	out := new(AddressesScriptInfo)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -124,7 +124,7 @@ func (a *Addresses) Addresses(ctx context.Context) ([]proto.WavesAddress, *Respo
 	}
 
 	var out []proto.WavesAddress
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -149,7 +149,7 @@ func (a *Addresses) Validate(ctx context.Context, address proto.WavesAddress) (*
 	}
 
 	out := new(AddressesValidate)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -175,7 +175,7 @@ func (a *Addresses) EffectiveBalance(ctx context.Context, address proto.WavesAdd
 	}
 
 	out := new(AddressesEffectiveBalance)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -199,7 +199,7 @@ func (a *Addresses) PublicKey(ctx context.Context, publicKey string) (*proto.Wav
 	}
 
 	out := new(addressesPublicKey)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -232,7 +232,7 @@ func (a *Addresses) BalanceAfterConfirmations(
 	}
 
 	out := new(BalanceAfterConfirmations)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -285,7 +285,7 @@ func (a *Addresses) AddressesData(ctx context.Context, address proto.WavesAddres
 	}
 
 	out := new(proto.DataEntries)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -305,7 +305,7 @@ func (a *Addresses) AddressesDataKey(ctx context.Context, address proto.WavesAdd
 	}
 
 	buff := new(bytes.Buffer)
-	response, err := doHttp(ctx, a.options, req, buff)
+	response, err := doHTTP(ctx, a.options, req, buff)
 	if err != nil {
 		return nil, response, err
 	}
@@ -339,7 +339,7 @@ func (a *Addresses) AddressesDataKeys(ctx context.Context, address proto.WavesAd
 	}
 
 	out := new(proto.DataEntries)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}

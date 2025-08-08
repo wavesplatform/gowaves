@@ -59,7 +59,7 @@ func readRealBlocks(blocksPath string, nBlocks int) ([]proto.Block, error) {
 	buf := make([]byte, 2*1024*1024)
 	r := bufio.NewReader(f)
 	var blocks []proto.Block
-	for i := 0; i < nBlocks; i++ {
+	for i := range nBlocks {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return nil, err
 		}

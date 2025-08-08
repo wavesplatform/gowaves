@@ -4,19 +4,19 @@ const idSize = 64
 
 type KeyValue interface {
 	Key() []byte
-	Value() interface{}
+	Value() any
 }
 
 type keyValue struct {
 	key   []byte
-	value interface{}
+	value any
 }
 
 func (a keyValue) Key() []byte {
 	return a.key
 }
 
-func (a keyValue) Value() interface{} {
+func (a keyValue) Value() any {
 	return a.value
 }
 
@@ -24,7 +24,7 @@ type FIFOCache struct {
 	index     int
 	size      int
 	insertSeq []*[idSize]byte
-	cache     map[[idSize]byte]interface{}
+	cache     map[[idSize]byte]any
 }
 
 func New(size int) *FIFOCache {
@@ -32,7 +32,7 @@ func New(size int) *FIFOCache {
 		size:      size,
 		insertSeq: make([]*[idSize]byte, size),
 		index:     0,
-		cache:     make(map[[idSize]byte]interface{}),
+		cache:     make(map[[idSize]byte]any),
 	}
 }
 
@@ -46,18 +46,18 @@ func (a *FIFOCache) Add(keyValue KeyValue) {
 	a.replace(keyValue)
 }
 
-func (a *FIFOCache) Add2(key []byte, value interface{}) {
+func (a *FIFOCache) Add2(key []byte, value any) {
 	a.Add(keyValue{
 		key:   key,
 		value: value,
 	})
 }
 
-func (a *FIFOCache) Get(key []byte) (value interface{}, ok bool) {
+func (a *FIFOCache) Get(key []byte) (any, bool) {
 	b := [idSize]byte{}
 	copy(b[:], key)
-	value, ok = a.cache[b]
-	return
+	value, ok := a.cache[b]
+	return value, ok
 }
 
 func (a *FIFOCache) replace(keyValue KeyValue) {

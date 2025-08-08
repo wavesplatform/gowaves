@@ -377,7 +377,7 @@ func TestFunctions(t *testing.T) {
 
 func BenchmarkSimplestScript(b *testing.B) {
 	b.ReportAllocs()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		src, err := base64.StdEncoding.DecodeString("AwZd0cYf") // V3: true
 		require.NoError(b, err)
 		tree, err := serialization.Parse(src)
@@ -413,8 +413,8 @@ func BenchmarkEval(b *testing.B) {
 	prg, err := Compile(tree)
 	require.NoError(b, err)
 	assert.NotNil(b, prg)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		res, err := prg.Run(nil) //TODO: pass real value
 		require.NoError(b, err)
 		r := res.(ScriptResult)

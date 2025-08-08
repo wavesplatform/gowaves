@@ -25,7 +25,7 @@ func genPeers(n uint32) []*mock.Peer {
 	dupMap := make(map[string]struct{})
 	out := make([]*mock.Peer, n)
 
-	for i := uint32(0); i < n; i++ {
+	for i := range n {
 		for {
 			addr := genFakeAddr()
 			if _, ok := dupMap[addr]; !ok {

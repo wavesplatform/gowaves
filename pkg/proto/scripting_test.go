@@ -203,13 +203,13 @@ func TestActionsValidation(t *testing.T) {
 	require.NoError(t, err)
 	generateActions := func(dataEntries, payments, transferGroup, issueGroup byte) []ScriptAction {
 		actions := make([]ScriptAction, 0, dataEntries+payments+transferGroup+issueGroup)
-		for i := byte(0); i < dataEntries; i++ {
+		for i := range dataEntries {
 			action := &DataEntryScriptAction{
 				Entry: &IntegerDataEntry{Key: fmt.Sprintf("data entry #%d", i), Value: int64(i) + 1},
 			}
 			actions = append(actions, action)
 		}
-		for i := byte(0); i < payments; i++ {
+		for i := range payments {
 			action := &AttachedPaymentScriptAction{
 				Sender:    &pk0,
 				Recipient: NewRecipientFromAddress(addr1),
@@ -218,11 +218,11 @@ func TestActionsValidation(t *testing.T) {
 			}
 			actions = append(actions, action)
 		}
-		for i := byte(0); i < transferGroup; i++ {
+		for range transferGroup {
 			action := &TransferScriptAction{Recipient: rcp0, Amount: 100, Asset: NewOptionalAssetWaves()}
 			actions = append(actions, action)
 		}
-		for i := byte(0); i < issueGroup; i++ {
+		for i := range issueGroup {
 			action := &IssueScriptAction{
 				ID:          crypto.Digest{i},
 				Name:        fmt.Sprintf("xxx#%d", i),

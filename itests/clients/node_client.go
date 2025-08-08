@@ -153,7 +153,7 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 		scalaStateHash *proto.StateHash
 	)
 	h := c.GetMinNodesHeight(t) - 1
-	for i := 0; i < 3; i++ {
+	for range 3 {
 		if goStateHash, scalaStateHash, equal = c.StateHashCmp(t, h); equal {
 			break
 		}

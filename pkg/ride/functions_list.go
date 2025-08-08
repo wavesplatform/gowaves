@@ -355,7 +355,7 @@ func indexOfList(_ environment, args ...rideType) (rideType, error) {
 	if len(list) > maxListSize {
 		return nil, errors.Errorf("indexOfList: list size exceeds %d elements", maxListSize)
 	}
-	for i := 0; i < len(list); i++ {
+	for i := range list {
 		if e.eq(list[i]) {
 			return rideInt(i), nil
 		}
@@ -440,7 +440,7 @@ func containsElement(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "containsElement")
 	}
-	for i := 0; i < len(list); i++ {
+	for i := range list {
 		if e.eq(list[i]) {
 			return rideBoolean(true), nil
 		}

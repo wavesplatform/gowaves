@@ -279,12 +279,12 @@ func TestPushDeleteMultiplyTimes(t *testing.T) {
 func BenchmarkPush100(b *testing.B) {
 	peers := make([]peer.ID, 100)
 	scores := make([]*proto.Score, 100)
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		peers[i] = &mockPeerID{id: fmt.Sprintf("peer%d", i)}
 		scores[i] = big.NewInt(int64(i/10) + 100)
 	}
 	ss := newScoreSelector()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for i, p := range peers {
 			ss.push(p, scores[i])
 		}
@@ -297,12 +297,12 @@ func BenchmarkSelect100(b *testing.B) {
 	peers := make([]peer.ID, 100)
 	scores := make([]*proto.Score, 100)
 	ss := newScoreSelector()
-	for i := 0; i < 100; i++ {
+	for i := range 100 {
 		peers[i] = &mockPeerID{id: fmt.Sprintf("peer%d", i)}
 		scores[i] = big.NewInt(int64(i/10) + 100)
 		ss.push(peers[i], scores[i])
 	}
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for _, p := range peers {
 			bp, s := ss.selectBestPeer(p)
 			_ = bp
@@ -316,12 +316,12 @@ func BenchmarkSelect100(b *testing.B) {
 func BenchmarkPushSelect1000(b *testing.B) {
 	peers := make([]peer.ID, 1000)
 	scores := make([]*proto.Score, 1000)
-	for i := 0; i < 1000; i++ {
+	for i := range 1000 {
 		peers[i] = &mockPeerID{id: fmt.Sprintf("peer%d", i)}
 		scores[i] = big.NewInt(int64(i/100) + 1000)
 	}
 	ss := newScoreSelector()
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		for i, p := range peers {
 			ss.push(p, scores[i])
 			bp, s := ss.selectBestPeer(p)

@@ -85,6 +85,8 @@ type BaseInfo struct {
 	enableLightMode bool
 
 	cleanUtxRunning *atomic.Bool
+
+	utxCleaningCancelChan chan struct{}
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -95,21 +97,20 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 	})
 }
 
+// CleanUtx Must be only called inside Map or MapUnsafe.
 func (a *BaseInfo) CleanUtx() {
 	if !a.cleanUtxRunning.CompareAndSwap(false, true) {
 		return
 	}
 	go func() {
-		defer func() {
-			a.cleanUtxRunning.Store(false)
-		}()
-		utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
+		defer a.cleanUtxRunning.Store(false)
+		utxpool.NewCleaner(a.storage, a.utx, a.tm, a.utxCleaningCancelChan).Clean()
 		metrics.Utx(a.utx.Count())
 	}()
 }
 
 func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
-	if err := a.utx.Add(t); err != nil {
+	if err := a.utx.Add(a.storage, t); err != nil { // TODO: first locking utxpool, then storage. Should be reversed.
 		err = errors.Wrap(err, "failed to add transaction to utx")
 		return err
 	}
@@ -176,6 +177,7 @@ func NewFSM(
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
 	}
+	utxCleaningCancelChan := make(chan struct{}, 1)
 	info := BaseInfo{
 		peers:        services.Peers,
 		storage:      services.State,
@@ -201,10 +203,11 @@ func NewFSM(
 
 		minPeersMining: services.MinPeersMining,
 
-		skipMessageList: services.SkipMessageList,
-		syncPeer:        syncPeer,
-		enableLightMode: enableLightMode,
-		cleanUtxRunning: &atomic.Bool{},
+		skipMessageList:       services.SkipMessageList,
+		syncPeer:              syncPeer,
+		enableLightMode:       enableLightMode,
+		cleanUtxRunning:       &atomic.Bool{},
+		utxCleaningCancelChan: utxCleaningCancelChan,
 	}
 
 	info.scheduler.Reschedule() // Reschedule mining just before starting the FSM (i.e. before starting the node).

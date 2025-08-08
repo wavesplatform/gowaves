@@ -32,8 +32,8 @@ func TestCheckFunction(t *testing.T) {
 
 func BenchmarkCheckFunction(b *testing.B) {
 	l := len(_functions_V4)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		id := rand.Intn(l)
 		name := functionNameV4(id)
 		_, ok := checkFunctionV4(name)
@@ -43,8 +43,8 @@ func BenchmarkCheckFunction(b *testing.B) {
 
 func BenchmarkCheckFunctionMap(b *testing.B) {
 	l := len(_functions_V4)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		id := rand.Intn(l)
 		name := functionNameV4(id)
 		_, ok := CatalogueV4[name]

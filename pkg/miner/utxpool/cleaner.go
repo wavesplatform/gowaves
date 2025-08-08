@@ -11,8 +11,8 @@ type Cleaner struct {
 	state stateWrapper
 }
 
-func NewCleaner(state state.State, pool types.UtxPool, tm types.Time) *Cleaner {
-	return newCleaner(state, newBulkValidator(state, pool, tm))
+func NewCleaner(state state.State, pool types.UtxPool, tm types.Time, cancelChan <-chan struct{}) *Cleaner {
+	return newCleaner(state, newBulkValidator(state, pool, tm, cancelChan))
 }
 
 func newCleaner(state stateWrapper, validator BulkValidator) *Cleaner {
@@ -34,6 +34,8 @@ type stateWrapper interface {
 	Height() (proto.Height, error)
 	TopBlock() *proto.Block
 	TxValidation(func(validation state.TxValidation) error) error
+	ResetList()
+	ResetListUnsafe(func(validation state.TxValidation) error) error
 	Map(func(state state.NonThreadSafeState) error) error
 	MapUnsafe(func(state state.NonThreadSafeState) error) error
 	IsActivated(featureID int16) (bool, error)

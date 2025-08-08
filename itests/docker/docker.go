@@ -327,7 +327,7 @@ func (d *Docker) removeNetworks() error {
 	if err != nil {
 		return errors.Wrapf(err, "failed to remove existing networks for suite %s", d.suite)
 	}
-	for i := 0; i < len(nets); i++ {
+	for i := range nets {
 		err = d.pool.RemoveNetwork(&nets[i])
 		if err != nil {
 			return errors.Wrapf(err, "failed to remove existing networks for suite %s", d.suite)

@@ -86,7 +86,7 @@ func TestECRecoverUncompressed(t *testing.T) {
 func BenchmarkECDSARecoverPublicKey(b *testing.B) {
 	d := digestMessage(b, "i am the owner")
 	s := deHex(b, "848ffb6a07e7ce335a2bfe373f1c17573eac320f658ea8cf07426544f2203e9d52dbba4584b0b6c0ed5333d84074002878082aa938fdf68c43367946b2f615d01b")
-	for i := 0; i < b.N; i++ {
+	for b.Loop() {
 		pk, err := ECDSARecoverPublicKey(d, s)
 		b.StopTimer()
 		assert.NotNil(b, pk)

@@ -138,7 +138,7 @@ func (da *DecodedArg) String() string {
 	return fmt.Sprintf("%v: %v", da.Soltype.Type.String(), value)
 }
 
-func (da *DecodedArg) DecodedValue() interface{} {
+func (da *DecodedArg) DecodedValue() any {
 	return da.Value
 }
 

@@ -99,8 +99,8 @@ func BenchmarkGroth16Verify0inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if err != nil {
 			b.Fatal("Expected no errors, got error ", err)
@@ -118,8 +118,8 @@ func BenchmarkGroth16Verify1inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if err != nil {
 			b.Fatal("Expected no errors, got error ", err)
@@ -138,8 +138,8 @@ func BenchmarkGroth16Verify15inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if err != nil {
 			b.Fatal("Expected no errors, got error ", err)
@@ -158,8 +158,8 @@ func BenchmarkGroth16Verify16inputsBLS(b *testing.B) {
 	vk, _ := b64.StdEncoding.DecodeString(vkTest)
 	proof, _ := b64.StdEncoding.DecodeString(proofTest)
 	inputs, _ := b64.StdEncoding.DecodeString(inputsTest)
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		result, err := Groth16Verify(vk, proof, inputs, ecc.BLS12_381)
 		if err != nil {
 			b.Fatal("Expected no errors, got error ", err)

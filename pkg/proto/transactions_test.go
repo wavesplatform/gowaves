@@ -353,8 +353,8 @@ func BenchmarkPayment_MarshalBinary(t *testing.B) {
 	tx := NewUnsignedPayment(spk, rcp, tc.amount, tc.fee, tc.timestamp)
 	tx.Signature = &sig
 	tx.ID = &sig
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
+
+	for t.Loop() {
 		b, err = tx.MarshalBinary(TestNetScheme)
 	}
 	t.StopTimer()
@@ -1484,8 +1484,8 @@ func BenchmarkTransferWithProofsBinary(t *testing.B) {
 	s := serializer.New(io.Discard)
 
 	t.ReportAllocs()
-	t.ResetTimer()
-	for i := 0; i < t.N; i++ {
+
+	for t.Loop() {
 		err = tx.Serialize(s)
 	}
 	t.StopTimer()
@@ -4942,7 +4942,7 @@ func TestCreateAliasWithProofsJSON(t *testing.T) {
 func TestMassTransferWithProofsValidations(t *testing.T) {
 	repeat := func(t MassTransferEntry, n int) []MassTransferEntry {
 		r := make([]MassTransferEntry, n)
-		for i := 0; i < n; i++ {
+		for range n {
 			r = append(r, t)
 		}
 		return r
@@ -5190,7 +5190,7 @@ func TestMassTransferWithProofsToJSON(t *testing.T) {
 func TestDataWithProofsValidations(t *testing.T) {
 	repeat := func(e *BinaryDataEntry, n int) DataEntries {
 		r := DataEntries{}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			ue := &BinaryDataEntry{}
 			ue.Key = fmt.Sprintf("%s-%d", e.Key, i)
 			ue.Value = e.Value
@@ -5243,7 +5243,7 @@ func TestDataWithProofsDeleteValidation(t *testing.T) {
 func TestDataWithProofsSizeLimit(t *testing.T) {
 	repeat := func(e *BinaryDataEntry, n int) DataEntries {
 		r := DataEntries{}
-		for i := 0; i < n; i++ {
+		for i := range n {
 			ue := &BinaryDataEntry{}
 			ue.Key = fmt.Sprintf("%s-%d", e.Key, i)
 			ue.Value = e.Value
@@ -6193,7 +6193,7 @@ func TestSetAssetScriptWithProofsToJSON(t *testing.T) {
 func TestInvokeScriptWithProofsValidations(t *testing.T) {
 	repeat := func(arg *StringArgument, n int) Arguments {
 		r := make([]Argument, n)
-		for i := 0; i < n; i++ {
+		for range n {
 			r = append(r, arg)
 		}
 		return r
@@ -6660,8 +6660,8 @@ func TestUpdateAssetInfoWithProofsFromJSON(t *testing.T) {
 func BenchmarkBytesToTransaction_WithReflection(b *testing.B) {
 	b.ReportAllocs()
 	bts := []byte{0, 4, 2, 132, 79, 148, 251, 4, 38, 180, 107, 148, 225, 225, 107, 146, 125, 26, 243, 25, 35, 202, 83, 226, 142, 64, 8, 106, 72, 250, 228, 237, 132, 90, 16, 0, 0, 0, 0, 1, 104, 225, 147, 43, 220, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 134, 160, 1, 68, 152, 220, 142, 172, 155, 208, 202, 105, 149, 210, 120, 159, 30, 146, 64, 212, 101, 147, 228, 250, 36, 56, 81, 55, 0, 3, 102, 111, 111, 1, 0, 1, 0, 64, 154, 86, 48, 50, 47, 58, 64, 254, 146, 85, 72, 252, 23, 49, 64, 40, 34, 104, 117, 225, 126, 65, 235, 225, 38, 13, 114, 120, 7, 30, 240, 209, 37, 144, 166, 15, 14, 241, 232, 101, 103, 82, 232, 163, 165, 82, 96, 52, 132, 191, 194, 160, 155, 237, 106, 43, 82, 203, 125, 122, 219, 35, 186, 8}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_, err := BytesToTransaction(bts, TestNetScheme)
 		if err != nil {
 			b.Fatal(err)
@@ -6672,8 +6672,8 @@ func BenchmarkBytesToTransaction_WithReflection(b *testing.B) {
 func BenchmarkBytesToTransaction_WithoutReflection(b *testing.B) {
 	b.ReportAllocs()
 	bts := []byte{0, 4, 2, 132, 79, 148, 251, 4, 38, 180, 107, 148, 225, 225, 107, 146, 125, 26, 243, 25, 35, 202, 83, 226, 142, 64, 8, 106, 72, 250, 228, 237, 132, 90, 16, 0, 0, 0, 0, 1, 104, 225, 147, 43, 220, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 1, 134, 160, 1, 68, 152, 220, 142, 172, 155, 208, 202, 105, 149, 210, 120, 159, 30, 146, 64, 212, 101, 147, 228, 250, 36, 56, 81, 55, 0, 3, 102, 111, 111, 1, 0, 1, 0, 64, 154, 86, 48, 50, 47, 58, 64, 254, 146, 85, 72, 252, 23, 49, 64, 40, 34, 104, 117, 225, 126, 65, 235, 225, 38, 13, 114, 120, 7, 30, 240, 209, 37, 144, 166, 15, 14, 241, 232, 101, 103, 82, 232, 163, 165, 82, 96, 52, 132, 191, 194, 160, 155, 237, 106, 43, 82, 203, 125, 122, 219, 35, 186, 8}
-	b.ResetTimer()
-	for i := 0; i < b.N; i++ {
+
+	for b.Loop() {
 		_, err := getTransaction(bts, TestNetScheme)
 		if err != nil {
 			b.Fatal(err)
@@ -6896,9 +6896,9 @@ func TestShadowedCreateAliasWithProofs_DoesNotImplementJSONMarshaler(t *testing.
 	// this test is necessary check for correct shadowing in CreateAliasWithProofs.MarshalJSON method
 	type shadowed CreateAliasWithProofs
 	var v shadowed
-	_, typeImplements := interface{}(v).(json.Marshaler)
+	_, typeImplements := any(v).(json.Marshaler)
 	require.False(t, typeImplements, "type must not implement Marshaler")
-	_, pointerImlements := interface{}(&v).(json.Marshaler)
+	_, pointerImlements := any(&v).(json.Marshaler)
 	require.False(t, pointerImlements, "pointer must not implement Marshaler")
 }
 
@@ -6906,8 +6906,8 @@ func TestShadowedCreateAliasWithSig_DoesNotImplementJSONMarshaler(t *testing.T) 
 	// this test is necessary check for correct shadowing in CreateAliasWithSig.MarshalJSON method
 	type shadowed CreateAliasWithSig
 	var v shadowed
-	_, typeImplements := interface{}(v).(json.Marshaler)
+	_, typeImplements := any(v).(json.Marshaler)
 	require.False(t, typeImplements, "type must not implement Marshaler")
-	_, pointerImlements := interface{}(&v).(json.Marshaler)
+	_, pointerImlements := any(&v).(json.Marshaler)
 	require.False(t, pointerImlements, "pointer must not implement Marshaler")
 }

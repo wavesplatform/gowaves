@@ -293,10 +293,10 @@ func (t tags) withExtension() tags {
 	return t
 }
 
-type fields map[string]interface{}
+type fields map[string]any
 
 func emptyFields() fields {
-	f := make(map[string]interface{})
+	f := make(map[string]any)
 	return f
 }
 

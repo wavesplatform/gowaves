@@ -184,7 +184,7 @@ func run() error {
 	}
 
 	matchers := make([]crypto.PublicKey, 0)
-	for _, ms := range strings.Split(*matchersList, ",") {
+	for ms := range strings.SplitSeq(*matchersList, ",") {
 		pk, err := crypto.NewPublicKeyFromBase58(strings.TrimSpace(ms))
 		if err != nil {
 			zap.S().Errorf("Failed to parse matcher's public key '%s': %v", ms, err)

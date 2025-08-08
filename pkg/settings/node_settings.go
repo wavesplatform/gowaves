@@ -22,9 +22,9 @@ func (a NodeSettings) Validate() error {
 }
 
 func FromJavaEnvironString(settings *NodeSettings, s string) {
-	params := strings.Split(s, " ")
+	params := strings.SplitSeq(s, " ")
 
-	for _, param := range params {
+	for param := range params {
 		if strings.HasPrefix(param, "-Dwaves.network.declared-address=") {
 			settings.DeclaredAddr = strings.Replace(param, "-Dwaves.network.declared-address=", "", 1)
 		}

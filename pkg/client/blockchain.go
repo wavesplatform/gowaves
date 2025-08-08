@@ -46,7 +46,7 @@ func (a *Blockchain) Rewards(ctx context.Context) (*RewardInfo, *Response, error
 	}
 
 	out := new(RewardInfo)
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -67,7 +67,7 @@ func (a *Blockchain) RewardsAtHeight(ctx context.Context, height proto.Height) (
 	}
 
 	out := new(RewardInfo)
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}

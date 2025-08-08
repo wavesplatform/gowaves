@@ -26,7 +26,7 @@ type evaluationError interface {
 	SpentComplexity() int
 
 	SetComplexity(complexity int)
-	PushCallStackf(format string, args ...interface{})
+	PushCallStackf(format string, args ...any)
 }
 
 func newEvaluationError(t EvaluationError, err error) evaluationError {
@@ -62,7 +62,7 @@ func (e *implEvaluationError) SpentComplexity() int { return e.spentComplexity }
 
 func (e *implEvaluationError) SetComplexity(complexity int) { e.spentComplexity = complexity }
 
-func (e *implEvaluationError) PushCallStackf(format string, args ...interface{}) {
+func (e *implEvaluationError) PushCallStackf(format string, args ...any) {
 	e.reverseCallStack = append(e.reverseCallStack, fmt.Sprintf(format, args...))
 }
 
@@ -74,7 +74,7 @@ func (e EvaluationError) New(msg string) error {
 	return newEvaluationError(e, errors.New(msg))
 }
 
-func (e EvaluationError) Errorf(msg string, args ...interface{}) error {
+func (e EvaluationError) Errorf(msg string, args ...any) error {
 	return newEvaluationError(e, errors.Errorf(msg, args...))
 }
 
@@ -82,7 +82,7 @@ func (e EvaluationError) Wrap(err error, msg string) error {
 	return newEvaluationError(e, errors.Wrap(err, msg))
 }
 
-func (e EvaluationError) Wrapf(err error, msg string, args ...interface{}) error {
+func (e EvaluationError) Wrapf(err error, msg string, args ...any) error {
 	return newEvaluationError(e, errors.Wrapf(err, msg, args...))
 }
 
@@ -110,7 +110,7 @@ func EvaluationErrorSpentComplexity(err error) int {
 	return 0
 }
 
-func EvaluationErrorPushf(err error, format string, args ...interface{}) error {
+func EvaluationErrorPushf(err error, format string, args ...any) error {
 	var target evaluationError
 	if errors.As(err, &target) {
 		target.PushCallStackf(format, args...) // change the internal error, wrapped hierarchy is not affected

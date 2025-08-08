@@ -19,7 +19,7 @@ func TestStateCheckFailedError_MarshalJSON(t *testing.T) {
 			},
 			Transaction: nil,
 		},
-		embeddedFields: map[string]interface{}{
+		embeddedFields: map[string]any{
 			"extra_field": "value",
 			"extra_int":   1,
 		},
@@ -28,7 +28,7 @@ func TestStateCheckFailedError_MarshalJSON(t *testing.T) {
 	marshaled, err := value.MarshalJSON()
 	assert.NoError(t, err)
 
-	var unmarshaled map[string]interface{}
+	var unmarshaled map[string]any
 	err = json.Unmarshal(marshaled, &unmarshaled)
 	assert.NoError(t, err)
 

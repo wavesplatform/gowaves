@@ -37,7 +37,7 @@ func (a *Blocks) Height(ctx context.Context) (*BlocksHeight, *Response, error) {
 		return nil, nil, err
 	}
 	out := new(BlocksHeight)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -57,7 +57,7 @@ func (a *Blocks) HeightBySignature(ctx context.Context, id string) (*BlocksHeigh
 	}
 
 	out := new(BlocksHeight)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -119,7 +119,7 @@ func (a *Blocks) HeadersAt(ctx context.Context, height uint64) (*Headers, *Respo
 	}
 
 	out := new(Headers)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -139,7 +139,7 @@ func (a *Blocks) HeadersLast(ctx context.Context) (*Headers, *Response, error) {
 	}
 
 	out := new(Headers)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -159,7 +159,7 @@ func (a *Blocks) HeadersSeq(ctx context.Context, from uint64, to uint64) ([]*Hea
 	}
 
 	var out []*Headers
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -213,7 +213,7 @@ func (a *Blocks) At(ctx context.Context, height uint64) (*Block, *Response, erro
 	}
 
 	out := new(Block)
-	response, err := doHttp(ctx, a.options, req, out)
+	response, err := doHTTP(ctx, a.options, req, out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -235,7 +235,7 @@ func (a *Blocks) Delay(ctx context.Context, id proto.BlockID, blockNum uint64) (
 		Delay uint64 `json:"delay"`
 	}{}
 
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return 0, response, err
 	}
@@ -255,7 +255,7 @@ func (a *Blocks) Last(ctx context.Context) (*Block, *Response, error) {
 	}
 
 	out := new(Block)
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -279,7 +279,7 @@ func (a *Blocks) Seq(ctx context.Context, from, to uint64) ([]*Block, *Response,
 	}
 
 	var out []*Block
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}
@@ -303,7 +303,7 @@ func (a *Blocks) Address(ctx context.Context, addr proto.WavesAddress, from, to 
 	}
 
 	var out []*Block
-	response, err := doHttp(ctx, a.options, req, &out)
+	response, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, response, err
 	}

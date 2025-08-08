@@ -288,7 +288,7 @@ func BenchmarkPow(b *testing.B) {
 	} {
 		b.Run(fmt.Sprintf("%d", i+1), func(b *testing.B) {
 			b.ResetTimer()
-			for n := 0; n < b.N; n++ {
+			for b.Loop() {
 				_, _ = PowV2(p.base, p.exp, p.bs, p.es, p.rs, p.rm)
 			}
 		})
@@ -361,7 +361,7 @@ func TestPowBigInt(t *testing.T) {
 	e2 := fromString(t, "515598765432101234567")
 	e3 := func() *big.Int {
 		v := big.NewInt(math.MaxInt64)
-		for i := 0; i < 6; i++ {
+		for range 6 {
 			v = v.Mul(v, big.NewInt(math.MaxInt64))
 		}
 		v = v.Div(v, big.NewInt(4))
