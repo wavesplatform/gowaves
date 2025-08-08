@@ -187,7 +187,7 @@ func PublishContractUpdates(ctx context.Context,
 				return err
 			}
 		case <-ctx.Done():
-			return errors.New("context has been cancelled")
+			return ctx.Err()
 		}
 	}
 
