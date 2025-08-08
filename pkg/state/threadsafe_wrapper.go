@@ -512,8 +512,8 @@ func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) er
 }
 
 func (a *ThreadSafeWriteWrapper) ResetList() {
-	a.lock()
-	defer a.unlock()
+	a.lockUnsafe()
+	defer a.unlockUnsafe()
 	a.s.ResetValidationList()
 }
 
