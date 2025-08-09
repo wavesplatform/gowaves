@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -57,6 +57,8 @@ type txAppender struct {
 	// buildApiData flag indicates that additional data for API is built when
 	// appending transactions.
 	buildApiData bool
+
+	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo
 }
 
 func newTxAppender(
@@ -67,6 +69,7 @@ func newTxAppender(
 	stateDB *stateDB,
 	atx *addressTransactions,
 	snapshotApplier *blockSnapshotsApplier,
+	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo,
 ) (*txAppender, error) {
 	buildAPIData, err := stateDB.stateStoresApiData()
 	if err != nil {
@@ -100,21 +103,22 @@ func newTxAppender(
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
 	return &txAppender{
-		sc:                sc,
-		ia:                ia,
-		rw:                rw,
-		blockInfoProvider: state,
-		atx:               atx,
-		stor:              stor,
-		settings:          settings,
-		txHandler:         txHandler,
-		blockDiffer:       blockDiffer,
-		recentTxIds:       make(map[string]struct{}),
-		diffStor:          diffStor,
-		diffStorInvoke:    diffStorInvoke,
-		diffApplier:       diffApplier,
-		buildApiData:      buildAPIData,
-		ethTxKindResolver: ethKindResolver,
+		sc:                 sc,
+		ia:                 ia,
+		rw:                 rw,
+		blockInfoProvider:  state,
+		atx:                atx,
+		stor:               stor,
+		settings:           settings,
+		txHandler:          txHandler,
+		blockDiffer:        blockDiffer,
+		recentTxIds:        make(map[string]struct{}),
+		diffStor:           diffStor,
+		diffStorInvoke:     diffStorInvoke,
+		diffApplier:        diffApplier,
+		buildApiData:       buildAPIData,
+		ethTxKindResolver:  ethKindResolver,
+		bUpdatesPluginInfo: bUpdatesPluginInfo,
 	}, nil
 }
 
@@ -839,6 +843,17 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if err != nil {
 		return err
 	}
+
+	// write updates into the updatesChannel here
+	if a.bUpdatesPluginInfo != nil && a.bUpdatesPluginInfo.IsBlockchainUpdatesEnabled() {
+		if a.bUpdatesPluginInfo.IsReady() {
+			errUpdt := a.updateBlockchainUpdateInfo(blockInfo, params.block, blockSnapshot)
+			if errUpdt != nil {
+				return errors.Wrapf(errUpdt, "failed to request blockchain info from L2 smart contract state")
+			}
+		}
+	}
+
 	// check whether the calculated snapshot state hash equals with the provided one
 	if blockStateHash, present := params.block.GetStateHash(); present && blockStateHash != stateHash {
 		return errors.Wrapf(errBlockSnapshotStateHashMismatch,
@@ -858,6 +873,54 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	// Save fee distribution of this block.
 	// This will be needed for createMinerAndRewardDiff() of next block due to NG.
 	return a.blockDiffer.saveCurFeeDistr(params.block)
+}
+
+func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
+	blockSnapshot proto.BlockSnapshot) error {
+	bUpdatesInfo, err := BuildBlockUpdatesInfoFromSnapshot(blockInfo, blockHeader, blockSnapshot,
+		a.bUpdatesPluginInfo.L2ContractAddress())
+	if err != nil {
+		return err
+	}
+
+	a.bUpdatesPluginInfo.WriteBUpdates(bUpdatesInfo)
+	return nil
+}
+
+func BuildBlockUpdatesInfoFromSnapshot(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
+	blockSnapshot proto.BlockSnapshot, l2ContractAddress proto.WavesAddress) (proto.BUpdatesInfo, error) {
+	blockID := blockHeader.BlockID()
+	blockTimestamp, err := safecast.ToInt64(blockHeader.Timestamp)
+	if err != nil {
+		return proto.BUpdatesInfo{}, errors.Errorf("failed to convert uint64 timestamp into int64, %v", err)
+	}
+	bUpdatesInfo := proto.BUpdatesInfo{
+		BlockUpdatesInfo: proto.BlockUpdatesInfo{
+			Height:      blockInfo.Height,
+			VRF:         blockInfo.VRF,
+			BlockID:     blockID,
+			BlockHeader: *blockHeader,
+		},
+		ContractUpdatesInfo: proto.L2ContractDataEntries{
+			AllDataEntries: nil,
+			Height:         blockInfo.Height,
+			BlockID:        blockID,
+			BlockTimestamp: blockTimestamp,
+		},
+	}
+
+	// Write the L2 contract updates into the structure.
+	for _, txSnapshots := range blockSnapshot.TxSnapshots {
+		for _, snapshot := range txSnapshots {
+			if dataEntriesSnapshot, ok := snapshot.(*proto.DataEntriesSnapshot); ok {
+				if dataEntriesSnapshot.Address == l2ContractAddress {
+					bUpdatesInfo.ContractUpdatesInfo.AllDataEntries = append(bUpdatesInfo.ContractUpdatesInfo.AllDataEntries,
+						dataEntriesSnapshot.DataEntries...)
+				}
+			}
+		}
+	}
+	return bUpdatesInfo, nil
 }
 
 func (a *txAppender) createCheckerInfo(params *appendBlockParams) (*checkerInfo, error) {

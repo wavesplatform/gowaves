@@ -7,7 +7,6 @@ import (
 	"os"
 
 	"github.com/ccoveille/go-safecast"
-
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -119,5 +118,5 @@ func openState(
 	params.BuildStateHashes = buildStateHashes
 	params.StoreExtendedApiData = buildExtendedAPI
 
-	return state.NewState(statePath, true, params, cfg, false)
+	return state.NewState(statePath, true, params, cfg, false, nil)
 }

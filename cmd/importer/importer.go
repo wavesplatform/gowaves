@@ -181,7 +181,7 @@ func runImporter(c *cfg) error {
 		return err
 	}
 
-	st, err := state.NewState(c.dataDirPath, false, c.params(fds), ss, false)
+	st, err := state.NewState(c.dataDirPath, false, c.params(fds), ss, false, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create state: %w", err)
 	}

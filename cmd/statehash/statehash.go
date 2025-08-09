@@ -109,7 +109,7 @@ func run() error {
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
 
-	st, err := state.NewState(statePath, false, params, ss, false)
+	st, err := state.NewState(statePath, false, params, ss, false, nil)
 	if err != nil {
 		slog.Error("Failed to open state", slog.String("path", statePath), logging.Error(err))
 		return err
