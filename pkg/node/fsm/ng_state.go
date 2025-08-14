@@ -6,7 +6,6 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -144,6 +143,9 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 }
 
 func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error) {
+	if a.baseInfo.cleanCancel != nil {
+		a.baseInfo.cleanCancel()
+	}
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
@@ -198,6 +200,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
+
 	a.baseInfo.CleanUtx()
 
 	return newNGState(a.baseInfo), nil, nil

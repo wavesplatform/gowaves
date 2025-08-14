@@ -1,6 +1,8 @@
 package utxpool
 
 import (
+	"context"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -22,18 +24,20 @@ func newCleaner(state stateWrapper, validator BulkValidator) *Cleaner {
 	}
 }
 
-func (a *Cleaner) Clean() {
-	a.work()
+func (a *Cleaner) Clean(ctx context.Context) {
+	a.work(ctx)
 }
 
-func (a *Cleaner) work() {
-	a.inner.Validate()
+func (a *Cleaner) work(ctx context.Context) {
+	a.inner.Validate(ctx)
 }
 
 type stateWrapper interface {
 	Height() (proto.Height, error)
 	TopBlock() *proto.Block
 	TxValidation(func(validation state.TxValidation) error) error
+	ResetList()
+	ResetListUnsafe(func(validation state.TxValidation) error) error
 	Map(func(state state.NonThreadSafeState) error) error
 	MapUnsafe(func(state state.NonThreadSafeState) error) error
 	IsActivated(featureID int16) (bool, error)

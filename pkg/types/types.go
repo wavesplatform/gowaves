@@ -20,11 +20,27 @@ type Handler interface {
 	Handle()
 }
 
+type nextTxValidator = interface { // the same as state.TxValidation, but without the state dependency
+	// ValidateNextTx validates next transaction in the pool.
+	ValidateNextTx(
+		tx proto.Transaction,
+		currentTimestamp, parentTimestamp uint64,
+		blockVersion proto.BlockVersion,
+		acceptFailed bool,
+	) ([]proto.AtomicSnapshot, error)
+}
+
+type UtxPoolValidatorState interface {
+	TopBlock() *proto.Block
+	TxValidation(func(validation nextTxValidator) error) error
+	ResetListUnsafe(func(validation nextTxValidator) error) error
+}
+
 // UtxPool storage interface
 type UtxPool interface {
-	Add(t proto.Transaction) error
-	AddWithBytes(t proto.Transaction, b []byte) error
-	AddWithBytesRow(t proto.Transaction, b []byte) error
+	Add(st UtxPoolValidatorState, t proto.Transaction) error
+	AddWithBytes(st UtxPoolValidatorState, t proto.Transaction, b []byte) error
+	AddWithBytesRaw(t proto.Transaction, b []byte) error
 	Exists(t proto.Transaction) bool
 	Pop() *TransactionWithBytes
 	AllTransactions() []*TransactionWithBytes

@@ -3,9 +3,8 @@ package miner
 import (
 	"context"
 	"errors"
-	"log/slog"
-
 	"github.com/mr-tron/base58"
+	"log/slog"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -98,7 +97,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 				s.ResetValidationList()
 				txCount = 0
 				for _, appliedTx := range appliedTransactions {
-					_ = a.utx.AddWithBytesRow(appliedTx.T, appliedTx.B)
+					_ = a.utx.AddWithBytesRaw(appliedTx.T, appliedTx.B)
 				}
 				appliedTransactions = nil
 				txSnapshots = nil
@@ -117,7 +116,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 		// return inapplicable transactions to utx
 		for _, tx := range inapplicable {
-			_ = a.utx.AddWithBytesRow(tx.T, tx.B)
+			_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
 		}
 		return nil
 	})

@@ -1,6 +1,7 @@
 package utxpool
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -11,7 +12,7 @@ import (
 )
 
 type BulkValidator interface {
-	Validate()
+	Validate(ctx context.Context)
 }
 
 type bulkValidator struct {
@@ -28,14 +29,10 @@ func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bul
 	}
 }
 
-func (a bulkValidator) Validate() {
-	transactions, err := a.validate() // Pop transactions from UTX, clean UTX
-	if err != nil {
-		slog.Debug("Validation failure", logging.Error(err))
-		return
-	}
+func (a bulkValidator) Validate(ctx context.Context) {
+	transactions := a.validate(ctx) // Pop transactions from UTX, clean UTX
 	for _, t := range transactions {
-		errAdd := a.utx.AddWithBytesRow(t.T, t.B)
+		errAdd := a.utx.AddWithBytesRaw(t.T, t.B)
 		if errAdd != nil {
 			slog.Error("failed to add a transaction to UTX", logging.Error(errAdd))
 			return
@@ -43,30 +40,37 @@ func (a bulkValidator) Validate() {
 	}
 }
 
-func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
+func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithBytes {
 	if a.utx.Count() == 0 {
-		return nil, nil
+		return nil
 	}
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
 
-	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
-		defer s.ResetValidationList()
-		utxLen := len(a.utx.AllTransactions())
-		for i := 0; i < utxLen; i++ {
+	utxLen := len(a.utx.AllTransactions())
+
+	for i := 0; i < utxLen; i++ {
+		select {
+		case <-ctx.Done():
+			slog.Debug("Bulk validation interrupted:", logging.Error(ctx.Err()))
+			return transactions
+		default:
 			t := a.utx.Pop()
 			if t == nil {
 				break
 			}
-			_, err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+			err := a.state.TxValidation(func(validation state.TxValidation) error {
+				_, err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+				return err
+			})
 			if stateerr.IsTxCommitmentError(err) {
 				slog.Error("failed to unpack a transaction from utx", logging.Error(err))
 				// This should not happen in practice.
 				// Reset state, return applied transactions to UTX.
-				s.ResetValidationList()
+				a.state.ResetList()
 				for _, tx := range transactions {
-					_ = a.utx.AddWithBytesRow(tx.T, tx.B)
+					_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
 				}
 				transactions = nil
 				continue
@@ -74,8 +78,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 				transactions = append(transactions, t)
 			}
 		}
-		return nil
-	})
-
-	return transactions, nil
+	}
+	a.state.ResetList()
+	return transactions
 }

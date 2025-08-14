@@ -85,6 +85,7 @@ type BaseInfo struct {
 
 	enableLightMode bool
 	cleanUtxRunning *atomic.Bool
+	cleanCancel     context.CancelFunc
 	logger          *slog.Logger
 	netLogger       *slog.Logger
 }
@@ -101,17 +102,17 @@ func (a *BaseInfo) CleanUtx() {
 	if !a.cleanUtxRunning.CompareAndSwap(false, true) {
 		return
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	a.cleanCancel = cancel
 	go func() {
-		defer func() {
-			a.cleanUtxRunning.Store(false)
-		}()
-		utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
+		defer a.cleanUtxRunning.Store(false)
+		utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean(ctx)
 		metrics.Utx(a.utx.Count())
 	}()
 }
 
 func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
-	if err := a.utx.Add(t); err != nil {
+	if err := a.utx.Add(a.storage, t); err != nil { // TODO: first locking utxpool, then storage. Should be reversed.
 		err = errors.Wrap(err, "failed to add transaction to utx")
 		return err
 	}
