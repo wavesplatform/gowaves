@@ -1,6 +1,7 @@
 package utxpool
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -11,31 +12,25 @@ import (
 )
 
 type BulkValidator interface {
-	Validate()
+	Validate(ctx context.Context)
 }
 
 type bulkValidator struct {
-	state      stateWrapper
-	utx        types.UtxPool
-	tm         types.Time
-	cancelChan <-chan struct{}
+	state stateWrapper
+	utx   types.UtxPool
+	tm    types.Time
 }
 
-func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time, cancelChan <-chan struct{}) *bulkValidator {
+func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bulkValidator {
 	return &bulkValidator{
-		state:      state,
-		utx:        utx,
-		tm:         tm,
-		cancelChan: cancelChan,
+		state: state,
+		utx:   utx,
+		tm:    tm,
 	}
 }
 
-func (a bulkValidator) Validate() {
-	transactions, err := a.validate() // Pop transactions from UTX, clean UTX
-	if err != nil {
-		slog.Debug("Validation failure", logging.Error(err))
-		return
-	}
+func (a bulkValidator) Validate(ctx context.Context) {
+	transactions := a.validate(ctx) // Pop transactions from UTX, clean UTX
 	for _, t := range transactions {
 		errAdd := a.utx.AddWithBytesRaw(t.T, t.B)
 		if errAdd != nil {
@@ -45,9 +40,9 @@ func (a bulkValidator) Validate() {
 	}
 }
 
-func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
+func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithBytes {
 	if a.utx.Count() == 0 {
-		return nil, nil
+		return nil
 	}
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
@@ -57,9 +52,9 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 
 	for i := 0; i < utxLen; i++ {
 		select {
-		case <-a.cancelChan:
-			slog.Debug("Bulk validation interrupted, preserving remaining UTX transactions")
-			return transactions, nil
+		case <-ctx.Done():
+			slog.Debug("Bulk validation interrupted:", logging.Error(ctx.Err()))
+			return transactions
 		default:
 			t := a.utx.Pop()
 			if t == nil {
@@ -85,5 +80,5 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 		}
 	}
 	a.state.ResetList()
-	return transactions, nil
+	return transactions
 }

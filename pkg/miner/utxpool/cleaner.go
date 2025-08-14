@@ -1,6 +1,8 @@
 package utxpool
 
 import (
+	"context"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -11,8 +13,8 @@ type Cleaner struct {
 	state stateWrapper
 }
 
-func NewCleaner(state state.State, pool types.UtxPool, tm types.Time, cancelChan <-chan struct{}) *Cleaner {
-	return newCleaner(state, newBulkValidator(state, pool, tm, cancelChan))
+func NewCleaner(state state.State, pool types.UtxPool, tm types.Time) *Cleaner {
+	return newCleaner(state, newBulkValidator(state, pool, tm))
 }
 
 func newCleaner(state stateWrapper, validator BulkValidator) *Cleaner {
@@ -22,12 +24,12 @@ func newCleaner(state stateWrapper, validator BulkValidator) *Cleaner {
 	}
 }
 
-func (a *Cleaner) Clean() {
-	a.work()
+func (a *Cleaner) Clean(ctx context.Context) {
+	a.work(ctx)
 }
 
-func (a *Cleaner) work() {
-	a.inner.Validate()
+func (a *Cleaner) work(ctx context.Context) {
+	a.inner.Validate(ctx)
 }
 
 type stateWrapper interface {

@@ -143,9 +143,8 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 }
 
 func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error) {
-	select {
-	case a.baseInfo.utxCleaningCancelChan <- struct{}{}:
-	default:
+	if a.baseInfo.cleanCancel != nil {
+		a.baseInfo.cleanCancel()
 	}
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
 	if err != nil {

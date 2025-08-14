@@ -83,11 +83,11 @@ type BaseInfo struct {
 
 	syncPeer *network.SyncPeer
 
-	enableLightMode       bool
-	cleanUtxRunning       *atomic.Bool
-	utxCleaningCancelChan chan struct{}
-	logger                *slog.Logger
-	netLogger             *slog.Logger
+	enableLightMode bool
+	cleanUtxRunning *atomic.Bool
+	cleanCancel     context.CancelFunc
+	logger          *slog.Logger
+	netLogger       *slog.Logger
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -98,14 +98,15 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 	})
 }
 
-// CleanUtx Must be only called inside Map or MapUnsafe.
 func (a *BaseInfo) CleanUtx() {
 	if !a.cleanUtxRunning.CompareAndSwap(false, true) {
 		return
 	}
+	ctx, cancel := context.WithCancel(context.Background())
+	a.cleanCancel = cancel
 	go func() {
 		defer a.cleanUtxRunning.Store(false)
-		utxpool.NewCleaner(a.storage, a.utx, a.tm, a.utxCleaningCancelChan).Clean()
+		utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean(ctx)
 		metrics.Utx(a.utx.Count())
 	}()
 }
@@ -179,7 +180,6 @@ func NewFSM(
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
 	}
-	utxCleaningCancelChan := make(chan struct{}, 1)
 	info := BaseInfo{
 		peers:        services.Peers,
 		storage:      services.State,
@@ -205,13 +205,12 @@ func NewFSM(
 
 		minPeersMining: services.MinPeersMining,
 
-		skipMessageList:       services.SkipMessageList,
-		syncPeer:              syncPeer,
-		enableLightMode:       enableLightMode,
-		cleanUtxRunning:       &atomic.Bool{},
-		logger:                logger,
-		netLogger:             netLogger,
-		utxCleaningCancelChan: utxCleaningCancelChan,
+		skipMessageList: services.SkipMessageList,
+		syncPeer:        syncPeer,
+		enableLightMode: enableLightMode,
+		cleanUtxRunning: &atomic.Bool{},
+		logger:          logger,
+		netLogger:       netLogger,
 	}
 
 	info.scheduler.Reschedule() // Reschedule mining just before starting the FSM (i.e. before starting the node).
