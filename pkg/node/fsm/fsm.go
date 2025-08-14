@@ -112,7 +112,7 @@ func (a *BaseInfo) CleanUtx() {
 }
 
 func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
-	if err := a.utx.Add(a.storage, t); err != nil { // TODO: first locking utxpool, then storage. Should be reversed.
+	if err := a.utx.Add(a.storage, t); err != nil {
 		err = errors.Wrap(err, "failed to add transaction to utx")
 		return err
 	}
