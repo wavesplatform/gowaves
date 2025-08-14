@@ -5,14 +5,13 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"log/slog"
 	"os"
 	"strings"
 	"time"
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 	g "google.golang.org/grpc"
 	"google.golang.org/grpc/credentials/insecure"
 	"google.golang.org/protobuf/types/known/emptypb"
@@ -95,55 +94,51 @@ func main() {
 
 func run() error {
 	var (
-		nodes          string
-		height         int
-		blockchainType string
+		lp             = logging.Parameters{}
+		nodes          = flag.String("nodes", "", "Nodes gRPC API URLs separated by comma")
+		height         = flag.Int("height", 0, "Height to compare blocks at")
+		blockchainType = flag.String("blockchain-type", "mainnet",
+			"Blockchain type mainnet/testnet/stagenet, default value is mainnet")
 	)
-
-	logger := logging.SetupSimpleLogger(zapcore.InfoLevel)
-	defer func() {
-		err := logger.Sync()
-		if err != nil && errors.Is(err, os.ErrInvalid) {
-			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
-		}
-	}()
-
-	flag.StringVar(&nodes, "nodes", "", "Nodes gRPC API URLs separated by comma")
-	flag.IntVar(&height, "height", 0, "Height to compare blocks at")
-	flag.StringVar(&blockchainType, "blockchain-type", "mainnet",
-		"Blockchain type mainnet/testnet/stagenet, default value is mainnet")
+	lp.Initialize()
 	flag.Parse()
 
-	if nodes == "" {
+	if err := lp.Parse(); err != nil {
+		slog.Error("Failed to parse application parameters", logging.Error(err))
+		return err
+	}
+	slog.SetDefault(slog.New(logging.DefaultHandler(lp)))
+
+	if *nodes == "" {
 		err := errors.New("empty nodes list")
-		zap.S().Errorf("Failed to parse nodes' gRPC API addresses: %v", err)
+		slog.Error("Failed to parse nodes' gRPC API addresses", logging.Error(err))
 		return err
 	}
-	if height == 0 {
+	if *height == 0 {
 		err := errors.Errorf("zero height")
-		zap.S().Errorf("Failed to initialize: %v", err)
+		slog.Error("Failed to initialize", logging.Error(err))
 		return err
 	}
-	bs, err := settings.BlockchainSettingsByTypeName(blockchainType)
+	bs, err := settings.BlockchainSettingsByTypeName(*blockchainType)
 	if err != nil {
-		zap.S().Errorf("Failed to load blockchain settings: %v", err)
+		slog.Error("Failed to load blockchain settings", logging.Error(err))
 		return err
 	}
 
-	endpoints := parseNodesList(nodes)
+	endpoints := parseNodesList(*nodes)
 	if len(endpoints) < 2 {
 		err := errors.New("not enough nodes to compare")
-		zap.S().Errorf("Failed to initialize: %v", err)
+		slog.Error("Failed to initialize", logging.Error(err))
 		return err
 	}
 	clients, err := dialEndpoints(endpoints)
 	if err != nil {
-		zap.S().Errorf("Failed to connect to gRPC endpoints: %v", err)
+		slog.Error("Failed to connect to gRPC endpoints", logging.Error(err))
 		return err
 	}
-	rep, err := compareBlocks(clients, bs.AddressSchemeCharacter, height)
+	rep, err := compareBlocks(clients, bs.AddressSchemeCharacter, *height)
 	if err != nil {
-		zap.S().Errorf("Failed to compare blocks: %v", err)
+		slog.Error("Failed to compare blocks", logging.Error(err))
 		return err
 	}
 	fmt.Println(rep.String())

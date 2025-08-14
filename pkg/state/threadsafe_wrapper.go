@@ -28,6 +28,12 @@ func (a *ThreadSafeReadWrapper) BlockVRF(blockHeader *proto.BlockHeader, blockHe
 	return a.s.BlockVRF(blockHeader, blockHeight)
 }
 
+func (a *ThreadSafeReadWrapper) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.NewestBlockInfoByHeight(height)
+}
+
 func (a *ThreadSafeReadWrapper) MapR(f func(StateInfo) (any, error)) (any, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -60,6 +66,12 @@ func (a *ThreadSafeReadWrapper) HeaderByHeight(height proto.Height) (*proto.Bloc
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.HeaderByHeight(height)
+}
+
+func (a *ThreadSafeReadWrapper) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.NewestHeaderByHeight(height)
 }
 
 func (a *ThreadSafeReadWrapper) Height() (proto.Height, error) {

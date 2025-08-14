@@ -1,9 +1,13 @@
 package utilities
 
 import (
+	"bytes"
 	"context"
 	"encoding/base64"
+	"encoding/binary"
+	"encoding/hex"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"math"
 	"math/rand"
@@ -16,8 +20,10 @@ import (
 	"testing"
 	"time"
 
-	"github.com/pkg/errors"
+	"github.com/mr-tron/base58/base58"
+	pkgerr "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -40,18 +46,29 @@ const (
 	XTNBuyBackAccount          = 6
 	DefaultAccountForLoanFunds = 9
 	MaxAmount                  = math.MaxInt64
+	MinAmount                  = math.MinInt64
 	MinIssueFeeWaves           = 100000000
 	MinSetAssetScriptFeeWaves  = 100000000
+	SetDAppScriptFeeWaves      = 100000000
 	MinTxFeeWaves              = 100000
 	MinTxFeeWavesSmartAsset    = 500000
+	MinTxFeeWavesInvokeDApp    = 500000
 	MaxDecimals                = 8
 	TestChainID                = 'L'
 	CommonSymbolSet            = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789~!|#$%^&*()_+=\\\";:/?><|][{}"
 	LettersAndDigits           = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789"
+	SymbolSet                  = " ~!|#$%^&*()+=;:÷/?><|][{}\\\\\\\".-_@`µ⌂¡¢£¤¥¦§¨©ª¬®¯°±²³´µ¶·¸¹º»¼½¾¿×ø"
+	RusLetters                 = "абвгдеёжзиЙклмнопрстуфхцчшщьыъэюяАБВГДЕЁЖЗИКЛМНОПРСТУФХЦЧШЩЬЫЪЭЮЯ"
+	Umlauts                    = "ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÐÑÒÓÔÕÖØÙÚÛÜÝÞßàáâãäåæçèéêëìíîïðñòóôõöùúûüýþÿ"
+	EscapeSeq                  = "\\t\\b\\n\\f"
 	DefaultInitialTimeout      = 5 * time.Millisecond
 	DefaultWaitTimeout         = 15 * time.Second
 	DefaultTimeInterval        = 5 * time.Second
-
+	// TimeInMsPast and TimeInMsFuture are used for generating transaction timestamps outside the [±X ms] validity
+	// window by adding predefined time intervals to the current timestamp. Validates system response to
+	// timestamp-related errors.
+	TimeInMsPast   = 7260000
+	TimeInMsFuture = 54160000
 	// DefaultSponsorshipActivationHeight sets the height at which Fee Sponsorship takes effect.
 	// Although the feature itself is activated at height 1 by default, it takes 2 additional voting periods (2 blocks)
 	// for it to become effective.
@@ -214,17 +231,17 @@ func NewAvailableVersions(binary []byte, protobuf []byte) AvailableVersions {
 }
 
 func GetAvailableVersions(t *testing.T, txType proto.TransactionType, minVersion, maxVersion byte) AvailableVersions {
-	var binary, protobuf []byte
+	var binaryVersion, protobufVersion []byte
 	minPBVersion := proto.ProtobufTransactionsVersions[txType]
 	require.GreaterOrEqual(t, minPBVersion, minVersion,
-		"Min binary version greater then min protobuf version")
+		"Min binary version greater than min protobuf version")
 	for i := minVersion; i < minPBVersion; i++ {
-		binary = append(binary, i)
+		binaryVersion = append(binaryVersion, i)
 	}
 	for i := minPBVersion; i < maxVersion+1; i++ {
-		protobuf = append(protobuf, i)
+		protobufVersion = append(protobufVersion, i)
 	}
-	return NewAvailableVersions(binary, protobuf)
+	return NewAvailableVersions(binaryVersion, protobufVersion)
 }
 
 func RandStringBytes(n int, symbolSet string) string {
@@ -285,6 +302,34 @@ func SafeInt64ToUint64(x int64) uint64 {
 	return uint64(x)
 }
 
+// Base16EncodeBytes gets string in utf8 and returns array of bytes of base16 string.
+func Base16EncodeBytes(s string) []byte {
+	return []byte(hex.EncodeToString([]byte(s)))
+}
+
+func Base58EncodeBytes(s string) []byte {
+	return []byte(base58.Encode([]byte(s)))
+}
+
+func Base64EncodeBytes(s string) []byte {
+	return []byte(base64.StdEncoding.EncodeToString([]byte(s)))
+}
+
+func IntToBytes(t *testing.T, i int64) []byte {
+	bs := new(bytes.Buffer)
+	err := binary.Write(bs, binary.BigEndian, i)
+	require.NoError(t, err, "failed to write to buffer")
+	return bs.Bytes()
+}
+
+func BoolToBytes(b bool) []byte {
+	var value byte
+	if b {
+		value = 1
+	}
+	return []byte{value}
+}
+
 func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 	var from, to int
 	switch len(accountNumbers) {
@@ -298,7 +343,7 @@ func SetFromToAccounts(accountNumbers ...int) (int, int, error) {
 		from = accountNumbers[0]
 		to = accountNumbers[1]
 	default:
-		return 0, 0, errors.New("More than two parameters")
+		return 0, 0, errors.New("more than two parameters")
 	}
 	return from, to, nil
 }
@@ -316,6 +361,7 @@ func AddNewAccount(suite *f.BaseSuite, chainID proto.Scheme) (int, config.Accoun
 		SecretKey: sk,
 		Amount:    0,
 		Address:   addr,
+		Alias:     proto.Alias{},
 	}
 	suite.Cfg.Accounts = append(suite.Cfg.Accounts, acc)
 	return len(suite.Cfg.Accounts) - 1, acc
@@ -335,7 +381,7 @@ func MustGetAccountByAddress(suite *f.BaseSuite, address proto.WavesAddress) con
 			return account
 		}
 	}
-	require.FailNow(suite.T(), "Account with address %q wasn't found", address.String())
+	require.FailNowf(suite.T(), "Account with address %q wasn't found", address.String())
 	panic("unreachable point reached")
 }
 
@@ -368,6 +414,26 @@ func GetAddressFromRecipient(suite *f.BaseSuite, recipient proto.Recipient) prot
 	return address
 }
 
+// GetAliasFromString String representation of an Alias should have a following format: "alias:<scheme>:<alias>".
+// Scheme should be represented with a one-byte ASCII symbol.
+func GetAliasFromString(suite *f.BaseSuite, alias string, chainID proto.Scheme) *proto.Alias {
+	var newAliasStr string
+	const aliasPref = "alias:"
+	chainIDPref := string(chainID) + ":"
+	prefix := aliasPref + chainIDPref
+	switch {
+	case strings.HasPrefix(alias, prefix):
+		newAliasStr = alias
+	case strings.HasPrefix(alias, chainIDPref):
+		newAliasStr = aliasPref + alias
+	default:
+		newAliasStr = prefix + alias
+	}
+	newAlias, err := proto.NewAliasFromString(newAliasStr)
+	require.NoError(suite.T(), err, "Can't get alias from string")
+	return newAlias
+}
+
 func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
 	return suite.Clients.GoClient.GRPCClient.GetWavesBalance(suite.T(), address).GetAvailable()
 }
@@ -384,6 +450,16 @@ func GetAssetInfo(suite *f.BaseSuite, assetID crypto.Digest) *client.AssetsDetai
 	assetInfo, err := suite.Clients.ScalaClient.HTTPClient.GetAssetDetails(assetID)
 	require.NoError(suite.T(), err, "Scala node: Can't get asset info")
 	return assetInfo
+}
+
+func GetAssetByID(assetID *crypto.Digest) proto.OptionalAsset {
+	var asset proto.OptionalAsset
+	if assetID == nil {
+		asset = proto.NewOptionalAssetWaves()
+	} else {
+		asset = *proto.NewOptionalAssetFromDigest(*assetID)
+	}
+	return asset
 }
 
 func GetHeightGo(suite *f.BaseSuite) uint64 {
@@ -444,7 +520,7 @@ func getFeatureBlockchainStatus(statusResponse *g.ActivationStatusResponse, fID 
 		}
 	}
 	if status == "" {
-		err = errors.Errorf("Feature with ID %d not found", fID)
+		err = pkgerr.Errorf("Feature with ID %d not found", fID)
 	}
 	return status, err
 }
@@ -525,7 +601,7 @@ func GetFeatureBlockchainStatus(suite *f.BaseSuite, featureID settings.Feature, 
 	if statusGo == statusScala {
 		return statusGo, nil
 	}
-	return "", errors.Errorf("Feature with ID %d has different statuses", featureID)
+	return "", pkgerr.Errorf("Feature with ID %d has different statuses", featureID)
 }
 
 func GetWaitingBlocks(suite *f.BaseSuite, height uint64, featureID settings.Feature) uint64 {
@@ -708,18 +784,17 @@ func ExtractTxID(t *testing.T, tx proto.Transaction, scheme proto.Scheme) crypto
 func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transaction) proto.Message {
 	bts, err := proto.MarshalTx(scheme, tx)
 	require.NoError(t, err, "failed to marshal tx")
-	t.Logf("Transaction bytes: %s", base64.StdEncoding.EncodeToString(bts))
+	t.Logf("Transaction bytes: %s, Byte size: %d", base64.StdEncoding.EncodeToString(bts), len(bts))
 	if proto.IsProtobufTx(tx) {
 		return &proto.PBTransactionMessage{Transaction: bts}
 	} else {
 		return &proto.TransactionMessage{Transaction: bts}
 	}
-
 }
 
 func GetTransactionInfoAfterWaitingGo(suite *f.BaseSuite, id crypto.Digest, errWtGo error) {
 	if errWtGo != nil {
-		suite.T().Log(errors.Errorf("Go Errors after waiting: %s", errWtGo))
+		suite.T().Log(pkgerr.Errorf("Go Errors after waiting: %s", errWtGo))
 	} else {
 		txInfoRawGo, respGo, goRqErr := suite.Clients.GoClient.HTTPClient.TransactionInfoRaw(id)
 		if goRqErr != nil {
@@ -733,7 +808,7 @@ func GetTransactionInfoAfterWaitingGo(suite *f.BaseSuite, id crypto.Digest, errW
 
 func GetTransactionInfoAfterWaitingScala(suite *f.BaseSuite, id crypto.Digest, errWtScala error) {
 	if errWtScala != nil {
-		suite.T().Log(errors.Errorf("Scala Errors after waiting: %s", errWtScala))
+		suite.T().Log(pkgerr.Errorf("Scala Errors after waiting: %s", errWtScala))
 	} else {
 		txInfoRawScala, respScala, scalaRqErr := suite.Clients.ScalaClient.HTTPClient.TransactionInfoRaw(id)
 		if scalaRqErr != nil {
@@ -810,6 +885,28 @@ func ReadScript(scriptDir, fileName string) ([]byte, error) {
 	scriptBase64 := strings.TrimSpace(scriptBase64WithoutComments)
 
 	return base64.StdEncoding.DecodeString(scriptBase64)
+}
+
+func ReadAndCompileRideScript(scriptDir, fileName string) ([]byte, error) {
+	const (
+		testDataDir = "testdata"
+		scriptsDir  = "scripts"
+	)
+	dir, err := getItestsDir()
+	if err != nil {
+		return nil, err
+	}
+	scriptPath := filepath.Join(dir, testDataDir, scriptsDir, scriptDir, fileName)
+	scriptFileContent, err := os.ReadFile(filepath.Clean(scriptPath))
+	if err != nil {
+		return nil, err
+	}
+	script := string(scriptFileContent)
+	compiledScript, errs := ridec.Compile(script, false, true)
+	if errs != nil {
+		return nil, errors.Join(errs...)
+	}
+	return compiledScript, nil
 }
 
 type RewardDiffBalancesInWaves struct {
@@ -981,4 +1078,50 @@ func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) 
 		scalaCh <- GetRollbackToHeightScala(suite, height, returnTxToUtx)
 	}()
 	return <-goCh, <-scalaCh
+}
+
+func GetAccountDataGoByKey(suite *f.BaseSuite, address proto.WavesAddress, key string) *waves.DataEntry {
+	return suite.Clients.GoClient.GRPCClient.GetDataEntryByKey(suite.T(), address, key)
+}
+
+func GetAccountDataScalaByKey(suite *f.BaseSuite, address proto.WavesAddress, key string) *waves.DataEntry {
+	return suite.Clients.ScalaClient.GRPCClient.GetDataEntryByKey(suite.T(), address, key)
+}
+
+func GetAccountDataGo(suite *f.BaseSuite, address proto.WavesAddress) []*waves.DataEntry {
+	return suite.Clients.GoClient.GRPCClient.GetDataEntries(suite.T(), address)
+}
+
+func GetAccountDataScala(suite *f.BaseSuite, address proto.WavesAddress) []*waves.DataEntry {
+	return suite.Clients.ScalaClient.GRPCClient.GetDataEntries(suite.T(), address)
+}
+
+func GetTransactionsStatusesGo(suite *f.BaseSuite, txIDs []crypto.Digest) []*g.TransactionStatus {
+	return suite.Clients.GoClient.GRPCClient.GetTransactionsStatuses(suite.T(), txIDs)
+}
+
+func GetApplicationStatusGo(suite *f.BaseSuite, txID crypto.Digest) g.ApplicationStatus {
+	statuses := GetTransactionsStatusesGo(suite, []crypto.Digest{txID})
+	var applicationStatus g.ApplicationStatus
+	if len(statuses) == 1 {
+		applicationStatus = statuses[0].GetApplicationStatus()
+	} else {
+		suite.FailNow("transactions statuses are not found")
+	}
+	return applicationStatus
+}
+
+func GetTransactionsStatusesScala(suite *f.BaseSuite, txIDs []crypto.Digest) []*g.TransactionStatus {
+	return suite.Clients.ScalaClient.GRPCClient.GetTransactionsStatuses(suite.T(), txIDs)
+}
+
+func GetApplicationStatusScala(suite *f.BaseSuite, txID crypto.Digest) g.ApplicationStatus {
+	statuses := GetTransactionsStatusesScala(suite, []crypto.Digest{txID})
+	var applicationStatus g.ApplicationStatus
+	if len(statuses) == 1 {
+		applicationStatus = statuses[0].GetApplicationStatus()
+	} else {
+		suite.FailNow("transactions statuses are not found")
+	}
+	return applicationStatus
 }

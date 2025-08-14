@@ -43,8 +43,12 @@ jobs:
         run: export PATH="$HOME/bin:$PATH"; make release-node-race
 
       - name: Login to GitHub Container Registry
+<<<<<<< HEAD
         uses: docker/login-action@74a5d142397b4f367a81961eba4e8cd7edddf772 # v3
 
+=======
+        uses: docker/login-action@184bdaa0721073962dff0199f1fb9940f07167d1 # v3
+>>>>>>> async-utx
         with:
           registry: ghcr.io
           username: ${{ github.actor }}
@@ -55,7 +59,7 @@ jobs:
 
       - name: Docker Metadata
         id: meta
-        uses: docker/metadata-action@902fa8ec7d6ecbf8d84d538b9b233a880e428804 # v5
+        uses: docker/metadata-action@c1e51972afc2121e065aed6d45c65596fe445f3f # v5
         with:
           images: ${{ env.IMAGE_NAME }}
           flavor: latest=false

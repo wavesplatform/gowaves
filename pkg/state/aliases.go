@@ -3,12 +3,13 @@ package state
 import (
 	"bytes"
 	"io"
+	"log/slog"
 	"math"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -302,7 +303,8 @@ func (a *aliases) disableStolenAliases(blockID proto.BlockID) error {
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+			slog.Error("Iterator error", logging.Error(err))
+			panic(err)
 		}
 	}()
 	for iter.Next() {
@@ -319,7 +321,7 @@ func (a *aliases) disableStolenAliases(blockID proto.BlockID) error {
 		if !record.info.stolen { // skip if alias is not stolen
 			continue
 		}
-		zap.S().Debugf("Forbidding stolen alias %s", key.alias)
+		slog.Debug("Forbidding stolen alias", "alias", key.alias)
 		a.disabled[key.alias] = true
 		if err := a.removeAliasByAddressID(record.info.addressID, key.alias, blockID); err != nil {
 			return errors.Wrap(err, "failed to disable aliases")

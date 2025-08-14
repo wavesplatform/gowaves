@@ -76,11 +76,11 @@ func (as *assetScripRecordForHashes) less(other stateComponent) bool {
 }
 
 type scriptBasicInfoRecord struct {
-	PK             crypto.PublicKey   `cbor:"0,keyasint,omitemtpy"` // not empty only for account script
-	ScriptLen      uint32             `cbor:"1,keyasint,omitemtpy"`
-	LibraryVersion ast.LibraryVersion `cbor:"2,keyasint,omitemtpy"`
-	HasVerifier    bool               `cbor:"3,keyasint,omitemtpy"`
-	IsDApp         bool               `cbor:"4,keyasint,omitemtpy"`
+	PK             crypto.PublicKey   `cbor:"0,keyasint,omitempty"` // not empty only for account script
+	ScriptLen      uint32             `cbor:"1,keyasint,omitempty"`
+	LibraryVersion ast.LibraryVersion `cbor:"2,keyasint,omitempty"`
+	HasVerifier    bool               `cbor:"3,keyasint,omitempty"`
+	IsDApp         bool               `cbor:"4,keyasint,omitempty"`
 }
 
 func newScriptBasicInfoRecord(pk crypto.PublicKey, script proto.Script) (scriptBasicInfoRecord, *ast.Tree, error) {
