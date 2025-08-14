@@ -93,12 +93,12 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 		Ignore(StopSyncEvent).
 		Ignore(BlockSnapshotEvent).
 		Ignore(MicroBlockSnapshotEvent).
-		OnEntry(func(ctx context.Context, args ...interface{}) error {
+		OnEntry(func(_ context.Context, _ ...any) error {
 			info.skipMessageList.SetList(persistSkipMessageList)
 			return nil
 		}).
 		PermitDynamic(StopMiningEvent,
-			createPermitDynamicCallback(StopMiningEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(StopMiningEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*PersistState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -107,7 +107,7 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 				return a.StopMining()
 			})).
 		PermitDynamic(TaskEvent,
-			createPermitDynamicCallback(TaskEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(TaskEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*PersistState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -116,7 +116,7 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 				return a.Task(args[0].(tasks.AsyncTask))
 			})).
 		PermitDynamic(ScoreEvent,
-			createPermitDynamicCallback(ScoreEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(ScoreEvent, state, func(args ...any) (State, Async, error) {
 				a, ok := state.State.(*PersistState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(
@@ -125,7 +125,7 @@ func initPersistStateInFSM(state *StateData, fsm *stateless.StateMachine, info B
 				return a.Score(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Score))
 			})).
 		PermitDynamic(HaltEvent,
-			createPermitDynamicCallback(HaltEvent, state, func(args ...interface{}) (State, Async, error) {
+			createPermitDynamicCallback(HaltEvent, state, func(_ ...any) (State, Async, error) {
 				a, ok := state.State.(*PersistState)
 				if !ok {
 					return a, nil, a.Errorf(errors.Errorf(

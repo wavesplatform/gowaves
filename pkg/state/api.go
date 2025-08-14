@@ -36,9 +36,11 @@ type StateInfo interface {
 	TopBlock() *proto.Block
 	Block(blockID proto.BlockID) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
+	NewestBlockInfoByHeight(height proto.Height) (*proto.BlockInfo, error)
 	// Header getters.
 	Header(blockID proto.BlockID) (*proto.BlockHeader, error)
 	HeaderByHeight(height proto.Height) (*proto.BlockHeader, error)
+	NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	// Height returns current blockchain height.
 	Height() (proto.Height, error)
 	// Height <---> blockID converters.
@@ -127,7 +129,7 @@ type StateInfo interface {
 	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
-	MapR(func(StateInfo) (interface{}, error)) (interface{}, error)
+	MapR(func(StateInfo) (any, error)) (any, error)
 
 	// HitSourceAtHeight reads hit source stored in state.
 	HitSourceAtHeight(height proto.Height) ([]byte, error)
@@ -234,8 +236,9 @@ func NewState(
 	params StateParams,
 	settings *settings.BlockchainSettings,
 	enableLightNode bool,
+	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo,
 ) (State, error) {
-	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode)
+	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode, bUpdatesPluginInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

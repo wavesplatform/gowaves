@@ -3,10 +3,10 @@ package api
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -22,7 +22,8 @@ type PeersKnown struct {
 	Peers []Peer `json:"peers"`
 }
 
-// PeersAll is a list of all known not banned, not suspended and not black listed peers with a publicly available declared address
+// PeersAll is a list of all known not banned, not suspended and not blacklisted peers with a publicly
+// available declared address.
 func (a *App) PeersAll() (PeersKnown, error) {
 	suspended := a.peers.Suspended()
 	blackList := a.peers.BlackList()
@@ -79,7 +80,7 @@ func (a *App) PeersConnect(ctx context.Context, apiKey string, addr string) (*Pe
 
 	d := proto.NewTCPAddrFromString(addr)
 	if d.Empty() {
-		zap.S().Errorf("Invalid peer's address to connect '%s'", addr)
+		slog.Error("Invalid peer's address to connect", "address", addr)
 		return nil, wrapToBadRequestError(errors.New("invalid address"))
 	}
 

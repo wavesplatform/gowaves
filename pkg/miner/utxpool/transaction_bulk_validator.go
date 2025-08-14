@@ -1,8 +1,9 @@
 package utxpool
 
 import (
-	"go.uber.org/zap"
+	"log/slog"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
@@ -30,13 +31,13 @@ func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bul
 func (a bulkValidator) Validate() {
 	transactions, err := a.validate() // Pop transactions from UTX, clean UTX
 	if err != nil {
-		zap.S().Debug(err)
+		slog.Debug("Validation failure", logging.Error(err))
 		return
 	}
 	for _, t := range transactions {
 		errAdd := a.utx.AddWithBytesRow(t.T, t.B)
 		if errAdd != nil {
-			zap.S().Errorf("failed to add a transaction to UTX, %v", errAdd)
+			slog.Error("failed to add a transaction to UTX", logging.Error(errAdd))
 			return
 		}
 	}
@@ -60,7 +61,7 @@ func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
 			}
 			_, err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
 			if stateerr.IsTxCommitmentError(err) {
-				zap.S().Errorf("failed to unpack a transaction from utx, %v", err)
+				slog.Error("failed to unpack a transaction from utx", logging.Error(err))
 				// This should not happen in practice.
 				// Reset state, return applied transactions to UTX.
 				s.ResetValidationList()

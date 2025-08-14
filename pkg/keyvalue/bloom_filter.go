@@ -4,13 +4,15 @@ import (
 	"bufio"
 	"bytes"
 	"io"
+	"log/slog"
 	"os"
 	"runtime/debug"
 
 	"github.com/cespare/xxhash/v2"
 	"github.com/pkg/errors"
 	"github.com/steakknife/bloomfilter"
-	"go.uber.org/zap"
+
+	"github.com/wavesplatform/gowaves/pkg/logging"
 )
 
 type BloomFilter interface {
@@ -151,8 +153,8 @@ func (a *storeImpl) saveData(f io.WriterTo) error {
 		return err
 	}
 	defer func() {
-		if err := file.Close(); err != nil {
-			zap.S().Warnf("Failed to save bloom filter: %v", err)
+		if clErr := file.Close(); clErr != nil {
+			slog.Warn("Failed to save bloom filter", logging.Error(clErr))
 		}
 	}()
 
@@ -166,8 +168,8 @@ func (a *storeImpl) saveData(f io.WriterTo) error {
 
 	buffer := bufio.NewWriter(file)
 	defer func() {
-		if err := buffer.Flush(); err != nil {
-			zap.S().Warnf("Failed to save bloom filter: %v", err)
+		if flErr := buffer.Flush(); flErr != nil {
+			slog.Warn("Failed to save bloom filter", logging.Error(flErr))
 		}
 	}()
 

@@ -1,7 +1,6 @@
 package state
 
 import (
-	"context"
 	"fmt"
 	"runtime"
 	"testing"
@@ -42,8 +41,7 @@ func verifyBlocks(blocks []proto.Block, chans *verifierChans) error {
 }
 
 func TestVerifier(t *testing.T) {
-	ctx, cancel := context.WithCancel(context.Background())
-	defer cancel()
+	ctx := t.Context()
 	// Read real blocks.
 	height := uint64(75)
 	blocks, err := readBlocksFromTestPath(int(height + 1))

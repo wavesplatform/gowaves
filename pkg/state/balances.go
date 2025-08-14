@@ -4,15 +4,16 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"log/slog"
 	"math"
 	"sort"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -300,8 +301,9 @@ func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.Leas
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -325,7 +327,7 @@ func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.Leas
 		if waErr != nil {
 			return nil, waErr
 		}
-		zap.S().Infof("Resetting lease balance for %s", addr.String())
+		slog.Info("Resetting lease balance", "address", addr.String())
 		zeroLeaseBalanceSnapshots = append(zeroLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 			Address:  addr,
 			LeaseIn:  0,
@@ -344,8 +346,9 @@ func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -367,9 +370,7 @@ func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 			if waErr != nil {
 				return nil, nil, waErr
 			}
-			zap.S().Infof("Resolving lease overflow for address %s: %d ---> %d",
-				wavesAddr.String(), r.leaseOut, 0,
-			)
+			slog.Info("Resolving lease overflow", "address", wavesAddr.String(), "old", r.leaseOut, "new", 0)
 			overflowedAddresses[wavesAddr] = struct{}{}
 			leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 				Address:  wavesAddr,
@@ -390,13 +391,14 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr))
+			panic(itErr)
 		}
 	}()
 
 	var correctLeaseBalanceSnapshots []proto.LeaseBalanceSnapshot
-	zap.S().Infof("Started to cancel invalid leaseIns")
+	slog.Info("Started to cancel invalid leaseIns")
 	for iter.Next() {
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
@@ -417,9 +419,8 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 			correctLeaseIn = leaseIn
 		}
 		if r.leaseIn != correctLeaseIn {
-			zap.S().Infof("Invalid leaseIn for address %s detected; fixing it: %d ---> %d.",
-				wavesAddress.String(), r.leaseIn, correctLeaseIn,
-			)
+			slog.Info("Invalid leaseIn detected; fixing it", "address", wavesAddress.String(),
+				"invalid", r.leaseIn, "correct", correctLeaseIn)
 			correctLeaseBalanceSnapshots = append(correctLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 				Address:  wavesAddress,
 				LeaseIn:  uint64(correctLeaseIn),
@@ -427,14 +428,14 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 			})
 		}
 	}
-	zap.S().Infof("Finished to cancel invalid leaseIns")
+	slog.Info("Finished to cancel invalid leaseIns")
 	return correctLeaseBalanceSnapshots, nil
 }
 
 func (s *balances) generateLeaseBalanceSnapshotsWithProvidedChanges(
 	changes map[proto.WavesAddress]balanceDiff,
 ) ([]proto.LeaseBalanceSnapshot, error) {
-	zap.S().Infof("Updating balances for cancelled leases")
+	slog.Info("Updating balances for cancelled leases")
 	leaseBalanceSnapshots := make([]proto.LeaseBalanceSnapshot, 0, len(changes))
 	for a, bd := range changes {
 		k := wavesBalanceKey{address: a.ID()}
@@ -452,11 +453,11 @@ func (s *balances) generateLeaseBalanceSnapshotsWithProvidedChanges(
 			LeaseIn:  uint64(newProfile.leaseIn),
 			LeaseOut: uint64(newProfile.leaseOut),
 		})
-		zap.S().Infof("Balance of %s changed from (B: %d, LIn: %d, LOut: %d) to (B: %d, lIn: %d, lOut: %d)",
-			a.String(), profile.balance, profile.leaseIn, profile.leaseOut,
-			newProfile.balance, newProfile.leaseIn, newProfile.leaseOut)
+		slog.Info("Balance of changed", "address", a.String(),
+			"oldBalance", profile.balance, "oldLIn", profile.leaseIn, "oldLOut", profile.leaseOut,
+			"newBalance", newProfile.balance, "newLIn", newProfile.leaseIn, "newLOut", newProfile.leaseOut)
 	}
-	zap.S().Infof("Finished to update balances")
+	slog.Info("Finished to update balances")
 	return leaseBalanceSnapshots, nil
 }
 
@@ -493,8 +494,9 @@ func (s *balances) nftList(
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -562,8 +564,9 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -789,7 +792,7 @@ func (s *balances) assetBalanceFromRecordBytes(recordBytes []byte) (uint64, erro
 func (s *balances) assetBalance(addr proto.AddressID, assetID proto.AssetID) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: assetID}
 	recordBytes, err := s.hs.topEntryData(key.bytes())
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+	if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) {
 		// Unknown address, expected behavior is to return 0 and no errors in this case.
 		return 0, nil
 	} else if err != nil {
@@ -801,7 +804,7 @@ func (s *balances) assetBalance(addr proto.AddressID, assetID proto.AssetID) (ui
 func (s *balances) newestAssetBalance(addr proto.AddressID, asset proto.AssetID) (uint64, error) {
 	key := assetBalanceKey{address: addr, asset: asset}
 	recordBytes, err := s.hs.newestTopEntryData(key.bytes())
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+	if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) {
 		// Unknown address, expected behavior is to return 0 and no errors in this case.
 		return 0, nil
 	} else if err != nil {
@@ -812,7 +815,7 @@ func (s *balances) newestAssetBalance(addr proto.AddressID, asset proto.AssetID)
 
 func (s *balances) newestWavesRecord(key []byte) (wavesBalanceRecord, error) {
 	recordBytes, err := s.hs.newestTopEntryData(key)
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+	if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) {
 		// Unknown address, expected behavior is to return empty profile and no errors in this case.
 		return wavesBalanceRecord{}, nil
 	} else if err != nil {
@@ -837,7 +840,7 @@ func (s *balances) newestWavesBalance(addr proto.AddressID) (balanceProfile, err
 
 func (s *balances) wavesRecord(key []byte) (wavesBalanceRecord, error) {
 	recordBytes, err := s.hs.topEntryData(key)
-	if err == keyvalue.ErrNotFound || err == errEmptyHist {
+	if errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist) {
 		// Unknown address, expected behavior is to return empty profile and no errors in this case.
 		return wavesBalanceRecord{}, nil
 	} else if err != nil {

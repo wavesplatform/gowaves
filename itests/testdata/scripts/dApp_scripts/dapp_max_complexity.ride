@@ -1,0 +1,93 @@
+{-# STDLIB_VERSION 8 #-}
+{-# CONTENT_TYPE DAPP #-}
+{-# SCRIPT_TYPE ACCOUNT #-}
+
+@Callable(i)
+func callMaxComplexity(strValue: String) = {
+
+  let callerAccountAddress = toBase58String(i.caller.bytes)
+  let scripthash = scriptHash(this).valueOrErrorMessage("fail to get script hash")
+  let bigintValue = parseBigIntValue("6703903964971298549787012499102923063739682910296196688861780721860882015036773488400937149083451713845015929093243025426876941405973284973216824503042047")
+  let logValue = log(bigintValue, 0, toBigInt(2), 0, 0, HALFUP)
+  let powValue = pow(toBigInt(-2),0,toBigInt(511),0,0,FLOOR)
+
+  let vk = "hwk883gUlTKCyXYA6XWZa8H9/xKIYZaJ0xEs0M5hQOMxiGpxocuX/8maSDmeCk3bo5ViaDBdO7ZBxAhLSe5k/5TFQyF5Lv7KN2tLKnwgoWMqB16OL8WdbePIwTCuPtJNAFKoTZylLDbSf02kckMcZQDPF9iGh+JC99Pio74vDpwTEjUx5tQ99gNQwxULtztsqDRsPnEvKvLmsxHt8LQVBkEBm2PBJFY+OXf1MNW021viDBpR10mX4WQ6zrsGL5L0GY4cwf4tlbh+Obit+LnN/SQTnREf8fPpdKZ1sa/ui3pGi8lMT6io4D7Ujlwx2RdCkBF+isfMf77HCEGsZANw0hSrO2FGg14Sl26xLAIohdaW8O7gEaag8JdVAZ3OVLd5Df1NkZBEr753Xb8WwaXsJjE7qxwINL1KdqA4+EiYW4edb7+a9bbBeOPtb67ZxmFqgyTNS/4obxahezNkjk00ytswsENg//Ee6dWBJZyLH+QGsaU2jO/W4WvRyZhmKKPdipOhiz4Rlrd2XYgsfHsfWf5v4GOTL+13ZB24dW1/m39n2woJ+v686fXbNW85XP/r"
+  let proof = "lvQLU/KqgFhsLkt/5C/scqs7nWR+eYtyPdWiLVBux9GblT4AhHYMdCgwQfSJcudvsgV6fXoK+DUSRgJ++Nqt+Wvb7GlYlHpxCysQhz26TTu8Nyo7zpmVPH92+UYmbvbQCSvX2BhWtvkfHmqDVjmSIQ4RUMfeveA1KZbSf999NE4qKK8Do+8oXcmTM4LZVmh1rlyqznIdFXPN7x3pD4E0gb6/y69xtWMChv9654FMg05bAdueKt9uA4BEcAbpkdHF"
+  let inputs = "LcMT3OOlkHLzJBKCKjjzzVMg+r+FVgd52LlhZPB4RFg="
+
+  let vkbn256 = "LDCJzjgi5HtcHEXHfU8TZz+ZUHD2ZwsQ7JIEvzdMPYKYs9SoGkKUmg1yya4TE0Ms7x+KOJ4Ze/CPfKp2s5jbniFNM71N/YlHVbNkytLtQi1DzReSh9SNBsvskdY5mavQJe+67PuPVEYnx+lJ97qIG8243njZbGWPqUJ2Vqj49NAunhqX+eIkK3zAB3IPWls3gruzX2t9wrmyE9cVVvf1kgWx63PsQV37qdH0KcFRpCH89k4TPS6fLmqdFxX3YGHCGFTpr6tLogvjbUFJPT98kJ/xck0C0B/s8PTVKdao4VQHT4DBIO8+GB3CQVh6VV4EcMLtDWWNxF4yloAlKcFT0Q4AzJSimpFqd/SwSz9Pb7uk5srte3nwphVamC+fHlJt"
+  let proofbn256 = "GQPBoHuCPcIosF+WZKE5jZV13Ib4EdjLnABncpSHcMKBZl0LhllnPxcuzExIQwhxcfXvFFAjlnDGpKauQ9OQsjBKUBsdBZnGiV2Sg4TSdyHuLo2AbRRqJN0IV3iH3On8I4ngnL30ZAxVyGQH2EK58aUZGxMbbXGR9pQdh99QaiE="
+  let inputsbn256 = "IfZhAypdtgvecKDWzVyRuvXatmFf2ZYcMWVkCJ0/MQo="
+
+
+
+  let testGroth = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth2 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth3 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth4 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth5 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth6 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth7 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth8 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth9 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth10 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth11 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth12 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth13 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth14 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth15 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth16 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testGroth17 = groth16Verify(fromBase64String(vk), fromBase64String(proof), fromBase64String(inputs))
+  let testBn256Groth1 = bn256Groth16Verify(fromBase64String(vkbn256), fromBase64String(proofbn256), fromBase64String(inputsbn256))
+  let testBn256Groth2 = bn256Groth16Verify(fromBase64String(vkbn256), fromBase64String(proofbn256), fromBase64String(inputsbn256))
+  strict sv = sigVerify(base58'', base58'', base58'') || true
+
+    [
+    StringEntry(callerAccountAddress + "_str", strValue),
+    BinaryEntry("_script_hash", scripthash),
+    DeleteEntry("_script_hash"),
+    BooleanEntry("_groth_bool", testGroth),
+    DeleteEntry("_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth2),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth3),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth4),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth5),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth6),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth7),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth8),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth9),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth10),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth11),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth12),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth13),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth14),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth15),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry(callerAccountAddress + "_groth_bool", testGroth16),
+    DeleteEntry(callerAccountAddress + "_groth_bool"),
+    BooleanEntry("_groth_bool", testGroth17),
+    DeleteEntry("_groth_bool"),
+    BooleanEntry("_groth_bool", testBn256Groth1),
+    DeleteEntry("_groth_bool"),
+    BooleanEntry("_groth_bool", testBn256Groth2),
+    DeleteEntry("_groth_bool")
+  ]
+}
+
+
+@Verifier(tx)
+func verify() = sigVerify(tx.bodyBytes, tx.proofs[0], tx.senderPublicKey)
+

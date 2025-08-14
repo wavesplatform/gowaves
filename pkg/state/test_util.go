@@ -11,7 +11,6 @@ import (
 	"runtime"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -20,14 +19,6 @@ import (
 var (
 	cachedBlocks []proto.Block
 )
-
-func init() {
-	logger, err := zap.NewDevelopment()
-	if err != nil {
-		panic(err)
-	}
-	zap.ReplaceGlobals(logger)
-}
 
 func getLocalDir() (string, error) {
 	_, filename, _, ok := runtime.Caller(0)
@@ -59,7 +50,7 @@ func readRealBlocks(blocksPath string, nBlocks int) ([]proto.Block, error) {
 	buf := make([]byte, 2*1024*1024)
 	r := bufio.NewReader(f)
 	var blocks []proto.Block
-	for i := 0; i < nBlocks; i++ {
+	for i := range nBlocks {
 		if _, err := io.ReadFull(r, sb); err != nil {
 			return nil, err
 		}

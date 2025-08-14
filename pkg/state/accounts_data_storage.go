@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"encoding/binary"
 	"io"
+	"log/slog"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 )
 
 type dataEntryRecordForHashes struct {
@@ -242,7 +245,7 @@ func (s *accountsDataStorage) entryBytes(addr proto.Address, entryKey string) ([
 func (s *accountsDataStorage) retrieveEntries(addr proto.Address) ([]proto.DataEntry, error) {
 	addrNum, err := s.addrToNum(addr)
 	if err != nil {
-		return nil, err
+		return nil, wrapErr(stateerr.NotFoundError, err)
 	}
 	key := accountsDataStorKey{addrNum: addrNum}
 	iter, err := s.hs.newTopEntryIteratorByPrefix(key.accountPrefix())
@@ -251,8 +254,9 @@ func (s *accountsDataStorage) retrieveEntries(addr proto.Address) ([]proto.DataE
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+		if itErr := iter.Error(); itErr != nil {
+			slog.Error("Iterator error", logging.Error(itErr))
+			panic(itErr)
 		}
 	}()
 
@@ -301,8 +305,9 @@ func (s *accountsDataStorage) newestEntryExists(addr proto.Address) (bool, error
 	}
 	defer func() {
 		iter.Release()
-		if err := iter.Error(); err != nil && !errors.Is(iter.Error(), keyvalue.ErrNotFound) {
-			zap.S().Fatalf("Iterator error: %v", err)
+		if itErr := iter.Error(); itErr != nil && !errors.Is(itErr, keyvalue.ErrNotFound) {
+			slog.Error("Iterator error", logging.Error(itErr))
+			panic(itErr)
 		}
 	}()
 	for iter.Next() {

@@ -73,10 +73,10 @@ func NewNetClient(
 		WithSlogAttributes(slog.String("suite", t.Name()), slog.String("impl", impl.String()))
 
 	conn, err := net.Dial("tcp", address)
-	require.NoError(t, err, "failed to dial TCP to %s node at %q", impl.String(), address)
+	require.NoErrorf(t, err, "failed to dial TCP to %s node at %q", impl.String(), address)
 
 	s, err := n.NewSession(ctx, conn, conf)
-	require.NoError(t, err, "failed to establish new session to %s node", impl.String())
+	require.NoErrorf(t, err, "failed to establish new session to %s node", impl.String())
 
 	nc := &NetClient{
 		ctx:    ctx,
@@ -129,7 +129,7 @@ func (c *NetClient) Close() {
 			time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr())
 		c.cancel()
 		err := c.s.Close()
-		require.NoError(c.t, err, "failed to close session to %s node at %q", c.impl.String(), c.s.RemoteAddr())
+		require.NoErrorf(c.t, err, "failed to close session to %s node at %q", c.impl.String(), c.s.RemoteAddr())
 		c.h.close()
 		c.t.Logf("[%s] Waiting to watch loop to finish", time.Now().Format(time.RFC3339Nano))
 		if wErr := c.tg.Wait(); wErr != nil {
@@ -244,11 +244,11 @@ func (c *NetClient) reconnect() {
 	}
 	c.t.Logf("[%s] Reconnecting to %q", time.Now().Format(time.RFC3339Nano), c.s.RemoteAddr().String())
 	conn, err := net.Dial("tcp", c.s.RemoteAddr().String())
-	require.NoError(c.t, err, "failed to dial TCP to %s node at %q",
+	require.NoErrorf(c.t, err, "failed to dial TCP to %s node at %q",
 		c.impl.String(), c.s.RemoteAddr().String())
 
 	s, err := c.n.NewSession(c.ctx, conn, c.c)
-	require.NoError(c.t, err, "failed to re-establish the session to %s node", c.impl.String())
+	require.NoErrorf(c.t, err, "failed to re-establish the session to %s node", c.impl.String())
 	c.s = s
 	c.t.Logf("[%s] Reconnected to node %s at %q",
 		time.Now().Format(time.RFC3339Nano), c.impl.String(), c.s.RemoteAddr().String())

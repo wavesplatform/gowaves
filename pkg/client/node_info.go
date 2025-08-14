@@ -29,7 +29,7 @@ func (ni *NodeInfo) Version(ctx context.Context) (string, *Response, error) {
 		return "", nil, err
 	}
 	out := new(versionResponse)
-	response, err := doHttp(ctx, ni.options, req, out)
+	response, err := doHTTP(ctx, ni.options, req, out)
 	if err != nil {
 		return "", response, err
 	}
