@@ -195,8 +195,14 @@ type StateModifier interface {
 	// Func internally calls ResetValidationList.
 	TxValidation(func(validation TxValidation) error) error
 
+	ResetList()
+
+	ResetListUnsafe(func(validation TxValidation) error) error
+
 	// Way to call multiple operations under same lock.
 	Map(func(state NonThreadSafeState) error) error
+
+	MapUnsafe(func(state NonThreadSafeState) error) error
 
 	// State will provide extended API data after returning.
 	StartProvidingExtendedApi() error
@@ -209,7 +215,7 @@ type StateModifier interface {
 
 type NonThreadSafeState = State
 
-type TxValidation interface {
+type TxValidation = interface {
 	ValidateNextTx(
 		tx proto.Transaction,
 		currentTimestamp, parentTimestamp uint64,

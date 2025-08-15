@@ -1277,6 +1277,20 @@ func (mr *MockStateModifierMockRecorder) Map(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockStateModifier)(nil).Map), arg0)
 }
 
+// MapUnsafe mocks base method.
+func (m *MockStateModifier) MapUnsafe(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MapUnsafe indicates an expected call of MapUnsafe.
+func (mr *MockStateModifierMockRecorder) MapUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapUnsafe", reflect.TypeOf((*MockStateModifier)(nil).MapUnsafe), arg0)
+}
+
 // PersistAddressTransactions mocks base method.
 func (m *MockStateModifier) PersistAddressTransactions() error {
 	m.ctrl.T.Helper()
@@ -1289,6 +1303,32 @@ func (m *MockStateModifier) PersistAddressTransactions() error {
 func (mr *MockStateModifierMockRecorder) PersistAddressTransactions() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistAddressTransactions", reflect.TypeOf((*MockStateModifier)(nil).PersistAddressTransactions))
+}
+
+// ResetList mocks base method.
+func (m *MockStateModifier) ResetList() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ResetList")
+}
+
+// ResetList indicates an expected call of ResetList.
+func (mr *MockStateModifierMockRecorder) ResetList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetList", reflect.TypeOf((*MockStateModifier)(nil).ResetList))
+}
+
+// ResetListUnsafe mocks base method.
+func (m *MockStateModifier) ResetListUnsafe(arg0 func(state.TxValidation) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetListUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ResetListUnsafe indicates an expected call of ResetListUnsafe.
+func (mr *MockStateModifierMockRecorder) ResetListUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetListUnsafe", reflect.TypeOf((*MockStateModifier)(nil).ResetListUnsafe), arg0)
 }
 
 // ResetValidationList mocks base method.
@@ -2091,6 +2131,20 @@ func (mr *MockStateMockRecorder) MapR(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockState)(nil).MapR), arg0)
 }
 
+// MapUnsafe mocks base method.
+func (m *MockState) MapUnsafe(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MapUnsafe indicates an expected call of MapUnsafe.
+func (mr *MockStateMockRecorder) MapUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapUnsafe", reflect.TypeOf((*MockState)(nil).MapUnsafe), arg0)
+}
+
 // NFTList mocks base method.
 func (m *MockState) NFTList(account proto.Recipient, limit uint64, afterAssetID *proto.AssetID) ([]*proto.FullAssetInfo, error) {
 	m.ctrl.T.Helper()
@@ -2223,6 +2277,32 @@ func (m *MockState) ProvidesStateHashes() (bool, error) {
 func (mr *MockStateMockRecorder) ProvidesStateHashes() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesStateHashes", reflect.TypeOf((*MockState)(nil).ProvidesStateHashes))
+}
+
+// ResetList mocks base method.
+func (m *MockState) ResetList() {
+	m.ctrl.T.Helper()
+	m.ctrl.Call(m, "ResetList")
+}
+
+// ResetList indicates an expected call of ResetList.
+func (mr *MockStateMockRecorder) ResetList() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetList", reflect.TypeOf((*MockState)(nil).ResetList))
+}
+
+// ResetListUnsafe mocks base method.
+func (m *MockState) ResetListUnsafe(arg0 func(state.TxValidation) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "ResetListUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// ResetListUnsafe indicates an expected call of ResetListUnsafe.
+func (mr *MockStateMockRecorder) ResetListUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetListUnsafe", reflect.TypeOf((*MockState)(nil).ResetListUnsafe), arg0)
 }
 
 // ResetValidationList mocks base method.

@@ -693,11 +693,23 @@ func (s *stateManager) TxValidation(func(TxValidation) error) error {
 	panic("call TxValidation method on non thread safe state")
 }
 
+func (s *stateManager) ResetList() {
+	panic("call ResetList method on non thread safe state")
+}
+
+func (s *stateManager) ResetListUnsafe(func(TxValidation) error) error {
+	panic("call ResetList method on non thread safe state")
+}
+
 func (s *stateManager) MapR(func(StateInfo) (any, error)) (any, error) {
 	panic("call MapR on non thread safe state")
 }
 
 func (s *stateManager) Map(func(State) error) error {
+	panic("call Map on non thread safe state")
+}
+
+func (s *stateManager) MapUnsafe(func(State) error) error {
 	panic("call Map on non thread safe state")
 }
 
