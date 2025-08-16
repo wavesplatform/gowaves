@@ -60,7 +60,7 @@ func run() error {
 	} else {
 		cfg, err = settings.BlockchainSettingsByTypeName(*blockchainType)
 		if err != nil {
-			return fmt.Errorf("failed to load blockchain settins: %w", err)
+			return fmt.Errorf("failed to load blockchain settings: %w", err)
 		}
 	}
 

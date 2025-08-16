@@ -28,7 +28,7 @@ func (tx *EthereumLegacyTx) unmarshalFromFastRLP(value *fastrlp.Value) error {
 	}
 
 	if len(elems) != legacyTxFieldsCount {
-		return errors.Errorf("expected %d elements, but recieved %d", legacyTxFieldsCount, len(elems))
+		return errors.Errorf("expected %d elements, but received %d", legacyTxFieldsCount, len(elems))
 	}
 
 	nonce, err := elems[0].GetUint64()

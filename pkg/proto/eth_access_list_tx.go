@@ -34,7 +34,7 @@ func (at *EthereumAccessTuple) unmarshalFromFastRLP(value *fastrlp.Value) error 
 		return errors.Wrapf(err, "expected RLP Array, but received %q", value.Type().String())
 	}
 	if len(elems) != accessTupleFieldsCount {
-		return errors.Errorf("expected %d elements, but recieved %d", accessTupleFieldsCount, len(elems))
+		return errors.Errorf("expected %d elements, but received %d", accessTupleFieldsCount, len(elems))
 	}
 
 	var address EthereumAddress
@@ -117,7 +117,7 @@ func (tx *EthereumAccessListTx) unmarshalFromFastRLP(value *fastrlp.Value) error
 	}
 
 	if len(elems) != accessListTxFieldsCount {
-		return errors.Errorf("expected %d elements, but recieved %d", accessListTxFieldsCount, len(elems))
+		return errors.Errorf("expected %d elements, but received %d", accessListTxFieldsCount, len(elems))
 	}
 
 	var chainID big.Int

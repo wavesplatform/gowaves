@@ -169,7 +169,7 @@ func ethABIDataTypeToArgument(dataType ethabi.DataType) (argument Argument, _ er
 			arg, err := ethABIDataTypeToArgument(ethABIElem)
 			if err != nil {
 				return nil, errors.Wrapf(err,
-					"failed to convert ethabi.DataType (%T) to Argument at %d list postition", ethABIElem, i,
+					"failed to convert ethabi.DataType (%T) to Argument at %d list position", ethABIElem, i,
 				)
 			}
 			arguments[i] = arg

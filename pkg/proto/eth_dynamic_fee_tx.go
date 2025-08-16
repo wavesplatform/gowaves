@@ -30,7 +30,7 @@ func (tx *EthereumDynamicFeeTx) unmarshalFromFastRLP(value *fastrlp.Value) error
 	}
 
 	if len(elems) != dynamicFeeTxFieldsCount {
-		return errors.Errorf("expected %d elements, but recieved %d", dynamicFeeTxFieldsCount, len(elems))
+		return errors.Errorf("expected %d elements, but received %d", dynamicFeeTxFieldsCount, len(elems))
 	}
 
 	var chainID big.Int
