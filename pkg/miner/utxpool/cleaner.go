@@ -13,8 +13,8 @@ type Cleaner struct {
 	state stateWrapper
 }
 
-func NewCleaner(state state.State, pool types.UtxPool, tm types.Time) *Cleaner {
-	return newCleaner(state, newBulkValidator(state, pool, tm))
+func NewCleaner(state state.State, pool types.UtxPool, tm types.Time, scheme proto.Scheme) *Cleaner {
+	return newCleaner(state, newBulkValidator(state, pool, tm, scheme))
 }
 
 func newCleaner(state stateWrapper, validator BulkValidator) *Cleaner {

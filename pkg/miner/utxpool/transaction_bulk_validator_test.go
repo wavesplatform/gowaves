@@ -29,7 +29,7 @@ func TestBulkValidator_Validate(t *testing.T) {
 	utx := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
 	require.NoError(t, utx.AddWithBytesRaw(byte_helpers.TransferWithSig.Transaction,
 		byte_helpers.TransferWithSig.TransactionBytes))
-	validator := newBulkValidator(m, utx, tm(now))
+	validator := newBulkValidator(m, utx, tm(now), proto.TestNetScheme)
 	ctx := context.Background()
 	validator.Validate(ctx)
 }

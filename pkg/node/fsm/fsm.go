@@ -119,7 +119,7 @@ func (a *BaseInfo) CleanUtx() {
 			a.cleanUtxRunning.Store(false)
 			a.logger.Debug("CleanUtx completed successfully")
 		}()
-		utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean(ctx)
+		utxpool.NewCleaner(a.storage, a.utx, a.tm, a.scheme).Clean(ctx)
 		metrics.Utx(a.utx.Count())
 	}()
 }
