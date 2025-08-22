@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -116,8 +117,12 @@ func NextCheckParameterCheck(t *testing.T, expected uint64, actualGo, actualScal
 	assert.Equalf(t, int(expected), int(actualScala), "Node Scala: "+errMsg)
 }
 
-func DataEntryAndKeyCheck(t *testing.T, expected *waves.DataEntry, actualGo, actualScala *waves.DataEntry,
-	args ...interface{}) {
+func DataEntryAndKeyCheck(
+	t *testing.T,
+	expected *waves.DataEntry,
+	actualGo, actualScala *waves.DataEntry,
+	args ...any,
+) {
 	errMsg := makeErrorMessage("DataEntry parameters are mismatch", args...)
 	assert.Equalf(t, expected.Key, actualGo.Key, "Node Go: "+errMsg)
 	assert.Equalf(t, expected.Key, actualScala.Key, "Node Scala: "+errMsg)
@@ -148,7 +153,7 @@ func DataEntriesAndKeysCheck(t *testing.T, expected []*waves.DataEntry, actualGo
 			"Node Scala: Data entries values %v %v are mismatch", entry.Value, actualScala[i].Value)
 	}
 }
-func ApplicationStatusCheck(t *testing.T, expected, actualGo, actualScala string, args ...interface{}) {
+func ApplicationStatusCheck(t *testing.T, expected, actualGo, actualScala string, args ...any) {
 	errMsg := makeErrorMessage("Application status mismatch", args...)
 	assert.Equalf(t, expected, actualGo, "Node Go: "+errMsg)
 	assert.Equalf(t, expected, actualScala, "Node Scala: "+errMsg)
