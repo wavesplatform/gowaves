@@ -6,6 +6,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
+
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -143,9 +144,7 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 }
 
 func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error) {
-	if a.baseInfo.cleanCancel != nil {
-		a.baseInfo.cleanCancel()
-	}
+	a.baseInfo.CancelCleanUTX() // cancel UTX cleaning task if it was scheduled
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "peer '%s'", peer.ID()))
