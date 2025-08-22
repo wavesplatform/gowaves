@@ -69,7 +69,10 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 			// Reset state, return applied transactions to UTX.
 			a.state.ResetList()
 			for _, tx := range transactions {
-				_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
+				utxErr := a.utx.AddWithBytesRaw(tx.T, tx.B)
+				if utxErr != nil {
+					slog.Error("failed to return a transaction to UTX", logging.Error(utxErr))
+				}
 			}
 			transactions = nil
 			continue
