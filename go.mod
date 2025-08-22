@@ -28,7 +28,7 @@ require (
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nats-io/nats-server/v2 v2.11.8
-	github.com/nats-io/nats.go v1.44.0
+	github.com/nats-io/nats.go v1.45.0
 	github.com/neilotoole/slogt v1.1.0
 	github.com/ory/dockertest/v3 v3.12.0
 	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
@@ -55,8 +55,8 @@ require (
 	golang.org/x/exp v0.0.0-20250606033433-dcc06ee1d476
 	golang.org/x/sync v0.16.0
 	golang.org/x/sys v0.35.0
-	google.golang.org/grpc v1.74.2
-	google.golang.org/protobuf v1.36.7
+	google.golang.org/grpc v1.75.0
+	google.golang.org/protobuf v1.36.8
 )
 
 require (
@@ -119,7 +119,7 @@ require (
 	golang.org/x/term v0.34.0 // indirect
 	golang.org/x/text v0.28.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	google.golang.org/genproto/googleapis/rpc v0.0.0-20250528174236-200df99c418a // indirect
+	google.golang.org/genproto/googleapis/rpc v0.0.0-20250707201910-8d1bb00bc6a7 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
