@@ -14,7 +14,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
 
-permissions: {}
+permissions: { }
 
 jobs:
   golangci:
@@ -49,6 +49,9 @@ jobs:
       # Strict linter configuration, only checking new code from pull requests.
       - name: golangci-lint-strict
         run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master
+      # Check for modern Go code patterns
+      - name: modernize check
+        run: go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest ./...
 
   build:
     name: ubuntu
