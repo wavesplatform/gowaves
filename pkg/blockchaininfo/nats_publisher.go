@@ -124,10 +124,7 @@ func splitIntoChunks(array []byte, maxChunkSize int) [][]byte {
 	var chunkedArray [][]byte
 
 	for i := 0; i < len(array); i += maxChunkSize {
-		end := i + maxChunkSize
-		if end > len(array) {
-			end = len(array)
-		}
+		end := min(i+maxChunkSize, len(array))
 		chunkedArray = append(chunkedArray, array[i:end])
 	}
 
@@ -322,12 +319,7 @@ func (bu *BUpdatesExtensionState) GeneratePatch(latestUpdates proto.BUpdatesInfo
 }
 
 func (bu *BUpdatesExtensionState) IsKeyConstant(keyDataEntry string) bool {
-	for _, constantKey := range bu.constantContractKeys {
-		if constantKey == keyDataEntry {
-			return true
-		}
-	}
-	return false
+	return slices.Contains(bu.constantContractKeys, keyDataEntry)
 }
 
 func (bu *BUpdatesExtensionState) BuildPatch(keysForPatch []string, targetHeight uint64) (proto.DataEntries,
