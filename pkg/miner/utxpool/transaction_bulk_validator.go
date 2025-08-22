@@ -34,8 +34,7 @@ func (a bulkValidator) Validate(ctx context.Context) {
 	for _, t := range transactions {
 		errAdd := a.utx.AddWithBytesRaw(t.T, t.B)
 		if errAdd != nil {
-			slog.Error("failed to add a transaction to UTX", logging.Error(errAdd))
-			return
+			slog.Error("failed to add a validated transaction to UTX", logging.Error(errAdd))
 		}
 	}
 }
