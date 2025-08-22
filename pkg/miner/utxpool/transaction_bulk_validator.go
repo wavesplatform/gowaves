@@ -51,32 +51,30 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 	utxLen := len(a.utx.AllTransactions())
 
 	for i := 0; i < utxLen; i++ {
-		select {
-		case <-ctx.Done():
+		if ctx.Err() != nil {
 			slog.Debug("Bulk validation interrupted:", logging.Error(ctx.Err()))
 			return transactions
-		default:
-			t := a.utx.Pop()
-			if t == nil {
-				break
+		}
+		t := a.utx.Pop()
+		if t == nil {
+			break
+		}
+		err := a.state.TxValidation(func(validation state.TxValidation) error {
+			_, err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+			return err
+		})
+		if stateerr.IsTxCommitmentError(err) {
+			slog.Error("failed to unpack a transaction from utx", logging.Error(err))
+			// This should not happen in practice.
+			// Reset state, return applied transactions to UTX.
+			a.state.ResetList()
+			for _, tx := range transactions {
+				_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
 			}
-			err := a.state.TxValidation(func(validation state.TxValidation) error {
-				_, err := validation.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
-				return err
-			})
-			if stateerr.IsTxCommitmentError(err) {
-				slog.Error("failed to unpack a transaction from utx", logging.Error(err))
-				// This should not happen in practice.
-				// Reset state, return applied transactions to UTX.
-				a.state.ResetList()
-				for _, tx := range transactions {
-					_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
-				}
-				transactions = nil
-				continue
-			} else if err == nil {
-				transactions = append(transactions, t)
-			}
+			transactions = nil
+			continue
+		} else if err == nil {
+			transactions = append(transactions, t)
 		}
 	}
 	a.state.ResetList()
