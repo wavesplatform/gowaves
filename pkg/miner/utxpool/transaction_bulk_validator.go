@@ -74,7 +74,8 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 					slog.Error("failed to return a transaction to UTX", logging.Error(utxErr))
 				}
 			}
-			transactions = nil
+			clear(transactions)             // Clear the slice to avoid memory leak
+			transactions = transactions[:0] // Reset the slice to empty
 			continue
 		} else if err == nil {
 			transactions = append(transactions, t)
