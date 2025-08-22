@@ -54,16 +54,16 @@ func (a bulkValidator) Validate(ctx context.Context) {
 }
 
 func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithBytes {
-	if a.utx.Count() == 0 {
+	utxLen := a.utx.Count()
+	if utxLen == 0 {
+		slog.Debug("UTX pool is empty, nothing to validate")
 		return nil
 	}
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-
-	utxLen := len(a.utx.AllTransactions())
-
-	for i := 0; i < utxLen; i++ {
+	defer a.state.ResetList()
+	for range utxLen {
 		if ctx.Err() != nil {
 			slog.Debug("Bulk validation interrupted:", logging.Error(context.Cause(ctx)))
 			return transactions
@@ -96,6 +96,5 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 			transactions = append(transactions, t)
 		}
 	}
-	a.state.ResetList()
 	return transactions
 }
