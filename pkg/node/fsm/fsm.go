@@ -3,12 +3,14 @@ package fsm
 import (
 	"context"
 	"log/slog"
+	"sync/atomic"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
@@ -83,6 +85,8 @@ type BaseInfo struct {
 	syncPeer *network.SyncPeer
 
 	enableLightMode bool
+	cleanUtxRunning *atomic.Bool
+	cleanCancel     context.CancelFunc
 	logger          *slog.Logger
 	netLogger       *slog.Logger
 }
@@ -95,9 +99,55 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 	})
 }
 
+// CleanUtx starts a goroutine to clean the UTX pool.
+// It uses an internal context to allow cancellation of the cleaning process.
+// If a cleaning process is already running, it does nothing.
+// Not thread-safe, should be called from a single goroutine.
 func (a *BaseInfo) CleanUtx() {
-	utxpool.NewCleaner(a.storage, a.utx, a.tm).Clean()
+	if !a.cleanUtxRunning.CompareAndSwap(false, true) { // cleaning process is already running
+		return
+	}
+	ctx, cancel := context.WithCancel(context.Background())
+	a.cleanCancel = cancel
+	go func() {
+		defer func() {
+			if err := context.Cause(ctx); err != nil { // context was not cancelled, assume the cleaning was successful.
+				// no need to reset cleanUtxRunning here, it will be done in CancelCleanUTX
+				a.logger.Debug("CleanUtx was cancelled", logging.Error(err))
+				return
+			}
+			a.cleanUtxRunning.Store(false)
+			a.logger.Debug("CleanUtx completed successfully")
+		}()
+		utxpool.NewCleaner(a.storage, a.utx, a.tm, a.scheme).Clean(ctx)
+		metrics.Utx(a.utx.Count())
+	}()
+}
+
+// CancelCleanUTX cancels the ongoing UTX cleaning process if it is running.
+// It does nothing if no cleaning process is running.
+// This method is not thread-safe and should be called from a single goroutine.
+func (a *BaseInfo) CancelCleanUTX() {
+	if !a.cleanUtxRunning.CompareAndSwap(true, false) { // no cleaning process was running
+		a.logger.Debug("CancelCleanUTX called, but no cleaning process was running")
+		return
+	}
+	a.logger.Debug("CancelCleanUTX called, cancelling the cleaning process")
+	if a.cleanCancel != nil {
+		a.cleanCancel()
+		a.cleanCancel = nil
+	} else { // This should not happen, but if it does, log a warning.
+		a.logger.Warn("CancelCleanUTX called, but cleanCancel function is nil, no cleaning process was running")
+	}
+}
+
+func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
+	if err := a.utx.Add(a.storage, t); err != nil {
+		err = errors.Wrap(err, "failed to add transaction to utx")
+		return err
+	}
 	metrics.Utx(a.utx.Count())
+	return nil
 }
 
 // States.
@@ -188,6 +238,7 @@ func NewFSM(
 		skipMessageList: services.SkipMessageList,
 		syncPeer:        syncPeer,
 		enableLightMode: enableLightMode,
+		cleanUtxRunning: &atomic.Bool{},
 		logger:          logger,
 		netLogger:       netLogger,
 	}
