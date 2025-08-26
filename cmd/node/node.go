@@ -23,6 +23,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/wavesplatform/gowaves/pkg/api"
+	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
@@ -76,53 +77,54 @@ var defaultPeers = map[string]string{
 type config struct {
 	isParsed bool
 
-	lp                         logging.Parameters
-	logNetwork                 bool
-	logNetworkData             bool
-	logFSM                     bool
-	statePath                  string
-	blockchainType             string
-	peerAddresses              string
-	declAddr                   string
-	nodeName                   string
-	cfgPath                    string
-	apiAddr                    string
-	apiKey                     string
-	apiMaxConnections          int
-	rateLimiterOptions         string
-	grpcAddr                   string
-	grpcAPIMaxConnections      int
-	enableMetaMaskAPI          bool
-	enableMetaMaskAPILog       bool
-	enableGrpcAPI              bool
-	blackListResidenceTime     time.Duration
-	buildExtendedAPI           bool
-	serveExtendedAPI           bool
-	buildStateHashes           bool
-	bindAddress                string
-	disableOutgoingConnections bool
-	minerVoteFeatures          string
-	disableBloomFilter         bool
-	reward                     int64
-	obsolescencePeriod         time.Duration
-	walletPath                 string
-	walletPassword             string
-	limitAllConnections        uint
-	minPeersMining             int
-	disableMiner               bool
-	profiler                   bool
-	prometheus                 string
-	metricsID                  int
-	metricsURL                 string
-	dropPeers                  bool
-	dbFileDescriptors          uint
-	newConnectionsLimit        int
-	disableNTP                 bool
-	microblockInterval         time.Duration
-	enableLightMode            bool
-	generateInPast             bool
-
-	h slog.Handler
+	lp                            logging.Parameters
+	logNetwork                    bool
+	logNetworkData                bool
+	logFSM                        bool
+	statePath                     string
+	blockchainType                string
+	peerAddresses                 string
+	declAddr                      string
+	nodeName                      string
+	cfgPath                       string
+	apiAddr                       string
+	apiKey                        string
+	apiMaxConnections             int
+	rateLimiterOptions            string
+	grpcAddr                      string
+	grpcAPIMaxConnections         int
+	enableMetaMaskAPI             bool
+	enableMetaMaskAPILog          bool
+	enableGrpcAPI                 bool
+	blackListResidenceTime        time.Duration
+	buildExtendedAPI              bool
+	serveExtendedAPI              bool
+	buildStateHashes              bool
+	bindAddress                   string
+	disableOutgoingConnections    bool
+	minerVoteFeatures             string
+	disableBloomFilter            bool
+	reward                        int64
+	obsolescencePeriod            time.Duration
+	walletPath                    string
+	walletPassword                string
+	limitAllConnections           uint
+	minPeersMining                int
+	disableMiner                  bool
+	profiler                      bool
+	prometheus                    string
+	metricsID                     int
+	metricsURL                    string
+	dropPeers                     bool
+	dbFileDescriptors             uint
+	newConnectionsLimit           int
+	disableNTP                    bool
+	microblockInterval            time.Duration
+	enableLightMode               bool
+	generateInPast                bool
+	enableBlockchainUpdatesPlugin bool
+	blockchainUpdatesL2Address    string
+	h                             slog.Handler
 }
 
 var errConfigNotParsed = stderrs.New("config is not parsed")
@@ -148,14 +150,16 @@ func (c *config) String() string {
 		"build-state-hashes: %t, bind-address: %s, vote: %s, reward: %d, obsolescence: %s, disable-miner: %t, "+
 		"wallet-path: %s, hashed wallet-password: %s, limit-connections: %d, profiler: %t, "+
 		"disable-bloom: %t, drop-peers: %t, db-file-descriptors: %d, new-connections-limit: %d, "+
-		"enable-metamask: %t, disable-ntp: %t, microblock-interval: %s, enable-light-mode: %t, generate-in-past: %t}",
+		"enable-metamask: %t, disable-ntp: %t, microblock-interval: %s, enable-light-mode: %t, generate-in-past: %t, "+
+		"enable-blockchain-updates-plugin: %t, l2-contract-address: %s}",
 		c.lp.String(), c.logNetwork, c.logFSM, c.statePath, c.blockchainType,
 		c.peerAddresses, c.declAddr, c.apiAddr, crypto.MustKeccak256([]byte(c.apiKey)).Hex(), c.grpcAddr,
 		c.enableGrpcAPI, c.blackListResidenceTime, c.buildExtendedAPI, c.serveExtendedAPI,
 		c.buildStateHashes, c.bindAddress, c.minerVoteFeatures, c.reward, c.obsolescencePeriod, c.disableMiner,
 		c.walletPath, crypto.MustKeccak256([]byte(c.walletPassword)).Hex(), c.limitAllConnections, c.profiler,
 		c.disableBloomFilter, c.dropPeers, c.dbFileDescriptors, c.newConnectionsLimit,
-		c.enableMetaMaskAPI, c.disableNTP, c.microblockInterval, c.enableLightMode, c.generateInPast)
+		c.enableMetaMaskAPI, c.disableNTP, c.microblockInterval, c.enableLightMode, c.generateInPast,
+		c.enableBlockchainUpdatesPlugin, c.blockchainUpdatesL2Address)
 }
 
 func (c *config) parse() {
@@ -250,6 +254,10 @@ func (c *config) parse() {
 		"Interval between microblocks.")
 	flag.BoolVar(&c.enableLightMode, "enable-light-mode", false,
 		"Start node in light mode")
+	flag.BoolVar(&c.enableBlockchainUpdatesPlugin, "enable-blockchain-info", false,
+		"Turn on blockchain updates plugin")
+	flag.StringVar(&c.blockchainUpdatesL2Address, "l2-contract-address", "",
+		"Specify the smart contract address from which the updates will be pulled")
 	flag.BoolVar(&c.generateInPast, "generate-in-past", false,
 		"Enable block generation with timestamp in the past")
 	c.lp.Initialize()
@@ -337,6 +345,20 @@ func run(nc *config) (retErr error) {
 	return nil
 }
 
+func initBlockchainUpdatesPlugin(ctx context.Context,
+	l2addressContract string,
+	enableBlockchainUpdatesPlugin bool,
+	updatesChannel chan<- proto.BUpdatesInfo,
+) (*proto.BlockchainUpdatesPluginInfo, error) {
+	l2address, cnvrtErr := proto.NewAddressFromString(l2addressContract)
+	if cnvrtErr != nil {
+		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2addressContract)
+	}
+	bUpdatesPluginInfo := proto.NewBlockchainUpdatesPluginInfo(ctx, l2address, updatesChannel,
+		enableBlockchainUpdatesPlugin)
+	return bUpdatesPluginInfo, nil
+}
+
 func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 	cfg, err := blockchainSettings(nc)
 	if err != nil {
@@ -358,7 +380,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to get state path")
 	}
 
-	ntpTime, err := getNtp(ctx, nc.disableNTP)
+	ntpTime, err := GetNtp(ctx, nc.disableNTP)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get NTP time")
 	}
@@ -368,11 +390,41 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to create state parameters")
 	}
 
-	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode)
+	updatesChannel := make(chan proto.BUpdatesInfo, blockchaininfo.UpdatesBufferedChannelSize)
+	var bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo
+	if nc.enableBlockchainUpdatesPlugin {
+		var initErr error
+		bUpdatesPluginInfo, initErr = initBlockchainUpdatesPlugin(ctx, nc.blockchainUpdatesL2Address,
+			nc.enableBlockchainUpdatesPlugin, updatesChannel)
+		if initErr != nil {
+			return nil, errors.Wrap(initErr, "failed to initialize blockchain updates plugin")
+		}
+	}
+	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode, bUpdatesPluginInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize node's state")
 	}
 	defer func() { retErr = closeIfErrorf(st, retErr, "failed to close state") }()
+	makeExtensionReadyFunc := func() {
+		bUpdatesPluginInfo.MakeExtensionReady()
+	}
+
+	if nc.enableBlockchainUpdatesPlugin {
+		bUpdatesExtension, bUErr := initializeBlockchainUpdatesExtension(cfg, nc.blockchainUpdatesL2Address,
+			st, makeExtensionReadyFunc, nc.obsolescencePeriod, ntpTime)
+		if bUErr != nil {
+			return nil, errors.Wrap(bUErr, "failed to run blockchain updates plugin")
+		}
+		go func() {
+			publshrErr := bUpdatesExtension.RunBlockchainUpdatesPublisher(ctx,
+				cfg.AddressSchemeCharacter, updatesChannel)
+			if publshrErr != nil {
+				slog.Error("Failed to run blockchain updates publisher", logging.Error(publshrErr))
+			}
+		}()
+		slog.Info("The blockchain info extension started pulling info from smart contract address",
+			"address", nc.blockchainUpdatesL2Address)
+	}
 
 	features, err := minerFeatures(st, nc.minerVoteFeatures)
 	if err != nil {
@@ -786,6 +838,31 @@ func runAPIs(
 	return nil
 }
 
+func initializeBlockchainUpdatesExtension(
+	cfg *settings.BlockchainSettings,
+	l2ContractAddress string,
+	state state.State,
+	makeExtensionReady func(),
+	obsolescencePeriod time.Duration,
+	ntpTime types.Time,
+) (*blockchaininfo.BlockchainUpdatesExtension, error) {
+	bUpdatesExtensionState, err := blockchaininfo.NewBUpdatesExtensionState(
+		blockchaininfo.StoreBlocksLimit,
+		cfg.AddressSchemeCharacter,
+		l2ContractAddress,
+		state,
+	)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to initialize blockchain updates extension state")
+	}
+	l2address, cnvrtErr := proto.NewAddressFromString(l2ContractAddress)
+	if cnvrtErr != nil {
+		return nil, errors.Wrapf(cnvrtErr, "failed to convert L2 contract address %q", l2ContractAddress)
+	}
+	return blockchaininfo.NewBlockchainUpdatesExtension(l2address,
+		bUpdatesExtensionState, makeExtensionReady, obsolescencePeriod, ntpTime), nil
+}
+
 func FromArgs(scheme proto.Scheme, c *config) func(s *settings.NodeSettings) error {
 	return func(s *settings.NodeSettings) error {
 		s.DeclaredAddr = c.declAddr
@@ -830,7 +907,7 @@ func grpcAPIRunOptsFromCLIFlags(c *config) *server.RunOptions {
 	return opts
 }
 
-func getNtp(ctx context.Context, disable bool) (types.Time, error) {
+func GetNtp(ctx context.Context, disable bool) (types.Time, error) {
 	if disable {
 		return ntptime.Stub{}, nil
 	}

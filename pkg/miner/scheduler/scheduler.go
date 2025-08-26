@@ -8,7 +8,6 @@ import (
 	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -365,6 +364,21 @@ func newScheduler(internal internal, state state.State, seeder seeder, settings 
 
 func (a *Default) Mine() chan Emit {
 	return a.mine
+}
+
+func IsBlockObsolete(ntpTime types.Time,
+	obsolescencePeriod time.Duration, lastBlockTimestamp uint64) (bool, time.Time, error) {
+	now := ntpTime.Now()
+	obsolescenceTime := now.Add(-obsolescencePeriod)
+	lastBlockTimeStampInt, err := safecast.ToInt64(lastBlockTimestamp)
+	if err != nil {
+		return false, time.Time{}, errors.Errorf("failed to convert uint64 timestamp to int64, %v", err)
+	}
+	lastBlockTime := time.UnixMilli(lastBlockTimeStampInt)
+	if obsolescenceTime.After(lastBlockTime) {
+		return true, obsolescenceTime, nil
+	}
+	return false, obsolescenceTime, nil
 }
 
 func (a *Default) Reschedule() {

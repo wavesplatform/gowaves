@@ -17,8 +17,8 @@ import (
 
 	"github.com/pkg/errors"
 
+	"github.com/cosmos/go-bip39"
 	"github.com/howeyc/gopass"
-	"github.com/tyler-smith/go-bip39"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"

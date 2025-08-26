@@ -262,6 +262,7 @@ mock:
 	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
 	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
 	mockgen -source pkg/grpc/server/api.go -destination pkg/mock/grpc.go -package mock GrpcHandlers
+	mockery
 
 proto:
 	@protoc --proto_path=pkg/grpc/protobuf-schemas/proto/ --go_out=./ --go_opt=module=$(MODULE) --go-vtproto_out=./ --go-vtproto_opt=features=marshal_strict+unmarshal+size --go-vtproto_opt=module=$(MODULE) pkg/grpc/protobuf-schemas/proto/waves/*.proto

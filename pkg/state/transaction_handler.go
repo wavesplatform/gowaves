@@ -264,6 +264,7 @@ func (h *transactionHandler) performTx(
 	if err := snapshot.Apply(h.sa, tx, validatingUTX); err != nil {
 		return txSnapshot{}, errors.Wrap(err, "failed to apply transaction snapshot")
 	}
+
 	return snapshot, nil
 }
 

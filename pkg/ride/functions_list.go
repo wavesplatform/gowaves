@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"slices"
 	"sort"
 
 	"github.com/pkg/errors"
@@ -440,10 +441,8 @@ func containsElement(_ environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "containsElement")
 	}
-	for i := range list {
-		if e.eq(list[i]) {
-			return rideBoolean(true), nil
-		}
+	if slices.ContainsFunc(list, e.eq) {
+		return rideBoolean(true), nil
 	}
 	return rideBoolean(false), nil
 }
