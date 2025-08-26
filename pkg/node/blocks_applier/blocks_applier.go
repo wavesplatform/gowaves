@@ -263,12 +263,20 @@ func (a *innerBlocksApplier) applyMicro(
 		return 0, errors.Wrapf(err, "failed to get current block by height %d", currentHeight)
 	}
 
+	// Here we are rolling back the state to the parent block height effectively restoring the state after
+	// the parent block application.
 	err = storage.RollbackToHeight(parentHeight)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to rollback to height %d", parentHeight)
 	}
 
+	// Now we have to apply the new full block which is combined of the `currentBlock` block and the new transactions
+	// received in the micro block.
+
 	// applying new blocks
+
+	// Here we could pass the snapshot of the current block, apply it to speed up the process and seamlessly apply the
+	// transactions from the micro block.
 	_, err = storage.AddDeserializedBlocks([]*proto.Block{block})
 	if err != nil {
 		// return back saved blocks

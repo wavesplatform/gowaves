@@ -344,9 +344,7 @@ func (a *NGState) mineMicro(
 }
 
 // checkAndAppendMicroBlock checks that microblock is appendable and appends it.
-func (a *NGState) checkAndAppendMicroBlock(
-	micro *proto.MicroBlock,
-) (*proto.Block, error) {
+func (a *NGState) checkAndAppendMicroBlock(micro *proto.MicroBlock) (*proto.Block, error) {
 	top := a.baseInfo.storage.TopBlock()  // Get the last block
 	if top.BlockID() != micro.Reference { // Microblock doesn't refer to last block
 		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
@@ -379,6 +377,8 @@ func (a *NGState) checkAndAppendMicroBlock(
 	if err != nil {
 		return nil, errors.Wrap(err, "NGState microBlockByID: failed generate block id")
 	}
+
+	// Here we have to pass current block snapshot from the cache to apply it to the state.
 	err = a.baseInfo.storage.Map(func(state state.State) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(state, newBlock)
 		return er

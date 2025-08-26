@@ -711,7 +711,8 @@ func (s *stateManager) addGenesisBlock() error {
 
 	chans := launchVerifier(ctx, s.verificationGoroutinesNum, s.settings.AddressSchemeCharacter)
 
-	if err := s.addNewBlock(s.genesis, nil, chans, 0, nil, nil, initSH); err != nil {
+	if err := s.addNewBlock(s.genesis, nil, chans, 0, nil, nil,
+		initSH, SnapshotApplicationModeTransactionsOnly); err != nil {
 		return err
 	}
 	if err := s.stor.hitSources.appendBlockHitSource(s.genesis, 1, s.genesis.GenSignature); err != nil {
@@ -1271,6 +1272,7 @@ func (s *stateManager) addNewBlock(
 	optionalSnapshot *proto.BlockSnapshot,
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
 	lastSnapshotStateHash crypto.Digest,
+	applicationMode SnapshotApplicationMode,
 ) error {
 	blockHeight := blockchainHeight + 1
 	if err := s.beforeAppendBlock(block, blockHeight); err != nil {
@@ -1286,13 +1288,14 @@ func (s *stateManager) addNewBlock(
 	}
 	params := &appendBlockParams{
 		transactions:              transactions,
+		snapshot:                  optionalSnapshot,
+		applicationMode:           applicationMode,
 		chans:                     chans,
 		block:                     &block.BlockHeader,
 		parent:                    parentHeader,
 		blockchainHeight:          blockchainHeight,
 		fixSnapshotsToInitialHash: fixSnapshotsToInitialHash,
 		lastSnapshotStateHash:     lastSnapshotStateHash,
-		optionalSnapshot:          optionalSnapshot,
 	}
 	// Check and perform block's transactions, create balance diffs, write transactions to storage.
 	if err := s.appender.appendBlock(params); err != nil {
@@ -1911,8 +1914,11 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 		if errCurBlock != nil {
 			return nil, wrapErr(stateerr.DeserializationError, errCurBlock)
 		}
-
-		pErr := s.processBlockInPack(block, optionalSnapshot, lastAppliedBlock, blockchainCurHeight, chans)
+		mode := SnapshotApplicationModeTransactionsOnly
+		if optionalSnapshot != nil {
+			mode = SnapshotApplicationModeSnapshotOnly
+		}
+		pErr := s.processBlockInPack(block, optionalSnapshot, mode, lastAppliedBlock, blockchainCurHeight, chans)
 		if pErr != nil {
 			return nil, pErr
 		}
@@ -1950,6 +1956,7 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 func (s *stateManager) processBlockInPack(
 	block *proto.Block,
 	optionalSnapshot *proto.BlockSnapshot,
+	applicationMode SnapshotApplicationMode,
 	lastAppliedBlock *proto.Block,
 	blockchainCurHeight uint64,
 	chans *verifierChans,
@@ -1980,7 +1987,7 @@ func (s *stateManager) processBlockInPack(
 	fixSnapshotsToInitialHash := fixSnapshots // at the block applying stage fix snapshots are only used for hashing
 	// Save block to storage, check its transactions, create and save balance diffs for its transactions.
 	addErr := s.addNewBlock(
-		block, lastAppliedBlock, chans, blockchainCurHeight, optionalSnapshot, fixSnapshotsToInitialHash, sh)
+		block, lastAppliedBlock, chans, blockchainCurHeight, optionalSnapshot, fixSnapshotsToInitialHash, sh, applicationMode)
 	if addErr != nil {
 		return addErr
 	}

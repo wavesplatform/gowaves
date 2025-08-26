@@ -157,12 +157,13 @@ func (a *txAppender) checkDuplicateTxIds(tx proto.Transaction, recentIds map[str
 
 type appendBlockParams struct {
 	transactions              []proto.Transaction
+	snapshot                  *proto.BlockSnapshot
+	applicationMode           SnapshotApplicationMode
 	chans                     *verifierChans
 	block, parent             *proto.BlockHeader
 	blockchainHeight          proto.Height
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot
 	lastSnapshotStateHash     crypto.Digest
-	optionalSnapshot          *proto.BlockSnapshot
 }
 
 func (a *txAppender) orderIsScripted(order proto.Order) (bool, error) {
@@ -623,18 +624,20 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	return snapshot, nil
 }
 
-func (a *txAppender) applySnapshotInLightNode(
-	params *appendBlockParams,
-	blockInfo *proto.BlockInfo,
+// applySnapshot applies the snapshot to the state. This function performs raw snapshot application
+// without snapshot hash calculation.
+func (a *txAppender) applySnapshot(
 	snapshot proto.BlockSnapshot,
+	transactions []proto.Transaction,
+	height proto.Height,
 	stateHash crypto.Digest,
 	hasher *txSnapshotHasher,
 ) (crypto.Digest, error) {
-	if len(snapshot.TxSnapshots) != len(params.transactions) { // sanity check
-		return crypto.Digest{}, errors.New("number of tx snapshots doesn't match number of transactions")
+	if len(snapshot.TxSnapshots) != len(transactions) { // sanity check
+		return crypto.Digest{}, errors.New("number of snapshots doesn't match number of transactions")
 	}
 	for i, txs := range snapshot.TxSnapshots {
-		tx := params.transactions[i]
+		tx := transactions[i]
 		txID, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
 		if idErr != nil {
 			return crypto.Digest{}, idErr
@@ -642,10 +645,10 @@ func (a *txAppender) applySnapshotInLightNode(
 		if len(txs) == 0 { // sanity check
 			return crypto.Digest{}, errors.Errorf("snapshot of txID %q cannot be empty", base58.Encode(txID))
 		}
-		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, blockInfo.Height, stateHash, txs)
+		txSh, shErr := calculateTxSnapshotStateHash(hasher, txID, height, stateHash, txs)
 		if shErr != nil {
 			return crypto.Digest{}, errors.Wrapf(shErr, "failed to calculate tx snapshot hash for txID %q at height %d",
-				base58.Encode(txID), blockInfo.Height,
+				base58.Encode(txID), height,
 			)
 		}
 		stateHash = txSh
@@ -830,11 +833,31 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrapf(applyErr, "failed to apply an initial snapshot at height %d", currentBlockHeight)
 	}
 	var blockSnapshot proto.BlockSnapshot
-	if params.optionalSnapshot != nil {
-		blockSnapshot = *params.optionalSnapshot
-		stateHash, err = a.applySnapshotInLightNode(params, blockInfo, blockSnapshot, stateHash, hasher)
-	} else {
+	switch params.applicationMode {
+	case SnapshotApplicationModeTransactionsOnly:
 		blockSnapshot, stateHash, err = a.appendTxs(params, checkerInfo, blockInfo, stateHash, hasher)
+
+	case SnapshotApplicationModeSnapshotOnly:
+		if params.snapshot == nil {
+			return errors.Errorf("snapshot is required for %s", params.applicationMode.String())
+		}
+		blockSnapshot = *params.snapshot
+		stateHash, err = a.applySnapshot(blockSnapshot, params.transactions, blockInfo.Height, stateHash, hasher)
+
+	case SnapshotApplicationModeSnapshotThenTransactions:
+		blockSnapshot = *params.snapshot
+		sh1, asErr := a.applySnapshot(blockSnapshot, params.transactions, blockInfo.Height, stateHash, hasher)
+		if asErr != nil {
+			return errors.Wrapf(asErr, "failed to apply block snapshot in %s mode at height %d",
+				params.applicationMode.String(), currentBlockHeight)
+		}
+		sn2, sh2, atErr := a.appendTxs(params, checkerInfo, blockInfo, sh1, hasher)
+		if atErr != nil {
+			return errors.Wrapf(atErr, "failed to append transactions in %s mode at height %d",
+				params.applicationMode.String(), currentBlockHeight)
+		}
+		blockSnapshot.AppendTxSnapshots(sn2.TxSnapshots)
+		stateHash = sh2
 	}
 	if err != nil {
 		return err
