@@ -44,7 +44,7 @@ require (
 	github.com/stoewer/go-strcase v1.3.1
 	github.com/stretchr/testify v1.11.0
 	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d
-	github.com/throttled/throttled/v2 v2.13.0
+	github.com/throttled/throttled/v2 v2.15.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/umbracle/fastrlp v0.1.0
 	github.com/valyala/bytebufferpool v1.0.0
