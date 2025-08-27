@@ -105,8 +105,10 @@ func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.P
 // Not thread-safe, should be called from a single goroutine.
 func (a *BaseInfo) CleanUtx() {
 	if !a.cleanUtxRunning.CompareAndSwap(false, true) { // cleaning process is already running
+		a.logger.Debug("CleanUtx called, but a cleaning process is already running")
 		return
 	}
+	a.logger.Debug("CleanUtx called, starting a new cleaning process")
 	ctx, cancel := context.WithCancel(context.Background())
 	a.cleanCancel = cancel
 	go func() {
