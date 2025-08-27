@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 
 	"github.com/ory/dockertest/v3"
+	"github.com/ory/dockertest/v3/docker"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -86,6 +87,7 @@ func (c *TestConfig) GenesisSH() crypto.Digest {
 }
 
 type DockerConfigurator interface {
+	DockerPullOptions() *docker.PullImageOptions
 	DockerRunOptions() *dockertest.RunOptions
 }
 
@@ -107,6 +109,14 @@ func NewScalaConfigurator(suite string, cfg *BlockchainConfig) (*ScalaConfigurat
 func (c *ScalaConfigurator) WithGoNode(goNodeIP string) *ScalaConfigurator {
 	c.knownPeers = append(c.knownPeers, goNodeIP)
 	return c
+}
+
+func (c *ScalaConfigurator) DockerPullOptions() *docker.PullImageOptions {
+	return &docker.PullImageOptions{
+		Repository: "wavesplatform/wavesnode",
+		Tag:        "latest",
+		//Platform:   fmt.Sprintf("linux/%s", runtime.GOARCH),
+	}
 }
 
 func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
@@ -194,6 +204,10 @@ func NewGoConfigurator(suite string, cfg *BlockchainConfig) (*GoConfigurator, er
 		return nil, errors.Wrap(err, "failed to create go node configuration")
 	}
 	return c, nil
+}
+
+func (c *GoConfigurator) DockerPullOptions() *docker.PullImageOptions {
+	return nil
 }
 
 func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
