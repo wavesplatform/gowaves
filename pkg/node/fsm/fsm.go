@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
@@ -146,6 +147,13 @@ func (a *BaseInfo) CancelCleanUTX() {
 
 func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
 	utx := a.utx
+	if utx.Exists(t) { // check if transaction is already in UTX before acquiring the state lock
+		id, err := t.GetID(a.scheme)
+		if err != nil {
+			return errors.Wrap(err, "failed to get transaction ID while checking existence in utx")
+		}
+		return errors.Errorf("transaction %s already in utx", base58.Encode(id))
+	}
 	err := a.storage.Map(func(storage storage.NonThreadSafeState) error {
 		return utx.Add(storage, t)
 	})
