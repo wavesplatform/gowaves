@@ -62,7 +62,6 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-	defer a.state.ResetList()
 	for range utxLen {
 		if ctx.Err() != nil {
 			slog.Debug("Bulk validation interrupted:", logging.Error(context.Cause(ctx)))
@@ -80,7 +79,6 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 			slog.Error("failed to unpack a transaction from utx", logging.Error(err))
 			// This should not happen in practice.
 			// Reset state, return applied transactions to UTX.
-			a.state.ResetList()
 			for _, tx := range transactions {
 				utxErr := a.utx.AddWithBytesRaw(tx.T, tx.B)
 				if utxErr != nil {

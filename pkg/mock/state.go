@@ -1305,18 +1305,6 @@ func (mr *MockStateModifierMockRecorder) PersistAddressTransactions() *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PersistAddressTransactions", reflect.TypeOf((*MockStateModifier)(nil).PersistAddressTransactions))
 }
 
-// ResetList mocks base method.
-func (m *MockStateModifier) ResetList() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ResetList")
-}
-
-// ResetList indicates an expected call of ResetList.
-func (mr *MockStateModifierMockRecorder) ResetList() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetList", reflect.TypeOf((*MockStateModifier)(nil).ResetList))
-}
-
 // ResetValidationList mocks base method.
 func (m *MockStateModifier) ResetValidationList() {
 	m.ctrl.T.Helper()
@@ -2263,18 +2251,6 @@ func (m *MockState) ProvidesStateHashes() (bool, error) {
 func (mr *MockStateMockRecorder) ProvidesStateHashes() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ProvidesStateHashes", reflect.TypeOf((*MockState)(nil).ProvidesStateHashes))
-}
-
-// ResetList mocks base method.
-func (m *MockState) ResetList() {
-	m.ctrl.T.Helper()
-	m.ctrl.Call(m, "ResetList")
-}
-
-// ResetList indicates an expected call of ResetList.
-func (mr *MockStateMockRecorder) ResetList() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ResetList", reflect.TypeOf((*MockState)(nil).ResetList))
 }
 
 // ResetValidationList mocks base method.

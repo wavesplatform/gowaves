@@ -23,9 +23,8 @@ func TestBulkValidator_Validate(t *testing.T) {
 
 	m := NewMockstateWrapper(ctrl)
 	m.EXPECT().TopBlock().Return(emptyBlock)
-	m.EXPECT().ResetList().AnyTimes()
 	m.EXPECT().TxValidation(gomock.Any()).
-		Return(nil).AnyTimes()
+		Return(nil).Times(1)
 	utx := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
 	require.NoError(t, utx.AddWithBytesRaw(byte_helpers.TransferWithSig.Transaction,
 		byte_helpers.TransferWithSig.TransactionBytes))

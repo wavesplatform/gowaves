@@ -35,5 +35,4 @@ func (a *Cleaner) work(ctx context.Context) {
 type stateWrapper interface {
 	TopBlock() *proto.Block
 	TxValidation(func(validation state.TxValidation) error) error
-	ResetList()
 }

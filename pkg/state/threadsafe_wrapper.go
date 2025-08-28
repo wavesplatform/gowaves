@@ -524,12 +524,6 @@ func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) er
 	return f(a.s)
 }
 
-func (a *ThreadSafeWriteWrapper) ResetList() {
-	a.lockUnsafe()
-	defer a.unlockUnsafe()
-	a.s.ResetValidationList()
-}
-
 func (a *ThreadSafeWriteWrapper) StartProvidingExtendedApi() error {
 	a.lock()
 	defer a.unlock()
