@@ -118,6 +118,7 @@ func (a *BaseInfo) CleanUtx() {
 				a.logger.Debug("CleanUtx was cancelled", logging.Error(err))
 				return
 			}
+			cancel() // cancel the context to free resources
 			a.cleanUtxRunning.Store(false)
 			a.logger.Debug("CleanUtx completed successfully")
 		}()
