@@ -97,36 +97,23 @@ func (a *UtxImpl) AddWithBytesRaw(t proto.Transaction, b []byte) error {
 
 // addWithBytesRaw has no tx validation. Can be called wherever.
 func (a *UtxImpl) addWithBytesRaw(t proto.Transaction, b []byte) error {
-	if len(b) == 0 {
-		return errors.New("transaction with empty bytes")
-	}
-	// exceed limit
-	if a.curSize+uint64(len(b)) > a.sizeLimit {
-		return errors.Errorf("size overflow, curSize: %d, limit: %d", a.curSize, a.sizeLimit)
-	}
-	if err := t.GenerateID(a.settings.AddressSchemeCharacter); err != nil {
-		return errors.Errorf("failed to generate ID: %v", err)
-	}
-	tID, err := t.GetID(a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return err
-	}
-	if a.exists(t) {
-		return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
-	}
-	tb := &types.TransactionWithBytes{
-		T: t,
-		B: b,
-	}
-	heap.Push(&a.transactions, tb)
-	id := makeDigest(t.GetID(a.settings.AddressSchemeCharacter))
-	a.transactionIds[id] = struct{}{}
-	a.curSize += uint64(len(b))
-	return nil
+	var noValidation func(proto.Transaction) error
+	return a.addWithBytesOptValidation(t, b, noValidation)
 }
 
 // addWithBytes Must only be called inside state Map or MapUnsafe.
 func (a *UtxImpl) addWithBytes(st types.UtxPoolValidatorState, t proto.Transaction, b []byte) error {
+	return a.addWithBytesOptValidation(t, b, func(t proto.Transaction) error {
+		return a.validator.Validate(st, t)
+	})
+}
+
+// addWithBytesOptValidation has optional tx validation. User is responsible for the validator closure.
+func (a *UtxImpl) addWithBytesOptValidation(
+	t proto.Transaction,
+	b []byte,
+	optionalTxValidator func(t proto.Transaction) error,
+) error {
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")
 	}
@@ -144,9 +131,10 @@ func (a *UtxImpl) addWithBytes(st types.UtxPoolValidatorState, t proto.Transacti
 	if a.exists(t) {
 		return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
 	}
-	err = a.validator.Validate(st, t)
-	if err != nil {
-		return err
+	if optionalTxValidator != nil {
+		if vErr := optionalTxValidator(t); vErr != nil {
+			return errors.Wrapf(vErr, "transaction with id %s failed validation", base58.Encode(tID))
+		}
 	}
 	tb := &types.TransactionWithBytes{
 		T: t,
