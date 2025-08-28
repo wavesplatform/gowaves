@@ -145,11 +145,14 @@ func (a *BaseInfo) CancelCleanUTX() {
 }
 
 func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
-	if err := a.utx.Add(a.storage, t); err != nil {
-		err = errors.Wrap(err, "failed to add transaction to utx")
-		return err
+	utx := a.utx
+	err := a.storage.Map(func(storage storage.NonThreadSafeState) error {
+		return utx.Add(storage, t)
+	})
+	if err != nil {
+		return errors.Wrap(err, "failed to add transaction to utx")
 	}
-	metrics.Utx(a.utx.Count())
+	metrics.Utx(utx.Count())
 	return nil
 }
 

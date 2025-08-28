@@ -197,8 +197,6 @@ type StateModifier interface {
 
 	ResetList()
 
-	ResetListUnsafe(func(validation TxValidation) error) error
-
 	// Way to call multiple operations under same lock.
 	Map(func(state NonThreadSafeState) error) error
 

@@ -36,8 +36,7 @@ func (a *ValidatorImpl) Validate(st types.UtxPoolValidatorState, tx proto.Transa
 	if now.Add(-a.obsolescence).After(lastBlockTime) {
 		return errors.New("state outdated, transaction not accepted")
 	}
-	// ResetListUnsafe - reset validation list without state locks, because the state locks before
-	return st.ResetListUnsafe(func(validation state.TxValidation) error {
+	return st.TxValidation(func(validation state.TxValidation) error {
 		_, err := validation.ValidateNextTx(tx, uint64(now.UnixMilli()), lastBlock.Timestamp, lastBlock.Version, false)
 		return err
 	})

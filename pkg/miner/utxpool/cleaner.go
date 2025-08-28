@@ -33,12 +33,7 @@ func (a *Cleaner) work(ctx context.Context) {
 }
 
 type stateWrapper interface {
-	Height() (proto.Height, error)
 	TopBlock() *proto.Block
 	TxValidation(func(validation state.TxValidation) error) error
 	ResetList()
-	ResetListUnsafe(func(validation state.TxValidation) error) error
-	Map(func(state state.NonThreadSafeState) error) error
-	MapUnsafe(func(state state.NonThreadSafeState) error) error
-	IsActivated(featureID int16) (bool, error)
 }

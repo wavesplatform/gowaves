@@ -518,8 +518,9 @@ func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID) error {
 }
 
 func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) error) error {
-	a.lockUnsafe()
+	a.lockUnsafe() // we have to use unsafe lock, because this method can be called from multiple goroutines
 	defer a.unlockUnsafe()
+	defer a.s.ResetValidationList()
 	return f(a.s)
 }
 
@@ -527,11 +528,6 @@ func (a *ThreadSafeWriteWrapper) ResetList() {
 	a.lockUnsafe()
 	defer a.unlockUnsafe()
 	a.s.ResetValidationList()
-}
-
-func (a *ThreadSafeWriteWrapper) ResetListUnsafe(f func(validation TxValidation) error) error {
-	defer a.s.ResetValidationList()
-	return f(a.s)
 }
 
 func (a *ThreadSafeWriteWrapper) StartProvidingExtendedApi() error {

@@ -689,15 +689,12 @@ func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) {
 	s.genesis = genesisBlock
 }
 
-func (s *stateManager) TxValidation(func(TxValidation) error) error {
-	panic("call TxValidation method on non thread safe state")
+func (s *stateManager) TxValidation(f func(TxValidation) error) error {
+	defer s.ResetValidationList()
+	return f(s)
 }
 
 func (s *stateManager) ResetList() {
-	panic("call ResetList method on non thread safe state")
-}
-
-func (s *stateManager) ResetListUnsafe(func(TxValidation) error) error {
 	panic("call ResetList method on non thread safe state")
 }
 

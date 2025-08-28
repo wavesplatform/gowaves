@@ -33,7 +33,6 @@ type nextTxValidator = interface { // the same as state.TxValidation, but withou
 type UtxPoolValidatorState interface {
 	TopBlock() *proto.Block
 	TxValidation(func(validation nextTxValidator) error) error
-	ResetListUnsafe(func(validation nextTxValidator) error) error
 }
 
 // UtxPool storage interface
