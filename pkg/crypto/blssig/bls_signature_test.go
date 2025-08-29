@@ -85,3 +85,28 @@ func TestAggregateSignatures_DirectAndHelper(t *testing.T) {
 	require.True(t, blssig.VerifyAggregate(pubs, msg, agg1))
 	require.True(t, blssig.VerifyAggregate(pubs, msg, agg2))
 }
+
+func TestVerifyAggregate_RejectsDuplicatePublicKeys(t *testing.T) {
+	w1, w2 := randWavesSK(t), randWavesSK(t)
+	msg := []byte("same message")
+
+	aggSig, pubs, err := blssig.AggregateFromWavesSecrets([]crypto.SecretKey{w1, w2}, msg)
+	require.NoError(t, err)
+	require.Len(t, pubs, 2)
+
+	pubsDup := []*cbls.PublicKey[cbls.G1]{pubs[0], pubs[0]}
+	ok := blssig.VerifyAggregate(pubsDup, msg, aggSig)
+	require.False(t, ok, "VerifyAggregate must fail on duplicate public keys")
+}
+
+func TestAggregateSignatures_RejectsDuplicateSignatures(t *testing.T) {
+	w := randWavesSK(t)
+	sk, err := blssig.SecretKeyFromWaves(w)
+	require.NoError(t, err)
+
+	msg := []byte("m")
+	s := blssig.Sign(sk, msg)
+
+	_, err = blssig.AggregateSignatures([]cbls.Signature{s, s})
+	require.ErrorIs(t, err, blssig.ErrDuplicateSignature)
+}
