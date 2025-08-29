@@ -62,13 +62,17 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-	for range utxLen {
+	for i := range utxLen {
 		if ctx.Err() != nil {
 			slog.Debug("Bulk validation interrupted:", logging.Error(context.Cause(ctx)))
 			return transactions
 		}
 		t := a.utx.Pop()
 		if t == nil {
+			slog.Debug("UTX pool is empty, finished validating",
+				slog.Int("validated", len(transactions)),
+				slog.Int("totalTxValidated", i),
+			)
 			break
 		}
 		err := a.state.TxValidation(func(validation state.TxValidation) error {
@@ -87,6 +91,10 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 					)
 				}
 			}
+			slog.Debug("Validated transactions returned to UTX, resetting validated list, continuing",
+				slog.Int("returned", len(transactions)),
+				slog.Int("totalTxValidated", i),
+			)
 			clear(transactions)             // Clear the slice to avoid memory leak
 			transactions = transactions[:0] // Reset the slice to empty
 			continue

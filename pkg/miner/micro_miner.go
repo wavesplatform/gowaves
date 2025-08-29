@@ -3,8 +3,9 @@ package miner
 import (
 	"context"
 	"errors"
-	"github.com/mr-tron/base58"
 	"log/slog"
+
+	"github.com/mr-tron/base58"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -77,6 +78,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		for txCount <= maxMicroblockTransactions {
 			t := a.utx.Pop()
 			if t == nil {
+				slog.Debug("[MICRO MINER] No more transactions in UTX", slog.Int("txCount", txCount))
 				break
 			}
 			binTr := t.B
