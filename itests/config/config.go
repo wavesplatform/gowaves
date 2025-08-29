@@ -8,9 +8,9 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/ory/dockertest/v3"
-	"github.com/ory/dockertest/v3/docker"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -87,7 +87,6 @@ func (c *TestConfig) GenesisSH() crypto.Digest {
 }
 
 type DockerConfigurator interface {
-	DockerPullOptions() *docker.PullImageOptions
 	DockerRunOptions() *dockertest.RunOptions
 }
 
@@ -111,14 +110,6 @@ func (c *ScalaConfigurator) WithGoNode(goNodeIP string) *ScalaConfigurator {
 	return c
 }
 
-func (c *ScalaConfigurator) DockerPullOptions() *docker.PullImageOptions {
-	return &docker.PullImageOptions{
-		Repository: "wavesplatform/wavesnode",
-		Tag:        "latest",
-		//Platform:   fmt.Sprintf("linux/%s", runtime.GOARCH),
-	}
-}
-
 func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	kps := ""
 	for i, kp := range c.knownPeers {
@@ -128,6 +119,7 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 		Repository: "wavesplatform/wavesnode",
 		Name:       c.suite + "-" + scalaContainerName,
 		Tag:        "latest",
+		Platform:   platform(),
 		Hostname:   "scala-node",
 		Mounts: []string{
 			c.configFolder + ":/etc/waves",
@@ -206,16 +198,13 @@ func NewGoConfigurator(suite string, cfg *BlockchainConfig) (*GoConfigurator, er
 	return c, nil
 }
 
-func (c *GoConfigurator) DockerPullOptions() *docker.PullImageOptions {
-	return nil
-}
-
 func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	opt := &dockertest.RunOptions{
 		Repository: "go-node",
 		Name:       c.suite + "-" + goContainerName,
 		User:       "gowaves",
 		Hostname:   "go-node",
+		Platform:   platform(),
 		Env: []string{
 			"GRPC_ADDR=" + DefaultIP + ":" + GRPCAPIPort,
 			"API_ADDR=" + DefaultIP + ":" + RESTAPIPort,
@@ -295,4 +284,9 @@ func createConfigDir(suiteName string) (string, error) {
 		return "", mkErr
 	}
 	return configDir, nil
+}
+
+func platform() string {
+	const prefix = "linux/"
+	return prefix + runtime.GOARCH
 }

@@ -225,11 +225,6 @@ func (d *Docker) stopContainer(containerID string) error {
 func (d *Docker) startNode(
 	ctx context.Context, cfg config.DockerConfigurator, logFilename, errFilename string,
 ) (*NodeContainer, error) {
-	if po := cfg.DockerPullOptions(); po != nil {
-		if err := d.pool.Client.PullImage(*po, dc.AuthConfiguration{}); err != nil {
-			return nil, errors.Wrapf(err, "failed to pull image for suite %q", d.suite)
-		}
-	}
 	opts := cfg.DockerRunOptions()
 	opts.Networks = []*dockertest.Network{d.network}
 
