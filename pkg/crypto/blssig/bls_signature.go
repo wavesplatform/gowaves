@@ -25,6 +25,7 @@ func Sign(sk *cbls.PrivateKey[cbls.G1], msg []byte) []byte {
 	return cbls.Sign[cbls.G1](sk, msg)
 }
 
+// AggregateSignatures Default separation tag is "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_".
 func AggregateSignatures(sigs []cbls.Signature) (cbls.Signature, error) {
 	if len(sigs) == 0 {
 		return nil, errors.New("no signatures")
@@ -33,6 +34,7 @@ func AggregateSignatures(sigs []cbls.Signature) (cbls.Signature, error) {
 	return cbls.Aggregate(cbls.G1{}, sigs)
 }
 
+// AggregateFromWavesSecrets Default separation tag is "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_".
 func AggregateFromWavesSecrets(
 	wavesSKs []crypto.SecretKey,
 	msg []byte,
