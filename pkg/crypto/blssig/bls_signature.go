@@ -3,8 +3,14 @@ package blssig
 import (
 	"errors"
 	"fmt"
+
 	cbls "github.com/cloudflare/circl/sign/bls"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+)
+
+const (
+	G1PubKeyCompressedLen = 48 // bytes
+	G2SigCompressedLen    = 96 // bytes
 )
 
 var (
@@ -94,7 +100,7 @@ func VerifyAggregate(
 }
 
 func checkNoDuplicatePubKeys(pubs []*cbls.PublicKey[cbls.G1]) error {
-	seen := make(map[[48]byte]struct{}, len(pubs))
+	seen := make(map[[G1PubKeyCompressedLen]byte]struct{}, len(pubs))
 	for i, pk := range pubs {
 		if pk == nil {
 			return fmt.Errorf("nil public key at index %d", i)
@@ -103,10 +109,10 @@ func checkNoDuplicatePubKeys(pubs []*cbls.PublicKey[cbls.G1]) error {
 		if err != nil {
 			return fmt.Errorf("marshal pubkey %d: %w", i, err)
 		}
-		if len(b) != 48 {
-			return fmt.Errorf("pubkey %d length %d != 48", i, len(b))
+		if len(b) != G1PubKeyCompressedLen {
+			return fmt.Errorf("pubkey %d length %d != %d", i, len(b), G1PubKeyCompressedLen)
 		}
-		var k [48]byte
+		var k [G1PubKeyCompressedLen]byte
 		copy(k[:], b)
 		if _, ok := seen[k]; ok {
 			return ErrDuplicatePublicKey
@@ -117,15 +123,15 @@ func checkNoDuplicatePubKeys(pubs []*cbls.PublicKey[cbls.G1]) error {
 }
 
 func checkNoDuplicateSignatures(sigs []cbls.Signature) error {
-	seen := make(map[[96]byte]struct{}, len(sigs))
+	seen := make(map[[G2SigCompressedLen]byte]struct{}, len(sigs))
 	for i, s := range sigs {
 		if s == nil {
 			return fmt.Errorf("nil signature at index %d", i)
 		}
-		if len(s) != 96 {
-			return fmt.Errorf("signature %d length %d != 96", i, len(s))
+		if len(s) != G2SigCompressedLen {
+			return fmt.Errorf("signature %d length %d != %d", i, len(s), G2SigCompressedLen)
 		}
-		var k [96]byte
+		var k [G2SigCompressedLen]byte
 		copy(k[:], s)
 		if _, ok := seen[k]; ok {
 			return ErrDuplicateSignature

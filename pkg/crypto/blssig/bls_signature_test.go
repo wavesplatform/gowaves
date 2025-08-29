@@ -43,7 +43,7 @@ func TestAggregateFromWavesSecrets_SameMessage(t *testing.T) {
 
 	// Make n random Waves secrets
 	waves := make([]crypto.SecretKey, n)
-	for i := 0; i < n; i++ {
+	for i := range waves {
 		waves[i] = randWavesSK(t)
 	}
 
