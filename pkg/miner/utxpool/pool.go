@@ -7,6 +7,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -61,43 +62,58 @@ func New(sizeLimit uint64, validator Validator, settings *settings.BlockchainSet
 func (a *UtxImpl) AllTransactions() []*types.TransactionWithBytes {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-
 	res := make([]*types.TransactionWithBytes, len(a.transactions))
 	copy(res, a.transactions)
 	return res
 }
 
-func (a *UtxImpl) Add(t proto.Transaction) error {
+// Add Must only be called inside state Map or MapUnsafe.
+func (a *UtxImpl) Add(st types.UtxPoolValidatorState, t proto.Transaction) error {
 	bts, err := proto.MarshalTx(a.settings.AddressSchemeCharacter, t)
 	if err != nil {
 		return err
 	}
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.addWithBytes(t, bts)
+	return a.addWithBytes(st, t, bts)
 }
 
-func (a *UtxImpl) AddBytes(bts []byte) error {
-	t, err := proto.BytesToTransaction(bts, a.settings.AddressSchemeCharacter)
-	if err != nil {
-		return err
-	}
-	a.mu.Lock()
-	defer a.mu.Unlock()
-	return a.addWithBytes(t, bts)
-}
-
-func (a *UtxImpl) AddWithBytes(t proto.Transaction, b []byte) error {
+// AddWithBytes Must only be called inside state Map or MapUnsafe.
+func (a *UtxImpl) AddWithBytes(st types.UtxPoolValidatorState, t proto.Transaction, b []byte) error {
 	// TODO: add flag here to distinguish adding using API and accepting
 	//  through the network from other nodes.
 	//  When API is used, we should check all scripts completely.
 	//  When adding from the network, only free complexity limit is checked.
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	return a.addWithBytes(t, b)
+	return a.addWithBytes(st, t, b)
 }
 
-func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
+func (a *UtxImpl) AddWithBytesRaw(t proto.Transaction, b []byte) error {
+	a.mu.Lock()
+	defer a.mu.Unlock()
+	return a.addWithBytesRaw(t, b)
+}
+
+// addWithBytesRaw has no tx validation. Can be called wherever.
+func (a *UtxImpl) addWithBytesRaw(t proto.Transaction, b []byte) error {
+	var noValidation func(proto.Transaction) error
+	return a.addWithBytesOptValidation(t, b, noValidation)
+}
+
+// addWithBytes Must only be called inside state Map or MapUnsafe.
+func (a *UtxImpl) addWithBytes(st types.UtxPoolValidatorState, t proto.Transaction, b []byte) error {
+	return a.addWithBytesOptValidation(t, b, func(t proto.Transaction) error {
+		return a.validator.Validate(st, t)
+	})
+}
+
+// addWithBytesOptValidation has optional tx validation. User is responsible for the validator closure.
+func (a *UtxImpl) addWithBytesOptValidation(
+	t proto.Transaction,
+	b []byte,
+	optionalTxValidator func(t proto.Transaction) error,
+) error {
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")
 	}
@@ -115,9 +131,10 @@ func (a *UtxImpl) addWithBytes(t proto.Transaction, b []byte) error {
 	if a.exists(t) {
 		return proto.NewInfoMsg(errors.Errorf("transaction with id %s exists", base58.Encode(tID)))
 	}
-	err = a.validator.Validate(t)
-	if err != nil {
-		return err
+	if optionalTxValidator != nil {
+		if vErr := optionalTxValidator(t); vErr != nil {
+			return errors.Wrapf(vErr, "transaction with id %s failed validation", base58.Encode(tID))
+		}
 	}
 	tb := &types.TransactionWithBytes{
 		T: t,

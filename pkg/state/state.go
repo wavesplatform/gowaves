@@ -689,8 +689,9 @@ func (s *stateManager) setGenesisBlock(genesisBlock *proto.Block) {
 	s.genesis = genesisBlock
 }
 
-func (s *stateManager) TxValidation(func(TxValidation) error) error {
-	panic("call TxValidation method on non thread safe state")
+func (s *stateManager) TxValidation(f func(TxValidation) error) error {
+	defer s.ResetValidationList()
+	return f(s)
 }
 
 func (s *stateManager) MapR(func(StateInfo) (any, error)) (any, error) {
@@ -698,6 +699,10 @@ func (s *stateManager) MapR(func(StateInfo) (any, error)) (any, error) {
 }
 
 func (s *stateManager) Map(func(State) error) error {
+	panic("call Map on non thread safe state")
+}
+
+func (s *stateManager) MapUnsafe(func(State) error) error {
 	panic("call Map on non thread safe state")
 }
 

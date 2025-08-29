@@ -10,9 +10,9 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
+
 	"github.com/wavesplatform/gowaves/pkg/libs/signatures"
 	"github.com/wavesplatform/gowaves/pkg/logging"
-	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/sync_internal"
 	"github.com/wavesplatform/gowaves/pkg/node/fsm/tasks"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
@@ -146,12 +146,10 @@ func tryBroadcastTransaction(
 		}
 		return fsm, nil, err
 	}
-	if err = baseInfo.utx.Add(t); err != nil {
-		err = errors.Wrap(err, "failed to add transaction to utx")
-		return fsm, nil, err
+	if utxErr := baseInfo.AddToUtx(t); utxErr != nil {
+		return fsm, nil, utxErr
 	}
 	baseInfo.BroadcastTransaction(t, p)
-	metrics.Utx(baseInfo.utx.Count())
 	return fsm, nil, nil
 }
 
