@@ -352,7 +352,7 @@ func (h *txSnapshotHasher) ApplyAccountScript(snapshot proto.AccountScriptSnapsh
 	if snapshot.Script.IsEmpty() {
 		buf := bytebufferpool.Get()
 
-		// Emtpy account script: sender_public_key
+		// Empty account script: sender_public_key
 
 		if _, err := buf.Write(snapshot.SenderPublicKey[:]); err != nil {
 			return err
@@ -363,7 +363,7 @@ func (h *txSnapshotHasher) ApplyAccountScript(snapshot proto.AccountScriptSnapsh
 
 	buf := bytebufferpool.Get()
 
-	// Not emtpy account script: sender_public_key || script || verifier_complexity
+	// Not empty account script: sender_public_key || script || verifier_complexity
 	if _, err := buf.Write(snapshot.SenderPublicKey[:]); err != nil {
 		return err
 	}

@@ -1,8 +1,9 @@
 package signatures
 
 import (
-	"go.uber.org/zap"
+	"log/slog"
 
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	storage "github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -61,15 +62,16 @@ func (LastSignaturesImpl) LastBlockIDs(state storage.State) (*ReverseOrdering, e
 
 	height, err := state.Height()
 	if err != nil {
-		zap.S().Errorf("LastSignaturesImpl: failed to get height from state: %v", err)
+		slog.Error("LastBlockIDs: Failed to get height from state", logging.Error(err))
 		return nil, err
 	}
 
 	for i := 0; i < 100 && height > 0; i++ {
-		sig, err := state.HeightToBlockID(height)
-		if err != nil {
-			zap.S().Errorf("LastSignaturesImpl: failed to get blockID for height %d: %v", height, err)
-			return nil, err
+		sig, hErr := state.HeightToBlockID(height)
+		if hErr != nil {
+			slog.Error("LastBlockIDs: Failed to get blockID for height", slog.Any("height", height),
+				logging.Error(hErr))
+			return nil, hErr
 		}
 		signatures = append(signatures, sig)
 		height -= 1

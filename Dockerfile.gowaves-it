@@ -56,6 +56,7 @@ CMD /app/node \
     -build-extended-api \
     -build-state-hashes \
     -serve-extended-api \
+    -log-type=prettydev \
     -log-level=debug \
     -log-network \
     -log-fsm \

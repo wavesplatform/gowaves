@@ -144,7 +144,7 @@ func (suite *SmokeTxAPIPositiveSuite) Test_TransferTxAPISmokePositive() {
 	v := byte(testdata.TransferMaxVersion)
 	aliasStr := utl.RandStringBytes(15, testdata.AliasSymbolSet)
 	alias.SetAliasToAccountByAPI(&suite.BaseSuite, v, utl.TestChainID, aliasStr,
-		utl.DefaultRecipientNotMiner)
+		utl.GetAccount(&suite.BaseSuite, utl.DefaultRecipientNotMiner), utl.MinTxFeeWaves)
 	reissuable := testdata.GetCommonIssueData(&suite.BaseSuite).Reissuable
 	itx := issue.BroadcastWithTestData(&suite.BaseSuite, reissuable, v, true)
 	tdmatrix := testdata.GetTransferPositiveData(&suite.BaseSuite, itx.TxID, aliasStr)

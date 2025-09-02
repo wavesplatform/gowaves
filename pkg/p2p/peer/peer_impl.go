@@ -3,11 +3,11 @@ package peer
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net"
 	"net/netip"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/p2p/conn"
@@ -45,9 +45,13 @@ type PeerImpl struct {
 	remote    Remote
 	id        peerImplID
 	cancel    context.CancelFunc
+	logger    *slog.Logger // Data logger.
 }
 
-func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Direction, remote Remote, cancel context.CancelFunc) (*PeerImpl, error) {
+func NewPeerImpl(
+	handshake proto.Handshake, conn conn.Connection, direction Direction, remote Remote,
+	cancel context.CancelFunc, dl *slog.Logger,
+) (*PeerImpl, error) {
 	id, err := newPeerImplID(conn.Conn().RemoteAddr(), handshake.NodeNonce)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new peer")
@@ -59,6 +63,7 @@ func NewPeerImpl(handshake proto.Handshake, conn conn.Connection, direction Dire
 		remote:    remote,
 		id:        id,
 		cancel:    cancel,
+		logger:    dl,
 	}, nil
 }
 
@@ -77,10 +82,11 @@ func (a *PeerImpl) Close() error {
 func (a *PeerImpl) SendMessage(m proto.Message) {
 	b, err := m.MarshalBinary()
 	if err != nil {
-		zap.S().Errorf("Failed to send message %T: %v", m, err)
+		slog.Error("Failed to send message", logging.Type(m), logging.Error(err))
 		return
 	}
-	zap.S().Named(logging.NetworkDataNamespace).Debugf("[%s] Sending to network: %s", a.id, proto.B64Bytes(b))
+	a.logger.Debug("Sending to network", "peer", a.id, "data", proto.B64Bytes(b))
+
 	select {
 	case a.remote.ToCh <- b:
 	default:

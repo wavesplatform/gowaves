@@ -43,10 +43,10 @@ func (kp *KnownPeer) String() string {
 }
 
 type restrictedPeer struct {
-	IP                      IP            `cbor:"0,keyasint,omitemtpy"`
-	RestrictTimestampMillis int64         `cbor:"1,keyasint,omitemtpy"`
-	RestrictDuration        time.Duration `cbor:"2,keyasint,omitemtpy"`
-	Reason                  string        `cbor:"3,keyasint,omitemtpy"`
+	IP                      IP            `cbor:"0,keyasint,omitempty"`
+	RestrictTimestampMillis int64         `cbor:"1,keyasint,omitempty"`
+	RestrictDuration        time.Duration `cbor:"2,keyasint,omitempty"`
+	Reason                  string        `cbor:"3,keyasint,omitempty"`
 }
 
 func (sp *restrictedPeer) RestrictTime() time.Time {

@@ -4,7 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"flag"
-	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,8 +13,6 @@ import (
 	"time"
 
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -67,17 +65,14 @@ func (p *printer) printDifferentResults(height uint64, res map[proto.FieldsHashe
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	zap.S().Infof("Height: %d; following state hashes are different:", height)
-	zap.S().Info("=============================================================")
 	for fh, nodes := range res {
 		hashJs, err := json.Marshal(fh)
 		if err != nil {
 			panic(err)
 		}
-		zap.S().Info(string(hashJs))
-		zap.S().Infof("Nodes: %v\n", nodes.nodes)
+		slog.Info("Following state hashes are different",
+			"height", height, "stateHash", string(hashJs), "nodes", nodes.nodes)
 	}
-	zap.S().Info("=============================================================")
 }
 
 type stateHashInfo struct {
@@ -160,7 +155,7 @@ func download(
 			for height := range heightChan {
 				if err := manageHeight(ctx, height, nodes, clients, p, tries); err != nil {
 					cancel()
-					zap.S().Errorf("Failed to load some hashes: %v", err)
+					slog.Error("Failed to load hashes", logging.Error(err))
 					errChan <- err
 					break
 				}
@@ -179,8 +174,7 @@ func main() {
 		minNodesNumber          = 2
 	)
 	var (
-		logLevel = zap.LevelFlag("log-level", zapcore.InfoLevel,
-			"Logging level. Supported levels: DEBUG, INFO, WARN, ERROR, FATAL.")
+		lp            = logging.Parameters{}
 		nodesStr      = flag.String("nodes", "", "Addresses of nodes; comma separated.")
 		startHeight   = flag.Int("start-height", defaultStartHeight, "Start height.")
 		endHeight     = flag.Int("end-height", defaultEndHeight, "End height.")
@@ -188,33 +182,37 @@ func main() {
 			"Number of goroutines that will run for downloading state hashes.")
 		tries = flag.Int("tries-num", defaultTriesNumber, "Number of tries to download.")
 	)
-
+	lp.Initialize()
 	flag.Parse()
 
-	logger := logging.SetupSimpleLogger(*logLevel)
-	defer func() {
-		err := logger.Sync()
-		if err != nil && errors.Is(err, os.ErrInvalid) {
-			panic(fmt.Sprintf("Failed to close logging subsystem: %v\n", err))
-		}
-	}()
+	if err := lp.Parse(); err != nil {
+		slog.Error("Failed to parse application parameters", logging.Error(err))
+		os.Exit(1)
+	}
+
+	slog.SetDefault(slog.New(logging.DefaultHandler(lp)))
 	if *endHeight <= *startHeight {
-		zap.S().Fatal("End height must be greater than start height.")
+		slog.Error("End height must be greater than start height",
+			"endHeight", *endHeight, "startHeight", *startHeight)
+		os.Exit(1)
 	}
 
 	nodes := strings.FieldsFunc(*nodesStr, func(r rune) bool { return r == ',' })
 	if len(nodes) < minNodesNumber {
-		zap.S().Fatal("Expected at least 2 nodes.")
+		slog.Error("At least 2 nodes are required for state comparison", "nodes", *nodesStr)
+		os.Exit(1)
 	}
 	clients := make([]*client.Client, len(nodes))
 	for i, nu := range nodes {
 		u, err := checkAndUpdateURL(nu)
 		if err != nil {
-			zap.S().Fatalf("Incorrect node URL: %v", err)
+			slog.Error("Failed to update URL", logging.Error(err))
+			os.Exit(1)
 		}
 		clients[i], err = client.NewClient(client.Options{BaseUrl: u, Client: &http.Client{}})
 		if err != nil {
-			zap.S().Fatalf("Failed to create client: %v", err)
+			slog.Error("Failed to create client", slog.String("URL", u), logging.Error(err))
+			os.Exit(1)
 		}
 	}
 
@@ -239,5 +237,5 @@ func main() {
 	}
 	close(heightChan)
 	wg.Wait()
-	zap.S().Info("Finished to compare states.")
+	slog.Info("Finished to compare states.")
 }

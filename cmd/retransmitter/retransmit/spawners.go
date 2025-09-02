@@ -2,6 +2,7 @@ package retransmit
 
 import (
 	"context"
+	"log/slog"
 	"net"
 
 	"github.com/wavesplatform/gowaves/cmd/retransmitter/retransmit/network"
@@ -20,14 +21,18 @@ type PeerOutgoingSpawnerImpl struct {
 	wavesNetwork string
 	declAddr     proto.TCPAddr
 	skipFunc     conn.SkipFilter
+	logger       *slog.Logger
 }
 
-func NewPeerSpawner(skipFunc conn.SkipFilter, parent peer.Parent, WavesNetwork string, declAddr proto.TCPAddr) *PeerOutgoingSpawnerImpl {
+func NewPeerSpawner(
+	skipFunc conn.SkipFilter, parent peer.Parent, wavesNetwork string, declAddr proto.TCPAddr, logger *slog.Logger,
+) *PeerOutgoingSpawnerImpl {
 	return &PeerOutgoingSpawnerImpl{
 		skipFunc:     skipFunc,
 		parent:       parent,
-		wavesNetwork: WavesNetwork,
+		wavesNetwork: wavesNetwork,
 		declAddr:     declAddr,
+		logger:       logger,
 	}
 }
 
@@ -38,6 +43,8 @@ func (a *PeerOutgoingSpawnerImpl) SpawnOutgoing(ctx context.Context, address str
 		Parent:       a.parent,
 		Skip:         a.skipFunc,
 		DeclAddr:     a.declAddr,
+		Logger:       a.logger,
+		DataLogger:   a.logger,
 	}
 
 	network.RunOutgoingPeer(ctx, params)
@@ -50,6 +57,8 @@ func (a *PeerOutgoingSpawnerImpl) SpawnIncoming(ctx context.Context, c net.Conn)
 		Skip:         a.skipFunc,
 		Parent:       a.parent,
 		DeclAddr:     a.declAddr,
+		Logger:       a.logger,
+		DataLogger:   a.logger,
 	}
 
 	network.RunIncomingPeer(ctx, params)

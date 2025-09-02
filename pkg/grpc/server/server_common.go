@@ -1,10 +1,12 @@
 package server
 
 import (
+	"log/slog"
+
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
@@ -61,7 +63,8 @@ func (s *Server) iterateAndHandleTransactions(iter state.TransactionIterator, fi
 	defer func() {
 		iter.Release()
 		if err := iter.Error(); err != nil {
-			zap.S().Fatalf("Iterator error: %v", err)
+			slog.Error("Iterator error", logging.Error(err))
+			panic(err)
 		}
 	}()
 	for iter.Next() {

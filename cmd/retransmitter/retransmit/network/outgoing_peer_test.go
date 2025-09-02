@@ -2,17 +2,18 @@ package network
 
 import (
 	"context"
+	"log/slog"
 	"net"
 	"sync"
 	"testing"
 	"time"
 
-	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
-
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/wavesplatform/gowaves/pkg/logging"
+	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type server struct {
@@ -69,8 +70,7 @@ func (a *server) listen(l net.Listener) {
 		b := make([]byte, 1024)
 		_, err = conn.Read(b)
 		if err != nil {
-			//fmt.Println(err)
-			zap.S().Error(err)
+			slog.Error("Error", logging.Error(err))
 			return
 		}
 		a.addReadBytes(b)
@@ -98,9 +98,11 @@ func TestOutgoingPeer_SendMessage(t *testing.T) {
 	}
 
 	params := OutgoingPeerParams{
-		Address:  server.Addr().String(),
-		Parent:   parent,
-		DeclAddr: proto.TCPAddr{},
+		Address:    server.Addr().String(),
+		Parent:     parent,
+		DeclAddr:   proto.TCPAddr{},
+		Logger:     slog.New(slog.DiscardHandler),
+		DataLogger: slog.New(slog.DiscardHandler),
 	}
 	go RunOutgoingPeer(ctx, params)
 

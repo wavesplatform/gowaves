@@ -14,7 +14,7 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
   cancel-in-progress: ${{ github.ref != 'refs/heads/master' && github.event_name != 'workflow_dispatch' }}
 
-permissions: {}
+permissions: { }
 
 jobs:
   golangci:
@@ -27,7 +27,7 @@ jobs:
 
     steps:
       - name: Check out code
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -49,6 +49,9 @@ jobs:
       # Strict linter configuration, only checking new code from pull requests.
       - name: golangci-lint-strict
         run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master
+      # Check for modern Go code patterns
+      - name: modernize check
+        run: go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest ./...
 
   build:
     name: ubuntu
@@ -57,7 +60,7 @@ jobs:
 
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5
         with:
           fetch-depth: 0
           persist-credentials: false
@@ -79,7 +82,7 @@ jobs:
         run: export PATH="$HOME/bin:$PATH"; make ci
 
       - name: Upload coverage to Codecov
-        uses: codecov/codecov-action@18283e04ce6e62d37312384ff67231eb8fd56d24 # v5
+        uses: codecov/codecov-action@fdcc8476540edceab3de004e990f80d881c6cc00 # v5
         if: github.repository == 'wavesplatform/gowaves' # disable for forks
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

@@ -5,15 +5,16 @@ import (
 	"encoding/binary"
 	stderrs "errors"
 	"io"
+	"log/slog"
 	"os"
 	"path/filepath"
 	"runtime/debug"
 
 	"github.com/pkg/errors"
 	"github.com/starius/emsort"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -292,7 +293,7 @@ func (at *addressTransactions) shouldPersist() (bool, error) {
 		return false, err
 	}
 	size := fileStats.Size()
-	zap.S().Debugf("TransactionsByAddresses file size: %d; max is %d", size, at.params.maxFileSize)
+	slog.Debug("TransactionsByAddresses file", "size", size, "max", at.params.maxFileSize)
 	return size >= at.params.maxFileSize, nil
 }
 
@@ -302,7 +303,7 @@ func (at *addressTransactions) persist() error {
 		return err
 	}
 	size := fileStats.Size()
-	zap.S().Info("Starting to sort TransactionsByAddresses file, will take awhile...")
+	slog.Info("Starting to sort TransactionsByAddresses file, will take awhile...")
 	debug.FreeOSMemory()
 	// Create file for emsort and set emsort over it.
 	tempFile, err := os.CreateTemp(os.TempDir(), "emsort")
@@ -310,9 +311,8 @@ func (at *addressTransactions) persist() error {
 		return errors.Wrap(err, "failed to create temp file for emsort")
 	}
 	defer func(name string) {
-		err := os.Remove(name)
-		if err != nil {
-			zap.S().Warnf("Failed to remove temporary file: %v", err)
+		if rmErr := os.Remove(name); rmErr != nil {
+			slog.Warn("Failed to remove temporary file", logging.Error(rmErr))
 		}
 	}(tempFile.Name())
 	sort, err := emsort.NewFixedSize(addrTxRecordSize, maxEmsortMem, tempFile)
@@ -350,9 +350,9 @@ func (at *addressTransactions) persist() error {
 	if err := sort.StopWriting(); err != nil {
 		return errors.Wrap(err, "emsort.StopWriting() failed")
 	}
-	zap.S().Info("Finished to sort TransactionsByAddresses file")
+	slog.Info("Finished to sort TransactionsByAddresses file")
 	debug.FreeOSMemory()
-	zap.S().Info("Writing sorted records to database, will take awhile...")
+	slog.Info("Writing sorted records to database, will take awhile...")
 	// Read records from emsort in sorted order and save to batchedStorage.
 	for {
 		record, err := sort.Pop()
@@ -387,7 +387,7 @@ func (at *addressTransactions) persist() error {
 		return err
 	}
 	at.addrTransactionsBuf.Reset(at.addrTransactions)
-	zap.S().Info("Successfully finished moving records from file to database")
+	slog.Info("Successfully finished moving records from file to database")
 	debug.FreeOSMemory()
 	return nil
 }

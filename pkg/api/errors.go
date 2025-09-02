@@ -3,13 +3,14 @@ package api
 import (
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/pkg/errors"
-	"go.uber.org/zap"
 
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 )
 
 // internal node api errors
@@ -46,10 +47,10 @@ func (e *AuthError) Error() string {
 }
 
 type ErrorHandler struct {
-	logger *zap.Logger
+	logger *slog.Logger
 }
 
-func NewErrorHandler(logger *zap.Logger) ErrorHandler {
+func NewErrorHandler(logger *slog.Logger) ErrorHandler {
 	return ErrorHandler{
 		logger: logger,
 	}
@@ -77,23 +78,21 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", authError.Error()), http.StatusForbidden)
 	case errors.As(err, &unknownError):
 		eh.logger.Error("UnknownError",
-			zap.String("proto", r.Proto),
-			zap.String("path", r.URL.Path),
-			zap.String("request_id", middleware.GetReqID(r.Context())),
-			zap.String("remote_addr", r.RemoteAddr),
-			zap.Error(err),
-		)
+			slog.String("proto", r.Proto),
+			slog.String("path", r.URL.Path),
+			slog.String("request_id", middleware.GetReqID(r.Context())),
+			slog.String("remote_addr", r.RemoteAddr),
+			logging.Error(err))
 		eh.sendApiErrJSON(w, r, unknownError)
 	case errors.As(err, &apiError):
 		eh.sendApiErrJSON(w, r, apiError)
 	default:
 		eh.logger.Error("InternalServerError",
-			zap.String("proto", r.Proto),
-			zap.String("path", r.URL.Path),
-			zap.String("request_id", middleware.GetReqID(r.Context())),
-			zap.String("remote_addr", r.RemoteAddr),
-			zap.Error(err),
-		)
+			slog.String("proto", r.Proto),
+			slog.String("path", r.URL.Path),
+			slog.String("request_id", middleware.GetReqID(r.Context())),
+			slog.String("remote_addr", r.RemoteAddr),
+			logging.Error(err))
 		unknownErrWrapper := apiErrs.NewUnknownError(err)
 		eh.sendApiErrJSON(w, r, unknownErrWrapper)
 	}
@@ -103,12 +102,12 @@ func (eh *ErrorHandler) sendApiErrJSON(w http.ResponseWriter, r *http.Request, a
 	w.WriteHeader(apiErr.GetHttpCode())
 	if encodeErr := json.NewEncoder(w).Encode(apiErr); encodeErr != nil {
 		eh.logger.Error("Failed to marshal API Error to JSON",
-			zap.String("proto", r.Proto),
-			zap.String("path", r.URL.Path),
-			zap.String("request_id", middleware.GetReqID(r.Context())),
-			zap.String("remote_addr", r.RemoteAddr),
-			zap.Error(encodeErr),
-			zap.String("api_error", apiErr.Error()),
+			slog.String("proto", r.Proto),
+			slog.String("path", r.URL.Path),
+			slog.String("request_id", middleware.GetReqID(r.Context())),
+			slog.String("remote_addr", r.RemoteAddr),
+			logging.Error(encodeErr),
+			slog.String("api_error", apiErr.Error()),
 		)
 		// nickeskov: Type which implements ApiError interface MUST be serializable to JSON.
 		panic(errors.Errorf("BUG, CREATE REPORT: %s", encodeErr.Error()))

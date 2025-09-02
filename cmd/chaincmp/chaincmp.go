@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -12,10 +13,9 @@ import (
 
 	"github.com/pkg/errors"
 	flag "github.com/spf13/pflag"
-	"go.uber.org/zap"
-	"go.uber.org/zap/zapcore"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -84,29 +84,29 @@ func run() error {
 	setupLogger(silent, verbose)
 
 	if node == "" || len(strings.Fields(node)) > 1 {
-		zap.S().Errorf("Invalid node's URL '%s'", node)
+		slog.Error("Invalid node", "URL", node)
 		return errInvalidParameters
 	}
 	node, err := checkAndUpdateURL(node)
 	if err != nil {
-		zap.S().Errorf("Incorrect node's URL: %s", err.Error())
+		slog.Error("Incorrect node's URL", logging.Error(err))
 		return errInvalidParameters
 	}
 	other := strings.Fields(reference)
 	for i, u := range other {
 		u, err = checkAndUpdateURL(u)
 		if err != nil {
-			zap.S().Errorf("Incorrect reference's URL: %s", err.Error())
+			slog.Error("Incorrect reference's URL", logging.Error(err))
 			return errInvalidParameters
 		}
 		other[i] = u
 	}
 
-	zap.S().Debugf("Node to check: %s", node)
-	zap.S().Debugf("Reference nodes (%d): %s", len(other), other)
+	slog.Debug("Node to check", "URL", node)
+	slog.Debug("Reference nodes", "count", len(other), "nodes", other)
 
 	urls := append([]string{node}, other...)
-	zap.S().Debugf("Requesting height from %d nodes", len(urls))
+	slog.Debug("Requesting height from nodes", "count", len(urls))
 
 	interrupt := interruptListener()
 
@@ -114,7 +114,7 @@ func run() error {
 	for i, u := range urls {
 		c, err := client.NewClient(client.Options{BaseUrl: u, Client: &http.Client{}})
 		if err != nil {
-			zap.S().Errorf("Failed to create client for URL '%s': %s", u, err)
+			slog.Error("Failed to create client", slog.String("URL", u), logging.Error(err))
 			return errFailure
 		}
 		clients[i] = c
@@ -122,22 +122,22 @@ func run() error {
 
 	hs, err := heights(interrupt, clients)
 	if err != nil {
-		zap.S().Errorf("Failed to retrieve heights from all nodes: %s", err)
+		slog.Error("Failed to retrieve heights from all nodes", logging.Error(err))
 		if interrupted(interrupt) {
 			return errUserTermination
 		}
 		return errUnavailable
 	}
 	for i, h := range hs {
-		zap.S().Debugf("%d: Height = %d", i, h)
+		slog.Debug("Height at node", "node", i, "height", h)
 	}
 
 	stop := min(hs)
-	zap.S().Infof("Lowest height: %d", stop)
+	slog.Info("Lowest height", "height", stop)
 
 	ch, err := findLastCommonHeight(interrupt, clients, 1, stop)
 	if err != nil {
-		zap.S().Errorf("Failed to find last common height: %s", err)
+		slog.Error("Failed to find last common height", logging.Error(err))
 		if interrupted(interrupt) {
 			return errUserTermination
 		}
@@ -145,39 +145,46 @@ func run() error {
 	}
 
 	h := hs[0]
-	zap.S().Debugf("Node height: %d", h)
+	slog.Debug("Node height", "height", h)
 	refLowest := min(hs[1:])
-	zap.S().Debugf("The lowest height of reference nodes: %d", refLowest)
+	slog.Debug("The lowest height of reference nodes", "height", refLowest)
 
 	switch {
 	case ch == h && ch < refLowest: // The node is behind the reference nodes
-		zap.S().Infof("Node '%s' is %d blocks behind the lowest reference node", node, refLowest-h)
+		slog.Info("Node is behind the lowest reference node", "node", node, "blocks", refLowest-h)
 		return nil
 	case ch == refLowest && ch < h: // The node is ahead of the reference nodes
-		zap.S().Infof("Node '%s' is %d blocks ahead of the lowest reference node", node, h-refLowest)
+		slog.Info("Node is ahead of the lowest reference node", "node", node, "blocks", h-refLowest)
 		return nil
 	case ch < h && ch < refLowest:
 		fl := h - ch
-		zap.S().Warnf("Node '%s' is on fork of length %d blocks since last common block at height %d", node, fl, ch)
+		slog.Warn("Node is on fork", "node", node, "forkLength", fl, "commonHeight", ch)
 		switch {
 		case fl < 10:
-			zap.S().Infof("The fork is very short, highly likely the node is OK")
+			slog.Info("The fork is very short, highly likely the node is OK")
 			return nil
 		case fl < 100:
-			zap.S().Warn("The fork is short and possibly the node will rollback and switch on the correct fork automatically")
-			zap.S().Warnf("But if you want to rollback manually, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html")
+			slog.Warn(
+				"The fork is short and possibly the node will rollback and switch on the correct fork automatically")
+			slog.Warn(
+				"But if you want to rollback manually, refer the documentation at " +
+					"https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html")
 			return errFork
 		case fl < 1980:
-			zap.S().Warnf("Manual rollback of the node '%s' is possible, do it as soon as possible!", node)
-			zap.S().Warnf("Please, read the documentation at https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html")
+			slog.Warn("Manual rollback of the node is possible, do it as soon as possible!", "node", node)
+			slog.Warn("Please, read the documentation at " +
+				"https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html")
 			return errFork
 		default:
-			zap.S().Warnf("Rollback of node '%s' is not an option, the fork is too long, consider restarting the node from scratch!", node)
-			zap.S().Warnf("Please, refer the documentation at https://docs.wavesplatform.com/en/waves-full-node/options-for-getting-actual-blockchain.html")
+			slog.Warn(
+				"Rollback of node is not an option, the fork is too long, consider restarting the node from scratch!",
+				"node", node)
+			slog.Warn("Please, refer the documentation at " +
+				"https://docs.wavesplatform.com/en/waves-full-node/options-for-getting-actual-blockchain.html")
 			return errFork
 		}
 	default:
-		zap.S().Infof("Node '%s' is OK", node)
+		slog.Info("Node is OK", "node", node)
 		return nil
 	}
 }
@@ -271,7 +278,8 @@ func differentIdsCount(clients []*client.Client, height int) (int, error) {
 	for i := 0; i < len(info); i++ {
 		v := info[i]
 		t := time.Unix(0, int64(v.blockTime*1000000))
-		zap.S().Debugf("id: %d, h: %d, block: %s, generator: %s, time: %s", i, v.height, v.blockID.String(), v.generator.String(), t.String())
+		slog.Debug("Different ID", "i", i, "height", v.height, "block", v.blockID.String(),
+			"generator", v.generator.String(), "time", t.String())
 	}
 	return len(m), nil
 }
@@ -338,17 +346,14 @@ func heights(interrupt <-chan struct{}, clients []*client.Client) ([]int, error)
 }
 
 func setupLogger(silent, verbose bool) {
-	al := zap.NewAtomicLevel()
-	al.SetLevel(zap.InfoLevel)
+	level := slog.LevelInfo
 	if silent {
-		al.SetLevel(zap.FatalLevel)
+		level = slog.LevelError
 	}
 	if verbose {
-		al.SetLevel(zap.DebugLevel)
+		level = slog.LevelDebug
 	}
-	ec := zap.NewDevelopmentEncoderConfig()
-	logger := zap.New(zapcore.NewCore(zapcore.NewConsoleEncoder(ec), zapcore.Lock(os.Stdout), al))
-	zap.ReplaceGlobals(logger)
+	slog.SetDefault(slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, level)))
 }
 
 func interruptListener() <-chan struct{} {
@@ -358,10 +363,10 @@ func interruptListener() <-chan struct{} {
 		signals := make(chan os.Signal, 1)
 		signal.Notify(signals, interruptSignals...)
 		sig := <-signals
-		zap.S().Infof("Caught signal '%s', shutting down...", sig)
+		slog.Info("Caught signal, shutting down...", "signal", sig)
 		close(r)
 		for sig := range signals {
-			zap.S().Infof("Caught signal '%s' again, already shutting down", sig)
+			slog.Info("Caught signal again, already shutting down", "signal", sig)
 		}
 	}()
 	return r

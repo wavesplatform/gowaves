@@ -3,15 +3,16 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
+	"log/slog"
 	"math"
 
 	"github.com/pkg/errors"
 	"github.com/syndtr/goleveldb/leveldb"
 	"github.com/syndtr/goleveldb/leveldb/util"
+
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"go.uber.org/zap"
 )
 
 type assetBalanceKey struct {
@@ -258,7 +259,7 @@ func putAssets(bs *blockState, batch *leveldb.Batch, height uint32, assetChanges
 			return errors.Wrapf(err, "failed to update assets")
 		}
 		if !ok {
-			zap.S().Warnf("Failed to locate asset '%s'", u.AssetID.String())
+			slog.Warn("Failed to locate asset", "ID", u.AssetID.String())
 			continue
 		}
 		//Update history only for the first change at the height
@@ -394,7 +395,7 @@ func putAccounts(bs *blockState, batch *leveldb.Batch, height uint32, accountCha
 					return errors.Wrapf(err, "failed to get the sponsorship for '%s'", u.Asset.String())
 				}
 				if !ok {
-					zap.S().Warnf("Transaction sponsored with asset '%s' issued by Invoke", u.Asset.String())
+					slog.Warn("Sponsored transaction issued by Invoke", "assedID", u.Asset.String())
 					return nil //TODO: errors.Errorf("no asset info for an asset '%s'", u.Asset.String())
 				}
 				if a.sponsored {

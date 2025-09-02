@@ -1,6 +1,7 @@
 package node
 
 import (
+	"log/slog"
 	"net"
 	"testing"
 
@@ -33,6 +34,6 @@ func TestPeersAction(t *testing.T) {
 				},
 			},
 		},
-	}, nil)
+	}, nil, slog.New(slog.DiscardHandler))
 	require.NoError(t, err)
 }

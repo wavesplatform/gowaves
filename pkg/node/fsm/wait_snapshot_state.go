@@ -2,11 +2,11 @@ package fsm
 
 import (
 	"context"
+	"log/slog"
 	"time"
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
-	"go.uber.org/zap"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
@@ -60,7 +60,7 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 	case tasks.Ping:
 		return a, nil, nil
 	case tasks.AskPeers:
-		zap.S().Named(logging.FSMNamespace).Debugf("[%s] Requesting peers", a)
+		a.baseInfo.logger.Debug("Requesting peers", "state", a.String())
 		a.baseInfo.peers.AskPeers()
 		return a, nil, nil
 	case tasks.MineMicro:
@@ -74,8 +74,8 @@ func (a *WaitSnapshotState) Task(task tasks.AsyncTask) (State, Async, error) {
 		switch t.SnapshotTaskType {
 		case tasks.BlockSnapshot:
 			defer a.cleanupBeforeTransition()
-			zap.S().Errorf("%v", a.Errorf(errors.Errorf(
-				"Failed to get snapshot for block '%s' - timeout", t.BlockID)))
+			slog.Error("Timed out to get snapshot for block", "state", a.String(),
+				"blockID", t.BlockID)
 			return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 		case tasks.MicroBlockSnapshot:
 			return a, nil, nil
@@ -118,13 +118,14 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		[]*proto.BlockSnapshot{&snapshot},
 	)
 	if err != nil {
-		zap.S().Errorf("%v", a.Errorf(errors.Wrapf(err, "Failed to apply block %s", a.blockWaitingForSnapshot.BlockID())))
+		slog.Error("Failed to apply block with snapshot", slog.String("state", a.String()),
+			logging.Error(err), slog.Any("blockID", a.blockWaitingForSnapshot.BlockID()))
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 	metrics.SnapshotBlockApplied(a.blockWaitingForSnapshot, height+1)
 	metrics.Utx(a.baseInfo.utx.Count())
-	zap.S().Named(logging.FSMNamespace).Debugf("[%s] Handle received key block message: block '%s' applied to state",
-		a, blockID)
+	a.baseInfo.logger.Debug("Handle received key block message: block applied to state",
+		"state", a.String(), "blockID", blockID)
 
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(a.blockWaitingForSnapshot)

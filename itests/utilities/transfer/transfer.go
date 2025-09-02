@@ -233,7 +233,6 @@ func TransferringAssetAmount(suite *f.BaseSuite, version byte, scheme proto.Sche
 		return nil
 	})
 	require.NoError(suite.T(), err)
-
 }
 
 func GetVersions(suite *f.BaseSuite) []byte {
