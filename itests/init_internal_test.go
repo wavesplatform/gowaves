@@ -5,12 +5,14 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
 	"strconv"
 	"testing"
 
 	"github.com/ory/dockertest/v3"
 	dc "github.com/ory/dockertest/v3/docker"
+
+	"github.com/wavesplatform/gowaves/itests/config"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 )
 
 const (
@@ -31,7 +33,7 @@ const (
 
 func TestMain(m *testing.M) {
 	if err := testsSetup(); err != nil {
-		slog.Error("Tests setup failed", "error", err)
+		slog.Error("Tests setup failed", logging.Error(err))
 		os.Exit(1)
 	}
 	res := m.Run()
@@ -40,8 +42,6 @@ func TestMain(m *testing.M) {
 }
 
 func testsSetup() error {
-	const platformPrefix = "linux/"
-
 	pwd, err := os.Getwd()
 	if err != nil {
 		return fmt.Errorf("failed to get working directory: %w", err)
@@ -55,7 +55,7 @@ func testsSetup() error {
 		return fmt.Errorf("failed to connect to docker: %w", err)
 	}
 
-	platform := platformPrefix + runtime.GOARCH
+	platform := config.Platform()
 	slog.Info("Pulling scala-node image", "platform", platform)
 	if plErr := pool.Client.PullImage(
 		dc.PullImageOptions{
@@ -133,7 +133,7 @@ func createLogFile(path string) (*os.File, func(), error) {
 	}
 	cleanup := func() {
 		if clErr := f.Close(); clErr != nil {
-			slog.Warn("Failed to close file", "file", path, "error", clErr)
+			slog.Warn("Failed to close file", slog.String("file", path), logging.Error(clErr))
 		}
 	}
 	return f, cleanup, nil
@@ -146,7 +146,8 @@ func mustBoolEnv(key string) bool {
 	}
 	r, err := strconv.ParseBool(val)
 	if err != nil {
-		slog.Error("Environment variable has not a boolean value", "variable", key, "value", val, "error", err)
+		slog.Error("Environment variable has not a boolean value", slog.String("variable", key),
+			slog.Any("value", val), logging.Error(err))
 	}
 	return r
 }
