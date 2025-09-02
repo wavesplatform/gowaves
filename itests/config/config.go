@@ -8,6 +8,7 @@ import (
 	"html/template"
 	"os"
 	"path/filepath"
+	"runtime"
 
 	"github.com/ory/dockertest/v3"
 	"github.com/pkg/errors"
@@ -118,6 +119,7 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 		Repository: "wavesplatform/wavesnode",
 		Name:       c.suite + "-" + scalaContainerName,
 		Tag:        "latest",
+		Platform:   Platform(),
 		Hostname:   "scala-node",
 		Mounts: []string{
 			c.configFolder + ":/etc/waves",
@@ -202,6 +204,7 @@ func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 		Name:       c.suite + "-" + goContainerName,
 		User:       "gowaves",
 		Hostname:   "go-node",
+		Platform:   Platform(),
 		Env: []string{
 			"GRPC_ADDR=" + DefaultIP + ":" + GRPCAPIPort,
 			"API_ADDR=" + DefaultIP + ":" + RESTAPIPort,
@@ -281,4 +284,9 @@ func createConfigDir(suiteName string) (string, error) {
 		return "", mkErr
 	}
 	return configDir, nil
+}
+
+func Platform() string {
+	const prefix = "linux/"
+	return prefix + runtime.GOARCH
 }
