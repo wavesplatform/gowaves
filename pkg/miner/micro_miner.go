@@ -67,7 +67,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		parentTimestamp = parent.Timestamp
 	}
 
-	txCount := 0
+	txCount := 0 // counter for successfully applied transactions
 	binSize := 0
 	droppedTxCount := 0
 
@@ -83,7 +83,6 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			t := a.utx.Pop()
 			if t == nil {
 				a.logger.Debug("No more transactions in UTX",
-					slog.Int("txCount", txCount),
 					slog.Int("transactions", len(appliedTransactions)),
 					slog.Int("inapplicable", len(inapplicable)),
 					slog.Int("dropped", droppedTxCount),
@@ -103,7 +102,6 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			if stateerr.IsTxCommitmentError(errVal) {
 				a.logger.Error("Failed to validate a transaction from UTX, returning applied transactions to UTX",
 					logging.Error(errVal), txIDSlogAttr(t.T, a.scheme),
-					slog.Int("txCount", txCount),
 					slog.Int("transactions", len(appliedTransactions)),
 					slog.Int("inapplicable", len(inapplicable)),
 					slog.Int("dropped", droppedTxCount),
@@ -124,7 +122,6 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 					}
 				}
 				a.logger.Debug("Applied transactions returned to UTX, resetting applied list, continuing",
-					slog.Int("txCount", txCount),
 					slog.Int("returned", len(appliedTransactions)),
 					slog.Int("inapplicable", len(inapplicable)),
 					slog.Int("dropped", droppedTxCount),
@@ -161,7 +158,6 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	})
 
 	a.logger.Debug("Transaction validation for micro block finished",
-		slog.Int("txCount", txCount),
 		slog.Int("transactions", len(appliedTransactions)),
 		slog.Int("inapplicable", len(inapplicable)),
 		slog.Int("dropped", droppedTxCount),
