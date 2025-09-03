@@ -117,7 +117,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 					uErr := a.utx.AddWithBytesRaw(appliedTx.T, appliedTx.B)
 					if uErr != nil {
 						droppedTxCount += 1
-						a.logger.Warn("Failed to return an successfully applied transaction to UTX, throwing tx away",
+						a.logger.Warn("Failed to return a successfully applied transaction to UTX, throwing tx away",
 							logging.Error(uErr), txIDSlogAttr(t.T, a.scheme),
 						)
 					}
@@ -133,10 +133,10 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 				continue
 			}
 			if errVal != nil {
-				a.logger.Debug("Transaction from UTX is not applicable to state, skipping",
+				a.logger.Debug("Transaction from UTX is not applicable to state, throwing tx away",
 					logging.Error(errVal), txIDSlogAttr(t.T, a.scheme),
 				)
-				inapplicable = append(inapplicable, t)
+				droppedTxCount += 1 // drop this tx
 				continue
 			}
 
