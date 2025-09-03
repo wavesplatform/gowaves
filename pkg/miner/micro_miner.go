@@ -99,6 +99,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 				s.ResetValidationList()
 				txCount = 0
 				for _, appliedTx := range appliedTransactions {
+					// transactions were validated before, so no need to validate them with state again
 					_ = a.utx.AddWithBytesRaw(appliedTx.T, appliedTx.B)
 				}
 				appliedTransactions = nil
@@ -118,7 +119,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 		// return inapplicable transactions to utx
 		for _, tx := range inapplicable {
-			_ = a.utx.AddWithBytesRaw(tx.T, tx.B)
+			_ = a.utx.AddWithBytes(s, tx.T, tx.B) // validate with state while adding back
 		}
 		return nil
 	})
