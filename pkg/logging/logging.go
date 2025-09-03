@@ -13,8 +13,6 @@ import (
 	"github.com/mattn/go-isatty"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
-
-	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const NamespaceKey = "namespace"
@@ -180,9 +178,14 @@ func Error(err error) slog.Attr {
 	return slog.Any(errorKey, lvErr)
 }
 
+type scheme = byte
+
+type txIDGetter interface {
+	GetID(scheme scheme) (id []byte, err error)
+}
 type txIDSlogValuer struct {
-	t      proto.Transaction
-	scheme proto.Scheme
+	t      txIDGetter
+	scheme scheme
 }
 
 func (v txIDSlogValuer) LogValue() slog.Value {
@@ -193,7 +196,7 @@ func (v txIDSlogValuer) LogValue() slog.Value {
 	return slog.StringValue(base58.Encode(id))
 }
 
-func TxID(t proto.Transaction, scheme proto.Scheme) slog.Attr {
+func TxID(t txIDGetter, scheme scheme) slog.Attr {
 	var val slog.LogValuer = txIDSlogValuer{t: t, scheme: scheme}
 	return slog.Any("txID", val)
 }
