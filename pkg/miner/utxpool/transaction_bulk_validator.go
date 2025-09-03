@@ -33,14 +33,6 @@ func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time, sche
 	}
 }
 
-func txIDSlogAttr(t proto.Transaction, scheme proto.Scheme) slog.Attr {
-	id, err := t.GetID(scheme)
-	if err != nil {
-		return slog.Group("tx-get-id", logging.Error(err))
-	}
-	return slog.String("tx-id", base58.Encode(id))
-}
-
 func (a bulkValidator) Validate(ctx context.Context) {
 	transactions := a.validate(ctx) // Pop transactions from UTX, clean UTX
 	for _, t := range transactions {
@@ -104,4 +96,22 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 		}
 	}
 	return transactions
+}
+
+type txIDSlogValuer struct {
+	t      proto.Transaction
+	scheme proto.Scheme
+}
+
+func (v txIDSlogValuer) LogValue() slog.Value {
+	id, err := v.t.GetID(v.scheme)
+	if err != nil {
+		return slog.GroupValue(slog.Group("tx-get-id", logging.Error(err)))
+	}
+	return slog.StringValue(base58.Encode(id))
+}
+
+func txIDSlogAttr(t proto.Transaction, scheme proto.Scheme) slog.Attr {
+	var val slog.LogValuer = txIDSlogValuer{t: t, scheme: scheme}
+	return slog.Any("tx-id", val)
 }
