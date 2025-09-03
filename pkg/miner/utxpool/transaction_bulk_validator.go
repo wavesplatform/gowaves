@@ -46,7 +46,8 @@ func (a bulkValidator) Validate(ctx context.Context) {
 	for _, t := range transactions {
 		errAdd := a.utx.AddWithBytesRaw(t.T, t.B)
 		if errAdd != nil {
-			slog.Error("Failed to add a validated transaction to UTX",
+			// can happen because other nodes can send copies of txs while they are being validated
+			slog.Warn("Failed to add a validated transaction to UTX",
 				logging.Error(errAdd), txIDSlogAttr(t.T, a.scheme),
 			)
 		}
