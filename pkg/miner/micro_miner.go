@@ -107,7 +107,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 					slog.Int("inapplicable", len(inapplicable)),
 					slog.Int("dropped", droppedTxCount),
 				)
-				droppedTxCount += 1 // drop this tx
+				droppedTxCount++ // drop this tx
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.
 				s.ResetValidationList()
@@ -116,7 +116,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 					// transactions were validated before, so no need to validate them with state again
 					uErr := a.utx.AddWithBytesRaw(appliedTx.T, appliedTx.B)
 					if uErr != nil {
-						droppedTxCount += 1
+						droppedTxCount++ // drop this tx
 						a.logger.Warn("Failed to return a successfully applied transaction to UTX, throwing tx away",
 							logging.Error(uErr), txIDSlogAttr(t.T, a.scheme),
 						)
@@ -136,7 +136,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 				a.logger.Debug("Transaction from UTX is not applicable to state, throwing tx away",
 					logging.Error(errVal), txIDSlogAttr(t.T, a.scheme),
 				)
-				droppedTxCount += 1 // drop this tx
+				droppedTxCount++ // drop this tx
 				continue
 			}
 
@@ -150,7 +150,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		for _, tx := range inapplicable {
 			uErr := a.utx.AddWithBytes(s, tx.T, tx.B) // validate with state while adding back
 			if uErr != nil {
-				droppedTxCount += 1
+				droppedTxCount++ // drop this tx
 				a.logger.Debug("Failed to return an inapplicable transaction to UTX, throwing tx away",
 					logging.Error(uErr), txIDSlogAttr(tx.T, a.scheme),
 				)
