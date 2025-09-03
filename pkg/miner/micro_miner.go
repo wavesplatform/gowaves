@@ -169,6 +169,8 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 	// no transactions applied, skip
 	if txCount == 0 {
+		// TODO: we should distinguish between block is full because of size and because or because of complexity
+		//  limit reached. For now we return the same error.
 		if len(inapplicable) > 0 {
 			return nil, nil, rest, ErrBlockIsFull
 		}
