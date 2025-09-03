@@ -4,8 +4,6 @@ import (
 	"context"
 	"log/slog"
 
-	"github.com/mr-tron/base58"
-
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -40,7 +38,7 @@ func (a bulkValidator) Validate(ctx context.Context) {
 		if errAdd != nil {
 			// can happen because other nodes can send copies of txs while they are being validated
 			slog.Warn("Failed to add a validated transaction to UTX",
-				logging.Error(errAdd), txIDSlogAttr(t.T, a.scheme),
+				logging.Error(errAdd), logging.TxID(t.T, a.scheme),
 			)
 		}
 	}
@@ -80,7 +78,7 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 				utxErr := a.utx.AddWithBytesRaw(tx.T, tx.B)
 				if utxErr != nil {
 					slog.Error("Failed to return a transaction to UTX",
-						logging.Error(utxErr), txIDSlogAttr(t.T, a.scheme),
+						logging.Error(utxErr), logging.TxID(t.T, a.scheme),
 					)
 				}
 			}
@@ -96,22 +94,4 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 		}
 	}
 	return transactions
-}
-
-type txIDSlogValuer struct {
-	t      proto.Transaction
-	scheme proto.Scheme
-}
-
-func (v txIDSlogValuer) LogValue() slog.Value {
-	id, err := v.t.GetID(v.scheme)
-	if err != nil {
-		return slog.GroupValue(slog.Group("tx-get-id", logging.Error(err)))
-	}
-	return slog.StringValue(base58.Encode(id))
-}
-
-func txIDSlogAttr(t proto.Transaction, scheme proto.Scheme) slog.Attr {
-	var val slog.LogValuer = txIDSlogValuer{t: t, scheme: scheme}
-	return slog.Any("tx-id", val)
 }

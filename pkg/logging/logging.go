@@ -11,7 +11,10 @@ import (
 	"github.com/dpotapov/slogpfx"
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
+	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const NamespaceKey = "namespace"
@@ -175,4 +178,22 @@ func Error(err error) slog.Attr {
 		opts: new(errorLogValuerOpts),
 	}
 	return slog.Any(errorKey, lvErr)
+}
+
+type txIDSlogValuer struct {
+	t      proto.Transaction
+	scheme proto.Scheme
+}
+
+func (v txIDSlogValuer) LogValue() slog.Value {
+	id, err := v.t.GetID(v.scheme)
+	if err != nil {
+		return slog.GroupValue(slog.Group("txGetID", Error(err)))
+	}
+	return slog.StringValue(base58.Encode(id))
+}
+
+func TxID(t proto.Transaction, scheme proto.Scheme) slog.Attr {
+	var val slog.LogValuer = txIDSlogValuer{t: t, scheme: scheme}
+	return slog.Any("txID", val)
 }

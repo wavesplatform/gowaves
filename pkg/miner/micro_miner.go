@@ -5,8 +5,6 @@ import (
 	"errors"
 	"log/slog"
 
-	"github.com/mr-tron/base58"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -101,7 +99,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			snapshot, errVal := s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
 			if stateerr.IsTxCommitmentError(errVal) {
 				a.logger.Error("Failed to validate a transaction from UTX, returning applied transactions to UTX",
-					logging.Error(errVal), txIDSlogAttr(t.T, a.scheme),
+					logging.Error(errVal), logging.TxID(t.T, a.scheme),
 					slog.Int("transactions", len(appliedTransactions)),
 					slog.Int("inapplicable", len(inapplicable)),
 					slog.Int("dropped", droppedTxCount),
@@ -117,7 +115,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 					if uErr != nil {
 						droppedTxCount++ // drop this tx
 						a.logger.Warn("Failed to return a successfully applied transaction to UTX, throwing tx away",
-							logging.Error(uErr), txIDSlogAttr(t.T, a.scheme),
+							logging.Error(uErr), logging.TxID(t.T, a.scheme),
 						)
 					}
 				}
@@ -132,7 +130,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			}
 			if errVal != nil {
 				a.logger.Debug("Transaction from UTX is not applicable to state, skipping",
-					logging.Error(errVal), txIDSlogAttr(t.T, a.scheme),
+					logging.Error(errVal), logging.TxID(t.T, a.scheme),
 				)
 				inapplicable = append(inapplicable, t)
 				continue
@@ -150,7 +148,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			if uErr != nil {
 				droppedTxCount++ // drop this tx
 				a.logger.Debug("Failed to return an inapplicable transaction to UTX, throwing tx away",
-					logging.Error(uErr), txIDSlogAttr(tx.T, a.scheme),
+					logging.Error(uErr), logging.TxID(tx.T, a.scheme),
 				)
 			}
 		}
@@ -258,22 +256,4 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - binSize,
 	}
 	return newBlock, &micro, newRest, nil
-}
-
-type txIDSlogValuer struct {
-	t      proto.Transaction
-	scheme proto.Scheme
-}
-
-func (v txIDSlogValuer) LogValue() slog.Value {
-	id, err := v.t.GetID(v.scheme)
-	if err != nil {
-		return slog.GroupValue(slog.Group("tx-get-id", logging.Error(err)))
-	}
-	return slog.StringValue(base58.Encode(id))
-}
-
-func txIDSlogAttr(t proto.Transaction, scheme proto.Scheme) slog.Attr {
-	var val slog.LogValuer = txIDSlogValuer{t: t, scheme: scheme}
-	return slog.Any("tx-id", val)
 }
