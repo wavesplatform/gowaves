@@ -27,6 +27,7 @@ type MicroMiner struct {
 	state  state.State
 	utx    types.UtxPool
 	scheme proto.Scheme
+	logger *slog.Logger
 }
 
 func NewMicroMiner(services services.Services) *MicroMiner {
@@ -34,6 +35,7 @@ func NewMicroMiner(services services.Services) *MicroMiner {
 		state:  services.State,
 		utx:    services.UtxPool,
 		scheme: services.Scheme,
+		logger: slog.Default().With(logging.NamespaceKey, "MICRO MINER"),
 	}
 }
 
@@ -53,7 +55,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	if err != nil {
 		return nil, nil, rest, err
 	}
-	slog.Debug("[MICRO MINER] Generating micro block", "TopBlockID", topBlock.BlockID(), "height", height)
+	a.logger.Debug("Generating micro block", "TopBlockID", topBlock.BlockID(), "height", height)
 
 	parentTimestamp := topBlock.Timestamp
 	if height > 1 {
@@ -64,7 +66,6 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		parentTimestamp = parent.Timestamp
 	}
 
-	//
 	txCount := 0
 	binSize := 0
 
@@ -74,16 +75,20 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
+		const uint32SizeBytes = 4
 
 		for txCount <= maxMicroblockTransactions {
 			t := a.utx.Pop()
 			if t == nil {
-				slog.Debug("[MICRO MINER] No more transactions in UTX", slog.Int("txCount", txCount))
+				a.logger.Debug("No more transactions in UTX",
+					slog.Int("txCount", txCount),
+					slog.Int("transactions", len(appliedTransactions)),
+					slog.Int("inapplicable", len(inapplicable)),
+				)
 				break
 			}
-			binTr := t.B
-			transactionLenBytes := 4
-			if binSize+len(binTr)+transactionLenBytes > rest.MaxTxsSizeInBytes {
+			txSizeWithLen := len(t.B) + uint32SizeBytes
+			if newTxsSize := binSize + txSizeWithLen; newTxsSize > rest.MaxTxsSizeInBytes {
 				inapplicable = append(inapplicable, t)
 				continue
 			}
@@ -93,36 +98,65 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 			// Validate and apply tx to state.
 			snapshot, errVal := s.ValidateNextTx(t.T, minedBlock.Timestamp, parentTimestamp, minedBlock.Version, true)
 			if stateerr.IsTxCommitmentError(errVal) {
-				slog.Error("failed to unpack a transaction from utx", logging.Error(errVal))
+				a.logger.Error("Failed to validate a transaction from UTX, returning applied transactions to UTX",
+					logging.Error(errVal), txIDSlogAttr(t.T, a.scheme),
+					slog.Int("txCount", txCount),
+					slog.Int("transactions", len(appliedTransactions)),
+					slog.Int("inapplicable", len(inapplicable)),
+				)
 				// This should not happen in practice.
 				// Reset state, tx count, return applied transactions to UTX.
 				s.ResetValidationList()
 				txCount = 0
 				for _, appliedTx := range appliedTransactions {
 					// transactions were validated before, so no need to validate them with state again
-					_ = a.utx.AddWithBytesRaw(appliedTx.T, appliedTx.B)
+					uErr := a.utx.AddWithBytesRaw(appliedTx.T, appliedTx.B)
+					if uErr != nil {
+						a.logger.Warn("Failed to return an successfully applied transaction to UTX, throwing tx away",
+							logging.Error(uErr), txIDSlogAttr(t.T, a.scheme),
+						)
+					}
 				}
+				a.logger.Debug("Applied transactions returned to UTX, resetting applied list, continuing",
+					slog.Int("txCount", txCount),
+					slog.Int("returned", len(appliedTransactions)),
+					slog.Int("inapplicable", len(inapplicable)),
+				)
 				appliedTransactions = nil
 				txSnapshots = nil
 				continue
 			}
 			if errVal != nil {
+				a.logger.Debug("Transaction from UTX is not applicable to state, skipping",
+					logging.Error(errVal), txIDSlogAttr(t.T, a.scheme),
+				)
 				inapplicable = append(inapplicable, t)
 				continue
 			}
 
 			txCount += 1
-			binSize += len(binTr) + transactionLenBytes
+			binSize += txSizeWithLen
 			appliedTransactions = append(appliedTransactions, t)
 			txSnapshots = append(txSnapshots, snapshot)
 		}
 
 		// return inapplicable transactions to utx
 		for _, tx := range inapplicable {
-			_ = a.utx.AddWithBytes(s, tx.T, tx.B) // validate with state while adding back
+			uErr := a.utx.AddWithBytes(s, tx.T, tx.B) // validate with state while adding back
+			if uErr != nil {
+				a.logger.Debug("Failed to return an inapplicable transaction to UTX, throwing tx away",
+					logging.Error(uErr), txIDSlogAttr(tx.T, a.scheme),
+				)
+			}
 		}
 		return nil
 	})
+
+	a.logger.Debug("Transaction validation for micro block finished",
+		slog.Int("txCount", txCount),
+		slog.Int("transactions", len(appliedTransactions)),
+		slog.Int("inapplicable", len(inapplicable)),
+	)
 
 	// no transactions applied, skip
 	if txCount == 0 {
@@ -131,11 +165,11 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 	transactions := make([]proto.Transaction, len(appliedTransactions))
 	for i, appliedTx := range appliedTransactions {
-		if slog.Default().Enabled(context.Background(), slog.LevelDebug) {
+		if a.logger.Enabled(context.Background(), slog.LevelDebug) {
 			if id, idErr := appliedTx.T.GetID(a.scheme); idErr != nil {
 				slog.Error("Failed to get transaction ID", logging.Error(idErr))
 			} else {
-				slog.Debug("[MICRO MINER] Appending transaction", "TxID", base58.Encode(id))
+				a.logger.Debug("Appending transaction", "TxID", proto.B58Bytes(id))
 			}
 		}
 		transactions[i] = appliedTx.T
@@ -205,7 +239,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		return nil, nil, rest, err
 	}
 
-	slog.Debug("[MICRO MINER] Micro block mined", "micro", micro)
+	a.logger.Debug("Micro block mined", "micro", micro)
 
 	newRest := proto.MiningLimits{
 		MaxScriptRunsInBlock:        rest.MaxScriptRunsInBlock,
@@ -214,4 +248,22 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		MaxTxsSizeInBytes:           rest.MaxTxsSizeInBytes - binSize,
 	}
 	return newBlock, &micro, newRest, nil
+}
+
+type txIDSlogValuer struct {
+	t      proto.Transaction
+	scheme proto.Scheme
+}
+
+func (v txIDSlogValuer) LogValue() slog.Value {
+	id, err := v.t.GetID(v.scheme)
+	if err != nil {
+		return slog.GroupValue(slog.Group("tx-get-id", logging.Error(err)))
+	}
+	return slog.StringValue(base58.Encode(id))
+}
+
+func txIDSlogAttr(t proto.Transaction, scheme proto.Scheme) slog.Attr {
+	var val slog.LogValuer = txIDSlogValuer{t: t, scheme: scheme}
+	return slog.Any("tx-id", val)
 }
