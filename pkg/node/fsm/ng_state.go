@@ -290,8 +290,12 @@ func (a *NGState) mineMicro(
 	block, micro, rest, err := a.microMine(minedBlock, rest, keyPair)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions):
-		a.baseInfo.logger.Debug("No transactions to put in microblock", slog.String("state", a.String()),
-			logging.Error(err))
+		a.baseInfo.logger.Debug(
+			"No transactions to put in microblock",
+			slog.String("state", a.String()),
+			logging.Error(err),
+			slog.Any("miningLimits", rest),
+		)
 		return a, tasks.Tasks(tasks.NewMineMicroTask(a.baseInfo.microblockInterval, minedBlock, rest, keyPair, vrf)), nil
 	case errors.Is(err, miner.ErrStateChanged):
 		return a, nil, a.Errorf(proto.NewInfoMsg(err))
