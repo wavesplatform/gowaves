@@ -20,6 +20,7 @@ const (
 	maxMicroblockTransactions = 255
 )
 
+var ErrBlockIsFull = errors.New("block is full")
 var ErrNoTransactions = errors.New("no transactions")
 var ErrStateChanged = errors.New("state changed")
 
@@ -168,6 +169,9 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 
 	// no transactions applied, skip
 	if txCount == 0 {
+		if len(inapplicable) > 0 {
+			return nil, nil, rest, ErrBlockIsFull
+		}
 		return nil, nil, rest, ErrNoTransactions
 	}
 

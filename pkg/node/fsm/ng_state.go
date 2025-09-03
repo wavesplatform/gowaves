@@ -289,7 +289,7 @@ func (a *NGState) mineMicro(
 ) (State, Async, error) {
 	block, micro, rest, err := a.microMine(minedBlock, rest, keyPair)
 	switch {
-	case errors.Is(err, miner.ErrNoTransactions):
+	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro
 		a.baseInfo.logger.Debug(
 			"No transactions to put in microblock",
 			slog.String("state", a.String()),
