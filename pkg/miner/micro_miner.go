@@ -134,10 +134,10 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 				continue
 			}
 			if errVal != nil {
-				a.logger.Debug("Transaction from UTX is not applicable to state, throwing tx away",
+				a.logger.Debug("Transaction from UTX is not applicable to state, skipping",
 					logging.Error(errVal), txIDSlogAttr(t.T, a.scheme),
 				)
-				droppedTxCount++ // drop this tx
+				inapplicable = append(inapplicable, t)
 				continue
 			}
 
