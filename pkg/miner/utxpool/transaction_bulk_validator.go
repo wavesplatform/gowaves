@@ -46,7 +46,7 @@ func (a bulkValidator) Validate(ctx context.Context) {
 	for _, t := range transactions {
 		errAdd := a.utx.AddWithBytesRaw(t.T, t.B)
 		if errAdd != nil {
-			slog.Error("failed to add a validated transaction to UTX",
+			slog.Error("Failed to add a validated transaction to UTX",
 				logging.Error(errAdd), txIDSlogAttr(t.T, a.scheme),
 			)
 		}
@@ -80,13 +80,13 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 			return err
 		})
 		if stateerr.IsTxCommitmentError(err) {
-			slog.Error("failed to unpack a transaction from utx", logging.Error(err))
+			slog.Error("Failed to unpack a transaction from utx", logging.Error(err))
 			// This should not happen in practice.
 			// Reset state, return applied transactions to UTX.
 			for _, tx := range transactions {
 				utxErr := a.utx.AddWithBytesRaw(tx.T, tx.B)
 				if utxErr != nil {
-					slog.Error("failed to return a transaction to UTX",
+					slog.Error("Failed to return a transaction to UTX",
 						logging.Error(utxErr), txIDSlogAttr(t.T, a.scheme),
 					)
 				}
