@@ -183,6 +183,7 @@ type scheme = byte
 type txIDGetter interface {
 	GetID(scheme scheme) (id []byte, err error)
 }
+
 type txIDSlogValuer struct {
 	t      txIDGetter
 	scheme scheme

@@ -53,16 +53,16 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-	for i := range utxLen {
+	for checked := range utxLen {
 		if ctx.Err() != nil {
-			slog.Debug("Bulk validation interrupted:", logging.Error(context.Cause(ctx)))
+			slog.Debug("Bulk validation interrupted", logging.Error(context.Cause(ctx)))
 			return transactions
 		}
 		t := a.utx.Pop()
 		if t == nil {
 			slog.Debug("UTX pool is empty, finished validating",
-				slog.Int("validated", len(transactions)),
-				slog.Int("totalTxValidated", i),
+				slog.Int("valid", len(transactions)),
+				slog.Int("checked", checked),
 			)
 			break
 		}
@@ -71,7 +71,7 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 			return err
 		})
 		if stateerr.IsTxCommitmentError(err) {
-			slog.Error("Failed to unpack a transaction from utx", logging.Error(err))
+			slog.Error("Failed to unpack a transaction from UTX", logging.Error(err))
 			// This should not happen in practice.
 			// Reset state, return applied transactions to UTX.
 			for _, tx := range transactions {
@@ -82,9 +82,9 @@ func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithByt
 					)
 				}
 			}
-			slog.Debug("Validated transactions returned to UTX, resetting validated list, continuing",
+			slog.Debug("Valid transactions returned to UTX, resetting list and continuing",
 				slog.Int("returned", len(transactions)),
-				slog.Int("totalTxValidated", i),
+				slog.Int("checked", checked),
 			)
 			clear(transactions)             // Clear the slice to avoid memory leak
 			transactions = transactions[:0] // Reset the slice to empty
