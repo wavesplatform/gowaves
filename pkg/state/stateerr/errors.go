@@ -54,8 +54,6 @@ func (err StateError) Unwrap() error {
 func IsTxCommitmentError(err error) bool {
 	var stateErr StateError
 	switch {
-	case err == nil:
-		return false
 	case errors.As(err, &stateErr):
 		return stateErr.Type() == TxCommitmentError
 	default:

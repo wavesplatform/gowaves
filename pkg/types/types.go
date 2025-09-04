@@ -42,9 +42,10 @@ type UtxPool interface {
 	AddWithBytesRaw(t proto.Transaction, b []byte) error
 	Exists(t proto.Transaction) bool
 	Pop() *TransactionWithBytes
-	AllTransactions() []*TransactionWithBytes
-	Count() int
+	AllTransactions() []proto.Transaction
+	Len() int
 	ExistsByID(id []byte) bool
+	Clean(ctx context.Context, shouldDrop func(tx proto.Transaction) bool) (int, int)
 }
 
 type TransactionWithBytes struct {

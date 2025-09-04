@@ -124,7 +124,7 @@ func (a *BaseInfo) CleanUtx() {
 			a.logger.Debug("CleanUtx completed successfully")
 		}()
 		utxpool.NewCleaner(a.storage, a.utx, a.tm, a.scheme).Clean(ctx)
-		metrics.Utx(a.utx.Count())
+		metrics.Utx(a.utx.Len())
 	}()
 }
 
@@ -160,7 +160,7 @@ func (a *BaseInfo) AddToUtx(t proto.Transaction) error {
 	if err != nil {
 		return errors.Wrap(err, "failed to add transaction to utx")
 	}
-	metrics.Utx(utx.Count())
+	metrics.Utx(utx.Len())
 	return nil
 }
 

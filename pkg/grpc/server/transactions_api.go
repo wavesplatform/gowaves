@@ -210,10 +210,10 @@ func (s *Server) GetUnconfirmed(req *g.TransactionsRequest, srv g.TransactionsAp
 	handler := &getUnconfirmedHandler{srv, s}
 	txs := s.utx.AllTransactions()
 	for _, tx := range txs {
-		if !filter.filter(tx.T) {
+		if !filter.filter(tx) {
 			continue
 		}
-		if hErr := handler.handle(tx.T, proto.TransactionSucceeded); hErr != nil {
+		if hErr := handler.handle(tx, proto.TransactionSucceeded); hErr != nil {
 			return status.Error(codes.Internal, hErr.Error())
 		}
 	}
