@@ -45,15 +45,14 @@ func (a bulkValidator) Validate(ctx context.Context) {
 }
 
 func (a bulkValidator) validate(ctx context.Context) []*types.TransactionWithBytes {
-	utxLen := a.utx.Count()
-	if utxLen == 0 {
+	if a.utx.Count() == 0 {
 		slog.Debug("UTX pool is empty, nothing to validate")
 		return nil
 	}
 	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-	for checked := range utxLen {
+	for checked := 0; ; checked++ { // just a counter for logging, checking until UTX is empty or context is done
 		if ctx.Err() != nil {
 			slog.Debug("Bulk validation interrupted", logging.Error(context.Cause(ctx)))
 			return transactions
