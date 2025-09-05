@@ -39,8 +39,11 @@ func (a transactionsHeap) Swap(i, j int) {
 
 func (a *transactionsHeap) Push(x any) {
 	item, ok := x.(*heapItem)
-	if !ok {
-		return // Don't put anything invalid in the heap.
+	if !ok || item == nil {
+		panic(fmt.Sprintf("transactionsHeap.Push: unexpected item type %T", x))
+	}
+	if item.index != -1 {
+		panic("transactionsHeap.Push: item already in heap")
 	}
 	item.index = len(*a)
 	*a = append(*a, item)
@@ -49,9 +52,13 @@ func (a *transactionsHeap) Push(x any) {
 func (a *transactionsHeap) Pop() any {
 	old := *a
 	n := len(old)
+	if n == 0 {
+		return nil
+	}
 	item := old[n-1]
 	item.index = -1 // For safety, mark as no longer in the heap.
-	*a = old[0 : n-1]
+	old[n-1] = nil  // Avoid holding stale pointer.
+	*a = old[:n-1]
 	return item
 }
 
@@ -77,10 +84,8 @@ func New(sizeLimit uint64, validator Validator, settings *settings.BlockchainSet
 func (a *UtxImpl) AllTransactions() []proto.Transaction {
 	a.mu.Lock()
 	defer a.mu.Unlock()
-	items := make([]*heapItem, a.transactions.Len())
-	copy(items, a.transactions)
-	res := make([]proto.Transaction, len(items))
-	for i, it := range items {
+	res := make([]proto.Transaction, a.transactions.Len())
+	for i, it := range a.transactions {
 		res[i] = it.tx.T
 	}
 	return res
@@ -96,7 +101,6 @@ func (a *UtxImpl) Clean(ctx context.Context, shouldDrop func(tx proto.Transactio
 	// Check which transactions should be dropped.
 	var drop []*heapItem
 	checked := 0
-	q := a
 	for _, it := range snapshot {
 		if ctx.Err() != nil {
 			slog.Debug("UTX cleanup interrupted", logging.Error(context.Cause(ctx)),
@@ -116,7 +120,7 @@ func (a *UtxImpl) Clean(ctx context.Context, shouldDrop func(tx proto.Transactio
 			heap.Remove(&a.transactions, it.index)
 		}
 	}
-	q.mu.Unlock()
+	a.mu.Unlock()
 	return checked, len(drop)
 }
 
@@ -194,6 +198,7 @@ func (a *UtxImpl) addWithBytesOptValidation(
 			T: tx,
 			B: b,
 		},
+		index: -1, // Not in heap yet.
 	}
 	heap.Push(&a.transactions, it)
 	idb, err := tx.GetID(a.settings.AddressSchemeCharacter)
@@ -248,7 +253,7 @@ func (a *UtxImpl) Pop() *types.TransactionWithBytes {
 	}
 	it, ok := heap.Pop(&a.transactions).(*heapItem)
 	if !ok {
-		return nil
+		panic("UtxImpl Pop: unexpected type from heap.Pop")
 	}
 	idb, err := it.tx.T.GetID(a.settings.AddressSchemeCharacter)
 	if err != nil {
