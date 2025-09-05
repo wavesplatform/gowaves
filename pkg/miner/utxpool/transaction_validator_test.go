@@ -6,6 +6,7 @@ import (
 
 	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
@@ -25,13 +26,12 @@ func TestValidatorImpl_Validate(t *testing.T) {
 	now := time.Now()
 
 	m := NewMockstateWrapper(ctrl)
-	v, err := NewValidator(m, tm(now), 24*time.Hour)
+	v, err := NewValidator(tm(now), 24*time.Hour)
 	require.NoError(t, err)
 
 	m.EXPECT().TopBlock().Return(emptyBlock)
-	m.EXPECT().
-		TxValidation(gomock.Any())
+	m.EXPECT().TxValidation(gomock.Any()).Times(1)
 
-	err = v.Validate(byte_helpers.BurnWithSig.Transaction)
+	err = v.Validate(m, byte_helpers.BurnWithSig.Transaction)
 	require.NoError(t, err)
 }

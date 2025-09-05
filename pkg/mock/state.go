@@ -1277,6 +1277,20 @@ func (mr *MockStateModifierMockRecorder) Map(arg0 interface{}) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockStateModifier)(nil).Map), arg0)
 }
 
+// MapUnsafe mocks base method.
+func (m *MockStateModifier) MapUnsafe(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MapUnsafe indicates an expected call of MapUnsafe.
+func (mr *MockStateModifierMockRecorder) MapUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapUnsafe", reflect.TypeOf((*MockStateModifier)(nil).MapUnsafe), arg0)
+}
+
 // PersistAddressTransactions mocks base method.
 func (m *MockStateModifier) PersistAddressTransactions() error {
 	m.ctrl.T.Helper()
@@ -2089,6 +2103,20 @@ func (m *MockState) MapR(arg0 func(state.StateInfo) (any, error)) (any, error) {
 func (mr *MockStateMockRecorder) MapR(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockState)(nil).MapR), arg0)
+}
+
+// MapUnsafe mocks base method.
+func (m *MockState) MapUnsafe(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MapUnsafe indicates an expected call of MapUnsafe.
+func (mr *MockStateMockRecorder) MapUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapUnsafe", reflect.TypeOf((*MockState)(nil).MapUnsafe), arg0)
 }
 
 // NFTList mocks base method.
