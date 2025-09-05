@@ -72,12 +72,16 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	var appliedTransactions []*types.TransactionWithBytes
 	var inapplicable []*types.TransactionWithBytes
 	var txSnapshots [][]proto.AtomicSnapshot
+	const minTransactionSize = 40 // Roughly estimated minimal transaction size.
 
 	_ = a.state.MapUnsafe(func(s state.NonThreadSafeState) error {
 		defer s.ResetValidationList()
 		const uint32SizeBytes = 4
 
 		for txCount <= maxMicroblockTransactions {
+			if rest.MaxTxsSizeInBytes-binSize < minTransactionSize {
+				break
+			}
 			t := a.utx.Pop()
 			if t == nil {
 				a.logger.Debug("No more transactions in UTX",
@@ -165,7 +169,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 	if txCount == 0 {
 		// TODO: we should distinguish between block is full because of size and because or because of complexity
 		//  limit reached. For now we return the same error.
-		if len(inapplicable) > 0 {
+		if len(inapplicable) > 0 || rest.MaxTxsSizeInBytes-binSize < minTransactionSize {
 			return nil, nil, rest, ErrBlockIsFull
 		}
 		return nil, nil, rest, ErrNoTransactions
