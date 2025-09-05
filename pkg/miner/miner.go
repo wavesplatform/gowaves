@@ -47,55 +47,29 @@ func (a *MicroblockMiner) MineKeyBlock(
 		BaseTarget:   baseTarget,
 		GenSignature: gs,
 	}
-	bi, err := a.state.MapR(func(info state.StateInfo) (any, error) {
-		v, err := blockVersion(info)
+	var kb *proto.Block
+	// Using MapUnsafe because mining process happens in parallel and with regular Map node can panic because of
+	// CAS check in ThreadSafeReadWrapper of state.
+	err := a.state.MapUnsafe(func(state state.NonThreadSafeState) error {
+		v, err := blockVersion(state)
 		if err != nil {
-			return nil, err
+			return err
 		}
-		validatedFeatured, err := ValidateFeatures(info, a.features)
+		validatedFeatured, err := ValidateFeatures(state, a.features)
 		if err != nil {
-			return nil, err
+			return errors.Wrap(err, "failed to validate features")
 		}
-		b, err := MineBlock(v, nxt, k, validatedFeatured, t, parent, a.reward, a.services.Scheme)
+		b, err := mineKeyBlock(state, v, nxt, k, validatedFeatured, t, parent, a.reward, a.services.Scheme)
 		if err != nil {
-			return nil, err
+			return errors.Wrap(err, "failed mineKeyBlock")
 		}
-		return b, nil
+		kb = b
+		return nil
 	})
 	if err != nil {
-		return nil, proto.MiningLimits{}, err
+		return nil, proto.MiningLimits{}, errors.Wrap(err, "microblock miner failed to mine key block")
 	}
-	b := bi.(*proto.Block)
 
-	blockchainHeight, err := a.state.Height()
-	if err != nil {
-		return nil, proto.MiningLimits{}, errors.Wrap(err, "failed to get blockchain height")
-	}
-	// Key block it's a new block for the blockchain, so height should be increased by 1.
-	newBlockHeight := blockchainHeight + 1
-	lightNodeNewBlockActivated, err := a.state.IsActiveLightNodeNewBlocksFields(newBlockHeight)
-	if err != nil {
-		return nil, proto.MiningLimits{}, err
-	}
-	if lightNodeNewBlockActivated {
-		sh, errSH := a.state.CreateNextSnapshotHash(b)
-		if errSH != nil {
-			return nil, proto.MiningLimits{}, errors.Wrapf(errSH,
-				"failed to create initial snapshot hash for key block %s (reference to %s)",
-				b.BlockID().String(), b.Parent.String())
-		}
-		b.StateHash = &sh
-		// Resign block
-		if err = b.Sign(a.services.Scheme, k.Secret); err != nil {
-			return nil, proto.MiningLimits{}, errors.Wrap(err,
-				"failed to resign key block with filled state hash field")
-		}
-		// Regenerate block ID with filled state hash field.
-		if genErr := b.GenerateBlockID(a.services.Scheme); genErr != nil {
-			return nil, proto.MiningLimits{}, errors.Wrap(genErr,
-				"failed to regenerate key block ID with filled state hash field")
-		}
-	}
 	activated, err := a.state.IsActivated(int16(settings.RideV5))
 	if err != nil {
 		return nil, proto.MiningLimits{}, errors.Wrapf(err, "failed to check if feature %d is activated",
@@ -109,7 +83,7 @@ func (a *MicroblockMiner) MineKeyBlock(
 		MaxTxsSizeInBytes:           a.constraints.MaxTxsSizeInBytes - 4,
 	}
 
-	return b, rest, nil
+	return kb, rest, nil
 }
 
 func blockVersion(state state.StateInfo) (proto.BlockVersion, error) {

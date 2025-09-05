@@ -328,21 +328,6 @@ func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockStateInfo)(nil).BlockchainSettings))
 }
 
-// CreateNextSnapshotHash mocks base method.
-func (m *MockStateInfo) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateNextSnapshotHash", block)
-	ret0, _ := ret[0].(crypto.Digest)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateNextSnapshotHash indicates an expected call of CreateNextSnapshotHash.
-func (mr *MockStateInfoMockRecorder) CreateNextSnapshotHash(block interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNextSnapshotHash", reflect.TypeOf((*MockStateInfo)(nil).CreateNextSnapshotHash), block)
-}
-
 // CurrentScore mocks base method.
 func (m *MockStateInfo) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -1261,6 +1246,21 @@ func (m *MockStateModifier) Close() error {
 func (mr *MockStateModifierMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStateModifier)(nil).Close))
+}
+
+// CreateNextSnapshotHash mocks base method.
+func (m *MockStateModifier) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateNextSnapshotHash", block)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNextSnapshotHash indicates an expected call of CreateNextSnapshotHash.
+func (mr *MockStateModifierMockRecorder) CreateNextSnapshotHash(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNextSnapshotHash", reflect.TypeOf((*MockStateModifier)(nil).CreateNextSnapshotHash), block)
 }
 
 // Map mocks base method.

@@ -125,8 +125,6 @@ type StateInfo interface {
 	// State hashes.
 	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
 	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
-	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
-	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (any, error)) (any, error)
@@ -175,6 +173,10 @@ type StateModifier interface {
 	// Rollback functionality.
 	RollbackToHeight(height proto.Height) error
 	RollbackTo(removalEdge proto.BlockID) error
+
+	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
+	// It also temporary modifies internal state.
+	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// -------------------------
 	// Validation functionality (for UTX).

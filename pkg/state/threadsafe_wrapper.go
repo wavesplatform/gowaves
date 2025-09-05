@@ -370,12 +370,6 @@ func (a *ThreadSafeReadWrapper) SnapshotStateHashAtHeight(height proto.Height) (
 	return a.s.SnapshotStateHashAtHeight(height)
 }
 
-func (a *ThreadSafeReadWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.CreateNextSnapshotHash(block)
-}
-
 func (a *ThreadSafeReadWrapper) ProvidesExtendedApi() (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -540,6 +534,12 @@ func (a *ThreadSafeWriteWrapper) Close() error {
 	a.lock()
 	defer a.unlock()
 	return a.s.Close()
+}
+
+func (a *ThreadSafeWriteWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	a.lock()
+	defer a.unlock()
+	return a.s.CreateNextSnapshotHash(block)
 }
 
 func NewThreadSafeWriteWrapper(i *int32, mu *sync.RWMutex, s State) StateModifier {
