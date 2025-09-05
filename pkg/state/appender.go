@@ -8,6 +8,7 @@ import (
 	"github.com/ccoveille/go-safecast"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -615,7 +616,7 @@ func (a *txAppender) appendTx(tx proto.Transaction, params *appendTxParams) (txS
 	snapshot, err := a.commitTxApplication(tx, params, invocationResult, applicationRes)
 	if err != nil {
 		slog.Error("Failed to commit transaction after successful validation; this should NEVER happen",
-			"ID", base58.Encode(txID))
+			logging.TxID(tx, a.settings.AddressSchemeCharacter), logging.Error(err))
 		return txSnapshot{}, err
 	}
 	// Store additional data for API: transaction by address.

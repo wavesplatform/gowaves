@@ -252,7 +252,7 @@ func (a *Node) runInternalMetrics(
 			l := protoMessagesChan.Len()
 			metrics.FSMChannelLength(l)
 			metricInternalChannelSize.Set(float64(l))
-			metrics.Utx(utx.Count())
+			metrics.Utx(utx.Len())
 		}
 	}
 }

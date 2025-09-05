@@ -235,7 +235,7 @@ func (a *NGState) MinedBlock(
 		return a, nil, a.Errorf(err)
 	}
 	metrics.BlockApplied(block, height+1)
-	metrics.Utx(a.baseInfo.utx.Count())
+	metrics.Utx(a.baseInfo.utx.Len())
 	slog.Info("Generated key block successfully applied to state", "state", a.String(),
 		"blockID", block.ID.String())
 
