@@ -19,6 +19,7 @@ jobs:
         network: [ stagenet, testnet, mainnet ]
         arch: [ "${{ inputs.arch }}" ]
     uses: "./.github/workflows/deploy_node.yml"
+    secrets: inherit
     with:
       network: ${{ matrix.network }}
       arch: ${{ matrix.arch }}
