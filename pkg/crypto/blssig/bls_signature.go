@@ -1,6 +1,7 @@
 package blssig
 
 import (
+	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -11,6 +12,7 @@ import (
 const (
 	G1PubKeyCompressedLen = 48 // bytes
 	G2SigCompressedLen    = 96 // bytes
+	POPMsgLen             = G1PubKeyCompressedLen + 8
 )
 
 var (
@@ -139,4 +141,51 @@ func checkNoDuplicateSignatures(sigs []cbls.Signature) error {
 		seen[k] = struct{}{}
 	}
 	return nil
+}
+
+func POPMessage(height uint64, pk *cbls.PublicKey[cbls.G1]) ([]byte, error) {
+	if pk == nil {
+		return nil, errors.New("nil public key")
+	}
+	pkBytes, err := pk.MarshalBinary()
+	if err != nil {
+		return nil, err
+	}
+	if len(pkBytes) != G1PubKeyCompressedLen {
+		return nil, errors.New("unexpected pubkey length")
+	}
+	msg := make([]byte, 0, POPMsgLen)
+	msg = append(msg, pkBytes...)
+	var heightBinary [8]byte
+	binary.BigEndian.PutUint64(heightBinary[:], height)
+	msg = append(msg, heightBinary[:]...)
+	return msg, nil
+}
+
+func ProvePOP(sk *cbls.PrivateKey[cbls.G1], height uint64) ([]byte, error) {
+	if sk == nil {
+		return nil, errors.New("nil secret key")
+	}
+	pk := sk.PublicKey()
+	msg, err := POPMessage(height, pk)
+	if err != nil {
+		return nil, err
+	}
+	sig := Sign(sk, msg)
+	return sig, nil
+}
+
+func VerifyPOP(pk *cbls.PublicKey[cbls.G1], height uint64, sig []byte) (bool, error) {
+	if pk == nil {
+		return false, errors.New("nil public key")
+	}
+	if len(sig) != G2SigCompressedLen {
+		return false, errors.New("unexpected signature length")
+	}
+	msg, err := POPMessage(height, pk)
+	if err != nil {
+		return false, err
+	}
+	ok := cbls.Verify[cbls.G1](pk, msg, sig)
+	return ok, nil
 }
