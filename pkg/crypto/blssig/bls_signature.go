@@ -5,14 +5,16 @@ import (
 	"errors"
 	"fmt"
 
+	"github.com/ccoveille/go-safecast"
 	cbls "github.com/cloudflare/circl/sign/bls"
+	a "github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
 const (
 	G1PubKeyCompressedLen = 48 // bytes
 	G2SigCompressedLen    = 96 // bytes
-	POPMsgLen             = G1PubKeyCompressedLen + 8
+	POPMsgLen32           = G1PubKeyCompressedLen + 4
 )
 
 var (
@@ -143,49 +145,64 @@ func checkNoDuplicateSignatures(sigs []cbls.Signature) error {
 	return nil
 }
 
-func POPMessage(height uint64, pk *cbls.PublicKey[cbls.G1]) ([]byte, error) {
+func toBytesBE32(v int32) ([4]byte, error) {
+	var b [4]byte
+	u, err := safecast.ToUint32(v)
+	if err != nil {
+		return b, err
+	}
+	binary.BigEndian.PutUint32(b[:], u)
+	return b, nil
+}
+
+func POPMessage(pk *cbls.PublicKey[cbls.G1], height int32) ([]byte, error) {
 	if pk == nil {
 		return nil, errors.New("nil public key")
 	}
-	pkBytes, err := pk.MarshalBinary()
+	pkBytes, err := pk.MarshalBinary() // 48 bytes, G1 compressed
 	if err != nil {
 		return nil, err
 	}
 	if len(pkBytes) != G1PubKeyCompressedLen {
-		return nil, errors.New("unexpected pubkey length")
+		return nil, fmt.Errorf("pubkey len %d != %d", len(pkBytes), G1PubKeyCompressedLen)
 	}
-	msg := make([]byte, 0, POPMsgLen)
+	msg := make([]byte, 0, POPMsgLen32)
 	msg = append(msg, pkBytes...)
-	var heightBinary [8]byte
-	binary.BigEndian.PutUint64(heightBinary[:], height)
-	msg = append(msg, heightBinary[:]...)
+	hb, castErr := toBytesBE32(height)
+	if castErr != nil {
+		return nil, castErr
+	}
+	msg = append(msg, hb[:]...)
 	return msg, nil
 }
 
-func ProvePOP(sk *cbls.PrivateKey[cbls.G1], height uint64) ([]byte, error) {
+func ProvePOP(sk *cbls.PrivateKey[cbls.G1], height int32) ([]byte, error) {
 	if sk == nil {
 		return nil, errors.New("nil secret key")
 	}
-	pk := sk.PublicKey()
-	msg, err := POPMessage(height, pk)
+	if !sk.PublicKey().Validate() {
+		return nil, a.Errorf("failed to prove POP, invalid public key")
+	}
+	msg, err := POPMessage(sk.PublicKey(), height)
 	if err != nil {
 		return nil, err
 	}
-	sig := Sign(sk, msg)
-	return sig, nil
+	return Sign(sk, msg), nil // 96 bytes (G2 compressed)
 }
 
-func VerifyPOP(pk *cbls.PublicKey[cbls.G1], height uint64, sig []byte) (bool, error) {
+func VerifyPOP(pk *cbls.PublicKey[cbls.G1], height int32, sig []byte) (bool, error) {
 	if pk == nil {
 		return false, errors.New("nil public key")
 	}
-	if len(sig) != G2SigCompressedLen {
-		return false, errors.New("unexpected signature length")
+	if !pk.Validate() {
+		return false, a.Errorf("failed to verify POP, invalid public key")
 	}
-	msg, err := POPMessage(height, pk)
+	if len(sig) != G2SigCompressedLen {
+		return false, errors.New("bad signature length")
+	}
+	msg, err := POPMessage(pk, height)
 	if err != nil {
 		return false, err
 	}
-	ok := cbls.Verify[cbls.G1](pk, msg, sig)
-	return ok, nil
+	return cbls.Verify[cbls.G1](pk, msg, sig), nil
 }
