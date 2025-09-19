@@ -125,8 +125,6 @@ type StateInfo interface {
 	// State hashes.
 	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error)
 	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
-	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
-	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.
 	MapR(func(StateInfo) (any, error)) (any, error)
@@ -176,6 +174,10 @@ type StateModifier interface {
 	RollbackToHeight(height proto.Height) error
 	RollbackTo(removalEdge proto.BlockID) error
 
+	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
+	// It also temporary modifies internal state.
+	CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error)
+
 	// -------------------------
 	// Validation functionality (for UTX).
 	// -------------------------
@@ -198,6 +200,8 @@ type StateModifier interface {
 	// Way to call multiple operations under same lock.
 	Map(func(state NonThreadSafeState) error) error
 
+	MapUnsafe(func(state NonThreadSafeState) error) error
+
 	// State will provide extended API data after returning.
 	StartProvidingExtendedApi() error
 
@@ -209,7 +213,7 @@ type StateModifier interface {
 
 type NonThreadSafeState = State
 
-type TxValidation interface {
+type TxValidation = interface {
 	ValidateNextTx(
 		tx proto.Transaction,
 		currentTimestamp, parentTimestamp uint64,

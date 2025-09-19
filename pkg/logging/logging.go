@@ -11,6 +11,7 @@ import (
 	"github.com/dpotapov/slogpfx"
 	"github.com/lmittmann/tint"
 	"github.com/mattn/go-isatty"
+	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 )
 
@@ -175,4 +176,28 @@ func Error(err error) slog.Attr {
 		opts: new(errorLogValuerOpts),
 	}
 	return slog.Any(errorKey, lvErr)
+}
+
+type scheme = byte
+
+type txIDGetter interface {
+	GetID(scheme scheme) (id []byte, err error)
+}
+
+type txIDSlogValuer struct {
+	t      txIDGetter
+	scheme scheme
+}
+
+func (v txIDSlogValuer) LogValue() slog.Value {
+	id, err := v.t.GetID(v.scheme)
+	if err != nil {
+		return slog.GroupValue(slog.Group("txGetID", Error(err)))
+	}
+	return slog.StringValue(base58.Encode(id))
+}
+
+func TxID(t txIDGetter, scheme scheme) slog.Attr {
+	var val slog.LogValuer = txIDSlogValuer{t: t, scheme: scheme}
+	return slog.Any("txID", val)
 }

@@ -328,21 +328,6 @@ func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockStateInfo)(nil).BlockchainSettings))
 }
 
-// CreateNextSnapshotHash mocks base method.
-func (m *MockStateInfo) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CreateNextSnapshotHash", block)
-	ret0, _ := ret[0].(crypto.Digest)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// CreateNextSnapshotHash indicates an expected call of CreateNextSnapshotHash.
-func (mr *MockStateInfoMockRecorder) CreateNextSnapshotHash(block interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNextSnapshotHash", reflect.TypeOf((*MockStateInfo)(nil).CreateNextSnapshotHash), block)
-}
-
 // CurrentScore mocks base method.
 func (m *MockStateInfo) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -1263,6 +1248,21 @@ func (mr *MockStateModifierMockRecorder) Close() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockStateModifier)(nil).Close))
 }
 
+// CreateNextSnapshotHash mocks base method.
+func (m *MockStateModifier) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CreateNextSnapshotHash", block)
+	ret0, _ := ret[0].(crypto.Digest)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CreateNextSnapshotHash indicates an expected call of CreateNextSnapshotHash.
+func (mr *MockStateModifierMockRecorder) CreateNextSnapshotHash(block interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CreateNextSnapshotHash", reflect.TypeOf((*MockStateModifier)(nil).CreateNextSnapshotHash), block)
+}
+
 // Map mocks base method.
 func (m *MockStateModifier) Map(arg0 func(state.NonThreadSafeState) error) error {
 	m.ctrl.T.Helper()
@@ -1275,6 +1275,20 @@ func (m *MockStateModifier) Map(arg0 func(state.NonThreadSafeState) error) error
 func (mr *MockStateModifierMockRecorder) Map(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Map", reflect.TypeOf((*MockStateModifier)(nil).Map), arg0)
+}
+
+// MapUnsafe mocks base method.
+func (m *MockStateModifier) MapUnsafe(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MapUnsafe indicates an expected call of MapUnsafe.
+func (mr *MockStateModifierMockRecorder) MapUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapUnsafe", reflect.TypeOf((*MockStateModifier)(nil).MapUnsafe), arg0)
 }
 
 // PersistAddressTransactions mocks base method.
@@ -2089,6 +2103,20 @@ func (m *MockState) MapR(arg0 func(state.StateInfo) (any, error)) (any, error) {
 func (mr *MockStateMockRecorder) MapR(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapR", reflect.TypeOf((*MockState)(nil).MapR), arg0)
+}
+
+// MapUnsafe mocks base method.
+func (m *MockState) MapUnsafe(arg0 func(state.NonThreadSafeState) error) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "MapUnsafe", arg0)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// MapUnsafe indicates an expected call of MapUnsafe.
+func (mr *MockStateMockRecorder) MapUnsafe(arg0 interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "MapUnsafe", reflect.TypeOf((*MockState)(nil).MapUnsafe), arg0)
 }
 
 // NFTList mocks base method.
