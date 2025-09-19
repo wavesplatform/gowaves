@@ -20,7 +20,6 @@ require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-test/deep v1.1.1
 	github.com/golang/mock v1.6.0
-	github.com/golang/protobuf v1.5.4
 	github.com/gorilla/mux v1.8.1
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
