@@ -138,6 +138,7 @@ type Transaction struct {
 	//	*Transaction_InvokeScript
 	//	*Transaction_UpdateAssetInfo
 	//	*Transaction_InvokeExpression
+	//	*Transaction_CommitToGeneration
 	Data          isTransaction_Data `protobuf_oneof:"data"`
 	unknownFields protoimpl.UnknownFields
 	sizeCache     protoimpl.SizeCache
@@ -377,6 +378,15 @@ func (x *Transaction) GetInvokeExpression() *InvokeExpressionTransactionData {
 	return nil
 }
 
+func (x *Transaction) GetCommitToGeneration() *CommitToGenerationTransactionData {
+	if x != nil {
+		if x, ok := x.Data.(*Transaction_CommitToGeneration); ok {
+			return x.CommitToGeneration
+		}
+	}
+	return nil
+}
+
 type isTransaction_Data interface {
 	isTransaction_Data()
 }
@@ -453,6 +463,10 @@ type Transaction_InvokeExpression struct {
 	InvokeExpression *InvokeExpressionTransactionData `protobuf:"bytes,119,opt,name=invoke_expression,json=invokeExpression,proto3,oneof"`
 }
 
+type Transaction_CommitToGeneration struct {
+	CommitToGeneration *CommitToGenerationTransactionData `protobuf:"bytes,120,opt,name=commit_to_generation,json=commitToGeneration,proto3,oneof"`
+}
+
 func (*Transaction_Genesis) isTransaction_Data() {}
 
 func (*Transaction_Payment) isTransaction_Data() {}
@@ -488,6 +502,8 @@ func (*Transaction_InvokeScript) isTransaction_Data() {}
 func (*Transaction_UpdateAssetInfo) isTransaction_Data() {}
 
 func (*Transaction_InvokeExpression) isTransaction_Data() {}
+
+func (*Transaction_CommitToGeneration) isTransaction_Data() {}
 
 type GenesisTransactionData struct {
 	state            protoimpl.MessageState `protogen:"open.v1"`
@@ -1579,6 +1595,66 @@ func (x *InvokeExpressionTransactionData) GetExpression() []byte {
 	return nil
 }
 
+type CommitToGenerationTransactionData struct {
+	state                   protoimpl.MessageState `protogen:"open.v1"`
+	GenerationPeriodStart   uint32                 `protobuf:"varint,1,opt,name=generation_period_start,json=generationPeriodStart,proto3" json:"generation_period_start,omitempty"`
+	EndorsementKey          []byte                 `protobuf:"bytes,2,opt,name=endorsement_key,json=endorsementKey,proto3" json:"endorsement_key,omitempty"`
+	EndorsementKeySignature []byte                 `protobuf:"bytes,3,opt,name=endorsement_key_signature,json=endorsementKeySignature,proto3" json:"endorsement_key_signature,omitempty"`
+	unknownFields           protoimpl.UnknownFields
+	sizeCache               protoimpl.SizeCache
+}
+
+func (x *CommitToGenerationTransactionData) Reset() {
+	*x = CommitToGenerationTransactionData{}
+	mi := &file_waves_transaction_proto_msgTypes[21]
+	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+	ms.StoreMessageInfo(mi)
+}
+
+func (x *CommitToGenerationTransactionData) String() string {
+	return protoimpl.X.MessageStringOf(x)
+}
+
+func (*CommitToGenerationTransactionData) ProtoMessage() {}
+
+func (x *CommitToGenerationTransactionData) ProtoReflect() protoreflect.Message {
+	mi := &file_waves_transaction_proto_msgTypes[21]
+	if x != nil {
+		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
+		if ms.LoadMessageInfo() == nil {
+			ms.StoreMessageInfo(mi)
+		}
+		return ms
+	}
+	return mi.MessageOf(x)
+}
+
+// Deprecated: Use CommitToGenerationTransactionData.ProtoReflect.Descriptor instead.
+func (*CommitToGenerationTransactionData) Descriptor() ([]byte, []int) {
+	return file_waves_transaction_proto_rawDescGZIP(), []int{21}
+}
+
+func (x *CommitToGenerationTransactionData) GetGenerationPeriodStart() uint32 {
+	if x != nil {
+		return x.GenerationPeriodStart
+	}
+	return 0
+}
+
+func (x *CommitToGenerationTransactionData) GetEndorsementKey() []byte {
+	if x != nil {
+		return x.EndorsementKey
+	}
+	return nil
+}
+
+func (x *CommitToGenerationTransactionData) GetEndorsementKeySignature() []byte {
+	if x != nil {
+		return x.EndorsementKeySignature
+	}
+	return nil
+}
+
 type MassTransferTransactionData_Transfer struct {
 	state         protoimpl.MessageState `protogen:"open.v1"`
 	Recipient     *Recipient             `protobuf:"bytes,1,opt,name=recipient,proto3" json:"recipient,omitempty"`
@@ -1589,7 +1665,7 @@ type MassTransferTransactionData_Transfer struct {
 
 func (x *MassTransferTransactionData_Transfer) Reset() {
 	*x = MassTransferTransactionData_Transfer{}
-	mi := &file_waves_transaction_proto_msgTypes[21]
+	mi := &file_waves_transaction_proto_msgTypes[22]
 	ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 	ms.StoreMessageInfo(mi)
 }
@@ -1601,7 +1677,7 @@ func (x *MassTransferTransactionData_Transfer) String() string {
 func (*MassTransferTransactionData_Transfer) ProtoMessage() {}
 
 func (x *MassTransferTransactionData_Transfer) ProtoReflect() protoreflect.Message {
-	mi := &file_waves_transaction_proto_msgTypes[21]
+	mi := &file_waves_transaction_proto_msgTypes[22]
 	if x != nil {
 		ms := protoimpl.X.MessageStateOf(protoimpl.Pointer(x))
 		if ms.LoadMessageInfo() == nil {
@@ -1640,8 +1716,7 @@ const file_waves_transaction_proto_rawDesc = "" +
 	"\x11waves_transaction\x18\x01 \x01(\v2\x12.waves.TransactionH\x00R\x10wavesTransaction\x123\n" +
 	"\x14ethereum_transaction\x18\x03 \x01(\fH\x00R\x13ethereumTransaction\x12\x16\n" +
 	"\x06proofs\x18\x02 \x03(\fR\x06proofsB\r\n" +
-	"\vtransaction\"\xf2\n" +
-	"\n" +
+	"\vtransaction\"\xd0\v\n" +
 	"\vTransaction\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\x05R\achainId\x12*\n" +
 	"\x11sender_public_key\x18\x02 \x01(\fR\x0fsenderPublicKey\x12\x1f\n" +
@@ -1667,7 +1742,8 @@ const file_waves_transaction_proto_rawDesc = "" +
 	"\x10set_asset_script\x18s \x01(\v2$.waves.SetAssetScriptTransactionDataH\x00R\x0esetAssetScript\x12I\n" +
 	"\rinvoke_script\x18t \x01(\v2\".waves.InvokeScriptTransactionDataH\x00R\finvokeScript\x12S\n" +
 	"\x11update_asset_info\x18u \x01(\v2%.waves.UpdateAssetInfoTransactionDataH\x00R\x0fupdateAssetInfo\x12U\n" +
-	"\x11invoke_expression\x18w \x01(\v2&.waves.InvokeExpressionTransactionDataH\x00R\x10invokeExpressionB\x06\n" +
+	"\x11invoke_expression\x18w \x01(\v2&.waves.InvokeExpressionTransactionDataH\x00R\x10invokeExpression\x12\\\n" +
+	"\x14commit_to_generation\x18x \x01(\v2(.waves.CommitToGenerationTransactionDataH\x00R\x12commitToGenerationB\x06\n" +
 	"\x04data\"]\n" +
 	"\x16GenesisTransactionData\x12+\n" +
 	"\x11recipient_address\x18\x01 \x01(\fR\x10recipientAddress\x12\x16\n" +
@@ -1748,7 +1824,11 @@ const file_waves_transaction_proto_rawDesc = "" +
 	"\x1fInvokeExpressionTransactionData\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x01 \x01(\fR\n" +
-	"expressionBk\n" +
+	"expression\"\xc0\x01\n" +
+	"!CommitToGenerationTransactionData\x126\n" +
+	"\x17generation_period_start\x18\x01 \x01(\rR\x15generationPeriodStart\x12'\n" +
+	"\x0fendorsement_key\x18\x02 \x01(\fR\x0eendorsementKey\x12:\n" +
+	"\x19endorsement_key_signature\x18\x03 \x01(\fR\x17endorsementKeySignatureBk\n" +
 	"&com.wavesplatform.protobuf.transactionZ9github.com/wavesplatform/gowaves/pkg/grpc/generated/waves\xaa\x02\x05Wavesb\x06proto3"
 
 var (
@@ -1763,7 +1843,7 @@ func file_waves_transaction_proto_rawDescGZIP() []byte {
 	return file_waves_transaction_proto_rawDescData
 }
 
-var file_waves_transaction_proto_msgTypes = make([]protoimpl.MessageInfo, 22)
+var file_waves_transaction_proto_msgTypes = make([]protoimpl.MessageInfo, 23)
 var file_waves_transaction_proto_goTypes = []any{
 	(*SignedTransaction)(nil),                    // 0: waves.SignedTransaction
 	(*Transaction)(nil),                          // 1: waves.Transaction
@@ -1786,14 +1866,15 @@ var file_waves_transaction_proto_goTypes = []any{
 	(*InvokeScriptTransactionData)(nil),          // 18: waves.InvokeScriptTransactionData
 	(*UpdateAssetInfoTransactionData)(nil),       // 19: waves.UpdateAssetInfoTransactionData
 	(*InvokeExpressionTransactionData)(nil),      // 20: waves.InvokeExpressionTransactionData
-	(*MassTransferTransactionData_Transfer)(nil), // 21: waves.MassTransferTransactionData.Transfer
-	(*Amount)(nil),                               // 22: waves.Amount
-	(*Recipient)(nil),                            // 23: waves.Recipient
-	(*Order)(nil),                                // 24: waves.Order
+	(*CommitToGenerationTransactionData)(nil),    // 21: waves.CommitToGenerationTransactionData
+	(*MassTransferTransactionData_Transfer)(nil), // 22: waves.MassTransferTransactionData.Transfer
+	(*Amount)(nil),                               // 23: waves.Amount
+	(*Recipient)(nil),                            // 24: waves.Recipient
+	(*Order)(nil),                                // 25: waves.Order
 }
 var file_waves_transaction_proto_depIdxs = []int32{
 	1,  // 0: waves.SignedTransaction.waves_transaction:type_name -> waves.Transaction
-	22, // 1: waves.Transaction.fee:type_name -> waves.Amount
+	23, // 1: waves.Transaction.fee:type_name -> waves.Amount
 	2,  // 2: waves.Transaction.genesis:type_name -> waves.GenesisTransactionData
 	3,  // 3: waves.Transaction.payment:type_name -> waves.PaymentTransactionData
 	12, // 4: waves.Transaction.issue:type_name -> waves.IssueTransactionData
@@ -1812,23 +1893,24 @@ var file_waves_transaction_proto_depIdxs = []int32{
 	18, // 17: waves.Transaction.invoke_script:type_name -> waves.InvokeScriptTransactionData
 	19, // 18: waves.Transaction.update_asset_info:type_name -> waves.UpdateAssetInfoTransactionData
 	20, // 19: waves.Transaction.invoke_expression:type_name -> waves.InvokeExpressionTransactionData
-	23, // 20: waves.TransferTransactionData.recipient:type_name -> waves.Recipient
-	22, // 21: waves.TransferTransactionData.amount:type_name -> waves.Amount
-	6,  // 22: waves.DataTransactionData.data:type_name -> waves.DataEntry
-	21, // 23: waves.MassTransferTransactionData.transfers:type_name -> waves.MassTransferTransactionData.Transfer
-	23, // 24: waves.LeaseTransactionData.recipient:type_name -> waves.Recipient
-	22, // 25: waves.BurnTransactionData.asset_amount:type_name -> waves.Amount
-	22, // 26: waves.ReissueTransactionData.asset_amount:type_name -> waves.Amount
-	24, // 27: waves.ExchangeTransactionData.orders:type_name -> waves.Order
-	22, // 28: waves.SponsorFeeTransactionData.min_fee:type_name -> waves.Amount
-	23, // 29: waves.InvokeScriptTransactionData.d_app:type_name -> waves.Recipient
-	22, // 30: waves.InvokeScriptTransactionData.payments:type_name -> waves.Amount
-	23, // 31: waves.MassTransferTransactionData.Transfer.recipient:type_name -> waves.Recipient
-	32, // [32:32] is the sub-list for method output_type
-	32, // [32:32] is the sub-list for method input_type
-	32, // [32:32] is the sub-list for extension type_name
-	32, // [32:32] is the sub-list for extension extendee
-	0,  // [0:32] is the sub-list for field type_name
+	21, // 20: waves.Transaction.commit_to_generation:type_name -> waves.CommitToGenerationTransactionData
+	24, // 21: waves.TransferTransactionData.recipient:type_name -> waves.Recipient
+	23, // 22: waves.TransferTransactionData.amount:type_name -> waves.Amount
+	6,  // 23: waves.DataTransactionData.data:type_name -> waves.DataEntry
+	22, // 24: waves.MassTransferTransactionData.transfers:type_name -> waves.MassTransferTransactionData.Transfer
+	24, // 25: waves.LeaseTransactionData.recipient:type_name -> waves.Recipient
+	23, // 26: waves.BurnTransactionData.asset_amount:type_name -> waves.Amount
+	23, // 27: waves.ReissueTransactionData.asset_amount:type_name -> waves.Amount
+	25, // 28: waves.ExchangeTransactionData.orders:type_name -> waves.Order
+	23, // 29: waves.SponsorFeeTransactionData.min_fee:type_name -> waves.Amount
+	24, // 30: waves.InvokeScriptTransactionData.d_app:type_name -> waves.Recipient
+	23, // 31: waves.InvokeScriptTransactionData.payments:type_name -> waves.Amount
+	24, // 32: waves.MassTransferTransactionData.Transfer.recipient:type_name -> waves.Recipient
+	33, // [33:33] is the sub-list for method output_type
+	33, // [33:33] is the sub-list for method input_type
+	33, // [33:33] is the sub-list for extension type_name
+	33, // [33:33] is the sub-list for extension extendee
+	0,  // [0:33] is the sub-list for field type_name
 }
 
 func init() { file_waves_transaction_proto_init() }
@@ -1862,6 +1944,7 @@ func file_waves_transaction_proto_init() {
 		(*Transaction_InvokeScript)(nil),
 		(*Transaction_UpdateAssetInfo)(nil),
 		(*Transaction_InvokeExpression)(nil),
+		(*Transaction_CommitToGeneration)(nil),
 	}
 	file_waves_transaction_proto_msgTypes[6].OneofWrappers = []any{
 		(*DataEntry_IntValue)(nil),
@@ -1875,7 +1958,7 @@ func file_waves_transaction_proto_init() {
 			GoPackagePath: reflect.TypeOf(x{}).PkgPath(),
 			RawDescriptor: unsafe.Slice(unsafe.StringData(file_waves_transaction_proto_rawDesc), len(file_waves_transaction_proto_rawDesc)),
 			NumEnums:      0,
-			NumMessages:   22,
+			NumMessages:   23,
 			NumExtensions: 0,
 			NumServices:   0,
 		},

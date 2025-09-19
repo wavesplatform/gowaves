@@ -89,6 +89,7 @@ type MicroBlock struct {
 	SenderPublicKey       []byte                 `protobuf:"bytes,4,opt,name=sender_public_key,json=senderPublicKey,proto3" json:"sender_public_key,omitempty"`
 	Transactions          []*SignedTransaction   `protobuf:"bytes,5,rep,name=transactions,proto3" json:"transactions,omitempty"`
 	StateHash             []byte                 `protobuf:"bytes,6,opt,name=state_hash,json=stateHash,proto3" json:"state_hash,omitempty"`
+	FinalizationVoting    *FinalizationVoting    `protobuf:"bytes,7,opt,name=finalization_voting,json=finalizationVoting,proto3" json:"finalization_voting,omitempty"`
 	unknownFields         protoimpl.UnknownFields
 	sizeCache             protoimpl.SizeCache
 }
@@ -161,6 +162,13 @@ func (x *MicroBlock) GetTransactions() []*SignedTransaction {
 func (x *MicroBlock) GetStateHash() []byte {
 	if x != nil {
 		return x.StateHash
+	}
+	return nil
+}
+
+func (x *MicroBlock) GetFinalizationVoting() *FinalizationVoting {
+	if x != nil {
+		return x.FinalizationVoting
 	}
 	return nil
 }
@@ -303,9 +311,9 @@ func (x *EndorseBlock) GetSignature() []byte {
 
 type FinalizationVoting struct {
 	state                          protoimpl.MessageState `protogen:"open.v1"`
-	EndorserIndexes                []int32                `protobuf:"varint,1,rep,packed,name=endorser_indexes,json=endorserIndexes,proto3" json:"endorser_indexes,omitempty"`
-	AggregatedEndorsementSignature []byte                 `protobuf:"bytes,2,opt,name=aggregated_endorsement_signature,json=aggregatedEndorsementSignature,proto3" json:"aggregated_endorsement_signature,omitempty"`
-	ConflictEndorsements           []*EndorseBlock        `protobuf:"bytes,3,rep,name=conflict_endorsements,json=conflictEndorsements,proto3" json:"conflict_endorsements,omitempty"`
+	EndorserIndexes                []int32                `protobuf:"varint,1,rep,packed,name=endorser_indexes,json=endorserIndexes,proto3" json:"endorser_indexes,omitempty"`                                        // In insertion order
+	AggregatedEndorsementSignature []byte                 `protobuf:"bytes,2,opt,name=aggregated_endorsement_signature,json=aggregatedEndorsementSignature,proto3" json:"aggregated_endorsement_signature,omitempty"` // BLS
+	ConflictEndorsements           []*EndorseBlock        `protobuf:"bytes,3,rep,name=conflict_endorsements,json=conflictEndorsements,proto3" json:"conflict_endorsements,omitempty"`                                 // Without block_height
 	unknownFields                  protoimpl.UnknownFields
 	sizeCache                      protoimpl.SizeCache
 }
@@ -375,6 +383,7 @@ type Block_Header struct {
 	TransactionsRoot    []byte                         `protobuf:"bytes,10,opt,name=transactions_root,json=transactionsRoot,proto3" json:"transactions_root,omitempty"`
 	StateHash           []byte                         `protobuf:"bytes,11,opt,name=state_hash,json=stateHash,proto3" json:"state_hash,omitempty"`
 	ChallengedHeader    *Block_Header_ChallengedHeader `protobuf:"bytes,12,opt,name=challenged_header,json=challengedHeader,proto3" json:"challenged_header,omitempty"`
+	FinalizationVoting  *FinalizationVoting            `protobuf:"bytes,13,opt,name=finalization_voting,json=finalizationVoting,proto3" json:"finalization_voting,omitempty"`
 	unknownFields       protoimpl.UnknownFields
 	sizeCache           protoimpl.SizeCache
 }
@@ -493,6 +502,13 @@ func (x *Block_Header) GetChallengedHeader() *Block_Header_ChallengedHeader {
 	return nil
 }
 
+func (x *Block_Header) GetFinalizationVoting() *FinalizationVoting {
+	if x != nil {
+		return x.FinalizationVoting
+	}
+	return nil
+}
+
 type Block_Header_ChallengedHeader struct {
 	state               protoimpl.MessageState `protogen:"open.v1"`
 	BaseTarget          int64                  `protobuf:"varint,1,opt,name=base_target,json=baseTarget,proto3" json:"base_target,omitempty"`
@@ -597,11 +613,11 @@ var File_waves_block_proto protoreflect.FileDescriptor
 
 const file_waves_block_proto_rawDesc = "" +
 	"\n" +
-	"\x11waves/block.proto\x12\x05waves\x1a\x17waves/transaction.proto\"\x98\a\n" +
+	"\x11waves/block.proto\x12\x05waves\x1a\x17waves/transaction.proto\"\xe4\a\n" +
 	"\x05Block\x12+\n" +
 	"\x06header\x18\x01 \x01(\v2\x13.waves.Block.HeaderR\x06header\x12\x1c\n" +
 	"\tsignature\x18\x02 \x01(\fR\tsignature\x12<\n" +
-	"\ftransactions\x18\x03 \x03(\v2\x18.waves.SignedTransactionR\ftransactions\x1a\x85\x06\n" +
+	"\ftransactions\x18\x03 \x03(\v2\x18.waves.SignedTransactionR\ftransactions\x1a\xd1\x06\n" +
 	"\x06Header\x12\x19\n" +
 	"\bchain_id\x18\x01 \x01(\x05R\achainId\x12\x1c\n" +
 	"\treference\x18\x02 \x01(\fR\treference\x12\x1f\n" +
@@ -618,7 +634,8 @@ const file_waves_block_proto_rawDesc = "" +
 	" \x01(\fR\x10transactionsRoot\x12\x1d\n" +
 	"\n" +
 	"state_hash\x18\v \x01(\fR\tstateHash\x12Q\n" +
-	"\x11challenged_header\x18\f \x01(\v2$.waves.Block.Header.ChallengedHeaderR\x10challengedHeader\x1a\xb2\x02\n" +
+	"\x11challenged_header\x18\f \x01(\v2$.waves.Block.Header.ChallengedHeaderR\x10challengedHeader\x12J\n" +
+	"\x13finalization_voting\x18\r \x01(\v2\x19.waves.FinalizationVotingR\x12finalizationVoting\x1a\xb2\x02\n" +
 	"\x10ChallengedHeader\x12\x1f\n" +
 	"\vbase_target\x18\x01 \x01(\x03R\n" +
 	"baseTarget\x121\n" +
@@ -630,7 +647,7 @@ const file_waves_block_proto_rawDesc = "" +
 	"rewardVote\x12\x1d\n" +
 	"\n" +
 	"state_hash\x18\a \x01(\fR\tstateHash\x12)\n" +
-	"\x10header_signature\x18\b \x01(\fR\x0fheaderSignature\"\x85\x02\n" +
+	"\x10header_signature\x18\b \x01(\fR\x0fheaderSignature\"\xd1\x02\n" +
 	"\n" +
 	"MicroBlock\x12\x18\n" +
 	"\aversion\x18\x01 \x01(\x05R\aversion\x12\x1c\n" +
@@ -639,7 +656,8 @@ const file_waves_block_proto_rawDesc = "" +
 	"\x11sender_public_key\x18\x04 \x01(\fR\x0fsenderPublicKey\x12<\n" +
 	"\ftransactions\x18\x05 \x03(\v2\x18.waves.SignedTransactionR\ftransactions\x12\x1d\n" +
 	"\n" +
-	"state_hash\x18\x06 \x01(\fR\tstateHash\"\x8a\x01\n" +
+	"state_hash\x18\x06 \x01(\fR\tstateHash\x12J\n" +
+	"\x13finalization_voting\x18\a \x01(\v2\x19.waves.FinalizationVotingR\x12finalizationVoting\"\x8a\x01\n" +
 	"\x10SignedMicroBlock\x122\n" +
 	"\vmicro_block\x18\x01 \x01(\v2\x11.waves.MicroBlockR\n" +
 	"microBlock\x12\x1c\n" +
@@ -684,14 +702,16 @@ var file_waves_block_proto_depIdxs = []int32{
 	5, // 0: waves.Block.header:type_name -> waves.Block.Header
 	7, // 1: waves.Block.transactions:type_name -> waves.SignedTransaction
 	7, // 2: waves.MicroBlock.transactions:type_name -> waves.SignedTransaction
-	1, // 3: waves.SignedMicroBlock.micro_block:type_name -> waves.MicroBlock
-	3, // 4: waves.FinalizationVoting.conflict_endorsements:type_name -> waves.EndorseBlock
-	6, // 5: waves.Block.Header.challenged_header:type_name -> waves.Block.Header.ChallengedHeader
-	6, // [6:6] is the sub-list for method output_type
-	6, // [6:6] is the sub-list for method input_type
-	6, // [6:6] is the sub-list for extension type_name
-	6, // [6:6] is the sub-list for extension extendee
-	0, // [0:6] is the sub-list for field type_name
+	4, // 3: waves.MicroBlock.finalization_voting:type_name -> waves.FinalizationVoting
+	1, // 4: waves.SignedMicroBlock.micro_block:type_name -> waves.MicroBlock
+	3, // 5: waves.FinalizationVoting.conflict_endorsements:type_name -> waves.EndorseBlock
+	6, // 6: waves.Block.Header.challenged_header:type_name -> waves.Block.Header.ChallengedHeader
+	4, // 7: waves.Block.Header.finalization_voting:type_name -> waves.FinalizationVoting
+	8, // [8:8] is the sub-list for method output_type
+	8, // [8:8] is the sub-list for method input_type
+	8, // [8:8] is the sub-list for extension type_name
+	8, // [8:8] is the sub-list for extension extendee
+	0, // [0:8] is the sub-list for field type_name
 }
 
 func init() { file_waves_block_proto_init() }
