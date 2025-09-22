@@ -491,17 +491,17 @@ func (m *EndorseBlock) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x2a
 	}
-	if m.BlockHeight != 0 {
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.BlockHeight))
+	if len(m.EndorsedBlockId) > 0 {
+		i -= len(m.EndorsedBlockId)
+		copy(dAtA[i:], m.EndorsedBlockId)
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.EndorsedBlockId)))
 		i--
-		dAtA[i] = 0x20
+		dAtA[i] = 0x22
 	}
-	if len(m.BlockId) > 0 {
-		i -= len(m.BlockId)
-		copy(dAtA[i:], m.BlockId)
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.BlockId)))
+	if m.FinalizedBlockHeight != 0 {
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.FinalizedBlockHeight))
 		i--
-		dAtA[i] = 0x1a
+		dAtA[i] = 0x18
 	}
 	if len(m.FinalizedBlockId) > 0 {
 		i -= len(m.FinalizedBlockId)
@@ -791,12 +791,12 @@ func (m *EndorseBlock) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
-	l = len(m.BlockId)
+	if m.FinalizedBlockHeight != 0 {
+		n += 1 + protohelpers.SizeOfVarint(uint64(m.FinalizedBlockHeight))
+	}
+	l = len(m.EndorsedBlockId)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
-	}
-	if m.BlockHeight != 0 {
-		n += 1 + protohelpers.SizeOfVarint(uint64(m.BlockHeight))
 	}
 	l = len(m.Signature)
 	if l > 0 {
@@ -2286,8 +2286,27 @@ func (m *EndorseBlock) UnmarshalVT(dAtA []byte) error {
 			}
 			iNdEx = postIndex
 		case 3:
+			if wireType != 0 {
+				return fmt.Errorf("proto: wrong wireType = %d for field FinalizedBlockHeight", wireType)
+			}
+			m.FinalizedBlockHeight = 0
+			for shift := uint(0); ; shift += 7 {
+				if shift >= 64 {
+					return protohelpers.ErrIntOverflow
+				}
+				if iNdEx >= l {
+					return io.ErrUnexpectedEOF
+				}
+				b := dAtA[iNdEx]
+				iNdEx++
+				m.FinalizedBlockHeight |= uint32(b&0x7F) << shift
+				if b < 0x80 {
+					break
+				}
+			}
+		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BlockId", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field EndorsedBlockId", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -2314,30 +2333,11 @@ func (m *EndorseBlock) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.BlockId = append(m.BlockId[:0], dAtA[iNdEx:postIndex]...)
-			if m.BlockId == nil {
-				m.BlockId = []byte{}
+			m.EndorsedBlockId = append(m.EndorsedBlockId[:0], dAtA[iNdEx:postIndex]...)
+			if m.EndorsedBlockId == nil {
+				m.EndorsedBlockId = []byte{}
 			}
 			iNdEx = postIndex
-		case 4:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field BlockHeight", wireType)
-			}
-			m.BlockHeight = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.BlockHeight |= uint32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
 		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Signature", wireType)
