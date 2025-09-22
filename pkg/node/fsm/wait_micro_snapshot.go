@@ -200,7 +200,6 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 		return nil, errors.Wrap(err, "failed to apply created from micro block")
 	}
 	metrics.MicroBlockApplied(micro)
-	metrics.Utx(a.baseInfo.utx.Count())
 	a.baseInfo.CleanUtx()
 	return newBlock, nil
 }

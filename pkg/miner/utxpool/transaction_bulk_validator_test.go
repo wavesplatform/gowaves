@@ -1,6 +1,7 @@
 package utxpool
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -13,6 +14,7 @@ import (
 )
 
 func TestBulkValidator_Validate(t *testing.T) {
+
 	ctrl := gomock.NewController(t)
 	defer ctrl.Finish()
 
@@ -21,10 +23,12 @@ func TestBulkValidator_Validate(t *testing.T) {
 
 	m := NewMockstateWrapper(ctrl)
 	m.EXPECT().TopBlock().Return(emptyBlock)
-	m.EXPECT().Map(gomock.Any()).Return(nil)
+	m.EXPECT().TxValidation(gomock.Any()).
+		Return(nil).Times(1)
 	utx := New(10000, NoOpValidator{}, settings.MustMainNetSettings())
-	require.NoError(t, utx.AddWithBytes(byte_helpers.TransferWithSig.Transaction, byte_helpers.TransferWithSig.TransactionBytes))
-
-	validator := newBulkValidator(m, utx, tm(now))
-	validator.Validate()
+	require.NoError(t, utx.AddWithBytesRaw(byte_helpers.TransferWithSig.Transaction,
+		byte_helpers.TransferWithSig.TransactionBytes))
+	validator := newBulkValidator(m, utx, tm(now), proto.TestNetScheme)
+	ctx := context.Background()
+	validator.Validate(ctx)
 }

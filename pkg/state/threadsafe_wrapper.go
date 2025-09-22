@@ -370,12 +370,6 @@ func (a *ThreadSafeReadWrapper) SnapshotStateHashAtHeight(height proto.Height) (
 	return a.s.SnapshotStateHashAtHeight(height)
 }
 
-func (a *ThreadSafeReadWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.CreateNextSnapshotHash(block)
-}
-
 func (a *ThreadSafeReadWrapper) ProvidesExtendedApi() (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
@@ -440,6 +434,12 @@ type ThreadSafeWriteWrapper struct {
 func (a *ThreadSafeWriteWrapper) Map(f func(state NonThreadSafeState) error) error {
 	a.lock()
 	defer a.unlock()
+	return f(a.s)
+}
+
+func (a *ThreadSafeWriteWrapper) MapUnsafe(f func(state NonThreadSafeState) error) error {
+	a.lockUnsafe()
+	defer a.unlockUnsafe()
 	return f(a.s)
 }
 
@@ -512,8 +512,8 @@ func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID) error {
 }
 
 func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) error) error {
-	a.lock()
-	defer a.unlock()
+	a.lockUnsafe() // we have to use unsafe lock, because this method can be called from multiple goroutines
+	defer a.unlockUnsafe()
 	defer a.s.ResetValidationList()
 	return f(a.s)
 }
@@ -536,12 +536,28 @@ func (a *ThreadSafeWriteWrapper) Close() error {
 	return a.s.Close()
 }
 
+func (a *ThreadSafeWriteWrapper) CreateNextSnapshotHash(block *proto.Block) (crypto.Digest, error) {
+	a.lock()
+	defer a.unlock()
+	return a.s.CreateNextSnapshotHash(block)
+}
+
 func NewThreadSafeWriteWrapper(i *int32, mu *sync.RWMutex, s State) StateModifier {
 	return &ThreadSafeWriteWrapper{
 		mu: mu,
 		i:  i,
 		s:  s,
 	}
+}
+
+// A state change in a parallel thread is allowed.
+func (a *ThreadSafeWriteWrapper) lockUnsafe() {
+	a.mu.Lock()
+}
+
+// A state change in a parallel thread is allowed.
+func (a *ThreadSafeWriteWrapper) unlockUnsafe() {
+	a.mu.Unlock()
 }
 
 func (a *ThreadSafeWriteWrapper) lock() {

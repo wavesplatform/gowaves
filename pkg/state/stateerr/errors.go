@@ -10,23 +10,40 @@ import (
 type ErrorType byte
 
 const (
-	// Unmarshal error (for example, of block or transaction).
+	// DeserializationError indicates a failure to unmarshal data (e.g., block or transaction).
 	DeserializationError ErrorType = iota + 1
+
+	// NotFoundError is returned when a requested entity cannot be located.
 	NotFoundError
-	SerializationError
+
+	// TxValidationError indicates a transaction failed validation checks.
 	TxValidationError
+
+	// TxCommitmentError indicates a failure while committing a transaction.
 	TxCommitmentError
+
+	// ValidationError is a generic validation failure.
 	ValidationError
+
+	// RollbackError occurs when rolling back a state change fails.
 	RollbackError
-	// Errors occurring while getting data from database.
+
+	// RetrievalError covers failures when reading data from the database.
 	RetrievalError
-	// Errors occurring while updating/modifying state data.
+
+	// ModificationError covers failures when updating or modifying state data.
 	ModificationError
+
+	// InvalidInputError indicates that input data is malformed or otherwise invalid.
 	InvalidInputError
+
+	// IncompatibilityError indicates mismatched or incompatible data or versions.
 	IncompatibilityError
-	// DB or block storage Close() error.
+
+	// ClosureError indicates a failure to properly close the database or block storage.
 	ClosureError
-	// Minor technical errors which shouldn't ever happen.
+
+	// Other is used for miscellaneous technical errors that should not normally occur.
 	Other
 )
 
@@ -53,21 +70,15 @@ func (err StateError) Unwrap() error {
 
 func IsTxCommitmentError(err error) bool {
 	var stateErr StateError
-	switch {
-	case err == nil:
-		return false
-	case errors.As(err, &stateErr):
+	if errors.As(err, &stateErr) {
 		return stateErr.Type() == TxCommitmentError
-	default:
-		return false
 	}
+	return false
 }
 
 func IsNotFound(err error) bool {
 	var stateErr StateError
 	switch {
-	case err == nil:
-		return false
 	case errors.Is(err, proto.ErrNotFound):
 		// Special case: sometimes proto.ErrNotFound might be used as well.
 		return true
@@ -85,8 +96,6 @@ func IsNotFound(err error) bool {
 func IsInvalidInput(err error) bool {
 	var stateErr StateError
 	switch {
-	case err == nil:
-		return false
 	case errors.As(err, &stateErr):
 		return stateErr.Type() == InvalidInputError
 	default:

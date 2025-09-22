@@ -123,7 +123,7 @@ func (a *WaitSnapshotState) BlockSnapshot(
 		return processScoreAfterApplyingOrReturnToNG(a, a.baseInfo, a.receivedScores, a.blocksCache)
 	}
 	metrics.SnapshotBlockApplied(a.blockWaitingForSnapshot, height+1)
-	metrics.Utx(a.baseInfo.utx.Count())
+	metrics.Utx(a.baseInfo.utx.Len())
 	a.baseInfo.logger.Debug("Handle received key block message: block applied to state",
 		"state", a.String(), "blockID", blockID)
 

@@ -794,7 +794,7 @@ func createServices(
 	parent peer.Parent,
 	scheduler Scheduler,
 ) (services.Services, error) {
-	utxValidator, err := utxpool.NewValidator(st, ntpTime, nc.obsolescencePeriod)
+	utxValidator, err := utxpool.NewValidator(ntpTime, nc.obsolescencePeriod)
 	if err != nil {
 		return services.Services{}, errors.Wrap(err, "failed to initialize UTX")
 	}
