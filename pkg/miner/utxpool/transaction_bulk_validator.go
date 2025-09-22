@@ -1,6 +1,7 @@
 package utxpool
 
 import (
+	"context"
 	"log/slog"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -11,66 +12,44 @@ import (
 )
 
 type BulkValidator interface {
-	Validate()
+	Validate(ctx context.Context)
 }
 
 type bulkValidator struct {
-	state stateWrapper
-	utx   types.UtxPool
-	tm    types.Time
+	state  stateWrapper
+	utx    types.UtxPool
+	tm     types.Time
+	scheme proto.Scheme
 }
 
-func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time) *bulkValidator {
+func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time, scheme proto.Scheme) *bulkValidator {
 	return &bulkValidator{
-		state: state,
-		utx:   utx,
-		tm:    tm,
+		state:  state,
+		utx:    utx,
+		tm:     tm,
+		scheme: scheme,
 	}
 }
 
-func (a bulkValidator) Validate() {
-	transactions, err := a.validate()
-	if err != nil {
-		slog.Debug("Validation failure", logging.Error(err))
+func (a bulkValidator) Validate(ctx context.Context) {
+	if a.utx.Len() == 0 {
+		slog.Debug("UTX pool is empty, nothing to validate")
 		return
 	}
-	for _, t := range transactions {
-		_ = a.utx.AddWithBytes(t.T, t.B)
-	}
-}
-
-func (a bulkValidator) validate() ([]*types.TransactionWithBytes, error) {
-	if a.utx.Count() == 0 {
-		return nil, nil
-	}
-	var transactions []*types.TransactionWithBytes
 	currentTimestamp := proto.NewTimestampFromTime(a.tm.Now())
 	lastKnownBlock := a.state.TopBlock()
-
-	_ = a.state.Map(func(s state.NonThreadSafeState) error {
-		defer s.ResetValidationList()
-
-		for {
-			t := a.utx.Pop()
-			if t == nil {
-				break
-			}
-			_, err := s.ValidateNextTx(t.T, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+	checked, dropped := a.utx.Clean(ctx, func(tx proto.Transaction) bool {
+		err := a.state.TxValidation(func(validation state.TxValidation) error {
+			_, err := validation.ValidateNextTx(tx, currentTimestamp, lastKnownBlock.Timestamp, lastKnownBlock.Version, false)
+			return err
+		})
+		if err != nil {
 			if stateerr.IsTxCommitmentError(err) {
-				// This should not happen in practice.
-				// Reset state, return applied transactions to UTX.
-				s.ResetValidationList()
-				for _, tx := range transactions {
-					_ = a.utx.AddWithBytes(tx.T, tx.B)
-				}
-				transactions = nil
-				continue
-			} else if err == nil {
-				transactions = append(transactions, t)
+				slog.Error("Failed to validate transaction from UTX", logging.Error(err), logging.TxID(tx, a.scheme))
 			}
+			return true // Drop invalid transaction.
 		}
-		return nil
+		return false // Valid transaction - keep it in UTX.
 	})
-
-	return transactions, nil
+	slog.Debug("Finished UTX pool validation", slog.Int("checked", checked), slog.Int("dropped", dropped))
 }

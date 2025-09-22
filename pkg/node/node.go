@@ -160,7 +160,7 @@ func (a *Node) Run(
 	defer wg.Wait()
 
 	go a.runOutgoingConnections(ctx)
-	go a.runInternalMetrics(ctx, protoMessagesLenProvider)
+	go a.runInternalMetrics(ctx, protoMessagesLenProvider, a.utx)
 	go a.runIncomingConnections(ctx)
 
 	tasksCh := make(chan tasks.AsyncTask, 10)
@@ -237,7 +237,11 @@ type lenProvider interface {
 	Len() int
 }
 
-func (a *Node) runInternalMetrics(ctx context.Context, protoMessagesChan lenProvider) {
+func (a *Node) runInternalMetrics(
+	ctx context.Context,
+	protoMessagesChan lenProvider,
+	utx types.UtxPool,
+) {
 	ticker := time.NewTicker(metricInternalChannelSizeUpdateInterval)
 	defer ticker.Stop()
 	for {
@@ -248,6 +252,7 @@ func (a *Node) runInternalMetrics(ctx context.Context, protoMessagesChan lenProv
 			l := protoMessagesChan.Len()
 			metrics.FSMChannelLength(l)
 			metricInternalChannelSize.Set(float64(l))
+			metrics.Utx(utx.Len())
 		}
 	}
 }
