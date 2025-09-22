@@ -46,24 +46,25 @@ const (
 	createAliasLen = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
 
 	// Max allowed versions of transactions.
-	MaxUncheckedTransactionVersion       = 127
-	MaxGenesisTransactionVersion         = 2
-	MaxPaymentTransactionVersion         = 2
-	MaxTransferTransactionVersion        = 3
-	MaxIssueTransactionVersion           = 3
-	MaxReissueTransactionVersion         = 3
-	MaxBurnTransactionVersion            = 3
-	MaxExchangeTransactionVersion        = 3
-	MaxLeaseTransactionVersion           = 3
-	MaxLeaseCancelTransactionVersion     = 3
-	MaxCreateAliasTransactionVersion     = 3
-	MaxMassTransferTransactionVersion    = 2
-	MaxDataTransactionVersion            = 2
-	MaxSetScriptTransactionVersion       = 2
-	MaxSponsorshipTransactionVersion     = 2
-	MaxSetAssetScriptTransactionVersion  = 2
-	MaxInvokeScriptTransactionVersion    = 2
-	MaxUpdateAssetInfoTransactionVersion = 1
+	MaxUncheckedTransactionVersion          = 127
+	MaxGenesisTransactionVersion            = 2
+	MaxPaymentTransactionVersion            = 2
+	MaxTransferTransactionVersion           = 3
+	MaxIssueTransactionVersion              = 3
+	MaxReissueTransactionVersion            = 3
+	MaxBurnTransactionVersion               = 3
+	MaxExchangeTransactionVersion           = 3
+	MaxLeaseTransactionVersion              = 3
+	MaxLeaseCancelTransactionVersion        = 3
+	MaxCreateAliasTransactionVersion        = 3
+	MaxMassTransferTransactionVersion       = 2
+	MaxDataTransactionVersion               = 2
+	MaxSetScriptTransactionVersion          = 2
+	MaxSponsorshipTransactionVersion        = 2
+	MaxSetAssetScriptTransactionVersion     = 2
+	MaxInvokeScriptTransactionVersion       = 2
+	MaxUpdateAssetInfoTransactionVersion    = 1
+	MaxCommitToGenerationTransactionVersion = 1
 
 	MinFee              = 100_000
 	MinFeeScriptedAsset = 400_000
@@ -1818,4 +1819,8 @@ func (ca *CreateAlias) id() (*crypto.Digest, error) {
 
 func validJVMLong(x uint64) bool {
 	return x <= math.MaxInt64
+}
+
+func validJVMInt(x uint32) bool {
+	return x <= math.MaxInt32
 }
