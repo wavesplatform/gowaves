@@ -66,6 +66,19 @@ func NewSecretKeyFromBytes(b []byte) (SecretKey, error) {
 	return sk, nil
 }
 
+func NewSecretKeyFromBase58(s string) (SecretKey, error) {
+	var sk SecretKey
+	b, err := base58.Decode(s)
+	if err != nil {
+		return sk, err
+	}
+	if l := len(b); l != SecretKeySize {
+		return sk, crypto.NewIncorrectLengthError("BLS SecretKey", l, SecretKeySize)
+	}
+	copy(sk[:], b[:SecretKeySize])
+	return sk, nil
+}
+
 // NewSecretKeyFromWavesSecretKey generates BLS secret key from Waves secret key.
 func NewSecretKeyFromWavesSecretKey(wavesSK crypto.SecretKey) (SecretKey, error) {
 	k, err := cbls.KeyGen[cbls.G1](wavesSK.Bytes(), nil, nil)
@@ -188,6 +201,19 @@ func MustSignatureFromBytes(b []byte) Signature {
 		panic(err)
 	}
 	return s
+}
+
+func NewSignatureFromBase58(s string) (Signature, error) {
+	var sig Signature
+	b, err := base58.Decode(s)
+	if err != nil {
+		return sig, err
+	}
+	if l := len(b); l != SignatureSize {
+		return sig, crypto.NewIncorrectLengthError("BLS Signature", l, SignatureSize)
+	}
+	copy(sig[:], b[:SignatureSize])
+	return sig, nil
 }
 
 // Sign calculates 96-byte compressed BLS signature over msg.
