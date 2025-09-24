@@ -50,13 +50,15 @@ func TestPoPVerifyScalaCompatibility(t *testing.T) {
 			pk:     "7QtCEETGT76GHP7gR3Qc9DQzNjJYbxn4UJ7Bz7RofMQx5RJY7mZNveuFNfgJYg2kLn",
 			msg:    "ixUCXhhDbpRXVM3Cnaog2MNLRVt3R9oRgnNnrtCtxv35Lac2KQYMQkKNmHW9wt35dDA6vfU",
 			height: 3,
-			sig:    "my5jyvoghjn94fQU1HQ5EN4WLdxhVzMZJJVY2F8nQ9kDJDr1wCoPrnLvY3xF6FiDJ2wWK8CEeWd2NTKhFMB4chDSwRLRw2xPT45kMC726watbDx8cuF3omkwsZpRDKyX4x4",
+			sig: "my5jyvoghjn94fQU1HQ5EN4WLdxhVzMZJJVY2F8nQ9kDJDr1wCoPrnLvY3xF6FiDJ2wWK8C" +
+				"EeWd2NTKhFMB4chDSwRLRw2xPT45kMC726watbDx8cuF3omkwsZpRDKyX4x4",
 		},
 		{
 			pk:     "7QtCEETGT76GHP7gR3Qc9DQzNjJYbxn4UJ7Bz7RofMQx5RJY7mZNveuFNfgJYg2kLn",
 			msg:    "ixUCXhhDbpRXVM3Cnaog2MNLRVt3R9oRgnNnrtCtxv35Lac2KQYMQkKNmHW9wt35dDA6vfX",
 			height: 6,
-			sig:    "ud4JBLaM8oqK5BmRAo1eXrTQPqD6fJ6yP1f6YovRV2P2ykKxgcgsv12wMvDNzLhd7KD96NqbUU88Ffqzsn47c1vBGrH6jR1NCbs9snf2FPiBTsX46eL95rgysCmZLiXsN29",
+			sig: "ud4JBLaM8oqK5BmRAo1eXrTQPqD6fJ6yP1f6YovRV2P2ykKxgcgsv12wMvDNzLhd7KD96Nq" +
+				"bUU88Ffqzsn47c1vBGrH6jR1NCbs9snf2FPiBTsX46eL95rgysCmZLiXsN29",
 		},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
