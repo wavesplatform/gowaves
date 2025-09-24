@@ -7,7 +7,6 @@ import (
 	"slices"
 	"testing"
 
-	cbls "github.com/cloudflare/circl/sign/bls"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -30,7 +29,7 @@ func TestSignAndVerifySingle(t *testing.T) {
 	msg := []byte("single-sign test")
 	sig, err := bls.Sign(sk, msg)
 	assert.NoError(t, err)
-	require.Len(t, sig, bls.SignatureSize, "compressed G2 signature must be 96 bytes")
+	assert.Len(t, sig, bls.SignatureSize, "compressed G2 signature must be 96 bytes")
 
 	pk, err := sk.PublicKey()
 	require.NoError(t, err)
@@ -39,13 +38,12 @@ func TestSignAndVerifySingle(t *testing.T) {
 	assert.NoError(t, err)
 	assert.True(t, ok)
 
-	// Verify with CIRCL directly
-	csk, err := sk.ToCIRCLSecretKey()
+	// Verify with public key produced from private key.
+	lpk, err := sk.PublicKey()
 	require.NoError(t, err)
-
-	cpk := csk.PublicKey()
-	ok = cbls.Verify[cbls.G1](cpk, msg, sig.Bytes())
-	require.True(t, ok, "single signature should verify")
+	ok, err = bls.Verify(lpk, msg, sig)
+	assert.NoError(t, err)
+	assert.True(t, ok)
 
 	// Negative: wrong message
 	ok, err = bls.Verify(pk, []byte("other"), sig)

@@ -34,7 +34,7 @@ func (k *SecretKey) String() string {
 	return base58.Encode(k[:])
 }
 
-func (k *SecretKey) ToCIRCLSecretKey() (*cbls.PrivateKey[cbls.G1], error) {
+func (k *SecretKey) toCIRCLSecretKey() (*cbls.PrivateKey[cbls.G1], error) {
 	sk := new(cbls.PrivateKey[cbls.G1])
 	if err := sk.UnmarshalBinary(k[:]); err != nil {
 		return nil, fmt.Errorf("failed to get CIRCL secret key: %w", err)
@@ -43,7 +43,7 @@ func (k *SecretKey) ToCIRCLSecretKey() (*cbls.PrivateKey[cbls.G1], error) {
 }
 
 func (k *SecretKey) PublicKey() (PublicKey, error) {
-	sk, err := k.ToCIRCLSecretKey()
+	sk, err := k.toCIRCLSecretKey()
 	if err != nil {
 		return PublicKey{}, fmt.Errorf("failed to get public key: %w", err)
 	}
@@ -120,7 +120,7 @@ func (k *PublicKey) Bytes() []byte {
 	return k[:]
 }
 
-func (k *PublicKey) ToCIRCLPublicKey() (*cbls.PublicKey[cbls.G1], error) {
+func (k *PublicKey) toCIRCLPublicKey() (*cbls.PublicKey[cbls.G1], error) {
 	pk := new(cbls.PublicKey[cbls.G1])
 	if err := pk.UnmarshalBinary(k[:]); err != nil {
 		return nil, fmt.Errorf("failed to get CIRCL public key: %w", err)
@@ -173,7 +173,7 @@ func (s Signature) String() string {
 }
 
 func (s Signature) ShortString() string {
-	const ellipsis = 0x2026
+	const ellipsis = 0x2026 // Ellipsis symbol like '...'.
 	str := base58.Encode(s[:])
 	sb := new(strings.Builder)
 	sb.WriteString(str[:6])
@@ -219,7 +219,7 @@ func NewSignatureFromBase58(s string) (Signature, error) {
 // Sign calculates 96-byte compressed BLS signature over msg.
 // Default separation tag "BLS_SIG_BLS12381G2_XMD:SHA-256_SSWU_RO_NUL_" is used.
 func Sign(sk SecretKey, msg []byte) (Signature, error) {
-	csk, err := sk.ToCIRCLSecretKey()
+	csk, err := sk.toCIRCLSecretKey()
 	if err != nil {
 		return Signature{}, fmt.Errorf("failed to sign: %w", err)
 	}
@@ -228,12 +228,9 @@ func Sign(sk SecretKey, msg []byte) (Signature, error) {
 }
 
 func Verify(pk PublicKey, msg []byte, sig Signature) (bool, error) {
-	cpk, err := pk.ToCIRCLPublicKey()
+	cpk, err := pk.toCIRCLPublicKey()
 	if err != nil {
 		return false, fmt.Errorf("failed to verify signature: %w", err)
-	}
-	if !cpk.Validate() {
-		return false, fmt.Errorf("failed to verify signature: invalid public key")
 	}
 	return cbls.Verify[cbls.G1](cpk, msg, sig.Bytes()), nil
 }
