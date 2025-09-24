@@ -97,5 +97,9 @@ jobs:
         run: go list -json -deps ./... > go.list
       - name: Nancy
         uses: sonatype-nexus-community/nancy-github-action@726e338312e68ecdd4b4195765f174d3b3ce1533 # v1.0.3
+        with:
+          nancyVersion: latest
+          goListFile: go.list
+          nancyCommand: sleuth --username ${{ vars.OSSINDEX_USER }} --token ${{ secrets.OSSINDEX_TOKEN }}
       - name: govulncheck
         run: go install golang.org/x/vuln/cmd/govulncheck@latest && govulncheck ./...
