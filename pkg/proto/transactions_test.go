@@ -6930,7 +6930,6 @@ func TestCommitToGenerationWithProofsProtobufRoundTrip(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			sk, pk, err := crypto.GenerateKeyPair([]byte(tst.seed))
 			require.NoError(t, err)
-
 			blsSK, err := bls.NewSecretKeyFromWavesSecretKey(sk)
 			require.NoError(t, err)
 			blsPK, err := blsSK.PublicKey()
@@ -6941,25 +6940,28 @@ func TestCommitToGenerationWithProofsProtobufRoundTrip(t *testing.T) {
 			err = tx.GenerateID(tst.schema)
 			require.NoError(t, err)
 
-			if bb, mErr := tx.MarshalToProtobuf(tst.schema); assert.NoError(t, mErr) {
-				var atx CommitToGenerationWithProofs
-				if uErr := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, uErr) {
-					assert.Equal(t, *tx, atx)
-				}
-			}
-			if sErr := tx.Sign(tst.schema, sk); assert.NoError(t, sErr) {
-				if r, vErr := tx.Verify(tst.schema, pk); assert.NoError(t, vErr) {
-					assert.True(t, r)
-				}
-			}
-			if b, msErr := tx.MarshalSignedToProtobuf(tst.schema); assert.NoError(t, msErr) {
-				var atx CommitToGenerationWithProofs
-				if usErr := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, usErr) {
-					err = atx.GenerateID(tst.schema)
-					assert.NoError(t, err)
-					assert.Equal(t, *tx, atx)
-				}
-			}
+			b, err := tx.MarshalToProtobuf(tst.schema)
+			require.NoError(t, err)
+			var atx CommitToGenerationWithProofs
+			err = atx.UnmarshalFromProtobuf(b)
+			require.NoError(t, err)
+			assert.Equal(t, *tx, atx)
+
+			err = tx.Sign(tst.schema, sk)
+			require.NoError(t, err)
+
+			ok, err := tx.Verify(tst.schema, pk)
+			require.NoError(t, err)
+			assert.True(t, ok)
+
+			b, err = tx.MarshalSignedToProtobuf(tst.schema)
+			require.NoError(t, err)
+			var stx CommitToGenerationWithProofs
+			err = stx.UnmarshalSignedFromProtobuf(b)
+			require.NoError(t, err)
+			err = stx.GenerateID(tst.schema)
+			require.NoError(t, err)
+			assert.Equal(t, *tx, stx)
 		})
 	}
 }
