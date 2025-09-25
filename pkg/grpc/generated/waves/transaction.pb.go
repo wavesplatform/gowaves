@@ -1596,12 +1596,12 @@ func (x *InvokeExpressionTransactionData) GetExpression() []byte {
 }
 
 type CommitToGenerationTransactionData struct {
-	state                   protoimpl.MessageState `protogen:"open.v1"`
-	GenerationPeriodStart   uint32                 `protobuf:"varint,1,opt,name=generation_period_start,json=generationPeriodStart,proto3" json:"generation_period_start,omitempty"`
-	EndorsementKey          []byte                 `protobuf:"bytes,2,opt,name=endorsement_key,json=endorsementKey,proto3" json:"endorsement_key,omitempty"`
-	EndorsementKeySignature []byte                 `protobuf:"bytes,3,opt,name=endorsement_key_signature,json=endorsementKeySignature,proto3" json:"endorsement_key_signature,omitempty"`
-	unknownFields           protoimpl.UnknownFields
-	sizeCache               protoimpl.SizeCache
+	state                 protoimpl.MessageState `protogen:"open.v1"`
+	GenerationPeriodStart uint32                 `protobuf:"varint,1,opt,name=generation_period_start,json=generationPeriodStart,proto3" json:"generation_period_start,omitempty"`
+	EndorserPublicKey     []byte                 `protobuf:"bytes,2,opt,name=endorser_public_key,json=endorserPublicKey,proto3" json:"endorser_public_key,omitempty"`     // BLS
+	CommitmentSignature   []byte                 `protobuf:"bytes,3,opt,name=commitment_signature,json=commitmentSignature,proto3" json:"commitment_signature,omitempty"` // BLS signature for endorser_public_key ++ generation_period_start
+	unknownFields         protoimpl.UnknownFields
+	sizeCache             protoimpl.SizeCache
 }
 
 func (x *CommitToGenerationTransactionData) Reset() {
@@ -1641,16 +1641,16 @@ func (x *CommitToGenerationTransactionData) GetGenerationPeriodStart() uint32 {
 	return 0
 }
 
-func (x *CommitToGenerationTransactionData) GetEndorsementKey() []byte {
+func (x *CommitToGenerationTransactionData) GetEndorserPublicKey() []byte {
 	if x != nil {
-		return x.EndorsementKey
+		return x.EndorserPublicKey
 	}
 	return nil
 }
 
-func (x *CommitToGenerationTransactionData) GetEndorsementKeySignature() []byte {
+func (x *CommitToGenerationTransactionData) GetCommitmentSignature() []byte {
 	if x != nil {
-		return x.EndorsementKeySignature
+		return x.CommitmentSignature
 	}
 	return nil
 }
@@ -1824,11 +1824,11 @@ const file_waves_transaction_proto_rawDesc = "" +
 	"\x1fInvokeExpressionTransactionData\x12\x1e\n" +
 	"\n" +
 	"expression\x18\x01 \x01(\fR\n" +
-	"expression\"\xc0\x01\n" +
+	"expression\"\xbe\x01\n" +
 	"!CommitToGenerationTransactionData\x126\n" +
-	"\x17generation_period_start\x18\x01 \x01(\rR\x15generationPeriodStart\x12'\n" +
-	"\x0fendorsement_key\x18\x02 \x01(\fR\x0eendorsementKey\x12:\n" +
-	"\x19endorsement_key_signature\x18\x03 \x01(\fR\x17endorsementKeySignatureBk\n" +
+	"\x17generation_period_start\x18\x01 \x01(\rR\x15generationPeriodStart\x12.\n" +
+	"\x13endorser_public_key\x18\x02 \x01(\fR\x11endorserPublicKey\x121\n" +
+	"\x14commitment_signature\x18\x03 \x01(\fR\x13commitmentSignatureBk\n" +
 	"&com.wavesplatform.protobuf.transactionZ9github.com/wavesplatform/gowaves/pkg/grpc/generated/waves\xaa\x02\x05Wavesb\x06proto3"
 
 var (
