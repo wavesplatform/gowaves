@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"math"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -6914,13 +6915,93 @@ func TestShadowedCreateAliasWithSig_DoesNotImplementJSONMarshaler(t *testing.T) 
 	require.False(t, pointerImlements, "pointer must not implement Marshaler")
 }
 
+func TestCommitToGenerationWithProofsValidations(t *testing.T) {
+	psk, _, pErr := crypto.GenerateKeyPair([]byte("PREDEFINED_SEED"))
+	require.NoError(t, pErr)
+	predefinedBLSSK, pErr := bls.NewSecretKeyFromWavesSecretKey(psk)
+	require.NoError(t, pErr)
+	predefinedBLSPK, pErr := predefinedBLSSK.PublicKey()
+	require.NoError(t, pErr)
+	brokenBLSPK, pErr := bls.NewPublicKeyFromBytes(predefinedBLSPK.Bytes())
+	require.NoError(t, pErr)
+	slices.Reverse(brokenBLSPK[:])
+
+	for i, tst := range []struct {
+		version byte
+		seed    string
+		start   uint32
+		fee     uint64
+		blsPK   []byte
+		sig     []byte
+		err     string
+		valid   bool
+	}{
+		{version: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_1", start: 100, fee: 100_000, err: "", valid: true},
+		{version: 0, seed: "COMMIT_TO_GENERATION_TEST_SEED_3", start: 300, fee: 100_000,
+			err: "unexpected version 0 for CommitToGenerationWithProofs", valid: false},
+		{version: 2, seed: "COMMIT_TO_GENERATION_TEST_SEED_3", start: 300, fee: 100_000,
+			err: "unexpected version 2 for CommitToGenerationWithProofs", valid: false},
+		{version: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_2", start: 200, fee: 0,
+			err: "fee should be positive", valid: false},
+		{version: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_4", start: 400, fee: math.MaxUint64,
+			err: "fee is too big", valid: false},
+		{version: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_5", start: 0, fee: 100_000,
+			err: "generation period start should be positive", valid: false},
+		{version: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_5", start: math.MaxUint32, fee: 100_000,
+			err: "generation period start is too big", valid: false},
+		{version: 1, seed: "PREDEFINED_SEED", start: 12345, fee: 100_000, blsPK: predefinedBLSPK.Bytes(),
+			sig: mustBLSSignature(t, predefinedBLSSK, predefinedBLSPK, 12345), err: "", valid: true},
+		{version: 1, seed: "PREDEFINED_SEED", start: 67890, fee: 100_000, blsPK: predefinedBLSPK.Bytes(),
+			sig: mustBLSSignature(t, predefinedBLSSK, predefinedBLSPK, 12345), err: "invalid commitment signature",
+			valid: false},
+		{version: 1, seed: "PREDEFINED_SEED", start: 12345, fee: 100_000, blsPK: brokenBLSPK.Bytes(),
+			sig: mustBLSSignature(t, predefinedBLSSK, predefinedBLSPK, 12345),
+			err: "failed to verify commitment signature: failed to verify PoP, invalid public key: " +
+				"failed to get CIRCL public key: incorrect input length",
+			valid: false},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			sk, pk, err := crypto.GenerateKeyPair([]byte(tst.seed))
+			require.NoError(t, err)
+			blsSK, err := bls.NewSecretKeyFromWavesSecretKey(sk)
+			require.NoError(t, err)
+			blsPK, err := blsSK.PublicKey()
+			require.NoError(t, err)
+			if tst.blsPK != nil {
+				blsPK, err = bls.NewPublicKeyFromBytes(tst.blsPK)
+				require.NoError(t, err)
+			}
+			var sig bls.Signature
+			if tst.sig != nil {
+				sig, err = bls.NewSignatureFromBytes(tst.sig)
+				require.NoError(t, err)
+			} else {
+				_, sig, err = bls.ProvePoP(blsSK, blsPK, tst.start)
+				require.NoError(t, err)
+			}
+			tx := NewUnsignedCommitToGenerationWithProofs(tst.version, pk, tst.start, blsPK, sig, tst.fee, 12345)
+			_, err = tx.Validate(TransactionValidationParams{Scheme: 'W'})
+			if !tst.valid {
+				assert.EqualError(t, err, tst.err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}
+
+func mustBLSSignature(t testing.TB, sk bls.SecretKey, pk bls.PublicKey, start uint32) []byte {
+	_, sig, err := bls.ProvePoP(sk, pk, start)
+	require.NoError(t, err)
+	return sig.Bytes()
+}
+
 func TestCommitToGenerationWithProofsProtobufRoundTrip(t *testing.T) {
 	for i, tst := range []struct {
-		ver    byte
 		schema byte
+		ver    byte
 		seed   string
 		start  uint32
-		blsSK  string
 		fee    uint64
 		ts     uint64
 	}{
@@ -6964,4 +7045,89 @@ func TestCommitToGenerationWithProofsProtobufRoundTrip(t *testing.T) {
 			assert.Equal(t, *tx, stx)
 		})
 	}
+}
+
+func TestCommitToGenerationWithProofsToJSON(t *testing.T) {
+	for i, tst := range []struct {
+		schema byte
+		ver    byte
+		seed   string
+		start  uint32
+		fee    uint64
+		ts     uint64
+	}{
+		{schema: 'W', ver: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_1", start: 100, fee: 100_000, ts: 1630000000000},
+		{schema: 'T', ver: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_2", start: 200, fee: 1_0000_0000, ts: 1640000000000},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			sk, pk, err := crypto.GenerateKeyPair([]byte(tst.seed))
+			require.NoError(t, err)
+			blsSK, err := bls.NewSecretKeyFromWavesSecretKey(sk)
+			require.NoError(t, err)
+			blsPK, err := blsSK.PublicKey()
+			require.NoError(t, err)
+			_, sig, err := bls.ProvePoP(blsSK, blsPK, tst.start)
+			require.NoError(t, err)
+
+			tx := NewUnsignedCommitToGenerationWithProofs(tst.ver, pk, tst.start, blsPK, sig, tst.fee, tst.ts)
+
+			js, err := json.Marshal(tx)
+			require.NoError(t, err)
+			ej := fmt.Sprintf(
+				"{\"type\":20,\"version\":%d,\"senderPublicKey\":\"%s\",\"fee\":%d,\"timestamp\":%d,"+
+					"\"generationPeriodStart\":%d,\"endorserPublicKey\":\"%s\",\"commitmentSignature\":\"%s\"}",
+				tst.ver, base58.Encode(pk.Bytes()), tst.fee, tst.ts, tst.start, base58.Encode(blsPK.Bytes()),
+				base58.Encode(sig.Bytes()),
+			)
+			require.Equal(t, ej, string(js))
+
+			err = tx.Sign(tst.schema, sk)
+			require.NoError(t, err)
+			sj, err := json.Marshal(tx)
+			require.NoError(t, err)
+			esj := fmt.Sprintf(
+				"{\"id\":\"%s\",\"type\":20,\"version\":%d,\"senderPublicKey\":\"%s\",\"fee\":%d,"+
+					"\"timestamp\":%d,\"proofs\":[\"%s\"],\"generationPeriodStart\":%d,\"endorserPublicKey\":\"%s\","+
+					"\"commitmentSignature\":\"%s\"}",
+				base58.Encode(tx.ID[:]), tst.ver, base58.Encode(pk[:]), tst.fee, tst.ts,
+				base58.Encode(tx.Proofs.Proofs[0]), tst.start, base58.Encode(blsPK.Bytes()), base58.Encode(sig.Bytes()),
+			)
+			assert.Equal(t, esj, string(sj))
+		})
+	}
+}
+
+func TestCommitToGenerationWithProofsScalaJSONCompatibility(t *testing.T) {
+	t.Skip("TODO: enable after fix of scala JSON serialization")
+	js := `{
+      "id": "55Cy8fzNF8wNQjjtsFhiNCUQkCJL97iaLRYfnEVRpVnr",
+      "type": 20,
+      "version": 1,
+      "fee": 100000000,
+      "feeAssetId": null,
+      "timestamp": 1526287561757,
+      "sender": "3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh",
+      "senderPublicKey": "FM5ojNqW7e9cZ9zhPYGkpSP1Pcd8Z3e3MNKYVS5pGJ8Z",
+      "generationPeriodStart": 3000,
+      "endorserPublicKey": "",
+      "commitmentSignature": "",
+      "proofs": [
+        "28kE1uN1pX2bwhzr9UHw5UuB9meTFEDFgeunNgy6nZWpHX4pzkGYotu8DhQ88AdqUG6Yy5wcXgHseKPBUygSgRMJ"
+      ],
+      "chainId": 84
+    }`
+	var tx CommitToGenerationWithProofs
+	err := json.Unmarshal([]byte(js), &tx)
+	require.NoError(t, err)
+	assert.Equal(t, CommitToGenerationTransaction, tx.Type)
+	assert.Equal(t, 1, int(tx.Version))
+	assert.Equal(t, uint64(1526287561757), tx.Timestamp)
+	assert.Equal(t, uint32(3000), tx.GenerationPeriodStart)
+	assert.Equal(t, uint64(100000000), tx.Fee)
+	assert.Equal(t, 1, len(tx.Proofs.Proofs))
+	assert.Equal(t, crypto.MustDigestFromBase58("55Cy8fzNF8wNQjjtsFhiNCUQkCJL97iaLRYfnEVRpVnr"), tx.ID)
+	assert.Equal(t, crypto.MustPublicKeyFromBase58("FM5ojNqW7e9cZ9zhPYGkpSP1Pcd8Z3e3MNKYVS5pGJ8Z"), tx.SenderPK)
+	// TODO: fill lines below after Scala fix
+	assert.Equal(t, nil, tx.EndorserPublicKey)
+	assert.Equal(t, nil, tx.CommitmentSignature)
 }

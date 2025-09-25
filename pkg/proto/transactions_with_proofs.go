@@ -5345,7 +5345,7 @@ func (tx CommitToGenerationWithProofs) GetTimestamp() uint64 {
 func (tx *CommitToGenerationWithProofs) Validate(_ TransactionValidationParams) (Transaction, error) {
 	// Assume Scala version errors are fixed, so skip TransactionValidationParams check.
 	if tx.Version < 1 || tx.Version > MaxCommitToGenerationTransactionVersion {
-		return tx, errors.Errorf("unexpected version %d for InvokeExpressionWithProofs", tx.Version)
+		return tx, errors.Errorf("unexpected version %d for CommitToGenerationWithProofs", tx.Version)
 	}
 	if tx.Fee == 0 {
 		return tx, errors.New("fee should be positive")
