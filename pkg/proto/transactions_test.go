@@ -18,6 +18,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	pb "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
 )
@@ -6911,4 +6912,54 @@ func TestShadowedCreateAliasWithSig_DoesNotImplementJSONMarshaler(t *testing.T) 
 	require.False(t, typeImplements, "type must not implement Marshaler")
 	_, pointerImlements := any(&v).(json.Marshaler)
 	require.False(t, pointerImlements, "pointer must not implement Marshaler")
+}
+
+func TestCommitToGenerationWithProofsProtobufRoundTrip(t *testing.T) {
+	for i, tst := range []struct {
+		ver    byte
+		schema byte
+		seed   string
+		start  uint32
+		blsSK  string
+		fee    uint64
+		ts     uint64
+	}{
+		{schema: 'W', ver: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_1", start: 100, fee: 100_000, ts: 1630000000000},
+		{schema: 'T', ver: 1, seed: "COMMIT_TO_GENERATION_TEST_SEED_2", start: 200, fee: 1_0000_0000, ts: 1640000000000},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			sk, pk, err := crypto.GenerateKeyPair([]byte(tst.seed))
+			require.NoError(t, err)
+
+			blsSK, err := bls.NewSecretKeyFromWavesSecretKey(sk)
+			require.NoError(t, err)
+			blsPK, err := blsSK.PublicKey()
+			require.NoError(t, err)
+			_, sig, err := bls.ProvePoP(blsSK, blsPK, tst.start)
+			require.NoError(t, err)
+			tx := NewUnsignedCommitToGenerationWithProofs(tst.ver, pk, tst.start, blsPK, sig, tst.fee, tst.ts)
+			err = tx.GenerateID(tst.schema)
+			require.NoError(t, err)
+
+			if bb, mErr := tx.MarshalToProtobuf(tst.schema); assert.NoError(t, mErr) {
+				var atx CommitToGenerationWithProofs
+				if uErr := atx.UnmarshalFromProtobuf(bb); assert.NoError(t, uErr) {
+					assert.Equal(t, *tx, atx)
+				}
+			}
+			if sErr := tx.Sign(tst.schema, sk); assert.NoError(t, sErr) {
+				if r, vErr := tx.Verify(tst.schema, pk); assert.NoError(t, vErr) {
+					assert.True(t, r)
+				}
+			}
+			if b, msErr := tx.MarshalSignedToProtobuf(tst.schema); assert.NoError(t, msErr) {
+				var atx CommitToGenerationWithProofs
+				if usErr := atx.UnmarshalSignedFromProtobuf(b); assert.NoError(t, usErr) {
+					err = atx.GenerateID(tst.schema)
+					assert.NoError(t, err)
+					assert.Equal(t, *tx, atx)
+				}
+			}
+		})
+	}
 }

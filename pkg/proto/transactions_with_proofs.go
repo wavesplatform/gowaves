@@ -5275,7 +5275,9 @@ type CommitToGenerationWithProofs struct {
 	CommitmentSignature   bls.Signature    `json:"commitmentSignature"`
 }
 
-func NewCommitToGenerationWithProofs(
+// NewUnsignedCommitToGenerationWithProofs creates new CommitToGenerationWithProofs transaction without
+// calculation of ID and signature.
+func NewUnsignedCommitToGenerationWithProofs(
 	v byte, senderPK crypto.PublicKey, generationPeriodStart uint32, endorserPK bls.PublicKey,
 	commitmentSignature bls.Signature, fee, timestamp uint64,
 ) *CommitToGenerationWithProofs {
