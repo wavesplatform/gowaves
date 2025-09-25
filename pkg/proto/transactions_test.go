@@ -6860,6 +6860,7 @@ func TestWavesTranactionGetSenderAndGetSenderPK(t *testing.T) {
 		{&SetAssetScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
 		{&InvokeScriptWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
 		{&UpdateAssetInfoWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
+		{&CommitToGenerationWithProofs{SenderPK: wavesPK}, wavesPK.Bytes(), wavesAddr},
 	}
 	for _, tc := range tests {
 		addr, err := tc.tx.GetSender(TestNetScheme)

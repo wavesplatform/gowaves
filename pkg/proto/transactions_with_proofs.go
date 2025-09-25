@@ -5,10 +5,12 @@ import (
 	"encoding/json"
 	"fmt"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 	"github.com/wavesplatform/gowaves/pkg/libs/serializer"
@@ -5332,7 +5334,6 @@ func (tx CommitToGenerationWithProofs) GetFee() uint64 {
 
 func (tx CommitToGenerationWithProofs) GetFeeAsset() OptionalAsset {
 	return NewOptionalAssetWaves()
-
 }
 
 func (tx CommitToGenerationWithProofs) GetTimestamp() uint64 {
@@ -5356,18 +5357,14 @@ func (tx *CommitToGenerationWithProofs) Validate(_ TransactionValidationParams) 
 	if !validJVMInt(tx.GenerationPeriodStart) {
 		return tx, errors.New("generation period start is too big")
 	}
-	msg := tx.BuildPoPMessage()
-	if !tx.CommitmentSignature.Verify(&tx.EndorserPublicKey, msg) {
-		return tx, errors.New("invalid commitment signature")
+	ok, err := bls.VerifyPoP(tx.EndorserPublicKey, tx.GenerationPeriodStart, tx.CommitmentSignature)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to verify commitment signature")
+	}
+	if !ok {
+		return nil, errors.New("invalid commitment signature")
 	}
 	return tx, nil
-}
-
-func (tx *CommitToGenerationWithProofs) BuildPoPMessage() []byte {
-	buf := make([]byte, 4+bls.PublicKeySize)
-	binary.BigEndian.PutUint32(buf, tx.GenerationPeriodStart)
-	copy(buf[4:], tx.EndorserPublicKey.Bytes())
-	return buf
 }
 
 func (tx *CommitToGenerationWithProofs) GenerateID(scheme Scheme) error {
@@ -5457,11 +5454,15 @@ func (tx *CommitToGenerationWithProofs) UnmarshalSignedFromProtobuf(data []byte)
 }
 func (tx *CommitToGenerationWithProofs) ToProtobuf(scheme Scheme) (*g.Transaction, error) {
 	txData := &g.Transaction_CommitToGeneration{CommitToGeneration: &g.CommitToGenerationTransactionData{
-		GenerationPeriodStart:   tx.GenerationPeriodStart,
-		EndorsementKey:          tx.EndorserPublicKey.Bytes(),
-		EndorsementKeySignature: tx.CommitmentSignature.Bytes(),
+		GenerationPeriodStart: tx.GenerationPeriodStart,
+		EndorserPublicKey:     tx.EndorserPublicKey.Bytes(),
+		CommitmentSignature:   tx.CommitmentSignature.Bytes(),
 	}}
-	fee := &g.Amount{AssetId: nil, Amount: int64(tx.Fee)}
+	aa, err := safecast.ToInt64(tx.Fee)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert fee to int64: %w", err)
+	}
+	fee := &g.Amount{AssetId: nil, Amount: aa}
 	res := TransactionToProtobufCommon(scheme, tx.SenderPK.Bytes(), tx)
 	res.Fee = fee
 	res.Data = txData
