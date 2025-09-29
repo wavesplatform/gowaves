@@ -22,7 +22,7 @@ func TestPoPRoundTrip(t *testing.T) {
 		{height: math.MaxInt32},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
-			sk, err := bls.NewSecretKeyFromWavesSecretKey(randWavesSK(t))
+			sk, err := secretKeyFromWavesSecretKey(randWavesSK(t))
 			require.NoError(t, err)
 			pk, err := sk.PublicKey()
 			require.NoError(t, err)

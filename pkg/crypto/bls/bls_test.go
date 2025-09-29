@@ -7,6 +7,7 @@ import (
 	"slices"
 	"testing"
 
+	cbls "github.com/cloudflare/circl/sign/bls"
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -23,7 +24,7 @@ func randWavesSK(t *testing.T) crypto.SecretKey {
 }
 
 func TestSignAndVerifySingle(t *testing.T) {
-	sk, err := bls.NewSecretKeyFromWavesSecretKey(randWavesSK(t))
+	sk, err := secretKeyFromWavesSecretKey(randWavesSK(t))
 	require.NoError(t, err)
 
 	msg := []byte("single-sign test")
@@ -59,7 +60,7 @@ func TestAggregateFromWavesSecrets_SameMessage(t *testing.T) {
 	sks := make([]bls.SecretKey, n)
 	pks := make([]bls.PublicKey, n)
 	for i := range sks {
-		sk, err := bls.NewSecretKeyFromWavesSecretKey(randWavesSK(t))
+		sk, err := secretKeyFromWavesSecretKey(randWavesSK(t))
 		require.NoError(t, err)
 		sks[i] = sk
 		pk, err := sk.PublicKey()
@@ -86,9 +87,9 @@ func TestAggregateFromWavesSecrets_SameMessage(t *testing.T) {
 }
 
 func TestVerifyAggregate_RejectsDuplicatePublicKeys(t *testing.T) {
-	sk1, err := bls.NewSecretKeyFromWavesSecretKey(randWavesSK(t))
+	sk1, err := secretKeyFromWavesSecretKey(randWavesSK(t))
 	require.NoError(t, err)
-	sk2, err := bls.NewSecretKeyFromWavesSecretKey(randWavesSK(t))
+	sk2, err := secretKeyFromWavesSecretKey(randWavesSK(t))
 	require.NoError(t, err)
 
 	pk1, err := sk1.PublicKey()
@@ -112,9 +113,9 @@ func TestVerifyAggregate_RejectsDuplicatePublicKeys(t *testing.T) {
 }
 
 func TestAggregateSignatures_RejectsDuplicateSignatures(t *testing.T) {
-	sk1, err := bls.NewSecretKeyFromWavesSecretKey(randWavesSK(t))
+	sk1, err := secretKeyFromWavesSecretKey(randWavesSK(t))
 	require.NoError(t, err)
-	sk2, err := bls.NewSecretKeyFromWavesSecretKey(randWavesSK(t))
+	sk2, err := secretKeyFromWavesSecretKey(randWavesSK(t))
 	require.NoError(t, err)
 
 	msg := []byte("same message")
@@ -353,4 +354,21 @@ func TestScalaCompatibilityAggregatedSignatures(t *testing.T) {
 			require.True(t, ok, "aggregate must verify")
 		})
 	}
+}
+
+// secretKeyFromWavesSecretKey generates BLS secret key from Waves secret key.
+func secretKeyFromWavesSecretKey(wavesSK crypto.SecretKey) (bls.SecretKey, error) {
+	k, err := cbls.KeyGen[cbls.G1](wavesSK.Bytes(), nil, nil)
+	if err != nil {
+		return bls.SecretKey{}, fmt.Errorf("failed to create BLS secret key from Waves secret key: %w", err)
+	}
+	b, err := k.MarshalBinary()
+	if err != nil {
+		return bls.SecretKey{}, fmt.Errorf("failed to create BLS secret key from Waves secret key: %w", err)
+	}
+	sk, err := bls.NewSecretKeyFromBytes(b)
+	if err != nil {
+		return bls.SecretKey{}, fmt.Errorf("failed to create BLS secret key from Waves secret key: %w", err)
+	}
+	return sk, nil
 }
