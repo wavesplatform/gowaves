@@ -224,7 +224,7 @@ func Encode2CBigInt(n *big.Int) []byte {
 		// If the most-significant-bit isn't set then we'll need to pad the beginning
 		// with 0xff in order to keep the number negative
 		nMinus1 := new(big.Int).Neg(n)
-		nMinus1.Sub(nMinus1, big.NewInt(1))
+		nMinus1.Sub(nMinus1, big.NewInt(byte0x01))
 		bts := nMinus1.Bytes()
 		for i := range bts {
 			bts[i] ^= byte0xff
