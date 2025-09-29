@@ -218,24 +218,21 @@ func Encode2CBigInt(n *big.Int) []byte {
 		return bts
 	case sign == 0: // Zero is written as a single 0 zero rather than no bytes
 		return []byte{byte0x00}
-	case sign < 0:
+	default:
 		// Convert negative number into two's complement form
 		// Subtract 1 and invert
 		// If the most-significant-bit isn't set then we'll need to pad the beginning
 		// with 0xff in order to keep the number negative
-		bigOne := big.NewInt(byte0x01)
 		nMinus1 := new(big.Int).Neg(n)
-		nMinus1.Sub(nMinus1, bigOne)
+		nMinus1.Sub(nMinus1, big.NewInt(1))
 		bts := nMinus1.Bytes()
 		for i := range bts {
 			bts[i] ^= byte0xff
 		}
-		if l := len(bts); l == 0 || bts[0]&byte0x80 == 0 {
+		if len(bts) == 0 || bts[0]&byte0x80 == 0 {
 			return padBytes(byte0xff, bts)
 		}
 		return bts
-	default:
-		panic("unreachable point reached")
 	}
 }
 
