@@ -1053,28 +1053,28 @@ func (p *astParser) ruleIntegerHandler(node *node32) (ast.Node, s.Type) {
 
 func (p *astParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
 	curNode := node.up
-	var res string
+	var res strings.Builder
 	for curNode != nil {
 		switch curNode.pegRule {
 		case ruleChar:
-			res += p.nodeValue(curNode)
+			res.WriteString(p.nodeValue(curNode))
 		case ruleEscapedChar:
 			escapedChar := p.nodeValue(curNode)
 			switch escapedChar {
 			case "\\b":
-				res += "\b"
+				res.WriteString("\b")
 			case "\\f":
-				res += "\f"
+				res.WriteString("\f")
 			case "\\n":
-				res += "\n"
+				res.WriteString("\n")
 			case "\\r":
-				res += "\r"
+				res.WriteString("\r")
 			case "\\t":
-				res += "\t"
+				res.WriteString("\t")
 			case "\\\\":
-				res += "\\"
+				res.WriteString("\\")
 			case "\\\"":
-				res += "\""
+				res.WriteString("\"")
 			default:
 				p.addError(curNode.token32,
 					"Unknown escaped symbol: '%s'. The valid are \\b, \\f, \\n, \\r, \\t, \\\\, \\\"", escapedChar)
@@ -1085,12 +1085,12 @@ func (p *astParser) ruleStringHandler(node *node32) (ast.Node, s.Type) {
 			if err != nil {
 				p.addError(curNode.token32, "Unknown UTF-8 symbol '\\u%s'", unicodeChar)
 			} else {
-				res += char
+				res.WriteString(char)
 			}
 		}
 		curNode = curNode.next
 	}
-	return ast.NewStringNode(res), s.StringType
+	return ast.NewStringNode(res.String()), s.StringType
 }
 
 func (p *astParser) ruleByteVectorHandler(node *node32) (ast.Node, s.Type) {
@@ -1397,18 +1397,18 @@ func (p *astParser) ruleParExprHandler(node *node32) (ast.Node, s.Type) {
 }
 
 func listArgsToString(l []s.Type) string {
-	res := ""
+	var res strings.Builder
 	for i, t := range l {
 		if t == nil {
-			res += "Unknown"
+			res.WriteString("Unknown")
 		} else {
-			res += t.String()
+			res.WriteString(t.String())
 		}
 		if i < len(l)-1 {
-			res += ", "
+			res.WriteString(", ")
 		}
 	}
-	return res
+	return res.String()
 }
 
 func (p *astParser) ruleFunctionCallHandler(node *node32, firstArg ast.Node, firstArgType s.Type) (ast.Node, s.Type) {
