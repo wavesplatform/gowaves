@@ -1810,17 +1810,17 @@ func (m *CommitToGenerationTransactionData) MarshalToSizedBufferVTStrict(dAtA []
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if len(m.EndorsementKeySignature) > 0 {
-		i -= len(m.EndorsementKeySignature)
-		copy(dAtA[i:], m.EndorsementKeySignature)
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.EndorsementKeySignature)))
+	if len(m.CommitmentSignature) > 0 {
+		i -= len(m.CommitmentSignature)
+		copy(dAtA[i:], m.CommitmentSignature)
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.CommitmentSignature)))
 		i--
 		dAtA[i] = 0x1a
 	}
-	if len(m.EndorsementKey) > 0 {
-		i -= len(m.EndorsementKey)
-		copy(dAtA[i:], m.EndorsementKey)
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.EndorsementKey)))
+	if len(m.EndorserPublicKey) > 0 {
+		i -= len(m.EndorserPublicKey)
+		copy(dAtA[i:], m.EndorserPublicKey)
+		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.EndorserPublicKey)))
 		i--
 		dAtA[i] = 0x12
 	}
@@ -2549,11 +2549,11 @@ func (m *CommitToGenerationTransactionData) SizeVT() (n int) {
 	if m.GenerationPeriodStart != 0 {
 		n += 1 + protohelpers.SizeOfVarint(uint64(m.GenerationPeriodStart))
 	}
-	l = len(m.EndorsementKey)
+	l = len(m.EndorserPublicKey)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
-	l = len(m.EndorsementKeySignature)
+	l = len(m.CommitmentSignature)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
@@ -6139,7 +6139,7 @@ func (m *CommitToGenerationTransactionData) UnmarshalVT(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EndorsementKey", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field EndorserPublicKey", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -6166,14 +6166,14 @@ func (m *CommitToGenerationTransactionData) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.EndorsementKey = append(m.EndorsementKey[:0], dAtA[iNdEx:postIndex]...)
-			if m.EndorsementKey == nil {
-				m.EndorsementKey = []byte{}
+			m.EndorserPublicKey = append(m.EndorserPublicKey[:0], dAtA[iNdEx:postIndex]...)
+			if m.EndorserPublicKey == nil {
+				m.EndorserPublicKey = []byte{}
 			}
 			iNdEx = postIndex
 		case 3:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EndorsementKeySignature", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field CommitmentSignature", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -6200,9 +6200,9 @@ func (m *CommitToGenerationTransactionData) UnmarshalVT(dAtA []byte) error {
 			if postIndex > l {
 				return io.ErrUnexpectedEOF
 			}
-			m.EndorsementKeySignature = append(m.EndorsementKeySignature[:0], dAtA[iNdEx:postIndex]...)
-			if m.EndorsementKeySignature == nil {
-				m.EndorsementKeySignature = []byte{}
+			m.CommitmentSignature = append(m.CommitmentSignature[:0], dAtA[iNdEx:postIndex]...)
+			if m.CommitmentSignature == nil {
+				m.CommitmentSignature = []byte{}
 			}
 			iNdEx = postIndex
 		default:
