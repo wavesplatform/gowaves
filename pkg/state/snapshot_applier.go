@@ -65,7 +65,7 @@ func (a *blockSnapshotsApplier) AfterTxSnapshotApply() error {
 		// for issued asset without script we have to apply empty asset script snapshot
 		err := emptyAssetScriptSnapshot.Apply(a)
 		if err != nil {
-			return errors.Wrapf(err, "failed to apply empty asset scipt snapshot for asset %q", assetID)
+			return errors.Wrapf(err, "failed to apply empty asset script snapshot for asset %q", assetID)
 		}
 	}
 	for _, leaseID := range a.newLeases { // need for compatibility with legacy state hashes
