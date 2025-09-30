@@ -1173,7 +1173,7 @@ func TestTransferWithProofsValidations(t *testing.T) {
 	spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	require.NoError(t, err)
 	for i, tc := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			rcp, err := recipientFromString(tc.recipient)
 			require.NoError(t, err)
 			att := []byte(tc.att)
