@@ -217,7 +217,7 @@ func fromBase58Limited(limits limits, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "fromBase58")
 	}
-	if l := len(s); limits.input > 0 && l > limits.input /*maxBase58StringToDecode*/ {
+	if l := len(s); limits.input > 0 && l > limits.input {
 		return nil, RuntimeError.Errorf("fromBase58: input is too long (%d), limit is %d", l, limits.input)
 	}
 	if s == "" {
