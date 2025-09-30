@@ -6,6 +6,7 @@ import (
 	stderrs "errors"
 	"flag"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/miner/endorsementpool"
 	"io"
 	"log/slog"
 	"math"
@@ -804,6 +805,7 @@ func createServices(
 		Scheduler:       scheduler,
 		BlocksApplier:   blocks_applier.NewBlocksApplier(),
 		UtxPool:         utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
+		EndorsementPool: endorsementpool.NewEndorsementPool(),
 		Scheme:          cfg.AddressSchemeCharacter,
 		Time:            ntpTime,
 		Wallet:          wal,

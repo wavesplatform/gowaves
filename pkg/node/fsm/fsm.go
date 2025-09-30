@@ -79,6 +79,8 @@ type BaseInfo struct {
 
 	utx types.UtxPool
 
+	endorsements types.EndorsementPool
+
 	minPeersMining int
 
 	skipMessageList *messages.SkipMessageList
@@ -195,6 +197,7 @@ const (
 	StartMiningEvent        = "StartMining"
 	ChangeSyncPeerEvent     = "ChangeSyncPeer"
 	BlockSnapshotEvent      = "BlockSnapshotEvent"
+	BlockEndorsementEvent   = "EndorseBlock"
 	MicroBlockSnapshotEvent = "MicroBlockSnapshotEvent"
 )
 
@@ -245,7 +248,8 @@ func NewFSM(
 
 		actions: &ActionsImpl{services: services, logger: logger},
 
-		utx: services.UtxPool,
+		utx:          services.UtxPool,
+		endorsements: services.EndorsementPool,
 
 		minPeersMining: services.MinPeersMining,
 
@@ -393,6 +397,12 @@ func (f *FSM) ChangeSyncPeer(p peer.Peer) (Async, error) {
 func (f *FSM) BlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(BlockSnapshotEvent, asyncRes, p, blockID, snapshots)
+	return *asyncRes, err
+}
+
+func (f *FSM) BlockEndorsement(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(BlockEndorsementEvent, asyncRes, p, blockID, snapshots)
 	return *asyncRes, err
 }
 

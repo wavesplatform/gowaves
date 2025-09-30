@@ -224,3 +224,11 @@ type EmbeddedWallet interface {
 	Load(password []byte) error
 	AccountSeeds() [][]byte
 }
+
+// UtxPool storage interface
+type EndorsementPool interface {
+	Add(e *proto.EndorseBlock) (bool, error)
+	GetAll() []*proto.EndorseBlock
+	Len() int
+	CleanAll()
+}

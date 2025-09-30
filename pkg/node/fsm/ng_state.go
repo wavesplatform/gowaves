@@ -205,6 +205,36 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	return newNGState(a.baseInfo), nil, nil
 }
 
+func (a *NGState) BlockEndorsement(peer peer.Peer, blockEndorsement *proto.EndorseBlock) (State, Async, error) {
+
+	height, errHeight := a.baseInfo.storage.Height()
+	if errHeight != nil {
+		return a, nil, a.Errorf(errHeight)
+	}
+	metrics.BlockReceived(block, peer.Handshake().NodeName)
+
+	top := a.baseInfo.storage.TopBlock()
+	if top.BlockID() != block.Parent { // does block refer to last block
+		a.baseInfo.logger.Debug("Key-block has parent which is not the top block", "state", a.String(),
+			"blockID", block.ID.String(), "parent", block.Parent.String(), "top", top.ID.String())
+		if a.baseInfo.enableLightMode {
+			if err = a.rollbackToStateFromCacheInLightNode(block.Parent); err != nil {
+				return a, nil, a.Errorf(err)
+			}
+		} else {
+			if blockFromCache, okGet := a.blocksCache.Get(block.Parent); okGet {
+				a.baseInfo.logger.Debug("Re-applying block from cache", "state", a.String(),
+					"blockID", blockFromCache.ID.String())
+				if err = a.rollbackToStateFromCache(blockFromCache); err != nil {
+					return a, nil, a.Errorf(err)
+				}
+			}
+		}
+	}
+
+	return newNGState(a.baseInfo), nil, nil
+}
+
 func (a *NGState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
@@ -531,6 +561,15 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 						"unexpected type '%T' expected '*NGState'", state.State))
 				}
 				return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
+			})).
+		PermitDynamic(BlockEndorsementEvent,
+			createPermitDynamicCallback(BlockEndorsementEvent, state, func(args ...any) (State, Async, error) {
+				a, ok := state.State.(*NGState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*NGState'", state.State))
+				}
+				return a.BlockEndorsement(convertToInterface[peer.Peer](args[0]), args[1].(*proto.EndorseBlock))
 			})).
 		PermitDynamic(MinedBlockEvent,
 			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...any) (State, Async, error) {

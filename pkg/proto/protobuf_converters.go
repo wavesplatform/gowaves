@@ -1686,6 +1686,43 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 	}, nil
 }
 
+func (c *ProtobufConverter) EndorseBlock(endorsement *g.EndorseBlock) (EndorseBlock, error) {
+	if endorsement == nil {
+		return EndorseBlock{}, errors.New("empty endorsement")
+	}
+	return EndorseBlock{
+		EndorserIndex:        endorsement.EndorserIndex,
+		FinalizedBlockId:     endorsement.FinalizedBlockId,
+		FinalizedBlockHeight: endorsement.FinalizedBlockHeight,
+		EndorsedBlockId:      endorsement.EndorsedBlockId,
+		Signature:            endorsement.Signature,
+	}, nil
+}
+
+func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.FinalizationVoting) (FinalizationVoting, error) {
+	if finalizationVoting == nil {
+		return FinalizationVoting{}, errors.New("empty finalization voting")
+	}
+	conflictEndorsements := make([]EndorseBlock, len(finalizationVoting.ConflictEndorsements))
+	for i, ce := range finalizationVoting.ConflictEndorsements {
+		if ce != nil {
+			return FinalizationVoting{}, errors.New("empty endorsement in finalization")
+		}
+		conflictEndorsements[i] = EndorseBlock{
+			EndorserIndex:        ce.EndorserIndex,
+			FinalizedBlockId:     ce.FinalizedBlockId,
+			FinalizedBlockHeight: ce.FinalizedBlockHeight,
+			EndorsedBlockId:      ce.EndorsedBlockId,
+			Signature:            ce.Signature,
+		}
+	}
+	return FinalizationVoting{
+		EndorserIndexes:                finalizationVoting.EndorserIndexes,
+		AggregatedEndorsementSignature: finalizationVoting.AggregatedEndorsementSignature,
+		ConflictEndorsements:           conflictEndorsements,
+	}, nil
+}
+
 func (c *ProtobufConverter) SignedTransactions(txs []*g.SignedTransaction) ([]Transaction, error) {
 	res := make([]Transaction, len(txs))
 	for i, stx := range txs {
