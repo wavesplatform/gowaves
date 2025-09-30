@@ -1,6 +1,7 @@
 package endorsementpool
 
 import (
+	"container/heap"
 	"errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"sync"
@@ -69,23 +70,19 @@ type EndorsementPool struct {
 	seq        uint64
 	countLimit int
 	byKey      map[key]*heapItemEndorsement
-	verifier   EndorseVerifier
+	h          endorsementHeap
 }
 
 func NewEndorsementPool() *EndorsementPool {
 	return &EndorsementPool{
 		countLimit: endorsementPoolLimit,
 		byKey:      make(map[key]*heapItemEndorsement),
-		verifier:   v,
 	}
 }
 
-func (p *EndorsementPool) Add(e *proto.EndorseBlock) (bool, error) {
+func (p *EndorsementPool) Add(e *proto.EndorseBlock) error {
 	if e == nil || len(e.EndorsedBlockId) == 0 {
-		return false, errors.New("invalid endorsed block id")
-	}
-	if p.verifier != nil && !p.verifier.Verify(e) {
-		return false, errors.New("failed to verify the endorsement")
+		return errors.New("invalid endorsed block id")
 	}
 	k := makeKey(e.EndorsedBlockId, e.EndorserIndex)
 
@@ -93,23 +90,30 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock) (bool, error) {
 	defer p.mu.Unlock()
 
 	if _, exists := p.byKey[k]; exists {
-		return false, errors.New("the endorsement is a duplicate") // duplicate
+		return errors.New("duplicate endorsement")
 	}
-	if len(p.byKey) >= p.countLimit {
-		return false, errors.New("the endorsement pool is full")
+
+	// Evict oldest if full
+	if p.countLimit > 0 && len(p.byKey) >= p.countLimit {
+		return errors.New("the endorsement pool is full")
 	}
 
 	p.seq++
-	p.byKey[k] = &heapItemEndorsement{eb: e, seq: p.seq}
-	return true, nil
+	it := &heapItemEndorsement{eb: e, seq: p.seq}
+	heap.Push(&p.h, it)
+	p.byKey[k] = it
+	return nil
 }
 
 func (p *EndorsementPool) GetAll() []*proto.EndorseBlock {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	out := make([]*proto.EndorseBlock, 0, len(p.byKey))
-	for _, it := range p.byKey {
-		out = append(out, it.eb)
+
+	out := make([]*proto.EndorseBlock, 0, len(p.h))
+	for _, it := range p.h {
+		if it != nil {
+			out = append(out, it.eb)
+		}
 	}
 	return out
 }
@@ -124,4 +128,35 @@ func (p *EndorsementPool) CleanAll() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 	p.byKey = make(map[key]*heapItemEndorsement)
+	p.h = endorsementHeap{} // reset heap too
+}
+func (p *EndorsementPool) Pop() *proto.EndorseBlock {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if len(p.h) == 0 {
+		return nil
+	}
+	it := heap.Pop(&p.h).(*heapItemEndorsement)
+	k := makeKey(it.eb.EndorsedBlockId, it.eb.EndorserIndex)
+	delete(p.byKey, k)
+	return it.eb
+}
+
+func (p *EndorsementPool) FindByBlockID(blockID proto.BlockID) ([]*proto.EndorseBlock, error) {
+	var bid [32]byte
+	copy(bid[:], blockID.Bytes())
+
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	out := make([]*proto.EndorseBlock, 0)
+	for k, it := range p.byKey {
+		if k.blockID == bid {
+			out = append(out, it.eb)
+		}
+	}
+	if len(out) == 0 {
+		return nil, errors.New("no endorsements found for block ID")
+	}
+	return out, nil
 }

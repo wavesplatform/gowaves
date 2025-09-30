@@ -202,35 +202,36 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 
 	a.baseInfo.CleanUtx()
 
+	// TODO verify endorsements to finalize block, clean endorsement pool.
+
 	return newNGState(a.baseInfo), nil, nil
 }
 
 func (a *NGState) BlockEndorsement(peer peer.Peer, blockEndorsement *proto.EndorseBlock) (State, Async, error) {
-
-	height, errHeight := a.baseInfo.storage.Height()
-	if errHeight != nil {
-		return a, nil, a.Errorf(errHeight)
+	endorsedBlockID, err := proto.NewBlockIDFromBytes(blockEndorsement.EndorsedBlockId)
+	if err != nil {
+		return a, nil, a.Errorf(err)
 	}
-	metrics.BlockReceived(block, peer.Handshake().NodeName)
 
+	endorsedMicroBlock, found := a.baseInfo.MicroBlockCache.GetBlock(endorsedBlockID)
+	if !found || endorsedMicroBlock == nil {
+		return a, nil, a.Errorf(errors.New("failed to find the microblock that was endorsed"))
+	}
 	top := a.baseInfo.storage.TopBlock()
-	if top.BlockID() != block.Parent { // does block refer to last block
-		a.baseInfo.logger.Debug("Key-block has parent which is not the top block", "state", a.String(),
-			"blockID", block.ID.String(), "parent", block.Parent.String(), "top", top.ID.String())
-		if a.baseInfo.enableLightMode {
-			if err = a.rollbackToStateFromCacheInLightNode(block.Parent); err != nil {
-				return a, nil, a.Errorf(err)
-			}
-		} else {
-			if blockFromCache, okGet := a.blocksCache.Get(block.Parent); okGet {
-				a.baseInfo.logger.Debug("Re-applying block from cache", "state", a.String(),
-					"blockID", blockFromCache.ID.String())
-				if err = a.rollbackToStateFromCache(blockFromCache); err != nil {
-					return a, nil, a.Errorf(err)
-				}
-			}
-		}
+	if top.BlockID() != endorsedMicroBlock.Reference { // Microblock's endorsement doesn't refer to last block
+		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
+			endorsedMicroBlock.TotalBlockID.String(), endorsedMicroBlock.Reference.String(), top.BlockID().String())
+		return a, nil, proto.NewInfoMsg(err)
 	}
+
+	// TODO verify individual endorsements (signatures) using the endorser's public key.
+
+	err = a.baseInfo.endorsements.Add(blockEndorsement)
+	if err != nil {
+		return nil, nil, errors.Errorf("failed to add an endorsement, %v", err)
+	}
+
+	// TODO send the proto message to peers about endorsement
 
 	return newNGState(a.baseInfo), nil, nil
 }
@@ -286,8 +287,16 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 			metrics.MicroBlockDeclined(micro)
 			return a, nil, a.Errorf(err)
 		}
+
 		a.baseInfo.logger.Debug("Received microblock successfully applied to state",
 			"state", a.String(), "blockID", block.BlockID(), "ref", micro.Reference)
+
+		endorsement, err := a.baseInfo.endorsements.FindByBlockID(block.BlockID())
+		if err != nil {
+			return nil, nil, err
+		}
+		micro.Endorsements = endorsement
+
 		a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 		a.blocksCache.AddBlockState(block)
 		a.baseInfo.scheduler.Reschedule()
