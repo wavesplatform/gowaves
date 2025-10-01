@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"math"
-	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -1175,7 +1174,7 @@ func TestTransferWithProofsValidations(t *testing.T) {
 	spk, err := crypto.NewPublicKeyFromBase58("BJ3Q8kNPByCWHwJ3RLn55UPzUDVgnh64EwYAU5iCj6z6")
 	require.NoError(t, err)
 	for i, tc := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			rcp, err := recipientFromString(tc.recipient)
 			require.NoError(t, err)
 			att := []byte(tc.att)
@@ -6916,15 +6915,13 @@ func TestShadowedCreateAliasWithSig_DoesNotImplementJSONMarshaler(t *testing.T) 
 }
 
 func TestCommitToGenerationWithProofsValidations(t *testing.T) {
-	psk, _, pErr := crypto.GenerateKeyPair([]byte("PREDEFINED_SEED"))
-	require.NoError(t, pErr)
-	predefinedBLSSK, pErr := bls.NewSecretKeyFromWavesSecretKey(psk)
+	predefinedBLSSK, pErr := bls.GenerateSecretKey([]byte("PREDEFINED_SEED"))
 	require.NoError(t, pErr)
 	predefinedBLSPK, pErr := predefinedBLSSK.PublicKey()
 	require.NoError(t, pErr)
 	brokenBLSPK, pErr := bls.NewPublicKeyFromBytes(predefinedBLSPK.Bytes())
 	require.NoError(t, pErr)
-	slices.Reverse(brokenBLSPK[:])
+	brokenBLSPK[0] = 0xFF
 
 	for i, tst := range []struct {
 		version byte
@@ -6957,13 +6954,13 @@ func TestCommitToGenerationWithProofsValidations(t *testing.T) {
 		{version: 1, seed: "PREDEFINED_SEED", start: 12345, fee: 100_000, blsPK: brokenBLSPK.Bytes(),
 			sig: mustBLSSignature(t, predefinedBLSSK, predefinedBLSPK, 12345),
 			err: "failed to verify commitment signature: failed to verify PoP, invalid public key: " +
-				"failed to get CIRCL public key: incorrect input length",
+				"failed to get CIRCL public key: incorrect encoding",
 			valid: false},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
-			sk, pk, err := crypto.GenerateKeyPair([]byte(tst.seed))
+			_, pk, err := crypto.GenerateKeyPair([]byte(tst.seed))
 			require.NoError(t, err)
-			blsSK, err := bls.NewSecretKeyFromWavesSecretKey(sk)
+			blsSK, err := bls.GenerateSecretKey([]byte(tst.seed))
 			require.NoError(t, err)
 			blsPK, err := blsSK.PublicKey()
 			require.NoError(t, err)
@@ -7011,7 +7008,7 @@ func TestCommitToGenerationWithProofsProtobufRoundTrip(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			sk, pk, err := crypto.GenerateKeyPair([]byte(tst.seed))
 			require.NoError(t, err)
-			blsSK, err := bls.NewSecretKeyFromWavesSecretKey(sk)
+			blsSK, err := bls.GenerateSecretKey([]byte(tst.seed))
 			require.NoError(t, err)
 			blsPK, err := blsSK.PublicKey()
 			require.NoError(t, err)
@@ -7062,7 +7059,7 @@ func TestCommitToGenerationWithProofsToJSON(t *testing.T) {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			sk, pk, err := crypto.GenerateKeyPair([]byte(tst.seed))
 			require.NoError(t, err)
-			blsSK, err := bls.NewSecretKeyFromWavesSecretKey(sk)
+			blsSK, err := bls.GenerateSecretKey([]byte(tst.seed))
 			require.NoError(t, err)
 			blsPK, err := blsSK.PublicKey()
 			require.NoError(t, err)

@@ -92,6 +92,10 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
+	deterministicFinalityActivated, err := tc.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return scriptFeaturesActivations{}, err
+	}
 	if libVersion < ast.LibV4 && lightNodeActivated {
 		return scriptFeaturesActivations{},
 			errors.Errorf("scripts with versions below %d are disabled after activation of Light Node feature",
@@ -124,6 +128,10 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	if libVersion == ast.LibV8 && !lightNodeActivated {
 		return scriptFeaturesActivations{},
 			errors.New("LightNode feature must be activated for scripts version 8")
+	}
+	if libVersion == ast.LibV9 && !deterministicFinalityActivated {
+		return scriptFeaturesActivations{},
+			errors.New("DeterministicFinality feature must be activated for scripts version 9")
 	}
 	return scriptFeaturesActivations{
 		rideForDAppsActivated: rideForDAppsActivated,
@@ -464,7 +472,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return out, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
 		if l := len(tx.Data()); needToValidateNonEmptyCallData && l != ethabi.ERC20TransferCallDataSize {
-			return out, errors.Errorf("ethereum call data must be %d size for assset transfer, but size is %d",
+			return out, errors.Errorf("ethereum call data must be %d size for asset transfer, but size is %d",
 				ethabi.ERC20TransferCallDataSize, l)
 		}
 		allAssets := []proto.OptionalAsset{kind.Asset}

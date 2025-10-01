@@ -4,6 +4,7 @@ import (
 	"context"
 	"embed"
 	"encoding/base64"
+	"fmt"
 	"net/http"
 	"os"
 	"strconv"
@@ -74,10 +75,10 @@ func TestDirectivesCompileFail(t *testing.T) {
 		errorMsg []string
 	}{
 		{`
-{-# STDLIB_VERSION 9 #-}
+{-# STDLIB_VERSION 10 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}`,
-			[]string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '9'"}},
+			[]string{"(2:20, 2:22): Invalid directive 'STDLIB_VERSION': unsupported library version '10'"}},
 		{`
 {-# STDLIB_VERSION 0 #-}
 {-# CONTENT_TYPE DAPP #-}
@@ -891,7 +892,7 @@ func cursed() = [][0]`,
 			false, "AAIFAAAAAAAAAAQIAhIAAAAAAAAAAAEAAAABaQEAAAAGY3Vyc2VkAAAAAAkAAZEAAAACBQAAAANuaWwAAAAAAAAAAAAAAAAAGWOB3Q=="}, // https://waves-ide.com/s/641c670fc4784c002a8e840a
 	}
 	for i, test := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			compareScriptsOrError(t, test.code, test.fail, test.expected, false, false)
 		})
 	}
@@ -923,7 +924,7 @@ let a = unit.f()`,
 			false, "BgIOCAIiAWYiBHVuaXQiAWECAQFhAQFiBQFiAAFjCQEBYQEFBHVuaXQAALdQWqE="},
 	}
 	for i, test := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			compareScriptsOrError(t, test.code, test.fail, test.expected, true, false)
 		})
 	}
@@ -955,7 +956,7 @@ let a = addressFromPublicKey(base16'')`,
 			false, "BgIeCAIiAWYiFGFkZHJlc3NGcm9tUHVibGljS2V5IgFhAgEBYQEBYgUBYgABYwkApwgBAQAAAHqqKaU="},
 	}
 	for i, test := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			compareScriptsOrError(t, test.code, test.fail, test.expected, true, false)
 		})
 	}
@@ -992,7 +993,7 @@ func verify() = {
 			false, "BgIzCAISACIEdmFyWCIEdmFyWSIFZnVuYzIiBWZ1bmMxIgFpIgR0bXAxIgJ0eCIGdmVyaWZ5BAABYQBvAAFiAN4BAQFjAAkAZQIAlJEGBQFiAQFkAAkAZAIJAQFjAAAqAQFlAQRjYWxsAAQBZgkAZAIJAQFkAAUBYQkAzAgCCQEMSW50ZWdlckVudHJ5AgIHc29tZWtleQUBZgUDbmlsAQFnAQFoAAkBAiE9AgkBAWMABQFhYjSbXw=="},
 	}
 	for i, test := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			compareScriptsOrError(t, test.code, test.fail, test.expected, true, true)
 		})
 	}
@@ -1016,7 +1017,7 @@ func verify() = {
 			false, "BgICCAICAQNmb28AACgBA2JhcgAAAgABAnR4AQZ2ZXJpZnkACQAAAgkAZAIJAQNmb28ACQEDYmFyAAAqeoOlqQ=="},
 	}
 	for i, test := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			compareScriptsOrError(t, test.code, test.fail, test.expected, false, true)
 		})
 	}
@@ -1046,7 +1047,7 @@ func call() = {
 			false, "AAIFAAAAAAAAAAQIAhIAAAAAAQEAAAADZm9vAAAAAQAAAAFhCQAAZAAAAAIIBQAAAAFhAAAAAl8xCAUAAAABYQAAAAJfMgAAAAEAAAABaQEAAAAEY2FsbAAAAAAEAAAAAWEJAQAAAANmb28AAAABCQAFFAAAAAIAAAAAAAAAAAEAAAAAAAAAAAIJAAUUAAAAAgUAAAADbmlsBQAAAAFhAAAAAOHevw4="},
 	}
 	for i, test := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			compareScriptsOrError(t, test.code, test.fail, test.expected, false, true)
 		})
 	}
@@ -1132,7 +1133,7 @@ let a = Order("".toBytes(), "".toBytes(), AssetPair("".toBytes(), "".toBytes()),
 		},
 	}
 	for i, test := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			compareScriptsOrError(t, test.code, test.fail, test.expected, false, false)
 		})
 	}

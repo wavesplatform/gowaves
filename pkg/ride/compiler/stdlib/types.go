@@ -468,20 +468,20 @@ func (t TupleType) EqualWithEntry(other Type) bool {
 }
 
 func (t TupleType) String() string {
-	var res string
-	res += "("
+	var res strings.Builder
+	res.WriteString("(")
 	for i, k := range t.Types {
 		if k == nil {
-			res += "nil"
+			res.WriteString("nil")
 		} else {
-			res += k.String()
+			res.WriteString(k.String())
 		}
 		if i < len(t.Types)-1 {
-			res += ", "
+			res.WriteString(", ")
 		}
 	}
-	res += ")"
-	return res
+	res.WriteString(")")
+	return res.String()
 }
 
 func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {

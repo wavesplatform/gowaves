@@ -1,6 +1,8 @@
 package bls
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -56,6 +58,31 @@ func (k *SecretKey) PublicKey() (PublicKey, error) {
 	return pk, nil
 }
 
+func GenerateSecretKey(seed []byte) (SecretKey, error) {
+	h := sha256.New()
+	_, err := h.Write(seed)
+	if err != nil {
+		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	}
+	sh := h.Sum(nil)
+	rnd := make([]byte, sha256.Size)
+	_, err = rand.Read(rnd)
+	if err != nil {
+		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	}
+	csk, err := cbls.KeyGen[cbls.G1](sh, rnd, nil)
+	if err != nil {
+		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	}
+	b, err := csk.MarshalBinary()
+	if err != nil {
+		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	}
+	var sk SecretKey
+	copy(sk[:], b[:SecretKeySize])
+	return sk, nil
+}
+
 // NewSecretKeyFromBytes creates BLS secret key from given slice of bytes.
 func NewSecretKeyFromBytes(b []byte) (SecretKey, error) {
 	if l := len(b); l != SecretKeySize {
@@ -76,23 +103,6 @@ func NewSecretKeyFromBase58(s string) (SecretKey, error) {
 		return sk, crypto.NewIncorrectLengthError("BLS SecretKey", l, SecretKeySize)
 	}
 	copy(sk[:], b[:SecretKeySize])
-	return sk, nil
-}
-
-// NewSecretKeyFromWavesSecretKey generates BLS secret key from Waves secret key.
-func NewSecretKeyFromWavesSecretKey(wavesSK crypto.SecretKey) (SecretKey, error) {
-	k, err := cbls.KeyGen[cbls.G1](wavesSK.Bytes(), nil, nil)
-	if err != nil {
-		return SecretKey{}, fmt.Errorf("failed to create BLS secret key from Waves secret key: %w", err)
-	}
-	b, err := k.MarshalBinary()
-	if err != nil {
-		return SecretKey{}, fmt.Errorf("failed to create BLS secret key from Waves secret key: %w", err)
-	}
-	sk, err := NewSecretKeyFromBytes(b)
-	if err != nil {
-		return SecretKey{}, fmt.Errorf("failed to create BLS secret key from Waves secret key: %w", err)
-	}
 	return sk, nil
 }
 
@@ -195,14 +205,6 @@ func NewSignatureFromBytes(b []byte) (Signature, error) {
 	return s, nil
 }
 
-func MustSignatureFromBytes(b []byte) Signature {
-	s, err := NewSignatureFromBytes(b)
-	if err != nil {
-		panic(err)
-	}
-	return s
-}
-
 func NewSignatureFromBase58(s string) (Signature, error) {
 	var sig Signature
 	b, err := base58.Decode(s)
@@ -224,7 +226,7 @@ func Sign(sk SecretKey, msg []byte) (Signature, error) {
 		return Signature{}, fmt.Errorf("failed to sign: %w", err)
 	}
 	s := cbls.Sign[cbls.G1](csk, msg)
-	return MustSignatureFromBytes(s), nil
+	return NewSignatureFromBytes(s)
 }
 
 func Verify(pk PublicKey, msg []byte, sig Signature) (bool, error) {
