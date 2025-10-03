@@ -35,7 +35,7 @@ jobs:
         uses: securego/gosec@15d5c61e866bc2e2e8389376a31f1e5e09bde7d8 # v2.22.9
         with:
           # with '-no-fail' we let the report trigger content trigger a failure using the GitHub Security features.
-          args: "-no-fail -fmt sarif -out gosec.sarif ./..."
+          args: "-no-fail -exclude-generated -fmt sarif -out gosec.sarif ./..."
       - name: Upload SARIF file for GitHub Advanced Security Dashboard
         uses: github/codeql-action/upload-sarif@3599b3baa15b485a2e49ef411a7a4bb2452e7f93 # v3
         with:
