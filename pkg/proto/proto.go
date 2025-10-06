@@ -32,7 +32,7 @@ Messages are sent over the network in the following format:
 * MSG_LEN (4 bytes, uint32) - message length. It includes lengths of all fields except the length of MSG_LEN itself.
 * MSG_MAGIC (4 bytes, "0x12345678") - magic number, constant value.
 * MSG_TYPE (1 byte) - message type.
-* PAYLOAD_LEN (4 bytes, uin32) - payload length.
+* PAYLOAD_LEN (4 bytes, uint32) - payload length.
 * PAYLOAD_CHECKSUM (4 bytes) - payload checksum, optional, may be omitted if PAYLOAD_LEN == 0.
 * PAYLOAD (variable) - payload, optional, omitted if PAYLOAD_LEN == 0.
 
@@ -313,7 +313,7 @@ func (h *Header) ReadFrom(r io.Reader) (int64, error) {
 	var msgLen U32
 	n1, err := msgLen.ReadFrom(r)
 	if err != nil {
-		return n1, fmt.Errorf("failed to read message lenght: %w", err)
+		return n1, fmt.Errorf("failed to read message length: %w", err)
 	}
 	h.Length = uint32(msgLen)
 
@@ -357,7 +357,7 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 		return fmt.Errorf("failed to unmarshal Header: %w", err)
 	}
 	if l < headerSizeWithoutPayload {
-		return fmt.Errorf("data is to short to unmarshal Header: len=%d", len(data))
+		return fmt.Errorf("data is too short to unmarshal Header: len=%d", len(data))
 	}
 	h.Length = binary.BigEndian.Uint32(data[0:4])
 	h.Magic = binary.BigEndian.Uint32(data[4:8])
