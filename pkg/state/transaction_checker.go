@@ -265,7 +265,7 @@ func (tc *transactionChecker) checkFee(
 	}
 	if !sponsorshipActivated {
 		// Sponsorship is not yet activated.
-		return nil
+		return nil // Do not check fee before sponsorship activation, the only requirement is fee > 0.
 	}
 	params := &feeValidationParams{
 		stor:            tc.stor,
@@ -1548,4 +1548,57 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 		return out, errs.NewAssetUpdateInterval(fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight))
 	}
 	return txCheckerData{smartAssets: smartAssets}, nil
+}
+
+func (tc *transactionChecker) checkCommitToGenerationWithProofs(
+	transaction proto.Transaction, info *checkerInfo,
+) (txCheckerData, error) {
+	tx, ok := transaction.(*proto.CommitToGenerationWithProofs)
+	if !ok {
+		return txCheckerData{},
+			errors.New("failed to convert interface to CommitToGenerationWithProofs transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txCheckerData{}, errs.Extend(err, "invalid timestamp")
+	}
+	if err := tc.checkFee(transaction, &txAssets{feeAsset: proto.NewOptionalAssetWaves()}, info); err != nil {
+		return txCheckerData{}, err
+	}
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return txCheckerData{}, err
+	}
+	if !activated {
+		return txCheckerData{},
+			errors.New("DeterministicFinality feature must be activated for CommitToGeneration transaction")
+	}
+	activationHeight, err := tc.stor.features.activationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return txCheckerData{}, errors.Wrap(err, "failed to get DeterministicFinality activation height")
+	}
+	// Check that nextGenerationPeriodStart is a start of the current or next generation period.
+	blockHeight := info.blockchainHeight + 1
+	nextPeriodStart, err := nextGenerationPeriodStart(activationHeight, blockHeight, tc.settings.GenerationPeriod)
+	if err != nil {
+		return txCheckerData{}, errors.Wrap(err, "failed to calculate next generation period start")
+	}
+	if uint64(tx.GenerationPeriodStart) != nextPeriodStart {
+		return txCheckerData{}, errors.New("invalid NextGenerationPeriodStart")
+	}
+	// TODO: check that for the sender there is no other CommitToGeneration transaction with
+	//  the same nextGenerationPeriodStart.
+	return txCheckerData{}, nil
+}
+
+// nextGenerationPeriodStart returns the start height of the next generation period given the current block height,
+// the feature activation height and the period length.
+// If the block height is less than the activation height, an error is returned.
+func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint64, error) {
+	if blockHeight < activationHeight {
+		return 0, fmt.Errorf(
+			"invalid block height %d, must be greater than feature #25 \"Deterministic Finality and Ride V9\" "+
+				"activation height %d", blockHeight, activationHeight)
+	}
+	offset := (blockHeight - activationHeight) % periodLength
+	return blockHeight - offset + periodLength, nil
 }

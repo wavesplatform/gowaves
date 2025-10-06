@@ -14,6 +14,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
@@ -227,6 +228,9 @@ type testGlobalVars struct {
 	senderEthInfo    *testEthAkaWavesAddrData
 	recipientEthInfo *testEthAkaWavesAddrData
 
+	endorserSK bls.SecretKey
+	endorserPK bls.PublicKey
+
 	scriptBytes []byte
 	scriptAst   *ast.Tree
 }
@@ -278,6 +282,15 @@ func TestMain(m *testing.M) {
 	testGlobal.recipientEthInfo, err = newTestEthAkaWavesAddrData(recipientSKHex, []crypto.Digest{testGlobal.asset0.assetID, testGlobal.asset1.assetID, testGlobal.asset2.assetID})
 	if err != nil {
 		log.Fatalf("newTestEthAkaWavesAddrData(): %v\n", err)
+	}
+
+	testGlobal.endorserSK, err = bls.GenerateSecretKey([]byte(senderSeed))
+	if err != nil {
+		log.Fatalf("bls.GenerateSecretKey(): %v\n", err)
+	}
+	testGlobal.endorserPK, err = testGlobal.endorserSK.PublicKey()
+	if err != nil {
+		log.Fatalf("endorserSK.PublicKey(): %v\n", err)
 	}
 
 	scriptBytes, err := base64.StdEncoding.DecodeString(scriptBase64)

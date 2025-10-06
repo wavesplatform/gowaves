@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -18,7 +19,8 @@ const (
 	priceConstant = 10e7
 )
 
-var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime //nolint:gochecknoglobals // no writes
+//nolint:gochecknoglobals // no writes
+var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime + 1
 
 const (
 	defaultAmount   = uint64(100)
@@ -1438,5 +1440,41 @@ func createInvokeExpressionWithProofs(t *testing.T, expression proto.B64Bytes, f
 	tx := proto.NewUnsignedInvokeExpressionWithProofs(1, testGlobal.senderInfo.pk, expression, feeAsset, fee, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
+type txOption[T any] func(tx T) T
+
+func withTimestamp[T interface {
+	*proto.CommitToGenerationWithProofs
+}](ts uint64) txOption[T] {
+	return func(tx T) T {
+		(*tx).Timestamp = ts
+		return tx
+	}
+}
+
+func withFee[T interface {
+	*proto.CommitToGenerationWithProofs
+}](fee uint64) txOption[T] {
+	return func(tx T) T {
+		(*tx).Fee = fee
+		return tx
+	}
+}
+
+func createCommitToGenerationWithProofs(
+	t testing.TB, start uint32, opts ...txOption[*proto.CommitToGenerationWithProofs],
+) *proto.CommitToGenerationWithProofs {
+	const fee = 10_000_000 // 0.1 WAVES.
+	_, sig, popErr := bls.ProvePoP(testGlobal.endorserSK, testGlobal.endorserPK, start)
+	require.NoError(t, popErr, "ProvePoP() failed")
+	tx := proto.NewUnsignedCommitToGenerationWithProofs(1, testGlobal.senderInfo.pk, start, testGlobal.endorserPK,
+		sig, fee, defaultTimestamp)
+	for _, opt := range opts {
+		tx = opt(tx)
+	}
+	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	require.NoError(t, err, "tx.Sign() failed")
 	return tx
 }

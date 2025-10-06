@@ -921,7 +921,8 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	tx.Script = scriptBytes
 	// Big script, RideV6 feature is not activated
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
-	assert.EqualError(t, err, "checkScript() tx HRXWrnrRy1f7Ur3SNXTtVkNFHNgoqUkpQTB8foqVbptx: script size 32857 is greater than limit of 32768")
+	assert.EqualError(t, err,
+		"checkScript() tx AecWtWk9NhRCtSeTPjyCmkifLYUYQLV3Ag5Q9zdvhbYs: script size 32857 is greater than limit of 32768")
 	// RideV6 feature is active, but fee is not enough
 	to.stor.activateFeature(t, int16(settings.RideV6))
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
@@ -1617,5 +1618,137 @@ func TestScriptActivation(t *testing.T) {
 		} else {
 			assert.Error(t, err, "test case %d", i)
 		}
+	}
+}
+
+func TestNextGenerationPeriodStart(t *testing.T) {
+	for i, test := range []struct {
+		activation, height, length uint64
+		start                      uint64
+		failed                     bool
+		err                        string
+	}{
+		// Activation at height 1, period length 10.
+		{activation: 1, height: 1, length: 10, start: 11, failed: false, err: ""},
+		{activation: 1, height: 11, length: 10, start: 21, failed: false, err: ""},
+		{activation: 1, height: 5, length: 10, start: 11, failed: false, err: ""},
+		{activation: 1, height: 15, length: 10, start: 21, failed: false, err: ""},
+		{activation: 1, height: 10, length: 10, start: 11, failed: false, err: ""},
+		{activation: 1, height: 20, length: 10, start: 21, failed: false, err: ""},
+		// Activation at height 3, period length 10.
+		{activation: 3, height: 3, length: 10, start: 13, failed: false, err: ""},
+		{activation: 3, height: 13, length: 10, start: 23, failed: false, err: ""},
+		{activation: 3, height: 8, length: 10, start: 13, failed: false, err: ""},
+		{activation: 3, height: 18, length: 10, start: 23, failed: false, err: ""},
+		{activation: 3, height: 12, length: 10, start: 13, failed: false, err: ""},
+		{activation: 3, height: 22, length: 10, start: 23, failed: false, err: ""},
+		// Activation at height 1, period length 3_000.
+		{activation: 1, height: 1, length: 3_000, start: 3_001, failed: false, err: ""},
+		{activation: 1, height: 3_001, length: 3_000, start: 6_001, failed: false, err: ""},
+		{activation: 1, height: 1_500, length: 3_000, start: 3_001, failed: false, err: ""},
+		{activation: 1, height: 4_500, length: 3_000, start: 6_001, failed: false, err: ""},
+		{activation: 1, height: 3_000, length: 3_000, start: 3_001, failed: false, err: ""},
+		{activation: 1, height: 6_000, length: 3_000, start: 6_001, failed: false, err: ""},
+		// Activation at height 9_000, period length 3_000.
+		{activation: 9_000, height: 9_000, length: 3_000, start: 12_000, failed: false, err: ""},
+		{activation: 9_000, height: 12_000, length: 3_000, start: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 10_500, length: 3_000, start: 12_000, failed: false, err: ""},
+		{activation: 9_000, height: 14_500, length: 3_000, start: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 11_999, length: 3_000, start: 12_000, failed: false, err: ""},
+		{activation: 9_000, height: 14_999, length: 3_000, start: 15_000, failed: false, err: ""},
+		// Fail on heights less than activation height.
+		{activation: 9_000, height: 1_000, length: 3_000, start: 0, failed: true,
+			err: "invalid block height 1000, must be greater than feature #25 \"Deterministic Finality and Ride V9\" " +
+				"activation height 9000"},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			start, err := nextGenerationPeriodStart(test.activation, test.height, test.length)
+			if test.failed {
+				assert.EqualError(t, err, test.err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, int(test.start), int(start))
+			}
+		})
+	}
+}
+
+func TestCheckCommitToGenerationWithProofs(t *testing.T) {
+	invalidFeeOpts := []txOption[*proto.CommitToGenerationWithProofs]{
+		withFee[*proto.CommitToGenerationWithProofs](12345),
+	}
+	parentTimestamp := defaultTimestamp - settings.MustMainNetSettings().MaxTxTimeBackOffset/2
+	tsInThePastOpts := []txOption[*proto.CommitToGenerationWithProofs]{
+		withTimestamp[*proto.CommitToGenerationWithProofs](parentTimestamp - 7_200_001),
+	}
+	tsInTheFutureOpts := []txOption[*proto.CommitToGenerationWithProofs]{
+		withTimestamp[*proto.CommitToGenerationWithProofs](defaultTimestamp + 5_400_001),
+	}
+	for i, test := range []struct {
+		start            uint32
+		opts             []txOption[*proto.CommitToGenerationWithProofs]
+		blockchainHeight uint64
+		active           bool
+		valid            bool
+		err              string
+	}{
+		{start: 12345, opts: nil, blockchainHeight: 100_000, active: false, valid: false,
+			err: "DeterministicFinality feature must be activated for CommitToGeneration transaction"},
+		{start: 12345, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		// Invalid because of insufficient fee.
+		{start: 100_001, opts: invalidFeeOpts, blockchainHeight: 100_000, active: true, valid: false,
+			err: "Fee 12345 does not exceed minimal value of 10000000 WAVES. "},
+		// Invalid because of incorrect timestamp.
+		{start: 100_001, opts: tsInThePastOpts, blockchainHeight: 100_000, active: true, valid: false,
+			err: "invalid timestamp: Transaction timestamp 1479157200000 is more than 7200000ms in the past: " +
+				"early transaction creation time"},
+		{start: 100_001, opts: tsInTheFutureOpts, blockchainHeight: 100_000, active: true, valid: false,
+			err: "invalid timestamp: Transaction timestamp 1479173400002 is more than 5400000ms in the future"},
+		// Invalid to commit to the current period at any moment of the period.
+		{start: 100_001, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		{start: 100_001, opts: nil, blockchainHeight: 101_234, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		{start: 100_001, opts: nil, blockchainHeight: 109_999, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		// Valid to commit to the next period at the start of the current period.
+		{start: 110_001, opts: nil, blockchainHeight: 100_000, active: true, valid: true, err: ""},
+		// Valid to commit to the next period at any moment of the current period.
+		{start: 110_001, opts: nil, blockchainHeight: 101_234, active: true, valid: true, err: ""},
+		// Valid to commit to the next period at the end of the current period.
+		{start: 110_001, opts: nil, blockchainHeight: 109_999, active: true, valid: true, err: ""},
+		// Invalid to commit for more than one period ahead.
+		{start: 120_001, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		{start: 120_001, opts: nil, blockchainHeight: 101_234, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		{start: 120_001, opts: nil, blockchainHeight: 109_999, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		// Invalid to commit for a previous period.
+		{start: 90_001, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		{start: 90_001, opts: nil, blockchainHeight: 101_234, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+		{start: 90_001, opts: nil, blockchainHeight: 109_999, active: true, valid: false,
+			err: "invalid NextGenerationPeriodStart"},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
+			to := createCheckerTestObjects(t, info)
+			to.stor.activateSponsorship(t)
+			if test.active {
+				to.stor.activateFeature(t, int16(settings.DeterministicFinality))
+			}
+			info.blockchainHeight = test.blockchainHeight
+
+			tx := createCommitToGenerationWithProofs(t, test.start, test.opts...)
+			_, err := to.tc.checkCommitToGenerationWithProofs(tx, info)
+			if test.valid {
+				assert.NoError(t, err)
+			} else {
+				assert.EqualError(t, err, test.err)
+			}
+		})
 	}
 }
