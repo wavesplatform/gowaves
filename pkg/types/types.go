@@ -228,8 +228,11 @@ type EmbeddedWallet interface {
 // UtxPool storage interface
 type EndorsementPool interface {
 	Add(e *proto.EndorseBlock) error
-	FindByBlockID(blockID proto.BlockID) ([]*proto.EndorseBlock, error)
 	GetAll() []*proto.EndorseBlock
+	GetEndorsers() []proto.WavesAddress
+	GetGenerators() []proto.WavesAddress
+	Finalize() proto.FinalizationVoting
+	Verify() (bool, error)
 	Len() int
 	CleanAll()
 }

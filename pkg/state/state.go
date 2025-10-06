@@ -3189,3 +3189,29 @@ func (s *stateManager) Close() error {
 	}
 	return nil
 }
+
+func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+	var totalGeneratingBalance uint64
+	var endorsersGeneratingBalance uint64
+	for _, gen := range allGenerators {
+		genRecipient := proto.NewRecipientFromAddress(gen)
+		balance, err := s.GeneratingBalance(genRecipient, height)
+		if err != nil {
+			return false, err
+		}
+		totalGeneratingBalance += balance
+	}
+	for _, endorser := range endorsers {
+		endorserRecipient := proto.NewRecipientFromAddress(endorser)
+		balance, err := s.GeneratingBalance(endorserRecipient, height)
+		if err != nil {
+			return false, err
+		}
+		endorsersGeneratingBalance += balance
+	}
+	// If endorsersBalance >= 2/3 totalGeneratingBalance
+	if 3*endorsersGeneratingBalance >= 2*totalGeneratingBalance {
+		return true, nil
+	}
+	return false, nil
+}

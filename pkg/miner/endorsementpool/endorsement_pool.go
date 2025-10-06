@@ -3,6 +3,7 @@ package endorsementpool
 import (
 	"container/heap"
 	"errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"sync"
 )
@@ -22,16 +23,17 @@ func makeKey(blockID []byte, idx int32) key {
 }
 
 type heapItemEndorsement struct {
-	eb    *proto.EndorseBlock
-	seq   uint64 // insertion sequence for FIFO priority
-	index int    // position in heap
+	eb         *proto.EndorseBlock
+	endorserPK bls.PublicKey
+	seq        uint64 // insertion sequence for FIFO priority
+	index      int    // position in heap
 }
 
 type endorsementHeap []*heapItemEndorsement
 
 func (h endorsementHeap) Len() int { return len(h) }
 
-// Oldest = smallest seq → floats to top
+// Oldest = smallest seq - floats to top
 func (h endorsementHeap) Less(i, j int) bool {
 	return h[i].seq < h[j].seq
 }
@@ -66,11 +68,12 @@ type EndorseVerifier interface {
 }
 
 type EndorsementPool struct {
-	mu         sync.Mutex
-	seq        uint64
-	countLimit int
-	byKey      map[key]*heapItemEndorsement
-	h          endorsementHeap
+	mu                      sync.Mutex
+	seq                     uint64
+	countLimit              int
+	byKey                   map[key]*heapItemEndorsement
+	h                       endorsementHeap
+	endorsersPublicKeyCache GeneratorsPublicKeysCache
 }
 
 func NewEndorsementPool() *EndorsementPool {
@@ -99,7 +102,8 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock) error {
 	}
 
 	p.seq++
-	it := &heapItemEndorsement{eb: e, seq: p.seq}
+	endorserPublicKey := p.endorsersPublicKeyCache.PublicKeyByEndorserIndex(e.EndorserIndex)
+	it := &heapItemEndorsement{eb: e, seq: p.seq, endorserPK: endorserPublicKey}
 	heap.Push(&p.h, it)
 	p.byKey[k] = it
 	return nil
@@ -118,6 +122,26 @@ func (p *EndorsementPool) GetAll() []*proto.EndorseBlock {
 	return out
 }
 
+func (p *EndorsementPool) Finalize() proto.FinalizationVoting {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return proto.FinalizationVoting{}
+}
+
+func (p *EndorsementPool) GetEndorsers() []proto.WavesAddress {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+
+	return p.endorsersPublicKeyCache.AllEndorsers()
+}
+
+func (p *EndorsementPool) GetGenerators() []proto.WavesAddress {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	return p.endorsersPublicKeyCache.AllGenerators()
+}
+
 func (p *EndorsementPool) Len() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -129,7 +153,9 @@ func (p *EndorsementPool) CleanAll() {
 	defer p.mu.Unlock()
 	p.byKey = make(map[key]*heapItemEndorsement)
 	p.h = endorsementHeap{} // reset heap too
+	p.endorsersPublicKeyCache.CleanAllEndorsers()
 }
+
 func (p *EndorsementPool) Pop() *proto.EndorseBlock {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -142,21 +168,50 @@ func (p *EndorsementPool) Pop() *proto.EndorseBlock {
 	return it.eb
 }
 
-func (p *EndorsementPool) FindByBlockID(blockID proto.BlockID) ([]*proto.EndorseBlock, error) {
-	var bid [32]byte
-	copy(bid[:], blockID.Bytes())
-
+func (p *EndorsementPool) Verify() (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
-	out := make([]*proto.EndorseBlock, 0)
-	for k, it := range p.byKey {
-		if k.blockID == bid {
-			out = append(out, it.eb)
+	var sigs []bls.Signature
+	var pks []bls.PublicKey
+	for _, heapItem := range p.h {
+		sig := bls.Signature{}
+		err := sig.UnmarshalJSON(heapItem.eb.Signature)
+		if err != nil {
+			return false, err
 		}
+		sigs = append(sigs, sig)
+		pks = append(pks, heapItem.endorserPK)
 	}
-	if len(out) == 0 {
-		return nil, errors.New("no endorsements found for block ID")
+	msg, err := p.h[0].eb.EndorsementMessage() // All messages are assumed the same.
+	aggregatedSignature, err := bls.AggregateSignatures(sigs)
+	if err != nil {
+		return false, err
 	}
-	return out, nil
+	return bls.VerifyAggregate(pks, msg, aggregatedSignature), nil
+}
+
+type GeneratorsPublicKeysCache interface {
+	PublicKeyByEndorserIndex(endorserIndex int32) bls.PublicKey
+	AllGenerators() []proto.WavesAddress
+	AllEndorsers() []proto.WavesAddress
+	CleanAllEndorsers()
+}
+
+type GeneratorsPublicKeysCacheImpl struct {
+}
+
+func (c *GeneratorsPublicKeysCacheImpl) PublicKeyByEndorserIndex(endorserIndex int32) bls.PublicKey {
+	panic("not implemented")
+}
+
+func (c *GeneratorsPublicKeysCacheImpl) AllEndorsers() []proto.WavesAddress {
+	panic("not implemented")
+}
+
+func (c *GeneratorsPublicKeysCacheImpl) CleanAllEndorsers() {
+	panic("not implemented")
+}
+
+func (c *GeneratorsPublicKeysCacheImpl) AllGenerators() []proto.WavesAddress {
+	panic("not implemented")
 }

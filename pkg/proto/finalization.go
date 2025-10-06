@@ -1,6 +1,9 @@
 package proto
 
 import (
+	"encoding/binary"
+	"github.com/mr-tron/base58"
+	"github.com/pkg/errors"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -15,6 +18,24 @@ type EndorseBlock struct {
 func (e *EndorseBlock) Marshal() ([]byte, error) {
 	endBlockProto := e.ToProtobuf()
 	return endBlockProto.MarshalVTStrict()
+}
+
+// EndorsementMessage serializes endorsement structure into base58 message.
+func (e *EndorseBlock) EndorsementMessage() ([]byte, error) {
+	if len(e.FinalizedBlockId) == 0 || len(e.EndorsedBlockId) == 0 {
+		return nil, errors.New("invalid endorsement: missing block IDs")
+	}
+	// finalizedBlockId + 4 bytes height + endorsedBlockId
+	size := len(e.FinalizedBlockId) + 4 + len(e.EndorsedBlockId)
+	buf := make([]byte, size)
+	// finalizedBlockId
+	copy(buf[0:len(e.FinalizedBlockId)], e.FinalizedBlockId)
+	// finalizedBlockHeight
+	binary.BigEndian.PutUint32(buf[len(e.FinalizedBlockId):len(e.FinalizedBlockId)+4], e.FinalizedBlockHeight)
+	// endorsedBlockId
+	copy(buf[len(e.FinalizedBlockId)+4:], e.EndorsedBlockId)
+
+	return []byte(base58.Encode(buf)), nil
 }
 
 func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {

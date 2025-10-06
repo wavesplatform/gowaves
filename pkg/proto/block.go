@@ -328,8 +328,8 @@ type BlockHeader struct {
 	TransactionsRoot       B58Bytes          `json:"transactionsRoot,omitempty"`
 	StateHash              *crypto.Digest    `json:"stateHash,omitempty"`        // is nil before protocol version 1.5
 	ChallengedHeader       *ChallengedHeader `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
-
-	ID BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
+	FinalizationVoting     *FinalizationVoting
+	ID                     BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
 }
 
 func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
@@ -463,6 +463,7 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 		TransactionsRoot:    b.TransactionsRoot,
 		StateHash:           stateHash,
 		ChallengedHeader:    challengedHeader,
+		FinalizationVoting:  b.FinalizationVoting.ToProtobuf(),
 	}, nil
 }
 
@@ -545,7 +546,7 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	}
 	res = append(res, b.GeneratorPublicKey[:]...)
 	res = append(res, b.BlockSignature[:]...)
-
+	// TODO add finalization marshaling.
 	return res, nil
 }
 
@@ -603,6 +604,7 @@ func (b *BlockHeader) UnmarshalHeaderFromBinary(data []byte, scheme Scheme) (err
 	if err := b.GenerateBlockID(scheme); err != nil {
 		return errors.Wrap(err, "failed to generate block ID")
 	}
+	// TODO add finalization marshaling.
 	return nil
 }
 
@@ -632,6 +634,7 @@ func AppendHeaderBytesToTransactions(headerBytes, transactions []byte) ([]byte, 
 	copy(res[filled:], transactions)
 	filled += len(transactions)
 	copy(res[filled:], headerAfterTx)
+	// TODO add finalization marshaling.
 	return res, nil
 }
 

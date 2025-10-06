@@ -154,6 +154,10 @@ type StateInfo interface {
 
 	// SnapshotsAtHeight returns block snapshots at the given height.
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
+
+	// CalculateVotingFinalization calculates whether the generating balance of endorsers at the previous block
+	// Exceeds the total generating balance of all committed generators for that block.
+	CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

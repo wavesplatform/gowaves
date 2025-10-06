@@ -202,8 +202,6 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 
 	a.baseInfo.CleanUtx()
 
-	// TODO verify endorsements to finalize block, clean endorsement pool.
-
 	return newNGState(a.baseInfo), nil, nil
 }
 
@@ -225,6 +223,7 @@ func (a *NGState) BlockEndorsement(peer peer.Peer, blockEndorsement *proto.Endor
 	}
 
 	// TODO verify individual endorsements (signatures) using the endorser's public key.
+	// TODO validate whether the endorsement is not a duplicate
 
 	err = a.baseInfo.endorsements.Add(blockEndorsement)
 	if err != nil {
@@ -234,6 +233,32 @@ func (a *NGState) BlockEndorsement(peer peer.Peer, blockEndorsement *proto.Endor
 	// TODO send the proto message to peers about endorsement
 
 	return newNGState(a.baseInfo), nil, nil
+}
+
+func (a *NGState) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGeneerators []proto.WavesAddress) (bool, error) {
+	var totalGeneratingBalance uint64
+	var endorsersGeneratingBalance uint64
+	for _, gen := range allGeneerators {
+		genRecipient := proto.NewRecipientFromAddress(gen)
+		balance, err := a.baseInfo.storage.GeneratingBalance(genRecipient, height)
+		if err != nil {
+			return false, err
+		}
+		totalGeneratingBalance += balance
+	}
+	for _, endorser := range endorsers {
+		endorserRecipient := proto.NewRecipientFromAddress(endorser)
+		balance, err := a.baseInfo.storage.GeneratingBalance(endorserRecipient, height)
+		if err != nil {
+			return false, err
+		}
+		endorsersGeneratingBalance += balance
+	}
+	// If endorsersBalance >= 2/3 totalGeneratingBalance
+	if 3*endorsersGeneratingBalance >= 2*totalGeneratingBalance {
+		return true, nil
+	}
+	return false, nil
 }
 
 func (a *NGState) MinedBlock(
@@ -250,8 +275,28 @@ func (a *NGState) MinedBlock(
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
 	}
+
+	ok, err := a.baseInfo.endorsements.Verify()
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+	if !ok {
+		return a, nil, a.Errorf(errors.Errorf("verification of block %d failed", height))
+	}
+	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(a.baseInfo.endorsements.GetEndorsers(), height, a.baseInfo.endorsements.GetGenerators())
+	if err != nil {
+		return a, nil, err
+	}
+	if err != nil {
+		return a, nil, a.Errorf(errors.Errorf("failed to calculate finalization voting %v", err))
+	}
+	if canFinalize {
+		finalization := a.baseInfo.endorsements.Finalize()
+		block.FinalizationVoting = &finalization
+	}
+
 	metrics.BlockMined(block)
-	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
+	err = a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.baseInfo.blocksApplier.Apply(
 			state,
@@ -270,6 +315,7 @@ func (a *NGState) MinedBlock(
 	slog.Info("Generated key block successfully applied to state", "state", a.String(),
 		"blockID", block.ID.String())
 
+	a.baseInfo.endorsements.CleanAll()
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
@@ -290,13 +336,6 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 
 		a.baseInfo.logger.Debug("Received microblock successfully applied to state",
 			"state", a.String(), "blockID", block.BlockID(), "ref", micro.Reference)
-
-		endorsement, err := a.baseInfo.endorsements.FindByBlockID(block.BlockID())
-		if err != nil {
-			return nil, nil, err
-		}
-		micro.Endorsements = endorsement
-
 		a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
 		a.blocksCache.AddBlockState(block)
 		a.baseInfo.scheduler.Reschedule()
@@ -342,6 +381,13 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))
 	}
 	metrics.MicroBlockMined(micro, block.TransactionCount)
+
+	endorsements := a.baseInfo.endorsements.GetAll()
+	if err != nil {
+		return nil, nil, err
+	}
+	micro.Endorsements = endorsements
+
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er
