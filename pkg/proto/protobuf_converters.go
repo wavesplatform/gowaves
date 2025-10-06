@@ -1692,9 +1692,9 @@ func (c *ProtobufConverter) EndorseBlock(endorsement *g.EndorseBlock) (EndorseBl
 	}
 	return EndorseBlock{
 		EndorserIndex:        endorsement.EndorserIndex,
-		FinalizedBlockId:     endorsement.FinalizedBlockId,
+		FinalizedBlockID:     endorsement.FinalizedBlockId,
 		FinalizedBlockHeight: endorsement.FinalizedBlockHeight,
-		EndorsedBlockId:      endorsement.EndorsedBlockId,
+		EndorsedBlockID:      endorsement.EndorsedBlockId,
 		Signature:            endorsement.Signature,
 	}, nil
 }
@@ -1706,14 +1706,13 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 	conflictEndorsements := make([]EndorseBlock, len(finalizationVoting.ConflictEndorsements))
 	for i, ce := range finalizationVoting.ConflictEndorsements {
 		if ce != nil {
-			return FinalizationVoting{}, errors.New("empty endorsement in finalization")
-		}
-		conflictEndorsements[i] = EndorseBlock{
-			EndorserIndex:        ce.EndorserIndex,
-			FinalizedBlockId:     ce.FinalizedBlockId,
-			FinalizedBlockHeight: ce.FinalizedBlockHeight,
-			EndorsedBlockId:      ce.EndorsedBlockId,
-			Signature:            ce.Signature,
+			conflictEndorsements[i] = EndorseBlock{
+				EndorserIndex:        ce.EndorserIndex,
+				FinalizedBlockID:     ce.FinalizedBlockId,
+				FinalizedBlockHeight: ce.FinalizedBlockHeight,
+				EndorsedBlockID:      ce.EndorsedBlockId,
+				Signature:            ce.Signature,
+			}
 		}
 	}
 	return FinalizationVoting{

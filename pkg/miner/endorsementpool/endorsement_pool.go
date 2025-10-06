@@ -3,9 +3,11 @@ package endorsementpool
 import (
 	"container/heap"
 	"errors"
+	"fmt"
+	"sync"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"sync"
 )
 
 const endorsementPoolLimit = 128
@@ -33,7 +35,7 @@ type endorsementHeap []*heapItemEndorsement
 
 func (h endorsementHeap) Len() int { return len(h) }
 
-// Oldest = smallest seq - floats to top
+// Less Oldest = smallest seq - floats to top.
 func (h endorsementHeap) Less(i, j int) bool {
 	return h[i].seq < h[j].seq
 }
@@ -45,7 +47,10 @@ func (h endorsementHeap) Swap(i, j int) {
 }
 
 func (h *endorsementHeap) Push(x any) {
-	it := x.(*heapItemEndorsement)
+	it, ok := x.(*heapItemEndorsement)
+	if !ok {
+		panic(fmt.Sprintf("endorsementHeap.Push: unexpected type %T", x))
+	}
 	it.index = len(*h)
 	*h = append(*h, it)
 }
@@ -56,11 +61,11 @@ func (h *endorsementHeap) Pop() any {
 	if n == 0 {
 		return nil
 	}
-	it := old[n-1]
-	it.index = -1
+	item := old[n-1]
+	item.index = -1
 	old[n-1] = nil
 	*h = old[:n-1]
-	return it
+	return item
 }
 
 type EndorseVerifier interface {
@@ -84,10 +89,10 @@ func NewEndorsementPool() *EndorsementPool {
 }
 
 func (p *EndorsementPool) Add(e *proto.EndorseBlock) error {
-	if e == nil || len(e.EndorsedBlockId) == 0 {
+	if e == nil || len(e.EndorsedBlockID) == 0 {
 		return errors.New("invalid endorsed block id")
 	}
-	k := makeKey(e.EndorsedBlockId, e.EndorserIndex)
+	k := makeKey(e.EndorsedBlockID, e.EndorserIndex)
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -162,8 +167,12 @@ func (p *EndorsementPool) Pop() *proto.EndorseBlock {
 	if len(p.h) == 0 {
 		return nil
 	}
-	it := heap.Pop(&p.h).(*heapItemEndorsement)
-	k := makeKey(it.eb.EndorsedBlockId, it.eb.EndorserIndex)
+	v := heap.Pop(&p.h)
+	it, ok := v.(*heapItemEndorsement)
+	if !ok || it == nil {
+		return nil
+	}
+	k := makeKey(it.eb.EndorsedBlockID, it.eb.EndorserIndex)
 	delete(p.byKey, k)
 	return it.eb
 }
@@ -183,6 +192,9 @@ func (p *EndorsementPool) Verify() (bool, error) {
 		pks = append(pks, heapItem.endorserPK)
 	}
 	msg, err := p.h[0].eb.EndorsementMessage() // All messages are assumed the same.
+	if err != nil {
+		return false, err
+	}
 	aggregatedSignature, err := bls.AggregateSignatures(sigs)
 	if err != nil {
 		return false, err
@@ -200,7 +212,7 @@ type GeneratorsPublicKeysCache interface {
 type GeneratorsPublicKeysCacheImpl struct {
 }
 
-func (c *GeneratorsPublicKeysCacheImpl) PublicKeyByEndorserIndex(endorserIndex int32) bls.PublicKey {
+func (c *GeneratorsPublicKeysCacheImpl) PublicKeyByEndorserIndex(_ int32) bls.PublicKey {
 	panic("not implemented")
 }
 

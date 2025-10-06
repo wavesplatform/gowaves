@@ -205,8 +205,8 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGState) BlockEndorsement(peer peer.Peer, blockEndorsement *proto.EndorseBlock) (State, Async, error) {
-	endorsedBlockID, err := proto.NewBlockIDFromBytes(blockEndorsement.EndorsedBlockId)
+func (a *NGState) BlockEndorsement(_ peer.Peer, blockEndorsement *proto.EndorseBlock) (State, Async, error) {
+	endorsedBlockID, err := proto.NewBlockIDFromBytes(blockEndorsement.EndorsedBlockID)
 	if err != nil {
 		return a, nil, a.Errorf(err)
 	}
@@ -217,7 +217,7 @@ func (a *NGState) BlockEndorsement(peer peer.Peer, blockEndorsement *proto.Endor
 	}
 	top := a.baseInfo.storage.TopBlock()
 	if top.BlockID() != endorsedMicroBlock.Reference { // Microblock's endorsement doesn't refer to last block
-		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
+		err = errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
 			endorsedMicroBlock.TotalBlockID.String(), endorsedMicroBlock.Reference.String(), top.BlockID().String())
 		return a, nil, proto.NewInfoMsg(err)
 	}
@@ -233,32 +233,6 @@ func (a *NGState) BlockEndorsement(peer peer.Peer, blockEndorsement *proto.Endor
 	// TODO send the proto message to peers about endorsement
 
 	return newNGState(a.baseInfo), nil, nil
-}
-
-func (a *NGState) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGeneerators []proto.WavesAddress) (bool, error) {
-	var totalGeneratingBalance uint64
-	var endorsersGeneratingBalance uint64
-	for _, gen := range allGeneerators {
-		genRecipient := proto.NewRecipientFromAddress(gen)
-		balance, err := a.baseInfo.storage.GeneratingBalance(genRecipient, height)
-		if err != nil {
-			return false, err
-		}
-		totalGeneratingBalance += balance
-	}
-	for _, endorser := range endorsers {
-		endorserRecipient := proto.NewRecipientFromAddress(endorser)
-		balance, err := a.baseInfo.storage.GeneratingBalance(endorserRecipient, height)
-		if err != nil {
-			return false, err
-		}
-		endorsersGeneratingBalance += balance
-	}
-	// If endorsersBalance >= 2/3 totalGeneratingBalance
-	if 3*endorsersGeneratingBalance >= 2*totalGeneratingBalance {
-		return true, nil
-	}
-	return false, nil
 }
 
 func (a *NGState) MinedBlock(
@@ -283,10 +257,8 @@ func (a *NGState) MinedBlock(
 	if !ok {
 		return a, nil, a.Errorf(errors.Errorf("verification of block %d failed", height))
 	}
-	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(a.baseInfo.endorsements.GetEndorsers(), height, a.baseInfo.endorsements.GetGenerators())
-	if err != nil {
-		return a, nil, err
-	}
+	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(a.baseInfo.endorsements.GetEndorsers(), height,
+		a.baseInfo.endorsements.GetGenerators())
 	if err != nil {
 		return a, nil, a.Errorf(errors.Errorf("failed to calculate finalization voting %v", err))
 	}
@@ -383,9 +355,6 @@ func (a *NGState) mineMicro(
 	metrics.MicroBlockMined(micro, block.TransactionCount)
 
 	endorsements := a.baseInfo.endorsements.GetAll()
-	if err != nil {
-		return nil, nil, err
-	}
 	micro.Endorsements = endorsements
 
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
@@ -624,7 +593,13 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 					return a, nil, a.Errorf(errors.Errorf(
 						"unexpected type '%T' expected '*NGState'", state.State))
 				}
-				return a.BlockEndorsement(convertToInterface[peer.Peer](args[0]), args[1].(*proto.EndorseBlock))
+				endorse, ok := args[1].(*proto.EndorseBlock)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.EndorseBlock", args[1]))
+				}
+
+				peerArg := convertToInterface[peer.Peer](args[0])
+				return a.BlockEndorsement(peerArg, endorse)
 			})).
 		PermitDynamic(MinedBlockEvent,
 			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...any) (State, Async, error) {

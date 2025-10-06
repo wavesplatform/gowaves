@@ -225,7 +225,7 @@ type EmbeddedWallet interface {
 	AccountSeeds() [][]byte
 }
 
-// UtxPool storage interface
+// EndorsementPool storage interface.
 type EndorsementPool interface {
 	Add(e *proto.EndorseBlock) error
 	GetAll() []*proto.EndorseBlock

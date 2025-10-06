@@ -3190,7 +3190,8 @@ func (s *stateManager) Close() error {
 	return nil
 }
 
-func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height,
+	allGenerators []proto.WavesAddress) (bool, error) {
 	var totalGeneratingBalance uint64
 	var endorsersGeneratingBalance uint64
 	for _, gen := range allGenerators {

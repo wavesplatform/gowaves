@@ -418,7 +418,8 @@ func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight pro
 	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
 }
 
-func (a *ThreadSafeReadWrapper) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+func (a *ThreadSafeReadWrapper) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height,
+	allGenerators []proto.WavesAddress) (bool, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.CalculateVotingFinalization(endorsers, height, allGenerators)

@@ -2,16 +2,20 @@ package proto
 
 import (
 	"encoding/binary"
+
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
+const heightSize = 4
+
 type EndorseBlock struct {
 	EndorserIndex        int32  `json:"endorserIndex"`
-	FinalizedBlockId     []byte `json:"finalizedBlockID"`
+	FinalizedBlockID     []byte `json:"finalizedBlockID"`
 	FinalizedBlockHeight uint32 `json:"finalizedBlockHeight"`
-	EndorsedBlockId      []byte `json:"endorsedBlockId"`
+	EndorsedBlockID      []byte `json:"endorsedBlockId"`
 	Signature            []byte `json:"signature"`
 }
 
@@ -22,18 +26,18 @@ func (e *EndorseBlock) Marshal() ([]byte, error) {
 
 // EndorsementMessage serializes endorsement structure into base58 message.
 func (e *EndorseBlock) EndorsementMessage() ([]byte, error) {
-	if len(e.FinalizedBlockId) == 0 || len(e.EndorsedBlockId) == 0 {
+	if len(e.FinalizedBlockID) == 0 || len(e.EndorsedBlockID) == 0 {
 		return nil, errors.New("invalid endorsement: missing block IDs")
 	}
 	// finalizedBlockId + 4 bytes height + endorsedBlockId
-	size := len(e.FinalizedBlockId) + 4 + len(e.EndorsedBlockId)
+	size := len(e.FinalizedBlockID) + heightSize + len(e.EndorsedBlockID)
 	buf := make([]byte, size)
 	// finalizedBlockId
-	copy(buf[0:len(e.FinalizedBlockId)], e.FinalizedBlockId)
+	copy(buf[0:len(e.FinalizedBlockID)], e.FinalizedBlockID)
 	// finalizedBlockHeight
-	binary.BigEndian.PutUint32(buf[len(e.FinalizedBlockId):len(e.FinalizedBlockId)+4], e.FinalizedBlockHeight)
+	binary.BigEndian.PutUint32(buf[len(e.FinalizedBlockID):len(e.FinalizedBlockID)+4], e.FinalizedBlockHeight)
 	// endorsedBlockId
-	copy(buf[len(e.FinalizedBlockId)+4:], e.EndorsedBlockId)
+	copy(buf[len(e.FinalizedBlockID)+4:], e.EndorsedBlockID)
 
 	return []byte(base58.Encode(buf)), nil
 }
@@ -56,9 +60,9 @@ func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {
 func (e *EndorseBlock) ToProtobuf() *g.EndorseBlock {
 	endBlockProto := g.EndorseBlock{
 		EndorserIndex:        e.EndorserIndex,
-		FinalizedBlockId:     e.FinalizedBlockId,
+		FinalizedBlockId:     e.FinalizedBlockID,
 		FinalizedBlockHeight: e.FinalizedBlockHeight,
-		EndorsedBlockId:      e.EndorsedBlockId,
+		EndorsedBlockId:      e.EndorsedBlockID,
 		Signature:            e.Signature,
 	}
 	return &endBlockProto
