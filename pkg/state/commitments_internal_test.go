@@ -43,7 +43,7 @@ func BenchmarkCommitmentsRecordMarshalling(b *testing.B) {
 		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
 			rec := commitmentsRecord{Commitments: generateCommitments(b, n)}
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				_, err := rec.marshalBinary()
 				if err != nil {
 					b.Fatal(err)
@@ -64,7 +64,7 @@ func BenchmarkCommitmentsRecordUnmarshalling(b *testing.B) {
 				b.Fatal(err)
 			}
 			b.ResetTimer()
-			for i := 0; i < b.N; i++ {
+			for b.Loop() {
 				var decoded commitmentsRecord
 				err = decoded.unmarshalBinary(data)
 				if err != nil {
@@ -141,10 +141,10 @@ func TestCommitments_Size(t *testing.T) {
 
 func generateCommitments(t testing.TB, n int) []commitmentItem {
 	r := make([]commitmentItem, n)
-	for i := 0; i < n; i++ {
-		_, wpk, err := crypto.GenerateKeyPair([]byte(fmt.Sprintf("WAVES_%d", i)))
+	for i := range n {
+		_, wpk, err := crypto.GenerateKeyPair(fmt.Appendf(nil, "WAVES_%d", i))
 		require.NoError(t, err)
-		bsk, err := bls.GenerateSecretKey([]byte(fmt.Sprintf("BLS_%d", i)))
+		bsk, err := bls.GenerateSecretKey(fmt.Appendf(nil, "BLS_%d", i))
 		require.NoError(t, err)
 		bpk, err := bsk.PublicKey()
 		require.NoError(t, err)
