@@ -1752,3 +1752,44 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 		})
 	}
 }
+
+func TestCommitToGenerationWithProofs_NoGenerationSlotsAvailable(t *testing.T) {
+	info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
+	to := createCheckerTestObjects(t, info)
+	to.stor.activateSponsorship(t)
+	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
+	info.blockchainHeight = 999_999
+
+	// Store 128 commitments to state.
+	cms := generateCommitments(t, 128)
+	for _, cm := range cms {
+		stErr := to.stor.entities.commitments.store(1_000_001, cm.GeneratorPK, cm.EndorserPK, info.blockID)
+		require.NoError(t, stErr)
+	}
+
+	tx := createCommitToGenerationWithProofs(t, 1_000_001)
+	_, err := to.tc.checkCommitToGenerationWithProofs(tx, info)
+	assert.EqualError(t, err,
+		"no available slots for the next generation period, 128 generators already committed")
+}
+
+func TestCheckCommitToGenerationWithProofs_SecondCommitmentAttempt(t *testing.T) {
+	info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
+	to := createCheckerTestObjects(t, info)
+	to.stor.activateSponsorship(t)
+	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
+	info.blockchainHeight = 999_999
+
+	tx1 := createCommitToGenerationWithProofs(t, 1_000_001)
+	_, err := to.tc.checkCommitToGenerationWithProofs(tx1, info)
+	assert.NoError(t, err)
+
+	err = to.stor.entities.commitments.store(tx1.GenerationPeriodStart, tx1.SenderPK, tx1.EndorserPublicKey, info.blockID)
+	require.NoError(t, err)
+
+	tx2 := createCommitToGenerationWithProofs(t, 1_000_001,
+		withTimestamp[*proto.CommitToGenerationWithProofs](tx1.Timestamp+1))
+	_, err = to.tc.checkCommitToGenerationWithProofs(tx2, info)
+	assert.EqualError(t, err,
+		"generator \"3P3p1SmQq78f1wf8mzUBr5BYWfxcwQJ4Fcz\" has already committed to the next period")
+}

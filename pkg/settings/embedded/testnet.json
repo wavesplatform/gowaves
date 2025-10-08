@@ -47,6 +47,7 @@
   "min_update_asset_info_interval": 100000,
   "light_node_block_fields_absence_interval": 1000,
   "generation_period": 3000,
+  "max_generators": 64,
   "type": 1,
   "genesis": {
     "version": 1,

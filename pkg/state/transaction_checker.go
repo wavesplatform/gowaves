@@ -2,11 +2,13 @@ package state
 
 import (
 	"bytes"
+	stderrors "errors"
 	"fmt"
 	"math"
 	"math/big"
 	"unicode/utf8"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1582,23 +1584,46 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to calculate next generation period start")
 	}
-	if uint64(tx.GenerationPeriodStart) != nextPeriodStart {
+	if tx.GenerationPeriodStart != nextPeriodStart {
 		return txCheckerData{}, errors.New("invalid NextGenerationPeriodStart")
 	}
-	// TODO: check that for the sender there is no other CommitToGeneration transaction with
-	//  the same nextGenerationPeriodStart.
+	// Check that we can add new generation commitment to the next period.
+	committed, err := tc.stor.commitments.size(nextPeriodStart)
+	if err != nil {
+		return txCheckerData{}, errors.Wrap(err, "failed to get number of commitments for the next period")
+	}
+	if committed >= tc.settings.MaxGenerators {
+		return txCheckerData{}, errors.Errorf(
+			"no available slots for the next generation period, %d generators already committed", committed)
+	}
+	// Check that the sender has no other CommitToGeneration transaction with the same nextGenerationPeriodStart.
+	exist, err := tc.stor.commitments.exists(tx.GenerationPeriodStart, tx.SenderPK)
+	if err != nil {
+		return txCheckerData{}, errors.Wrap(err, "failed to check existing commitment for the sender")
+	}
+	if exist {
+		addr, adErr := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
+		if adErr != nil {
+			return txCheckerData{}, stderrors.Join(
+				fmt.Errorf("generator has already committed to the next period"),
+				errors.Wrap(adErr, "failed to get address from public key"),
+			)
+		}
+		return txCheckerData{}, fmt.Errorf("generator %q has already committed to the next period", addr)
+	}
 	return txCheckerData{}, nil
 }
 
 // nextGenerationPeriodStart returns the start height of the next generation period given the current block height,
 // the feature activation height and the period length.
 // If the block height is less than the activation height, an error is returned.
-func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint64, error) {
+func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
 	if blockHeight < activationHeight {
 		return 0, fmt.Errorf(
 			"invalid block height %d, must be greater than feature #25 \"Deterministic Finality and Ride V9\" "+
 				"activation height %d", blockHeight, activationHeight)
 	}
 	offset := (blockHeight - activationHeight) % periodLength
-	return blockHeight - offset + periodLength, nil
+	start := blockHeight - offset + periodLength
+	return safecast.ToUint32(start)
 }
