@@ -2,7 +2,7 @@ FROM golang:1.24-alpine3.20@sha256:9f98e9893fbc798c710f3432baa1e0ac6127799127c31
 LABEL wavesplatform-gowaves-itests-tmp=true
 WORKDIR /app
 
-RUN apk add --no-cache make musl-dev gcc
+RUN apk add --no-cache make musl-dev gcc git
 
 COPY go.mod .
 COPY go.sum .
@@ -10,6 +10,7 @@ COPY go.sum .
 RUN go mod download
 
 COPY Makefile .
+COPY .git .git
 COPY cmd cmd
 COPY pkg pkg
 
