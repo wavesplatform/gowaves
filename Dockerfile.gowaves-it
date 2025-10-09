@@ -1,4 +1,4 @@
-FROM index.docker.io/library/golang:1.24-alpine3.20@sha256:9f98e9893fbc798c710f3432baa1e0ac6127799127c3101d2c263c3a954f0abe as builder
+FROM golang:1.24-alpine3.20@sha256:9f98e9893fbc798c710f3432baa1e0ac6127799127c3101d2c263c3a954f0abe as builder
 LABEL wavesplatform-gowaves-itests-tmp=true
 WORKDIR /app
 
@@ -16,7 +16,7 @@ COPY pkg pkg
 ARG WITH_RACE_SUFFIX=""
 RUN make build-node-native${WITH_RACE_SUFFIX}
 
-FROM index.docker.io/library/alpine:3.22.2@sha256:265b17e252b9ba4c7b7cf5d5d1042ed537edf6bf16b66130d93864509ca5277f
+FROM alpine:3.22.2@sha256:265b17e252b9ba4c7b7cf5d5d1042ed537edf6bf16b66130d93864509ca5277f
 ENV TZ=Etc/UTC \
     APP_USER=gowaves
 
