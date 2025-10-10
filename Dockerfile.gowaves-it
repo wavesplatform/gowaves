@@ -9,9 +9,11 @@ COPY go.sum .
 
 RUN go mod download
 
-COPY Makefile .
 COPY .git .git
 RUN git restore --source=HEAD --worktree .
+COPY go.mod .
+COPY go.sum .
+COPY Makefile .
 COPY cmd cmd
 COPY pkg pkg
 
