@@ -31,50 +31,50 @@ const (
 func eventArgsTypes(event stateless.Trigger) []reflect.Type {
 	switch event {
 	case StartMiningEvent, StopSyncEvent, StopMiningEvent, HaltEvent:
-		return []reflect.Type{reflect.TypeOf(&Async{})}
+		return []reflect.Type{reflect.TypeFor[*Async]()}
 	case TaskEvent:
-		return []reflect.Type{reflect.TypeOf(&Async{}), reflect.TypeOf(tasks.AsyncTask{})}
+		return []reflect.Type{reflect.TypeFor[*Async](), reflect.TypeFor[tasks.AsyncTask]()}
 	case ChangeSyncPeerEvent:
-		return []reflect.Type{reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem()}
+		return []reflect.Type{reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer]()}
 	case ScoreEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Score{}),
+			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[*proto.Score](),
 		}
 	case BlockEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.Block{}),
+			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[*proto.Block](),
 		}
 	case MinedBlockEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf(&proto.Block{}), reflect.TypeOf(proto.MiningLimits{}),
-			reflect.TypeOf(proto.KeyPair{}), reflect.TypeOf([]byte{}),
+			reflect.TypeFor[*Async](), reflect.TypeFor[*proto.Block](), reflect.TypeFor[proto.MiningLimits](),
+			reflect.TypeFor[proto.KeyPair](), reflect.TypeFor[[]byte](),
 		}
 	case BlockIDsEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf([]proto.BlockID{}),
+			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[[]proto.BlockID](),
 		}
 	case MicroBlockEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlock{}),
+			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[*proto.MicroBlock](),
 		}
 	case MicroBlockInvEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(&proto.MicroBlockInv{}),
+			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[*proto.MicroBlockInv](),
 		}
 	case TransactionEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(),
-			reflect.TypeOf((*proto.Transaction)(nil)).Elem(),
+			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](),
+			reflect.TypeFor[proto.Transaction](),
 		}
 	case BlockSnapshotEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(proto.BlockID{}),
-			reflect.TypeOf(proto.BlockSnapshot{}),
+			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[proto.BlockID](),
+			reflect.TypeFor[proto.BlockSnapshot](),
 		}
 	case MicroBlockSnapshotEvent:
 		return []reflect.Type{
-			reflect.TypeOf(&Async{}), reflect.TypeOf((*peer.Peer)(nil)).Elem(), reflect.TypeOf(proto.BlockID{}),
-			reflect.TypeOf(proto.BlockSnapshot{}),
+			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[proto.BlockID](),
+			reflect.TypeFor[proto.BlockSnapshot](),
 		}
 	default:
 		return nil
