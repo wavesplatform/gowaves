@@ -1618,12 +1618,17 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 // the feature activation height and the period length.
 // If the block height is less than the activation height, an error is returned.
 func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
-	if blockHeight < activationHeight {
+	switch {
+	case blockHeight < activationHeight:
 		return 0, fmt.Errorf(
 			"invalid block height %d, must be greater than feature #25 \"Deterministic Finality and Ride V9\" "+
 				"activation height %d", blockHeight, activationHeight)
+	case blockHeight == activationHeight:
+		// The first generation period starts right after the activation.
+		return safecast.ToUint32(activationHeight + periodLength + 1)
+	default:
+		base := activationHeight + 1 // Start of the first full period.
+		k := (blockHeight - base) / periodLength
+		return safecast.ToUint32(base + (k+1)*periodLength)
 	}
-	offset := (blockHeight - activationHeight) % periodLength
-	start := blockHeight - offset + periodLength
-	return safecast.ToUint32(start)
 }

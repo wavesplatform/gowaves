@@ -1628,38 +1628,59 @@ func TestNextGenerationPeriodStart(t *testing.T) {
 		failed                     bool
 		err                        string
 	}{
+		// Activation at height 0, period length 10.
+		{activation: 0, height: 0, length: 10, start: 11, failed: false, err: ""},
+		{activation: 0, height: 1, length: 10, start: 11, failed: false, err: ""},
+		{activation: 0, height: 5, length: 10, start: 11, failed: false, err: ""},
+		{activation: 0, height: 10, length: 10, start: 11, failed: false, err: ""},
+		{activation: 0, height: 11, length: 10, start: 21, failed: false, err: ""},
+		{activation: 0, height: 15, length: 10, start: 21, failed: false, err: ""},
+		{activation: 0, height: 20, length: 10, start: 21, failed: false, err: ""},
+		// Activation at height 10, period length 10.
+		{activation: 10, height: 10, length: 10, start: 21, failed: false, err: ""},
+		{activation: 10, height: 11, length: 10, start: 21, failed: false, err: ""},
+		{activation: 10, height: 15, length: 10, start: 21, failed: false, err: ""},
+		{activation: 10, height: 20, length: 10, start: 21, failed: false, err: ""},
+		{activation: 10, height: 21, length: 10, start: 31, failed: false, err: ""},
+		{activation: 10, height: 25, length: 10, start: 31, failed: false, err: ""},
+		{activation: 10, height: 30, length: 10, start: 31, failed: false, err: ""},
 		// Activation at height 1, period length 10.
-		{activation: 1, height: 1, length: 10, start: 11, failed: false, err: ""},
-		{activation: 1, height: 11, length: 10, start: 21, failed: false, err: ""},
-		{activation: 1, height: 5, length: 10, start: 11, failed: false, err: ""},
-		{activation: 1, height: 15, length: 10, start: 21, failed: false, err: ""},
-		{activation: 1, height: 10, length: 10, start: 11, failed: false, err: ""},
-		{activation: 1, height: 20, length: 10, start: 21, failed: false, err: ""},
+		{activation: 1, height: 1, length: 10, start: 12, failed: false, err: ""},
+		{activation: 1, height: 2, length: 10, start: 12, failed: false, err: ""},
+		{activation: 1, height: 5, length: 10, start: 12, failed: false, err: ""},
+		{activation: 1, height: 11, length: 10, start: 12, failed: false, err: ""},
+		{activation: 1, height: 12, length: 10, start: 22, failed: false, err: ""},
+		{activation: 1, height: 15, length: 10, start: 22, failed: false, err: ""},
+		{activation: 1, height: 21, length: 10, start: 22, failed: false, err: ""},
 		// Activation at height 3, period length 10.
-		{activation: 3, height: 3, length: 10, start: 13, failed: false, err: ""},
-		{activation: 3, height: 13, length: 10, start: 23, failed: false, err: ""},
-		{activation: 3, height: 8, length: 10, start: 13, failed: false, err: ""},
-		{activation: 3, height: 18, length: 10, start: 23, failed: false, err: ""},
-		{activation: 3, height: 12, length: 10, start: 13, failed: false, err: ""},
-		{activation: 3, height: 22, length: 10, start: 23, failed: false, err: ""},
+		{activation: 3, height: 3, length: 10, start: 14, failed: false, err: ""},
+		{activation: 3, height: 4, length: 10, start: 14, failed: false, err: ""},
+		{activation: 3, height: 8, length: 10, start: 14, failed: false, err: ""},
+		{activation: 3, height: 13, length: 10, start: 14, failed: false, err: ""},
+		{activation: 3, height: 14, length: 10, start: 24, failed: false, err: ""},
+		{activation: 3, height: 18, length: 10, start: 24, failed: false, err: ""},
+		{activation: 3, height: 23, length: 10, start: 24, failed: false, err: ""},
 		// Activation at height 1, period length 3_000.
-		{activation: 1, height: 1, length: 3_000, start: 3_001, failed: false, err: ""},
-		{activation: 1, height: 3_001, length: 3_000, start: 6_001, failed: false, err: ""},
-		{activation: 1, height: 1_500, length: 3_000, start: 3_001, failed: false, err: ""},
-		{activation: 1, height: 4_500, length: 3_000, start: 6_001, failed: false, err: ""},
-		{activation: 1, height: 3_000, length: 3_000, start: 3_001, failed: false, err: ""},
-		{activation: 1, height: 6_000, length: 3_000, start: 6_001, failed: false, err: ""},
+		{activation: 1, height: 1, length: 3_000, start: 3_002, failed: false, err: ""},
+		{activation: 1, height: 2, length: 3_000, start: 3_002, failed: false, err: ""},
+		{activation: 1, height: 1_500, length: 3_000, start: 3_002, failed: false, err: ""},
+		{activation: 1, height: 3_001, length: 3_000, start: 3_002, failed: false, err: ""},
+		{activation: 1, height: 3_002, length: 3_000, start: 6_002, failed: false, err: ""},
+		{activation: 1, height: 4_500, length: 3_000, start: 6_002, failed: false, err: ""},
+		{activation: 1, height: 6_001, length: 3_000, start: 6_002, failed: false, err: ""},
 		// Activation at height 9_000, period length 3_000.
-		{activation: 9_000, height: 9_000, length: 3_000, start: 12_000, failed: false, err: ""},
-		{activation: 9_000, height: 12_000, length: 3_000, start: 15_000, failed: false, err: ""},
-		{activation: 9_000, height: 10_500, length: 3_000, start: 12_000, failed: false, err: ""},
-		{activation: 9_000, height: 14_500, length: 3_000, start: 15_000, failed: false, err: ""},
-		{activation: 9_000, height: 11_999, length: 3_000, start: 12_000, failed: false, err: ""},
-		{activation: 9_000, height: 14_999, length: 3_000, start: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 9_000, length: 3_000, start: 12_001, failed: false, err: ""},
+		{activation: 9_000, height: 9_001, length: 3_000, start: 12_001, failed: false, err: ""},
+		{activation: 9_000, height: 10_500, length: 3_000, start: 12_001, failed: false, err: ""},
+		{activation: 9_000, height: 12_000, length: 3_000, start: 12_001, failed: false, err: ""},
+		{activation: 9_000, height: 12_001, length: 3_000, start: 15_001, failed: false, err: ""},
+		{activation: 9_000, height: 14_500, length: 3_000, start: 15_001, failed: false, err: ""},
+		{activation: 9_000, height: 15_000, length: 3_000, start: 15_001, failed: false, err: ""},
 		// Fail on heights less than activation height.
 		{activation: 9_000, height: 1_000, length: 3_000, start: 0, failed: true,
 			err: "invalid block height 1000, must be greater than feature #25 \"Deterministic Finality and Ride V9\" " +
 				"activation height 9000"},
+		{activation: 1, height: 110_001, length: 10_000, start: 110_002, failed: false, err: ""},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			start, err := nextGenerationPeriodStart(test.activation, test.height, test.length)
@@ -1713,11 +1734,11 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 		{start: 100_001, opts: nil, blockchainHeight: 109_999, active: true, valid: false,
 			err: "invalid NextGenerationPeriodStart"},
 		// Valid to commit to the next period at the start of the current period.
-		{start: 110_001, opts: nil, blockchainHeight: 100_000, active: true, valid: true, err: ""},
+		{start: 110_002, opts: nil, blockchainHeight: 100_001, active: true, valid: true, err: ""},
 		// Valid to commit to the next period at any moment of the current period.
-		{start: 110_001, opts: nil, blockchainHeight: 101_234, active: true, valid: true, err: ""},
+		{start: 110_002, opts: nil, blockchainHeight: 101_234, active: true, valid: true, err: ""},
 		// Valid to commit to the next period at the end of the current period.
-		{start: 110_001, opts: nil, blockchainHeight: 109_999, active: true, valid: true, err: ""},
+		{start: 110_002, opts: nil, blockchainHeight: 110_000, active: true, valid: true, err: ""},
 		// Invalid to commit for more than one period ahead.
 		{start: 120_001, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
 			err: "invalid NextGenerationPeriodStart"},
@@ -1758,16 +1779,16 @@ func TestCommitToGenerationWithProofs_NoGenerationSlotsAvailable(t *testing.T) {
 	to := createCheckerTestObjects(t, info)
 	to.stor.activateSponsorship(t)
 	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
-	info.blockchainHeight = 999_999
+	info.blockchainHeight = 1_000_000
 
 	// Store 128 commitments to state.
 	cms := generateCommitments(t, 128)
 	for _, cm := range cms {
-		stErr := to.stor.entities.commitments.store(1_000_001, cm.GeneratorPK, cm.EndorserPK, info.blockID)
+		stErr := to.stor.entities.commitments.store(1_000_002, cm.GeneratorPK, cm.EndorserPK, info.blockID)
 		require.NoError(t, stErr)
 	}
 
-	tx := createCommitToGenerationWithProofs(t, 1_000_001)
+	tx := createCommitToGenerationWithProofs(t, 1_000_002)
 	_, err := to.tc.checkCommitToGenerationWithProofs(tx, info)
 	assert.EqualError(t, err,
 		"no available slots for the next generation period, 128 generators already committed")
@@ -1778,16 +1799,16 @@ func TestCheckCommitToGenerationWithProofs_SecondCommitmentAttempt(t *testing.T)
 	to := createCheckerTestObjects(t, info)
 	to.stor.activateSponsorship(t)
 	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
-	info.blockchainHeight = 999_999
+	info.blockchainHeight = 1_000_000
 
-	tx1 := createCommitToGenerationWithProofs(t, 1_000_001)
+	tx1 := createCommitToGenerationWithProofs(t, 1_000_002)
 	_, err := to.tc.checkCommitToGenerationWithProofs(tx1, info)
 	assert.NoError(t, err)
 
 	err = to.stor.entities.commitments.store(tx1.GenerationPeriodStart, tx1.SenderPK, tx1.EndorserPublicKey, info.blockID)
 	require.NoError(t, err)
 
-	tx2 := createCommitToGenerationWithProofs(t, 1_000_001,
+	tx2 := createCommitToGenerationWithProofs(t, 1_000_002,
 		withTimestamp[*proto.CommitToGenerationWithProofs](tx1.Timestamp+1))
 	_, err = to.tc.checkCommitToGenerationWithProofs(tx2, info)
 	assert.EqualError(t, err,
