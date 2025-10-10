@@ -400,9 +400,9 @@ func (f *FSM) BlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.
 	return *asyncRes, err
 }
 
-func (f *FSM) BlockEndorsement(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
+func (f *FSM) BlockEndorsement(endorseBlock *proto.EndorseBlock) (Async, error) {
 	asyncRes := &Async{}
-	err := f.fsm.Fire(BlockEndorsementEvent, asyncRes, p, blockID, snapshots)
+	err := f.fsm.Fire(BlockEndorsementEvent, asyncRes, endorseBlock)
 	return *asyncRes, err
 }
 

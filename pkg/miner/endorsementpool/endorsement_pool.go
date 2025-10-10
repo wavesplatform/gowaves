@@ -13,13 +13,13 @@ import (
 const endorsementPoolLimit = 128
 
 type key struct {
-	blockID       [32]byte
+	blockID       proto.BlockID
 	endorserIndex int32
 }
 
-func makeKey(blockID []byte, idx int32) key {
+func makeKey(blockID proto.BlockID, idx int32) key {
 	var k key
-	copy(k.blockID[:], blockID)
+	k.blockID = blockID
 	k.endorserIndex = idx
 	return k
 }
@@ -56,6 +56,9 @@ func (h *endorsementHeap) Push(x any) {
 }
 
 func (h *endorsementHeap) Pop() any {
+	if h == nil || len(*h) == 0 {
+		return nil
+	}
 	old := *h
 	n := len(old)
 	if n == 0 {
@@ -76,20 +79,21 @@ type EndorsementPool struct {
 	mu                      sync.Mutex
 	seq                     uint64
 	countLimit              int
-	byKey                   map[key]*heapItemEndorsement
+	byKey                   map[key]heapItemEndorsement
 	h                       endorsementHeap
 	endorsersPublicKeyCache GeneratorsPublicKeysCache
 }
 
-func NewEndorsementPool() *EndorsementPool {
+func NewEndorsementPool(cache GeneratorsPublicKeysCache) *EndorsementPool {
 	return &EndorsementPool{
-		countLimit: endorsementPoolLimit,
-		byKey:      make(map[key]*heapItemEndorsement),
+		countLimit:              endorsementPoolLimit,
+		byKey:                   make(map[key]heapItemEndorsement),
+		endorsersPublicKeyCache: cache,
 	}
 }
 
 func (p *EndorsementPool) Add(e *proto.EndorseBlock) error {
-	if e == nil || len(e.EndorsedBlockID) == 0 {
+	if e == nil {
 		return errors.New("invalid endorsed block id")
 	}
 	k := makeKey(e.EndorsedBlockID, e.EndorserIndex)
@@ -98,30 +102,29 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock) error {
 	defer p.mu.Unlock()
 
 	if _, exists := p.byKey[k]; exists {
-		return errors.New("duplicate endorsement")
+		return fmt.Errorf("duplicate endorsement: endorser index %d, block ID %s",
+			e.EndorserIndex, e.EndorsedBlockID.String())
 	}
-
-	// Evict oldest if full
 	if p.countLimit > 0 && len(p.byKey) >= p.countLimit {
 		return errors.New("the endorsement pool is full")
 	}
 
 	p.seq++
 	endorserPublicKey := p.endorsersPublicKeyCache.PublicKeyByEndorserIndex(e.EndorserIndex)
-	it := &heapItemEndorsement{eb: e, seq: p.seq, endorserPK: endorserPublicKey}
+	it := heapItemEndorsement{eb: e, seq: p.seq, endorserPK: endorserPublicKey}
 	heap.Push(&p.h, it)
 	p.byKey[k] = it
 	return nil
 }
 
-func (p *EndorsementPool) GetAll() []*proto.EndorseBlock {
+func (p *EndorsementPool) GetAll() []proto.EndorseBlock {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	out := make([]*proto.EndorseBlock, 0, len(p.h))
-	for _, it := range p.h {
-		if it != nil {
-			out = append(out, it.eb)
+	out := make([]proto.EndorseBlock, 0, len(p.h))
+	for _, endorsementItem := range p.h {
+		if endorsementItem != nil {
+			out = append(out, *endorsementItem.eb)
 		}
 	}
 	return out
@@ -131,6 +134,7 @@ func (p *EndorsementPool) Finalize() proto.FinalizationVoting {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
+	// TODO finalize.
 	return proto.FinalizationVoting{}
 }
 
@@ -156,7 +160,7 @@ func (p *EndorsementPool) Len() int {
 func (p *EndorsementPool) CleanAll() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.byKey = make(map[key]*heapItemEndorsement)
+	p.byKey = make(map[key]heapItemEndorsement)
 	p.h = endorsementHeap{} // reset heap too
 	p.endorsersPublicKeyCache.CleanAllEndorsers()
 }
@@ -180,25 +184,35 @@ func (p *EndorsementPool) Pop() *proto.EndorseBlock {
 func (p *EndorsementPool) Verify() (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	var sigs []bls.Signature
-	var pks []bls.PublicKey
+
+	n := p.h.Len()
+	if n == 0 {
+		return false, errors.New("failed to verify endorsements, the endorsement pool is empty")
+	}
+
+	sigs := make([]bls.Signature, 0, n)
+	pks := make([]bls.PublicKey, 0, n)
+
 	for _, heapItem := range p.h {
-		sig := bls.Signature{}
-		err := sig.UnmarshalJSON(heapItem.eb.Signature)
-		if err != nil {
-			return false, err
+		var sig bls.Signature
+		if err := sig.UnmarshalJSON(heapItem.eb.Signature); err != nil {
+			return false, fmt.Errorf("invalid signature at endorser index %d: %w",
+				heapItem.eb.EndorserIndex, err)
 		}
 		sigs = append(sigs, sig)
 		pks = append(pks, heapItem.endorserPK)
 	}
-	msg, err := p.h[0].eb.EndorsementMessage() // All messages are assumed the same.
+
+	msg, err := p.h[0].eb.EndorsementMessage() // all messages are assumed the same
 	if err != nil {
 		return false, err
 	}
+
 	aggregatedSignature, err := bls.AggregateSignatures(sigs)
 	if err != nil {
 		return false, err
 	}
+
 	return bls.VerifyAggregate(pks, msg, aggregatedSignature), nil
 }
 

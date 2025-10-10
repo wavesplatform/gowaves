@@ -228,7 +228,7 @@ type EmbeddedWallet interface {
 // EndorsementPool storage interface.
 type EndorsementPool interface {
 	Add(e *proto.EndorseBlock) error
-	GetAll() []*proto.EndorseBlock
+	GetAll() []proto.EndorseBlock
 	GetEndorsers() []proto.WavesAddress
 	GetGenerators() []proto.WavesAddress
 	Finalize() proto.FinalizationVoting

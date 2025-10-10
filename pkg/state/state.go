@@ -27,6 +27,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -34,6 +35,9 @@ const (
 	blocksStorDir         = "blocks_storage"
 	keyvalueDir           = "key_value"
 	maxScriptsRunsInBlock = 101
+
+	twoThirdsNumerator   = 2
+	twoThirdsDenominator = 3
 )
 
 var empty struct{}
@@ -3200,7 +3204,10 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 		if err != nil {
 			return false, err
 		}
-		totalGeneratingBalance += balance
+		totalGeneratingBalance, err = common.AddInt(totalGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "totalGeneratingBalance overflow")
+		}
 	}
 	for _, endorser := range endorsers {
 		endorserRecipient := proto.NewRecipientFromAddress(endorser)
@@ -3208,10 +3215,21 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 		if err != nil {
 			return false, err
 		}
-		endorsersGeneratingBalance += balance
+		endorsersGeneratingBalance, err = common.AddInt(endorsersGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
+		}
 	}
+	if totalGeneratingBalance == 0 {
+		return false, nil
+	}
+	if endorsersGeneratingBalance == 0 {
+		return false, nil
+	}
+
 	// If endorsersBalance >= 2/3 totalGeneratingBalance
-	if 3*endorsersGeneratingBalance >= 2*totalGeneratingBalance {
+	threshold := (totalGeneratingBalance * twoThirdsNumerator) / twoThirdsDenominator
+	if endorsersGeneratingBalance >= threshold {
 		return true, nil
 	}
 	return false, nil

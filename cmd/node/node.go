@@ -800,12 +800,13 @@ func createServices(
 		return services.Services{}, errors.Wrap(err, "failed to initialize UTX")
 	}
 	return services.Services{
-		State:           st,
-		Peers:           peerManager,
-		Scheduler:       scheduler,
-		BlocksApplier:   blocks_applier.NewBlocksApplier(),
-		UtxPool:         utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
-		EndorsementPool: endorsementpool.NewEndorsementPool(),
+		State:         st,
+		Peers:         peerManager,
+		Scheduler:     scheduler,
+		BlocksApplier: blocks_applier.NewBlocksApplier(),
+		UtxPool:       utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
+		// TODO initialize when implemented.
+		EndorsementPool: endorsementpool.NewEndorsementPool(&endorsementpool.GeneratorsPublicKeysCacheImpl{}),
 		Scheme:          cfg.AddressSchemeCharacter,
 		Time:            ntpTime,
 		Wallet:          wal,

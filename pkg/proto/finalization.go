@@ -3,20 +3,17 @@ package proto
 import (
 	"encoding/binary"
 
-	"github.com/mr-tron/base58"
-	"github.com/pkg/errors"
-
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
 const heightSize = 4
 
 type EndorseBlock struct {
-	EndorserIndex        int32  `json:"endorserIndex"`
-	FinalizedBlockID     []byte `json:"finalizedBlockID"`
-	FinalizedBlockHeight uint32 `json:"finalizedBlockHeight"`
-	EndorsedBlockID      []byte `json:"endorsedBlockId"`
-	Signature            []byte `json:"signature"`
+	EndorserIndex        int32   `json:"endorserIndex"`
+	FinalizedBlockID     BlockID `json:"finalizedBlockID"`
+	FinalizedBlockHeight uint32  `json:"finalizedBlockHeight"`
+	EndorsedBlockID      BlockID `json:"endorsedBlockId"`
+	Signature            []byte  `json:"signature"`
 }
 
 func (e *EndorseBlock) Marshal() ([]byte, error) {
@@ -26,20 +23,22 @@ func (e *EndorseBlock) Marshal() ([]byte, error) {
 
 // EndorsementMessage serializes endorsement structure into base58 message.
 func (e *EndorseBlock) EndorsementMessage() ([]byte, error) {
-	if len(e.FinalizedBlockID) == 0 || len(e.EndorsedBlockID) == 0 {
-		return nil, errors.New("invalid endorsement: missing block IDs")
-	}
-	// finalizedBlockId + 4 bytes height + endorsedBlockId
-	size := len(e.FinalizedBlockID) + heightSize + len(e.EndorsedBlockID)
-	buf := make([]byte, size)
-	// finalizedBlockId
-	copy(buf[0:len(e.FinalizedBlockID)], e.FinalizedBlockID)
-	// finalizedBlockHeight
-	binary.BigEndian.PutUint32(buf[len(e.FinalizedBlockID):len(e.FinalizedBlockID)+4], e.FinalizedBlockHeight)
-	// endorsedBlockId
-	copy(buf[len(e.FinalizedBlockID)+4:], e.EndorsedBlockID)
+	finalizedID := e.FinalizedBlockID.Bytes()
+	endorsedID := e.EndorsedBlockID.Bytes()
 
-	return []byte(base58.Encode(buf)), nil
+	size := len(finalizedID) + heightSize + len(endorsedID)
+	buf := make([]byte, size)
+
+	// finalizedBlockId
+	copy(buf[0:len(finalizedID)], finalizedID)
+
+	// finalizedBlockHeight (4 bytes big-endian, same as Scala Ints.toByteArray)
+	binary.BigEndian.PutUint32(buf[len(finalizedID):len(finalizedID)+heightSize], e.FinalizedBlockHeight)
+
+	// endorsedBlockId
+	copy(buf[len(finalizedID)+heightSize:], endorsedID)
+
+	return buf, nil
 }
 
 func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {
@@ -60,9 +59,9 @@ func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {
 func (e *EndorseBlock) ToProtobuf() *g.EndorseBlock {
 	endBlockProto := g.EndorseBlock{
 		EndorserIndex:        e.EndorserIndex,
-		FinalizedBlockId:     e.FinalizedBlockID,
+		FinalizedBlockId:     e.FinalizedBlockID.Bytes(),
 		FinalizedBlockHeight: e.FinalizedBlockHeight,
-		EndorsedBlockId:      e.EndorsedBlockID,
+		EndorsedBlockId:      e.EndorsedBlockID.Bytes(),
 		Signature:            e.Signature,
 	}
 	return &endBlockProto

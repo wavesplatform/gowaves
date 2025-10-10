@@ -1,6 +1,8 @@
 package proto
 
 import (
+	"fmt"
+
 	"github.com/ccoveille/go-safecast"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1690,11 +1692,19 @@ func (c *ProtobufConverter) EndorseBlock(endorsement *g.EndorseBlock) (EndorseBl
 	if endorsement == nil {
 		return EndorseBlock{}, errors.New("empty endorsement")
 	}
+	finalizedBlockID, err := NewBlockIDFromBytes(endorsement.FinalizedBlockId)
+	if err != nil {
+		return EndorseBlock{}, fmt.Errorf("failed to parse finalized block ID: %w", err)
+	}
+	endorsedBlockID, err := NewBlockIDFromBytes(endorsement.EndorsedBlockId)
+	if err != nil {
+		return EndorseBlock{}, fmt.Errorf("failed to parse endorsed block ID: %w", err)
+	}
 	return EndorseBlock{
 		EndorserIndex:        endorsement.EndorserIndex,
-		FinalizedBlockID:     endorsement.FinalizedBlockId,
+		FinalizedBlockID:     finalizedBlockID,
 		FinalizedBlockHeight: endorsement.FinalizedBlockHeight,
-		EndorsedBlockID:      endorsement.EndorsedBlockId,
+		EndorsedBlockID:      endorsedBlockID,
 		Signature:            endorsement.Signature,
 	}, nil
 }
@@ -1703,17 +1713,26 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 	if finalizationVoting == nil {
 		return FinalizationVoting{}, errors.New("empty finalization voting")
 	}
-	conflictEndorsements := make([]EndorseBlock, len(finalizationVoting.ConflictEndorsements))
+	conflictEndorsements := make([]EndorseBlock, 0, len(finalizationVoting.ConflictEndorsements))
 	for i, ce := range finalizationVoting.ConflictEndorsements {
-		if ce != nil {
-			conflictEndorsements[i] = EndorseBlock{
-				EndorserIndex:        ce.EndorserIndex,
-				FinalizedBlockID:     ce.FinalizedBlockId,
-				FinalizedBlockHeight: ce.FinalizedBlockHeight,
-				EndorsedBlockID:      ce.EndorsedBlockId,
-				Signature:            ce.Signature,
-			}
+		if ce == nil {
+			continue
 		}
+		finalizedBlockID, err := NewBlockIDFromBytes(ce.FinalizedBlockId)
+		if err != nil {
+			return FinalizationVoting{}, fmt.Errorf("failed to parse finalized block ID at index %d: %w", i, err)
+		}
+		endorsedBlockID, err := NewBlockIDFromBytes(ce.EndorsedBlockId)
+		if err != nil {
+			return FinalizationVoting{}, fmt.Errorf("failed to parse endorsed block ID at index %d: %w", i, err)
+		}
+		conflictEndorsements = append(conflictEndorsements, EndorseBlock{
+			EndorserIndex:        ce.EndorserIndex,
+			FinalizedBlockID:     finalizedBlockID,
+			FinalizedBlockHeight: ce.FinalizedBlockHeight,
+			EndorsedBlockID:      endorsedBlockID,
+			Signature:            ce.Signature,
+		})
 	}
 	return FinalizationVoting{
 		EndorserIndexes:                finalizationVoting.EndorserIndexes,

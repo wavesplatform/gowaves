@@ -450,6 +450,10 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 	if sh, present := b.GetStateHash(); present {
 		stateHash = sh.Bytes()
 	}
+	var finalizationVoting *g.FinalizationVoting
+	if b.FinalizationVoting != nil {
+		finalizationVoting = b.FinalizationVoting.ToProtobuf()
+	}
 	return &g.Block_Header{
 		ChainId:             int32(scheme),
 		Reference:           b.Parent.Bytes(),
@@ -463,7 +467,7 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 		TransactionsRoot:    b.TransactionsRoot,
 		StateHash:           stateHash,
 		ChallengedHeader:    challengedHeader,
-		FinalizationVoting:  b.FinalizationVoting.ToProtobuf(),
+		FinalizationVoting:  finalizationVoting,
 	}, nil
 }
 

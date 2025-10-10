@@ -32,7 +32,7 @@ type MicroBlock struct {
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
 	StateHash             *crypto.Digest // is nil before protocol version 1.5
-	Endorsements          []*EndorseBlock
+	Endorsements          []EndorseBlock
 }
 
 type MicroblockTotalSig = crypto.Signature
