@@ -11,6 +11,7 @@ RUN go mod download
 
 COPY Makefile .
 COPY .git .git
+RUN git restore --source=HEAD --worktree .
 COPY cmd cmd
 COPY pkg pkg
 
