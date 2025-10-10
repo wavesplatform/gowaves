@@ -23,6 +23,6 @@ const (
 	InvokeScriptTransaction                                  // 16 - InvokeScript transaction
 	UpdateAssetInfoTransaction                               // 17 - UpdateAssetInfo transaction
 	EthereumMetamaskTransaction                              // 18 - EthereumMetamask transaction: received from MetaMask
-	InvokeExpressionTransaction                              // 19 - InvokeExpression transaction
-	CommitToGenerationTransaction                            // 20 - CommitToGeneration transaction
+	CommitToGenerationTransaction                            // 19 - CommitToGeneration transaction
+	InvokeExpressionTransaction                              // 20 - InvokeExpression transaction
 )
