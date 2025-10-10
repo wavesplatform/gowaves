@@ -27,6 +27,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -3188,4 +3189,49 @@ func (s *stateManager) Close() error {
 		return wrapErr(stateerr.ClosureError, err)
 	}
 	return nil
+}
+
+func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height,
+	allGenerators []proto.WavesAddress) (bool, error) {
+	var totalGeneratingBalance uint64
+	var endorsersGeneratingBalance uint64
+	for _, gen := range allGenerators {
+		genRecipient := proto.NewRecipientFromAddress(gen)
+		balance, err := s.GeneratingBalance(genRecipient, height)
+		if err != nil {
+			return false, err
+		}
+		totalGeneratingBalance, err = common.AddInt(totalGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "totalGeneratingBalance overflow")
+		}
+	}
+	for _, endorser := range endorsers {
+		endorserRecipient := proto.NewRecipientFromAddress(endorser)
+		balance, err := s.GeneratingBalance(endorserRecipient, height)
+		if err != nil {
+			return false, err
+		}
+		endorsersGeneratingBalance, err = common.AddInt(endorsersGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
+		}
+	}
+	if totalGeneratingBalance == 0 {
+		return false, nil
+	}
+	if endorsersGeneratingBalance == 0 {
+		return false, nil
+	}
+
+	// If endorsersBalance >= 2/3 totalGeneratingBalance
+	totalGenBalance := float64(totalGeneratingBalance)
+	endorsersGenBal := float64(endorsersGeneratingBalance)
+	ratio := endorsersGenBal / totalGenBalance
+
+	const twoThirds = 2.0 / 3.0
+	if ratio >= twoThirds {
+		return true, nil
+	}
+	return false, nil
 }

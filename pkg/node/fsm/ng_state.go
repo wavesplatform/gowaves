@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
@@ -205,6 +207,35 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	return newNGState(a.baseInfo), nil, nil
 }
 
+func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State, Async, error) {
+	endorsedBlockID := blockEndorsement.EndorsedBlockID
+	endorsedMicroBlock, found := a.baseInfo.MicroBlockCache.GetBlock(endorsedBlockID)
+	if !found || endorsedMicroBlock == nil {
+		return a, nil, a.Errorf(fmt.Errorf(
+			"failed to find the microblock that was endorsed (block ID: %s)",
+			endorsedBlockID.String(),
+		))
+	}
+	top := a.baseInfo.storage.TopBlock()
+	if top.BlockID() != endorsedMicroBlock.Reference { // Microblock's endorsement doesn't refer to last block
+		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
+			endorsedMicroBlock.TotalBlockID.String(), endorsedMicroBlock.Reference.String(), top.BlockID().String())
+		return a, nil, proto.NewInfoMsg(err)
+	}
+
+	// TODO verify individual endorsements (signatures) using the endorser's public key.
+	// TODO validate whether the endorsement is not a duplicate
+
+	err := a.baseInfo.endorsements.Add(blockEndorsement)
+	if err != nil {
+		return a, nil, errors.Errorf("failed to add an endorsement, %v", err)
+	}
+
+	// TODO send the proto message to peers about endorsement
+
+	return newNGState(a.baseInfo), nil, nil
+}
+
 func (a *NGState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
@@ -219,8 +250,32 @@ func (a *NGState) MinedBlock(
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
 	}
+
+	finalityActivated, err := a.baseInfo.storage.IsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+	if finalityActivated {
+		ok, vrfErr := a.baseInfo.endorsements.Verify()
+		if vrfErr != nil {
+			return a, nil, a.Errorf(vrfErr)
+		}
+		if !ok {
+			return a, nil, a.Errorf(errors.Errorf("endorsement verification failed at height %d", height))
+		}
+		canFinalize, finErr := a.baseInfo.storage.CalculateVotingFinalization(a.baseInfo.endorsements.GetEndorsers(), height,
+			a.baseInfo.endorsements.GetGenerators())
+		if finErr != nil {
+			return a, nil, a.Errorf(fmt.Errorf("failed to calculate finalization voting %w", finErr))
+		}
+		if canFinalize {
+			finalization := a.baseInfo.endorsements.Finalize()
+			block.FinalizationVoting = &finalization
+		}
+	}
+
 	metrics.BlockMined(block)
-	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
+	err = a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.baseInfo.blocksApplier.Apply(
 			state,
@@ -239,6 +294,7 @@ func (a *NGState) MinedBlock(
 	slog.Info("Generated key block successfully applied to state", "state", a.String(),
 		"blockID", block.ID.String())
 
+	a.baseInfo.endorsements.CleanAll()
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
@@ -256,6 +312,7 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 			metrics.MicroBlockDeclined(micro)
 			return a, nil, a.Errorf(err)
 		}
+
 		a.baseInfo.logger.Debug("Received microblock successfully applied to state",
 			"state", a.String(), "blockID", block.BlockID(), "ref", micro.Reference)
 		a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
@@ -303,6 +360,10 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))
 	}
 	metrics.MicroBlockMined(micro, block.TransactionCount)
+
+	endorsements := a.baseInfo.endorsements.GetAll()
+	micro.Endorsements = endorsements
+
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er
@@ -531,6 +592,19 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 						"unexpected type '%T' expected '*NGState'", state.State))
 				}
 				return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
+			})).
+		PermitDynamic(BlockEndorsementEvent,
+			createPermitDynamicCallback(BlockEndorsementEvent, state, func(args ...any) (State, Async, error) {
+				a, ok := state.State.(*NGState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*NGState'", state.State))
+				}
+				endorse, ok := args[0].(*proto.EndorseBlock)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.EndorseBlock", args[0]))
+				}
+				return a.BlockEndorsement(endorse)
 			})).
 		PermitDynamic(MinedBlockEvent,
 			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...any) (State, Async, error) {
