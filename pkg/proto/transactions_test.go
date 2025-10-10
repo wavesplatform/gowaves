@@ -7071,7 +7071,7 @@ func TestCommitToGenerationWithProofsToJSON(t *testing.T) {
 			js, err := json.Marshal(tx)
 			require.NoError(t, err)
 			ej := fmt.Sprintf(
-				"{\"type\":20,\"version\":%d,\"senderPublicKey\":\"%s\",\"fee\":%d,\"timestamp\":%d,"+
+				"{\"type\":19,\"version\":%d,\"senderPublicKey\":\"%s\",\"fee\":%d,\"timestamp\":%d,"+
 					"\"generationPeriodStart\":%d,\"endorserPublicKey\":\"%s\",\"commitmentSignature\":\"%s\"}",
 				tst.ver, base58.Encode(pk.Bytes()), tst.fee, tst.ts, tst.start, base58.Encode(blsPK.Bytes()),
 				base58.Encode(sig.Bytes()),
@@ -7083,7 +7083,7 @@ func TestCommitToGenerationWithProofsToJSON(t *testing.T) {
 			sj, err := json.Marshal(tx)
 			require.NoError(t, err)
 			esj := fmt.Sprintf(
-				"{\"id\":\"%s\",\"type\":20,\"version\":%d,\"senderPublicKey\":\"%s\",\"fee\":%d,"+
+				"{\"id\":\"%s\",\"type\":19,\"version\":%d,\"senderPublicKey\":\"%s\",\"fee\":%d,"+
 					"\"timestamp\":%d,\"proofs\":[\"%s\"],\"generationPeriodStart\":%d,\"endorserPublicKey\":\"%s\","+
 					"\"commitmentSignature\":\"%s\"}",
 				base58.Encode(tx.ID[:]), tst.ver, base58.Encode(pk[:]), tst.fee, tst.ts,

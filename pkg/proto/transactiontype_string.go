@@ -26,13 +26,13 @@ func _() {
 	_ = x[InvokeScriptTransaction-16]
 	_ = x[UpdateAssetInfoTransaction-17]
 	_ = x[EthereumMetamaskTransaction-18]
-	_ = x[InvokeExpressionTransaction-19]
-	_ = x[CommitToGenerationTransaction-20]
+	_ = x[CommitToGenerationTransaction-19]
+	_ = x[InvokeExpressionTransaction-20]
 }
 
-const _TransactionType_name = "GenesisTransactionPaymentTransactionIssueTransactionTransferTransactionReissueTransactionBurnTransactionExchangeTransactionLeaseTransactionLeaseCancelTransactionCreateAliasTransactionMassTransferTransactionDataTransactionSetScriptTransactionSponsorshipTransactionSetAssetScriptTransactionInvokeScriptTransactionUpdateAssetInfoTransactionEthereumMetamaskTransactionInvokeExpressionTransactionCommitToGenerationTransaction"
+const _TransactionType_name = "GenesisTransactionPaymentTransactionIssueTransactionTransferTransactionReissueTransactionBurnTransactionExchangeTransactionLeaseTransactionLeaseCancelTransactionCreateAliasTransactionMassTransferTransactionDataTransactionSetScriptTransactionSponsorshipTransactionSetAssetScriptTransactionInvokeScriptTransactionUpdateAssetInfoTransactionEthereumMetamaskTransactionCommitToGenerationTransactionInvokeExpressionTransaction"
 
-var _TransactionType_index = [...]uint16{0, 18, 36, 52, 71, 89, 104, 123, 139, 161, 183, 206, 221, 241, 263, 288, 311, 337, 364, 391, 420}
+var _TransactionType_index = [...]uint16{0, 18, 36, 52, 71, 89, 104, 123, 139, 161, 183, 206, 221, 241, 263, 288, 311, 337, 364, 393, 420}
 
 func (i TransactionType) String() string {
 	i -= 1
