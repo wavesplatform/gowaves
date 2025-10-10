@@ -2363,11 +2363,11 @@ type DataEntry interface {
 }
 
 var bytesToDataEntry = map[DataValueType]reflect.Type{
-	DataInteger: reflect.TypeOf(IntegerDataEntry{}),
-	DataBoolean: reflect.TypeOf(BooleanDataEntry{}),
-	DataString:  reflect.TypeOf(StringDataEntry{}),
-	DataBinary:  reflect.TypeOf(BinaryDataEntry{}),
-	DataDelete:  reflect.TypeOf(DeleteDataEntry{}),
+	DataInteger: reflect.TypeFor[IntegerDataEntry](),
+	DataBoolean: reflect.TypeFor[BooleanDataEntry](),
+	DataString:  reflect.TypeFor[StringDataEntry](),
+	DataBinary:  reflect.TypeFor[BinaryDataEntry](),
+	DataDelete:  reflect.TypeFor[DeleteDataEntry](),
 }
 
 func NewDataEntryFromValueBytes(valueBytes []byte) (DataEntry, error) {
