@@ -35,9 +35,6 @@ const (
 	blocksStorDir         = "blocks_storage"
 	keyvalueDir           = "key_value"
 	maxScriptsRunsInBlock = 101
-
-	twoThirdsNumerator   = 2
-	twoThirdsDenominator = 3
 )
 
 var empty struct{}
@@ -3228,8 +3225,12 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 	}
 
 	// If endorsersBalance >= 2/3 totalGeneratingBalance
-	threshold := (totalGeneratingBalance * twoThirdsNumerator) / twoThirdsDenominator
-	if endorsersGeneratingBalance >= threshold {
+	totalGenBalance := float64(totalGeneratingBalance)
+	endorsersGenBal := float64(endorsersGeneratingBalance)
+	ratio := endorsersGenBal / totalGenBalance
+
+	const twoThirds = 2.0 / 3.0
+	if ratio >= twoThirds {
 		return true, nil
 	}
 	return false, nil

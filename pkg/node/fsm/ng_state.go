@@ -602,7 +602,7 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 				}
 				endorse, ok := args[0].(*proto.EndorseBlock)
 				if !ok {
-					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.EndorseBlock", args[1]))
+					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.EndorseBlock", args[0]))
 				}
 				return a.BlockEndorsement(endorse)
 			})).

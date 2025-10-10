@@ -8,9 +8,8 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
-
-const endorsementPoolLimit = 128
 
 type key struct {
 	blockID       proto.BlockID
@@ -18,10 +17,7 @@ type key struct {
 }
 
 func makeKey(blockID proto.BlockID, idx int32) key {
-	var k key
-	k.blockID = blockID
-	k.endorserIndex = idx
-	return k
+	return key{blockID: blockID, endorserIndex: idx}
 }
 
 type heapItemEndorsement struct {
@@ -35,7 +31,7 @@ type endorsementHeap []*heapItemEndorsement
 
 func (h endorsementHeap) Len() int { return len(h) }
 
-// Less Oldest = smallest seq - floats to top.
+// Less — smaller seq = older endorsement = higher priority (floats to top).
 func (h endorsementHeap) Less(i, j int) bool {
 	return h[i].seq < h[j].seq
 }
@@ -61,12 +57,9 @@ func (h *endorsementHeap) Pop() any {
 	}
 	old := *h
 	n := len(old)
-	if n == 0 {
-		return nil
-	}
 	item := old[n-1]
 	item.index = -1
-	old[n-1] = nil
+	(*h)[n-1] = nil // avoid memory leaks
 	*h = old[:n-1]
 	return item
 }
@@ -79,19 +72,20 @@ type EndorsementPool struct {
 	mu                      sync.Mutex
 	seq                     uint64
 	countLimit              int
-	byKey                   map[key]heapItemEndorsement
+	byKey                   map[key]*heapItemEndorsement
 	h                       endorsementHeap
 	endorsersPublicKeyCache GeneratorsPublicKeysCache
 }
 
 func NewEndorsementPool(cache GeneratorsPublicKeysCache) *EndorsementPool {
 	return &EndorsementPool{
-		countLimit:              endorsementPoolLimit,
-		byKey:                   make(map[key]heapItemEndorsement),
+		countLimit:              settings.EndorsementPoolLimit,
+		byKey:                   make(map[key]*heapItemEndorsement),
 		endorsersPublicKeyCache: cache,
 	}
 }
 
+// Add inserts an endorsement into the pool with proper synchronization and consistency.
 func (p *EndorsementPool) Add(e *proto.EndorseBlock) error {
 	if e == nil {
 		return errors.New("invalid endorsed block id")
@@ -111,12 +105,17 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock) error {
 
 	p.seq++
 	endorserPublicKey := p.endorsersPublicKeyCache.PublicKeyByEndorserIndex(e.EndorserIndex)
-	it := heapItemEndorsement{eb: e, seq: p.seq, endorserPK: endorserPublicKey}
-	heap.Push(&p.h, it)
-	p.byKey[k] = it
+	item := &heapItemEndorsement{
+		eb:         e,
+		seq:        p.seq,
+		endorserPK: endorserPublicKey,
+	}
+	heap.Push(&p.h, item)
+	p.byKey[k] = item
 	return nil
 }
 
+// GetAll returns a copy of all endorsements currently in the pool.
 func (p *EndorsementPool) GetAll() []proto.EndorseBlock {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -134,14 +133,13 @@ func (p *EndorsementPool) Finalize() proto.FinalizationVoting {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	// TODO finalize.
+	// TODO: implement actual finalization aggregation.
 	return proto.FinalizationVoting{}
 }
 
 func (p *EndorsementPool) GetEndorsers() []proto.WavesAddress {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
 	return p.endorsersPublicKeyCache.AllEndorsers()
 }
 
@@ -157,17 +155,20 @@ func (p *EndorsementPool) Len() int {
 	return len(p.byKey)
 }
 
+// CleanAll safely resets the pool.
 func (p *EndorsementPool) CleanAll() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	p.byKey = make(map[key]heapItemEndorsement)
-	p.h = endorsementHeap{} // reset heap too
+	p.byKey = make(map[key]*heapItemEndorsement)
+	p.h = endorsementHeap{}
 	p.endorsersPublicKeyCache.CleanAllEndorsers()
 }
 
+// Pop removes the oldest endorsement (smallest seq) from the pool.
 func (p *EndorsementPool) Pop() *proto.EndorseBlock {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	if len(p.h) == 0 {
 		return nil
 	}
@@ -181,6 +182,7 @@ func (p *EndorsementPool) Pop() *proto.EndorseBlock {
 	return it.eb
 }
 
+// Verify validates all endorsements in the pool by aggregating BLS signatures.
 func (p *EndorsementPool) Verify() (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
@@ -203,7 +205,7 @@ func (p *EndorsementPool) Verify() (bool, error) {
 		pks = append(pks, heapItem.endorserPK)
 	}
 
-	msg, err := p.h[0].eb.EndorsementMessage() // all messages are assumed the same
+	msg, err := p.h[0].eb.EndorsementMessage() // all endorsements use the same message
 	if err != nil {
 		return false, err
 	}
@@ -223,8 +225,7 @@ type GeneratorsPublicKeysCache interface {
 	CleanAllEndorsers()
 }
 
-type GeneratorsPublicKeysCacheImpl struct {
-}
+type GeneratorsPublicKeysCacheImpl struct{}
 
 func (c *GeneratorsPublicKeysCacheImpl) PublicKeyByEndorserIndex(_ int32) bls.PublicKey {
 	panic("not implemented")
