@@ -1,4 +1,4 @@
-FROM golang:1.24-alpine3.22@sha256:7342d2571d7e5f75ba18b0adba39a62bac193642548a0d59c23c4ec46f82a01d as builder
+FROM golang:1.25-alpine3.22@sha256:06cdd34bd531b810650e47762c01e025eb9b1c7eadd191553b91c9f2d549fae8 as builder
 LABEL wavesplatform-gowaves-itests-tmp=true
 WORKDIR /app
 
