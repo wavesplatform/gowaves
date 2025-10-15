@@ -33,6 +33,8 @@ const (
 	lenWithDAOAndXTNBuybackAddresses = 2
 )
 
+const EndorsementPoolLimit = 128
+
 var (
 	//go:embed embedded
 	res embed.FS

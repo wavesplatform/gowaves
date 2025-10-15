@@ -328,6 +328,21 @@ func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockStateInfo)(nil).BlockchainSettings))
 }
 
+// CalculateVotingFinalization mocks base method.
+func (m *MockStateInfo) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CalculateVotingFinalization", endorsers, height, allGenerators)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CalculateVotingFinalization indicates an expected call of CalculateVotingFinalization.
+func (mr *MockStateInfoMockRecorder) CalculateVotingFinalization(endorsers, height, allGenerators interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockStateInfo)(nil).CalculateVotingFinalization), endorsers, height, allGenerators)
+}
+
 // CurrentScore mocks base method.
 func (m *MockStateInfo) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -1745,6 +1760,21 @@ func (m *MockState) BlockchainSettings() (*settings.BlockchainSettings, error) {
 func (mr *MockStateMockRecorder) BlockchainSettings() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockState)(nil).BlockchainSettings))
+}
+
+// CalculateVotingFinalization mocks base method.
+func (m *MockState) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CalculateVotingFinalization", endorsers, height, allGenerators)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CalculateVotingFinalization indicates an expected call of CalculateVotingFinalization.
+func (mr *MockStateMockRecorder) CalculateVotingFinalization(endorsers, height, allGenerators interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockState)(nil).CalculateVotingFinalization), endorsers, height, allGenerators)
 }
 
 // Close mocks base method.

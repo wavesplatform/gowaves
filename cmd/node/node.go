@@ -31,6 +31,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
+	"github.com/wavesplatform/gowaves/pkg/miner/endorsementpool"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node"
@@ -799,11 +800,13 @@ func createServices(
 		return services.Services{}, errors.Wrap(err, "failed to initialize UTX")
 	}
 	return services.Services{
-		State:           st,
-		Peers:           peerManager,
-		Scheduler:       scheduler,
-		BlocksApplier:   blocks_applier.NewBlocksApplier(),
-		UtxPool:         utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
+		State:         st,
+		Peers:         peerManager,
+		Scheduler:     scheduler,
+		BlocksApplier: blocks_applier.NewBlocksApplier(),
+		UtxPool:       utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
+		// TODO initialize when implemented.
+		EndorsementPool: endorsementpool.NewEndorsementPool(&endorsementpool.GeneratorsPublicKeysCacheImpl{}),
 		Scheme:          cfg.AddressSchemeCharacter,
 		Time:            ntpTime,
 		Wallet:          wal,
