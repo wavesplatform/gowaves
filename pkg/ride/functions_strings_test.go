@@ -673,3 +673,81 @@ func TestContains(t *testing.T) {
 		}
 	}
 }
+
+func TestReplaceFirst(t *testing.T) {
+	for i, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideString("red")},
+			false, rideString("quick red fox jumps over the lazy dog")},
+		{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideString("baby")},
+			false, rideString("cafe baby dead beef cafe bebe")},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("red"), rideString("brown")},
+			false, rideString("quick brown fox jumps over the lazy dog")},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString(""), rideString(" ")},
+			false, rideString(" quick brown fox jumps over the lazy dog")},
+		{[]rideType{rideString("")}, true, nil},
+		{[]rideType{rideString(""), rideInt(3)}, true, nil},
+		{[]rideType{rideString("x"), rideString("y"), rideString("z"), rideInt(0)}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideString("x冬xqweqwe"), rideString("x冬xqw"), rideString("xxx")}, false,
+			rideString("xxxeqwe")},
+		{[]rideType{rideString("冬weqwe"), rideString("we"), rideString(" ")}, false, rideString("冬 qwe")},
+		{[]rideType{rideString(""), rideString("x冬x"), rideString("xxx")}, false, rideString("")},
+	} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			r, err := replaceFirst(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
+	}
+}
+
+func TestReplaceAll(t *testing.T) {
+	for i, test := range []struct {
+		args []rideType
+		fail bool
+		r    rideType
+	}{
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("brown"), rideString("red")},
+			false, rideString("quick red fox jumps over the lazy dog")},
+		{[]rideType{rideString("cafe bebe dead beef cafe bebe"), rideString("bebe"), rideString("baby")},
+			false, rideString("cafe baby dead beef cafe baby")},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString("red"), rideString("brown")},
+			false, rideString("quick brown fox jumps over the lazy dog")},
+		{[]rideType{rideString("quick brown fox jumps over the lazy dog"), rideString(""), rideString(" ")},
+			false, rideString(" q u i c k   b r o w n   f o x   j u m p s   o v e r   t h e   l a z y   d o g ")},
+		{[]rideType{rideString("")}, true, nil},
+		{[]rideType{rideString(""), rideInt(3)}, true, nil},
+		{[]rideType{rideString("x"), rideString("y"), rideString("z"), rideInt(0)}, true, nil},
+		{[]rideType{rideUnit{}}, true, nil},
+		{[]rideType{rideInt(1), rideString("x")}, true, nil},
+		{[]rideType{rideInt(1)}, true, nil},
+		{[]rideType{}, true, nil},
+		{[]rideType{rideString("x冬xqweqwe"), rideString("x冬xqw"), rideString("xxx")}, false,
+			rideString("xxxeqwe")},
+		{[]rideType{rideString("冬weqwe"), rideString("we"), rideString(" ")}, false, rideString("冬 q ")},
+		{[]rideType{rideString(""), rideString("x冬x"), rideString("xxx")}, false, rideString("")},
+		{[]rideType{rideString("AAAAAAA"), rideString(""), rideString("B")}, false,
+			rideString("BABABABABABABAB")},
+	} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			r, err := replaceAll(nil, test.args...)
+			if test.fail {
+				assert.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, test.r, r)
+			}
+		})
+	}
+}

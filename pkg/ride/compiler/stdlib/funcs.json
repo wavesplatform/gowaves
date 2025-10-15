@@ -2626,13 +2626,86 @@
         ],
         "replaceByIndex": [
           {
-              "arguments": [
-                "List[Any]",
-                "Int",
-                "Any"
-              ],
-              "return_type": "List[Any]",
-              "id": "1106"
+            "arguments": [
+              "List[Any]",
+              "Int",
+              "Any"
+            ],
+            "return_type": "List[Any]",
+            "id": "1106"
+          }
+        ]
+      },
+      "remove": []
+    },
+    {
+      "new": {
+        "fillList": [
+          {
+            "arguments": [
+              "Int",
+              "Any"
+            ],
+            "return_type": "List[Any]",
+            "id": "1107"
+          }
+        ],
+        "replaceFirst": [
+          {
+            "arguments": [
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "1214"
+          }
+        ],
+        "replaceAll": [
+          {
+            "arguments": [
+              "String",
+              "String",
+              "String"
+            ],
+            "return_type": "String",
+            "id": "1215"
+          }
+        ],
+        "toBase64String_1C": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "String",
+            "id": "606"
+          }
+        ],
+        "fromBase64String_1C": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "607"
+          }
+        ],
+        "toBase16String_1C": [
+          {
+            "arguments": [
+              "ByteVector"
+            ],
+            "return_type": "String",
+            "id": "608"
+          }
+        ],
+        "fromBase16String_1C": [
+          {
+            "arguments": [
+              "String"
+            ],
+            "return_type": "ByteVector",
+            "id": "609"
           }
         ]
       },

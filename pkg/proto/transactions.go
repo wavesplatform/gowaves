@@ -46,24 +46,46 @@ const (
 	createAliasLen = crypto.PublicKeySize + 2 + 8 + 8 + aliasFixedSize
 
 	// Max allowed versions of transactions.
-	MaxUncheckedTransactionVersion       = 127
-	MaxGenesisTransactionVersion         = 2
-	MaxPaymentTransactionVersion         = 2
-	MaxTransferTransactionVersion        = 3
-	MaxIssueTransactionVersion           = 3
-	MaxReissueTransactionVersion         = 3
-	MaxBurnTransactionVersion            = 3
-	MaxExchangeTransactionVersion        = 3
-	MaxLeaseTransactionVersion           = 3
-	MaxLeaseCancelTransactionVersion     = 3
-	MaxCreateAliasTransactionVersion     = 3
-	MaxMassTransferTransactionVersion    = 2
-	MaxDataTransactionVersion            = 2
-	MaxSetScriptTransactionVersion       = 2
-	MaxSponsorshipTransactionVersion     = 2
-	MaxSetAssetScriptTransactionVersion  = 2
-	MaxInvokeScriptTransactionVersion    = 2
-	MaxUpdateAssetInfoTransactionVersion = 1
+	MaxUncheckedTransactionVersion          = 127
+	MaxGenesisTransactionVersion            = 2
+	MaxPaymentTransactionVersion            = 2
+	MaxTransferTransactionVersion           = 3
+	MaxIssueTransactionVersion              = 3
+	MaxReissueTransactionVersion            = 3
+	MaxBurnTransactionVersion               = 3
+	MaxExchangeTransactionVersion           = 3
+	MaxLeaseTransactionVersion              = 3
+	MaxLeaseCancelTransactionVersion        = 3
+	MaxCreateAliasTransactionVersion        = 3
+	MaxMassTransferTransactionVersion       = 2
+	MaxDataTransactionVersion               = 2
+	MaxSetScriptTransactionVersion          = 2
+	MaxSponsorshipTransactionVersion        = 2
+	MaxSetAssetScriptTransactionVersion     = 2
+	MaxInvokeScriptTransactionVersion       = 2
+	MaxUpdateAssetInfoTransactionVersion    = 1
+	MaxCommitToGenerationTransactionVersion = 1
+
+	GenesisTransactionProtobufVersion            = 2
+	PaymentTransactionProtobufVersion            = 2
+	TransferTransactionProtobufVersion           = 3
+	IssueTransactionProtobufVersion              = 3
+	ReissueTransactionProtobufVersion            = 3
+	BurnTransactionProtobufVersion               = 3
+	ExchangeTransactionProtobufVersion           = 3
+	LeaseTransactionProtobufVersion              = 3
+	LeaseCancelTransactionProtobufVersion        = 3
+	CreateAliasTransactionProtobufVersion        = 3
+	MassTransferTransactionProtobufVersion       = 2
+	DataTransactionProtobufVersion               = 2
+	SetScriptTransactionProtobufVersion          = 2
+	SponsorshipTransactionProtobufVersion        = 2
+	SetAssetScriptTransactionProtobufVersion     = 2
+	InvokeScriptTransactionProtobufVersion       = 2
+	InvokeExpressionTransactionProtobufVersion   = 1
+	UpdateAssetInfoTransactionProtobufVersion    = 1
+	EthereumMetamaskTransactionProtobufVersion   = 1
+	CommitToGenerationTransactionProtobufVersion = 1
 
 	MinFee              = 100_000
 	MinFeeScriptedAsset = 400_000
@@ -78,57 +100,58 @@ const (
 
 var (
 	bytesToTransactionsV2 = map[TransactionType]reflect.Type{
-		IssueTransaction:          reflect.TypeOf(IssueWithProofs{}),
-		TransferTransaction:       reflect.TypeOf(TransferWithProofs{}),
-		ReissueTransaction:        reflect.TypeOf(ReissueWithProofs{}),
-		BurnTransaction:           reflect.TypeOf(BurnWithProofs{}),
-		ExchangeTransaction:       reflect.TypeOf(ExchangeWithProofs{}),
-		LeaseTransaction:          reflect.TypeOf(LeaseWithProofs{}),
-		LeaseCancelTransaction:    reflect.TypeOf(LeaseCancelWithProofs{}),
-		CreateAliasTransaction:    reflect.TypeOf(CreateAliasWithProofs{}),
-		DataTransaction:           reflect.TypeOf(DataWithProofs{}),
-		SetScriptTransaction:      reflect.TypeOf(SetScriptWithProofs{}),
-		SponsorshipTransaction:    reflect.TypeOf(SponsorshipWithProofs{}),
-		SetAssetScriptTransaction: reflect.TypeOf(SetAssetScriptWithProofs{}),
-		InvokeScriptTransaction:   reflect.TypeOf(InvokeScriptWithProofs{}),
+		IssueTransaction:          reflect.TypeFor[IssueWithProofs](),
+		TransferTransaction:       reflect.TypeFor[TransferWithProofs](),
+		ReissueTransaction:        reflect.TypeFor[ReissueWithProofs](),
+		BurnTransaction:           reflect.TypeFor[BurnWithProofs](),
+		ExchangeTransaction:       reflect.TypeFor[ExchangeWithProofs](),
+		LeaseTransaction:          reflect.TypeFor[LeaseWithProofs](),
+		LeaseCancelTransaction:    reflect.TypeFor[LeaseCancelWithProofs](),
+		CreateAliasTransaction:    reflect.TypeFor[CreateAliasWithProofs](),
+		DataTransaction:           reflect.TypeFor[DataWithProofs](),
+		SetScriptTransaction:      reflect.TypeFor[SetScriptWithProofs](),
+		SponsorshipTransaction:    reflect.TypeFor[SponsorshipWithProofs](),
+		SetAssetScriptTransaction: reflect.TypeFor[SetAssetScriptWithProofs](),
+		InvokeScriptTransaction:   reflect.TypeFor[InvokeScriptWithProofs](),
 	}
 
 	bytesToTransactionsV1 = map[TransactionType]reflect.Type{
-		GenesisTransaction:      reflect.TypeOf(Genesis{}),
-		PaymentTransaction:      reflect.TypeOf(Payment{}),
-		IssueTransaction:        reflect.TypeOf(IssueWithSig{}),
-		TransferTransaction:     reflect.TypeOf(TransferWithSig{}),
-		ReissueTransaction:      reflect.TypeOf(ReissueWithSig{}),
-		BurnTransaction:         reflect.TypeOf(BurnWithSig{}),
-		ExchangeTransaction:     reflect.TypeOf(ExchangeWithSig{}),
-		LeaseTransaction:        reflect.TypeOf(LeaseWithSig{}),
-		LeaseCancelTransaction:  reflect.TypeOf(LeaseCancelWithSig{}),
-		CreateAliasTransaction:  reflect.TypeOf(CreateAliasWithSig{}),
-		MassTransferTransaction: reflect.TypeOf(MassTransferWithProofs{}),
+		GenesisTransaction:      reflect.TypeFor[Genesis](),
+		PaymentTransaction:      reflect.TypeFor[Payment](),
+		IssueTransaction:        reflect.TypeFor[IssueWithSig](),
+		TransferTransaction:     reflect.TypeFor[TransferWithSig](),
+		ReissueTransaction:      reflect.TypeFor[ReissueWithSig](),
+		BurnTransaction:         reflect.TypeFor[BurnWithSig](),
+		ExchangeTransaction:     reflect.TypeFor[ExchangeWithSig](),
+		LeaseTransaction:        reflect.TypeFor[LeaseWithSig](),
+		LeaseCancelTransaction:  reflect.TypeFor[LeaseCancelWithSig](),
+		CreateAliasTransaction:  reflect.TypeFor[CreateAliasWithSig](),
+		MassTransferTransaction: reflect.TypeFor[MassTransferWithProofs](),
 	}
 
 	// ProtobufTransactionsVersions map shows whether transaction can be marshaled as protobuf data or not.
 	// Value of ProtobufTransactionsVersions is minimum required transaction version to protobuf marshaling.
 	ProtobufTransactionsVersions = map[TransactionType]byte{
-		GenesisTransaction:          2,
-		PaymentTransaction:          2,
-		TransferTransaction:         3,
-		IssueTransaction:            3,
-		ReissueTransaction:          3,
-		BurnTransaction:             3,
-		ExchangeTransaction:         3,
-		LeaseTransaction:            3,
-		LeaseCancelTransaction:      3,
-		CreateAliasTransaction:      3,
-		MassTransferTransaction:     2,
-		DataTransaction:             2,
-		SetScriptTransaction:        2,
-		SponsorshipTransaction:      2,
-		SetAssetScriptTransaction:   2,
-		InvokeScriptTransaction:     2,
-		InvokeExpressionTransaction: 1,
-		UpdateAssetInfoTransaction:  1,
-		EthereumMetamaskTransaction: 1,
+		GenesisTransaction:            GenesisTransactionProtobufVersion,
+		PaymentTransaction:            PaymentTransactionProtobufVersion,
+		TransferTransaction:           TransferTransactionProtobufVersion,
+		IssueTransaction:              IssueTransactionProtobufVersion,
+		ReissueTransaction:            ReissueTransactionProtobufVersion,
+		BurnTransaction:               BurnTransactionProtobufVersion,
+		ExchangeTransaction:           ExchangeTransactionProtobufVersion,
+		LeaseTransaction:              LeaseTransactionProtobufVersion,
+		LeaseCancelTransaction:        LeaseCancelTransactionProtobufVersion,
+		CreateAliasTransaction:        CreateAliasTransactionProtobufVersion,
+		MassTransferTransaction:       MassTransferTransactionProtobufVersion,
+		DataTransaction:               DataTransactionProtobufVersion,
+		SetScriptTransaction:          SetScriptTransactionProtobufVersion,
+		SponsorshipTransaction:        SponsorshipTransactionProtobufVersion,
+		SetAssetScriptTransaction:     SetAssetScriptTransactionProtobufVersion,
+		InvokeScriptTransaction:       InvokeScriptTransactionProtobufVersion,
+		InvokeExpressionTransaction:   InvokeExpressionTransactionProtobufVersion,
+		UpdateAssetInfoTransaction:    UpdateAssetInfoTransactionProtobufVersion,
+		EthereumMetamaskTransaction:   EthereumMetamaskTransactionProtobufVersion,
+		CommitToGenerationTransaction: CommitToGenerationTransactionProtobufVersion,
 	}
 )
 
@@ -1818,4 +1841,8 @@ func (ca *CreateAlias) id() (*crypto.Digest, error) {
 
 func validJVMLong(x uint64) bool {
 	return x <= math.MaxInt64
+}
+
+func validJVMInt(x uint32) bool {
+	return x <= math.MaxInt32
 }

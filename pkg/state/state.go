@@ -69,6 +69,7 @@ type blockchainEntitiesStorage struct {
 	hitSources        *hitSources
 	snapshots         *snapshotsAtHeight
 	patches           *patchesStorage
+	commitments       *commitments
 	calculateHashes   bool
 }
 
@@ -103,6 +104,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newHitSources(hs),
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
+		newCommitments(hs),
 		calcHashes,
 	}, nil
 }

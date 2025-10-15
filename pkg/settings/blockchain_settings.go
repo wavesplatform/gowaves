@@ -106,6 +106,9 @@ type FunctionalitySettings struct {
 	MinUpdateAssetInfoInterval uint64 `json:"min_update_asset_info_interval"`
 
 	LightNodeBlockFieldsAbsenceInterval uint64 `json:"light_node_block_fields_absence_interval"`
+
+	GenerationPeriod uint64 `json:"generation_period"`
+	MaxGenerators    int    `json:"max_generators"`
 }
 
 func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {

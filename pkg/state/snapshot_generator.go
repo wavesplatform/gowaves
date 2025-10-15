@@ -417,6 +417,18 @@ func (sg *snapshotGenerator) performUpdateAssetInfoWithProofs(
 	)
 }
 
+func (sg *snapshotGenerator) performCommitToGenerationWithProofs(
+	transaction proto.Transaction,
+	_ *performerInfo,
+	_ []balanceChanges,
+) (txSnapshot, error) {
+	_, ok := transaction.(*proto.CommitToGenerationWithProofs)
+	if !ok {
+		return txSnapshot{}, errors.New("failed to convert interface to CommitToGenerationWithProofs transaction")
+	}
+	return txSnapshot{}, errors.New("not implemented")
+}
+
 type addressWavesBalanceDiff map[proto.WavesAddress]balanceDiff
 
 type assetBalanceDiffKey struct {

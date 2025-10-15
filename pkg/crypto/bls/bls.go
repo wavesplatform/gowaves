@@ -1,6 +1,8 @@
 package bls
 
 import (
+	"crypto/rand"
+	"crypto/sha256"
 	"errors"
 	"fmt"
 	"strings"
@@ -54,6 +56,31 @@ func (k *SecretKey) PublicKey() (PublicKey, error) {
 	var pk PublicKey
 	copy(pk[:], pkb[:PublicKeySize])
 	return pk, nil
+}
+
+func GenerateSecretKey(seed []byte) (SecretKey, error) {
+	h := sha256.New()
+	_, err := h.Write(seed)
+	if err != nil {
+		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	}
+	sh := h.Sum(nil)
+	rnd := make([]byte, sha256.Size)
+	_, err = rand.Read(rnd)
+	if err != nil {
+		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	}
+	csk, err := cbls.KeyGen[cbls.G1](sh, rnd, nil)
+	if err != nil {
+		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	}
+	b, err := csk.MarshalBinary()
+	if err != nil {
+		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	}
+	var sk SecretKey
+	copy(sk[:], b[:SecretKeySize])
+	return sk, nil
 }
 
 // NewSecretKeyFromBytes creates BLS secret key from given slice of bytes.
