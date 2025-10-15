@@ -1585,7 +1585,8 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 		return txCheckerData{}, errors.Wrap(err, "failed to calculate next generation period start")
 	}
 	if tx.GenerationPeriodStart != nextPeriodStart {
-		return txCheckerData{}, errors.New("invalid NextGenerationPeriodStart")
+		return txCheckerData{}, fmt.Errorf("invalid NextGenerationPeriodStart: expected %d, got %d",
+			nextPeriodStart, tx.GenerationPeriodStart)
 	}
 	// Check that we can add new generation commitment to the next period.
 	committed, err := tc.stor.commitments.size(nextPeriodStart)
@@ -1605,11 +1606,13 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 		addr, adErr := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
 		if adErr != nil {
 			return txCheckerData{}, stderrors.Join(
-				fmt.Errorf("generator has already committed to the next period"),
+				fmt.Errorf("generator %q has already committed to the next period %d",
+					tx.SenderPK.String(), nextPeriodStart),
 				errors.Wrap(adErr, "failed to get address from public key"),
 			)
 		}
-		return txCheckerData{}, fmt.Errorf("generator %q has already committed to the next period", addr)
+		return txCheckerData{}, fmt.Errorf("generator %q has already committed to the next period %d",
+			addr, nextPeriodStart)
 	}
 	return txCheckerData{}, nil
 }

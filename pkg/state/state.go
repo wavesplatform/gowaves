@@ -103,7 +103,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newHitSources(hs),
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
-		newCommitments(hs, sets.AddressSchemeCharacter, calcHashes),
+		newCommitments(hs),
 		calcHashes,
 	}, nil
 }

@@ -37,23 +37,12 @@ func (cr *commitmentsRecord) unmarshalBinary(data []byte) error { return cbor.Un
 
 // commitments manages the storage and retrieval of generator commitments.
 type commitments struct {
-	db      keyvalue.IterableKeyVal
-	dbBatch keyvalue.Batch
-	hs      *historyStorage
-
-	scheme          proto.Scheme
-	calculateHashes bool
-	hasher          *stateHasher
+	hs *historyStorage
 }
 
-func newCommitments(hs *historyStorage, scheme proto.Scheme, calcHashes bool) *commitments {
+func newCommitments(hs *historyStorage) *commitments {
 	return &commitments{
-		db:              hs.db,
-		dbBatch:         hs.dbBatch,
-		hs:              hs,
-		scheme:          scheme,
-		calculateHashes: calcHashes,
-		hasher:          newStateHasher(),
+		hs: hs,
 	}
 }
 
@@ -66,7 +55,7 @@ func (c *commitments) store(
 		return fmt.Errorf("failed to retrieve commitments record: %w", err)
 	}
 	var rec commitmentsRecord
-	if data != nil {
+	if len(data) != 0 {
 		if umErr := rec.unmarshalBinary(data); umErr != nil {
 			return fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
 		}

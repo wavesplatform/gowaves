@@ -1716,7 +1716,7 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 		{start: 12345, opts: nil, blockchainHeight: 100_000, active: false, valid: false,
 			err: "DeterministicFinality feature must be activated for CommitToGeneration transaction"},
 		{start: 12345, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 100002, got 12345"},
 		// Invalid because of insufficient fee.
 		{start: 100_001, opts: invalidFeeOpts, blockchainHeight: 100_000, active: true, valid: false,
 			err: "Fee 12345 does not exceed minimal value of 10000000 WAVES. "},
@@ -1728,11 +1728,11 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 			err: "invalid timestamp: Transaction timestamp 1479173400002 is more than 5400000ms in the future"},
 		// Invalid to commit to the current period at any moment of the period.
 		{start: 100_001, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 100002, got 100001"},
 		{start: 100_001, opts: nil, blockchainHeight: 101_234, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 110002, got 100001"},
 		{start: 100_001, opts: nil, blockchainHeight: 109_999, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 110002, got 100001"},
 		// Valid to commit to the next period at the start of the current period.
 		{start: 110_002, opts: nil, blockchainHeight: 100_001, active: true, valid: true, err: ""},
 		// Valid to commit to the next period at any moment of the current period.
@@ -1741,18 +1741,18 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 		{start: 110_002, opts: nil, blockchainHeight: 110_000, active: true, valid: true, err: ""},
 		// Invalid to commit for more than one period ahead.
 		{start: 120_001, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 100002, got 120001"},
 		{start: 120_001, opts: nil, blockchainHeight: 101_234, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 110002, got 120001"},
 		{start: 120_001, opts: nil, blockchainHeight: 109_999, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 110002, got 120001"},
 		// Invalid to commit for a previous period.
 		{start: 90_001, opts: nil, blockchainHeight: 100_000, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 100002, got 90001"},
 		{start: 90_001, opts: nil, blockchainHeight: 101_234, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 110002, got 90001"},
 		{start: 90_001, opts: nil, blockchainHeight: 109_999, active: true, valid: false,
-			err: "invalid NextGenerationPeriodStart"},
+			err: "invalid NextGenerationPeriodStart: expected 110002, got 90001"},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
@@ -1812,5 +1812,5 @@ func TestCheckCommitToGenerationWithProofs_SecondCommitmentAttempt(t *testing.T)
 		withTimestamp[*proto.CommitToGenerationWithProofs](tx1.Timestamp+1))
 	_, err = to.tc.checkCommitToGenerationWithProofs(tx2, info)
 	assert.EqualError(t, err,
-		"generator \"3P3p1SmQq78f1wf8mzUBr5BYWfxcwQJ4Fcz\" has already committed to the next period")
+		"generator \"3P3p1SmQq78f1wf8mzUBr5BYWfxcwQJ4Fcz\" has already committed to the next period 1000002")
 }
