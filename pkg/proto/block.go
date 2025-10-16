@@ -344,6 +344,17 @@ func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
 	return sh, present
 }
 
+func (b *BlockHeader) GeFinalizationVoting() (FinalizationVoting, bool) {
+	var (
+		fv      FinalizationVoting
+		present = b.FinalizationVoting != nil
+	)
+	if present {
+		fv = *b.FinalizationVoting
+	}
+	return fv, present
+}
+
 func (b *BlockHeader) GetChallengedHeader() (ChallengedHeader, bool) {
 	var (
 		ch      ChallengedHeader

@@ -217,9 +217,9 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		))
 	}
 	top := a.baseInfo.storage.TopBlock()
-	if top.BlockID() != endorsedMicroBlock.Reference { // Microblock's endorsement doesn't refer to last block
-		err := errors.Errorf("microblock TBID '%s' refer to block ID '%s' but last block ID is '%s'",
-			endorsedMicroBlock.TotalBlockID.String(), endorsedMicroBlock.Reference.String(), top.BlockID().String())
+	if top.Parent != endorsedMicroBlock.Reference {
+		err := errors.Errorf("endorsed Block ID '%s' must match the parent's block ID '%s'",
+			endorsedMicroBlock.Reference.String(), top.BlockID().String())
 		return a, nil, proto.NewInfoMsg(err)
 	}
 
