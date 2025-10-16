@@ -251,7 +251,7 @@ func (a *NGState) MinedBlock(
 		return a, nil, a.Errorf(heightErr)
 	}
 
-	finalityActivated, err := a.baseInfo.storage.IsActivated(int16(settings.DeterministicFinality))
+	finalityActivated, err := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
 	if err != nil {
 		return a, nil, a.Errorf(err)
 	}
