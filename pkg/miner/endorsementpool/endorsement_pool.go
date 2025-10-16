@@ -228,17 +228,18 @@ type GeneratorsPublicKeysCache interface {
 type GeneratorsPublicKeysCacheImpl struct{}
 
 func (c *GeneratorsPublicKeysCacheImpl) PublicKeyByEndorserIndex(_ int32) bls.PublicKey {
-	panic("not implemented")
+	return bls.PublicKey{}
 }
 
 func (c *GeneratorsPublicKeysCacheImpl) AllEndorsers() []proto.WavesAddress {
-	panic("not implemented")
+	var emptyAddresses []proto.WavesAddress
+	return emptyAddresses
 }
 
 func (c *GeneratorsPublicKeysCacheImpl) CleanAllEndorsers() {
-	panic("not implemented")
 }
 
 func (c *GeneratorsPublicKeysCacheImpl) AllGenerators() []proto.WavesAddress {
-	panic("not implemented")
+	var emptyAddresses []proto.WavesAddress
+	return emptyAddresses
 }
