@@ -1728,6 +1728,7 @@ func (td *transactionDiffer) createDiffCommitToGenerationWithProofs(
 	if !ok {
 		return txBalanceChanges{}, errors.New("failed to convert interface to CommitToGenerationWithProofs transaction")
 	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
 	diff := newTxDiff()
 	// Append sender diff.
 	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
@@ -1743,7 +1744,8 @@ func (td *transactionDiffer) createDiffCommitToGenerationWithProofs(
 	// TODO: Reduce sender's balance by deposit amount. Add default deposit amount as constant.
 	senderFeeBalanceDiff := -fee
 	// TODO: Add deposit amount as separate field in balance diff.
-	if apErr := diff.appendBalanceDiff(senderFeeKey, newBalanceDiff(senderFeeBalanceDiff, 0, 0, false)); apErr != nil {
+	bd := newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	if apErr := diff.appendBalanceDiff(senderFeeKey, bd); apErr != nil {
 		return txBalanceChanges{}, apErr
 	}
 	addresses := []proto.WavesAddress{senderAddr}

@@ -1394,6 +1394,32 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
 
+func TestCreateDiffCommitToGenerationWithProofs(t *testing.T) {
+	info := defaultCheckerInfo()
+	to := createDifferTestObjects(t, info)
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateSponsorship(t)
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
+
+	const fee = 1000_0000 // 0.1 WAVES.
+	tx := createCommitToGenerationWithProofs(t, 10_002)
+
+	ch, err := to.td.createDiffCommitToGenerationWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err)
+
+	minerFee := calculateCurrentBlockTxFee(fee, true)
+	correctDiff := txDiff{
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(fee), 0, 0, true),
+		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
+	}
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.WavesAddress]struct{}{
+		testGlobal.senderInfo.addr: empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
+}
+
 func createUpdateAssetInfoWithProofs(t *testing.T) *proto.UpdateAssetInfoWithProofs {
 	return createUpdateAssetInfoForAssetWithProofs(t, testGlobal.asset0.asset.ID)
 }

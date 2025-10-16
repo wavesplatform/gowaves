@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state/internal"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -420,13 +421,13 @@ func (sg *snapshotGenerator) performUpdateAssetInfoWithProofs(
 func (sg *snapshotGenerator) performCommitToGenerationWithProofs(
 	transaction proto.Transaction,
 	_ *performerInfo,
-	_ []balanceChanges,
+	balanceChanges []balanceChanges,
 ) (txSnapshot, error) {
-	_, ok := transaction.(*proto.CommitToGenerationWithProofs)
+	tx, ok := transaction.(*proto.CommitToGenerationWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to CommitToGenerationWithProofs transaction")
 	}
-	return txSnapshot{}, errors.New("not implemented")
+	return sg.generateSnapshotForCommitToGenerationTx(tx.SenderPK, tx.EndorserPublicKey, balanceChanges)
 }
 
 type addressWavesBalanceDiff map[proto.WavesAddress]balanceDiff
@@ -1070,6 +1071,21 @@ func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(
 		AssetDescription: assetDescription,
 	}
 	snapshot.regular = append(snapshot.regular, assetDescriptionSnapshot)
+	return snapshot, nil
+}
+
+func (sg *snapshotGenerator) generateSnapshotForCommitToGenerationTx(
+	senderPK crypto.PublicKey, endorserPK bls.PublicKey, balanceChanges []balanceChanges,
+) (txSnapshot, error) {
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
+	if err != nil {
+		return txSnapshot{}, err
+	}
+	generationCommitmentSnapshot := &proto.GenerationCommitmentSnapshot{
+		SenderPublicKey:   senderPK,
+		EndorserPublicKey: endorserPK,
+	}
+	snapshot.regular = append(snapshot.regular, generationCommitmentSnapshot)
 	return snapshot, nil
 }
 

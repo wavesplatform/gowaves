@@ -572,6 +572,18 @@ func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	return r
 }
 
+func (c *ProtobufConverter) blsPublicKey(pk []byte) bls.PublicKey {
+	if c.err != nil {
+		return bls.PublicKey{}
+	}
+	r, err := bls.NewPublicKeyFromBytes(pk)
+	if err != nil {
+		c.err = err
+		return bls.PublicKey{}
+	}
+	return r
+}
+
 func (c *ProtobufConverter) alias(scheme byte, alias string) Alias {
 	if c.err != nil {
 		return Alias{}
