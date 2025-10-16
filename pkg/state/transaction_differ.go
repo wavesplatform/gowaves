@@ -1,6 +1,7 @@
 package state
 
 import (
+	"github.com/ccoveille/go-safecast"
 	"github.com/ericlagergren/decimal"
 	"github.com/ericlagergren/decimal/math"
 	"github.com/mr-tron/base58"
@@ -1715,6 +1716,41 @@ func (td *transactionDiffer) createDiffUpdateAssetInfoWithProofs(transaction pro
 	changes := newTxBalanceChanges(addresses, diff)
 	spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddr, tx.Fee, tx.FeeAsset, info)
 	if spErr != nil {
+		return txBalanceChanges{}, spErr
+	}
+	return changes, nil
+}
+
+func (td *transactionDiffer) createDiffCommitToGenerationWithProofs(
+	transaction proto.Transaction, info *differInfo,
+) (txBalanceChanges, error) {
+	tx, ok := transaction.(*proto.CommitToGenerationWithProofs)
+	if !ok {
+		return txBalanceChanges{}, errors.New("failed to convert interface to CommitToGenerationWithProofs transaction")
+	}
+	updateMinIntermediateBalance := info.blockInfo.Timestamp >= td.settings.CheckTempNegativeAfterTime
+	diff := newTxDiff()
+	// Append sender diff.
+	senderAddr, err := proto.NewAddressFromPublicKey(td.settings.AddressSchemeCharacter, tx.SenderPK)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	wa := proto.NewOptionalAssetWaves()
+	senderFeeKey := byteKey(senderAddr.ID(), wa)
+	fee, err := safecast.ToInt64(tx.Fee)
+	if err != nil {
+		return txBalanceChanges{}, err
+	}
+	// TODO: Reduce sender's balance by deposit amount. Add default deposit amount as constant.
+	senderFeeBalanceDiff := -fee
+	// TODO: Add deposit amount as separate field in balance diff.
+	bd := newBalanceDiff(senderFeeBalanceDiff, 0, 0, updateMinIntermediateBalance)
+	if apErr := diff.appendBalanceDiff(senderFeeKey, bd); apErr != nil {
+		return txBalanceChanges{}, apErr
+	}
+	addresses := []proto.WavesAddress{senderAddr}
+	changes := newTxBalanceChanges(addresses, diff)
+	if spErr := td.payoutMinerWithSponsorshipHandling(&changes, false, senderAddr, tx.Fee, wa, info); spErr != nil {
 		return txBalanceChanges{}, spErr
 	}
 	return changes, nil

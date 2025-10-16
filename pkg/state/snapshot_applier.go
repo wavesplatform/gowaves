@@ -305,6 +305,7 @@ type snapshotApplierStorages struct {
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
 	leases            *leases
+	commitments       *commitments
 	calculateHashes   bool
 }
 
@@ -321,6 +322,7 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWr
 		ordersVolumes:     stor.ordersVolumes,
 		accountsDataStor:  stor.accountsDataStor,
 		leases:            stor.leases,
+		commitments:       stor.commitments,
 		calculateHashes:   stor.calculateHashes,
 	}
 }
@@ -677,4 +679,19 @@ func (a *blockSnapshotsApplier) ApplyScriptResult(snapshot InternalScriptResultS
 		return errors.Wrap(err, "failed to create invoke ID from tx ID")
 	}
 	return a.stor.invokeResults.saveResult(invokeID, snapshot.ScriptResult, a.info.BlockID())
+}
+
+func (a *blockSnapshotsApplier) ApplyCommitToGeneration(snapshot proto.GenerationCommitmentSnapshot) error {
+	if !a.txSnapshotContext.initialized() {
+		return errors.New("failed to apply generation commitment snapshot: transaction is not set")
+	}
+	// Here we take the generation period start from the applying transaction,
+	// because the snapshot itself does not contain this information.
+	// TODO: But maybe it's better to calculate it from the block height?
+	tx, ok := a.txSnapshotContext.applyingTx.(*proto.CommitToGenerationWithProofs)
+	if !ok {
+		return errors.New("failed to apply generation commitment snapshot: applying tx is not CommitToGenerationWithProofs")
+	}
+	return a.stor.commitments.store(tx.GenerationPeriodStart, snapshot.SenderPublicKey, snapshot.EndorserPublicKey,
+		a.info.BlockID())
 }
