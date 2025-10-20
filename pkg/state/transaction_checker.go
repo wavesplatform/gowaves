@@ -1589,7 +1589,7 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 			nextPeriodStart, tx.GenerationPeriodStart)
 	}
 	// Check that we can add new generation commitment to the next period.
-	committed, err := tc.stor.commitments.size(nextPeriodStart)
+	committed, err := tc.stor.commitments.newestSize(nextPeriodStart)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to get number of commitments for the next period")
 	}
@@ -1598,7 +1598,7 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 			"no available slots for the next generation period, %d generators already committed", committed)
 	}
 	// Check that the sender has no other CommitToGeneration transaction with the same nextGenerationPeriodStart.
-	exist, err := tc.stor.commitments.exists(tx.GenerationPeriodStart, tx.SenderPK)
+	exist, err := tc.stor.commitments.newestExists(tx.GenerationPeriodStart, tx.SenderPK)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to check existing commitment for the sender")
 	}

@@ -74,6 +74,28 @@ func (c *commitments) store(
 // exists checks if a commitment exists for the given period start and generator public key.
 func (c *commitments) exists(periodStart uint32, generatorPK crypto.PublicKey) (bool, error) {
 	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.topEntryData(key.bytes())
+	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to retrieve commitment record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return false, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	pkb := generatorPK.Bytes()
+	for _, cm := range rec.Commitments {
+		if bytes.Equal(pkb, cm.GeneratorPK.Bytes()) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
+func (c *commitments) newestExists(periodStart uint32, generatorPK crypto.PublicKey) (bool, error) {
+	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		if errors.Is(err, keyvalue.ErrNotFound) {
@@ -97,12 +119,28 @@ func (c *commitments) exists(periodStart uint32, generatorPK crypto.PublicKey) (
 // size returns the number of commitments for the given period start.
 func (c *commitments) size(periodStart uint32) (int, error) {
 	key := commitmentKey{periodStart: periodStart}
-	data, err := c.hs.newestTopEntryData(key.bytes())
+	data, err := c.hs.topEntryData(key.bytes())
 	if err != nil {
 		if errors.Is(err, keyvalue.ErrNotFound) {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("failed to retrieve commitment record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return 0, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	return len(rec.Commitments), nil
+}
+
+func (c *commitments) newestSize(periodStart uint32) (int, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to retrieve commitment newest record: %w", err)
 	}
 	var rec commitmentsRecord
 	if umErr := rec.unmarshalBinary(data); umErr != nil {
