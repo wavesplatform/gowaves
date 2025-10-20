@@ -83,7 +83,7 @@ func (l *limitListener) getNewConnID() connectionID {
 }
 
 // acquire acquires the limiting semaphore. Returns true if successfully
-// accquired, false if the listener is closed and the semaphore is not
+// acquired, false if the listener is closed and the semaphore is not
 // acquired.
 func (l *limitListener) acquire() bool {
 	for {
