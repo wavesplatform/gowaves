@@ -87,14 +87,12 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	wavesBalance: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   wavesBalanceRecordSize + 4,
+		fixedSize:    false,
 	},
 	assetBalance: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   assetBalanceRecordSize + 4,
+		fixedSize:    false,
 	},
 	featureVote: {
 		needToFilter: true,

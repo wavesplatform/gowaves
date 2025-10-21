@@ -43,10 +43,10 @@ func genAsset(fillWith byte) crypto.Digest {
 
 func newWavesValueFromProfile(p balanceProfile) wavesValue {
 	val := wavesValue{profile: p}
-	if p.leaseIn != 0 || p.leaseOut != 0 {
+	if p.LeaseIn != 0 || p.LeaseOut != 0 {
 		val.leaseChange = true
 	}
-	if p.balance != 0 {
+	if p.Balance != 0 {
 		val.balanceChange = true
 	}
 	return val
@@ -62,10 +62,10 @@ func TestCancelAllLeases(t *testing.T) {
 		profile balanceProfile
 		blockID proto.BlockID
 	}{
-		{addr0, balanceProfile{100, 1, 1}, blockID0},
-		{addr1, balanceProfile{2500, 2, 0}, blockID0},
-		{addr2, balanceProfile{10, 0, 10}, blockID1},
-		{addr3, balanceProfile{10, 5, 3}, blockID1},
+		{addr0, balanceProfile{100, 1, 1, 0}, blockID0},
+		{addr1, balanceProfile{2500, 2, 0, 0}, blockID0},
+		{addr2, balanceProfile{10, 0, 10, 0}, blockID1},
+		{addr3, balanceProfile{10, 5, 3, 0}, blockID1},
 	}
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
@@ -86,9 +86,9 @@ func TestCancelAllLeases(t *testing.T) {
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		profile, err := to.balances.wavesBalance(addr.ID())
 		assert.NoError(t, err, "wavesBalance() failed")
-		assert.Equal(t, tc.profile.balance, profile.balance)
-		assert.Equal(t, tc.profile.leaseIn, profile.leaseIn)
-		assert.Equal(t, tc.profile.leaseOut, profile.leaseOut)
+		assert.Equal(t, tc.profile.Balance, profile.Balance)
+		assert.Equal(t, tc.profile.LeaseIn, profile.LeaseIn)
+		assert.Equal(t, tc.profile.LeaseOut, profile.LeaseOut)
 		// check that lease balance snapshot is zero and is included in the list
 		s, ok := expected[addr]
 		assert.True(t, ok, "did not find lease balance snapshot")
@@ -108,10 +108,10 @@ func TestCancelLeaseOverflows(t *testing.T) {
 		profile balanceProfile
 		blockID proto.BlockID
 	}{
-		{addr0, balanceProfile{100, 0, 1}, blockID0},
-		{addr1, balanceProfile{2500, 2, 0}, blockID0},
-		{addr2, balanceProfile{10, 1, 11}, blockID1},
-		{addr3, balanceProfile{10, 5, 2000}, blockID1},
+		{addr0, balanceProfile{100, 0, 1, 0}, blockID0},
+		{addr1, balanceProfile{2500, 2, 0, 0}, blockID0},
+		{addr2, balanceProfile{10, 1, 11, 0}, blockID1},
+		{addr3, balanceProfile{10, 5, 2000, 0}, blockID1},
 	}
 	for _, tc := range tests {
 		addr, err := proto.NewAddressFromString(tc.addr)
@@ -133,18 +133,18 @@ func TestCancelLeaseOverflows(t *testing.T) {
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		profile, err := to.balances.wavesBalance(addr.ID())
 		assert.NoError(t, err, "wavesBalance() failed")
-		assert.Equal(t, profile.balance, tc.profile.balance)
-		assert.Equal(t, profile.leaseIn, tc.profile.leaseIn)
+		assert.Equal(t, profile.Balance, tc.profile.Balance)
+		assert.Equal(t, profile.LeaseIn, tc.profile.LeaseIn)
 		// profile.leaseOut should not be changed because we've just generated lease balance snapshot
-		assert.Equal(t, tc.profile.leaseOut, profile.leaseOut)
-		if uint64(tc.profile.leaseOut) > tc.profile.balance {
+		assert.Equal(t, tc.profile.LeaseOut, profile.LeaseOut)
+		if uint64(tc.profile.LeaseOut) > tc.profile.Balance {
 			assert.Contains(t, overflows, addr, "did not include overflowed address to the list")
 			overflowsCount++
 			snap, ok := expected[addr]
 			assert.True(t, ok, "did not find lease balance snapshot")
 			assert.Equal(t, addr, snap.Address)
 			assert.Equal(t, uint64(0), snap.LeaseOut)
-			assert.Equal(t, uint64(tc.profile.leaseIn), snap.LeaseIn)
+			assert.Equal(t, uint64(tc.profile.LeaseIn), snap.LeaseIn)
 		}
 	}
 	assert.Equal(t, len(overflows), overflowsCount)
@@ -161,10 +161,10 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 		blockID      proto.BlockID
 		validLeaseIn int64
 	}{
-		{addr0, balanceProfile{100, 0, 0}, blockID0, 1},
-		{addr1, balanceProfile{2500, 2, 0}, blockID0, 3},
-		{addr2, balanceProfile{10, 1, 0}, blockID1, 1},
-		{addr3, balanceProfile{10, 5, 0}, blockID1, 0},
+		{addr0, balanceProfile{100, 0, 0, 0}, blockID0, 1},
+		{addr1, balanceProfile{2500, 2, 0, 0}, blockID0, 3},
+		{addr2, balanceProfile{10, 1, 0, 0}, blockID1, 1},
+		{addr3, balanceProfile{10, 5, 0, 0}, blockID1, 0},
 	}
 	leaseIns := make(map[proto.WavesAddress]int64)
 	for _, tc := range tests {
@@ -188,18 +188,18 @@ func TestCancelInvalidLeaseIns(t *testing.T) {
 		profile, err := to.balances.wavesBalance(addr.ID())
 		assert.NoError(t, err, "wavesBalance() failed")
 
-		assert.Equal(t, tc.profile.balance, profile.balance)
-		assert.Equal(t, tc.profile.leaseIn, profile.leaseIn) // should not be changed
-		assert.Equal(t, tc.profile.leaseOut, profile.leaseOut)
+		assert.Equal(t, tc.profile.Balance, profile.Balance)
+		assert.Equal(t, tc.profile.LeaseIn, profile.LeaseIn) // should not be changed
+		assert.Equal(t, tc.profile.LeaseOut, profile.LeaseOut)
 
-		if tc.validLeaseIn == tc.profile.leaseIn {
+		if tc.validLeaseIn == tc.profile.LeaseIn {
 			assert.NotContains(t, expected, addr, "should not include address to the list")
 		} else {
 			snap, ok := expected[addr]
 			assert.True(t, ok, "did not find lease balance snapshot")
 			assert.Equal(t, addr, snap.Address)
 			assert.Equal(t, uint64(tc.validLeaseIn), snap.LeaseIn)
-			assert.Equal(t, uint64(tc.profile.leaseOut), snap.LeaseOut)
+			assert.Equal(t, uint64(tc.profile.LeaseOut), snap.LeaseOut)
 		}
 	}
 }
@@ -213,7 +213,7 @@ func generateBlocksWithIncreasingBalance(
 	for i := 1; i <= blocksCount; i++ {
 		blockID := genBlockId(byte(i))
 		to.stor.addBlock(t, blockID)
-		p := balanceProfile{uint64(i), 0, 0}
+		p := balanceProfile{uint64(i), 0, 0, 0}
 		for _, addr := range addressIDs {
 			err := to.balances.setWavesBalance(addr, newWavesValueFromProfile(p), blockID)
 			require.NoError(t, err, "setWavesBalance() failed")
@@ -402,10 +402,10 @@ func TestBalances(t *testing.T) {
 		profile balanceProfile
 		blockID proto.BlockID
 	}{
-		{addr0, balanceProfile{100, 0, 0}, blockID0},
-		{addr1, balanceProfile{2500, 0, 0}, blockID0},
-		{addr2, balanceProfile{10, 5, 0}, blockID1},
-		{addr3, balanceProfile{10, 5, 3}, blockID1},
+		{addr0, balanceProfile{100, 0, 0, 0}, blockID0},
+		{addr1, balanceProfile{2500, 0, 0, 0}, blockID0},
+		{addr2, balanceProfile{10, 5, 0, 0}, blockID1},
+		{addr3, balanceProfile{10, 5, 3, 0}, blockID1},
 	}
 	for _, tc := range wavesTests {
 		addr, err := proto.NewAddressFromString(tc.addr)

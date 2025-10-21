@@ -1100,12 +1100,13 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 		effective = chEffective
 	}
 	return &proto.FullWavesBalance{
-		Regular:    profile.balance,
+		Regular:    profile.Balance,
 		Generating: generating,
 		Available:  profile.spendableBalance(),
 		Effective:  effective,
-		LeaseIn:    uint64(profile.leaseIn),
-		LeaseOut:   uint64(profile.leaseOut),
+		LeaseIn:    uint64(profile.LeaseIn),
+		LeaseOut:   uint64(profile.LeaseOut),
+		//TODO: Add Deposit to the profile.
 	}, nil
 }
 
@@ -1162,11 +1163,12 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 		challenged = ch
 	}
 	return &types.WavesBalanceProfile{
-		Balance:    profile.balance,
-		LeaseIn:    profile.leaseIn,
-		LeaseOut:   profile.leaseOut,
+		Balance:    profile.Balance,
+		LeaseIn:    profile.LeaseIn,
+		LeaseOut:   profile.LeaseOut,
 		Generating: generating,
 		Challenged: challenged,
+		//TODO: Add Deposit to the profile.
 	}, nil
 }
 
@@ -1179,7 +1181,7 @@ func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, erro
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
-	return profile.balance, nil
+	return profile.Balance, nil
 }
 
 func (s *stateManager) NewestAssetBalance(account proto.Recipient, asset crypto.Digest) (uint64, error) {
@@ -1211,7 +1213,7 @@ func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
-	return profile.balance, nil
+	return profile.Balance, nil
 }
 
 func (s *stateManager) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {

@@ -196,7 +196,7 @@ func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.Wave
 				"failed to gen initial balance for address %s", address.String())
 		}
 		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key] = balanceRecordInBlock{
-			initial: int64(initialBalance.balance), current: balance}
+			initial: int64(initialBalance.Balance), current: balance}
 	}
 	return nil
 }
@@ -279,8 +279,8 @@ func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(
 			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
 		}
 		a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key] = leaseRecordInBlock{
-			initialLeaseIn:  initialBalance.leaseIn,
-			initialLeaseOut: initialBalance.leaseOut,
+			initialLeaseIn:  initialBalance.LeaseIn,
+			initialLeaseOut: initialBalance.LeaseOut,
 			currentLeaseIn:  leaseIn,
 			currentLeaseOut: leaseOut}
 	}
@@ -388,7 +388,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
-	newProfile.balance = snapshot.Balance
+	newProfile.Balance = snapshot.Balance
 	value := newWavesValue(profile, newProfile)
 	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
@@ -408,8 +408,8 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSna
 		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
-	newProfile.leaseIn = int64(snapshot.LeaseIn)
-	newProfile.leaseOut = int64(snapshot.LeaseOut)
+	newProfile.LeaseIn = int64(snapshot.LeaseIn)
+	newProfile.LeaseOut = int64(snapshot.LeaseOut)
 	value := newWavesValue(profile, newProfile)
 	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())

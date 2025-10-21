@@ -170,7 +170,7 @@ func (l *leases) cancelLeasesToDisabledAliases(
 			diff.leaseOut = newLeaseOut
 			changes[senderAddr] = diff
 		} else {
-			changes[senderAddr] = newBalanceDiff(0, 0, -int64(record.Amount), false)
+			changes[senderAddr] = newBalanceDiff(0, 0, -int64(record.Amount), 0, false)
 		}
 		if diff, ok := changes[record.RecipientAddr]; ok {
 			newLeaseIn, liErr := diff.leaseIn.Add(internal.NewIntChange(-int64(record.Amount)))
@@ -182,7 +182,7 @@ func (l *leases) cancelLeasesToDisabledAliases(
 			diff.leaseIn = newLeaseIn
 			changes[record.RecipientAddr] = diff
 		} else {
-			changes[record.RecipientAddr] = newBalanceDiff(0, -int64(record.Amount), 0, false)
+			changes[record.RecipientAddr] = newBalanceDiff(0, -int64(record.Amount), 0, 0, false)
 		}
 	}
 	slog.Info("Finished cancelling leases to disabled aliases")
