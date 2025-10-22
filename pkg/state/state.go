@@ -1104,8 +1104,8 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 		Generating: generating,
 		Available:  profile.spendableBalance(),
 		Effective:  effective,
-		LeaseIn:    uint64(profile.LeaseIn),
-		LeaseOut:   uint64(profile.LeaseOut),
+		LeaseIn:    profile.LeaseInAsUint64(),
+		LeaseOut:   profile.LeaseOutAsUint64(),
 		//TODO: Add Deposit to the profile.
 	}, nil
 }
@@ -2818,7 +2818,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
-	txID := crypto.Digest(ai.ID)             // explicitly show that full asset ID is a crypto.Digest and equals txID
+	txID := ai.ID                            // explicitly show that full asset ID is a crypto.Digest and equals txID
 	tx, _ := s.TransactionByID(txID.Bytes()) // Explicitly ignore error here, in case of error tx is nil as expected
 	res := &proto.FullAssetInfo{
 		AssetInfo:        *ai,

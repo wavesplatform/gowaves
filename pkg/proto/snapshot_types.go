@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"math/big"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -264,8 +265,8 @@ func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLea
 func (s LeaseBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_LeaseBalance, error) {
 	return &g.TransactionStateSnapshot_LeaseBalance{
 		Address: s.Address.Bytes(),
-		In:      int64(s.LeaseIn),
-		Out:     int64(s.LeaseOut),
+		In:      s.LeaseInAsInt64(),
+		Out:     s.LeaseOutAsInt64(),
 	}, nil
 }
 
@@ -289,6 +290,14 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	s.LeaseIn = in
 	s.LeaseOut = out
 	return nil
+}
+
+func (s *LeaseBalanceSnapshot) LeaseInAsInt64() int64 {
+	return safecast.MustConvert[int64](s.LeaseIn)
+}
+
+func (s *LeaseBalanceSnapshot) LeaseOutAsInt64() int64 {
+	return safecast.MustConvert[int64](s.LeaseOut)
 }
 
 type NewLeaseSnapshot struct {

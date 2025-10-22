@@ -196,7 +196,7 @@ func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.Wave
 				"failed to gen initial balance for address %s", address.String())
 		}
 		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key] = balanceRecordInBlock{
-			initial: int64(initialBalance.Balance), current: balance}
+			initial: initialBalance.BalanceAsInt64(), current: balance}
 	}
 	return nil
 }
@@ -397,7 +397,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 }
 
 func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
-	err := a.addLeasesBalanceRecordLegacySH(snapshot.Address, int64(snapshot.LeaseIn), int64(snapshot.LeaseOut))
+	err := a.addLeasesBalanceRecordLegacySH(snapshot.Address, snapshot.LeaseInAsInt64(), snapshot.LeaseOutAsInt64())
 	if err != nil {
 		return err
 	}
@@ -408,8 +408,8 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSna
 		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
-	newProfile.LeaseIn = int64(snapshot.LeaseIn)
-	newProfile.LeaseOut = int64(snapshot.LeaseOut)
+	newProfile.LeaseIn = snapshot.LeaseInAsInt64()
+	newProfile.LeaseOut = snapshot.LeaseOutAsInt64()
 	value := newWavesValue(profile, newProfile)
 	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())

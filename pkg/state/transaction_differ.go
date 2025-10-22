@@ -1,6 +1,8 @@
 package state
 
 import (
+	"fmt"
+
 	"github.com/ccoveille/go-safecast"
 	"github.com/ericlagergren/decimal"
 	"github.com/ericlagergren/decimal/math"
@@ -93,7 +95,7 @@ func newMinerFeeForcedBalanceDiff(balance int64, updateMinIntermediateBalance bo
 // It also checks that it is legitimate to apply this diff to the profile (negative balances / overflows).
 func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error) {
 	// Check min intermediate change.
-	minBalance, err := common.AddInt(diff.minBalance.Value(), int64(profile.Balance))
+	minBalance, err := common.AddInt(diff.minBalance.Value(), profile.BalanceAsInt64())
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add balance and min balance diff: %v", err)
 	}
@@ -105,7 +107,7 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 		)
 	}
 	// Check main balance diff.
-	newBalance, err := common.AddInt(diff.balance.Value(), int64(profile.Balance))
+	newBalance, err := common.AddInt(diff.balance.Value(), profile.BalanceAsInt64())
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add balance and balance diff: %v", err)
 	}
@@ -124,7 +126,7 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 	if (newBalance < newLeaseOut) && !diff.allowLeasedTransfer {
 		return balanceProfile{}, errs.NewTxValidationError("Reason: Cannot lease more than own")
 	}
-	newDeposit, err := common.AddInt(diff.deposit.Value(), int64(profile.Deposit))
+	newDeposit, err := common.AddInt(diff.deposit.Value(), profile.DepositAsInt64())
 	if err != nil {
 		return balanceProfile{}, errors.Errorf("failed to add deposit and deposit diff: %v", err)
 	}
@@ -132,11 +134,19 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 		return balanceProfile{}, errs.NewTxValidationError("Reason: Not enough balance for deposit")
 	}
 	// Create new profile.
+	nb, err := safecast.ToUint64(newBalance)
+	if err != nil {
+		return balanceProfile{}, fmt.Errorf("failed to convert balance to uint64: %w", err)
+	}
+	nd, err := safecast.ToUint64(newDeposit)
+	if err != nil {
+		return balanceProfile{}, fmt.Errorf("failed to convert deposit to uint64: %w", err)
+	}
 	return balanceProfile{
-		Balance:  uint64(newBalance),
+		Balance:  nb,
 		LeaseIn:  newLeaseIn,
 		LeaseOut: newLeaseOut,
-		Deposit:  uint64(newDeposit),
+		Deposit:  nd,
 	}, nil
 }
 

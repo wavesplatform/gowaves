@@ -38,19 +38,15 @@ type balanceProfile struct {
 // Effective balance is calculated as: Balance + LeaseIn - LeaseOut - Deposit.
 // The function MUST be used ONLY in the context where account challenging IS CHECKED.
 func (bp *balanceProfile) effectiveBalanceUnchecked() (uint64, error) {
-	b, err := safecast.ToInt64(bp.Balance)
-	if err != nil {
-		return 0, fmt.Errorf("invalid balance value: %w", err)
-	}
-	r0, err := common.AddInt(b, bp.LeaseIn)
+	r0, err := common.AddInt(bp.BalanceAsInt64(), bp.LeaseIn) // Balance + LeaseIn.
 	if err != nil {
 		return 0, err
 	}
-	r1, err := common.SubInt(r0, bp.LeaseOut)
+	r1, err := common.SubInt(r0, bp.LeaseOut) // (Balance + LeaseIn) - LeaseOut.
 	if err != nil {
 		return 0, err
 	}
-	r2, err := common.SubInt(r1, bp.LeaseIn)
+	r2, err := common.SubInt(r1, bp.DepositAsInt64()) // ((Balance + LeaseIn) - LeaseOut) - Deposit.
 	if err != nil {
 		return 0, err
 	}
@@ -79,18 +75,31 @@ func (bp *balanceProfile) effectiveBalance(
 }
 
 func (bp *balanceProfile) spendableBalance() uint64 {
-	b := safecast.MustConvert[int64](bp.Balance)
-	r0, err := common.SubInt(b, bp.LeaseOut)
+	r0, err := common.SubInt(bp.BalanceAsInt64(), bp.LeaseOut)
 	if err != nil {
-		panic(fmt.Errorf("spendable balance failed: %w", err))
+		panic(fmt.Errorf("spendable balance calculation failed: %w", err))
 	}
-	d := safecast.MustConvert[int64](bp.Balance)
-	r1, err := common.SubInt(r0, d)
+	r1, err := common.SubInt(r0, bp.DepositAsInt64())
 	if err != nil {
-		panic(fmt.Errorf("spendable balance failed: %w", err))
+		panic(fmt.Errorf("spendable balance calculation failed: %w", err))
 	}
-	r := safecast.MustConvert[uint64](r1)
-	return r
+	return safecast.MustConvert[uint64](r1)
+}
+
+func (bp *balanceProfile) LeaseInAsUint64() uint64 {
+	return safecast.MustConvert[uint64](bp.LeaseIn)
+}
+
+func (bp *balanceProfile) LeaseOutAsUint64() uint64 {
+	return safecast.MustConvert[uint64](bp.LeaseOut)
+}
+
+func (bp *balanceProfile) BalanceAsInt64() int64 {
+	return safecast.MustConvert[int64](bp.Balance)
+}
+
+func (bp *balanceProfile) DepositAsInt64() int64 {
+	return safecast.MustConvert[int64](bp.Deposit)
 }
 
 type wavesBalanceRecord struct {
@@ -368,17 +377,13 @@ func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
 		var r wavesBalanceRecord
-		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return nil, nil, err
+		if umErr := r.unmarshalBinary(recordBytes); umErr != nil {
+			return nil, nil, umErr
 		}
-		b, cErr := safecast.ToInt64(r.Balance)
-		if cErr != nil {
-			return nil, nil, fmt.Errorf("failed to convert balance to int64: %w", cErr)
-		}
-		if b < r.LeaseOut {
+		if r.BalanceAsInt64() < r.LeaseOut {
 			var k wavesBalanceKey
-			if err := k.unmarshal(key); err != nil {
-				return nil, nil, err
+			if umErr := k.unmarshal(key); umErr != nil {
+				return nil, nil, umErr
 			}
 			wavesAddr, waErr := k.address.ToWavesAddress(s.sets.AddressSchemeCharacter)
 			if waErr != nil {
@@ -386,13 +391,9 @@ func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 			}
 			slog.Info("Resolving lease overflow", "address", wavesAddr.String(), "old", r.LeaseOut, "new", 0)
 			overflowedAddresses[wavesAddr] = struct{}{}
-			li, cliErr := safecast.ToUint64(r.LeaseIn)
-			if cliErr != nil {
-				return nil, nil, fmt.Errorf("failed to convert leaseIn to uint64: %w", cliErr)
-			}
 			leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 				Address:  wavesAddr,
-				LeaseIn:  li,
+				LeaseIn:  r.LeaseInAsUint64(),
 				LeaseOut: 0,
 			})
 		}
@@ -443,14 +444,10 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 			if cErr != nil {
 				return nil, fmt.Errorf("failed to convert leaseIn to uint64: %w", cErr)
 			}
-			lo, cErr := safecast.ToUint64(r.LeaseOut)
-			if cErr != nil {
-				return nil, fmt.Errorf("failed to convert leaseOut to uint64: %w", cErr)
-			}
 			correctLeaseBalanceSnapshots = append(correctLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 				Address:  wavesAddress,
 				LeaseIn:  cli,
-				LeaseOut: lo,
+				LeaseOut: r.LeaseOutAsUint64(),
 			})
 		}
 	}
@@ -474,10 +471,11 @@ func (s *balances) generateLeaseBalanceSnapshotsWithProvidedChanges(
 		if err != nil {
 			return nil, err
 		}
+
 		leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 			Address:  a,
-			LeaseIn:  uint64(newProfile.LeaseIn),
-			LeaseOut: uint64(newProfile.LeaseOut),
+			LeaseIn:  newProfile.LeaseInAsUint64(),
+			LeaseOut: newProfile.LeaseOutAsUint64(),
 		})
 		slog.Info("Balance of address changed", "address", a.String(),
 			"oldBalance", profile.Balance, "oldLIn", profile.LeaseIn, "oldLOut", profile.LeaseOut,

@@ -1325,7 +1325,7 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			return nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
 		if isAccountableBalanceChange(txIsSuccessfulInvoke, diffAmount.balance) {
-			newBalance, bErr := common.AddInt(int64(fullBalance.Balance), diffAmount.balance.Value())
+			newBalance, bErr := common.AddInt(fullBalance.BalanceAsInt64(), diffAmount.balance.Value())
 			if bErr != nil {
 				return nil, nil, errors.Wrapf(bErr,
 					"failed to calculate waves balance for addr %q: failed to add %d to %d",
@@ -1346,8 +1346,8 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			// See `balances.generateLeaseBalanceSnapshotsForLeaseOverflows` for details
 			newLeaseBalance := proto.LeaseBalanceSnapshot{
 				Address:  wavesAddress,
-				LeaseIn:  uint64(fullBalance.LeaseIn + diffAmount.leaseIn.Value()),
-				LeaseOut: uint64(fullBalance.LeaseOut + diffAmount.leaseOut.Value()),
+				LeaseIn:  uint64(fullBalance.LeaseIn + diffAmount.leaseIn.Value()),   //nolint:gosec // As described.
+				LeaseOut: uint64(fullBalance.LeaseOut + diffAmount.leaseOut.Value()), //nolint:gosec // As described.
 			}
 			leaseBalances = append(leaseBalances, newLeaseBalance)
 		}

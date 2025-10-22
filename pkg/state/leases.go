@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 
+	"github.com/ccoveille/go-safecast"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
@@ -66,6 +67,10 @@ func (l *leasing) marshalBinary() ([]byte, error) {
 
 func (l *leasing) unmarshalBinary(data []byte) error {
 	return cbor.Unmarshal(data, l)
+}
+
+func (l *leasing) AmountAsInt64() int64 {
+	return safecast.MustConvert[int64](l.Amount)
 }
 
 type leases struct {
@@ -147,7 +152,7 @@ func (l *leases) cancelLeasesToDisabledAliases(
 	cancelledLeasesSnapshots := make([]proto.CancelledLeaseSnapshot, 0, len(leasesToCancelMainnet))
 	changes := make(map[proto.WavesAddress]balanceDiff, len(leasesToCancelMainnet))
 	for _, leaseID := range leasesToCancelMainnet {
-		record, err := l.newestLeasingInfo(leaseID)
+		leasingInfo, err := l.newestLeasingInfo(leaseID)
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to get newest leasing info by id %q", leaseID.String())
 		}
@@ -156,12 +161,12 @@ func (l *leases) cancelLeasesToDisabledAliases(
 			LeaseID: leaseID,
 		})
 		// calculate balance changes
-		senderAddr, err := proto.NewAddressFromPublicKey(scheme, record.SenderPK)
+		senderAddr, err := proto.NewAddressFromPublicKey(scheme, leasingInfo.SenderPK)
 		if err != nil {
-			return nil, nil, errors.Wrapf(err, "failed to build address for PK %q", record.SenderPK)
+			return nil, nil, errors.Wrapf(err, "failed to build address for PK %q", leasingInfo.SenderPK)
 		}
 		if diff, ok := changes[senderAddr]; ok {
-			newLeaseOut, loErr := diff.leaseOut.Add(internal.NewIntChange(-int64(record.Amount)))
+			newLeaseOut, loErr := diff.leaseOut.Add(internal.NewIntChange(-leasingInfo.AmountAsInt64()))
 			if loErr != nil {
 				return nil, nil, errors.Wrapf(loErr, "failed to add leaseOut change for address %q",
 					senderAddr.String(),
@@ -170,19 +175,19 @@ func (l *leases) cancelLeasesToDisabledAliases(
 			diff.leaseOut = newLeaseOut
 			changes[senderAddr] = diff
 		} else {
-			changes[senderAddr] = newBalanceDiff(0, 0, -int64(record.Amount), 0, false)
+			changes[senderAddr] = newBalanceDiff(0, 0, -leasingInfo.AmountAsInt64(), 0, false)
 		}
-		if diff, ok := changes[record.RecipientAddr]; ok {
-			newLeaseIn, liErr := diff.leaseIn.Add(internal.NewIntChange(-int64(record.Amount)))
+		if diff, ok := changes[leasingInfo.RecipientAddr]; ok {
+			newLeaseIn, liErr := diff.leaseIn.Add(internal.NewIntChange(-leasingInfo.AmountAsInt64()))
 			if liErr != nil {
 				return nil, nil, errors.Wrapf(liErr, "failed to add leaseIn change for address %q",
-					record.RecipientAddr.String(),
+					leasingInfo.RecipientAddr.String(),
 				)
 			}
 			diff.leaseIn = newLeaseIn
-			changes[record.RecipientAddr] = diff
+			changes[leasingInfo.RecipientAddr] = diff
 		} else {
-			changes[record.RecipientAddr] = newBalanceDiff(0, -int64(record.Amount), 0, 0, false)
+			changes[leasingInfo.RecipientAddr] = newBalanceDiff(0, -leasingInfo.AmountAsInt64(), 0, 0, false)
 		}
 	}
 	slog.Info("Finished cancelling leases to disabled aliases")

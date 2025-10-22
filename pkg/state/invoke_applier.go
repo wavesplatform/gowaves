@@ -197,7 +197,7 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddres
 func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.AddressID, leaseInfo *leasing) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
-	senderLeaseOutDiff := -int64(leaseInfo.Amount)
+	senderLeaseOutDiff := -leaseInfo.AmountAsInt64()
 	if err := diff.appendBalanceDiff(
 		senderKey.bytes(),
 		newBalanceDiff(0, 0, senderLeaseOutDiff, 0, false),
@@ -205,7 +205,7 @@ func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.Addr
 		return nil, err
 	}
 	receiverKey := wavesBalanceKey{address: leaseInfo.RecipientAddr.ID()}
-	receiverLeaseInDiff := -int64(leaseInfo.Amount)
+	receiverLeaseInDiff := -leaseInfo.AmountAsInt64()
 	if err := diff.appendBalanceDiff(
 		receiverKey.bytes(),
 		newBalanceDiff(0, receiverLeaseInDiff, 0, 0, false),
