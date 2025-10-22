@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/big"
 
 	"github.com/ccoveille/go-safecast"
@@ -10,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -293,11 +295,25 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 }
 
 func (s *LeaseBalanceSnapshot) LeaseInAsInt64() int64 {
-	return safecast.MustConvert[int64](s.LeaseIn)
+	li, err := safecast.ToInt64(s.LeaseIn)
+	if err != nil {
+		overflowed := int64(s.LeaseIn) //nolint:gosec // intentionally convert with overflow.
+		slog.Warn("Failed to convert leaseIn to int64, returning overflow value", logging.Error(err),
+			slog.Any("original", s.LeaseIn), slog.Any("converted", overflowed))
+		return overflowed
+	}
+	return li
 }
 
 func (s *LeaseBalanceSnapshot) LeaseOutAsInt64() int64 {
-	return safecast.MustConvert[int64](s.LeaseOut)
+	lo, err := safecast.ToInt64(s.LeaseOut)
+	if err != nil {
+		overflowed := int64(s.LeaseOut) //nolint:gosec // intentionally convert with overflow.
+		slog.Warn("Failed to convert leaseOut to int64, returning overflow value", logging.Error(err),
+			slog.Any("original", s.LeaseOut), slog.Any("converted", overflowed))
+		return overflowed
+	}
+	return lo
 }
 
 type NewLeaseSnapshot struct {
