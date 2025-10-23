@@ -3,9 +3,10 @@ package proto_test
 import (
 	"encoding/base64"
 	"encoding/binary"
+	"testing"
+
 	"github.com/stretchr/testify/require"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"testing"
 )
 
 func TestEndorsementMessage(t *testing.T) {
@@ -46,7 +47,8 @@ func TestEndorsementMessage(t *testing.T) {
 
 	expectedBase64 := base64.StdEncoding.EncodeToString(expected)
 	require.Equal(t,
-		"ZUUlMmISFnQqWlFgZmxAXW4lNUUnWF15YQp+IHd3TnYCIA8BWmRUfh4VNnYREQBXAARPcgkcYQ8FRw87BB4uMwAAAAUZHjRAa3MYOH4pbCNpQgJudX1jbwIUHAN4cWFdMwQfPFY8bFZ7YgxsG1NgfR8TaBJqXkIHWzZNFChDT08lWCEd",
+		"ZUUlMmISFnQqWlFgZmxAXW4lNUUnWF15YQp+IHd3TnYCIA8BWmRUfh4VNnYREQBXAARPcgkcYQ8FRw87BB4uMwAAAAUZHjRAa"+
+			"3MYOH4pbCNpQgJudX1jbwIUHAN4cWFdMwQfPFY8bFZ7YgxsG1NgfR8TaBJqXkIHWzZNFChDT08lWCEd",
 		expectedBase64,
 	)
 }

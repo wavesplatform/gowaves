@@ -3233,7 +3233,7 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 	ratio := endorsersGenBal / totalGenBalance
 
 	const twoThirds = 2.0 / 3.0
-	if ratio >= twoThirds {
+	if ratio > twoThirds {
 		return true, nil
 	}
 	return false, nil

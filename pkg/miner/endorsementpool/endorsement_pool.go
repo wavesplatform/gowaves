@@ -8,7 +8,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
-	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type key struct {
@@ -27,18 +26,16 @@ type heapItemEndorsement struct {
 	seq        uint64
 }
 type EndorsementPool struct {
-	mu         sync.Mutex
-	seq        uint64
-	countLimit int
-	byKey      map[key]*heapItemEndorsement
-	items      []*heapItemEndorsement // always sorted
-	conflicts  []proto.EndorseBlock
+	mu        sync.Mutex
+	seq       uint64
+	byKey     map[key]*heapItemEndorsement
+	items     []*heapItemEndorsement // always sorted
+	conflicts []proto.EndorseBlock
 }
 
 func NewEndorsementPool() *EndorsementPool {
 	return &EndorsementPool{
-		countLimit: settings.EndorsementPoolLimit,
-		byKey:      make(map[key]*heapItemEndorsement),
+		byKey: make(map[key]*heapItemEndorsement),
 	}
 }
 
@@ -56,9 +53,6 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey, balance u
 		p.conflicts = append(p.conflicts, *e)
 		return fmt.Errorf("duplicate endorsement: endorser %d, block %s",
 			e.EndorserIndex, e.EndorsedBlockID.String())
-	}
-	if p.countLimit > 0 && len(p.byKey) >= p.countLimit {
-		return errors.New("endorsement pool full")
 	}
 
 	p.seq++
