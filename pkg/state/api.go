@@ -7,6 +7,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -159,6 +160,10 @@ type StateInfo interface {
 	// Given height exceeds the total generating balance of all committed generators for that block.
 	CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height,
 		allGenerators []proto.WavesAddress) (bool, error)
+
+	FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error)
+	FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error)
+	CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

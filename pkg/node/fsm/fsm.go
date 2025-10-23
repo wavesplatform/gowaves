@@ -92,6 +92,8 @@ type BaseInfo struct {
 	cleanCancel     context.CancelFunc
 	logger          *slog.Logger
 	netLogger       *slog.Logger
+
+	generationPeriod uint64
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -223,6 +225,7 @@ func NewFSM(
 	syncPeer *network.SyncPeer,
 	enableLightMode bool,
 	logger, netLogger *slog.Logger,
+	generationPeriod uint64,
 ) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
@@ -253,12 +256,13 @@ func NewFSM(
 
 		minPeersMining: services.MinPeersMining,
 
-		skipMessageList: services.SkipMessageList,
-		syncPeer:        syncPeer,
-		enableLightMode: enableLightMode,
-		cleanUtxRunning: &atomic.Bool{},
-		logger:          logger,
-		netLogger:       netLogger,
+		skipMessageList:  services.SkipMessageList,
+		syncPeer:         syncPeer,
+		enableLightMode:  enableLightMode,
+		cleanUtxRunning:  &atomic.Bool{},
+		logger:           logger,
+		netLogger:        netLogger,
+		generationPeriod: generationPeriod,
 	}
 
 	info.scheduler.Reschedule() // Reschedule mining just before starting the FSM (i.e. before starting the node).

@@ -1620,7 +1620,7 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 // nextGenerationPeriodStart returns the start height of the next generation period given the current block height,
 // the feature activation height and the period length.
 // If the block height is less than the activation height, an error is returned.
-func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+func generationPeriodStart(activationHeight, blockHeight, periodLength uint64, offset uint64) (uint32, error) {
 	switch {
 	case blockHeight < activationHeight:
 		return 0, fmt.Errorf(
@@ -1632,6 +1632,14 @@ func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint6
 	default:
 		base := activationHeight + 1 // Start of the first full period.
 		k := (blockHeight - base) / periodLength
-		return safecast.ToUint32(base + (k+1)*periodLength)
+		return safecast.ToUint32(base + (k+offset)*periodLength)
 	}
+}
+
+func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+	return generationPeriodStart(activationHeight, blockHeight, periodLength, 1)
+}
+
+func CurrentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+	return generationPeriodStart(activationHeight, blockHeight, periodLength, 0)
 }

@@ -110,3 +110,24 @@ func (c *commitments) size(periodStart uint32) (int, error) {
 	}
 	return len(rec.Commitments), nil
 }
+
+// size returns the number of commitments for the given period start.
+func (c *commitments) generators(periodStart uint32) ([]crypto.PublicKey, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve commitment record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	generators := make([]crypto.PublicKey, 0, len(rec.Commitments))
+	for _, cm := range rec.Commitments {
+		generators = append(generators, cm.GeneratorPK)
+	}
+	return generators, nil
+}

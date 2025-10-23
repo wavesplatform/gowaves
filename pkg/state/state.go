@@ -19,6 +19,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -3236,4 +3237,76 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 		return true, nil
 	}
 	return false, nil
+}
+
+// FindEndorserPKByIndex retrieves the BLS endorser public key by its index
+// in the commitments list for the given period.
+func (s *stateManager) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := s.stor.commitments.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		var empty bls.PublicKey
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return empty, fmt.Errorf("no commitments found for period %d", periodStart)
+		}
+		return empty, fmt.Errorf("failed to retrieve commitments record: %w", err)
+	}
+
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		var empty bls.PublicKey
+		return empty, fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
+	}
+
+	if index < 0 || index >= len(rec.Commitments) {
+		var empty bls.PublicKey
+		return empty, fmt.Errorf("index %d out of range (size %d)", index, len(rec.Commitments))
+	}
+
+	return rec.Commitments[index].EndorserPK, nil
+}
+
+// FindGeneratorPKByEndorserPK finds the generator's Waves public key corresponding
+// to the given BLS endorser public key in the commitments record for the given period.
+func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
+	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := s.stor.commitments.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		var empty crypto.PublicKey
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return empty, fmt.Errorf("no commitments found for period %d", periodStart)
+		}
+		return empty, fmt.Errorf("failed to retrieve commitments record: %w", err)
+	}
+
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		var empty crypto.PublicKey
+		return empty, fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
+	}
+
+	endPKb := endorserPK[:]
+	for _, cm := range rec.Commitments {
+		if bytes.Equal(endPKb, cm.EndorserPK[:]) {
+			return cm.GeneratorPK, nil
+		}
+	}
+
+	var empty crypto.PublicKey
+	return empty, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
+}
+
+// CommittedGenerators returns the list of Waves addresses of committed generators.
+func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
+	pks, err := s.stor.commitments.generators(periodStart)
+	if err != nil {
+		return nil, err
+	}
+	addresses := make([]proto.WavesAddress, len(pks))
+	for i, pk := range pks {
+		addr := proto.MustAddressFromPublicKey(s.settings.AddressSchemeCharacter, pk)
+		addresses[i] = addr
+	}
+	return addresses, nil
 }

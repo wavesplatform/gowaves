@@ -224,16 +224,91 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	}
 
 	// TODO verify individual endorsements (signatures) using the endorser's public key.
-	// TODO validate whether the endorsement is not a duplicate
+	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	if actErr != nil {
+		return a, nil,
+			proto.NewInfoMsg(errors.Errorf("failed to get DeterministicFinality activation height, %v", actErr))
+	}
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	if err != nil {
+		return nil, nil, err
+	}
 
-	err := a.baseInfo.endorsements.Add(blockEndorsement)
+	endorserPK, err := a.baseInfo.storage.FindEndorserPKByIndex(periodStart, int(blockEndorsement.EndorserIndex))
+	if err != nil {
+		return nil, nil, err
+	}
+	endorserWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
+	if findErr != nil {
+		return nil, nil, findErr
+	}
+	endorserAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, endorserWavesPK)
+	endorserRec := proto.NewRecipientFromAddress(endorserAddress)
+	balance, err := a.baseInfo.storage.GeneratingBalance(endorserRec, height)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = a.baseInfo.endorsements.Add(blockEndorsement, endorserPK, balance)
 	if err != nil {
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", err)
 	}
 
-	// TODO send the proto message to peers about endorsement
-
+	a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
 	return newNGState(a.baseInfo), nil, nil
+}
+
+func (a *NGState) handleFinality(block *proto.Block, height proto.Height) error {
+	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
+	}
+
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, 0, a.baseInfo.generationPeriod)
+	if err != nil {
+		return err
+	}
+
+	ok, err := a.baseInfo.endorsements.Verify()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("endorsement verification failed at height %d", height)
+	}
+
+	allEndorsers := a.baseInfo.endorsements.GetEndorsers()
+	endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
+	for _, endorser := range allEndorsers {
+		pk, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorser)
+		if findErr != nil {
+			return findErr
+		}
+		addr := proto.MustAddressFromPublicKey(a.baseInfo.scheme, pk)
+		endorsersAddresses = append(endorsersAddresses, addr)
+	}
+
+	generators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
+	if err != nil {
+		return err
+	}
+
+	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, height, generators)
+	if err != nil {
+		return fmt.Errorf("failed to calculate finalization voting: %w", err)
+	}
+
+	if canFinalize {
+		finalization, finErr := a.baseInfo.endorsements.Finalize()
+		if finErr != nil {
+			return finErr
+		}
+		block.FinalizationVoting = &finalization
+	}
+	return nil
 }
 
 func (a *NGState) MinedBlock(
@@ -256,21 +331,8 @@ func (a *NGState) MinedBlock(
 		return a, nil, a.Errorf(err)
 	}
 	if finalityActivated {
-		ok, vrfErr := a.baseInfo.endorsements.Verify()
-		if vrfErr != nil {
-			return a, nil, a.Errorf(vrfErr)
-		}
-		if !ok {
-			return a, nil, a.Errorf(errors.Errorf("endorsement verification failed at height %d", height))
-		}
-		canFinalize, finErr := a.baseInfo.storage.CalculateVotingFinalization(a.baseInfo.endorsements.GetEndorsers(), height,
-			a.baseInfo.endorsements.GetGenerators())
-		if finErr != nil {
-			return a, nil, a.Errorf(fmt.Errorf("failed to calculate finalization voting %w", finErr))
-		}
-		if canFinalize {
-			finalization := a.baseInfo.endorsements.Finalize()
-			block.FinalizationVoting = &finalization
+		if finErr := a.handleFinality(block, height); finErr != nil {
+			return a, nil, a.Errorf(finErr)
 		}
 	}
 

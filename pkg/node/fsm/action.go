@@ -18,6 +18,7 @@ type currentScorer interface {
 type Actions interface {
 	SendScore(currentScorer)
 	SendBlock(block *proto.Block)
+	SendEndorseBlock(endorse *proto.EndorseBlock)
 }
 
 type ActionsImpl struct {
@@ -73,4 +74,26 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 	})
 	a.logger.Debug("Network message sent to peers", logging.Type(msg), slog.Int("count", cnt),
 		slog.Any("blockID", block.BlockID()))
+}
+
+func (a *ActionsImpl) SendEndorseBlock(endorse *proto.EndorseBlock) {
+	bts, err := endorse.Marshal()
+	if err != nil {
+		a.logger.Error("Failed to marshal endorse block", logging.Error(err))
+		return
+	}
+
+	msg := &proto.EndorseBlockMessage{
+		Bytes: bts,
+	}
+
+	var cnt int
+	a.services.Peers.EachConnected(func(p peer.Peer, _ *proto.Score) {
+		p.SendMessage(msg)
+		cnt++
+	})
+	a.logger.Debug("Network message sent to peers",
+		logging.Type(msg),
+		slog.Int("count", cnt),
+		slog.Any("endorse", endorse))
 }

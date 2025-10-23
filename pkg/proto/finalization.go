@@ -21,7 +21,6 @@ func (e *EndorseBlock) Marshal() ([]byte, error) {
 	return endBlockProto.MarshalVTStrict()
 }
 
-// EndorsementMessage serializes endorsement structure into base58 message.
 func (e *EndorseBlock) EndorsementMessage() ([]byte, error) {
 	finalizedID := e.FinalizedBlockID.Bytes()
 	endorsedID := e.EndorsedBlockID.Bytes()
