@@ -2,6 +2,7 @@ package state
 
 import (
 	"fmt"
+	"math/rand/v2"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -489,4 +490,21 @@ func TestNftList(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, []crypto.Digest(nil), nfts)
 
+}
+
+func BenchmarkBalanceProfileSerialization(b *testing.B) {
+	bp := wavesBalanceRecord{
+		balanceProfile{
+			Balance:  rand.Uint64(),
+			LeaseIn:  rand.Int64(),
+			LeaseOut: rand.Int64(),
+			Deposit:  rand.Uint64(),
+		}}
+	b.ResetTimer()
+	for b.Loop() {
+		data, err := bp.marshalBinary()
+		require.NoError(b, err)
+		err = bp.unmarshalBinary(data)
+		require.NoError(b, err)
+	}
 }
