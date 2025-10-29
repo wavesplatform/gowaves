@@ -412,7 +412,7 @@ func TestBalances(t *testing.T) {
 		addr, err := proto.NewAddressFromString(tc.addr)
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		if err := to.balances.setWavesBalance(addr.ID(), newWavesValueFromProfile(tc.profile), tc.blockID); err != nil {
-			t.Fatalf("Faied to set waves balance:%v\n", err)
+			t.Fatalf("Failed to set waves balance:%v\n", err)
 		}
 		to.stor.flush(t)
 		profile, err := to.balances.wavesBalance(addr.ID())
