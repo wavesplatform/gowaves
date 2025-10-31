@@ -18,6 +18,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
+const Deposit = 100_0000_0000 // 100 WAVES.
+
 func byteKey(addrID proto.AddressID, asset proto.OptionalAsset) []byte {
 	if !asset.Present {
 		k := wavesBalanceKey{addrID}
@@ -1926,11 +1928,10 @@ func (td *transactionDiffer) createDiffCommitToGenerationWithProofs(
 	if err != nil {
 		return txBalanceChanges{}, err
 	}
-	const deposit = 100_0000_0000 // 100 WAVES.
 	senderFeeBalanceDiff := -fee
 	if adErr := diff.appendBalanceDiff(
 		senderFeeKey,
-		newBalanceDiff(senderFeeBalanceDiff, 0, 0, deposit, updateMinIntermediateBalance),
+		newBalanceDiff(senderFeeBalanceDiff, 0, 0, Deposit, updateMinIntermediateBalance),
 	); adErr != nil {
 		return txBalanceChanges{}, adErr
 	}

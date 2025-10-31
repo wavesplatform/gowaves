@@ -2,6 +2,7 @@ package state
 
 import (
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"math"
 	"testing"
@@ -1621,74 +1622,182 @@ func TestScriptActivation(t *testing.T) {
 	}
 }
 
-func TestNextGenerationPeriodStart(t *testing.T) {
+func TestGenerationPeriodStart(t *testing.T) {
 	for i, test := range []struct {
 		activation, height, length uint64
-		start                      uint64
+		currStart                  uint64
+		nextStart                  uint64
 		failed                     bool
 		err                        string
 	}{
 		// Activation at height 0, period length 10.
-		{activation: 0, height: 0, length: 10, start: 11, failed: false, err: ""},
-		{activation: 0, height: 1, length: 10, start: 11, failed: false, err: ""},
-		{activation: 0, height: 5, length: 10, start: 11, failed: false, err: ""},
-		{activation: 0, height: 10, length: 10, start: 11, failed: false, err: ""},
-		{activation: 0, height: 11, length: 10, start: 21, failed: false, err: ""},
-		{activation: 0, height: 15, length: 10, start: 21, failed: false, err: ""},
-		{activation: 0, height: 20, length: 10, start: 21, failed: false, err: ""},
+		{activation: 0, height: 0, length: 10, currStart: 0, nextStart: 11, failed: false, err: ""},
+		{activation: 0, height: 1, length: 10, currStart: 0, nextStart: 11, failed: false, err: ""},
+		{activation: 0, height: 5, length: 10, currStart: 0, nextStart: 11, failed: false, err: ""},
+		{activation: 0, height: 10, length: 10, currStart: 0, nextStart: 11, failed: false, err: ""},
+		{activation: 0, height: 11, length: 10, currStart: 11, nextStart: 21, failed: false, err: ""},
+		{activation: 0, height: 15, length: 10, currStart: 11, nextStart: 21, failed: false, err: ""},
+		{activation: 0, height: 20, length: 10, currStart: 11, nextStart: 21, failed: false, err: ""},
 		// Activation at height 10, period length 10.
-		{activation: 10, height: 10, length: 10, start: 21, failed: false, err: ""},
-		{activation: 10, height: 11, length: 10, start: 21, failed: false, err: ""},
-		{activation: 10, height: 15, length: 10, start: 21, failed: false, err: ""},
-		{activation: 10, height: 20, length: 10, start: 21, failed: false, err: ""},
-		{activation: 10, height: 21, length: 10, start: 31, failed: false, err: ""},
-		{activation: 10, height: 25, length: 10, start: 31, failed: false, err: ""},
-		{activation: 10, height: 30, length: 10, start: 31, failed: false, err: ""},
+		{activation: 10, height: 10, length: 10, currStart: 10, nextStart: 21, failed: false, err: ""},
+		{activation: 10, height: 11, length: 10, currStart: 10, nextStart: 21, failed: false, err: ""},
+		{activation: 10, height: 15, length: 10, currStart: 10, nextStart: 21, failed: false, err: ""},
+		{activation: 10, height: 20, length: 10, currStart: 10, nextStart: 21, failed: false, err: ""},
+		{activation: 10, height: 21, length: 10, currStart: 21, nextStart: 31, failed: false, err: ""},
+		{activation: 10, height: 25, length: 10, currStart: 21, nextStart: 31, failed: false, err: ""},
+		{activation: 10, height: 30, length: 10, currStart: 21, nextStart: 31, failed: false, err: ""},
 		// Activation at height 1, period length 10.
-		{activation: 1, height: 1, length: 10, start: 12, failed: false, err: ""},
-		{activation: 1, height: 2, length: 10, start: 12, failed: false, err: ""},
-		{activation: 1, height: 5, length: 10, start: 12, failed: false, err: ""},
-		{activation: 1, height: 11, length: 10, start: 12, failed: false, err: ""},
-		{activation: 1, height: 12, length: 10, start: 22, failed: false, err: ""},
-		{activation: 1, height: 15, length: 10, start: 22, failed: false, err: ""},
-		{activation: 1, height: 21, length: 10, start: 22, failed: false, err: ""},
+		{activation: 1, height: 1, length: 10, currStart: 1, nextStart: 12, failed: false, err: ""},
+		{activation: 1, height: 2, length: 10, currStart: 1, nextStart: 12, failed: false, err: ""},
+		{activation: 1, height: 5, length: 10, currStart: 1, nextStart: 12, failed: false, err: ""},
+		{activation: 1, height: 11, length: 10, currStart: 1, nextStart: 12, failed: false, err: ""},
+		{activation: 1, height: 12, length: 10, currStart: 12, nextStart: 22, failed: false, err: ""},
+		{activation: 1, height: 15, length: 10, currStart: 12, nextStart: 22, failed: false, err: ""},
+		{activation: 1, height: 21, length: 10, currStart: 12, nextStart: 22, failed: false, err: ""},
 		// Activation at height 3, period length 10.
-		{activation: 3, height: 3, length: 10, start: 14, failed: false, err: ""},
-		{activation: 3, height: 4, length: 10, start: 14, failed: false, err: ""},
-		{activation: 3, height: 8, length: 10, start: 14, failed: false, err: ""},
-		{activation: 3, height: 13, length: 10, start: 14, failed: false, err: ""},
-		{activation: 3, height: 14, length: 10, start: 24, failed: false, err: ""},
-		{activation: 3, height: 18, length: 10, start: 24, failed: false, err: ""},
-		{activation: 3, height: 23, length: 10, start: 24, failed: false, err: ""},
+		{activation: 3, height: 3, length: 10, currStart: 3, nextStart: 14, failed: false, err: ""},
+		{activation: 3, height: 4, length: 10, currStart: 3, nextStart: 14, failed: false, err: ""},
+		{activation: 3, height: 8, length: 10, currStart: 3, nextStart: 14, failed: false, err: ""},
+		{activation: 3, height: 13, length: 10, currStart: 3, nextStart: 14, failed: false, err: ""},
+		{activation: 3, height: 14, length: 10, currStart: 14, nextStart: 24, failed: false, err: ""},
+		{activation: 3, height: 18, length: 10, currStart: 14, nextStart: 24, failed: false, err: ""},
+		{activation: 3, height: 23, length: 10, currStart: 14, nextStart: 24, failed: false, err: ""},
 		// Activation at height 1, period length 3_000.
-		{activation: 1, height: 1, length: 3_000, start: 3_002, failed: false, err: ""},
-		{activation: 1, height: 2, length: 3_000, start: 3_002, failed: false, err: ""},
-		{activation: 1, height: 1_500, length: 3_000, start: 3_002, failed: false, err: ""},
-		{activation: 1, height: 3_001, length: 3_000, start: 3_002, failed: false, err: ""},
-		{activation: 1, height: 3_002, length: 3_000, start: 6_002, failed: false, err: ""},
-		{activation: 1, height: 4_500, length: 3_000, start: 6_002, failed: false, err: ""},
-		{activation: 1, height: 6_001, length: 3_000, start: 6_002, failed: false, err: ""},
+		{activation: 1, height: 1, length: 3_000, currStart: 1, nextStart: 3_002, failed: false, err: ""},
+		{activation: 1, height: 2, length: 3_000, currStart: 1, nextStart: 3_002, failed: false, err: ""},
+		{activation: 1, height: 1_500, length: 3_000, currStart: 1, nextStart: 3_002, failed: false, err: ""},
+		{activation: 1, height: 3_001, length: 3_000, currStart: 1, nextStart: 3_002, failed: false, err: ""},
+		{activation: 1, height: 3_002, length: 3_000, currStart: 3_002, nextStart: 6_002, failed: false, err: ""},
+		{activation: 1, height: 4_500, length: 3_000, currStart: 3_002, nextStart: 6_002, failed: false, err: ""},
+		{activation: 1, height: 6_001, length: 3_000, currStart: 3_002, nextStart: 6_002, failed: false, err: ""},
 		// Activation at height 9_000, period length 3_000.
-		{activation: 9_000, height: 9_000, length: 3_000, start: 12_001, failed: false, err: ""},
-		{activation: 9_000, height: 9_001, length: 3_000, start: 12_001, failed: false, err: ""},
-		{activation: 9_000, height: 10_500, length: 3_000, start: 12_001, failed: false, err: ""},
-		{activation: 9_000, height: 12_000, length: 3_000, start: 12_001, failed: false, err: ""},
-		{activation: 9_000, height: 12_001, length: 3_000, start: 15_001, failed: false, err: ""},
-		{activation: 9_000, height: 14_500, length: 3_000, start: 15_001, failed: false, err: ""},
-		{activation: 9_000, height: 15_000, length: 3_000, start: 15_001, failed: false, err: ""},
+		{activation: 9_000, height: 9_000, length: 3_000, currStart: 9_000, nextStart: 12_001, failed: false, err: ""},
+		{activation: 9_000, height: 9_001, length: 3_000, currStart: 9_000, nextStart: 12_001, failed: false, err: ""},
+		{activation: 9_000, height: 10_500, length: 3_000, currStart: 9_000, nextStart: 12_001, failed: false, err: ""},
+		{activation: 9_000, height: 12_000, length: 3_000, currStart: 9_000, nextStart: 12_001, failed: false, err: ""},
+		{activation: 9_000, height: 12_001, length: 3_000, currStart: 12_001, nextStart: 15_001, failed: false, err: ""},
+		{activation: 9_000, height: 14_500, length: 3_000, currStart: 12_001, nextStart: 15_001, failed: false, err: ""},
+		{activation: 9_000, height: 15_000, length: 3_000, currStart: 12_001, nextStart: 15_001, failed: false, err: ""},
 		// Fail on heights less than activation height.
-		{activation: 9_000, height: 1_000, length: 3_000, start: 0, failed: true,
+		{activation: 9_000, height: 1_000, length: 3_000, currStart: 0, nextStart: 0, failed: true,
 			err: "invalid block height 1000, must be greater than feature #25 \"Deterministic Finality and Ride V9\" " +
+				"activation height 9000\n" +
+				"invalid block height 1000, must be greater than feature #25 \"Deterministic Finality and Ride V9\" " +
 				"activation height 9000"},
-		{activation: 1, height: 110_001, length: 10_000, start: 110_002, failed: false, err: ""},
+		{activation: 1, height: 110_001, length: 10_000, currStart: 100_002, nextStart: 110_002, failed: false, err: ""},
+		// Scala tests
+		{activation: 7, height: 7, length: 3, currStart: 7, nextStart: 11, failed: false, err: ""},
+		{activation: 7, height: 8, length: 3, currStart: 7, nextStart: 11, failed: false, err: ""},
+		{activation: 7, height: 10, length: 3, currStart: 7, nextStart: 11, failed: false, err: ""},
+		{activation: 7, height: 11, length: 3, currStart: 11, nextStart: 14, failed: false, err: ""},
+		{activation: 7, height: 12, length: 3, currStart: 11, nextStart: 14, failed: false, err: ""},
+		{activation: 7, height: 13, length: 3, currStart: 11, nextStart: 14, failed: false, err: ""},
+		{activation: 7, height: 14, length: 3, currStart: 14, nextStart: 17, failed: false, err: ""},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
-			start, err := nextGenerationPeriodStart(test.activation, test.height, test.length)
+			currStart, currErr := currentGenerationPeriodStart(test.activation, test.height, test.length)
+			nextStart, nextErr := nextGenerationPeriodStart(test.activation, test.height, test.length)
+			err := errors.Join(currErr, nextErr)
 			if test.failed {
 				assert.EqualError(t, err, test.err)
 			} else {
 				require.NoError(t, err)
-				assert.Equal(t, int(test.start), int(start))
+				assert.Equal(t, int(test.currStart), int(currStart))
+				assert.Equal(t, int(test.nextStart), int(nextStart))
+			}
+		})
+	}
+}
+
+func TestGenerationPeriodEnd(t *testing.T) {
+	for i, test := range []struct {
+		activation, height, length, offset uint64
+		end                                uint64
+		failed                             bool
+		err                                string
+	}{
+		// Activation at height 0, period length 10.
+		{activation: 0, height: 0, length: 10, offset: 0, end: 10, failed: false, err: ""},
+		{activation: 0, height: 1, length: 10, offset: 0, end: 10, failed: false, err: ""},
+		{activation: 0, height: 5, length: 10, offset: 0, end: 10, failed: false, err: ""},
+		{activation: 0, height: 10, length: 10, offset: 0, end: 10, failed: false, err: ""},
+		{activation: 0, height: 0, length: 10, offset: 1, end: 20, failed: false, err: ""},
+		{activation: 0, height: 1, length: 10, offset: 1, end: 20, failed: false, err: ""},
+		{activation: 0, height: 5, length: 10, offset: 1, end: 20, failed: false, err: ""},
+		{activation: 0, height: 10, length: 10, offset: 1, end: 20, failed: false, err: ""},
+		{activation: 0, height: 11, length: 10, offset: 0, end: 20, failed: false, err: ""},
+		{activation: 0, height: 15, length: 10, offset: 0, end: 20, failed: false, err: ""},
+		{activation: 0, height: 20, length: 10, offset: 0, end: 20, failed: false, err: ""},
+		// Activation at height 10, period length 10.
+		{activation: 10, height: 10, length: 10, offset: 0, end: 20, failed: false, err: ""},
+		{activation: 10, height: 11, length: 10, offset: 0, end: 20, failed: false, err: ""},
+		{activation: 10, height: 15, length: 10, offset: 0, end: 20, failed: false, err: ""},
+		{activation: 10, height: 20, length: 10, offset: 0, end: 20, failed: false, err: ""},
+		{activation: 10, height: 21, length: 10, offset: 0, end: 30, failed: false, err: ""},
+		{activation: 10, height: 25, length: 10, offset: 0, end: 30, failed: false, err: ""},
+		{activation: 10, height: 30, length: 10, offset: 0, end: 30, failed: false, err: ""},
+		// Activation at height 1, period length 10.
+		{activation: 1, height: 1, length: 10, offset: 0, end: 11, failed: false, err: ""},
+		{activation: 1, height: 2, length: 10, offset: 0, end: 11, failed: false, err: ""},
+		{activation: 1, height: 5, length: 10, offset: 0, end: 11, failed: false, err: ""},
+		{activation: 1, height: 11, length: 10, offset: 0, end: 11, failed: false, err: ""},
+		{activation: 1, height: 12, length: 10, offset: 0, end: 21, failed: false, err: ""},
+		{activation: 1, height: 15, length: 10, offset: 0, end: 21, failed: false, err: ""},
+		{activation: 1, height: 21, length: 10, offset: 0, end: 21, failed: false, err: ""},
+		// Activation at height 3, period length 10.
+		{activation: 3, height: 3, length: 10, offset: 0, end: 13, failed: false, err: ""},
+		{activation: 3, height: 4, length: 10, offset: 0, end: 13, failed: false, err: ""},
+		{activation: 3, height: 8, length: 10, offset: 0, end: 13, failed: false, err: ""},
+		{activation: 3, height: 13, length: 10, offset: 0, end: 13, failed: false, err: ""},
+		{activation: 3, height: 14, length: 10, offset: 0, end: 23, failed: false, err: ""},
+		{activation: 3, height: 18, length: 10, offset: 0, end: 23, failed: false, err: ""},
+		{activation: 3, height: 23, length: 10, offset: 0, end: 23, failed: false, err: ""},
+		{activation: 3, height: 14, length: 10, offset: 1, end: 33, failed: false, err: ""},
+		{activation: 3, height: 18, length: 10, offset: 1, end: 33, failed: false, err: ""},
+		{activation: 3, height: 23, length: 10, offset: 1, end: 33, failed: false, err: ""},
+		// Activation at height 1, period length 3_000.
+		{activation: 1, height: 1, length: 3_000, offset: 0, end: 3_001, failed: false, err: ""},
+		{activation: 1, height: 2, length: 3_000, offset: 0, end: 3_001, failed: false, err: ""},
+		{activation: 1, height: 1_500, length: 3_000, offset: 0, end: 3_001, failed: false, err: ""},
+		{activation: 1, height: 3_001, length: 3_000, offset: 0, end: 3_001, failed: false, err: ""},
+		{activation: 1, height: 3_002, length: 3_000, offset: 0, end: 6_001, failed: false, err: ""},
+		{activation: 1, height: 4_500, length: 3_000, offset: 0, end: 6_001, failed: false, err: ""},
+		{activation: 1, height: 6_001, length: 3_000, offset: 0, end: 6_001, failed: false, err: ""},
+		// Activation at height 9_000, period length 3_000.
+		{activation: 9_000, height: 9_000, length: 3_000, offset: 0, end: 12_000, failed: false, err: ""},
+		{activation: 9_000, height: 9_001, length: 3_000, offset: 0, end: 12_000, failed: false, err: ""},
+		{activation: 9_000, height: 10_500, length: 3_000, offset: 0, end: 12_000, failed: false, err: ""},
+		{activation: 9_000, height: 12_000, length: 3_000, offset: 0, end: 12_000, failed: false, err: ""},
+		{activation: 9_000, height: 9_000, length: 3_000, offset: 1, end: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 9_001, length: 3_000, offset: 1, end: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 10_500, length: 3_000, offset: 1, end: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 12_000, length: 3_000, offset: 1, end: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 12_001, length: 3_000, offset: 0, end: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 14_500, length: 3_000, offset: 0, end: 15_000, failed: false, err: ""},
+		{activation: 9_000, height: 15_000, length: 3_000, offset: 0, end: 15_000, failed: false, err: ""},
+		// Fail on heights less than activation height.
+		{activation: 9_000, height: 1_000, length: 3_000, offset: 0, end: 0, failed: true,
+			err: "invalid block height 1000, must be greater than feature #25 \"Deterministic Finality and Ride V9\" " +
+				"activation height 9000"},
+		{activation: 1, height: 110_001, length: 10_000, offset: 0, end: 110_001, failed: false, err: ""},
+		{activation: 1, height: 110_001, length: 10_000, offset: 1, end: 120_001, failed: false, err: ""},
+		{activation: 1, height: 110_001, length: 10_000, offset: 2, end: 130_001, failed: false, err: ""},
+		// Scala tests
+		{activation: 7, height: 7, length: 3, offset: 0, end: 10, failed: false, err: ""},
+		{activation: 7, height: 8, length: 3, offset: 0, end: 10, failed: false, err: ""},
+		{activation: 7, height: 10, length: 3, offset: 0, end: 10, failed: false, err: ""},
+		{activation: 7, height: 11, length: 3, offset: 0, end: 13, failed: false, err: ""},
+		{activation: 7, height: 12, length: 3, offset: 0, end: 13, failed: false, err: ""},
+		{activation: 7, height: 13, length: 3, offset: 0, end: 13, failed: false, err: ""},
+		{activation: 7, height: 14, length: 3, offset: 0, end: 16, failed: false, err: ""},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			end, err := generationPeriodEnd(test.activation, test.height, test.length, test.offset)
+			if test.failed {
+				assert.EqualError(t, err, test.err)
+			} else {
+				require.NoError(t, err)
+				assert.Equal(t, int(test.end), int(end))
 			}
 		})
 	}

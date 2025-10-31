@@ -1621,17 +1621,50 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 // the feature activation height and the period length.
 // If the block height is less than the activation height, an error is returned.
 func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 1)
+	if err != nil {
+		return 0, err
+	}
+	return safecast.ToUint32(s)
+}
+
+func currentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 0)
+	if err != nil {
+		return 0, err
+	}
+	return safecast.ToUint32(s)
+}
+
+func isFirstPeriod(activationHeight, blockHeight, periodLength uint64) bool {
+	return activationHeight <= blockHeight && blockHeight <= activationHeight+periodLength
+}
+
+func generationPeriodStart(activationHeight, blockHeight, periodLength, offset uint64) (uint64, error) {
 	switch {
 	case blockHeight < activationHeight:
 		return 0, fmt.Errorf(
 			"invalid block height %d, must be greater than feature #25 \"Deterministic Finality and Ride V9\" "+
 				"activation height %d", blockHeight, activationHeight)
-	case blockHeight == activationHeight:
-		// The first generation period starts right after the activation.
-		return safecast.ToUint32(activationHeight + periodLength + 1)
+	case activationHeight <= blockHeight && blockHeight <= activationHeight+periodLength:
+		if offset > 0 {
+			return activationHeight + 1 + offset*periodLength, nil
+		}
+		return activationHeight, nil
 	default:
 		base := activationHeight + 1 // Start of the first full period.
 		k := (blockHeight - base) / periodLength
-		return safecast.ToUint32(base + (k+1)*periodLength)
+		return base + (k+offset)*periodLength, nil
 	}
+}
+
+func generationPeriodEnd(activationHeight, blockHeight, periodLength, offset uint64) (uint64, error) {
+	start, err := generationPeriodStart(activationHeight, blockHeight, periodLength, offset)
+	if err != nil {
+		return 0, err
+	}
+	if isFirstPeriod(activationHeight, blockHeight, periodLength) && offset == 0 {
+		return start + periodLength, nil
+	}
+	return start + periodLength - 1, nil
 }
