@@ -1628,10 +1628,10 @@ func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint6
 				"activation height %d", blockHeight, activationHeight)
 	case blockHeight == activationHeight:
 		// The first generation period starts right after the activation.
-		return safecast.ToUint32(activationHeight + periodLength + 1)
+		return safecast.Convert[uint32](activationHeight + periodLength + 1)
 	default:
 		base := activationHeight + 1 // Start of the first full period.
 		k := (blockHeight - base) / periodLength
-		return safecast.ToUint32(base + (k+1)*periodLength)
+		return safecast.Convert[uint32](base + (k+1)*periodLength)
 	}
 }
