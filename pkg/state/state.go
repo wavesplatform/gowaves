@@ -1886,7 +1886,7 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 		s.newBlocks.reset()
 	}()
 
-	blocksNumber, err := safecast.ToUint64(s.newBlocks.len())
+	blocksNumber, err := safecast.Convert[uint64](s.newBlocks.len())
 	if err != nil {
 		return nil, wrapErr(stateerr.InvalidInputError,
 			errors.Wrapf(err, "failed to cast blocks number %d to uint64", s.newBlocks.len()))

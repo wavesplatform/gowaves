@@ -238,18 +238,18 @@ func (s *Storage) CandlesRange(amountAsset, priceAsset crypto.Digest, from, to u
 
 func (s *Storage) DayCandle(amountAsset, priceAsset crypto.Digest) (data.Candle, error) {
 	const millis = 1000
-	now, err := safecast.ToUint64(time.Now().Unix() * millis)
+	now, err := safecast.Convert[uint64](time.Now().Unix() * millis)
 	if err != nil {
 		return data.Candle{}, errors.Wrap(err, "failed to convert current time to int64")
 	}
 	ttf := data.TimeFrameFromTimestampMS(now)
 	const candleWidth = 289
 	ftf := ttf - candleWidth
-	sts, err := safecast.ToInt64(data.TimestampMSFromTimeFrame(ftf) / millis)
+	sts, err := safecast.Convert[int64](data.TimestampMSFromTimeFrame(ftf) / millis)
 	if err != nil {
 		return data.Candle{}, errors.Wrap(err, "failed to convert timestamp to int64")
 	}
-	ets, err := safecast.ToInt64(data.TimestampMSFromTimeFrame(ttf) / millis)
+	ets, err := safecast.Convert[int64](data.TimestampMSFromTimeFrame(ttf) / millis)
 	if err != nil {
 		return data.Candle{}, errors.Wrap(err, "failed to convert timestamp to int64")
 	}

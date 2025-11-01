@@ -1808,7 +1808,7 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 	features := c.features(pbHeader.FeatureVotes)
 	consensus := c.consensus(pbHeader)
 	v := BlockVersion(c.byte(pbHeader.Version))
-	consensusBlockLength, conversionErr := safecast.ToUint32(consensus.BinarySize())
+	consensusBlockLength, conversionErr := safecast.Convert[uint32](consensus.BinarySize())
 	if conversionErr != nil {
 		return BlockHeader{}, errors.Wrap(conversionErr, "consensus block length overflow")
 	}

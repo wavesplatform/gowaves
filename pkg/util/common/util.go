@@ -244,7 +244,7 @@ func padBytes(p byte, bytes []byte) []byte {
 }
 
 func SafeIntToUint32(v int) uint32 {
-	r, err := safecast.ToUint32(v)
+	r, err := safecast.Convert[uint32](v)
 	if err != nil {
 		panic(err)
 	}
