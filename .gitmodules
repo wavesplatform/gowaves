@@ -1,3 +1,4 @@
 [submodule "pkg/grpc/protobuf-schemas"]
 	path = pkg/grpc/protobuf-schemas
 	url = https://github.com/wavesplatform/protobuf-schemas
+	branch = deterministic-finality
