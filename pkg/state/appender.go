@@ -891,7 +891,7 @@ func (a *txAppender) updateBlockchainUpdateInfo(blockInfo *proto.BlockInfo, bloc
 func BuildBlockUpdatesInfoFromSnapshot(blockInfo *proto.BlockInfo, blockHeader *proto.BlockHeader,
 	blockSnapshot proto.BlockSnapshot, l2ContractAddress proto.WavesAddress) (proto.BUpdatesInfo, error) {
 	blockID := blockHeader.BlockID()
-	blockTimestamp, err := safecast.ToInt64(blockHeader.Timestamp)
+	blockTimestamp, err := safecast.Convert[int64](blockHeader.Timestamp)
 	if err != nil {
 		return proto.BUpdatesInfo{}, errors.Errorf("failed to convert uint64 timestamp into int64, %v", err)
 	}
