@@ -50,7 +50,7 @@ func (bp *balanceProfile) effectiveBalanceUnchecked() (uint64, error) {
 	if err != nil {
 		return 0, err
 	}
-	r, err := safecast.ToUint64(r2)
+	r, err := safecast.Convert[uint64](r2)
 	if err != nil {
 		return 0, fmt.Errorf("invalid effective balance value: %w", err)
 	}
@@ -440,7 +440,7 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 		if r.LeaseIn != correctLeaseIn {
 			slog.Info("Invalid leaseIn detected; fixing it", "address", wavesAddress.String(),
 				"invalid", r.LeaseIn, "correct", correctLeaseIn)
-			cli, cErr := safecast.ToUint64(correctLeaseIn)
+			cli, cErr := safecast.Convert[uint64](correctLeaseIn)
 			if cErr != nil {
 				return nil, fmt.Errorf("failed to convert leaseIn to uint64: %w", cErr)
 			}

@@ -295,7 +295,7 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 }
 
 func (s *LeaseBalanceSnapshot) LeaseInAsInt64() int64 {
-	li, err := safecast.ToInt64(s.LeaseIn)
+	li, err := safecast.Convert[int64](s.LeaseIn)
 	if err != nil {
 		overflowed := int64(s.LeaseIn) //nolint:gosec // intentionally convert with overflow.
 		slog.Warn("Failed to convert leaseIn to int64, returning overflow value", logging.Error(err),
@@ -306,7 +306,7 @@ func (s *LeaseBalanceSnapshot) LeaseInAsInt64() int64 {
 }
 
 func (s *LeaseBalanceSnapshot) LeaseOutAsInt64() int64 {
-	lo, err := safecast.ToInt64(s.LeaseOut)
+	lo, err := safecast.Convert[int64](s.LeaseOut)
 	if err != nil {
 		overflowed := int64(s.LeaseOut) //nolint:gosec // intentionally convert with overflow.
 		slog.Warn("Failed to convert leaseOut to int64, returning overflow value", logging.Error(err),

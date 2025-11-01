@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/ccoveille/go-safecast"
+
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -109,7 +110,7 @@ func openState(
 
 	params := state.DefaultStateParams()
 	const fdSigma = 10
-	c, err := safecast.ToInt(maxFDs - fdSigma)
+	c, err := safecast.Convert[int](maxFDs - fdSigma)
 	if err != nil {
 		return nil, fmt.Errorf("state initialization failed: %w", err)
 	}

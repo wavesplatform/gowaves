@@ -132,7 +132,7 @@ func (p *signaturePayload) ReadFrom(r io.Reader) (int64, error) {
 type Signatures []crypto.Signature
 
 func (p *Signatures) WriteTo(w io.Writer) (int64, error) {
-	l, err := safecast.ToUint32(len(*p))
+	l, err := safecast.Convert[uint32](len(*p))
 	if err != nil {
 		return 0, err
 	}
@@ -176,7 +176,7 @@ func (p *Signatures) IsPayload() {}
 type BlockIDsPayload []BlockID
 
 func (p *BlockIDsPayload) WriteTo(w io.Writer) (int64, error) {
-	l, err := safecast.ToUint32(len(*p))
+	l, err := safecast.Convert[uint32](len(*p))
 	if err != nil {
 		return 0, err
 	}
@@ -268,7 +268,7 @@ func (p *BytesPayload) IsPayload() {}
 type PeerInfos []PeerInfo
 
 func (p *PeerInfos) WriteTo(w io.Writer) (int64, error) {
-	l, err := safecast.ToUint32(len(*p))
+	l, err := safecast.Convert[uint32](len(*p))
 	if err != nil {
 		return 0, err
 	}

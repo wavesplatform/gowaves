@@ -136,11 +136,11 @@ func (diff *balanceDiff) applyTo(profile balanceProfile) (balanceProfile, error)
 		return balanceProfile{}, errs.NewTxValidationError("Reason: Not enough balance for deposit")
 	}
 	// Create new profile.
-	nb, err := safecast.ToUint64(newBalance)
+	nb, err := safecast.Convert[uint64](newBalance)
 	if err != nil {
 		return balanceProfile{}, fmt.Errorf("failed to convert balance to uint64: %w", err)
 	}
-	nd, err := safecast.ToUint64(newDeposit)
+	nd, err := safecast.Convert[uint64](newDeposit)
 	if err != nil {
 		return balanceProfile{}, fmt.Errorf("failed to convert deposit to uint64: %w", err)
 	}
@@ -1924,7 +1924,7 @@ func (td *transactionDiffer) createDiffCommitToGenerationWithProofs(
 	}
 	wa := proto.NewOptionalAssetWaves()
 	senderFeeKey := byteKey(senderAddr.ID(), wa)
-	fee, err := safecast.ToInt64(tx.Fee)
+	fee, err := safecast.Convert[int64](tx.Fee)
 	if err != nil {
 		return txBalanceChanges{}, err
 	}

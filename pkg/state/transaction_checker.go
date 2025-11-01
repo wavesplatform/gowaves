@@ -1625,7 +1625,7 @@ func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint6
 	if err != nil {
 		return 0, err
 	}
-	return safecast.ToUint32(s)
+	return safecast.Convert[uint32](s)
 }
 
 func currentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
@@ -1633,7 +1633,7 @@ func currentGenerationPeriodStart(activationHeight, blockHeight, periodLength ui
 	if err != nil {
 		return 0, err
 	}
-	return safecast.ToUint32(s)
+	return safecast.Convert[uint32](s)
 }
 
 func isFirstPeriod(activationHeight, blockHeight, periodLength uint64) bool {

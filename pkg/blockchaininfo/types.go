@@ -11,6 +11,7 @@ import (
 	"github.com/ccoveille/go-safecast"
 	"github.com/nats-io/nats.go"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -195,7 +196,7 @@ func (hj *HistoryJournal) CleanAfterRollback(latestHeightFromHistory uint64, hei
 	if distance > math.MaxInt64 {
 		return errors.New("distance too large to fit in an int64")
 	}
-	dist, err := safecast.ToInt(distance)
+	dist, err := safecast.Convert[int](distance)
 	if err != nil {
 		return errors.Wrapf(err, "failed to convert int64 to int")
 	}
