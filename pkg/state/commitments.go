@@ -116,35 +116,60 @@ func (c *commitments) newestExists(periodStart uint32, generatorPK crypto.Public
 	return false, nil
 }
 
-// size returns the number of commitments for the given period start.
-func (c *commitments) size(periodStart uint32) (int, error) {
+func (c *commitments) generators(periodStart uint32) ([]crypto.PublicKey, error) {
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.topEntryData(key.bytes())
 	if err != nil {
 		if errors.Is(err, keyvalue.ErrNotFound) {
-			return 0, nil
+			return nil, nil
 		}
-		return 0, fmt.Errorf("failed to retrieve commitment record: %w", err)
+		return nil, fmt.Errorf("failed to retrieve commitment record: %w", err)
 	}
 	var rec commitmentsRecord
 	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		return 0, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+		return nil, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
 	}
-	return len(rec.Commitments), nil
+	generators := make([]crypto.PublicKey, len(rec.Commitments))
+	for i, cm := range rec.Commitments {
+		generators[i] = cm.GeneratorPK
+	}
+	return generators, nil
 }
 
-func (c *commitments) newestSize(periodStart uint32) (int, error) {
+// newestGenerators returns public keys of generators commited to the given period.
+func (c *commitments) newestGenerators(periodStart uint32) ([]crypto.PublicKey, error) {
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		if errors.Is(err, keyvalue.ErrNotFound) {
-			return 0, nil
+			return nil, nil
 		}
-		return 0, fmt.Errorf("failed to retrieve commitment newest record: %w", err)
+		return nil, fmt.Errorf("failed to retrieve commitment record: %w", err)
 	}
 	var rec commitmentsRecord
 	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		return 0, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+		return nil, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
 	}
-	return len(rec.Commitments), nil
+	generators := make([]crypto.PublicKey, len(rec.Commitments))
+	for i, cm := range rec.Commitments {
+		generators[i] = cm.GeneratorPK
+	}
+	return generators, nil
+}
+
+// size returns the number of commitments for the given period start.
+func (c *commitments) size(periodStart uint32) (int, error) {
+	generators, err := c.generators(periodStart)
+	if err != nil {
+		return 0, err
+	}
+	return len(generators), nil
+}
+
+func (c *commitments) newestSize(periodStart uint32) (int, error) {
+	generators, err := c.newestGenerators(periodStart)
+	if err != nil {
+		return 0, err
+	}
+	return len(generators), nil
 }
