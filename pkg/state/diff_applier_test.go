@@ -40,7 +40,7 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	to.stor.flush(t)
 	profile, err := to.stor.entities.balances.wavesBalance(testGlobal.senderInfo.addr.ID())
 	assert.NoError(t, err, "wavesBalance() failed")
-	assert.Equal(t, diff.balance.Value(), int64(profile.balance))
+	assert.Equal(t, diff.balance.Value(), int64(profile.Balance))
 	// Test applying invalid balance change.
 	diff = balanceDiff{balance: ich(-101), blockID: blockID0}
 	changes = []balanceChanges{
@@ -65,8 +65,8 @@ func TestDiffApplierWithWaves(t *testing.T) {
 	to.stor.flush(t)
 	profile, err = to.stor.entities.balances.wavesBalance(testGlobal.senderInfo.addr.ID())
 	assert.NoError(t, err, "wavesBalance() failed")
-	assert.Equal(t, diff.leaseIn.Value(), profile.leaseIn)
-	// Test that leasing leased money leads to error.
+	assert.Equal(t, diff.leaseIn.Value(), profile.LeaseIn)
+	// Test that leasing the leased money leads to an error.
 	diff = balanceDiff{leaseOut: internal.NewIntChange[int64](101), blockID: blockID0}
 	changes = []balanceChanges{
 		{[]byte(testGlobal.senderInfo.wavesKey), []balanceDiff{diff}},

@@ -45,6 +45,7 @@ const (
 	snapshots
 	patches
 	challengedAddress
+	commitment
 )
 
 type blockchainEntityProperties struct {
@@ -86,14 +87,12 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	wavesBalance: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   wavesBalanceRecordSize + 4,
+		fixedSize:    false,
 	},
 	assetBalance: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true,
-		recordSize:   assetBalanceRecordSize + 4,
+		fixedSize:    false,
 	},
 	featureVote: {
 		needToFilter: true,
@@ -208,6 +207,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		fixedSize:    false,
 	},
 	challengedAddress: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    false,
+	},
+	commitment: {
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,

@@ -5,6 +5,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -567,6 +568,18 @@ func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	if err != nil {
 		c.err = err
 		return crypto.PublicKey{}
+	}
+	return r
+}
+
+func (c *ProtobufConverter) blsPublicKey(pk []byte) bls.PublicKey {
+	if c.err != nil {
+		return bls.PublicKey{}
+	}
+	r, err := bls.NewPublicKeyFromBytes(pk)
+	if err != nil {
+		c.err = err
+		return bls.PublicKey{}
 	}
 	return r
 }
@@ -1454,6 +1467,29 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:         feeAmount,
 			Timestamp:   ts,
 		}
+	case *g.Transaction_CommitToGeneration:
+		_, feeAmount := c.convertAmount(tx.Fee)
+		epk, err := bls.NewPublicKeyFromBytes(d.CommitToGeneration.EndorserPublicKey)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
+		cs, err := bls.NewSignatureFromBytes(d.CommitToGeneration.CommitmentSignature)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
+		rtx = &CommitToGenerationWithProofs{
+			Type:                  CommitToGenerationTransaction,
+			Version:               v,
+			SenderPK:              c.publicKey(tx.SenderPublicKey),
+			Fee:                   feeAmount,
+			Timestamp:             ts,
+			Proofs:                nil,
+			GenerationPeriodStart: d.CommitToGeneration.GenerationPeriodStart,
+			EndorserPublicKey:     epk,
+			CommitmentSignature:   cs,
+		}
 	default:
 		c.reset()
 		return nil, errors.New("unsupported transaction")
@@ -1606,6 +1642,9 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 			t.Proofs = proofs
 			return t, nil
 		case *UpdateAssetInfoWithProofs:
+			t.Proofs = proofs
+			return t, nil
+		case *CommitToGenerationWithProofs:
 			t.Proofs = proofs
 			return t, nil
 		default:
