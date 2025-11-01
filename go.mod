@@ -6,11 +6,11 @@ require (
 	filippo.io/edwards25519 v1.1.0
 	github.com/beevik/ntp v1.5.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6
-	github.com/ccoveille/go-safecast v1.8.0
+	github.com/ccoveille/go-safecast v1.8.1
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.0
+	github.com/consensys/gnark-crypto v0.19.2
 	github.com/coocood/freecache v1.2.4
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/dpotapov/slogpfx v0.0.0-20230917063348-41a73c95c536
