@@ -232,7 +232,7 @@ func MustPublicKeyFromBase58(s string) PublicKey {
 func NewPublicKeyFromBytes(b []byte) (PublicKey, error) {
 	var pk PublicKey
 	if l := len(b); l < PublicKeySize {
-		return pk, fmt.Errorf("insufficient array length %d, expected atleast %d", l, PublicKeySize)
+		return pk, fmt.Errorf("insufficient array length %d, expected at least %d", l, PublicKeySize)
 	}
 	copy(pk[:], b[:PublicKeySize])
 	return pk, nil
