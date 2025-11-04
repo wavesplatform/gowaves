@@ -6,7 +6,7 @@ require (
 	filippo.io/edwards25519 v1.1.0
 	github.com/beevik/ntp v1.5.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6
-	github.com/ccoveille/go-safecast v1.8.1
+	github.com/ccoveille/go-safecast v1.8.2
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/consensys/gnark v0.14.0
