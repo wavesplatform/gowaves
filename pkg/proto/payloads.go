@@ -8,7 +8,7 @@ import (
 	"io"
 	"math"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
