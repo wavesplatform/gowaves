@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 )
 
 const defaultBlockGenerationTimeout = 30 * time.Second

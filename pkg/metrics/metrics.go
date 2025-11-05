@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	influx "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pkg/errors"
 
