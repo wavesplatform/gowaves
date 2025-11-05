@@ -1,7 +1,7 @@
 package proto
 
 import (
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
