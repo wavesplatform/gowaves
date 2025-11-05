@@ -87,7 +87,7 @@ func (a Bytes) WriteTo(w io.Writer) (int64, error) {
 type NonNullableSlice[T any] []T
 
 // MarshalJSON writes NonNullableSlice as JSON array.
-// If NonNullableSlice is empty or nil, it is written aways as empty JSON array.
+// If NonNullableSlice is empty or nil, it is written always as empty JSON array.
 func (s NonNullableSlice[T]) MarshalJSON() ([]byte, error) {
 	if len(s) == 0 {
 		return []byte("[]"), nil

@@ -153,7 +153,7 @@ func CheckBalances(st State, balancesPath string) error {
 	for addrStr, properBalance := range state {
 		addr, err := proto.NewAddressFromString(addrStr)
 		if err != nil {
-			return errors.Errorf("faied to convert string to address: %v", err)
+			return errors.Errorf("failed to convert string to address: %v", err)
 		}
 		balance, err := st.WavesBalance(proto.NewRecipientFromAddress(addr))
 		if err != nil {

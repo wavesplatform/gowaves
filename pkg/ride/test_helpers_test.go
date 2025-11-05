@@ -191,7 +191,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		if t, ok := r.trees[addr]; ok {
 			return t, nil
 		}
-		return nil, errors.Errorf("unknow address '%s'", addr.String())
+		return nil, errors.Errorf("unknown address '%s'", addr.String())
 	}
 	r.ms.RetrieveNewestBinaryEntryFunc = func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -695,7 +695,7 @@ func (e *testEnv) withWavesBalance(acc *testAccount, balance int, other ...int) 
 		leaseIn = int64(other[0])
 	case 0:
 	default:
-		e.t.Errorf("too many arguments provided as 'other' balaces")
+		e.t.Errorf("too many arguments provided as 'other' balances")
 	}
 	e.waves[acc.address()] = &types.WavesBalanceProfile{
 		Balance:    uint64(balance),
