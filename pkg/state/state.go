@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"go.uber.org/atomic"

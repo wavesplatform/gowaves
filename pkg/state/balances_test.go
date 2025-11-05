@@ -439,7 +439,7 @@ func TestBalances(t *testing.T) {
 		assert.NoError(t, err, "NewAddressFromString() failed")
 		addTailInfoToAssetsState(to.stor.entities.assets, tc.assetID)
 		if err := to.balances.setAssetBalance(addr.ID(), proto.AssetIDFromDigest(tc.assetID), tc.balance, tc.blockID); err != nil {
-			t.Fatalf("Faied to set asset balance: %v\n", err)
+			t.Fatalf("Failed to set asset balance: %v\n", err)
 		}
 		to.stor.flush(t)
 		balance, err := to.balances.assetBalance(addr.ID(), proto.AssetIDFromDigest(tc.assetID))

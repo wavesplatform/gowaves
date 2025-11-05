@@ -5,7 +5,7 @@ import (
 	"io"
 	"log/slog"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
