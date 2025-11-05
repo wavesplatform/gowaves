@@ -258,7 +258,7 @@ func convertTypesV1(types []byte) ([]Type, error) {
 	r := make([]Type, 0, len(types))
 	for _, t := range types {
 		if t < byte(Int) || t > combinedBasicTypes {
-			return nil, errors.Errorf("unsupproted type '%d' for meta V1", t)
+			return nil, errors.Errorf("unsupported type '%d' for meta V1", t)
 		}
 		r = append(r, parseUnion(t))
 	}

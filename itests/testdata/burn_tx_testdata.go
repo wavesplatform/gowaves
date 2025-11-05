@@ -235,7 +235,7 @@ func GetBurnNegativeDataMatrix(suite *f.BaseSuite, assetId crypto.Digest) map[st
 				WavesDiffBalance:  0,
 				AssetDiffBalance:  0,
 			}),
-		"Burn token when there are not enougth funds on the account balance": NewBurnTestData(
+		"Burn token when there are not enough funds on the account balance": NewBurnTestData(
 			utl.GetAccount(suite, utl.DefaultSenderNotMiner),
 			assetId,
 			10000,
