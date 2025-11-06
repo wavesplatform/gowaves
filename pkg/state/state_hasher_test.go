@@ -67,9 +67,10 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	)
 	swbErr := to.entities.balances.setWavesBalance(testGlobal.recipientInfo.addr.ID(), wavesValue{
 		profile: balanceProfile{
-			balance:  5,
-			leaseIn:  0,
-			leaseOut: 0,
+			Balance:  5,
+			LeaseIn:  0,
+			LeaseOut: 0,
+			Deposit:  0,
 		},
 		leaseChange:   false,
 		balanceChange: false,

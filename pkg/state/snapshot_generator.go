@@ -8,6 +8,7 @@ import (
 	"golang.org/x/exp/constraints"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/state/internal"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -420,13 +421,13 @@ func (sg *snapshotGenerator) performUpdateAssetInfoWithProofs(
 func (sg *snapshotGenerator) performCommitToGenerationWithProofs(
 	transaction proto.Transaction,
 	_ *performerInfo,
-	_ []balanceChanges,
+	balanceChanges []balanceChanges,
 ) (txSnapshot, error) {
-	_, ok := transaction.(*proto.CommitToGenerationWithProofs)
+	tx, ok := transaction.(*proto.CommitToGenerationWithProofs)
 	if !ok {
 		return txSnapshot{}, errors.New("failed to convert interface to CommitToGenerationWithProofs transaction")
 	}
-	return txSnapshot{}, errors.New("not implemented")
+	return sg.generateSnapshotForCommitToGenerationTx(tx.SenderPK, tx.EndorserPublicKey, balanceChanges)
 }
 
 type addressWavesBalanceDiff map[proto.WavesAddress]balanceDiff
@@ -1073,6 +1074,21 @@ func (sg *snapshotGenerator) generateSnapshotForUpdateAssetInfoTx(
 	return snapshot, nil
 }
 
+func (sg *snapshotGenerator) generateSnapshotForCommitToGenerationTx(
+	senderPK crypto.PublicKey, endorserPK bls.PublicKey, balanceChanges []balanceChanges,
+) (txSnapshot, error) {
+	snapshot, err := sg.generateBalancesSnapshot(balanceChanges, false)
+	if err != nil {
+		return txSnapshot{}, err
+	}
+	generationCommitmentSnapshot := &proto.GenerationCommitmentSnapshot{
+		SenderPublicKey:   senderPK,
+		EndorserPublicKey: endorserPK,
+	}
+	snapshot.regular = append(snapshot.regular, generationCommitmentSnapshot)
+	return snapshot, nil
+}
+
 func (sg *snapshotGenerator) generateOrderAtomicSnapshot(orderID []byte,
 	volume uint64, fee uint64) (*proto.FilledVolumeFeeSnapshot, error) {
 	newestFilledAmount, newestFilledFee, err := sg.stor.ordersVolumes.newestFilled(orderID)
@@ -1309,11 +1325,11 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			return nil, nil, errors.Wrap(err, "failed to receive sender's waves balance")
 		}
 		if isAccountableBalanceChange(txIsSuccessfulInvoke, diffAmount.balance) {
-			newBalance, bErr := common.AddInt(int64(fullBalance.balance), diffAmount.balance.Value())
+			newBalance, bErr := common.AddInt(fullBalance.BalanceAsInt64(), diffAmount.balance.Value())
 			if bErr != nil {
 				return nil, nil, errors.Wrapf(bErr,
 					"failed to calculate waves balance for addr %q: failed to add %d to %d",
-					wavesAddress.String(), diffAmount.balance.Value(), fullBalance.balance,
+					wavesAddress.String(), diffAmount.balance.Value(), fullBalance.Balance,
 				)
 			}
 			if newBalance < 0 { // sanity check
@@ -1330,8 +1346,8 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			// See `balances.generateLeaseBalanceSnapshotsForLeaseOverflows` for details
 			newLeaseBalance := proto.LeaseBalanceSnapshot{
 				Address:  wavesAddress,
-				LeaseIn:  uint64(fullBalance.leaseIn + diffAmount.leaseIn.Value()),
-				LeaseOut: uint64(fullBalance.leaseOut + diffAmount.leaseOut.Value()),
+				LeaseIn:  uint64(fullBalance.LeaseIn + diffAmount.leaseIn.Value()),   //nolint:gosec // As described.
+				LeaseOut: uint64(fullBalance.LeaseOut + diffAmount.leaseOut.Value()), //nolint:gosec // As described.
 			}
 			leaseBalances = append(leaseBalances, newLeaseBalance)
 		}

@@ -1,11 +1,8 @@
 package proto
 
 import (
-	"fmt"
-
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -570,6 +567,18 @@ func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	if err != nil {
 		c.err = err
 		return crypto.PublicKey{}
+	}
+	return r
+}
+
+func (c *ProtobufConverter) blsPublicKey(pk []byte) bls.PublicKey {
+	if c.err != nil {
+		return bls.PublicKey{}
+	}
+	r, err := bls.NewPublicKeyFromBytes(pk)
+	if err != nil {
+		c.err = err
+		return bls.PublicKey{}
 	}
 	return r
 }
@@ -1722,11 +1731,11 @@ func (c *ProtobufConverter) EndorseBlock(endorsement *g.EndorseBlock) (EndorseBl
 	}
 	finalizedBlockID, err := NewBlockIDFromBytes(endorsement.FinalizedBlockId)
 	if err != nil {
-		return EndorseBlock{}, fmt.Errorf("failed to parse finalized block ID: %w", err)
+		return EndorseBlock{}, errors.Errorf("failed to parse finalized block ID: %v", err)
 	}
 	endorsedBlockID, err := NewBlockIDFromBytes(endorsement.EndorsedBlockId)
 	if err != nil {
-		return EndorseBlock{}, fmt.Errorf("failed to parse endorsed block ID: %w", err)
+		return EndorseBlock{}, errors.Errorf("failed to parse endorsed block ID: %v", err)
 	}
 	return EndorseBlock{
 		EndorserIndex:        endorsement.EndorserIndex,
@@ -1748,11 +1757,11 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 		}
 		finalizedBlockID, err := NewBlockIDFromBytes(ce.FinalizedBlockId)
 		if err != nil {
-			return FinalizationVoting{}, fmt.Errorf("failed to parse finalized block ID at index %d: %w", i, err)
+			return FinalizationVoting{}, errors.Errorf("failed to parse finalized block ID at index %d: %v", i, err)
 		}
 		endorsedBlockID, err := NewBlockIDFromBytes(ce.EndorsedBlockId)
 		if err != nil {
-			return FinalizationVoting{}, fmt.Errorf("failed to parse endorsed block ID at index %d: %w", i, err)
+			return FinalizationVoting{}, errors.Errorf("failed to parse endorsed block ID at index %d: %v", i, err)
 		}
 		conflictEndorsements = append(conflictEndorsements, EndorseBlock{
 			EndorserIndex:        ce.EndorserIndex,
@@ -1851,7 +1860,7 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 	features := c.features(pbHeader.FeatureVotes)
 	consensus := c.consensus(pbHeader)
 	v := BlockVersion(c.byte(pbHeader.Version))
-	consensusBlockLength, conversionErr := safecast.ToUint32(consensus.BinarySize())
+	consensusBlockLength, conversionErr := safecast.Convert[uint32](consensus.BinarySize())
 	if conversionErr != nil {
 		return BlockHeader{}, errors.Wrap(conversionErr, "consensus block length overflow")
 	}

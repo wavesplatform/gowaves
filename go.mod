@@ -5,13 +5,13 @@ go 1.24.0
 require (
 	filippo.io/edwards25519 v1.1.0
 	github.com/beevik/ntp v1.5.0
-	github.com/btcsuite/btcd/btcec/v2 v2.3.5
-	github.com/ccoveille/go-safecast v1.6.1
+	github.com/btcsuite/btcd/btcec/v2 v2.3.6
+	github.com/ccoveille/go-safecast/v2 v2.0.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
 	github.com/cloudflare/circl v1.6.1
 	github.com/consensys/gnark v0.14.0
-	github.com/consensys/gnark-crypto v0.19.0
+	github.com/consensys/gnark-crypto v0.19.2
 	github.com/coocood/freecache v1.2.4
 	github.com/cosmos/go-bip39 v1.0.0
 	github.com/dpotapov/slogpfx v0.0.0-20230917063348-41a73c95c536
@@ -23,16 +23,16 @@ require (
 	github.com/golang/mock v1.6.0
 	github.com/gorilla/mux v1.8.1
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
-	github.com/influxdata/influxdb1-client v0.0.0-20200827194710-b269163b24ab
+	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/jinzhu/copier v0.4.0
 	github.com/lmittmann/tint v1.1.2
 	github.com/mattn/go-isatty v0.0.20
 	github.com/mr-tron/base58 v1.2.0
-	github.com/nats-io/nats-server/v2 v2.12.0
-	github.com/nats-io/nats.go v1.46.1
+	github.com/nats-io/nats-server/v2 v2.12.1
+	github.com/nats-io/nats.go v1.47.0
 	github.com/neilotoole/slogt v1.1.0
 	github.com/ory/dockertest/v3 v3.12.0
-	github.com/phayes/freeport v0.0.0-20180830031419-95f893ade6f2
+	github.com/phayes/freeport v0.0.0-20220201140144-74d24b5ae9f5
 	github.com/pkg/errors v0.9.1
 	github.com/planetscale/vtprotobuf v0.6.1-0.20250313105119-ba97887b0a25
 	github.com/prometheus/client_golang v1.23.2
@@ -53,7 +53,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.43.0
-	golang.org/x/exp v0.0.0-20250819193227-8b4c13bb791b
+	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
 	golang.org/x/sync v0.17.0
 	golang.org/x/sys v0.37.0
 	google.golang.org/grpc v1.76.0
@@ -81,7 +81,7 @@ require (
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/snappy v0.0.4 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
-	github.com/google/go-tpm v0.9.5 // indirect
+	github.com/google/go-tpm v0.9.6 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
 	github.com/google/pprof v0.0.0-20250820193118-f64d9cf942d6 // indirect
 	github.com/google/shlex v0.0.0-20191202100458-e7afc7fbc510 // indirect
@@ -100,7 +100,7 @@ require (
 	github.com/nats-io/nuid v1.0.1 // indirect
 	github.com/opencontainers/go-digest v1.0.0 // indirect
 	github.com/opencontainers/image-spec v1.1.0 // indirect
-	github.com/opencontainers/runc v1.2.3 // indirect
+	github.com/opencontainers/runc v1.2.8 // indirect
 	github.com/pmezard/go-difflib v1.0.0 // indirect
 	github.com/prometheus/client_model v0.6.2 // indirect
 	github.com/prometheus/common v0.66.1 // indirect
@@ -121,7 +121,7 @@ require (
 	golang.org/x/net v0.45.0 // indirect
 	golang.org/x/term v0.36.0 // indirect
 	golang.org/x/text v0.30.0 // indirect
-	golang.org/x/time v0.13.0 // indirect
+	golang.org/x/time v0.14.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20250908214217-97024824d090 // indirect
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect

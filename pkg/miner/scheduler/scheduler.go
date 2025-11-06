@@ -5,9 +5,10 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -206,9 +207,9 @@ func (a internalImpl) scheduleWithVrf(
 				slog.String("address", addr.String()), logging.Error(btErr))
 			continue
 		}
-		sts, err := safecast.ToInt64(ts)
-		if err != nil {
-			return nil, errors.Wrap(err, "failed to cast timestamp to int64")
+		sts, cErr := safecast.Convert[int64](ts)
+		if cErr != nil {
+			return nil, errors.Wrap(cErr, "failed to cast timestamp to int64")
 		}
 		const format = "2006-01-02 15:04:05.000 MST"
 		slog.Debug("Scheduled generation", "address", addr.String(), "time", time.UnixMilli(sts).Format(format))
@@ -370,7 +371,7 @@ func IsBlockObsolete(ntpTime types.Time,
 	obsolescencePeriod time.Duration, lastBlockTimestamp uint64) (bool, time.Time, error) {
 	now := ntpTime.Now()
 	obsolescenceTime := now.Add(-obsolescencePeriod)
-	lastBlockTimeStampInt, err := safecast.ToInt64(lastBlockTimestamp)
+	lastBlockTimeStampInt, err := safecast.Convert[int64](lastBlockTimestamp)
 	if err != nil {
 		return false, time.Time{}, errors.Errorf("failed to convert uint64 timestamp to int64, %v", err)
 	}

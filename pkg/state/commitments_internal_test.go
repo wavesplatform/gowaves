@@ -93,17 +93,30 @@ func TestCommitments_Exists(t *testing.T) {
 				to.addBlock(t, blockID)
 				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, blockID)
 				require.NoError(t, err)
-				to.flush(t)
 
 				// Check that all added commitments exist.
 				for k := range j {
-					ok, eErr := to.entities.commitments.exists(test.periodStart, cms[k].GeneratorPK)
+					ok, eErr := to.entities.commitments.newestExists(test.periodStart, cms[k].GeneratorPK)
 					require.NoError(t, eErr)
 					assert.True(t, ok)
 				}
 
 				// Check that non-existing commitment does not exist.
-				ok, err := to.entities.commitments.exists(test.periodStart, cms[test.n].GeneratorPK)
+				ok, err := to.entities.commitments.newestExists(test.periodStart, cms[test.n].GeneratorPK)
+				require.NoError(t, err)
+				assert.False(t, ok)
+
+				to.flush(t)
+
+				// Check that all added commitments exist after flush.
+				for k := range j {
+					ex, eErr := to.entities.commitments.exists(test.periodStart, cms[k].GeneratorPK)
+					require.NoError(t, eErr)
+					assert.True(t, ex)
+				}
+
+				// Check that non-existing commitment does not exist after flush.
+				ok, err = to.entities.commitments.exists(test.periodStart, cms[test.n].GeneratorPK)
 				require.NoError(t, err)
 				assert.False(t, ok)
 			}
@@ -129,9 +142,13 @@ func TestCommitments_Size(t *testing.T) {
 				to.addBlock(t, blockID)
 				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, blockID)
 				require.NoError(t, err)
+				// Unflushed size check.
+				s, err := to.entities.commitments.newestSize(test.periodStart)
+				require.NoError(t, err)
+				assert.Equal(t, j+1, s)
+				// Check after flush.
 				to.flush(t)
-
-				s, err := to.entities.commitments.size(test.periodStart)
+				s, err = to.entities.commitments.size(test.periodStart)
 				require.NoError(t, err)
 				assert.Equal(t, j+1, s)
 			}

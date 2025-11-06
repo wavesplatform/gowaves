@@ -196,7 +196,7 @@ func (a *blockSnapshotsApplier) addWavesBalanceRecordLegacySH(address proto.Wave
 				"failed to gen initial balance for address %s", address.String())
 		}
 		a.balanceRecordsContext.wavesBalanceRecords.wavesRecords[key] = balanceRecordInBlock{
-			initial: int64(initialBalance.balance), current: balance}
+			initial: initialBalance.BalanceAsInt64(), current: balance}
 	}
 	return nil
 }
@@ -279,8 +279,8 @@ func (a *blockSnapshotsApplier) addLeasesBalanceRecordLegacySH(
 			return errors.Wrapf(err, "failed to gen initial balance for address %s", address.String())
 		}
 		a.balanceRecordsContext.leasesBalanceRecords.leaseRecords[key] = leaseRecordInBlock{
-			initialLeaseIn:  initialBalance.leaseIn,
-			initialLeaseOut: initialBalance.leaseOut,
+			initialLeaseIn:  initialBalance.LeaseIn,
+			initialLeaseOut: initialBalance.LeaseOut,
 			currentLeaseIn:  leaseIn,
 			currentLeaseOut: leaseOut}
 	}
@@ -305,6 +305,7 @@ type snapshotApplierStorages struct {
 	ordersVolumes     *ordersVolumes
 	accountsDataStor  *accountsDataStorage
 	leases            *leases
+	commitments       *commitments
 	calculateHashes   bool
 }
 
@@ -321,6 +322,7 @@ func newSnapshotApplierStorages(stor *blockchainEntitiesStorage, rw *blockReadWr
 		ordersVolumes:     stor.ordersVolumes,
 		accountsDataStor:  stor.accountsDataStor,
 		leases:            stor.leases,
+		commitments:       stor.commitments,
 		calculateHashes:   stor.calculateHashes,
 	}
 }
@@ -386,7 +388,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
-	newProfile.balance = snapshot.Balance
+	newProfile.Balance = snapshot.Balance
 	value := newWavesValue(profile, newProfile)
 	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
@@ -395,7 +397,7 @@ func (a *blockSnapshotsApplier) ApplyWavesBalance(snapshot proto.WavesBalanceSna
 }
 
 func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSnapshot) error {
-	err := a.addLeasesBalanceRecordLegacySH(snapshot.Address, int64(snapshot.LeaseIn), int64(snapshot.LeaseOut))
+	err := a.addLeasesBalanceRecordLegacySH(snapshot.Address, snapshot.LeaseInAsInt64(), snapshot.LeaseOutAsInt64())
 	if err != nil {
 		return err
 	}
@@ -406,8 +408,8 @@ func (a *blockSnapshotsApplier) ApplyLeaseBalance(snapshot proto.LeaseBalanceSna
 		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", snapshot.Address.String())
 	}
 	newProfile := profile
-	newProfile.leaseIn = int64(snapshot.LeaseIn)
-	newProfile.leaseOut = int64(snapshot.LeaseOut)
+	newProfile.LeaseIn = snapshot.LeaseInAsInt64()
+	newProfile.LeaseOut = snapshot.LeaseOutAsInt64()
 	value := newWavesValue(profile, newProfile)
 	if err = a.stor.balances.setWavesBalance(addrID, value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", snapshot.Address.String())
@@ -677,4 +679,19 @@ func (a *blockSnapshotsApplier) ApplyScriptResult(snapshot InternalScriptResultS
 		return errors.Wrap(err, "failed to create invoke ID from tx ID")
 	}
 	return a.stor.invokeResults.saveResult(invokeID, snapshot.ScriptResult, a.info.BlockID())
+}
+
+func (a *blockSnapshotsApplier) ApplyCommitToGeneration(snapshot proto.GenerationCommitmentSnapshot) error {
+	if !a.txSnapshotContext.initialized() {
+		return errors.New("failed to apply generation commitment snapshot: transaction is not set")
+	}
+	// Here we take the generation period start from the applying transaction,
+	// because the snapshot itself does not contain this information.
+	// TODO: But maybe it's better to calculate it from the block height?
+	tx, ok := a.txSnapshotContext.applyingTx.(*proto.CommitToGenerationWithProofs)
+	if !ok {
+		return errors.New("failed to apply generation commitment snapshot: applying tx is not CommitToGenerationWithProofs")
+	}
+	return a.stor.commitments.store(tx.GenerationPeriodStart, snapshot.SenderPublicKey, snapshot.EndorserPublicKey,
+		a.info.BlockID())
 }

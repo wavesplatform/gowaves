@@ -547,12 +547,12 @@ func (s *testStorageObjects) transferWaves(
 			from.String(), fromBalance, amount,
 		)
 	}
-	fromBP.balance -= amount
+	fromBP.Balance -= amount
 	s.setWavesBalance(t, from, fromBP, blockID)
 
 	toBalance, err := s.entities.balances.newestWavesBalance(to.ID())
 	require.NoError(t, err, "newestWavesBalance() failed")
-	toBalance.balance += amount
+	toBalance.Balance += amount
 	s.setWavesBalance(t, to, toBalance, blockID)
 }
 

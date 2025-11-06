@@ -458,6 +458,20 @@ func (h *txSnapshotHasher) ApplyCancelledLease(snapshot proto.CancelledLeaseSnap
 	return h.applyLeaseStatusHashEntry(snapshot.LeaseID, false)
 }
 
+func (h *txSnapshotHasher) ApplyCommitToGeneration(snapshot proto.GenerationCommitmentSnapshot) error {
+	buf := bytebufferpool.Get()
+
+	if _, err := buf.Write(snapshot.SenderPublicKey.Bytes()); err != nil {
+		return err
+	}
+	if _, err := buf.Write(snapshot.EndorserPublicKey.Bytes()); err != nil {
+		return err
+	}
+
+	h.hashEntries = append(h.hashEntries, hashEntry{data: buf})
+	return nil
+}
+
 func (h *txSnapshotHasher) ApplyTransactionsStatus(snapshot proto.TransactionStatusSnapshot) error {
 	if len(h.transactionID) == 0 { // sanity check
 		return errors.New("failed to apply transaction status snapshot: transaction ID is not set")

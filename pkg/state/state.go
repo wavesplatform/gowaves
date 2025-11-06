@@ -12,7 +12,7 @@ import (
 	"path/filepath"
 	"sync"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"go.uber.org/atomic"
@@ -1102,12 +1102,13 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 		effective = chEffective
 	}
 	return &proto.FullWavesBalance{
-		Regular:    profile.balance,
+		Regular:    profile.Balance,
 		Generating: generating,
 		Available:  profile.spendableBalance(),
 		Effective:  effective,
-		LeaseIn:    uint64(profile.leaseIn),
-		LeaseOut:   uint64(profile.leaseOut),
+		LeaseIn:    profile.LeaseInAsUint64(),
+		LeaseOut:   profile.LeaseOutAsUint64(),
+		//TODO: Add Deposit to the profile.
 	}, nil
 }
 
@@ -1164,11 +1165,12 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 		challenged = ch
 	}
 	return &types.WavesBalanceProfile{
-		Balance:    profile.balance,
-		LeaseIn:    profile.leaseIn,
-		LeaseOut:   profile.leaseOut,
+		Balance:    profile.Balance,
+		LeaseIn:    profile.LeaseIn,
+		LeaseOut:   profile.LeaseOut,
 		Generating: generating,
 		Challenged: challenged,
+		//TODO: Add Deposit to the profile.
 	}, nil
 }
 
@@ -1181,7 +1183,7 @@ func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, erro
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
-	return profile.balance, nil
+	return profile.Balance, nil
 }
 
 func (s *stateManager) NewestAssetBalance(account proto.Recipient, asset crypto.Digest) (uint64, error) {
@@ -1213,7 +1215,7 @@ func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
-	return profile.balance, nil
+	return profile.Balance, nil
 }
 
 func (s *stateManager) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
@@ -1886,7 +1888,7 @@ func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:non
 		s.newBlocks.reset()
 	}()
 
-	blocksNumber, err := safecast.ToUint64(s.newBlocks.len())
+	blocksNumber, err := safecast.Convert[uint64](s.newBlocks.len())
 	if err != nil {
 		return nil, wrapErr(stateerr.InvalidInputError,
 			errors.Wrapf(err, "failed to cast blocks number %d to uint64", s.newBlocks.len()))
@@ -2818,7 +2820,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
-	txID := crypto.Digest(ai.ID)             // explicitly show that full asset ID is a crypto.Digest and equals txID
+	txID := ai.ID                            // explicitly show that full asset ID is a crypto.Digest and equals txID
 	tx, _ := s.TransactionByID(txID.Bytes()) // Explicitly ignore error here, in case of error tx is nil as expected
 	res := &proto.FullAssetInfo{
 		AssetInfo:        *ai,

@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/jinzhu/copier"
 	"github.com/pkg/errors"
 
@@ -5460,7 +5460,7 @@ func (tx *CommitToGenerationWithProofs) ToProtobuf(scheme Scheme) (*g.Transactio
 		EndorserPublicKey:     tx.EndorserPublicKey.Bytes(),
 		CommitmentSignature:   tx.CommitmentSignature.Bytes(),
 	}}
-	aa, err := safecast.ToInt64(tx.Fee)
+	aa, err := safecast.Convert[int64](tx.Fee)
 	if err != nil {
 		return nil, fmt.Errorf("failed to convert fee to int64: %w", err)
 	}

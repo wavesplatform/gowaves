@@ -8,7 +8,7 @@ import (
 	"math/big"
 	"unicode/utf8"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1589,7 +1589,7 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 			nextPeriodStart, tx.GenerationPeriodStart)
 	}
 	// Check that we can add new generation commitment to the next period.
-	committed, err := tc.stor.commitments.size(nextPeriodStart)
+	committed, err := tc.stor.commitments.newestSize(nextPeriodStart)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to get number of commitments for the next period")
 	}
@@ -1598,7 +1598,7 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 			"no available slots for the next generation period, %d generators already committed", committed)
 	}
 	// Check that the sender has no other CommitToGeneration transaction with the same nextGenerationPeriodStart.
-	exist, err := tc.stor.commitments.exists(tx.GenerationPeriodStart, tx.SenderPK)
+	exist, err := tc.stor.commitments.newestExists(tx.GenerationPeriodStart, tx.SenderPK)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to check existing commitment for the sender")
 	}
@@ -1628,11 +1628,11 @@ func generationPeriodStart(activationHeight, blockHeight, periodLength uint64, o
 				"activation height %d", blockHeight, activationHeight)
 	case blockHeight == activationHeight:
 		// The first generation period starts right after the activation.
-		return safecast.ToUint32(activationHeight + periodLength + 1)
+		return safecast.Convert[uint32](activationHeight + periodLength + 1)
 	default:
 		base := activationHeight + 1 // Start of the first full period.
 		k := (blockHeight - base) / periodLength
-		return safecast.ToUint32(base + (k+offset)*periodLength)
+		return safecast.Convert[uint32](base + (k+offset)*periodLength)
 	}
 }
 
