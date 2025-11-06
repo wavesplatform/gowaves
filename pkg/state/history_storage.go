@@ -815,6 +815,7 @@ func (hs *historyStorage) flush() error {
 }
 
 // isNotFoundInHistoryOrDBErr checks if the error is errEmptyHist or keyvalue.ErrNotFound.
+// TODO: Should be renamed to isNotFoundInHistoryOrEmptyHistory.
 func isNotFoundInHistoryOrDBErr(err error) bool {
 	return errors.Is(err, keyvalue.ErrNotFound) || errors.Is(err, errEmptyHist)
 }
