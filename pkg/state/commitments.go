@@ -2,14 +2,12 @@ package state
 
 import (
 	"bytes"
-	"errors"
 	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -51,7 +49,7 @@ func (c *commitments) store(
 ) error {
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.newestTopEntryData(key.bytes())
-	if err != nil && !errors.Is(err, keyvalue.ErrNotFound) {
+	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return fmt.Errorf("failed to retrieve commitments record: %w", err)
 	}
 	var rec commitmentsRecord
@@ -76,7 +74,7 @@ func (c *commitments) exists(periodStart uint32, generatorPK crypto.PublicKey) (
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.topEntryData(key.bytes())
 	if err != nil {
-		if errors.Is(err, keyvalue.ErrNotFound) {
+		if isNotFoundInHistoryOrDBErr(err) {
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to retrieve commitment record: %w", err)
@@ -98,7 +96,7 @@ func (c *commitments) newestExists(periodStart uint32, generatorPK crypto.Public
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.newestTopEntryData(key.bytes())
 	if err != nil {
-		if errors.Is(err, keyvalue.ErrNotFound) {
+		if isNotFoundInHistoryOrDBErr(err) {
 			return false, nil
 		}
 		return false, fmt.Errorf("failed to retrieve commitment record: %w", err)
@@ -121,7 +119,7 @@ func (c *commitments) size(periodStart uint32) (int, error) {
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.topEntryData(key.bytes())
 	if err != nil {
-		if errors.Is(err, keyvalue.ErrNotFound) {
+		if isNotFoundInHistoryOrDBErr(err) {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("failed to retrieve commitment record: %w", err)
@@ -137,7 +135,7 @@ func (c *commitments) newestSize(periodStart uint32) (int, error) {
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.newestTopEntryData(key.bytes())
 	if err != nil {
-		if errors.Is(err, keyvalue.ErrNotFound) {
+		if isNotFoundInHistoryOrDBErr(err) {
 			return 0, nil
 		}
 		return 0, fmt.Errorf("failed to retrieve commitment newest record: %w", err)
