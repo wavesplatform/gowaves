@@ -3,11 +3,13 @@ package state
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 	"io"
 	"log/slog"
 	"math"
 	"sort"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
@@ -19,11 +21,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
-const (
-	wavesBalanceRecordSize = 8 + 8 + 8
-	assetBalanceRecordSize = 8
-)
-
 type wavesValue struct {
 	profile       balanceProfile
 	leaseChange   bool
@@ -31,19 +28,33 @@ type wavesValue struct {
 }
 
 type balanceProfile struct {
-	balance  uint64
-	leaseIn  int64
-	leaseOut int64
+	Balance  uint64 `cbor:"0,keyasint"`
+	LeaseIn  int64  `cbor:"1,keyasint"`
+	LeaseOut int64  `cbor:"2,keyasint"`
+	Deposit  uint64 `cbor:"3,keyasint"`
 }
 
 // effectiveBalanceUnchecked returns effective balance without checking for account challenging.
+// Effective balance is calculated as: Balance + LeaseIn - LeaseOut - Deposit.
 // The function MUST be used ONLY in the context where account challenging IS CHECKED.
 func (bp *balanceProfile) effectiveBalanceUnchecked() (uint64, error) {
-	val, err := common.AddInt(int64(bp.balance), bp.leaseIn)
+	r0, err := common.AddInt(bp.BalanceAsInt64(), bp.LeaseIn) // Balance + LeaseIn.
 	if err != nil {
 		return 0, err
 	}
-	return uint64(val - bp.leaseOut), nil
+	r1, err := common.SubInt(r0, bp.LeaseOut) // (Balance + LeaseIn) - LeaseOut.
+	if err != nil {
+		return 0, err
+	}
+	r2, err := common.SubInt(r1, bp.DepositAsInt64()) // ((Balance + LeaseIn) - LeaseOut) - Deposit.
+	if err != nil {
+		return 0, err
+	}
+	r, err := safecast.Convert[uint64](r2)
+	if err != nil {
+		return 0, fmt.Errorf("invalid effective balance value: %w", err)
+	}
+	return r, nil
 }
 
 type challengedChecker func(proto.AddressID, proto.Height) (bool, error)
@@ -64,7 +75,31 @@ func (bp *balanceProfile) effectiveBalance(
 }
 
 func (bp *balanceProfile) spendableBalance() uint64 {
-	return uint64(int64(bp.balance) - bp.leaseOut)
+	r0, err := common.SubInt(bp.BalanceAsInt64(), bp.LeaseOut)
+	if err != nil {
+		panic(fmt.Errorf("spendable balance calculation failed: %w", err))
+	}
+	r1, err := common.SubInt(r0, bp.DepositAsInt64())
+	if err != nil {
+		panic(fmt.Errorf("spendable balance calculation failed: %w", err))
+	}
+	return safecast.MustConvert[uint64](r1)
+}
+
+func (bp *balanceProfile) LeaseInAsUint64() uint64 {
+	return safecast.MustConvert[uint64](bp.LeaseIn)
+}
+
+func (bp *balanceProfile) LeaseOutAsUint64() uint64 {
+	return safecast.MustConvert[uint64](bp.LeaseOut)
+}
+
+func (bp *balanceProfile) BalanceAsInt64() int64 {
+	return safecast.MustConvert[int64](bp.Balance)
+}
+
+func (bp *balanceProfile) DepositAsInt64() int64 {
+	return safecast.MustConvert[int64](bp.Deposit)
 }
 
 type wavesBalanceRecord struct {
@@ -72,39 +107,23 @@ type wavesBalanceRecord struct {
 }
 
 func (r *wavesBalanceRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, wavesBalanceRecordSize)
-	binary.BigEndian.PutUint64(res[:8], r.balance)
-	binary.BigEndian.PutUint64(res[8:16], uint64(r.leaseIn))
-	binary.BigEndian.PutUint64(res[16:24], uint64(r.leaseOut))
-	return res, nil
+	return cbor.Marshal(r)
 }
 
 func (r *wavesBalanceRecord) unmarshalBinary(data []byte) error {
-	if len(data) != wavesBalanceRecordSize {
-		return errors.Errorf("wavesBalanceRecord unmarshalBinary: invalid data size, expected %d, found %d", wavesBalanceRecordSize, len(data))
-	}
-	r.balance = binary.BigEndian.Uint64(data[:8])
-	r.leaseIn = int64(binary.BigEndian.Uint64(data[8:16]))
-	r.leaseOut = int64(binary.BigEndian.Uint64(data[16:24]))
-	return nil
+	return cbor.Unmarshal(data, r)
 }
 
 type assetBalanceRecord struct {
-	balance uint64
+	Balance uint64 `cbor:"0,keyasint"`
 }
 
 func (r *assetBalanceRecord) marshalBinary() ([]byte, error) {
-	res := make([]byte, assetBalanceRecordSize)
-	binary.BigEndian.PutUint64(res[:8], r.balance)
-	return res, nil
+	return cbor.Marshal(r)
 }
 
 func (r *assetBalanceRecord) unmarshalBinary(data []byte) error {
-	if len(data) != assetBalanceRecordSize {
-		return errInvalidDataSize
-	}
-	r.balance = binary.BigEndian.Uint64(data[:8])
-	return nil
+	return cbor.Unmarshal(data, r)
 }
 
 type heights []proto.Height
@@ -315,7 +334,7 @@ func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.Leas
 		if err := r.unmarshalBinary(recordBytes); err != nil {
 			return nil, err
 		}
-		if r.leaseIn == 0 && r.leaseOut == 0 {
+		if r.LeaseIn == 0 && r.LeaseOut == 0 {
 			// Empty lease balance, no need to reset.
 			continue
 		}
@@ -358,23 +377,23 @@ func (s *balances) generateLeaseBalanceSnapshotsForLeaseOverflows() (
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
 		var r wavesBalanceRecord
-		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return nil, nil, err
+		if umErr := r.unmarshalBinary(recordBytes); umErr != nil {
+			return nil, nil, umErr
 		}
-		if int64(r.balance) < r.leaseOut {
+		if r.BalanceAsInt64() < r.LeaseOut {
 			var k wavesBalanceKey
-			if err := k.unmarshal(key); err != nil {
-				return nil, nil, err
+			if umErr := k.unmarshal(key); umErr != nil {
+				return nil, nil, umErr
 			}
 			wavesAddr, waErr := k.address.ToWavesAddress(s.sets.AddressSchemeCharacter)
 			if waErr != nil {
 				return nil, nil, waErr
 			}
-			slog.Info("Resolving lease overflow", "address", wavesAddr.String(), "old", r.leaseOut, "new", 0)
+			slog.Info("Resolving lease overflow", "address", wavesAddr.String(), "old", r.LeaseOut, "new", 0)
 			overflowedAddresses[wavesAddr] = struct{}{}
 			leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 				Address:  wavesAddr,
-				LeaseIn:  uint64(r.leaseIn),
+				LeaseIn:  r.LeaseInAsUint64(),
 				LeaseOut: 0,
 			})
 		}
@@ -418,13 +437,17 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 		if leaseIn, ok := correctLeaseIns[wavesAddress]; ok {
 			correctLeaseIn = leaseIn
 		}
-		if r.leaseIn != correctLeaseIn {
+		if r.LeaseIn != correctLeaseIn {
 			slog.Info("Invalid leaseIn detected; fixing it", "address", wavesAddress.String(),
-				"invalid", r.leaseIn, "correct", correctLeaseIn)
+				"invalid", r.LeaseIn, "correct", correctLeaseIn)
+			cli, cErr := safecast.Convert[uint64](correctLeaseIn)
+			if cErr != nil {
+				return nil, fmt.Errorf("failed to convert leaseIn to uint64: %w", cErr)
+			}
 			correctLeaseBalanceSnapshots = append(correctLeaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 				Address:  wavesAddress,
-				LeaseIn:  uint64(correctLeaseIn),
-				LeaseOut: uint64(r.leaseOut),
+				LeaseIn:  cli,
+				LeaseOut: r.LeaseOutAsUint64(),
 			})
 		}
 	}
@@ -448,14 +471,15 @@ func (s *balances) generateLeaseBalanceSnapshotsWithProvidedChanges(
 		if err != nil {
 			return nil, err
 		}
+
 		leaseBalanceSnapshots = append(leaseBalanceSnapshots, proto.LeaseBalanceSnapshot{
 			Address:  a,
-			LeaseIn:  uint64(newProfile.leaseIn),
-			LeaseOut: uint64(newProfile.leaseOut),
+			LeaseIn:  newProfile.LeaseInAsUint64(),
+			LeaseOut: newProfile.LeaseOutAsUint64(),
 		})
-		slog.Info("Balance of changed", "address", a.String(),
-			"oldBalance", profile.balance, "oldLIn", profile.leaseIn, "oldLOut", profile.leaseOut,
-			"newBalance", newProfile.balance, "newLIn", newProfile.leaseIn, "newLOut", newProfile.leaseOut)
+		slog.Info("Balance of address changed", "address", a.String(),
+			"oldBalance", profile.Balance, "oldLIn", profile.LeaseIn, "oldLOut", profile.LeaseOut,
+			"newBalance", newProfile.Balance, "newLIn", newProfile.LeaseIn, "newLOut", newProfile.LeaseOut)
 	}
 	slog.Info("Finished to update balances")
 	return leaseBalanceSnapshots, nil
@@ -535,7 +559,7 @@ func collectNFTs(
 		if err := r.unmarshalBinary(recordBytes); err != nil {
 			return nil, err
 		}
-		if r.balance == 0 {
+		if r.Balance == 0 {
 			continue
 		}
 		keyBytes := keyvalue.SafeKey(iter)
@@ -577,7 +601,7 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 		if err := r.unmarshalBinary(recordBytes); err != nil {
 			return 0, err
 		}
-		if r.balance > 0 {
+		if r.Balance > 0 {
 			addressesNumber++
 		}
 	}
@@ -786,7 +810,7 @@ func (s *balances) assetBalanceFromRecordBytes(recordBytes []byte) (uint64, erro
 	if err := record.unmarshalBinary(recordBytes); err != nil {
 		return 0, err
 	}
-	return record.balance, nil
+	return record.Balance, nil
 }
 
 func (s *balances) assetBalance(addr proto.AddressID, assetID proto.AssetID) (uint64, error) {
@@ -914,7 +938,7 @@ func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balanc
 	if balance.balanceChange {
 		wc := &wavesRecordForHashes{
 			addr:    &wavesAddress,
-			balance: record.balance,
+			balance: record.Balance,
 		}
 		if _, ok := s.wavesHashesState[blockID]; !ok {
 			s.wavesHashesState[blockID] = newStateForHashes()
@@ -924,14 +948,15 @@ func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balanc
 	if balance.leaseChange {
 		lc := &leaseBalanceRecordForHashes{
 			addr:     &wavesAddress,
-			leaseIn:  record.leaseIn,
-			leaseOut: record.leaseOut,
+			leaseIn:  record.LeaseIn,
+			leaseOut: record.LeaseOut,
 		}
 		if _, ok := s.leaseHashesState[blockID]; !ok {
 			s.leaseHashesState[blockID] = newStateForHashes()
 		}
 		s.leaseHashesState[blockID].set(keyStr, lc)
 	}
+	//TODO: Should we check for Deposit change as well? Currently Deposit is not included in state hashes.
 	return nil
 }
 

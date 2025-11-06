@@ -8,6 +8,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/errs"
 )
 
@@ -22,12 +23,13 @@ func newDiffApplier(balances *balances, scheme proto.Scheme) (*diffApplier, erro
 
 func newWavesValue(prevProf, newProf balanceProfile) wavesValue {
 	val := wavesValue{profile: newProf}
-	if prevProf.balance != newProf.balance {
+	if prevProf.Balance != newProf.Balance {
 		val.balanceChange = true
 	}
-	if prevProf.leaseIn != newProf.leaseIn || prevProf.leaseOut != newProf.leaseOut {
+	if prevProf.LeaseIn != newProf.LeaseIn || prevProf.LeaseOut != newProf.LeaseOut {
 		val.leaseChange = true
 	}
+	//TODO: Consider adding Deposit change tracking here.
 	return val
 }
 

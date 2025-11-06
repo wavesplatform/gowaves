@@ -737,3 +737,29 @@ func TestPerformUpdateAssetInfoWithProofs(t *testing.T) {
 	assert.NoError(t, err, "assetInfo() failed")
 	assert.Equal(t, *assetInfo, *info, "invalid asset info after performing UpdateAssetInfo transaction")
 }
+
+func TestCommitToGenerationWithProofs(t *testing.T) {
+	info := defaultCheckerInfo()
+	to := createPerformerTestObjects(t, info)
+	to.stor.addBlock(t, blockID0)
+	info.blockID = blockID0
+	to.stor.activateFeature(t, int16(settings.BlockV5))
+	to.stor.rw.setProtobufActivated()
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
+
+	tx := createCommitToGenerationWithProofs(t, 10_002)
+
+	_, err := to.th.performTx(tx, defaultPerformerInfo(), false, nil, true, nil)
+	assert.NoError(t, err)
+
+	to.stor.flush(t)
+
+	cnt, err := to.stor.entities.commitments.size(10_002)
+	assert.NoError(t, err)
+	assert.Equal(t, 1, cnt)
+
+	ok, err := to.stor.entities.commitments.exists(10_002, tx.SenderPK)
+	assert.NoError(t, err)
+	assert.True(t, ok)
+}

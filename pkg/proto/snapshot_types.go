@@ -2,12 +2,16 @@ package proto
 
 import (
 	"encoding/json"
+	"log/slog"
 	"math/big"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
+	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
@@ -263,8 +267,8 @@ func (s LeaseBalanceSnapshot) Apply(a SnapshotApplier) error { return a.ApplyLea
 func (s LeaseBalanceSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_LeaseBalance, error) {
 	return &g.TransactionStateSnapshot_LeaseBalance{
 		Address: s.Address.Bytes(),
-		In:      int64(s.LeaseIn),
-		Out:     int64(s.LeaseOut),
+		In:      s.LeaseInAsInt64(),
+		Out:     s.LeaseOutAsInt64(),
 	}, nil
 }
 
@@ -288,6 +292,28 @@ func (s *LeaseBalanceSnapshot) FromProtobuf(scheme Scheme, p *g.TransactionState
 	s.LeaseIn = in
 	s.LeaseOut = out
 	return nil
+}
+
+func (s *LeaseBalanceSnapshot) LeaseInAsInt64() int64 {
+	li, err := safecast.Convert[int64](s.LeaseIn)
+	if err != nil {
+		overflowed := int64(s.LeaseIn) //nolint:gosec // intentionally convert with overflow.
+		slog.Warn("Failed to convert leaseIn to int64, returning overflow value", logging.Error(err),
+			slog.Any("original", s.LeaseIn), slog.Any("converted", overflowed))
+		return overflowed
+	}
+	return li
+}
+
+func (s *LeaseBalanceSnapshot) LeaseOutAsInt64() int64 {
+	lo, err := safecast.Convert[int64](s.LeaseOut)
+	if err != nil {
+		overflowed := int64(s.LeaseOut) //nolint:gosec // intentionally convert with overflow.
+		slog.Warn("Failed to convert leaseOut to int64, returning overflow value", logging.Error(err),
+			slog.Any("original", s.LeaseOut), slog.Any("converted", overflowed))
+		return overflowed
+	}
+	return lo
 }
 
 type NewLeaseSnapshot struct {
@@ -670,6 +696,41 @@ func (s TransactionStatusSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSt
 	return nil
 }
 
+type GenerationCommitmentSnapshot struct {
+	SenderPublicKey   crypto.PublicKey `json:"senderPublicKey"`
+	EndorserPublicKey bls.PublicKey    `json:"blsPublicKey"`
+}
+
+func (s GenerationCommitmentSnapshot) Apply(a SnapshotApplier) error {
+	return a.ApplyCommitToGeneration(s)
+}
+
+func (s GenerationCommitmentSnapshot) ToProtobuf() (*g.TransactionStateSnapshot_GenerationCommitment, error) {
+	return &g.TransactionStateSnapshot_GenerationCommitment{
+		SenderPublicKey:   s.SenderPublicKey.Bytes(),
+		EndorserPublicKey: s.EndorserPublicKey.Bytes(),
+	}, nil
+}
+
+func (s *GenerationCommitmentSnapshot) FromProtobuf(p *g.TransactionStateSnapshot_GenerationCommitment) error {
+	var c ProtobufConverter
+	s.SenderPublicKey = c.publicKey(p.SenderPublicKey)
+	s.EndorserPublicKey = c.blsPublicKey(p.EndorserPublicKey)
+	return c.err
+}
+
+func (s *GenerationCommitmentSnapshot) AppendToProtobuf(txSnapshots *g.TransactionStateSnapshot) error {
+	if txSnapshots.GenerationCommitment != nil { // sanity check
+		return errors.New("protobuf GenerationCommitment field is already set")
+	}
+	snapshotInProto, err := s.ToProtobuf()
+	if err != nil {
+		return err
+	}
+	txSnapshots.GenerationCommitment = snapshotInProto
+	return nil
+}
+
 type SnapshotApplier interface {
 	ApplyWavesBalance(snapshot WavesBalanceSnapshot) error
 	ApplyLeaseBalance(snapshot LeaseBalanceSnapshot) error
@@ -686,4 +747,5 @@ type SnapshotApplier interface {
 	ApplyNewLease(snapshot NewLeaseSnapshot) error
 	ApplyCancelledLease(snapshot CancelledLeaseSnapshot) error
 	ApplyTransactionsStatus(snapshot TransactionStatusSnapshot) error
+	ApplyCommitToGeneration(snapshot GenerationCommitmentSnapshot) error
 }
