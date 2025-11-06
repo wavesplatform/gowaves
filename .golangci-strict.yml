@@ -156,6 +156,9 @@ linters:
         - github.com/jmoiron/sqlx
     usetesting:
       os-setenv: true
+    gomoddirectives:
+      replace-allow-list:
+        - github.com/syndtr/goleveldb # temporary allow list for dep migration
   exclusions:
     generated: lax
     presets:
