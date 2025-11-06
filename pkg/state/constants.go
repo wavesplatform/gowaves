@@ -25,7 +25,7 @@ const (
 
 	// StateVersion is current version of state internal storage formats.
 	// It increases when backward compatibility with previous storage version is lost.
-	StateVersion = 26
+	StateVersion = 27
 
 	// Memory limit for address transactions. flush() is called when this
 	// limit is exceeded.
