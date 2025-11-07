@@ -380,12 +380,12 @@ func (rw *blockReadWriter) writeTransactionToMem(tx proto.Transaction, status pr
 	return nil
 }
 
-func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, status proto.TransactionStatus) error {
+func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, status proto.TransactionStatus) (int, error) {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	txID, err := tx.GetID(rw.scheme)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// Save transaction to local storage.
 	rw.writeTransactionToMemImpl(tx, txID, status)
@@ -396,17 +396,17 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, status proto.T
 	// Update length of blockchain.
 	txBytes, err := rw.marshalTransaction(tx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	rw.blockchainLen += uint64(len(txBytes))
 	if rw.blockchainLen > rw.offsetEnd {
-		return errors.Errorf("offset overflow: %d > %d", rw.blockchainLen, rw.offsetEnd)
+		return 0, errors.Errorf("offset overflow: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}
 	// Write transaction itself.
-	if _, err := rw.blockchainBuf.Write(txBytes); err != nil {
-		return err
+	if _, wErr := rw.blockchainBuf.Write(txBytes); wErr != nil {
+		return 0, wErr
 	}
-	return nil
+	return len(txBytes), nil
 }
 
 func (rw *blockReadWriter) marshalHeader(h *proto.BlockHeader) ([]byte, error) {
