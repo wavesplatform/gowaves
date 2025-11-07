@@ -20,6 +20,7 @@ require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-test/deep v1.1.1
 	github.com/golang/mock v1.6.0
+	github.com/golang/snappy v1.0.0
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/jinzhu/copier v0.4.0
@@ -76,7 +77,6 @@ require (
 	github.com/docker/go-units v0.5.0 // indirect
 	github.com/go-viper/mapstructure/v2 v2.4.0 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
-	github.com/golang/snappy v1.0.0 // indirect
 	github.com/gomodule/redigo v2.0.0+incompatible // indirect
 	github.com/google/go-tpm v0.9.6 // indirect
 	github.com/google/gofuzz v1.2.0 // indirect
