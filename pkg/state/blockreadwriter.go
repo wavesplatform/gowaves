@@ -10,7 +10,10 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/ccoveille/go-safecast/v2"
+	"github.com/golang/snappy"
 	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -336,13 +339,17 @@ func (rw *blockReadWriter) marshalTransaction(tx proto.Transaction) ([]byte, err
 			return nil, err
 		}
 	}
-	// Append tx size at the beginning.
-	txSize := uint32(len(txBytes))
-	txSizeBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(txSizeBytes, txSize)
-	txBytesTotal := make([]byte, 4+txSize)
-	copy(txBytesTotal[:4], txSizeBytes)
-	copy(txBytesTotal[4:], txBytes)
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
+	bb.B = bb.B[:cap(bb.B)] // expand length to capacity
+	bb.B = snappy.Encode(bb.B, txBytes)
+	txSize, err := safecast.Convert[uint32](len(bb.B))
+	if err != nil {
+		return nil, err
+	}
+	// Append tx size at the beginning reusing txBytes slice.
+	txBytesTotal := binary.BigEndian.AppendUint32(txBytes[:0], txSize)
+	txBytesTotal = append(txBytesTotal, bb.B...) // copy compressed data
 	return txBytesTotal, nil
 }
 
@@ -689,6 +696,45 @@ func (rw *blockReadWriter) readBlockHeaderImpl(blockID proto.BlockID) (*proto.Bl
 	return rw.headerByBounds(headerStart, headerEnd)
 }
 
+func unmarshalTransactions(data []byte, count int, isProtobuf bool, scheme proto.Scheme) (proto.Transactions, error) {
+	txUnmarshal := proto.BytesToTransaction
+	if isProtobuf {
+		txUnmarshal = func(tx []byte, _ proto.Scheme) (proto.Transaction, error) {
+			return proto.SignedTxFromProtobuf(tx)
+		}
+	}
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
+	var (
+		err error
+		res = make(proto.Transactions, 0, count)
+	)
+	for range count {
+		if len(data) < uint32Size {
+			return nil, errors.New("invalid tx size: insufficient bytes for size prefix")
+		}
+		n := int(binary.BigEndian.Uint32(data[0:uint32Size]))
+		if n+uint32Size > len(data) {
+			return nil, errors.New("invalid tx size: exceeds bytes slice bounds")
+		}
+		txBytesCompressed := data[uint32Size : n+uint32Size]
+
+		bb.B = bb.B[:cap(bb.B)] // expand length to capacity
+		bb.B, err = snappy.Decode(bb.B, txBytesCompressed)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to decompress transaction bytes")
+		}
+
+		tx, txErr := txUnmarshal(bb.B, scheme)
+		if txErr != nil {
+			return nil, errors.Wrap(txErr, "failed to deserialize transaction bytes")
+		}
+		res = append(res, tx)
+		data = data[uint32Size+n:]
+	}
+	return res, nil
+}
+
 func (rw *blockReadWriter) readBlock(blockID proto.BlockID) (*proto.Block, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
@@ -709,16 +755,9 @@ func (rw *blockReadWriter) readBlock(blockID proto.BlockID) (*proto.Block, error
 	} else if n != len(blockBytes) {
 		return nil, errors.New("ReadAt did not read the whole block")
 	}
-	var res proto.Transactions
-	if rw.isProtobufTxOffset(blockStart) {
-		if err := res.UnmarshalFromProtobuf(blockBytes); err != nil {
-			return nil, err
-		}
-	} else {
-		res, err = proto.NewTransactionsFromBytes(blockBytes, header.TransactionCount, rw.scheme)
-		if err != nil {
-			return nil, err
-		}
+	res, err := unmarshalTransactions(blockBytes, header.TransactionCount, rw.isProtobufTxOffset(blockStart), rw.scheme)
+	if err != nil {
+		return nil, err
 	}
 	return &proto.Block{
 		BlockHeader:  *header,
@@ -997,7 +1036,14 @@ func (rw *blockReadWriter) txByBounds(start, end uint64) (proto.Transaction, err
 		return nil, errors.New("did not read the whole tx")
 	}
 	protobuf := rw.isProtobufTxOffset(start)
-	return rw.txFromBytes(txBytes, protobuf)
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
+	bb.B = bb.B[:cap(bb.B)] // expand length to capacity
+	bb.B, err = snappy.Decode(bb.B, txBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to snappy decompress tx")
+	}
+	return rw.txFromBytes(bb.B, protobuf)
 }
 
 func (rw *blockReadWriter) syncWithDb() error {
