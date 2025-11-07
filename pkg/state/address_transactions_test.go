@@ -127,7 +127,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 	require.NoError(t, err)
 	// Save the same transaction ID twice.
 	// Then make sure it was added to batchedStor only once.
-	err = stor.rw.writeTransaction(tx, proto.TransactionSucceeded)
+	_, err = stor.rw.writeTransaction(tx, proto.TransactionSucceeded)
 	require.NoError(t, err)
 	stor.addBlock(t, blockID0)
 	err = atx.saveTxIdByAddress(addr, txID, blockID0)
@@ -174,7 +174,7 @@ func TestFailedTransaction(t *testing.T) {
 	txID, err := tx.GetID(proto.MainNetScheme)
 	require.NoError(t, err)
 
-	err = stor.rw.writeTransaction(tx, proto.TransactionFailed)
+	_, err = stor.rw.writeTransaction(tx, proto.TransactionFailed)
 	require.NoError(t, err)
 	stor.addBlock(t, blockID0)
 	err = atx.saveTxIdByAddress(addr, txID, blockID0)
