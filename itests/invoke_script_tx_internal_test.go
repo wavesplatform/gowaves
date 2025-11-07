@@ -47,7 +47,7 @@ func (s *InvokeScriptTxSuite) SetupSubTest() {
 		&s.NewAccount, utl.MinTxFeeWaves)
 }
 
-// Positive test for dApp where is checked that account storage is untouched.
+// Positive test for dApp where it is checked that account storage is untouched.
 func (s *InvokeScriptTxSuite) Test_CheckThatAccountStorageIsUntouched() {
 	for _, version := range s.Versions {
 		s.Run("storage is untouched", func() {
@@ -72,10 +72,10 @@ func (s *InvokeScriptTxSuite) Test_CheckThatAccountStorageIsUntouched() {
 	}
 }
 
-// Positive tests for dApp where is checked that data is written correct in dApp Account Storage.
+// Positive tests for dApp where it is checked that data is written correctly in dApp Account Storage.
 func (s *InvokeScriptTxSuite) Test_CheckWrittenDataInAccountStorage() {
 	for _, version := range s.Versions {
-		s.Run("written data in account storage is correct", func() {
+		s.Run("written data in account storage is correctly", func() {
 			testData := testdata.GetInvokeScriptWriteToStorageTestData(&s.BaseSuite, s.DApp)
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
@@ -94,11 +94,11 @@ func (s *InvokeScriptTxSuite) Test_CheckWrittenDataInAccountStorage() {
 	}
 }
 
-// Positive tests for dApp where is checked that max value of string data and function name is written correct
+// Positive tests for dApp where it is checked that max value of string data and function name is written correctly
 // in dApp Account Storage.
 func (s *InvokeScriptTxSuite) Test_CheckWrittenStringDataInAccountStorage() {
 	for _, version := range s.Versions {
-		s.Run("written data in account storage is correct", func() {
+		s.Run("written data in account storage is correctly", func() {
 			testData := testdata.GetInvokeScriptWriteToStorageStringTestData(&s.BaseSuite, version, s.DApp)
 			for name, td := range testData {
 				caseName := utl.GetTestcaseNameWithVersion(name, version)
@@ -149,7 +149,7 @@ func (s *InvokeScriptFromScriptSuite) SetupSubTest() {
 		1000000000, "target_dapp.ride")
 }
 
-// Positive tests for dApp where is checked that dApp is invoked from another dApp correctly.
+// Positive tests for dApp where it is checked that dApp is invoked from another dApp correctly.
 func (s *InvokeScriptFromScriptSuite) Test_InvokeDAppFromDApp() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
@@ -208,7 +208,7 @@ func (s *InvokeRecursiveScriptSuite) SetupSubTest() {
 		1000000000, "dapp_data_entries_recursive.ride")
 }
 
-// Positive tests for dApp where is checked that dApp is invoked recursively.
+// Positive tests for dApp where it is checked that dApp is invoked recursively.
 func (s *InvokeRecursiveScriptSuite) Test_InvokeDAppRecursive() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp from dApp", func() {
@@ -255,7 +255,7 @@ func (s *InvokeScriptMaxComplexitySuite) SetupSubTest() {
 		1000000000, "dapp_max_complexity.ride")
 }
 
-// Positive test for dApp where is checked that dApp with max complexity is invoked correctly.
+// Positive test for dApp where it is checked that dApp with max complexity is invoked correctly.
 func (s *InvokeScriptMaxComplexitySuite) Test_InvokeDAppComplexity() {
 	for _, version := range s.Versions {
 		s.Run("check dApp with max complexity", func() {
@@ -301,7 +301,7 @@ func (s *InvokeScriptExecutionFailedSuite) SetupSubTest() {
 		1000000000, "dapp_negative.ride")
 }
 
-// Tests for Dapp where is checked that Dapp has script execution failed status when saving failed transactions.
+// Tests for Dapp where it is checked that Dapp has script execution failed status when saving failed transactions.
 func (s *InvokeScriptExecutionFailedSuite) Test_InvokeScriptExecutionFailed() {
 	for _, version := range s.Versions {
 		s.Run("check invoke dApp with script execution failed status", func() {
