@@ -386,14 +386,14 @@ func writeTransactionUncompressed(txBytes []byte) ([]byte, error) {
 }
 
 func txBytesToReadWriterTxBytes(txBytes []byte) ([]byte, error) {
-	if snappy.MaxEncodedLen(len(txBytes)) >= len(txBytes) { // write uncompressed
-		return writeTransactionUncompressed(txBytes)
-	}
-	// Write compressed.
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 	bb.B = bb.B[:cap(bb.B)] // expand length to capacity
 	bb.B = snappy.Encode(bb.B, txBytes)
+	if len(bb.B) >= len(txBytes) { // write uncompressed if compressed is not smaller
+		return writeTransactionUncompressed(txBytes)
+	}
+	// Write compressed.
 	txSizeU32, err := safecast.Convert[uint32](len(bb.B))
 	if err != nil {
 		return nil, err
