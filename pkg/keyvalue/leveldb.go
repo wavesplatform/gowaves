@@ -158,7 +158,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		CompactionTotalSize:    params.CompactionTotalSize,
 		OpenFilesCacheCapacity: openFilesCacheCapacity,
 		Strict:                 opt.DefaultStrict | opt.StrictManifest,
-		Compression:            opt.ZSTDCompression,
+		Compression:            opt.MinLZCompression,
 	}
 	db, err := openLevelDB(path, dbOptions)
 	if err != nil {
