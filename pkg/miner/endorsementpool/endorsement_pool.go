@@ -97,26 +97,30 @@ func (p *EndorsementPool) Finalize() (proto.FinalizationVoting, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	endorseBlocks := p.GetAll()
-	var finalizationVoting proto.FinalizationVoting
-	signatures := make([]bls.Signature, 0, len(endorseBlocks))
-	endorsersIndexes := make([]int32, 0, len(endorseBlocks))
-	for _, eb := range endorseBlocks {
-		var sig bls.Signature
-		if err := sig.UnmarshalJSON(eb.Signature); err != nil {
-			continue
+	var (
+		signatures       = make([]bls.Signature, 0, len(p.items))
+		endorsersIndexes = make([]int32, 0, len(p.items))
+	)
+
+	for _, it := range p.items {
+		endorseBlock := it.eb
+		sig, err := bls.NewSignatureFromBytes(endorseBlock.Signature)
+		if err != nil {
+			// TODO punish generator for bad signature
+			return proto.FinalizationVoting{}, err
 		}
 		signatures = append(signatures, sig)
-		endorsersIndexes = append(endorsersIndexes, eb.EndorserIndex)
+		endorsersIndexes = append(endorsersIndexes, endorseBlock.EndorserIndex)
 	}
 	aggregatedSignature, err := bls.AggregateSignatures(signatures)
 	if err != nil {
 		return proto.FinalizationVoting{}, err
 	}
-	finalizationVoting.AggregatedEndorsementSignature = aggregatedSignature
-	finalizationVoting.EndorserIndexes = endorsersIndexes
-	finalizationVoting.ConflictEndorsements = p.conflicts
-	return finalizationVoting, nil
+	return proto.FinalizationVoting{
+		AggregatedEndorsementSignature: aggregatedSignature,
+		EndorserIndexes:                endorsersIndexes,
+		ConflictEndorsements:           p.conflicts,
+	}, nil
 }
 
 func (p *EndorsementPool) GetEndorsers() []bls.PublicKey {

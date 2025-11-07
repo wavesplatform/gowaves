@@ -6,8 +6,6 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
-const heightSize = 4
-
 type EndorseBlock struct {
 	EndorserIndex        int32   `json:"endorserIndex"`
 	FinalizedBlockID     BlockID `json:"finalizedBlockID"`
@@ -22,6 +20,8 @@ func (e *EndorseBlock) Marshal() ([]byte, error) {
 }
 
 func (e *EndorseBlock) EndorsementMessage() ([]byte, error) {
+	const heightSize = uint32Size
+
 	finalizedID := e.FinalizedBlockID.Bytes()
 	endorsedID := e.EndorsedBlockID.Bytes()
 

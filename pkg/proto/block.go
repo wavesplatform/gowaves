@@ -344,7 +344,7 @@ func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
 	return sh, present
 }
 
-func (b *BlockHeader) GeFinalizationVoting() (FinalizationVoting, bool) {
+func (b *BlockHeader) GetFinalizationVoting() (FinalizationVoting, bool) {
 	var (
 		fv      FinalizationVoting
 		present = b.FinalizationVoting != nil
@@ -463,8 +463,8 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 		stateHash = sh.Bytes()
 	}
 	var finalizationVoting *g.FinalizationVoting
-	if b.FinalizationVoting != nil {
-		finalizationVoting = b.FinalizationVoting.ToProtobuf()
+	if fv, present := b.GetFinalizationVoting(); present {
+		finalizationVoting = fv.ToProtobuf()
 	}
 	return &g.Block_Header{
 		ChainId:             int32(scheme),

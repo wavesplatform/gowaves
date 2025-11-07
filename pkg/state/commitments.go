@@ -3,8 +3,8 @@ package state
 import (
 	"bytes"
 	"fmt"
-	"github.com/fxamacker/cbor/v2"
 
+	"github.com/fxamacker/cbor/v2"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"

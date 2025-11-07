@@ -3230,12 +3230,7 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 	}
 
 	// If endorsersBalance >= 2/3 totalGeneratingBalance
-	totalGenBalance := float64(totalGeneratingBalance)
-	endorsersGenBal := float64(endorsersGeneratingBalance)
-	ratio := endorsersGenBal / totalGenBalance
-
-	const twoThirds = 2.0 / 3.0
-	if ratio > twoThirds {
+	if endorsersGeneratingBalance*3 >= totalGeneratingBalance*2 {
 		return true, nil
 	}
 	return false, nil
@@ -3251,7 +3246,7 @@ func (s *stateManager) FindEndorserPKByIndex(periodStart uint32, index int) (bls
 		if errors.Is(err, keyvalue.ErrNotFound) {
 			return empty, fmt.Errorf("no commitments found for period %d", periodStart)
 		}
-		return empty, fmt.Errorf("failed to retrieve commitments record: %w", err)
+		return empty, errors.Errorf("failed to retrieve commitments record: %v", err)
 	}
 
 	var rec commitmentsRecord
@@ -3275,17 +3270,15 @@ func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
 	key := commitmentKey{periodStart: periodStart}
 	data, err := s.stor.commitments.hs.newestTopEntryData(key.bytes())
 	if err != nil {
-		var empty crypto.PublicKey
 		if errors.Is(err, keyvalue.ErrNotFound) {
-			return empty, fmt.Errorf("no commitments found for period %d", periodStart)
+			return crypto.PublicKey{}, errors.Errorf("no commitments found for period %d, %v", periodStart, err)
 		}
-		return empty, fmt.Errorf("failed to retrieve commitments record: %w", err)
+		return crypto.PublicKey{}, errors.Errorf("failed to retrieve commitments record: %v", err)
 	}
 
 	var rec commitmentsRecord
 	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		var empty crypto.PublicKey
-		return empty, fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
+		return crypto.PublicKey{}, fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
 	}
 
 	endPKb := endorserPK[:]
@@ -3294,9 +3287,7 @@ func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
 			return cm.GeneratorPK, nil
 		}
 	}
-
-	var empty crypto.PublicKey
-	return empty, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
+	return crypto.PublicKey{}, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
 }
 
 // CommittedGenerators returns the list of Waves addresses of committed generators.
@@ -3307,7 +3298,10 @@ func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAdd
 	}
 	addresses := make([]proto.WavesAddress, len(pks))
 	for i, pk := range pks {
-		addr := proto.MustAddressFromPublicKey(s.settings.AddressSchemeCharacter, pk)
+		addr, cnvrtErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, pk)
+		if cnvrtErr != nil {
+			return nil, cnvrtErr
+		}
 		addresses[i] = addr
 	}
 	return addresses, nil

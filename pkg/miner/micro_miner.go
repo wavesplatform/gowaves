@@ -38,7 +38,8 @@ func NewMicroMiner(services services.Services) *MicroMiner {
 	}
 }
 
-func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
+func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair,
+	endorsements []proto.EndorseBlock) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
 	// way to stop mine microblocks
 	if minedBlock == nil {
 		return nil, nil, rest, errors.New("no block provided")
@@ -240,6 +241,7 @@ func (a *MicroMiner) Micro(minedBlock *proto.Block, rest proto.MiningLimits, key
 		TotalResBlockSigField: newBlock.BlockSignature,
 		TotalBlockID:          newBlock.BlockID(),
 		StateHash:             sh,
+		Endorsements:          endorsements,
 	}
 
 	err = micro.Sign(a.scheme, sk)
