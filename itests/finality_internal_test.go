@@ -1,7 +1,6 @@
 package itests
 
 import (
-	"encoding/json"
 	"testing"
 	"time"
 
@@ -34,8 +33,6 @@ func (s *IsolatedFinalitySuite) SetupSuite() {
 }
 
 func (s *IsolatedFinalitySuite) TestDepositsReset() {
-	s.Client.SendStartMessage(s.T())
-
 	acc := s.Cfg.GetRichestAccount()
 
 	// Wait for nodes to start mining
@@ -44,19 +41,14 @@ func (s *IsolatedFinalitySuite) TestDepositsReset() {
 	// Get initial available balance of the account.
 	b0 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
 	ab0 := b0.GetAvailable()
-	s.T().Logf("Initial available balance: %d", ab0)
 
 	// Create first commitment transaction and broadcast it.
 	tx1 := commitmentTransaction(s.T(), s.Cfg.BlockchainSettings.AddressSchemeCharacter, acc, 5)
-	js1, err := json.Marshal(tx1)
-	require.NoError(s.T(), err)
-	s.T().Logf("tx1: %s", string(js1))
-	_, err = s.Client.HTTPClient.TransactionBroadcast(tx1)
+	_, err := s.Client.HTTPClient.TransactionBroadcast(tx1)
 	require.NoError(s.T(), err)
 	s.Client.WaitForTransaction(s.T(), *tx1.ID, config.WaitWithContext(s.MainCtx))
 	b1 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
 	ab1 := b1.GetAvailable()
-	s.T().Logf("Available balance after first commitment: %d", ab1)
 	assert.Equal(s.T(), ab0-deposit-fee, ab1)
 
 	// Wait for second generation period to start.
@@ -70,21 +62,18 @@ func (s *IsolatedFinalitySuite) TestDepositsReset() {
 	s.Client.WaitForTransaction(s.T(), *tx2.ID, config.WaitWithContext(s.MainCtx))
 	b2 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
 	ab2 := b2.GetAvailable()
-	s.T().Logf("Available balance after second commitment: %d", ab2)
 	assert.Equal(s.T(), ab0-deposit-fee-deposit-fee, ab2)
 
 	s.Client.WaitForHeight(s.T(), 9, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
 	s.Client.HTTPClient.GetHeight(s.T())
 	b3 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
 	ab3 := b3.GetAvailable()
-	s.T().Logf("Available balance after cancel of first commitment: %d", ab3)
 	assert.Equal(s.T(), ab0-deposit-fee-fee, ab3)
 
 	s.Client.WaitForHeight(s.T(), 12, config.WaitWithContext(s.MainCtx), config.WaitWithTimeoutInBlocks(4))
 	s.Client.HTTPClient.GetHeight(s.T())
 	b4 := s.Client.GRPCClient.GetWavesBalance(s.T(), acc.Address)
 	ab4 := b4.GetAvailable()
-	s.T().Logf("Available balance after cancel of second commitment: %d", ab4)
 	assert.Equal(s.T(), ab0-fee-fee, ab4)
 }
 
