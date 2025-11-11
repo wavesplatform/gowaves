@@ -170,11 +170,11 @@ func (s Signature) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Signature) UnmarshalJSON(value []byte) error {
-	b, err := common.FromBase58JSON(value, PublicKeySize, "publicKey")
+	b, err := common.FromBase58JSON(value, SignatureSize, "signature")
 	if err != nil {
 		return err
 	}
-	copy(s[:], b[:PublicKeySize])
+	copy(s[:], b[:SignatureSize])
 	return nil
 }
 

@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/jinzhu/copier"
@@ -5364,6 +5365,10 @@ func (tx *CommitToGenerationWithProofs) Validate(_ TransactionValidationParams) 
 		return nil, errors.Wrap(err, "failed to verify commitment signature")
 	}
 	if !ok {
+		slog.Debug("Failed to validate commitment signature",
+			"generationPeriodStart", tx.GenerationPeriodStart,
+			"endorserPublicKey", tx.EndorserPublicKey.String(),
+			"commitmentSignature", tx.CommitmentSignature.String())
 		return nil, errors.New("invalid commitment signature")
 	}
 	return tx, nil

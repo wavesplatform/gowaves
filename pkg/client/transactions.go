@@ -5,6 +5,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/http"
 
 	"github.com/pkg/errors"
@@ -176,6 +177,7 @@ func (a *Transactions) Broadcast(ctx context.Context, transaction proto.Transact
 		}
 	}
 
+	slog.Debug("Broadcasting transaction", "transaction", string(bts))
 	req, err := http.NewRequest("POST", url.String(), bytes.NewReader(bts))
 	if err != nil {
 		return nil, err

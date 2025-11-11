@@ -1883,26 +1883,6 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 	}
 }
 
-func TestCommitToGenerationWithProofs_NoGenerationSlotsAvailable(t *testing.T) {
-	info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
-	to := createCheckerTestObjects(t, info)
-	to.stor.activateSponsorship(t)
-	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
-	info.blockchainHeight = 1_000_000
-
-	// Store 128 commitments to state.
-	cms := generateCommitments(t, 128)
-	for _, cm := range cms {
-		stErr := to.stor.entities.commitments.store(1_000_002, cm.GeneratorPK, cm.EndorserPK, info.blockID)
-		require.NoError(t, stErr)
-	}
-
-	tx := createCommitToGenerationWithProofs(t, 1_000_002)
-	_, err := to.tc.checkCommitToGenerationWithProofs(tx, info)
-	assert.EqualError(t, err,
-		"no available slots for the next generation period, 128 generators already committed")
-}
-
 func TestCheckCommitToGenerationWithProofs_SecondCommitmentAttempt(t *testing.T) {
 	info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
 	to := createCheckerTestObjects(t, info)

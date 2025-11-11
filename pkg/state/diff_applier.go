@@ -7,8 +7,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
 
-	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/errs"
 )
 
@@ -36,33 +34,33 @@ func newWavesValue(prevProf, newProf balanceProfile) wavesValue {
 func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, validateOnly bool) error {
 	var k wavesBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
-		return errors.Errorf("failed to unmarshal waves balance key: %v\n", err)
+		return fmt.Errorf("failed to unmarshal waves balance key: %w", err)
 	}
 	profile, err := a.balances.newestWavesBalance(k.address)
 	if err != nil {
-		return errors.Errorf("failed to retrieve waves balance: %v\n", err)
+		return fmt.Errorf("failed to retrieve waves balance: %w", err)
 	}
 	prevProfile := profile
 	for _, diff := range change.balanceDiffs {
 		// Check for negative balance.
-		newProfile, err := diff.applyTo(profile)
-		if err != nil {
+		newProfile, aplErr := diff.applyTo(profile)
+		if aplErr != nil {
 			addr, convertErr := k.address.ToWavesAddress(a.scheme)
 			if convertErr != nil {
 				return errs.NewAccountBalanceError(fmt.Sprintf(
-					"failed to convert AddressID to WavesAddress (%v) and apply waves balance change: %v", convertErr, err,
+					"failed to convert AddressID to WavesAddress (%v) and apply waves balance change: %v", convertErr, aplErr,
 				))
 			}
 			return errs.NewAccountBalanceError(fmt.Sprintf(
-				"failed to apply waves balance change for addr %s: %v", addr.String(), err,
+				"failed to apply waves balance change for addr %s: %v", addr.String(), aplErr,
 			))
 		}
 		if validateOnly {
 			continue
 		}
 		val := newWavesValue(prevProfile, newProfile)
-		if err := a.balances.setWavesBalance(k.address, val, diff.blockID); err != nil {
-			return errors.Errorf("failed to set account balance: %v\n", err)
+		if setErr := a.balances.setWavesBalance(k.address, val, diff.blockID); setErr != nil {
+			return fmt.Errorf("failed to set account balance: %w", setErr)
 		}
 		prevProfile = newProfile
 	}
@@ -72,17 +70,17 @@ func (a *diffApplier) applyWavesBalanceChanges(change *balanceChanges, validateO
 func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, validateOnly bool) error {
 	var k assetBalanceKey
 	if err := k.unmarshal(change.key); err != nil {
-		return errors.Errorf("failed to unmarshal asset balance key: %v\n", err)
+		return fmt.Errorf("failed to unmarshal asset balance key: %w", err)
 	}
 	balance, err := a.balances.newestAssetBalance(k.address, k.asset)
 	if err != nil {
-		return errors.Errorf("failed to retrieve asset balance: %v\n", err)
+		return fmt.Errorf("failed to retrieve asset balance: %w", err)
 	}
 	prevBalance := balance
 	for _, diff := range change.balanceDiffs {
 		newBalance, err := diff.applyToAssetBalance(balance)
 		if err != nil {
-			return errs.NewAccountBalanceError(fmt.Sprintf("validation failed: negative asset balance: %v\n", err))
+			return errs.NewAccountBalanceError(fmt.Sprintf("validation failed: negative asset balance: %v", err))
 		}
 		if validateOnly {
 			continue
@@ -92,7 +90,7 @@ func (a *diffApplier) applyAssetBalanceChanges(change *balanceChanges, validateO
 			continue
 		}
 		if err := a.balances.setAssetBalance(k.address, k.asset, newBalance, diff.blockID); err != nil {
-			return errors.Errorf("failed to set asset balance: %v\n", err)
+			return fmt.Errorf("failed to set asset balance: %w", err)
 		}
 		prevBalance = newBalance
 	}

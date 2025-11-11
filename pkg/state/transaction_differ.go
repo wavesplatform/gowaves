@@ -177,13 +177,16 @@ func (diff *balanceDiff) applyToAssetBalance(balance uint64) (uint64, error) {
 func (diff *balanceDiff) addCommon(prevDiff *balanceDiff) error {
 	var err error
 	if diff.balance, err = diff.balance.Add(prevDiff.balance); err != nil {
-		return errors.Errorf("failed to add balance diffs: %v\n", err)
+		return fmt.Errorf("failed to add balance diffs: %w", err)
 	}
 	if diff.leaseIn, err = diff.leaseIn.Add(prevDiff.leaseIn); err != nil {
-		return errors.Errorf("failed to add LeaseIn diffs: %v\n", err)
+		return fmt.Errorf("failed to add LeaseIn diffs: %w", err)
 	}
 	if diff.leaseOut, err = diff.leaseOut.Add(prevDiff.leaseOut); err != nil {
-		return errors.Errorf("failed to add LeaseOut diffs: %v\n", err)
+		return fmt.Errorf("failed to add LeaseOut diffs: %w", err)
+	}
+	if diff.deposit, err = diff.deposit.Add(prevDiff.deposit); err != nil {
+		return fmt.Errorf("failed to add Deposit diffs: %w", err)
 	}
 	return nil
 }
@@ -228,7 +231,8 @@ func (diff *balanceDiff) addInsideBlock(prevDiff *balanceDiff) error {
 }
 
 func (diff *balanceDiff) isAccountable() bool {
-	return diff.balance.IsAccountable() || diff.leaseIn.IsAccountable() || diff.leaseOut.IsAccountable()
+	return diff.balance.IsAccountable() || diff.leaseIn.IsAccountable() || diff.leaseOut.IsAccountable() ||
+		diff.deposit.IsAccountable()
 }
 
 type differInfo struct {
