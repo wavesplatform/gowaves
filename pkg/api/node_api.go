@@ -557,7 +557,7 @@ func (a *NodeApi) AliasesByAddr(w http.ResponseWriter, r *http.Request) error {
 	}
 
 	if aliases == nil {
-		aliases = []proto.Alias{} // ensure that empty array will be return instead of nil
+		aliases = []proto.Alias{} // ensure that empty array will be returned instead of nil
 	}
 	if jsErr := trySendJSON(w, aliases); jsErr != nil {
 		return errors.Wrap(jsErr, "AliasesByAddr")
