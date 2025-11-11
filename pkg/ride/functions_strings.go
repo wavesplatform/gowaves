@@ -457,8 +457,8 @@ func contains(_ environment, args ...rideType) (rideType, error) {
 }
 
 func runesIndex(s, sub string) int {
-	if i := strings.Index(s, sub); i >= 0 {
-		return utf8.RuneCountInString(s[:i])
+	if before, _, ok := strings.Cut(s, sub); ok {
+		return utf8.RuneCountInString(before)
 	}
 	return -1
 }
