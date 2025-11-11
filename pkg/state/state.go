@@ -3306,3 +3306,18 @@ func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAdd
 	}
 	return addresses, nil
 }
+
+func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
+	// TODO implement this.
+	return 0, nil
+}
+
+func (s *stateManager) LastFinalizedBlock() (*proto.Block, error) {
+	// TODO implement this.
+	return &proto.Block{}, nil
+}
+
+func (s *stateManager) FinalizedHeightAt(_ proto.Height) (proto.Height, error) {
+	// TODO implement this.
+	return 0, nil
+}

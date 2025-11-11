@@ -164,6 +164,9 @@ type StateInfo interface {
 	FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error)
 	FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error)
 	CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error)
+	LastFinalizedHeight() (proto.Height, error)
+	LastFinalizedBlock() (*proto.Block, error)
+	FinalizedHeightAt(height proto.Height) (proto.Height, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.

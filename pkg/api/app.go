@@ -13,6 +13,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -35,6 +36,7 @@ const (
 type appSettings struct {
 	BlockRequestLimit uint64
 	AssetDetailsLimit int
+	GenerationPeriod  uint64
 }
 
 func defaultAppSettings() *appSettings {
@@ -56,11 +58,13 @@ type App struct {
 	settings      *appSettings
 }
 
-func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services) (*App, error) {
-	return newApp(apiKey, scheduler, services, nil)
+func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services,
+	cfg *settings.BlockchainSettings) (*App, error) {
+	return newApp(apiKey, scheduler, services, nil, cfg)
 }
 
-func newApp(apiKey string, scheduler SchedulerEmits, services services.Services, settings *appSettings) (*App, error) {
+func newApp(apiKey string, scheduler SchedulerEmits, services services.Services, settings *appSettings,
+	cfg *settings.BlockchainSettings) (*App, error) {
 	if settings == nil {
 		settings = defaultAppSettings()
 	}
@@ -69,6 +73,7 @@ func newApp(apiKey string, scheduler SchedulerEmits, services services.Services,
 		return nil, err
 	}
 
+	settings.GenerationPeriod = cfg.GenerationPeriod
 	return &App{
 		hashedApiKey:  digest,
 		apiKeyEnabled: len(apiKey) > 0,

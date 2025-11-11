@@ -21,6 +21,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
@@ -892,6 +893,105 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	if sendErr := trySendJSON(w, out{StateHash: sh.Bytes()}); sendErr != nil {
 		return errors.Wrap(sendErr, "snapshotStateHash")
 	}
+	return nil
+}
+
+type GeneratorInfo struct {
+	Address       string `json:"address"`
+	Balance       uint64 `json:"balance"`
+	TransactionID string `json:"transactionID"`
+}
+
+func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
+	heightStr := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(heightStr, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "invalid height")
+	}
+
+	activationHeight, err := a.state.ActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
+	}
+
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height,
+		a.app.settings.GenerationPeriod)
+	if err != nil {
+		return err
+	}
+
+	var generatorsInfo []GeneratorInfo
+
+	generatorAddresses, err := a.state.CommittedGenerators(periodStart)
+	if err != nil {
+		return err
+	}
+	for _, generatorAddress := range generatorAddresses {
+		endorserRecipient := proto.NewRecipientFromAddress(generatorAddress)
+		balance, pullErr := a.state.GeneratingBalance(endorserRecipient, height)
+		if pullErr != nil {
+			return pullErr
+		}
+		generatorsInfo = append(generatorsInfo, GeneratorInfo{
+			Address:       generatorAddress.String(),
+			Balance:       balance,
+			TransactionID: "", // TODO should be somehow found.
+		})
+	}
+
+	return trySendJSON(w, generatorsInfo)
+}
+
+func (a *NodeApi) FinalizedHeight(w http.ResponseWriter, _ *http.Request) error {
+	h, err := a.state.LastFinalizedHeight()
+	if err != nil {
+		return err
+	}
+	return trySendJSON(w, map[string]uint64{"height": h})
+}
+
+func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error {
+	block, err := a.app.state.LastFinalizedBlock()
+	if err != nil {
+		return err
+	}
+	blockHeader := proto.BlockHeader{
+		Version:                block.Version,
+		Timestamp:              block.Timestamp,
+		Parent:                 block.Parent,
+		FeaturesCount:          block.FeaturesCount,
+		Features:               block.Features,
+		RewardVote:             block.RewardVote,
+		ConsensusBlockLength:   block.ConsensusBlockLength,
+		NxtConsensus:           block.NxtConsensus,
+		TransactionBlockLength: block.TransactionBlockLength,
+		TransactionCount:       block.TransactionCount,
+		GeneratorPublicKey:     block.GeneratorPublicKey,
+		BlockSignature:         block.BlockSignature,
+		TransactionsRoot:       block.TransactionsRoot,
+		StateHash:              block.StateHash,
+		ChallengedHeader:       block.ChallengedHeader,
+		FinalizationVoting:     block.FinalizationVoting,
+		ID:                     block.ID,
+	}
+	return trySendJSON(w, blockHeader)
+}
+
+func (a *NodeApi) FinalizedHeightAt(w http.ResponseWriter, r *http.Request) error {
+	heightStr := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(heightStr, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "invalid height")
+	}
+
+	h, err := a.state.FinalizedHeightAt(height)
+	if err != nil {
+		return err
+	}
+	return trySendJSON(w, map[string]uint64{"height": h})
+}
+
+func (a *NodeApi) TransactionsSignCommit(_ http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
 
