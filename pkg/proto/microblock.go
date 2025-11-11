@@ -227,7 +227,6 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 		stateHash = sh.Bytes()
 	}
 	s.Bytes(stateHash)
-	// TODO add endorsements here.
 	return s.N(), nil
 }
 

@@ -1,9 +1,9 @@
 package endorsementpool
 
 import (
+	"container/heap"
 	"errors"
 	"fmt"
-	"sort"
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
@@ -25,25 +25,60 @@ type heapItemEndorsement struct {
 	balance    uint64
 	seq        uint64
 }
-type EndorsementPool struct {
-	mu        sync.Mutex
-	seq       uint64
-	byKey     map[key]*heapItemEndorsement
-	items     []*heapItemEndorsement // always sorted
-	conflicts []proto.EndorseBlock
+
+type endorsementMinHeap []*heapItemEndorsement
+
+func (h endorsementMinHeap) Len() int { return len(h) }
+
+func (h endorsementMinHeap) Less(i, j int) bool {
+	if h[i].balance == h[j].balance {
+		// Late (Higher seq), lower priority.
+		return h[i].seq > h[j].seq
+	}
+	// Lower balance, lower priority.
+	return h[i].balance < h[j].balance
 }
 
-func NewEndorsementPool() *EndorsementPool {
+func (h endorsementMinHeap) Swap(i, j int) { h[i], h[j] = h[j], h[i] }
+
+func (h *endorsementMinHeap) Push(x any) {
+	item, ok := x.(*heapItemEndorsement)
+	if !ok {
+		return // Impossible, but silences errcheck.
+	}
+	*h = append(*h, item)
+}
+
+func (h *endorsementMinHeap) Pop() any {
+	old := *h
+	n := len(old)
+	item := old[n-1]
+	*h = old[:n-1]
+	return item
+}
+
+type EndorsementPool struct {
+	mu            sync.Mutex
+	seq           uint64
+	byKey         map[key]*heapItemEndorsement
+	h             endorsementMinHeap
+	conflicts     []proto.EndorseBlock
+	maxGenerators int
+}
+
+func NewEndorsementPool(maxGenerators int) *EndorsementPool {
 	return &EndorsementPool{
-		byKey: make(map[key]*heapItemEndorsement),
+		byKey:         make(map[key]*heapItemEndorsement),
+		maxGenerators: maxGenerators,
 	}
 }
 
-// Add inserts an endorsement keeping the pool sorted by balance desc, seq asc.
+// Add inserts an endorsement into the heap with priority based on balance desc, seq asc.
 func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey, balance uint64) error {
 	if e == nil {
 		return errors.New("invalid endorsement")
 	}
+
 	k := makeKey(e.EndorsedBlockID, e.EndorserIndex)
 
 	p.mu.Lock()
@@ -62,33 +97,38 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey, balance u
 		balance:    balance,
 		seq:        p.seq,
 	}
-	p.insertSorted(item)
+
+	// If heap is not filled yet.
+	if len(p.h) < p.maxGenerators {
+		heap.Push(&p.h, item)
+		p.byKey[k] = item
+		return nil
+	}
+
+	// If heap is full — check min (root).
+	minItem := p.h[0]
+	// If priority is lower or equal the min, throw the new one away.
+	if balance < minItem.balance || (balance == minItem.balance && item.seq > minItem.seq) {
+		return nil
+	}
+
+	// Otherwise remove min and insert the new one.
+	r := heap.Pop(&p.h)
+	removed, _ := r.(*heapItemEndorsement)
+	delete(p.byKey, makeKey(removed.eb.EndorsedBlockID, removed.eb.EndorserIndex))
+
+	heap.Push(&p.h, item)
 	p.byKey[k] = item
 	return nil
 }
 
-func (p *EndorsementPool) insertSorted(item *heapItemEndorsement) {
-	i := sort.Search(len(p.items), func(i int) bool {
-		if p.items[i].balance != item.balance {
-			// descending balance: insert before smaller balances
-			return p.items[i].balance < item.balance
-		}
-		// ascending seq: insert before newer (larger seq)
-		return p.items[i].seq > item.seq
-	})
-	p.items = append(p.items, nil)
-	copy(p.items[i+1:], p.items[i:])
-	p.items[i] = item
-}
-
-// GetAll returns a copy of all endorsements currently in the pool.
 func (p *EndorsementPool) GetAll() []proto.EndorseBlock {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	out := make([]proto.EndorseBlock, 0, len(p.items))
-	for _, it := range p.items {
-		out = append(out, *it.eb)
+	out := make([]proto.EndorseBlock, len(p.h))
+	for i, it := range p.h {
+		out[i] = *it.eb
 	}
 	return out
 }
@@ -97,25 +137,22 @@ func (p *EndorsementPool) Finalize() (proto.FinalizationVoting, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	var (
-		signatures       = make([]bls.Signature, 0, len(p.items))
-		endorsersIndexes = make([]int32, 0, len(p.items))
-	)
+	signatures := make([]bls.Signature, 0, len(p.h))
+	endorsersIndexes := make([]int32, 0, len(p.h))
 
-	for _, it := range p.items {
-		endorseBlock := it.eb
-		sig, err := bls.NewSignatureFromBytes(endorseBlock.Signature)
+	for _, it := range p.h {
+		sig, err := bls.NewSignatureFromBytes(it.eb.Signature)
 		if err != nil {
-			// TODO punish generator for bad signature
 			return proto.FinalizationVoting{}, err
 		}
 		signatures = append(signatures, sig)
-		endorsersIndexes = append(endorsersIndexes, endorseBlock.EndorserIndex)
+		endorsersIndexes = append(endorsersIndexes, it.eb.EndorserIndex)
 	}
 	aggregatedSignature, err := bls.AggregateSignatures(signatures)
 	if err != nil {
 		return proto.FinalizationVoting{}, err
 	}
+
 	return proto.FinalizationVoting{
 		AggregatedEndorsementSignature: aggregatedSignature,
 		EndorserIndexes:                endorsersIndexes,
@@ -127,45 +164,41 @@ func (p *EndorsementPool) GetEndorsers() []bls.PublicKey {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	endorsers := make([]bls.PublicKey, 0, len(p.items))
-	for _, it := range p.items {
-		if it != nil {
-			endorsers = append(endorsers, it.endorserPK)
-		}
+	out := make([]bls.PublicKey, len(p.h))
+	for i, it := range p.h {
+		out[i] = it.endorserPK
 	}
-	return endorsers
+	return out
 }
 
 func (p *EndorsementPool) Len() int {
 	p.mu.Lock()
 	defer p.mu.Unlock()
-	return len(p.items)
+	return len(p.h)
 }
 
-// CleanAll safely resets the pool.
 func (p *EndorsementPool) CleanAll() {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
 	p.byKey = make(map[key]*heapItemEndorsement)
-	p.items = nil
+	p.h = nil
 	p.conflicts = nil
 }
 
-// Verify validates all endorsements in the pool by aggregating BLS signatures.
-// Verify validates all endorsements in the pool by aggregating BLS signatures.
 func (p *EndorsementPool) Verify() (bool, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	n := len(p.items)
+	n := len(p.h)
 	if n == 0 {
-		return false, errors.New("failed to verify endorsements: the endorsement pool is empty")
+		return false, errors.New("failed to verify endorsements: pool is empty")
 	}
 
 	sigs := make([]bls.Signature, 0, n)
 	pks := make([]bls.PublicKey, 0, n)
 
-	for _, it := range p.items {
+	for _, it := range p.h {
 		var sig bls.Signature
 		if err := sig.UnmarshalJSON(it.eb.Signature); err != nil {
 			return false, fmt.Errorf("invalid signature at endorser index %d: %w",
@@ -175,11 +208,10 @@ func (p *EndorsementPool) Verify() (bool, error) {
 		pks = append(pks, it.endorserPK)
 	}
 
-	msg, err := p.items[0].eb.EndorsementMessage() // all endorsements use the same message
+	msg, err := p.h[0].eb.EndorsementMessage()
 	if err != nil {
 		return false, err
 	}
-
 	agg, err := bls.AggregateSignatures(sigs)
 	if err != nil {
 		return false, err
@@ -187,7 +219,6 @@ func (p *EndorsementPool) Verify() (bool, error) {
 	return bls.VerifyAggregate(pks, msg, agg), nil
 }
 
-// ConflictEndorsements returns all endorsements that were detected as duplicates.
 func (p *EndorsementPool) ConflictEndorsements() []proto.EndorseBlock {
 	p.mu.Lock()
 	defer p.mu.Unlock()
