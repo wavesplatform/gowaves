@@ -405,6 +405,8 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 		out = &UpdateAssetInfoWithProofs{}
 	case EthereumMetamaskTransaction: // 18
 		out = &EthereumTransaction{}
+	case CommitToGenerationTransaction: // 19
+		out = &CommitToGenerationWithProofs{}
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)

@@ -113,7 +113,7 @@ func guessTransactionInfoType(t *proto.TransactionTypeVersion) (TransactionInfo,
 		out = &UpdateAssetInfoTransactionInfo{}
 	case proto.EthereumMetamaskTransaction: // 18
 		out = &EthereumTransactionInfo{}
-	case proto.CommitToGenerationTransaction: // 20
+	case proto.CommitToGenerationTransaction: // 19
 		out = &CommitToGenerationTransactionInfo{}
 	}
 	if out == nil {

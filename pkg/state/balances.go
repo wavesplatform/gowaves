@@ -331,16 +331,16 @@ func (s *balances) generateZeroLeaseBalanceSnapshotsForAllLeases() ([]proto.Leas
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
 		var r wavesBalanceRecord
-		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return nil, err
+		if umErr := r.unmarshalBinary(recordBytes); umErr != nil {
+			return nil, umErr
 		}
 		if r.LeaseIn == 0 && r.LeaseOut == 0 {
 			// Empty lease balance, no need to reset.
 			continue
 		}
 		var k wavesBalanceKey
-		if err := k.unmarshal(key); err != nil {
-			return nil, err
+		if umErr := k.unmarshal(key); umErr != nil {
+			return nil, umErr
 		}
 		addr, waErr := k.address.ToWavesAddress(s.sets.AddressSchemeCharacter)
 		if waErr != nil {
@@ -422,12 +422,12 @@ func (s *balances) generateCorrectingLeaseBalanceSnapshotsForInvalidLeaseIns(
 		key := keyvalue.SafeKey(iter)
 		recordBytes := keyvalue.SafeValue(iter)
 		var r wavesBalanceRecord
-		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return nil, err
+		if umErr := r.unmarshalBinary(recordBytes); umErr != nil {
+			return nil, umErr
 		}
 		var k wavesBalanceKey
-		if err := k.unmarshal(key); err != nil {
-			return nil, err
+		if umErr := k.unmarshal(key); umErr != nil {
+			return nil, umErr
 		}
 		correctLeaseIn := int64(0)
 		wavesAddress, waErr := k.address.ToWavesAddress(s.sets.AddressSchemeCharacter)
@@ -598,8 +598,8 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 	for iter.Next() {
 		recordBytes := keyvalue.SafeValue(iter)
 		var r wavesBalanceRecord
-		if err := r.unmarshalBinary(recordBytes); err != nil {
-			return 0, err
+		if umErr := r.unmarshalBinary(recordBytes); umErr != nil {
+			return 0, umErr
 		}
 		if r.Balance > 0 {
 			addressesNumber++
@@ -611,11 +611,11 @@ func (s *balances) wavesAddressesNumber() (uint64, error) {
 func minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, error) {
 	minBalance := uint64(math.MaxUint64)
 	for _, recordBytes := range records {
-		var record wavesBalanceRecord
-		if err := record.unmarshalBinary(recordBytes); err != nil {
+		var rec wavesBalanceRecord
+		if err := rec.unmarshalBinary(recordBytes); err != nil {
 			return 0, err
 		}
-		effectiveBal, err := record.effectiveBalanceUnchecked()
+		effectiveBal, err := rec.effectiveBalanceUnchecked()
 		if err != nil {
 			return 0, err
 		}
@@ -845,11 +845,11 @@ func (s *balances) newestWavesRecord(key []byte) (wavesBalanceRecord, error) {
 	} else if err != nil {
 		return wavesBalanceRecord{}, err
 	}
-	var record wavesBalanceRecord
-	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return wavesBalanceRecord{}, err
+	var rec wavesBalanceRecord
+	if umErr := rec.unmarshalBinary(recordBytes); umErr != nil {
+		return wavesBalanceRecord{}, umErr
 	}
-	return record, nil
+	return rec, nil
 }
 
 // newestWavesBalance returns newest waves balanceProfile.
@@ -870,11 +870,11 @@ func (s *balances) wavesRecord(key []byte) (wavesBalanceRecord, error) {
 	} else if err != nil {
 		return wavesBalanceRecord{}, err
 	}
-	var record wavesBalanceRecord
-	if err := record.unmarshalBinary(recordBytes); err != nil {
-		return wavesBalanceRecord{}, errors.Wrap(err, "failed to unmarshal data to %T")
+	var rec wavesBalanceRecord
+	if umErr := rec.unmarshalBinary(recordBytes); umErr != nil {
+		return wavesBalanceRecord{}, errors.Wrapf(umErr, "failed to unmarshal data to %T", rec)
 	}
-	return record, nil
+	return rec, nil
 }
 
 // wavesBalance returns stored waves balanceProfile.
@@ -964,13 +964,13 @@ func (s *balances) setWavesBalance(addr proto.AddressID, balance wavesValue, blo
 	key := wavesBalanceKey{address: addr}
 	keyBytes := key.bytes()
 	keyStr := string(keyBytes)
-	record := wavesBalanceRecord{balance.profile}
-	recordBytes, err := record.marshalBinary()
+	rec := wavesBalanceRecord{balance.profile}
+	recordBytes, err := rec.marshalBinary()
 	if err != nil {
 		return err
 	}
 	if s.calculateHashes {
-		shErr := s.calculateStateHashesWavesBalance(addr, balance, blockID, keyStr, record)
+		shErr := s.calculateStateHashesWavesBalance(addr, balance, blockID, keyStr, rec)
 		if shErr != nil {
 			return shErr
 		}
