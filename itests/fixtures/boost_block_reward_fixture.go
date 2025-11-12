@@ -13,6 +13,10 @@ func (suite *BoostBlockRewardSuite) BlockchainOpts() []config.BlockchainOption {
 			baseSettingsConfigFolder,
 			"boost_block_reward_fixture.json",
 		),
+		config.WithRewardSettingFromFile(
+			featureSettingsFolder,
+			baseSettingsConfigFolder,
+			"boost_block_reward_fixture.json"),
 		config.WithNoScalaMining(),
 		//config.WithNoGoMining(),
 	}
