@@ -434,6 +434,22 @@ func GetAliasFromString(suite *f.BaseSuite, alias string, chainID proto.Scheme) 
 	return newAlias
 }
 
+// GetStateHashAsJsonGo returns the state hash info at the given height as a json string.
+// If an error occurs while marshaling the state hash info, it will be logged and an empty string will be returned.
+func GetStateHashAsJsonGo(suite *f.BaseSuite, height uint64) string {
+	result, err := json.Marshal(suite.Clients.GoClient.HTTPClient.StateHash(suite.T(), height))
+	require.NoError(suite.T(), err, "Can't get state hash info as json")
+	return string(result)
+}
+
+// GetStateHashAsJsonScala returns the state hash info at the given height as a json string.
+// If an error occurs while marshaling the state hash info, it will be logged and an empty string will be returned.
+func GetStateHashAsJsonScala(suite *f.BaseSuite, height uint64) string {
+	result, err := json.Marshal(suite.Clients.ScalaClient.HTTPClient.StateHash(suite.T(), height))
+	require.NoError(suite.T(), err, "Can't get state hash info as json")
+	return string(result)
+}
+
 func GetAvailableBalanceInWavesGo(suite *f.BaseSuite, address proto.WavesAddress) int64 {
 	return suite.Clients.GoClient.GRPCClient.GetWavesBalance(suite.T(), address).GetAvailable()
 }
