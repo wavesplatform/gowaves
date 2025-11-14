@@ -43,10 +43,10 @@ func checkAndUpdateURL(s string) (string, error) {
 	return u.String(), nil
 }
 
-func loadStateHash(ctx context.Context, cl *client.Client, height uint64, tries int) (*proto.StateHash, error) {
+func loadStateHash(ctx context.Context, cl *client.Client, height uint64, tries int) (*proto.StateHashV1, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	var sh *proto.StateHash
+	var sh *proto.StateHashV1
 	var err error
 	for range tries {
 		sh, _, err = cl.Debug.StateHash(ctx, height)
@@ -61,7 +61,7 @@ type printer struct {
 	lock sync.Mutex
 }
 
-func (p *printer) printDifferentResults(height uint64, res map[proto.FieldsHashes]*nodesGroup) {
+func (p *printer) printDifferentResults(height uint64, res map[proto.FieldsHashesV1]*nodesGroup) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
@@ -76,7 +76,7 @@ func (p *printer) printDifferentResults(height uint64, res map[proto.FieldsHashe
 }
 
 type stateHashInfo struct {
-	hash *proto.StateHash
+	hash *proto.StateHashV1
 	node string
 }
 
@@ -120,14 +120,14 @@ func manageHeight(
 			results <- res
 		}(cl, node)
 	}
-	differentResults := make(map[proto.FieldsHashes]*nodesGroup)
+	differentResults := make(map[proto.FieldsHashesV1]*nodesGroup)
 	for range clients {
 		hr := <-results
 		if hr.err != nil {
 			cancel()
 			return hr.err
 		}
-		fh := hr.res.hash.FieldsHashes
+		fh := hr.res.hash.FieldsHashesV1
 		nodesGroup, ok := differentResults[fh]
 		if !ok {
 			differentResults[fh] = newNodesGroup(hr.res.node)

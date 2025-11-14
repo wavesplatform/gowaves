@@ -236,7 +236,7 @@ func (a *MockStateManager) ProvidesStateHashes() (bool, error) {
 	panic("not implemented")
 }
 
-func (a *MockStateManager) StateHashAtHeight(_ uint64) (*proto.StateHash, error) {
+func (a *MockStateManager) StateHashAtHeight(_ uint64) (*proto.StateHashV1, error) {
 	panic("not implemented")
 }
 

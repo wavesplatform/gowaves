@@ -1,11 +1,11 @@
 package proto
 
 import (
+	"bytes"
 	"encoding/hex"
 	"encoding/json"
 	"errors"
-	"fmt"
-	"hash"
+	"io"
 	"strconv"
 	"strings"
 
@@ -19,36 +19,36 @@ const (
 
 // FieldsHashesV1 is set of hashes fields for the legacy StateHashV1.
 type FieldsHashesV1 struct {
+	WavesBalanceHash  crypto.Digest
+	AssetBalanceHash  crypto.Digest
 	DataEntryHash     crypto.Digest
 	AccountScriptHash crypto.Digest
 	AssetScriptHash   crypto.Digest
+	LeaseBalanceHash  crypto.Digest
 	LeaseStatusHash   crypto.Digest
 	SponsorshipHash   crypto.Digest
 	AliasesHash       crypto.Digest
-	WavesBalanceHash  crypto.Digest
-	AssetBalanceHash  crypto.Digest
-	LeaseBalanceHash  crypto.Digest
 }
 
 func (s *FieldsHashesV1) Equal(other FieldsHashesV1) bool {
-	return s.DataEntryHash == other.DataEntryHash && s.AccountScriptHash == other.AccountScriptHash &&
-		s.AssetScriptHash == other.AssetScriptHash && s.LeaseStatusHash == other.LeaseStatusHash &&
-		s.SponsorshipHash == other.SponsorshipHash && s.AliasesHash == other.AliasesHash &&
-		s.WavesBalanceHash == other.WavesBalanceHash && s.AssetBalanceHash == other.AssetBalanceHash &&
-		s.LeaseBalanceHash == other.LeaseBalanceHash
+	return s.WavesBalanceHash == other.WavesBalanceHash && s.AssetBalanceHash == other.AssetBalanceHash &&
+		s.DataEntryHash == other.DataEntryHash && s.AccountScriptHash == other.AccountScriptHash &&
+		s.AssetScriptHash == other.AssetScriptHash && s.LeaseBalanceHash == other.LeaseBalanceHash &&
+		s.LeaseStatusHash == other.LeaseStatusHash && s.SponsorshipHash == other.SponsorshipHash &&
+		s.AliasesHash == other.AliasesHash
 }
 
 func (s FieldsHashesV1) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fieldsHashesJSV1{
+		WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
+		AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
 		DataEntryHash:     DigestWrapped(s.DataEntryHash),
 		AccountScriptHash: DigestWrapped(s.AccountScriptHash),
 		AssetScriptHash:   DigestWrapped(s.AssetScriptHash),
+		LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
 		LeaseStatusHash:   DigestWrapped(s.LeaseStatusHash),
 		SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
 		AliasesHash:       DigestWrapped(s.AliasesHash),
-		WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
-		AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
-		LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
 	})
 }
 
@@ -57,96 +57,102 @@ func (s *FieldsHashesV1) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &sh); err != nil {
 		return err
 	}
+	s.WavesBalanceHash = crypto.Digest(sh.WavesBalanceHash)
+	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
 	s.DataEntryHash = crypto.Digest(sh.DataEntryHash)
 	s.AccountScriptHash = crypto.Digest(sh.AccountScriptHash)
 	s.AssetScriptHash = crypto.Digest(sh.AssetScriptHash)
+	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
 	s.LeaseStatusHash = crypto.Digest(sh.LeaseStatusHash)
 	s.SponsorshipHash = crypto.Digest(sh.SponsorshipHash)
 	s.AliasesHash = crypto.Digest(sh.AliasesHash)
-	s.WavesBalanceHash = crypto.Digest(sh.WavesBalanceHash)
-	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
-	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
 	return nil
 }
 
-func (s *FieldsHashesV1) MarshalBinary() []byte {
-	res := make([]byte, crypto.DigestSize*legacyStateHashFieldsCountV1)
-	pos := 0
-	copy(res[pos:pos+crypto.DigestSize], s.DataEntryHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.AccountScriptHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.AssetScriptHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.LeaseStatusHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.SponsorshipHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.AliasesHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.WavesBalanceHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.AssetBalanceHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.LeaseBalanceHash[:])
-	return res
+//nolint:dupl // in sake of performance we allow code duplication here.
+func (s *FieldsHashesV1) WriteTo(w io.Writer) (int64, error) {
+	var (
+		n   int
+		cnt int64
+		err error
+	)
+	if n, err = w.Write(s.WavesBalanceHash[:]); err != nil {
+		return cnt + int64(n), err
+	}
+	cnt += int64(n)
+	if n, err = w.Write(s.AssetBalanceHash[:]); err != nil {
+		return cnt + int64(n), err
+	}
+	cnt += int64(n)
+	if n, err = w.Write(s.DataEntryHash[:]); err != nil {
+		return cnt + int64(n), err
+	}
+	cnt += int64(n)
+	if n, err = w.Write(s.AccountScriptHash[:]); err != nil {
+		return cnt + int64(n), err
+	}
+	cnt += int64(n)
+	if n, err = w.Write(s.AssetScriptHash[:]); err != nil {
+		return cnt + int64(n), err
+	}
+	cnt += int64(n)
+	if n, err = w.Write(s.LeaseBalanceHash[:]); err != nil {
+		return cnt + int64(n), err
+	}
+	cnt += int64(n)
+	if n, err = w.Write(s.LeaseStatusHash[:]); err != nil {
+		return cnt + int64(n), err
+	}
+	cnt += int64(n)
+	if n, err = w.Write(s.SponsorshipHash[:]); err != nil {
+		return cnt + int64(n), err
+	}
+	cnt += int64(n)
+	n, err = w.Write(s.AliasesHash[:])
+	return cnt + int64(n), err
 }
 
-func (s *FieldsHashesV1) UnmarshalBinary(data []byte) (int, error) {
-	expectedLen := crypto.DigestSize * legacyStateHashFieldsCountV1
-	if l := len(data); l < expectedLen {
-		return 0, fmt.Errorf("invalid data size %d less than expected %d bytes", l, expectedLen)
+//nolint:dupl // in sake of performance we allow code duplication here.
+func (s *FieldsHashesV1) ReadFrom(r io.Reader) (int64, error) {
+	var (
+		n   int
+		cnt int64
+		err error
+	)
+	if n, err = r.Read(s.WavesBalanceHash[:]); err != nil {
+		return cnt + int64(n), err
 	}
-	pos := 0
-	copy(s.DataEntryHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.AccountScriptHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.AssetScriptHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.LeaseStatusHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.SponsorshipHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.AliasesHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.WavesBalanceHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.AssetBalanceHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.LeaseBalanceHash[:], data[pos:pos+crypto.DigestSize])
-	return expectedLen, nil
-}
-
-func (s *FieldsHashesV1) HashFields(h hash.Hash) error {
-	if _, err := h.Write(s.WavesBalanceHash[:]); err != nil {
-		return err
+	cnt += int64(n)
+	if n, err = r.Read(s.AssetBalanceHash[:]); err != nil {
+		return cnt + int64(n), err
 	}
-	if _, err := h.Write(s.AssetBalanceHash[:]); err != nil {
-		return err
+	cnt += int64(n)
+	if n, err = r.Read(s.DataEntryHash[:]); err != nil {
+		return cnt + int64(n), err
 	}
-	if _, err := h.Write(s.DataEntryHash[:]); err != nil {
-		return err
+	cnt += int64(n)
+	if n, err = r.Read(s.AccountScriptHash[:]); err != nil {
+		return cnt + int64(n), err
 	}
-	if _, err := h.Write(s.AccountScriptHash[:]); err != nil {
-		return err
+	cnt += int64(n)
+	if n, err = r.Read(s.AssetScriptHash[:]); err != nil {
+		return cnt + int64(n), err
 	}
-	if _, err := h.Write(s.AssetScriptHash[:]); err != nil {
-		return err
+	cnt += int64(n)
+	if n, err = r.Read(s.LeaseBalanceHash[:]); err != nil {
+		return cnt + int64(n), err
 	}
-	if _, err := h.Write(s.LeaseBalanceHash[:]); err != nil {
-		return err
+	cnt += int64(n)
+	if n, err = r.Read(s.LeaseStatusHash[:]); err != nil {
+		return cnt + int64(n), err
 	}
-	if _, err := h.Write(s.LeaseStatusHash[:]); err != nil {
-		return err
+	cnt += int64(n)
+	if n, err = r.Read(s.SponsorshipHash[:]); err != nil {
+		return cnt + int64(n), err
 	}
-	if _, err := h.Write(s.SponsorshipHash[:]); err != nil {
-		return err
-	}
-	if _, err := h.Write(s.AliasesHash[:]); err != nil {
-		return err
-	}
-	return nil
+	cnt += int64(n)
+	n, err = r.Read(s.AliasesHash[:])
+	return cnt + int64(n), err
 }
 
 // FieldsHashesV2 is set of hashes fields for the legacy StateHashV2.
@@ -163,15 +169,15 @@ func (s *FieldsHashesV2) Equal(other FieldsHashesV2) bool {
 func (s FieldsHashesV2) MarshalJSON() ([]byte, error) {
 	return json.Marshal(fieldsHashesJSV2{
 		fieldsHashesJSV1: fieldsHashesJSV1{
+			WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
+			AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
 			DataEntryHash:     DigestWrapped(s.DataEntryHash),
 			AccountScriptHash: DigestWrapped(s.AccountScriptHash),
 			AssetScriptHash:   DigestWrapped(s.AssetScriptHash),
+			LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
 			LeaseStatusHash:   DigestWrapped(s.LeaseStatusHash),
 			SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
 			AliasesHash:       DigestWrapped(s.AliasesHash),
-			WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
-			AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
-			LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
 		},
 		GeneratorsHash: DigestWrapped(s.GeneratorsHash),
 	})
@@ -182,27 +188,26 @@ func (s *FieldsHashesV2) UnmarshalJSON(value []byte) error {
 	if err := json.Unmarshal(value, &sh); err != nil {
 		return err
 	}
+	s.WavesBalanceHash = crypto.Digest(sh.WavesBalanceHash)
+	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
 	s.DataEntryHash = crypto.Digest(sh.DataEntryHash)
 	s.AccountScriptHash = crypto.Digest(sh.AccountScriptHash)
 	s.AssetScriptHash = crypto.Digest(sh.AssetScriptHash)
+	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
 	s.LeaseStatusHash = crypto.Digest(sh.LeaseStatusHash)
 	s.SponsorshipHash = crypto.Digest(sh.SponsorshipHash)
 	s.AliasesHash = crypto.Digest(sh.AliasesHash)
-	s.WavesBalanceHash = crypto.Digest(sh.WavesBalanceHash)
-	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
-	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
 	s.GeneratorsHash = crypto.Digest(sh.GeneratorsHash)
 	return nil
 }
 
-func (s *FieldsHashesV2) HashFields(h hash.Hash) error {
-	if err := s.FieldsHashesV1.HashFields(h); err != nil {
-		return err
+func (s *FieldsHashesV2) WriteTo(w io.Writer) (int64, error) {
+	n, err := s.FieldsHashesV1.WriteTo(w)
+	if err != nil {
+		return n, err
 	}
-	if _, wErr := h.Write(s.GeneratorsHash[:]); wErr != nil {
-		return wErr
-	}
-	return nil
+	m, err := w.Write(s.GeneratorsHash[:])
+	return n + int64(m), err
 }
 
 // StateHashV1 is the legacy state hash structure used prior the activation of Deterministic Finality feature.
@@ -220,79 +225,41 @@ func (s *StateHashV1) GenerateSumHash(prevSumHash []byte) error {
 	if _, wErr := h.Write(prevSumHash); wErr != nil {
 		return wErr
 	}
-	if hErr := s.FieldsHashesV1.HashFields(h); hErr != nil {
-		return hErr
+	if _, wErr := s.WriteTo(h); wErr != nil {
+		return wErr
 	}
 	h.Sum(s.SumHash[:0])
 	return nil
 }
 
 func (s *StateHashV1) MarshalBinary() []byte {
-	idBytes := s.BlockID.Bytes()
-	res := make([]byte, 1+len(idBytes)+crypto.DigestSize*legacyStateHashFieldsCount)
-	res[0] = byte(len(idBytes))
-	pos := 1
-	copy(res[pos:pos+len(idBytes)], idBytes)
-	pos += len(idBytes)
-	copy(res[pos:pos+crypto.DigestSize], s.SumHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.DataEntryHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.AccountScriptHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.AssetScriptHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.LeaseStatusHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.SponsorshipHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.AliasesHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.WavesBalanceHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.AssetBalanceHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.LeaseBalanceHash[:])
-	pos += crypto.DigestSize
-	copy(res[pos:pos+crypto.DigestSize], s.GeneratorsHash[:])
-	return res
+	res := make([]byte, 0, 1+s.BlockID.Len()+crypto.DigestSize*(legacyStateHashFieldsCountV1+1))
+	buf := bytes.NewBuffer(res)
+	if _, err := SizedBlockID(s.BlockID).WriteTo(buf); err != nil {
+		// TODO: replace panic with error handling.
+		panic(err)
+	}
+	buf.Write(s.SumHash[:])
+	if _, err := s.WriteTo(buf); err != nil {
+		// TODO: replace panic with error handling.
+		panic(err)
+	}
+	return buf.Bytes()
 }
 
 func (s *StateHashV1) UnmarshalBinary(data []byte) error {
-	if len(data) < 1 {
-		return errors.New("invalid data size")
+	r := bytes.NewReader(data)
+	sid := SizedBlockID{}
+	if _, rErr := sid.ReadFrom(r); rErr != nil {
+		return rErr
 	}
-	idBytesLen := int(data[0])
-	correctSize := 1 + idBytesLen + crypto.DigestSize*legacyStateHashFieldsCount
-	if len(data) != correctSize {
-		return errors.New("invalid data size")
+	s.BlockID = BlockID(sid)
+	if _, rErr := r.Read(s.SumHash[:]); rErr != nil {
+		return rErr
 	}
-	var err error
-	pos := 1
-	s.BlockID, err = NewBlockIDFromBytes(data[pos : pos+idBytesLen])
-	if err != nil {
-		return err
+	if _, rErr := s.ReadFrom(r); rErr != nil {
+		return rErr
 	}
-	pos += idBytesLen
-	copy(s.SumHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.DataEntryHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.AccountScriptHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.AssetScriptHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.LeaseStatusHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.SponsorshipHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.AliasesHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.WavesBalanceHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.AssetBalanceHash[:], data[pos:pos+crypto.DigestSize])
-	pos += crypto.DigestSize
-	copy(s.LeaseBalanceHash[:], data[pos:pos+crypto.DigestSize])
 	return nil
 }
 
@@ -324,15 +291,15 @@ func (s *StateHashV1) toStateHashJS() stateHashJSV1 {
 		BlockID: s.BlockID,
 		SumHash: DigestWrapped(s.SumHash),
 		fieldsHashesJSV1: fieldsHashesJSV1{
+			WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
+			AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
 			DataEntryHash:     DigestWrapped(s.DataEntryHash),
 			AccountScriptHash: DigestWrapped(s.AccountScriptHash),
 			AssetScriptHash:   DigestWrapped(s.AssetScriptHash),
+			LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
 			LeaseStatusHash:   DigestWrapped(s.LeaseStatusHash),
 			SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
 			AliasesHash:       DigestWrapped(s.AliasesHash),
-			WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
-			AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
-			LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
 		},
 	}
 }
@@ -352,35 +319,7 @@ func (s *StateHashV2) GenerateSumHash(prevSumHash []byte) error {
 	if _, wErr := h.Write(prevSumHash); wErr != nil {
 		return wErr
 	}
-	s.FieldsHashesV2.HashFields(h)
-	if _, wErr := h.Write(s.WavesBalanceHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.AssetBalanceHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.DataEntryHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.AccountScriptHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.AssetScriptHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.LeaseBalanceHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.LeaseStatusHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.SponsorshipHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.AliasesHash[:]); wErr != nil {
-		return wErr
-	}
-	if _, wErr := h.Write(s.GeneratorsHash[:]); wErr != nil {
+	if _, wErr := s.WriteTo(h); wErr != nil {
 		return wErr
 	}
 	h.Sum(s.SumHash[:0])
@@ -393,15 +332,15 @@ func (s *StateHashV2) MarshalJSON() ([]byte, error) {
 		SumHash: DigestWrapped(s.SumHash),
 		fieldsHashesJSV2: fieldsHashesJSV2{
 			fieldsHashesJSV1: fieldsHashesJSV1{
+				WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
+				AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
 				DataEntryHash:     DigestWrapped(s.DataEntryHash),
 				AccountScriptHash: DigestWrapped(s.AccountScriptHash),
 				AssetScriptHash:   DigestWrapped(s.AssetScriptHash),
+				LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
 				LeaseStatusHash:   DigestWrapped(s.LeaseStatusHash),
 				SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
 				AliasesHash:       DigestWrapped(s.AliasesHash),
-				WavesBalanceHash:  DigestWrapped(s.WavesBalanceHash),
-				AssetBalanceHash:  DigestWrapped(s.AssetBalanceHash),
-				LeaseBalanceHash:  DigestWrapped(s.LeaseBalanceHash),
 			},
 			GeneratorsHash: DigestWrapped(s.GeneratorsHash),
 		},
@@ -415,24 +354,24 @@ type StateHashDebugV1 struct {
 	SnapshotHash crypto.Digest `json:"snapshotHash"`
 }
 
-func NewStateHashJSDebug(s StateHash, h uint64, v string, snapshotStateHash crypto.Digest) StateHashDebug {
-	return StateHashDebug{s.toStateHashJS(), h, v, snapshotStateHash}
+func NewStateHashJSDebugV1(s StateHashV1, h uint64, v string, snapshotStateHash crypto.Digest) StateHashDebugV1 {
+	return StateHashDebugV1{stateHashJSV1: s.toStateHashJS(), Height: h, Version: v, SnapshotHash: snapshotStateHash}
 }
 
-func (s StateHashDebug) GetStateHash() *StateHash {
-	sh := &StateHash{
+func (s StateHashDebugV1) GetStateHash() *StateHashV1 {
+	sh := &StateHashV1{
 		BlockID: s.BlockID,
 		SumHash: crypto.Digest(s.SumHash),
-		FieldsHashes: FieldsHashes{
-			crypto.Digest(s.DataEntryHash),
-			crypto.Digest(s.AccountScriptHash),
-			crypto.Digest(s.AssetScriptHash),
-			crypto.Digest(s.LeaseStatusHash),
-			crypto.Digest(s.SponsorshipHash),
-			crypto.Digest(s.AliasesHash),
-			crypto.Digest(s.WavesBalanceHash),
-			crypto.Digest(s.AssetBalanceHash),
-			crypto.Digest(s.LeaseBalanceHash),
+		FieldsHashesV1: FieldsHashesV1{
+			WavesBalanceHash:  crypto.Digest(s.WavesBalanceHash),
+			AssetBalanceHash:  crypto.Digest(s.AssetBalanceHash),
+			DataEntryHash:     crypto.Digest(s.DataEntryHash),
+			AccountScriptHash: crypto.Digest(s.AccountScriptHash),
+			AssetScriptHash:   crypto.Digest(s.AssetBalanceHash),
+			LeaseBalanceHash:  crypto.Digest(s.LeaseBalanceHash),
+			LeaseStatusHash:   crypto.Digest(s.LeaseStatusHash),
+			SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
+			AliasesHash:       crypto.Digest(s.AliasesHash),
 		},
 	}
 	return sh
@@ -453,7 +392,7 @@ func (d DigestWrapped) MarshalJSON() ([]byte, error) {
 
 func (d *DigestWrapped) UnmarshalJSON(value []byte) error {
 	s := string(value)
-	if s == "null" {
+	if s == jsonNull {
 		return nil
 	}
 	s, err := strconv.Unquote(s)
@@ -472,15 +411,15 @@ func (d *DigestWrapped) UnmarshalJSON(value []byte) error {
 }
 
 type fieldsHashesJSV1 struct {
+	WavesBalanceHash  DigestWrapped `json:"wavesBalanceHash"`
+	AssetBalanceHash  DigestWrapped `json:"assetBalanceHash"`
 	DataEntryHash     DigestWrapped `json:"dataEntryHash"`
 	AccountScriptHash DigestWrapped `json:"accountScriptHash"`
 	AssetScriptHash   DigestWrapped `json:"assetScriptHash"`
+	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`
 	LeaseStatusHash   DigestWrapped `json:"leaseStatusHash"`
 	SponsorshipHash   DigestWrapped `json:"sponsorshipHash"`
 	AliasesHash       DigestWrapped `json:"aliasHash"`
-	WavesBalanceHash  DigestWrapped `json:"wavesBalanceHash"`
-	AssetBalanceHash  DigestWrapped `json:"assetBalanceHash"`
-	LeaseBalanceHash  DigestWrapped `json:"leaseBalanceHash"`
 }
 
 type fieldsHashesJSV2 struct {
@@ -492,4 +431,49 @@ type stateHashJSV1 struct {
 	BlockID BlockID       `json:"blockId"`
 	SumHash DigestWrapped `json:"stateHash"`
 	fieldsHashesJSV1
+}
+
+type stateHashJSV2 struct {
+	BlockID BlockID       `json:"blockId"`
+	SumHash DigestWrapped `json:"stateHash"`
+	fieldsHashesJSV2
+}
+
+type SizedBlockID BlockID
+
+func (id SizedBlockID) WriteTo(w io.Writer) (int64, error) {
+	oid := BlockID(id)
+	l := oid.Len()
+	if l == 0 {
+		return 0, errors.New("invalid BlockID")
+	}
+	n, err := w.Write([]byte{byte(l)})
+	if err != nil {
+		return int64(n), err
+	}
+	m, err := oid.WriteTo(w)
+	return int64(n) + m, err
+}
+
+func (id *SizedBlockID) ReadFrom(r io.Reader) (int64, error) {
+	l := make([]byte, 1)
+	n, err := r.Read(l)
+	if err != nil {
+		return int64(n), err
+	}
+	var oid BlockID
+	switch l[0] {
+	case crypto.DigestSize:
+		oid = NewBlockIDFromDigest(crypto.Digest{})
+	case crypto.SignatureSize:
+		oid = NewBlockIDFromSignature(crypto.Signature{})
+	default:
+		return int64(n), errors.New("invalid BlockID size")
+	}
+	m, err := oid.ReadFrom(r)
+	if err != nil {
+		return int64(n) + m, err
+	}
+	*id = SizedBlockID(oid)
+	return int64(n) + m, nil
 }
