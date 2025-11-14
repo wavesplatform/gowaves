@@ -109,10 +109,12 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	}, nil
 }
 
-func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
-	sh := &proto.StateHash{
+func (s *blockchainEntitiesStorage) putStateHash(
+	prevHash []byte, height uint64, blockID proto.BlockID,
+) (*proto.StateHashV1, error) {
+	sh := &proto.StateHashV1{
 		BlockID: blockID,
-		FieldsHashes: proto.FieldsHashes{
+		FieldsHashesV1: proto.FieldsHashesV1{
 			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
 			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
 			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
@@ -3117,7 +3119,7 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	return provides, nil
 }
 
-func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHashV1, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
 		return nil, wrapErr(stateerr.Other, err)

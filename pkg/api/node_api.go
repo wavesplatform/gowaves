@@ -809,7 +809,7 @@ func (a *NodeApi) WavesRegularBalanceByAddress(w http.ResponseWriter, r *http.Re
 	return nil
 }
 
-func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
+func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebugV1, error) {
 	stateHash, err := a.state.LegacyStateHashAtHeight(height)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get state hash at height %d", height)
@@ -819,7 +819,7 @@ func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, er
 		return nil, errors.Wrapf(err, "failed to get snapshot state hash at height %d", height)
 	}
 	version := a.app.version().Version
-	stateHashDebug := proto.NewStateHashJSDebug(*stateHash, height, version, snapshotStateHash)
+	stateHashDebug := proto.NewStateHashJSDebugV1(*stateHash, height, version, snapshotStateHash)
 	return &stateHashDebug, nil
 }
 

@@ -614,10 +614,10 @@ func (mr *MockStateInfoMockRecorder) IsAssetExist(assetID interface{}) *gomock.C
 }
 
 // LegacyStateHashAtHeight mocks base method.
-func (m *MockStateInfo) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+func (m *MockStateInfo) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHashV1, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LegacyStateHashAtHeight", height)
-	ret0, _ := ret[0].(*proto.StateHash)
+	ret0, _ := ret[0].(*proto.StateHashV1)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -2062,10 +2062,10 @@ func (mr *MockStateMockRecorder) IsAssetExist(assetID interface{}) *gomock.Call 
 }
 
 // LegacyStateHashAtHeight mocks base method.
-func (m *MockState) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+func (m *MockState) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHashV1, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LegacyStateHashAtHeight", height)
-	ret0, _ := ret[0].(*proto.StateHash)
+	ret0, _ := ret[0].(*proto.StateHashV1)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
