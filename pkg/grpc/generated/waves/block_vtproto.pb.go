@@ -2253,7 +2253,7 @@ func (m *EndorseBlock) UnmarshalVT(dAtA []byte) error {
 			}
 		case 2:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field FinalizedBlockID", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field FinalizedBlockId", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
@@ -2306,7 +2306,7 @@ func (m *EndorseBlock) UnmarshalVT(dAtA []byte) error {
 			}
 		case 4:
 			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field EndorsedBlockID", wireType)
+				return fmt.Errorf("proto: wrong wireType = %d for field EndorsedBlockId", wireType)
 			}
 			var byteLen int
 			for shift := uint(0); ; shift += 7 {
