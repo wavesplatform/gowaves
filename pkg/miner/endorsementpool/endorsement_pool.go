@@ -139,6 +139,7 @@ func (p *EndorsementPool) Finalize() (proto.FinalizationVoting, error) {
 
 	signatures := make([]bls.Signature, 0, len(p.h))
 	endorsersIndexes := make([]int32, 0, len(p.h))
+	var aggregatedSignature []byte
 
 	for _, it := range p.h {
 		sig, err := bls.NewSignatureFromBytes(it.eb.Signature)
@@ -148,9 +149,12 @@ func (p *EndorsementPool) Finalize() (proto.FinalizationVoting, error) {
 		signatures = append(signatures, sig)
 		endorsersIndexes = append(endorsersIndexes, it.eb.EndorserIndex)
 	}
-	aggregatedSignature, err := bls.AggregateSignatures(signatures)
-	if err != nil {
-		return proto.FinalizationVoting{}, err
+	if len(signatures) == 0 {
+		var err error
+		aggregatedSignature, err = bls.AggregateSignatures(signatures)
+		if err != nil {
+			return proto.FinalizationVoting{}, err
+		}
 	}
 
 	return proto.FinalizationVoting{
