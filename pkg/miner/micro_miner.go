@@ -41,7 +41,7 @@ func (a *MicroMiner) Micro(
 	minedBlock *proto.Block,
 	rest proto.MiningLimits,
 	keyPair proto.KeyPair,
-	endorsements []proto.EndorseBlock,
+	partialFinalization proto.FinalizationVoting,
 ) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
 	if minedBlock == nil {
 		return nil, nil, rest, errors.New("no block provided")
@@ -92,7 +92,7 @@ func (a *MicroMiner) Micro(
 		return nil, nil, rest, err
 	}
 
-	micro, err := a.createMicroBlock(newBlock, keyPair, transactions, endorsements, sh, txCount)
+	micro, err := a.createMicroBlock(newBlock, keyPair, transactions, partialFinalization, sh, txCount)
 	if err != nil {
 		return nil, nil, rest, err
 	}
@@ -289,7 +289,7 @@ func (a *MicroMiner) createMicroBlock(
 	newBlock *proto.Block,
 	keyPair proto.KeyPair,
 	transactions []proto.Transaction,
-	endorsements []proto.EndorseBlock,
+	partialFinalization proto.FinalizationVoting,
 	sh *crypto.Digest,
 	txCount int,
 ) (proto.MicroBlock, error) {
@@ -302,7 +302,7 @@ func (a *MicroMiner) createMicroBlock(
 		TotalResBlockSigField: newBlock.BlockSignature,
 		TotalBlockID:          newBlock.BlockID(),
 		StateHash:             sh,
-		Endorsements:          endorsements,
+		PartialFinalization:   partialFinalization,
 	}
 	if err := micro.Sign(a.scheme, keyPair.Secret); err != nil {
 		return proto.MicroBlock{}, err

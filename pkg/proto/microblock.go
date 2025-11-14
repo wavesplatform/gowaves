@@ -32,7 +32,7 @@ type MicroBlock struct {
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
 	StateHash             *crypto.Digest // is nil before protocol version 1.5
-	Endorsements          []EndorseBlock
+	PartialFinalization   FinalizationVoting
 }
 
 type MicroblockTotalSig = crypto.Signature
@@ -227,6 +227,13 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 		stateHash = sh.Bytes()
 	}
 	s.Bytes(stateHash)
+	if proto { // Write finalization only for protobuf micro blocks.
+		finalizationBytes, err := a.PartialFinalization.ToProtobuf().MarshalVTStrict()
+		if err != nil {
+			return 0, err
+		}
+		s.Bytes(finalizationBytes)
+	}
 	return s.N(), nil
 }
 

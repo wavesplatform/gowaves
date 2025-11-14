@@ -402,8 +402,11 @@ func (a *NGState) mineMicro(
 	minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
 
-	endorsements := a.baseInfo.endorsements.GetAll()
-	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, endorsements)
+	partialFinalization, err := a.baseInfo.endorsements.Finalize()
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrap(err, "failed to finalize endorsements for microblock"))
+	}
+	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro
 		a.baseInfo.logger.Debug(

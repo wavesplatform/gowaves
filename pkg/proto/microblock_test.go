@@ -3,6 +3,7 @@ package proto
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -173,4 +174,83 @@ func TestMicroBlockV5VerifySignatureWithFilledStateHash(t *testing.T) {
 	ok, err := micro.VerifySignature(StageNetScheme)
 	require.NoError(t, err)
 	assert.True(t, ok)
+}
+
+func TestMicroBlockSignatureDebug(t *testing.T) {
+	txBytes := []byte{0, 0, 0, 152, 4, 76, 252, 177, 12, 123, 169, 56, 92, 8, 85, 82, 118, 1, 166, 228, 57, 52, 84, 161, 19, 144, 247, 9, 93, 114, 88, 198, 123, 123, 210, 188, 95, 177, 170, 229, 15, 176, 248, 128, 112, 121, 201, 53, 221, 15, 55, 231, 118, 113, 192, 201, 113, 251, 55, 6, 95, 207, 47, 24, 71, 240, 162, 206, 6, 4, 236, 89, 77, 54, 8, 236, 240, 30, 10, 87, 121, 139, 23, 7, 114, 121, 45, 177, 69, 50, 132, 55, 119, 224, 172, 245, 68, 95, 44, 28, 243, 4, 0, 0, 0, 0, 1, 107, 137, 11, 41, 201, 0, 0, 0, 10, 247, 96, 247, 0, 0, 0, 0, 0, 0, 1, 134, 160, 1, 87, 126, 90, 125, 49, 243, 210, 18, 83, 195, 130, 223, 30, 209, 178, 95, 17, 186, 108, 63, 172, 209, 224, 228, 138, 0, 0}
+	txs, err := NewTransactionsFromBytes(txBytes, 1, TestNetScheme)
+	require.NoError(t, err)
+
+	// Generate deterministic random keypair
+	seed := make([]byte, 32)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+	fmt.Println("=== Key Info ===")
+	fmt.Printf("SecretKey (Base64): %s\n", base64.StdEncoding.EncodeToString(sk.Bytes()))
+	fmt.Printf("PublicKey (Base64): %s\n", base64.StdEncoding.EncodeToString(pk.Bytes()))
+	fmt.Println("=================")
+
+	refSig := crypto.MustSignatureFromBase58("37ex9gonRZtUddDHgSzSes5Ds9UeQyS74DyAXtGFrDpJnEg7sjGdi2ncaV4rVpZnLboQmid3whcbZUWS49FV3ZCs")
+	ref := NewBlockIDFromSignature(refSig)
+
+	endorsedSig := crypto.MustSignatureFromBase58("5GszB5vY2KTxLvYq4zAFQvRkJxv5Rt5BcuTGHZrxgSLTzPtni7eY5k1DN1mJ7mY4ixP5fiHD9z1AfM99AA8yxhjg")
+	endorsedID := NewBlockIDFromSignature(endorsedSig)
+
+	aggSig := crypto.MustSignatureFromBase58("3F7NZn3XJcS72xwDqZbUvC1Q4pNyxMEGZ7QyqZB7qL3JqiQFQ7U8pC6JrXz2qkz9vM1L2o7L1gkK2E8uJ6vQJgqM").Bytes()
+	conflictSig := crypto.MustSignatureFromBase58("56Un9HE6UnG2ut3srow7tGrQ9pMKyKqhbpJBjwJ7oV2rpr58iaPYG5G3QmZqVo169GN4bNHNHwhDykgPbQknD3Nv").Bytes()
+
+	finalization := FinalizationVoting{
+		EndorserIndexes:                []int32{1, 2, 3},
+		AggregatedEndorsementSignature: aggSig,
+		ConflictEndorsements: []EndorseBlock{
+			{
+				EndorserIndex:        1,
+				FinalizedBlockID:     ref,
+				FinalizedBlockHeight: 12345,
+				EndorsedBlockID:      endorsedID,
+				Signature:            conflictSig,
+			},
+		},
+	}
+
+	microBlock := MicroBlock{
+		VersionField:          5,
+		Reference:             ref,
+		TotalResBlockSigField: crypto.MustSignatureFromBase58("3ta68P5LdLHWKuKcDvASsjcCMEQsm1ySrpxYZwqmzCHiAWHgrYJE1ZmaTsh3ytPqY73545EUPDaGfVdrguTqVTHg"),
+		SenderPK:              pk,
+		Transactions:          txs,
+		TransactionCount:      1,
+		PartialFinalization:   finalization,
+	}
+
+	// Serialize without signature
+	buf := new(bytes.Buffer)
+	_, err = microBlock.WriteWithoutSignature(TestNetScheme, buf)
+	require.NoError(t, err)
+
+	fmt.Println("=== MicroBlock Fields (Base64) ===")
+	fmt.Printf("Version: %d\n", microBlock.VersionField)
+	fmt.Printf("Reference: %s\n", base64.StdEncoding.EncodeToString(microBlock.Reference.Bytes()))
+	fmt.Printf("TotalResBlockSigField: %s\n", base64.StdEncoding.EncodeToString(microBlock.TotalResBlockSigField.Bytes()))
+	fmt.Printf("SenderPK: %s\n", base64.StdEncoding.EncodeToString(microBlock.SenderPK.Bytes()))
+
+	if microBlock.StateHash != nil {
+		fmt.Printf("StateHash: %s\n", base64.StdEncoding.EncodeToString(microBlock.StateHash.Bytes()))
+	} else {
+		fmt.Println("StateHash: nil")
+	}
+
+	finalizationBytes, err := microBlock.PartialFinalization.ToProtobuf().MarshalVTStrict()
+	require.NoError(t, err)
+	fmt.Printf("partialFinalization: %s\n", base64.StdEncoding.EncodeToString(finalizationBytes))
+
+	fmt.Printf("Bytes without signature: %s\n", base64.StdEncoding.EncodeToString(buf.Bytes()))
+
+	// Sign
+	err = microBlock.Sign(TestNetScheme, sk)
+	require.NoError(t, err)
+
+	fmt.Println("\n=== Signature (Base64) ===")
+	fmt.Println(base64.StdEncoding.EncodeToString(microBlock.Signature.Bytes()))
+
 }
