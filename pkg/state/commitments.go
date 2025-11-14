@@ -5,7 +5,6 @@ import (
 	"fmt"
 
 	"github.com/fxamacker/cbor/v2"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -145,4 +144,24 @@ func (c *commitments) newestSize(periodStart uint32) (int, error) {
 		return 0, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
 	}
 	return len(rec.Commitments), nil
+}
+
+func (c *commitments) generators(periodStart uint32) ([]crypto.PublicKey, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve commitment newest record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	generators := make([]crypto.PublicKey, 0, len(rec.Commitments))
+	for _, cm := range rec.Commitments {
+		generators = append(generators, cm.GeneratorPK)
+	}
+	return generators, nil
 }
