@@ -41,7 +41,7 @@ To get more information about differences between chains use `--verbose` flag. I
 
 ## Result codes
 
-* Result code `0` - Everything is OK, the node is on the same fork as the reference nodes or on the very short fork of length less then 10 blocks that probably will be resolved automatically soon. 
+* Result code `0` - Everything is OK, the node is on the same fork as the reference nodes or on the very short fork of length less than 10 blocks that probably will be resolved automatically soon. 
 * Result code `1` - The node is on fork, please, read the error messages for the instructions of how to handle with the situation.
 * Result code `2` - The code means that some of command line parameters were incorrect.
 * Result code `69` - Some of the nodes are unavailable of could not be reached by network.

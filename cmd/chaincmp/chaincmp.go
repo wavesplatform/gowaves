@@ -167,7 +167,7 @@ func run() error {
 			slog.Warn(
 				"The fork is short and possibly the node will rollback and switch on the correct fork automatically")
 			slog.Warn(
-				"But if you want to rollback manually, refer the documentation at " +
+				"But if you want to rollback manually, refer to the documentation at " +
 					"https://docs.wavesplatform.com/en/waves-full-node/how-to-rollback-a-node.html")
 			return errFork
 		case fl < 1980:
@@ -179,7 +179,7 @@ func run() error {
 			slog.Warn(
 				"Rollback of node is not an option, the fork is too long, consider restarting the node from scratch!",
 				"node", node)
-			slog.Warn("Please, refer the documentation at " +
+			slog.Warn("Please, refer to the documentation at " +
 				"https://docs.wavesplatform.com/en/waves-full-node/options-for-getting-actual-blockchain.html")
 			return errFork
 		}
