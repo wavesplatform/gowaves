@@ -401,10 +401,21 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 func (a *NGState) mineMicro(
 	minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
-
-	partialFinalization, err := a.baseInfo.endorsements.Finalize()
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
+	finalityActivated, err := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
 	if err != nil {
-		return a, nil, a.Errorf(errors.Wrap(err, "failed to finalize endorsements for microblock"))
+		return a, nil, a.Errorf(err)
+	}
+	var partialFinalization *proto.FinalizationVoting
+	if finalityActivated {
+		fin, finErr := a.baseInfo.endorsements.Finalize()
+		if finErr != nil {
+			return a, nil, a.Errorf(errors.Wrap(finErr, "failed to finalize endorsements for microblock"))
+		}
+		partialFinalization = &fin
 	}
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization)
 	switch {

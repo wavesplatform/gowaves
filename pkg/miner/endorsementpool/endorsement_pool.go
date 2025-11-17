@@ -145,7 +145,7 @@ func (p *EndorsementPool) Finalize() (proto.FinalizationVoting, error) {
 		signatures = append(signatures, it.eb.Signature)
 		endorsersIndexes = append(endorsersIndexes, it.eb.EndorserIndex)
 	}
-	if len(signatures) == 0 {
+	if len(signatures) != 0 {
 		aggregatedSignatureBytes, err := bls.AggregateSignatures(signatures)
 		if err != nil {
 			return proto.FinalizationVoting{}, err
