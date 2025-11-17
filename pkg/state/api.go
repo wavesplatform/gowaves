@@ -123,7 +123,7 @@ type StateInfo interface {
 	ProvidesStateHashes() (bool, error)
 
 	// State hashes.
-	LegacyStateHashAtHeight(height proto.Height) (*proto.StateHashV1, error)
+	LegacyStateHashAtHeight(height proto.Height) (proto.StateHash, error)
 	SnapshotStateHashAtHeight(height proto.Height) (crypto.Digest, error)
 
 	// Map on readable state. Way to apply multiple operations under same lock.

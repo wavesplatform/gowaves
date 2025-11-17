@@ -17,6 +17,11 @@ const (
 	legacyStateHashFieldsCountV2 = 10
 )
 
+type StateHash interface {
+	json.Marshaler
+	json.Unmarshaler
+}
+
 // FieldsHashesV1 is set of hashes fields for the legacy StateHashV1.
 type FieldsHashesV1 struct {
 	WavesBalanceHash  crypto.Digest
@@ -327,7 +332,11 @@ func (s *StateHashV2) GenerateSumHash(prevSumHash []byte) error {
 }
 
 func (s *StateHashV2) MarshalJSON() ([]byte, error) {
-	return json.Marshal(stateHashJSV2{
+	return json.Marshal(s.toStateHashJS())
+}
+
+func (s *StateHashV2) toStateHashJS() stateHashJSV2 {
+	return stateHashJSV2{
 		BlockID: s.BlockID,
 		SumHash: DigestWrapped(s.SumHash),
 		fieldsHashesJSV2: fieldsHashesJSV2{
@@ -344,7 +353,14 @@ func (s *StateHashV2) MarshalJSON() ([]byte, error) {
 			},
 			GeneratorsHash: DigestWrapped(s.GeneratorsHash),
 		},
-	})
+	}
+}
+
+type StateHashDebug interface {
+	GetBlockID() BlockID
+	GetSumHash() crypto.Digest
+	GetSnapshotHash() crypto.Digest
+	GetStateHash() StateHash
 }
 
 type StateHashDebugV1 struct {
@@ -358,7 +374,19 @@ func NewStateHashJSDebugV1(s StateHashV1, h uint64, v string, snapshotStateHash 
 	return StateHashDebugV1{stateHashJSV1: s.toStateHashJS(), Height: h, Version: v, SnapshotHash: snapshotStateHash}
 }
 
-func (s StateHashDebugV1) GetStateHash() *StateHashV1 {
+func (s StateHashDebugV1) GetBlockID() BlockID {
+	return s.BlockID
+}
+
+func (s StateHashDebugV1) GetSumHash() crypto.Digest {
+	return crypto.Digest(s.SumHash)
+}
+
+func (s StateHashDebugV1) GetSnapshotHash() crypto.Digest {
+	return s.SnapshotHash
+}
+
+func (s StateHashDebugV1) GetStateHash() StateHash {
 	sh := &StateHashV1{
 		BlockID: s.BlockID,
 		SumHash: crypto.Digest(s.SumHash),
@@ -372,6 +400,60 @@ func (s StateHashDebugV1) GetStateHash() *StateHashV1 {
 			LeaseStatusHash:   crypto.Digest(s.LeaseStatusHash),
 			SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
 			AliasesHash:       crypto.Digest(s.AliasesHash),
+		},
+	}
+	return sh
+}
+
+type StateHashDebugV2 struct {
+	stateHashJSV2
+	Height       uint64        `json:"height,omitempty"`
+	Version      string        `json:"version,omitempty"`
+	SnapshotHash crypto.Digest `json:"snapshotHash"`
+	BaseTarget   uint64        `json:"baseTarget,omitempty"`
+}
+
+func NewStateHashJSDebugV2(
+	s StateHashV2, h uint64, v string, snapshotStateHash crypto.Digest, baseTarget uint64,
+) StateHashDebugV2 {
+	return StateHashDebugV2{
+		stateHashJSV2: s.toStateHashJS(),
+		Height:        h,
+		Version:       v,
+		SnapshotHash:  snapshotStateHash,
+		BaseTarget:    baseTarget,
+	}
+}
+
+func (s StateHashDebugV2) GetBlockID() BlockID {
+	return s.BlockID
+}
+
+func (s StateHashDebugV2) GetSumHash() crypto.Digest {
+	return crypto.Digest(s.SumHash)
+}
+
+func (s StateHashDebugV2) GetSnapshotHash() crypto.Digest {
+	return s.SnapshotHash
+}
+
+func (s StateHashDebugV2) GetStateHash() StateHash {
+	sh := &StateHashV2{
+		BlockID: s.BlockID,
+		SumHash: crypto.Digest(s.SumHash),
+		FieldsHashesV2: FieldsHashesV2{
+			FieldsHashesV1: FieldsHashesV1{
+				WavesBalanceHash:  crypto.Digest(s.WavesBalanceHash),
+				AssetBalanceHash:  crypto.Digest(s.AssetBalanceHash),
+				DataEntryHash:     crypto.Digest(s.DataEntryHash),
+				AccountScriptHash: crypto.Digest(s.AccountScriptHash),
+				AssetScriptHash:   crypto.Digest(s.AssetBalanceHash),
+				LeaseBalanceHash:  crypto.Digest(s.LeaseBalanceHash),
+				LeaseStatusHash:   crypto.Digest(s.LeaseStatusHash),
+				SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
+				AliasesHash:       crypto.Digest(s.AliasesHash),
+			},
+			GeneratorsHash: crypto.Digest(s.GeneratorsHash),
 		},
 	}
 	return sh
