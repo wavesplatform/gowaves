@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/pkg/errors"
@@ -14,6 +15,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer/extension"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
@@ -205,6 +207,110 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	return newNGState(a.baseInfo), nil, nil
 }
 
+func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State, Async, error) {
+	endorsedBlockID := blockEndorsement.EndorsedBlockID
+	endorsedMicroBlock, found := a.baseInfo.MicroBlockCache.GetBlock(endorsedBlockID)
+	if !found || endorsedMicroBlock == nil {
+		return a, nil, a.Errorf(fmt.Errorf(
+			"failed to find the microblock that was endorsed (block ID: %s)",
+			endorsedBlockID.String(),
+		))
+	}
+	top := a.baseInfo.storage.TopBlock()
+	if top.Parent != endorsedMicroBlock.Reference {
+		err := errors.Errorf("endorsed Block ID '%s' must match the parent's block ID '%s'",
+			endorsedMicroBlock.Reference.String(), top.BlockID().String())
+		return a, nil, proto.NewInfoMsg(err)
+	}
+
+	// TODO verify individual endorsements (signatures) using the endorser's public key.
+	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	if actErr != nil {
+		return a, nil,
+			proto.NewInfoMsg(errors.Errorf("failed to get DeterministicFinality activation height, %v", actErr))
+	}
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	endorserPK, err := a.baseInfo.storage.FindEndorserPKByIndex(periodStart, int(blockEndorsement.EndorserIndex))
+	if err != nil {
+		return nil, nil, err
+	}
+	endorserWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
+	if findErr != nil {
+		return nil, nil, findErr
+	}
+	endorserAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, endorserWavesPK)
+	endorserRec := proto.NewRecipientFromAddress(endorserAddress)
+	balance, err := a.baseInfo.storage.GeneratingBalance(endorserRec, height)
+	if err != nil {
+		return nil, nil, err
+	}
+	err = a.baseInfo.endorsements.Add(blockEndorsement, endorserPK, balance)
+	if err != nil {
+		return a, nil, errors.Errorf("failed to add an endorsement, %v", err)
+	}
+
+	a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
+	return newNGState(a.baseInfo), nil, nil
+}
+
+func (a *NGState) handleFinality(block *proto.Block, height proto.Height) error {
+	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
+	}
+
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, 0, a.baseInfo.generationPeriod)
+	if err != nil {
+		return err
+	}
+
+	ok, err := a.baseInfo.endorsements.Verify()
+	if err != nil {
+		return err
+	}
+	if !ok {
+		return fmt.Errorf("endorsement verification failed at height %d", height)
+	}
+
+	allEndorsers := a.baseInfo.endorsements.GetEndorsers()
+	endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
+	for _, endorser := range allEndorsers {
+		pk, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorser)
+		if findErr != nil {
+			return findErr
+		}
+		addr := proto.MustAddressFromPublicKey(a.baseInfo.scheme, pk)
+		endorsersAddresses = append(endorsersAddresses, addr)
+	}
+
+	generators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
+	if err != nil {
+		return err
+	}
+
+	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, height, generators)
+	if err != nil {
+		return fmt.Errorf("failed to calculate finalization voting: %w", err)
+	}
+
+	if canFinalize {
+		finalization, finErr := a.baseInfo.endorsements.Finalize()
+		if finErr != nil {
+			return finErr
+		}
+		block.FinalizationVoting = &finalization
+	}
+	return nil
+}
+
 func (a *NGState) MinedBlock(
 	block *proto.Block, limits proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
@@ -219,8 +325,19 @@ func (a *NGState) MinedBlock(
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
 	}
+
+	finalityActivated, err := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+	if finalityActivated {
+		if finErr := a.handleFinality(block, height); finErr != nil {
+			return a, nil, a.Errorf(finErr)
+		}
+	}
+
 	metrics.BlockMined(block)
-	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
+	err = a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.baseInfo.blocksApplier.Apply(
 			state,
@@ -239,6 +356,7 @@ func (a *NGState) MinedBlock(
 	slog.Info("Generated key block successfully applied to state", "state", a.String(),
 		"blockID", block.ID.String())
 
+	a.baseInfo.endorsements.CleanAll()
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
@@ -256,6 +374,7 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 			metrics.MicroBlockDeclined(micro)
 			return a, nil, a.Errorf(err)
 		}
+
 		a.baseInfo.logger.Debug("Received microblock successfully applied to state",
 			"state", a.String(), "blockID", block.BlockID(), "ref", micro.Reference)
 		a.baseInfo.MicroBlockCache.AddMicroBlock(block.BlockID(), micro)
@@ -278,16 +397,27 @@ func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async
 	return st, tasks.Tasks(timeoutTask), nil
 }
 
-func (a *NGState) microMine(minedBlock *proto.Block,
-	rest proto.MiningLimits, keyPair proto.KeyPair) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
-	return a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair)
-}
-
 // mineMicro handles a new microblock generated by miner.
 func (a *NGState) mineMicro(
 	minedBlock *proto.Block, rest proto.MiningLimits, keyPair proto.KeyPair, vrf []byte,
 ) (State, Async, error) {
-	block, micro, rest, err := a.microMine(minedBlock, rest, keyPair)
+	height, heightErr := a.baseInfo.storage.Height()
+	if heightErr != nil {
+		return a, nil, a.Errorf(heightErr)
+	}
+	finalityActivated, err := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+	var partialFinalization *proto.FinalizationVoting
+	if finalityActivated {
+		fin, finErr := a.baseInfo.endorsements.Finalize()
+		if finErr != nil {
+			return a, nil, a.Errorf(errors.Wrap(finErr, "failed to finalize endorsements for microblock"))
+		}
+		partialFinalization = &fin
+	}
+	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro
 		a.baseInfo.logger.Debug(
@@ -303,6 +433,7 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(errors.Wrap(err, "failed to generate microblock"))
 	}
 	metrics.MicroBlockMined(micro, block.TransactionCount)
+
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er
@@ -531,6 +662,19 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 						"unexpected type '%T' expected '*NGState'", state.State))
 				}
 				return a.Block(convertToInterface[peer.Peer](args[0]), args[1].(*proto.Block))
+			})).
+		PermitDynamic(BlockEndorsementEvent,
+			createPermitDynamicCallback(BlockEndorsementEvent, state, func(args ...any) (State, Async, error) {
+				a, ok := state.State.(*NGState)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf(
+						"unexpected type '%T' expected '*NGState'", state.State))
+				}
+				endorse, ok := args[0].(*proto.EndorseBlock)
+				if !ok {
+					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.EndorseBlock", args[0]))
+				}
+				return a.BlockEndorsement(endorse)
 			})).
 		PermitDynamic(MinedBlockEvent,
 			createPermitDynamicCallback(MinedBlockEvent, state, func(args ...any) (State, Async, error) {
