@@ -1737,12 +1737,16 @@ func (c *ProtobufConverter) EndorseBlock(endorsement *g.EndorseBlock) (EndorseBl
 	if err != nil {
 		return EndorseBlock{}, errors.Errorf("failed to parse endorsed block ID: %v", err)
 	}
+	sig, err := bls.NewSignatureFromBytes(endorsement.Signature)
+	if err != nil {
+		return EndorseBlock{}, errors.Errorf("failed to parse bls signature: %v", err)
+	}
 	return EndorseBlock{
 		EndorserIndex:        endorsement.EndorserIndex,
 		FinalizedBlockID:     finalizedBlockID,
 		FinalizedBlockHeight: endorsement.FinalizedBlockHeight,
 		EndorsedBlockID:      endorsedBlockID,
-		Signature:            endorsement.Signature,
+		Signature:            sig,
 	}, nil
 }
 
@@ -1763,17 +1767,25 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 		if err != nil {
 			return FinalizationVoting{}, errors.Errorf("failed to parse endorsed block ID at index %d: %v", i, err)
 		}
+		sig, err := bls.NewSignatureFromBytes(ce.Signature)
+		if err != nil {
+			return FinalizationVoting{}, errors.Errorf("failed to parse bls signature: %v", err)
+		}
 		conflictEndorsements = append(conflictEndorsements, EndorseBlock{
 			EndorserIndex:        ce.EndorserIndex,
 			FinalizedBlockID:     finalizedBlockID,
 			FinalizedBlockHeight: ce.FinalizedBlockHeight,
 			EndorsedBlockID:      endorsedBlockID,
-			Signature:            ce.Signature,
+			Signature:            sig,
 		})
+	}
+	aggregatedSignature, err := bls.NewSignatureFromBytes(finalizationVoting.AggregatedEndorsementSignature)
+	if err != nil {
+		return FinalizationVoting{}, errors.Errorf("failed to parse aggregated bls signature: %v", err)
 	}
 	return FinalizationVoting{
 		EndorserIndexes:                finalizationVoting.EndorserIndexes,
-		AggregatedEndorsementSignature: finalizationVoting.AggregatedEndorsementSignature,
+		AggregatedEndorsementSignature: aggregatedSignature,
 		ConflictEndorsements:           conflictEndorsements,
 	}, nil
 }

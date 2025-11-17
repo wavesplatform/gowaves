@@ -3,6 +3,8 @@ package proto
 import (
 	"bytes"
 	"encoding/base64"
+	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -186,7 +188,10 @@ func TestMicroBlockV5VerifySignatureWithFilledStateHash(t *testing.T) {
 	assert.True(t, ok)
 }
 
-func TestMicroBlockSignatureDebug(t *testing.T) {
+const blsSigOne = "nBWfaRLW7EdcwxhDMaXuZZFMhHyowAxY7476rkBsUUeguTXrMSNuTVkuWLmZjRmRfgMXEGuvdHiu1V7joRFSLz3X6MQBF8m88kHJEj6Tc2ktBnMTzihh2JMGpuuWBLSK8rv"
+const blsSigTwo = "RNMTkL736x3TmXfjQufKnxSgySaaoec3WYnxmujcum9BHEmCdjmwvjoUehghqYCWJcNj5CNfb9QdnujV9o2DRitbLgq2bnLdTU5s1DLBWBkVx8mBayvdfx7rPZ3mtUWeh5L"
+
+func TestMicroBlockSignature(t *testing.T) {
 	txBytes := testTxBytes()
 	txs, err := NewTransactionsFromBytes(txBytes, 1, TestNetScheme)
 	require.NoError(t, err)
@@ -203,10 +208,10 @@ func TestMicroBlockSignatureDebug(t *testing.T) {
 		"5GszB5vY2KTxLvYq4zAFQvRkJxv5Rt5BcuTGHZrxgSLTzPtni7eY5k1DN1mJ7mY4ixP5fiHD9z1AfM99AA8yxhjg")
 	endorsedID := NewBlockIDFromSignature(endorsedSig)
 
-	aggSig := crypto.MustSignatureFromBase58(
-		"3F7NZn3XJcS72xwDqZbUvC1Q4pNyxMEGZ7QyqZB7qL3JqiQFQ7U8pC6JrXz2qkz9vM1L2o7L1gkK2E8uJ6vQJgqM").Bytes()
-	conflictSig := crypto.MustSignatureFromBase58(
-		"56Un9HE6UnG2ut3srow7tGrQ9pMKyKqhbpJBjwJ7oV2rpr58iaPYG5G3QmZqVo169GN4bNHNHwhDykgPbQknD3Nv").Bytes()
+	aggSig, err := bls.NewSignatureFromBase58(blsSigOne)
+	require.NoError(t, err)
+	conflictSig, err := bls.NewSignatureFromBase58(blsSigTwo)
+	require.NoError(t, err)
 
 	finalization := FinalizationVoting{
 		EndorserIndexes:                []int32{1, 2, 3},
@@ -238,18 +243,117 @@ func TestMicroBlockSignatureDebug(t *testing.T) {
 	_, err = microBlock.WriteWithoutSignature(TestNetScheme, buf)
 	require.NoError(t, err)
 
-	expectedBytesWithoutSignature := "BWnFvj8CErOF62bQ6KthEkYLJjwHfER97mTynkydHHc4/snMkWT+BSNdniltRtW24p82GY" +
-		"ZyGWbFPdE1ARnRgICQgaVdHK4QxQyEYihza6fh1tiQTYDXp9blQTt7S97AiU5A38jSKWoMXr4Q/80NLX0tqB7bHpBBMSzTM5a" +
-		"c6MKPAAAAowAAAAEAAACbClcIVBIg7FlNNgjs8B4KV3mLFwdyeS2xRTKEN3fgrPVEXywc8wQaBBCgjQYgydOsyLgtKAHCBiEK" +
-		"FgoUflp9MfPSElPDgt8e0bJfEbpsP6wSBxCA7oO7rwESQEz8sQx7qThcCFVSdgGm5Dk0VKETkPcJXXJYxnt70rxfsarlD7D4g" +
-		"HB5yTXdDzfndnHAyXH7NwZfzy8YR/CizgbElKnkSNWP6a/gfVPTrZ62oVuqwNg37tT6xi6ELp94YgoDAQIDEkBwM6ljvMDp" +
-		"kpB2Y8BEjJvPBWElDu/sE6gCXecLQJ+Y0001rLZqm35KlTm+G3CsYzktZpshYsjXXFvRIWPbPqZoGssBCAESQGnFvj8CErOF6" +
-		"2bQ6KthEkYLJjwHfER97mTynkydHHc4/snMkWT+BSNdniltRtW24p82GYZyGWbFPdE1ARnRgIAYuWAiQNXC8WrfOjQIpVQ2uBsN" +
-		"sPL5E5jzxlNj8p81bvr3d1wPKFjE4rJc4ASXV5PalnIEHuT+YB5fApSdfHv6lRMU54MqQMzK9kimZm6egduA32JtU7g+8FTEQ" +
-		"i7IyLFd9BX+qdeDGIlI9euP/EVt3RD965g2Gm2SxfEJseyWEoklKWJuU48="
+	expectedBytesWithoutSignature := "BWnFvj8CErOF62bQ6KthEkYLJjwHfER97mTynkydHHc4/snMkWT+BSNdniltRtW24p82GYZyGWbFPd" +
+		"E1ARnRgICQgaVdHK4QxQyEYihza6fh1tiQTYDXp9blQTt7S97AiU5A38jSKWoMXr4Q/80NLX0tqB7bHpBBMSzTM5ac6MKPAAAAowAAAAEAA" +
+		"ACbClcIVBIg7FlNNgjs8B4KV3mLFwdyeS2xRTKEN3fgrPVEXywc8wQaBBCgjQYgydOsyLgtKAHCBiEKFgoUflp9MfPSElPDgt8e0bJfEbps" +
+		"P6wSBxCA7oO7rwESQEz8sQx7qThcCFVSdgGm5Dk0VKETkPcJXXJYxnt70rxfsarlD7D4gHB5yTXdDzfndnHAyXH7NwZfzy8YR/CizgbElKn" +
+		"kSNWP6a/gfVPTrZ62oVuqwNg37tT6xi6ELp94YgoDAQIDEmCDKORfaBPZibOipP6AJjvOB3F4nvlJr4S1iNDLqp8N8goucnpIJEILx+wPwL" +
+		"z7ACIWZ3iRZxxF9fymT/U8WBSMZm1+YXAhAnkbilV7HENRGS7zPh69dyx7ri9XZcvFvosa6wEIARJAacW+PwISs4XrZtDoq2ESRgsmPAd8R" +
+		"H3uZPKeTJ0cdzj+ycyRZP4FI12eKW1G1bbinzYZhnIZZsU90TUBGdGAgBi5YCJA1cLxat86NAilVDa4Gw2w8vkTmPPGU2PynzVu+vd3XA8o" +
+		"WMTislzgBJdXk9qWcgQe5P5gHl8ClJ18e/qVExTngypgRr1wfxShUIlSpOgqWjZqqHqxhdhv1PMZhimHVwOuxt3cgNlao0SrSCWtu8R0rEi" +
+		"hb7XIexazMqJJAwAS/Gumx/J2Ho+EY68RgOUHdhm/j1WGaPxavxk2dTwIeq/RGOfT"
 
 	require.Equal(t, expectedBytesWithoutSignature, base64.StdEncoding.EncodeToString(buf.Bytes()))
 
+	err = microBlock.Sign(TestNetScheme, sk)
+	require.NoError(t, err)
+}
+
+func TestMicroBlockSignatureDebug(t *testing.T) {
+	txBytes := testTxBytes()
+	txs, err := NewTransactionsFromBytes(txBytes, 1, TestNetScheme)
+	require.NoError(t, err)
+
+	// Deterministic keypair
+	seed := make([]byte, 32)
+	sk, pk, err := crypto.GenerateKeyPair(seed)
+	require.NoError(t, err)
+
+	fmt.Println("=== Key Info ===")
+	fmt.Printf("SecretKey (Base64): %s\n", base64.StdEncoding.EncodeToString(sk.Bytes()))
+	fmt.Printf("PublicKey (Base64): %s\n", base64.StdEncoding.EncodeToString(pk.Bytes()))
+	fmt.Println("=================")
+
+	refSig := crypto.MustSignatureFromBase58(
+		"37ex9gonRZtUddDHgSzSes5Ds9UeQyS74DyAXtGFrDpJnEg7sjGdi2ncaV4rVpZnLboQmid3whcbZUWS49FV3ZCs")
+	ref := NewBlockIDFromSignature(refSig)
+
+	endorsedSig := crypto.MustSignatureFromBase58(
+		"5GszB5vY2KTxLvYq4zAFQvRkJxv5Rt5BcuTGHZrxgSLTzPtni7eY5k1DN1mJ7mY4ixP5fiHD9z1AfM99AA8yxhjg")
+	endorsedID := NewBlockIDFromSignature(endorsedSig)
+
+	fmt.Println("=== BLS Signatures (Base58) ===")
+	fmt.Printf("AggregatedEndorsementSignature (Base58): %s\n", blsSigOne)
+	fmt.Printf("ConflictEndorsementSignature (Base58):  %s\n", blsSigTwo)
+	fmt.Println("================================")
+
+	aggSig, err := bls.NewSignatureFromBase58(blsSigOne)
+	require.NoError(t, err)
+	conflictSig, err := bls.NewSignatureFromBase58(blsSigTwo)
+	require.NoError(t, err)
+
+	finalization := FinalizationVoting{
+		EndorserIndexes:                []int32{1, 2, 3},
+		AggregatedEndorsementSignature: aggSig,
+		ConflictEndorsements: []EndorseBlock{
+			{
+				EndorserIndex:        1,
+				FinalizedBlockID:     ref,
+				FinalizedBlockHeight: 12345,
+				EndorsedBlockID:      endorsedID,
+				Signature:            conflictSig,
+			},
+		},
+	}
+
+	microBlock := MicroBlock{
+		VersionField: 5,
+		Reference:    ref,
+		TotalResBlockSigField: crypto.MustSignatureFromBase58(
+			"3ta68P5LdLHWKuKcDvASsjcCMEQsm1ySrpxYZwqmzCHiAWHgrYJE1ZmaTsh3ytPqY73545EUPDaGfVdrguTqVTHg"),
+		SenderPK:            pk,
+		Transactions:        txs,
+		TransactionCount:    1,
+		PartialFinalization: finalization,
+	}
+
+	// Serialize without signature
+	buf := new(bytes.Buffer)
+	_, err = microBlock.WriteWithoutSignature(TestNetScheme, buf)
+	require.NoError(t, err)
+
+	fmt.Println("=== MicroBlock Fields (Base64) ===")
+	fmt.Printf("Version: %d\n", microBlock.VersionField)
+	fmt.Printf("Reference (bytes, b64): %s\n", base64.StdEncoding.EncodeToString(microBlock.Reference.Bytes()))
+	fmt.Printf("TotalResBlockSigField: %s\n", base64.StdEncoding.EncodeToString(microBlock.TotalResBlockSigField.Bytes()))
+	fmt.Printf("SenderPK: %s\n", base64.StdEncoding.EncodeToString(microBlock.SenderPK.Bytes()))
+	if microBlock.StateHash != nil {
+		fmt.Printf("StateHash: %s\n", base64.StdEncoding.EncodeToString(microBlock.StateHash.Bytes()))
+	} else {
+		fmt.Println("StateHash: nil")
+	}
+
+	finalizationBytes, err := microBlock.PartialFinalization.ToProtobuf().MarshalVTStrict()
+	require.NoError(t, err)
+	fmt.Printf("PartialFinalization (protobuf, b64): %s\n", base64.StdEncoding.EncodeToString(finalizationBytes))
+
+	serializedWithoutSigB64 := base64.StdEncoding.EncodeToString(buf.Bytes())
+	fmt.Printf("SerializedWithoutSignature (Base64): %s\n", serializedWithoutSigB64)
+	fmt.Println("==================================")
+
+	expectedBytesWithoutSignature := "BWnFvj8CErOF62bQ6KthEkYLJjwHfER97mTynkydHHc4/snMkWT+BSNdniltRtW24p82GYZyGWbFPd" +
+		"E1ARnRgICQgaVdHK4QxQyEYihza6fh1tiQTYDXp9blQTt7S97AiU5A38jSKWoMXr4Q/80NLX0tqB7bHpBBMSzTM5ac6MKPAAAAowAAAAEAA" +
+		"ACbClcIVBIg7FlNNgjs8B4KV3mLFwdyeS2xRTKEN3fgrPVEXywc8wQaBBCgjQYgydOsyLgtKAHCBiEKFgoUflp9MfPSElPDgt8e0bJfEbps" +
+		"P6wSBxCA7oO7rwESQEz8sQx7qThcCFVSdgGm5Dk0VKETkPcJXXJYxnt70rxfsarlD7D4gHB5yTXdDzfndnHAyXH7NwZfzy8YR/CizgbElKn" +
+		"kSNWP6a/gfVPTrZ62oVuqwNg37tT6xi6ELp94YgoDAQIDEmCDKORfaBPZibOipP6AJjvOB3F4nvlJr4S1iNDLqp8N8goucnpIJEILx+wPwL" +
+		"z7ACIWZ3iRZxxF9fymT/U8WBSMZm1+YXAhAnkbilV7HENRGS7zPh69dyx7ri9XZcvFvosa6wEIARJAacW+PwISs4XrZtDoq2ESRgsmPAd8R" +
+		"H3uZPKeTJ0cdzj+ycyRZP4FI12eKW1G1bbinzYZhnIZZsU90TUBGdGAgBi5YCJA1cLxat86NAilVDa4Gw2w8vkTmPPGU2PynzVu+vd3XA8o" +
+		"WMTislzgBJdXk9qWcgQe5P5gHl8ClJ18e/qVExTngypgRr1wfxShUIlSpOgqWjZqqHqxhdhv1PMZhimHVwOuxt3cgNlao0SrSCWtu8R0rEi" +
+		"hb7XIexazMqJJAwAS/Gumx/J2Ho+EY68RgOUHdhm/j1WGaPxavxk2dTwIeq/RGOfT"
+
+	require.Equal(t, expectedBytesWithoutSignature, serializedWithoutSigB64)
+
+	// Sign
 	err = microBlock.Sign(TestNetScheme, sk)
 	require.NoError(t, err)
 }

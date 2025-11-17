@@ -2,16 +2,17 @@ package proto
 
 import (
 	"encoding/binary"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
 type EndorseBlock struct {
-	EndorserIndex        int32   `json:"endorserIndex"`
-	FinalizedBlockID     BlockID `json:"finalizedBlockID"`
-	FinalizedBlockHeight uint32  `json:"finalizedBlockHeight"`
-	EndorsedBlockID      BlockID `json:"endorsedBlockId"`
-	Signature            []byte  `json:"signature"`
+	EndorserIndex        int32         `json:"endorserIndex"`
+	FinalizedBlockID     BlockID       `json:"finalizedBlockID"`
+	FinalizedBlockHeight uint32        `json:"finalizedBlockHeight"`
+	EndorsedBlockID      BlockID       `json:"endorsedBlockId"`
+	Signature            bls.Signature `json:"signature"`
 }
 
 func (e *EndorseBlock) Marshal() ([]byte, error) {
@@ -61,14 +62,14 @@ func (e *EndorseBlock) ToProtobuf() *g.EndorseBlock {
 		FinalizedBlockId:     e.FinalizedBlockID.Bytes(),
 		FinalizedBlockHeight: e.FinalizedBlockHeight,
 		EndorsedBlockId:      e.EndorsedBlockID.Bytes(),
-		Signature:            e.Signature,
+		Signature:            e.Signature.Bytes(),
 	}
 	return &endBlockProto
 }
 
 type FinalizationVoting struct {
 	EndorserIndexes                []int32        `json:"endorserIndexes"`
-	AggregatedEndorsementSignature []byte         `json:"aggregatedEndorsementSignature"`
+	AggregatedEndorsementSignature bls.Signature  `json:"aggregatedEndorsementSignature"`
 	ConflictEndorsements           []EndorseBlock `json:"conflictEndorsements"`
 }
 
@@ -97,9 +98,10 @@ func (f *FinalizationVoting) ToProtobuf() *g.FinalizationVoting {
 	for i, ce := range f.ConflictEndorsements {
 		conflictEndorsements[i] = ce.ToProtobuf()
 	}
+
 	finalizationVoting := g.FinalizationVoting{
 		EndorserIndexes:                f.EndorserIndexes,
-		AggregatedEndorsementSignature: f.AggregatedEndorsementSignature,
+		AggregatedEndorsementSignature: f.AggregatedEndorsementSignature.Bytes(),
 		ConflictEndorsements:           conflictEndorsements,
 	}
 	return &finalizationVoting
