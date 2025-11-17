@@ -24,10 +24,14 @@ func newDummyEndorsement(t *testing.T, idx int32, sig string) *proto.EndorseBloc
 	}
 }
 
-const sigOne = "nBWfaRLW7EdcwxhDMaXuZZFMhHyowAxY7476rkBsUUeguTXrMSNuTVkuWLmZjRmRfgMXEGuvdHiu1V7joRFSLz3X6MQBF8m88kHJEj6Tc2ktBnMTzihh2JMGpuuWBLSK8rv"
-const sigTwo = "RNMTkL736x3TmXfjQufKnxSgySaaoec3WYnxmujcum9BHEmCdjmwvjoUehghqYCWJcNj5CNfb9QdnujV9o2DRitbLgq2bnLdTU5s1DLBWBkVx8mBayvdfx7rPZ3mtUWeh5L"
-const sigThree = "U8GEty7F58p7QZrNAxRYrfMSU4z6CwtiukBu9hGDP9rLx3VmF9ZYy8bHWBCTDTYW7s2juqRHU3aERUJfgx3KhxBdv57UFb34evuW9wYQKKoCTbfasfZENM4GDbPdL2nQYKY"
-const sigFour = "2F4sw8YzXpSf93ACAngoTnNxCaYWoGL4vY88RYgEs3BeSsnAmMGmVSfe8h6hybkfb6CYoUwV1prRbYWo6umrL9evmTPeksdaQrp19eTcwxZLBtPzbwqonCbEX8eDJVTydRBo"
+const sigOne = "nBWfaRLW7EdcwxhDMaXuZZFMhHyowAxY7476rkBsUUeguTXrMSNuTVkuWLmZjRmRfgMXEGuvdHiu1V7joRFSLz3X6MQBF8m88kHJE" +
+	"j6Tc2ktBnMTzihh2JMGpuuWBLSK8rv"
+const sigTwo = "RNMTkL736x3TmXfjQufKnxSgySaaoec3WYnxmujcum9BHEmCdjmwvjoUehghqYCWJcNj5CNfb9QdnujV9o2DRitbLgq2bnLdTU5s" +
+	"1DLBWBkVx8mBayvdfx7rPZ3mtUWeh5L"
+const sigThree = "U8GEty7F58p7QZrNAxRYrfMSU4z6CwtiukBu9hGDP9rLx3VmF9ZYy8bHWBCTDTYW7s2juqRHU3aERUJfgx3KhxBdv57UFb34" +
+	"evuW9wYQKKoCTbfasfZENM4GDbPdL2nQYKY"
+const sigFour = "2F4sw8YzXpSf93ACAngoTnNxCaYWoGL4vY88RYgEs3BeSsnAmMGmVSfe8h6hybkfb6CYoUwV1prRbYWo6umrL9evmTPeksdaQ" +
+	"rp19eTcwxZLBtPzbwqonCbEX8eDJVTydRBo"
 
 func TestEndorsementPool_PriorityByBalance(t *testing.T) {
 	pool := endorsementpool.NewEndorsementPool(5)

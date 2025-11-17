@@ -302,7 +302,7 @@ func (a *MicroMiner) createMicroBlock(
 		TotalResBlockSigField: newBlock.BlockSignature,
 		TotalBlockID:          newBlock.BlockID(),
 		StateHash:             sh,
-		PartialFinalization:   partialFinalization,
+		PartialFinalization:   &partialFinalization,
 	}
 	if err := micro.Sign(a.scheme, keyPair.Secret); err != nil {
 		return proto.MicroBlock{}, err

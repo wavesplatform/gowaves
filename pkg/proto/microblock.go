@@ -32,7 +32,7 @@ type MicroBlock struct {
 	SenderPK              crypto.PublicKey
 	Signature             crypto.Signature
 	StateHash             *crypto.Digest // is nil before protocol version 1.5
-	PartialFinalization   FinalizationVoting
+	PartialFinalization   *FinalizationVoting
 }
 
 type MicroblockTotalSig = crypto.Signature
@@ -46,6 +46,17 @@ func (a *MicroBlock) GetStateHash() (crypto.Digest, bool) {
 		sh = *a.StateHash
 	}
 	return sh, present
+}
+
+func (a *MicroBlock) GetPartialFinalization() (FinalizationVoting, bool) {
+	var (
+		fin     FinalizationVoting
+		present = a.PartialFinalization != nil
+	)
+	if present {
+		fin = *a.PartialFinalization
+	}
+	return fin, present
 }
 
 func (a *MicroBlock) UnmarshalFromProtobuf(b []byte) error {
@@ -88,6 +99,14 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 	if sh, present := a.GetStateHash(); present {
 		stateHash = sh.Bytes()
 	}
+	var finalizationProtobuf *g.FinalizationVoting
+	if fin, present := a.GetPartialFinalization(); present {
+		var cnvrtErr error
+		finalizationProtobuf, cnvrtErr = fin.ToProtobuf()
+		if cnvrtErr != nil {
+			return nil, cnvrtErr
+		}
+	}
 	return &g.SignedMicroBlock{
 		MicroBlock: &g.MicroBlock{
 			Version:               int32(a.VersionField),
@@ -96,6 +115,7 @@ func (a *MicroBlock) ToProtobuf(scheme Scheme) (*g.SignedMicroBlock, error) {
 			SenderPublicKey:       a.SenderPK.Bytes(),
 			Transactions:          txs,
 			StateHash:             stateHash,
+			FinalizationVoting:    finalizationProtobuf,
 		},
 		Signature:    sig,
 		TotalBlockId: a.TotalBlockID.Bytes(),
@@ -227,8 +247,12 @@ func (a *MicroBlock) WriteWithoutSignature(scheme Scheme, w io.Writer) (int64, e
 		stateHash = sh.Bytes()
 	}
 	s.Bytes(stateHash)
-	if proto { // Write finalization only for protobuf micro blocks.
-		finalizationBytes, err := a.PartialFinalization.ToProtobuf().MarshalVTStrict()
+	if proto && a.PartialFinalization != nil { // Write finalization only for protobuf micro blocks.
+		finalizationProtobuf, err := a.PartialFinalization.ToProtobuf()
+		if err != nil {
+			return 0, err
+		}
+		finalizationBytes, err := finalizationProtobuf.MarshalVTStrict()
 		if err != nil {
 			return 0, err
 		}

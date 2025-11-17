@@ -2,8 +2,10 @@ package proto
 
 import (
 	"encoding/binary"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 
+	"github.com/ccoveille/go-safecast/v2"
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -69,12 +71,16 @@ func (e *EndorseBlock) ToProtobuf() *g.EndorseBlock {
 
 type FinalizationVoting struct {
 	EndorserIndexes                []int32        `json:"endorserIndexes"`
+	FinalizedBlockHeight           Height         `json:"finalizedBlockHeight"`
 	AggregatedEndorsementSignature bls.Signature  `json:"aggregatedEndorsementSignature"`
 	ConflictEndorsements           []EndorseBlock `json:"conflictEndorsements"`
 }
 
 func (f *FinalizationVoting) Marshal() ([]byte, error) {
-	endBlockProto := f.ToProtobuf()
+	endBlockProto, err := f.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	return endBlockProto.MarshalVTStrict()
 }
 
@@ -93,16 +99,21 @@ func (f *FinalizationVoting) UnmarshalFromProtobuf(data []byte) error {
 	return nil
 }
 
-func (f *FinalizationVoting) ToProtobuf() *g.FinalizationVoting {
+func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
 	conflictEndorsements := make([]*g.EndorseBlock, len(f.ConflictEndorsements))
 	for i, ce := range f.ConflictEndorsements {
 		conflictEndorsements[i] = ce.ToProtobuf()
 	}
 
+	finalizedBlockHeight, err := safecast.Convert[int32](f.FinalizedBlockHeight)
+	if err != nil {
+		return nil, errors.Errorf("finalized block height conversion error: %v", err)
+	}
 	finalizationVoting := g.FinalizationVoting{
 		EndorserIndexes:                f.EndorserIndexes,
+		FinalizedBlockHeight:           finalizedBlockHeight,
 		AggregatedEndorsementSignature: f.AggregatedEndorsementSignature.Bytes(),
 		ConflictEndorsements:           conflictEndorsements,
 	}
-	return &finalizationVoting
+	return &finalizationVoting, nil
 }

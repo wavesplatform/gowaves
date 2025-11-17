@@ -464,7 +464,11 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 	}
 	var finalizationVoting *g.FinalizationVoting
 	if fv, present := b.GetFinalizationVoting(); present {
-		finalizationVoting = fv.ToProtobuf()
+		var err error
+		finalizationVoting, err = fv.ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
 	}
 	return &g.Block_Header{
 		ChainId:             int32(scheme),
