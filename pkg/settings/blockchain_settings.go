@@ -106,7 +106,7 @@ type FunctionalitySettings struct {
 	LightNodeBlockFieldsAbsenceInterval uint64 `json:"light_node_block_fields_absence_interval"`
 
 	GenerationPeriod uint64 `json:"generation_period"`
-	MaxGenerators    int    `json:"max_generators"`
+	MaxEndorsements  int    `json:"max_endorsements"`
 }
 
 func (f *FunctionalitySettings) VotesForFeatureElection(height uint64) uint64 {
@@ -246,6 +246,7 @@ func MustDefaultCustomSettings() *BlockchainSettings {
 			BlockRewardTerm:                     100000,
 			BlockRewardTermAfter20:              50000,
 			LightNodeBlockFieldsAbsenceInterval: lightNodeBlockFieldsAbsenceIntervalDefault,
+			MaxEndorsements:                     8,
 		},
 	}
 }

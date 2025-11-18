@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type txSnapshotContext struct {
@@ -691,6 +692,28 @@ func (a *blockSnapshotsApplier) ApplyCommitToGeneration(snapshot proto.Generatio
 	tx, ok := a.txSnapshotContext.applyingTx.(*proto.CommitToGenerationWithProofs)
 	if !ok {
 		return errors.New("failed to apply generation commitment snapshot: applying tx is not CommitToGenerationWithProofs")
+	}
+	// We need to update deposit info for the transaction.
+	addr, err := proto.NewAddressFromPublicKey(a.info.Scheme(), snapshot.SenderPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to create address from scheme %d and PK %q",
+			a.info.Scheme(), snapshot.SenderPublicKey.String())
+	}
+	profile, err := a.stor.balances.newestWavesBalance(addr.ID())
+	if err != nil {
+		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", addr.String())
+	}
+	if profile.Deposit >= 2*Deposit {
+		return errors.Errorf("invalid deposit in profile for address %q: %d", addr.String(), profile.Deposit)
+	}
+	newProfile := profile
+	newProfile.Deposit, err = common.AddInt(profile.Deposit, Deposit)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add deposit to profile for address %q", addr.String())
+	}
+	value := newWavesValue(profile, newProfile)
+	if err = a.stor.balances.setWavesBalance(addr.ID(), value, a.info.BlockID()); err != nil {
+		return errors.Wrapf(err, "failed to get set balance profile for address %q", addr.String())
 	}
 	return a.stor.commitments.store(tx.GenerationPeriodStart, snapshot.SenderPublicKey, snapshot.EndorserPublicKey,
 		a.info.BlockID())

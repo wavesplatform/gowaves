@@ -4,6 +4,7 @@ import (
 	"encoding/binary"
 	"encoding/json"
 	stderrs "errors"
+	"fmt"
 	"math"
 	"math/big"
 	"os"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -95,11 +97,13 @@ func parseGenesisSettings() (*GenesisSettings, error) {
 }
 
 type AccountInfo struct {
-	PublicKey crypto.PublicKey
-	SecretKey crypto.SecretKey
-	Amount    uint64
-	Address   proto.WavesAddress
-	Alias     proto.Alias
+	PublicKey    crypto.PublicKey
+	SecretKey    crypto.SecretKey
+	Amount       uint64
+	Address      proto.WavesAddress
+	Alias        proto.Alias
+	BLSSecretKey bls.SecretKey
+	BLSPublicKey bls.PublicKey
 }
 
 func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]genesis_generator.GenesisTransactionInfo, []AccountInfo, error) {
@@ -122,8 +126,24 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 		if err != nil {
 			return nil, nil, errors.Wrapf(err, "failed to generate address from seed '%s'", string(seed))
 		}
+		bsk, err := bls.GenerateSecretKey(seed)
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to generate BLS secret key from seed '%s'", string(seed))
+		}
+		bpk, err := bsk.PublicKey()
+		if err != nil {
+			return nil, nil, fmt.Errorf("failed to generate BLS public key from seed '%s'", string(seed))
+		}
 		r = append(r, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: dist.Amount, Timestamp: timestamp})
-		accounts = append(accounts, AccountInfo{PublicKey: pk, SecretKey: sk, Amount: dist.Amount, Address: addr})
+		acc := AccountInfo{
+			PublicKey:    pk,
+			SecretKey:    sk,
+			Amount:       dist.Amount,
+			Address:      addr,
+			BLSSecretKey: bsk,
+			BLSPublicKey: bpk,
+		}
+		accounts = append(accounts, acc)
 	}
 	return r, accounts, nil
 }

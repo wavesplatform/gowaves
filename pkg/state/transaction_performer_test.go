@@ -755,9 +755,9 @@ func TestCommitToGenerationWithProofs(t *testing.T) {
 
 	to.stor.flush(t)
 
-	cnt, err := to.stor.entities.commitments.size(10_002)
+	gs, err := to.stor.entities.commitments.generators(10_002)
 	assert.NoError(t, err)
-	assert.Equal(t, 1, cnt)
+	assert.Equal(t, 1, len(gs))
 
 	ok, err := to.stor.entities.commitments.exists(10_002, tx.SenderPK)
 	assert.NoError(t, err)
