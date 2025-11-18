@@ -120,7 +120,7 @@ Create sender's private key from BASE58 string:
 
 Create script's address:
 ```go
-    a, err := proto.NewAddressFromString("<script's address")
+    a, err := proto.NewAddressFromString("<script's address>")
     if err != nil {
         panic(err)
     }
