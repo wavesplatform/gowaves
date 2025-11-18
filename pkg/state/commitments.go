@@ -142,7 +142,7 @@ func (c *commitments) newestGenerators(periodStart uint32) ([]crypto.PublicKey, 
 		if isNotFoundInHistoryOrDBErr(err) {
 			return nil, nil
 		}
-		return nil, fmt.Errorf("failed to retrieve commitment record: %w", err)
+		return nil, fmt.Errorf("failed to retrieve newest commitment record: %w", err)
 	}
 	var rec commitmentsRecord
 	if umErr := rec.unmarshalBinary(data); umErr != nil {
@@ -153,21 +153,4 @@ func (c *commitments) newestGenerators(periodStart uint32) ([]crypto.PublicKey, 
 		generators[i] = cm.GeneratorPK
 	}
 	return generators, nil
-}
-
-// size returns the number of commitments for the given period start.
-func (c *commitments) size(periodStart uint32) (int, error) {
-	generators, err := c.generators(periodStart)
-	if err != nil {
-		return 0, err
-	}
-	return len(generators), nil
-}
-
-func (c *commitments) newestSize(periodStart uint32) (int, error) {
-	generators, err := c.newestGenerators(periodStart)
-	if err != nil {
-		return 0, err
-	}
-	return len(generators), nil
 }
