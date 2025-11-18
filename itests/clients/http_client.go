@@ -46,7 +46,7 @@ func (c *HTTPClient) GetHeight(t testing.TB, opts ...config.WaitOption) *client.
 	return h
 }
 
-func (c *HTTPClient) StateHash(t testing.TB, height uint64, opts ...config.WaitOption) *proto.StateHashV1 {
+func (c *HTTPClient) StateHash(t testing.TB, height uint64, opts ...config.WaitOption) proto.StateHash {
 	params := config.NewWaitParams(opts...)
 	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -135,7 +136,24 @@ func (a *Debug) ConfigInfo(ctx context.Context, full bool) ([]byte, *Response, e
 	return buf.Bytes(), response, nil
 }
 
-func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHashV1, *Response, error) {
+type shV2Diff struct {
+	GeneratorsHash proto.DigestWrapped `json:"nextCommittedGeneratorsHash"`
+}
+
+func (diff *shV2Diff) isZero() bool {
+	return crypto.Digest(diff.GeneratorsHash) == crypto.Digest{}
+}
+
+type shdV2Diff struct {
+	GeneratorsHash proto.DigestWrapped `json:"nextCommittedGeneratorsHash"`
+	BaseTarget     uint64              `json:"baseTart"`
+}
+
+func (diff *shdV2Diff) isZero() bool {
+	return crypto.Digest(diff.GeneratorsHash) == crypto.Digest{} && diff.BaseTarget == 0
+}
+
+func (a *Debug) StateHash(ctx context.Context, height uint64) (proto.StateHash, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/debug/stateHash/%d", height))
 	if err != nil {
 		return nil, nil, err
@@ -145,15 +163,26 @@ func (a *Debug) StateHash(ctx context.Context, height uint64) (*proto.StateHashV
 	if err != nil {
 		return nil, nil, err
 	}
-	out := new(proto.StateHashV1)
-	response, err := doHTTP(ctx, a.options, req, out)
+	buf := new(bytes.Buffer)
+	response, err := doHTTP(ctx, a.options, req, buf)
 	if err != nil {
 		return nil, response, err
+	}
+	var diff shV2Diff
+	if umErr := json.Unmarshal(buf.Bytes(), &diff); umErr != nil {
+		return nil, response, umErr
+	}
+	var out proto.StateHash = new(proto.StateHashV2)
+	if diff.isZero() {
+		out = new(proto.StateHashV1)
+	}
+	if umErr := json.Unmarshal(buf.Bytes(), &out); umErr != nil {
+		return nil, response, umErr
 	}
 	return out, response, nil
 }
 
-func (a *Debug) stateHashDebugAtPath(ctx context.Context, path string) (*proto.StateHashDebugV1, *Response, error) {
+func (a *Debug) stateHashDebugAtPath(ctx context.Context, path string) (proto.StateHashDebug, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, path)
 	if err != nil {
 		return nil, nil, err
@@ -163,19 +192,30 @@ func (a *Debug) stateHashDebugAtPath(ctx context.Context, path string) (*proto.S
 	if err != nil {
 		return nil, nil, err
 	}
-	out := new(proto.StateHashDebugV1)
-	response, err := doHTTP(ctx, a.options, req, out)
+	buf := new(bytes.Buffer)
+	response, err := doHTTP(ctx, a.options, req, buf)
 	if err != nil {
 		return nil, response, err
+	}
+	var diff shdV2Diff
+	if umErr := json.Unmarshal(buf.Bytes(), &diff); umErr != nil {
+		return nil, response, umErr
+	}
+	var out proto.StateHashDebug = new(proto.StateHashDebugV2)
+	if diff.isZero() {
+		out = new(proto.StateHashDebugV1)
+	}
+	if umErr := json.Unmarshal(buf.Bytes(), &out); umErr != nil {
+		return nil, response, umErr
 	}
 	return out, response, nil
 }
 
-func (a *Debug) StateHashDebug(ctx context.Context, height uint64) (*proto.StateHashDebugV1, *Response, error) {
+func (a *Debug) StateHashDebug(ctx context.Context, height uint64) (proto.StateHashDebug, *Response, error) {
 	return a.stateHashDebugAtPath(ctx, fmt.Sprintf("/debug/stateHash/%d", height))
 }
 
-func (a *Debug) StateHashDebugLast(ctx context.Context) (*proto.StateHashDebugV1, *Response, error) {
+func (a *Debug) StateHashDebugLast(ctx context.Context) (proto.StateHashDebug, *Response, error) {
 	return a.stateHashDebugAtPath(ctx, "/debug/stateHash/last")
 }
 

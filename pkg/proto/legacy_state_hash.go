@@ -14,12 +14,15 @@ import (
 
 const (
 	legacyStateHashFieldsCountV1 = 9
-	legacyStateHashFieldsCountV2 = 10
 )
 
 type StateHash interface {
 	json.Marshaler
 	json.Unmarshaler
+	GetBlockID() BlockID
+	GetSumHash() crypto.Digest
+	GetFieldsHashes() json.Marshaler
+	Equal(StateHash) bool
 }
 
 // FieldsHashesV1 is set of hashes fields for the legacy StateHashV1.
@@ -222,6 +225,18 @@ type StateHashV1 struct {
 	FieldsHashesV1
 }
 
+func (s *StateHashV1) GetBlockID() BlockID {
+	return s.BlockID
+}
+
+func (s *StateHashV1) GetSumHash() crypto.Digest {
+	return s.SumHash
+}
+
+func (s *StateHashV1) GetFieldsHashes() json.Marshaler {
+	return s.FieldsHashesV1
+}
+
 func (s *StateHashV1) GenerateSumHash(prevSumHash []byte) error {
 	h, err := crypto.NewFastHash()
 	if err != nil {
@@ -291,6 +306,14 @@ func (s *StateHashV1) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
+func (s *StateHashV1) Equal(other StateHash) bool {
+	o, ok := other.(*StateHashV1)
+	if !ok {
+		return false
+	}
+	return s.BlockID == o.BlockID && s.SumHash == o.SumHash && s.FieldsHashesV1.Equal(o.FieldsHashesV1)
+}
+
 func (s *StateHashV1) toStateHashJS() stateHashJSV1 {
 	return stateHashJSV1{
 		BlockID: s.BlockID,
@@ -316,6 +339,18 @@ type StateHashV2 struct {
 	FieldsHashesV2
 }
 
+func (s *StateHashV2) GetBlockID() BlockID {
+	return s.BlockID
+}
+
+func (s *StateHashV2) GetSumHash() crypto.Digest {
+	return s.SumHash
+}
+
+func (s *StateHashV2) GetFieldsHashes() json.Marshaler {
+	return s.FieldsHashesV2
+}
+
 func (s *StateHashV2) GenerateSumHash(prevSumHash []byte) error {
 	h, err := crypto.NewFastHash()
 	if err != nil {
@@ -333,6 +368,14 @@ func (s *StateHashV2) GenerateSumHash(prevSumHash []byte) error {
 
 func (s *StateHashV2) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.toStateHashJS())
+}
+
+func (s *StateHashV2) Equal(other StateHash) bool {
+	o, ok := other.(*StateHashV2)
+	if !ok {
+		return false
+	}
+	return s.BlockID == o.BlockID && s.SumHash == o.SumHash && s.FieldsHashesV2.Equal(o.FieldsHashesV2)
 }
 
 func (s *StateHashV2) toStateHashJS() stateHashJSV2 {

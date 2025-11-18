@@ -290,7 +290,7 @@ func compareWithRemote(
 	return ok, rsh, err
 }
 
-func getRemoteStateHash(c *client.Client, h uint64) (*proto.StateHashDebugV1, error) {
+func getRemoteStateHash(c *client.Client, h uint64) (proto.StateHashDebug, error) {
 	sh, _, err := c.Debug.StateHashDebug(context.Background(), h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state hash at %d height: %w", h, err)
