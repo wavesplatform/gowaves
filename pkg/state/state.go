@@ -1586,15 +1586,15 @@ func (s *stateManager) isGenerationPeriodOver(height proto.Height) (bool, error)
 	if height < finalityActivationHeight {
 		return false, nil
 	}
-	start, err := currentGenerationPeriodStart(finalityActivationHeight, height, s.settings.GenerationPeriod)
+	end, err := generationPeriodEnd(finalityActivationHeight, height, s.settings.GenerationPeriod, 0)
 	if err != nil {
 		return false, err
 	}
-	start64, err := safecast.Convert[uint64](start)
+	end64, err := safecast.Convert[uint64](end)
 	if err != nil {
 		return false, err
 	}
-	return height == start64+s.settings.GenerationPeriod-1, nil
+	return height == end64, nil
 }
 
 // featureActivationHeightForHeight returns the height at which the feature is activated.

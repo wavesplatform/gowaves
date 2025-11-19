@@ -143,14 +143,14 @@ func TestCommitments_Size(t *testing.T) {
 				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, blockID)
 				require.NoError(t, err)
 				// Unflushed size check.
-				s, err := to.entities.commitments.newestSize(test.periodStart)
+				gs, err := to.entities.commitments.newestGenerators(test.periodStart)
 				require.NoError(t, err)
-				assert.Equal(t, j+1, s)
+				assert.Equal(t, j+1, len(gs))
 				// Check after flush.
 				to.flush(t)
-				s, err = to.entities.commitments.size(test.periodStart)
+				gs, err = to.entities.commitments.generators(test.periodStart)
 				require.NoError(t, err)
-				assert.Equal(t, j+1, s)
+				assert.Equal(t, j+1, len(gs))
 			}
 		})
 	}

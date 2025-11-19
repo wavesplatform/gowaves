@@ -9,6 +9,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 type txSnapshotContext struct {
@@ -702,13 +703,14 @@ func (a *blockSnapshotsApplier) ApplyCommitToGeneration(snapshot proto.Generatio
 	if err != nil {
 		return errors.Wrapf(err, "failed to get newest waves balance profile for address %q", addr.String())
 	}
-	//TODO: Do we need to check that account already has 2 active deposits?
 	if profile.Deposit >= 2*Deposit {
 		return errors.Errorf("invalid deposit in profile for address %q: %d", addr.String(), profile.Deposit)
 	}
 	newProfile := profile
-	//TODO: Should we check that the deposit does not overflow?
-	newProfile.Deposit += Deposit
+	newProfile.Deposit, err = common.AddInt(profile.Deposit, Deposit)
+	if err != nil {
+		return errors.Wrapf(err, "failed to add deposit to profile for address %q", addr.String())
+	}
 	value := newWavesValue(profile, newProfile)
 	if err = a.stor.balances.setWavesBalance(addr.ID(), value, a.info.BlockID()); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", addr.String())

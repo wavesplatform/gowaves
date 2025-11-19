@@ -956,7 +956,6 @@ func (s *balances) calculateStateHashesWavesBalance(addr proto.AddressID, balanc
 		}
 		s.leaseHashesState[blockID].set(keyStr, lc)
 	}
-	//TODO: Should we check for Deposit change as well? Currently Deposit is not included in state hashes.
 	return nil
 }
 

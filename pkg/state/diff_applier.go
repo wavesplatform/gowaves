@@ -27,7 +27,6 @@ func newWavesValue(prevProf, newProf balanceProfile) wavesValue {
 	if prevProf.LeaseIn != newProf.LeaseIn || prevProf.LeaseOut != newProf.LeaseOut {
 		val.leaseChange = true
 	}
-	//TODO: Consider adding Deposit change tracking here.
 	return val
 }
 

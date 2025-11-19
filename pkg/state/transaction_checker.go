@@ -1637,7 +1637,7 @@ func generationPeriodStart(activationHeight, blockHeight, periodLength, offset u
 		return 0, fmt.Errorf(
 			"invalid block height %d, must be greater than feature #25 \"Deterministic Finality and Ride V9\" "+
 				"activation height %d", blockHeight, activationHeight)
-	case activationHeight <= blockHeight && blockHeight <= activationHeight+periodLength:
+	case isFirstPeriod(activationHeight, blockHeight, periodLength):
 		if offset > 0 {
 			return activationHeight + 1 + offset*periodLength, nil
 		}
