@@ -445,6 +445,24 @@ func (a *ThreadSafeReadWrapper) CommittedGenerators(periodStart uint32) ([]proto
 	return a.s.CommittedGenerators(periodStart)
 }
 
+func (a *ThreadSafeReadWrapper) LastFinalizedHeight() (proto.Height, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedHeight()
+}
+
+func (a *ThreadSafeReadWrapper) LastFinalizedBlock() (*proto.Block, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedBlock()
+}
+
+func (a *ThreadSafeReadWrapper) FinalizedHeightAt(height proto.Height) (proto.Height, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.FinalizedHeightAt(height)
+}
+
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,
