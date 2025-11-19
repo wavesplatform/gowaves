@@ -139,18 +139,22 @@ func (p *EndorsementPool) Finalize() (proto.FinalizationVoting, error) {
 
 	signatures := make([]bls.Signature, 0, len(p.h))
 	endorsersIndexes := make([]int32, 0, len(p.h))
+	var aggregatedSignature bls.Signature
 
 	for _, it := range p.h {
-		sig, err := bls.NewSignatureFromBytes(it.eb.Signature)
+		signatures = append(signatures, it.eb.Signature)
+		endorsersIndexes = append(endorsersIndexes, it.eb.EndorserIndex)
+	}
+	if len(signatures) != 0 {
+		aggregatedSignatureBytes, err := bls.AggregateSignatures(signatures)
 		if err != nil {
 			return proto.FinalizationVoting{}, err
 		}
-		signatures = append(signatures, sig)
-		endorsersIndexes = append(endorsersIndexes, it.eb.EndorserIndex)
-	}
-	aggregatedSignature, err := bls.AggregateSignatures(signatures)
-	if err != nil {
-		return proto.FinalizationVoting{}, err
+		var errCnvrt error
+		aggregatedSignature, errCnvrt = bls.NewSignatureFromBytes(aggregatedSignatureBytes)
+		if errCnvrt != nil {
+			return proto.FinalizationVoting{}, errCnvrt
+		}
 	}
 
 	return proto.FinalizationVoting{
@@ -199,12 +203,7 @@ func (p *EndorsementPool) Verify() (bool, error) {
 	pks := make([]bls.PublicKey, 0, n)
 
 	for _, it := range p.h {
-		var sig bls.Signature
-		if err := sig.UnmarshalJSON(it.eb.Signature); err != nil {
-			return false, fmt.Errorf("invalid signature at endorser index %d: %w",
-				it.eb.EndorserIndex, err)
-		}
-		sigs = append(sigs, sig)
+		sigs = append(sigs, it.eb.Signature)
 		pks = append(pks, it.endorserPK)
 	}
 
