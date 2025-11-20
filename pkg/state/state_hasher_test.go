@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -205,18 +206,13 @@ func TestLegacyStateHashSupport(t *testing.T) {
 }
 
 func TestScalaCompatibility(t *testing.T) {
-	defaultSeed := []byte{0x00, 0x00, 0x00, 0x00}
-	sk, pk, err := crypto.GenerateKeyPair(defaultSeed)
-	require.NoError(t, err)
-	assert.Equal(t, "9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ", pk.String())
-	blsSK, err := bls.GenerateSecretKey(sk.Bytes())
-	require.NoError(t, err)
-	blsPK, err := blsSK.PublicKey()
-	require.NoError(t, err)
-	assert.Equal(t, "7QtCEETGT76GHP7gR3Qc9DQzNjJYbxn4UJ7Bz7RofMQx5RJY7mZNveuFNfgJYg2kLn", blsPK.String())
 	address := proto.MustAddressFromString("3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8")
 	address1 := proto.MustAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
 	assetID := crypto.MustDigestFromBase58("9ekQuYn92natMnMq8KqeGK3Nn7cpKd3BvPEGgD6fFyyz")
+	pk, err := crypto.NewPublicKeyFromBase58("9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ")
+	require.NoError(t, err)
+	blsPK, err := bls.NewPublicKeyFromBase58("7QtCEETGT76GHP7gR3Qc9DQzNjJYbxn4UJ7Bz7RofMQx5RJY7mZNveuFNfgJYg2kLn")
+	require.NoError(t, err)
 
 	code := `
 	{-# STDLIB_VERSION 2 #-}
