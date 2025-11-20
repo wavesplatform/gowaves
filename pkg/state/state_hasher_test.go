@@ -8,6 +8,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 )
 
 func TestPushOneBlock(t *testing.T) {
@@ -199,4 +200,96 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	assert.False(t, assetFoundAshRecord)
 	_, assetFoundBshRecord = assetsTmpSHRecords.componentByKey[string(assetKeyB.bytes())]
 	assert.True(t, assetFoundBshRecord)
+}
+
+func TestScalaCompatibility(t *testing.T) {
+	address := proto.MustAddressFromString("3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8")
+	address1 := proto.MustAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
+	assetId := crypto.MustDigestFromBase58("9ekQuYn92natMnMq8KqeGK3Nn7cpKd3BvPEGgD6fFyyz")
+
+	code := `
+	{-# STDLIB_VERSION 2 #-}
+	{-# CONTENT_TYPE EXPRESSION #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	true
+	`
+	script, errors := ridec.Compile(code, false, false)
+	require.Nil(t, errors)
+
+	bID := proto.NewBlockIDFromDigest(crypto.Digest{})
+
+	hasher := newStateHasher()
+	err := hasher.push("leaseBalance", &leaseBalanceRecordForHashes{
+		addr:     &address,
+		leaseIn:  10000,
+		leaseOut: 10000,
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("accountScript", &accountScripRecordForHashes{
+		addr:   &address,
+		script: script,
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("assetScript", &assetScripRecordForHashes{
+		asset:  assetId,
+		script: script,
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("alias1", &aliasRecordForStateHashes{
+		addr:  address,
+		alias: []byte("test"),
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("alias2", &aliasRecordForStateHashes{
+		addr:  address,
+		alias: []byte("test1"),
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("alias3", &aliasRecordForStateHashes{
+		addr:  address1,
+		alias: []byte("test2"),
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("dataEntry", &dataEntryRecordForHashes{
+		addr:  address.Bytes(),
+		key:   []byte("test"),
+		value: []byte("test"),
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("leaseStatus", &leaseRecordForStateHashes{
+		id:       assetId,
+		isActive: true,
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("sponsorship", &sponsorshipRecordForHashes{
+		id:   assetId,
+		cost: 1000,
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("assetBalance1", &assetRecordForHashes{
+		addr:    &address,
+		asset:   assetId,
+		balance: 2000,
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("assetBalance2", &assetRecordForHashes{
+		addr:    &address1,
+		asset:   assetId,
+		balance: 2000,
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("wavesBalance", &wavesRecordForHashes{
+		addr:    &address,
+		balance: 1000,
+	}, bID)
+	require.NoError(t, err)
+	err = hasher.push("generators", &commitmentsRecordForStateHashes{publicKey: pk, blsPublicKey: blsPK}, bID)
+	require.NoError(t, err)
+
+	err = hasher.stop()
+	require.NoError(t, err)
+
+	expectedHash := crypto.MustDigestFromBase58("3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8")
+	actualHash := hasher.stateHashAt(bID)
+	assert.Equal(t, expectedHash, actualHash)
 }

@@ -5,6 +5,7 @@ import (
 	"encoding/hex"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"strconv"
 	"strings"
@@ -14,6 +15,7 @@ import (
 
 const (
 	legacyStateHashFieldsCountV1 = 9
+	legacyStateHashFieldsCountV2 = legacyStateHashFieldsCountV1 + 1
 )
 
 type StateHash interface {
@@ -23,6 +25,8 @@ type StateHash interface {
 	GetSumHash() crypto.Digest
 	GetFieldsHashes() json.Marshaler
 	Equal(StateHash) bool
+	GenerateSumHash(prevSumHash []byte) error
+	MarshalBinary() ([]byte, error)
 }
 
 // FieldsHashesV1 is set of hashes fields for the legacy StateHashV1.
@@ -252,19 +256,17 @@ func (s *StateHashV1) GenerateSumHash(prevSumHash []byte) error {
 	return nil
 }
 
-func (s *StateHashV1) MarshalBinary() []byte {
+func (s *StateHashV1) MarshalBinary() ([]byte, error) {
 	res := make([]byte, 0, 1+s.BlockID.Len()+crypto.DigestSize*(legacyStateHashFieldsCountV1+1))
 	buf := bytes.NewBuffer(res)
 	if _, err := SizedBlockID(s.BlockID).WriteTo(buf); err != nil {
-		// TODO: replace panic with error handling.
-		panic(err)
+		return nil, fmt.Errorf("failed to marshal StateHashV1: %w", err)
 	}
 	buf.Write(s.SumHash[:])
 	if _, err := s.WriteTo(buf); err != nil {
-		// TODO: replace panic with error handling.
-		panic(err)
+		return nil, fmt.Errorf("failed to marshal StateHashV1: %w", err)
 	}
-	return buf.Bytes()
+	return buf.Bytes(), nil
 }
 
 func (s *StateHashV1) UnmarshalBinary(data []byte) error {
@@ -376,6 +378,19 @@ func (s *StateHashV2) Equal(other StateHash) bool {
 		return false
 	}
 	return s.BlockID == o.BlockID && s.SumHash == o.SumHash && s.FieldsHashesV2.Equal(o.FieldsHashesV2)
+}
+
+func (s *StateHashV2) MarshalBinary() ([]byte, error) {
+	res := make([]byte, 0, 1+s.BlockID.Len()+crypto.DigestSize*(legacyStateHashFieldsCountV2+1))
+	buf := bytes.NewBuffer(res)
+	if _, err := SizedBlockID(s.BlockID).WriteTo(buf); err != nil {
+		return nil, fmt.Errorf("failed to marshal StateHashV2: %w", err)
+	}
+	buf.Write(s.SumHash[:])
+	if _, err := s.WriteTo(buf); err != nil {
+		return nil, fmt.Errorf("failed to marshal StateHashV2: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func (s *StateHashV2) toStateHashJS() stateHashJSV2 {

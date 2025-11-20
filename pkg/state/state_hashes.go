@@ -13,12 +13,16 @@ func newStateHashes(hs *historyStorage) *stateHashes {
 	return &stateHashes{hs}
 }
 
-func (s *stateHashes) saveLegacyStateHash(sh *proto.StateHashV1, height proto.Height) error {
+func (s *stateHashes) saveLegacyStateHash(sh proto.StateHash, height proto.Height) error {
 	key := legacyStateHashKey{height: height}
-	return s.hs.addNewEntry(legacyStateHash, key.bytes(), sh.MarshalBinary(), sh.BlockID)
+	data, err := sh.MarshalBinary()
+	if err != nil {
+		return err
+	}
+	return s.hs.addNewEntry(legacyStateHash, key.bytes(), data, sh.GetBlockID())
 }
 
-func (s *stateHashes) legacyStateHash(height proto.Height) (*proto.StateHashV1, error) {
+func (s *stateHashes) legacyStateHash(height proto.Height) (proto.StateHash, error) {
 	key := legacyStateHashKey{height: height}
 	stateHashBytes, err := s.hs.topEntryData(key.bytes())
 	if err != nil {

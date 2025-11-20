@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -88,9 +89,10 @@ func TestStateHashBinaryRoundTrip(t *testing.T) {
 	for i := range 10 {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			sh := randomStateHashV1()
-			data := sh.MarshalBinary()
+			data, err := sh.MarshalBinary()
+			require.NoError(t, err)
 			var sh2 StateHashV1
-			err := sh2.UnmarshalBinary(data)
+			err = sh2.UnmarshalBinary(data)
 			assert.NoError(t, err)
 			assert.Equal(t, sh, sh2)
 		})
@@ -104,4 +106,46 @@ func TestStateHash_GenerateSumHash(t *testing.T) {
 	err := sh.GenerateSumHash(prevHash[:])
 	assert.NoError(t, err)
 	assert.Equal(t, correctSumHash, sh.SumHash)
+}
+
+func TestStateHashV2_GenerateSumHashScalaCompatibility(t *testing.T) {
+	/* Output from Scala test com/wavesplatform/state/StateHashSpec.scala:138
+	PrevHash: 46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi
+	StateHash: StateHash(3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8,
+		HashMap(
+			WavesBalance -> 3PhZ3CqdvDR58QGE62gVJFm5pZ6Q5CMpSLWV3KxVkAT7,
+			LeaseBalance -> 59QG6ZmcCkLmNuuPLxp2ifNZcr4BzMCahtKQ5iqyM1kJ,
+			AssetBalance -> 6CbFygrWrb31bRy3M9BrFry4DZoxN1FCCRBGk5vdwf4S,
+			LeaseStatus -> AGLak7NRU4Q6dPWch4nsNbc7iBJMpPUy5agxUW55aLja,
+			NextCommittedGenerators -> Gni1oXsHrtK8wSEuRDeZ9qpF8UpKj41HGEWaYSj9bCyC,
+			DataEntry -> DcBnRPoAFXhM5nXKmEWTMPrMWhyceWt9FHypcJCJ6UKx,
+			Sponsorship -> 3mYNS5c9pEJ6LbwSQh9eevfjDsZAU78KoHX6ct22qBK8,
+			AccountScript -> AMrxWar34wJdGWjDj2peT2c1itiPaPwY81hU32hyrB88,
+			Alias -> 46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi,
+			AssetScript -> H8V5TrNNmwCU1erqVXmQbLoi9b4kd5iJSpMmvJ7CXeyf
+		)
+	)
+	TotalHash: 3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8
+	*/
+	sh := StateHashV2{
+		FieldsHashesV2: FieldsHashesV2{
+			FieldsHashesV1: FieldsHashesV1{
+				WavesBalanceHash:  crypto.MustDigestFromBase58("3PhZ3CqdvDR58QGE62gVJFm5pZ6Q5CMpSLWV3KxVkAT7"),
+				AssetBalanceHash:  crypto.MustDigestFromBase58("6CbFygrWrb31bRy3M9BrFry4DZoxN1FCCRBGk5vdwf4S"),
+				DataEntryHash:     crypto.MustDigestFromBase58("DcBnRPoAFXhM5nXKmEWTMPrMWhyceWt9FHypcJCJ6UKx"),
+				AccountScriptHash: crypto.MustDigestFromBase58("AMrxWar34wJdGWjDj2peT2c1itiPaPwY81hU32hyrB88"),
+				AssetScriptHash:   crypto.MustDigestFromBase58("H8V5TrNNmwCU1erqVXmQbLoi9b4kd5iJSpMmvJ7CXeyf"),
+				LeaseBalanceHash:  crypto.MustDigestFromBase58("59QG6ZmcCkLmNuuPLxp2ifNZcr4BzMCahtKQ5iqyM1kJ"),
+				LeaseStatusHash:   crypto.MustDigestFromBase58("AGLak7NRU4Q6dPWch4nsNbc7iBJMpPUy5agxUW55aLja"),
+				SponsorshipHash:   crypto.MustDigestFromBase58("3mYNS5c9pEJ6LbwSQh9eevfjDsZAU78KoHX6ct22qBK8"),
+				AliasesHash:       crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi"),
+			},
+			GeneratorsHash: crypto.MustDigestFromBase58("Gni1oXsHrtK8wSEuRDeZ9qpF8UpKj41HGEWaYSj9bCyC"),
+		},
+	}
+	prevHash := crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi")
+	correctSumHash := crypto.MustDigestFromBase58("3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8")
+	err := sh.GenerateSumHash(prevHash.Bytes())
+	require.NoError(t, err)
+	assert.Equal(t, correctSumHash, sh.GetSumHash())
 }
