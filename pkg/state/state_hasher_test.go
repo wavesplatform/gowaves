@@ -216,7 +216,7 @@ func TestScalaCompatibility(t *testing.T) {
 	assert.Equal(t, "7QtCEETGT76GHP7gR3Qc9DQzNjJYbxn4UJ7Bz7RofMQx5RJY7mZNveuFNfgJYg2kLn", blsPK.String())
 	address := proto.MustAddressFromString("3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8")
 	address1 := proto.MustAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
-	assetId := crypto.MustDigestFromBase58("9ekQuYn92natMnMq8KqeGK3Nn7cpKd3BvPEGgD6fFyyz")
+	assetID := crypto.MustDigestFromBase58("9ekQuYn92natMnMq8KqeGK3Nn7cpKd3BvPEGgD6fFyyz")
 
 	code := `
 	{-# STDLIB_VERSION 2 #-}
@@ -255,7 +255,7 @@ func TestScalaCompatibility(t *testing.T) {
 
 	assetScriptHasher := newStateHasher()
 	err = assetScriptHasher.push("assetScript", &assetScripRecordForHashes{
-		asset:  assetId,
+		asset:  assetID,
 		script: script,
 	}, bID)
 	require.NoError(t, err)
@@ -305,7 +305,7 @@ func TestScalaCompatibility(t *testing.T) {
 
 	leaseStatusHasher := newStateHasher()
 	err = leaseStatusHasher.push("leaseStatus", &leaseRecordForStateHashes{
-		id:       assetId,
+		id:       assetID,
 		isActive: true,
 	}, bID)
 	require.NoError(t, err)
@@ -316,7 +316,7 @@ func TestScalaCompatibility(t *testing.T) {
 
 	sponsorshipHasher := newStateHasher()
 	err = sponsorshipHasher.push("sponsorship", &sponsorshipRecordForHashes{
-		id:   assetId,
+		id:   assetID,
 		cost: 1000,
 	}, bID)
 	require.NoError(t, err)
@@ -328,13 +328,13 @@ func TestScalaCompatibility(t *testing.T) {
 	assetBalanceHasher := newStateHasher()
 	err = assetBalanceHasher.push("assetBalance1", &assetRecordForHashes{
 		addr:    &address,
-		asset:   assetId,
+		asset:   assetID,
 		balance: 2000,
 	}, bID)
 	require.NoError(t, err)
 	err = assetBalanceHasher.push("assetBalance2", &assetRecordForHashes{
 		addr:    &address1,
-		asset:   assetId,
+		asset:   assetID,
 		balance: 2000,
 	}, bID)
 	require.NoError(t, err)
