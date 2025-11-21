@@ -161,7 +161,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	validTx := createPayment(t)
 	err = manager.stateDB.addBlock(blockID0)
 	assert.NoError(t, err, "addBlock() failed")
-	waves := newWavesValueFromProfile(balanceProfile{validTx.Amount + validTx.Fee, 0, 0})
+	waves := newWavesValueFromProfile(balanceProfile{validTx.Amount + validTx.Fee, 0, 0, 0})
 	err = manager.stor.balances.setWavesBalance(testGlobal.senderInfo.addr.ID(), waves, blockID0)
 	assert.NoError(t, err, "setWavesBalance() failed")
 	err = manager.flush()
@@ -549,12 +549,12 @@ func TestGeneratingBalanceValuesForNewestFunctions(t *testing.T) {
 		// add initial balance at first block
 		testObj.addBlock(t, blockID0)
 		for _, addr := range addresses {
-			testObj.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0}, blockID0) // height 1
+			testObj.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0, 0}, blockID0) // height 1
 		}
 		// add changed balance at second block
 		testObj.addBlock(t, blockID1)
 		for _, addr := range addresses {
-			testObj.setWavesBalance(t, addr, balanceProfile{changedBalance, 0, 0}, blockID1) // height 2
+			testObj.setWavesBalance(t, addr, balanceProfile{changedBalance, 0, 0, 0}, blockID1) // height 2
 		}
 		// add 998 random blocks, 2 blocks have already been added
 		testObj.addBlocks(t, blocksToApply-2)
@@ -809,8 +809,8 @@ func TestGeneratingBalanceValuesInRide(t *testing.T) {
 			firstTransferAmount          = 10 * proto.PriceConstant
 			secondTransferAmount         = 50 * proto.PriceConstant
 		)
-		testObj.setWavesBalance(t, dAppAddr, balanceProfile{initialDAppBalance, 0, 0}, blockID0)         // height 1
-		testObj.setWavesBalance(t, caller, balanceProfile{initialAnotherAccountBalance, 0, 0}, blockID0) // height 1
+		testObj.setWavesBalance(t, dAppAddr, balanceProfile{initialDAppBalance, 0, 0, 0}, blockID0)         // height 1
+		testObj.setWavesBalance(t, caller, balanceProfile{initialAnotherAccountBalance, 0, 0, 0}, blockID0) // height 1
 
 		dAppBalance := int64(initialDAppBalance)
 		testObj.addBlockAndDo(t, blockID1, func(_ proto.BlockID) { // height 2
@@ -960,8 +960,8 @@ func TestIsStateUntouched(t *testing.T) {
 			initialDAppBalance           = 100 * proto.PriceConstant
 			initialAnotherAccountBalance = 500 * proto.PriceConstant
 		)
-		testObj.setWavesBalance(t, dAppAddr, balanceProfile{initialDAppBalance, 0, 0}, blockID0)         // height 1
-		testObj.setWavesBalance(t, caller, balanceProfile{initialAnotherAccountBalance, 0, 0}, blockID0) // height 1
+		testObj.setWavesBalance(t, dAppAddr, balanceProfile{initialDAppBalance, 0, 0, 0}, blockID0)         // height 1
+		testObj.setWavesBalance(t, caller, balanceProfile{initialAnotherAccountBalance, 0, 0, 0}, blockID0) // height 1
 
 		// Alias "alice" created and checked in different blocks, should always pass.
 		testObj.addBlockAndDo(t, blockID1, func(_ proto.BlockID) { // height 2 - create alias "alice".

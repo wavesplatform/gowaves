@@ -21,7 +21,7 @@ type HTTPClient struct {
 	timeout time.Duration
 }
 
-func NewHTTPClient(t *testing.T, impl Implementation, port string) *HTTPClient {
+func NewHTTPClient(t testing.TB, impl Implementation, port string) *HTTPClient {
 	c, err := client.NewClient(client.Options{
 		BaseUrl: "http://" + config.DefaultIP + ":" + port + "/",
 		Client:  &http.Client{Timeout: d.DefaultTimeout},
@@ -37,7 +37,7 @@ func NewHTTPClient(t *testing.T, impl Implementation, port string) *HTTPClient {
 	}
 }
 
-func (c *HTTPClient) GetHeight(t *testing.T, opts ...config.WaitOption) *client.BlocksHeight {
+func (c *HTTPClient) GetHeight(t testing.TB, opts ...config.WaitOption) *client.BlocksHeight {
 	params := config.NewWaitParams(opts...)
 	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
@@ -46,7 +46,7 @@ func (c *HTTPClient) GetHeight(t *testing.T, opts ...config.WaitOption) *client.
 	return h
 }
 
-func (c *HTTPClient) StateHash(t *testing.T, height uint64, opts ...config.WaitOption) *proto.StateHash {
+func (c *HTTPClient) StateHash(t testing.TB, height uint64, opts ...config.WaitOption) *proto.StateHash {
 	params := config.NewWaitParams(opts...)
 	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
@@ -55,7 +55,7 @@ func (c *HTTPClient) StateHash(t *testing.T, height uint64, opts ...config.WaitO
 	return stateHash
 }
 
-func (c *HTTPClient) PrintMsg(t *testing.T, msg string) {
+func (c *HTTPClient) PrintMsg(t testing.TB, msg string) {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	_, err := c.cli.Debug.PrintMsg(ctx, msg)
@@ -69,7 +69,7 @@ func (c *HTTPClient) GetAssetDetails(assetID crypto.Digest) (*client.AssetsDetai
 	return details, err
 }
 
-func (c *HTTPClient) TransactionInfo(t *testing.T, id crypto.Digest) proto.Transaction {
+func (c *HTTPClient) TransactionInfo(t testing.TB, id crypto.Digest) proto.Transaction {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	info, _, err := c.cli.Transactions.Info(ctx, id)
@@ -89,7 +89,7 @@ func (c *HTTPClient) TransactionBroadcast(transaction proto.Transaction) (*clien
 	return c.cli.Transactions.Broadcast(ctx, transaction)
 }
 
-func (c *HTTPClient) WavesBalance(t *testing.T, address proto.WavesAddress) *client.AddressesBalance {
+func (c *HTTPClient) WavesBalance(t testing.TB, address proto.WavesAddress) *client.AddressesBalance {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 	balance, _, err := c.cli.Addresses.Balance(ctx, address)
@@ -98,7 +98,7 @@ func (c *HTTPClient) WavesBalance(t *testing.T, address proto.WavesAddress) *cli
 }
 
 func (c *HTTPClient) AssetBalance(
-	t *testing.T, address proto.WavesAddress, assetID crypto.Digest,
+	t testing.TB, address proto.WavesAddress, assetID crypto.Digest,
 ) *client.AssetsBalanceAndAsset {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
@@ -118,7 +118,7 @@ func (c *HTTPClient) ConnectedPeersCtx(ctx context.Context) ([]*client.PeersConn
 	return connectedPeers, resp, err
 }
 
-func (c *HTTPClient) BlockHeader(t *testing.T, height proto.Height) *client.Headers {
+func (c *HTTPClient) BlockHeader(t testing.TB, height proto.Height) *client.Headers {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
@@ -127,7 +127,7 @@ func (c *HTTPClient) BlockHeader(t *testing.T, height proto.Height) *client.Head
 	return header
 }
 
-func (c *HTTPClient) Rewards(t *testing.T) *client.RewardInfo {
+func (c *HTTPClient) Rewards(t testing.TB) *client.RewardInfo {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
@@ -136,7 +136,7 @@ func (c *HTTPClient) Rewards(t *testing.T) *client.RewardInfo {
 	return rewardInfo
 }
 
-func (c *HTTPClient) RewardsAtHeight(t *testing.T, height proto.Height) *client.RewardInfo {
+func (c *HTTPClient) RewardsAtHeight(t testing.TB, height proto.Height) *client.RewardInfo {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
@@ -145,7 +145,7 @@ func (c *HTTPClient) RewardsAtHeight(t *testing.T, height proto.Height) *client.
 	return rewardInfo
 }
 
-func (c *HTTPClient) RollbackToHeight(t *testing.T, height uint64, returnTxToUtx bool) *proto.BlockID {
+func (c *HTTPClient) RollbackToHeight(t testing.TB, height uint64, returnTxToUtx bool) *proto.BlockID {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 
