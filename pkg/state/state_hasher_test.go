@@ -1,13 +1,17 @@
 package state
 
 import (
+	"encoding/base64"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 )
 
 func TestPushOneBlock(t *testing.T) {
@@ -199,4 +203,180 @@ func TestLegacyStateHashSupport(t *testing.T) {
 	assert.False(t, assetFoundAshRecord)
 	_, assetFoundBshRecord = assetsTmpSHRecords.componentByKey[string(assetKeyB.bytes())]
 	assert.True(t, assetFoundBshRecord)
+}
+
+func TestScalaCompatibility(t *testing.T) {
+	address := proto.MustAddressFromString("3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8")
+	address1 := proto.MustAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
+	assetID := crypto.MustDigestFromBase58("9ekQuYn92natMnMq8KqeGK3Nn7cpKd3BvPEGgD6fFyyz")
+	pk, err := crypto.NewPublicKeyFromBase58("9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ")
+	require.NoError(t, err)
+	blsPK, err := bls.NewPublicKeyFromBase58("7QtCEETGT76GHP7gR3Qc9DQzNjJYbxn4UJ7Bz7RofMQx5RJY7mZNveuFNfgJYg2kLn")
+	require.NoError(t, err)
+
+	code := `
+	{-# STDLIB_VERSION 2 #-}
+	{-# CONTENT_TYPE EXPRESSION #-}
+	{-# SCRIPT_TYPE ACCOUNT #-}
+	true
+	`
+	script, errors := ridec.Compile(code, false, false)
+	require.Nil(t, errors)
+
+	bID := proto.NewBlockIDFromDigest(crypto.Digest{})
+
+	leaseHasher := newStateHasher()
+	err = leaseHasher.push("leaseBalance", &leaseBalanceRecordForHashes{
+		addr:     &address,
+		leaseIn:  10000,
+		leaseOut: 10000,
+	}, bID)
+	require.NoError(t, err)
+	err = leaseHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t,
+		"PZWx1OT3QuQXA2Tu5l24GN3LxnlfWakj4rQdzyHJr68=",
+		base64.StdEncoding.EncodeToString(leaseHasher.stateHashAt(bID).Bytes()))
+
+	accountScriptHasher := newStateHasher()
+	err = accountScriptHasher.push("accountScript", &accountScripRecordForHashes{
+		addr:   &address,
+		script: script,
+	}, bID)
+	require.NoError(t, err)
+	err = accountScriptHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "ixFJABpqIXRbncERNnGqE02DARpi5/SGOg9VJuwy8W0=",
+		base64.StdEncoding.EncodeToString(accountScriptHasher.stateHashAt(bID).Bytes()))
+
+	assetScriptHasher := newStateHasher()
+	err = assetScriptHasher.push("assetScript", &assetScripRecordForHashes{
+		asset:  assetID,
+		script: script,
+	}, bID)
+	require.NoError(t, err)
+	err = assetScriptHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "76XNneo9mK5bO2/EjDQAhlztXinq5+0h/fb40HL7s+o=",
+		base64.StdEncoding.EncodeToString(assetScriptHasher.stateHashAt(bID).Bytes()))
+
+	aliasHasher := newStateHasher()
+	err = aliasHasher.push("alias1", &aliasRecordForStateHashes{
+		addr:  address,
+		alias: []byte("test"),
+	}, bID)
+	require.NoError(t, err)
+	err = aliasHasher.push("alias2", &aliasRecordForStateHashes{
+		addr:  address,
+		alias: []byte("test1"),
+	}, bID)
+	require.NoError(t, err)
+	err = aliasHasher.push("alias3", &aliasRecordForStateHashes{
+		addr:  address1,
+		alias: []byte("test2"),
+	}, bID)
+	require.NoError(t, err)
+	err = aliasHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "LgTVfXhl5/XLer00v+dhVT2GBHtD3rpWjhs9rxao6y8=",
+		base64.StdEncoding.EncodeToString(aliasHasher.stateHashAt(bID).Bytes()))
+
+	dataEntryHasher := newStateHasher()
+	de := proto.StringDataEntry{
+		Key:   "test",
+		Value: "test",
+	}
+	vb, err := de.MarshalValue()
+	require.NoError(t, err)
+	err = dataEntryHasher.push("dataEntry", &dataEntryRecordForHashes{
+		addr:  address.Bytes(),
+		key:   []byte(de.Key),
+		value: vb,
+	}, bID)
+	require.NoError(t, err)
+	err = dataEntryHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "u0/DkX/iOy9g6jmaMtBa1IGAOIXlOfMJPxqyRYtfvo8=",
+		base64.StdEncoding.EncodeToString(dataEntryHasher.stateHashAt(bID).Bytes()))
+
+	leaseStatusHasher := newStateHasher()
+	err = leaseStatusHasher.push("leaseStatus", &leaseRecordForStateHashes{
+		id:       assetID,
+		isActive: true,
+	}, bID)
+	require.NoError(t, err)
+	err = leaseStatusHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "iacJITiqoPvN4eYHyb+22vyEevcXVf0Rlo3H4U+Pbvk=",
+		base64.StdEncoding.EncodeToString(leaseStatusHasher.stateHashAt(bID).Bytes()))
+
+	sponsorshipHasher := newStateHasher()
+	err = sponsorshipHasher.push("sponsorship", &sponsorshipRecordForHashes{
+		id:   assetID,
+		cost: 1000,
+	}, bID)
+	require.NoError(t, err)
+	err = sponsorshipHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "KSBmKoG2bDg8kdzC+iXrYJOIRK45cpDl9h0P0GeboPM=",
+		base64.StdEncoding.EncodeToString(sponsorshipHasher.stateHashAt(bID).Bytes()))
+
+	assetBalanceHasher := newStateHasher()
+	err = assetBalanceHasher.push("assetBalance1", &assetRecordForHashes{
+		addr:    &address,
+		asset:   assetID,
+		balance: 2000,
+	}, bID)
+	require.NoError(t, err)
+	err = assetBalanceHasher.push("assetBalance2", &assetRecordForHashes{
+		addr:    &address1,
+		asset:   assetID,
+		balance: 2000,
+	}, bID)
+	require.NoError(t, err)
+	err = assetBalanceHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "TUKPNzY41ho40LeluH9drR5enLTIbD7EDyrAdxkIoG8=",
+		base64.StdEncoding.EncodeToString(assetBalanceHasher.stateHashAt(bID).Bytes()))
+
+	wavesBalanceHasher := newStateHasher()
+	err = wavesBalanceHasher.push("wavesBalance", &wavesRecordForHashes{
+		addr:    &address,
+		balance: 1000,
+	}, bID)
+	require.NoError(t, err)
+	err = wavesBalanceHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "I4gBHqU03gVAKOkpQo3dbLB1muwWqhfhONTPIX6fq4Y=",
+		base64.StdEncoding.EncodeToString(wavesBalanceHasher.stateHashAt(bID).Bytes()))
+
+	generatorsHasher := newStateHasher()
+	err = generatorsHasher.push("generators", &commitmentsRecordForStateHashes{publicKey: pk, blsPublicKey: blsPK}, bID)
+	require.NoError(t, err)
+	err = generatorsHasher.stop()
+	require.NoError(t, err)
+	assert.Equal(t, "6pTQljIImIOjWn1Rq3EsD63lChYnLWqJ8kPjek8AbBc=",
+		base64.StdEncoding.EncodeToString(generatorsHasher.stateHashAt(bID).Bytes()))
+
+	sh := proto.StateHashV2{
+		BlockID: bID,
+		FieldsHashesV2: proto.FieldsHashesV2{
+			FieldsHashesV1: proto.FieldsHashesV1{
+				WavesBalanceHash:  wavesBalanceHasher.stateHashAt(bID),
+				AssetBalanceHash:  assetBalanceHasher.stateHashAt(bID),
+				DataEntryHash:     dataEntryHasher.stateHashAt(bID),
+				AccountScriptHash: accountScriptHasher.stateHashAt(bID),
+				AssetScriptHash:   assetScriptHasher.stateHashAt(bID),
+				LeaseBalanceHash:  leaseHasher.stateHashAt(bID),
+				LeaseStatusHash:   leaseStatusHasher.stateHashAt(bID),
+				SponsorshipHash:   sponsorshipHasher.stateHashAt(bID),
+				AliasesHash:       aliasHasher.stateHashAt(bID),
+			},
+			GeneratorsHash: generatorsHasher.stateHashAt(bID),
+		},
+	}
+	prevHash := crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi")
+	err = sh.GenerateSumHash(prevHash.Bytes())
+	require.NoError(t, err)
+	assert.Equal(t, "3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8", sh.SumHash.String())
 }
