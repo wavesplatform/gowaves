@@ -41,12 +41,6 @@ jobs:
           jq 'walk(if type=="object" and has("markdown") and (.text == null or .text == "") then .text = .markdown else . end) | (.runs[].results[]? .fixes[]? .artifactChanges) |= (if . == null then [{"artifactLocation": { "uri": "" }, "replacements": [{"deletedRegion": {"byteOffset": 0, "byteLength": 0 }}]}] else . end)' gosec.sarif > gosec_fixed.sarif
           jq empty gosec_fixed.sarif
           mv gosec_fixed.sarif gosec.sarif
-      - name: Upload gosec SARIF to artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: gosec-sarif
-          path: gosec.sarif
-
       - name: Upload SARIF file for GitHub Advanced Security Dashboard
         uses: github/codeql-action/upload-sarif@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3
         with:
