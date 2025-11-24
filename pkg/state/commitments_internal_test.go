@@ -96,13 +96,13 @@ func TestCommitments_Exists(t *testing.T) {
 
 				// Check that all added commitments exist.
 				for k := range j {
-					ok, eErr := to.entities.commitments.newestExists(test.periodStart, cms[k].GeneratorPK)
+					ok, eErr := to.entities.commitments.newestExists(test.periodStart, cms[k].GeneratorPK, cms[k].EndorserPK)
 					require.NoError(t, eErr)
 					assert.True(t, ok)
 				}
 
 				// Check that non-existing commitment does not exist.
-				ok, err := to.entities.commitments.newestExists(test.periodStart, cms[test.n].GeneratorPK)
+				ok, err := to.entities.commitments.newestExists(test.periodStart, cms[test.n].GeneratorPK, cms[test.n].EndorserPK)
 				require.NoError(t, err)
 				assert.False(t, ok)
 
@@ -110,13 +110,13 @@ func TestCommitments_Exists(t *testing.T) {
 
 				// Check that all added commitments exist after flush.
 				for k := range j {
-					ex, eErr := to.entities.commitments.exists(test.periodStart, cms[k].GeneratorPK)
+					ex, eErr := to.entities.commitments.exists(test.periodStart, cms[k].GeneratorPK, cms[k].EndorserPK)
 					require.NoError(t, eErr)
 					assert.True(t, ex)
 				}
 
 				// Check that non-existing commitment does not exist after flush.
-				ok, err = to.entities.commitments.exists(test.periodStart, cms[test.n].GeneratorPK)
+				ok, err = to.entities.commitments.exists(test.periodStart, cms[test.n].GeneratorPK, cms[test.n].EndorserPK)
 				require.NoError(t, err)
 				assert.False(t, ok)
 			}
@@ -154,6 +154,37 @@ func TestCommitments_Size(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestRepeatedUsageOfBLSKey(t *testing.T) {
+	to := createStorageObjects(t, true)
+	periodStart := uint32(1_000_000)
+	cms := generateCommitments(t, 2)
+	bID1 := generateRandomBlockID(t)
+	to.addBlock(t, bID1)
+	err := to.entities.commitments.store(periodStart, cms[0].GeneratorPK, cms[0].EndorserPK, bID1)
+	require.NoError(t, err)
+
+	// Check that the commitment exist.
+	ok, err := to.entities.commitments.newestExists(periodStart, cms[0].GeneratorPK, cms[0].EndorserPK)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	// Check that a commitment with different generator and same endorser keys leads to the error.
+	ok, err = to.entities.commitments.newestExists(periodStart, cms[1].GeneratorPK, cms[0].EndorserPK)
+	assert.False(t, ok)
+	assert.EqualError(t, err, "endorser public key is already used by another generator")
+
+	// Flush and check again.
+	to.flush(t)
+
+	ok, err = to.entities.commitments.exists(periodStart, cms[0].GeneratorPK, cms[0].EndorserPK)
+	require.NoError(t, err)
+	assert.True(t, ok)
+
+	ok, err = to.entities.commitments.exists(periodStart, cms[1].GeneratorPK, cms[0].EndorserPK)
+	assert.False(t, ok)
+	assert.EqualError(t, err, "endorser public key is already used by another generator")
 }
 
 func generateCommitments(t testing.TB, n int) []commitmentItem {

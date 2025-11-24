@@ -1589,7 +1589,7 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 			nextPeriodStart, tx.GenerationPeriodStart)
 	}
 	// Check that the sender has no other CommitToGeneration transaction with the same nextGenerationPeriodStart.
-	exist, err := tc.stor.commitments.newestExists(tx.GenerationPeriodStart, tx.SenderPK)
+	exist, err := tc.stor.commitments.newestExists(tx.GenerationPeriodStart, tx.SenderPK, tx.EndorserPublicKey)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to check existing commitment for the sender")
 	}
