@@ -2,11 +2,16 @@ package state
 
 import (
 	"fmt"
+
 	"github.com/fxamacker/cbor/v2"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
 const finalizationKey = "finalization"
+
+var ErrNoFinalization = errors.New("no finalized blocks recorded")
+var ErrNoFinalizationHistory = errors.New("no finalization in history")
 
 type finalizationItem struct {
 	Block                proto.Block  `cbor:"0,keyasint,omitempty"`
@@ -17,9 +22,9 @@ type finalizationRecord struct {
 	Records []finalizationItem `cbor:"0,keyasint,omitempty"`
 }
 
-func (fr *finalizationRecord) append(Block proto.Block, finalizedBlockHeight proto.Height) {
+func (fr *finalizationRecord) append(block proto.Block, finalizedBlockHeight proto.Height) {
 	fr.Records = append(fr.Records, finalizationItem{
-		Block:                Block,
+		Block:                block,
 		FinalizedBlockHeight: finalizedBlockHeight,
 	})
 }
@@ -35,7 +40,8 @@ func newFinalizations(hs *historyStorage) *finalizations {
 	return &finalizations{hs: hs}
 }
 
-func (f *finalizations) store(block proto.Block, finalizedBlockHeight proto.Height, currentBlockID proto.BlockID) error {
+func (f *finalizations) store(block proto.Block, finalizedBlockHeight proto.Height,
+	currentBlockID proto.BlockID) error {
 	key := []byte(finalizationKey)
 	data, err := f.hs.newestTopEntryData(key)
 	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
@@ -64,16 +70,16 @@ func (f *finalizations) newest() (*finalizationItem, error) {
 	data, err := f.hs.newestTopEntryData(key)
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) {
-			return nil, nil
+			return nil, ErrNoFinalizationHistory
 		}
 		return nil, fmt.Errorf("failed to retrieve finalization record: %w", err)
 	}
 	var rec finalizationRecord
-	if err := rec.unmarshalBinary(data); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal finalization record: %w", err)
+	if unmrshhlErr := rec.unmarshalBinary(data); unmrshhlErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal finalization record: %w", unmrshhlErr)
 	}
 	if len(rec.Records) == 0 {
-		return nil, nil
+		return nil, ErrNoFinalization
 	}
 	return &rec.Records[len(rec.Records)-1], nil
 }

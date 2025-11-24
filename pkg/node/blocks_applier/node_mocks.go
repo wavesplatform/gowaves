@@ -278,7 +278,7 @@ func (a *MockStateManager) AddDeserializedBlock(block *proto.Block) (*proto.Bloc
 }
 
 func (a *MockStateManager) AddDeserializedBlocks(
-	blocks []*proto.Block,
+	blocks []*proto.Block, _ bool,
 ) (*proto.Block, error) {
 	var out *proto.Block
 	var err error

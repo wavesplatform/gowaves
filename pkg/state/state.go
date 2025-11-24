@@ -1489,9 +1489,9 @@ func (s *stateManager) AddDeserializedBlocks(
 	if !isMicro {
 		for _, block := range blocks {
 			if block != nil && block.FinalizationVoting != nil {
-				err := s.stor.finalizations.store(*block, block.FinalizationVoting.FinalizedBlockHeight, block.BlockID())
-				if err != nil {
-					return nil, err
+				storeErr := s.stor.finalizations.store(*block, block.FinalizationVoting.FinalizedBlockHeight, block.BlockID())
+				if storeErr != nil {
+					return nil, storeErr
 				}
 			}
 		}

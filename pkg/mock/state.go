@@ -404,21 +404,6 @@ func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
 }
 
-// FinalizedHeightAt mocks base method.
-func (m *MockStateInfo) FinalizedHeightAt(height proto.Height) (proto.Height, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FinalizedHeightAt", height)
-	ret0, _ := ret[0].(proto.Height)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FinalizedHeightAt indicates an expected call of FinalizedHeightAt.
-func (mr *MockStateInfoMockRecorder) FinalizedHeightAt(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinalizedHeightAt", reflect.TypeOf((*MockStateInfo)(nil).FinalizedHeightAt), height)
-}
-
 // FindEndorserPKByIndex mocks base method.
 func (m *MockStateInfo) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
 	m.ctrl.T.Helper()
@@ -1311,18 +1296,18 @@ func (mr *MockStateModifierMockRecorder) AddDeserializedBlock(block interface{})
 }
 
 // AddDeserializedBlocks mocks base method.
-func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block, isMicro bool) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks, isMicro)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
-func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks, isMicro interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks, isMicro)
 }
 
 // AddDeserializedBlocksWithSnapshots mocks base method.
@@ -1629,18 +1614,18 @@ func (mr *MockStateMockRecorder) AddDeserializedBlock(block interface{}) *gomock
 }
 
 // AddDeserializedBlocks mocks base method.
-func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
+func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block, isMicro bool) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks, isMicro)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
-func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks, isMicro interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks, isMicro)
 }
 
 // AddDeserializedBlocksWithSnapshots mocks base method.
@@ -1955,21 +1940,6 @@ func (m *MockState) EstimatorVersion() (int, error) {
 func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
-}
-
-// FinalizedHeightAt mocks base method.
-func (m *MockState) FinalizedHeightAt(height proto.Height) (proto.Height, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FinalizedHeightAt", height)
-	ret0, _ := ret[0].(proto.Height)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FinalizedHeightAt indicates an expected call of FinalizedHeightAt.
-func (mr *MockStateMockRecorder) FinalizedHeightAt(height interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FinalizedHeightAt", reflect.TypeOf((*MockState)(nil).FinalizedHeightAt), height)
 }
 
 // FindEndorserPKByIndex mocks base method.
