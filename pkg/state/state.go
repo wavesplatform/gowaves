@@ -1574,6 +1574,28 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 	return false, nil
 }
 
+func (s *stateManager) isGenerationPeriodOver(height proto.Height) (bool, error) {
+	finalityActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if height < finalityActivationHeight {
+		return false, nil
+	}
+	end, err := generationPeriodEnd(finalityActivationHeight, height, s.settings.GenerationPeriod, 0)
+	if err != nil {
+		return false, err
+	}
+	end64, err := safecast.Convert[uint64](end)
+	if err != nil {
+		return false, err
+	}
+	return height == end64, nil
+}
+
 // featureActivationHeightForHeight returns the height at which the feature is activated.
 // If the feature is not activated at the given height, it returns 0.
 func (s *stateManager) featureActivationHeightForHeight(f settings.Feature, h proto.Height) (proto.Height, error) {
@@ -1717,6 +1739,21 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			return ubrErr
 		}
 	}
+	// We are checking that the top block is the last block of previous generation period.
+	// In this case, we have to reset deposits
+	periodIsOver, err := s.isGenerationPeriodOver(blockchainHeight)
+	if err != nil {
+		return err
+	}
+	if periodIsOver {
+		// Return deposits associated with the ended period.
+		slog.Debug("Generation period is over, resetting deposits in block",
+			"blockchainHeight", blockchainHeight, "blockHeight", blockchainHeight+1,
+			"blockID", nextBlock.String())
+		if drErr := s.resetDeposits(nextBlock, blockchainHeight); drErr != nil {
+			return drErr
+		}
+	}
 	return nil
 }
 
@@ -1743,6 +1780,44 @@ func (s *stateManager) updateBlockReward(nextBlockID proto.BlockID, lastBlockHei
 		blockRewardActivationHeight,
 		isCappedRewardsActivated,
 	)
+}
+
+func (s *stateManager) resetDeposits(nextBlockID proto.BlockID, lastBlockHeight proto.Height) error {
+	activationHeight, err := s.stor.features.newestActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return fmt.Errorf("failed to reset deposits: %w", err)
+	}
+	start, err := CurrentGenerationPeriodStart(activationHeight, lastBlockHeight, s.settings.GenerationPeriod)
+	if err != nil {
+		return fmt.Errorf("failed to reset deposits: %w", err)
+	}
+	generators, err := s.stor.commitments.newestGenerators(start)
+	if err != nil {
+		return fmt.Errorf("failed to reset deposits: %w", err)
+	}
+	for _, generator := range generators {
+		addr, adrErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, generator)
+		if adrErr != nil {
+			return fmt.Errorf("failed to reset deposits: %w", adrErr)
+		}
+		balance, bErr := s.stor.balances.wavesBalance(addr.ID())
+		if bErr != nil {
+			return fmt.Errorf("failed to reset deposits: %w", bErr)
+		}
+		balance.Deposit, err = common.SubInt(balance.Deposit, Deposit)
+		if err != nil {
+			return fmt.Errorf("failed to reset deposits: %w", err)
+		}
+		v := wavesValue{
+			profile:       balance,
+			leaseChange:   false,
+			balanceChange: false,
+		}
+		if sbErr := s.stor.balances.setWavesBalance(addr.ID(), v, nextBlockID); sbErr != nil {
+			return fmt.Errorf("failed to reset deposits: %w", sbErr)
+		}
+	}
+	return nil
 }
 
 // generateCancelLeasesSnapshots generates snapshots for lease cancellation blockchain fixes.
@@ -3292,7 +3367,7 @@ func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
 
 // CommittedGenerators returns the list of Waves addresses of committed generators.
 func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
-	pks, err := s.stor.commitments.generators(periodStart)
+	pks, err := s.stor.commitments.newestGenerators(periodStart)
 	if err != nil {
 		return nil, err
 	}

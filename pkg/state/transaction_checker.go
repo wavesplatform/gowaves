@@ -1588,17 +1588,8 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 		return txCheckerData{}, fmt.Errorf("invalid NextGenerationPeriodStart: expected %d, got %d",
 			nextPeriodStart, tx.GenerationPeriodStart)
 	}
-	// Check that we can add new generation commitment to the next period.
-	committed, err := tc.stor.commitments.newestSize(nextPeriodStart)
-	if err != nil {
-		return txCheckerData{}, errors.Wrap(err, "failed to get number of commitments for the next period")
-	}
-	if committed >= tc.settings.MaxGenerators {
-		return txCheckerData{}, errors.Errorf(
-			"no available slots for the next generation period, %d generators already committed", committed)
-	}
 	// Check that the sender has no other CommitToGeneration transaction with the same nextGenerationPeriodStart.
-	exist, err := tc.stor.commitments.newestExists(tx.GenerationPeriodStart, tx.SenderPK)
+	exist, err := tc.stor.commitments.newestExists(tx.GenerationPeriodStart, tx.SenderPK, tx.EndorserPublicKey)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to check existing commitment for the sender")
 	}
@@ -1620,26 +1611,52 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 // nextGenerationPeriodStart returns the start height of the next generation period given the current block height,
 // the feature activation height and the period length.
 // If the block height is less than the activation height, an error is returned.
-func generationPeriodStart(activationHeight, blockHeight, periodLength uint64, offset uint64) (uint32, error) {
+
+func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 1)
+	if err != nil {
+		return 0, err
+	}
+	return safecast.Convert[uint32](s)
+}
+
+func CurrentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 0)
+	if err != nil {
+		return 0, err
+	}
+	return safecast.Convert[uint32](s)
+}
+
+func isFirstPeriod(activationHeight, blockHeight, periodLength uint64) bool {
+	return activationHeight <= blockHeight && blockHeight <= activationHeight+periodLength
+}
+
+func generationPeriodStart(activationHeight, blockHeight, periodLength, offset uint64) (uint64, error) {
 	switch {
 	case blockHeight < activationHeight:
 		return 0, fmt.Errorf(
 			"invalid block height %d, must be greater than feature #25 \"Deterministic Finality and Ride V9\" "+
 				"activation height %d", blockHeight, activationHeight)
-	case blockHeight == activationHeight:
-		// The first generation period starts right after the activation.
-		return safecast.Convert[uint32](activationHeight + periodLength + 1)
+	case isFirstPeriod(activationHeight, blockHeight, periodLength):
+		if offset > 0 {
+			return activationHeight + 1 + offset*periodLength, nil
+		}
+		return activationHeight, nil
 	default:
 		base := activationHeight + 1 // Start of the first full period.
 		k := (blockHeight - base) / periodLength
-		return safecast.Convert[uint32](base + (k+offset)*periodLength)
+		return base + (k+offset)*periodLength, nil
 	}
 }
 
-func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
-	return generationPeriodStart(activationHeight, blockHeight, periodLength, 1)
-}
-
-func CurrentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
-	return generationPeriodStart(activationHeight, blockHeight, periodLength, 0)
+func generationPeriodEnd(activationHeight, blockHeight, periodLength, offset uint64) (uint64, error) {
+	start, err := generationPeriodStart(activationHeight, blockHeight, periodLength, offset)
+	if err != nil {
+		return 0, err
+	}
+	if isFirstPeriod(activationHeight, blockHeight, periodLength) && offset == 0 {
+		return safecast.Convert[uint64](start + periodLength)
+	}
+	return start + periodLength - 1, nil
 }

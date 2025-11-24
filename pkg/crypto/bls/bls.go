@@ -58,19 +58,25 @@ func (k *SecretKey) PublicKey() (PublicKey, error) {
 	return pk, nil
 }
 
-func GenerateSecretKey(seed []byte) (SecretKey, error) {
+// GenerateSecretKey generates BLS secret key from given seed and options.
+// By default, zero salt and nil info are used. That leads to deterministic key generation.
+// To use random salt, use WithRandomSalt() option. In this case, each call of GenerateSecretKey with the same seed
+// will produce different secret keys.
+// To use custom salt or info, use WithSalt() and WithInfo() options respectively.
+func GenerateSecretKey(seed []byte, opts ...KeyGenerationOption) (SecretKey, error) {
+	cfg := defaultKeyGenConfig()
+	for _, opt := range opts {
+		if optErr := opt(&cfg); optErr != nil {
+			return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", optErr)
+		}
+	}
 	h := sha256.New()
 	_, err := h.Write(seed)
 	if err != nil {
 		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
 	}
 	sh := h.Sum(nil)
-	rnd := make([]byte, sha256.Size)
-	_, err = rand.Read(rnd)
-	if err != nil {
-		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
-	}
-	csk, err := cbls.KeyGen[cbls.G1](sh, rnd, nil)
+	csk, err := cbls.KeyGen[cbls.G1](sh, cfg.salt, cfg.info)
 	if err != nil {
 		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
 	}
@@ -170,11 +176,11 @@ func (s Signature) MarshalJSON() ([]byte, error) {
 }
 
 func (s *Signature) UnmarshalJSON(value []byte) error {
-	b, err := common.FromBase58JSON(value, PublicKeySize, "publicKey")
+	b, err := common.FromBase58JSON(value, SignatureSize, "signature")
 	if err != nil {
 		return err
 	}
-	copy(s[:], b[:PublicKeySize])
+	copy(s[:], b[:SignatureSize])
 	return nil
 }
 
@@ -282,4 +288,51 @@ func isUnique[T comparable](in []T) bool {
 		seen[v] = struct{}{}
 	}
 	return true
+}
+
+type keyGenConfig struct {
+	salt []byte
+	info []byte
+}
+
+func defaultKeyGenConfig() keyGenConfig {
+	return keyGenConfig{
+		salt: make([]byte, sha256.Size), // By default, salt is empty byte slice of sha256.Size length.
+		info: nil,
+	}
+}
+
+// KeyGenerationOption is an option for BLS key generation.
+type KeyGenerationOption func(config *keyGenConfig) error
+
+// WithRandomSalt generates random salt for BLS key generation.
+func WithRandomSalt() KeyGenerationOption {
+	return func(config *keyGenConfig) error {
+		rnd := make([]byte, sha256.Size)
+		_, err := rand.Read(rnd)
+		if err != nil {
+			return fmt.Errorf("failed to generate random salt: %w", err)
+		}
+		config.salt = rnd
+		return nil
+	}
+}
+
+// WithSalt sets given salt for BLS key generation.
+func WithSalt(salt []byte) KeyGenerationOption {
+	return func(config *keyGenConfig) error {
+		if len(salt) != sha256.Size {
+			return fmt.Errorf("invalid salt length: got %d, want %d", len(salt), sha256.Size)
+		}
+		config.salt = salt
+		return nil
+	}
+}
+
+// WithInfo sets given info for BLS key generation.
+func WithInfo(data []byte) KeyGenerationOption {
+	return func(config *keyGenConfig) error {
+		config.info = data
+		return nil
+	}
 }
