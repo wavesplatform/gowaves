@@ -404,6 +404,21 @@ func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
 }
 
+// FindEndorserPKByGeneratorPK mocks base method.
+func (m *MockStateInfo) FindEndorserPKByGeneratorPK(periodStart uint32, generatorPK crypto.PublicKey) (bls.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindEndorserPKByGeneratorPK", periodStart, generatorPK)
+	ret0, _ := ret[0].(bls.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindEndorserPKByGeneratorPK indicates an expected call of FindEndorserPKByGeneratorPK.
+func (mr *MockStateInfoMockRecorder) FindEndorserPKByGeneratorPK(periodStart, generatorPK interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindEndorserPKByGeneratorPK", reflect.TypeOf((*MockStateInfo)(nil).FindEndorserPKByGeneratorPK), periodStart, generatorPK)
+}
+
 // FindEndorserPKByIndex mocks base method.
 func (m *MockStateInfo) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
 	m.ctrl.T.Helper()
@@ -1940,6 +1955,21 @@ func (m *MockState) EstimatorVersion() (int, error) {
 func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
+}
+
+// FindEndorserPKByGeneratorPK mocks base method.
+func (m *MockState) FindEndorserPKByGeneratorPK(periodStart uint32, generatorPK crypto.PublicKey) (bls.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindEndorserPKByGeneratorPK", periodStart, generatorPK)
+	ret0, _ := ret[0].(bls.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindEndorserPKByGeneratorPK indicates an expected call of FindEndorserPKByGeneratorPK.
+func (mr *MockStateMockRecorder) FindEndorserPKByGeneratorPK(periodStart, generatorPK interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindEndorserPKByGeneratorPK", reflect.TypeOf((*MockState)(nil).FindEndorserPKByGeneratorPK), periodStart, generatorPK)
 }
 
 // FindEndorserPKByIndex mocks base method.

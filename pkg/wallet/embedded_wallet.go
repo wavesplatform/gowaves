@@ -32,6 +32,25 @@ func (a *EmbeddedWalletImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.T
 	return ErrPublicKeyNotFound
 }
 
+func (a *EmbeddedWalletImpl) FindPublicKeyByAddress(address proto.WavesAddress,
+	scheme proto.Scheme) (crypto.PublicKey, error) {
+	seeds := a.seeder.AccountSeeds()
+	for _, s := range seeds {
+		_, public, err := crypto.GenerateKeyPair(s)
+		if err != nil {
+			return crypto.PublicKey{}, err
+		}
+		retrievedAddress, err := proto.NewAddressFromPublicKey(scheme, public)
+		if err != nil {
+			return crypto.PublicKey{}, err
+		}
+		if retrievedAddress == address {
+			return public, nil
+		}
+	}
+	return crypto.PublicKey{}, ErrPublicKeyNotFound
+}
+
 func (a *EmbeddedWalletImpl) Load(password []byte) error {
 	bts, err := a.loader.Load()
 	if err != nil {

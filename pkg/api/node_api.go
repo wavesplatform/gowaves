@@ -16,8 +16,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 
+	"github.com/ccoveille/go-safecast/v2"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -977,8 +979,79 @@ func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error 
 	return trySendJSON(w, blockHeader)
 }
 
-func (a *NodeApi) TransactionsSignCommit(_ http.ResponseWriter, _ *http.Request) error {
-	return nil
+type SignCommitRequest struct {
+	Sender                string  `json:"sender"`
+	GenerationPeriodStart *uint32 `json:"generationPeriodStart,omitempty"`
+	Timestamp             *int64  `json:"timestamp,omitempty"`
+	ChainID               *byte   `json:"chainId,omitempty"`
+}
+
+func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request) error {
+	var req SignCommitRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return errors.Wrap(err, "failed to decode JSON")
+	}
+
+	addr, err := proto.NewAddressFromString(req.Sender)
+	if err != nil {
+		return errors.Wrap(err, "invalid sender address")
+	}
+
+	now := time.Now().UnixMilli()
+
+	timestamp := now
+	if req.Timestamp != nil {
+		timestamp = *req.Timestamp
+	}
+	timestampUint, err := safecast.Convert[uint64](timestamp)
+	if err != nil {
+		return errors.Wrap(err, "invalid timestamp")
+	}
+
+	var periodStart uint32
+	if req.GenerationPeriodStart != nil {
+		periodStart = *req.GenerationPeriodStart
+	} else {
+		height, retrieveErr := a.state.Height()
+		if retrieveErr != nil {
+			return errors.Wrap(retrieveErr, "failed to get height")
+		}
+		activationH, actErr := a.state.ActivationHeight(int16(settings.DeterministicFinality))
+		if actErr != nil {
+			return errors.Wrap(actErr, "failed to get DF activation height")
+		}
+
+		periodStart, err = state.CurrentGenerationPeriodStart(activationH, height, a.app.settings.GenerationPeriod)
+		if err != nil {
+			return errors.Wrap(err, "failed to calculate generationPeriodStart")
+		}
+	}
+	senderPK, err := a.app.services.Wallet.FindPublicKeyByAddress(addr, a.app.services.Scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to find key pair by address")
+	}
+
+	endorserPK, err := a.state.FindEndorserPKByGeneratorPK(periodStart, senderPK)
+	if err != nil {
+		return errors.Wrap(err, "failed to find endorser public key by generator public key")
+	}
+
+	var commitmentSignature bls.Signature // TODO fill it out.
+
+	tx := proto.NewUnsignedCommitToGenerationWithProofs(1,
+		senderPK,
+		periodStart,
+		endorserPK,
+		commitmentSignature,
+		state.FeeUnit,
+		timestampUint)
+
+	// TODO must be signed with the BLS key instead.
+	err = a.app.services.Wallet.SignTransactionWith(senderPK, tx)
+	if err != nil {
+		return err
+	}
+	return trySendJSON(w, tx)
 }
 
 func wavesAddressInvalidCharErr(invalidChar rune, id string) *apiErrs.CustomValidationError {

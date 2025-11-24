@@ -163,6 +163,7 @@ type StateInfo interface {
 
 	FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error)
 	FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error)
+	FindEndorserPKByGeneratorPK(periodStart uint32, generatorPK crypto.PublicKey) (bls.PublicKey, error)
 	CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error)
 	LastFinalizedHeight() (proto.Height, error)
 	LastFinalizedBlock() (*proto.Block, error)
