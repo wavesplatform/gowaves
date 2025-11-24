@@ -144,7 +144,9 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			r.Get("/unconfirmed/size", wrapper(a.unconfirmedSize))
 			r.Get("/info/{id}", wrapper(a.TransactionInfo))
 			r.Post("/broadcast", wrapper(a.TransactionsBroadcast))
-			r.Post("/sign", wrapper(a.TransactionsSignCommit))
+
+			rAuth := r.With(checkAuthMiddleware)
+			rAuth.Post("/sign", wrapper(a.TransactionsSignCommit))
 		})
 
 		r.Route("/peers", func(r chi.Router) {

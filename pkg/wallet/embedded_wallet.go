@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -49,6 +50,28 @@ func (a *EmbeddedWalletImpl) FindPublicKeyByAddress(address proto.WavesAddress,
 		}
 	}
 	return crypto.PublicKey{}, ErrPublicKeyNotFound
+}
+
+func (a *EmbeddedWalletImpl) BlsPairByWavesPK(publicKey crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error) {
+	seeds := a.seeder.AccountSeeds()
+	for _, s := range seeds {
+		_, publicKeyRetrieved, err := crypto.GenerateKeyPair(s)
+		if err != nil {
+			return bls.SecretKey{}, bls.PublicKey{}, err
+		}
+		if publicKeyRetrieved == publicKey {
+			secretKeyBls, genErr := bls.GenerateSecretKey(s)
+			if genErr != nil {
+				return bls.SecretKey{}, bls.PublicKey{}, genErr
+			}
+			publicKeyBls, retrieveErr := secretKeyBls.PublicKey()
+			if retrieveErr != nil {
+				return bls.SecretKey{}, bls.PublicKey{}, retrieveErr
+			}
+			return secretKeyBls, publicKeyBls, nil
+		}
+	}
+	return bls.SecretKey{}, bls.PublicKey{}, ErrPublicKeyNotFound
 }
 
 func (a *EmbeddedWalletImpl) Load(password []byte) error {

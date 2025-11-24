@@ -3409,35 +3409,3 @@ func (s *stateManager) LastFinalizedBlock() (*proto.Block, error) {
 	}
 	return &item.Block, nil
 }
-
-// FindEndorserPKByGeneratorPK finds the BLS endorser public key corresponding
-// to the given Waves generator public key in the commitments record for the given period.
-func (s *stateManager) FindEndorserPKByGeneratorPK(periodStart uint32,
-	generatorPK crypto.PublicKey) (bls.PublicKey, error) {
-	key := commitmentKey{periodStart: periodStart}
-	data, err := s.stor.commitments.hs.newestTopEntryData(key.bytes())
-	if err != nil {
-		if errors.Is(err, keyvalue.ErrNotFound) {
-			return bls.PublicKey{}, errors.Errorf(
-				"no commitments found for period %d, %v", periodStart, err)
-		}
-		return bls.PublicKey{}, errors.Errorf(
-			"failed to retrieve commitments record: %v", err)
-	}
-
-	var rec commitmentsRecord
-	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		return bls.PublicKey{}, fmt.Errorf(
-			"failed to unmarshal commitments record: %w", umErr)
-	}
-
-	genPKb := generatorPK.Bytes()
-	for _, cm := range rec.Commitments {
-		if bytes.Equal(genPKb, cm.GeneratorPK.Bytes()) {
-			return cm.EndorserPK, nil
-		}
-	}
-
-	return bls.PublicKey{}, fmt.Errorf(
-		"generator public key not found in commitments for period %d", periodStart)
-}

@@ -940,7 +940,6 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 			TransactionID: "", // TODO should be somehow found.
 		})
 	}
-
 	return trySendJSON(w, generatorsInfo)
 }
 
@@ -1031,22 +1030,21 @@ func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request)
 		return errors.Wrap(err, "failed to find key pair by address")
 	}
 
-	endorserPK, err := a.state.FindEndorserPKByGeneratorPK(periodStart, senderPK)
+	blsSecretKey, blsPublicKey, err := a.app.services.Wallet.BlsPairByWavesPK(senderPK)
 	if err != nil {
 		return errors.Wrap(err, "failed to find endorser public key by generator public key")
 	}
-
-	var commitmentSignature bls.Signature // TODO fill it out.
-
+	_, commitmentSignature, popErr := bls.ProvePoP(blsSecretKey, blsPublicKey, periodStart)
+	if popErr != nil {
+		return errors.Wrap(popErr, "failed to create proof of possession for commitment")
+	}
 	tx := proto.NewUnsignedCommitToGenerationWithProofs(1,
 		senderPK,
 		periodStart,
-		endorserPK,
+		blsPublicKey,
 		commitmentSignature,
 		state.FeeUnit,
 		timestampUint)
-
-	// TODO must be signed with the BLS key instead.
 	err = a.app.services.Wallet.SignTransactionWith(senderPK, tx)
 	if err != nil {
 		return err
