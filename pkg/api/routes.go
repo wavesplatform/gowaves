@@ -110,7 +110,6 @@ func (a *NodeApi) routes(opts *RunOptions) (chi.Router, error) {
 			// Finalization.
 			r.Get("/height/finalized", wrapper(a.FinalizedHeight))
 			r.Get("/headers/finalized", wrapper(a.FinalizedHeader))
-			r.Get("/finalized/at/{height:\\d+}", wrapper(a.FinalizedHeightAt))
 
 			r.Route("/headers", func(r chi.Router) {
 				r.Get("/last", wrapper(a.BlocksHeadersLast))

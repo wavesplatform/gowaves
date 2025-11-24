@@ -71,6 +71,7 @@ type blockchainEntitiesStorage struct {
 	snapshots         *snapshotsAtHeight
 	patches           *patchesStorage
 	commitments       *commitments
+	finalizations     *finalizations
 	calculateHashes   bool
 }
 
@@ -106,6 +107,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		newCommitments(hs),
+		newFinalizations(hs),
 		calcHashes,
 	}, nil
 }
@@ -1471,8 +1473,7 @@ func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*
 }
 
 func (s *stateManager) AddDeserializedBlocks(
-	blocks []*proto.Block,
-) (*proto.Block, error) {
+	blocks []*proto.Block, isMicro bool) (*proto.Block, error) {
 	s.newBlocks.setNew(blocks)
 	lastBlock, err := s.addBlocks()
 	if err != nil {
@@ -1483,6 +1484,17 @@ func (s *stateManager) AddDeserializedBlocks(
 			panic(fErr)
 		}
 		return nil, err
+	}
+
+	if !isMicro {
+		for _, block := range blocks {
+			if block != nil && block.FinalizationVoting != nil {
+				err := s.stor.finalizations.store(*block, block.FinalizationVoting.FinalizedBlockHeight, block.BlockID())
+				if err != nil {
+					return nil, err
+				}
+			}
+		}
 	}
 	return lastBlock, nil
 }
@@ -3308,16 +3320,17 @@ func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAdd
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
-	// TODO implement this.
-	return 0, nil
+	item, err := s.stor.finalizations.newest()
+	if err != nil || item == nil {
+		return 0, err
+	}
+	return item.FinalizedBlockHeight, nil
 }
 
 func (s *stateManager) LastFinalizedBlock() (*proto.Block, error) {
-	// TODO implement this.
-	return &proto.Block{}, nil
-}
-
-func (s *stateManager) FinalizedHeightAt(_ proto.Height) (proto.Height, error) {
-	// TODO implement this.
-	return 0, nil
+	item, err := s.stor.finalizations.newest()
+	if err != nil || item == nil {
+		return nil, err
+	}
+	return &item.Block, nil
 }

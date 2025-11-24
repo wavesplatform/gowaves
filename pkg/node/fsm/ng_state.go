@@ -302,11 +302,12 @@ func (a *NGState) handleFinality(block *proto.Block, height proto.Height) error 
 	}
 
 	if canFinalize {
-		finalization, finErr := a.baseInfo.endorsements.Finalize()
+		finalization, finErr := a.baseInfo.endorsements.Finalize(height)
 		if finErr != nil {
 			return finErr
 		}
 		block.FinalizationVoting = &finalization
+		block.FinalizationVoting.FinalizedBlockHeight = height
 	}
 	return nil
 }
@@ -411,7 +412,7 @@ func (a *NGState) mineMicro(
 	}
 	var partialFinalization *proto.FinalizationVoting
 	if finalityActivated {
-		fin, finErr := a.baseInfo.endorsements.Finalize()
+		fin, finErr := a.baseInfo.endorsements.Finalize(height)
 		if finErr != nil {
 			return a, nil, a.Errorf(errors.Wrap(finErr, "failed to finalize endorsements for microblock"))
 		}

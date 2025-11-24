@@ -977,20 +977,6 @@ func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error 
 	return trySendJSON(w, blockHeader)
 }
 
-func (a *NodeApi) FinalizedHeightAt(w http.ResponseWriter, r *http.Request) error {
-	heightStr := chi.URLParam(r, "height")
-	height, err := strconv.ParseUint(heightStr, 10, 64)
-	if err != nil {
-		return errors.Wrap(err, "invalid height")
-	}
-
-	h, err := a.state.FinalizedHeightAt(height)
-	if err != nil {
-		return err
-	}
-	return trySendJSON(w, map[string]uint64{"height": h})
-}
-
 func (a *NodeApi) TransactionsSignCommit(_ http.ResponseWriter, _ *http.Request) error {
 	return nil
 }
