@@ -58,18 +58,18 @@ func (h *endorsementMinHeap) Pop() any {
 }
 
 type EndorsementPool struct {
-	mu            sync.Mutex
-	seq           uint64
-	byKey         map[key]*heapItemEndorsement
-	h             endorsementMinHeap
-	conflicts     []proto.EndorseBlock
-	maxGenerators int
+	mu              sync.Mutex
+	seq             uint64
+	byKey           map[key]*heapItemEndorsement
+	h               endorsementMinHeap
+	conflicts       []proto.EndorseBlock
+	maxEndorsements int
 }
 
 func NewEndorsementPool(maxGenerators int) *EndorsementPool {
 	return &EndorsementPool{
-		byKey:         make(map[key]*heapItemEndorsement),
-		maxGenerators: maxGenerators,
+		byKey:           make(map[key]*heapItemEndorsement),
+		maxEndorsements: maxGenerators,
 	}
 }
 
@@ -99,7 +99,7 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey, balance u
 	}
 
 	// If heap is not filled yet.
-	if len(p.h) < p.maxGenerators {
+	if len(p.h) < p.maxEndorsements {
 		heap.Push(&p.h, item)
 		p.byKey[k] = item
 		return nil

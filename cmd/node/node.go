@@ -806,7 +806,7 @@ func createServices(
 		Scheduler:       scheduler,
 		BlocksApplier:   blocks_applier.NewBlocksApplier(),
 		UtxPool:         utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
-		EndorsementPool: endorsementpool.NewEndorsementPool(cfg.MaxGenerators),
+		EndorsementPool: endorsementpool.NewEndorsementPool(cfg.MaxEndorsements),
 		Scheme:          cfg.AddressSchemeCharacter,
 		Time:            ntpTime,
 		Wallet:          wal,
