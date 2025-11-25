@@ -267,7 +267,7 @@ func (a *NGState) handleFinality(block *proto.Block, height proto.Height) error 
 		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
 	}
 
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, 0, a.baseInfo.generationPeriod)
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
 	if err != nil {
 		return err
 	}
