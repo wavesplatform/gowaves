@@ -759,7 +759,7 @@ func TestCommitToGenerationWithProofs(t *testing.T) {
 	assert.NoError(t, err)
 	assert.Equal(t, 1, len(gs))
 
-	ok, err := to.stor.entities.commitments.exists(10_002, tx.SenderPK)
+	ok, err := to.stor.entities.commitments.exists(10_002, tx.SenderPK, tx.EndorserPublicKey)
 	assert.NoError(t, err)
 	assert.True(t, ok)
 }
