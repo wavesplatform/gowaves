@@ -262,16 +262,14 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 }
 
 func (a *NGState) handleFinality(block *proto.Block, height proto.Height) error {
+	// No finalization since nobody endorsed the last block.
+	if a.baseInfo.endorsements.Len() == 0 {
+		return nil
+	}
 	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
 		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
 	}
-
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
-	if err != nil {
-		return err
-	}
-
 	ok, err := a.baseInfo.endorsements.Verify()
 	if err != nil {
 		return err
@@ -279,7 +277,10 @@ func (a *NGState) handleFinality(block *proto.Block, height proto.Height) error 
 	if !ok {
 		return fmt.Errorf("endorsement verification failed at height %d", height)
 	}
-
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	if err != nil {
+		return err
+	}
 	allEndorsers := a.baseInfo.endorsements.GetEndorsers()
 	endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
 	for _, endorser := range allEndorsers {
@@ -411,11 +412,13 @@ func (a *NGState) mineMicro(
 	}
 	var partialFinalization *proto.FinalizationVoting
 	if finalityActivated {
-		fin, finErr := a.baseInfo.endorsements.Finalize()
-		if finErr != nil {
-			return a, nil, a.Errorf(errors.Wrap(finErr, "failed to finalize endorsements for microblock"))
+		if a.baseInfo.endorsements.Len() != 0 {
+			fin, finErr := a.baseInfo.endorsements.Finalize()
+			if finErr != nil {
+				return a, nil, a.Errorf(errors.Wrap(finErr, "failed to finalize endorsements for microblock"))
+			}
+			partialFinalization = &fin
 		}
-		partialFinalization = &fin
 	}
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization)
 	switch {
