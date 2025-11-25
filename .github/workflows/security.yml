@@ -35,7 +35,7 @@ jobs:
         uses: securego/gosec@6be2b51fd78feca86af91f5186b7964d76cb1256 # v2.22.10
         with:
           # with '-no-fail' we let the report trigger content trigger a failure using the GitHub Security features.
-          args: "-no-fail -fmt sarif -out gosec.sarif ./..."
+          args: "-no-fail -exclude-generated -fmt sarif -out gosec.sarif ./..."
       - name: Transform gosec SARIF to meet SARIF 2.1.0 schema requirements
         # Produces SARIF file has two incompatibilities with SARIF 2.1.0 schema all of them are in `fixes` object:
         #  1. Field `description` contains only `markdown` property, but `text` property is mandatory.
