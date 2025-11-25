@@ -36,8 +36,16 @@ jobs:
         with:
           # with '-no-fail' we let the report trigger content trigger a failure using the GitHub Security features.
           args: "-no-fail -fmt sarif -out gosec.sarif ./..."
-      - name: Fix gosec SARIF
+      - name: Transform gosec SARIF to meet SARIF 2.1.0 schema requirements
+        # Produces SARIF file has two incompatibilities with SARIF 2.1.0 schema all of them are in `fixes` object:
+        #  1. Field `description` contains only `markdown` property, but `text` property is mandatory.
+        #  2. Property `artifactChanges` must be non-empty array with valid `artifactChange` object.
+        # To fix those issues the first part of jq query copies content of `markdown` field into `text` field
+        # if it's not present. In the second part if the `fixes` object has null array as `artifactChanges` the empty
+        # valid `artifactChange` object inserted.
+        # After fix of mentioned gosec issues this step can be removed. 
         run: |
+          set -e
           jq 'walk(if type=="object" and has("markdown") and (.text == null or .text == "") then .text = .markdown else . end) | (.runs[].results[]? .fixes[]? .artifactChanges) |= (if . == null then [{"artifactLocation": { "uri": "" }, "replacements": [{"deletedRegion": {"byteOffset": 0, "byteLength": 0 }}]}] else . end)' gosec.sarif > gosec_fixed.sarif
           jq empty gosec_fixed.sarif
           mv gosec_fixed.sarif gosec.sarif
