@@ -28,16 +28,29 @@ jobs:
       GO111MODULE: on
     steps:
       - name: Checkout Source
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v5
         with:
           persist-credentials: false
       - name: Run gosec security scanner
         uses: securego/gosec@6be2b51fd78feca86af91f5186b7964d76cb1256 # v2.22.10
         with:
           # with '-no-fail' we let the report trigger content trigger a failure using the GitHub Security features.
-          args: "-no-fail -exclude-generated -fmt sarif -out gosec.sarif ./..."
+          args: "-no-fail -fmt sarif -out gosec.sarif ./..."
+      - name: Transform gosec SARIF to meet SARIF 2.1.0 schema requirements
+        # Produces SARIF file has two incompatibilities with SARIF 2.1.0 schema all of them are in `fixes` object:
+        #  1. Field `description` contains only `markdown` property, but `text` property is mandatory.
+        #  2. Property `artifactChanges` must be non-empty array with valid `artifactChange` object.
+        # To fix those issues the first part of jq query copies content of `markdown` field into `text` field
+        # if it's not present. In the second part if the `fixes` object has null array as `artifactChanges` the empty
+        # valid `artifactChange` object inserted.
+        # After fix of mentioned gosec issues this step can be removed.
+        run: |
+          set -e
+          jq 'walk(if type=="object" and has("markdown") and (.text == null or .text == "") then .text = .markdown else . end) | (.runs[].results[]? .fixes[]? .artifactChanges) |= (if . == null then [{"artifactLocation": { "uri": "" }, "replacements": [{"deletedRegion": {"byteOffset": 0, "byteLength": 0 }}]}] else . end)' gosec.sarif > gosec_fixed.sarif
+          jq empty gosec_fixed.sarif
+          mv gosec_fixed.sarif gosec.sarif
       - name: Upload SARIF file for GitHub Advanced Security Dashboard
-        uses: github/codeql-action/upload-sarif@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3
+        uses: github/codeql-action/upload-sarif@fdbfb4d2750291e159f0156def62b853c2798ca2 # v3
         with:
           sarif_file: gosec.sarif
 
@@ -54,7 +67,7 @@ jobs:
       image: docker://semgrep/semgrep@sha256:ab68a1c0fe35f41be66e2392903aeea64b6228c16456c8c7058275bbab4c297d
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v5
         with:
           persist-credentials: false
         # we let the report trigger content trigger a failure using the GitHub Security features.
@@ -75,7 +88,7 @@ jobs:
               fi
           EOF
       - name: Upload SARIF file for GitHub Advanced Security Dashboard
-        uses: github/codeql-action/upload-sarif@e12f0178983d466f2f6028f5cc7a6d786fd97f4b # v3
+        uses: github/codeql-action/upload-sarif@fdbfb4d2750291e159f0156def62b853c2798ca2 # v3
         with:
           sarif_file: semgrep.sarif
 
@@ -84,11 +97,11 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
-        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
+        uses: actions/checkout@1af3b93b6815bc44a9784bd300feb67ff0d1eeb3 # v5
         with:
           persist-credentials: false
       - name: Set up Go
-        uses: actions/setup-go@44694675825211faa026b3c33043df3e48a5fa00 # v6.0.0
+        uses: actions/setup-go@4dc6199c7b1a012772edbd06daecab0f50c9053c # v6.1.0
         with:
           go-version: 1.24.x
           check-latest: true

@@ -21,7 +21,6 @@ require (
 	github.com/go-chi/chi/v5 v5.2.3
 	github.com/go-test/deep v1.1.1
 	github.com/golang/mock v1.6.0
-	github.com/gorilla/mux v1.8.1
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/jinzhu/copier v0.4.0
@@ -38,7 +37,6 @@ require (
 	github.com/prometheus/client_golang v1.23.2
 	github.com/qmuntal/stateless v1.7.2
 	github.com/semrush/zenrpc/v2 v2.1.1
-	github.com/spf13/afero v1.15.0
 	github.com/spf13/pflag v1.0.10
 	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
