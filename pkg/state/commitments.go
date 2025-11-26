@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"fmt"
+	"io"
 
 	"github.com/fxamacker/cbor/v2"
 
@@ -33,14 +34,47 @@ func (cr *commitmentsRecord) marshalBinary() ([]byte, error) { return cbor.Marsh
 
 func (cr *commitmentsRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, cr) }
 
-// commitments manages the storage and retrieval of generator commitments.
-type commitments struct {
-	hs *historyStorage
+type commitmentsRecordForStateHashes struct {
+	publicKey    crypto.PublicKey
+	blsPublicKey bls.PublicKey
 }
 
-func newCommitments(hs *historyStorage) *commitments {
+func (r *commitmentsRecordForStateHashes) writeTo(w io.Writer) error {
+	if _, err := w.Write(r.publicKey.Bytes()); err != nil {
+		return err
+	}
+	if _, err := w.Write(r.blsPublicKey.Bytes()); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (r *commitmentsRecordForStateHashes) less(other stateComponent) bool {
+	o, ok := other.(*commitmentsRecordForStateHashes)
+	if !ok {
+		panic("commitmentsRecordForStateHashes: invalid type assertion")
+	}
+	val := bytes.Compare(r.publicKey.Bytes(), o.publicKey.Bytes())
+	if val > 0 {
+		return false
+	} else if val == 0 {
+		return bytes.Compare(r.blsPublicKey.Bytes(), o.blsPublicKey.Bytes()) == -1
+	}
+	return true
+}
+
+// commitments manages the storage and retrieval of generator commitments.
+type commitments struct {
+	hs              *historyStorage
+	calculateHashes bool
+	hasher          *stateHasher
+}
+
+func newCommitments(hs *historyStorage, calcHashes bool) *commitments {
 	return &commitments{
-		hs: hs,
+		hs:              hs,
+		calculateHashes: calcHashes,
+		hasher:          newStateHasher(),
 	}
 }
 
@@ -48,7 +82,8 @@ func (c *commitments) store(
 	periodStart uint32, generatorPK crypto.PublicKey, endorserPK bls.PublicKey, blockID proto.BlockID,
 ) error {
 	key := commitmentKey{periodStart: periodStart}
-	data, err := c.hs.newestTopEntryData(key.bytes())
+	keyBytes := key.bytes()
+	data, err := c.hs.newestTopEntryData(keyBytes)
 	if err != nil && !isNotFoundInHistoryOrDBErr(err) {
 		return fmt.Errorf("failed to retrieve commitments record: %w", err)
 	}
@@ -63,7 +98,16 @@ func (c *commitments) store(
 	if mErr != nil {
 		return fmt.Errorf("failed to marshal commitments record: %w", mErr)
 	}
-	if addErr := c.hs.addNewEntry(commitment, key.bytes(), newData, blockID); addErr != nil {
+	if c.calculateHashes {
+		r := &commitmentsRecordForStateHashes{
+			publicKey:    generatorPK,
+			blsPublicKey: endorserPK,
+		}
+		if pErr := c.hasher.push(string(keyBytes), r, blockID); pErr != nil {
+			return fmt.Errorf("failed to hash commitment record: %w", pErr)
+		}
+	}
+	if addErr := c.hs.addNewEntry(commitment, keyBytes, newData, blockID); addErr != nil {
 		return fmt.Errorf("failed to add commitment record: %w", addErr)
 	}
 	return nil
