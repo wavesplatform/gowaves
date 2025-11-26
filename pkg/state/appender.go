@@ -538,7 +538,8 @@ func (a *txAppender) handleTxAndScripts(
 	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
 		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
 		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
-		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction:
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
 		applicationRes, err := a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
 			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
@@ -551,7 +552,8 @@ func (a *txAppender) handleTxAndScripts(
 		// In UTX balances are always validated.
 		return applicationRes, nil, params.validatingUtx, nil
 	default:
-		return nil, nil, false, errors.Errorf("Undefined transaction type %d", tx.GetTypeInfo())
+		return nil, nil, false, errors.Errorf("undefined transaction type %d with proofs version %d",
+			tx.GetTypeInfo().Type, tx.GetTypeInfo().ProofVersion)
 	}
 }
 

@@ -206,6 +206,17 @@ func (id BlockID) WriteTo(w io.Writer) (int64, error) {
 	return int64(n), err
 }
 
+func (id BlockID) Len() int {
+	switch id.idType {
+	case SignatureID:
+		return crypto.SignatureSize
+	case DigestID:
+		return crypto.DigestSize
+	default:
+		return 0
+	}
+}
+
 // ReadFrom reads the binary representation of BlockID from a io.Reader. It reads only the content of the ID
 // (either crypto.Digest or crypto.Signature). ReadFrom does not process any additional data that might
 // describe the type of the ID.

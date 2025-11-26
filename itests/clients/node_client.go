@@ -2,6 +2,7 @@ package clients
 
 import (
 	"context"
+	"encoding/json"
 	stderrs "errors"
 	"maps"
 	"net"
@@ -61,11 +62,12 @@ func (c *NodesClients) SendEndMessage(t *testing.T) {
 	c.ScalaClient.SendEndMessage(t)
 }
 
-func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) (*proto.StateHash, *proto.StateHash, bool) {
+func (c *NodesClients) StateHashCmp(t *testing.T, height uint64) (proto.StateHash, proto.StateHash, bool) {
 	goStateHash := c.GoClient.HTTPClient.StateHash(t, height)
 	scalaStateHash := c.ScalaClient.HTTPClient.StateHash(t, height)
 	return goStateHash, scalaStateHash,
-		goStateHash.BlockID == scalaStateHash.BlockID && goStateHash.SumHash == scalaStateHash.SumHash
+		goStateHash.GetBlockID() == scalaStateHash.GetBlockID() &&
+			goStateHash.GetSumHash() == scalaStateHash.GetSumHash()
 }
 
 // WaitForNewHeight waits for nodes to generate new block.
@@ -149,8 +151,8 @@ func (c *NodesClients) WaitForHeight(t *testing.T, height uint64, opts ...config
 func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 	var (
 		equal          bool
-		goStateHash    *proto.StateHash
-		scalaStateHash *proto.StateHash
+		goStateHash    proto.StateHash
+		scalaStateHash proto.StateHash
 	)
 	h := c.GetMinNodesHeight(t) - 1
 	for range 3 {
@@ -164,9 +166,9 @@ func (c *NodesClients) WaitForStateHashEquality(t *testing.T) {
 			"Not equal state hash at height %d:\n"+
 				"Go:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
 				"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
-			h, goStateHash.BlockID.String(), goStateHash.SumHash.String(),
-			mustFieldsHashesToString(goStateHash.FieldsHashes), scalaStateHash.BlockID.String(),
-			scalaStateHash.SumHash.String(), mustFieldsHashesToString(scalaStateHash.FieldsHashes),
+			h, goStateHash.GetBlockID().String(), goStateHash.GetSumHash().String(),
+			mustFieldsHashesToString(goStateHash.GetFieldsHashes()), scalaStateHash.GetBlockID().String(),
+			scalaStateHash.GetSumHash().String(), mustFieldsHashesToString(scalaStateHash.GetFieldsHashes()),
 		)
 		c.reportFirstDivergedHeight(t, h)
 	}
@@ -224,11 +226,11 @@ func (c *NodesClients) WaitForConnectedPeers(ctx context.Context, timeout time.D
 func (c *NodesClients) reportFirstDivergedHeight(t *testing.T, height uint64) {
 	var (
 		first         uint64
-		goSH, scalaSH *proto.StateHash
+		goSH, scalaSH proto.StateHash
 	)
 	for h := height; h > 0; h-- {
 		goSH, scalaSH, _ = c.StateHashCmp(t, h)
-		if !goSH.Equal(scalaSH.FieldsHashes) {
+		if !goSH.Equal(scalaSH) {
 			first = h
 		} else {
 			break
@@ -243,8 +245,8 @@ func (c *NodesClients) reportFirstDivergedHeight(t *testing.T, height uint64) {
 	t.Logf("First height when state hashes diverged: %d:\n"+
 		"Go:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s\n"+
 		"Scala:\tBlockID=%s\tStateHash=%s\tFieldHashes=%s",
-		first, goSH.BlockID.String(), goSH.SumHash.String(), mustFieldsHashesToString(goSH.FieldsHashes),
-		scalaSH.BlockID.String(), scalaSH.SumHash.String(), mustFieldsHashesToString(scalaSH.FieldsHashes),
+		first, goSH.GetBlockID().String(), goSH.GetSumHash().String(), mustFieldsHashesToString(goSH.GetFieldsHashes()),
+		scalaSH.GetBlockID().String(), scalaSH.GetSumHash().String(), mustFieldsHashesToString(scalaSH.GetFieldsHashes()),
 	)
 }
 
@@ -495,7 +497,7 @@ func Retry(timeout time.Duration, f func() error) error {
 	return RetryCtx(context.Background(), timeout, f)
 }
 
-func mustFieldsHashesToString(fieldHashes proto.FieldsHashes) string {
+func mustFieldsHashesToString(fieldHashes json.Marshaler) string {
 	b, err := fieldHashes.MarshalJSON()
 	if err != nil {
 		panic(err)
