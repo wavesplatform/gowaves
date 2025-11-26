@@ -100,7 +100,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		scriptsStorage,
 		newScriptsComplexity(hs),
 		newInvokeResults(hs),
-		newStateHashes(hs),
+		newStateHashes(hs, features),
 		newHitSources(hs),
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
@@ -112,10 +112,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 func (s *blockchainEntitiesStorage) putStateHash(
 	prevHash []byte, height uint64, blockID proto.BlockID,
 ) (proto.StateHash, error) {
-	finalityActivated, err := s.features.newestIsActivated(int16(settings.DeterministicFinality))
-	if err != nil {
-		return nil, err
-	}
+	finalityActivated := s.features.isActivatedAtHeight(int16(settings.DeterministicFinality), height)
 	fhV1 := proto.FieldsHashesV1{
 		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
 		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
@@ -127,22 +124,7 @@ func (s *blockchainEntitiesStorage) putStateHash(
 		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
 		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
 	}
-	var sh proto.StateHash
-	if finalityActivated {
-		sh = &proto.StateHashV2{
-			BlockID: blockID,
-			FieldsHashesV2: proto.FieldsHashesV2{
-				FieldsHashesV1: fhV1,
-				GeneratorsHash: s.commitments.hasher.stateHashAt(blockID),
-			},
-		}
-	} else {
-		sh = &proto.StateHashV1{
-			BlockID:        blockID,
-			FieldsHashesV1: fhV1,
-		}
-	}
-
+	sh := proto.NewLegacyStateHash(finalityActivated, blockID, fhV1, s.commitments.hasher.stateHashAt(blockID))
 	if gErr := sh.GenerateSumHash(prevHash); gErr != nil {
 		return nil, gErr
 	}

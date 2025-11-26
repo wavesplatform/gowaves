@@ -33,20 +33,41 @@ func randomBlockID() BlockID {
 	return NewBlockIDFromDigest(randomDigest())
 }
 
+func randomBool() bool {
+	b := make([]byte, 1)
+	_, _ = rand.Read(b)
+	return b[0]%2 == 0
+}
+
+func randomFieldsHashesV1() FieldsHashesV1 {
+	return FieldsHashesV1{
+		WavesBalanceHash:  randomDigest(),
+		AssetBalanceHash:  randomDigest(),
+		DataEntryHash:     randomDigest(),
+		AccountScriptHash: randomDigest(),
+		AssetScriptHash:   randomDigest(),
+		LeaseBalanceHash:  randomDigest(),
+		LeaseStatusHash:   randomDigest(),
+		SponsorshipHash:   randomDigest(),
+		AliasesHash:       randomDigest(),
+	}
+}
+
 func randomStateHashV1() StateHashV1 {
 	return StateHashV1{
+		BlockID:        randomBlockID(),
+		SumHash:        randomDigest(),
+		FieldsHashesV1: randomFieldsHashesV1(),
+	}
+}
+
+func randomStateHashV2() StateHashV2 {
+	return StateHashV2{
 		BlockID: randomBlockID(),
 		SumHash: randomDigest(),
-		FieldsHashesV1: FieldsHashesV1{
-			WavesBalanceHash:  randomDigest(),
-			AssetBalanceHash:  randomDigest(),
-			DataEntryHash:     randomDigest(),
-			AccountScriptHash: randomDigest(),
-			AssetScriptHash:   randomDigest(),
-			LeaseBalanceHash:  randomDigest(),
-			LeaseStatusHash:   randomDigest(),
-			SponsorshipHash:   randomDigest(),
-			AliasesHash:       randomDigest(),
+		FieldsHashesV2: FieldsHashesV2{
+			FieldsHashesV1: randomFieldsHashesV1(),
+			GeneratorsHash: randomDigest(),
 		},
 	}
 }
@@ -85,13 +106,42 @@ func TestStateHashJSONRoundTrip(t *testing.T) {
 	}
 }
 
-func TestStateHashBinaryRoundTrip(t *testing.T) {
+func TestStateHashV1BinaryRoundTrip(t *testing.T) {
 	for i := range 10 {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			sh := randomStateHashV1()
 			data, err := sh.MarshalBinary()
 			require.NoError(t, err)
 			var sh2 StateHashV1
+			err = sh2.UnmarshalBinary(data)
+			assert.NoError(t, err)
+			assert.Equal(t, sh, sh2)
+		})
+	}
+}
+
+func TestStateHashV2BinaryRoundTrip(t *testing.T) {
+	for i := range 10 {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			sh := randomStateHashV2()
+			data, err := sh.MarshalBinary()
+			require.NoError(t, err)
+			var sh2 StateHashV2
+			err = sh2.UnmarshalBinary(data)
+			assert.NoError(t, err)
+			assert.Equal(t, sh, sh2)
+		})
+	}
+}
+
+func TestStateHashBinaryRoundTrip(t *testing.T) {
+	for i := range 10 {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			activated := randomBool()
+			sh := NewLegacyStateHash(activated, randomBlockID(), randomFieldsHashesV1(), randomDigest())
+			data, err := sh.MarshalBinary()
+			require.NoError(t, err)
+			sh2 := EmptyLegacyStateHash(activated)
 			err = sh2.UnmarshalBinary(data)
 			assert.NoError(t, err)
 			assert.Equal(t, sh, sh2)

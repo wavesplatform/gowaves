@@ -3,14 +3,16 @@ package state
 import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 type stateHashes struct {
 	hs *historyStorage
+	fs featuresState
 }
 
-func newStateHashes(hs *historyStorage) *stateHashes {
-	return &stateHashes{hs}
+func newStateHashes(hs *historyStorage, fs featuresState) *stateHashes {
+	return &stateHashes{hs: hs, fs: fs}
 }
 
 func (s *stateHashes) saveLegacyStateHash(sh proto.StateHash, height proto.Height) error {
@@ -28,11 +30,13 @@ func (s *stateHashes) legacyStateHash(height proto.Height) (proto.StateHash, err
 	if err != nil {
 		return nil, err
 	}
-	var sh proto.StateHashV1
-	if err := sh.UnmarshalBinary(stateHashBytes); err != nil {
-		return nil, err
+	finalityActivated := s.fs.isActivatedAtHeight(int16(settings.DeterministicFinality), height)
+	useV2 := height != 1 && finalityActivated
+	sh := proto.EmptyLegacyStateHash(useV2)
+	if umErr := sh.UnmarshalBinary(stateHashBytes); umErr != nil {
+		return nil, umErr
 	}
-	return &sh, nil
+	return sh, nil
 }
 
 func (s *stateHashes) saveSnapshotStateHash(sh crypto.Digest, height proto.Height, blockID proto.BlockID) error {

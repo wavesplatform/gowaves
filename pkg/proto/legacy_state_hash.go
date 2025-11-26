@@ -27,6 +27,41 @@ type StateHash interface {
 	Equal(StateHash) bool
 	GenerateSumHash(prevSumHash []byte) error
 	MarshalBinary() ([]byte, error)
+	UnmarshalBinary(data []byte) error
+}
+
+// EmptyLegacyStateHash creates an empty legacy StateHash depending on whether
+// the Deterministic Finality feature is activated.
+func EmptyLegacyStateHash(finalityActivated bool) StateHash {
+	if finalityActivated {
+		return &StateHashV2{}
+	}
+	return &StateHashV1{}
+}
+
+// NewLegacyStateHash creates a new legacy StateHash depending on whether
+// the Deterministic Finality feature is activated.
+// If generatorsHash in not provided but finalityActivated is true, it will be set to zero value.
+func NewLegacyStateHash(
+	finalityActivated bool, blockID BlockID, fh FieldsHashesV1, generatorsHash ...crypto.Digest,
+) StateHash {
+	if finalityActivated {
+		var gh crypto.Digest
+		if len(generatorsHash) > 0 {
+			gh = generatorsHash[0]
+		}
+		return &StateHashV2{
+			BlockID: blockID,
+			FieldsHashesV2: FieldsHashesV2{
+				FieldsHashesV1: fh,
+				GeneratorsHash: gh,
+			},
+		}
+	}
+	return &StateHashV1{
+		BlockID:        blockID,
+		FieldsHashesV1: fh,
+	}
 }
 
 // FieldsHashesV1 is set of hashes fields for the legacy StateHashV1.
@@ -81,7 +116,6 @@ func (s *FieldsHashesV1) UnmarshalJSON(value []byte) error {
 	return nil
 }
 
-//nolint:dupl // in sake of performance we allow code duplication here.
 func (s *FieldsHashesV1) WriteTo(w io.Writer) (int64, error) {
 	var (
 		n   int
@@ -124,46 +158,45 @@ func (s *FieldsHashesV1) WriteTo(w io.Writer) (int64, error) {
 	return cnt + int64(n), err
 }
 
-//nolint:dupl // in sake of performance we allow code duplication here.
 func (s *FieldsHashesV1) ReadFrom(r io.Reader) (int64, error) {
 	var (
 		n   int
 		cnt int64
 		err error
 	)
-	if n, err = r.Read(s.WavesBalanceHash[:]); err != nil {
+	if n, err = io.ReadFull(r, s.WavesBalanceHash[:]); err != nil {
 		return cnt + int64(n), err
 	}
 	cnt += int64(n)
-	if n, err = r.Read(s.AssetBalanceHash[:]); err != nil {
+	if n, err = io.ReadFull(r, s.AssetBalanceHash[:]); err != nil {
 		return cnt + int64(n), err
 	}
 	cnt += int64(n)
-	if n, err = r.Read(s.DataEntryHash[:]); err != nil {
+	if n, err = io.ReadFull(r, s.DataEntryHash[:]); err != nil {
 		return cnt + int64(n), err
 	}
 	cnt += int64(n)
-	if n, err = r.Read(s.AccountScriptHash[:]); err != nil {
+	if n, err = io.ReadFull(r, s.AccountScriptHash[:]); err != nil {
 		return cnt + int64(n), err
 	}
 	cnt += int64(n)
-	if n, err = r.Read(s.AssetScriptHash[:]); err != nil {
+	if n, err = io.ReadFull(r, s.AssetScriptHash[:]); err != nil {
 		return cnt + int64(n), err
 	}
 	cnt += int64(n)
-	if n, err = r.Read(s.LeaseBalanceHash[:]); err != nil {
+	if n, err = io.ReadFull(r, s.LeaseBalanceHash[:]); err != nil {
 		return cnt + int64(n), err
 	}
 	cnt += int64(n)
-	if n, err = r.Read(s.LeaseStatusHash[:]); err != nil {
+	if n, err = io.ReadFull(r, s.LeaseStatusHash[:]); err != nil {
 		return cnt + int64(n), err
 	}
 	cnt += int64(n)
-	if n, err = r.Read(s.SponsorshipHash[:]); err != nil {
+	if n, err = io.ReadFull(r, s.SponsorshipHash[:]); err != nil {
 		return cnt + int64(n), err
 	}
 	cnt += int64(n)
-	n, err = r.Read(s.AliasesHash[:])
+	n, err = io.ReadFull(r, s.AliasesHash[:])
 	return cnt + int64(n), err
 }
 
@@ -222,6 +255,15 @@ func (s *FieldsHashesV2) WriteTo(w io.Writer) (int64, error) {
 	return n + int64(m), err
 }
 
+func (s *FieldsHashesV2) ReadFrom(r io.Reader) (int64, error) {
+	n, err := s.FieldsHashesV1.ReadFrom(r)
+	if err != nil {
+		return n, err
+	}
+	m, err := io.ReadFull(r, s.GeneratorsHash[:])
+	return n + int64(m), err
+}
+
 // StateHashV1 is the legacy state hash structure used prior the activation of Deterministic Finality feature.
 type StateHashV1 struct {
 	BlockID BlockID
@@ -273,14 +315,14 @@ func (s *StateHashV1) UnmarshalBinary(data []byte) error {
 	r := bytes.NewReader(data)
 	sid := SizedBlockID{}
 	if _, rErr := sid.ReadFrom(r); rErr != nil {
-		return rErr
+		return fmt.Errorf("failed to unmarshal legacy state hash v1: %w", rErr)
 	}
 	s.BlockID = BlockID(sid)
-	if _, rErr := r.Read(s.SumHash[:]); rErr != nil {
-		return rErr
+	if _, rErr := io.ReadFull(r, s.SumHash[:]); rErr != nil {
+		return fmt.Errorf("failed to unmarshal legacy state hash v1: %w", rErr)
 	}
 	if _, rErr := s.ReadFrom(r); rErr != nil {
-		return rErr
+		return fmt.Errorf("failed to unmarshal legacy state hash v1: %w", rErr)
 	}
 	return nil
 }
@@ -391,6 +433,22 @@ func (s *StateHashV2) MarshalBinary() ([]byte, error) {
 		return nil, fmt.Errorf("failed to marshal StateHashV2: %w", err)
 	}
 	return buf.Bytes(), nil
+}
+
+func (s *StateHashV2) UnmarshalBinary(data []byte) error {
+	r := bytes.NewReader(data)
+	sid := SizedBlockID{}
+	if _, rErr := sid.ReadFrom(r); rErr != nil {
+		return fmt.Errorf("failed to unmarshal legacy state hash v2: %w", rErr)
+	}
+	s.BlockID = BlockID(sid)
+	if _, rErr := io.ReadFull(r, s.SumHash[:]); rErr != nil {
+		return fmt.Errorf("failed to unmarshal legacy state hash v2: %w", rErr)
+	}
+	if _, rErr := s.ReadFrom(r); rErr != nil {
+		return fmt.Errorf("failed to unmarshal legacy state hash v2: %w", rErr)
+	}
+	return nil
 }
 
 func (s *StateHashV2) toStateHashJS() stateHashJSV2 {
@@ -597,7 +655,7 @@ func (id SizedBlockID) WriteTo(w io.Writer) (int64, error) {
 
 func (id *SizedBlockID) ReadFrom(r io.Reader) (int64, error) {
 	l := make([]byte, 1)
-	n, err := r.Read(l)
+	n, err := io.ReadFull(r, l)
 	if err != nil {
 		return int64(n), err
 	}

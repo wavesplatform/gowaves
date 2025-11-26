@@ -136,20 +136,24 @@ func (a *Debug) ConfigInfo(ctx context.Context, full bool) ([]byte, *Response, e
 	return buf.Bytes(), response, nil
 }
 
-type shV2Diff struct {
+// stateHashV2Diff is used to detect whether the requested StateHash is V1 or V2.
+// If the GeneratorsHash is zero, then it's V1.
+type stateHashV2Diff struct {
 	GeneratorsHash proto.DigestWrapped `json:"nextCommittedGeneratorsHash"`
 }
 
-func (diff *shV2Diff) isZero() bool {
+func (diff *stateHashV2Diff) isZero() bool {
 	return crypto.Digest(diff.GeneratorsHash) == crypto.Digest{}
 }
 
-type shdV2Diff struct {
+// stateHashDebugV2Diff is used to detect whether the requested StateHashDebug is V1 or V2.
+// If the GeneratorsHash is zero and BaseTarget is zero, then it's V1.
+type stateHashDebugV2Diff struct {
 	GeneratorsHash proto.DigestWrapped `json:"nextCommittedGeneratorsHash"`
 	BaseTarget     uint64              `json:"baseTart"`
 }
 
-func (diff *shdV2Diff) isZero() bool {
+func (diff *stateHashDebugV2Diff) isZero() bool {
 	return crypto.Digest(diff.GeneratorsHash) == crypto.Digest{} && diff.BaseTarget == 0
 }
 
@@ -168,7 +172,7 @@ func (a *Debug) StateHash(ctx context.Context, height uint64) (proto.StateHash, 
 	if err != nil {
 		return nil, response, err
 	}
-	var diff shV2Diff
+	var diff stateHashV2Diff
 	if umErr := json.Unmarshal(buf.Bytes(), &diff); umErr != nil {
 		return nil, response, umErr
 	}
@@ -197,7 +201,7 @@ func (a *Debug) stateHashDebugAtPath(ctx context.Context, path string) (proto.St
 	if err != nil {
 		return nil, response, err
 	}
-	var diff shdV2Diff
+	var diff stateHashDebugV2Diff
 	if umErr := json.Unmarshal(buf.Bytes(), &diff); umErr != nil {
 		return nil, response, umErr
 	}
