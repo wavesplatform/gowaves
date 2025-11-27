@@ -28,7 +28,7 @@
   "initial_block_reward": 600000000,
   "block_reward_increment": 100000000,
   "desired_reward": 600000000,
-  "dao_address": "3JuungCtDNEvFyHgx1Dcd937ztNTVpRNSWi",
   "xtn_buyback_address": "3JdWGi733mWM2kPoUvHqg3uJzMQ5rPCoFWU",
-  "block_reward_boost_period": 5
+  "min_xtn_buy_back_period": 4,
+  "block_reward_boost_period": 6
 }

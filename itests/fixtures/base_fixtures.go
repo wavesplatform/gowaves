@@ -2,7 +2,6 @@ package fixtures
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 	"time"
 
@@ -93,18 +92,6 @@ func (suite *BaseSuite) SetupTest() {
 	const waitForConnectedPeersTimeout = 5 * time.Second
 	err := suite.Clients.WaitForConnectedPeers(suite.MainCtx, waitForConnectedPeersTimeout)
 	suite.Require().NoError(err, "no connected peers or an unexpected error occurred")
-	fmt.Println(suite.Clients.GoClient.HTTPClient.GetHeight(suite.T()))
-	fmt.Println(suite.Clients.ScalaClient.HTTPClient.GetHeight(suite.T()))
-	// Miners Balances
-	minerGoBalanceFromGo := suite.Clients.GoClient.HTTPClient.WavesBalance(suite.T(), suite.Cfg.Accounts[0].Address)
-	minerScalaBalanceFromGo := suite.Clients.GoClient.HTTPClient.WavesBalance(suite.T(), suite.Cfg.Accounts[1].Address)
-	minerGoBalanceFromScala := suite.Clients.ScalaClient.HTTPClient.WavesBalance(suite.T(), suite.Cfg.Accounts[0].Address)
-	minerScalaBalanceFromScala := suite.Clients.ScalaClient.HTTPClient.WavesBalance(suite.T(), suite.Cfg.Accounts[1].Address)
-	fmt.Println(fmt.Sprintf("Go miner balance at Height = %d: FromGoNode: %d, FromScala: %d",
-		suite.Clients.GoClient.HTTPClient.GetHeight(suite.T()), minerGoBalanceFromGo, minerGoBalanceFromScala))
-	fmt.Println(fmt.Sprintf("Scala miner balance at Height = %d: FromGoNode: %d, FromScalaNode: %d",
-		suite.Clients.ScalaClient.HTTPClient.GetHeight(suite.T()), minerScalaBalanceFromGo, minerScalaBalanceFromScala))
-
 	suite.Clients.WaitForHeight(suite.T(), 2) // Wait for nodes to start mining
 	suite.Clients.SendStartMessage(suite.T())
 }
