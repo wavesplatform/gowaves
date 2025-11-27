@@ -6,7 +6,6 @@ import (
 	"io"
 
 	"github.com/fxamacker/cbor/v2"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -201,4 +200,37 @@ func checkCommitments(data []byte, generatorPK crypto.PublicKey, endorserPK bls.
 		}
 	}
 	return false, nil
+}
+
+// size returns the number of commitments for the given period start.
+func (c *commitments) size(periodStart uint32) (int, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.topEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to retrieve commitment record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return 0, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	return len(rec.Commitments), nil
+}
+
+func (c *commitments) newestSize(periodStart uint32) (int, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return 0, nil
+		}
+		return 0, fmt.Errorf("failed to retrieve commitment newest record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return 0, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	return len(rec.Commitments), nil
 }

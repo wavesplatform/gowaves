@@ -10,6 +10,7 @@ import (
 
 	gomock "github.com/golang/mock/gomock"
 	crypto "github.com/wavesplatform/gowaves/pkg/crypto"
+	bls "github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	proto "github.com/wavesplatform/gowaves/pkg/proto"
 	ast "github.com/wavesplatform/gowaves/pkg/ride/ast"
 	settings "github.com/wavesplatform/gowaves/pkg/settings"
@@ -328,6 +329,36 @@ func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockStateInfo)(nil).BlockchainSettings))
 }
 
+// CalculateVotingFinalization mocks base method.
+func (m *MockStateInfo) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CalculateVotingFinalization", endorsers, height, allGenerators)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CalculateVotingFinalization indicates an expected call of CalculateVotingFinalization.
+func (mr *MockStateInfoMockRecorder) CalculateVotingFinalization(endorsers, height, allGenerators interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockStateInfo)(nil).CalculateVotingFinalization), endorsers, height, allGenerators)
+}
+
+// CommittedGenerators mocks base method.
+func (m *MockStateInfo) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CommittedGenerators", periodStart)
+	ret0, _ := ret[0].([]proto.WavesAddress)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CommittedGenerators indicates an expected call of CommittedGenerators.
+func (mr *MockStateInfoMockRecorder) CommittedGenerators(periodStart interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommittedGenerators", reflect.TypeOf((*MockStateInfo)(nil).CommittedGenerators), periodStart)
+}
+
 // CurrentScore mocks base method.
 func (m *MockStateInfo) CurrentScore() (*big.Int, error) {
 	m.ctrl.T.Helper()
@@ -371,6 +402,36 @@ func (m *MockStateInfo) EstimatorVersion() (int, error) {
 func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
+}
+
+// FindEndorserPKByIndex mocks base method.
+func (m *MockStateInfo) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindEndorserPKByIndex", periodStart, index)
+	ret0, _ := ret[0].(bls.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindEndorserPKByIndex indicates an expected call of FindEndorserPKByIndex.
+func (mr *MockStateInfoMockRecorder) FindEndorserPKByIndex(periodStart, index interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindEndorserPKByIndex", reflect.TypeOf((*MockStateInfo)(nil).FindEndorserPKByIndex), periodStart, index)
+}
+
+// FindGeneratorPKByEndorserPK mocks base method.
+func (m *MockStateInfo) FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindGeneratorPKByEndorserPK", periodStart, endorserPK)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindGeneratorPKByEndorserPK indicates an expected call of FindGeneratorPKByEndorserPK.
+func (mr *MockStateInfoMockRecorder) FindGeneratorPKByEndorserPK(periodStart, endorserPK interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindGeneratorPKByEndorserPK", reflect.TypeOf((*MockStateInfo)(nil).FindGeneratorPKByEndorserPK), periodStart, endorserPK)
 }
 
 // FullAssetInfo mocks base method.
@@ -1747,6 +1808,21 @@ func (mr *MockStateMockRecorder) BlockchainSettings() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BlockchainSettings", reflect.TypeOf((*MockState)(nil).BlockchainSettings))
 }
 
+// CalculateVotingFinalization mocks base method.
+func (m *MockState) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CalculateVotingFinalization", endorsers, height, allGenerators)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CalculateVotingFinalization indicates an expected call of CalculateVotingFinalization.
+func (mr *MockStateMockRecorder) CalculateVotingFinalization(endorsers, height, allGenerators interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockState)(nil).CalculateVotingFinalization), endorsers, height, allGenerators)
+}
+
 // Close mocks base method.
 func (m *MockState) Close() error {
 	m.ctrl.T.Helper()
@@ -1759,6 +1835,21 @@ func (m *MockState) Close() error {
 func (mr *MockStateMockRecorder) Close() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Close", reflect.TypeOf((*MockState)(nil).Close))
+}
+
+// CommittedGenerators mocks base method.
+func (m *MockState) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CommittedGenerators", periodStart)
+	ret0, _ := ret[0].([]proto.WavesAddress)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// CommittedGenerators indicates an expected call of CommittedGenerators.
+func (mr *MockStateMockRecorder) CommittedGenerators(periodStart interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CommittedGenerators", reflect.TypeOf((*MockState)(nil).CommittedGenerators), periodStart)
 }
 
 // CreateNextSnapshotHash mocks base method.
@@ -1819,6 +1910,36 @@ func (m *MockState) EstimatorVersion() (int, error) {
 func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
+}
+
+// FindEndorserPKByIndex mocks base method.
+func (m *MockState) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindEndorserPKByIndex", periodStart, index)
+	ret0, _ := ret[0].(bls.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindEndorserPKByIndex indicates an expected call of FindEndorserPKByIndex.
+func (mr *MockStateMockRecorder) FindEndorserPKByIndex(periodStart, index interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindEndorserPKByIndex", reflect.TypeOf((*MockState)(nil).FindEndorserPKByIndex), periodStart, index)
+}
+
+// FindGeneratorPKByEndorserPK mocks base method.
+func (m *MockState) FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "FindGeneratorPKByEndorserPK", periodStart, endorserPK)
+	ret0, _ := ret[0].(crypto.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// FindGeneratorPKByEndorserPK indicates an expected call of FindGeneratorPKByEndorserPK.
+func (mr *MockStateMockRecorder) FindGeneratorPKByEndorserPK(periodStart, endorserPK interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindGeneratorPKByEndorserPK", reflect.TypeOf((*MockState)(nil).FindGeneratorPKByEndorserPK), periodStart, endorserPK)
 }
 
 // FullAssetInfo mocks base method.
