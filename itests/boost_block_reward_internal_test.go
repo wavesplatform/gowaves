@@ -41,7 +41,7 @@ func (s *RewardBoostDaoXtnEqualPeriodsPreactivatedAllTestSuite) Test_BoostBlockR
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardForMinersXtnDaoDuringPeriodsTestData)
+			testdata.GetRewardForMinersXtnDaoWithBoostTestData)
 		// Get current height and calculate heights where features periods end
 		// This heights should be equal each other
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(
@@ -64,7 +64,7 @@ func (s *RewardBoostDaoXtnEqualPeriodsPreactivatedAllTestSuite) Test_BoostBlockR
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersDaoWithoutXtnWithoutBoostTestData)
+			testdata.GetRewardToMinersDaoWithoutBoostTestData)
 	})
 }
 
@@ -101,7 +101,7 @@ func (s *RewardBoostDaoXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockRew
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostDaoXtnP21LessP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardForMinersXtnDaoDuringPeriodsTestData)
+			testdata.GetRewardForMinersXtnDaoWithBoostTestData)
 		// Get current height and calculate heights where features periods end
 		// ceaseXtnBuybackHeight should be less than boostHeight
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(
@@ -124,7 +124,7 @@ func (s *RewardBoostDaoXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockRew
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostDaoXtnP21LessP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersDaoWithoutXTNWithBoostTestData)
+			testdata.GetRewardToMinersDaoWithBoostTestData)
 		// Wait for boost height
 		utl.WaitForHeight(&s.RewardBoostDaoXtnP21LessP23PreactivatedAllSuite.BaseSuite, boostHeight,
 			config.WaitWithTimeoutInBlocks(utl.GetBoostBlockRewordPeriodCfg(
@@ -133,7 +133,7 @@ func (s *RewardBoostDaoXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockRew
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostDaoXtnP21LessP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersDaoWithoutXtnWithoutBoostTestData)
+			testdata.GetRewardToMinersDaoWithoutBoostTestData)
 	})
 }
 
@@ -170,7 +170,7 @@ func (s *RewardBoostDaoXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlock
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardForMinersXtnDaoDuringPeriodsTestData)
+			testdata.GetRewardForMinersXtnDaoWithBoostTestData)
 		// Get current height and calculate heights where features periods end:
 		// ceaseXtnBuybackHeight should be greater than boostHeight.
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(
@@ -193,7 +193,7 @@ func (s *RewardBoostDaoXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlock
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersXtnDaoWithoutBoostTestData)
+			testdata.GetRewardToMinersXtnDaoWithoutBoostTestData)
 		// Wait for ceaseXtnBuybackHeight
 		utl.WaitForHeight(&s.RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite.BaseSuite, ceaseXtnBuybackHeight,
 			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(
@@ -202,7 +202,7 @@ func (s *RewardBoostDaoXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlock
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersDaoWithoutXtnWithoutBoostTestData)
+			testdata.GetRewardToMinersDaoWithoutBoostTestData)
 	})
 }
 
@@ -237,7 +237,7 @@ func (s *RewardBoostMinerDaoPreactivatedAllTestSuite) Test_BoostBlockRewardMiner
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerDaoPreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersDaoWithoutXTNWithBoostTestData)
+			testdata.GetRewardToMinersDaoWithBoostTestData)
 		boostHeight := utl.GetFeatureActivationHeight(
 			&s.RewardBoostMinerDaoPreactivatedAllSuite.BaseSuite,
 			settings.BoostBlockReward,
@@ -251,7 +251,7 @@ func (s *RewardBoostMinerDaoPreactivatedAllTestSuite) Test_BoostBlockRewardMiner
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerDaoPreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersDaoWithoutXtnWithoutBoostTestData)
+			testdata.GetRewardToMinersDaoWithoutBoostTestData)
 	})
 }
 
@@ -288,7 +288,7 @@ func (s *RewardBoostMinerXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockR
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnP21LessP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersXtnWithBoostTestData)
+			testdata.GetRewardToMinersXtnWithBoostTestData)
 		// Get current height and calculate heights where features periods end
 		// ceaseXtnBuybackHeight should be less than boostHeight.
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(
@@ -311,7 +311,7 @@ func (s *RewardBoostMinerXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockR
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnP21LessP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersWithBoostTestData)
+			testdata.GetRewardToMinersWithBoostTestData)
 		// Wait for boostHeight
 		utl.WaitForHeight(&s.RewardBoostMinerXtnP21LessP23PreactivatedAllSuite.BaseSuite, boostHeight,
 			config.WaitWithTimeoutInBlocks(utl.GetBoostBlockRewordPeriodCfg(
@@ -320,7 +320,7 @@ func (s *RewardBoostMinerXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockR
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnP21LessP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersAfterPeriodsTestData)
+			testdata.GetRewardToMinersWithoutBoostTestData)
 	})
 }
 
@@ -357,7 +357,7 @@ func (s *RewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlo
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersXtnWithBoostTestData)
+			testdata.GetRewardToMinersXtnWithBoostTestData)
 		// Get current height and calculate heights where features periods end
 		// ceaseXtnBuybackHeight should be less than boostHeight.
 		ceaseXtnBuybackHeight := utl.GetFeatureActivationHeight(
@@ -380,7 +380,7 @@ func (s *RewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlo
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersXtnAfterBoostPeriodTestData)
+			testdata.GetRewardToMinersXtnWithoutBoostTestData)
 		// Wait for ceaseXtnBuybackHeight
 		utl.WaitForHeight(&s.RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite.BaseSuite, ceaseXtnBuybackHeight,
 			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(
@@ -389,13 +389,64 @@ func (s *RewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlo
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersAfterPeriodsTestData)
+			testdata.GetRewardToMinersWithoutBoostTestData)
 	})
 }
 
 func TestRewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite(t *testing.T) {
 	t.Parallel()
 	suite.Run(t, new(RewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite))
+}
+
+// ----- preactivated features 14, 19, 20, 21, 22, 23 -----
+// miners, initR = 600000000, increment = 100000000, desiredR = 600000000
+type RewardBoostMinersPreactivatedAllTestSuite struct {
+	f.RewardBoostMinersPreactivatedAllSuite
+}
+
+func (s *RewardBoostMinersPreactivatedAllTestSuite) SetupSuite() {
+	s.RewardBoostMinersPreactivatedAllSuite.SetupSuite()
+}
+
+func (s *RewardBoostMinersPreactivatedAllTestSuite) Test_BoostMinersPreactivatedAll() {
+	const name = "All features are preactivated, miners accounts are used"
+	addresses := testdata.GetAddressesMiners(&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite)
+	s.Run(name, func() {
+		// Check activation of features
+		utl.GetActivationOfFeatures(&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite,
+			settings.BlockReward,
+			settings.BlockRewardDistribution,
+			settings.CappedRewards,
+			settings.XTNBuyBackCessation,
+			settings.LightNode,
+			settings.BoostBlockReward)
+		// Check miners balances
+		reward.GetRewardDistributionAndChecksWithoutTerm(
+			&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite,
+			addresses,
+			testdata.GetRewardToMinersWithBoostTestData)
+		// Get current height and calculate heights where features periods end
+		// ceaseXtnBuybackHeight should be less than boostHeight.
+		boostHeight := utl.GetFeatureActivationHeight(
+			&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite,
+			settings.BoostBlockReward,
+			utl.GetHeight(&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite)) +
+			utl.GetBoostBlockRewordPeriodCfg(&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite)
+		// Wait for boostHeight
+		utl.WaitForHeight(&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite, boostHeight,
+			config.WaitWithTimeoutInBlocks(utl.GetBoostBlockRewordPeriodCfg(
+				&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite)))
+		// Check miners balances after feature 23 period end
+		reward.GetRewardDistributionAndChecksWithoutTerm(
+			&s.RewardBoostMinersPreactivatedAllSuite.BaseSuite,
+			addresses,
+			testdata.GetRewardToMinersWithoutBoostTestData)
+	})
+}
+
+func TestRewardBoostMinersPreactivatedAllTestSuite(t *testing.T) {
+	t.Parallel()
+	suite.Run(t, new(RewardBoostMinersPreactivatedAllTestSuite))
 }
 
 // ----- preactivated features 14, 19, 20, 21, 22 supported feature 23 -----
@@ -425,7 +476,7 @@ func (s *RewardBoostMinerXtnDaoSupportedF23TestSuite) Test_BoostBlockRewardMiner
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnDaoSupportedF23Suite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersXtnDaoWithoutBoostTestData)
+			testdata.GetRewardToMinersXtnDaoWithoutBoostTestData)
 		// Check activation of feature 23
 		utl.GetActivationOfFeatures(&s.RewardBoostMinerXtnDaoSupportedF23Suite.BaseSuite,
 			settings.BoostBlockReward)
@@ -433,7 +484,7 @@ func (s *RewardBoostMinerXtnDaoSupportedF23TestSuite) Test_BoostBlockRewardMiner
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnDaoSupportedF23Suite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersDaoWithoutXTNWithBoostTestData)
+			testdata.GetRewardToMinersDaoWithBoostTestData)
 		// Get current height and calculate heights where features periods end
 		boostHeight := utl.GetFeatureActivationHeight(
 			&s.RewardBoostMinerXtnDaoSupportedF23Suite.BaseSuite,
@@ -448,7 +499,7 @@ func (s *RewardBoostMinerXtnDaoSupportedF23TestSuite) Test_BoostBlockRewardMiner
 		reward.GetRewardDistributionAndChecksWithoutTerm(
 			&s.RewardBoostMinerXtnDaoSupportedF23Suite.BaseSuite,
 			addresses,
-			testdata.GetBoostRewardToMinersDaoWithoutXtnWithoutBoostTestData)
+			testdata.GetRewardToMinersDaoWithoutBoostTestData)
 	})
 }
 

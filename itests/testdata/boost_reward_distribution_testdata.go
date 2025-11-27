@@ -5,10 +5,6 @@ import (
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
 
-// Need to use AddressesForDistribution
-// Need to use RewardDistributionTestData
-// Need to use GetAddressesMinersDaoXtn....
-
 const (
 	BoostMultiplier = 10
 	DefaultReward   = 600000000
@@ -21,10 +17,7 @@ type BoostRewardDistributionExpectedValues struct {
 	_                    struct{}
 }
 
-// miners, dao, xtn
-// periods, when feature 21 and feature 23 are active
-
-func GetBoostRewardForMinersXtnDaoDuringPeriodsTestData(suite *f.BaseSuite,
+func GetRewardForMinersXtnDaoWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution, height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
@@ -37,9 +30,7 @@ func GetBoostRewardForMinersXtnDaoDuringPeriodsTestData(suite *f.BaseSuite,
 	)
 }
 
-// miners, dao, xtn (or without xtn)
-// periods, when feature 21 and feature 23 are not active
-func GetBoostRewardToMinersDaoWithoutXtnWithoutBoostTestData(suite *f.BaseSuite,
+func GetRewardToMinersDaoWithoutBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution, height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
@@ -52,9 +43,7 @@ func GetBoostRewardToMinersDaoWithoutXtnWithoutBoostTestData(suite *f.BaseSuite,
 	)
 }
 
-// miners, dao, without xtn
-// periods, when feature 21 is not active and feature 23 is active
-func GetBoostRewardToMinersDaoWithoutXTNWithBoostTestData(suite *f.BaseSuite,
+func GetRewardToMinersDaoWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
@@ -68,9 +57,7 @@ func GetBoostRewardToMinersDaoWithoutXTNWithBoostTestData(suite *f.BaseSuite,
 	)
 }
 
-// miners, dao, xtn
-// periods, when feature 23 is not active
-func GetBoostRewardToMinersXtnDaoWithoutBoostTestData(suite *f.BaseSuite,
+func GetRewardToMinersXtnDaoWithoutBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
@@ -84,9 +71,7 @@ func GetBoostRewardToMinersXtnDaoWithoutBoostTestData(suite *f.BaseSuite,
 	)
 }
 
-// miners, xtn, without dao
-// periods, when feature 21 and feature 23 are active
-func GetBoostRewardToMinersXtnWithBoostTestData(suite *f.BaseSuite,
+func GetRewardToMinersXtnWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
@@ -100,9 +85,7 @@ func GetBoostRewardToMinersXtnWithBoostTestData(suite *f.BaseSuite,
 	)
 }
 
-// miners, xtn, without dao
-// periods, when feature 23 is not active
-func GetBoostRewardToMinersXtnAfterBoostPeriodTestData(suite *f.BaseSuite,
+func GetRewardToMinersXtnWithoutBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
@@ -116,9 +99,7 @@ func GetBoostRewardToMinersXtnAfterBoostPeriodTestData(suite *f.BaseSuite,
 	)
 }
 
-// miners, xtn (when when feature 21 is not activa) or without xtn, without dao
-// with boost (period, when feature 23 is active)
-func GetBoostRewardToMinersWithBoostTestData(suite *f.BaseSuite,
+func GetRewardToMinersWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))
@@ -132,9 +113,7 @@ func GetBoostRewardToMinersWithBoostTestData(suite *f.BaseSuite,
 	)
 }
 
-// miners, xtn (or without xtn), without dao
-// periods, when feature 21 and feature 23 is not active
-func GetBoostRewardToMinersAfterPeriodsTestData(suite *f.BaseSuite,
+func GetRewardToMinersWithoutBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := int64(utl.GetCurrentReward(suite, height))

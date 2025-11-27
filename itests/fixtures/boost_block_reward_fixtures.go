@@ -191,3 +191,28 @@ func (suite *RewardBoostMinerXtnDaoSupportedF23Suite) SetupSuite() {
 	suite.BaseSetupWithImages("go-node", "latest",
 		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
 }
+
+// ----- preactivated features 14, 19, 20, 21, 22, 23 -----
+// miners, initR = 600000000, increment = 100000000, desiredR = 600000000
+type RewardBoostMinersPreactivatedAllSuite struct {
+	BaseSuite
+}
+
+func (suite *RewardBoostMinersPreactivatedAllSuite) BlockchainOpts() []config.BlockchainOption {
+	return []config.BlockchainOption{
+		config.WithFeatureSettingFromFile(
+			rewardSettingsFolder,
+			boostRewardSettingsFolder,
+			"boost_reward_preactivated_14_19_20_21_22_23_miners.json",
+		),
+		config.WithRewardSettingFromFile(
+			rewardSettingsFolder,
+			boostRewardSettingsFolder,
+			"boost_reward_preactivated_14_19_20_21_22_23_miners.json"),
+	}
+}
+
+func (suite *RewardBoostMinersPreactivatedAllSuite) SetupSuite() {
+	suite.BaseSetupWithImages("go-node", "latest",
+		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+}
