@@ -7,7 +7,6 @@ import (
 
 const (
 	BoostMultiplier = 10
-	DefaultReward   = 600000000
 )
 
 type BoostRewardDistributionExpectedValues struct {
