@@ -233,7 +233,7 @@ type EndorsementPool interface {
 	Add(e *proto.EndorseBlock, endorserPublicKey bls.PublicKey, balance uint64) error
 	GetAll() []proto.EndorseBlock
 	GetEndorsers() []bls.PublicKey
-	Finalize(finalizedBlockHeight proto.Height) (proto.FinalizationVoting, error)
+	FormFinalization(finalizationHeight proto.Height) (proto.FinalizationVoting, error)
 	Verify() (bool, error)
 	Len() int
 	CleanAll()

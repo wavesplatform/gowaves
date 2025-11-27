@@ -952,28 +952,9 @@ func (a *NodeApi) FinalizedHeight(w http.ResponseWriter, _ *http.Request) error 
 }
 
 func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error {
-	block, err := a.app.state.LastFinalizedBlock()
+	blockHeader, err := a.app.state.LastFinalizedBlock()
 	if err != nil {
 		return err
-	}
-	blockHeader := proto.BlockHeader{
-		Version:                block.Version,
-		Timestamp:              block.Timestamp,
-		Parent:                 block.Parent,
-		FeaturesCount:          block.FeaturesCount,
-		Features:               block.Features,
-		RewardVote:             block.RewardVote,
-		ConsensusBlockLength:   block.ConsensusBlockLength,
-		NxtConsensus:           block.NxtConsensus,
-		TransactionBlockLength: block.TransactionBlockLength,
-		TransactionCount:       block.TransactionCount,
-		GeneratorPublicKey:     block.GeneratorPublicKey,
-		BlockSignature:         block.BlockSignature,
-		TransactionsRoot:       block.TransactionsRoot,
-		StateHash:              block.StateHash,
-		ChallengedHeader:       block.ChallengedHeader,
-		FinalizationVoting:     block.FinalizationVoting,
-		ID:                     block.ID,
 	}
 	return trySendJSON(w, blockHeader)
 }

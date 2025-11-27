@@ -21,7 +21,7 @@ type innerState interface {
 	Height() (proto.Height, error)
 	ScoreAtHeight(height proto.Height) (*big.Int, error)
 	BlockIDToHeight(blockID proto.BlockID) (proto.Height, error)
-	AddDeserializedBlocks(blocks []*proto.Block, isMicro bool) (*proto.Block, error)
+	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
 	RollbackToHeight(height proto.Height) error
@@ -55,7 +55,7 @@ func (a *innerBlocksApplier) apply(
 	// Do we need rollback?
 	if parentHeight == currentHeight {
 		// no, don't rollback, just add blocks
-		_, err = storage.AddDeserializedBlocks(blocks, false)
+		_, err = storage.AddDeserializedBlocks(blocks)
 		if err != nil {
 			return 0, err
 		}
@@ -79,10 +79,10 @@ func (a *innerBlocksApplier) apply(
 		return 0, errors.Wrapf(err, "failed to rollback to height %d", parentHeight)
 	}
 	// applying new blocks
-	_, err = storage.AddDeserializedBlocks(blocks, false)
+	_, err = storage.AddDeserializedBlocks(blocks)
 	if err != nil {
 		// return back saved blocks
-		_, err2 := storage.AddDeserializedBlocks(rollbackBlocks, false)
+		_, err2 := storage.AddDeserializedBlocks(rollbackBlocks)
 		if err2 != nil {
 			return 0, errors.Wrap(err2, "failed rollback deserialized blocks")
 		}
@@ -269,10 +269,10 @@ func (a *innerBlocksApplier) applyMicro(
 	}
 
 	// applying new blocks
-	_, err = storage.AddDeserializedBlocks([]*proto.Block{block}, true)
+	_, err = storage.AddDeserializedBlocks([]*proto.Block{block})
 	if err != nil {
 		// return back saved blocks
-		_, errAdd := storage.AddDeserializedBlocks([]*proto.Block{currentBlock}, true)
+		_, errAdd := storage.AddDeserializedBlocks([]*proto.Block{currentBlock})
 		if errAdd != nil {
 			return 0, errors.Wrap(errAdd, "failed rollback block")
 		}

@@ -14,15 +14,15 @@ var ErrNoFinalization = errors.New("no finalized blocks recorded")
 var ErrNoFinalizationHistory = errors.New("no finalization in history")
 
 type finalizationItem struct {
-	Block                proto.Block  `cbor:"0,keyasint,omitempty"`
-	FinalizedBlockHeight proto.Height `cbor:"1,keyasint,omitempty"`
+	Block                proto.BlockHeader `cbor:"0,keyasint,omitempty"`
+	FinalizedBlockHeight proto.Height      `cbor:"1,keyasint,omitempty"`
 }
 
 type finalizationRecord struct {
 	Records []finalizationItem `cbor:"0,keyasint,omitempty"`
 }
 
-func (fr *finalizationRecord) append(block proto.Block, finalizedBlockHeight proto.Height) {
+func (fr *finalizationRecord) append(block proto.BlockHeader, finalizedBlockHeight proto.Height) {
 	fr.Records = append(fr.Records, finalizationItem{
 		Block:                block,
 		FinalizedBlockHeight: finalizedBlockHeight,
@@ -40,7 +40,7 @@ func newFinalizations(hs *historyStorage) *finalizations {
 	return &finalizations{hs: hs}
 }
 
-func (f *finalizations) store(block proto.Block, finalizedBlockHeight proto.Height,
+func (f *finalizations) store(block proto.BlockHeader, finalizedBlockHeight proto.Height,
 	currentBlockID proto.BlockID) error {
 	key := []byte(finalizationKey)
 	data, err := f.hs.newestTopEntryData(key)

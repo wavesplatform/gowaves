@@ -13,7 +13,8 @@ import (
 
 func testIterImpl(t *testing.T, params StateParams) {
 	dataDir := t.TempDir()
-	st, err := NewState(dataDir, true, params, settings.MustMainNetSettings(), false, nil)
+	st, err := NewState(dataDir, true, params, settings.MustMainNetSettings(), false,
+		nil)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -25,7 +26,7 @@ func testIterImpl(t *testing.T, params StateParams) {
 	blocks, err := ReadMainnetBlocksToHeight(blockHeight)
 	require.NoError(t, err)
 	// Add extra blocks and rollback to check that rollback scenario is handled correctly.
-	_, err = st.AddDeserializedBlocks(blocks, false)
+	_, err = st.AddDeserializedBlocks(blocks)
 	require.NoError(t, err)
 	err = st.RollbackToHeight(8000)
 	require.NoError(t, err)

@@ -451,7 +451,7 @@ func (a *ThreadSafeReadWrapper) LastFinalizedHeight() (proto.Height, error) {
 	return a.s.LastFinalizedHeight()
 }
 
-func (a *ThreadSafeReadWrapper) LastFinalizedBlock() (*proto.Block, error) {
+func (a *ThreadSafeReadWrapper) LastFinalizedBlock() (*proto.BlockHeader, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.LastFinalizedBlock()
@@ -522,10 +522,10 @@ func (a *ThreadSafeWriteWrapper) AddBlocksWithSnapshots(blocks [][]byte, snapsho
 }
 
 func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(
-	blocks []*proto.Block, isMicro bool) (*proto.Block, error) {
+	blocks []*proto.Block) (*proto.Block, error) {
 	a.lock()
 	defer a.unlock()
-	return a.s.AddDeserializedBlocks(blocks, isMicro)
+	return a.s.AddDeserializedBlocks(blocks)
 }
 
 func (a *ThreadSafeWriteWrapper) AddDeserializedBlocksWithSnapshots(

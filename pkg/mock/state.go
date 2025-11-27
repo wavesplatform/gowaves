@@ -675,10 +675,10 @@ func (mr *MockStateInfoMockRecorder) IsAssetExist(assetID interface{}) *gomock.C
 }
 
 // LastFinalizedBlock mocks base method.
-func (m *MockStateInfo) LastFinalizedBlock() (*proto.Block, error) {
+func (m *MockStateInfo) LastFinalizedBlock() (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LastFinalizedBlock")
-	ret0, _ := ret[0].(*proto.Block)
+	ret0, _ := ret[0].(*proto.BlockHeader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -1296,18 +1296,18 @@ func (mr *MockStateModifierMockRecorder) AddDeserializedBlock(block interface{})
 }
 
 // AddDeserializedBlocks mocks base method.
-func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block, isMicro bool) (*proto.Block, error) {
+func (m *MockStateModifier) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks, isMicro)
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
-func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks, isMicro interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks, isMicro)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockStateModifier)(nil).AddDeserializedBlocks), blocks)
 }
 
 // AddDeserializedBlocksWithSnapshots mocks base method.
@@ -1614,18 +1614,18 @@ func (mr *MockStateMockRecorder) AddDeserializedBlock(block interface{}) *gomock
 }
 
 // AddDeserializedBlocks mocks base method.
-func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block, isMicro bool) (*proto.Block, error) {
+func (m *MockState) AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks, isMicro)
+	ret := m.ctrl.Call(m, "AddDeserializedBlocks", blocks)
 	ret0, _ := ret[0].(*proto.Block)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // AddDeserializedBlocks indicates an expected call of AddDeserializedBlocks.
-func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks, isMicro interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) AddDeserializedBlocks(blocks interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks, isMicro)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddDeserializedBlocks", reflect.TypeOf((*MockState)(nil).AddDeserializedBlocks), blocks)
 }
 
 // AddDeserializedBlocksWithSnapshots mocks base method.
@@ -2213,10 +2213,10 @@ func (mr *MockStateMockRecorder) IsAssetExist(assetID interface{}) *gomock.Call 
 }
 
 // LastFinalizedBlock mocks base method.
-func (m *MockState) LastFinalizedBlock() (*proto.Block, error) {
+func (m *MockState) LastFinalizedBlock() (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "LastFinalizedBlock")
-	ret0, _ := ret[0].(*proto.Block)
+	ret0, _ := ret[0].(*proto.BlockHeader)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

@@ -1,6 +1,7 @@
 package endorsementpool
 
 import (
+	"bytes"
 	"container/heap"
 	"errors"
 	"fmt"
@@ -133,7 +134,7 @@ func (p *EndorsementPool) GetAll() []proto.EndorseBlock {
 	return out
 }
 
-func (p *EndorsementPool) Finalize(finalizedBlockHeight proto.Height) (proto.FinalizationVoting, error) {
+func (p *EndorsementPool) FormFinalization(finalizationHeight proto.Height) (proto.FinalizationVoting, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -159,8 +160,8 @@ func (p *EndorsementPool) Finalize(finalizedBlockHeight proto.Height) (proto.Fin
 
 	return proto.FinalizationVoting{
 		AggregatedEndorsementSignature: aggregatedSignature,
+		FinalizedBlockHeight:           finalizationHeight,
 		EndorserIndexes:                endorsersIndexes,
-		FinalizedBlockHeight:           finalizedBlockHeight,
 		ConflictEndorsements:           p.conflicts,
 	}, nil
 }
@@ -202,15 +203,20 @@ func (p *EndorsementPool) Verify() (bool, error) {
 
 	sigs := make([]bls.Signature, 0, n)
 	pks := make([]bls.PublicKey, 0, n)
-
-	for _, it := range p.h {
-		sigs = append(sigs, it.eb.Signature)
-		pks = append(pks, it.endorserPK)
-	}
-
 	msg, err := p.h[0].eb.EndorsementMessage()
 	if err != nil {
 		return false, err
+	}
+	for _, it := range p.h {
+		sigs = append(sigs, it.eb.Signature)
+		pks = append(pks, it.endorserPK)
+		nextMsg, err := it.eb.EndorsementMessage()
+		if err != nil {
+			return false, err
+		}
+		if bytes.Equal(nextMsg, msg) {
+			return false, errors.New("failed to verify endorsements: inconsistent endorsement messages")
+		}
 	}
 	agg, err := bls.AggregateSignatures(sigs)
 	if err != nil {

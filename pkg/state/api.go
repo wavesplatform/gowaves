@@ -165,7 +165,7 @@ type StateInfo interface {
 	FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error)
 	CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error)
 	LastFinalizedHeight() (proto.Height, error)
-	LastFinalizedBlock() (*proto.Block, error)
+	LastFinalizedBlock() (*proto.BlockHeader, error)
 }
 
 // StateModifier contains all the methods needed to modify node's state.
@@ -180,7 +180,7 @@ type StateModifier interface {
 	AddBlocks(blocks [][]byte) error
 	AddBlocksWithSnapshots(blocks [][]byte, snapshots []*proto.BlockSnapshot) error
 	// AddDeserializedBlocks marshals blocks to binary and calls AddBlocks.
-	AddDeserializedBlocks(blocks []*proto.Block, isMicro bool) (*proto.Block, error)
+	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 	// Rollback functionality.
 	RollbackToHeight(height proto.Height) error
