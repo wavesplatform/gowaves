@@ -476,7 +476,7 @@ func (v Version) Cmp(other Version) int {
 // CmpMinor compares minor version.
 // If equal return 0.
 // If diff only 1 version (for example 1.14 and 1.13), then 1
-// If more then 1 version, then return 2.
+// If more than 1 version, then return 2.
 func (v Version) CmpMinor(other Version) int {
 	if v.major != other.major {
 		return 2

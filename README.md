@@ -2,7 +2,7 @@
 
 Go implementation of Waves Node, libraries and tools for Waves blockchain.
 
-![](https://github.com/wavesplatform/gowaves/workflows/build/badge.svg)
+[![Build](https://github.com/wavesplatform/gowaves/workflows/build/badge.svg)](https://github.com/wavesplatform/gowaves/actions/workflows/go.yml)
 [![Go Report Card](https://goreportcard.com/badge/github.com/wavesplatform/gowaves)](https://goreportcard.com/report/github.com/wavesplatform/gowaves)
 [![codecov](https://codecov.io/gh/wavesplatform/gowaves/branch/master/graph/badge.svg)](https://codecov.io/gh/wavesplatform/gowaves)
 [![GoDoc](https://godoc.org/github.com/wavesplatform/gowaves?status.svg)](https://godoc.org/github.com/wavesplatform/gowaves)
@@ -120,7 +120,7 @@ Create sender's private key from BASE58 string:
 
 Create script's address:
 ```go
-    a, err := proto.NewAddressFromString("<script's address")
+    a, err := proto.NewAddressFromString("<script's address>")
     if err != nil {
         panic(err)
     }
