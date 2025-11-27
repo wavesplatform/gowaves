@@ -133,7 +133,7 @@ func (p *EndorsementPool) GetAll() []proto.EndorseBlock {
 	return out
 }
 
-func (p *EndorsementPool) Finalize() (proto.FinalizationVoting, error) {
+func (p *EndorsementPool) FormFinalization(finalizationHeight proto.Height) (proto.FinalizationVoting, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -159,6 +159,7 @@ func (p *EndorsementPool) Finalize() (proto.FinalizationVoting, error) {
 
 	return proto.FinalizationVoting{
 		AggregatedEndorsementSignature: aggregatedSignature,
+		FinalizedBlockHeight:           finalizationHeight,
 		EndorserIndexes:                endorsersIndexes,
 		ConflictEndorsements:           p.conflicts,
 	}, nil

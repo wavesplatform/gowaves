@@ -19,6 +19,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
+var errNoFinalization = errors.New("no finalization available")
+
 type NGState struct {
 	baseInfo    BaseInfo
 	blocksCache blockStatesCache
@@ -261,32 +263,58 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGState) handleFinality(block *proto.Block, height proto.Height) error {
+func (a *NGState) getPartialFinalization(height proto.Height) (*proto.FinalizationVoting, error) {
+	if a.baseInfo.endorsements.Len() == 0 {
+		return nil, errNoFinalization
+	}
+	fin, err := a.baseInfo.endorsements.FormFinalization(height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to finalize endorsements for microblock: %w", err)
+	}
+	return &fin, nil
+}
+
+func (a *NGState) getBlockFinalization(height proto.Height) (*proto.FinalizationVoting, error) {
+	blockFinalization, err := a.tryFinalize(height)
+	if err != nil {
+		if !errors.Is(err, errNoFinalization) {
+			return nil, a.Errorf(errors.Wrap(err, "failed to try finalize last block"))
+		}
+		return nil, errNoFinalization
+	}
+	return blockFinalization, nil
+}
+
+func (a *NGState) tryFinalize(height proto.Height) (*proto.FinalizationVoting, error) {
 	// No finalization since nobody endorsed the last block.
 	if a.baseInfo.endorsements.Len() == 0 {
-		return nil
+		return nil, errNoFinalization
 	}
+
 	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
-		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
+		return nil, fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
 	}
+
 	ok, err := a.baseInfo.endorsements.Verify()
 	if err != nil {
-		return err
+		return nil, err
 	}
 	if !ok {
-		return fmt.Errorf("endorsement verification failed at height %d", height)
+		return nil, fmt.Errorf("endorsement verification failed at height %d", height)
 	}
+
 	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
 	if err != nil {
-		return err
+		return nil, err
 	}
+
 	allEndorsers := a.baseInfo.endorsements.GetEndorsers()
 	endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
 	for _, endorser := range allEndorsers {
 		pk, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorser)
 		if findErr != nil {
-			return findErr
+			return nil, findErr
 		}
 		addr := proto.MustAddressFromPublicKey(a.baseInfo.scheme, pk)
 		endorsersAddresses = append(endorsersAddresses, addr)
@@ -294,22 +322,23 @@ func (a *NGState) handleFinality(block *proto.Block, height proto.Height) error 
 
 	generators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
 	if err != nil {
-		return err
+		return nil, err
 	}
 
 	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, height, generators)
 	if err != nil {
-		return fmt.Errorf("failed to calculate finalization voting: %w", err)
+		return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
 	}
 
 	if canFinalize {
-		finalization, finErr := a.baseInfo.endorsements.Finalize()
+		finalization, finErr := a.baseInfo.endorsements.FormFinalization(height)
 		if finErr != nil {
-			return finErr
+			return nil, finErr
 		}
-		block.FinalizationVoting = &finalization
+		return &finalization, nil
 	}
-	return nil
+
+	return nil, errNoFinalization
 }
 
 func (a *NGState) MinedBlock(
@@ -327,18 +356,8 @@ func (a *NGState) MinedBlock(
 		return a, nil, a.Errorf(heightErr)
 	}
 
-	finalityActivated, err := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
-	if err != nil {
-		return a, nil, a.Errorf(err)
-	}
-	if finalityActivated {
-		if finErr := a.handleFinality(block, height); finErr != nil {
-			return a, nil, a.Errorf(finErr)
-		}
-	}
-
 	metrics.BlockMined(block)
-	err = a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
+	err := a.baseInfo.storage.Map(func(state state.NonThreadSafeState) error {
 		var err error
 		_, err = a.baseInfo.blocksApplier.Apply(
 			state,
@@ -411,16 +430,19 @@ func (a *NGState) mineMicro(
 		return a, nil, a.Errorf(err)
 	}
 	var partialFinalization *proto.FinalizationVoting
+	var blockFinalization *proto.FinalizationVoting
 	if finalityActivated {
-		if a.baseInfo.endorsements.Len() != 0 {
-			fin, finErr := a.baseInfo.endorsements.Finalize()
-			if finErr != nil {
-				return a, nil, a.Errorf(errors.Wrap(finErr, "failed to finalize endorsements for microblock"))
-			}
-			partialFinalization = &fin
+		partialFinalization, err = a.getPartialFinalization(height)
+		if err != nil && !errors.Is(err, errNoFinalization) {
+			return a, nil, a.Errorf(err)
+		}
+		blockFinalization, err = a.getBlockFinalization(height)
+		if err != nil && !errors.Is(err, errNoFinalization) {
+			return a, nil, a.Errorf(err)
 		}
 	}
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization)
+	block.FinalizationVoting = blockFinalization
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro
 		a.baseInfo.logger.Debug(
