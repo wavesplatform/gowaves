@@ -121,10 +121,11 @@ func GetBoostRewardToMinersXtnAfterBoostPeriodTestData(suite *f.BaseSuite,
 func GetBoostRewardToMinersWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
+	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
-			MinersSumDiffBalance: BoostMultiplier * DefaultReward,
+			MinersSumDiffBalance: currentReward,
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 		},
@@ -136,10 +137,11 @@ func GetBoostRewardToMinersWithBoostTestData(suite *f.BaseSuite,
 func GetBoostRewardToMinersAfterPeriodsTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
+	currentReward := int64(utl.GetCurrentReward(suite, height))
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
-			MinersSumDiffBalance: DefaultReward,
+			MinersSumDiffBalance: currentReward,
 			DaoDiffBalance:       0,
 			XtnDiffBalance:       0,
 		},
