@@ -1082,7 +1082,7 @@ func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) 
 
 // GetBoostBlockRewordPeriodCfg returns boost block reward period.
 func GetBoostBlockRewordPeriodCfg(suite *f.BaseSuite) uint64 {
-	return suite.Cfg.BlockchainSettings.FunctionalitySettings.BlockRewardBoostPeriod
+	return suite.Cfg.BlockchainSettings.BlockRewardBoostPeriod
 }
 
 func GetAccountDataGoByKey(suite *f.BaseSuite, address proto.WavesAddress, key string) *waves.DataEntry {
