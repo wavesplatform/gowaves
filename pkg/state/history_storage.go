@@ -46,6 +46,7 @@ const (
 	patches
 	challengedAddress
 	commitment
+	finalization
 )
 
 type blockchainEntityProperties struct {

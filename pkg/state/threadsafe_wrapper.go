@@ -445,6 +445,18 @@ func (a *ThreadSafeReadWrapper) CommittedGenerators(periodStart uint32) ([]proto
 	return a.s.CommittedGenerators(periodStart)
 }
 
+func (a *ThreadSafeReadWrapper) LastFinalizedHeight() (proto.Height, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedHeight()
+}
+
+func (a *ThreadSafeReadWrapper) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedBlock()
+}
+
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,
@@ -510,8 +522,7 @@ func (a *ThreadSafeWriteWrapper) AddBlocksWithSnapshots(blocks [][]byte, snapsho
 }
 
 func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(
-	blocks []*proto.Block,
-) (*proto.Block, error) {
+	blocks []*proto.Block) (*proto.Block, error) {
 	a.lock()
 	defer a.unlock()
 	return a.s.AddDeserializedBlocks(blocks)

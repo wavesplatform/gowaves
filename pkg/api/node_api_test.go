@@ -17,6 +17,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 const apiKey = "X-API-Key"
@@ -75,6 +76,12 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 		return req
 	}
 
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+
 	t.Run("success", func(t *testing.T) {
 		const (
 			addrStr = "3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7"
@@ -93,7 +100,7 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 		a, err := NewApp("", nil, services.Services{
 			State:  st,
 			Scheme: proto.TestNetScheme,
-		})
+		}, cfg)
 		require.NoError(t, err)
 
 		aErr := NewNodeAPI(a, nil).WavesRegularBalanceByAddress(resp, req)
@@ -120,7 +127,7 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 			a, err := NewApp("", nil, services.Services{
 				State:  mock.NewMockState(ctrl),
 				Scheme: proto.TestNetScheme,
-			})
+			}, cfg)
 			require.NoError(t, err)
 
 			aErr := NewNodeAPI(a, nil).WavesRegularBalanceByAddress(resp, req)

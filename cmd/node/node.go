@@ -460,7 +460,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to create services")
 	}
 
-	app, err := api.NewApp(nc.apiKey, minerScheduler, svs)
+	app, err := api.NewApp(nc.apiKey, minerScheduler, svs, cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize application")
 	}

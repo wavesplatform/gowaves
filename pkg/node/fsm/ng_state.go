@@ -337,7 +337,6 @@ func (a *NGState) tryFinalize(height proto.Height) (*proto.FinalizationVoting, e
 		}
 		return &finalization, nil
 	}
-
 	return nil, errNoFinalization
 }
 

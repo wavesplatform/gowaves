@@ -16,11 +16,14 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 
+	"github.com/ccoveille/go-safecast/v2"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
@@ -893,6 +896,141 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 		return errors.Wrap(sendErr, "snapshotStateHash")
 	}
 	return nil
+}
+
+type GeneratorInfo struct {
+	Address       string `json:"address"`
+	Balance       uint64 `json:"balance"`
+	TransactionID string `json:"transactionID"`
+}
+
+func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
+	heightStr := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(heightStr, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "invalid height")
+	}
+
+	activationHeight, err := a.state.ActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
+	}
+
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height,
+		a.app.settings.GenerationPeriod)
+	if err != nil {
+		return err
+	}
+
+	var generatorsInfo []GeneratorInfo
+
+	generatorAddresses, err := a.state.CommittedGenerators(periodStart)
+	if err != nil {
+		return err
+	}
+	for _, generatorAddress := range generatorAddresses {
+		endorserRecipient := proto.NewRecipientFromAddress(generatorAddress)
+		balance, pullErr := a.state.GeneratingBalance(endorserRecipient, height)
+		if pullErr != nil {
+			return pullErr
+		}
+		generatorsInfo = append(generatorsInfo, GeneratorInfo{
+			Address:       generatorAddress.String(),
+			Balance:       balance,
+			TransactionID: "", // TODO should be somehow found.
+		})
+	}
+	return trySendJSON(w, generatorsInfo)
+}
+
+func (a *NodeApi) FinalizedHeight(w http.ResponseWriter, _ *http.Request) error {
+	h, err := a.state.LastFinalizedHeight()
+	if err != nil {
+		return err
+	}
+	return trySendJSON(w, map[string]uint64{"height": h})
+}
+
+func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error {
+	blockHeader, err := a.app.state.LastFinalizedBlock()
+	if err != nil {
+		return err
+	}
+	return trySendJSON(w, blockHeader)
+}
+
+type SignCommitRequest struct {
+	Sender                string  `json:"sender"`
+	GenerationPeriodStart *uint32 `json:"generationPeriodStart,omitempty"`
+	Timestamp             *int64  `json:"timestamp,omitempty"`
+	ChainID               *byte   `json:"chainId,omitempty"`
+}
+
+func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request) error {
+	var req SignCommitRequest
+	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+		return errors.Wrap(err, "failed to decode JSON")
+	}
+
+	addr, err := proto.NewAddressFromString(req.Sender)
+	if err != nil {
+		return errors.Wrap(err, "invalid sender address")
+	}
+
+	now := time.Now().UnixMilli()
+
+	timestamp := now
+	if req.Timestamp != nil {
+		timestamp = *req.Timestamp
+	}
+	timestampUint, err := safecast.Convert[uint64](timestamp)
+	if err != nil {
+		return errors.Wrap(err, "invalid timestamp")
+	}
+
+	var periodStart uint32
+	if req.GenerationPeriodStart != nil {
+		periodStart = *req.GenerationPeriodStart
+	} else {
+		height, retrieveErr := a.state.Height()
+		if retrieveErr != nil {
+			return errors.Wrap(retrieveErr, "failed to get height")
+		}
+		activationH, actErr := a.state.ActivationHeight(int16(settings.DeterministicFinality))
+		if actErr != nil {
+			return errors.Wrap(actErr, "failed to get DF activation height")
+		}
+
+		periodStart, err = state.CurrentGenerationPeriodStart(activationH, height, a.app.settings.GenerationPeriod)
+		if err != nil {
+			return errors.Wrap(err, "failed to calculate generationPeriodStart")
+		}
+	}
+	senderPK, err := a.app.services.Wallet.FindPublicKeyByAddress(addr, a.app.services.Scheme)
+	if err != nil {
+		return errors.Wrap(err, "failed to find key pair by address")
+	}
+
+	blsSecretKey, blsPublicKey, err := a.app.services.Wallet.BlsPairByWavesPK(senderPK)
+	if err != nil {
+		return errors.Wrap(err, "failed to find endorser public key by generator public key")
+	}
+	_, commitmentSignature, popErr := bls.ProvePoP(blsSecretKey, blsPublicKey, periodStart)
+	if popErr != nil {
+		return errors.Wrap(popErr, "failed to create proof of possession for commitment")
+	}
+	tx := proto.NewUnsignedCommitToGenerationWithProofs(1,
+		senderPK,
+		periodStart,
+		blsPublicKey,
+		commitmentSignature,
+		state.FeeUnit,
+		timestampUint)
+	err = a.app.services.Wallet.SignTransactionWith(senderPK, tx)
+	if err != nil {
+		return err
+	}
+	return trySendJSON(w, tx)
 }
 
 func wavesAddressInvalidCharErr(invalidChar rune, id string) *apiErrs.CustomValidationError {

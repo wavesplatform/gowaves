@@ -43,6 +43,32 @@ func (e *EndorseBlock) EndorsementMessage() ([]byte, error) {
 	return buf, nil
 }
 
+func EndorsementMessage(finalizedBlockID BlockID, endorsedBlockID BlockID,
+	finalizedBlockHeight Height) ([]byte, error) {
+	const heightSize = uint32Size
+
+	finalizedID := finalizedBlockID.Bytes()
+	endorsedID := endorsedBlockID.Bytes()
+
+	size := len(finalizedID) + heightSize + len(endorsedID)
+	buf := make([]byte, size)
+
+	// finalizedBlockId
+	copy(buf[0:len(finalizedID)], finalizedID)
+
+	finalizedBlockHeightUint, err := safecast.Convert[uint32](finalizedBlockHeight)
+	if err != nil {
+		return nil, errors.Errorf("finalized block height conversion error: %v", err)
+	}
+	// finalizedBlockHeight (4 bytes big-endian, same as Scala Ints.toByteArray)
+	binary.BigEndian.PutUint32(buf[len(finalizedID):len(finalizedID)+heightSize], finalizedBlockHeightUint)
+
+	// endorsedBlockId
+	copy(buf[len(finalizedID)+heightSize:], endorsedID)
+
+	return buf, nil
+}
+
 func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {
 	var pbEndorsement = &g.EndorseBlock{}
 	err := pbEndorsement.UnmarshalVT(data)

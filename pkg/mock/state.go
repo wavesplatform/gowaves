@@ -674,6 +674,36 @@ func (mr *MockStateInfoMockRecorder) IsAssetExist(assetID interface{}) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAssetExist", reflect.TypeOf((*MockStateInfo)(nil).IsAssetExist), assetID)
 }
 
+// LastFinalizedBlock mocks base method.
+func (m *MockStateInfo) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LastFinalizedBlock")
+	ret0, _ := ret[0].(*proto.BlockHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LastFinalizedBlock indicates an expected call of LastFinalizedBlock.
+func (mr *MockStateInfoMockRecorder) LastFinalizedBlock() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastFinalizedBlock", reflect.TypeOf((*MockStateInfo)(nil).LastFinalizedBlock))
+}
+
+// LastFinalizedHeight mocks base method.
+func (m *MockStateInfo) LastFinalizedHeight() (proto.Height, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LastFinalizedHeight")
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LastFinalizedHeight indicates an expected call of LastFinalizedHeight.
+func (mr *MockStateInfoMockRecorder) LastFinalizedHeight() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastFinalizedHeight", reflect.TypeOf((*MockStateInfo)(nil).LastFinalizedHeight))
+}
+
 // LegacyStateHashAtHeight mocks base method.
 func (m *MockStateInfo) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
 	m.ctrl.T.Helper()
@@ -2180,6 +2210,36 @@ func (m *MockState) IsAssetExist(assetID proto.AssetID) (bool, error) {
 func (mr *MockStateMockRecorder) IsAssetExist(assetID interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IsAssetExist", reflect.TypeOf((*MockState)(nil).IsAssetExist), assetID)
+}
+
+// LastFinalizedBlock mocks base method.
+func (m *MockState) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LastFinalizedBlock")
+	ret0, _ := ret[0].(*proto.BlockHeader)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LastFinalizedBlock indicates an expected call of LastFinalizedBlock.
+func (mr *MockStateMockRecorder) LastFinalizedBlock() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastFinalizedBlock", reflect.TypeOf((*MockState)(nil).LastFinalizedBlock))
+}
+
+// LastFinalizedHeight mocks base method.
+func (m *MockState) LastFinalizedHeight() (proto.Height, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "LastFinalizedHeight")
+	ret0, _ := ret[0].(proto.Height)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// LastFinalizedHeight indicates an expected call of LastFinalizedHeight.
+func (mr *MockStateMockRecorder) LastFinalizedHeight() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "LastFinalizedHeight", reflect.TypeOf((*MockState)(nil).LastFinalizedHeight))
 }
 
 // LegacyStateHashAtHeight mocks base method.

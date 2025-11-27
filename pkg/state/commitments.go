@@ -190,3 +190,30 @@ func (c *commitments) newestSize(periodStart uint32) (int, error) {
 	}
 	return len(rec.Commitments), nil
 }
+
+// FindEndorserPKsByIndexes returns BLS endorser public keys using
+// commitment indexes stored in FinalizationVoting.EndorserIndexes.
+func (c *commitments) FindEndorserPKsByIndexes(
+	periodStart uint32, index int,
+) (bls.PublicKey, error) {
+	var empty bls.PublicKey
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return empty, fmt.Errorf("no commitments found for period %d", periodStart)
+		}
+		return empty, fmt.Errorf("failed to retrieve commitments record: %w", err)
+	}
+
+	var rec commitmentsRecord
+	if err := rec.unmarshalBinary(data); err != nil {
+		return empty, fmt.Errorf("failed to unmarshal commitments: %w", err)
+	}
+
+	if index < 0 || index >= len(rec.Commitments) {
+		return empty, fmt.Errorf("index %d out of range (size %d)", index, len(rec.Commitments))
+	}
+
+	return rec.Commitments[index].EndorserPK, nil
+}
