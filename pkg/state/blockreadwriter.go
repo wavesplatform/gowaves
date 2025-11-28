@@ -11,7 +11,7 @@ import (
 	"sync"
 
 	"github.com/ccoveille/go-safecast/v2"
-	"github.com/golang/snappy"
+	"github.com/minio/minlz"
 	"github.com/pkg/errors"
 	"github.com/valyala/bytebufferpool"
 
@@ -389,7 +389,13 @@ func txBytesToReadWriterTxBytes(txBytes []byte) ([]byte, error) {
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 	bb.B = bb.B[:cap(bb.B)] // expand length to capacity
-	bb.B = snappy.Encode(bb.B, txBytes)
+	var err error
+	// Fastest level has been chosen because it provides decent compression ratio with high speed.
+	// Balanced level is about 20-30% slower with almost the same compression ratio as Fastest.
+	bb.B, err = minlz.Encode(bb.B, txBytes, minlz.LevelFastest)
+	if err != nil {
+		return nil, err
+	}
 	if len(bb.B) >= len(txBytes) { // write uncompressed if compressed is not smaller
 		return writeTransactionUncompressed(txBytes)
 	}
@@ -776,7 +782,7 @@ func unmarshalTransactions(data []byte, count int, isProtobuf bool, scheme proto
 		txBytes := data[uint32Size : size+uint32Size]
 		if compressed {
 			bb.B = bb.B[:cap(bb.B)] // expand length to capacity
-			bb.B, err = snappy.Decode(bb.B, txBytes)
+			bb.B, err = minlz.Decode(bb.B, txBytes)
 			if err != nil {
 				return nil, errors.Wrap(err, "failed to decompress transaction bytes")
 			}
@@ -1099,9 +1105,9 @@ func (rw *blockReadWriter) txByBounds(start, end uint64, compressed bool) (proto
 	bb := bytebufferpool.Get()
 	defer bytebufferpool.Put(bb)
 	bb.B = bb.B[:cap(bb.B)] // expand length to capacity
-	bb.B, err = snappy.Decode(bb.B, txBytes)
+	bb.B, err = minlz.Decode(bb.B, txBytes)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to snappy decompress tx")
+		return nil, errors.Wrap(err, "failed to minlz decompress tx")
 	}
 	return rw.txFromBytes(bb.B, protobuf)
 }
