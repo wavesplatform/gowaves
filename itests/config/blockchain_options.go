@@ -28,6 +28,7 @@ func WithRewardSettingFromFile(path ...string) BlockchainOption {
 		cfg.Settings.RewardAddresses = ras.Addresses()
 		cfg.Settings.RewardAddressesAfter21 = ras.AddressesAfter21()
 		cfg.desiredReward = rs.DesiredBlockReward
+		cfg.Settings.BlockRewardBoostPeriod = rs.BlockRewardBoostPeriod
 		return nil
 	}
 }

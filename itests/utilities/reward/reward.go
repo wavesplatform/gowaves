@@ -103,6 +103,28 @@ func GetRewardDistributionAndChecks(suite *f.BaseSuite, addresses testdata.Addre
 		rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesScala)
 }
 
+type GetBoostTestData func(
+	suite *f.BaseSuite, addresses testdata.AddressesForDistribution, height uint64,
+) testdata.RewardDistributionTestData[testdata.BoostRewardDistributionExpectedValues]
+
+func GetRewardDistributionAndChecksWithoutTerm(suite *f.BaseSuite, addresses testdata.AddressesForDistribution,
+	testdata GetBoostTestData) {
+	// Get reward for 1 block.
+	rewardDistributions, _, h := GetBlockRewardDistribution(suite, addresses)
+	// Get expected results on current height.
+	td := testdata(suite, addresses, h)
+	// Check results (without term verification).
+	utl.MinersSumDiffBalanceInWavesCheck(suite.T(), td.Expected.MinersSumDiffBalance,
+		rewardDistributions.MinersSumDiffBalance.BalanceInWavesGo,
+		rewardDistributions.MinersSumDiffBalance.BalanceInWavesScala)
+	utl.DaoDiffBalanceInWavesCheck(suite.T(), td.Expected.DaoDiffBalance,
+		rewardDistributions.DAODiffBalance.BalanceInWavesGo,
+		rewardDistributions.DAODiffBalance.BalanceInWavesScala)
+	utl.XtnBuyBackDiffBalanceInWavesCheck(suite.T(), td.Expected.XtnDiffBalance,
+		rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesGo,
+		rewardDistributions.XTNBuyBackDiffBalance.BalanceInWavesScala)
+}
+
 func GetRewardInfoAndChecks(suite *f.BaseSuite,
 	td testdata.RewardDistributionApiTestData[testdata.RewardInfoApiExpectedValues]) {
 	rewardInfoGo, rewardInfoScala := utl.GetRewards(suite)
