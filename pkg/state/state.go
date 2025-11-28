@@ -34,7 +34,7 @@ const (
 	rollbackMaxBlocks     = 2000
 	blocksStorDir         = "blocks_storage"
 	keyvalueDir           = "key_value"
-	dbInfoFileName        = "db.info"
+	dbMetaFileName        = ".db.meta"
 	maxScriptsRunsInBlock = 101
 )
 
@@ -258,8 +258,8 @@ func checkCompatibilityV2(info stateInfo, params StateParams) error {
 	}
 	if info.DBCompressionAlgo != params.DbParams.CompressionAlgo {
 		return errors.Wrapf(ErrIncompatibleStateParams,
-			"db compression algorithm incompatibility: state has value '%s', want '%s'",
-			info.DBCompressionAlgo, params.DbParams.CompressionAlgo,
+			"DB compression algorithm incompatibility: state has value '%s', want '%s'",
+			fmt.Stringer(info.DBCompressionAlgo), fmt.Stringer(params.DbParams.CompressionAlgo),
 		)
 	}
 	return nil
@@ -465,7 +465,7 @@ func initDatabase(
 	amend bool,
 	params StateParams,
 ) (_ *keyvalue.KeyVal, _ keyvalue.Batch, _ *stateDB, _ bool, retErr error) {
-	_, err := checkAndUpdateDBInfo(dataDir, amend, params) // basic check and update db info
+	_, err := checkAndUpdateDBMeta(dataDir, amend, params) // basic check and update db info
 	if err != nil {
 		return nil, nil, nil, false, errors.Wrap(err, "failed to check and update db info")
 	}
@@ -500,7 +500,7 @@ func initDatabase(
 	}()
 	if cErr := checkCompatibility(sdb, params); cErr != nil { // TODO: legacy check, will be removed in future
 		return nil, nil, nil, false, wrapErr(stateerr.IncompatibilityError,
-			errors.Wrap(err, "failed legacy check of compatibility"),
+			errors.Wrap(cErr, "failed legacy check of compatibility"),
 		)
 	}
 	handledAmend, err := handleAmendFlag(sdb, amend) // TODO: legacy, will be removed in future
@@ -510,20 +510,21 @@ func initDatabase(
 	return db, dbBatch, sdb, handledAmend, nil
 }
 
-func checkAndUpdateDBInfo(dataDir string, amend bool, params StateParams) (_ stateInfo, err error) {
-	infoFilePath := filepath.Join(dataDir, dbInfoFileName)
+func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ stateInfo, err error) {
+	dataDir = filepath.Clean(dataDir)
+	infoFilePath := filepath.Join(dataDir, dbMetaFileName)
 	f, err := os.OpenFile(infoFilePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to open db info file")
+		return stateInfo{}, errors.Wrap(err, "failed to open DB info file")
 	}
 	defer func() {
 		if cErr := f.Close(); cErr != nil {
-			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close db info file"))
+			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close DB info file"))
 		}
 	}()
 	fileStat, err := f.Stat()
 	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to stat db info file")
+		return stateInfo{}, errors.Wrap(err, "failed to stat DB info file")
 	}
 	info := stateInfo{
 		Version:            StateVersion,
@@ -535,11 +536,11 @@ func checkAndUpdateDBInfo(dataDir string, amend bool, params StateParams) (_ sta
 	if fileStat.Size() != 0 { // file exists and has data
 		data, rErr := io.ReadAll(io.LimitReader(f, proto.MiB))
 		if rErr != nil {
-			return stateInfo{}, errors.Wrap(rErr, "failed to read db info file")
+			return stateInfo{}, errors.Wrap(rErr, "failed to read DB info file")
 		}
 		var i stateInfo
 		if umErr := i.unmarshalBinary(data); umErr != nil {
-			return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal db info file")
+			return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal DB info file")
 		}
 		info = i
 	}
@@ -549,13 +550,13 @@ func checkAndUpdateDBInfo(dataDir string, amend bool, params StateParams) (_ sta
 	}
 	data, err := info.marshalBinary()
 	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to marshal db info")
+		return stateInfo{}, errors.Wrap(err, "failed to marshal DB info")
 	}
 	if _, err = f.Seek(0, io.SeekStart); err != nil { // seek to beginning
-		return stateInfo{}, errors.Wrap(err, "failed to seek db info file")
+		return stateInfo{}, errors.Wrap(err, "failed to seek DB info file")
 	}
 	if _, err = f.Write(data); err != nil { // write updated info
-		return stateInfo{}, errors.Wrap(err, "failed to write db info file")
+		return stateInfo{}, errors.Wrap(err, "failed to write DB info file")
 	}
 	return info, nil
 }

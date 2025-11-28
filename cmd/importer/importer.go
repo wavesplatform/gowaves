@@ -68,7 +68,7 @@ type cfg struct {
 	cpuProfilePath            string
 	memProfilePath            string
 	disableBloomFilter        bool
-	DBCompressionAlgo         string
+	DBCompressionAlgo         keyvalue.CompressionAlgo
 }
 
 func parseFlags() cfg {
@@ -103,9 +103,9 @@ func parseFlags() cfg {
 	flag.StringVar(&c.memProfilePath, "memprofile", "", "Write memory profile to this file.")
 	flag.BoolVar(&c.disableBloomFilter, "disable-bloom", false,
 		"Disable bloom filter. Less memory usage, but decrease performance.")
-	flag.StringVar(&c.DBCompressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
-		fmt.Sprintf("Set the compression algorithm for the state database. Supported: '%s' (default), '%s', '%s'.",
-			keyvalue.CompressionDefault, keyvalue.CompressionNoCompression, keyvalue.CompressionSnappy,
+	flag.TextVar(&c.DBCompressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
+		fmt.Sprintf("Set the compression algorithm for the state database. Supported: %v",
+			keyvalue.CompressionAlgoStrings(),
 		),
 	)
 	flag.Parse()

@@ -125,7 +125,7 @@ type config struct {
 	generateInPast                bool
 	enableBlockchainUpdatesPlugin bool
 	blockchainUpdatesL2Address    string
-	DBCompressionAlgo             string
+	DBCompressionAlgo             keyvalue.CompressionAlgo
 	h                             slog.Handler
 }
 
@@ -262,9 +262,9 @@ func (c *config) parse() {
 		"Specify the smart contract address from which the updates will be pulled")
 	flag.BoolVar(&c.generateInPast, "generate-in-past", false,
 		"Enable block generation with timestamp in the past")
-	flag.StringVar(&c.DBCompressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
-		fmt.Sprintf("Set the compression algorithm for the state database. Supported: '%s' (default), '%s', '%s'.",
-			keyvalue.CompressionDefault, keyvalue.CompressionNoCompression, keyvalue.CompressionSnappy,
+	flag.TextVar(&c.DBCompressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
+		fmt.Sprintf("Set the compression algorithm for the state database. Supported: %v",
+			keyvalue.CompressionAlgoStrings(),
 		),
 	)
 	c.lp.Initialize()

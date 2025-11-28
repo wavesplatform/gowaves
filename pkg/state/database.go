@@ -21,11 +21,11 @@ var (
 )
 
 type stateInfo struct {
-	Version            uint16 `cbor:"0,keyasint,omitempty"`
-	Amend              bool   `cbor:"1,keyasint,omitempty"`
-	HasExtendedAPIData bool   `cbor:"2,keyasint,omitempty"`
-	HasStateHashes     bool   `cbor:"3,keyasint,omitempty"`
-	DBCompressionAlgo  string `cbor:"4,keyasint,omitempty"`
+	Version            uint16                   `cbor:"0,keyasint,omitempty"`
+	Amend              bool                     `cbor:"1,keyasint,omitempty"`
+	HasExtendedAPIData bool                     `cbor:"2,keyasint,omitempty"`
+	HasStateHashes     bool                     `cbor:"3,keyasint,omitempty"`
+	DBCompressionAlgo  keyvalue.CompressionAlgo `cbor:"4,keyasint,omitempty"`
 }
 
 func (inf *stateInfo) marshalBinary() ([]byte, error) {

@@ -27,6 +27,7 @@ func main() {
 func run() error {
 	var (
 		lp               = logging.Parameters{}
+		compressionAlgo  keyvalue.CompressionAlgo
 		statePath        = flag.String("state-path", "", "Path to node's state directory")
 		blockchainType   = flag.String("blockchain-type", "mainnet", "Blockchain type: mainnet/testnet/stagenet")
 		height           = flag.Uint64("height", 0, "Height to rollback")
@@ -37,11 +38,11 @@ func run() error {
 			"Calculate and store state hashes for each block height.")
 		cfgPath            = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
 		disableBloomFilter = flag.Bool("disable-bloom", false, "Disable bloom filter for state.")
-		compressionAlgo    = flag.String("db-compression-algo", keyvalue.CompressionDefault,
-			fmt.Sprintf("Set the compression algorithm for the state database. Supported: '%s' (default), '%s', '%s'.",
-				keyvalue.CompressionDefault, keyvalue.CompressionNoCompression, keyvalue.CompressionSnappy,
-			),
-		)
+	)
+	flag.TextVar(&compressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
+		fmt.Sprintf("Set the compression algorithm for the state database. Supported: %v",
+			keyvalue.CompressionAlgoStrings(),
+		),
 	)
 	lp.Initialize()
 	flag.Parse()
@@ -71,7 +72,7 @@ func run() error {
 		}
 	}
 
-	s, err := openState(*statePath, cfg, *buildExtendedAPI, *buildStateHashes, *disableBloomFilter, *compressionAlgo)
+	s, err := openState(*statePath, cfg, *buildExtendedAPI, *buildStateHashes, *disableBloomFilter, compressionAlgo)
 	if err != nil {
 		return fmt.Errorf("failed to open state: %w", err)
 	}
@@ -104,7 +105,7 @@ func run() error {
 
 func openState(
 	statePath string, cfg *settings.BlockchainSettings, buildExtendedAPI, buildStateHashes, disableBloomFilter bool,
-	compressionAlgo string,
+	compressionAlgo keyvalue.CompressionAlgo,
 ) (state.State, error) {
 	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
