@@ -616,9 +616,6 @@ func newStateManager(
 			return nil, wrapErr(stateerr.Other, errors.Wrap(dirErr, "failed to create blocks directory"))
 		}
 	}
-
-	// TODO: check basic db info and compatibility
-
 	// Initialize database.
 	db, dbBatch, sdb, handledAmend, err := initDatabase(dataDir, blockStorageDir, amend, params)
 	if err != nil {
