@@ -342,21 +342,21 @@ func (rw *blockReadWriter) marshalTransaction(tx proto.Transaction) ([]byte, err
 	return txBytesToReadWriterTxBytes(txBytes)
 }
 
-const maxUint32BitMask = math.MaxUint32 - math.MaxInt32
+const compressionBitMask = 1 << 31 // highest bit of uint32 indicates compression
 
 func encodeSize(size uint32, compressed bool) (uint32, error) {
 	if size > math.MaxInt32 {
 		return 0, errors.Errorf("size overflow: %d > %d", size, math.MaxInt32)
 	}
 	if compressed {
-		return size | maxUint32BitMask, nil
+		return size | compressionBitMask, nil
 	}
 	return size, nil
 }
 
 func decodeSize(encodedSize uint32) (uint32, bool) {
-	if encodedSize&maxUint32BitMask != 0 {
-		size := encodedSize &^ maxUint32BitMask // clear highest bit
+	if encodedSize&compressionBitMask != 0 {
+		size := encodedSize &^ compressionBitMask // clear highest bit
 		return size, true
 	}
 	size := encodedSize // not compressed
@@ -707,7 +707,7 @@ func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) (proto.Tra
 	if err != nil {
 		return nil, err
 	}
-	// First 4 bytes are tx size, actual tx starts at `offset + 4`.
+	// First uint32Size bytes are tx size, actual tx starts at offset + uint32Size.
 	txStart := offset + uint32Size
 	txEnd := txStart + uint64(txSize)
 	return rw.txByBounds(txStart, txEnd, compressed)
@@ -863,10 +863,6 @@ func (rw *blockReadWriter) cleanIDs(removalEdge proto.BlockID) error {
 		}
 		txSize, compressed := decodeSize(binary.BigEndian.Uint32(txSizeBytes))
 		readPos += uint32Size
-		txBytes := make([]byte, txSize)
-		if _, err := rw.blockchain.ReadAt(txBytes, int64(readPos)); err != nil {
-			return err
-		}
 		tx, txErr := rw.txByBounds(readPos, readPos+uint64(txSize), compressed)
 		if txErr != nil {
 			return txErr
