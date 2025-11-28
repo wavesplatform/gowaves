@@ -26,6 +26,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/blockchaininfo"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/grpc/server"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -124,6 +125,7 @@ type config struct {
 	generateInPast                bool
 	enableBlockchainUpdatesPlugin bool
 	blockchainUpdatesL2Address    string
+	DBCompressionAlgo             string
 	h                             slog.Handler
 }
 
@@ -151,7 +153,7 @@ func (c *config) String() string {
 		"wallet-path: %s, hashed wallet-password: %s, limit-connections: %d, profiler: %t, "+
 		"disable-bloom: %t, drop-peers: %t, db-file-descriptors: %d, new-connections-limit: %d, "+
 		"enable-metamask: %t, disable-ntp: %t, microblock-interval: %s, enable-light-mode: %t, generate-in-past: %t, "+
-		"enable-blockchain-updates-plugin: %t, l2-contract-address: %s}",
+		"enable-blockchain-updates-plugin: %t, l2-contract-address: %s, db-compression-algo: %s}",
 		c.lp.String(), c.logNetwork, c.logFSM, c.statePath, c.blockchainType,
 		c.peerAddresses, c.declAddr, c.apiAddr, crypto.MustKeccak256([]byte(c.apiKey)).Hex(), c.grpcAddr,
 		c.enableGrpcAPI, c.blackListResidenceTime, c.buildExtendedAPI, c.serveExtendedAPI,
@@ -159,7 +161,7 @@ func (c *config) String() string {
 		c.walletPath, crypto.MustKeccak256([]byte(c.walletPassword)).Hex(), c.limitAllConnections, c.profiler,
 		c.disableBloomFilter, c.dropPeers, c.dbFileDescriptors, c.newConnectionsLimit,
 		c.enableMetaMaskAPI, c.disableNTP, c.microblockInterval, c.enableLightMode, c.generateInPast,
-		c.enableBlockchainUpdatesPlugin, c.blockchainUpdatesL2Address)
+		c.enableBlockchainUpdatesPlugin, c.blockchainUpdatesL2Address, c.DBCompressionAlgo)
 }
 
 func (c *config) parse() {
@@ -260,6 +262,11 @@ func (c *config) parse() {
 		"Specify the smart contract address from which the updates will be pulled")
 	flag.BoolVar(&c.generateInPast, "generate-in-past", false,
 		"Enable block generation with timestamp in the past")
+	flag.StringVar(&c.DBCompressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
+		fmt.Sprintf("Set the compression algorithm for the state database. Supported: '%s' (default), '%s', '%s'.",
+			keyvalue.CompressionDefault, keyvalue.CompressionNoCompression, keyvalue.CompressionSnappy,
+		),
+	)
 	c.lp.Initialize()
 	flag.Parse()
 }
@@ -562,6 +569,7 @@ func stateParams(nc *config, ntpTime types.Time) (state.StateParams, error) {
 	params.BuildStateHashes = nc.buildStateHashes
 	params.Time = ntpTime
 	params.DbParams.DisableBloomFilter = nc.disableBloomFilter
+	params.DbParams.CompressionAlgo = nc.DBCompressionAlgo
 	return params, nil
 }
 

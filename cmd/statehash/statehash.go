@@ -14,6 +14,7 @@ import (
 	"strings"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -49,6 +50,7 @@ func run() error {
 		showVersion        bool
 		onlyLegacy         bool
 		disableBloomFilter bool
+		compressionAlgo    string
 	)
 
 	slog.SetDefault(slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, slog.LevelInfo)))
@@ -64,6 +66,11 @@ func run() error {
 	flag.BoolVar(&showVersion, "version", false, "Print version information and quit")
 	flag.BoolVar(&onlyLegacy, "legacy", false, "Compare only legacy state hashes")
 	flag.BoolVar(&disableBloomFilter, "disable-bloom", false, "Disable bloom filter")
+	flag.StringVar(&compressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
+		fmt.Sprintf("Set the compression algorithm for the state database. Supported: '%s' (default), '%s', '%s'.",
+			keyvalue.CompressionDefault, keyvalue.CompressionNoCompression, keyvalue.CompressionSnappy,
+		),
+	)
 	flag.Parse()
 
 	if showHelp {
@@ -108,6 +115,7 @@ func run() error {
 	params.StoreExtendedApiData = extendedAPI
 	params.BuildStateHashes = true
 	params.ProvideExtendedApi = false
+	params.DbParams.CompressionAlgo = compressionAlgo
 
 	st, err := state.NewState(statePath, false, params, ss, false, nil)
 	if err != nil {

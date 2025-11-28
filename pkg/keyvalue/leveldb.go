@@ -133,6 +133,25 @@ func initBloomFilter(kv *KeyVal, params BloomFilterParams) error {
 	return nil
 }
 
+const (
+	CompressionDefault       = ""
+	CompressionNoCompression = "none"
+	CompressionSnappy        = "snappy"
+)
+
+func toLevelDBCompression(algo string) (opt.Compression, error) {
+	switch algo {
+	case CompressionDefault:
+		return opt.DefaultCompression, nil
+	case CompressionNoCompression:
+		return opt.NoCompression, nil
+	case CompressionSnappy:
+		return opt.SnappyCompression, nil
+	default:
+		return 0, errors.Errorf("unknown compression algorithm: %s", algo)
+	}
+}
+
 type KeyValParams struct {
 	CacheParams
 	BloomFilterParams
@@ -140,12 +159,17 @@ type KeyValParams struct {
 	CompactionTableSize    int
 	CompactionTotalSize    int
 	OpenFilesCacheCapacity int
+	CompressionAlgo        string
 }
 
 func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 	currentFDs, err := fdlimit.CurrentFDs()
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get current file descriptors count")
+	}
+	compression, err := toLevelDBCompression(params.CompressionAlgo)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to evaluate compression algorithm")
 	}
 	openFilesCacheCapacity := params.OpenFilesCacheCapacity
 
@@ -158,6 +182,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		CompactionTotalSize:    params.CompactionTotalSize,
 		OpenFilesCacheCapacity: openFilesCacheCapacity,
 		Strict:                 opt.DefaultStrict | opt.StrictManifest,
+		Compression:            compression,
 	}
 	db, err := openLevelDB(path, dbOptions)
 	if err != nil {

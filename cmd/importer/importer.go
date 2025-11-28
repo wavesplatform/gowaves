@@ -18,6 +18,7 @@ import (
 	"unicode"
 
 	"github.com/wavesplatform/gowaves/pkg/importer"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -67,6 +68,7 @@ type cfg struct {
 	cpuProfilePath            string
 	memProfilePath            string
 	disableBloomFilter        bool
+	DBCompressionAlgo         string
 }
 
 func parseFlags() cfg {
@@ -101,6 +103,11 @@ func parseFlags() cfg {
 	flag.StringVar(&c.memProfilePath, "memprofile", "", "Write memory profile to this file.")
 	flag.BoolVar(&c.disableBloomFilter, "disable-bloom", false,
 		"Disable bloom filter. Less memory usage, but decrease performance.")
+	flag.StringVar(&c.DBCompressionAlgo, "db-compression-algo", keyvalue.CompressionDefault,
+		fmt.Sprintf("Set the compression algorithm for the state database. Supported: '%s' (default), '%s', '%s'.",
+			keyvalue.CompressionDefault, keyvalue.CompressionNoCompression, keyvalue.CompressionSnappy,
+		),
+	)
 	flag.Parse()
 	return c
 }
@@ -131,6 +138,7 @@ func (c *cfg) params(maxFDs int) state.StateParams {
 	params.StoreExtendedApiData = c.buildDataForExtendedAPI
 	params.BuildStateHashes = c.buildStateHashes
 	params.ProvideExtendedApi = false // We do not need to provide any APIs during import.
+	params.DbParams.CompressionAlgo = c.DBCompressionAlgo
 	return params
 }
 

@@ -8,6 +8,7 @@ import (
 
 	"github.com/ccoveille/go-safecast/v2"
 
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -36,6 +37,11 @@ func run() error {
 			"Calculate and store state hashes for each block height.")
 		cfgPath            = flag.String("cfg-path", "", "Path to configuration JSON file, only for custom blockchain.")
 		disableBloomFilter = flag.Bool("disable-bloom", false, "Disable bloom filter for state.")
+		compressionAlgo    = flag.String("db-compression-algo", keyvalue.CompressionDefault,
+			fmt.Sprintf("Set the compression algorithm for the state database. Supported: '%s' (default), '%s', '%s'.",
+				keyvalue.CompressionDefault, keyvalue.CompressionNoCompression, keyvalue.CompressionSnappy,
+			),
+		)
 	)
 	lp.Initialize()
 	flag.Parse()
@@ -65,7 +71,7 @@ func run() error {
 		}
 	}
 
-	s, err := openState(*statePath, cfg, *buildExtendedAPI, *buildStateHashes, *disableBloomFilter)
+	s, err := openState(*statePath, cfg, *buildExtendedAPI, *buildStateHashes, *disableBloomFilter, *compressionAlgo)
 	if err != nil {
 		return fmt.Errorf("failed to open state: %w", err)
 	}
@@ -98,6 +104,7 @@ func run() error {
 
 func openState(
 	statePath string, cfg *settings.BlockchainSettings, buildExtendedAPI, buildStateHashes, disableBloomFilter bool,
+	compressionAlgo string,
 ) (state.State, error) {
 	maxFDs, err := fdlimit.MaxFDs()
 	if err != nil {
@@ -118,6 +125,7 @@ func openState(
 	params.DbParams.DisableBloomFilter = disableBloomFilter
 	params.BuildStateHashes = buildStateHashes
 	params.StoreExtendedApiData = buildExtendedAPI
+	params.DbParams.CompressionAlgo = compressionAlgo
 
 	return state.NewState(statePath, true, params, cfg, false, nil)
 }
