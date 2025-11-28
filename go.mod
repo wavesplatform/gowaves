@@ -123,5 +123,3 @@ require (
 	gopkg.in/yaml.v2 v2.4.0 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
 )
-
-replace github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d => github.com/nickeskov/goleveldb v1.1.0-zstd
