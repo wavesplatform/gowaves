@@ -1,6 +1,8 @@
 package testdata
 
 import (
+	"math"
+
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
 	utl "github.com/wavesplatform/gowaves/itests/utilities"
 )
@@ -16,9 +18,17 @@ type BoostRewardDistributionExpectedValues struct {
 	_                    struct{}
 }
 
+func currentRewardToInt64(suite *f.BaseSuite, height uint64) int64 {
+	currentReward := utl.GetCurrentReward(suite, height)
+	if currentReward > math.MaxInt64 {
+		suite.T().Fatalf("reward overflow: %d cannot fit into int64", currentReward)
+	}
+	return int64(currentReward)
+}
+
 func GetRewardForMinersXtnDaoWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution, height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := currentRewardToInt64(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
@@ -31,7 +41,7 @@ func GetRewardForMinersXtnDaoWithBoostTestData(suite *f.BaseSuite,
 
 func GetRewardToMinersDaoWithoutBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution, height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := currentRewardToInt64(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
@@ -45,7 +55,7 @@ func GetRewardToMinersDaoWithoutBoostTestData(suite *f.BaseSuite,
 func GetRewardToMinersDaoWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := currentRewardToInt64(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
@@ -59,7 +69,7 @@ func GetRewardToMinersDaoWithBoostTestData(suite *f.BaseSuite,
 func GetRewardToMinersXtnDaoWithoutBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := currentRewardToInt64(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
@@ -73,7 +83,7 @@ func GetRewardToMinersXtnDaoWithoutBoostTestData(suite *f.BaseSuite,
 func GetRewardToMinersXtnWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := currentRewardToInt64(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
@@ -87,7 +97,7 @@ func GetRewardToMinersXtnWithBoostTestData(suite *f.BaseSuite,
 func GetRewardToMinersXtnWithoutBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := currentRewardToInt64(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
@@ -101,7 +111,7 @@ func GetRewardToMinersXtnWithoutBoostTestData(suite *f.BaseSuite,
 func GetRewardToMinersWithBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := currentRewardToInt64(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
@@ -115,7 +125,7 @@ func GetRewardToMinersWithBoostTestData(suite *f.BaseSuite,
 func GetRewardToMinersWithoutBoostTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := int64(utl.GetCurrentReward(suite, height))
+	currentReward := currentRewardToInt64(suite, height)
 	return NewRewardDistributionTestData(
 		addresses,
 		BoostRewardDistributionExpectedValues{
