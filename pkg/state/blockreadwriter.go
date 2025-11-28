@@ -10,7 +10,10 @@ import (
 	"path/filepath"
 	"sync"
 
+	"github.com/ccoveille/go-safecast/v2"
+	"github.com/minio/minlz"
 	"github.com/pkg/errors"
+	"github.com/valyala/bytebufferpool"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -336,13 +339,78 @@ func (rw *blockReadWriter) marshalTransaction(tx proto.Transaction) ([]byte, err
 			return nil, err
 		}
 	}
-	// Append tx size at the beginning.
-	txSize := uint32(len(txBytes))
-	txSizeBytes := make([]byte, 4)
-	binary.BigEndian.PutUint32(txSizeBytes, txSize)
-	txBytesTotal := make([]byte, 4+txSize)
-	copy(txBytesTotal[:4], txSizeBytes)
-	copy(txBytesTotal[4:], txBytes)
+	return txBytesToReadWriterTxBytes(txBytes)
+}
+
+const compressionBitMask = 1 << 31 // highest bit of uint32 indicates compression
+
+func encodeSize(size uint32, compressed bool) (uint32, error) {
+	if size > math.MaxInt32 {
+		return 0, errors.Errorf("size overflow: %d > %d", size, math.MaxInt32)
+	}
+	if compressed {
+		return size | compressionBitMask, nil
+	}
+	return size, nil
+}
+
+func decodeSize(encodedSize uint32) (uint32, bool) {
+	if encodedSize&compressionBitMask != 0 {
+		size := encodedSize &^ compressionBitMask // clear highest bit
+		return size, true
+	}
+	size := encodedSize // not compressed
+	return size, false
+}
+
+func writeTransactionUncompressed(txBytes []byte) ([]byte, error) {
+	var (
+		txBytesTotal     = txBytes
+		txBytesTotalSize = len(txBytes) + uint32Size
+	)
+	if cap(txBytesTotal) < txBytesTotalSize {
+		txBytesTotal = make([]byte, txBytesTotalSize)
+	}
+	txBytesTotal = txBytesTotal[:txBytesTotalSize]
+	txSizeU32, err := safecast.Convert[uint32](len(txBytes))
+	if err != nil {
+		return nil, err
+	}
+	encodedSize, err := encodeSize(txSizeU32, false)
+	if err != nil {
+		return nil, err
+	}
+	copy(txBytesTotal[uint32Size:], txBytes)                           // copy original data
+	binary.BigEndian.PutUint32(txBytesTotal[:uint32Size], encodedSize) // put size at the beginning
+	return txBytesTotal, nil
+}
+
+func txBytesToReadWriterTxBytes(txBytes []byte) ([]byte, error) {
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
+	bb.B = bb.B[:cap(bb.B)] // expand length to capacity
+	var err error
+	// Fastest level has been chosen because it provides decent compression ratio with high speed.
+	// Balanced level is about 20-30% slower with almost the same compression ratio as Fastest.
+	bb.B, err = minlz.Encode(bb.B, txBytes, minlz.LevelFastest)
+	if err != nil {
+		return nil, err
+	}
+	if len(bb.B) >= len(txBytes) { // write uncompressed if compressed is not smaller
+		return writeTransactionUncompressed(txBytes)
+	}
+	// Write compressed.
+	txSizeU32, err := safecast.Convert[uint32](len(bb.B))
+	if err != nil {
+		return nil, err
+	}
+	encodedSize, err := encodeSize(txSizeU32, true)
+	if err != nil {
+		return nil, err
+	}
+	// Append tx size at the beginning reusing txBytes slice.
+	txBytesTotal := binary.BigEndian.AppendUint32(txBytes[:0], encodedSize)
+	txBytesTotal = append(txBytesTotal, bb.B...) // copy compressed data
 	return txBytesTotal, nil
 }
 
@@ -373,12 +441,12 @@ func (rw *blockReadWriter) writeTransactionToMem(tx proto.Transaction, status pr
 	return nil
 }
 
-func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, status proto.TransactionStatus) error {
+func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, status proto.TransactionStatus) (int, error) {
 	rw.mtx.Lock()
 	defer rw.mtx.Unlock()
 	txID, err := tx.GetID(rw.scheme)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	// Save transaction to local storage.
 	rw.writeTransactionToMemImpl(tx, txID, status)
@@ -389,17 +457,17 @@ func (rw *blockReadWriter) writeTransaction(tx proto.Transaction, status proto.T
 	// Update length of blockchain.
 	txBytes, err := rw.marshalTransaction(tx)
 	if err != nil {
-		return err
+		return 0, err
 	}
 	rw.blockchainLen += uint64(len(txBytes))
 	if rw.blockchainLen > rw.offsetEnd {
-		return errors.Errorf("offset overflow: %d > %d", rw.blockchainLen, rw.offsetEnd)
+		return 0, errors.Errorf("offset overflow: %d > %d", rw.blockchainLen, rw.offsetEnd)
 	}
 	// Write transaction itself.
-	if _, err := rw.blockchainBuf.Write(txBytes); err != nil {
-		return err
+	if _, wErr := rw.blockchainBuf.Write(txBytes); wErr != nil {
+		return 0, wErr
 	}
-	return nil
+	return len(txBytes), nil
 }
 
 func (rw *blockReadWriter) marshalHeader(h *proto.BlockHeader) ([]byte, error) {
@@ -591,15 +659,16 @@ func (rw *blockReadWriter) newestTransactionInfoByID(txID []byte) (txInfo, error
 	return rw.transactionInfoByID(txID)
 }
 
-func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, error) {
-	sizeBytes := make([]byte, 4)
+func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, bool, error) {
+	sizeBytes := make([]byte, uint32Size)
 	n, err := rw.blockchain.ReadAt(sizeBytes, int64(offset))
 	if err != nil {
-		return 0, err
-	} else if n != 4 {
-		return 0, errors.New("ReadAt did not read 4 bytes")
+		return 0, false, err
+	} else if n != uint32Size {
+		return 0, false, errors.New("ReadAt did not read 4 bytes")
 	}
-	return binary.BigEndian.Uint32(sizeBytes), nil
+	size, compressed := decodeSize(binary.BigEndian.Uint32(sizeBytes))
+	return size, compressed, nil
 }
 
 func (rw *blockReadWriter) readNewestTransaction(txID []byte) (proto.Transaction, proto.TransactionStatus, error) {
@@ -634,14 +703,14 @@ func (rw *blockReadWriter) readTransactionByOffset(offset uint64) (proto.Transac
 }
 
 func (rw *blockReadWriter) readTransactionByOffsetImpl(offset uint64) (proto.Transaction, error) {
-	txSize, err := rw.readTransactionSize(offset)
+	txSize, compressed, err := rw.readTransactionSize(offset)
 	if err != nil {
 		return nil, err
 	}
-	// First 4 bytes are tx size, actual tx starts at `offset + 4`.
-	txStart := offset + 4
+	// First uint32Size bytes are tx size, actual tx starts at offset + uint32Size.
+	txStart := offset + uint32Size
 	txEnd := txStart + uint64(txSize)
-	return rw.txByBounds(txStart, txEnd)
+	return rw.txByBounds(txStart, txEnd, compressed)
 }
 
 func (rw *blockReadWriter) readNewestBlockHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
@@ -689,6 +758,46 @@ func (rw *blockReadWriter) readBlockHeaderImpl(blockID proto.BlockID) (*proto.Bl
 	return rw.headerByBounds(headerStart, headerEnd)
 }
 
+func unmarshalTransactions(data []byte, count int, isProtobuf bool, scheme proto.Scheme) (proto.Transactions, error) {
+	txUnmarshal := proto.BytesToTransaction
+	if isProtobuf {
+		txUnmarshal = func(tx []byte, _ proto.Scheme) (proto.Transaction, error) {
+			return proto.SignedTxFromProtobuf(tx)
+		}
+	}
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
+	var (
+		err error
+		res = make(proto.Transactions, 0, count)
+	)
+	for range count {
+		if len(data) < uint32Size {
+			return nil, errors.New("invalid tx size: insufficient bytes for size prefix")
+		}
+		size, compressed := decodeSize(binary.BigEndian.Uint32(data[0:uint32Size]))
+		if int(size)+uint32Size > len(data) {
+			return nil, errors.New("invalid tx size: exceeds bytes slice bounds")
+		}
+		txBytes := data[uint32Size : size+uint32Size]
+		if compressed {
+			bb.B = bb.B[:cap(bb.B)] // expand length to capacity
+			bb.B, err = minlz.Decode(bb.B, txBytes)
+			if err != nil {
+				return nil, errors.Wrap(err, "failed to decompress transaction bytes")
+			}
+			txBytes = bb.B
+		}
+		tx, txErr := txUnmarshal(txBytes, scheme)
+		if txErr != nil {
+			return nil, errors.Wrap(txErr, "failed to deserialize transaction bytes")
+		}
+		res = append(res, tx)
+		data = data[uint32Size+size:]
+	}
+	return res, nil
+}
+
 func (rw *blockReadWriter) readBlock(blockID proto.BlockID) (*proto.Block, error) {
 	rw.mtx.RLock()
 	defer rw.mtx.RUnlock()
@@ -709,16 +818,9 @@ func (rw *blockReadWriter) readBlock(blockID proto.BlockID) (*proto.Block, error
 	} else if n != len(blockBytes) {
 		return nil, errors.New("ReadAt did not read the whole block")
 	}
-	var res proto.Transactions
-	if rw.isProtobufTxOffset(blockStart) {
-		if err := res.UnmarshalFromProtobuf(blockBytes); err != nil {
-			return nil, err
-		}
-	} else {
-		res, err = proto.NewTransactionsFromBytes(blockBytes, header.TransactionCount, rw.scheme)
-		if err != nil {
-			return nil, err
-		}
+	res, err := unmarshalTransactions(blockBytes, header.TransactionCount, rw.isProtobufTxOffset(blockStart), rw.scheme)
+	if err != nil {
+		return nil, err
 	}
 	return &proto.Block{
 		BlockHeader:  *header,
@@ -754,20 +856,16 @@ func (rw *blockReadWriter) cleanIDs(removalEdge proto.BlockID) error {
 	}
 	// Clean transaction IDs.
 	readPos := blockMeta.txEndOffset
+	txSizeBytes := make([]byte, uint32Size)
 	for readPos < rw.blockchainLen {
-		txSizeBytes := make([]byte, 4)
 		if _, err := rw.blockchain.ReadAt(txSizeBytes, int64(readPos)); err != nil {
 			return err
 		}
-		txSize := binary.BigEndian.Uint32(txSizeBytes)
-		readPos += 4
-		txBytes := make([]byte, txSize)
-		if _, err := rw.blockchain.ReadAt(txBytes, int64(readPos)); err != nil {
-			return err
-		}
-		tx, err := rw.txByBounds(readPos, readPos+uint64(txSize))
-		if err != nil {
-			return err
+		txSize, compressed := decodeSize(binary.BigEndian.Uint32(txSizeBytes))
+		readPos += uint32Size
+		tx, txErr := rw.txByBounds(readPos, readPos+uint64(txSize), compressed)
+		if txErr != nil {
+			return txErr
 		}
 		readPos += uint64(txSize)
 		txID, err := tx.GetID(rw.scheme)
@@ -985,7 +1083,7 @@ func (rw *blockReadWriter) txFromBytes(txBytes []byte, protobuf bool) (proto.Tra
 	return proto.BytesToTransaction(txBytes, rw.scheme)
 }
 
-func (rw *blockReadWriter) txByBounds(start, end uint64) (proto.Transaction, error) {
+func (rw *blockReadWriter) txByBounds(start, end uint64, compressed bool) (proto.Transaction, error) {
 	if end <= start {
 		return nil, errors.New("invalid bounds")
 	}
@@ -997,7 +1095,17 @@ func (rw *blockReadWriter) txByBounds(start, end uint64) (proto.Transaction, err
 		return nil, errors.New("did not read the whole tx")
 	}
 	protobuf := rw.isProtobufTxOffset(start)
-	return rw.txFromBytes(txBytes, protobuf)
+	if !compressed {
+		return rw.txFromBytes(txBytes, protobuf)
+	}
+	bb := bytebufferpool.Get()
+	defer bytebufferpool.Put(bb)
+	bb.B = bb.B[:cap(bb.B)] // expand length to capacity
+	bb.B, err = minlz.Decode(bb.B, txBytes)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to minlz decompress tx")
+	}
+	return rw.txFromBytes(bb.B, protobuf)
 }
 
 func (rw *blockReadWriter) syncWithDb() error {
