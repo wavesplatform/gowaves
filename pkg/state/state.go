@@ -465,9 +465,9 @@ func initDatabase(
 	amend bool,
 	params StateParams,
 ) (_ *keyvalue.KeyVal, _ keyvalue.Batch, _ *stateDB, _ bool, retErr error) {
-	_, err := checkAndUpdateDBMeta(dataDir, amend, params) // basic check and update db info
+	_, err := checkAndUpdateDBMeta(dataDir, amend, params) // basic check and update DB meta
 	if err != nil {
-		return nil, nil, nil, false, errors.Wrap(err, "failed to check and update db info")
+		return nil, nil, nil, false, errors.Wrap(err, "failed to check and update DB meta")
 	}
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	slog.Info("Initializing state database, will take up to few minutes...")
@@ -515,16 +515,16 @@ func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ sta
 	infoFilePath := filepath.Join(dataDir, dbMetaFileName)
 	f, err := os.OpenFile(infoFilePath, os.O_RDWR|os.O_CREATE, 0600)
 	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to open DB info file")
+		return stateInfo{}, errors.Wrap(err, "failed to open DB meta file")
 	}
 	defer func() {
 		if cErr := f.Close(); cErr != nil {
-			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close DB info file"))
+			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close DB meta file"))
 		}
 	}()
 	fileStat, err := f.Stat()
 	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to stat DB info file")
+		return stateInfo{}, errors.Wrap(err, "failed to stat DB meta file")
 	}
 	info := stateInfo{
 		Version:            StateVersion,
@@ -536,11 +536,11 @@ func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ sta
 	if fileStat.Size() != 0 { // file exists and has data
 		data, rErr := io.ReadAll(io.LimitReader(f, proto.MiB))
 		if rErr != nil {
-			return stateInfo{}, errors.Wrap(rErr, "failed to read DB info file")
+			return stateInfo{}, errors.Wrap(rErr, "failed to read DB meta file")
 		}
 		var i stateInfo
 		if umErr := i.unmarshalBinary(data); umErr != nil {
-			return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal DB info file")
+			return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal DB meta file")
 		}
 		info = i
 	}
@@ -550,13 +550,13 @@ func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ sta
 	}
 	data, err := info.marshalBinary()
 	if err != nil {
-		return stateInfo{}, errors.Wrap(err, "failed to marshal DB info")
+		return stateInfo{}, errors.Wrap(err, "failed to marshal DB meta")
 	}
 	if _, err = f.Seek(0, io.SeekStart); err != nil { // seek to beginning
-		return stateInfo{}, errors.Wrap(err, "failed to seek DB info file")
+		return stateInfo{}, errors.Wrap(err, "failed to seek DB meta file")
 	}
 	if _, err = f.Write(data); err != nil { // write updated info
-		return stateInfo{}, errors.Wrap(err, "failed to write DB info file")
+		return stateInfo{}, errors.Wrap(err, "failed to write DB meta file")
 	}
 	return info, nil
 }
