@@ -1080,8 +1080,8 @@ func GetRollbackToHeight(suite *f.BaseSuite, height uint64, returnTxToUtx bool) 
 	return <-goCh, <-scalaCh
 }
 
-// GetBoostBlockRewordPeriodCfg returns boost block reward period.
-func GetBoostBlockRewordPeriodCfg(suite *f.BaseSuite) uint64 {
+// GetBoostBlockRewardPeriodCfg returns boost block reward period.
+func GetBoostBlockRewardPeriodCfg(suite *f.BaseSuite) uint64 {
 	return suite.Cfg.BlockchainSettings.BlockRewardBoostPeriod
 }
 

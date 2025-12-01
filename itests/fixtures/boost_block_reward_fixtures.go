@@ -7,7 +7,7 @@ const (
 )
 
 // RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite use preactivated features 14, 19, 20, 21, 22, 23,
-// 2 miners, dao, xtn, initR = 600000000, increment = 100000000, desiredR = 800000000,
+// 2 miners, dao, xtn, initR = 600000000, increment = 100000000, desiredR = 600000000,
 // min_xtn_buy_back_period = block_reward_boost_period.
 type RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite struct {
 	BaseSuite
@@ -28,8 +28,7 @@ func (suite *RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite) BlockchainOpts()
 }
 
 func (suite *RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite) SetupSuite() {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
 
 // RewardBoostDaoXtnP21LessP23PreactivatedAllSuite use preactivated features 14, 19, 20, 21, 22, 23,
@@ -54,8 +53,7 @@ func (suite *RewardBoostDaoXtnP21LessP23PreactivatedAllSuite) BlockchainOpts() [
 }
 
 func (suite *RewardBoostDaoXtnP21LessP23PreactivatedAllSuite) SetupSuite() {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
 
 // RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite uses preactivated features 14, 19, 20, 21, 22, 23,
@@ -80,8 +78,7 @@ func (suite *RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite) BlockchainOpts(
 }
 
 func (suite *RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite) SetupSuite() {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
 
 // RewardBoostMinerDaoPreactivatedAllSuite tests the boost block reward distribution with 1 miner and DAO settings.
@@ -105,8 +102,7 @@ func (suite *RewardBoostMinerDaoPreactivatedAllSuite) BlockchainOpts() []config.
 }
 
 func (suite *RewardBoostMinerDaoPreactivatedAllSuite) SetupSuite() {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
 
 // RewardBoostMinerXtnP21LessP23PreactivatedAllSuite tests the boost block reward with 1 miner, xtn,
@@ -132,8 +128,7 @@ func (suite *RewardBoostMinerXtnP21LessP23PreactivatedAllSuite) BlockchainOpts()
 }
 
 func (suite *RewardBoostMinerXtnP21LessP23PreactivatedAllSuite) SetupSuite() {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
 
 // RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite tests the boost block reward with 1 miner, xtn,
@@ -159,8 +154,7 @@ func (suite *RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite) BlockchainOpt
 }
 
 func (suite *RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite) SetupSuite() {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
 
 // RewardBoostMinersPreactivatedAllSuite tests the boost block reward with preactivated features 14, 19, 20, 21, 22, 23,
@@ -184,8 +178,7 @@ func (suite *RewardBoostMinersPreactivatedAllSuite) BlockchainOpts() []config.Bl
 }
 
 func (suite *RewardBoostMinersPreactivatedAllSuite) SetupSuite() {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }
 
 // RewardBoostMinerXtnDaoSupportedF23Suite tests the boost block reward with preactivated features 14, 19, 20, 21, 22,
@@ -210,6 +203,5 @@ func (suite *RewardBoostMinerXtnDaoSupportedF23Suite) BlockchainOpts() []config.
 }
 
 func (suite *RewardBoostMinerXtnDaoSupportedF23Suite) SetupSuite() {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", suite.BlockchainOpts()...)
+	suite.BaseSetup(suite.BlockchainOpts()...)
 }

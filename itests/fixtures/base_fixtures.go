@@ -26,11 +26,10 @@ type BaseSuite struct {
 }
 
 func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
-	suite.BaseSetupWithImages("go-node", "latest",
-		"wavesplatform/wavesnode", "latest", options...)
+	suite.BaseSetupWithImages(config.ScalaImageRepository, config.DefaultImageTag, options...)
 }
 
-func (suite *BaseSuite) BaseSetupWithImages(goRepository, goTag, scalaRepository, scalaTag string,
+func (suite *BaseSuite) BaseSetupWithImages(scalaRepository, scalaTag string,
 	options ...config.BlockchainOption) {
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
 	suiteName := strcase.KebabCase(suite.T().Name())
@@ -40,7 +39,6 @@ func (suite *BaseSuite) BaseSetupWithImages(goRepository, goTag, scalaRepository
 
 	goConfigurator, err := config.NewGoConfigurator(suiteName, cfg)
 	suite.Require().NoError(err, "couldn't create Go configurator")
-	goConfigurator.WithImageRepository(goRepository).WithImageTag(goTag)
 
 	scalaConfigurator, err := config.NewScalaConfigurator(suiteName, cfg)
 	suite.Require().NoError(err, "couldn't create Scala configurator")
@@ -59,21 +57,6 @@ func (suite *BaseSuite) BaseSetupWithImages(goRepository, goTag, scalaRepository
 		docker.GoNode().Ports(), docker.ScalaNode().Ports())
 	suite.Clients.Handshake()
 	suite.SendToNodes = []clients.Implementation{clients.NodeGo}
-}
-
-func (suite *BaseSuite) WithGoImage(repository, tag string) *BaseSuite {
-	suite.BaseSetupWithImages(repository, tag, "wavesplatform/wavesnode", "latest")
-	return suite
-}
-
-func (suite *BaseSuite) WithScalaImage(repository, tag string) *BaseSuite {
-	suite.BaseSetupWithImages("go-node", "latest", repository, tag)
-	return suite
-}
-
-func (suite *BaseSuite) WithImages(goRepository, goTag, scalaRepository, scalaTag string) *BaseSuite {
-	suite.BaseSetupWithImages(goRepository, goTag, scalaRepository, scalaTag)
-	return suite
 }
 
 func (suite *BaseSuite) SetupSuite() {

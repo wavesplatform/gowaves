@@ -30,6 +30,10 @@ const (
 
 	scalaContainerName = "scala-node"
 	goContainerName    = "go-node"
+
+	ScalaImageRepository = "wavesplatform/wavesnode"
+	goImageRepository    = "go-node"
+	DefaultImageTag      = "latest"
 )
 
 const (
@@ -127,11 +131,11 @@ func (c *ScalaConfigurator) WithGoNode(goNodeIP string) *ScalaConfigurator {
 
 func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	if c.imageRepository == "" {
-		c.imageRepository = "wavesplatform/wavesnode"
+		c.imageRepository = ScalaImageRepository
 	}
 
 	if c.imageTag == "" {
-		c.imageTag = "latest"
+		c.imageTag = DefaultImageTag
 	}
 
 	var kps strings.Builder
@@ -204,12 +208,10 @@ func (c *ScalaConfigurator) createNodeConfig() (err error) {
 }
 
 type GoConfigurator struct {
-	suite           string
-	cfg             *BlockchainConfig
-	configFolder    string
-	walletFolder    string
-	imageRepository string
-	imageTag        string
+	suite        string
+	cfg          *BlockchainConfig
+	configFolder string
+	walletFolder string
 }
 
 func NewGoConfigurator(suite string, cfg *BlockchainConfig) (*GoConfigurator, error) {
@@ -223,29 +225,19 @@ func NewGoConfigurator(suite string, cfg *BlockchainConfig) (*GoConfigurator, er
 	return c, nil
 }
 
-func (c *GoConfigurator) WithImageRepository(repository string) DockerConfigurator {
-	c.imageRepository = repository
+func (c *GoConfigurator) WithImageRepository(_ string) DockerConfigurator {
 	return c
 }
 
-func (c *GoConfigurator) WithImageTag(tag string) DockerConfigurator {
-	c.imageTag = tag
+func (c *GoConfigurator) WithImageTag(_ string) DockerConfigurator {
 	return c
 }
 
 func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
-	if c.imageRepository == "" {
-		c.imageRepository = "go-node"
-	}
-
-	if c.imageTag == "" {
-		c.imageTag = "latest"
-	}
-
 	opt := &dockertest.RunOptions{
-		Repository: c.imageRepository,
+		Repository: goImageRepository,
 		Name:       c.suite + "-" + goContainerName,
-		Tag:        c.imageTag,
+		Tag:        DefaultImageTag,
 		User:       "gowaves",
 		Hostname:   "go-node",
 		Platform:   Platform(),
