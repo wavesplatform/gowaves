@@ -589,7 +589,7 @@ func (a *blockSnapshotsApplier) ApplyTransactionsStatus(snapshot proto.Transacti
 		err = a.stor.rw.writeTransactionToMem(tx, status)
 	} else {
 		// Save transaction to in-mem storage and persistent storage.
-		err = a.stor.rw.writeTransaction(tx, status)
+		_, err = a.stor.rw.writeTransaction(tx, status)
 	}
 	if err != nil {
 		txID, idErr := tx.GetID(a.info.Scheme())

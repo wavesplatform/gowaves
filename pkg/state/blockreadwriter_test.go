@@ -60,7 +60,14 @@ func testSingleBlock(t *testing.T, to *testStorageObjects, block *proto.Block) {
 	assert.Equal(t, resBlock, block)
 }
 
-func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block, readTasks chan<- *readTask, flush, protobuf bool) error {
+//nolint:gocognit // used in tests
+func writeBlocks(
+	ctx context.Context,
+	rw *blockReadWriter,
+	blocks []proto.Block,
+	readTasks chan<- *readTask,
+	flush bool,
+) error {
 	const scheme = proto.MainNetScheme
 
 	height := 1
@@ -86,19 +93,8 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			if err != nil {
 				return err
 			}
-			var txBytes []byte
-			if protobuf {
-				txBytes, err = tx.MarshalSignedToProtobuf(scheme)
-				if err != nil {
-					return err
-				}
-			} else {
-				txBytes, err = tx.MarshalBinary(scheme)
-				if err != nil {
-					return err
-				}
-			}
-			if wErr := rw.writeTransaction(tx, proto.TransactionSucceeded); wErr != nil {
+			totalWrittenBytes, wErr := rw.writeTransaction(tx, proto.TransactionSucceeded)
+			if wErr != nil {
 				close(readTasks)
 				return wErr
 			}
@@ -108,7 +104,7 @@ func writeBlocks(ctx context.Context, rw *blockReadWriter, blocks []proto.Block,
 			tasksBuf = append(tasksBuf, task)
 			task = &readTask{taskType: readTxOffset, txID: txID, offset: uint64(offset)}
 			tasksBuf = append(tasksBuf, task)
-			offset += len(txBytes) + 4
+			offset += totalWrittenBytes
 		}
 		if err := rw.finishBlock(blockID); err != nil {
 			close(readTasks)
@@ -275,7 +271,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, true, false)
+		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, true)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -319,7 +315,7 @@ func TestReadNewest(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, false, false)
+		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, false)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++
@@ -441,7 +437,7 @@ func TestProtobufReadWrite(t *testing.T) {
 	wg.Add(1)
 	go func() {
 		defer wg.Done()
-		err1 := writeBlocks(ctx, to.rw, protobufBlocks, readTasks, true, true)
+		err1 := writeBlocks(ctx, to.rw, protobufBlocks, readTasks, true)
 		if err1 != nil {
 			mtx.Lock()
 			errCounter++

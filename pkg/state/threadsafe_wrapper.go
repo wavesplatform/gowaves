@@ -359,7 +359,7 @@ func (a *ThreadSafeReadWrapper) ProvidesStateHashes() (bool, error) {
 	return a.s.ProvidesStateHashes()
 }
 
-func (a *ThreadSafeReadWrapper) LegacyStateHashAtHeight(height uint64) (*proto.StateHash, error) {
+func (a *ThreadSafeReadWrapper) LegacyStateHashAtHeight(height uint64) (proto.StateHash, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.LegacyStateHashAtHeight(height)

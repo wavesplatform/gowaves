@@ -5,6 +5,7 @@ import (
 	"context"
 	stderrs "errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"math/big"
@@ -35,6 +36,7 @@ const (
 	rollbackMaxBlocks     = 2000
 	blocksStorDir         = "blocks_storage"
 	keyvalueDir           = "key_value"
+	dbMetaFileName        = ".db.meta"
 	maxScriptsRunsInBlock = 101
 )
 
@@ -102,36 +104,37 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		scriptsStorage,
 		newScriptsComplexity(hs),
 		newInvokeResults(hs),
-		newStateHashes(hs),
+		newStateHashes(hs, features),
 		newHitSources(hs),
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
-		newCommitments(hs),
+		newCommitments(hs, calcHashes),
 		newFinalizations(hs),
 		calcHashes,
 	}, nil
 }
 
-func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
-	sh := &proto.StateHash{
-		BlockID: blockID,
-		FieldsHashes: proto.FieldsHashes{
-			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
-			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
-			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
-			AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(blockID),
-			AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(blockID),
-			LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
-			LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
-			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
-			AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
-		},
+func (s *blockchainEntitiesStorage) putStateHash(
+	prevHash []byte, height uint64, blockID proto.BlockID,
+) (proto.StateHash, error) {
+	finalityActivated := s.features.isActivatedAtHeight(int16(settings.DeterministicFinality), height)
+	fhV1 := proto.FieldsHashesV1{
+		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
+		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
+		DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
+		AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(blockID),
+		AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(blockID),
+		LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
+		LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
+		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
+		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
 	}
-	if err := sh.GenerateSumHash(prevHash); err != nil {
-		return nil, err
+	sh := proto.NewLegacyStateHash(finalityActivated, blockID, fhV1, s.commitments.hasher.stateHashAt(blockID))
+	if gErr := sh.GenerateSumHash(prevHash); gErr != nil {
+		return nil, gErr
 	}
-	if err := s.stateHashes.saveLegacyStateHash(sh, height); err != nil {
-		return nil, err
+	if sErr := s.stateHashes.saveLegacyStateHash(sh, height); sErr != nil {
+		return nil, sErr
 	}
 	return sh, nil
 }
@@ -176,9 +179,9 @@ func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uin
 	startHeight := blockchainHeight + 1
 	for i, id := range blockIds {
 		height := startHeight + uint64(i)
-		newPrevHash, err := s.putStateHash(prevHash.SumHash[:], height, id)
-		if err != nil {
-			return err
+		newPrevHash, pErr := s.putStateHash(prevHash.GetSumHash().Bytes(), height, id)
+		if pErr != nil {
+			return pErr
 		}
 		prevHash = newPrevHash
 	}
@@ -237,48 +240,66 @@ func (s *blockchainEntitiesStorage) flush() error {
 var ErrIncompatibleStateParams = stderrs.New("incompatible state params")
 
 func checkCompatibility(stateDB *stateDB, params StateParams) error {
-	version, err := stateDB.stateVersion()
+	info, err := stateDB.stateInfo()
 	if err != nil {
-		return errors.Wrap(err, "stateVersion")
+		return errors.Wrap(err, "failed to get state info")
 	}
-	if version != StateVersion {
+	return checkCompatibilityV2(info, params)
+}
+
+func checkCompatibilityV2(info stateInfo, params StateParams) error {
+	if info.Version != StateVersion {
 		return errors.Wrapf(ErrIncompatibleStateParams, "incompatible storage version: state has value (%d), want (%d)",
-			version, StateVersion,
+			info.Version, StateVersion,
 		)
 	}
-	hasDataForExtendedApi, err := stateDB.stateStoresApiData()
-	if err != nil {
-		return errors.Wrap(err, "stateStoresApiData")
-	}
-	if params.StoreExtendedApiData != hasDataForExtendedApi {
+	if info.HasExtendedAPIData != params.StoreExtendedApiData {
 		return errors.Wrapf(ErrIncompatibleStateParams, "extended API incompatibility: state has value (%v), want (%v)",
-			hasDataForExtendedApi, params.StoreExtendedApiData,
+			info.HasExtendedAPIData, params.StoreExtendedApiData,
 		)
 	}
-	hasDataForHashes, err := stateDB.stateStoresHashes()
-	if err != nil {
-		return errors.Wrap(err, "stateStoresHashes")
-	}
-	if params.BuildStateHashes != hasDataForHashes {
+	if info.HasStateHashes != params.BuildStateHashes {
 		return errors.Wrapf(ErrIncompatibleStateParams, "state hashes incompatibility: state has value (%v), want (%v)",
-			hasDataForHashes, params.BuildStateHashes,
+			info.HasStateHashes, params.BuildStateHashes,
+		)
+	}
+	if info.DBCompressionAlgo != params.DbParams.CompressionAlgo {
+		return errors.Wrapf(ErrIncompatibleStateParams,
+			"DB compression algorithm incompatibility: state has value '%s', want '%s'",
+			fmt.Stringer(info.DBCompressionAlgo), fmt.Stringer(params.DbParams.CompressionAlgo),
 		)
 	}
 	return nil
 }
 
-func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
-	storedAmend, err := stateDB.amendFlag()
-	if err != nil {
-		return false, errors.Wrap(err, "failed to get stored amend flag")
+func checkAndUpdateCompatibilityV2(info stateInfo, params StateParams, amend bool) (stateInfo, error) {
+	if err := checkCompatibilityV2(info, params); err != nil {
+		return info, err
 	}
-	if !storedAmend && amend { // update if storedAmend == false and amend == true
-		if err := stateDB.updateAmendFlag(amend); err != nil {
-			return false, errors.Wrap(err, "failed to update amend flag")
+	info.Amend = handleAmendFlagV2(info.Amend, amend)
+	return info, nil
+}
+
+func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
+	info, err := stateDB.stateInfo()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get state info while handling amend flag")
+	}
+	storedAmend := info.Amend
+	if newAmend := handleAmendFlagV2(storedAmend, amend); newAmend != storedAmend { // update only if changed
+		if uErr := stateDB.updateAmendFlag(newAmend); uErr != nil {
+			return false, errors.Wrap(uErr, "failed to update amend flag")
 		}
-		storedAmend = amend
+		storedAmend = newAmend
 	}
 	return storedAmend, nil
+}
+
+func handleAmendFlagV2(storedAmend, amend bool) bool {
+	if !storedAmend && amend { // update if storedAmend == false and amend == true
+		storedAmend = amend
+	}
+	return storedAmend
 }
 
 type newBlocks struct {
@@ -451,6 +472,10 @@ func initDatabase(
 	amend bool,
 	params StateParams,
 ) (_ *keyvalue.KeyVal, _ keyvalue.Batch, _ *stateDB, _ bool, retErr error) {
+	_, err := checkAndUpdateDBMeta(dataDir, amend, params) // basic check and update DB meta
+	if err != nil {
+		return nil, nil, nil, false, errors.Wrap(err, "failed to check and update DB meta")
+	}
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	slog.Info("Initializing state database, will take up to few minutes...")
 	params.DbParams.BloomFilterStore.WithPath(filepath.Join(blockStorageDir, "bloom"))
@@ -466,7 +491,7 @@ func initDatabase(
 		}
 		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to create db batch"))
 	}
-	sdb, err := newStateDB(db, dbBatch, params)
+	sdb, err := newStateDB(db, dbBatch, params, amend)
 	if err != nil {
 		if dbCloseErr := db.Close(); dbCloseErr != nil {
 			retErr = stderrs.Join(retErr, errors.Wrap(dbCloseErr, "failed to close db"))
@@ -480,14 +505,67 @@ func initDatabase(
 			}
 		}
 	}()
-	if cErr := checkCompatibility(sdb, params); cErr != nil {
-		return nil, nil, nil, false, wrapErr(stateerr.IncompatibilityError, cErr)
+	if cErr := checkCompatibility(sdb, params); cErr != nil { // TODO: legacy check, will be removed in future
+		return nil, nil, nil, false, wrapErr(stateerr.IncompatibilityError,
+			errors.Wrap(cErr, "failed legacy check of compatibility"),
+		)
 	}
-	handledAmend, err := handleAmendFlag(sdb, amend)
+	handledAmend, err := handleAmendFlag(sdb, amend) // TODO: legacy, will be removed in future
 	if err != nil {
 		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to handle amend flag"))
 	}
 	return db, dbBatch, sdb, handledAmend, nil
+}
+
+func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ stateInfo, err error) {
+	dataDir = filepath.Clean(dataDir)
+	infoFilePath := filepath.Join(dataDir, dbMetaFileName)
+	f, err := os.OpenFile(infoFilePath, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return stateInfo{}, errors.Wrap(err, "failed to open DB meta file")
+	}
+	defer func() {
+		if cErr := f.Close(); cErr != nil {
+			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close DB meta file"))
+		}
+	}()
+	fileStat, err := f.Stat()
+	if err != nil {
+		return stateInfo{}, errors.Wrap(err, "failed to stat DB meta file")
+	}
+	info := stateInfo{
+		Version:            StateVersion,
+		Amend:              amend,
+		HasExtendedAPIData: params.StoreExtendedApiData,
+		HasStateHashes:     params.BuildStateHashes,
+		DBCompressionAlgo:  params.DbParams.CompressionAlgo,
+	}
+	if fileStat.Size() != 0 { // file exists and has data
+		data, rErr := io.ReadAll(io.LimitReader(f, proto.MiB))
+		if rErr != nil {
+			return stateInfo{}, errors.Wrap(rErr, "failed to read DB meta file")
+		}
+		var i stateInfo
+		if umErr := i.unmarshalBinary(data); umErr != nil {
+			return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal DB meta file")
+		}
+		info = i
+	}
+	info, err = checkAndUpdateCompatibilityV2(info, params, amend) // check and update compatibility
+	if err != nil {
+		return stateInfo{}, wrapErr(stateerr.IncompatibilityError, err)
+	}
+	data, err := info.marshalBinary()
+	if err != nil {
+		return stateInfo{}, errors.Wrap(err, "failed to marshal DB meta")
+	}
+	if _, err = f.Seek(0, io.SeekStart); err != nil { // seek to beginning
+		return stateInfo{}, errors.Wrap(err, "failed to seek DB meta file")
+	}
+	if _, err = f.Write(data); err != nil { // write updated info
+		return stateInfo{}, errors.Wrap(err, "failed to write DB meta file")
+	}
+	return info, nil
 }
 
 func initGenesis(state *stateManager, height uint64, settings *settings.BlockchainSettings) error {
@@ -3119,7 +3197,7 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	return provides, nil
 }
 
-func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (proto.StateHash, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
 		return nil, wrapErr(stateerr.Other, err)

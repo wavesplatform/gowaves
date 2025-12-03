@@ -21,10 +21,11 @@ var (
 )
 
 type stateInfo struct {
-	Version            uint16 `cbor:"0,keyasint,omitempty"`
-	Amend              bool   `cbor:"1,keyasint,omitempty"`
-	HasExtendedAPIData bool   `cbor:"2,keyasint,omitempty"`
-	HasStateHashes     bool   `cbor:"3,keyasint,omitempty"`
+	Version            uint16                   `cbor:"0,keyasint,omitempty"`
+	Amend              bool                     `cbor:"1,keyasint,omitempty"`
+	HasExtendedAPIData bool                     `cbor:"2,keyasint,omitempty"`
+	HasStateHashes     bool                     `cbor:"3,keyasint,omitempty"`
+	DBCompressionAlgo  keyvalue.CompressionAlgo `cbor:"4,keyasint,omitempty"`
 }
 
 func (inf *stateInfo) marshalBinary() ([]byte, error) {
@@ -35,7 +36,7 @@ func (inf *stateInfo) unmarshalBinary(data []byte) error {
 	return cbor.Unmarshal(data, inf)
 }
 
-func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
+func saveStateInfo(db keyvalue.KeyValue, params StateParams, amend bool) error {
 	has, err := db.Has(stateInfoKeyBytes)
 	if err != nil {
 		return err
@@ -47,6 +48,8 @@ func saveStateInfo(db keyvalue.KeyValue, params StateParams) error {
 		Version:            StateVersion,
 		HasExtendedAPIData: params.StoreExtendedApiData,
 		HasStateHashes:     params.BuildStateHashes,
+		Amend:              amend,
+		DBCompressionAlgo:  params.DbParams.CompressionAlgo,
 	}
 	return putStateInfoToDB(db, info)
 }
@@ -73,7 +76,7 @@ type stateDB struct {
 	blocksNum int
 }
 
-func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, params StateParams) (*stateDB, error) {
+func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, params StateParams, amend bool) (*stateDB, error) {
 	heightBuf := make([]byte, 8)
 	has, err := db.Has(dbHeightKeyBytes)
 	if err != nil {
@@ -96,8 +99,8 @@ func newStateDB(db keyvalue.KeyValue, dbBatch keyvalue.Batch, params StateParams
 		}
 	}
 	dbWriteLock := &sync.Mutex{}
-	if err := saveStateInfo(db, params); err != nil {
-		return nil, err
+	if sErr := saveStateInfo(db, params, amend); sErr != nil {
+		return nil, sErr
 	}
 	return &stateDB{
 		db:                db,
@@ -319,22 +322,6 @@ func (s *stateDB) stateInfo() (stateInfo, error) {
 		return stateInfo{}, err
 	}
 	return info, nil
-}
-
-func (s *stateDB) stateVersion() (int, error) {
-	info, err := s.stateInfo()
-	if err != nil {
-		return 0, err
-	}
-	return int(info.Version), nil
-}
-
-func (s *stateDB) amendFlag() (bool, error) {
-	info, err := s.stateInfo()
-	if err != nil {
-		return false, err
-	}
-	return info.Amend, nil
 }
 
 func (s *stateDB) updateAmendFlag(amend bool) error {

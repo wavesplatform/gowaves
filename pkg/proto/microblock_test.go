@@ -216,6 +216,7 @@ func TestMicroBlockSignature(t *testing.T) {
 	finalization := FinalizationVoting{
 		EndorserIndexes:                []int32{1, 2, 3},
 		AggregatedEndorsementSignature: aggSig,
+		FinalizedBlockHeight:           1,
 		ConflictEndorsements: []EndorseBlock{
 			{
 				EndorserIndex:        1,
@@ -226,6 +227,15 @@ func TestMicroBlockSignature(t *testing.T) {
 			},
 		},
 	}
+	finalizationVotingExpected := "CgMBAgMQARpggyjkX2gT2YmzoqT+gCY7zgdxeJ75Sa+EtYjQy6qfDfIKLnJ6SCRCC8fsD8C8+wAiFmd4kW" +
+		"ccRfX8pk/1PFgUjGZtfmFwIQJ5G4pVexxDURku8z4evXcse64vV2XLxb6LIusBCAESQGnFvj8CErOF62bQ6KthEkYLJjwHfER97mTynkydHH" +
+		"c4/snMkWT+BSNdniltRtW24p82GYZyGWbFPdE1ARnRgIAYuWAiQNXC8WrfOjQIpVQ2uBsNsPL5E5jzxlNj8p81bvr3d1wPKFjE4rJc4ASXV5" +
+		"PalnIEHuT+YB5fApSdfHv6lRMU54MqYEa9cH8UoVCJUqToKlo2aqh6sYXYb9TzGYYph1cDrsbd3IDZWqNEq0glrbvEdKxIoW+1yHsWszKiSQ" +
+		"MAEvxrpsfydh6PhGOvEYDlB3YZv49Vhmj8Wr8ZNnU8CHqv0Rjn0w=="
+	finalizationActualProto, err := finalization.Marshal()
+	require.NoError(t, err)
+
+	require.Equal(t, finalizationVotingExpected, base64.StdEncoding.EncodeToString(finalizationActualProto))
 
 	microBlock := MicroBlock{
 		VersionField: 5,
@@ -243,16 +253,15 @@ func TestMicroBlockSignature(t *testing.T) {
 	_, err = microBlock.WriteWithoutSignature(TestNetScheme, buf)
 	require.NoError(t, err)
 
-	expectedBytesWithoutSignature := "BWnFvj8CErOF62bQ6KthEkYLJjwHfER97mTynkydHHc4/snMkWT+BSNdniltRtW24p82GYZyGWbFPdE" +
-		"1ARnRgICQgaVdHK4QxQyEYihza6fh1tiQTYDXp9blQTt7S97AiU5A38jSKWoMXr4Q/80NLX0tqB7bHpBBMSzTM5ac6MKPAAAAowAAAAEAAAC" +
-		"bClcIVBIg7FlNNgjs8B4KV3mLFwdyeS2xRTKEN3fgrPVEXywc8wQaBBCgjQYgydOsyLgtKAHCBiEKFgoUflp9MfPSElPDgt8e0bJfEbpsP6w" +
-		"SBxCA7oO7rwESQEz8sQx7qThcCFVSdgGm5Dk0VKETkPcJXXJYxnt70rxfsarlD7D4gHB5yTXdDzfndnHAyXH7NwZfzy8YR/CizgbElKnkSNW" +
-		"P6a/gfVPTrZ62oVuqwNg37tT6xi6ELp94YgoDAQIDGmCDKORfaBPZibOipP6AJjvOB3F4nvlJr4S1iNDLqp8N8goucnpIJEILx+wPwLz7ACI" +
-		"WZ3iRZxxF9fymT/U8WBSMZm1+YXAhAnkbilV7HENRGS7zPh69dyx7ri9XZcvFvosi6wEIARJAacW+PwISs4XrZtDoq2ESRgsmPAd8RH3uZPK" +
-		"eTJ0cdzj+ycyRZP4FI12eKW1G1bbinzYZhnIZZsU90TUBGdGAgBi5YCJA1cLxat86NAilVDa4Gw2w8vkTmPPGU2PynzVu+vd3XA8oWMTislz" +
-		"gBJdXk9qWcgQe5P5gHl8ClJ18e/qVExTngypgRr1wfxShUIlSpOgqWjZqqHqxhdhv1PMZhimHVwOuxt3cgNlao0SrSCWtu8R0rEihb7XIexa" +
-		"zMqJJAwAS/Gumx/J2Ho+EY68RgOUHdhm/j1WGaPxavxk2dTwIeq/RGOfT"
-
+	expectedBytesWithoutSignature := "BWnFvj8CErOF62bQ6KthEkYLJjwHfER97mTynkydHHc4/snMkWT+BSNdniltRtW24p82GYZyGWbFPdE1" +
+		"ARnRgICQgaVdHK4QxQyEYihza6fh1tiQTYDXp9blQTt7S97AiU5A38jSKWoMXr4Q/80NLX0tqB7bHpBBMSzTM5ac6MKPAAAAowAAAAEAAACbC" +
+		"lcIVBIg7FlNNgjs8B4KV3mLFwdyeS2xRTKEN3fgrPVEXywc8wQaBBCgjQYgydOsyLgtKAHCBiEKFgoUflp9MfPSElPDgt8e0bJfEbpsP6wSBx" +
+		"CA7oO7rwESQEz8sQx7qThcCFVSdgGm5Dk0VKETkPcJXXJYxnt70rxfsarlD7D4gHB5yTXdDzfndnHAyXH7NwZfzy8YR/CizgbElKnkSNWP6a/" +
+		"gfVPTrZ62oVuqwNg37tT6xi6ELp94YgoDAQIDEAEaYIMo5F9oE9mJs6Kk/oAmO84HcXie+UmvhLWI0Muqnw3yCi5yekgkQgvH7A/AvPsAIhZn" +
+		"eJFnHEX1/KZP9TxYFIxmbX5hcCECeRuKVXscQ1EZLvM+Hr13LHuuL1dly8W+iyLrAQgBEkBpxb4/AhKzhetm0OirYRJGCyY8B3xEfe5k8p5Mn" +
+		"Rx3OP7JzJFk/gUjXZ4pbUbVtuKfNhmGchlmxT3RNQEZ0YCAGLlgIkDVwvFq3zo0CKVUNrgbDbDy+ROY88ZTY/KfNW7693dcDyhYxOKyXOAEl1" +
+		"eT2pZyBB7k/mAeXwKUnXx7+pUTFOeDKmBGvXB/FKFQiVKk6CpaNmqoerGF2G/U8xmGKYdXA67G3dyA2VqjRKtIJa27xHSsSKFvtch7FrMyokk" +
+		"DABL8a6bH8nYej4RjrxGA5Qd2Gb+PVYZo/Fq/GTZ1PAh6r9EY59M="
 	require.Equal(t, expectedBytesWithoutSignature, base64.StdEncoding.EncodeToString(buf.Bytes()))
 
 	err = microBlock.Sign(TestNetScheme, sk)

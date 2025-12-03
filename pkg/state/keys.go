@@ -780,6 +780,5 @@ func (k *commitmentKey) bytes() []byte {
 type finalizationKey struct{}
 
 func (k finalizationKey) bytes() []byte {
-	// Можно использовать один байт-префикс, как commitments
 	return []byte{finalizationKeyPrefix}
 }
