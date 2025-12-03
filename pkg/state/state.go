@@ -5,6 +5,7 @@ import (
 	"context"
 	stderrs "errors"
 	"fmt"
+	"io"
 	"io/fs"
 	"log/slog"
 	"math/big"
@@ -35,6 +36,7 @@ const (
 	rollbackMaxBlocks     = 2000
 	blocksStorDir         = "blocks_storage"
 	keyvalueDir           = "key_value"
+	dbMetaFileName        = ".db.meta"
 	maxScriptsRunsInBlock = 101
 )
 
@@ -238,48 +240,66 @@ func (s *blockchainEntitiesStorage) flush() error {
 var ErrIncompatibleStateParams = stderrs.New("incompatible state params")
 
 func checkCompatibility(stateDB *stateDB, params StateParams) error {
-	version, err := stateDB.stateVersion()
+	info, err := stateDB.stateInfo()
 	if err != nil {
-		return errors.Wrap(err, "stateVersion")
+		return errors.Wrap(err, "failed to get state info")
 	}
-	if version != StateVersion {
+	return checkCompatibilityV2(info, params)
+}
+
+func checkCompatibilityV2(info stateInfo, params StateParams) error {
+	if info.Version != StateVersion {
 		return errors.Wrapf(ErrIncompatibleStateParams, "incompatible storage version: state has value (%d), want (%d)",
-			version, StateVersion,
+			info.Version, StateVersion,
 		)
 	}
-	hasDataForExtendedApi, err := stateDB.stateStoresApiData()
-	if err != nil {
-		return errors.Wrap(err, "stateStoresApiData")
-	}
-	if params.StoreExtendedApiData != hasDataForExtendedApi {
+	if info.HasExtendedAPIData != params.StoreExtendedApiData {
 		return errors.Wrapf(ErrIncompatibleStateParams, "extended API incompatibility: state has value (%v), want (%v)",
-			hasDataForExtendedApi, params.StoreExtendedApiData,
+			info.HasExtendedAPIData, params.StoreExtendedApiData,
 		)
 	}
-	hasDataForHashes, err := stateDB.stateStoresHashes()
-	if err != nil {
-		return errors.Wrap(err, "stateStoresHashes")
-	}
-	if params.BuildStateHashes != hasDataForHashes {
+	if info.HasStateHashes != params.BuildStateHashes {
 		return errors.Wrapf(ErrIncompatibleStateParams, "state hashes incompatibility: state has value (%v), want (%v)",
-			hasDataForHashes, params.BuildStateHashes,
+			info.HasStateHashes, params.BuildStateHashes,
+		)
+	}
+	if info.DBCompressionAlgo != params.DbParams.CompressionAlgo {
+		return errors.Wrapf(ErrIncompatibleStateParams,
+			"DB compression algorithm incompatibility: state has value '%s', want '%s'",
+			fmt.Stringer(info.DBCompressionAlgo), fmt.Stringer(params.DbParams.CompressionAlgo),
 		)
 	}
 	return nil
 }
 
-func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
-	storedAmend, err := stateDB.amendFlag()
-	if err != nil {
-		return false, errors.Wrap(err, "failed to get stored amend flag")
+func checkAndUpdateCompatibilityV2(info stateInfo, params StateParams, amend bool) (stateInfo, error) {
+	if err := checkCompatibilityV2(info, params); err != nil {
+		return info, err
 	}
-	if !storedAmend && amend { // update if storedAmend == false and amend == true
-		if err := stateDB.updateAmendFlag(amend); err != nil {
-			return false, errors.Wrap(err, "failed to update amend flag")
+	info.Amend = handleAmendFlagV2(info.Amend, amend)
+	return info, nil
+}
+
+func handleAmendFlag(stateDB *stateDB, amend bool) (bool, error) {
+	info, err := stateDB.stateInfo()
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get state info while handling amend flag")
+	}
+	storedAmend := info.Amend
+	if newAmend := handleAmendFlagV2(storedAmend, amend); newAmend != storedAmend { // update only if changed
+		if uErr := stateDB.updateAmendFlag(newAmend); uErr != nil {
+			return false, errors.Wrap(uErr, "failed to update amend flag")
 		}
-		storedAmend = amend
+		storedAmend = newAmend
 	}
 	return storedAmend, nil
+}
+
+func handleAmendFlagV2(storedAmend, amend bool) bool {
+	if !storedAmend && amend { // update if storedAmend == false and amend == true
+		storedAmend = amend
+	}
+	return storedAmend
 }
 
 type newBlocks struct {
@@ -452,6 +472,10 @@ func initDatabase(
 	amend bool,
 	params StateParams,
 ) (_ *keyvalue.KeyVal, _ keyvalue.Batch, _ *stateDB, _ bool, retErr error) {
+	_, err := checkAndUpdateDBMeta(dataDir, amend, params) // basic check and update DB meta
+	if err != nil {
+		return nil, nil, nil, false, errors.Wrap(err, "failed to check and update DB meta")
+	}
 	dbDir := filepath.Join(dataDir, keyvalueDir)
 	slog.Info("Initializing state database, will take up to few minutes...")
 	params.DbParams.BloomFilterStore.WithPath(filepath.Join(blockStorageDir, "bloom"))
@@ -467,7 +491,7 @@ func initDatabase(
 		}
 		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to create db batch"))
 	}
-	sdb, err := newStateDB(db, dbBatch, params)
+	sdb, err := newStateDB(db, dbBatch, params, amend)
 	if err != nil {
 		if dbCloseErr := db.Close(); dbCloseErr != nil {
 			retErr = stderrs.Join(retErr, errors.Wrap(dbCloseErr, "failed to close db"))
@@ -481,14 +505,67 @@ func initDatabase(
 			}
 		}
 	}()
-	if cErr := checkCompatibility(sdb, params); cErr != nil {
-		return nil, nil, nil, false, wrapErr(stateerr.IncompatibilityError, cErr)
+	if cErr := checkCompatibility(sdb, params); cErr != nil { // TODO: legacy check, will be removed in future
+		return nil, nil, nil, false, wrapErr(stateerr.IncompatibilityError,
+			errors.Wrap(cErr, "failed legacy check of compatibility"),
+		)
 	}
-	handledAmend, err := handleAmendFlag(sdb, amend)
+	handledAmend, err := handleAmendFlag(sdb, amend) // TODO: legacy, will be removed in future
 	if err != nil {
 		return nil, nil, nil, false, wrapErr(stateerr.Other, errors.Wrap(err, "failed to handle amend flag"))
 	}
 	return db, dbBatch, sdb, handledAmend, nil
+}
+
+func checkAndUpdateDBMeta(dataDir string, amend bool, params StateParams) (_ stateInfo, err error) {
+	dataDir = filepath.Clean(dataDir)
+	infoFilePath := filepath.Join(dataDir, dbMetaFileName)
+	f, err := os.OpenFile(infoFilePath, os.O_RDWR|os.O_CREATE, 0600)
+	if err != nil {
+		return stateInfo{}, errors.Wrap(err, "failed to open DB meta file")
+	}
+	defer func() {
+		if cErr := f.Close(); cErr != nil {
+			err = stderrs.Join(err, errors.Wrap(cErr, "failed to close DB meta file"))
+		}
+	}()
+	fileStat, err := f.Stat()
+	if err != nil {
+		return stateInfo{}, errors.Wrap(err, "failed to stat DB meta file")
+	}
+	info := stateInfo{
+		Version:            StateVersion,
+		Amend:              amend,
+		HasExtendedAPIData: params.StoreExtendedApiData,
+		HasStateHashes:     params.BuildStateHashes,
+		DBCompressionAlgo:  params.DbParams.CompressionAlgo,
+	}
+	if fileStat.Size() != 0 { // file exists and has data
+		data, rErr := io.ReadAll(io.LimitReader(f, proto.MiB))
+		if rErr != nil {
+			return stateInfo{}, errors.Wrap(rErr, "failed to read DB meta file")
+		}
+		var i stateInfo
+		if umErr := i.unmarshalBinary(data); umErr != nil {
+			return stateInfo{}, errors.Wrap(umErr, "failed to unmarshal DB meta file")
+		}
+		info = i
+	}
+	info, err = checkAndUpdateCompatibilityV2(info, params, amend) // check and update compatibility
+	if err != nil {
+		return stateInfo{}, wrapErr(stateerr.IncompatibilityError, err)
+	}
+	data, err := info.marshalBinary()
+	if err != nil {
+		return stateInfo{}, errors.Wrap(err, "failed to marshal DB meta")
+	}
+	if _, err = f.Seek(0, io.SeekStart); err != nil { // seek to beginning
+		return stateInfo{}, errors.Wrap(err, "failed to seek DB meta file")
+	}
+	if _, err = f.Write(data); err != nil { // write updated info
+		return stateInfo{}, errors.Wrap(err, "failed to write DB meta file")
+	}
+	return info, nil
 }
 
 func initGenesis(state *stateManager, height uint64, settings *settings.BlockchainSettings) error {

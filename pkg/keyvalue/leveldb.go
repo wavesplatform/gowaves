@@ -140,6 +140,7 @@ type KeyValParams struct {
 	CompactionTableSize    int
 	CompactionTotalSize    int
 	OpenFilesCacheCapacity int
+	CompressionAlgo        CompressionAlgo
 }
 
 func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
@@ -158,6 +159,7 @@ func NewKeyVal(path string, params KeyValParams) (*KeyVal, error) {
 		CompactionTotalSize:    params.CompactionTotalSize,
 		OpenFilesCacheCapacity: openFilesCacheCapacity,
 		Strict:                 opt.DefaultStrict | opt.StrictManifest,
+		Compression:            opt.Compression(params.CompressionAlgo),
 	}
 	db, err := openLevelDB(path, dbOptions)
 	if err != nil {
