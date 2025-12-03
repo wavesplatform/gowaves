@@ -2,11 +2,13 @@ package state
 
 import (
 	"bytes"
+	stderrors "errors"
 	"fmt"
 	"math"
 	"math/big"
 	"unicode/utf8"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -92,6 +94,10 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
+	deterministicFinalityActivated, err := tc.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return scriptFeaturesActivations{}, err
+	}
 	if libVersion < ast.LibV4 && lightNodeActivated {
 		return scriptFeaturesActivations{},
 			errors.Errorf("scripts with versions below %d are disabled after activation of Light Node feature",
@@ -124,6 +130,10 @@ func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, ha
 	if libVersion == ast.LibV8 && !lightNodeActivated {
 		return scriptFeaturesActivations{},
 			errors.New("LightNode feature must be activated for scripts version 8")
+	}
+	if libVersion == ast.LibV9 && !deterministicFinalityActivated {
+		return scriptFeaturesActivations{},
+			errors.New("DeterministicFinality feature must be activated for scripts version 9")
 	}
 	return scriptFeaturesActivations{
 		rideForDAppsActivated: rideForDAppsActivated,
@@ -257,7 +267,7 @@ func (tc *transactionChecker) checkFee(
 	}
 	if !sponsorshipActivated {
 		// Sponsorship is not yet activated.
-		return nil
+		return nil // Do not check fee before sponsorship activation, the only requirement is fee > 0.
 	}
 	params := &feeValidationParams{
 		stor:            tc.stor,
@@ -1540,4 +1550,112 @@ func (tc *transactionChecker) checkUpdateAssetInfoWithProofs(transaction proto.T
 		return out, errs.NewAssetUpdateInterval(fmt.Sprintf("Can't update info of asset with id=%s before height %d, current height is %d", tx.AssetID.String(), updateAllowedAt, blockHeight))
 	}
 	return txCheckerData{smartAssets: smartAssets}, nil
+}
+
+func (tc *transactionChecker) checkCommitToGenerationWithProofs(
+	transaction proto.Transaction, info *checkerInfo,
+) (txCheckerData, error) {
+	tx, ok := transaction.(*proto.CommitToGenerationWithProofs)
+	if !ok {
+		return txCheckerData{},
+			errors.New("failed to convert interface to CommitToGenerationWithProofs transaction")
+	}
+	if err := tc.checkTimestamps(tx.Timestamp, info.currentTimestamp, info.parentTimestamp); err != nil {
+		return txCheckerData{}, errs.Extend(err, "invalid timestamp")
+	}
+	if err := tc.checkFee(transaction, &txAssets{feeAsset: proto.NewOptionalAssetWaves()}, info); err != nil {
+		return txCheckerData{}, err
+	}
+	activated, err := tc.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return txCheckerData{}, err
+	}
+	if !activated {
+		return txCheckerData{},
+			errors.New("DeterministicFinality feature must be activated for CommitToGeneration transaction")
+	}
+	activationHeight, err := tc.stor.features.activationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return txCheckerData{}, errors.Wrap(err, "failed to get DeterministicFinality activation height")
+	}
+	// Check that nextGenerationPeriodStart is a start of the current or next generation period.
+	blockHeight := info.blockchainHeight + 1
+	nextPeriodStart, err := nextGenerationPeriodStart(activationHeight, blockHeight, tc.settings.GenerationPeriod)
+	if err != nil {
+		return txCheckerData{}, errors.Wrap(err, "failed to calculate next generation period start")
+	}
+	if tx.GenerationPeriodStart != nextPeriodStart {
+		return txCheckerData{}, fmt.Errorf("invalid NextGenerationPeriodStart: expected %d, got %d",
+			nextPeriodStart, tx.GenerationPeriodStart)
+	}
+	// Check that the sender has no other CommitToGeneration transaction with the same nextGenerationPeriodStart.
+	exist, err := tc.stor.commitments.newestExists(tx.GenerationPeriodStart, tx.SenderPK, tx.EndorserPublicKey)
+	if err != nil {
+		return txCheckerData{}, errors.Wrap(err, "failed to check existing commitment for the sender")
+	}
+	if exist {
+		addr, adErr := proto.NewAddressFromPublicKey(tc.settings.AddressSchemeCharacter, tx.SenderPK)
+		if adErr != nil {
+			return txCheckerData{}, stderrors.Join(
+				fmt.Errorf("generator %q has already committed to the next period %d",
+					tx.SenderPK.String(), nextPeriodStart),
+				errors.Wrap(adErr, "failed to get address from public key"),
+			)
+		}
+		return txCheckerData{}, fmt.Errorf("generator %q has already committed to the next period %d",
+			addr, nextPeriodStart)
+	}
+	return txCheckerData{}, nil
+}
+
+// nextGenerationPeriodStart returns the start height of the next generation period given the current block height,
+// the feature activation height and the period length.
+// If the block height is less than the activation height, an error is returned.
+func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 1)
+	if err != nil {
+		return 0, err
+	}
+	return safecast.Convert[uint32](s)
+}
+
+func currentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 0)
+	if err != nil {
+		return 0, err
+	}
+	return safecast.Convert[uint32](s)
+}
+
+func isFirstPeriod(activationHeight, blockHeight, periodLength uint64) bool {
+	return activationHeight <= blockHeight && blockHeight <= activationHeight+periodLength
+}
+
+func generationPeriodStart(activationHeight, blockHeight, periodLength, offset uint64) (uint64, error) {
+	switch {
+	case blockHeight < activationHeight:
+		return 0, fmt.Errorf(
+			"invalid block height %d, must be greater than feature #25 \"Deterministic Finality and Ride V9\" "+
+				"activation height %d", blockHeight, activationHeight)
+	case isFirstPeriod(activationHeight, blockHeight, periodLength):
+		if offset > 0 {
+			return activationHeight + 1 + offset*periodLength, nil
+		}
+		return activationHeight, nil
+	default:
+		base := activationHeight + 1 // Start of the first full period.
+		k := (blockHeight - base) / periodLength
+		return base + (k+offset)*periodLength, nil
+	}
+}
+
+func generationPeriodEnd(activationHeight, blockHeight, periodLength, offset uint64) (uint64, error) {
+	start, err := generationPeriodStart(activationHeight, blockHeight, periodLength, offset)
+	if err != nil {
+		return 0, err
+	}
+	if isFirstPeriod(activationHeight, blockHeight, periodLength) && offset == 0 {
+		return start + periodLength, nil
+	}
+	return start + periodLength - 1, nil
 }

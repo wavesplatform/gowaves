@@ -81,6 +81,7 @@ func WithNoGoMining() BlockchainOption {
 	}
 }
 
+// WithPreactivatedFeatures adds features to preactivated features.
 func WithPreactivatedFeatures(features []FeatureInfo) BlockchainOption {
 	return func(cfg *BlockchainConfig) error {
 		if ftErr := cfg.UpdatePreactivatedFeatures(features); ftErr != nil {
@@ -90,6 +91,8 @@ func WithPreactivatedFeatures(features []FeatureInfo) BlockchainOption {
 	}
 }
 
+// WithAbsencePeriod sets the length of the period between the activation of LightNode
+// and the height at which blocks without the new fields are considered invalid.
 func WithAbsencePeriod(period uint64) BlockchainOption {
 	return func(cfg *BlockchainConfig) error {
 		cfg.Settings.LightNodeBlockFieldsAbsenceInterval = period
@@ -104,6 +107,16 @@ func WithQuorum(quorum int) BlockchainOption {
 			return errors.Errorf("invalid quorum size %d", quorum)
 		}
 		cfg.quorum = quorum
+		return nil
+	}
+}
+
+func WithGenerationPeriod(generationPeriod uint64) BlockchainOption {
+	return func(cfg *BlockchainConfig) error {
+		if generationPeriod == 0 {
+			return errors.Errorf("invalid generation period %d", generationPeriod)
+		}
+		cfg.Settings.GenerationPeriod = generationPeriod
 		return nil
 	}
 }

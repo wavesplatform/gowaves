@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -18,7 +19,8 @@ const (
 	priceConstant = 10e7
 )
 
-var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime //nolint:gochecknoglobals // no writes
+//nolint:gochecknoglobals // no writes
+var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime + 1
 
 const (
 	defaultAmount   = uint64(100)
@@ -49,7 +51,7 @@ func TestCreateDiffGenesis(t *testing.T) {
 	tx := createGenesis()
 	ch, err := to.td.createDiffGenesis(tx, defaultDifferInfo())
 	assert.NoError(t, err, "createDiffGenesis() failed")
-	correctDiff := txDiff{testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, false)}
+	correctDiff := txDiff{testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, 0, false)}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
 		testGlobal.recipientInfo.addr: empty,
@@ -78,8 +80,8 @@ func TestCreateDiffPayment(t *testing.T) {
 		assert.NoError(t, err, "createDiffPayment() failed")
 
 		correctDiff := txDiff{
-			testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
-			testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+			testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, 0, true),
+			testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, 0, true),
 			// No key-value for miner because NG is not activated
 			// Fee should be paid once at the beginning of the block for all transactions
 			// See doMinerPayoutBeforeNG() in block_differ.go
@@ -96,8 +98,8 @@ func TestCreateDiffPayment(t *testing.T) {
 		assert.NoError(t, err, "createDiffPayment() failed")
 		feePart := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 		correctDiff := txDiff{
-			testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
-			testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+			testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, 0, true),
+			testGlobal.recipientInfo.wavesKey: newBalanceDiff(int64(tx.Amount), 0, 0, 0, true),
 			testGlobal.minerInfo.wavesKey:     newMinerFeeForcedBalanceDiff(int64(feePart), true),
 		}
 		assert.Equal(t, correctDiff, ch.diff)
@@ -126,8 +128,8 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 	assert.NoError(t, err, "createDiffTransferWithSig() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
-		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, 0, true),
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, 0, true),
 		// No key-value for miner because NG is not activated
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -158,10 +160,10 @@ func TestCreateDiffTransferWithSig(t *testing.T) {
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
 	minerFee := calculateCurrentBlockTxFee(feeInWaves, true) // NG is activated
 	correctDiff = txDiff{
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
-		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, true),
-		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, true),
-		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, 0, true),
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, 0, true),
+		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, 0, true),
+		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, 0, true),
 		testGlobal.minerInfo.wavesKey:         newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -194,8 +196,8 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	assert.NoError(t, err, "createDiffTransferWithProofs() failed")
 
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
-		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, true),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, 0, true),
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, 0, true),
 		// No key-value for miner because NG is not activated
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -226,10 +228,10 @@ func TestCreateDiffTransferWithProofs(t *testing.T) {
 	assert.NoError(t, err, "sponsoredAssetToWaves() failed")
 	minerFee := calculateCurrentBlockTxFee(feeInWaves, true) // NG is activated
 	correctDiff = txDiff{
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, true),
-		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, true),
-		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, true),
-		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Amount+tx.Fee), 0, 0, 0, true),
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(int64(tx.Amount), 0, 0, 0, true),
+		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, 0, true),
+		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, 0, true),
 		testGlobal.minerInfo.wavesKey:         newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -268,8 +270,8 @@ func TestCreateDiffIssueWithSig(t *testing.T) {
 	issuedKey := byteKey(testGlobal.senderInfo.addr.ID(), *proto.NewOptionalAssetFromDigest(*tx.ID))
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, false),
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -306,8 +308,8 @@ func TestCreateDiffIssueWithProofs(t *testing.T) {
 	issuedKey := byteKey(testGlobal.senderInfo.addr.ID(), *proto.NewOptionalAssetFromDigest(*tx.ID))
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, false),
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		string(issuedKey):              newBalanceDiff(int64(tx.Quantity), 0, 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -335,8 +337,8 @@ func TestCreateDiffReissueWithSig(t *testing.T) {
 	assert.NoError(t, err, "createDiffReissueWithSig() failed")
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(int64(tx.Quantity), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(int64(tx.Quantity), 0, 0, 0, false),
+		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:      newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -364,8 +366,8 @@ func TestCreateDiffReissueWithProofs(t *testing.T) {
 	assert.NoError(t, err, "createDiffReissueWithProofs() failed")
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(int64(tx.Quantity), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(int64(tx.Quantity), 0, 0, 0, false),
+		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:      newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -393,8 +395,8 @@ func TestCreateDiffBurnWithSig(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithSig() failed")
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, 0, false),
+		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:      newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -422,8 +424,8 @@ func TestCreateDiffBurnWithProofs(t *testing.T) {
 	assert.NoError(t, err, "createDiffBurnWithProofs() failed")
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, 0, false),
+		testGlobal.senderInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:      newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -472,14 +474,15 @@ func TestCreateDiffExchangeWithSig(t *testing.T) {
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	price := tx.Price * tx.Amount / priceConstant
 	correctDiff := txDiff{
-		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
-		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(price), 0, 0, false),
-		testGlobal.recipientInfo.wavesKey:     newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Amount), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(price), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:        newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(price), 0, 0, 0, false),
+		testGlobal.recipientInfo.wavesKey:     newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Amount), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(price), 0, 0, 0, false),
+		testGlobal.senderInfo.wavesKey:        newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:         newMinerFeeForcedBalanceDiff(int64(minerFee), true),
-		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0, 0, false),
+		testGlobal.matcherInfo.wavesKey: newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0,
+			0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -528,14 +531,15 @@ func TestCreateDiffExchangeWithProofs(t *testing.T) {
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	price := tx.Price * tx.Amount / priceConstant
 	correctDiff := txDiff{
-		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
-		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(price), 0, 0, false),
-		testGlobal.recipientInfo.wavesKey:     newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Amount), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(price), 0, 0, false),
-		testGlobal.senderInfo.wavesKey:        newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(price), 0, 0, 0, false),
+		testGlobal.recipientInfo.wavesKey:     newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Amount), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(price), 0, 0, 0, false),
+		testGlobal.senderInfo.wavesKey:        newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:         newMinerFeeForcedBalanceDiff(int64(minerFee), true),
-		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0, 0, false),
+		testGlobal.matcherInfo.wavesKey: newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee-tx.Fee), 0,
+			0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -711,15 +715,15 @@ func TestCreateDiffExchangeV2WithProofsWithOrdersV3(t *testing.T) {
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	price := tx.Price * tx.Amount / priceConstant
 	correctDiff := txDiff{
-		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, false),
-		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(price), 0, 0, false),
-		testGlobal.recipientInfo.assetKeys[2]: newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Amount), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(price), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(tx.Amount), 0, 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(price), 0, 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[2]: newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Amount), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(price), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:         newMinerFeeForcedBalanceDiff(int64(minerFee), true),
-		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-		testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee), 0, 0, false),
+		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
+		testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee), 0, 0, 0, false),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -817,15 +821,15 @@ func TestCreateDiffExchangeV3WithProofsWithMixedOrders(t *testing.T) {
 		minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 		price := priceDecimalsDiffMultiplier * tx.Price * tx.Amount / priceConstant
 		correctDiff := txDiff{
-			tc.senderInfo.AssetKeys()[0]:        newBalanceDiff(int64(tx.Amount), 0, 0, false),
-			tc.senderInfo.AssetKeys()[1]:        newBalanceDiff(-int64(price), 0, 0, false),
-			tc.senderInfo.AssetKeys()[2]:        newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, false),
-			tc.recipientInfo.AssetKeys()[0]:     newBalanceDiff(-int64(tx.Amount), 0, 0, false),
-			tc.recipientInfo.AssetKeys()[1]:     newBalanceDiff(int64(price), 0, 0, false),
-			tc.recipientInfo.AssetKeys()[2]:     newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, false),
+			tc.senderInfo.AssetKeys()[0]:        newBalanceDiff(int64(tx.Amount), 0, 0, 0, false),
+			tc.senderInfo.AssetKeys()[1]:        newBalanceDiff(-int64(price), 0, 0, 0, false),
+			tc.senderInfo.AssetKeys()[2]:        newBalanceDiff(-int64(tx.BuyMatcherFee), 0, 0, 0, false),
+			tc.recipientInfo.AssetKeys()[0]:     newBalanceDiff(-int64(tx.Amount), 0, 0, 0, false),
+			tc.recipientInfo.AssetKeys()[1]:     newBalanceDiff(int64(price), 0, 0, 0, false),
+			tc.recipientInfo.AssetKeys()[2]:     newBalanceDiff(-int64(tx.SellMatcherFee), 0, 0, 0, false),
 			testGlobal.minerInfo.wavesKey:       newMinerFeeForcedBalanceDiff(int64(minerFee), true),
-			testGlobal.matcherInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, false),
-			testGlobal.matcherInfo.assetKeys[2]: newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee), 0, 0, false),
+			testGlobal.matcherInfo.wavesKey:     newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
+			testGlobal.matcherInfo.assetKeys[2]: newBalanceDiff(int64(tx.SellMatcherFee+tx.BuyMatcherFee), 0, 0, 0, false),
 		}
 		assert.Equal(t, correctDiff, ch.diff)
 		correctAddrs := map[proto.WavesAddress]struct{}{
@@ -920,15 +924,16 @@ func TestCreateDiffExchangeV3WithProofsWithOrdersV4(t *testing.T) {
 	minerFee := calculateCurrentBlockTxFee(tx3o4.Fee, true) // NG is activated
 	priceAmount := price * amount
 	correctDiff := txDiff{
-		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(amount), 0, 0, false),
-		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(priceAmount), 0, 0, false),
-		testGlobal.recipientInfo.assetKeys[2]: newBalanceDiff(-int64(tx3o4.SellMatcherFee), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(amount), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(priceAmount), 0, 0, false),
-		testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx3o4.BuyMatcherFee), 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[0]: newBalanceDiff(-int64(amount), 0, 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[1]: newBalanceDiff(int64(priceAmount), 0, 0, 0, false),
+		testGlobal.recipientInfo.assetKeys[2]: newBalanceDiff(-int64(tx3o4.SellMatcherFee), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(int64(amount), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[1]:    newBalanceDiff(-int64(priceAmount), 0, 0, 0, false),
+		testGlobal.senderInfo.assetKeys[2]:    newBalanceDiff(-int64(tx3o4.BuyMatcherFee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:         newMinerFeeForcedBalanceDiff(int64(minerFee), true),
-		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx3o4.Fee), 0, 0, false),
-		testGlobal.matcherInfo.assetKeys[2]:   newBalanceDiff(int64(tx3o4.SellMatcherFee+tx3o4.BuyMatcherFee), 0, 0, false),
+		testGlobal.matcherInfo.wavesKey:       newBalanceDiff(-int64(tx3o4.Fee), 0, 0, 0, false),
+		testGlobal.matcherInfo.assetKeys[2]: newBalanceDiff(int64(tx3o4.SellMatcherFee+tx3o4.BuyMatcherFee), 0,
+			0, 0, false),
 	}
 	correctAddrs := map[proto.WavesAddress]struct{}{
 		testGlobal.recipientInfo.addr: empty,
@@ -963,8 +968,8 @@ func TestCreateDiffLeaseWithSig(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, int64(tx.Amount), false),
-		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, int64(tx.Amount), 0, false),
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, int64(tx.Amount), 0, false),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, int64(tx.Amount), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:     newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -994,8 +999,8 @@ func TestCreateDiffLeaseWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, int64(tx.Amount), false),
-		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, int64(tx.Amount), 0, false),
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, int64(tx.Amount), 0, false),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, int64(tx.Amount), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:     newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1031,8 +1036,8 @@ func TestCreateDiffLeaseCancelWithSig(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, -int64(leaseTx.Amount), false),
-		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, -int64(leaseTx.Amount), 0, false),
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, -int64(leaseTx.Amount), 0, false),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, -int64(leaseTx.Amount), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:     newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1068,8 +1073,8 @@ func TestCreateDiffLeaseCancelWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, -int64(leaseTx.Amount), false),
-		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, -int64(leaseTx.Amount), 0, false),
+		testGlobal.senderInfo.wavesKey:    newBalanceDiff(-int64(tx.Fee), 0, -int64(leaseTx.Amount), 0, false),
+		testGlobal.recipientInfo.wavesKey: newBalanceDiff(0, -int64(leaseTx.Amount), 0, 0, false),
 		testGlobal.minerInfo.wavesKey:     newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1103,7 +1108,7 @@ func TestCreateDiffCreateAliasWithSig(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1136,7 +1141,7 @@ func TestCreateDiffCreateAliasWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1178,7 +1183,7 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, true),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, true),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	correctAddrs := map[proto.WavesAddress]struct{}{
@@ -1187,9 +1192,13 @@ func TestCreateDiffMassTransferWithProofs(t *testing.T) {
 	for _, entry := range entries {
 		recipientAddr, err := recipientToAddress(entry.Recipient, to.stor.entities.aliases)
 		assert.NoError(t, err, "recipientToAddress() failed")
-		err = correctDiff.appendBalanceDiff(byteKey(recipientAddr.ID(), tx.Asset), newBalanceDiff(int64(entry.Amount), 0, 0, true))
+		err = correctDiff.appendBalanceDiff(
+			byteKey(recipientAddr.ID(), tx.Asset),
+			newBalanceDiff(int64(entry.Amount), 0, 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")
-		err = correctDiff.appendBalanceDiff(byteKey(testGlobal.senderInfo.addr.ID(), tx.Asset), newBalanceDiff(-int64(entry.Amount), 0, 0, true))
+		err = correctDiff.appendBalanceDiff(
+			byteKey(testGlobal.senderInfo.addr.ID(), tx.Asset),
+			newBalanceDiff(-int64(entry.Amount), 0, 0, 0, true))
 		assert.NoError(t, err, "appendBalanceDiff() failed")
 		correctAddrs[recipientAddr] = empty
 	}
@@ -1220,7 +1229,7 @@ func TestCreateDiffDataWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1249,7 +1258,7 @@ func TestCreateDiffSponsorshipWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1285,7 +1294,7 @@ func TestCreateDiffSetScriptWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1316,7 +1325,7 @@ func TestCreateDiffSetAssetScriptWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1375,12 +1384,12 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 		minBalance:                   ich(int64(paymentAmount0)),
 	}
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Fee+totalAssetAmount), 0, 0, true),
-		testGlobal.senderInfo.wavesKey:        newBalanceDiff(-int64(totalWavesAmount), 0, 0, true),
+		testGlobal.senderInfo.assetKeys[0]:    newBalanceDiff(-int64(tx.Fee+totalAssetAmount), 0, 0, 0, true),
+		testGlobal.senderInfo.wavesKey:        newBalanceDiff(-int64(totalWavesAmount), 0, 0, 0, true),
 		testGlobal.recipientInfo.assetKeys[0]: recipientAssetDiff,
-		testGlobal.recipientInfo.wavesKey:     newBalanceDiff(int64(totalWavesAmount), 0, 0, true),
-		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, true),
-		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, true),
+		testGlobal.recipientInfo.wavesKey:     newBalanceDiff(int64(totalWavesAmount), 0, 0, 0, true),
+		testGlobal.issuerInfo.assetKeys[0]:    newBalanceDiff(int64(tx.Fee), 0, 0, 0, true),
+		testGlobal.issuerInfo.wavesKey:        newBalanceDiff(-int64(feeInWaves), 0, 0, 0, true),
 		testGlobal.minerInfo.wavesKey:         newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1388,6 +1397,36 @@ func TestCreateDiffInvokeScriptWithProofs(t *testing.T) {
 		testGlobal.senderInfo.addr:    empty,
 		testGlobal.recipientInfo.addr: empty,
 		testGlobal.issuerInfo.addr:    empty,
+	}
+	assert.Equal(t, correctAddrs, ch.addrs)
+}
+
+func TestCreateDiffCommitToGenerationWithProofs(t *testing.T) {
+	info := defaultCheckerInfo()
+	to := createDifferTestObjects(t, info)
+	to.stor.addBlock(t, blockID0)
+	to.stor.activateSponsorship(t)
+	to.stor.activateFeature(t, int16(settings.NG))
+	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
+
+	const (
+		fee     = 1000_0000     // 0.1 WAVES.
+		deposit = 100_0000_0000 // 100 WAVES.
+	)
+
+	tx := createCommitToGenerationWithProofs(t, 10_002)
+
+	ch, err := to.td.createDiffCommitToGenerationWithProofs(tx, defaultDifferInfo())
+	assert.NoError(t, err)
+
+	minerFee := calculateCurrentBlockTxFee(fee, true)
+	correctDiff := txDiff{
+		testGlobal.senderInfo.wavesKey: newBalanceDiff(-int64(fee), 0, 0, deposit, true),
+		testGlobal.minerInfo.wavesKey:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
+	}
+	assert.Equal(t, correctDiff, ch.diff)
+	correctAddrs := map[proto.WavesAddress]struct{}{
+		testGlobal.senderInfo.addr: empty,
 	}
 	assert.Equal(t, correctAddrs, ch.addrs)
 }
@@ -1424,7 +1463,7 @@ func TestCreateDiffUpdateAssetInfoWithProofs(t *testing.T) {
 
 	minerFee := calculateCurrentBlockTxFee(tx.Fee, true) // NG is activated
 	correctDiff := txDiff{
-		testGlobal.senderInfo.assetKeys[1]: newBalanceDiff(-int64(tx.Fee), 0, 0, false),
+		testGlobal.senderInfo.assetKeys[1]: newBalanceDiff(-int64(tx.Fee), 0, 0, 0, false),
 		testGlobal.minerInfo.assetKeys[1]:  newMinerFeeForcedBalanceDiff(int64(minerFee), true),
 	}
 	assert.Equal(t, correctDiff, ch.diff)
@@ -1438,5 +1477,41 @@ func createInvokeExpressionWithProofs(t *testing.T, expression proto.B64Bytes, f
 	tx := proto.NewUnsignedInvokeExpressionWithProofs(1, testGlobal.senderInfo.pk, expression, feeAsset, fee, defaultTimestamp)
 	err := tx.Sign(proto.TestNetScheme, testGlobal.senderInfo.sk)
 	assert.NoError(t, err, "tx.Sign() failed")
+	return tx
+}
+
+type txOption[T any] func(tx T) T
+
+func withTimestamp[T interface {
+	*proto.CommitToGenerationWithProofs
+}](ts uint64) txOption[T] {
+	return func(tx T) T {
+		(*tx).Timestamp = ts
+		return tx
+	}
+}
+
+func withFee[T interface {
+	*proto.CommitToGenerationWithProofs
+}](fee uint64) txOption[T] {
+	return func(tx T) T {
+		(*tx).Fee = fee
+		return tx
+	}
+}
+
+func createCommitToGenerationWithProofs(
+	t testing.TB, start uint32, opts ...txOption[*proto.CommitToGenerationWithProofs],
+) *proto.CommitToGenerationWithProofs {
+	const fee = 10_000_000 // 0.1 WAVES.
+	_, sig, popErr := bls.ProvePoP(testGlobal.endorserSK, testGlobal.endorserPK, start)
+	require.NoError(t, popErr, "ProvePoP() failed")
+	tx := proto.NewUnsignedCommitToGenerationWithProofs(1, testGlobal.senderInfo.pk, start, testGlobal.endorserPK,
+		sig, fee, defaultTimestamp)
+	for _, opt := range opts {
+		tx = opt(tx)
+	}
+	err := tx.Sign(proto.MainNetScheme, testGlobal.senderInfo.sk)
+	require.NoError(t, err, "tx.Sign() failed")
 	return tx
 }

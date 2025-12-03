@@ -92,6 +92,7 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
         "id": "3py1rKXV2HcdBwPUgGwME9Yqq2jBHFCzH58mPh8eGQto"
       }
     ],
+	"generationCommitments": [],
     "aliases": [
       {
         "address": "3NA26AC1aLjj6uYnuoTahauhUPPPB3VBPUe",
@@ -170,6 +171,7 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
     "sponsorships": [],
     "newLeases": [],
     "cancelledLeases": [],
+	"generationCommitments": [],
     "aliases": [],
     "orderFills": [],
     "accountScripts": [],
@@ -186,6 +188,7 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
     "sponsorships": [],
     "newLeases": [],
     "cancelledLeases": [],
+	"generationCommitments": [],
     "aliases": [],
     "orderFills": [],
     "accountScripts": [],
