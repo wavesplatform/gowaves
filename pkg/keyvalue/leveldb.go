@@ -6,9 +6,9 @@ import (
 
 	"github.com/coocood/freecache"
 	"github.com/pkg/errors"
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
-	"github.com/syndtr/goleveldb/leveldb/util"
+	"github.com/wavesplatform/goleveldb/leveldb"
+	"github.com/wavesplatform/goleveldb/leveldb/opt"
+	"github.com/wavesplatform/goleveldb/leveldb/util"
 
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/util/fdlimit"
