@@ -46,6 +46,7 @@ const (
 	patches
 	challengedAddress
 	commitment
+	finalization
 )
 
 type blockchainEntityProperties struct {
@@ -215,6 +216,11 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 		needToFilter: true,
 		needToCut:    true,
 		fixedSize:    false,
+	},
+	finalization: {
+		needToFilter: true,
+		needToCut:    true,
+		fixedSize:    true, // TODO double check this.
 	},
 }
 

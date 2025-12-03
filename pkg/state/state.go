@@ -71,6 +71,7 @@ type blockchainEntitiesStorage struct {
 	snapshots         *snapshotsAtHeight
 	patches           *patchesStorage
 	commitments       *commitments
+	finalizations     *finalizations
 	calculateHashes   bool
 }
 
@@ -106,6 +107,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		newCommitments(hs),
+		newFinalizations(hs),
 		calcHashes,
 	}, nil
 }
@@ -1471,8 +1473,7 @@ func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*
 }
 
 func (s *stateManager) AddDeserializedBlocks(
-	blocks []*proto.Block,
-) (*proto.Block, error) {
+	blocks []*proto.Block) (*proto.Block, error) {
 	s.newBlocks.setNew(blocks)
 	lastBlock, err := s.addBlocks()
 	if err != nil {
@@ -3314,70 +3315,41 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 // FindEndorserPKByIndex retrieves the BLS endorser public key by its index
 // in the commitments list for the given period.
 func (s *stateManager) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
-	key := commitmentKey{periodStart: periodStart}
-	data, err := s.stor.commitments.hs.newestTopEntryData(key.bytes())
-	if err != nil {
-		var empty bls.PublicKey
-		if errors.Is(err, keyvalue.ErrNotFound) {
-			return empty, fmt.Errorf("no commitments found for period %d", periodStart)
-		}
-		return empty, errors.Errorf("failed to retrieve commitments record: %v", err)
-	}
-
-	var rec commitmentsRecord
-	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		var empty bls.PublicKey
-		return empty, fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
-	}
-
-	if index < 0 || index >= len(rec.Commitments) {
-		var empty bls.PublicKey
-		return empty, fmt.Errorf("index %d out of range (size %d)", index, len(rec.Commitments))
-	}
-
-	return rec.Commitments[index].EndorserPK, nil
+	return s.stor.commitments.FindEndorserPKByIndex(periodStart, index)
 }
 
 // FindGeneratorPKByEndorserPK finds the generator's Waves public key corresponding
 // to the given BLS endorser public key in the commitments record for the given period.
 func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
 	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	key := commitmentKey{periodStart: periodStart}
-	data, err := s.stor.commitments.hs.newestTopEntryData(key.bytes())
-	if err != nil {
-		if errors.Is(err, keyvalue.ErrNotFound) {
-			return crypto.PublicKey{}, errors.Errorf("no commitments found for period %d, %v", periodStart, err)
-		}
-		return crypto.PublicKey{}, errors.Errorf("failed to retrieve commitments record: %v", err)
-	}
-
-	var rec commitmentsRecord
-	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		return crypto.PublicKey{}, fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
-	}
-
-	endPKb := endorserPK[:]
-	for _, cm := range rec.Commitments {
-		if bytes.Equal(endPKb, cm.EndorserPK[:]) {
-			return cm.GeneratorPK, nil
-		}
-	}
-	return crypto.PublicKey{}, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
+	return s.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
 }
 
 // CommittedGenerators returns the list of Waves addresses of committed generators.
 func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
-	pks, err := s.stor.commitments.newestGenerators(periodStart)
+	return s.stor.commitments.CommittedGenerators(periodStart, s.settings.AddressSchemeCharacter)
+}
+
+func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
+	height, err := s.stor.finalizations.newest()
+	if err != nil {
+		return 0, err
+	}
+	return height, nil
+}
+
+func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	height, err := s.stor.finalizations.newest()
 	if err != nil {
 		return nil, err
 	}
-	addresses := make([]proto.WavesAddress, len(pks))
-	for i, pk := range pks {
-		addr, cnvrtErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, pk)
-		if cnvrtErr != nil {
-			return nil, cnvrtErr
-		}
-		addresses[i] = addr
+	blockID, err := s.rw.blockIDByHeight(height)
+	if err != nil {
+		return nil, err
 	}
-	return addresses, nil
+	header, err := s.rw.readBlockHeader(blockID)
+	if err != nil {
+		return nil, err
+	}
+	return header, nil
 }

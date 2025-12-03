@@ -1,6 +1,7 @@
 package endorsementpool
 
 import (
+	"bytes"
 	"container/heap"
 	"errors"
 	"fmt"
@@ -202,15 +203,20 @@ func (p *EndorsementPool) Verify() (bool, error) {
 
 	sigs := make([]bls.Signature, 0, n)
 	pks := make([]bls.PublicKey, 0, n)
-
-	for _, it := range p.h {
-		sigs = append(sigs, it.eb.Signature)
-		pks = append(pks, it.endorserPK)
-	}
-
 	msg, err := p.h[0].eb.EndorsementMessage()
 	if err != nil {
 		return false, err
+	}
+	for _, it := range p.h {
+		sigs = append(sigs, it.eb.Signature)
+		pks = append(pks, it.endorserPK)
+		nextMsg, msgErr := it.eb.EndorsementMessage()
+		if msgErr != nil {
+			return false, msgErr
+		}
+		if bytes.Equal(nextMsg, msg) {
+			return false, errors.New("failed to verify endorsements: inconsistent endorsement messages")
+		}
 	}
 	agg, err := bls.AggregateSignatures(sigs)
 	if err != nil {

@@ -4,6 +4,9 @@ import (
 	"bytes"
 	"fmt"
 
+	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
+
 	"github.com/fxamacker/cbor/v2"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
@@ -189,4 +192,72 @@ func (c *commitments) newestSize(periodStart uint32) (int, error) {
 		return 0, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
 	}
 	return len(rec.Commitments), nil
+}
+
+// FindEndorserPKByIndex returns BLS endorser public keys using
+// commitment indexes stored in FinalizationVoting.EndorserIndexes.
+func (c *commitments) FindEndorserPKByIndex(
+	periodStart uint32, index int,
+) (bls.PublicKey, error) {
+	var empty bls.PublicKey
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return empty, fmt.Errorf("no commitments found for period %d", periodStart)
+		}
+		return empty, fmt.Errorf("failed to retrieve commitments record: %w", err)
+	}
+
+	var rec commitmentsRecord
+	if unmarshalErr := rec.unmarshalBinary(data); unmarshalErr != nil {
+		return empty, fmt.Errorf("failed to unmarshal commitments: %w", unmarshalErr)
+	}
+
+	if index < 0 || index >= len(rec.Commitments) {
+		return empty, fmt.Errorf("index %d out of range (size %d)", index, len(rec.Commitments))
+	}
+
+	return rec.Commitments[index].EndorserPK, nil
+}
+
+func (c *commitments) FindGeneratorPKByEndorserPK(periodStart uint32,
+	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) {
+			return crypto.PublicKey{}, errors.Errorf("no commitments found for period %d, %v", periodStart, err)
+		}
+		return crypto.PublicKey{}, errors.Errorf("failed to retrieve commitments record: %v", err)
+	}
+
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return crypto.PublicKey{}, fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
+	}
+
+	endPKb := endorserPK[:]
+	for _, cm := range rec.Commitments {
+		if bytes.Equal(endPKb, cm.EndorserPK[:]) {
+			return cm.GeneratorPK, nil
+		}
+	}
+	return crypto.PublicKey{}, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
+}
+
+func (c *commitments) CommittedGenerators(periodStart uint32, scheme proto.Scheme) ([]proto.WavesAddress, error) {
+	pks, err := c.newestGenerators(periodStart)
+	if err != nil {
+		return nil, err
+	}
+	addresses := make([]proto.WavesAddress, len(pks))
+	for i, pk := range pks {
+		addr, cnvrtErr := proto.NewAddressFromPublicKey(scheme, pk)
+		if cnvrtErr != nil {
+			return nil, cnvrtErr
+		}
+		addresses[i] = addr
+	}
+	return addresses, nil
 }
