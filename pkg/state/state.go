@@ -102,36 +102,37 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		scriptsStorage,
 		newScriptsComplexity(hs),
 		newInvokeResults(hs),
-		newStateHashes(hs),
+		newStateHashes(hs, features),
 		newHitSources(hs),
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
-		newCommitments(hs),
+		newCommitments(hs, calcHashes),
 		newFinalizations(hs),
 		calcHashes,
 	}, nil
 }
 
-func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
-	sh := &proto.StateHash{
-		BlockID: blockID,
-		FieldsHashes: proto.FieldsHashes{
-			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
-			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
-			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
-			AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(blockID),
-			AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(blockID),
-			LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
-			LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
-			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
-			AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
-		},
+func (s *blockchainEntitiesStorage) putStateHash(
+	prevHash []byte, height uint64, blockID proto.BlockID,
+) (proto.StateHash, error) {
+	finalityActivated := s.features.isActivatedAtHeight(int16(settings.DeterministicFinality), height)
+	fhV1 := proto.FieldsHashesV1{
+		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
+		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
+		DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
+		AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(blockID),
+		AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(blockID),
+		LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
+		LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
+		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
+		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
 	}
-	if err := sh.GenerateSumHash(prevHash); err != nil {
-		return nil, err
+	sh := proto.NewLegacyStateHash(finalityActivated, blockID, fhV1, s.commitments.hasher.stateHashAt(blockID))
+	if gErr := sh.GenerateSumHash(prevHash); gErr != nil {
+		return nil, gErr
 	}
-	if err := s.stateHashes.saveLegacyStateHash(sh, height); err != nil {
-		return nil, err
+	if sErr := s.stateHashes.saveLegacyStateHash(sh, height); sErr != nil {
+		return nil, sErr
 	}
 	return sh, nil
 }
@@ -176,9 +177,9 @@ func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uin
 	startHeight := blockchainHeight + 1
 	for i, id := range blockIds {
 		height := startHeight + uint64(i)
-		newPrevHash, err := s.putStateHash(prevHash.SumHash[:], height, id)
-		if err != nil {
-			return err
+		newPrevHash, pErr := s.putStateHash(prevHash.GetSumHash().Bytes(), height, id)
+		if pErr != nil {
+			return pErr
 		}
 		prevHash = newPrevHash
 	}
@@ -3119,7 +3120,7 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	return provides, nil
 }
 
-func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (proto.StateHash, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
 		return nil, wrapErr(stateerr.Other, err)

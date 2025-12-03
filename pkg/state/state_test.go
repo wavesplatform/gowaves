@@ -445,10 +445,10 @@ func TestGenesisStateHash(t *testing.T) {
 	assert.NoError(t, err, "LegacyStateHashAtHeight failed")
 	var correctHashJs = `
 {"sponsorshipHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","blockId":"FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2","wavesBalanceHash":"211af58aa42c72d0cf546d11d7b9141a00c8394e0f5da2d8e7e9f4ba30e9ad37","accountScriptHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","aliasHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","stateHash":"fab947262e8f5f03807ee7a888c750e46d0544a04d5777f50cc6daaf5f4e8d19","leaseStatusHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","dataEntryHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetScriptHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","leaseBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"}`
-	var correctHash proto.StateHash
+	var correctHash proto.StateHashV1
 	err = correctHash.UnmarshalJSON([]byte(correctHashJs))
 	assert.NoError(t, err, "failed to unmarshal correct hash JSON")
-	assert.Equal(t, correctHash, *stateHash)
+	assert.Equal(t, &correctHash, stateHash)
 }
 
 func TestStateHashAtHeight(t *testing.T) {
@@ -468,10 +468,10 @@ func TestStateHashAtHeight(t *testing.T) {
 	assert.NoError(t, err, "LegacyStateHashAtHeight failed")
 	var correctHashJs = `
 	{"sponsorshipHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","blockId":"2DYapXXAwxPm9WdYjS6bAY2n2fokGWeKmvHrcJy26uDfCFMognrwNEdtWEixaDxx3AahDKcdTDRNXmPVEtVumKjY","wavesBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","accountScriptHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","aliasHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","stateHash":"df48986cfee70960c977d741146ef4980ca71b20401db663eeff72c332fd8825","leaseStatusHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","dataEntryHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","assetScriptHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8","leaseBalanceHash":"0e5751c026e543b2e8ab2eb06099daa1d1e5df47778f7787faab45cdf12fe3a8"}`
-	var correctHash proto.StateHash
+	var correctHash proto.StateHashV1
 	err = correctHash.UnmarshalJSON([]byte(correctHashJs))
 	assert.NoError(t, err, "failed to unmarshal correct hash JSON")
-	assert.Equal(t, correctHash, *stateHash)
+	assert.Equal(t, &correctHash, stateHash)
 }
 
 type timeMock struct{}
