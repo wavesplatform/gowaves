@@ -143,3 +143,9 @@ func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
 	}
 	return &finalizationVoting, nil
 }
+
+func CalculateLastFinalizedHeight(currentHeight Height) Height {
+	const genesisHeight = 1
+	const maxRollbackDeltaHeight = 100
+	return max(genesisHeight, currentHeight-maxRollbackDeltaHeight)
+}

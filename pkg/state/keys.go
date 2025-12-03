@@ -137,6 +137,8 @@ const (
 	challengedAddressKeyPrefix
 	// Key to store and retrieve generator's commitments for a specific generation period.
 	commitmentKeyPrefix
+	// Key to store and retrieve last finalization record.
+	finalizationKeyPrefix
 )
 
 var (
@@ -773,4 +775,11 @@ func (k *commitmentKey) bytes() []byte {
 	buf[0] = commitmentKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.periodStart)
 	return buf
+}
+
+type finalizationKey struct{}
+
+func (k finalizationKey) bytes() []byte {
+	// Можно использовать один байт-префикс, как commitments
+	return []byte{finalizationKeyPrefix}
 }

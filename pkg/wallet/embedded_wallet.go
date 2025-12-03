@@ -52,7 +52,7 @@ func (a *EmbeddedWalletImpl) FindPublicKeyByAddress(address proto.WavesAddress,
 	return crypto.PublicKey{}, ErrPublicKeyNotFound
 }
 
-func (a *EmbeddedWalletImpl) BlsPairByWavesPK(publicKey crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error) {
+func (a *EmbeddedWalletImpl) BLSPairByWavesPK(publicKey crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error) {
 	seeds := a.seeder.AccountSeeds()
 	for _, s := range seeds {
 		_, publicKeyRetrieved, err := crypto.GenerateKeyPair(s)

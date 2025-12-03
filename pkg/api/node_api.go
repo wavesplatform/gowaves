@@ -1011,7 +1011,7 @@ func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request)
 		return errors.Wrap(err, "failed to find key pair by address")
 	}
 
-	blsSecretKey, blsPublicKey, err := a.app.services.Wallet.BlsPairByWavesPK(senderPK)
+	blsSecretKey, blsPublicKey, err := a.app.services.Wallet.BLSPairByWavesPK(senderPK)
 	if err != nil {
 		return errors.Wrap(err, "failed to find endorser public key by generator public key")
 	}

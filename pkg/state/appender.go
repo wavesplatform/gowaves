@@ -4,6 +4,7 @@ import (
 	stderrs "errors"
 	"fmt"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"log/slog"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -791,85 +792,181 @@ func (a *txAppender) appendFixSnapshots(fixSnapshots []proto.AtomicSnapshot, blo
 	return nil
 }
 
-func (a *txAppender) isLastBlockFinalized(
-	finalizationVoting *proto.FinalizationVoting,
-	block *proto.BlockHeader,
-	height proto.Height,
-) (bool, error) {
-
-	if finalizationVoting == nil {
+func (a *txAppender) votingFinalization(endorsers []proto.WavesAddress, height proto.Height,
+	allGenerators []proto.WavesAddress) (bool, error) {
+	var totalGeneratingBalance uint64
+	var endorsersGeneratingBalance uint64
+	for _, gen := range allGenerators {
+		balance, err := a.stor.balances.generatingBalance(gen.ID(), height)
+		if err != nil {
+			return false, err
+		}
+		totalGeneratingBalance, err = common.AddInt(totalGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "totalGeneratingBalance overflow")
+		}
+	}
+	for _, endorser := range endorsers {
+		balance, err := a.stor.balances.generatingBalance(endorser.ID(), height)
+		if err != nil {
+			return false, err
+		}
+		endorsersGeneratingBalance, err = common.AddInt(endorsersGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
+		}
+	}
+	if totalGeneratingBalance == 0 {
 		return false, nil
 	}
-	// TODO what if it's empty?
-	lastFinalized, err := a.stor.finalizations.newest()
-	if err != nil {
-		return false, err
-	}
-	msg, err := proto.EndorsementMessage(
-		lastFinalized.Block.ID,
-		block.ID,
-		lastFinalized.FinalizedBlockHeight,
-	)
-	if err != nil {
-		return false, fmt.Errorf("failed to build endorsement message: %w", err)
+	if endorsersGeneratingBalance == 0 {
+		return false, nil
 	}
 
-	// 2. Восстанавливаем endorser PK по индексам
-	activationHeight, err := a.stor.features.activationHeight(int16(settings.DeterministicFinality))
-	if err != nil {
-		return false, fmt.Errorf("failed to load activation height: %w", err)
+	// If endorsersBalance >= 2/3 totalGeneratingBalance
+	if endorsersGeneratingBalance*3 >= totalGeneratingBalance*2 {
+		return true, nil
 	}
+	return false, nil
+}
 
-	periodStart, err := CurrentGenerationPeriodStart(
-		activationHeight, height, a.settings.GenerationPeriod,
-	)
-	if err != nil {
-		return false, fmt.Errorf("failed to compute period start: %w", err)
+func (a *txAppender) loadLastFinalizedHeight(
+	height proto.Height,
+	block *proto.BlockHeader,
+	finalityActivated bool,
+) (proto.Height, error) {
+	h, err := a.stor.finalizations.newest()
+	if err == nil {
+		return h, nil
 	}
+	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
+		return 0, err
+	}
+	// No finalization in history — calculate it and, if finality is activated - initialize it.
+	initH := proto.CalculateLastFinalizedHeight(height)
+	if finalityActivated {
+		if storErr := a.stor.finalizations.store(initH, block.BlockID()); storErr != nil {
+			return 0, storErr
+		}
+	}
+	return initH, nil
+}
 
-	endorsersPK := make([]bls.PublicKey, 0, len(finalizationVoting.EndorserIndexes))
-	for _, idx := range finalizationVoting.EndorserIndexes {
-		pk, err := a.stor.commitments.FindEndorserPKsByIndexes(periodStart, int(idx))
+func (a *txAppender) loadEndorsersPK(
+	fv *proto.FinalizationVoting,
+	periodStart uint32,
+) ([]bls.PublicKey, error) {
+	endorsersPK := make([]bls.PublicKey, 0, len(fv.EndorserIndexes))
+	for _, idx := range fv.EndorserIndexes {
+		pk, err := a.stor.commitments.FindEndorserPKByIndex(periodStart, int(idx))
 		if err != nil {
-			return false, fmt.Errorf("failed to find endorser PK by index %d: %w", idx, err)
+			return nil, fmt.Errorf("failed to find endorser PK by index %d: %w", idx, err)
 		}
 		endorsersPK = append(endorsersPK, pk)
 	}
-
 	if len(endorsersPK) == 0 {
-		return false, fmt.Errorf("finalization has no endorsers")
+		return nil, fmt.Errorf("finalization has no endorsers")
 	}
+	return endorsersPK, nil
+}
 
-	aggBytes := finalizationVoting.AggregatedEndorsementSignature[:]
-	ok := bls.VerifyAggregate(endorsersPK, msg, aggBytes)
-	if !ok {
-		return false, fmt.Errorf("invalid aggregated BLS signature")
+func (a *txAppender) mapEndorsersToAddresses(
+	endorsersPK []bls.PublicKey,
+	periodStart uint32,
+) ([]proto.WavesAddress, error) {
+	addrs := make([]proto.WavesAddress, 0, len(endorsersPK))
+	for _, endPK := range endorsersPK {
+		gpk, err := a.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, endPK)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map endorser PK to generator PK: %w", err)
+		}
+		addr := proto.MustAddressFromPublicKey(a.settings.AddressSchemeCharacter, gpk)
+		addrs = append(addrs, addr)
 	}
-	// TODO finish this
-	// 4. Конвертируем endorserPK -> generatorPK -> addresses
-	//endorserAddresses := make([]proto.WavesAddress, 0, len(endorsersPK))
-	//for _, endPK := range endorsersPK {
-	//	genPK, err := a.stor.FindGeneratorPKByEndorserPK(periodStart, endPK)
-	//	if err != nil {
-	//		return false, fmt.Errorf("failed to map endorser PK to generator PK: %w", err)
-	//	}
-	//	addr := proto.MustAddressFromPublicKey(a.stor.scheme, genPK)
-	//	endorserAddresses = append(endorserAddresses, addr)
-	//}
-	//
-	//// 5. Берём всех commited generators
-	//generators, err := a.stor.CommittedGenerators(periodStart)
-	//if err != nil {
-	//	return false, fmt.Errorf("failed to load committed generators: %w", err)
-	//}
-	//
-	//// Проверяем >= 2/3 голосов
-	//canFinalize, err := a.stor.CalculateVotingFinalization(endorserAddresses, height, generators)
-	//if err != nil {
-	//	return false, fmt.Errorf("failed to calculate 2/3 voting: %w", err)
-	//}
-	var canFinalize bool
-	return canFinalize, nil
+	return addrs, nil
+}
+
+func (a *txAppender) verifyFinalizationSignature(
+	fv *proto.FinalizationVoting,
+	msg []byte,
+	endorsersPK []bls.PublicKey,
+) error {
+	aggBytes := fv.AggregatedEndorsementSignature[:]
+	if !bls.VerifyAggregate(endorsersPK, msg, aggBytes) {
+		return fmt.Errorf("invalid aggregated BLS signature")
+	}
+	return nil
+}
+
+func (a *txAppender) calcPeriodStart(height proto.Height) (uint32, error) {
+	activation, err := a.stor.features.activationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return 0, fmt.Errorf("failed to load activation height: %w", err)
+	}
+	return CurrentGenerationPeriodStart(activation, height, a.settings.GenerationPeriod)
+}
+func (a *txAppender) updateFinalization(
+	finalizationVoting *proto.FinalizationVoting,
+	block *proto.BlockHeader,
+	height proto.Height,
+) error {
+	if finalizationVoting == nil {
+		return nil
+	}
+	finalityActivated, err := a.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return err
+	}
+	lastFinalizedHeight, loadHeightErr := a.loadLastFinalizedHeight( // Or init.
+		height, block, finalityActivated,
+	)
+	if loadHeightErr != nil {
+		return loadHeightErr
+	}
+	lastFinalizedBlockID, blockPullErr := a.rw.blockIDByHeight(lastFinalizedHeight)
+	if blockPullErr != nil {
+		return fmt.Errorf("failed to load last finalized block ID: %w", blockPullErr)
+	}
+	msg, msgErr := proto.EndorsementMessage(
+		lastFinalizedBlockID,
+		block.Parent,
+		lastFinalizedHeight,
+	)
+	if msgErr != nil {
+		return fmt.Errorf("failed to build endorsement message: %w", msgErr)
+	}
+	periodStart, caclErr := a.calcPeriodStart(height)
+	if caclErr != nil {
+		return caclErr
+	}
+	endorsersPK, loadErr := a.loadEndorsersPK(finalizationVoting, periodStart)
+	if loadErr != nil {
+		return loadErr
+	}
+	if verifyErr := a.verifyFinalizationSignature(finalizationVoting, msg, endorsersPK); verifyErr != nil {
+		return verifyErr
+	}
+	// 6. Map PKs -> addresses
+	endorserAddresses, mapErr := a.mapEndorsersToAddresses(endorsersPK, periodStart)
+	if mapErr != nil {
+		return mapErr
+	}
+	// 7. Get committed generators
+	generators, pullErr := a.stor.commitments.CommittedGenerators(periodStart, a.settings.AddressSchemeCharacter)
+	if pullErr != nil {
+		return fmt.Errorf("failed to load committed generators: %w", pullErr)
+	}
+	// 8. Check ≥ 2/3 votes
+	canFinalize, votingErr := a.votingFinalization(endorserAddresses, height, generators)
+	if votingErr != nil {
+		return fmt.Errorf("failed to calculate 2/3 voting: %w", votingErr)
+	}
+	if canFinalize {
+		if storErr := a.stor.finalizations.store(height, block.BlockID()); storErr != nil {
+			return storErr
+		}
+	}
+	return nil
 }
 
 func (a *txAppender) appendBlock(params *appendBlockParams) error {
@@ -887,15 +984,9 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
 
-	isFinalized, err := a.isLastBlockFinalized(params.block.FinalizationVoting, params.block, params.blockchainHeight)
+	err = a.updateFinalization(params.block.FinalizationVoting, params.block, params.blockchainHeight)
 	if err != nil {
 		return err
-	}
-	if isFinalized {
-		err := a.stor.finalizations.store(*params.block, params.blockchainHeight, params.block.BlockID())
-		if err != nil {
-			return err
-		}
 	}
 
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)

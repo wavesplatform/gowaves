@@ -210,9 +210,9 @@ func (p *EndorsementPool) Verify() (bool, error) {
 	for _, it := range p.h {
 		sigs = append(sigs, it.eb.Signature)
 		pks = append(pks, it.endorserPK)
-		nextMsg, err := it.eb.EndorsementMessage()
-		if err != nil {
-			return false, err
+		nextMsg, msgErr := it.eb.EndorsementMessage()
+		if msgErr != nil {
+			return false, msgErr
 		}
 		if bytes.Equal(nextMsg, msg) {
 			return false, errors.New("failed to verify endorsements: inconsistent endorsement messages")

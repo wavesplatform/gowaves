@@ -3315,65 +3315,41 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 // FindEndorserPKByIndex retrieves the BLS endorser public key by its index
 // in the commitments list for the given period.
 func (s *stateManager) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
-	return s.stor.commitments.FindEndorserPKsByIndexes(periodStart, index)
+	return s.stor.commitments.FindEndorserPKByIndex(periodStart, index)
 }
 
 // FindGeneratorPKByEndorserPK finds the generator's Waves public key corresponding
 // to the given BLS endorser public key in the commitments record for the given period.
 func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
 	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	key := commitmentKey{periodStart: periodStart}
-	data, err := s.stor.commitments.hs.newestTopEntryData(key.bytes())
-	if err != nil {
-		if errors.Is(err, keyvalue.ErrNotFound) {
-			return crypto.PublicKey{}, errors.Errorf("no commitments found for period %d, %v", periodStart, err)
-		}
-		return crypto.PublicKey{}, errors.Errorf("failed to retrieve commitments record: %v", err)
-	}
-
-	var rec commitmentsRecord
-	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		return crypto.PublicKey{}, fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
-	}
-
-	endPKb := endorserPK[:]
-	for _, cm := range rec.Commitments {
-		if bytes.Equal(endPKb, cm.EndorserPK[:]) {
-			return cm.GeneratorPK, nil
-		}
-	}
-	return crypto.PublicKey{}, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
+	return s.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
 }
 
 // CommittedGenerators returns the list of Waves addresses of committed generators.
 func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
-	pks, err := s.stor.commitments.newestGenerators(periodStart)
-	if err != nil {
-		return nil, err
-	}
-	addresses := make([]proto.WavesAddress, len(pks))
-	for i, pk := range pks {
-		addr, cnvrtErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, pk)
-		if cnvrtErr != nil {
-			return nil, cnvrtErr
-		}
-		addresses[i] = addr
-	}
-	return addresses, nil
+	return s.stor.commitments.CommittedGenerators(periodStart, s.settings.AddressSchemeCharacter)
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
-	item, err := s.stor.finalizations.newest()
-	if err != nil || item == nil {
+	height, err := s.stor.finalizations.newest()
+	if err != nil {
 		return 0, err
 	}
-	return item.FinalizedBlockHeight, nil
+	return height, nil
 }
 
 func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
-	item, err := s.stor.finalizations.newest()
-	if err != nil || item == nil {
+	height, err := s.stor.finalizations.newest()
+	if err != nil {
 		return nil, err
 	}
-	return &item.Block, nil
+	blockID, err := s.rw.blockIDByHeight(height)
+	if err != nil {
+		return nil, err
+	}
+	header, err := s.rw.readBlockHeader(blockID)
+	if err != nil {
+		return nil, err
+	}
+	return header, nil
 }

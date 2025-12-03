@@ -11,15 +11,15 @@ type Stub struct {
 }
 
 func (s Stub) SignTransactionWith(_ crypto.PublicKey, _ proto.Transaction) error {
-	panic("Stub.SignTransactionWith: Unsopported operation")
+	panic("Stub.SignTransactionWith: Unsupported operation")
 }
 
 func (s Stub) FindPublicKeyByAddress(_ proto.WavesAddress, _ proto.Scheme) (crypto.PublicKey, error) {
 	panic("Stub.FindPublicKeyByAddress: Unsupported operation")
 }
 
-func (s Stub) BlsPairByWavesPK(_ crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error) {
-	panic("Stub.BlsPairByWavesPK: Unsupported operation")
+func (s Stub) BLSPairByWavesPK(_ crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error) {
+	panic("Stub.BLSPairByWavesPK: Unsupported operation")
 }
 
 func (s Stub) Load(_ []byte) error {
