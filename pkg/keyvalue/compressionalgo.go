@@ -9,4 +9,6 @@ const (
 	CompressionDefault = CompressionAlgo(opt.DefaultCompression) // = Snappy
 	CompressionNone    = CompressionAlgo(opt.NoCompression)
 	CompressionSnappy  = CompressionAlgo(opt.SnappyCompression)
+	CompressionZSTD    = CompressionAlgo(opt.ZSTDCompression)
+	CompressionMinLZ   = CompressionAlgo(opt.MinLZCompression)
 )
