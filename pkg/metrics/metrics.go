@@ -10,7 +10,7 @@ import (
 	"sync"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	influx "github.com/influxdata/influxdb1-client/v2"
 	"github.com/pkg/errors"
 
@@ -329,7 +329,7 @@ func (f fields) withUtxCount(utxCount int) fields {
 }
 
 func (f fields) withBaseTarget(bt uint64) fields {
-	baseTarget, err := safecast.ToInt64(bt)
+	baseTarget, err := safecast.Convert[int64](bt)
 	if err != nil {
 		slog.Error("Failed to execute withBaseTarget", logging.Error(err))
 	}

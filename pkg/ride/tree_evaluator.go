@@ -224,7 +224,7 @@ func (e *treeEvaluator) handleZeroComplexityCall(
 	if err := e.env.complexityCalculator().error(); err != nil {
 		eet := errTypeFromComplexityCalcErr(err)
 		return res, eet.Wrapf(err,
-			"complexity calulator error detected at the end of evaluation in '%s'", e.fName,
+			"complexity calculator error detected at the end of evaluation in '%s'", e.fName,
 		)
 	}
 	cErr := e.env.complexityCalculator().testAdditionalUserFunctionComplexity(e.fName, initialComplexity)

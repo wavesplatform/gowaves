@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strings"
 
 	"github.com/ory/dockertest/v3"
 	"github.com/pkg/errors"
@@ -111,9 +112,9 @@ func (c *ScalaConfigurator) WithGoNode(goNodeIP string) *ScalaConfigurator {
 }
 
 func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
-	kps := ""
+	var kps strings.Builder
 	for i, kp := range c.knownPeers {
-		kps += fmt.Sprintf("-Dwaves.network.known-peers.%d=%s:%s ", i, kp, BindPort)
+		kps.WriteString(fmt.Sprintf("-Dwaves.network.known-peers.%d=%s:%s ", i, kp, BindPort))
 	}
 	opt := &dockertest.RunOptions{
 		Repository: "wavesplatform/wavesnode",
@@ -128,7 +129,7 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 			"WAVES_LOG_LEVEL=TRACE",
 			"WAVES_NETWORK=custom",
 			"JAVA_OPTS=" +
-				kps +
+				kps.String() +
 				"-Dwaves.network.declared-address=scala-node:" + BindPort + " " +
 				"-Dwaves.network.port=" + BindPort + " " +
 				"-Dwaves.rest-api.port=" + RESTAPIPort + " " +

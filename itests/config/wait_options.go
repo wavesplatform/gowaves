@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 )
 
 const defaultBlockGenerationTimeout = 30 * time.Second
@@ -53,7 +53,7 @@ func WaitWithTimeout(timeout time.Duration) WaitOption {
 // WaitWithTimeoutInBlocks sets the timeout for waiting operations based on the number of blocks to wait for.
 func WaitWithTimeoutInBlocks(blocks uint64) WaitOption {
 	return func(params *WaitParams) {
-		n, err := safecast.ToInt64(blocks)
+		n, err := safecast.Convert[int64](blocks)
 		if err != nil {
 			panic("invalid number of blocks: " + err.Error())
 		}

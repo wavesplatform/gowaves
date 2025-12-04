@@ -10,11 +10,11 @@ type Stub struct {
 }
 
 func (s Stub) SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error {
-	panic("Stub.SignTransactionWith: Unsopported operation")
+	panic("Stub.SignTransactionWith: Unsupported operation")
 }
 
 func (s Stub) Load(password []byte) error {
-	panic("Stub.Load: Unsopported operation")
+	panic("Stub.Load: Unsupported operation")
 }
 
 func (s Stub) AccountSeeds() [][]byte {

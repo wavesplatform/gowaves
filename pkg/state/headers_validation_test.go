@@ -119,7 +119,7 @@ func TestHeadersValidation(t *testing.T) {
 		t.Fatalf("spoilGenSignature(): %v\n", err)
 	}
 	err = applyBlocks(t, blocks, st, scheme)
-	assert.Error(t, err, "did not fail with invalid geneator signature")
+	assert.Error(t, err, "did not fail with invalid generator signature")
 	blocks[randN] = prev
 	err = st.RollbackToHeight(1)
 	assert.NoError(t, err, "failed to rollback state")

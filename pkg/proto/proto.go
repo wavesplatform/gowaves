@@ -12,7 +12,7 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/ccoveille/go-safecast"
+	"github.com/ccoveille/go-safecast/v2"
 	"golang.org/x/crypto/blake2b"
 
 	"github.com/pkg/errors"
@@ -32,7 +32,7 @@ Messages are sent over the network in the following format:
 * MSG_LEN (4 bytes, uint32) - message length. It includes lengths of all fields except the length of MSG_LEN itself.
 * MSG_MAGIC (4 bytes, "0x12345678") - magic number, constant value.
 * MSG_TYPE (1 byte) - message type.
-* PAYLOAD_LEN (4 bytes, uin32) - payload length.
+* PAYLOAD_LEN (4 bytes, uint32) - payload length.
 * PAYLOAD_CHECKSUM (4 bytes) - payload checksum, optional, may be omitted if PAYLOAD_LEN == 0.
 * PAYLOAD (variable) - payload, optional, omitted if PAYLOAD_LEN == 0.
 
@@ -90,7 +90,7 @@ func ProtocolVersion() Version {
 
 // ParseMessage parses a message from the given data. The 'f' function parameter is used to parse the message payload.
 func ParseMessage(data []byte, contentID PeerMessageID, name string, f func(payload []byte) error) error {
-	l, err := safecast.ToUint32(len(data))
+	l, err := safecast.Convert[uint32](len(data))
 	if err != nil {
 		return fmt.Errorf("%s: %w", name, err)
 	}
@@ -244,7 +244,7 @@ type Header struct {
 }
 
 func NewHeader(contentID PeerMessageID, body []byte) (Header, error) {
-	bl, err := safecast.ToUint32(len(body))
+	bl, err := safecast.Convert[uint32](len(body))
 	if err != nil {
 		return Header{}, fmt.Errorf("failed to create header: %w", err)
 	}
@@ -313,7 +313,7 @@ func (h *Header) ReadFrom(r io.Reader) (int64, error) {
 	var msgLen U32
 	n1, err := msgLen.ReadFrom(r)
 	if err != nil {
-		return n1, fmt.Errorf("failed to read message lenght: %w", err)
+		return n1, fmt.Errorf("failed to read message length: %w", err)
 	}
 	h.Length = uint32(msgLen)
 
@@ -352,12 +352,12 @@ func (h *Header) ReadFrom(r io.Reader) (int64, error) {
 }
 
 func (h *Header) UnmarshalBinary(data []byte) error {
-	l, err := safecast.ToUint32(len(data))
+	l, err := safecast.Convert[uint32](len(data))
 	if err != nil {
 		return fmt.Errorf("failed to unmarshal Header: %w", err)
 	}
 	if l < headerSizeWithoutPayload {
-		return fmt.Errorf("data is to short to unmarshal Header: len=%d", len(data))
+		return fmt.Errorf("data is too short to unmarshal Header: len=%d", len(data))
 	}
 	h.Length = binary.BigEndian.Uint32(data[0:4])
 	h.Magic = binary.BigEndian.Uint32(data[4:8])
@@ -377,7 +377,7 @@ func (h *Header) UnmarshalBinary(data []byte) error {
 }
 
 func (h *Header) Copy(data []byte) (int, error) {
-	l, err := safecast.ToUint32(len(data))
+	l, err := safecast.Convert[uint32](len(data))
 	if err != nil {
 		return 0, fmt.Errorf("failed to copy Header: %w", err)
 	}
@@ -476,7 +476,7 @@ func (v Version) Cmp(other Version) int {
 // CmpMinor compares minor version.
 // If equal return 0.
 // If diff only 1 version (for example 1.14 and 1.13), then 1
-// If more then 1 version, then return 2.
+// If more than 1 version, then return 2.
 func (v Version) CmpMinor(other Version) int {
 	if v.major != other.major {
 		return 2
@@ -991,7 +991,7 @@ func (p *PeerInfo) ReadFrom(r io.Reader) (int64, error) {
 		return int64(n), err
 	}
 	p.Addr = net.IPv4(b[0], b[1], b[2], b[3])
-	p.Port, err = safecast.ToUint16(binary.BigEndian.Uint32(b[4:8]))
+	p.Port, err = safecast.Convert[uint16](binary.BigEndian.Uint32(b[4:8]))
 	if err != nil {
 		return int64(n), fmt.Errorf("PeerInfo: invalid port value: %w", err)
 	}
@@ -1720,7 +1720,7 @@ func UnmarshalMessage(b []byte) (Message, error) {
 // to create a message type.
 // Use this function to unmarshal custom sets of messages.
 func UnmarshalMessageWith(b []byte, mp MessageProducer) (Message, error) {
-	l, err := safecast.ToUint32(len(b))
+	l, err := safecast.Convert[uint32](len(b))
 	if err != nil {
 		return nil, fmt.Errorf("failed to unmarshal message: %w", err)
 	}
@@ -1766,7 +1766,7 @@ func (m *GetBlockIDsMessage) MarshalBinary() ([]byte, error) {
 }
 
 func (m *GetBlockIDsMessage) UnmarshalBinary(data []byte) error {
-	l, err := safecast.ToUint32(len(data))
+	l, err := safecast.Convert[uint32](len(data))
 	if err != nil {
 		return fmt.Errorf("GetBlockIDsMessage UnmarshalBinary: %w", err)
 	}
@@ -1837,7 +1837,7 @@ func (m *BlockIDsMessage) MarshalBinary() ([]byte, error) {
 }
 
 func (m *BlockIDsMessage) UnmarshalBinary(data []byte) error {
-	l, err := safecast.ToUint32(len(data))
+	l, err := safecast.Convert[uint32](len(data))
 	if err != nil {
 		return fmt.Errorf("BlockIDsMessage UnmarshalBinary: %w", err)
 	}
@@ -1938,7 +1938,7 @@ func (m *BlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (m *BlockSnapshotMessage) UnmarshalBinary(data []byte) error {
-	l, err := safecast.ToUint32(len(data))
+	l, err := safecast.Convert[uint32](len(data))
 	if err != nil {
 		return fmt.Errorf("BlockSnapshotMessage UnmarshalBinary: %w", err)
 	}
@@ -2000,7 +2000,7 @@ func (m *MicroBlockSnapshotMessage) WriteTo(w io.Writer) (int64, error) {
 }
 
 func (m *MicroBlockSnapshotMessage) UnmarshalBinary(data []byte) error {
-	l, err := safecast.ToUint32(len(data))
+	l, err := safecast.Convert[uint32](len(data))
 	if err != nil {
 		return fmt.Errorf("MicroBlockSnapshotMessage UnmarshalBinary: %w", err)
 	}

@@ -373,25 +373,25 @@ func createStorageObjectsWithOptions(t *testing.T, options testStorageObjectsOpt
 	dbBatch, err := db.NewBatch()
 	require.NoError(t, err)
 
-	stateDB, err := newStateDB(db, dbBatch, DefaultTestingStateParams())
+	sDB, err := newStateDB(db, dbBatch, DefaultTestingStateParams(), options.Amend)
 	require.NoError(t, err)
 	t.Cleanup(func() {
-		assert.NoError(t, stateDB.close())
+		assert.NoError(t, sDB.close())
 	})
 
-	rw, err := newBlockReadWriter(t.TempDir(), 8, 8, stateDB, options.Settings.AddressSchemeCharacter)
+	rw, err := newBlockReadWriter(t.TempDir(), 8, 8, sDB, options.Settings.AddressSchemeCharacter)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		assert.NoError(t, rw.close())
 	})
-	stateDB.setRw(rw)
+	sDB.setRw(rw)
 
-	hs := newHistoryStorage(db, dbBatch, stateDB, options.Amend)
+	hs := newHistoryStorage(db, dbBatch, sDB, options.Amend)
 
 	entities, err := newBlockchainEntitiesStorage(hs, options.Settings, rw, options.CalculateHashes)
 	require.NoError(t, err)
 
-	return &testStorageObjects{db, dbBatch, rw, hs, stateDB, options.Settings, entities}
+	return &testStorageObjects{db, dbBatch, rw, hs, sDB, options.Settings, entities}
 }
 
 func (s *testStorageObjects) addRealBlock(t *testing.T, block *proto.Block) {
@@ -403,7 +403,7 @@ func (s *testStorageObjects) addRealBlock(t *testing.T, block *proto.Block) {
 	err = s.rw.writeBlockHeader(&block.BlockHeader)
 	assert.NoError(t, err, "writeBlockHeader() failed")
 	for _, tx := range block.Transactions {
-		err = s.rw.writeTransaction(tx, proto.TransactionSucceeded)
+		_, err = s.rw.writeTransaction(tx, proto.TransactionSucceeded)
 		assert.NoError(t, err, "writeTransaction() failed")
 	}
 	err = s.rw.finishBlock(blockID)

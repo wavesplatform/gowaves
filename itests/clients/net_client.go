@@ -171,7 +171,7 @@ func (c *NetClient) AwaitMessage(messageType reflect.Type, timeout time.Duration
 // AwaitGetBlockMessage waits for a GetBlockMessage from the node for the specified timeout and
 // returns the requested block ID.
 func (c *NetClient) AwaitGetBlockMessage(timeout time.Duration) (proto.BlockID, error) {
-	msg, err := c.AwaitMessage(reflect.TypeOf(&proto.GetBlockMessage{}), timeout)
+	msg, err := c.AwaitMessage(reflect.TypeFor[*proto.GetBlockMessage](), timeout)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
@@ -185,7 +185,7 @@ func (c *NetClient) AwaitGetBlockMessage(timeout time.Duration) (proto.BlockID, 
 
 // AwaitScoreMessage waits for a ScoreMessage from the node for the specified timeout and returns the received score.
 func (c *NetClient) AwaitScoreMessage(timeout time.Duration) (*big.Int, error) {
-	msg, err := c.AwaitMessage(reflect.TypeOf(&proto.ScoreMessage{}), timeout)
+	msg, err := c.AwaitMessage(reflect.TypeFor[*proto.ScoreMessage](), timeout)
 	if err != nil {
 		return nil, err
 	}
@@ -200,7 +200,7 @@ func (c *NetClient) AwaitScoreMessage(timeout time.Duration) (*big.Int, error) {
 // AwaitMicroblockRequest waits for a MicroBlockRequestMessage from the node for the specified timeout and
 // returns the received block ID.
 func (c *NetClient) AwaitMicroblockRequest(timeout time.Duration) (proto.BlockID, error) {
-	msg, err := c.AwaitMessage(reflect.TypeOf(&proto.MicroBlockRequestMessage{}), timeout)
+	msg, err := c.AwaitMessage(reflect.TypeFor[*proto.MicroBlockRequestMessage](), timeout)
 	if err != nil {
 		return proto.BlockID{}, err
 	}
@@ -395,7 +395,7 @@ func (h *handler) waitFor(messageType reflect.Type) error {
 	if messageType == nil {
 		return errors.New("nil message type")
 	}
-	if messageType == reflect.TypeOf(proto.GetPeersMessage{}) {
+	if messageType == reflect.TypeFor[proto.GetPeersMessage]() {
 		return errors.New("cannot wait for GetPeersMessage")
 	}
 	h.queue = append(h.queue, messageType)

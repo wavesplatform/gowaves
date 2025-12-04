@@ -464,7 +464,7 @@ func (tc *transactionChecker) checkEthereumTransactionWithProofs(transaction pro
 			return out, errors.New("the amount of ethereum transfer assets is 0, which is forbidden")
 		}
 		if l := len(tx.Data()); needToValidateNonEmptyCallData && l != ethabi.ERC20TransferCallDataSize {
-			return out, errors.Errorf("ethereum call data must be %d size for assset transfer, but size is %d",
+			return out, errors.Errorf("ethereum call data must be %d size for asset transfer, but size is %d",
 				ethabi.ERC20TransferCallDataSize, l)
 		}
 		allAssets := []proto.OptionalAsset{kind.Asset}

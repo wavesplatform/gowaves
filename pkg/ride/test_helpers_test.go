@@ -191,7 +191,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		if t, ok := r.trees[addr]; ok {
 			return t, nil
 		}
-		return nil, errors.Errorf("unknow address '%s'", addr.String())
+		return nil, errors.Errorf("unknown address '%s'", addr.String())
 	}
 	r.ms.RetrieveNewestBinaryEntryFunc = func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
 		e, err := r.retrieveEntry(account, key)
@@ -202,7 +202,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			return be, nil
 		}
 		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a binary data entry
-			"unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+			"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
 		)
 	}
 	r.ms.RetrieveNewestBooleanEntryFunc = func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
@@ -214,7 +214,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			return be, nil
 		}
 		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a boolean data entry
-			"unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+			"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
 		)
 	}
 	r.ms.RetrieveNewestIntegerEntryFunc = func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
@@ -226,7 +226,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			return be, nil
 		}
 		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a integer data entry
-			"unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+			"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
 		)
 	}
 	r.ms.RetrieveNewestStringEntryFunc = func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
@@ -238,7 +238,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			return be, nil
 		}
 		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a string data entry
-			"unxepected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+			"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
 		)
 	}
 	r.ms.NewestWavesBalanceFunc = func(account proto.Recipient) (uint64, error) {
@@ -695,7 +695,7 @@ func (e *testEnv) withWavesBalance(acc *testAccount, balance int, other ...int) 
 		leaseIn = int64(other[0])
 	case 0:
 	default:
-		e.t.Errorf("too many arguments provided as 'other' balaces")
+		e.t.Errorf("too many arguments provided as 'other' balances")
 	}
 	e.waves[acc.address()] = &types.WavesBalanceProfile{
 		Balance:    uint64(balance),

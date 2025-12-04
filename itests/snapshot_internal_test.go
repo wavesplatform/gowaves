@@ -62,10 +62,10 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	}
 
 	err = s.Client.Connection.SubscribeForMessages(
-		reflect.TypeOf(&proto.GetBlockIDsMessage{}),
-		reflect.TypeOf(&proto.GetBlockMessage{}),
-		reflect.TypeOf(&proto.ScoreMessage{}),
-		reflect.TypeOf(&proto.MicroBlockRequestMessage{}),
+		reflect.TypeFor[*proto.GetBlockIDsMessage](),
+		reflect.TypeFor[*proto.GetBlockMessage](),
+		reflect.TypeFor[*proto.ScoreMessage](),
+		reflect.TypeFor[*proto.MicroBlockRequestMessage](),
 	)
 	require.NoError(s.T(), err, "failed to subscribe for messages")
 
@@ -76,7 +76,7 @@ func (s *SimpleSnapshotSuite) TestSimpleSnapshot() {
 	s.Client.Connection.SendMessage(scoreMsg)
 
 	// Wait for the node to request block IDs.
-	_, err = s.Client.Connection.AwaitMessage(reflect.TypeOf(&proto.GetBlockIDsMessage{}), messageTimeout)
+	_, err = s.Client.Connection.AwaitMessage(reflect.TypeFor[*proto.GetBlockIDsMessage](), messageTimeout)
 	require.NoError(s.T(), err, "failed to wait for block IDs request")
 
 	// Send block IDs to the node.

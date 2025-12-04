@@ -138,7 +138,7 @@ func (a *scriptCaller) callAccountScriptWithTx(tx proto.Transaction, params *app
 	env.ChooseMaxDataEntriesSize(params.rideV5Activated)
 	env.SetThisFromAddress(senderWavesAddr)
 	if err := env.SetLastBlockFromBlockInfo(params.blockInfo); err != nil {
-		return errors.Wrapf(err, "failed to call account scritp on transaction '%s'", base58.Encode(id))
+		return errors.Wrapf(err, "failed to call account script on transaction '%s'", base58.Encode(id))
 	}
 	env.SetLimit(ride.MaxVerifierComplexity(params.rideV5Activated))
 	if err := env.SetTransaction(tx); err != nil {

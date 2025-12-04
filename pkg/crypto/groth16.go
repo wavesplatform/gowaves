@@ -54,7 +54,7 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 		}
 		proof = bn256proof
 	default:
-		return false, errors.Errorf("unknown eliptic curve")
+		return false, errors.Errorf("unknown elliptic curve")
 	}
 
 	var buf bytes.Buffer

@@ -2,7 +2,7 @@
 
 #### Storage
 
-Blocks have unique numbers (not heights!). When state accepts new block, it assigns
+Blocks have unique numbers (not heights!). When state accepts a new block, it assigns
 unique number for this block ID. Block nums start from zero and increase.
 These numbers are used in storage instead of long block IDs.
 

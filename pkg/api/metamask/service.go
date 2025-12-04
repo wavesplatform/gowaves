@@ -132,7 +132,7 @@ func (s RPCService) Eth_GetBlockByHash(blockIDBytes proto.HexBytes, filterTxObj 
 	case stateerr.IsNotFound(err):
 		return nil, nil // according to the scala node implementation
 	case err != nil:
-		return nil, errors.Wrapf(err, "failed to fetch heigh of block by blockID %q", blockID.String())
+		return nil, errors.Wrapf(err, "failed to fetch height of block by blockID %q", blockID.String())
 	default:
 		return &GetBlockByHashResponse{BaseFeePerGas: "0x0"}, nil
 	}
