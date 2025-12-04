@@ -360,7 +360,7 @@ func (at *addressTransactions) persist() error {
 	eg.Go(func() error {
 		// Read records from sorter in sorted order and save to batchedStorage.
 		for rec := range outCh {
-			if hErr := at.handleRecord(rec); err != nil {
+			if hErr := at.handleRecord(rec); hErr != nil {
 				return fmt.Errorf("failed to add record: %w", hErr)
 			}
 		}
