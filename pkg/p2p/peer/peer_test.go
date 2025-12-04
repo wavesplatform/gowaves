@@ -3,7 +3,6 @@ package peer
 import (
 	"fmt"
 	"net/netip"
-	"strconv"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -45,7 +44,7 @@ func TestPeerImplID(t *testing.T) {
 		},
 	}
 	for i, test := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			id, err := newPeerImplID(netAddr{net: test.net, addr: test.addr}, test.nonce)
 			if test.errorStr != "" {
 				assert.EqualError(t, err, test.errorStr)
@@ -69,7 +68,7 @@ func TestPeerImplId_InMap(t *testing.T) {
 	)
 	type noncePair struct{ first, second uint64 }
 	for i, np := range []noncePair{{100, 500}, {100, 100}} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			first, err := newPeerImplID(netAddr{net: net, addr: addr}, np.first)
 			require.NoError(t, err)
 			second, err := newPeerImplID(netAddr{net: net, addr: addr}, np.second)

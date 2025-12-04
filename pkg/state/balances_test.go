@@ -1,7 +1,7 @@
 package state
 
 import (
-	"strconv"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -308,7 +308,7 @@ func TestBalancesChangesByStoredChallenge(t *testing.T) {
 			{challengeHeight2, challengeHeight2, challengeHeight2, challengerID}, // should be without bonus
 		}
 		for i, tc := range tests {
-			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 				minBalance, mbErr := to.balances.minEffectiveBalanceInRange(tc.addr, tc.startHeight, tc.endHeight)
 				require.NoError(t, mbErr)
 				assert.Equal(t, tc.expectedBalance, minBalance)
@@ -354,7 +354,7 @@ func TestBalancesChangesByStoredChallenge(t *testing.T) {
 			{totalBlocksNumber, challengedID, totalBlocksNumber - generationBalanceDepthDiff},
 		}
 		for i, tc := range tests {
-			t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+			t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 				generatingBalance, gbErr := to.balances.generatingBalance(tc.addr, tc.height)
 				require.NoError(t, gbErr)
 				assert.Equal(t, tc.expected, generatingBalance)
