@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
 
@@ -117,7 +118,10 @@ func run() error {
 	params.ProvideExtendedApi = false
 	params.DbParams.CompressionAlgo = compressionAlgo
 
-	st, err := state.NewState(statePath, false, params, ss, false, nil)
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer done()
+
+	st, err := state.NewState(ctx, statePath, false, params, ss, false, nil)
 	if err != nil {
 		slog.Error("Failed to open state", slog.String("path", statePath), logging.Error(err))
 		return err
