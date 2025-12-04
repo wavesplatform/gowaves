@@ -207,9 +207,6 @@ func runImporter(ctx context.Context, c *cfg) error {
 		return fmt.Errorf("failed to get current height: %w", err)
 	}
 
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
-
 	params := importer.ImportParams{
 		Schema:         ss.AddressSchemeCharacter,
 		BlockchainPath: c.blockchainPath,

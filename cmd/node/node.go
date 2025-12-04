@@ -15,6 +15,7 @@ import (
 	"os"
 	"os/signal"
 	"strings"
+	"syscall"
 	"time"
 
 	"github.com/pkg/errors"
@@ -290,7 +291,7 @@ func realMain() int {
 	nc.h = logging.DefaultHandler(nc.lp)
 	slog.SetDefault(slog.New(nc.h))
 
-	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer done()
 
 	err := run(ctx, nc)
