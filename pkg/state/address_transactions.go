@@ -10,7 +10,6 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
-	"runtime"
 	"runtime/debug"
 	"time"
 
@@ -25,7 +24,6 @@ const (
 	txMetaSize = 8 + 1
 	// AddressID size + length of block num + transaction offset length.
 	addrTxRecordSize = proto.AddressIDSize + blockNumLen + txMetaSize
-	maxEmsortMem     = 200 * 1024 * 1024 // 200 MiB.
 )
 
 var (
@@ -317,7 +315,6 @@ func (at *addressTransactions) persist() error {
 	eg, egCtx := errgroup.WithContext(at.ctx)
 
 	conf := extsort.DefaultConfig()
-	conf.NumWorkers = runtime.NumCPU() / 2
 	conf.TempFilesDir = os.TempDir() // Set dir explicitly to turn off automatic selection.
 
 	inCh := make(chan []byte, conf.SortedChanBuffSize) // Set size of input channel the same as of output.
@@ -355,14 +352,12 @@ func (at *addressTransactions) persist() error {
 	sorter, outCh, errCh := extsort.Generic(inCh, nopPassBytes, nopPassBytes, bytes.Compare, conf)
 	eg.Go(func() error {
 		sorter.Sort(egCtx)
-		slog.Info("Finished to sort transactions")
 		return nil
 	})
 	eg.Go(func() error {
 		return <-errCh
 	})
 	eg.Go(func() error {
-		slog.Info("Writing sorted records to database, will take awhile...")
 		// Read records from sorter in sorted order and save to batchedStorage.
 		for rec := range outCh {
 			if hErr := at.handleRecord(rec); err != nil {
