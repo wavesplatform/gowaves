@@ -317,9 +317,10 @@ func (at *addressTransactions) persist() error {
 	eg, egCtx := errgroup.WithContext(at.ctx)
 
 	conf := extsort.DefaultConfig()
-	conf.ChunkSize = maxEmsortMem          // Set in memory chunk to 200MB, the same as it was before.
-	conf.NumWorkers = runtime.NumCPU() / 2 // It's safe to set it to 0, the default value 2 will be used.jk
-	conf.TempFilesDir = os.TempDir()       // Set dir explicitly to turn off automatic selection.
+	const chunkSize = 4 * 1024 * 1024 // 4MB.
+	conf.ChunkSize = chunkSize
+	conf.NumWorkers = runtime.NumCPU()
+	conf.TempFilesDir = os.TempDir() // Set dir explicitly to turn off automatic selection.
 
 	inCh := make(chan []byte, conf.SortedChanBuffSize) // Set size of input channel the same as of output.
 	eg.Go(func() error {
