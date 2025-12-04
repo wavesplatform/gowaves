@@ -317,9 +317,7 @@ func (at *addressTransactions) persist() error {
 	eg, egCtx := errgroup.WithContext(at.ctx)
 
 	conf := extsort.DefaultConfig()
-	const chunkSize = 4 * 1024 * 1024 // 4MB.
-	conf.ChunkSize = chunkSize
-	conf.NumWorkers = runtime.NumCPU()
+	conf.NumWorkers = runtime.NumCPU() / 2
 	conf.TempFilesDir = os.TempDir() // Set dir explicitly to turn off automatic selection.
 
 	inCh := make(chan []byte, conf.SortedChanBuffSize) // Set size of input channel the same as of output.
