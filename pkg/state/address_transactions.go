@@ -10,6 +10,7 @@ import (
 	"log/slog"
 	"os"
 	"path/filepath"
+	"runtime"
 	"runtime/debug"
 	"time"
 
@@ -24,6 +25,7 @@ const (
 	txMetaSize = 8 + 1
 	// AddressID size + length of block num + transaction offset length.
 	addrTxRecordSize = proto.AddressIDSize + blockNumLen + txMetaSize
+	maxEmsortMem     = 200 * 1024 * 1024 // 200 MiB.
 )
 
 var (
@@ -314,8 +316,12 @@ func (at *addressTransactions) persist() error {
 	debug.FreeOSMemory()
 	eg, egCtx := errgroup.WithContext(at.ctx)
 
-	const chSize = 100
-	inCh := make(chan []byte, chSize)
+	conf := extsort.DefaultConfig()
+	conf.ChunkSize = maxEmsortMem          // Set in memory chunk to 200MB, the same as it was before.
+	conf.NumWorkers = runtime.NumCPU() / 2 // It's safe to set it to 0, the default value 2 will be used.jk
+	conf.TempFilesDir = os.TempDir()       // Set dir explicitly to turn off automatic selection.
+
+	inCh := make(chan []byte, conf.SortedChanBuffSize) // Set size of input channel the same as of output.
 	eg.Go(func() error {
 		defer close(inCh)
 		for readPos := int64(0); readPos < size; readPos += addrTxRecordSize {
@@ -347,8 +353,6 @@ func (at *addressTransactions) persist() error {
 		slog.Info("Finished to send transactions to sorter")
 		return nil
 	})
-	conf := extsort.DefaultConfig()
-	conf.TempFilesDir = os.TempDir() // Set dir explicitly to turn off automatic selection.
 	sorter, outCh, errCh := extsort.Generic(inCh, nopPassBytes, nopPassBytes, bytes.Compare, conf)
 	eg.Go(func() error {
 		sorter.Sort(egCtx)
