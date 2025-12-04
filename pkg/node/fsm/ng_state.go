@@ -442,7 +442,10 @@ func (a *NGState) mineMicro(
 		}
 	}
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization)
-	block.FinalizationVoting = blockFinalization
+	if block != nil {
+		block.FinalizationVoting = blockFinalization
+	}
+
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro
 		a.baseInfo.logger.Debug(
