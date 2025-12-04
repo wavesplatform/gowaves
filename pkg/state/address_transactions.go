@@ -11,6 +11,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime/debug"
+	"time"
 
 	"github.com/lanrat/extsort"
 	"golang.org/x/sync/errgroup"
@@ -303,6 +304,7 @@ func nopPassBytes(data []byte) ([]byte, error) {
 }
 
 func (at *addressTransactions) persist() error {
+	start := time.Now()
 	fst, err := os.Stat(at.filePath)
 	if err != nil {
 		return err
@@ -391,7 +393,8 @@ func (at *addressTransactions) persist() error {
 		return sErr
 	}
 	at.addrTransactionsBuf.Reset(at.addrTransactions)
-	slog.Info("Successfully finished moving records from file to database")
+	took := time.Since(start)
+	slog.Info("Successfully finished moving records from file to database", "took", took)
 	debug.FreeOSMemory()
 	return nil
 }
