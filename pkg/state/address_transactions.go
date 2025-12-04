@@ -344,6 +344,11 @@ func (at *addressTransactions) persist() error {
 				// Invalid record, we should skip it.
 				continue
 			}
+			select {
+			case <-egCtx.Done():
+				return egCtx.Err()
+			case inCh <- rec:
+			}
 			inCh <- rec
 		}
 		slog.Info("Finished to send transactions to sorter")

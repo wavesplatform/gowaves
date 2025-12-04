@@ -1,7 +1,6 @@
 package state
 
 import (
-	"context"
 	"encoding/binary"
 	stderrs "errors"
 	"fmt"
@@ -142,7 +141,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	last := blocks[len(blocks)-1]
 	txs := last.Transactions
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager,
 		height, 1)
@@ -210,7 +209,7 @@ func TestStateRollback(t *testing.T) {
 		}
 		if tc.nextHeight > height {
 			if aErr := importer.ApplyFromFile(
-				context.Background(),
+				t.Context(),
 				importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 				manager,
 				tc.nextHeight-1, height,
@@ -252,14 +251,14 @@ func TestStateIntegrated(t *testing.T) {
 	// State should be rolled back to previous state and ready to use after.
 	wrongStartHeight := uint64(100)
 	if aErr := importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, blocksToImport, wrongStartHeight); aErr == nil {
 		t.Errorf("Import starting from wrong height must fail but it doesn't.")
 	}
 	// Test normal import.
 	if aErr := importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, blocksToImport, 1); aErr != nil {
 		t.Fatalf("Failed to import: %v\n", aErr)
@@ -332,7 +331,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	// Apply blocks.
 	height := uint64(75)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: sets.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -354,7 +353,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	// Apply blocks.
 	height := uint64(75)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -377,7 +376,7 @@ func TestTransactionByID(t *testing.T) {
 	// Apply blocks.
 	height := uint64(75)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -410,7 +409,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 
 	height := proto.Height(100)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, height-1, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -461,7 +460,7 @@ func TestStateHashAtHeight(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, 9499, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -499,7 +498,7 @@ func createMockStateManager(t *testing.T, bs *settings.BlockchainSettings) (*sta
 		maxFileSize:         2 * proto.KiB,
 		providesData:        provideExtendedAPI,
 	}
-	atx, err := newAddressTransactions(context.Background(), to.db, to.stateDB, to.rw, atxParams, handleAmend)
+	atx, err := newAddressTransactions(t.Context(), to.db, to.stateDB, to.rw, atxParams, handleAmend)
 	require.NoError(t, err, "newAddressTransactions() failed")
 
 	state := &stateManager{

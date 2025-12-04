@@ -1,7 +1,6 @@
 package state
 
 import (
-	"context"
 	"encoding/json"
 	"testing"
 
@@ -119,7 +118,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
 	}
-	atx, err := newAddressTransactions(context.Background(), stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
+	atx, err := newAddressTransactions(t.Context(), stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
@@ -166,7 +165,7 @@ func TestFailedTransaction(t *testing.T) {
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
 	}
-	atx, err := newAddressTransactions(context.Background(), stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
+	atx, err := newAddressTransactions(t.Context(), stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
