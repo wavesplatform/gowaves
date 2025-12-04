@@ -7,11 +7,11 @@ import (
 	"strings"
 )
 
-const _CompressionAlgoName = "DefaultNoneSnappy"
+const _CompressionAlgoName = "DefaultNoneSnappyZSTDMinLZ"
 
-var _CompressionAlgoIndex = [...]uint8{0, 7, 11, 17}
+var _CompressionAlgoIndex = [...]uint8{0, 7, 11, 17, 21, 26}
 
-const _CompressionAlgoLowerName = "defaultnonesnappy"
+const _CompressionAlgoLowerName = "defaultnonesnappyzstdminlz"
 
 func (i CompressionAlgo) String() string {
 	if i >= CompressionAlgo(len(_CompressionAlgoIndex)-1) {
@@ -27,9 +27,11 @@ func _CompressionAlgoNoOp() {
 	_ = x[CompressionDefault-(0)]
 	_ = x[CompressionNone-(1)]
 	_ = x[CompressionSnappy-(2)]
+	_ = x[CompressionZSTD-(3)]
+	_ = x[CompressionMinLZ-(4)]
 }
 
-var _CompressionAlgoValues = []CompressionAlgo{CompressionDefault, CompressionNone, CompressionSnappy}
+var _CompressionAlgoValues = []CompressionAlgo{CompressionDefault, CompressionNone, CompressionSnappy, CompressionZSTD, CompressionMinLZ}
 
 var _CompressionAlgoNameToValueMap = map[string]CompressionAlgo{
 	_CompressionAlgoName[0:7]:        CompressionDefault,
@@ -38,12 +40,18 @@ var _CompressionAlgoNameToValueMap = map[string]CompressionAlgo{
 	_CompressionAlgoLowerName[7:11]:  CompressionNone,
 	_CompressionAlgoName[11:17]:      CompressionSnappy,
 	_CompressionAlgoLowerName[11:17]: CompressionSnappy,
+	_CompressionAlgoName[17:21]:      CompressionZSTD,
+	_CompressionAlgoLowerName[17:21]: CompressionZSTD,
+	_CompressionAlgoName[21:26]:      CompressionMinLZ,
+	_CompressionAlgoLowerName[21:26]: CompressionMinLZ,
 }
 
 var _CompressionAlgoNames = []string{
 	_CompressionAlgoName[0:7],
 	_CompressionAlgoName[7:11],
 	_CompressionAlgoName[11:17],
+	_CompressionAlgoName[17:21],
+	_CompressionAlgoName[21:26],
 }
 
 // CompressionAlgoString retrieves an enum value from the enum constants string name.
