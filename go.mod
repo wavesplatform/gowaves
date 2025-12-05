@@ -23,6 +23,7 @@ require (
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/jinzhu/copier v0.4.0
+	github.com/lanrat/extsort v1.4.2
 	github.com/lmittmann/tint v1.1.2
 	github.com/mattn/go-isatty v0.0.20
 	github.com/minio/minlz v1.0.1
@@ -38,15 +39,14 @@ require (
 	github.com/qmuntal/stateless v1.7.2
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/pflag v1.0.10
-	github.com/starius/emsort v0.0.0-20191221202443-6f2fbdee4781
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
 	github.com/stoewer/go-strcase v1.3.1
 	github.com/stretchr/testify v1.11.1
-	github.com/syndtr/goleveldb v1.0.1-0.20220721030215-126854af5e6d
 	github.com/throttled/throttled/v2 v2.15.0
 	github.com/tidwall/sjson v1.2.5
 	github.com/umbracle/fastrlp v0.1.0
 	github.com/valyala/bytebufferpool v1.0.0
+	github.com/wavesplatform/goleveldb v0.0.0-20251203170506-4479d768c83c
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
@@ -86,7 +86,7 @@ require (
 	github.com/gorilla/websocket v1.5.0 // indirect
 	github.com/hashicorp/golang-lru v0.5.4 // indirect
 	github.com/ingonyama-zk/icicle-gnark/v3 v3.2.2 // indirect
-	github.com/klauspost/compress v1.18.1 // indirect
+	github.com/klauspost/compress v1.18.2 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/minio/highwayhash v1.0.4-0.20251030100505-070ab1a87a76 // indirect
 	github.com/moby/docker-image-spec v1.3.1 // indirect

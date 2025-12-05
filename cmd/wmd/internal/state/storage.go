@@ -9,8 +9,8 @@ import (
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
-	"github.com/syndtr/goleveldb/leveldb"
-	"github.com/syndtr/goleveldb/leveldb/opt"
+	"github.com/wavesplatform/goleveldb/leveldb"
+	"github.com/wavesplatform/goleveldb/leveldb/opt"
 
 	"github.com/wavesplatform/gowaves/cmd/wmd/internal/data"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
