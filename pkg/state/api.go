@@ -1,6 +1,7 @@
 package state
 
 import (
+	"context"
 	"math/big"
 	"runtime"
 
@@ -245,6 +246,7 @@ type State interface {
 // params are state parameters (see below).
 // settings are blockchain settings (settings.MainNetSettings, settings.TestNetSettings or custom settings).
 func NewState(
+	ctx context.Context,
 	dataDir string,
 	amend bool,
 	params StateParams,
@@ -252,7 +254,7 @@ func NewState(
 	enableLightNode bool,
 	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo,
 ) (State, error) {
-	s, err := newStateManager(dataDir, amend, params, settings, enableLightNode, bUpdatesPluginInfo)
+	s, err := newStateManager(ctx, dataDir, amend, params, settings, enableLightNode, bUpdatesPluginInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to create new state instance")
 	}

@@ -38,12 +38,15 @@ func realMain() int {
 	c := parseFlags()
 	slog.SetDefault(slog.New(logging.DefaultHandler(c.lp)))
 
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer done()
+
 	if err := c.validateFlags(); err != nil {
 		slog.Error(capitalize(err.Error()))
 		return 1
 	}
 
-	err := runImporter(&c)
+	err := runImporter(ctx, &c)
 	if err != nil {
 		slog.Error(capitalize(err.Error()))
 		return 1
@@ -161,7 +164,7 @@ func (c *cfg) setupCPUProfile() (func(), error) {
 	}, nil
 }
 
-func runImporter(c *cfg) error {
+func runImporter(ctx context.Context, c *cfg) error {
 	slog.Info("Gowaves Importer", "version", versioning.Version)
 
 	fds, err := riseFDLimit()
@@ -189,8 +192,7 @@ func runImporter(c *cfg) error {
 		return err
 	}
 
-	st, err := state.NewState(c.dataDirPath, false, c.params(fds), ss, false,
-		nil)
+	st, err := state.NewState(ctx, c.dataDirPath, false, c.params(fds), ss, false, nil)
 	if err != nil {
 		return fmt.Errorf("failed to create state: %w", err)
 	}
@@ -204,9 +206,6 @@ func runImporter(c *cfg) error {
 	if err != nil {
 		return fmt.Errorf("failed to get current height: %w", err)
 	}
-
-	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt)
-	defer cancel()
 
 	params := importer.ImportParams{
 		Schema:         ss.AddressSchemeCharacter,
