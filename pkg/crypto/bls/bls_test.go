@@ -1,6 +1,7 @@
 package bls_test
 
 import (
+	"bytes"
 	"crypto/rand"
 	"fmt"
 	"io"
@@ -352,6 +353,115 @@ func TestScalaCompatibilityAggregatedSignatures(t *testing.T) {
 			slices.Reverse(pks)
 			ok = bls.VerifyAggregate(pks, msg, aggSig)
 			require.True(t, ok, "aggregate must verify")
+		})
+	}
+}
+
+// Test BLS key generation with no options (deterministic).
+func TestDefaultKeyGeneration(t *testing.T) {
+	for i, test := range []struct {
+		seed []byte
+	}{
+		{[]byte{}},
+		{[]byte{0x00}},
+		{[]byte{0x00, 0x00, 0x00, 0x00}},
+		{[]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}},
+		{[]byte("quite long string used as seed here")},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			sk, err := bls.GenerateSecretKey(test.seed)
+			require.NoError(t, err)
+			assert.Len(t, sk, bls.SecretKeySize)
+
+			sk2, err := bls.GenerateSecretKey(test.seed)
+			require.NoError(t, err)
+			assert.Equal(t, sk, sk2)
+
+			pk, err := sk.PublicKey()
+			require.NoError(t, err)
+			assert.Len(t, pk, bls.PublicKeySize)
+
+			pk2, err := sk2.PublicKey()
+			require.NoError(t, err)
+			assert.Equal(t, pk, pk2)
+		})
+	}
+}
+
+// Test BLS key generation with random salt.
+// Keys generated with the same seed must be different.
+func TestRandomSaltKeyGeneration(t *testing.T) {
+	for i, test := range []struct {
+		seed []byte
+	}{
+		{[]byte{}},
+		{[]byte{0x00}},
+		{[]byte{0x00, 0x00, 0x00, 0x00}},
+		{[]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}},
+		{[]byte("quite long string used as seed here")},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			sk, err := bls.GenerateSecretKey(test.seed, bls.WithRandomSalt())
+			require.NoError(t, err)
+			assert.Len(t, sk, bls.SecretKeySize)
+
+			sk2, err := bls.GenerateSecretKey(test.seed, bls.WithRandomSalt())
+			require.NoError(t, err)
+			assert.NotEqual(t, sk, sk2)
+
+			pk, err := sk.PublicKey()
+			require.NoError(t, err)
+			assert.Len(t, pk, bls.PublicKeySize)
+
+			pk2, err := sk2.PublicKey()
+			require.NoError(t, err)
+			assert.NotEqual(t, pk, pk2)
+		})
+	}
+}
+
+// Test BLS key generation with user-defined salt.
+// Keys generated with the same seed and salt must be the same.
+// Also tests info.
+func TestUserDefinedSaltKeyGeneration(t *testing.T) {
+	for i, test := range []struct {
+		seed []byte
+		salt []byte
+		info string
+		fail bool
+	}{
+		{[]byte{}, bytes.Repeat([]byte{0x00}, 32), "", false},
+		{[]byte{0x00}, bytes.Repeat([]byte{0x00, 0x01, 0x02, 0x03, 0x04, 0x05, 0x06, 0x07}, 4),
+			"some info", false},
+		{[]byte{0x00, 0x00, 0x00, 0x00}, bytes.Repeat([]byte{0xca, 0xfe, 0xbe, 0xbe}, 8),
+			"", false},
+		{[]byte("quite long string used as seed here"), []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcdef"),
+			"more info is set for this key", false},
+		{[]byte{}, bytes.Repeat([]byte{0x00}, 23), "", true},
+		{[]byte("quite long string used as seed here"), []byte("ABCDEFGHIJKLMNOPQRSTUVWXYZabcd"),
+			"more info is set for this key", true},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			sk, err := bls.GenerateSecretKey(test.seed, bls.WithSalt(test.salt), bls.WithInfo([]byte(test.info)))
+			if test.fail {
+				assert.EqualError(t, err,
+					fmt.Sprintf("failed to generate BLS secret key: invalid salt length: got %d, want 32", len(test.salt)))
+				return
+			}
+			require.NoError(t, err)
+			assert.Len(t, sk, bls.SecretKeySize)
+
+			sk2, err := bls.GenerateSecretKey(test.seed, bls.WithSalt(test.salt), bls.WithInfo([]byte(test.info)))
+			require.NoError(t, err)
+			assert.Equal(t, sk, sk2)
+
+			pk, err := sk.PublicKey()
+			require.NoError(t, err)
+			assert.Len(t, pk, bls.PublicKeySize)
+
+			pk2, err := sk2.PublicKey()
+			require.NoError(t, err)
+			assert.Equal(t, pk, pk2)
 		})
 	}
 }
