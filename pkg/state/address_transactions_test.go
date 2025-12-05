@@ -13,12 +13,7 @@ import (
 
 func testIterImpl(t *testing.T, params StateParams) {
 	dataDir := t.TempDir()
-<<<<<<< HEAD
-	st, err := NewState(dataDir, true, params, settings.MustMainNetSettings(), false,
-		nil)
-=======
 	st, err := NewState(t.Context(), dataDir, true, params, settings.MustMainNetSettings(), false, nil)
->>>>>>> add-network-messages
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
