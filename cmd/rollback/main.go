@@ -1,10 +1,12 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
 
 	"github.com/ccoveille/go-safecast/v2"
 
@@ -53,6 +55,9 @@ func run() error {
 	slog.SetDefault(slog.New(logging.DefaultHandler(lp)))
 	slog.Info("Gowaves Rollback", "version", versioning.Version)
 
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer done()
+
 	var cfg *settings.BlockchainSettings
 	var err error
 	if *cfgPath != "" {
@@ -72,7 +77,7 @@ func run() error {
 		}
 	}
 
-	s, err := openState(*statePath, cfg, *buildExtendedAPI, *buildStateHashes, *disableBloomFilter, compressionAlgo)
+	s, err := openState(ctx, *statePath, cfg, *buildExtendedAPI, *buildStateHashes, *disableBloomFilter, compressionAlgo)
 	if err != nil {
 		return fmt.Errorf("failed to open state: %w", err)
 	}
@@ -104,7 +109,10 @@ func run() error {
 }
 
 func openState(
-	statePath string, cfg *settings.BlockchainSettings, buildExtendedAPI, buildStateHashes, disableBloomFilter bool,
+	ctx context.Context,
+	statePath string,
+	cfg *settings.BlockchainSettings,
+	buildExtendedAPI, buildStateHashes, disableBloomFilter bool,
 	compressionAlgo keyvalue.CompressionAlgo,
 ) (state.State, error) {
 	maxFDs, err := fdlimit.MaxFDs()
@@ -128,5 +136,5 @@ func openState(
 	params.StoreExtendedApiData = buildExtendedAPI
 	params.DbParams.CompressionAlgo = compressionAlgo
 
-	return state.NewState(statePath, true, params, cfg, false, nil)
+	return state.NewState(ctx, statePath, true, params, cfg, false, nil)
 }

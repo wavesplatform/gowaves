@@ -13,7 +13,7 @@ import (
 
 func testIterImpl(t *testing.T, params StateParams) {
 	dataDir := t.TempDir()
-	st, err := NewState(dataDir, true, params, settings.MustMainNetSettings(), false, nil)
+	st, err := NewState(t.Context(), dataDir, true, params, settings.MustMainNetSettings(), false, nil)
 	require.NoError(t, err)
 
 	t.Cleanup(func() {
@@ -118,7 +118,7 @@ func TestAddrTransactionsIdempotent(t *testing.T) {
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
 	}
-	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
+	atx, err := newAddressTransactions(t.Context(), stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
@@ -165,7 +165,7 @@ func TestFailedTransaction(t *testing.T) {
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        false,
 	}
-	atx, err := newAddressTransactions(stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
+	atx, err := newAddressTransactions(t.Context(), stor.db, stor.stateDB, stor.rw, params, stor.hs.amend)
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)

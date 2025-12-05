@@ -291,7 +291,11 @@ func realMain() int {
 	}
 	nc.h = logging.DefaultHandler(nc.lp)
 	slog.SetDefault(slog.New(nc.h))
-	err := run(nc)
+
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer done()
+
+	err := run(ctx, nc)
 	if err != nil {
 		slog.Error("Failed to run node", logging.Error(err))
 		return 1
@@ -299,25 +303,22 @@ func realMain() int {
 	return 0
 }
 
-func run(nc *config) (retErr error) {
-	eg, ctx := errgroup.WithContext(context.Background())
+func run(ctx context.Context, nc *config) (retErr error) {
+	eg, egCtx := errgroup.WithContext(ctx)
 	defer func() {
 		if wErr := eg.Wait(); !errors.Is(wErr, context.Canceled) {
 			retErr = stderrs.Join(retErr, wErr)
 		}
 	}()
-	ctx, cancel := signal.NotifyContext(ctx, os.Interrupt, syscall.SIGTERM)
-	defer cancel()
-
 	if nc.profiler {
 		eg.Go(func() error {
-			<-runProfiler(ctx)
+			<-runProfiler(egCtx)
 			return nil
 		})
 	}
 	if nc.prometheus != "" {
 		eg.Go(func() error {
-			<-runPrometheusMetricsServer(ctx, nc.prometheus)
+			<-runPrometheusMetricsServer(egCtx, nc.prometheus)
 			return nil
 		})
 	}
@@ -408,7 +409,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 			return nil, errors.Wrap(initErr, "failed to initialize blockchain updates plugin")
 		}
 	}
-	st, err := state.NewState(path, true, params, cfg, nc.enableLightMode, bUpdatesPluginInfo)
+	st, err := state.NewState(ctx, path, true, params, cfg, nc.enableLightMode, bUpdatesPluginInfo)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize node's state")
 	}
