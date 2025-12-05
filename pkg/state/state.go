@@ -598,6 +598,7 @@ func initGenesis(state *stateManager, height uint64, settings *settings.Blockcha
 }
 
 func newStateManager(
+	ctx context.Context,
 	dataDir string,
 	amend bool,
 	params StateParams,
@@ -663,7 +664,7 @@ func newStateManager(
 		maxFileSize:         MaxAddressTransactionsFileSize,
 		providesData:        params.ProvideExtendedApi,
 	}
-	atx, err := newAddressTransactions(db, sdb, rw, atxParams, handledAmend)
+	atx, err := newAddressTransactions(ctx, db, sdb, rw, atxParams, handledAmend)
 	if err != nil {
 		return nil, wrapErr(stateerr.Other, errors.Errorf("failed to create address transactions storage: %v", err))
 	}
