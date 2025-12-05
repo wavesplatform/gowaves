@@ -311,8 +311,8 @@ github.com/umbracle/fastrlp v0.1.0 h1:V0W3f6ZKWqbu1KggdhnRWOi+t7+PfL3VyAffJqayI5
 github.com/umbracle/fastrlp v0.1.0/go.mod h1:5RHgqiFjd4vLJESMWagP/E7su+5Gzk0iqqmrotR8WdA=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=
-github.com/wavesplatform/goleveldb v0.0.0-20251203170506-4479d768c83c h1:fIz0QKwgmhVA783L4h9kgL5V79LNo/XD9UYiPqCnwCA=
-github.com/wavesplatform/goleveldb v0.0.0-20251203170506-4479d768c83c/go.mod h1:88Aucmi99rQdnsk7dguyoYI3OtFHsfG2ejr1xWDr88E=
+github.com/wavesplatform/goleveldb v1.1.0 h1:0ssHNAJcfSSu6wADLarOxuFQ07b0jGMVwmSnj0o4jWA=
+github.com/wavesplatform/goleveldb v1.1.0/go.mod h1:88Aucmi99rQdnsk7dguyoYI3OtFHsfG2ejr1xWDr88E=
 github.com/x448/float16 v0.8.4 h1:qLwI1I70+NjRFUR3zs1JPUCgaCXSh3SW62uAKT1mSBM=
 github.com/x448/float16 v0.8.4/go.mod h1:14CWIYCyZA/cWjXOioeEpHeN/83MdbZDRQHoFcYsOfg=
 github.com/xeipuuv/gojsonpointer v0.0.0-20180127040702-4e3ac2762d5f/go.mod h1:N2zxlSyiKSe5eX1tZViRH5QA0qijqEDrYZiPEAiq3wU=

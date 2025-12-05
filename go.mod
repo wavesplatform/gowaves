@@ -46,7 +46,7 @@ require (
 	github.com/tidwall/sjson v1.2.5
 	github.com/umbracle/fastrlp v0.1.0
 	github.com/valyala/bytebufferpool v1.0.0
-	github.com/wavesplatform/goleveldb v0.0.0-20251203170506-4479d768c83c
+	github.com/wavesplatform/goleveldb v1.1.0
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
