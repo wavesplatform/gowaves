@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"os/signal"
 	"runtime"
 	"strings"
 
@@ -117,7 +118,10 @@ func run() error {
 	params.ProvideExtendedApi = false
 	params.DbParams.CompressionAlgo = compressionAlgo
 
-	st, err := state.NewState(statePath, false, params, ss, false, nil)
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer done()
+
+	st, err := state.NewState(ctx, statePath, false, params, ss, false, nil)
 	if err != nil {
 		slog.Error("Failed to open state", slog.String("path", statePath), logging.Error(err))
 		return err
@@ -134,7 +138,7 @@ func run() error {
 		return err
 	}
 	if compare {
-		if cmpErr := compareAtHeight(st, c, 1, onlyLegacy); cmpErr != nil {
+		if cmpErr := compareAtHeight(ctx, st, c, 1, onlyLegacy); cmpErr != nil {
 			return cmpErr
 		}
 	}
@@ -154,7 +158,7 @@ func run() error {
 	}
 	slog.Info("State hash at height", "height", height, "stateHash", stateHashToString(lsh))
 	if compare {
-		ok, rsh, cmpErr := compareWithRemote(lsh, c, height, onlyLegacy)
+		ok, rsh, cmpErr := compareWithRemote(ctx, lsh, c, height, onlyLegacy)
 		if cmpErr != nil {
 			slog.Error("Failed to compare", logging.Error(cmpErr))
 			return cmpErr
@@ -163,7 +167,7 @@ func run() error {
 			slog.Warn("[NOT OK] State hashes are different")
 			slog.Info("Remote state hash", "height", height, "stateHash", stateHashToString(rsh))
 			if search {
-				if sErr := searchLastEqualStateLash(c, st, height, onlyLegacy); sErr != nil {
+				if sErr := searchLastEqualStateLash(ctx, c, st, height, onlyLegacy); sErr != nil {
 					return sErr
 				}
 			}
@@ -192,8 +196,8 @@ func createClient(node string) (*client.Client, error) {
 	return c, nil
 }
 
-func compareAtHeight(st state.StateInfo, c *client.Client, h uint64, onlyLegacy bool) error {
-	rsh, err := getRemoteStateHash(c, h)
+func compareAtHeight(ctx context.Context, st state.StateInfo, c *client.Client, h uint64, onlyLegacy bool) error {
+	rsh, err := getRemoteStateHash(ctx, c, h)
 	if err != nil {
 		slog.Error("Failed to get remote state hash", slog.Any("height", h), logging.Error(err))
 		return err
@@ -211,8 +215,14 @@ func compareAtHeight(st state.StateInfo, c *client.Client, h uint64, onlyLegacy 
 	return nil
 }
 
-func searchLastEqualStateLash(c *client.Client, st state.State, height proto.Height, onlyLegacy bool) error {
-	h, err := findLastEqualStateHashes(c, st, height, onlyLegacy)
+func searchLastEqualStateLash(
+	ctx context.Context,
+	c *client.Client,
+	st state.State,
+	height proto.Height,
+	onlyLegacy bool,
+) error {
+	h, err := findLastEqualStateHashes(ctx, c, st, height, onlyLegacy)
 	if err != nil {
 		slog.Error("Failed to find equal hashes", logging.Error(err))
 		return err
@@ -224,7 +234,7 @@ func searchLastEqualStateLash(c *client.Client, st state.State, height proto.Hei
 		return err
 	}
 	slog.Info("Local state hash at height", "height", h+1, "stateHash", stateHashToString(lsh))
-	rsh, err := getRemoteStateHash(c, h+1)
+	rsh, err := getRemoteStateHash(ctx, c, h+1)
 	if err != nil {
 		slog.Error("Failed to get remote state hash at height 1", logging.Error(err))
 		return err
@@ -233,7 +243,13 @@ func searchLastEqualStateLash(c *client.Client, st state.State, height proto.Hei
 	return nil
 }
 
-func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64, onlyLegacy bool) (uint64, error) {
+func findLastEqualStateHashes(
+	ctx context.Context,
+	c *client.Client,
+	st state.State,
+	stop uint64,
+	onlyLegacy bool,
+) (uint64, error) {
 	var err error
 	var r uint64
 	var lsh, rsh *proto.StateHashDebug
@@ -244,7 +260,7 @@ func findLastEqualStateHashes(c *client.Client, st state.State, stop uint64, onl
 		if err != nil {
 			return middle, err
 		}
-		rsh, err = getRemoteStateHash(c, middle)
+		rsh, err = getRemoteStateHash(ctx, c, middle)
 		if err != nil {
 			return middle, err
 		}
@@ -284,12 +300,13 @@ func compareStateHashes(sh1, sh2 *proto.StateHashDebug, onlyLegacy bool) (bool, 
 }
 
 func compareWithRemote(
+	ctx context.Context,
 	sh *proto.StateHashDebug,
 	c *client.Client,
 	h uint64,
 	onlyLegacy bool,
 ) (bool, *proto.StateHashDebug, error) {
-	rsh, err := getRemoteStateHash(c, h)
+	rsh, err := getRemoteStateHash(ctx, c, h)
 	if err != nil {
 		return false, nil, err
 	}
@@ -297,8 +314,8 @@ func compareWithRemote(
 	return ok, rsh, err
 }
 
-func getRemoteStateHash(c *client.Client, h uint64) (*proto.StateHashDebug, error) {
-	sh, _, err := c.Debug.StateHashDebug(context.Background(), h)
+func getRemoteStateHash(ctx context.Context, c *client.Client, h uint64) (*proto.StateHashDebug, error) {
+	sh, _, err := c.Debug.StateHashDebug(ctx, h)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get state hash at %d height: %w", h, err)
 	}
