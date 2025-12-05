@@ -3,6 +3,8 @@ package state
 import (
 	stderrs "errors"
 	"fmt"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"log/slog"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -60,6 +62,8 @@ type txAppender struct {
 	buildApiData bool
 
 	bUpdatesPluginInfo *proto.BlockchainUpdatesPluginInfo
+
+	finalizer *finalizationProcessor
 }
 
 func newTxAppender(
@@ -103,6 +107,7 @@ func newTxAppender(
 	}
 	ia := newInvokeApplier(state, sc, txHandler, stor, settings, blockDiffer, diffStorInvoke, diffApplier)
 	ethKindResolver := proto.NewEthereumTransactionKindResolver(state, settings.AddressSchemeCharacter)
+	finalizer := newFinalizationProcessor(stor, rw, settings)
 	return &txAppender{
 		sc:                 sc,
 		ia:                 ia,
@@ -120,6 +125,7 @@ func newTxAppender(
 		buildApiData:       buildAPIData,
 		ethTxKindResolver:  ethKindResolver,
 		bUpdatesPluginInfo: bUpdatesPluginInfo,
+		finalizer:          finalizer,
 	}, nil
 }
 
@@ -805,6 +811,11 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
 
+	err = a.finalizer.updateFinalization(params.block.FinalizationVoting, params.block, params.blockchainHeight)
+	if err != nil {
+		return err
+	}
+
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	cleanup := a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	defer cleanup()
@@ -1332,4 +1343,213 @@ func (a *txAppender) reset() {
 	a.recentTxIds = make(map[string]struct{})
 	a.diffStor.reset()
 	a.blockDiffer.reset()
+}
+
+type finalizationProcessor struct {
+	stor     *blockchainEntitiesStorage
+	rw       *blockReadWriter
+	settings *settings.BlockchainSettings
+}
+
+func newFinalizationProcessor(
+	stor *blockchainEntitiesStorage,
+	rw *blockReadWriter,
+	settings *settings.BlockchainSettings,
+) *finalizationProcessor {
+	return &finalizationProcessor{
+		stor:     stor,
+		rw:       rw,
+		settings: settings,
+	}
+}
+
+func (f *finalizationProcessor) votingFinalization(
+	endorsers []proto.WavesAddress,
+	height proto.Height,
+	allGenerators []proto.WavesAddress,
+) (bool, error) {
+	var totalGeneratingBalance uint64
+	var endorsersGeneratingBalance uint64
+
+	for _, gen := range allGenerators {
+		balance, err := f.stor.balances.generatingBalance(gen.ID(), height)
+		if err != nil {
+			return false, err
+		}
+		totalGeneratingBalance, err = common.AddInt(totalGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "totalGeneratingBalance overflow")
+		}
+	}
+
+	for _, endorser := range endorsers {
+		balance, err := f.stor.balances.generatingBalance(endorser.ID(), height)
+		if err != nil {
+			return false, err
+		}
+		endorsersGeneratingBalance, err = common.AddInt(endorsersGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
+		}
+	}
+
+	if totalGeneratingBalance == 0 {
+		return false, nil
+	}
+	if endorsersGeneratingBalance == 0 {
+		return false, nil
+	}
+
+	// endorsersBalance >= 2/3 totalGeneratingBalance
+	if endorsersGeneratingBalance*3 >= totalGeneratingBalance*2 {
+		return true, nil
+	}
+	return false, nil
+}
+
+func (f *finalizationProcessor) loadLastFinalizedHeight(
+	height proto.Height,
+	block *proto.BlockHeader,
+	finalityActivated bool,
+) (proto.Height, error) {
+	h, err := f.stor.finalizations.newest()
+	if err == nil {
+		return h, nil
+	}
+	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
+		return 0, err
+	}
+
+	// No finalization found, calculate it, and, if finality activated - initialize it.
+	initH := proto.CalculateLastFinalizedHeight(height)
+	if finalityActivated {
+		if storErr := f.stor.finalizations.store(initH, block.BlockID()); storErr != nil {
+			return 0, storErr
+		}
+	}
+	return initH, nil
+}
+
+func (f *finalizationProcessor) loadEndorsersPK(
+	fv *proto.FinalizationVoting,
+	periodStart uint32,
+) ([]bls.PublicKey, error) {
+	endorsersPK := make([]bls.PublicKey, 0, len(fv.EndorserIndexes))
+	for _, idx := range fv.EndorserIndexes {
+		pk, err := f.stor.commitments.FindEndorserPKByIndex(periodStart, int(idx))
+		if err != nil {
+			return nil, fmt.Errorf("failed to find endorser PK by index %d: %w", idx, err)
+		}
+		endorsersPK = append(endorsersPK, pk)
+	}
+	if len(endorsersPK) == 0 {
+		return nil, fmt.Errorf("finalization has no endorsers")
+	}
+	return endorsersPK, nil
+}
+
+func (f *finalizationProcessor) mapEndorsersToAddresses(
+	endorsersPK []bls.PublicKey,
+	periodStart uint32,
+) ([]proto.WavesAddress, error) {
+	addrs := make([]proto.WavesAddress, 0, len(endorsersPK))
+	for _, endPK := range endorsersPK {
+		gpk, err := f.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, endPK)
+		if err != nil {
+			return nil, fmt.Errorf("failed to map endorser PK to generator PK: %w", err)
+		}
+		addr := proto.MustAddressFromPublicKey(f.settings.AddressSchemeCharacter, gpk)
+		addrs = append(addrs, addr)
+	}
+	return addrs, nil
+}
+
+func (f *finalizationProcessor) verifyFinalizationSignature(
+	fv *proto.FinalizationVoting,
+	msg []byte,
+	endorsersPK []bls.PublicKey,
+) error {
+	aggBytes := fv.AggregatedEndorsementSignature[:]
+	if !bls.VerifyAggregate(endorsersPK, msg, aggBytes) {
+		return fmt.Errorf("invalid aggregated BLS signature")
+	}
+	return nil
+}
+
+func (f *finalizationProcessor) calcPeriodStart(height proto.Height) (uint32, error) {
+	activation, err := f.stor.features.activationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return 0, fmt.Errorf("failed to load activation height: %w", err)
+	}
+	return CurrentGenerationPeriodStart(activation, height, f.settings.GenerationPeriod)
+}
+
+func (f *finalizationProcessor) updateFinalization(
+	finalizationVoting *proto.FinalizationVoting,
+	block *proto.BlockHeader,
+	height proto.Height,
+) error {
+	if finalizationVoting == nil {
+		return nil
+	}
+
+	finalityActivated, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return err
+	}
+
+	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height, block, finalityActivated)
+	if err != nil {
+		return err
+	}
+
+	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
+	if err != nil {
+		return fmt.Errorf("failed to load last finalized block ID: %w", err)
+	}
+
+	msg, err := proto.EndorsementMessage(
+		lastFinalizedBlockID,
+		block.Parent,
+		lastFinalizedHeight,
+	)
+	if err != nil {
+		return fmt.Errorf("failed to build endorsement message: %w", err)
+	}
+
+	periodStart, err := f.calcPeriodStart(height)
+	if err != nil {
+		return err
+	}
+
+	endorsersPK, err := f.loadEndorsersPK(finalizationVoting, periodStart)
+	if err != nil {
+		return err
+	}
+
+	if verifyErr := f.verifyFinalizationSignature(finalizationVoting, msg, endorsersPK); verifyErr != nil {
+		return verifyErr
+	}
+
+	endorserAddresses, err := f.mapEndorsersToAddresses(endorsersPK, periodStart)
+	if err != nil {
+		return err
+	}
+
+	generators, err := f.stor.commitments.CommittedGenerators(periodStart, f.settings.AddressSchemeCharacter)
+	if err != nil {
+		return fmt.Errorf("failed to load committed generators: %w", err)
+	}
+
+	canFinalize, err := f.votingFinalization(endorserAddresses, height, generators)
+	if err != nil {
+		return fmt.Errorf("failed to calculate 2/3 voting: %w", err)
+	}
+
+	if canFinalize {
+		if storErr := f.stor.finalizations.store(height, block.BlockID()); storErr != nil {
+			return storErr
+		}
+	}
+	return nil
 }

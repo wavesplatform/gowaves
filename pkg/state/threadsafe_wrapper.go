@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -416,6 +417,44 @@ func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight pro
 	a.mu.RLock()
 	defer a.mu.RUnlock()
 	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
+}
+
+func (a *ThreadSafeReadWrapper) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height,
+	allGenerators []proto.WavesAddress) (bool, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CalculateVotingFinalization(endorsers, height, allGenerators)
+}
+
+func (a *ThreadSafeReadWrapper) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.FindEndorserPKByIndex(periodStart, index)
+}
+
+func (a *ThreadSafeReadWrapper) FindGeneratorPKByEndorserPK(periodStart uint32,
+	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
+}
+
+func (a *ThreadSafeReadWrapper) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CommittedGenerators(periodStart)
+}
+
+func (a *ThreadSafeReadWrapper) LastFinalizedHeight() (proto.Height, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedHeight()
+}
+
+func (a *ThreadSafeReadWrapper) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.LastFinalizedBlock()
 }
 
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {

@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -223,4 +224,15 @@ type EmbeddedWallet interface {
 	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 	Load(password []byte) error
 	AccountSeeds() [][]byte
+}
+
+// EndorsementPool storage interface.
+type EndorsementPool interface {
+	Add(e *proto.EndorseBlock, endorserPublicKey bls.PublicKey, balance uint64) error
+	GetAll() []proto.EndorseBlock
+	GetEndorsers() []bls.PublicKey
+	FormFinalization(finalizationHeight proto.Height) (proto.FinalizationVoting, error)
+	Verify() (bool, error)
+	Len() int
+	CleanAll()
 }
