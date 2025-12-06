@@ -42,7 +42,7 @@ type PaymentSettings struct {
 
 // NewPaymentSettingsFromFile reads payment settings from file.
 // The `path` is a relative path to the configuration JSON file.
-func NewPaymentSettingsFromFile(path ...string) (_ *PaymentSettings, err error) {
+func NewPaymentSettingsFromFile(path ...string) (*PaymentSettings, error) {
 	f, err := readSettingsFromFile(testdataFolder, filepath.Join(path...))
 	defer func() {
 		if cErr := f.Close(); cErr != nil {
@@ -66,7 +66,7 @@ type FeatureSettings struct {
 
 // NewFeatureSettingsFromFile reads features settings from file.
 // The `path` is a relative path to the configuration JSON file.
-func NewFeatureSettingsFromFile(path ...string) (_ *FeatureSettings, err error) {
+func NewFeatureSettingsFromFile(path ...string) (*FeatureSettings, error) {
 	f, err := readSettingsFromFile(testdataFolder, filepath.Join(path...))
 	defer func() {
 		if cErr := f.Close(); cErr != nil {
@@ -93,11 +93,12 @@ type RewardSettings struct {
 	DaoAddress              string `json:"dao_address"`
 	XtnBuybackAddress       string `json:"xtn_buyback_address"`
 	MinXTNBuyBackPeriod     uint64 `json:"min_xtn_buy_back_period"`
+	BlockRewardBoostPeriod  uint64 `json:"block_reward_boost_period"`
 }
 
 // NewRewardSettingsFromFile reads reward settings from file.
 // The `path` is a relative path to the configuration JSON file inside the project's "rewards_settings_testdata" folder.
-func NewRewardSettingsFromFile(path ...string) (_ *RewardSettings, err error) {
+func NewRewardSettingsFromFile(path ...string) (*RewardSettings, error) {
 	f, err := readSettingsFromFile(testdataFolder, filepath.Join(path...))
 	defer func() {
 		if cErr := f.Close(); cErr != nil {

@@ -26,6 +26,11 @@ type BaseSuite struct {
 }
 
 func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
+	suite.BaseSetupWithImages(config.ScalaImageRepository, config.DefaultImageTag, options...)
+}
+
+func (suite *BaseSuite) BaseSetupWithImages(scalaRepository, scalaTag string,
+	options ...config.BlockchainOption) {
 	suite.MainCtx, suite.Cancel = context.WithCancel(context.Background())
 	suiteName := strcase.KebabCase(suite.T().Name())
 	cfg, err := config.NewBlockchainConfig(options...)
@@ -34,9 +39,11 @@ func (suite *BaseSuite) BaseSetup(options ...config.BlockchainOption) {
 
 	goConfigurator, err := config.NewGoConfigurator(suiteName, cfg)
 	suite.Require().NoError(err, "couldn't create Go configurator")
+
 	scalaConfigurator, err := config.NewScalaConfigurator(suiteName, cfg)
 	suite.Require().NoError(err, "couldn't create Scala configurator")
-	scalaConfigurator.WithGoNode("go-node")
+	scalaConfigurator.WithGoNode("go-node").WithImageRepository(scalaRepository).WithImageTag(scalaTag)
+
 	docker, err := d.NewDocker(suiteName)
 	suite.Require().NoError(err, "couldn't create Docker pool")
 	suite.Docker = docker
