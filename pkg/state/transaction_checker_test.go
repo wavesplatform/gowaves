@@ -1508,6 +1508,9 @@ func TestScriptActivation(t *testing.T) {
 		settings.RideV6, settings.BlockRewardDistribution}
 	uptoLightNode := []settings.Feature{settings.Ride4DApps, settings.BlockV5, settings.RideV5,
 		settings.RideV6, settings.BlockRewardDistribution, settings.LightNode}
+	uptoDeterministicFinality := []settings.Feature{settings.Ride4DApps, settings.BlockV5, settings.RideV5,
+		settings.RideV6, settings.BlockRewardDistribution, settings.LightNode, settings.BoostBlockReward,
+		settings.DeterministicFinality}
 	tests := []struct {
 		libVersion ast.LibraryVersion
 		active     []settings.Feature
@@ -1521,6 +1524,7 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV6, active: nil, valid: false},
 		{libVersion: ast.LibV7, active: nil, valid: false},
 		{libVersion: ast.LibV8, active: nil, valid: false},
+		{libVersion: ast.LibV9, active: nil, valid: false},
 
 		{libVersion: ast.LibV1, active: uptoRide4DApps, valid: true},
 		{libVersion: ast.LibV2, active: uptoRide4DApps, valid: true},
@@ -1530,6 +1534,7 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV6, active: uptoRide4DApps, valid: false},
 		{libVersion: ast.LibV7, active: uptoRide4DApps, valid: false},
 		{libVersion: ast.LibV8, active: uptoRide4DApps, valid: false},
+		{libVersion: ast.LibV9, active: uptoRide4DApps, valid: false},
 
 		{libVersion: ast.LibV1, active: uptoBlockV5, valid: true},
 		{libVersion: ast.LibV2, active: uptoBlockV5, valid: true},
@@ -1539,6 +1544,7 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV6, active: uptoBlockV5, valid: false},
 		{libVersion: ast.LibV7, active: uptoBlockV5, valid: false},
 		{libVersion: ast.LibV8, active: uptoBlockV5, valid: false},
+		{libVersion: ast.LibV9, active: uptoBlockV5, valid: false},
 
 		{libVersion: ast.LibV1, active: uptoRideV5, valid: true},
 		{libVersion: ast.LibV2, active: uptoRideV5, valid: true},
@@ -1548,6 +1554,7 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV6, active: uptoRideV5, valid: false},
 		{libVersion: ast.LibV7, active: uptoRideV5, valid: false},
 		{libVersion: ast.LibV8, active: uptoRideV5, valid: false},
+		{libVersion: ast.LibV9, active: uptoRideV5, valid: false},
 
 		{libVersion: ast.LibV1, active: uptoRideV6, valid: true},
 		{libVersion: ast.LibV2, active: uptoRideV6, valid: true},
@@ -1557,6 +1564,7 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV6, active: uptoRideV6, valid: true},
 		{libVersion: ast.LibV7, active: uptoRideV6, valid: false},
 		{libVersion: ast.LibV8, active: uptoRideV6, valid: false},
+		{libVersion: ast.LibV9, active: uptoRideV6, valid: false},
 
 		{libVersion: ast.LibV1, active: uptoBlockRewardDistribution, valid: true},
 		{libVersion: ast.LibV2, active: uptoBlockRewardDistribution, valid: true},
@@ -1566,6 +1574,7 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV6, active: uptoBlockRewardDistribution, valid: true},
 		{libVersion: ast.LibV7, active: uptoBlockRewardDistribution, valid: true},
 		{libVersion: ast.LibV8, active: uptoBlockRewardDistribution, valid: false},
+		{libVersion: ast.LibV9, active: uptoBlockRewardDistribution, valid: false},
 
 		{libVersion: ast.LibV1, active: uptoLightNode, valid: false},
 		{libVersion: ast.LibV2, active: uptoLightNode, valid: false},
@@ -1575,6 +1584,17 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV6, active: uptoLightNode, valid: true},
 		{libVersion: ast.LibV7, active: uptoLightNode, valid: true},
 		{libVersion: ast.LibV8, active: uptoLightNode, valid: true},
+		{libVersion: ast.LibV9, active: uptoLightNode, valid: false},
+
+		{libVersion: ast.LibV1, active: uptoDeterministicFinality, valid: false},
+		{libVersion: ast.LibV2, active: uptoDeterministicFinality, valid: false},
+		{libVersion: ast.LibV3, active: uptoDeterministicFinality, valid: false},
+		{libVersion: ast.LibV4, active: uptoDeterministicFinality, valid: true},
+		{libVersion: ast.LibV5, active: uptoDeterministicFinality, valid: true},
+		{libVersion: ast.LibV6, active: uptoDeterministicFinality, valid: true},
+		{libVersion: ast.LibV7, active: uptoDeterministicFinality, valid: true},
+		{libVersion: ast.LibV8, active: uptoDeterministicFinality, valid: true},
+		{libVersion: ast.LibV9, active: uptoDeterministicFinality, valid: true},
 	}
 	for i, test := range tests {
 		mfs := &mockFeaturesState{
