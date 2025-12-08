@@ -50,7 +50,7 @@ func produceJson(strMap: List[String]) = {
   let indexes = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19]
 
   let length = strMap.size()
-  if (length % 2 != 0) then throw("only even args size is accepeted") else
+  if (length % 2 != 0) then throw("only even args size is accepted") else
   if (length > indexes.size()) then throw("strMap length is greater then " + indexes.size().toString()) else
 
   func produceJson(jsonAccum: String, nextIdx: Int) = {
@@ -126,7 +126,7 @@ func walletPageREADONLY(userAddressStr: String) = {
 # Restrictions:
 #   * MAX 10 functions
 #   * MAX 6 params for function
-#   * fuction MUST return String value
+#   * function MUST return String value
 # address1+funcName1+p11:p12:p13__address2+funcName2+p21:p22:p23...
 # 3Mxd5o7PwH76ZkN8zG4xwDLubEnbkaihKzi+unstakeComissionAmountByHeightREADONLY+i:100000000:i:1906325__3Mxd5o7PwH76ZkN8zG4xwDLubEnbkaihKzi+buyNsbtREADONLY+i:10000000000
 @Callable(i)

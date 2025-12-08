@@ -286,9 +286,9 @@ func buyNsbt() = {
     strict amountLeased = invoke(neutrinoContract, "acceptWaves", nil, i.payments)
 
     (orderData(i.transactionId.toBase58String(), pmtAmount, pmtAmount, ownerAddress.toString(), FILLED,
-        roi,                # to keep backward compatability with prev. format
+        roi,                # to keep backward compatibility with prev. format
         nsbt2WavesPriceRaw,
-        currentPrice) # to keep backward compatability with prev. format
+        currentPrice) # to keep backward compatibility with prev. format
     ++ [
       ScriptTransfer(ownerAddress, nsbtAmount, nsbtAssetId),
       StringEntry("debug_curveResult", toStr("curveResult", curveResult))

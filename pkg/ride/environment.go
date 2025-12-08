@@ -1007,7 +1007,7 @@ func (ws *WrappedState) ApplyToState(
 				return nil, errors.Wrapf(err, "failed to find lease by leaseID '%s'", a.LeaseID.String())
 			}
 			if !l.active {
-				return nil, errors.Errorf("failed to cancel lease with leaseID '%s' because it's not actve", a.LeaseID.String())
+				return nil, errors.Errorf("failed to cancel lease with leaseID '%s' because it's not active", a.LeaseID.String())
 			}
 			if canceler := ws.callee(); canceler != l.sender {
 				return nil, errors.Errorf(
