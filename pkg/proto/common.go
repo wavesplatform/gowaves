@@ -46,7 +46,7 @@ func PutStringWithUInt8Len(buf []byte, s string) {
 // Function fails then the length of slice is less than 1 byte or the length of remaining slice is less than the length value from first byte.
 func StringWithUInt8Len(buf []byte) (string, error) {
 	if l := len(buf); l < 1 {
-		return "", fmt.Errorf("not enough data, expected not less then %d, received %d", 1, l)
+		return "", fmt.Errorf("not enough data, expected not less than %d, received %d", 1, l)
 	}
 	s := buf[0]
 	buf = buf[1:]
