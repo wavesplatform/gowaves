@@ -1,10 +1,27 @@
 package fixtures
 
-import "github.com/wavesplatform/gowaves/itests/config"
+import (
+	"fmt"
+
+	"github.com/wavesplatform/gowaves/itests/config"
+)
 
 const (
 	boostRewardSettingsFolder = "boost_reward_settings"
 )
+
+// featureAndRewardSettingsFromFile sets feature and reward settings from file.
+func featureAndRewardSettingsFromFile(path ...string) config.BlockchainOption {
+	return func(cfg *config.BlockchainConfig) error {
+		if err := config.WithFeatureSettingFromFile(path...)(cfg); err != nil {
+			return fmt.Errorf("failed to set feature settings: %w", err)
+		}
+		if err := config.WithRewardSettingFromFile(path...)(cfg); err != nil {
+			return fmt.Errorf("failed to set reward settings: %w", err)
+		}
+		return nil
+	}
+}
 
 // RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite use preactivated features 14, 19, 20, 21, 22, 23,
 // 2 miners, dao, xtn, initR = 600000000, increment = 100000000, desiredR = 600000000,
@@ -15,15 +32,11 @@ type RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite struct {
 
 func (suite *RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite) BlockchainOpts() []config.BlockchainOption {
 	return []config.BlockchainOption{
-		config.WithFeatureSettingFromFile(
+		featureAndRewardSettingsFromFile(
 			rewardSettingsFolder,
 			boostRewardSettingsFolder,
 			"boost_reward_preactivated_14_19_20_21_22_23_p21eqp23.json",
 		),
-		config.WithRewardSettingFromFile(
-			rewardSettingsFolder,
-			boostRewardSettingsFolder,
-			"boost_reward_preactivated_14_19_20_21_22_23_p21eqp23.json"),
 	}
 }
 
@@ -40,15 +53,11 @@ type RewardBoostDaoXtnP21LessP23PreactivatedAllSuite struct {
 
 func (suite *RewardBoostDaoXtnP21LessP23PreactivatedAllSuite) BlockchainOpts() []config.BlockchainOption {
 	return []config.BlockchainOption{
-		config.WithFeatureSettingFromFile(
+		featureAndRewardSettingsFromFile(
 			rewardSettingsFolder,
 			boostRewardSettingsFolder,
 			"boost_reward_preactivated_14_19_20_21_22_23_p21lsp23.json",
 		),
-		config.WithRewardSettingFromFile(
-			rewardSettingsFolder,
-			boostRewardSettingsFolder,
-			"boost_reward_preactivated_14_19_20_21_22_23_p21lsp23.json"),
 	}
 }
 
@@ -65,15 +74,11 @@ type RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite struct {
 
 func (suite *RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite) BlockchainOpts() []config.BlockchainOption {
 	return []config.BlockchainOption{
-		config.WithFeatureSettingFromFile(
+		featureAndRewardSettingsFromFile(
 			rewardSettingsFolder,
 			boostRewardSettingsFolder,
 			"boost_reward_preactivated_14_19_20_21_22_23_p21grp23.json",
 		),
-		config.WithRewardSettingFromFile(
-			rewardSettingsFolder,
-			boostRewardSettingsFolder,
-			"boost_reward_preactivated_14_19_20_21_22_23_p21grp23.json"),
 	}
 }
 
@@ -88,15 +93,11 @@ type RewardBoostMinerDaoPreactivatedAllSuite struct {
 
 func (suite *RewardBoostMinerDaoPreactivatedAllSuite) BlockchainOpts() []config.BlockchainOption {
 	return []config.BlockchainOption{
-		config.WithFeatureSettingFromFile(
+		featureAndRewardSettingsFromFile(
 			rewardSettingsFolder,
 			boostRewardSettingsFolder,
 			"boost_reward_preactivated_14_19_20_21_22_23_1miner_dao.json",
 		),
-		config.WithRewardSettingFromFile(
-			rewardSettingsFolder,
-			boostRewardSettingsFolder,
-			"boost_reward_preactivated_14_19_20_21_22_23_1miner_dao.json"),
 		config.WithNoScalaMining(),
 	}
 }
@@ -114,15 +115,11 @@ type RewardBoostMinerXtnP21LessP23PreactivatedAllSuite struct {
 
 func (suite *RewardBoostMinerXtnP21LessP23PreactivatedAllSuite) BlockchainOpts() []config.BlockchainOption {
 	return []config.BlockchainOption{
-		config.WithFeatureSettingFromFile(
+		featureAndRewardSettingsFromFile(
 			rewardSettingsFolder,
 			boostRewardSettingsFolder,
 			"boost_reward_preactivated_14_19_20_21_22_23_1miner_xtn_p21lsp23.json",
 		),
-		config.WithRewardSettingFromFile(
-			rewardSettingsFolder,
-			boostRewardSettingsFolder,
-			"boost_reward_preactivated_14_19_20_21_22_23_1miner_xtn_p21lsp23.json"),
 		config.WithNoScalaMining(),
 	}
 }
@@ -140,15 +137,11 @@ type RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite struct {
 
 func (suite *RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite) BlockchainOpts() []config.BlockchainOption {
 	return []config.BlockchainOption{
-		config.WithFeatureSettingFromFile(
+		featureAndRewardSettingsFromFile(
 			rewardSettingsFolder,
 			boostRewardSettingsFolder,
 			"boost_reward_preactivated_14_19_20_21_22_23_1miner_xtn_p21grp23.json",
 		),
-		config.WithRewardSettingFromFile(
-			rewardSettingsFolder,
-			boostRewardSettingsFolder,
-			"boost_reward_preactivated_14_19_20_21_22_23_1miner_xtn_p21grp23.json"),
 		config.WithNoScalaMining(),
 	}
 }
@@ -165,15 +158,11 @@ type RewardBoostMinersPreactivatedAllSuite struct {
 
 func (suite *RewardBoostMinersPreactivatedAllSuite) BlockchainOpts() []config.BlockchainOption {
 	return []config.BlockchainOption{
-		config.WithFeatureSettingFromFile(
+		featureAndRewardSettingsFromFile(
 			rewardSettingsFolder,
 			boostRewardSettingsFolder,
 			"boost_reward_preactivated_14_19_20_21_22_23_miners.json",
 		),
-		config.WithRewardSettingFromFile(
-			rewardSettingsFolder,
-			boostRewardSettingsFolder,
-			"boost_reward_preactivated_14_19_20_21_22_23_miners.json"),
 	}
 }
 
@@ -190,15 +179,11 @@ type RewardBoostMinerXtnDaoSupportedF23Suite struct {
 
 func (suite *RewardBoostMinerXtnDaoSupportedF23Suite) BlockchainOpts() []config.BlockchainOption {
 	return []config.BlockchainOption{
-		config.WithFeatureSettingFromFile(
+		featureAndRewardSettingsFromFile(
 			rewardSettingsFolder,
 			boostRewardSettingsFolder,
 			"boost_reward_preactivated_14_19_20_21_22_supported_23.json",
 		),
-		config.WithRewardSettingFromFile(
-			rewardSettingsFolder,
-			boostRewardSettingsFolder,
-			"boost_reward_preactivated_14_19_20_21_22_supported_23.json"),
 	}
 }
 

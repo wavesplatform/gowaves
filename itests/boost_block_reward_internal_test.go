@@ -22,10 +22,6 @@ type RewardBoostDaoXtnEqualPeriodsPreactivatedAllTestSuite struct {
 	f.RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite
 }
 
-func (s *RewardBoostDaoXtnEqualPeriodsPreactivatedAllTestSuite) SetupSuite() {
-	s.RewardBoostDaoXtnEqualPeriodsPreactivatedAllSuite.SetupSuite()
-}
-
 func (s *RewardBoostDaoXtnEqualPeriodsPreactivatedAllTestSuite) Test_BoostBlockRewardPreactivatedFeaturesEqPeriods() {
 	const name = "Activation periods for feature 21 and feature 23 are equal"
 	addresses := testdata.GetAddressesMinersDaoXtn(&s.BaseSuite)
@@ -69,10 +65,6 @@ func TestBoostBlockRewardTestSuite(t *testing.T) {
 // min_xtn_buy_back_period < block_reward_boost_period.
 type RewardBoostDaoXtnP21LessP23PreactivatedAllTestSuite struct {
 	f.RewardBoostDaoXtnP21LessP23PreactivatedAllSuite
-}
-
-func (s *RewardBoostDaoXtnP21LessP23PreactivatedAllTestSuite) SetupSuite() {
-	s.RewardBoostDaoXtnP21LessP23PreactivatedAllSuite.SetupSuite()
 }
 
 func (s *RewardBoostDaoXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockRewardPreactivatedFeaturesP21LessP23() {
@@ -126,10 +118,6 @@ type RewardBoostDaoXtnP21GreaterP23PreactivatedAllTestSuite struct {
 	f.RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite
 }
 
-func (s *RewardBoostDaoXtnP21GreaterP23PreactivatedAllTestSuite) SetupSuite() {
-	s.RewardBoostDaoXtnP21GreaterP23PreactivatedAllSuite.SetupSuite()
-}
-
 func (s *RewardBoostDaoXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlockRewardPreactivatedAllP21GreaterP23() {
 	const name = "Activation period for feature 21 is greater than activation period for feature 23"
 	addresses := testdata.GetAddressesMinersDaoXtn(&s.BaseSuite)
@@ -180,10 +168,6 @@ type RewardBoostMinerDaoPreactivatedAllTestSuite struct {
 	f.RewardBoostMinerDaoPreactivatedAllSuite
 }
 
-func (s *RewardBoostMinerDaoPreactivatedAllTestSuite) SetupSuite() {
-	s.RewardBoostMinerDaoPreactivatedAllSuite.SetupSuite()
-}
-
 func (s *RewardBoostMinerDaoPreactivatedAllTestSuite) Test_BoostBlockRewardMinerDaoPreactivatedAll() {
 	const name = "All features are preactivated, one miner, dao accounts are used"
 	addresses := testdata.GetAddressesMinersDao(&s.BaseSuite)
@@ -223,10 +207,6 @@ type RewardBoostMinerXtnP21LessP23PreactivatedAllTestSuite struct {
 	f.RewardBoostMinerXtnP21LessP23PreactivatedAllSuite
 }
 
-func (s *RewardBoostMinerXtnP21LessP23PreactivatedAllTestSuite) SetupSuite() {
-	s.RewardBoostMinerXtnP21LessP23PreactivatedAllSuite.SetupSuite()
-}
-
 func (s *RewardBoostMinerXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockRewardMinerXtnPreactivatedAll() {
 	const name = "All features are preactivated, one miner, xtn accounts are used, " +
 		"min_xtn_buy_back_period < block_reward_boost_period"
@@ -257,13 +237,13 @@ func (s *RewardBoostMinerXtnP21LessP23PreactivatedAllTestSuite) Test_BoostBlockR
 			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&s.BaseSuite)))
 		// Check miner's xtn balances after feature 21 period end.
 		reward.GetRewardDistributionAndChecksWithoutTerm(
-			&s.BaseSuite, addresses, testdata.GetRewardToMinersWithBoostTestData)
+			&s.BaseSuite, addresses, testdata.GetRewardToMinersTestData)
 		// Wait for boostHeight.
 		utl.WaitForHeight(&s.BaseSuite, boostHeight,
 			config.WaitWithTimeoutInBlocks(utl.GetBoostBlockRewardPeriodCfg(&s.BaseSuite)))
 		// Check miner's, xtn balances after features periods end.
 		reward.GetRewardDistributionAndChecksWithoutTerm(
-			&s.BaseSuite, addresses, testdata.GetRewardToMinersWithoutBoostTestData)
+			&s.BaseSuite, addresses, testdata.GetRewardToMinersTestData)
 	})
 }
 
@@ -277,10 +257,6 @@ func TestRewardBoostMinerXtnP21LessP23PreactivatedAllTestSuite(t *testing.T) {
 // min_xtn_buy_back_period > block_reward_boost_period.
 type RewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite struct {
 	f.RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite
-}
-
-func (s *RewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite) SetupSuite() {
-	s.RewardBoostMinerXtnP21GreaterP23PreactivatedAllSuite.SetupSuite()
 }
 
 func (s *RewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlockRewardMinerXtnPreactivatedAll() {
@@ -319,7 +295,7 @@ func (s *RewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite) Test_BoostBlo
 			config.WaitWithTimeoutInBlocks(utl.GetXtnBuybackPeriodCfg(&s.BaseSuite)))
 		// Check miner's, xtn balances after features periods end.
 		reward.GetRewardDistributionAndChecksWithoutTerm(
-			&s.BaseSuite, addresses, testdata.GetRewardToMinersWithoutBoostTestData)
+			&s.BaseSuite, addresses, testdata.GetRewardToMinersTestData)
 	})
 }
 
@@ -332,10 +308,6 @@ func TestRewardBoostMinerXtnP21GreaterP23PreactivatedAllTestSuite(t *testing.T) 
 // miners, initR = 600000000, increment = 100000000, desiredR = 600000000.
 type RewardBoostMinersPreactivatedAllTestSuite struct {
 	f.RewardBoostMinersPreactivatedAllSuite
-}
-
-func (s *RewardBoostMinersPreactivatedAllTestSuite) SetupSuite() {
-	s.RewardBoostMinersPreactivatedAllSuite.SetupSuite()
 }
 
 func (s *RewardBoostMinersPreactivatedAllTestSuite) Test_BoostMinersPreactivatedAll() {
@@ -352,7 +324,7 @@ func (s *RewardBoostMinersPreactivatedAllTestSuite) Test_BoostMinersPreactivated
 			settings.BoostBlockReward)
 		// Check miners balances.
 		reward.GetRewardDistributionAndChecksWithoutTerm(
-			&s.BaseSuite, addresses, testdata.GetRewardToMinersWithBoostTestData)
+			&s.BaseSuite, addresses, testdata.GetRewardToMinersTestData)
 		// Get current height and calculate heights where features periods end
 		// ceaseXtnBuybackHeight should be less than boostHeight.
 		boostHeight := utl.GetFeatureActivationHeight(
@@ -363,7 +335,7 @@ func (s *RewardBoostMinersPreactivatedAllTestSuite) Test_BoostMinersPreactivated
 			config.WaitWithTimeoutInBlocks(utl.GetBoostBlockRewardPeriodCfg(&s.BaseSuite)))
 		// Check miners balances after feature 23 period end.
 		reward.GetRewardDistributionAndChecksWithoutTerm(
-			&s.BaseSuite, addresses, testdata.GetRewardToMinersWithoutBoostTestData)
+			&s.BaseSuite, addresses, testdata.GetRewardToMinersTestData)
 	})
 }
 
@@ -377,10 +349,6 @@ func TestRewardBoostMinersPreactivatedAllTestSuite(t *testing.T) {
 // xtn buyback period ends when start boost period.
 type RewardBoostMinerXtnDaoSupportedF23TestSuite struct {
 	f.RewardBoostMinerXtnDaoSupportedF23Suite
-}
-
-func (s *RewardBoostMinerXtnDaoSupportedF23TestSuite) SetupSuite() {
-	s.RewardBoostMinerXtnDaoSupportedF23Suite.SetupSuite()
 }
 
 func (s *RewardBoostMinerXtnDaoSupportedF23TestSuite) Test_BoostBlockRewardMinerXtnSupported23() {

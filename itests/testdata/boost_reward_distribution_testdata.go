@@ -108,21 +108,7 @@ func GetRewardToMinersXtnWithoutBoostTestData(suite *f.BaseSuite,
 	)
 }
 
-func GetRewardToMinersWithBoostTestData(suite *f.BaseSuite,
-	addresses AddressesForDistribution,
-	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
-	currentReward := currentRewardToInt64(suite, height)
-	return NewRewardDistributionTestData(
-		addresses,
-		BoostRewardDistributionExpectedValues{
-			MinersSumDiffBalance: currentReward,
-			DaoDiffBalance:       0,
-			XtnDiffBalance:       0,
-		},
-	)
-}
-
-func GetRewardToMinersWithoutBoostTestData(suite *f.BaseSuite,
+func GetRewardToMinersTestData(suite *f.BaseSuite,
 	addresses AddressesForDistribution,
 	height uint64) RewardDistributionTestData[BoostRewardDistributionExpectedValues] {
 	currentReward := currentRewardToInt64(suite, height)
