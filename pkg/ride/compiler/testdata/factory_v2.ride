@@ -266,13 +266,13 @@ func dataMappingPoolAssets(internalAmountAssetStr: Int, internalPriceAssetStr: I
   }
 
 # purpose:
-#    attemps to find mapping for passed assetId, create new mapping if was failed
+#    attempts to find mapping for passed assetId, create new mapping if was failed
 # actions:
 #
 # arguments:
 #    - assetIdStr   asset id that needs intrnal id
 #    - incrementor  number of next index incrementing
-# return: list with the follwing items
+# return: list with the following items
 #                   1: internal asset id
 #                   2: tuple of actions need to be attached to callable results
 #                   3: flag indicating whether new internal id calculation was performed or not

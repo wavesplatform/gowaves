@@ -129,7 +129,9 @@ func (tx *IssueWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *IssueWithSig) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < issueWithSigFixedBodyLen {
-		return errors.Errorf("%d bytes is not enough for IssueWithSig transaction, expected not less then %d bytes", l, issueWithSigFixedBodyLen)
+		return errors.Errorf("%d bytes is not enough for IssueWithSig transaction, expected not less than %d bytes",
+			l, issueWithSigFixedBodyLen,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != IssueTransaction {
@@ -191,7 +193,9 @@ func (tx *IssueWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads transaction from its binary representation.
 func (tx *IssueWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < issueWithSigMinLen {
-		return errors.Errorf("%d is not enough data for IssueWithSig transaction, expected not less then %d", l, issueWithSigMinLen)
+		return errors.Errorf("%d is not enough data for IssueWithSig transaction, expected not less than %d",
+			l, issueWithSigMinLen,
+		)
 	}
 	if data[0] != byte(IssueTransaction) {
 		return errors.Errorf("incorrect transaction type %d for IssueWithSig transaction", data[0])
@@ -407,7 +411,9 @@ func (tx *TransferWithSig) Serialize(s *serializer.Serializer) error {
 
 func (tx *TransferWithSig) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferWithSigFixedBodyLen {
-		return errors.Errorf("%d bytes is not enough for TransferWithSig transaction, expected not less then %d bytes", l, transferWithSigFixedBodyLen)
+		return errors.Errorf("%d bytes is not enough for TransferWithSig transaction, expected not less than %d bytes",
+			l, transferWithSigFixedBodyLen,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != TransferTransaction {
@@ -472,7 +478,9 @@ func (tx *TransferWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads transaction from its binary representation.
 func (tx *TransferWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < transferWithSigMinLen {
-		return errors.Errorf("not enough data for TransferWithSig transaction, expected not less then %d, received %d", transferWithSigMinLen, l)
+		return errors.Errorf("not enough data for TransferWithSig transaction, expected not less than %d, received %d",
+			transferWithSigMinLen, l,
+		)
 	}
 	if data[0] != byte(TransferTransaction) {
 		return errors.Errorf("incorrect transaction type %d for TransferWithSig transaction", data[0])
@@ -668,7 +676,9 @@ func (tx *ReissueWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *ReissueWithSig) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < reissueWithSigBodyLen {
-		return errors.Errorf("not enough data for ReissueWithSig transaction %d, expected not less then %d", l, reissueWithSigBodyLen)
+		return errors.Errorf("not enough data for ReissueWithSig transaction %d, expected not less than %d",
+			l, reissueWithSigBodyLen,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != ReissueTransaction {
@@ -734,7 +744,9 @@ func (tx *ReissueWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads transaction from its binary representation.
 func (tx *ReissueWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < reissueWithSigMinLen {
-		return errors.Errorf("not enough data for ReissueWithSig transaction, expected not less then %d, received %d", reissueWithSigMinLen, l)
+		return errors.Errorf("not enough data for ReissueWithSig transaction, expected not less than %d, received %d",
+			reissueWithSigMinLen, l,
+		)
 	}
 	if data[0] != byte(ReissueTransaction) {
 		return errors.Errorf("incorrect transaction type %d for ReissueWithSig transaction", data[0])
@@ -908,7 +920,9 @@ func (tx *BurnWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *BurnWithSig) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < burnWithSigBodyLen {
-		return errors.Errorf("%d bytes is not enough for BurnWithSig transaction, expected not less then %d", l, burnWithSigBodyLen)
+		return errors.Errorf("%d bytes is not enough for BurnWithSig transaction, expected not less than %d",
+			l, burnWithSigBodyLen,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != BurnTransaction {
@@ -970,7 +984,9 @@ func (tx *BurnWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads transaction form its binary representation.
 func (tx *BurnWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < burnWithSigLen {
-		return errors.Errorf("not enough data for BurnWithSig transaction, expected not less then %d, received %d", burnWithSigLen, l)
+		return errors.Errorf("not enough data for BurnWithSig transaction, expected not less than %d, received %d",
+			burnWithSigLen, l,
+		)
 	}
 	err := tx.bodyUnmarshalBinary(data[:burnWithSigBodyLen])
 	if err != nil {
@@ -1354,7 +1370,10 @@ func (tx *ExchangeWithSig) BodySerialize(s *serializer.Serializer) error {
 func (tx *ExchangeWithSig) bodyUnmarshalBinary(data []byte) (int, error) {
 	const expectedLen = exchangeWithSigFixedBodyLen + orderV1MinLen + orderV1MinLen
 	if l := len(data); l < expectedLen {
-		return 0, errors.Errorf("not enough data for ExchangeWithSig transaction, expected not less then %d, received %d", expectedLen, l)
+		return 0, errors.Errorf(
+			"not enough data for ExchangeWithSig transaction, expected not less than %d, received %d",
+			expectedLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != ExchangeTransaction {
@@ -1443,7 +1462,9 @@ func (tx *ExchangeWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary loads the transaction from its binary representation.
 func (tx *ExchangeWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < exchangeWithSigMinLen {
-		return errors.Errorf("not enough data for ExchangeWithSig transaction, expected not less then %d, received %d", exchangeWithSigMinLen, l)
+		return errors.Errorf("not enough data for ExchangeWithSig transaction, expected not less than %d, received %d",
+			exchangeWithSigMinLen, l,
+		)
 	}
 	if data[0] != byte(ExchangeTransaction) {
 		return errors.Errorf("incorrect transaction type %d for ExchangeWithSig transaction", data[0])
@@ -1624,7 +1645,9 @@ func (tx *LeaseWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *LeaseWithSig) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseWithSigBodyLen {
-		return errors.Errorf("not enough data for LeaseWithSig transaction, expected not less then %d, received %d", leaseWithSigBodyLen, l)
+		return errors.Errorf("not enough data for LeaseWithSig transaction, expected not less than %d, received %d",
+			leaseWithSigBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != LeaseTransaction {
@@ -1687,7 +1710,9 @@ func (tx *LeaseWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads the transaction from bytes slice.
 func (tx *LeaseWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < leaseWithSigMinLen {
-		return errors.Errorf("not enough data for LeaseWithSig transaction, expected not less then %d, received %d", leaseWithSigMinLen, l)
+		return errors.Errorf("not enough data for LeaseWithSig transaction, expected not less than %d, received %d",
+			leaseWithSigMinLen, l,
+		)
 	}
 	if data[0] != byte(LeaseTransaction) {
 		return errors.Errorf("incorrect transaction type %d for LeaseWithSig transaction", data[0])
@@ -1861,7 +1886,10 @@ func (tx *LeaseCancelWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *LeaseCancelWithSig) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseCancelWithSigBodyLen {
-		return errors.Errorf("not enough data for LeaseCancelWithSig transaction, expected not less then %d, received %d", leaseCancelWithSigBodyLen, l)
+		return errors.Errorf(
+			"not enough data for LeaseCancelWithSig transaction, expected not less than %d, received %d",
+			leaseCancelWithSigBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != LeaseCancelTransaction {
@@ -1923,7 +1951,10 @@ func (tx *LeaseCancelWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 
 func (tx *LeaseCancelWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < leaseCancelWithSigMinLen {
-		return errors.Errorf("not enough data for LeaseCancelWithSig transaction, expected not less then %d, received %d", leaseCancelWithSigMinLen, l)
+		return errors.Errorf(
+			"not enough data for LeaseCancelWithSig transaction, expected not less than %d, received %d",
+			leaseCancelWithSigMinLen, l,
+		)
 	}
 	if data[0] != byte(LeaseCancelTransaction) {
 		return errors.Errorf("incorrect transaction type %d for LeaseCancelWithSig transaction", data[0])
@@ -2103,7 +2134,10 @@ func (tx *CreateAliasWithSig) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *CreateAliasWithSig) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < createAliasWithSigFixedBodyLen {
-		return errors.Errorf("not enough data for CreateAliasWithSig transaction, expected not less then %d, received %d", createAliasWithSigFixedBodyLen, l)
+		return errors.Errorf(
+			"not enough data for CreateAliasWithSig transaction, expected not less than %d, received %d",
+			createAliasWithSigFixedBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != CreateAliasTransaction {
@@ -2160,7 +2194,10 @@ func (tx *CreateAliasWithSig) MarshalBinary(scheme Scheme) ([]byte, error) {
 
 func (tx *CreateAliasWithSig) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < createAliasWithSigMinLen {
-		return errors.Errorf("not enough data for CreateAliasWithSig transaction, expected not less then %d, received %d", createAliasWithSigMinLen, l)
+		return errors.Errorf(
+			"not enough data for CreateAliasWithSig transaction, expected not less than %d, received %d",
+			createAliasWithSigMinLen, l,
+		)
 	}
 	if data[0] != byte(CreateAliasTransaction) {
 		return errors.Errorf("incorrect transaction type %d for CreateAliasWithSig transaction", data[0])
