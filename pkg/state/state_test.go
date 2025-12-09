@@ -1,7 +1,6 @@
 package state
 
 import (
-	"context"
 	"encoding/binary"
 	stderrs "errors"
 	"fmt"
@@ -47,7 +46,7 @@ func bigFromStr(s string) *big.Int {
 
 func newTestState(t *testing.T, amend bool, params StateParams, settings *settings.BlockchainSettings) State {
 	dataDir := t.TempDir()
-	m, err := NewState(dataDir, amend, params, settings, false, nil)
+	m, err := NewState(t.Context(), dataDir, amend, params, settings, false, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, m.Close(), "manager.Close() failed")
@@ -57,7 +56,7 @@ func newTestState(t *testing.T, amend bool, params StateParams, settings *settin
 
 func newTestStateManager(t *testing.T, amend bool, params StateParams, settings *settings.BlockchainSettings) *stateManager {
 	dataDir := t.TempDir()
-	m, err := newStateManager(dataDir, amend, params, settings, false, nil)
+	m, err := newStateManager(t.Context(), dataDir, amend, params, settings, false, nil)
 	require.NoError(t, err)
 	t.Cleanup(func() {
 		require.NoError(t, m.Close(), "manager.Close() failed")
@@ -69,7 +68,7 @@ func TestHandleAmendFlag(t *testing.T) {
 	dataDir := t.TempDir()
 	bs := settings.MustMainNetSettings()
 	// first open with false amend
-	manager, err := newStateManager(dataDir, false, DefaultTestingStateParams(), bs, false, nil)
+	manager, err := newStateManager(t.Context(), dataDir, false, DefaultTestingStateParams(), bs, false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	t.Cleanup(func() {
 		assert.NoError(t, manager.Close(), "manager.Close() failed")
@@ -78,19 +77,19 @@ func TestHandleAmendFlag(t *testing.T) {
 
 	// open with true amend
 	assert.NoError(t, manager.Close(), "manager.Close() failed")
-	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), bs, false, nil)
+	manager, err = newStateManager(t.Context(), dataDir, true, DefaultTestingStateParams(), bs, false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.True(t, manager.stor.hs.amend)
 
 	// open with false amend again. Result amend should be true
 	assert.NoError(t, manager.Close(), "manager.Close() failed")
-	manager, err = newStateManager(dataDir, false, DefaultTestingStateParams(), bs,
+	manager, err = newStateManager(t.Context(), dataDir, false, DefaultTestingStateParams(), bs,
 		false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.True(t, manager.stor.hs.amend)
 
 	// first open with true amend
-	newManager, err := newStateManager(t.TempDir(), true, DefaultTestingStateParams(), bs,
+	newManager, err := newStateManager(t.Context(), t.TempDir(), true, DefaultTestingStateParams(), bs,
 		false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	t.Cleanup(func() {
@@ -142,7 +141,7 @@ func TestValidationWithoutBlocks(t *testing.T) {
 	last := blocks[len(blocks)-1]
 	txs := last.Transactions
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager,
 		height, 1)
@@ -210,7 +209,7 @@ func TestStateRollback(t *testing.T) {
 		}
 		if tc.nextHeight > height {
 			if aErr := importer.ApplyFromFile(
-				context.Background(),
+				t.Context(),
 				importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 				manager,
 				tc.nextHeight-1, height,
@@ -252,14 +251,14 @@ func TestStateIntegrated(t *testing.T) {
 	// State should be rolled back to previous state and ready to use after.
 	wrongStartHeight := uint64(100)
 	if aErr := importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, blocksToImport, wrongStartHeight); aErr == nil {
 		t.Errorf("Import starting from wrong height must fail but it doesn't.")
 	}
 	// Test normal import.
 	if aErr := importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, blocksToImport, 1); aErr != nil {
 		t.Fatalf("Failed to import: %v\n", aErr)
@@ -332,7 +331,7 @@ func TestPreactivatedFeatures(t *testing.T) {
 	// Apply blocks.
 	height := uint64(75)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: sets.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -354,7 +353,7 @@ func TestDisallowDuplicateTxIds(t *testing.T) {
 	// Apply blocks.
 	height := uint64(75)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -377,7 +376,7 @@ func TestTransactionByID(t *testing.T) {
 	// Apply blocks.
 	height := uint64(75)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, height, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -396,7 +395,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 	bs := settings.MustMainNetSettings()
 	assert.NoError(t, err)
 	dataDir := t.TempDir()
-	manager, err := newStateManager(dataDir, true, DefaultTestingStateParams(), bs, false, nil)
+	manager, err := newStateManager(t.Context(), dataDir, true, DefaultTestingStateParams(), bs, false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 
 	t.Cleanup(func() {
@@ -410,7 +409,7 @@ func TestStateManager_TopBlock(t *testing.T) {
 
 	height := proto.Height(100)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, height-1, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -430,7 +429,8 @@ func TestStateManager_TopBlock(t *testing.T) {
 	// Test after closure.
 	err = manager.Close()
 	assert.NoError(t, err, "manager.Close() failed")
-	manager, err = newStateManager(dataDir, true, DefaultTestingStateParams(), settings.MustMainNetSettings(), false, nil)
+	manager, err = newStateManager(t.Context(), dataDir, true,
+		DefaultTestingStateParams(), settings.MustMainNetSettings(), false, nil)
 	assert.NoError(t, err, "newStateManager() failed")
 	assert.Equal(t, correct, manager.TopBlock())
 }
@@ -460,7 +460,7 @@ func TestStateHashAtHeight(t *testing.T) {
 	blocksPath, err := blocksPath()
 	assert.NoError(t, err)
 	err = importer.ApplyFromFile(
-		context.Background(),
+		t.Context(),
 		importer.ImportParams{Schema: bs.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
 		manager, 9499, 1)
 	assert.NoError(t, err, "ApplyFromFile() failed")
@@ -498,7 +498,7 @@ func createMockStateManager(t *testing.T, bs *settings.BlockchainSettings) (*sta
 		maxFileSize:         2 * proto.KiB,
 		providesData:        provideExtendedAPI,
 	}
-	atx, err := newAddressTransactions(to.db, to.stateDB, to.rw, atxParams, handleAmend)
+	atx, err := newAddressTransactions(t.Context(), to.db, to.stateDB, to.rw, atxParams, handleAmend)
 	require.NoError(t, err, "newAddressTransactions() failed")
 
 	state := &stateManager{
