@@ -4792,7 +4792,7 @@ func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) er
 		return errors.New("invoke script transaction is too big")
 	}
 	if l := len(data); l < invokeScriptWithProofsMinLen {
-		return errors.Errorf(""+
+		return errors.Errorf(
 			"not enough data for InvokeScriptWithProofs transaction, expected not less than %d, received %d",
 			invokeScriptWithProofsMinLen, l,
 		)
