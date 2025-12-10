@@ -522,8 +522,7 @@ func (a *ThreadSafeWriteWrapper) AddBlocksWithSnapshots(blocks [][]byte, snapsho
 }
 
 func (a *ThreadSafeWriteWrapper) AddDeserializedBlocks(
-	blocks []*proto.Block,
-) (*proto.Block, error) {
+	blocks []*proto.Block) (*proto.Block, error) {
 	a.lock()
 	defer a.unlock()
 	return a.s.AddDeserializedBlocks(blocks)

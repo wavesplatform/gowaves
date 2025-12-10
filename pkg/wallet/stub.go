@@ -2,6 +2,7 @@ package wallet
 
 import (
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -9,11 +10,19 @@ type Stub struct {
 	S [][]byte
 }
 
-func (s Stub) SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error {
+func (s Stub) SignTransactionWith(_ crypto.PublicKey, _ proto.Transaction) error {
 	panic("Stub.SignTransactionWith: Unsupported operation")
 }
 
-func (s Stub) Load(password []byte) error {
+func (s Stub) FindPublicKeyByAddress(_ proto.WavesAddress, _ proto.Scheme) (crypto.PublicKey, error) {
+	panic("Stub.FindPublicKeyByAddress: Unsupported operation")
+}
+
+func (s Stub) BLSPairByWavesPK(_ crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error) {
+	panic("Stub.BLSPairByWavesPK: Unsupported operation")
+}
+
+func (s Stub) Load(_ []byte) error {
 	panic("Stub.Load: Unsupported operation")
 }
 
