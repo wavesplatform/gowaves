@@ -177,7 +177,7 @@ func (id BlockID) String() string {
 func (id BlockID) MarshalJSON() ([]byte, error) {
 	data := id.Bytes()
 	if data == nil { // intentionally using nil to represent null BlockID
-		return jsonNullBytes, nil
+		return []byte(jsonNull), nil
 	}
 	return common.ToBase58JSON(data), nil
 }
