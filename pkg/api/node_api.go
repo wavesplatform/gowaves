@@ -924,8 +924,7 @@ type GeneratorInfo struct {
 	TransactionID string `json:"transactionID"`
 }
 
-func (a *NodeApi) st
-GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
+func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	heightStr := chi.URLParam(r, "height")
 	height, err := strconv.ParseUint(heightStr, 10, 64)
 	if err != nil {

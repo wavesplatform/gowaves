@@ -2,7 +2,6 @@ package clients
 
 import (
 	"context"
-	"github.com/wavesplatform/gowaves/pkg/api"
 	"net/http"
 	"testing"
 	"time"
@@ -11,6 +10,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
+	"github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"

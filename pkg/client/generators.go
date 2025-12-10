@@ -3,8 +3,9 @@ package client
 import (
 	"context"
 	"fmt"
-	"github.com/wavesplatform/gowaves/pkg/api"
 	"net/http"
+
+	"github.com/wavesplatform/gowaves/pkg/api"
 )
 
 // Generators is a client wrapper for generator-related API endpoints.
