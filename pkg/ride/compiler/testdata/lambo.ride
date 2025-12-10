@@ -27,7 +27,7 @@ func failSubmitLimitsExceeds(remainingBase:Int, remainingShare:Int, newRemaining
 }
 
 func failTopupManagerOnly(topupManagerAddress: String) = {
-  throw("opertion denied: only topUpManager=" + topupManagerAddress + " can send such transactions")
+  throw("operation denied: only topUpManager=" + topupManagerAddress + " can send such transactions")
 }
 
 func failTopupMaxPriceDeviation(price: Int, minAllowedPrice: Int) = {

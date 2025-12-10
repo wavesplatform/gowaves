@@ -1080,7 +1080,7 @@ func (i Issue) Valid() (bool, error) {
 		return false, errs.NewTooBigArray("incorrect number of bytes in the asset's description")
 	}
 	if i.Decimals > MaxDecimals {
-		return false, errs.NewTooBigArray(fmt.Sprintf("incorrect decimals, should be no more then %d", MaxDecimals))
+		return false, errs.NewTooBigArray(fmt.Sprintf("incorrect decimals, should be no more than %d", MaxDecimals))
 	}
 	return true, nil
 }
@@ -1110,7 +1110,7 @@ func (i Issue) marshalBinary() ([]byte, error) {
 
 func (i *Issue) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < issueLen {
-		return errors.Errorf("%d is not enough bytes for Issue, expected not less then %d", l, issueLen)
+		return errors.Errorf("%d is not enough bytes for Issue, expected not less than %d", l, issueLen)
 	}
 	copy(i.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -1302,7 +1302,7 @@ func (tr *Transfer) Serialize(s *serializer.Serializer) error {
 
 func (tr *Transfer) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferLen {
-		return errors.Errorf("%d bytes is not enough for Transfer body, expected not less then %d bytes", l, transferLen)
+		return errors.Errorf("%d bytes is not enough for Transfer body, expected not less than %d bytes", l, transferLen)
 	}
 	copy(tr.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -1428,7 +1428,7 @@ func (r *Reissue) marshalBinary() ([]byte, error) {
 
 func (r *Reissue) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < reissueLen {
-		return errors.Errorf("%d bytes is not enough for Reissue body, expected not less then %d bytes", l, reissueLen)
+		return errors.Errorf("%d bytes is not enough for Reissue body, expected not less than %d bytes", l, reissueLen)
 	}
 	copy(r.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -1516,7 +1516,7 @@ func (b *Burn) marshalBinary() ([]byte, error) {
 
 func (b *Burn) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < burnLen {
-		return errors.Errorf("%d bytes is not enough for burn, expected not less then %d", l, burnLen)
+		return errors.Errorf("%d bytes is not enough for burn, expected not less than %d", l, burnLen)
 	}
 	copy(b.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -1644,7 +1644,7 @@ func (l *Lease) marshalBinary() ([]byte, error) {
 
 func (l *Lease) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseLen {
-		return errors.Errorf("not enough data for lease, expected not less then %d, received %d", leaseLen, l)
+		return errors.Errorf("not enough data for lease, expected not less than %d, received %d", leaseLen, l)
 	}
 	copy(l.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -1723,7 +1723,7 @@ func (lc *LeaseCancel) marshalBinary() ([]byte, error) {
 
 func (lc *LeaseCancel) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseCancelLen {
-		return errors.Errorf("not enough data for leaseCancel, expected not less then %d, received %d", leaseCancelLen, l)
+		return errors.Errorf("not enough data for leaseCancel, expected not less than %d, received %d", leaseCancelLen, l)
 	}
 	copy(lc.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -1808,7 +1808,7 @@ func (ca *CreateAlias) marshalBinary() ([]byte, error) {
 
 func (ca *CreateAlias) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < createAliasLen {
-		return errors.Errorf("not enough data for CreateAlias, expected not less then %d, received %d", createAliasLen, l)
+		return errors.Errorf("not enough data for CreateAlias, expected not less than %d, received %d", createAliasLen, l)
 	}
 	copy(ca.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]

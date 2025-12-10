@@ -30,6 +30,10 @@ const (
 
 	scalaContainerName = "scala-node"
 	goContainerName    = "go-node"
+
+	ScalaImageRepository = "wavesplatform/wavesnode"
+	goImageRepository    = "go-node"
+	DefaultImageTag      = "latest"
 )
 
 const (
@@ -89,13 +93,17 @@ func (c *TestConfig) GenesisSH() crypto.Digest {
 
 type DockerConfigurator interface {
 	DockerRunOptions() *dockertest.RunOptions
+	WithImageRepository(repository string) DockerConfigurator
+	WithImageTag(tag string) DockerConfigurator
 }
 
 type ScalaConfigurator struct {
-	suite        string
-	cfg          *BlockchainConfig
-	configFolder string
-	knownPeers   []string
+	suite           string
+	cfg             *BlockchainConfig
+	configFolder    string
+	knownPeers      []string
+	imageRepository string
+	imageTag        string
 }
 
 func NewScalaConfigurator(suite string, cfg *BlockchainConfig) (*ScalaConfigurator, error) {
@@ -106,20 +114,38 @@ func NewScalaConfigurator(suite string, cfg *BlockchainConfig) (*ScalaConfigurat
 	return c, nil
 }
 
+func (c *ScalaConfigurator) WithImageRepository(repository string) DockerConfigurator {
+	c.imageRepository = repository
+	return c
+}
+
+func (c *ScalaConfigurator) WithImageTag(tag string) DockerConfigurator {
+	c.imageTag = tag
+	return c
+}
+
 func (c *ScalaConfigurator) WithGoNode(goNodeIP string) *ScalaConfigurator {
 	c.knownPeers = append(c.knownPeers, goNodeIP)
 	return c
 }
 
 func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
+	if c.imageRepository == "" {
+		c.imageRepository = ScalaImageRepository
+	}
+
+	if c.imageTag == "" {
+		c.imageTag = DefaultImageTag
+	}
+
 	var kps strings.Builder
 	for i, kp := range c.knownPeers {
 		kps.WriteString(fmt.Sprintf("-Dwaves.network.known-peers.%d=%s:%s ", i, kp, BindPort))
 	}
 	opt := &dockertest.RunOptions{
-		Repository: "wavesplatform/wavesnode",
+		Repository: c.imageRepository,
 		Name:       c.suite + "-" + scalaContainerName,
-		Tag:        "latest",
+		Tag:        c.imageTag,
 		Platform:   Platform(),
 		Hostname:   "scala-node",
 		Mounts: []string{
@@ -199,10 +225,19 @@ func NewGoConfigurator(suite string, cfg *BlockchainConfig) (*GoConfigurator, er
 	return c, nil
 }
 
+func (c *GoConfigurator) WithImageRepository(_ string) DockerConfigurator {
+	return c
+}
+
+func (c *GoConfigurator) WithImageTag(_ string) DockerConfigurator {
+	return c
+}
+
 func (c *GoConfigurator) DockerRunOptions() *dockertest.RunOptions {
 	opt := &dockertest.RunOptions{
-		Repository: "go-node",
+		Repository: goImageRepository,
 		Name:       c.suite + "-" + goContainerName,
+		Tag:        DefaultImageTag,
 		User:       "gowaves",
 		Hostname:   "go-node",
 		Platform:   Platform(),
