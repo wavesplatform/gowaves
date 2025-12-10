@@ -1695,7 +1695,7 @@ func TestGenerationPeriodStart(t *testing.T) {
 		{activation: 7, height: 14, length: 3, currStart: 14, nextStart: 17, failed: false, err: ""},
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
-			currStart, currErr := currentGenerationPeriodStart(test.activation, test.height, test.length)
+			currStart, currErr := CurrentGenerationPeriodStart(test.activation, test.height, test.length)
 			nextStart, nextErr := nextGenerationPeriodStart(test.activation, test.height, test.length)
 			err := errors.Join(currErr, nextErr)
 			if test.failed {

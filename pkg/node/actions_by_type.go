@@ -362,6 +362,27 @@ func MicroBlockSnapshotAction(
 	return fsm.MicroBlockSnapshot(mess.ID, blockID, blockSnapshot)
 }
 
+func EndorseBlockAction(
+	_ services.Services, mess peer.ProtoMessage, fsm *fsm.FSM, nl *slog.Logger,
+) (fsm.Async, error) {
+	protoMess := g.EndorseBlock{}
+	endorseMsg, ok := mess.Message.(*proto.EndorseBlockMessage)
+	if !ok {
+		nl.Debug("unexpected message type", slog.String("type", fmt.Sprintf("%T", mess.Message)))
+		return nil, fmt.Errorf("unexpected message type %T, expected *proto.EndorseBlockMessage", mess.Message)
+	}
+	err := protoMess.UnmarshalVT(endorseMsg.Bytes)
+	if err != nil {
+		return nil, err
+	}
+	var c proto.ProtobufConverter
+	endorseBlock, err := c.EndorseBlock(&protoMess)
+	if err != nil {
+		return nil, err
+	}
+	return fsm.BlockEndorsement(&endorseBlock)
+}
+
 func createActions() map[reflect.Type]Action {
 	return map[reflect.Type]Action{
 		reflect.TypeFor[*proto.ScoreMessage]():                     ScoreAction,
@@ -384,5 +405,6 @@ func createActions() map[reflect.Type]Action {
 		reflect.TypeFor[*proto.MicroBlockSnapshotRequestMessage](): MicroSnapshotRequestAction,
 		reflect.TypeFor[*proto.BlockSnapshotMessage]():             BlockSnapshotAction,
 		reflect.TypeFor[*proto.MicroBlockSnapshotMessage]():        MicroBlockSnapshotAction,
+		reflect.TypeFor[*proto.EndorseBlockMessage]():              EndorseBlockAction,
 	}
 }
