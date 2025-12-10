@@ -175,10 +175,18 @@ func (id BlockID) String() string {
 }
 
 func (id BlockID) MarshalJSON() ([]byte, error) {
-	return common.ToBase58JSON(id.Bytes()), nil
+	data := id.Bytes()
+	if data == nil { // intentionally using nil to represent null BlockID
+		return jsonNullBytes, nil
+	}
+	return common.ToBase58JSON(data), nil
 }
 
 func (id *BlockID) UnmarshalJSON(value []byte) error {
+	if bytes.Equal(value, jsonNullBytes) {
+		*id = BlockID{} // initialize as nil BlockID
+		return nil
+	}
 	b, err := common.FromBase58JSONUnchecked(value, "BlockID")
 	if err != nil {
 		return err
@@ -329,7 +337,7 @@ type BlockHeader struct {
 	StateHash              *crypto.Digest    `json:"stateHash,omitempty"`        // is nil before protocol version 1.5
 	ChallengedHeader       *ChallengedHeader `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
 
-	ID BlockID `json:"id,omitzero"` // this field must be generated and set after Block unmarshalling
+	ID BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
 }
 
 func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
