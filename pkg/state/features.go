@@ -620,3 +620,20 @@ func (f *features) clearCache() {
 	f.activationCache = make(map[settings.Feature]featureActivationState)
 	f.mu.Unlock()
 }
+
+// minimalGeneratingBalanceAtHeight returns minimal generating balance at given height and timestamp.
+// It checks feature activation using newestIsActivatedAtHeight function.
+func (f *features) minimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
+	const (
+		positiveMinimalGeneratingBalance = 1               // 1 Wavelet.
+		initialMinimalGeneratingBalance  = 10_000_00000000 // 10,000 Waves.
+		reducedMinimalGeneratingBalance  = 1_000_00000000  // 1,000 Waves.
+	)
+	if ts < f.settings.MinimalGeneratingBalanceCheckAfterTime {
+		return positiveMinimalGeneratingBalance
+	}
+	if f.newestIsActivatedAtHeight(int16(settings.SmallerMinimalGeneratingBalance), height) {
+		return reducedMinimalGeneratingBalance
+	}
+	return initialMinimalGeneratingBalance
+}

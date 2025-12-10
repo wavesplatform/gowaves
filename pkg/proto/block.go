@@ -217,7 +217,7 @@ func (id BlockID) Len() int {
 	}
 }
 
-// ReadFrom reads the binary representation of BlockID from a io.Reader. It reads only the content of the ID
+// ReadFrom reads the binary representation of BlockID from an io.Reader. It reads only the content of the ID
 // (either crypto.Digest or crypto.Signature). ReadFrom does not process any additional data that might
 // describe the type of the ID.
 //
@@ -655,9 +655,8 @@ type Block struct {
 func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return b.MarshalToProtobuf(scheme)
-	} else {
-		return b.MarshalBinary(scheme)
 	}
+	return b.MarshalBinary(scheme)
 }
 
 func (b *Block) Clone() *Block {
@@ -1048,9 +1047,8 @@ type BlockMarshaller struct {
 func (a BlockMarshaller) Marshal(scheme Scheme) ([]byte, error) {
 	if a.b.Version >= ProtobufBlockVersion {
 		return a.b.MarshalToProtobuf(scheme)
-	} else {
-		return a.b.MarshalBinary(scheme)
 	}
+	return a.b.MarshalBinary(scheme)
 }
 
 type Transactions []Transaction
