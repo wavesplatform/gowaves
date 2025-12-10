@@ -1346,8 +1346,8 @@ func (sg *snapshotGenerator) wavesBalanceSnapshotFromBalanceDiff(
 			// See `balances.generateLeaseBalanceSnapshotsForLeaseOverflows` for details
 			newLeaseBalance := proto.LeaseBalanceSnapshot{
 				Address:  wavesAddress,
-				LeaseIn:  uint64(fullBalance.LeaseIn + diffAmount.leaseIn.Value()),   // As described above.
-				LeaseOut: uint64(fullBalance.LeaseOut + diffAmount.leaseOut.Value()), // As described above.
+				LeaseIn:  uint64(fullBalance.LeaseIn + diffAmount.leaseIn.Value()),   //nolint:gosec // As described above.
+				LeaseOut: uint64(fullBalance.LeaseOut + diffAmount.leaseOut.Value()), //nolint:gosec // As described above.
 			}
 			leaseBalances = append(leaseBalances, newLeaseBalance)
 		}
