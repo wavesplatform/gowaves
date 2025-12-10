@@ -72,11 +72,12 @@
     },
     "transactionBlockLength": 48,
     "transactionCount": 1,
+    "generatorPublicKey": "11111111111111111111111111111111",
     "signature": "2EaaguFPgrJ1bbMAFrPw2bi6i7kqjgvxsFj8YGqrKR7hT54ZvwmzZ3LHMm4qR7i7QB5cacp8XdkLMJyvjFkt8VgN",
-    "height": 0,
     "transactions": [
       {
         "type": 1,
+        "version": 1,
         "id": "4jE5MLtQhHcdtj2U4emsN9FiBs7cLvdx7BwHSX2rVShW46Q5S8e61mXpigfm26Y4igNpAc4MhfeuLzv6pa3CySHL",
         "signature": "4jE5MLtQhHcdtj2U4emsN9FiBs7cLvdx7BwHSX2rVShW46Q5S8e61mXpigfm26Y4igNpAc4MhfeuLzv6pa3CySHL",
         "timestamp": 1561705836768,

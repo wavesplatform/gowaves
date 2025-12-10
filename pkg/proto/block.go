@@ -329,7 +329,7 @@ type BlockHeader struct {
 	StateHash              *crypto.Digest    `json:"stateHash,omitempty"`        // is nil before protocol version 1.5
 	ChallengedHeader       *ChallengedHeader `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
 
-	ID BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
+	ID BlockID `json:"id,omitzero"` // this field must be generated and set after Block unmarshalling
 }
 
 func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
