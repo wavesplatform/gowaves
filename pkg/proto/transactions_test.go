@@ -7111,10 +7111,10 @@ func TestCommitToGenerationWithProofsToJSON(t *testing.T) {
 }
 
 func TestCommitToGenerationWithProofsScalaJSONCompatibility(t *testing.T) {
-	t.Skip("TODO: enable after fix of scala JSON serialization")
+	//nolint: lll // Test data from Scala implementation.
 	js := `{
       "id": "55Cy8fzNF8wNQjjtsFhiNCUQkCJL97iaLRYfnEVRpVnr",
-      "type": 20,
+      "type": 19,
       "version": 1,
       "fee": 100000000,
       "feeAssetId": null,
@@ -7122,8 +7122,8 @@ func TestCommitToGenerationWithProofsScalaJSONCompatibility(t *testing.T) {
       "sender": "3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh",
       "senderPublicKey": "FM5ojNqW7e9cZ9zhPYGkpSP1Pcd8Z3e3MNKYVS5pGJ8Z",
       "generationPeriodStart": 3000,
-      "endorserPublicKey": "",
-      "commitmentSignature": "",
+      "endorserPublicKey": "6CagLT3FjEcaNHPYCaG2dcfEfzDj6ynVeZbxbLHkHdfzvbfBmBMkkatTYcBXD9cHMU",
+      "commitmentSignature": "oJUBPLXnqejpwkkifzBbyQp63mPwypYq9GV7eAYqQGAvsE2LxU6csrrwLWgK1HdW28Ygku7vfkcMW1TCDCFymVXoqi7SpCwWGp3P6gegHusSPBsuVQQiQ5BWTYpUpSJjiBL",
       "proofs": [
         "28kE1uN1pX2bwhzr9UHw5UuB9meTFEDFgeunNgy6nZWpHX4pzkGYotu8DhQ88AdqUG6Yy5wcXgHseKPBUygSgRMJ"
       ],
@@ -7138,9 +7138,13 @@ func TestCommitToGenerationWithProofsScalaJSONCompatibility(t *testing.T) {
 	assert.Equal(t, uint32(3000), tx.GenerationPeriodStart)
 	assert.Equal(t, uint64(100000000), tx.Fee)
 	assert.Equal(t, 1, len(tx.Proofs.Proofs))
-	assert.Equal(t, crypto.MustDigestFromBase58("55Cy8fzNF8wNQjjtsFhiNCUQkCJL97iaLRYfnEVRpVnr"), tx.ID)
+	assert.Equal(t, crypto.MustDigestFromBase58("55Cy8fzNF8wNQjjtsFhiNCUQkCJL97iaLRYfnEVRpVnr"), *tx.ID)
 	assert.Equal(t, crypto.MustPublicKeyFromBase58("FM5ojNqW7e9cZ9zhPYGkpSP1Pcd8Z3e3MNKYVS5pGJ8Z"), tx.SenderPK)
-	// TODO: fill lines below after Scala fix
-	assert.Equal(t, nil, tx.EndorserPublicKey)
-	assert.Equal(t, nil, tx.CommitmentSignature)
+	bpk, err := bls.NewPublicKeyFromBase58("6CagLT3FjEcaNHPYCaG2dcfEfzDj6ynVeZbxbLHkHdfzvbfBmBMkkatTYcBXD9cHMU")
+	require.NoError(t, err)
+	bs, err := bls.NewSignatureFromBase58("oJUBPLXnqejpwkkifzBbyQp63mPwypYq9GV7eAYqQGAvsE2LxU6csrrwLWgK1HdW28Ygku" +
+		"7vfkcMW1TCDCFymVXoqi7SpCwWGp3P6gegHusSPBsuVQQiQ5BWTYpUpSJjiBL")
+	require.NoError(t, err)
+	assert.Equal(t, bpk, tx.EndorserPublicKey)
+	assert.Equal(t, bs, tx.CommitmentSignature)
 }

@@ -479,6 +479,25 @@ type StateHashDebug interface {
 	GetStateHash() StateHash
 }
 
+// NewStateHashDebug creates a new StateHashDebug instance depending on whether
+// the Deterministic Finality feature is activated.
+func NewStateHashDebug(
+	finalityActivated bool, stateHash StateHash, heigh Height, ver string, snapSH crypto.Digest, bt uint64,
+) (StateHashDebug, error) {
+	if finalityActivated {
+		shV2, ok := stateHash.(*StateHashV2)
+		if !ok {
+			return nil, errors.New("invalid StateHash type for V2")
+		}
+		return NewStateHashDebugV2(*shV2, heigh, ver, snapSH, bt), nil
+	}
+	shV1, ok := stateHash.(*StateHashV1)
+	if !ok {
+		return nil, errors.New("invalid StateHash type for V1")
+	}
+	return NewStateHashDebugV1(*shV1, heigh, ver, snapSH), nil
+}
+
 type StateHashDebugV1 struct {
 	stateHashJSV1
 	Height       uint64        `json:"height,omitempty"`
@@ -486,8 +505,8 @@ type StateHashDebugV1 struct {
 	SnapshotHash crypto.Digest `json:"snapshotHash"`
 }
 
-func NewStateHashJSDebugV1(s StateHashV1, h uint64, v string, snapshotStateHash crypto.Digest) StateHashDebugV1 {
-	return StateHashDebugV1{stateHashJSV1: s.toStateHashJS(), Height: h, Version: v, SnapshotHash: snapshotStateHash}
+func NewStateHashDebugV1(s StateHashV1, h uint64, v string, snapshotStateHash crypto.Digest) *StateHashDebugV1 {
+	return &StateHashDebugV1{stateHashJSV1: s.toStateHashJS(), Height: h, Version: v, SnapshotHash: snapshotStateHash}
 }
 
 func (s StateHashDebugV1) GetBlockID() BlockID {
@@ -529,10 +548,10 @@ type StateHashDebugV2 struct {
 	BaseTarget   uint64        `json:"baseTarget,omitempty"`
 }
 
-func NewStateHashJSDebugV2(
+func NewStateHashDebugV2(
 	s StateHashV2, h uint64, v string, snapshotStateHash crypto.Digest, baseTarget uint64,
-) StateHashDebugV2 {
-	return StateHashDebugV2{
+) *StateHashDebugV2 {
+	return &StateHashDebugV2{
 		stateHashJSV2: s.toStateHashJS(),
 		Height:        h,
 		Version:       v,

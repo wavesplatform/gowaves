@@ -5472,11 +5472,13 @@ func (tx *CommitToGenerationWithProofs) Sign(scheme Scheme, sk crypto.SecretKey)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CommitToGenerationWithProofs transaction")
 	}
-	d, err := crypto.FastHash(b)
-	if err != nil {
-		return errors.Wrap(err, "failed to sign CommitToGenerationWithProofs transaction")
+	if tx.ID.IsZero() {
+		d, fhErr := crypto.FastHash(b)
+		if fhErr != nil {
+			return errors.Wrap(fhErr, "failed to sign CommitToGenerationWithProofs transaction")
+		}
+		tx.ID = &d
 	}
-	tx.ID = &d
 	return nil
 }
 
@@ -5485,19 +5487,19 @@ func (tx *CommitToGenerationWithProofs) MerkleBytes(scheme Scheme) ([]byte, erro
 }
 
 func (tx *CommitToGenerationWithProofs) MarshalBinary(Scheme) ([]byte, error) {
-	panic("MarshalBinary is not implemented")
+	return nil, errors.New("binary format is not defined for CommitToGeneration transaction")
 }
 
 func (tx *CommitToGenerationWithProofs) UnmarshalBinary([]byte, Scheme) error {
-	panic("UnmarshalBinary is not implemented")
+	return errors.New("binary format is not defined for CommitToGeneration transaction")
 }
 
 func (tx *CommitToGenerationWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	panic("BodyMarshalBinary is not implemented")
+	return nil, errors.New("binary format is not defined for CommitToGeneration transaction")
 }
 
 func (tx *CommitToGenerationWithProofs) BinarySize() int {
-	panic("BinarySize is not implemented")
+	return 0
 }
 
 func (tx *CommitToGenerationWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
