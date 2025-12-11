@@ -1875,7 +1875,7 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 			info.blockchainHeight = test.blockchainHeight
 			// Set generator's balance for the valid tests only, because creation of test.start blocks takes time.
 			if test.valid {
-				to.stor.setWavesBalance(t, testGlobal.senderInfo.addr, balanceProfile{Balance: 1_100_00000000}, info.blockID)
+				to.stor.setWavesBalance(t, testGlobal.senderInfo.addr, balanceProfile{Balance: 1_100_10000000}, info.blockID)
 				to.stor.addBlocks(t, int(test.start))
 			}
 
@@ -1895,7 +1895,7 @@ func TestCheckCommitToGenerationWithProofs_SecondCommitmentAttempt(t *testing.T)
 	to := createCheckerTestObjects(t, info)
 	to.stor.activateSponsorship(t)
 	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
-	to.stor.setWavesBalance(t, testGlobal.senderInfo.addr, balanceProfile{Balance: 10_100_00000000}, info.blockID)
+	to.stor.setWavesBalance(t, testGlobal.senderInfo.addr, balanceProfile{Balance: 10_100_10000000}, info.blockID)
 	to.stor.addBlocks(t, 10_000)
 	info.blockchainHeight = 10_000
 
@@ -1914,18 +1914,47 @@ func TestCheckCommitToGenerationWithProofs_SecondCommitmentAttempt(t *testing.T)
 }
 
 func TestCheckCommitToGenerationWithProofs_InsufficientGenerationBalance(t *testing.T) {
-	info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
-	to := createCheckerTestObjects(t, info)
-	to.stor.activateSponsorship(t)
-	to.stor.activateFeature(t, int16(settings.DeterministicFinality))
-	to.stor.activateFeature(t, int16(settings.SmallerMinimalGeneratingBalance))
-	to.stor.setWavesBalance(t, testGlobal.senderInfo.addr, balanceProfile{Balance: 500_00000000}, info.blockID)
-	to.stor.addBlocks(t, 10_000)
-	info.blockchainHeight = 10_000
-
-	tx1 := createCommitToGenerationWithProofs(t, 10_002)
-	_, err := to.tc.checkCommitToGenerationWithProofs(tx1, info)
-	assert.EqualError(t, err,
-		"insufficient generating balance on account \"3P3p1SmQq78f1wf8mzUBr5BYWfxcwQJ4Fcz\": "+
-			"have 50000000000, need at least 100000000000")
+	for i, test := range []struct {
+		balance uint64
+		fee     uint64
+		err     string
+	}{
+		{
+			balance: 100_00000000, fee: 10000000,
+			err: "failed to calculate balance after transaction application: sub: integer overflow/underflow",
+		},
+		{
+			balance: 101_00000000, fee: 1_00000000,
+			err: "insufficient generating balance on account \"3P3p1SmQq78f1wf8mzUBr5BYWfxcwQJ4Fcz\": " +
+				"have 0, need at least 100000000000",
+		},
+		{
+			balance: 500_00000000, fee: 10000000,
+			err: "insufficient generating balance on account \"3P3p1SmQq78f1wf8mzUBr5BYWfxcwQJ4Fcz\": " +
+				"have 39990000000, need at least 100000000000",
+		},
+		{
+			balance: 1100_00000000, fee: 10000000,
+			err: "insufficient generating balance on account \"3P3p1SmQq78f1wf8mzUBr5BYWfxcwQJ4Fcz\": " +
+				"have 99990000000, need at least 100000000000",
+		},
+		{
+			balance: 1100_00000000, fee: math.MaxInt64,
+			err: "failed to calculate future spends: add: integer overflow/underflow",
+		},
+	} {
+		t.Run(fmt.Sprintf("case %d", i+1), func(t *testing.T) {
+			info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
+			to := createCheckerTestObjects(t, info)
+			to.stor.activateSponsorship(t)
+			to.stor.activateFeature(t, int16(settings.DeterministicFinality))
+			to.stor.activateFeature(t, int16(settings.SmallerMinimalGeneratingBalance))
+			to.stor.setWavesBalance(t, testGlobal.senderInfo.addr, balanceProfile{Balance: test.balance}, info.blockID)
+			to.stor.addBlocks(t, 10_000)
+			info.blockchainHeight = 10_000
+			tx1 := createCommitToGenerationWithProofs(t, 10_002, withFee(test.fee))
+			_, err := to.tc.checkCommitToGenerationWithProofs(tx1, info)
+			assert.EqualError(t, err, test.err)
+		})
+	}
 }

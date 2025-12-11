@@ -19,6 +19,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -1774,14 +1775,32 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 		return txCheckerData{}, fmt.Errorf("generator %q has already committed to the next period %d",
 			addr, nextPeriodStart)
 	}
+	// Check that the sender has enough generating balance.
 	gb, err := tc.stor.balances.newestGeneratingBalance(addr.ID(), blockHeight)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to get sender's generating balance")
 	}
 	mgb := tc.stor.features.minimalGeneratingBalanceAtHeight(blockHeight, info.currentTimestamp)
-	if gb < mgb {
+	fee, err := safecast.Convert[int64](tx.Fee)
+	if err != nil {
+		return txCheckerData{}, fmt.Errorf("failed to convert fee to int64: %w", err)
+	}
+	futureSpends, err := common.AddInt[int64](Deposit, fee)
+	if err != nil {
+		return txCheckerData{}, fmt.Errorf("failed to calculate future spends: %w", err)
+	}
+	futureSpendsUint64, err := safecast.Convert[uint64](futureSpends)
+	if err != nil {
+		return txCheckerData{}, fmt.Errorf("failed to convert future spends to uint64: %w", err)
+	}
+	balanceAfter, err := common.SubInt[uint64](gb, futureSpendsUint64)
+	if err != nil {
+		return txCheckerData{}, fmt.Errorf("failed to calculate balance after transaction application: %w", err)
+	}
+	if balanceAfter < mgb {
 		return txCheckerData{},
-			fmt.Errorf("insufficient generating balance on account %q: have %d, need at least %d", addr, gb, mgb)
+			fmt.Errorf("insufficient generating balance on account %q: have %d, need at least %d",
+				addr, balanceAfter, mgb)
 	}
 	return txCheckerData{}, nil
 }
