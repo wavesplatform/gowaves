@@ -60,6 +60,9 @@ var _ featuresState = &mockFeaturesState{}
 //			isApprovedAtHeightFunc: func(featureID int16, height uint64) bool {
 //				panic("mock out the isApprovedAtHeight method")
 //			},
+//			minimalGeneratingBalanceAtHeightFunc: func(v1 proto.Height, v2 uint64) uint64 {
+//				panic("mock out the minimalGeneratingBalanceAtHeight method")
+//			},
 //			newestActivationHeightFunc: func(featureID int16) (uint64, error) {
 //				panic("mock out the newestActivationHeight method")
 //			},
@@ -129,6 +132,9 @@ type mockFeaturesState struct {
 
 	// isApprovedAtHeightFunc mocks the isApprovedAtHeight method.
 	isApprovedAtHeightFunc func(featureID int16, height uint64) bool
+
+	// minimalGeneratingBalanceAtHeightFunc mocks the minimalGeneratingBalanceAtHeight method.
+	minimalGeneratingBalanceAtHeightFunc func(v1 proto.Height, v2 uint64) uint64
 
 	// newestActivationHeightFunc mocks the newestActivationHeight method.
 	newestActivationHeightFunc func(featureID int16) (uint64, error)
@@ -237,6 +243,13 @@ type mockFeaturesState struct {
 			// Height is the height argument value.
 			Height uint64
 		}
+		// minimalGeneratingBalanceAtHeight holds details about calls to the minimalGeneratingBalanceAtHeight method.
+		minimalGeneratingBalanceAtHeight []struct {
+			// V1 is the v1 argument value.
+			V1 proto.Height
+			// V2 is the v2 argument value.
+			V2 uint64
+		}
 		// newestActivationHeight holds details about calls to the newestActivationHeight method.
 		newestActivationHeight []struct {
 			// FeatureID is the featureID argument value.
@@ -277,27 +290,28 @@ type mockFeaturesState struct {
 			BlockID proto.BlockID
 		}
 	}
-	lockactivateFeature             sync.RWMutex
-	lockactivationHeight            sync.RWMutex
-	lockaddVote                     sync.RWMutex
-	lockallFeatures                 sync.RWMutex
-	lockapprovalHeight              sync.RWMutex
-	lockapproveFeature              sync.RWMutex
-	lockclearCache                  sync.RWMutex
-	lockfeatureVotes                sync.RWMutex
-	lockfeatureVotesAtHeight        sync.RWMutex
-	lockfinishVoting                sync.RWMutex
-	lockisActivated                 sync.RWMutex
-	lockisActivatedAtHeight         sync.RWMutex
-	lockisApproved                  sync.RWMutex
-	lockisApprovedAtHeight          sync.RWMutex
-	locknewestActivationHeight      sync.RWMutex
-	locknewestApprovalHeight        sync.RWMutex
-	locknewestIsActivated           sync.RWMutex
-	locknewestIsActivatedAtHeight   sync.RWMutex
-	locknewestIsActivatedForNBlocks sync.RWMutex
-	locknewestIsApproved            sync.RWMutex
-	lockresetVotes                  sync.RWMutex
+	lockactivateFeature                  sync.RWMutex
+	lockactivationHeight                 sync.RWMutex
+	lockaddVote                          sync.RWMutex
+	lockallFeatures                      sync.RWMutex
+	lockapprovalHeight                   sync.RWMutex
+	lockapproveFeature                   sync.RWMutex
+	lockclearCache                       sync.RWMutex
+	lockfeatureVotes                     sync.RWMutex
+	lockfeatureVotesAtHeight             sync.RWMutex
+	lockfinishVoting                     sync.RWMutex
+	lockisActivated                      sync.RWMutex
+	lockisActivatedAtHeight              sync.RWMutex
+	lockisApproved                       sync.RWMutex
+	lockisApprovedAtHeight               sync.RWMutex
+	lockminimalGeneratingBalanceAtHeight sync.RWMutex
+	locknewestActivationHeight           sync.RWMutex
+	locknewestApprovalHeight             sync.RWMutex
+	locknewestIsActivated                sync.RWMutex
+	locknewestIsActivatedAtHeight        sync.RWMutex
+	locknewestIsActivatedForNBlocks      sync.RWMutex
+	locknewestIsApproved                 sync.RWMutex
+	lockresetVotes                       sync.RWMutex
 }
 
 // activateFeature calls activateFeatureFunc.
@@ -771,6 +785,42 @@ func (mock *mockFeaturesState) isApprovedAtHeightCalls() []struct {
 	mock.lockisApprovedAtHeight.RLock()
 	calls = mock.calls.isApprovedAtHeight
 	mock.lockisApprovedAtHeight.RUnlock()
+	return calls
+}
+
+// minimalGeneratingBalanceAtHeight calls minimalGeneratingBalanceAtHeightFunc.
+func (mock *mockFeaturesState) minimalGeneratingBalanceAtHeight(v1 proto.Height, v2 uint64) uint64 {
+	if mock.minimalGeneratingBalanceAtHeightFunc == nil {
+		panic("mockFeaturesState.minimalGeneratingBalanceAtHeightFunc: method is nil but featuresState.minimalGeneratingBalanceAtHeight was just called")
+	}
+	callInfo := struct {
+		V1 proto.Height
+		V2 uint64
+	}{
+		V1: v1,
+		V2: v2,
+	}
+	mock.lockminimalGeneratingBalanceAtHeight.Lock()
+	mock.calls.minimalGeneratingBalanceAtHeight = append(mock.calls.minimalGeneratingBalanceAtHeight, callInfo)
+	mock.lockminimalGeneratingBalanceAtHeight.Unlock()
+	return mock.minimalGeneratingBalanceAtHeightFunc(v1, v2)
+}
+
+// minimalGeneratingBalanceAtHeightCalls gets all the calls that were made to minimalGeneratingBalanceAtHeight.
+// Check the length with:
+//
+//	len(mockedfeaturesState.minimalGeneratingBalanceAtHeightCalls())
+func (mock *mockFeaturesState) minimalGeneratingBalanceAtHeightCalls() []struct {
+	V1 proto.Height
+	V2 uint64
+} {
+	var calls []struct {
+		V1 proto.Height
+		V2 uint64
+	}
+	mock.lockminimalGeneratingBalanceAtHeight.RLock()
+	calls = mock.calls.minimalGeneratingBalanceAtHeight
+	mock.lockminimalGeneratingBalanceAtHeight.RUnlock()
 	return calls
 }
 
