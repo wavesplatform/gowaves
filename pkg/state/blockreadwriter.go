@@ -665,7 +665,7 @@ func (rw *blockReadWriter) readTransactionSize(offset uint64) (uint32, bool, err
 	if err != nil {
 		return 0, false, err
 	} else if n != uint32Size {
-		return 0, false, errors.New("ReadAt did not read 4 bytes")
+		return 0, false, errors.Errorf("ReadAt did not read %d bytes", uint32Size)
 	}
 	size, compressed := decodeSize(binary.BigEndian.Uint32(sizeBytes))
 	return size, compressed, nil

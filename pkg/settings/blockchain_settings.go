@@ -247,24 +247,30 @@ func MustDefaultCustomSettings() *BlockchainSettings {
 	}
 }
 
+const (
+	mainnetFile  = "embedded/mainnet.json"
+	testnetFile  = "embedded/testnet.json"
+	stagenetFile = "embedded/stagenet.json"
+)
+
 func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 	switch blockchain {
 	case MainNet:
-		s, err := loadEmbeddedSettings("embedded/mainnet.json")
+		s, err := loadEmbeddedSettings(mainnetFile)
 		if err != nil {
 			panic(err)
 		}
 		return s
 
 	case TestNet:
-		s, err := loadEmbeddedSettings("embedded/testnet.json")
+		s, err := loadEmbeddedSettings(testnetFile)
 		if err != nil {
 			panic(err)
 		}
 		return s
 
 	case StageNet:
-		s, err := loadEmbeddedSettings("embedded/stagenet.json")
+		s, err := loadEmbeddedSettings(stagenetFile)
 		if err != nil {
 			panic(err)
 		}
