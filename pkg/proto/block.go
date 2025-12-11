@@ -175,10 +175,18 @@ func (id BlockID) String() string {
 }
 
 func (id BlockID) MarshalJSON() ([]byte, error) {
-	return common.ToBase58JSON(id.Bytes()), nil
+	data := id.Bytes()
+	if data == nil { // intentionally using nil to represent null BlockID
+		return []byte(jsonNull), nil
+	}
+	return common.ToBase58JSON(data), nil
 }
 
 func (id *BlockID) UnmarshalJSON(value []byte) error {
+	if bytes.Equal(value, jsonNullBytes) {
+		*id = BlockID{} // initialize as nil BlockID
+		return nil
+	}
 	b, err := common.FromBase58JSONUnchecked(value, "BlockID")
 	if err != nil {
 		return err
