@@ -3308,7 +3308,7 @@ func (s Script) String() string {
 // MarshalJSON writes Script as JSON
 func (s Script) MarshalJSON() ([]byte, error) {
 	if s == nil {
-		return jsonNullBytes, nil
+		return []byte(jsonNull), nil
 	}
 	var sb strings.Builder
 	sb.WriteRune('"')
