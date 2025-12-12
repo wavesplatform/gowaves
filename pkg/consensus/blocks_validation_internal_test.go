@@ -1,7 +1,7 @@
 package consensus
 
 import (
-	"strconv"
+	"fmt"
 	"testing"
 	"time"
 
@@ -55,7 +55,7 @@ func TestValidator_ShouldIncludeNewBlockFieldsOfLightNodeFeature(t *testing.T) {
 		},
 	}
 	for i, tt := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			sip := &stateInfoProviderMock{
 				NewestIsActiveAtHeightFunc: func(featureID int16, height uint64) (bool, error) {
 					require.Equal(t, int16(settings.LightNode), featureID)
@@ -164,7 +164,7 @@ func TestValidator_validateLightNodeBlockFields(t *testing.T) {
 		},
 	}
 	for i, tt := range tests {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			sip := &stateInfoProviderMock{
 				NewestIsActiveAtHeightFunc: func(featureID int16, height uint64) (bool, error) {
 					require.Equal(t, int16(settings.LightNode), featureID)
