@@ -2,9 +2,10 @@ package errors
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/assert"
 	"net/http"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestStateCheckFailedError_MarshalJSON(t *testing.T) {

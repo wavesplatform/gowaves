@@ -2,9 +2,10 @@ package api
 
 import (
 	"encoding/json"
-	"github.com/stretchr/testify/require"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
 )
 
 func TestApp_Miner(t *testing.T) {

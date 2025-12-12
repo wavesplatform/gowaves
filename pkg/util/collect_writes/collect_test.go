@@ -2,8 +2,9 @@ package collect_writes
 
 import (
 	"bytes"
-	"github.com/stretchr/testify/assert"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestCollectInt(t *testing.T) {
