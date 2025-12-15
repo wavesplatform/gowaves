@@ -2,6 +2,7 @@ package proto
 
 import (
 	"crypto/rand"
+	"encoding/binary"
 	"fmt"
 	"math"
 	"testing"
@@ -37,6 +38,22 @@ func randomBool() bool {
 	b := make([]byte, 1)
 	_, _ = rand.Read(b)
 	return b[0]%2 == 0
+}
+
+func randomHeight() uint64 {
+	b := make([]byte, 8)
+	_, _ = rand.Read(b)
+	return binary.BigEndian.Uint64(b[:8])
+}
+
+func randomByte() byte {
+	b := make([]byte, 1)
+	_, _ = rand.Read(b)
+	return b[0]
+}
+
+func randomVersion() string {
+	return fmt.Sprintf("v%d.%d.%d", randomByte(), randomByte(), randomByte())
 }
 
 func randomFieldsHashesV1() FieldsHashesV1 {
@@ -227,4 +244,34 @@ func TestStateHashV2_GenerateSumHashScalaCompatibility(t *testing.T) {
 	err := sh.GenerateSumHash(prevHash.Bytes())
 	require.NoError(t, err)
 	assert.Equal(t, correctSumHash, sh.GetSumHash())
+}
+
+func TestStateHashDebug(t *testing.T) {
+	for i := range 10 {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			activated := randomBool()
+			sh := NewLegacyStateHash(activated, randomBlockID(), randomFieldsHashesV1(), randomDigest())
+			h := randomHeight()
+			v := randomVersion()
+			ss := randomDigest()
+			bt := uint64(randomByte())
+			dsh, err := NewStateHashDebug(activated, sh, h, v, ss, bt)
+			require.NoError(t, err)
+			if activated {
+				ash, ok := dsh.(*StateHashDebugV2)
+				require.True(t, ok)
+				assert.Equal(t, h, ash.Height)
+				assert.Equal(t, v, ash.Version)
+				assert.Equal(t, ss, ash.SnapshotHash)
+				assert.Equal(t, bt, ash.BaseTarget)
+			} else {
+				ash, ok := dsh.(*StateHashDebugV1)
+				require.True(t, ok)
+				assert.Equal(t, h, ash.Height)
+				assert.Equal(t, v, ash.Version)
+				assert.Equal(t, ss, ash.SnapshotHash)
+			}
+			assert.Equal(t, sh, dsh.GetStateHash())
+		})
+	}
 }
