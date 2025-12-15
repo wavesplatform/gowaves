@@ -57,7 +57,8 @@ func (r *commitmentsRecordForStateHashes) less(other stateComponent) bool {
 	val := bytes.Compare(r.publicKey.Bytes(), o.publicKey.Bytes())
 	if val > 0 {
 		return false
-	} else if val == 0 {
+	}
+	if val == 0 {
 		return bytes.Compare(r.blsPublicKey.Bytes(), o.blsPublicKey.Bytes()) == -1
 	}
 	return true

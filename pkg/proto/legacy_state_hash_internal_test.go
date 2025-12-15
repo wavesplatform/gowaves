@@ -92,13 +92,27 @@ func createStateHashV1() StateHashV1 {
 	}
 }
 
-func TestStateHashJSONRoundTrip(t *testing.T) {
+func TestStateHashV1JSONRoundTrip(t *testing.T) {
 	for i := range 10 {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			sh := randomStateHashV1()
 			js, err := sh.MarshalJSON()
 			assert.NoError(t, err)
 			var sh2 StateHashV1
+			err = sh2.UnmarshalJSON(js)
+			assert.NoError(t, err)
+			assert.Equal(t, sh, sh2)
+		})
+	}
+}
+
+func TestStateHashV2JSONRoundTrip(t *testing.T) {
+	for i := range 10 {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			sh := randomStateHashV2()
+			js, err := sh.MarshalJSON()
+			assert.NoError(t, err)
+			var sh2 StateHashV2
 			err = sh2.UnmarshalJSON(js)
 			assert.NoError(t, err)
 			assert.Equal(t, sh, sh2)
@@ -143,6 +157,21 @@ func TestStateHashBinaryRoundTrip(t *testing.T) {
 			require.NoError(t, err)
 			sh2 := EmptyLegacyStateHash(activated)
 			err = sh2.UnmarshalBinary(data)
+			assert.NoError(t, err)
+			assert.Equal(t, sh, sh2)
+		})
+	}
+}
+
+func TestStateHashJSONRoundTrip(t *testing.T) {
+	for i := range 10 {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			activated := randomBool()
+			sh := NewLegacyStateHash(activated, randomBlockID(), randomFieldsHashesV1(), randomDigest())
+			js, err := sh.MarshalJSON()
+			require.NoError(t, err)
+			sh2 := EmptyLegacyStateHash(activated)
+			err = sh2.UnmarshalJSON(js)
 			assert.NoError(t, err)
 			assert.Equal(t, sh, sh2)
 		})

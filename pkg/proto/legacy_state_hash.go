@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -414,6 +413,26 @@ func (s *StateHashV2) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.toStateHashJS())
 }
 
+func (s *StateHashV2) UnmarshalJSON(value []byte) error {
+	var sh stateHashJSV2
+	if err := json.Unmarshal(value, &sh); err != nil {
+		return err
+	}
+	s.BlockID = sh.BlockID
+	s.SumHash = crypto.Digest(sh.SumHash)
+	s.DataEntryHash = crypto.Digest(sh.DataEntryHash)
+	s.AccountScriptHash = crypto.Digest(sh.AccountScriptHash)
+	s.AssetScriptHash = crypto.Digest(sh.AssetScriptHash)
+	s.LeaseStatusHash = crypto.Digest(sh.LeaseStatusHash)
+	s.SponsorshipHash = crypto.Digest(sh.SponsorshipHash)
+	s.AliasesHash = crypto.Digest(sh.AliasesHash)
+	s.WavesBalanceHash = crypto.Digest(sh.WavesBalanceHash)
+	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
+	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
+	s.GeneratorsHash = crypto.Digest(sh.GeneratorsHash)
+	return nil
+}
+
 func (s *StateHashV2) Equal(other StateHash) bool {
 	o, ok := other.(*StateHashV2)
 	if !ok {
@@ -599,12 +618,11 @@ func (s StateHashDebugV2) GetStateHash() StateHash {
 type DigestWrapped crypto.Digest
 
 func (d DigestWrapped) MarshalJSON() ([]byte, error) {
-	s := hex.EncodeToString(d[:])
-	var sb strings.Builder
-	sb.WriteRune('"')
-	sb.WriteString(s)
-	sb.WriteRune('"')
-	return []byte(sb.String()), nil
+	out := make([]byte, 0, 2+hex.EncodedLen(len(d)))
+	out = append(out, '"')
+	out = hex.AppendEncode(out, d[:])
+	out = append(out, '"')
+	return out, nil
 }
 
 func (d *DigestWrapped) UnmarshalJSON(value []byte) error {

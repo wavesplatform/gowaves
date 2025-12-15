@@ -7092,7 +7092,7 @@ func TestCommitToGenerationWithProofsToJSON(t *testing.T) {
 				tst.ver, base58.Encode(pk.Bytes()), tst.fee, tst.ts, tst.start, base58.Encode(blsPK.Bytes()),
 				base58.Encode(sig.Bytes()),
 			)
-			require.Equal(t, ej, string(js))
+			require.JSONEq(t, ej, string(js))
 
 			err = tx.Sign(tst.schema, sk)
 			require.NoError(t, err)
