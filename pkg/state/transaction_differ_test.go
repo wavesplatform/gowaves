@@ -19,8 +19,7 @@ const (
 	priceConstant = 10e7
 )
 
-//nolint:gochecknoglobals // no writes
-var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime + 1
+var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime //nolint:gochecknoglobals // no writes
 
 const (
 	defaultAmount   = uint64(100)

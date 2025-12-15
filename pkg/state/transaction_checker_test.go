@@ -923,7 +923,7 @@ func TestCheckSetScriptWithProofs(t *testing.T) {
 	// Big script, RideV6 feature is not activated
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
 	assert.EqualError(t, err,
-		"checkScript() tx AecWtWk9NhRCtSeTPjyCmkifLYUYQLV3Ag5Q9zdvhbYs: script size 32857 is greater than limit of 32768")
+		"checkScript() tx HRXWrnrRy1f7Ur3SNXTtVkNFHNgoqUkpQTB8foqVbptx: script size 32857 is greater than limit of 32768")
 	// RideV6 feature is active, but fee is not enough
 	to.stor.activateFeature(t, int16(settings.RideV6))
 	_, err = to.tc.checkSetScriptWithProofs(tx, info)
@@ -1807,12 +1807,14 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 	invalidFeeOpts := []txOption[*proto.CommitToGenerationWithProofs]{
 		withFee[*proto.CommitToGenerationWithProofs](12345),
 	}
-	parentTimestamp := defaultTimestamp - settings.MustMainNetSettings().MaxTxTimeBackOffset/2
+	// Calculate transaction timestamps based on the value of defaultTimestamp increased by 1.
+	dts := defaultTimestamp + 1
+	parentTimestamp := dts - settings.MustMainNetSettings().MaxTxTimeBackOffset/2
 	tsInThePastOpts := []txOption[*proto.CommitToGenerationWithProofs]{
 		withTimestamp[*proto.CommitToGenerationWithProofs](parentTimestamp - 7_200_001),
 	}
 	tsInTheFutureOpts := []txOption[*proto.CommitToGenerationWithProofs]{
-		withTimestamp[*proto.CommitToGenerationWithProofs](defaultTimestamp + 5_400_001),
+		withTimestamp[*proto.CommitToGenerationWithProofs](dts + 5_400_001),
 	}
 	for i, test := range []struct {
 		start            uint32
@@ -1865,6 +1867,9 @@ func TestCheckCommitToGenerationWithProofs(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			info := defaultCheckerInfo() // MainNet settings with 10_000 blocks generation period.
+			// Increase parent and current timestamps by 1 to activate check on transactions from future.
+			info.currentTimestamp++
+			info.parentTimestamp++
 			to := createCheckerTestObjects(t, info)
 			to.stor.activateSponsorship(t)
 			to.stor.activateFeature(t, int16(settings.SmallerMinimalGeneratingBalance))

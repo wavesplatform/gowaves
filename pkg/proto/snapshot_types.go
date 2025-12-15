@@ -299,7 +299,7 @@ func (s *LeaseBalanceSnapshot) LeaseInAsInt64() int64 {
 	if err != nil {
 		overflowed := int64(s.LeaseIn) //nolint:gosec // intentionally convert with overflow.
 		slog.Warn("Failed to convert leaseIn to int64, returning overflow value", logging.Error(err),
-			slog.Any("original", s.LeaseIn), slog.Any("converted", overflowed))
+			slog.Any("original", s.LeaseIn), slog.Int64("converted", overflowed))
 		return overflowed
 	}
 	return li
@@ -310,7 +310,7 @@ func (s *LeaseBalanceSnapshot) LeaseOutAsInt64() int64 {
 	if err != nil {
 		overflowed := int64(s.LeaseOut) //nolint:gosec // intentionally convert with overflow.
 		slog.Warn("Failed to convert leaseOut to int64, returning overflow value", logging.Error(err),
-			slog.Any("original", s.LeaseOut), slog.Any("converted", overflowed))
+			slog.Any("original", s.LeaseOut), slog.Int64("converted", overflowed))
 		return overflowed
 	}
 	return lo

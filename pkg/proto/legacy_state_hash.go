@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"io"
 	"strconv"
-	"strings"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
@@ -414,6 +413,26 @@ func (s *StateHashV2) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.toStateHashJS())
 }
 
+func (s *StateHashV2) UnmarshalJSON(value []byte) error {
+	var sh stateHashJSV2
+	if err := json.Unmarshal(value, &sh); err != nil {
+		return err
+	}
+	s.BlockID = sh.BlockID
+	s.SumHash = crypto.Digest(sh.SumHash)
+	s.DataEntryHash = crypto.Digest(sh.DataEntryHash)
+	s.AccountScriptHash = crypto.Digest(sh.AccountScriptHash)
+	s.AssetScriptHash = crypto.Digest(sh.AssetScriptHash)
+	s.LeaseStatusHash = crypto.Digest(sh.LeaseStatusHash)
+	s.SponsorshipHash = crypto.Digest(sh.SponsorshipHash)
+	s.AliasesHash = crypto.Digest(sh.AliasesHash)
+	s.WavesBalanceHash = crypto.Digest(sh.WavesBalanceHash)
+	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
+	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
+	s.GeneratorsHash = crypto.Digest(sh.GeneratorsHash)
+	return nil
+}
+
 func (s *StateHashV2) Equal(other StateHash) bool {
 	o, ok := other.(*StateHashV2)
 	if !ok {
@@ -479,6 +498,25 @@ type StateHashDebug interface {
 	GetStateHash() StateHash
 }
 
+// NewStateHashDebug creates a new StateHashDebug instance depending on whether
+// the Deterministic Finality feature is activated.
+func NewStateHashDebug(
+	finalityActivated bool, stateHash StateHash, heigh Height, ver string, snapSH crypto.Digest, bt uint64,
+) (StateHashDebug, error) {
+	if finalityActivated {
+		shV2, ok := stateHash.(*StateHashV2)
+		if !ok {
+			return nil, errors.New("invalid StateHash type for V2")
+		}
+		return NewStateHashDebugV2(*shV2, heigh, ver, snapSH, bt), nil
+	}
+	shV1, ok := stateHash.(*StateHashV1)
+	if !ok {
+		return nil, errors.New("invalid StateHash type for V1")
+	}
+	return NewStateHashDebugV1(*shV1, heigh, ver, snapSH), nil
+}
+
 type StateHashDebugV1 struct {
 	stateHashJSV1
 	Height       uint64        `json:"height,omitempty"`
@@ -486,8 +524,8 @@ type StateHashDebugV1 struct {
 	SnapshotHash crypto.Digest `json:"snapshotHash"`
 }
 
-func NewStateHashJSDebugV1(s StateHashV1, h uint64, v string, snapshotStateHash crypto.Digest) StateHashDebugV1 {
-	return StateHashDebugV1{stateHashJSV1: s.toStateHashJS(), Height: h, Version: v, SnapshotHash: snapshotStateHash}
+func NewStateHashDebugV1(s StateHashV1, h uint64, v string, snapshotStateHash crypto.Digest) *StateHashDebugV1 {
+	return &StateHashDebugV1{stateHashJSV1: s.toStateHashJS(), Height: h, Version: v, SnapshotHash: snapshotStateHash}
 }
 
 func (s StateHashDebugV1) GetBlockID() BlockID {
@@ -511,7 +549,7 @@ func (s StateHashDebugV1) GetStateHash() StateHash {
 			AssetBalanceHash:  crypto.Digest(s.AssetBalanceHash),
 			DataEntryHash:     crypto.Digest(s.DataEntryHash),
 			AccountScriptHash: crypto.Digest(s.AccountScriptHash),
-			AssetScriptHash:   crypto.Digest(s.AssetBalanceHash),
+			AssetScriptHash:   crypto.Digest(s.AssetScriptHash),
 			LeaseBalanceHash:  crypto.Digest(s.LeaseBalanceHash),
 			LeaseStatusHash:   crypto.Digest(s.LeaseStatusHash),
 			SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
@@ -529,10 +567,10 @@ type StateHashDebugV2 struct {
 	BaseTarget   uint64        `json:"baseTarget,omitempty"`
 }
 
-func NewStateHashJSDebugV2(
+func NewStateHashDebugV2(
 	s StateHashV2, h uint64, v string, snapshotStateHash crypto.Digest, baseTarget uint64,
-) StateHashDebugV2 {
-	return StateHashDebugV2{
+) *StateHashDebugV2 {
+	return &StateHashDebugV2{
 		stateHashJSV2: s.toStateHashJS(),
 		Height:        h,
 		Version:       v,
@@ -563,7 +601,7 @@ func (s StateHashDebugV2) GetStateHash() StateHash {
 				AssetBalanceHash:  crypto.Digest(s.AssetBalanceHash),
 				DataEntryHash:     crypto.Digest(s.DataEntryHash),
 				AccountScriptHash: crypto.Digest(s.AccountScriptHash),
-				AssetScriptHash:   crypto.Digest(s.AssetBalanceHash),
+				AssetScriptHash:   crypto.Digest(s.AssetScriptHash),
 				LeaseBalanceHash:  crypto.Digest(s.LeaseBalanceHash),
 				LeaseStatusHash:   crypto.Digest(s.LeaseStatusHash),
 				SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
@@ -580,12 +618,11 @@ func (s StateHashDebugV2) GetStateHash() StateHash {
 type DigestWrapped crypto.Digest
 
 func (d DigestWrapped) MarshalJSON() ([]byte, error) {
-	s := hex.EncodeToString(d[:])
-	var sb strings.Builder
-	sb.WriteRune('"')
-	sb.WriteString(s)
-	sb.WriteRune('"')
-	return []byte(sb.String()), nil
+	out := make([]byte, 0, 2+hex.EncodedLen(len(d)))
+	out = append(out, '"')
+	out = hex.AppendEncode(out, d[:])
+	out = append(out, '"')
+	return out, nil
 }
 
 func (d *DigestWrapped) UnmarshalJSON(value []byte) error {

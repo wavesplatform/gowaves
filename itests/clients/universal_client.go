@@ -6,8 +6,6 @@ import (
 	"testing"
 	"time"
 
-	"golang.org/x/sync/errgroup"
-
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -53,24 +51,23 @@ func (c *NodeUniversalClient) WaitForHeight(t testing.TB, height uint64, opts ..
 	params := config.NewWaitParams(opts...)
 	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		for gCtx.Err() == nil {
-			h = c.HTTPClient.GetHeight(t).Height
-			if h >= height {
-				return nil
-			}
-			select {
-			case <-gCtx.Done():
-				return gCtx.Err()
-			case <-time.After(time.Second):
-				// Sleep for a second before checking the height again.
-			}
+	for context.Cause(ctx) == nil {
+		h = c.HTTPClient.GetHeight(t).Height
+		if h >= height {
+			break
 		}
-		return gCtx.Err()
-	})
-	// Wait for the goroutines to finish.
-	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+		select {
+		case <-ctx.Done():
+			break
+		case <-time.After(time.Second):
+			// Sleep for a second before checking the height again.
+		}
+	}
+
+	if err := context.Cause(ctx); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Timeout exceeded while waiting for height %d, current height %d", height, h)
+		}
 		t.Fatalf("Failed to wait for height %d: %v", height, err)
 	}
 	return h
@@ -80,15 +77,14 @@ func (c *NodeUniversalClient) WaitForTransaction(t testing.TB, id crypto.Digest,
 	params := config.NewWaitParams(opts...)
 	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
 	defer cancel()
-	g, gCtx := errgroup.WithContext(ctx)
-	g.Go(func() error {
-		return RetryCtx(gCtx, params.Timeout, func() error {
-			_, _, err := c.HTTPClient.TransactionInfoRaw(id)
-			return err
-		})
+	err := RetryCtx(ctx, params.Timeout, func() error {
+		_, _, err := c.HTTPClient.TransactionInfoRaw(id)
+		return err
 	})
-	// Wait for the goroutines to finish.
-	if err := g.Wait(); err != nil && !errors.Is(err, context.Canceled) {
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Timeout exceeded while waiting for transaction %q", id.String())
+		}
 		t.Fatalf("Failed to wait for transaction %q: %v", id.String(), err)
 	}
 }
