@@ -32,7 +32,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run gosec security scanner
-        uses: securego/gosec@6be2b51fd78feca86af91f5186b7964d76cb1256 # v2.22.10
+        uses: securego/gosec@424fc4cd9c82ea0fd6bee9cd49c2db2c3cc0c93f # v2.22.11
         with:
           # with '-no-fail' we let the report trigger content trigger a failure using the GitHub Security features.
           args: "-no-fail -exclude-generated -fmt sarif -out gosec.sarif ./..."
@@ -50,7 +50,7 @@ jobs:
           jq empty gosec_fixed.sarif
           mv gosec_fixed.sarif gosec.sarif
       - name: Upload SARIF file for GitHub Advanced Security Dashboard
-        uses: github/codeql-action/upload-sarif@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v3
+        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e # v3
         with:
           sarif_file: gosec.sarif
 
@@ -88,7 +88,7 @@ jobs:
               fi
           EOF
       - name: Upload SARIF file for GitHub Advanced Security Dashboard
-        uses: github/codeql-action/upload-sarif@cf1bb45a277cb3c205638b2cd5c984db1c46a412 # v3
+        uses: github/codeql-action/upload-sarif@1b168cd39490f61582a9beae412bb7057a6b2c4e # v3
         with:
           sarif_file: semgrep.sarif
 
