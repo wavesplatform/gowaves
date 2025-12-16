@@ -38,7 +38,7 @@ type stateInfoProvider interface {
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	NewestActivationHeight(featureID int16) (uint64, error)
 	NewestAccountHasScript(addr proto.WavesAddress) (bool, error)
-	MinimalGeneratingBalanceAtHeight(height proto.Height, timestamp uint64) uint64
+	NewestMinimalGeneratingBalanceAtHeight(height proto.Height, timestamp uint64) uint64
 }
 
 type Validator struct {
@@ -181,7 +181,7 @@ func (cv *Validator) ValidateHeadersBatch(headers []proto.BlockHeader, startHeig
 }
 
 func (cv *Validator) validateGeneratingBalance(header *proto.BlockHeader, balance, height uint64) error {
-	mgb := cv.state.MinimalGeneratingBalanceAtHeight(height, header.Timestamp)
+	mgb := cv.state.NewestMinimalGeneratingBalanceAtHeight(height, header.Timestamp)
 	if balance < mgb {
 		return errors.Errorf(
 			"generator's generating balance is less than required for generation: expected %d, found %d",

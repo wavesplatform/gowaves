@@ -3356,6 +3356,6 @@ func (s *stateManager) Close() error {
 
 // MinimalGeneratingBalanceAtHeight returns minimal generating balance at given height and timestamp.
 // It checks feature activation using newestIsActivatedAtHeight function.
-func (s *stateManager) MinimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
+func (s *stateManager) NewestMinimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
 	return s.stor.features.minimalGeneratingBalanceAtHeight(height, ts)
 }
