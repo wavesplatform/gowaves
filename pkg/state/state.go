@@ -28,6 +28,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -70,6 +71,7 @@ type blockchainEntitiesStorage struct {
 	hitSources        *hitSources
 	snapshots         *snapshotsAtHeight
 	patches           *patchesStorage
+	commitments       *commitments
 	calculateHashes   bool
 }
 
@@ -100,34 +102,36 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		scriptsStorage,
 		newScriptsComplexity(hs),
 		newInvokeResults(hs),
-		newStateHashes(hs),
+		newStateHashes(hs, features),
 		newHitSources(hs),
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
+		newCommitments(hs, calcHashes),
 		calcHashes,
 	}, nil
 }
 
-func (s *blockchainEntitiesStorage) putStateHash(prevHash []byte, height uint64, blockID proto.BlockID) (*proto.StateHash, error) {
-	sh := &proto.StateHash{
-		BlockID: blockID,
-		FieldsHashes: proto.FieldsHashes{
-			WavesBalanceHash:  s.balances.wavesHashAt(blockID),
-			AssetBalanceHash:  s.balances.assetsHashAt(blockID),
-			DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
-			AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(blockID),
-			AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(blockID),
-			LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
-			LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
-			SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
-			AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
-		},
+func (s *blockchainEntitiesStorage) putStateHash(
+	prevHash []byte, height uint64, blockID proto.BlockID,
+) (proto.StateHash, error) {
+	finalityActivated := s.features.isActivatedAtHeight(int16(settings.DeterministicFinality), height)
+	fhV1 := proto.FieldsHashesV1{
+		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
+		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
+		DataEntryHash:     s.accountsDataStor.hasher.stateHashAt(blockID),
+		AccountScriptHash: s.scriptsStorage.getAccountScriptsHasher().stateHashAt(blockID),
+		AssetScriptHash:   s.scriptsStorage.getAssetScriptsHasher().stateHashAt(blockID),
+		LeaseBalanceHash:  s.balances.leaseHashAt(blockID),
+		LeaseStatusHash:   s.leases.hasher.stateHashAt(blockID),
+		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
+		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
 	}
-	if err := sh.GenerateSumHash(prevHash); err != nil {
-		return nil, err
+	sh := proto.NewLegacyStateHash(finalityActivated, blockID, fhV1, s.commitments.hasher.stateHashAt(blockID))
+	if gErr := sh.GenerateSumHash(prevHash); gErr != nil {
+		return nil, gErr
 	}
-	if err := s.stateHashes.saveLegacyStateHash(sh, height); err != nil {
-		return nil, err
+	if sErr := s.stateHashes.saveLegacyStateHash(sh, height); sErr != nil {
+		return nil, sErr
 	}
 	return sh, nil
 }
@@ -172,9 +176,9 @@ func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uin
 	startHeight := blockchainHeight + 1
 	for i, id := range blockIds {
 		height := startHeight + uint64(i)
-		newPrevHash, err := s.putStateHash(prevHash.SumHash[:], height, id)
-		if err != nil {
-			return err
+		newPrevHash, pErr := s.putStateHash(prevHash.GetSumHash().Bytes(), height, id)
+		if pErr != nil {
+			return pErr
 		}
 		prevHash = newPrevHash
 	}
@@ -1176,12 +1180,13 @@ func (s *stateManager) FullWavesBalance(account proto.Recipient) (*proto.FullWav
 		effective = chEffective
 	}
 	return &proto.FullWavesBalance{
-		Regular:    profile.balance,
+		Regular:    profile.Balance,
 		Generating: generating,
 		Available:  profile.spendableBalance(),
 		Effective:  effective,
-		LeaseIn:    uint64(profile.leaseIn),
-		LeaseOut:   uint64(profile.leaseOut),
+		LeaseIn:    profile.LeaseInAsUint64(),
+		LeaseOut:   profile.LeaseOutAsUint64(),
+		//TODO: Add Deposit to the profile.
 	}, nil
 }
 
@@ -1238,11 +1243,12 @@ func (s *stateManager) WavesBalanceProfile(id proto.AddressID) (*types.WavesBala
 		challenged = ch
 	}
 	return &types.WavesBalanceProfile{
-		Balance:    profile.balance,
-		LeaseIn:    profile.leaseIn,
-		LeaseOut:   profile.leaseOut,
+		Balance:    profile.Balance,
+		LeaseIn:    profile.LeaseIn,
+		LeaseOut:   profile.LeaseOut,
 		Generating: generating,
 		Challenged: challenged,
+		//TODO: Add Deposit to the profile.
 	}, nil
 }
 
@@ -1255,7 +1261,7 @@ func (s *stateManager) NewestWavesBalance(account proto.Recipient) (uint64, erro
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
-	return profile.balance, nil
+	return profile.Balance, nil
 }
 
 func (s *stateManager) NewestAssetBalance(account proto.Recipient, asset crypto.Digest) (uint64, error) {
@@ -1287,7 +1293,7 @@ func (s *stateManager) WavesBalance(account proto.Recipient) (uint64, error) {
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, err)
 	}
-	return profile.balance, nil
+	return profile.Balance, nil
 }
 
 func (s *stateManager) AssetBalance(account proto.Recipient, assetID proto.AssetID) (uint64, error) {
@@ -1646,6 +1652,28 @@ func (s *stateManager) needToResetStolenAliases(height uint64) (bool, error) {
 	return false, nil
 }
 
+func (s *stateManager) isGenerationPeriodOver(height proto.Height) (bool, error) {
+	finalityActivationHeight, err := s.stor.features.newestActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return false, nil
+		}
+		return false, err
+	}
+	if height < finalityActivationHeight {
+		return false, nil
+	}
+	end, err := generationPeriodEnd(finalityActivationHeight, height, s.settings.GenerationPeriod, 0)
+	if err != nil {
+		return false, err
+	}
+	end64, err := safecast.Convert[uint64](end)
+	if err != nil {
+		return false, err
+	}
+	return height == end64, nil
+}
+
 // featureActivationHeightForHeight returns the height at which the feature is activated.
 // If the feature is not activated at the given height, it returns 0.
 func (s *stateManager) featureActivationHeightForHeight(f settings.Feature, h proto.Height) (proto.Height, error) {
@@ -1789,6 +1817,21 @@ func (s *stateManager) blockchainHeightAction(blockchainHeight uint64, lastBlock
 			return ubrErr
 		}
 	}
+	// We are checking that the top block is the last block of previous generation period.
+	// In this case, we have to reset deposits
+	periodIsOver, err := s.isGenerationPeriodOver(blockchainHeight)
+	if err != nil {
+		return err
+	}
+	if periodIsOver {
+		// Return deposits associated with the ended period.
+		slog.Debug("Generation period is over, resetting deposits in block",
+			"blockchainHeight", blockchainHeight, "blockHeight", blockchainHeight+1,
+			"blockID", nextBlock.String())
+		if drErr := s.resetDeposits(nextBlock, blockchainHeight); drErr != nil {
+			return drErr
+		}
+	}
 	return nil
 }
 
@@ -1815,6 +1858,44 @@ func (s *stateManager) updateBlockReward(nextBlockID proto.BlockID, lastBlockHei
 		blockRewardActivationHeight,
 		isCappedRewardsActivated,
 	)
+}
+
+func (s *stateManager) resetDeposits(nextBlockID proto.BlockID, lastBlockHeight proto.Height) error {
+	activationHeight, err := s.stor.features.newestActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return fmt.Errorf("failed to reset deposits: %w", err)
+	}
+	start, err := currentGenerationPeriodStart(activationHeight, lastBlockHeight, s.settings.GenerationPeriod)
+	if err != nil {
+		return fmt.Errorf("failed to reset deposits: %w", err)
+	}
+	generators, err := s.stor.commitments.newestGenerators(start)
+	if err != nil {
+		return fmt.Errorf("failed to reset deposits: %w", err)
+	}
+	for _, generator := range generators {
+		addr, adrErr := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, generator)
+		if adrErr != nil {
+			return fmt.Errorf("failed to reset deposits: %w", adrErr)
+		}
+		balance, bErr := s.stor.balances.wavesBalance(addr.ID())
+		if bErr != nil {
+			return fmt.Errorf("failed to reset deposits: %w", bErr)
+		}
+		balance.Deposit, err = common.SubInt(balance.Deposit, Deposit)
+		if err != nil {
+			return fmt.Errorf("failed to reset deposits: %w", err)
+		}
+		v := wavesValue{
+			profile:       balance,
+			leaseChange:   false,
+			balanceChange: false,
+		}
+		if sbErr := s.stor.balances.setWavesBalance(addr.ID(), v, nextBlockID); sbErr != nil {
+			return fmt.Errorf("failed to reset deposits: %w", sbErr)
+		}
+	}
+	return nil
 }
 
 // generateCancelLeasesSnapshots generates snapshots for lease cancellation blockchain fixes.
@@ -2892,7 +2973,7 @@ func (s *stateManager) FullAssetInfo(assetID proto.AssetID) (*proto.FullAssetInf
 	if err != nil {
 		return nil, wrapErr(stateerr.RetrievalError, err)
 	}
-	txID := crypto.Digest(ai.ID)             // explicitly show that full asset ID is a crypto.Digest and equals txID
+	txID := ai.ID                            // explicitly show that full asset ID is a crypto.Digest and equals txID
 	tx, _ := s.TransactionByID(txID.Bytes()) // Explicitly ignore error here, in case of error tx is nil as expected
 	res := &proto.FullAssetInfo{
 		AssetInfo:        *ai,
@@ -3115,7 +3196,7 @@ func (s *stateManager) ProvidesStateHashes() (bool, error) {
 	return provides, nil
 }
 
-func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+func (s *stateManager) LegacyStateHashAtHeight(height proto.Height) (proto.StateHash, error) {
 	hasData, err := s.ProvidesStateHashes()
 	if err != nil {
 		return nil, wrapErr(stateerr.Other, err)

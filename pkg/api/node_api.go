@@ -21,6 +21,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/util/limit_listener"
@@ -809,7 +810,7 @@ func (a *NodeApi) WavesRegularBalanceByAddress(w http.ResponseWriter, r *http.Re
 	return nil
 }
 
-func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, error) {
+func (a *NodeApi) stateHashDebug(height proto.Height) (proto.StateHashDebug, error) {
 	stateHash, err := a.state.LegacyStateHashAtHeight(height)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get state hash at height %d", height)
@@ -819,8 +820,15 @@ func (a *NodeApi) stateHashDebug(height proto.Height) (*proto.StateHashDebug, er
 		return nil, errors.Wrapf(err, "failed to get snapshot state hash at height %d", height)
 	}
 	version := a.app.version().Version
-	stateHashDebug := proto.NewStateHashJSDebug(*stateHash, height, version, snapshotStateHash)
-	return &stateHashDebug, nil
+	finalityActivated, err := a.state.IsActiveAtHeight(int16(settings.DeterministicFinality), height)
+	if err != nil {
+		return nil, errors.Wrapf(err, "failed to get snapshot state hash at height %d", height)
+	}
+	bh, bhErr := a.state.HeaderByHeight(height)
+	if bhErr != nil {
+		return nil, errors.Wrapf(bhErr, "failed to get snapshot state hash at height %d", height)
+	}
+	return proto.NewStateHashDebug(finalityActivated, stateHash, height, version, snapshotStateHash, bh.BaseTarget)
 }
 
 func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {

@@ -80,6 +80,8 @@ func transactionToObject(env reducedReadOnlyEnv, tx proto.Transaction) (rideType
 		return ethereumTransactionToObject(env.state(), env.blockRewardDistributionActivated(), ver, scheme, transaction)
 	case *proto.InvokeExpressionTransactionWithProofs:
 		return invokeExpressionWithProofsToObject(scheme, transaction)
+	case *proto.CommitToGenerationWithProofs:
+		return commitToGenerationToObject(scheme, transaction)
 	default:
 		return nil, EvaluationFailure.Errorf("conversion to RIDE object is not implemented for %T", transaction)
 	}
@@ -1299,6 +1301,11 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 			rideInt(int64(tx.GetFee())),
 		), nil
 	}
+}
+
+func commitToGenerationToObject(_ proto.Scheme, _ *proto.CommitToGenerationWithProofs) (rideType, error) {
+	// TODO: implement conversion after adding CommitToGenerationTransaction type to Ride V9.
+	return nil, errors.New("not implemented")
 }
 
 func recipientToObject(recipient proto.Recipient) rideType {
