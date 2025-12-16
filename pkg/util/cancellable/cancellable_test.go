@@ -1,11 +1,12 @@
 package cancellable
 
 import (
-	"github.com/stretchr/testify/require"
-	"go.uber.org/atomic"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/stretchr/testify/require"
+	"go.uber.org/atomic"
 )
 
 func TestAfter(t *testing.T) {
