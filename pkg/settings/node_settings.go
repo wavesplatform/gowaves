@@ -1,9 +1,10 @@
 package settings
 
 import (
-	"github.com/pkg/errors"
 	"os"
 	"strings"
+
+	"github.com/pkg/errors"
 )
 
 type NodeSettings struct {
