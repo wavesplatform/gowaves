@@ -228,7 +228,8 @@ type EmbeddedWallet interface {
 
 // EndorsementPool storage interface.
 type EndorsementPool interface {
-	Add(e *proto.EndorseBlock, endorserPublicKey bls.PublicKey, balance uint64) error
+	Add(e *proto.EndorseBlock, endorserPublicKey bls.PublicKey,
+		lastFinalizedHeight proto.Height, lastFinalizedBlockID proto.BlockID, balance uint64) error
 	GetAll() []proto.EndorseBlock
 	GetEndorsers() []bls.PublicKey
 	FormFinalization(finalizationHeight proto.Height) (proto.FinalizationVoting, error)

@@ -4,7 +4,6 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
-	"fmt"
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
@@ -75,7 +74,8 @@ func NewEndorsementPool(maxGenerators int) *EndorsementPool {
 }
 
 // Add inserts an endorsement into the heap with priority based on balance desc, seq asc.
-func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey, balance uint64) error {
+func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
+	lastFinalizedHeight proto.Height, lastFinalizedBlockID proto.BlockID, balance uint64) error {
 	if e == nil {
 		return errors.New("invalid endorsement")
 	}
@@ -84,11 +84,14 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey, balance u
 
 	p.mu.Lock()
 	defer p.mu.Unlock()
-
 	if _, exists := p.byKey[k]; exists {
 		p.conflicts = append(p.conflicts, *e)
-		return fmt.Errorf("duplicate endorsement: endorser %d, block %s",
-			e.EndorserIndex, e.EndorsedBlockID.String())
+		return nil
+	}
+	if proto.Height(e.FinalizedBlockHeight) <= lastFinalizedHeight &&
+		e.FinalizedBlockID != lastFinalizedBlockID {
+		p.conflicts = append(p.conflicts, *e)
+		return nil
 	}
 
 	p.seq++

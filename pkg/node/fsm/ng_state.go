@@ -225,7 +225,6 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		return a, nil, proto.NewInfoMsg(err)
 	}
 
-	// TODO verify individual endorsements (signatures) using the endorser's public key.
 	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
 	if actErr != nil {
 		return a, nil,
@@ -254,12 +253,21 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	if err != nil {
 		return nil, nil, err
 	}
-	err = a.baseInfo.endorsements.Add(blockEndorsement, endorserPK, balance)
+	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
-		return a, nil, errors.Errorf("failed to add an endorsement, %v", err)
+		return nil, nil, err
+	}
+	localFinalizedBlockHeader, err := a.baseInfo.storage.LastFinalizedBlock()
+	if err != nil {
+		return nil, nil, err
+	}
+	addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
+		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance)
+	if addErr != nil {
+		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
-	a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
+	a.baseInfo.actions.SendEndorseBlock(blockEndorsement) // TODO should we send it out if conflicting?
 	return newNGState(a.baseInfo), nil, nil
 }
 

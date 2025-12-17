@@ -305,3 +305,57 @@ func (c *commitments) CommittedGenerators(periodStart uint32, scheme proto.Schem
 	}
 	return addresses, nil
 }
+
+func (c *commitments) removeGenerator(
+	periodStart uint32,
+	generatorPK crypto.PublicKey,
+	blockID proto.BlockID,
+) error {
+	key := commitmentKey{periodStart: periodStart}
+	keyBytes := key.bytes()
+
+	data, err := c.hs.newestTopEntryData(keyBytes)
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return fmt.Errorf("no commitments found for period %d", periodStart)
+		}
+		return fmt.Errorf("failed to retrieve commitments record: %w", err)
+	}
+
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return fmt.Errorf("failed to unmarshal commitments record: %w", umErr)
+	}
+
+	newCommitmentRecords := make([]commitmentItem, 0, len(rec.Commitments))
+	var removed *commitmentItem
+	for _, cm := range rec.Commitments {
+		if bytes.Equal(cm.GeneratorPK[:], generatorPK[:]) {
+			removed = &cm
+			continue
+		}
+		newCommitmentRecords = append(newCommitmentRecords, cm)
+	}
+	if removed == nil {
+		return fmt.Errorf(
+			"endorser public key not found in commitments for period %d",
+			periodStart,
+		)
+	}
+	rec.Commitments = newCommitmentRecords
+	newData, mErr := rec.marshalBinary()
+	if mErr != nil {
+		return fmt.Errorf("failed to marshal updated commitments record: %w", mErr)
+	}
+
+	if c.calculateHashes {
+		if pErr := c.hasher.pop(string(keyBytes), blockID); pErr != nil {
+			return fmt.Errorf("failed to update commitment state hash: %w", pErr)
+		}
+	}
+	if addErr := c.hs.addNewEntry(commitment, keyBytes, newData, blockID); addErr != nil {
+		return fmt.Errorf("failed to add updated commitment record: %w", addErr)
+	}
+
+	return nil
+}
