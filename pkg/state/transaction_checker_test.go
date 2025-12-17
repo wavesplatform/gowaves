@@ -869,6 +869,7 @@ func TestCheckSponsorshipWithProofs(t *testing.T) {
 	_, err = to.tc.checkSponsorshipWithProofs(tx, info)
 	assert.Error(t, err, "checkSponsorshipWithProofs did not fail with invalid timestamp")
 }
+
 func TestCheckSetScriptWithProofs(t *testing.T) {
 	info := defaultCheckerInfo()
 	to := createCheckerTestObjects(t, info)
