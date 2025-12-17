@@ -409,7 +409,7 @@ func (s *StateHashV2) GenerateSumHash(prevSumHash []byte) error {
 	return nil
 }
 
-func (s *StateHashV2) MarshalJSON() ([]byte, error) {
+func (s StateHashV2) MarshalJSON() ([]byte, error) {
 	return json.Marshal(s.toStateHashJS())
 }
 

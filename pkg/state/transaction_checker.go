@@ -107,10 +107,7 @@ func (tc *transactionChecker) scriptFeaturesActivations() (rideFeaturesActivatio
 		return res, err
 	}
 	res.deterministicFinalityActivated, err = tc.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
-	if err != nil {
-		return res, err
-	}
-	return res, nil
+	return res, err
 }
 
 func (tc *transactionChecker) scriptActivation(
