@@ -20,7 +20,7 @@ const (
 )
 
 //nolint:gochecknoglobals // no writes
-var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime + 1
+var defaultTimestamp = settings.MustMainNetSettings().CheckTempNegativeAfterTime
 
 const (
 	defaultAmount   = uint64(100)

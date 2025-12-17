@@ -371,9 +371,8 @@ func (n *newBlocks) next() bool {
 	n.curPos++
 	if n.binary {
 		return n.curPos <= len(n.binBlocks)
-	} else {
-		return n.curPos <= len(n.blocks)
 	}
+	return n.curPos <= len(n.blocks)
 }
 
 func (n *newBlocks) unmarshalBlock(block *proto.Block, blockBytes []byte) error {
@@ -2365,14 +2364,20 @@ func (s *stateManager) NewestRecipientToAddress(recipient proto.Recipient) (prot
 	if addr := recipient.Address(); addr != nil {
 		return *addr, nil
 	}
-	return s.stor.aliases.newestAddrByAlias(recipient.Alias().Alias)
+	if al := recipient.Alias(); al != nil {
+		return s.stor.aliases.newestAddrByAlias(al.Alias)
+	}
+	return proto.WavesAddress{}, errors.New("invalid recipient: neither address nor alias is set")
 }
 
 func (s *stateManager) recipientToAddress(recipient proto.Recipient) (proto.WavesAddress, error) {
 	if addr := recipient.Address(); addr != nil {
 		return *addr, nil
 	}
-	return s.stor.aliases.addrByAlias(recipient.Alias().Alias)
+	if al := recipient.Alias(); al != nil {
+		return s.stor.aliases.addrByAlias(al.Alias)
+	}
+	return proto.WavesAddress{}, errors.New("invalid recipient: neither address nor alias is set")
 }
 
 func (s *stateManager) BlockchainSettings() (*settings.BlockchainSettings, error) {
@@ -3411,24 +3416,34 @@ func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAdd
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
 	height, err := s.stor.finalizations.newest()
-	if err != nil {
+	if err == nil {
+		return height, nil
+	}
+	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
 		return 0, err
 	}
-	return height, nil
+	// No finalization found, calculate it.
+	return proto.CalculateLastFinalizedHeight(height), nil
 }
 
 func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
-	height, err := s.stor.finalizations.newest()
+	lastFinalizedHeight, err := s.LastFinalizedHeight()
 	if err != nil {
 		return nil, err
 	}
-	blockID, err := s.rw.blockIDByHeight(height)
+	lastFinalizedBlockID, err := s.rw.blockIDByHeight(lastFinalizedHeight)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to load last finalized block ID: %w", err)
 	}
-	header, err := s.rw.readBlockHeader(blockID)
+	header, err := s.rw.readBlockHeader(lastFinalizedBlockID)
 	if err != nil {
 		return nil, err
 	}
 	return header, nil
+}
+
+// MinimalGeneratingBalanceAtHeight returns minimal generating balance at given height and timestamp.
+// It checks feature activation using newestIsActivatedAtHeight function.
+func (s *stateManager) NewestMinimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
+	return s.stor.features.minimalGeneratingBalanceAtHeight(height, ts)
 }
