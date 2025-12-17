@@ -42,7 +42,6 @@ func BenchmarkCommitmentsRecordMarshalling(b *testing.B) {
 	} {
 		b.Run(fmt.Sprintf("%d", n), func(b *testing.B) {
 			rec := commitmentsRecord{Commitments: generateCommitments(b, n)}
-			b.ResetTimer()
 			for b.Loop() {
 				_, err := rec.marshalBinary()
 				if err != nil {
@@ -63,7 +62,6 @@ func BenchmarkCommitmentsRecordUnmarshalling(b *testing.B) {
 			if err != nil {
 				b.Fatal(err)
 			}
-			b.ResetTimer()
 			for b.Loop() {
 				var decoded commitmentsRecord
 				err = decoded.unmarshalBinary(data)

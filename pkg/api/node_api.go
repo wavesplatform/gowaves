@@ -824,24 +824,11 @@ func (a *NodeApi) stateHashDebug(height proto.Height) (proto.StateHashDebug, err
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to get snapshot state hash at height %d", height)
 	}
-	if finalityActivated {
-		bh, bhErr := a.state.HeaderByHeight(height)
-		if bhErr != nil {
-			return nil, errors.Wrapf(bhErr, "failed to get snapshot state hash at height %d", height)
-		}
-		sh2, ok := stateHash.(*proto.StateHashV2)
-		if !ok {
-			return nil, errors.Errorf("unexpected state hash type, expected StateHashV2 but got %T", stateHash)
-		}
-		stateHashDebug := proto.NewStateHashJSDebugV2(*sh2, height, version, snapshotStateHash, bh.BaseTarget)
-		return &stateHashDebug, nil
+	bh, bhErr := a.state.HeaderByHeight(height)
+	if bhErr != nil {
+		return nil, errors.Wrapf(bhErr, "failed to get snapshot state hash at height %d", height)
 	}
-	sh1, ok := stateHash.(*proto.StateHashV1)
-	if !ok {
-		return nil, errors.Errorf("unexpected state hash type, expected StateHashV1 but got %T", stateHash)
-	}
-	stateHashDebug := proto.NewStateHashJSDebugV1(*sh1, height, version, snapshotStateHash)
-	return &stateHashDebug, nil
+	return proto.NewStateHashDebug(finalityActivated, stateHash, height, version, snapshotStateHash, bh.BaseTarget)
 }
 
 func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {

@@ -5,12 +5,11 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/keyvalue"
-
 	"github.com/fxamacker/cbor/v2"
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -59,7 +58,8 @@ func (r *commitmentsRecordForStateHashes) less(other stateComponent) bool {
 	val := bytes.Compare(r.publicKey.Bytes(), o.publicKey.Bytes())
 	if val > 0 {
 		return false
-	} else if val == 0 {
+	}
+	if val == 0 {
 		return bytes.Compare(r.blsPublicKey.Bytes(), o.blsPublicKey.Bytes()) == -1
 	}
 	return true

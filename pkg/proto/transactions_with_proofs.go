@@ -259,7 +259,9 @@ func (tx *IssueWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 func (tx *IssueWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	const message = "failed to unmarshal field %q of IssueWithProofs transaction"
 	if l := len(data); l < issueWithProofsMinBodyLen {
-		return errors.Errorf("not enough data for IssueWithProofs transaction %d, expected not less then %d", l, issueWithProofsMinBodyLen)
+		return errors.Errorf("not enough data for IssueWithProofs transaction %d, expected not less than %d", l,
+			issueWithProofsMinBodyLen,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != IssueTransaction {
@@ -368,7 +370,9 @@ func (tx *IssueWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads transaction from its binary representation.
 func (tx *IssueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < issueWithProofsMinLen {
-		return errors.Errorf("not enough data for IssueWithProofs transaction, expected not less then %d, received %d", issueWithProofsMinLen, l)
+		return errors.Errorf("not enough data for IssueWithProofs transaction, expected not less than %d, received %d",
+			issueWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d for IssueWithProofs transaction, expected 0", v)
@@ -577,7 +581,10 @@ func (tx *TransferWithProofs) BodySerialize(s *serializer.Serializer) error {
 
 func (tx *TransferWithProofs) BodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < transferWithProofsFixedBodyLen {
-		return errors.Errorf("%d bytes is not enough for TransferWithProofs transaction, expected not less then %d bytes", l, transferWithProofsFixedBodyLen)
+		return errors.Errorf(
+			"%d bytes is not enough for TransferWithProofs transaction, expected not less than %d bytes",
+			l, transferWithProofsFixedBodyLen,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != TransferTransaction {
@@ -669,7 +676,10 @@ func (tx *TransferWithProofs) Serialize(s *serializer.Serializer) error {
 // UnmarshalBinary reads TransferWithProofs from its byte representation.
 func (tx *TransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < transferWithProofsMinLen {
-		return errors.Errorf("not enough data for TransferWithProofs transaction, expected not less then %d, received %d", transferWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for TransferWithProofs transaction, expected not less than %d, received %d",
+			transferWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -879,7 +889,10 @@ func (tx *ReissueWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 
 func (tx *ReissueWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < reissueWithProofsBodyLen {
-		return errors.Errorf("%d bytes is not enough for ReissueWithProofs transaction, expected not less then %d bytes", l, reissueWithProofsBodyLen)
+		return errors.Errorf(
+			"%d bytes is not enough for ReissueWithProofs transaction, expected not less than %d bytes",
+			l, reissueWithProofsBodyLen,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != ReissueTransaction {
@@ -955,7 +968,10 @@ func (tx *ReissueWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads ReissueWithProofs from its byte representation.
 func (tx *ReissueWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < reissueWithProofsMinLen {
-		return errors.Errorf("not enough data for ReissueWithProofs transaction, expected not less then %d, received %d", reissueWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for ReissueWithProofs transaction, expected not less than %d, received %d",
+			reissueWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -1134,7 +1150,9 @@ func (tx *BurnWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) {
 
 func (tx *BurnWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < burnWithProofsBodyLen {
-		return errors.Errorf("%d bytes is not enough for BurnWithProofs transaction, expected not less then %d bytes", l, burnWithProofsBodyLen)
+		return errors.Errorf("%d bytes is not enough for BurnWithProofs transaction, expected not less than %d bytes",
+			l, burnWithProofsBodyLen,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != BurnTransaction {
@@ -1210,7 +1228,9 @@ func (tx *BurnWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads BurnWithProofs from its byte representation.
 func (tx *BurnWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < burnWithProofsLen {
-		return errors.Errorf("not enough data for BurnWithProofs transaction, expected not less then %d, received %d", burnWithProofsBodyLen, l)
+		return errors.Errorf("not enough data for BurnWithProofs transaction, expected not less than %d, received %d",
+			burnWithProofsBodyLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -1682,7 +1702,9 @@ func (tx *ExchangeWithProofs) unmarshalOrder(data []byte) (int, Order, error) {
 func (tx *ExchangeWithProofs) bodyUnmarshalBinary(data []byte) (int, error) {
 	n := 0
 	if l := len(data); l < exchangeWithProofsFixedBodyLen {
-		return 0, errors.Errorf("not enough data for ExchangeWithProofs body, expected not less then %d, received %d", exchangeWithProofsFixedBodyLen, l)
+		return 0, errors.Errorf("not enough data for ExchangeWithProofs body, expected not less than %d, received %d",
+			exchangeWithProofsFixedBodyLen, l,
+		)
 	}
 	if v := data[n]; v != 0 {
 		return 0, errors.Errorf("unexpected first byte %d of ExchangeWithProofs body, expected 0", v)
@@ -1776,7 +1798,10 @@ func (tx *ExchangeWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary loads the transaction from its binary representation.
 func (tx *ExchangeWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < exchangeWithProofsMinLen {
-		return errors.Errorf("not enough data for ExchangeWithProofs transaction, expected not less then %d, received %d", exchangeWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for ExchangeWithProofs transaction, expected not less than %d, received %d",
+			exchangeWithProofsMinLen, l,
+		)
 	}
 	bl, err := tx.bodyUnmarshalBinary(data)
 	if err != nil {
@@ -2040,7 +2065,9 @@ func (tx *LeaseWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *LeaseWithProofs) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < leaseWithProofsBodyLen {
-		return errors.Errorf("not enough data for LeaseWithProofs transaction, expected not less then %d, received %d", leaseWithProofsBodyLen, l)
+		return errors.Errorf("not enough data for LeaseWithProofs transaction, expected not less than %d, received %d",
+			leaseWithProofsBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != LeaseTransaction {
@@ -2110,7 +2137,9 @@ func (tx *LeaseWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads the transaction from bytes slice.
 func (tx *LeaseWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < leaseWithProofsMinLen {
-		return errors.Errorf("not enough data for LeaseWithProofs transaction, expected not less then %d, received %d", leaseWithProofsMinLen, l)
+		return errors.Errorf("not enough data for LeaseWithProofs transaction, expected not less than %d, received %d",
+			leaseWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -2289,7 +2318,10 @@ func (tx *LeaseCancelWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error
 
 func (tx *LeaseCancelWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < leaseCancelWithProofsBodyLen {
-		return errors.Errorf("not enough data for LeaseCancelWithProofs transaction, expected not less then %d, received %d", leaseCancelWithProofsBodyLen, l)
+		return errors.Errorf(
+			"not enough data for LeaseCancelWithProofs transaction, expected not less than %d, received %d",
+			leaseCancelWithProofsBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != LeaseCancelTransaction {
@@ -2363,7 +2395,10 @@ func (tx *LeaseCancelWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads the transaction from bytes slice.
 func (tx *LeaseCancelWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < leaseCancelWithProofsMinLen {
-		return errors.Errorf("not enough data for LeaseCancelWithProofs transaction, expected not less then %d, received %d", leaseCancelWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for LeaseCancelWithProofs transaction, expected not less than %d, received %d",
+			leaseCancelWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -2548,7 +2583,10 @@ func (tx *CreateAliasWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *CreateAliasWithProofs) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < createAliasWithProofsFixedBodyLen {
-		return errors.Errorf("not enough data for CreateAliasWithProofs transaction, expected not less then %d, received %d", createAliasWithProofsFixedBodyLen, l)
+		return errors.Errorf(
+			"not enough data for CreateAliasWithProofs transaction, expected not less than %d, received %d",
+			createAliasWithProofsFixedBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	if tx.Type != CreateAliasTransaction {
@@ -2616,7 +2654,10 @@ func (tx *CreateAliasWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads the transaction from bytes slice.
 func (tx *CreateAliasWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < createAliasWithProofsMinLen {
-		return errors.Errorf("not enough data for CreateAliasWithProofs transaction, expected not less then %d, received %d", createAliasWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for CreateAliasWithProofs transaction, expected not less than %d, received %d",
+			createAliasWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -2709,7 +2750,9 @@ func (e *MassTransferEntry) MarshalBinary() ([]byte, error) {
 
 func (e *MassTransferEntry) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < massTransferEntryLen {
-		return errors.Errorf("not enough data to unmarshal MassTransferEntry from byte, expected %d, received %d bytes", massTransferEntryLen, l)
+		return errors.Errorf("not enough data to unmarshal MassTransferEntry from byte, expected %d, received %d bytes",
+			massTransferEntryLen, l,
+		)
 	}
 	err := e.Recipient.UnmarshalBinary(data)
 	if err != nil {
@@ -2916,7 +2959,10 @@ func (tx *MassTransferWithProofs) bodyUnmarshalBinary(data []byte) error {
 	tx.Type = TransactionType(data[0])
 	tx.Version = data[1]
 	if l := len(data); l < massTransferWithProofsMinLen {
-		return errors.Errorf("not enough data for MassTransferWithProofs transaction, expected not less then %d, received %d", massTransferWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for MassTransferWithProofs transaction, expected not less than %d, received %d",
+			massTransferWithProofsMinLen, l,
+		)
 	}
 	if tx.Type != MassTransferTransaction {
 		return errors.Errorf("unexpected transaction type %d for MassTransferWithProofs transaction", tx.Type)
@@ -3011,7 +3057,10 @@ func (tx *MassTransferWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary loads transaction from its binary representation.
 func (tx *MassTransferWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < massTransferWithProofsMinLen {
-		return errors.Errorf("not enough data for MassTransferWithProofs transaction, expected not less then %d, received %d", massTransferWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for MassTransferWithProofs transaction, expected not less than %d, received %d",
+			massTransferWithProofsMinLen, l,
+		)
 	}
 	if data[0] != byte(MassTransferTransaction) {
 		return errors.Errorf("incorrect transaction type %d for MassTransferWithProofs transaction", data[0])
@@ -3300,7 +3349,9 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 	tx.Type = TransactionType(data[0])
 	tx.Version = data[1]
 	if l := len(data); l < dataWithProofsFixedBodyLen {
-		return errors.Errorf("not enough data for DataWithProofs transaction, expected not less then %d, received %d", dataWithProofsFixedBodyLen, l)
+		return errors.Errorf("not enough data for DataWithProofs transaction, expected not less than %d, received %d",
+			dataWithProofsFixedBodyLen, l,
+		)
 	}
 	if tx.Type != DataTransaction {
 		return errors.Errorf("unexpected transaction type %d for DataWithProofs transaction", tx.Type)
@@ -3420,7 +3471,9 @@ func (tx *DataWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsTxBytes)
 	}
 	if l := len(data); l < dataWithProofsMinLen {
-		return errors.Errorf("not enough data for DataWithProofs transaction, expected not less then %d, received %d", dataWithProofsMinLen, l)
+		return errors.Errorf("not enough data for DataWithProofs transaction, expected not less than %d, received %d",
+			dataWithProofsMinLen, l,
+		)
 	}
 	if data[0] != 0 {
 		return errors.Errorf("unexpected first byte %d for DataWithProofs transaction", data[0])
@@ -3449,7 +3502,9 @@ func (tx *DataWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, error) {
 
 func (tx *DataWithProofs) UnmarshalFromProtobuf(data []byte) error {
 	if len(data) > maxDataWithProofsTxBytes {
-		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes", maxDataWithProofsTxBytes)
+		return errors.Errorf("total size of DataWithProofs transaction is bigger than %d bytes",
+			maxDataWithProofsTxBytes,
+		)
 	}
 	t, err := TxFromProtobuf(data)
 	if err != nil {
@@ -3657,7 +3712,10 @@ func (tx *SetScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, error) 
 
 func (tx *SetScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < setScriptWithProofsFixedBodyLen {
-		return errors.Errorf("not enough data for SetScriptWithProofs transaction, expected not less then %d, received %d", setScriptWithProofsFixedBodyLen, l)
+		return errors.Errorf(
+			"not enough data for SetScriptWithProofs transaction, expected not less than %d, received %d",
+			setScriptWithProofsFixedBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	tx.Version = data[1]
@@ -3742,7 +3800,10 @@ func (tx *SetScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads SetScriptWithProofs transaction from its binary representation.
 func (tx *SetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < setScriptWithProofsMinLen {
-		return errors.Errorf("not enough data for SetScriptWithProofs transaction, expected not less then %d, received %d", setScriptWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for SetScriptWithProofs transaction, expected not less than %d, received %d",
+			setScriptWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -3954,7 +4015,10 @@ func (tx *SponsorshipWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 
 func (tx *SponsorshipWithProofs) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < sponsorshipWithProofsBodyLen {
-		return errors.Errorf("not enough data for SponsorshipWithProofs transaction body, expected %d bytes, received %d", sponsorshipWithProofsBodyLen, l)
+		return errors.Errorf(
+			"not enough data for SponsorshipWithProofs transaction body, expected %d bytes, received %d",
+			sponsorshipWithProofsBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	tx.Version = data[1]
@@ -4030,7 +4094,10 @@ func (tx *SponsorshipWithProofs) MarshalBinary(scheme Scheme) ([]byte, error) {
 // UnmarshalBinary reads SponsorshipWithProofs from its byte representation.
 func (tx *SponsorshipWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < sponsorshipWithProofsMinLen {
-		return errors.Errorf("not enough data for SponsorshipWithProofs transaction, expected not less then %d, received %d", sponsorshipWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for SponsorshipWithProofs transaction, expected not less than %d, received %d",
+			sponsorshipWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -4266,7 +4333,10 @@ func (tx *SetAssetScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, er
 
 func (tx *SetAssetScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < setAssetScriptWithProofsFixedBodyLen {
-		return errors.Errorf("not enough data for SetAssetScriptWithProofs transaction, expected not less then %d, received %d", setAssetScriptWithProofsFixedBodyLen, l)
+		return errors.Errorf(
+			"not enough data for SetAssetScriptWithProofs transaction, expected not less than %d, received %d",
+			setAssetScriptWithProofsFixedBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	tx.Version = data[1]
@@ -4353,7 +4423,10 @@ func (tx *SetAssetScriptWithProofs) MarshalBinary(scheme Scheme) ([]byte, error)
 // UnmarshalBinary reads SetAssetScriptWithProofs transaction from its binary representation.
 func (tx *SetAssetScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < setAssetScriptWithProofsMinLen {
-		return errors.Errorf("not enough data for SetAssetScriptWithProofs transaction, expected not less then %d, received %d", setAssetScriptWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for SetAssetScriptWithProofs transaction, expected not less than %d, received %d",
+			setAssetScriptWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -4615,7 +4688,10 @@ func (tx *InvokeScriptWithProofs) BodyMarshalBinary(scheme Scheme) ([]byte, erro
 
 func (tx *InvokeScriptWithProofs) bodyUnmarshalBinary(data []byte, scheme Scheme) error {
 	if l := len(data); l < invokeScriptWithProofsFixedBodyLen {
-		return errors.Errorf("not enough data for InvokeScriptWithProofs transaction, expected not less then %d, received %d", invokeScriptWithProofsFixedBodyLen, l)
+		return errors.Errorf(
+			"not enough data for InvokeScriptWithProofs transaction, expected not less than %d, received %d",
+			invokeScriptWithProofsFixedBodyLen, l,
+		)
 	}
 	tx.Type = TransactionType(data[0])
 	tx.Version = data[1]
@@ -4718,7 +4794,10 @@ func (tx *InvokeScriptWithProofs) UnmarshalBinary(data []byte, scheme Scheme) er
 		return errors.New("invoke script transaction is too big")
 	}
 	if l := len(data); l < invokeScriptWithProofsMinLen {
-		return errors.Errorf("not enough data for InvokeScriptWithProofs transaction, expected not less then %d, received %d", invokeScriptWithProofsMinLen, l)
+		return errors.Errorf(
+			"not enough data for InvokeScriptWithProofs transaction, expected not less than %d, received %d",
+			invokeScriptWithProofsMinLen, l,
+		)
 	}
 	if v := data[0]; v != 0 {
 		return errors.Errorf("unexpected first byte value %d, expected 0", v)
@@ -5393,11 +5472,13 @@ func (tx *CommitToGenerationWithProofs) Sign(scheme Scheme, sk crypto.SecretKey)
 	if err != nil {
 		return errors.Wrap(err, "failed to sign CommitToGenerationWithProofs transaction")
 	}
-	d, err := crypto.FastHash(b)
-	if err != nil {
-		return errors.Wrap(err, "failed to sign CommitToGenerationWithProofs transaction")
+	if tx.ID.IsZero() {
+		d, fhErr := crypto.FastHash(b)
+		if fhErr != nil {
+			return errors.Wrap(fhErr, "failed to sign CommitToGenerationWithProofs transaction")
+		}
+		tx.ID = &d
 	}
-	tx.ID = &d
 	return nil
 }
 
@@ -5406,19 +5487,19 @@ func (tx *CommitToGenerationWithProofs) MerkleBytes(scheme Scheme) ([]byte, erro
 }
 
 func (tx *CommitToGenerationWithProofs) MarshalBinary(Scheme) ([]byte, error) {
-	panic("MarshalBinary is not implemented")
+	return nil, errors.New("binary format is not defined for CommitToGeneration transaction")
 }
 
 func (tx *CommitToGenerationWithProofs) UnmarshalBinary([]byte, Scheme) error {
-	panic("UnmarshalBinary is not implemented")
+	return errors.New("binary format is not defined for CommitToGeneration transaction")
 }
 
 func (tx *CommitToGenerationWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
-	panic("BodyMarshalBinary is not implemented")
+	return nil, errors.New("binary format is not defined for CommitToGeneration transaction")
 }
 
 func (tx *CommitToGenerationWithProofs) BinarySize() int {
-	panic("BinarySize is not implemented")
+	return 0
 }
 
 func (tx *CommitToGenerationWithProofs) MarshalToProtobuf(scheme Scheme) ([]byte, error) {

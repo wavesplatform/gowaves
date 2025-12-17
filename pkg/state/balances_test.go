@@ -500,7 +500,6 @@ func BenchmarkBalanceProfileSerialization(b *testing.B) {
 			LeaseOut: rand.Int64(),
 			Deposit:  rand.Uint64(),
 		}}
-	b.ResetTimer()
 	for b.Loop() {
 		data, err := bp.marshalBinary()
 		require.NoError(b, err)

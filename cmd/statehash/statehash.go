@@ -337,24 +337,11 @@ func getLocalStateHash(st state.StateInfo, h uint64) (proto.StateHashDebug, erro
 	if err != nil {
 		return nil, fmt.Errorf("failed to determine finality activation at %d height: %w", h, err)
 	}
-	if finalityActivated {
-		bh, bhErr := st.BlockByHeight(h)
-		if bhErr != nil {
-			return nil, fmt.Errorf("failed to get block at %d height: %w", h, bhErr)
-		}
-		sh2, ok := lsh.(*proto.StateHashV2)
-		if !ok {
-			return nil, fmt.Errorf("invalid state hash type at %d height", h)
-		}
-		shd := proto.NewStateHashJSDebugV2(*sh2, h, localVersion, snapSH, bh.BaseTarget)
-		return shd, nil
+	bh, bhErr := st.BlockByHeight(h)
+	if bhErr != nil {
+		return nil, fmt.Errorf("failed to get block at %d height: %w", h, bhErr)
 	}
-	sh1, ok := lsh.(*proto.StateHashV1)
-	if !ok {
-		return nil, fmt.Errorf("invalid state hash type at %d height", h)
-	}
-	shd := proto.NewStateHashJSDebugV1(*sh1, h, localVersion, snapSH)
-	return shd, nil
+	return proto.NewStateHashDebug(finalityActivated, lsh, h, localVersion, snapSH, bh.BaseTarget)
 }
 
 func showUsage() {

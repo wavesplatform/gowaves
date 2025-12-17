@@ -221,7 +221,8 @@ func (s *txSnapshotJSON) snapshotsCount() int {
 		len(s.Aliases) +
 		len(s.OrderFills) +
 		len(s.AccountScripts) +
-		len(s.AccountData)
+		len(s.AccountData) +
+		len(s.GenerationCommitments)
 }
 
 func (s *txSnapshotJSON) toTransactionSnapshot() ([]AtomicSnapshot, error) {
@@ -279,6 +280,9 @@ func (s *txSnapshotJSON) toTransactionSnapshot() ([]AtomicSnapshot, error) {
 	}
 	for i := range s.AccountData {
 		res = append(res, &s.AccountData[i])
+	}
+	for i := range s.GenerationCommitments {
+		res = append(res, &s.GenerationCommitments[i])
 	}
 	return res, nil
 }

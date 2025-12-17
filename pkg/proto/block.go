@@ -175,10 +175,18 @@ func (id BlockID) String() string {
 }
 
 func (id BlockID) MarshalJSON() ([]byte, error) {
-	return common.ToBase58JSON(id.Bytes()), nil
+	data := id.Bytes()
+	if data == nil { // intentionally using nil to represent null BlockID
+		return []byte(jsonNull), nil
+	}
+	return common.ToBase58JSON(data), nil
 }
 
 func (id *BlockID) UnmarshalJSON(value []byte) error {
+	if bytes.Equal(value, jsonNullBytes) {
+		*id = BlockID{} // initialize as nil BlockID
+		return nil
+	}
 	b, err := common.FromBase58JSONUnchecked(value, "BlockID")
 	if err != nil {
 		return err
@@ -217,7 +225,7 @@ func (id BlockID) Len() int {
 	}
 }
 
-// ReadFrom reads the binary representation of BlockID from a io.Reader. It reads only the content of the ID
+// ReadFrom reads the binary representation of BlockID from an io.Reader. It reads only the content of the ID
 // (either crypto.Digest or crypto.Signature). ReadFrom does not process any additional data that might
 // describe the type of the ID.
 //
@@ -675,9 +683,8 @@ type Block struct {
 func (b *Block) Marshal(scheme Scheme) ([]byte, error) {
 	if b.Version >= ProtobufBlockVersion {
 		return b.MarshalToProtobuf(scheme)
-	} else {
-		return b.MarshalBinary(scheme)
 	}
+	return b.MarshalBinary(scheme)
 }
 
 func (b *Block) Clone() *Block {
@@ -1068,9 +1075,8 @@ type BlockMarshaller struct {
 func (a BlockMarshaller) Marshal(scheme Scheme) ([]byte, error) {
 	if a.b.Version >= ProtobufBlockVersion {
 		return a.b.MarshalToProtobuf(scheme)
-	} else {
-		return a.b.MarshalBinary(scheme)
 	}
+	return a.b.MarshalBinary(scheme)
 }
 
 type Transactions []Transaction

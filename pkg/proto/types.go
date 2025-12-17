@@ -931,7 +931,7 @@ func (o *OrderBody) Serialize(s *serializer.Serializer) error {
 
 func (o *OrderBody) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderLen {
-		return errors.Errorf("not enough data for OrderBody, expected not less then %d, received %d", orderLen, l)
+		return errors.Errorf("not enough data for OrderBody, expected not less than %d, received %d", orderLen, l)
 	}
 	copy(o.SenderPK[:], data[:crypto.PublicKeySize])
 	data = data[crypto.PublicKeySize:]
@@ -1158,7 +1158,7 @@ func (o *OrderV1) Serialize(s *serializer.Serializer) error {
 // UnmarshalBinary reads an order from its binary representation.
 func (o *OrderV1) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV1MinLen {
-		return errors.Errorf("not enough data for OrderV1, expected not less then %d, received %d", orderV1MinLen, l)
+		return errors.Errorf("not enough data for OrderV1, expected not less than %d, received %d", orderV1MinLen, l)
 	}
 	var bl int
 	err := o.bodyUnmarshalBinary(data)
@@ -1322,7 +1322,7 @@ func (o OrderV2) BodyMarshalBinary() ([]byte, error) {
 
 func (o *OrderV2) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV2FixedBodyLen {
-		return errors.Errorf("not enough data for OrderV2, expected not less then %d, received %d", orderV2FixedBodyLen, l)
+		return errors.Errorf("not enough data for OrderV2, expected not less than %d, received %d", orderV2FixedBodyLen, l)
 	}
 	o.Version = OrderVersion(data[0])
 	if o.Version != OrderVersionV2 {
@@ -1387,7 +1387,7 @@ func (o *OrderV2) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary reads an order from its binary representation.
 func (o *OrderV2) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV2MinLen {
-		return errors.Errorf("not enough data for OrderV2, expected not less then %d, received %d", orderV2MinLen, l)
+		return errors.Errorf("not enough data for OrderV2, expected not less than %d, received %d", orderV2MinLen, l)
 	}
 	var bl int
 	err := o.bodyUnmarshalBinary(data)
@@ -1567,7 +1567,7 @@ func (o *OrderV3) BodyMarshalBinary() ([]byte, error) {
 
 func (o *OrderV3) bodyUnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV3FixedBodyLen {
-		return errors.Errorf("not enough data for OrderV3, expected not less then %d, received %d", orderV3FixedBodyLen, l)
+		return errors.Errorf("not enough data for OrderV3, expected not less than %d, received %d", orderV3FixedBodyLen, l)
 	}
 	pos := 0
 	o.Version = OrderVersion(data[pos])
@@ -1645,7 +1645,7 @@ func (o *OrderV3) MarshalBinary() ([]byte, error) {
 // UnmarshalBinary reads an order from its binary representation.
 func (o *OrderV3) UnmarshalBinary(data []byte) error {
 	if l := len(data); l < orderV3MinLen {
-		return errors.Errorf("not enough data for OrderV3, expected not less then %d, received %d", orderV3MinLen, l)
+		return errors.Errorf("not enough data for OrderV3, expected not less than %d, received %d", orderV3MinLen, l)
 	}
 	var bl int
 	err := o.bodyUnmarshalBinary(data)
@@ -3308,7 +3308,7 @@ func (s Script) String() string {
 // MarshalJSON writes Script as JSON
 func (s Script) MarshalJSON() ([]byte, error) {
 	if s == nil {
-		return jsonNullBytes, nil
+		return []byte(jsonNull), nil
 	}
 	var sb strings.Builder
 	sb.WriteRune('"')

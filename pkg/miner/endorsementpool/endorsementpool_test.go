@@ -37,8 +37,6 @@ const sigFour = "2F4sw8YzXpSf93ACAngoTnNxCaYWoGL4vY88RYgEs3BeSsnAmMGmVSfe8h6hybk
 
 const finalizedHeightEndorsement = 0
 
-var finalizedBlockIDEndorsement = proto.BlockID{}
-
 func TestEndorsementPool_PriorityByBalance(t *testing.T) {
 	pool := endorsementpool.NewEndorsementPool(5)
 
@@ -46,11 +44,11 @@ func TestEndorsementPool_PriorityByBalance(t *testing.T) {
 	e2 := newDummyEndorsement(t, 2, sigTwo)
 	e3 := newDummyEndorsement(t, 3, sigThree)
 
-	require.NoError(t, pool.Add(e1, bls.PublicKey{}, finalizedHeightEndorsement, finalizedBlockIDEndorsement,
+	require.NoError(t, pool.Add(e1, bls.PublicKey{}, finalizedHeightEndorsement, proto.BlockID{},
 		10))
-	require.NoError(t, pool.Add(e2, bls.PublicKey{}, finalizedHeightEndorsement, finalizedBlockIDEndorsement,
+	require.NoError(t, pool.Add(e2, bls.PublicKey{}, finalizedHeightEndorsement, proto.BlockID{},
 		20))
-	require.NoError(t, pool.Add(e3, bls.PublicKey{}, finalizedHeightEndorsement, finalizedBlockIDEndorsement,
+	require.NoError(t, pool.Add(e3, bls.PublicKey{}, finalizedHeightEndorsement, proto.BlockID{},
 		30))
 
 	all := pool.GetAll()
@@ -71,9 +69,9 @@ func TestEndorsementPool_PriorityBySeqWhenEqualBalance(t *testing.T) {
 	e1 := newDummyEndorsement(t, 1, sigOne)
 	e2 := newDummyEndorsement(t, 2, sigTwo)
 
-	require.NoError(t, pool.Add(e1, bls.PublicKey{}, finalizedHeightEndorsement, finalizedBlockIDEndorsement,
+	require.NoError(t, pool.Add(e1, bls.PublicKey{}, finalizedHeightEndorsement, proto.BlockID{},
 		100))
-	require.NoError(t, pool.Add(e2, bls.PublicKey{}, finalizedHeightEndorsement, finalizedBlockIDEndorsement,
+	require.NoError(t, pool.Add(e2, bls.PublicKey{}, finalizedHeightEndorsement, proto.BlockID{},
 		100))
 
 	all := pool.GetAll()
@@ -81,7 +79,7 @@ func TestEndorsementPool_PriorityBySeqWhenEqualBalance(t *testing.T) {
 
 	// Balance e1 and e2 are equal, so we check by seq.
 	e3 := newDummyEndorsement(t, 3, sigThree)
-	require.NoError(t, pool.Add(e3, bls.PublicKey{}, finalizedHeightEndorsement, finalizedBlockIDEndorsement,
+	require.NoError(t, pool.Add(e3, bls.PublicKey{}, finalizedHeightEndorsement, proto.BlockID{},
 		100))
 
 	require.Equal(t, 3, pool.Len())
@@ -91,16 +89,16 @@ func TestEndorsementPool_RemoveLowPriorityWhenFull(t *testing.T) {
 	pool := endorsementpool.NewEndorsementPool(3)
 
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 1, sigOne), bls.PublicKey{},
-		finalizedHeightEndorsement, finalizedBlockIDEndorsement, 10))
+		finalizedHeightEndorsement, proto.BlockID{}, 10))
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 2, sigTwo), bls.PublicKey{},
-		finalizedHeightEndorsement, finalizedBlockIDEndorsement, 20))
+		finalizedHeightEndorsement, proto.BlockID{}, 20))
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 3, sigThree), bls.PublicKey{},
-		finalizedHeightEndorsement, finalizedBlockIDEndorsement, 30))
+		finalizedHeightEndorsement, proto.BlockID{}, 30))
 
 	require.Equal(t, 3, pool.Len())
 
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 4, sigFour), bls.PublicKey{},
-		finalizedHeightEndorsement, finalizedBlockIDEndorsement, 40))
+		finalizedHeightEndorsement, proto.BlockID{}, 40))
 
 	all := pool.GetAll()
 	require.Equal(t, 3, len(all), "pool size must remain constant when full")
@@ -119,19 +117,19 @@ func TestEndorsementPool_RejectLowBalanceWhenFull(t *testing.T) {
 	pool := endorsementpool.NewEndorsementPool(2)
 
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 1, sigOne), bls.PublicKey{},
-		finalizedHeightEndorsement, finalizedBlockIDEndorsement, 50))
+		finalizedHeightEndorsement, proto.BlockID{}, 50))
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 2, sigTwo), bls.PublicKey{},
-		finalizedHeightEndorsement, finalizedBlockIDEndorsement, 60))
+		finalizedHeightEndorsement, proto.BlockID{}, 60))
 	require.Equal(t, 2, pool.Len())
 
 	// Low balance (30) shouldn't get added.
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 3, sigThree), bls.PublicKey{},
-		finalizedHeightEndorsement, finalizedBlockIDEndorsement, 30))
+		finalizedHeightEndorsement, proto.BlockID{}, 30))
 	require.Equal(t, 2, pool.Len(), "low-priority endorsement should be rejected")
 
 	// High balance (100) should evict the lowest (50).
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 4, sigFour), bls.PublicKey{},
-		finalizedHeightEndorsement, finalizedBlockIDEndorsement, 100))
+		finalizedHeightEndorsement, proto.BlockID{}, 100))
 	require.Equal(t, 2, pool.Len())
 
 	all := pool.GetAll()
