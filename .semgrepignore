@@ -20,5 +20,4 @@ cmd/wmd/internal/swagger/
 pkg/state/testdata/
 
 # Ignore generated files
-**/generated/
 **/*.pb.go
