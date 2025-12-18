@@ -8,48 +8,49 @@ import (
 )
 
 const (
-	assetTypeName                       = "Asset"
-	assetPairTypeName                   = "AssetPair"
-	attachedPaymentTypeName             = "AttachedPayment"
-	balanceDetailsTypeName              = "BalanceDetails"
-	binaryEntryTypeName                 = "BinaryEntry"
-	blockInfoTypeName                   = "BlockInfo"
-	booleanEntryTypeName                = "BooleanEntry"
-	burnTypeName                        = "Burn"
-	burnTransactionTypeName             = "BurnTransaction"
-	createAliasTransactionTypeName      = "CreateAliasTransaction"
-	dataEntryTypeName                   = "DataEntry"
-	dataTransactionTypeName             = "DataTransaction"
-	deleteEntryTypeName                 = "DeleteEntry"
-	exchangeTransactionTypeName         = "ExchangeTransaction"
-	genesisTransactionTypeName          = "GenesisTransaction"
-	integerEntryTypeName                = "IntegerEntry"
-	invocationTypeName                  = "Invocation"
-	invokeExpressionTransactionTypeName = "InvokeExpressionTransaction"
-	invokeScriptTransactionTypeName     = "InvokeScriptTransaction"
-	issueTypeName                       = "Issue"
-	issueTransactionTypeName            = "IssueTransaction"
-	leaseTypeName                       = "Lease"
-	leaseCancelTypeName                 = "LeaseCancel"
-	leaseCancelTransactionTypeName      = "LeaseCancelTransaction"
-	leaseTransactionTypeName            = "LeaseTransaction"
-	massTransferTransactionTypeName     = "MassTransferTransaction"
-	orderTypeName                       = "Order"
-	paymentTransactionTypeName          = "PaymentTransaction"
-	reissueTypeName                     = "Reissue"
-	reissueTransactionTypeName          = "ReissueTransaction"
-	scriptResultTypeName                = "ScriptResult"
-	scriptTransferTypeName              = "ScriptTransfer"
-	setAssetScriptTransactionTypeName   = "SetAssetScriptTransaction"
-	setScriptTransactionTypeName        = "SetScriptTransaction"
-	sponsorFeeTypeName                  = "SponsorFee"
-	sponsorFeeTransactionTypeName       = "SponsorFeeTransaction"
-	stringEntryTypeName                 = "StringEntry"
-	transferTypeName                    = "Transfer"
-	transferSetTypeName                 = "TransferSet"
-	transferTransactionTypeName         = "TransferTransaction"
-	updateAssetInfoTransactionTypeName  = "UpdateAssetInfoTransaction"
-	writeSetTypeName                    = "WriteSet"
+	assetTypeName                         = "Asset"
+	assetPairTypeName                     = "AssetPair"
+	attachedPaymentTypeName               = "AttachedPayment"
+	balanceDetailsTypeName                = "BalanceDetails"
+	binaryEntryTypeName                   = "BinaryEntry"
+	blockInfoTypeName                     = "BlockInfo"
+	booleanEntryTypeName                  = "BooleanEntry"
+	burnTypeName                          = "Burn"
+	burnTransactionTypeName               = "BurnTransaction"
+	commitToGenerationTransactionTypeName = "CommitToGenerationTransaction"
+	createAliasTransactionTypeName        = "CreateAliasTransaction"
+	dataEntryTypeName                     = "DataEntry"
+	dataTransactionTypeName               = "DataTransaction"
+	deleteEntryTypeName                   = "DeleteEntry"
+	exchangeTransactionTypeName           = "ExchangeTransaction"
+	genesisTransactionTypeName            = "GenesisTransaction"
+	integerEntryTypeName                  = "IntegerEntry"
+	invocationTypeName                    = "Invocation"
+	invokeExpressionTransactionTypeName   = "InvokeExpressionTransaction"
+	invokeScriptTransactionTypeName       = "InvokeScriptTransaction"
+	issueTypeName                         = "Issue"
+	issueTransactionTypeName              = "IssueTransaction"
+	leaseTypeName                         = "Lease"
+	leaseCancelTypeName                   = "LeaseCancel"
+	leaseCancelTransactionTypeName        = "LeaseCancelTransaction"
+	leaseTransactionTypeName              = "LeaseTransaction"
+	massTransferTransactionTypeName       = "MassTransferTransaction"
+	orderTypeName                         = "Order"
+	paymentTransactionTypeName            = "PaymentTransaction"
+	reissueTypeName                       = "Reissue"
+	reissueTransactionTypeName            = "ReissueTransaction"
+	scriptResultTypeName                  = "ScriptResult"
+	scriptTransferTypeName                = "ScriptTransfer"
+	setAssetScriptTransactionTypeName     = "SetAssetScriptTransaction"
+	setScriptTransactionTypeName          = "SetScriptTransaction"
+	sponsorFeeTypeName                    = "SponsorFee"
+	sponsorFeeTransactionTypeName         = "SponsorFeeTransaction"
+	stringEntryTypeName                   = "StringEntry"
+	transferTypeName                      = "Transfer"
+	transferSetTypeName                   = "TransferSet"
+	transferTransactionTypeName           = "TransferTransaction"
+	updateAssetInfoTransactionTypeName    = "UpdateAssetInfoTransaction"
+	writeSetTypeName                      = "WriteSet"
 )
 
 const (
@@ -68,18 +69,21 @@ const (
 	buyOrderField              = "buyOrder"
 	callerField                = "caller"
 	callerPublicKeyField       = "callerPublicKey"
+	commitmentSignatureField   = "commitmentSignature"
 	compiledScriptField        = "compiledScript"
 	dAppField                  = "dApp"
 	dataField                  = "data"
 	decimalsField              = "decimals"
 	descriptionField           = "description"
 	effectiveField             = "effective"
+	endorserPublicKeyField     = "endorserPublicKey"
 	expirationField            = "expiration"
 	expressionField            = "expression"
 	feeField                   = "fee"
 	feeAssetIDField            = "feeAssetId"
 	functionField              = "function"
 	generatingField            = "generating"
+	generationPeriodStartField = "generationPeriodStart"
 	generationSignatureField   = "generationSignature"
 	generatorField             = "generator"
 	generatorPublicKeyField    = "generatorPublicKey"
@@ -5118,6 +5122,137 @@ func (o rideUpdateAssetInfoTransaction) setProofs(proofs rideList) rideProven {
 
 func (o rideUpdateAssetInfoTransaction) getProofs() rideList {
 	return o.proofs
+}
+
+type rideCommitToGenerationTransaction struct {
+	endorserPublicKey     rideByteVector
+	generationPeriodStart rideInt
+	commitmentSignature   rideByteVector
+	id                    rideByteVector
+	fee                   rideInt
+	timestamp             rideInt
+	version               rideInt
+	sender                rideAddress
+	senderPublicKey       rideByteVector
+	bodyBytes             rideByteVector
+	proofs                rideList
+}
+
+func newRideCommitToGenerationTransaction(endorserPublicKey rideByteVector, generationPeriodStart rideInt, commitmentSignature rideByteVector, id rideByteVector, fee rideInt, timestamp rideInt, version rideInt, sender rideAddress, senderPublicKey rideByteVector, bodyBytes rideByteVector, proofs rideList) rideCommitToGenerationTransaction {
+	return rideCommitToGenerationTransaction{
+		endorserPublicKey:     endorserPublicKey,
+		generationPeriodStart: generationPeriodStart,
+		commitmentSignature:   commitmentSignature,
+		id:                    id,
+		fee:                   fee,
+		timestamp:             timestamp,
+		version:               version,
+		sender:                sender,
+		senderPublicKey:       senderPublicKey,
+		bodyBytes:             bodyBytes,
+		proofs:                proofs,
+	}
+}
+
+func (o rideCommitToGenerationTransaction) instanceOf() string {
+	return "CommitToGenerationTransaction"
+}
+
+func (o rideCommitToGenerationTransaction) eq(other rideType) bool {
+	if oo, ok := other.(rideCommitToGenerationTransaction); ok {
+		if !o.endorserPublicKey.eq(oo.endorserPublicKey) {
+			return false
+		}
+		if !o.generationPeriodStart.eq(oo.generationPeriodStart) {
+			return false
+		}
+		if !o.commitmentSignature.eq(oo.commitmentSignature) {
+			return false
+		}
+		if !o.id.eq(oo.id) {
+			return false
+		}
+		if !o.fee.eq(oo.fee) {
+			return false
+		}
+		if !o.timestamp.eq(oo.timestamp) {
+			return false
+		}
+		if !o.version.eq(oo.version) {
+			return false
+		}
+		if !o.sender.eq(oo.sender) {
+			return false
+		}
+		if !o.senderPublicKey.eq(oo.senderPublicKey) {
+			return false
+		}
+		if !o.bodyBytes.eq(oo.bodyBytes) {
+			return false
+		}
+		if !o.proofs.eq(oo.proofs) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideCommitToGenerationTransaction) get(prop string) (rideType, error) {
+	switch prop {
+	case "$instance":
+		return rideString("CommitToGenerationTransaction"), nil
+	case "endorserPublicKey":
+		return o.endorserPublicKey, nil
+	case "generationPeriodStart":
+		return o.generationPeriodStart, nil
+	case "commitmentSignature":
+		return o.commitmentSignature, nil
+	case "id":
+		return o.id, nil
+	case "fee":
+		return o.fee, nil
+	case "timestamp":
+		return o.timestamp, nil
+	case "version":
+		return o.version, nil
+	case "sender":
+		return o.sender, nil
+	case "senderPublicKey":
+		return o.senderPublicKey, nil
+	case "bodyBytes":
+		return o.bodyBytes, nil
+	case "proofs":
+		return o.proofs, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideCommitToGenerationTransaction) copy() rideType {
+	return newRideCommitToGenerationTransaction(o.endorserPublicKey, o.generationPeriodStart, o.commitmentSignature, o.id, o.fee, o.timestamp, o.version, o.sender, o.senderPublicKey, o.bodyBytes, o.proofs)
+}
+
+func (o rideCommitToGenerationTransaction) lines() []string {
+	r := make([]string, 0, 13)
+	r = append(r, "CommitToGenerationTransaction(")
+	r = append(r, fieldLines("endorserPublicKey", o.endorserPublicKey.lines())...)
+	r = append(r, fieldLines("generationPeriodStart", o.generationPeriodStart.lines())...)
+	r = append(r, fieldLines("commitmentSignature", o.commitmentSignature.lines())...)
+	r = append(r, fieldLines("id", o.id.lines())...)
+	r = append(r, fieldLines("fee", o.fee.lines())...)
+	r = append(r, fieldLines("timestamp", o.timestamp.lines())...)
+	r = append(r, fieldLines("version", o.version.lines())...)
+	r = append(r, fieldLines("sender", o.sender.lines())...)
+	r = append(r, fieldLines("senderPublicKey", o.senderPublicKey.lines())...)
+	r = append(r, fieldLines("bodyBytes", o.bodyBytes.lines())...)
+	r = append(r, fieldLines("proofs", o.proofs.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideCommitToGenerationTransaction) String() string {
+	return strings.Join(o.lines(), "\n")
 }
 
 func resetProofs(obj rideType) error {
