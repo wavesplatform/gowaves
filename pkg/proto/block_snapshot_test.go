@@ -9,6 +9,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -193,12 +194,44 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
     "orderFills": [],
     "accountScripts": [],
     "accountData": []
+  },
+  {
+    "applicationStatus": "succeeded",
+    "balances": [
+      {
+        "address": "3NA26AC1aLjj6uYnuoTahauhUPPPB3VBPUe",
+        "asset": null,
+        "balance": 36535642543534
+      }
+    ],
+    "leaseBalances": [],
+    "assetStatics": [],
+    "assetVolumes": [],
+    "assetNamesAndDescriptions": [],
+    "assetScripts": [],
+    "sponsorships": [],
+    "newLeases": [],
+    "cancelledLeases": [],
+	"generationCommitments": [
+      {
+        "publicKey" : "9KFDEPnavEUzmiYbQw81VC4Niu526mjECQUnn8wrVW4Q",
+        "blsPublicKey" : "5n3wxWMfoZ39yj5y5CtWzt4BaDrpp2VBEC2KyUkhkSGbHxPD2UcPZGLPwAVTNqtqxv"
+      }
+    ],
+    "aliases": [],
+    "orderFills": [],
+    "accountScripts": [],
+    "accountData": []
   }
 ]`
 
 	pk, err := crypto.NewPublicKeyFromBase58("9KFDEPnavEUzmiYbQw81VC4Niu526mjECQUnn8wrVW4Q")
 	require.NoError(t, err)
 	addr, err := proto.NewAddressFromPublicKey(proto.TestNetScheme, pk)
+	require.NoError(t, err)
+	blsSK, err := bls.GenerateSecretKey(pk.Bytes())
+	require.NoError(t, err)
+	blsPK, err := blsSK.PublicKey()
 	require.NoError(t, err)
 	asset1 := crypto.Digest{21, 53, 6, 236}
 	asset2 := crypto.Digest{54, 34, 52, 63}
@@ -326,12 +359,26 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
 			Status: proto.TransactionElided,
 		},
 	}
+	generationCommitmentSnap := []proto.AtomicSnapshot{
+		&proto.TransactionStatusSnapshot{
+			Status: proto.TransactionSucceeded,
+		},
+		&proto.WavesBalanceSnapshot{
+			Address: addr,
+			Balance: 36535642543534,
+		},
+		&proto.GenerationCommitmentSnapshot{
+			SenderPublicKey:   pk,
+			EndorserPublicKey: blsPK,
+		},
+	}
 
 	// Test marshalling and unmarshalling txSnapshotJSON.
 	bs := proto.BlockSnapshot{TxSnapshots: [][]proto.AtomicSnapshot{
 		succeededTxSnap,
 		failedTxSnap,
 		elidedTxSnap,
+		generationCommitmentSnap,
 	}}
 	data, err := json.Marshal(bs)
 	require.NoError(t, err)
