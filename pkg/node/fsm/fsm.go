@@ -278,7 +278,7 @@ func NewFSM(
 	}, stateless.FiringQueued)
 
 	// TODO: Consider using fsm.SetTriggerParameters to configure events parameters.
-	//  Probably it will help to eliminate parameters validation.
+	// Probably it will help to eliminate parameters validation.
 	initIdleStateInFSM(state, fsm, info)
 	initHaltStateInFSM(state, fsm, info)
 	initNGStateInFSM(state, fsm, info)
