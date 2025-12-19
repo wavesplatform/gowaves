@@ -2512,74 +2512,74 @@
       "actions": [
         {
           "version": 9,
-            "fields": [
-                {
-                "name": "endorserPublicKey",
-                "type": "ByteVector",
-                "order": 0,
-                "constructorOrder": 0
-                },
-                {
-                "name": "generationPeriodStart",
-                "type": "Int",
-                "order": 0,
-                "constructorOrder": 1
-                },
-                {
-                "name": "commitmentSignature",
-                "type": "ByteVector",
-                "order": 0,
-                "constructorOrder": 2
-                },
-                {
-                "name": "id",
-                "type": "ByteVector",
-                "order": 0,
-                "constructorOrder": 3
-                },
-                {
-                "name": "fee",
-                "type": "Int",
-                "order": 0,
-                "constructorOrder": 4
-                },
-                {
-                "name": "timestamp",
-                "type": "Int",
-                "order": 0,
-                "constructorOrder": 5
-                },
-                {
-                "name": "version",
-                "type": "Int",
-                "order": 0,
-                "constructorOrder": 6
-                },
-                {
-                "name": "sender",
-                "type": "Address",
-                "order": 0,
-                "constructorOrder": 7
-                },
-                {
-                "name": "senderPublicKey",
-                "type": "ByteVector",
-                "order": 0,
-                "constructorOrder": 8
-                },
-                {
-                "name": "bodyBytes",
-                "type": "ByteVector",
-                "order": 0,
-                "constructorOrder": 9
-                },
-                {
-                "name": "proofs",
-                "type": "List[ByteVector]",
-                "order": 0,
-                "constructorOrder": 10
-                }
-            ]
+          "fields": [
+            {
+              "name": "endorserPublicKey",
+              "type": "ByteVector",
+              "order": 0,
+              "constructorOrder": 0
+            },
+            {
+              "name": "generationPeriodStart",
+              "type": "Int",
+              "order": 1,
+              "constructorOrder": 1
+            },
+            {
+              "name": "commitmentSignature",
+              "type": "ByteVector",
+              "order": 2,
+              "constructorOrder": 2
+            },
+            {
+              "name": "id",
+              "type": "ByteVector",
+              "order": 3,
+              "constructorOrder": 3
+            },
+            {
+              "name": "fee",
+              "type": "Int",
+              "order": 4,
+              "constructorOrder": 4
+            },
+            {
+              "name": "timestamp",
+              "type": "Int",
+              "order": 5,
+              "constructorOrder": 5
+            },
+            {
+              "name": "version",
+              "type": "Int",
+              "order": 6,
+              "constructorOrder": 6
+            },
+            {
+              "name": "sender",
+              "type": "Address",
+              "order": 7,
+              "constructorOrder": 7
+            },
+            {
+              "name": "senderPublicKey",
+              "type": "ByteVector",
+              "order": 8,
+              "constructorOrder": 8
+            },
+            {
+              "name": "bodyBytes",
+              "type": "ByteVector",
+              "order": 9,
+              "constructorOrder": 9
+            },
+            {
+              "name": "proofs",
+              "type": "List[ByteVector]",
+              "order": 10,
+              "constructorOrder": 10
+            }
+          ]
         }
       ]
     }
