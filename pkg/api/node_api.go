@@ -395,7 +395,7 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return wrapToBadRequestError(err)
+		return apiErrs.NewBadRequestError(err)
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
@@ -838,7 +838,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return wrapToBadRequestError(err)
+		return apiErrs.NewBadRequestError(err)
 	}
 	if height < 1 {
 		return apiErrs.BlockDoesNotExist
@@ -884,7 +884,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return wrapToBadRequestError(err)
+		return apiErrs.NewBadRequestError(err)
 	}
 	if height < 1 {
 		return apiErrs.BlockDoesNotExist
@@ -917,7 +917,13 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return errors.Wrap(err, "invalid height")
 	}
-
+	isActivated, actErr := a.state.IsActivated(int16(settings.DeterministicFinality))
+	if actErr != nil {
+		return errors.Wrap(actErr, "failed to check DeterministicFinality activation")
+	}
+	if !isActivated {
+		return apiErrs.NewUnavailableError(errors.New("deterministic finality is not activated"))
+	}
 	activationHeight, err := a.state.ActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
 		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
@@ -926,7 +932,7 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height,
 		a.app.settings.GenerationPeriod)
 	if err != nil {
-		return err
+		return fmt.Errorf("failed to calculate generationPeriodStart: %w", err)
 	}
 
 	var generatorsInfo []GeneratorInfo
@@ -939,7 +945,8 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 		endorserRecipient := proto.NewRecipientFromAddress(generatorAddress)
 		balance, pullErr := a.state.GeneratingBalance(endorserRecipient, height)
 		if pullErr != nil {
-			return pullErr
+			return fmt.Errorf("failed to get generating balance for address %s at height %d: %w",
+				endorserRecipient.String(), height, pullErr)
 		}
 		generatorsInfo = append(generatorsInfo, GeneratorInfo{
 			Address:       generatorAddress.String(),
@@ -976,12 +983,18 @@ type SignCommitRequest struct {
 func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request) error {
 	var req SignCommitRequest
 	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return errors.Wrap(err, "failed to decode JSON")
+		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to decode JSON"))
 	}
-
+	isActivated, activationErr := a.state.IsActivated(int16(settings.DeterministicFinality))
+	if activationErr != nil {
+		return errors.Wrap(activationErr, "failed to check DeterministicFinality activation")
+	}
+	if !isActivated {
+		return apiErrs.NewUnavailableError(errors.New("deterministic finality is not activated"))
+	}
 	addr, err := proto.NewAddressFromString(req.Sender)
 	if err != nil {
-		return errors.Wrap(err, "invalid sender address")
+		return apiErrs.NewBadRequestError(errors.Wrap(err, "invalid sender address"))
 	}
 
 	now := time.Now().UnixMilli()
@@ -992,9 +1005,8 @@ func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request)
 	}
 	timestampUint, err := safecast.Convert[uint64](timestamp)
 	if err != nil {
-		return errors.Wrap(err, "invalid timestamp")
+		return apiErrs.NewBadRequestError(errors.Wrap(err, "invalid timestamp"))
 	}
-
 	var periodStart uint32
 	if req.GenerationPeriodStart != nil {
 		periodStart = *req.GenerationPeriodStart

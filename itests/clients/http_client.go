@@ -10,7 +10,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	d "github.com/wavesplatform/gowaves/itests/docker"
-	"github.com/wavesplatform/gowaves/pkg/api"
+	nodeApi "github.com/wavesplatform/gowaves/pkg/api"
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -176,7 +176,7 @@ func (c *HTTPClient) BlockFinalized(t testing.TB) *proto.BlockHeader {
 	return header
 }
 
-func (c *HTTPClient) CommitmentGeneratorsAt(t testing.TB, height proto.Height) []api.GeneratorInfo {
+func (c *HTTPClient) CommitmentGeneratorsAt(t testing.TB, height proto.Height) []nodeApi.GeneratorInfo {
 	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
 	defer cancel()
 

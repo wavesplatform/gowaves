@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"net/http"
 
-	"github.com/wavesplatform/gowaves/pkg/api"
+	nodeApi "github.com/wavesplatform/gowaves/pkg/api"
 )
 
 // Generators is a client wrapper for generator-related API endpoints.
@@ -27,7 +27,7 @@ type GeneratorsAtResponse struct {
 
 // CommitmentGeneratorsAt returns the list of committed generators for the given height.
 func (a *Generators) CommitmentGeneratorsAt(ctx context.Context,
-	height uint64) ([]api.GeneratorInfo, *Response, error) {
+	height uint64) ([]nodeApi.GeneratorInfo, *Response, error) {
 	url, err := joinUrl(a.options.BaseUrl, fmt.Sprintf("/generators/at/%d", height))
 	if err != nil {
 		return nil, nil, err
@@ -36,7 +36,7 @@ func (a *Generators) CommitmentGeneratorsAt(ctx context.Context,
 	if err != nil {
 		return nil, nil, err
 	}
-	var out []api.GeneratorInfo
+	var out []nodeApi.GeneratorInfo
 	resp, err := doHTTP(ctx, a.options, req, &out)
 	if err != nil {
 		return nil, resp, err

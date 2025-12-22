@@ -21,7 +21,7 @@ func TestErrorHandler_Handle(t *testing.T) {
 			require.NoError(t, err)
 			return string(data)
 		}
-		badReqErr  = &BadRequestError{errors.New("bad-request")}
+		badReqErr  = apiErrs.NewBadRequestError(errors.New("bad-request"))
 		unknownErr = apiErrs.NewUnknownError(errors.New("unknown"))
 		defaultErr = errors.New("default")
 	)
