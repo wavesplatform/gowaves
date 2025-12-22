@@ -19,12 +19,6 @@ func NewGenerators(options Options) *Generators {
 	}
 }
 
-// GeneratorsAtResponse is the expected structure returned by /generators/at/{height}.
-type GeneratorsAtResponse struct {
-	Height     uint64   `json:"height"`
-	Generators []string `json:"generators"`
-}
-
 // CommitmentGeneratorsAt returns the list of committed generators for the given height.
 func (a *Generators) CommitmentGeneratorsAt(ctx context.Context,
 	height uint64) ([]nodeApi.GeneratorInfo, *Response, error) {

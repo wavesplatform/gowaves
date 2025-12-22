@@ -934,13 +934,12 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return fmt.Errorf("failed to calculate generationPeriodStart: %w", err)
 	}
-
-	var generatorsInfo []GeneratorInfo
-
 	generatorAddresses, err := a.state.CommittedGenerators(periodStart)
 	if err != nil {
 		return err
 	}
+
+	generatorsInfo := make([]GeneratorInfo, 0, len(generatorAddresses))
 	for _, generatorAddress := range generatorAddresses {
 		endorserRecipient := proto.NewRecipientFromAddress(generatorAddress)
 		balance, pullErr := a.state.GeneratingBalance(endorserRecipient, height)
@@ -951,7 +950,7 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 		generatorsInfo = append(generatorsInfo, GeneratorInfo{
 			Address:       generatorAddress.String(),
 			Balance:       balance,
-			TransactionID: "", // TODO should be somehow found.
+			TransactionID: "", // It was decided to leave it empty.
 		})
 	}
 	return trySendJSON(w, generatorsInfo)
