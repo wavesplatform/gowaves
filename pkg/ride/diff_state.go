@@ -119,9 +119,9 @@ func (db *diffBalance) toFullWavesBalance(lightNodeActivated bool) (*proto.FullW
 		return nil, errors.New("negative spendable balance")
 	}
 	// According to the scala node implementation:
-	//  Before Light Node activation generating balance doesn't change during the script execution.
-	//  Update generating balance if it's greater than effective balance, i.e. update generating balance during
-	// 	script processing.
+	// Before Light Node activation generating balance doesn't change during the script execution.
+	// Update generating balance if it's greater than effective balance, i.e. update generating balance during
+	// script processing.
 	gen := db.stateGenerating
 	if lightNodeActivated && eff < gen {
 		gen = eff
