@@ -3,7 +3,6 @@ package proto
 import (
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -1739,6 +1738,71 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 	return Block{
 		BlockHeader:  header,
 		Transactions: txs,
+	}, nil
+}
+
+func (c *ProtobufConverter) EndorseBlock(endorsement *g.EndorseBlock) (EndorseBlock, error) {
+	if endorsement == nil {
+		return EndorseBlock{}, errors.New("empty endorsement")
+	}
+	finalizedBlockID, err := NewBlockIDFromBytes(endorsement.FinalizedBlockId)
+	if err != nil {
+		return EndorseBlock{}, errors.Errorf("failed to parse finalized block ID: %v", err)
+	}
+	endorsedBlockID, err := NewBlockIDFromBytes(endorsement.EndorsedBlockId)
+	if err != nil {
+		return EndorseBlock{}, errors.Errorf("failed to parse endorsed block ID: %v", err)
+	}
+	sig, err := bls.NewSignatureFromBytes(endorsement.Signature)
+	if err != nil {
+		return EndorseBlock{}, errors.Errorf("failed to parse bls signature: %v", err)
+	}
+	return EndorseBlock{
+		EndorserIndex:        endorsement.EndorserIndex,
+		FinalizedBlockID:     finalizedBlockID,
+		FinalizedBlockHeight: endorsement.FinalizedBlockHeight,
+		EndorsedBlockID:      endorsedBlockID,
+		Signature:            sig,
+	}, nil
+}
+
+func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.FinalizationVoting) (FinalizationVoting, error) {
+	if finalizationVoting == nil {
+		return FinalizationVoting{}, errors.New("empty finalization voting")
+	}
+	conflictEndorsements := make([]EndorseBlock, 0, len(finalizationVoting.ConflictEndorsements))
+	for i, ce := range finalizationVoting.ConflictEndorsements {
+		if ce == nil {
+			continue
+		}
+		finalizedBlockID, err := NewBlockIDFromBytes(ce.FinalizedBlockId)
+		if err != nil {
+			return FinalizationVoting{}, errors.Errorf("failed to parse finalized block ID at index %d: %v", i, err)
+		}
+		endorsedBlockID, err := NewBlockIDFromBytes(ce.EndorsedBlockId)
+		if err != nil {
+			return FinalizationVoting{}, errors.Errorf("failed to parse endorsed block ID at index %d: %v", i, err)
+		}
+		sig, err := bls.NewSignatureFromBytes(ce.Signature)
+		if err != nil {
+			return FinalizationVoting{}, errors.Errorf("failed to parse bls signature: %v", err)
+		}
+		conflictEndorsements = append(conflictEndorsements, EndorseBlock{
+			EndorserIndex:        ce.EndorserIndex,
+			FinalizedBlockID:     finalizedBlockID,
+			FinalizedBlockHeight: ce.FinalizedBlockHeight,
+			EndorsedBlockID:      endorsedBlockID,
+			Signature:            sig,
+		})
+	}
+	aggregatedSignature, err := bls.NewSignatureFromBytes(finalizationVoting.AggregatedEndorsementSignature)
+	if err != nil {
+		return FinalizationVoting{}, errors.Errorf("failed to parse aggregated bls signature: %v", err)
+	}
+	return FinalizationVoting{
+		EndorserIndexes:                finalizationVoting.EndorserIndexes,
+		AggregatedEndorsementSignature: aggregatedSignature,
+		ConflictEndorsements:           conflictEndorsements,
 	}, nil
 }
 

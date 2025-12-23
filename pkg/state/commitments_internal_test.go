@@ -144,11 +144,17 @@ func TestCommitments_Size(t *testing.T) {
 				gs, err := to.entities.commitments.newestGenerators(test.periodStart)
 				require.NoError(t, err)
 				assert.Equal(t, j+1, len(gs))
+				newestSize, err := to.entities.commitments.newestSize(test.periodStart)
+				require.NoError(t, err)
+				assert.Equal(t, newestSize, len(gs))
 				// Check after flush.
 				to.flush(t)
 				gs, err = to.entities.commitments.generators(test.periodStart)
 				require.NoError(t, err)
 				assert.Equal(t, j+1, len(gs))
+				regularSize, err := to.entities.commitments.size(test.periodStart)
+				require.NoError(t, err)
+				assert.Equal(t, regularSize, len(gs))
 			}
 		})
 	}
