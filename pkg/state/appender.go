@@ -810,11 +810,18 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
+	// Process parent's block finalization.
 	if hasParent {
 		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, params.blockchainHeight)
 		if err != nil {
 			return err
 		}
+	}
+	// Process current block finalization.
+	err = a.finalizer.validateCurrentGenerators(params.blockchainHeight,
+		params.block.FinalizationVoting, params.block.ID)
+	if err != nil {
+		return err
 	}
 
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
@@ -1488,7 +1495,7 @@ func (f *finalizationProcessor) calcPeriodStart(height proto.Height) (uint32, er
 	return CurrentGenerationPeriodStart(activation, height, f.settings.GenerationPeriod)
 }
 
-func (f *finalizationProcessor) punishConflictingEndorser(periodStart uint32, badEndorserIndex int32,
+func (f *finalizationProcessor) removeGeneratorDeposit(periodStart uint32, badEndorserIndex int32,
 	blockID proto.BlockID) error {
 	badEndorserPK, err := f.stor.commitments.FindEndorserPKByIndex(periodStart, int(badEndorserIndex))
 	if err != nil {
@@ -1503,7 +1510,7 @@ func (f *finalizationProcessor) punishConflictingEndorser(periodStart uint32, ba
 		return errors.Wrapf(cnvrtErr,
 			"failed to convert public key %q to address", badGeneratorPK.String())
 	}
-	// 1. Remove the deposit from the endorser's balance.
+	// Remove the deposit from the endorser's balance.
 	profile, err := f.stor.balances.newestWavesBalance(badEndorserAddress.ID())
 	if err != nil {
 		return errors.Wrapf(err,
@@ -1518,11 +1525,42 @@ func (f *finalizationProcessor) punishConflictingEndorser(periodStart uint32, ba
 	if err = f.stor.balances.setWavesBalance(badEndorserAddress.ID(), value, blockID); err != nil {
 		return errors.Wrapf(err, "failed to get set balance profile for address %q", badEndorserAddress.String())
 	}
-	// 2. Remove the generator from the generator list.
-	err = f.stor.commitments.removeGenerator(periodStart, badGeneratorPK, blockID)
-	if err != nil {
-		return err
+	return nil
+}
+
+func (f *finalizationProcessor) validateCurrentGenerators(height proto.Height,
+	finalizationVoting *proto.FinalizationVoting,
+	blockID proto.BlockID) error {
+	if finalizationVoting == nil {
+		return nil
 	}
+	periodStart, calcErr := f.calcPeriodStart(height)
+	if calcErr != nil {
+		return calcErr
+	}
+	for _, conflictingEndorsement := range finalizationVoting.ConflictEndorsements {
+		badEndorserIndex := conflictingEndorsement.EndorserIndex
+		badEndorserPK, err := f.stor.commitments.FindEndorserPKByIndex(periodStart, int(badEndorserIndex))
+		if err != nil {
+			return fmt.Errorf("failed to find endorser PK by index %d: %w", badEndorserIndex, err)
+		}
+		badGeneratorPK, err := f.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, badEndorserPK)
+		if err != nil {
+			return fmt.Errorf("failed to map endorser PK to generator PK: %w", err)
+		}
+		// Remove the generator from the generator list.
+		generatorExists, err := f.stor.commitments.generatorExists(periodStart, badGeneratorPK)
+		if err != nil {
+			return fmt.Errorf("failed to check if generator exists: %w", err)
+		}
+		if generatorExists {
+			err = f.stor.commitments.removeGenerator(periodStart, badGeneratorPK, blockID)
+			if err != nil {
+				return err
+			}
+		}
+	}
+
 	return nil
 }
 
@@ -1543,22 +1581,19 @@ func (f *finalizationProcessor) updateFinalization(
 		return err
 	}
 	for _, conflictingEndorsement := range finalizationVoting.ConflictEndorsements {
-		conflictErr := f.punishConflictingEndorser(periodStart, conflictingEndorsement.EndorserIndex, parent.BlockID())
+		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex, parent.BlockID())
 		if conflictErr != nil {
 			return conflictErr
 		}
 	}
-
 	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height, parent, finalityActivated)
 	if err != nil {
 		return err
 	}
-
 	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
 	if err != nil {
 		return fmt.Errorf("failed to load last finalized block ID: %w", err)
 	}
-
 	msg, err := proto.EndorsementMessage(
 		lastFinalizedBlockID,
 		parent.ID,

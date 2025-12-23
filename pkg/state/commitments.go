@@ -166,6 +166,19 @@ func (c *commitments) generators(periodStart uint32) ([]crypto.PublicKey, error)
 	return generators, nil
 }
 
+func (c *commitments) generatorExists(periodStart uint32, generatorTarget crypto.PublicKey) (bool, error) {
+	generators, err := c.newestGenerators(periodStart)
+	if err != nil {
+		return false, err
+	}
+	for _, g := range generators {
+		if bytes.Equal(generatorTarget.Bytes(), g.Bytes()) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 // newestGenerators returns public keys of generators commited to the given period.
 func (c *commitments) newestGenerators(periodStart uint32) ([]crypto.PublicKey, error) {
 	key := commitmentKey{periodStart: periodStart}
