@@ -3,13 +3,14 @@ package errors
 const (
 	UnknownErrorID            ErrorID = 0
 	WrongJSONErrorID          ErrorID = 1
-	BadRequestErrorID         ErrorID = 2
-	ServiceUnavailableErrorID ErrorID = 3
+	BadRequestErrorID         ErrorID = 3
+	ServiceUnavailableErrorID ErrorID = 4
+	NotImplementedErrorID     ErrorID = 5
 )
 
 // API Auth
 const (
-	APIKeyNotValidErrorID        ApiAuthErrorID = 4
+	APIKeyNotValidErrorID        ApiAuthErrorID = 2
 	TooBigArrayAllocationErrorID ApiAuthErrorID = 10
 )
 
@@ -62,6 +63,7 @@ var errorNames = map[Identifier]string{
 	WrongJSONErrorID:          "WrongJsonError",
 	BadRequestErrorID:         "BadRequestError",
 	ServiceUnavailableErrorID: "ServiceUnavailableError",
+	NotImplementedErrorID:     "NotImplementedError",
 
 	APIKeyNotValidErrorID:                       "ApiKeyNotValidError",
 	TooBigArrayAllocationErrorID:                "TooBigArrayAllocationError",

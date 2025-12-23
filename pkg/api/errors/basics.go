@@ -194,3 +194,39 @@ func NewBadRequestErrorWithMsg(message string, inner error) *BadRequestError {
 		inner: inner,
 	}
 }
+
+// NotImplementedError is a wrapper for any not implemented error.
+type NotImplementedError struct {
+	genericError
+	inner error
+}
+
+func (u *NotImplementedError) Unwrap() error {
+	return u.inner
+}
+
+func (u *NotImplementedError) Error() string {
+	if u.Unwrap() != nil {
+		return fmt.Sprintf(
+			"%s; inner error (%T): %s",
+			u.genericError.Error(),
+			u.Unwrap(), u.Unwrap().Error(),
+		)
+	}
+	return u.genericError.Error()
+}
+
+func NewNotImplementedError(inner error) *NotImplementedError {
+	return NewNotImplementedErrorWithMsg("Not implemented", inner)
+}
+
+func NewNotImplementedErrorWithMsg(message string, inner error) *NotImplementedError {
+	return &NotImplementedError{
+		genericError: genericError{
+			ID:       NotImplementedErrorID,
+			HttpCode: http.StatusNotImplemented,
+			Message:  message,
+		},
+		inner: inner,
+	}
+}

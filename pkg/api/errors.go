@@ -59,8 +59,7 @@ func (eh *ErrorHandler) Handle(w http.ResponseWriter, r *http.Request, err error
 	)
 	switch {
 	case errors.As(err, &badRequestError):
-		// nickeskov: this error type will be removed in future
-		http.Error(w, fmt.Sprintf("Failed to complete request: %s", badRequestError.Error()), http.StatusBadRequest)
+		eh.sendApiErrJSON(w, r, badRequestError)
 	case errors.As(err, &authError):
 		// nickeskov: this error type will be removed in future
 		http.Error(w, fmt.Sprintf("Failed to complete request: %s", authError.Error()), http.StatusForbidden)

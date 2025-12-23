@@ -189,6 +189,7 @@ type SignCommitRequest struct {
 	Sender                string  `json:"sender"`
 	GenerationPeriodStart *uint32 `json:"generationPeriodStart,omitempty"`
 	Timestamp             *int64  `json:"timestamp,omitempty"`
+	ChainID               *byte   `json:"chainId,omitempty"`
 }
 
 // SignCommit calls POST /transactions/sign and returns the signed CommitToGenerationWithProofs tx.

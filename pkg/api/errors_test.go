@@ -35,13 +35,13 @@ func TestErrorHandler_Handle(t *testing.T) {
 			name:         "BadRequestErrorCase",
 			err:          errors.WithStack(errors.WithStack(badReqErr)),
 			expectedCode: http.StatusBadRequest,
-			expectedBody: "Failed to complete request: bad-request\n",
+			expectedBody: mustJSON(badReqErr) + "\n",
 		},
 		{
 			name:         "ErrorWithMultipleWraps",
 			err:          errors.Wrap(errors.Wrap(badReqErr, "wrap1"), "wrap2"),
 			expectedCode: http.StatusBadRequest,
-			expectedBody: "Failed to complete request: bad-request\n",
+			expectedBody: mustJSON(badReqErr) + "\n",
 		},
 		{
 			name:         "AuthErrorCase",

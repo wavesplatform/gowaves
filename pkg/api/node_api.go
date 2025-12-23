@@ -905,7 +905,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	return nil
 }
 
-type GeneratorInfo struct {
+type generatorInfo struct {
 	Address       string `json:"address"`
 	Balance       uint64 `json:"balance"`
 	TransactionID string `json:"transactionID"`
@@ -939,7 +939,7 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 
-	generatorsInfo := make([]GeneratorInfo, 0, len(generatorAddresses))
+	generatorsInfo := make([]generatorInfo, 0, len(generatorAddresses))
 	for _, generatorAddress := range generatorAddresses {
 		endorserRecipient := proto.NewRecipientFromAddress(generatorAddress)
 		balance, pullErr := a.state.GeneratingBalance(endorserRecipient, height)
@@ -947,7 +947,7 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 			return fmt.Errorf("failed to get generating balance for address %s at height %d: %w",
 				endorserRecipient.String(), height, pullErr)
 		}
-		generatorsInfo = append(generatorsInfo, GeneratorInfo{
+		generatorsInfo = append(generatorsInfo, generatorInfo{
 			Address:       generatorAddress.String(),
 			Balance:       balance,
 			TransactionID: "", // It was decided to leave it empty.
@@ -972,30 +972,73 @@ func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error 
 	return trySendJSON(w, blockHeader)
 }
 
-type SignCommitRequest struct {
+type signTxEnvelope struct {
+	Type    proto.TransactionType `json:"type"`
+	Version byte                  `json:"version,omitempty"`
+}
+
+func (a *NodeApi) transactionSign(w http.ResponseWriter, r *http.Request) error {
+	var signTx signTxEnvelope
+	if err := json.NewDecoder(r.Body).Decode(&signTx); err != nil {
+		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to decode tx envelope"))
+	}
+
+	tx, err := proto.GuessTransactionType(&proto.TransactionTypeVersion{
+		Type:    signTx.Type,
+		Version: signTx.Version,
+	})
+	if err != nil {
+		return apiErrs.NewBadRequestError(err)
+	}
+
+	switch tx.GetType() {
+	case proto.CommitToGenerationTransaction:
+		var req signCommit
+		if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr != nil {
+			return apiErrs.NewBadRequestError(errors.Wrap(decodeErr, "failed to decode JSON"))
+		}
+		signedTx, signErr := a.transactionsSignCommitToGeneration(req)
+		if signErr != nil {
+			return signErr
+		}
+		return trySendJSON(w, signedTx)
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.ExchangeTransaction, proto.LeaseTransaction,
+		proto.LeaseCancelTransaction, proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction,
+		proto.SetScriptTransaction, proto.SponsorshipTransaction, proto.SetAssetScriptTransaction,
+		proto.InvokeScriptTransaction, proto.UpdateAssetInfoTransaction, proto.EthereumMetamaskTransaction,
+		proto.InvokeExpressionTransaction:
+		return apiErrs.NewNotImplementedError(errors.Errorf("transaction signing not implemented for type %d", tx.GetType()))
+	default:
+		return apiErrs.NewBadRequestError(errors.Errorf("unknown transaction type %d", tx.GetType()))
+	}
+}
+
+type signCommit struct {
 	Sender                string  `json:"sender"`
 	GenerationPeriodStart *uint32 `json:"generationPeriodStart,omitempty"`
 	Timestamp             *int64  `json:"timestamp,omitempty"`
 	ChainID               *byte   `json:"chainId,omitempty"`
+	Type                  byte    `json:"type,omitempty"`
+	Version               byte    `json:"version,omitempty"`
 }
 
-func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request) error {
-	var req SignCommitRequest
-	if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
-		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to decode JSON"))
-	}
+func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.CommitToGenerationWithProofs, error) {
 	isActivated, activationErr := a.state.IsActivated(int16(settings.DeterministicFinality))
 	if activationErr != nil {
-		return errors.Wrap(activationErr, "failed to check DeterministicFinality activation")
+		return nil, errors.Wrap(activationErr, "failed to check DeterministicFinality activation")
 	}
 	if !isActivated {
-		return apiErrs.NewUnavailableError(errors.New("deterministic finality is not activated"))
+		return nil, apiErrs.NewUnavailableError(errors.New("deterministic finality is not activated"))
 	}
 	addr, err := proto.NewAddressFromString(req.Sender)
 	if err != nil {
-		return apiErrs.NewBadRequestError(errors.Wrap(err, "invalid sender address"))
+		return nil, apiErrs.NewBadRequestError(errors.Wrap(err, "invalid sender address"))
 	}
-
+	scheme := a.app.services.Scheme
+	if req.ChainID != nil {
+		scheme = *req.ChainID
+	}
 	now := time.Now().UnixMilli()
 
 	timestamp := now
@@ -1004,7 +1047,7 @@ func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request)
 	}
 	timestampUint, err := safecast.Convert[uint64](timestamp)
 	if err != nil {
-		return apiErrs.NewBadRequestError(errors.Wrap(err, "invalid timestamp"))
+		return nil, apiErrs.NewBadRequestError(errors.Wrap(err, "invalid timestamp"))
 	}
 	var periodStart uint32
 	if req.GenerationPeriodStart != nil {
@@ -1012,32 +1055,32 @@ func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request)
 	} else {
 		height, retrieveErr := a.state.Height()
 		if retrieveErr != nil {
-			return errors.Wrap(retrieveErr, "failed to get height")
+			return nil, errors.Wrap(retrieveErr, "failed to get height")
 		}
 		activationH, actErr := a.state.ActivationHeight(int16(settings.DeterministicFinality))
 		if actErr != nil {
-			return errors.Wrap(actErr, "failed to get DF activation height")
+			return nil, errors.Wrap(actErr, "failed to get DF activation height")
 		}
 
 		periodStart, err = state.CurrentGenerationPeriodStart(activationH, height, a.app.settings.GenerationPeriod)
 		if err != nil {
-			return errors.Wrap(err, "failed to calculate generationPeriodStart")
+			return nil, errors.Wrap(err, "failed to calculate generationPeriodStart")
 		}
 	}
-	senderPK, err := a.app.services.Wallet.FindPublicKeyByAddress(addr, a.app.services.Scheme)
+	senderPK, err := a.app.services.Wallet.FindPublicKeyByAddress(addr, scheme)
 	if err != nil {
-		return errors.Wrap(err, "failed to find key pair by address")
+		return nil, errors.Wrap(err, "failed to find key pair by address")
 	}
 
 	blsSecretKey, blsPublicKey, err := a.app.services.Wallet.BLSPairByWavesPK(senderPK)
 	if err != nil {
-		return errors.Wrap(err, "failed to find endorser public key by generator public key")
+		return nil, errors.Wrap(err, "failed to find endorser public key by generator public key")
 	}
 	_, commitmentSignature, popErr := bls.ProvePoP(blsSecretKey, blsPublicKey, periodStart)
 	if popErr != nil {
-		return errors.Wrap(popErr, "failed to create proof of possession for commitment")
+		return nil, errors.Wrap(popErr, "failed to create proof of possession for commitment")
 	}
-	tx := proto.NewUnsignedCommitToGenerationWithProofs(1,
+	tx := proto.NewUnsignedCommitToGenerationWithProofs(req.Version,
 		senderPK,
 		periodStart,
 		blsPublicKey,
@@ -1046,9 +1089,9 @@ func (a *NodeApi) TransactionsSignCommit(w http.ResponseWriter, r *http.Request)
 		timestampUint)
 	err = a.app.services.Wallet.SignTransactionWith(senderPK, tx)
 	if err != nil {
-		return err
+		return nil, err
 	}
-	return trySendJSON(w, tx)
+	return tx, nil
 }
 
 func wavesAddressInvalidCharErr(invalidChar rune, id string) *apiErrs.CustomValidationError {
