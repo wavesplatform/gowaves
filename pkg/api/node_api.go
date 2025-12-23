@@ -16,8 +16,10 @@ import (
 	"github.com/go-chi/chi/v5"
 	"github.com/pkg/errors"
 
+	"github.com/ccoveille/go-safecast/v2"
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -393,7 +395,7 @@ func (a *NodeApi) BlockScoreAt(w http.ResponseWriter, r *http.Request) error {
 	id, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return wrapToBadRequestError(err)
+		return apiErrs.NewBadRequestError(err)
 	}
 	rs, err := a.app.BlocksScoreAt(id)
 	if err != nil {
@@ -836,7 +838,7 @@ func (a *NodeApi) stateHash(w http.ResponseWriter, r *http.Request) error {
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return wrapToBadRequestError(err)
+		return apiErrs.NewBadRequestError(err)
 	}
 	if height < 1 {
 		return apiErrs.BlockDoesNotExist
@@ -882,7 +884,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// TODO(nickeskov): which error it should send?
-		return wrapToBadRequestError(err)
+		return apiErrs.NewBadRequestError(err)
 	}
 	if height < 1 {
 		return apiErrs.BlockDoesNotExist
@@ -901,6 +903,195 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 		return errors.Wrap(sendErr, "snapshotStateHash")
 	}
 	return nil
+}
+
+type generatorInfo struct {
+	Address       string `json:"address"`
+	Balance       uint64 `json:"balance"`
+	TransactionID string `json:"transactionID"`
+}
+
+func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
+	heightStr := chi.URLParam(r, "height")
+	height, err := strconv.ParseUint(heightStr, 10, 64)
+	if err != nil {
+		return errors.Wrap(err, "invalid height")
+	}
+	isActivated, actErr := a.state.IsActivated(int16(settings.DeterministicFinality))
+	if actErr != nil {
+		return errors.Wrap(actErr, "failed to check DeterministicFinality activation")
+	}
+	if !isActivated {
+		return apiErrs.NewUnavailableError(errors.New("deterministic finality is not activated"))
+	}
+	activationHeight, err := a.state.ActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
+	}
+
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height,
+		a.app.settings.GenerationPeriod)
+	if err != nil {
+		return fmt.Errorf("failed to calculate generationPeriodStart: %w", err)
+	}
+	generatorAddresses, err := a.state.CommittedGenerators(periodStart)
+	if err != nil {
+		return err
+	}
+
+	generatorsInfo := make([]generatorInfo, 0, len(generatorAddresses))
+	for _, generatorAddress := range generatorAddresses {
+		endorserRecipient := proto.NewRecipientFromAddress(generatorAddress)
+		balance, pullErr := a.state.GeneratingBalance(endorserRecipient, height)
+		if pullErr != nil {
+			return fmt.Errorf("failed to get generating balance for address %s at height %d: %w",
+				endorserRecipient.String(), height, pullErr)
+		}
+		generatorsInfo = append(generatorsInfo, generatorInfo{
+			Address:       generatorAddress.String(),
+			Balance:       balance,
+			TransactionID: "", // It was decided to leave it empty.
+		})
+	}
+	return trySendJSON(w, generatorsInfo)
+}
+
+func (a *NodeApi) FinalizedHeight(w http.ResponseWriter, _ *http.Request) error {
+	h, err := a.state.LastFinalizedHeight()
+	if err != nil {
+		return err
+	}
+	return trySendJSON(w, map[string]uint64{"height": h})
+}
+
+func (a *NodeApi) FinalizedHeader(w http.ResponseWriter, _ *http.Request) error {
+	blockHeader, err := a.app.state.LastFinalizedBlock()
+	if err != nil {
+		return err
+	}
+	return trySendJSON(w, blockHeader)
+}
+
+type signTxEnvelope struct {
+	Type    proto.TransactionType `json:"type"`
+	Version byte                  `json:"version,omitempty"`
+}
+
+func (a *NodeApi) transactionSign(w http.ResponseWriter, r *http.Request) error {
+	var signTx signTxEnvelope
+	if err := json.NewDecoder(r.Body).Decode(&signTx); err != nil {
+		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to decode tx envelope"))
+	}
+
+	tx, err := proto.GuessTransactionType(&proto.TransactionTypeVersion{
+		Type:    signTx.Type,
+		Version: signTx.Version,
+	})
+	if err != nil {
+		return apiErrs.NewBadRequestError(err)
+	}
+
+	switch tx.GetType() {
+	case proto.CommitToGenerationTransaction:
+		var req signCommit
+		if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr != nil {
+			return apiErrs.NewBadRequestError(errors.Wrap(decodeErr, "failed to decode JSON"))
+		}
+		signedTx, signErr := a.transactionsSignCommitToGeneration(req)
+		if signErr != nil {
+			return signErr
+		}
+		return trySendJSON(w, signedTx)
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.ExchangeTransaction, proto.LeaseTransaction,
+		proto.LeaseCancelTransaction, proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction,
+		proto.SetScriptTransaction, proto.SponsorshipTransaction, proto.SetAssetScriptTransaction,
+		proto.InvokeScriptTransaction, proto.UpdateAssetInfoTransaction, proto.EthereumMetamaskTransaction,
+		proto.InvokeExpressionTransaction:
+		return apiErrs.NewNotImplementedError(errors.Errorf("transaction signing not implemented for type %d", tx.GetType()))
+	default:
+		return apiErrs.NewBadRequestError(errors.Errorf("unknown transaction type %d", tx.GetType()))
+	}
+}
+
+type signCommit struct {
+	Sender                string  `json:"sender"`
+	GenerationPeriodStart *uint32 `json:"generationPeriodStart,omitempty"`
+	Timestamp             *int64  `json:"timestamp,omitempty"`
+	ChainID               *byte   `json:"chainId,omitempty"`
+	Type                  byte    `json:"type,omitempty"`
+	Version               byte    `json:"version,omitempty"`
+}
+
+func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.CommitToGenerationWithProofs, error) {
+	isActivated, activationErr := a.state.IsActivated(int16(settings.DeterministicFinality))
+	if activationErr != nil {
+		return nil, errors.Wrap(activationErr, "failed to check DeterministicFinality activation")
+	}
+	if !isActivated {
+		return nil, apiErrs.NewUnavailableError(errors.New("deterministic finality is not activated"))
+	}
+	addr, err := proto.NewAddressFromString(req.Sender)
+	if err != nil {
+		return nil, apiErrs.NewBadRequestError(errors.Wrap(err, "invalid sender address"))
+	}
+	scheme := a.app.services.Scheme
+	if req.ChainID != nil {
+		scheme = *req.ChainID
+	}
+	now := time.Now().UnixMilli()
+
+	timestamp := now
+	if req.Timestamp != nil {
+		timestamp = *req.Timestamp
+	}
+	timestampUint, err := safecast.Convert[uint64](timestamp)
+	if err != nil {
+		return nil, apiErrs.NewBadRequestError(errors.Wrap(err, "invalid timestamp"))
+	}
+	var periodStart uint32
+	if req.GenerationPeriodStart != nil {
+		periodStart = *req.GenerationPeriodStart
+	} else {
+		height, retrieveErr := a.state.Height()
+		if retrieveErr != nil {
+			return nil, errors.Wrap(retrieveErr, "failed to get height")
+		}
+		activationH, actErr := a.state.ActivationHeight(int16(settings.DeterministicFinality))
+		if actErr != nil {
+			return nil, errors.Wrap(actErr, "failed to get DF activation height")
+		}
+
+		periodStart, err = state.CurrentGenerationPeriodStart(activationH, height, a.app.settings.GenerationPeriod)
+		if err != nil {
+			return nil, errors.Wrap(err, "failed to calculate generationPeriodStart")
+		}
+	}
+	senderPK, err := a.app.services.Wallet.FindPublicKeyByAddress(addr, scheme)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find key pair by address")
+	}
+
+	blsSecretKey, blsPublicKey, err := a.app.services.Wallet.BLSPairByWavesPK(senderPK)
+	if err != nil {
+		return nil, errors.Wrap(err, "failed to find endorser public key by generator public key")
+	}
+	_, commitmentSignature, popErr := bls.ProvePoP(blsSecretKey, blsPublicKey, periodStart)
+	if popErr != nil {
+		return nil, errors.Wrap(popErr, "failed to create proof of possession for commitment")
+	}
+	tx := proto.NewUnsignedCommitToGenerationWithProofs(req.Version,
+		senderPK,
+		periodStart,
+		blsPublicKey,
+		commitmentSignature,
+		state.FeeUnit,
+		timestampUint)
+	err = a.app.services.Wallet.SignTransactionWith(senderPK, tx)
+	if err != nil {
+		return nil, err
+	}
+	return tx, nil
 }
 
 func wavesAddressInvalidCharErr(invalidChar rune, id string) *apiErrs.CustomValidationError {
