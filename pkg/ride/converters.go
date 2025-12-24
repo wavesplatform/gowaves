@@ -1,6 +1,7 @@
 package ride
 
 import (
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/types"
@@ -1303,9 +1304,48 @@ func ethereumInvocationToObject(rideVersion ast.LibraryVersion, scheme proto.Sch
 	}
 }
 
-func commitToGenerationToObject(_ proto.Scheme, _ *proto.CommitToGenerationWithProofs) (rideType, error) {
-	// TODO: implement conversion after adding CommitToGenerationTransaction type to Ride V9.
-	return nil, errors.New("not implemented")
+func commitToGenerationToObject(scheme proto.Scheme, tx *proto.CommitToGenerationWithProofs) (rideType, error) {
+	endorserPublicKey := rideByteVector(common.Dup(tx.EndorserPublicKey.Bytes()))
+	generationPeriodStart := rideInt(tx.GenerationPeriodStart)
+	commitmentSignature := rideByteVector(common.Dup(tx.CommitmentSignature.Bytes()))
+	txID, err := tx.GetID(scheme)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	senderPK := tx.GetSenderPK()
+	sender, err := proto.NewAddressFromPublicKey(scheme, senderPK)
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	body, err := proto.MarshalTxBody(scheme, tx)
+	if err != nil {
+		return rideUpdateAssetInfoTransaction{}, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	fee, err := safecast.Convert[rideInt](tx.GetFee())
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	timestamp, err := safecast.Convert[rideInt](tx.GetTimestamp())
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	version, err := safecast.Convert[rideInt](tx.GetVersion())
+	if err != nil {
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+	}
+	return newRideCommitToGenerationTransaction(
+		endorserPublicKey,
+		generationPeriodStart,
+		commitmentSignature,
+		txID,
+		fee,
+		timestamp,
+		version,
+		rideAddress(sender),
+		common.Dup(senderPK.Bytes()),
+		body,
+		proofs(tx.Proofs),
+	), nil
 }
 
 func recipientToObject(recipient proto.Recipient) rideType {
@@ -1709,8 +1749,10 @@ func optionalAsset(o proto.OptionalAsset) rideType {
 	return rideUnit{}
 }
 
+const rideProofsCount = 8
+
 func signatureToProofs(sig *crypto.Signature) rideList {
-	r := make(rideList, 8)
+	r := make(rideList, rideProofsCount)
 	if sig != nil {
 		r[0] = rideByteVector(sig.Bytes())
 	} else {
@@ -1723,7 +1765,7 @@ func signatureToProofs(sig *crypto.Signature) rideList {
 }
 
 func proofs(proofs *proto.ProofsV1) rideList {
-	r := make(rideList, 8)
+	r := make(rideList, rideProofsCount)
 	proofsLen := len(proofs.Proofs)
 	for i := range r {
 		if i < proofsLen {
