@@ -5305,6 +5305,15 @@ func (o rideCommitToGenerationTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+func (o rideCommitToGenerationTransaction) setProofs(proofs rideList) rideProven {
+	o.proofs = proofs
+	return o
+}
+
+func (o rideCommitToGenerationTransaction) getProofs() rideList {
+	return o.proofs
+}
+
 func resetProofs(obj rideType) error {
 	switch tx := obj.(type) {
 	case rideProven:

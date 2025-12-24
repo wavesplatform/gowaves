@@ -15,8 +15,8 @@ To add a new Ride object, you need to edit `ride_objects.json` file.
 Each object is described by the following fields:
  * `name` - name of the object
  * `actions` - list of code-generation actions to perform on the object
-   * `version` - library version then the object was added or modified
-   * `deleted` - library version then the object was deleted (optional)
+   * `version` - library version when the object was added or modified
+   * `deleted` - library version when the object was deleted (optional)
    * `fields` - list of fields in the object
      * `name` - name of the field
      * `type` - type of the field (see Ride types)

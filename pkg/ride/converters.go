@@ -1319,7 +1319,7 @@ func commitToGenerationToObject(scheme proto.Scheme, tx *proto.CommitToGeneratio
 	}
 	body, err := proto.MarshalTxBody(scheme, tx)
 	if err != nil {
-		return rideUpdateAssetInfoTransaction{}, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
+		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
 	}
 	fee, err := safecast.Convert[rideInt](tx.GetFee())
 	if err != nil {
@@ -1329,10 +1329,7 @@ func commitToGenerationToObject(scheme proto.Scheme, tx *proto.CommitToGeneratio
 	if err != nil {
 		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
 	}
-	version, err := safecast.Convert[rideInt](tx.GetVersion())
-	if err != nil {
-		return nil, EvaluationFailure.Wrap(err, "commitToGenerationToObject")
-	}
+	version := rideInt(tx.GetVersion())
 	return newRideCommitToGenerationTransaction(
 		endorserPublicKey,
 		generationPeriodStart,

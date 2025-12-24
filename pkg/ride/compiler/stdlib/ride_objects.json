@@ -2579,7 +2579,8 @@
               "order": 10,
               "constructorOrder": 10
             }
-          ]
+          ],
+          "set_proofs": true
         }
       ]
     }
