@@ -13,14 +13,9 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
-const (
-	// Maximum forward offset (to the future) for block timestamps.
-	// In milliseconds.
-	maxTimeDrift = 100
-
-	generatingBalanceForGenerator1 = uint64(1000000000000)
-	generatingBalanceForGenerator2 = uint64(100000000000)
-)
+// Maximum forward offset (to the future) for block timestamps.
+// In milliseconds.
+const maxTimeDrift = 100
 
 // Invalid blocks that are already in blockchain.
 var mainNetInvalidBlocks = map[string]uint64{
@@ -43,6 +38,7 @@ type stateInfoProvider interface {
 	NewestIsActiveAtHeight(featureID int16, height proto.Height) (bool, error)
 	NewestActivationHeight(featureID int16) (uint64, error)
 	NewestAccountHasScript(addr proto.WavesAddress) (bool, error)
+	NewestMinimalGeneratingBalanceAtHeight(height proto.Height, timestamp uint64) uint64
 }
 
 type Validator struct {
@@ -60,10 +56,6 @@ func NewValidator(state stateInfoProvider, settings *settings.BlockchainSettings
 		settings: settings,
 		ntpTime:  tm,
 	}
-}
-
-func (cv *Validator) smallerMinimalGeneratingBalanceActivated(height uint64) (bool, error) {
-	return cv.state.NewestIsActiveAtHeight(int16(settings.SmallerMinimalGeneratingBalance), height)
 }
 
 func (cv *Validator) fairPosActivated(height uint64) (bool, error) {
@@ -189,26 +181,11 @@ func (cv *Validator) ValidateHeadersBatch(headers []proto.BlockHeader, startHeig
 }
 
 func (cv *Validator) validateGeneratingBalance(header *proto.BlockHeader, balance, height uint64) error {
-	if header.Timestamp < cv.settings.MinimalGeneratingBalanceCheckAfterTime {
-		return nil
-	}
-	smallerGeneratingBalance, err := cv.smallerMinimalGeneratingBalanceActivated(height)
-	if err != nil {
-		return err
-	}
-	if smallerGeneratingBalance {
-		if balance < generatingBalanceForGenerator2 {
-			return errors.Errorf(
-				"generator's generating balance is less than required for generation: expected %d, found %d",
-				generatingBalanceForGenerator2, balance,
-			)
-		}
-		return nil
-	}
-	if balance < generatingBalanceForGenerator1 {
+	mgb := cv.state.NewestMinimalGeneratingBalanceAtHeight(height, header.Timestamp)
+	if balance < mgb {
 		return errors.Errorf(
 			"generator's generating balance is less than required for generation: expected %d, found %d",
-			generatingBalanceForGenerator1, balance,
+			mgb, balance,
 		)
 	}
 	return nil
@@ -388,21 +365,22 @@ func (cv *Validator) generateAndCheckNextHitSource(height uint64, header *proto.
 				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
 		}
 		return hs, pos, gsp, vrf, nil
-	} else {
-		refGenSig, err := cv.state.NewestHitSourceAtHeight(height)
-		if err != nil {
-			return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
-		}
-		ok, hs, err := gsp.VerifyGenerationSignature(header.GeneratorPublicKey, refGenSig, header.GenSignature)
-		if err != nil {
-			return nil, nil, nil, false, errors.Wrap(err, "failed to validate hit source")
-		}
-		if !ok {
-			return nil, nil, nil, false, errors.Errorf("invalid hit source '%s' of block '%s' at height %d (ref gen-sig '%s'), without vrf",
-				header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig))
-		}
-		return hs, pos, gsp, vrf, nil
 	}
+	refGenSig, err := cv.state.NewestHitSourceAtHeight(height)
+	if err != nil {
+		return nil, nil, nil, false, errors.Wrap(err, "failed to generate hit source")
+	}
+	ok, hs, err := gsp.VerifyGenerationSignature(header.GeneratorPublicKey, refGenSig, header.GenSignature)
+	if err != nil {
+		return nil, nil, nil, false, errors.Wrap(err, "failed to validate hit source")
+	}
+	if !ok {
+		return nil, nil, nil, false, errors.Errorf(
+			"invalid hit source '%s' of block '%s' at height %d (ref gen-sig '%s'), without vrf",
+			header.GenSignature.String(), header.ID.String(), height, base58.Encode(refGenSig),
+		)
+	}
+	return hs, pos, gsp, vrf, nil
 }
 
 func (cv *Validator) validateGeneratorSignatureAndBlockDelay(height uint64, header *proto.BlockHeader) error {

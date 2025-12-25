@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"math"
 	"math/big"
-	"strconv"
 	"strings"
 	"testing"
 	"time"
@@ -891,7 +890,7 @@ func TestTransferByID(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(26000).
 				withBlockV5Activated().withProtobufTx().
 				withDataEntriesSizeV2().withMessageLengthV3().

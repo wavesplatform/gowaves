@@ -87,6 +87,7 @@ var ( // compile-time interface checks
 	_ selfVerifier   = (*proto.LeaseWithSig)(nil)
 	_ selfVerifier   = (*proto.LeaseCancelWithSig)(nil)
 	_ selfVerifier   = (*proto.CreateAliasWithSig)(nil)
+	_ selfVerifier   = (*proto.CommitToGenerationWithProofs)(nil)
 )
 
 func verifyTransactionSignature(sv selfVerifier, scheme proto.Scheme) error {

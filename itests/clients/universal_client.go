@@ -2,8 +2,12 @@ package clients
 
 import (
 	"context"
+	"errors"
 	"testing"
+	"time"
 
+	"github.com/wavesplatform/gowaves/itests/config"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -40,4 +44,47 @@ func (c *NodeUniversalClient) Handshake() {
 func (c *NodeUniversalClient) Close(t testing.TB) {
 	c.GRPCClient.Close(t)
 	c.Connection.Close()
+}
+
+func (c *NodeUniversalClient) WaitForHeight(t testing.TB, height uint64, opts ...config.WaitOption) uint64 {
+	var h uint64
+	params := config.NewWaitParams(opts...)
+	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
+	defer cancel()
+	for context.Cause(ctx) == nil {
+		h = c.HTTPClient.GetHeight(t).Height
+		if h >= height {
+			break
+		}
+		select {
+		case <-ctx.Done():
+			break
+		case <-time.After(time.Second):
+			// Sleep for a second before checking the height again.
+		}
+	}
+
+	if err := context.Cause(ctx); err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Timeout exceeded while waiting for height %d, current height %d", height, h)
+		}
+		t.Fatalf("Failed to wait for height %d: %v", height, err)
+	}
+	return h
+}
+
+func (c *NodeUniversalClient) WaitForTransaction(t testing.TB, id crypto.Digest, opts ...config.WaitOption) {
+	params := config.NewWaitParams(opts...)
+	ctx, cancel := context.WithTimeout(params.Ctx, params.Timeout)
+	defer cancel()
+	err := RetryCtx(ctx, params.Timeout, func() error {
+		_, _, err := c.HTTPClient.TransactionInfoRaw(id)
+		return err
+	})
+	if err != nil {
+		if errors.Is(err, context.DeadlineExceeded) {
+			t.Fatalf("Timeout exceeded while waiting for transaction %q", id.String())
+		}
+		t.Fatalf("Failed to wait for transaction %q: %v", id.String(), err)
+	}
 }
