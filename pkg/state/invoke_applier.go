@@ -99,12 +99,18 @@ func (ia *invokeApplier) newTxDiffFromPayment(pmt *payment, updateMinIntermediat
 	diff := newTxDiff()
 	senderKey := byteKey(pmt.sender.ID(), pmt.asset)
 	senderBalanceDiff := -int64(pmt.amount)
-	if err := diff.appendBalanceDiff(senderKey, newBalanceDiff(senderBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+	if err := diff.appendBalanceDiff(
+		senderKey,
+		newBalanceDiff(senderBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
+	); err != nil {
 		return txDiff{}, err
 	}
 	receiverKey := byteKey(pmt.receiver.ID(), pmt.asset)
 	receiverBalanceDiff := int64(pmt.amount)
-	if err := diff.appendBalanceDiff(receiverKey, newBalanceDiff(receiverBalanceDiff, 0, 0, updateMinIntermediateBalance)); err != nil {
+	if err := diff.appendBalanceDiff(
+		receiverKey,
+		newBalanceDiff(receiverBalanceDiff, 0, 0, 0, updateMinIntermediateBalance),
+	); err != nil {
 		return txDiff{}, err
 	}
 	return diff, nil
@@ -134,7 +140,10 @@ func (ia *invokeApplier) newTxDiffFromScriptIssue(senderAddress proto.AddressID,
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.ID)}
 	senderAssetBalanceDiff := action.Quantity
-	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
+	if err := diff.appendBalanceDiff(
+		senderAssetKey.bytes(),
+		newBalanceDiff(senderAssetBalanceDiff, 0, 0, 0, false),
+	); err != nil {
 		return nil, err
 	}
 	return diff, nil
@@ -144,7 +153,10 @@ func (ia *invokeApplier) newTxDiffFromScriptReissue(senderAddress proto.AddressI
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.AssetID)}
 	senderAssetBalanceDiff := action.Quantity
-	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
+	if err := diff.appendBalanceDiff(
+		senderAssetKey.bytes(),
+		newBalanceDiff(senderAssetBalanceDiff, 0, 0, 0, false),
+	); err != nil {
 		return nil, err
 	}
 	return diff, nil
@@ -154,7 +166,10 @@ func (ia *invokeApplier) newTxDiffFromScriptBurn(senderAddress proto.AddressID, 
 	diff := newTxDiff()
 	senderAssetKey := assetBalanceKey{address: senderAddress, asset: proto.AssetIDFromDigest(action.AssetID)}
 	senderAssetBalanceDiff := -action.Quantity
-	if err := diff.appendBalanceDiff(senderAssetKey.bytes(), newBalanceDiff(senderAssetBalanceDiff, 0, 0, false)); err != nil {
+	if err := diff.appendBalanceDiff(
+		senderAssetKey.bytes(),
+		newBalanceDiff(senderAssetBalanceDiff, 0, 0, 0, false),
+	); err != nil {
 		return nil, err
 	}
 	return diff, nil
@@ -164,10 +179,16 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddres
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
 	receiverKey := wavesBalanceKey{address: recipientAddress}
-	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, action.Amount, false)); err != nil {
+	if err := diff.appendBalanceDiff(
+		senderKey.bytes(),
+		newBalanceDiff(0, 0, action.Amount, 0, false),
+	); err != nil {
 		return nil, err
 	}
-	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, action.Amount, 0, false)); err != nil {
+	if err := diff.appendBalanceDiff(
+		receiverKey.bytes(),
+		newBalanceDiff(0, action.Amount, 0, 0, false),
+	); err != nil {
 		return nil, err
 	}
 	return diff, nil
@@ -176,13 +197,19 @@ func (ia *invokeApplier) newTxDiffFromScriptLease(senderAddress, recipientAddres
 func (ia *invokeApplier) newTxDiffFromScriptLeaseCancel(senderAddress proto.AddressID, leaseInfo *leasing) (txDiff, error) {
 	diff := newTxDiff()
 	senderKey := wavesBalanceKey{address: senderAddress}
-	senderLeaseOutDiff := -int64(leaseInfo.Amount)
-	if err := diff.appendBalanceDiff(senderKey.bytes(), newBalanceDiff(0, 0, senderLeaseOutDiff, false)); err != nil {
+	senderLeaseOutDiff := -leaseInfo.AmountAsInt64()
+	if err := diff.appendBalanceDiff(
+		senderKey.bytes(),
+		newBalanceDiff(0, 0, senderLeaseOutDiff, 0, false),
+	); err != nil {
 		return nil, err
 	}
 	receiverKey := wavesBalanceKey{address: leaseInfo.RecipientAddr.ID()}
-	receiverLeaseInDiff := -int64(leaseInfo.Amount)
-	if err := diff.appendBalanceDiff(receiverKey.bytes(), newBalanceDiff(0, receiverLeaseInDiff, 0, false)); err != nil {
+	receiverLeaseInDiff := -leaseInfo.AmountAsInt64()
+	if err := diff.appendBalanceDiff(
+		receiverKey.bytes(),
+		newBalanceDiff(0, receiverLeaseInDiff, 0, 0, false),
+	); err != nil {
 		return nil, err
 	}
 	return diff, nil

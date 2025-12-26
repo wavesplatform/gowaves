@@ -14,9 +14,10 @@ import (
 	"filippo.io/edwards25519/field"
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 	"golang.org/x/crypto/blake2b"
 	"golang.org/x/crypto/sha3"
+
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -81,6 +82,10 @@ func (d *Digest) UnmarshalJSON(value []byte) error {
 	}
 	copy(d[:], b[:DigestSize])
 	return nil
+}
+
+func (d *Digest) IsZero() bool {
+	return d == nil || *d == Digest{}
 }
 
 func NewDigestFromBase58(s string) (Digest, error) {

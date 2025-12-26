@@ -131,7 +131,7 @@ func TestCreateBlockDiffNg(t *testing.T) {
 	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&child.BlockHeader, hc, true, child.Transactions)
 	require.NoError(t, err, "createMinerAndRewardDiff() failed")
 	// Verify child block miner's diff.
-	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
+	correctMinerAssetBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, 0, false)
 	correctMinerAssetBalanceDiff.blockID = child.BlockID()
 	correctMinerDiff := txDiff{
 		testGlobal.minerInfo.assetKeys[0]: correctMinerAssetBalanceDiff,
@@ -178,7 +178,7 @@ func TestCreateBlockDiffSponsorship(t *testing.T) {
 	minerDiff, err := to.blockDiffer.createMinerAndRewardDiff(&child.BlockHeader, hc, true, child.Transactions)
 	require.NoError(t, err, "createMinerAndRewardDiff() failed")
 	// Verify child block miner's diff.
-	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, false)
+	correctMinerWavesBalanceDiff := newBalanceDiff(parentFeeNextBlock, 0, 0, 0, false)
 	correctMinerWavesBalanceDiff.blockID = child.BlockID()
 	correctMinerDiff := txDiff{
 		testGlobal.minerInfo.wavesKey: correctMinerWavesBalanceDiff,
@@ -247,7 +247,7 @@ func TestCreateBlockDiffWithReward(t *testing.T) {
 	require.NoError(t, err)
 
 	fee := defaultFee - defaultFee/5*2
-	correctMinerWavesBalanceDiff := newBalanceDiff(int64(fee+to.blockDiffer.settings.InitialBlockReward), 0, 0, false)
+	correctMinerWavesBalanceDiff := newBalanceDiff(int64(fee+to.blockDiffer.settings.InitialBlockReward), 0, 0, 0, false)
 	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
 	correctMinerDiff := txDiff{testGlobal.minerInfo.wavesKey: correctMinerWavesBalanceDiff}
 	assert.Equal(t, correctMinerDiff, minerDiff)
@@ -289,9 +289,9 @@ func TestBlockRewardDistributionWithTwoAddresses(t *testing.T) {
 	fee := int64(defaultFee - defaultFee/5*2)
 	reward := int64(to.blockDiffer.settings.InitialBlockReward)
 	additionalAddressReward := reward / 3
-	correctFirstRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, false)
-	correctSecondRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, false)
-	correctMinerWavesBalanceDiff := newBalanceDiff(fee+reward-2*additionalAddressReward, 0, 0, false)
+	correctFirstRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, 0, false)
+	correctSecondRewardAddressBalanceDiff := newBalanceDiff(additionalAddressReward, 0, 0, 0, false)
+	correctMinerWavesBalanceDiff := newBalanceDiff(fee+reward-2*additionalAddressReward, 0, 0, 0, false)
 	correctMinerWavesBalanceDiff.blockID = block2.BlockID()
 	correctFirstRewardAddressBalanceDiff.blockID = block2.BlockID()
 	correctSecondRewardAddressBalanceDiff.blockID = block2.BlockID()
@@ -340,10 +340,12 @@ func TestBlockRewardDistributionWithOneAddress(t *testing.T) {
 		int64(fee+(to.blockDiffer.settings.InitialBlockReward/3*2)),
 		0,
 		0,
+		0,
 		false,
 	)
 	correctRewardAddressBalanceDiff := newBalanceDiff(
 		int64(to.blockDiffer.settings.InitialBlockReward/3),
+		0,
 		0,
 		0,
 		false,
