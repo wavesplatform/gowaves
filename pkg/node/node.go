@@ -155,6 +155,7 @@ func (a *Node) logErrors(err error) {
 func (a *Node) Run(
 	ctx context.Context, p peer.Parent, internalMessageCh <-chan messages.InternalMessage,
 	networkMsgCh <-chan network.InfoMessage, syncPeer *network.SyncPeer,
+	generationPeriod uint64,
 ) {
 	messageCh, protoMessagesLenProvider, wg := deduplicateProtoTxMessages(ctx, p.MessageCh)
 	defer wg.Wait()
@@ -167,7 +168,7 @@ func (a *Node) Run(
 
 	// TODO: Consider using context `ctx` in FSM, for now FSM works in the background context.
 	m, async, err := fsm.NewFSM(a.services, a.microblockInterval, a.obsolescence, syncPeer, a.enableLightMode,
-		a.fsmLogger, a.netLogger)
+		a.fsmLogger, a.netLogger, generationPeriod)
 	if err != nil {
 		slog.Error("Failed to create FSM", logging.Error(err))
 		return

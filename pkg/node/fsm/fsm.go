@@ -79,6 +79,8 @@ type BaseInfo struct {
 
 	utx types.UtxPool
 
+	endorsements types.EndorsementPool
+
 	minPeersMining int
 
 	skipMessageList *messages.SkipMessageList
@@ -90,6 +92,8 @@ type BaseInfo struct {
 	cleanCancel     context.CancelFunc
 	logger          *slog.Logger
 	netLogger       *slog.Logger
+
+	generationPeriod uint64
 }
 
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
@@ -195,6 +199,7 @@ const (
 	StartMiningEvent        = "StartMining"
 	ChangeSyncPeerEvent     = "ChangeSyncPeer"
 	BlockSnapshotEvent      = "BlockSnapshotEvent"
+	BlockEndorsementEvent   = "EndorseBlock"
 	MicroBlockSnapshotEvent = "MicroBlockSnapshotEvent"
 )
 
@@ -220,6 +225,7 @@ func NewFSM(
 	syncPeer *network.SyncPeer,
 	enableLightMode bool,
 	logger, netLogger *slog.Logger,
+	generationPeriod uint64,
 ) (*FSM, Async, error) {
 	if microblockInterval <= 0 {
 		return nil, nil, errors.New("microblock interval must be positive")
@@ -245,16 +251,18 @@ func NewFSM(
 
 		actions: &ActionsImpl{services: services, logger: logger},
 
-		utx: services.UtxPool,
+		utx:          services.UtxPool,
+		endorsements: services.EndorsementPool,
 
 		minPeersMining: services.MinPeersMining,
 
-		skipMessageList: services.SkipMessageList,
-		syncPeer:        syncPeer,
-		enableLightMode: enableLightMode,
-		cleanUtxRunning: &atomic.Bool{},
-		logger:          logger,
-		netLogger:       netLogger,
+		skipMessageList:  services.SkipMessageList,
+		syncPeer:         syncPeer,
+		enableLightMode:  enableLightMode,
+		cleanUtxRunning:  &atomic.Bool{},
+		logger:           logger,
+		netLogger:        netLogger,
+		generationPeriod: generationPeriod,
 	}
 
 	info.scheduler.Reschedule() // Reschedule mining just before starting the FSM (i.e. before starting the node).
@@ -393,6 +401,12 @@ func (f *FSM) ChangeSyncPeer(p peer.Peer) (Async, error) {
 func (f *FSM) BlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.BlockSnapshot) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(BlockSnapshotEvent, asyncRes, p, blockID, snapshots)
+	return *asyncRes, err
+}
+
+func (f *FSM) BlockEndorsement(endorseBlock *proto.EndorseBlock) (Async, error) {
+	asyncRes := &Async{}
+	err := f.fsm.Fire(BlockEndorsementEvent, asyncRes, endorseBlock)
 	return *asyncRes, err
 }
 

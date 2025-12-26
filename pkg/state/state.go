@@ -20,6 +20,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -72,6 +73,7 @@ type blockchainEntitiesStorage struct {
 	snapshots         *snapshotsAtHeight
 	patches           *patchesStorage
 	commitments       *commitments
+	finalizations     *finalizations
 	calculateHashes   bool
 }
 
@@ -107,6 +109,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		newCommitments(hs, calcHashes),
+		newFinalizations(hs),
 		calcHashes,
 	}, nil
 }
@@ -1548,8 +1551,7 @@ func (s *stateManager) AddBlocksWithSnapshots(blockBytes [][]byte, snapshots []*
 }
 
 func (s *stateManager) AddDeserializedBlocks(
-	blocks []*proto.Block,
-) (*proto.Block, error) {
+	blocks []*proto.Block) (*proto.Block, error) {
 	s.newBlocks.setNew(blocks)
 	lastBlock, err := s.addBlocks()
 	if err != nil {
@@ -1864,7 +1866,7 @@ func (s *stateManager) resetDeposits(nextBlockID proto.BlockID, lastBlockHeight 
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
-	start, err := currentGenerationPeriodStart(activationHeight, lastBlockHeight, s.settings.GenerationPeriod)
+	start, err := CurrentGenerationPeriodStart(activationHeight, lastBlockHeight, s.settings.GenerationPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to reset deposits: %w", err)
 	}
@@ -3352,6 +3354,92 @@ func (s *stateManager) Close() error {
 		return wrapErr(stateerr.ClosureError, err)
 	}
 	return nil
+}
+
+func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height,
+	allGenerators []proto.WavesAddress) (bool, error) {
+	var totalGeneratingBalance uint64
+	var endorsersGeneratingBalance uint64
+	for _, gen := range allGenerators {
+		genRecipient := proto.NewRecipientFromAddress(gen)
+		balance, err := s.GeneratingBalance(genRecipient, height)
+		if err != nil {
+			return false, err
+		}
+		totalGeneratingBalance, err = common.AddInt(totalGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "totalGeneratingBalance overflow")
+		}
+	}
+	for _, endorser := range endorsers {
+		endorserRecipient := proto.NewRecipientFromAddress(endorser)
+		balance, err := s.GeneratingBalance(endorserRecipient, height)
+		if err != nil {
+			return false, err
+		}
+		endorsersGeneratingBalance, err = common.AddInt(endorsersGeneratingBalance, balance)
+		if err != nil {
+			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
+		}
+	}
+	if totalGeneratingBalance == 0 {
+		return false, nil
+	}
+	if endorsersGeneratingBalance == 0 {
+		return false, nil
+	}
+
+	// If endorsersBalance >= 2/3 totalGeneratingBalance
+	if endorsersGeneratingBalance*3 >= totalGeneratingBalance*2 {
+		return true, nil
+	}
+	return false, nil
+}
+
+// FindEndorserPKByIndex retrieves the BLS endorser public key by its index
+// in the commitments list for the given period.
+func (s *stateManager) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+	return s.stor.commitments.FindEndorserPKByIndex(periodStart, index)
+}
+
+// FindGeneratorPKByEndorserPK finds the generator's Waves public key corresponding
+// to the given BLS endorser public key in the commitments record for the given period.
+func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
+	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
+	return s.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
+}
+
+// CommittedGenerators returns the list of Waves addresses of committed generators.
+func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
+	return s.stor.commitments.CommittedGenerators(periodStart, s.settings.AddressSchemeCharacter)
+}
+
+func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
+	height, err := s.stor.finalizations.newest()
+	if err == nil {
+		return height, nil
+	}
+	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
+		return 0, err
+	}
+	// No finalization found, calculate it.
+	return proto.CalculateLastFinalizedHeight(height), nil
+}
+
+func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	lastFinalizedHeight, err := s.LastFinalizedHeight()
+	if err != nil {
+		return nil, err
+	}
+	lastFinalizedBlockID, err := s.rw.blockIDByHeight(lastFinalizedHeight)
+	if err != nil {
+		return nil, fmt.Errorf("failed to load last finalized block ID: %w", err)
+	}
+	header, err := s.rw.readBlockHeader(lastFinalizedBlockID)
+	if err != nil {
+		return nil, err
+	}
+	return header, nil
 }
 
 // MinimalGeneratingBalanceAtHeight returns minimal generating balance at given height and timestamp.

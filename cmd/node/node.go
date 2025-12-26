@@ -32,6 +32,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
+	"github.com/wavesplatform/gowaves/pkg/miner/endorsementpool"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
 	"github.com/wavesplatform/gowaves/pkg/node"
@@ -467,7 +468,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(err, "failed to create services")
 	}
 
-	app, err := api.NewApp(nc.apiKey, minerScheduler, svs)
+	app, err := api.NewApp(nc.apiKey, minerScheduler, svs, cfg)
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to initialize application")
 	}
@@ -480,7 +481,7 @@ func runNode(ctx context.Context, nc *config) (_ io.Closer, retErr error) {
 		return nil, errors.Wrap(apiErr, "failed to run APIs")
 	}
 
-	return startNode(ctx, nc, svs, features, minerScheduler, parent, declAddr, nl), nil
+	return startNode(ctx, nc, svs, features, minerScheduler, parent, declAddr, nl, cfg.GenerationPeriod), nil
 }
 
 func startNode(
@@ -492,6 +493,7 @@ func startNode(
 	parent peer.Parent,
 	declAddr proto.TCPAddr,
 	nl *slog.Logger,
+	periodGeneration uint64,
 ) *node.Node {
 	bindAddr := proto.NewTCPAddrFromString(nc.bindAddress)
 
@@ -504,7 +506,7 @@ func startNode(
 	go ntw.Run(ctx)
 
 	n := node.NewNode(svs, declAddr, bindAddr, nc.microblockInterval, nc.enableLightMode, nl, fl)
-	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer())
+	go n.Run(ctx, parent, svs.InternalChannel, networkInfoCh, ntw.SyncPeer(), periodGeneration)
 	return n
 }
 
@@ -813,6 +815,7 @@ func createServices(
 		Scheduler:       scheduler,
 		BlocksApplier:   blocks_applier.NewBlocksApplier(),
 		UtxPool:         utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
+		EndorsementPool: endorsementpool.NewEndorsementPool(cfg.MaxEndorsements),
 		Scheme:          cfg.AddressSchemeCharacter,
 		Time:            ntpTime,
 		Wallet:          wal,

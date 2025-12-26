@@ -7,12 +7,14 @@ import (
 
 	"github.com/pkg/errors"
 
+	apiErr "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/miner/scheduler"
 	"github.com/wavesplatform/gowaves/pkg/node/messages"
 	"github.com/wavesplatform/gowaves/pkg/node/peers"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
@@ -35,6 +37,7 @@ const (
 type appSettings struct {
 	BlockRequestLimit uint64
 	AssetDetailsLimit int
+	GenerationPeriod  uint64
 }
 
 func defaultAppSettings() *appSettings {
@@ -56,19 +59,23 @@ type App struct {
 	settings      *appSettings
 }
 
-func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services) (*App, error) {
-	return newApp(apiKey, scheduler, services, nil)
+func NewApp(apiKey string, scheduler SchedulerEmits, services services.Services,
+	cfg *settings.BlockchainSettings) (*App, error) {
+	return newApp(apiKey, scheduler, services, nil, cfg)
 }
 
-func newApp(apiKey string, scheduler SchedulerEmits, services services.Services, settings *appSettings) (*App, error) {
-	if settings == nil {
-		settings = defaultAppSettings()
+func newApp(apiKey string, scheduler SchedulerEmits, services services.Services, appSettings *appSettings,
+	cfg *settings.BlockchainSettings) (*App, error) {
+	if appSettings == nil {
+		appSettings = defaultAppSettings()
 	}
 	digest, err := crypto.SecureHash([]byte(apiKey))
 	if err != nil {
 		return nil, err
 	}
-
+	if cfg != nil {
+		appSettings.GenerationPeriod = cfg.GenerationPeriod
+	}
 	return &App{
 		hashedApiKey:  digest,
 		apiKeyEnabled: len(apiKey) > 0,
@@ -77,7 +84,7 @@ func newApp(apiKey string, scheduler SchedulerEmits, services services.Services,
 		utx:           services.UtxPool,
 		peers:         services.Peers,
 		services:      services,
-		settings:      settings,
+		settings:      appSettings,
 	}, nil
 }
 
@@ -85,17 +92,17 @@ func (a *App) TransactionsBroadcast(ctx context.Context, b []byte) (proto.Transa
 	tt := proto.TransactionTypeVersion{}
 	err := json.Unmarshal(b, &tt)
 	if err != nil {
-		return nil, wrapToBadRequestError(err)
+		return nil, apiErr.NewBadRequestError(err)
 	}
 
 	realType, err := proto.GuessTransactionType(&tt)
 	if err != nil {
-		return nil, wrapToBadRequestError(err)
+		return nil, apiErr.NewBadRequestError(err)
 	}
 
 	err = proto.UnmarshalTransactionFromJSON(b, a.services.Scheme, realType)
 	if err != nil {
-		return nil, wrapToBadRequestError(err)
+		return nil, apiErr.NewBadRequestError(err)
 	}
 
 	respCh := make(chan error, 1)
