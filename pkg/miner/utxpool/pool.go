@@ -27,7 +27,7 @@ type transactionsHeap []*heapItem
 func (a transactionsHeap) Len() int { return len(a) }
 
 func (a transactionsHeap) Less(i, j int) bool {
-	// skip division by zero, check it when we add transaction
+	// skip division by zero, check it when we add the transaction
 	return a[i].tx.T.GetFee()/uint64(len(a[i].tx.B)) > a[j].tx.T.GetFee()/uint64(len(a[j].tx.B))
 }
 
@@ -138,9 +138,9 @@ func (a *UtxImpl) Add(st types.UtxPoolValidatorState, tx proto.Transaction) erro
 // AddWithBytes Must only be called inside state Map or MapUnsafe.
 func (a *UtxImpl) AddWithBytes(st types.UtxPoolValidatorState, tx proto.Transaction, b []byte) error {
 	// TODO: add flag here to distinguish adding using API and accepting
-	//  through the network from other nodes.
-	//  When API is used, we should check all scripts completely.
-	//  When adding from the network, only free complexity limit is checked.
+	// through the network from other nodes.
+	// When API is used, we should check all scripts completely.
+	// When adding from the network, only free complexity limit is checked.
 	a.mu.Lock()
 	defer a.mu.Unlock()
 	return a.addWithBytes(st, tx, b)
@@ -174,7 +174,7 @@ func (a *UtxImpl) addWithBytesOptValidation(
 	if len(b) == 0 {
 		return errors.New("transaction with empty bytes")
 	}
-	// exceed limit
+	// check if size exceeds limit
 	if a.curSize+uint64(len(b)) > a.sizeLimit {
 		return errors.Errorf("size overflow, curSize: %d, limit: %d", a.curSize, a.sizeLimit)
 	}
