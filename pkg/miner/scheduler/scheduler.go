@@ -456,7 +456,7 @@ func (a *Default) reschedule(confirmedBlock *proto.Block, confirmedBlockHeight u
 			timeout := emit.Timestamp - now
 			emit_ := emit
 			cancel := cancellable.After(time.Duration(timeout)*time.Millisecond, func() {
-				// hack for integrations tests
+				// hack for integration tests
 				common.EnsureTimeout(a.tm, emit_.Timestamp)
 				select {
 				case a.mine <- emit_:
