@@ -58,7 +58,7 @@ type blockchainEntityProperties struct {
 
 // Note on size calculation.
 // 1) For fixed size records. We add 4 bytes for storing block number to each record.
-// 2) For variable size records record size counts of length of data, 4 bytes for storing block number and
+// 2) For variable size records record size consists of length of data, 4 bytes for storing block number and
 //    4 bytes for storing each record length.
 
 // + 4 bytes for blockNum at the end of each record.
@@ -623,7 +623,7 @@ func (hs *historyStorage) getHistory(key []byte, update bool) (*historyRecord, e
 func (hs *historyStorage) topEntry(key []byte) (historyEntry, error) {
 	history, err := hs.getHistory(key, false)
 	if err != nil {
-		return historyEntry{}, err // keyvalue.ErrNotFoundHere
+		return historyEntry{}, err // keyvalue.ErrNotFound here
 	}
 	return history.topEntry() // errEmptyHist here
 }
