@@ -25,7 +25,7 @@ const (
 )
 
 // dataTxMaxProtoBytes depends on DataTransaction.MaxProtoBytes.
-// But it SHOULD be equal proto.MaxDataWithProofsProtoBytes. But for unknown reason, it is not.
+// But it SHOULD be equal to proto.MaxDataWithProofsProtoBytes. But for unknown reason, it is not.
 const dataTxMaxProtoBytes = 165947
 
 func bytesArg(args []rideType) (rideByteVector, error) {

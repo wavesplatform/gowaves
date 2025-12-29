@@ -601,7 +601,7 @@ func minEffectiveBalanceInRangeCommon(records [][]byte) (uint64, error) {
 	}
 	if minBalance == math.MaxUint64 {
 		// This is the case when records is empty.
-		// This actually means that address has no balance records, i.e. it has 0 balance.
+		// This actually means that address has no balance records, i.e., it has 0 balance.
 		minBalance = 0
 	}
 	return minBalance, nil

@@ -619,7 +619,7 @@ func (hs *historyStorage) getHistory(key []byte, update bool) (*historyRecord, e
 func (hs *historyStorage) topEntry(key []byte) (historyEntry, error) {
 	history, err := hs.getHistory(key, false)
 	if err != nil {
-		return historyEntry{}, err // keyvalue.ErrNotFoundHere
+		return historyEntry{}, err // keyvalue.ErrNotFound here
 	}
 	return history.topEntry() // errEmptyHist here
 }
