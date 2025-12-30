@@ -586,6 +586,7 @@ func loadNonConfigTypes(res map[ast.LibraryVersion]map[string]Type) {
 	}}
 	res[ast.LibV7]["Transaction"] = res[ast.LibV6]["Transaction"]
 	res[ast.LibV8]["Transaction"] = res[ast.LibV7]["Transaction"]
+	res[ast.LibV9]["Transaction"] = res[ast.LibV8]["Transaction"]
 }
 
 func mustLoadDefaultTypes() map[ast.LibraryVersion]map[string]Type {

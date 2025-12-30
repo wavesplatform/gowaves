@@ -17,6 +17,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
@@ -74,10 +75,10 @@ func TestDirectivesCompileFail(t *testing.T) {
 		errorMsg []string
 	}{
 		{`
-{-# STDLIB_VERSION 9 #-}
+{-# STDLIB_VERSION 10 #-}
 {-# CONTENT_TYPE DAPP #-}
 {-# SCRIPT_TYPE ACCOUNT #-}`,
-			[]string{"(2:20, 2:21): Invalid directive 'STDLIB_VERSION': unsupported library version '9'"}},
+			[]string{"(2:20, 2:22): Invalid directive 'STDLIB_VERSION': unsupported library version '10'"}},
 		{`
 {-# STDLIB_VERSION 0 #-}
 {-# CONTENT_TYPE DAPP #-}
@@ -1136,4 +1137,12 @@ let a = Order("".toBytes(), "".toBytes(), AssetPair("".toBytes(), "".toBytes()),
 			compareScriptsOrError(t, test.code, test.fail, test.expected, false, false)
 		})
 	}
+}
+
+func TestVarsAndFuncsWithLastRideVersion(t *testing.T) {
+	vars := stdlib.Vars()
+	funcs := stdlib.FuncsByVersion()
+	expectedLen := int(ast.CurrentMaxLibraryVersion())
+	assert.Len(t, vars.Vars, expectedLen)
+	assert.Len(t, funcs, expectedLen)
 }
