@@ -1508,6 +1508,9 @@ func TestScriptActivation(t *testing.T) {
 		settings.RideV6, settings.BlockRewardDistribution}
 	uptoLightNode := []settings.Feature{settings.Ride4DApps, settings.BlockV5, settings.RideV5,
 		settings.RideV6, settings.BlockRewardDistribution, settings.LightNode}
+	upToP256Verification := []settings.Feature{settings.Ride4DApps, settings.BlockV5, settings.RideV5,
+		settings.RideV6, settings.BlockRewardDistribution, settings.LightNode,
+		settings.BoostBlockReward, settings.P256Verification}
 	tests := []struct {
 		libVersion ast.LibraryVersion
 		active     []settings.Feature
@@ -1575,6 +1578,16 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV6, active: uptoLightNode, valid: true},
 		{libVersion: ast.LibV7, active: uptoLightNode, valid: true},
 		{libVersion: ast.LibV8, active: uptoLightNode, valid: true},
+
+		{libVersion: ast.LibV1, active: upToP256Verification, valid: false},
+		{libVersion: ast.LibV2, active: upToP256Verification, valid: false},
+		{libVersion: ast.LibV3, active: upToP256Verification, valid: false},
+		{libVersion: ast.LibV4, active: upToP256Verification, valid: true},
+		{libVersion: ast.LibV5, active: upToP256Verification, valid: true},
+		{libVersion: ast.LibV6, active: upToP256Verification, valid: true},
+		{libVersion: ast.LibV7, active: upToP256Verification, valid: true},
+		{libVersion: ast.LibV8, active: upToP256Verification, valid: true},
+		{libVersion: ast.LibV9, active: upToP256Verification, valid: true},
 	}
 	for i, test := range tests {
 		mfs := &mockFeaturesState{

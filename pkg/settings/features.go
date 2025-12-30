@@ -29,7 +29,8 @@ const (
 	LightNode               // 22
 	BoostBlockReward        // 23
 	ecrecoverFix            // 24, intentionally package private
-	InvokeExpression        // 25
+	P256Verification        // 25
+	InvokeExpression        // 26
 )
 
 type FeatureInfo struct {
@@ -62,6 +63,7 @@ var FeaturesInfo = map[Feature]FeatureInfo{
 	LightNode:                       {true, "Light Node"},
 	BoostBlockReward:                {true, "Boost Block Reward"},
 	ecrecoverFix:                    {true, "Fixed ecrecover function"},
+	P256Verification:                {true, "P-256 signature verification"},
 	InvokeExpression:                {false, "InvokeExpression"},
 }
 

@@ -67,69 +67,107 @@ type scriptFeaturesActivations struct {
 	rideForDAppsActivated, blockV5Activated, rideV5Activated, rideV6Activated bool
 }
 
-func (tc *transactionChecker) scriptActivation(libVersion ast.LibraryVersion, hasBlockV2 bool) (scriptFeaturesActivations, error) {
-	rideForDAppsActivated, err := tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
-	if err != nil {
-		return scriptFeaturesActivations{}, errs.Extend(err, "transactionChecker scriptActivation isActivated")
+type featuresActivationStatusesValidator struct {
+	rideForDAppsActivated            bool
+	blockV5Activated                 bool
+	rideV5Activated                  bool
+	rideV6Activated                  bool
+	blockRewardDistributionActivated bool
+	lightNodeActivated               bool
+	p256VerificationActivated        bool
+}
+
+func (v featuresActivationStatusesValidator) Validate(libVersion ast.LibraryVersion, hasBlockV2 bool) error {
+	if libVersion < ast.LibV1 || libVersion > ast.CurrentMaxLibraryVersion() {
+		return errors.Errorf("unknown script LibVersion=%d", libVersion)
 	}
-	blockV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.BlockV5))
+	if libVersion < ast.LibV4 && v.lightNodeActivated {
+		return errors.Errorf("scripts with versions below %d are disabled after activation of Light Node feature",
+			ast.LibV4)
+	}
+	if libVersion == ast.LibV3 && !v.rideForDAppsActivated {
+		return errors.New("Ride4DApps feature must be activated for scripts version 3")
+	}
+	if hasBlockV2 && !v.rideForDAppsActivated {
+		return errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
+	}
+	if libVersion == ast.LibV4 && !v.blockV5Activated {
+		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
+	}
+	if libVersion == ast.LibV5 && !v.rideV5Activated {
+		return errors.New("RideV5 feature must be activated for scripts version 5")
+	}
+	if libVersion == ast.LibV6 && !v.rideV6Activated {
+		return errors.New("RideV6 feature must be activated for scripts version 6")
+	}
+	if libVersion == ast.LibV7 && !v.blockRewardDistributionActivated {
+		return errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
+	}
+	if libVersion == ast.LibV8 && !v.lightNodeActivated {
+		return errors.New("LightNode feature must be activated for scripts version 8")
+	}
+	if libVersion == ast.LibV9 && !v.p256VerificationActivated {
+		return errors.New("P256Verification feature must be activated for scripts version 9")
+	}
+	return nil
+}
+
+func newFeaturesActivationStatusesValidator(f featuresState) (featuresActivationStatusesValidator, error) {
+	rideForDAppsActivated, err := f.newestIsActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, errs.Extend(err, "transactionChecker scriptActivation isActivated")
+	}
+	blockV5Activated, err := f.newestIsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	rideV5Activated, err := f.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	rideV6Activated, err := f.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	blockRewardDistributionActivated, err := f.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	lightNodeActivated, err := f.newestIsActivated(int16(settings.LightNode))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	p256VerificationActivated, err := f.newestIsActivated(int16(settings.P256Verification))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	return featuresActivationStatusesValidator{
+		rideForDAppsActivated:            rideForDAppsActivated,
+		blockV5Activated:                 blockV5Activated,
+		rideV5Activated:                  rideV5Activated,
+		rideV6Activated:                  rideV6Activated,
+		blockRewardDistributionActivated: blockRewardDistributionActivated,
+		lightNodeActivated:               lightNodeActivated,
+		p256VerificationActivated:        p256VerificationActivated,
+	}, nil
+}
+
+func (tc *transactionChecker) scriptActivation(
+	libVersion ast.LibraryVersion,
+	hasBlockV2 bool,
+) (scriptFeaturesActivations, error) {
+	v, err := newFeaturesActivationStatusesValidator(tc.stor.features)
 	if err != nil {
 		return scriptFeaturesActivations{}, err
 	}
-	rideV5Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return scriptFeaturesActivations{}, err
-	}
-	rideV6Activated, err := tc.stor.features.newestIsActivated(int16(settings.RideV6))
-	if err != nil {
-		return scriptFeaturesActivations{}, err
-	}
-	blockRewardDistributionActivated, err := tc.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
-	if err != nil {
-		return scriptFeaturesActivations{}, err
-	}
-	lightNodeActivated, err := tc.stor.features.newestIsActivated(int16(settings.LightNode))
-	if err != nil {
-		return scriptFeaturesActivations{}, err
-	}
-	if libVersion < ast.LibV4 && lightNodeActivated {
-		return scriptFeaturesActivations{},
-			errors.Errorf("scripts with versions below %d are disabled after activation of Light Node feature",
-				ast.LibV4)
-	}
-	if libVersion == ast.LibV3 && !rideForDAppsActivated {
-		return scriptFeaturesActivations{},
-			errors.New("Ride4DApps feature must be activated for scripts version 3")
-	}
-	if hasBlockV2 && !rideForDAppsActivated {
-		return scriptFeaturesActivations{},
-			errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
-	}
-	if libVersion == ast.LibV4 && !blockV5Activated {
-		return scriptFeaturesActivations{},
-			errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
-	}
-	if libVersion == ast.LibV5 && !rideV5Activated {
-		return scriptFeaturesActivations{},
-			errors.New("RideV5 feature must be activated for scripts version 5")
-	}
-	if libVersion == ast.LibV6 && !rideV6Activated {
-		return scriptFeaturesActivations{},
-			errors.New("RideV6 feature must be activated for scripts version 6")
-	}
-	if libVersion == ast.LibV7 && !blockRewardDistributionActivated {
-		return scriptFeaturesActivations{},
-			errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
-	}
-	if libVersion == ast.LibV8 && !lightNodeActivated {
-		return scriptFeaturesActivations{},
-			errors.New("LightNode feature must be activated for scripts version 8")
+	if vErr := v.Validate(libVersion, hasBlockV2); vErr != nil {
+		return scriptFeaturesActivations{}, vErr
 	}
 	return scriptFeaturesActivations{
-		rideForDAppsActivated: rideForDAppsActivated,
-		blockV5Activated:      blockV5Activated,
-		rideV5Activated:       rideV5Activated,
-		rideV6Activated:       rideV6Activated,
+		rideForDAppsActivated: v.rideForDAppsActivated,
+		blockV5Activated:      v.blockV5Activated,
+		rideV5Activated:       v.rideV5Activated,
+		rideV6Activated:       v.rideV6Activated,
 	}, nil
 }
 
@@ -157,7 +195,7 @@ func (tc *transactionChecker) checkScriptComplexity(libVersion ast.LibraryVersio
 	case ast.LibV5:
 		maxCallableComplexity = MaxCallableScriptComplexityV5
 		maxVerifierComplexity = MaxVerifierScriptComplexity
-	case ast.LibV6, ast.LibV7, ast.LibV8:
+	case ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		maxCallableComplexity = MaxCallableScriptComplexityV6
 		maxVerifierComplexity = MaxVerifierScriptComplexity
 	default:
