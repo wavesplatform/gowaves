@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/base64"
 	"encoding/hex"
+	stderrs "errors"
 	"fmt"
 	"math"
 	"math/big"
@@ -21,6 +22,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
@@ -1778,4 +1781,167 @@ func TestGroth16VerifyInvalidArguments(t *testing.T) {
 			assert.ErrorContains(t, err, tc.err)
 		})
 	}
+}
+
+func TestSecp256VerifyNative(t *testing.T) {
+	mustHexToRideByteVector := func(t *testing.T, s string) rideByteVector {
+		b, err := hex.DecodeString(s)
+		require.NoError(t, err)
+		return b
+	}
+	validArgs := struct{ x, y, r, s, hash string }{
+		x:    "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838",
+		y:    "c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
+		r:    "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18",
+		s:    "4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
+		hash: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
+	}
+	digest42 := rideByteVector(crypto.Digest{42}.Bytes())
+	tests := []struct {
+		args  []rideType
+		err   string
+		valid bool
+	}{
+		{args: []rideType{}, valid: false, err: "secp256verify: 0 is invalid number of arguments, expected 5"},
+		{
+			args:  []rideType{rideByteVector{}, rideByteVector{}, rideByteVector{}, rideByteVector{}},
+			valid: false,
+			err:   "secp256verify: 4 is invalid number of arguments, expected 5",
+		},
+		{
+			args: []rideType{
+				rideByteVector{},
+				rideByteVector{},
+				rideByteVector{},
+				rideByteVector{},
+				rideByteVector{},
+				rideByteVector{},
+			},
+			valid: false,
+			err:   "secp256verify: 6 is invalid number of arguments, expected 5",
+		},
+		{
+			args: []rideType{
+				rideByteVector{},
+				rideByteVector{},
+				nil,
+				rideByteVector{},
+				rideByteVector{},
+			},
+			valid: false,
+			err:   "secp256verify: argument 3 is empty",
+		},
+		{
+			args:  []rideType{rideUnit{}, rideByteVector{}, rideByteVector{}, rideByteVector{}, rideByteVector{}},
+			valid: false,
+			err:   "secp256verify: invalid x coordinate: expected ByteVector for digest, got 'Unit'",
+		},
+		{
+			args:  []rideType{rideByteVector{}, rideUnit{}, rideByteVector{}, rideByteVector{}, rideByteVector{}},
+			valid: false,
+			err:   "secp256verify: invalid x coordinate: invalid digest len",
+		},
+		{
+			args:  []rideType{digest42, rideUnit{}, rideByteVector{}, rideByteVector{}, rideByteVector{}},
+			valid: false,
+			err:   "secp256verify: invalid y coordinate: expected ByteVector for digest, got 'Unit'",
+		},
+		{
+			args:  []rideType{digest42, digest42, rideUnit{}, rideByteVector{}, rideByteVector{}},
+			valid: false,
+			err:   "secp256verify: invalid r value: expected ByteVector for digest, got 'Unit'",
+		},
+		{
+			args:  []rideType{digest42, digest42, digest42, rideUnit{}, rideByteVector{}},
+			valid: false,
+			err:   "secp256verify: invalid s value: expected ByteVector for digest, got 'Unit'",
+		},
+		{
+			args:  []rideType{digest42, digest42, digest42, digest42, rideUnit{}},
+			valid: false,
+			err:   "secp256verify: invalid hash value: expected ByteVector for digest, got 'Unit'",
+		},
+		{
+			args: []rideType{
+				mustHexToRideByteVector(t, validArgs.x),
+				mustHexToRideByteVector(t, validArgs.y),
+				mustHexToRideByteVector(t, validArgs.r),
+				mustHexToRideByteVector(t, validArgs.s),
+				mustHexToRideByteVector(t, validArgs.hash),
+			},
+			valid: true,
+		},
+		{
+			args: []rideType{
+				digest42,
+				mustHexToRideByteVector(t, validArgs.y),
+				mustHexToRideByteVector(t, validArgs.r),
+				mustHexToRideByteVector(t, validArgs.s),
+				mustHexToRideByteVector(t, validArgs.hash),
+			},
+			valid: false,
+		},
+	}
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := secp256verify(nil, tc.args...)
+			if tc.err != "" {
+				assert.EqualError(t, err, tc.err)
+				assert.Nil(t, r)
+			} else {
+				res, ok := r.(rideBoolean)
+				require.True(t, ok)
+				assert.Equal(t, tc.valid, bool(res))
+			}
+		})
+	}
+}
+
+func TestSecp256VerifyRide(t *testing.T) {
+	doTest := func(t *testing.T, expRes bool, x, y, r, s, hash string) {
+		const (
+			complexityLimit    = 600
+			expectedComplexity = 550
+			scriptTmpl         = `
+			{-# STDLIB_VERSION 9 #-}
+			{-# CONTENT_TYPE EXPRESSION #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			p256Verify(base16'%s', base16'%s', base16'%s', base16'%s', base16'%s')`
+		)
+		tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, x, y, r, s, hash))
+		require.NoError(t, stderrs.Join(errs...))
+		require.Equal(t, ast.LibV9, tree.LibVersion)
+		env := newTestEnv(t).withProtobufTx().withLibVersion(tree.LibVersion).
+			withComplexityLimit(complexityLimit).withRideV6Activated().toEnv()
+		res, err := CallVerifier(env, tree)
+		require.NoError(t, err)
+		assert.Equal(t, expectedComplexity, env.complexityCalculator().complexity())
+		assert.Equal(t, expRes, res.Result())
+	}
+	validArgs := struct{ x, y, r, s, hash string }{
+		x:    "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838",
+		y:    "c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
+		r:    "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18",
+		s:    "4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
+		hash: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
+	}
+	digest42 := crypto.Digest{42}.Hex()
+	t.Run("valid-arguments", func(t *testing.T) {
+		doTest(t, true, validArgs.x, validArgs.y, validArgs.r, validArgs.s, validArgs.hash)
+	})
+	t.Run("invalid-argument-x", func(t *testing.T) {
+		doTest(t, false, digest42, validArgs.y, validArgs.r, validArgs.s, validArgs.hash)
+	})
+	t.Run("invalid-argument-y", func(t *testing.T) {
+		doTest(t, false, validArgs.x, digest42, validArgs.r, validArgs.s, validArgs.hash)
+	})
+	t.Run("invalid-argument-r", func(t *testing.T) {
+		doTest(t, false, validArgs.x, validArgs.y, digest42, validArgs.s, validArgs.hash)
+	})
+	t.Run("invalid-argument-s", func(t *testing.T) {
+		doTest(t, false, validArgs.x, validArgs.y, validArgs.r, digest42, validArgs.hash)
+	})
+	t.Run("invalid-hash", func(t *testing.T) {
+		doTest(t, false, validArgs.x, validArgs.y, validArgs.r, validArgs.s, digest42)
+	})
 }
