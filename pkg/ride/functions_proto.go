@@ -1028,6 +1028,11 @@ func rsaVerify(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
+func secp256verify(_ environment, _ ...rideType) (rideType, error) {
+	// TODO: implement secp256verify
+	panic("secp256verify is not implemented")
+}
+
 func checkMerkleProof(_ environment, args ...rideType) (rideType, error) {
 	if err := checkArgs(args, 3); err != nil {
 		return nil, errors.Wrap(err, "checkMerkleProof")

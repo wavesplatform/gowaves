@@ -828,7 +828,7 @@ func functionsV8() map[string]string {
 
 func functionsV9() map[string]string {
 	m := functionsV8()
-	m["902"] = "secp256r1verify"
+	m["902"] = "secp256verify"
 	constructorsFunctions(ast.LibV9, m)
 	return m
 }

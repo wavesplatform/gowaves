@@ -2637,6 +2637,24 @@
         ]
       },
       "remove": []
+    },
+    {
+      "new": {
+        "p256Verify": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "902"
+          }
+        ]
+      },
+      "remove": []
     }
   ]
 }
