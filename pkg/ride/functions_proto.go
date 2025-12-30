@@ -1028,9 +1028,54 @@ func rsaVerify(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func secp256verify(_ environment, _ ...rideType) (rideType, error) {
-	// TODO: implement secp256verify
-	panic("secp256verify is not implemented")
+func rideTypeToDigest(d rideType) (crypto.Digest, error) {
+	b, ok := d.(rideByteVector)
+	if !ok {
+		return crypto.Digest{}, errors.Errorf("expected ByteVector for digest, got '%s'", d.instanceOf())
+	}
+	return crypto.NewDigestFromBytes(b)
+}
+
+func secp256verify(_ environment, args ...rideType) (rideType, error) {
+	const argsCount = 5
+	if err := checkArgs(args, argsCount); err != nil {
+		return nil, errors.Wrap(err, "secp256verify")
+	}
+	// args: x, y, r, s, hash
+	x, err := rideTypeToDigest(args[0])
+	if err != nil {
+		return nil, errors.Wrap(err, "secp256verify: invalid x coordinate")
+	}
+	y, err := rideTypeToDigest(args[1])
+	if err != nil {
+		return nil, errors.Wrap(err, "secp256verify: invalid y coordinate")
+	}
+	r, err := rideTypeToDigest(args[2])
+	if err != nil {
+		return nil, errors.Wrap(err, "secp256verify: invalid r value")
+	}
+	s, err := rideTypeToDigest(args[3])
+	if err != nil {
+		return nil, errors.Wrap(err, "secp256verify: invalid s value")
+	}
+	hash, err := rideTypeToDigest(args[4])
+	if err != nil {
+		return nil, errors.Wrap(err, "secp256verify: invalid hash value")
+	}
+	// construct public key and signature
+	var pubKey [len(x) + len(y)]byte // raw uncompressed public key, without 0x04 prefix
+	copy(pubKey[:len(x)], x.Bytes())
+	copy(pubKey[len(x):], y.Bytes())
+
+	var sig [len(r) + len(s)]byte // raw signature, r || s
+	copy(sig[:len(r)], r.Bytes())
+	copy(sig[len(r):], s.Bytes())
+
+	ok, vErr := crypto.Secp256Verify(hash.Bytes(), pubKey[:], sig[:])
+	if vErr != nil { // vErr is not nil when data is invalid or point is not on the curve
+		ok = false
+	}
+	return rideBoolean(ok), nil
 }
 
 func checkMerkleProof(_ environment, args ...rideType) (rideType, error) {
