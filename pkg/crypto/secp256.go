@@ -3,7 +3,6 @@ package crypto
 import (
 	"crypto/ecdsa"
 	"crypto/elliptic"
-	"crypto/sha256"
 	"errors"
 	"math/big"
 )
@@ -15,7 +14,7 @@ const (
 	sec2562r1P1363SignatureSize       = 64
 )
 
-// secp256r1verify verifies ECDSA signature on NIST P-256 (aka secp256r1). It hashes message with SHA-256.
+// Secp256Verify verifies ECDSA signature on NIST P-256 (aka secp256r1). X, Y, R, S are big-endian byte slices. Inputs:
 //
 // publicKey formats supported:
 //   - 65 bytes: uncompressed SEC1 form 0x04 || X(32) || Y(32)
@@ -26,10 +25,8 @@ const (
 //
 // TODO:
 //   - what kind of signature formats to support? ASN.1 DER or P1363 (r||s)? should we support both?
-//   - what kind of message hashing to support? SHA-256 only, or configurable?
 //   - should we enforce low-S signatures to prevent malleability?
-//   - should we support other public key formats (compressed SEC1)?
-func secp256r1verify(message, publicKey, signature []byte) (bool, error) {
+func Secp256Verify(digest, publicKey, signature []byte) (bool, error) {
 	curve := elliptic.P256()
 
 	// ---- Parse public key ----
@@ -76,6 +73,11 @@ func secp256r1verify(message, publicKey, signature []byte) (bool, error) {
 		return false, errors.New("signature: r or s >= curve order")
 	}
 
+	// ---- Validate digest size ----
+	if len(digest) != DigestSize {
+		return false, errors.New("digest: expected 32-byte digest")
+	}
+
 	// OPTIONAL (protocol-dependent): enforce low-S to prevent malleability.
 	// Many systems (Bitcoin, Ethereum, JOSE, etc.) require this.
 	// If you only want "pure ECDSA validity" (как в Wycheproof), comment out this block.
@@ -87,10 +89,8 @@ func secp256r1verify(message, publicKey, signature []byte) (bool, error) {
 			return false, errors.New("signature: non-canonical (high-S)")
 		}
 	*/
-	// ---- Hash message with SHA-256 ----
-	digest := sha256.Sum256(message)
 
 	// ---- Verify ----
-	ok := ecdsa.Verify(&pub, digest[:], r, s) // TODO: VerifyASN1 maybe? (most applications use ASN.1 DER signatures)
+	ok := ecdsa.Verify(&pub, digest, r, s) // TODO: VerifyASN1 maybe? (most applications use ASN.1 DER signatures)
 	return ok, nil
 }

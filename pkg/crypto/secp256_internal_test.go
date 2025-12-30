@@ -29,9 +29,11 @@ type testVectorView struct {
 	Comment string `json:"comment"`
 }
 
-func unmarshalTestDataToView(t *testing.T, fs embed.FS, testFileName string) []testVectorView {
+func unmarshalTestDataToView(t *testing.T, fs embed.FS, testFileName, keccakHexChecksum string) []testVectorView {
 	fileData, err := fs.ReadFile(filepath.Clean(testFileName))
 	require.NoError(t, err)
+	dataChecksum := hex.EncodeToString(MustKeccak256(fileData).Bytes())
+	require.Equal(t, keccakHexChecksum, dataChecksum, "test data checksum mismatch")
 	sep := []byte{'\n'}
 	n := bytes.Count(fileData, sep) // approx number of records
 	res := make([]testVectorView, 0, n)
@@ -49,9 +51,9 @@ func unmarshalTestDataToView(t *testing.T, fs embed.FS, testFileName string) []t
 }
 
 type testVector struct {
-	PublicKey []byte // uncompressed SEC1, // TODO: what about 64-byte raw?
+	PublicKey []byte // uncompressed SEC1, or raw (X||Y)
 	Signature []byte
-	Message   []byte
+	Digest    []byte
 	Valid     bool
 }
 
@@ -93,19 +95,20 @@ func transformViewsToVectors(t *testing.T, v []testVectorView) []testVector {
 		rawPK := appendRawPubKey(t, nil, tv.X, tv.Y)
 		uncompressedPK := appendUncompressedPubKey(t, nil, tv.X, tv.Y)
 		sig := appendSignature(t, nil, tv.R, tv.S)
-		msgBytes, err := hex.DecodeString(tv.Msg)
+		digest, err := hex.DecodeString(tv.Hash)
 		require.NoError(t, err)
+		require.Len(t, digest, DigestSize)
 		res = append(res,
 			testVector{
 				PublicKey: rawPK,
 				Signature: sig,
-				Message:   msgBytes,
+				Digest:    digest,
 				Valid:     tv.Valid,
 			},
 			testVector{
 				PublicKey: uncompressedPK,
 				Signature: sig,
-				Message:   msgBytes,
+				Digest:    digest,
 				Valid:     tv.Valid,
 			},
 		)
@@ -113,13 +116,16 @@ func transformViewsToVectors(t *testing.T, v []testVectorView) []testVector {
 	return res
 }
 
-func TestSecp256r1verify(t *testing.T) {
-	const testFileName = "testdata/vectors_wycheproof.jsonl"
-	vectorsView := unmarshalTestDataToView(t, vectorsWycheproof, testFileName)
+func TestSecp256Verify(t *testing.T) {
+	const (
+		testFileName                    = "testdata/vectors_wycheproof.jsonl"
+		vectorsWycheproofKeccakChecksum = "d7e23f35ae6e092eda970e14c53d3e30261eb84a18389cc65041466ba5cb4c98"
+	)
+	vectorsView := unmarshalTestDataToView(t, vectorsWycheproof, testFileName, vectorsWycheproofKeccakChecksum)
 	vectors := transformViewsToVectors(t, vectorsView)
 	for i, tv := range vectors {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
-			ok, err := secp256r1verify(tv.Message, tv.PublicKey, tv.Signature)
+			ok, err := Secp256Verify(tv.Digest, tv.PublicKey, tv.Signature)
 			if tv.Valid {
 				require.NoError(t, err, "valid vector should not return error")
 				require.True(t, ok, "valid vector should verify")
