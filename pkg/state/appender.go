@@ -1635,8 +1635,7 @@ func (f *finalizationProcessor) updateFinalization(
 			"EndorserIndexes", finalizationVoting.EndorserIndexes,
 			"FinalizedBlockHeight", finalizationVoting.FinalizedBlockHeight,
 			"AggregatedEndorsementSignature", finalizationVoting.AggregatedEndorsementSignature.String(),
-			"Number of Conflict Endorsements", len(finalizationVoting.ConflictEndorsements)
-
+			"Number of Conflict Endorsements", len(finalizationVoting.ConflictEndorsements))
 	}
 	return nil
 }
