@@ -3360,6 +3360,7 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 	allGenerators []proto.WavesAddress) (bool, error) {
 	var totalGeneratingBalance uint64
 	var endorsersGeneratingBalance uint64
+
 	for _, gen := range allGenerators {
 		genRecipient := proto.NewRecipientFromAddress(gen)
 		balance, err := s.GeneratingBalance(genRecipient, height)
@@ -3382,6 +3383,12 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
 		}
 	}
+
+	slog.Debug("Calculating voting finalization", "number of committed generators", len(allGenerators),
+		"number of endorsers", len(endorsers),
+		"total generating balance of committed generators", totalGeneratingBalance,
+		"total generating balance of endorsers", endorsersGeneratingBalance)
+
 	if totalGeneratingBalance == 0 {
 		return false, nil
 	}
