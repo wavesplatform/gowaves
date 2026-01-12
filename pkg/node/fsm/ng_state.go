@@ -210,6 +210,12 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 }
 
 func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State, Async, error) {
+	slog.Debug("Received a block endorsement:",
+		"EndorserIndex", blockEndorsement.EndorserIndex,
+		"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
+		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
+		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
+		"Signature", blockEndorsement.Signature.String())
 	endorsedBlockID := blockEndorsement.EndorsedBlockID
 	endorsedMicroBlock, found := a.baseInfo.MicroBlockCache.GetBlock(endorsedBlockID)
 	if !found || endorsedMicroBlock == nil {
@@ -268,6 +274,12 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	}
 
 	a.baseInfo.actions.SendEndorseBlock(blockEndorsement) // TODO should we send it out if conflicting?
+	slog.Debug("Sent a block endorsement:",
+		"EndorserIndex", blockEndorsement.EndorserIndex,
+		"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
+		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
+		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
+		"Signature", blockEndorsement.Signature.String())
 	return newNGState(a.baseInfo), nil, nil
 }
 
@@ -332,7 +344,9 @@ func (a *NGState) tryFinalize(height proto.Height) (*proto.FinalizationVoting, e
 	if err != nil {
 		return nil, err
 	}
-
+	if len(generators) == 0 {
+		slog.Debug("No committed generators found for finalization calculation")
+	}
 	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, height, generators)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
@@ -359,6 +373,9 @@ func (a *NGState) MinedBlock(
 	// Without this deferred call, the scheduler would not be rescheduled,
 	// and the next block would not be generated without an external trigger.
 	defer a.baseInfo.scheduler.Reschedule()
+
+	slog.Debug("New finalization voting period started (new key block)")
+
 	height, heightErr := a.baseInfo.storage.Height()
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)

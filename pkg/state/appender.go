@@ -1631,6 +1631,12 @@ func (f *finalizationProcessor) updateFinalization(
 		if storErr := f.stor.finalizations.store(height, parent.BlockID()); storErr != nil {
 			return storErr
 		}
+		slog.Debug("finalized block and saved finalization in state:",
+			"EndorserIndexes", finalizationVoting.EndorserIndexes,
+			"FinalizedBlockHeight", finalizationVoting.FinalizedBlockHeight,
+			"AggregatedEndorsementSignature", finalizationVoting.AggregatedEndorsementSignature.String(),
+			"Number of Conflict Endorsements", len(finalizationVoting.ConflictEndorsements)
+
 	}
 	return nil
 }
