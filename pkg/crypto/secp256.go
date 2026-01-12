@@ -80,7 +80,7 @@ func Secp256Verify(digest, publicKey, signature []byte) (bool, error) {
 
 	// OPTIONAL (protocol-dependent): enforce low-S to prevent malleability.
 	// Many systems (Bitcoin, Ethereum, JOSE, etc.) require this.
-	// If you only want "pure ECDSA validity" (как в Wycheproof), comment out this block.
+	// If you only want "pure ECDSA validity" (Wycheproof-like), comment out this block.
 	// Note: Wycheproof test vectors include both high-S and low-S signatures, so if you
 	// enable this check, some Wycheproof valid signatures will be rejected.
 	/*
