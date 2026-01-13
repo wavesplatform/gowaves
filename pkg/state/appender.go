@@ -1444,7 +1444,7 @@ func (f *finalizationProcessor) loadEndorsersPK(
 ) ([]bls.PublicKey, error) {
 	endorsersPK := make([]bls.PublicKey, 0, len(fv.EndorserIndexes))
 	for _, idx := range fv.EndorserIndexes {
-		pk, err := f.stor.commitments.FindEndorserPKByIndex(periodStart, int(idx))
+		pk, err := f.stor.commitments.EndorserPKByIndex(periodStart, int(idx))
 		if err != nil {
 			return nil, fmt.Errorf("failed to find endorser PK by index %d: %w", idx, err)
 		}
@@ -1462,7 +1462,7 @@ func (f *finalizationProcessor) mapEndorsersToAddresses(
 ) ([]proto.WavesAddress, error) {
 	addrs := make([]proto.WavesAddress, 0, len(endorsersPK))
 	for _, endPK := range endorsersPK {
-		gpk, err := f.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, endPK)
+		gpk, err := f.stor.commitments.GeneratorPKByEndorserPK(periodStart, endPK)
 		if err != nil {
 			return nil, fmt.Errorf("failed to map endorser PK to generator PK: %w", err)
 		}
@@ -1497,11 +1497,11 @@ func (f *finalizationProcessor) calcPeriodStart(height proto.Height) (uint32, er
 
 func (f *finalizationProcessor) removeGeneratorDeposit(periodStart uint32, badEndorserIndex int32,
 	blockID proto.BlockID) error {
-	badEndorserPK, err := f.stor.commitments.FindEndorserPKByIndex(periodStart, int(badEndorserIndex))
+	badEndorserPK, err := f.stor.commitments.EndorserPKByIndex(periodStart, int(badEndorserIndex))
 	if err != nil {
 		return fmt.Errorf("failed to find endorser PK by index %d: %w", badEndorserIndex, err)
 	}
-	badGeneratorPK, err := f.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, badEndorserPK)
+	badGeneratorPK, err := f.stor.commitments.GeneratorPKByEndorserPK(periodStart, badEndorserPK)
 	if err != nil {
 		return fmt.Errorf("failed to map endorser PK to generator PK: %w", err)
 	}
@@ -1540,11 +1540,11 @@ func (f *finalizationProcessor) validateCurrentGenerators(height proto.Height,
 	}
 	for _, conflictingEndorsement := range finalizationVoting.ConflictEndorsements {
 		badEndorserIndex := conflictingEndorsement.EndorserIndex
-		badEndorserPK, err := f.stor.commitments.FindEndorserPKByIndex(periodStart, int(badEndorserIndex))
+		badEndorserPK, err := f.stor.commitments.EndorserPKByIndex(periodStart, int(badEndorserIndex))
 		if err != nil {
 			return fmt.Errorf("failed to find endorser PK by index %d: %w", badEndorserIndex, err)
 		}
-		badGeneratorPK, err := f.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, badEndorserPK)
+		badGeneratorPK, err := f.stor.commitments.GeneratorPKByEndorserPK(periodStart, badEndorserPK)
 		if err != nil {
 			return fmt.Errorf("failed to map endorser PK to generator PK: %w", err)
 		}
@@ -1617,7 +1617,7 @@ func (f *finalizationProcessor) updateFinalization(
 		return err
 	}
 
-	generators, err := f.stor.commitments.CommittedGenerators(periodStart, f.settings.AddressSchemeCharacter)
+	generators, err := f.stor.commitments.CommittedGeneratorsAddresses(periodStart, f.settings.AddressSchemeCharacter)
 	if err != nil {
 		return fmt.Errorf("failed to load committed generators: %w", err)
 	}

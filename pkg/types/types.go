@@ -224,6 +224,7 @@ type EmbeddedWallet interface {
 	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
 	Load(password []byte) error
 	AccountSeeds() [][]byte
+	TopPkSkPairBLS() (bls.PublicKey, bls.SecretKey, error)
 }
 
 // EndorsementPool storage interface.

@@ -439,6 +439,12 @@ func (a *ThreadSafeReadWrapper) FindGeneratorPKByEndorserPK(periodStart uint32,
 	return a.s.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
 }
 
+func (a *ThreadSafeReadWrapper) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.IndexByEndorserPK(periodStart, pk)
+}
+
 func (a *ThreadSafeReadWrapper) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

@@ -554,6 +554,21 @@ func (mr *MockStateInfoMockRecorder) HitSourceAtHeight(height interface{}) *gomo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockStateInfo)(nil).HitSourceAtHeight), height)
 }
 
+// IndexByEndorserPK mocks base method.
+func (m *MockStateInfo) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IndexByEndorserPK", periodStart, pk)
+	ret0, _ := ret[0].(uint32)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IndexByEndorserPK indicates an expected call of IndexByEndorserPK.
+func (mr *MockStateInfoMockRecorder) IndexByEndorserPK(periodStart, pk interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IndexByEndorserPK", reflect.TypeOf((*MockStateInfo)(nil).IndexByEndorserPK), periodStart, pk)
+}
+
 // InvokeResultByID mocks base method.
 func (m *MockStateInfo) InvokeResultByID(invokeID crypto.Digest) (*proto.ScriptResult, error) {
 	m.ctrl.T.Helper()
@@ -2090,6 +2105,21 @@ func (m *MockState) HitSourceAtHeight(height proto.Height) ([]byte, error) {
 func (mr *MockStateMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockState)(nil).HitSourceAtHeight), height)
+}
+
+// IndexByEndorserPK mocks base method.
+func (m *MockState) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "IndexByEndorserPK", periodStart, pk)
+	ret0, _ := ret[0].(uint32)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// IndexByEndorserPK indicates an expected call of IndexByEndorserPK.
+func (mr *MockStateMockRecorder) IndexByEndorserPK(periodStart, pk interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IndexByEndorserPK", reflect.TypeOf((*MockState)(nil).IndexByEndorserPK), periodStart, pk)
 }
 
 // InvokeResultByID mocks base method.

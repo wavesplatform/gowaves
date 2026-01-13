@@ -3406,19 +3406,23 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 // FindEndorserPKByIndex retrieves the BLS endorser public key by its index
 // in the commitments list for the given period.
 func (s *stateManager) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
-	return s.stor.commitments.FindEndorserPKByIndex(periodStart, index)
+	return s.stor.commitments.EndorserPKByIndex(periodStart, index)
 }
 
 // FindGeneratorPKByEndorserPK finds the generator's Waves public key corresponding
 // to the given BLS endorser public key in the commitments record for the given period.
 func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
 	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	return s.stor.commitments.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
+	return s.stor.commitments.GeneratorPKByEndorserPK(periodStart, endorserPK)
+}
+
+func (s *stateManager) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
+	return s.stor.commitments.IndexByEndorserPK(periodStart, pk)
 }
 
 // CommittedGenerators returns the list of Waves addresses of committed generators.
 func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
-	return s.stor.commitments.CommittedGenerators(periodStart, s.settings.AddressSchemeCharacter)
+	return s.stor.commitments.CommittedGeneratorsAddresses(periodStart, s.settings.AddressSchemeCharacter)
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
