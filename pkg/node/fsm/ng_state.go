@@ -209,12 +209,12 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
 	metrics.BlockApplied(block, height+1)
+	a.baseInfo.endorsements.CleanAll()
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
-
 	a.baseInfo.CleanUtx()
 
 	if a.baseInfo.embeddedWallet != nil && finalityActivated {
