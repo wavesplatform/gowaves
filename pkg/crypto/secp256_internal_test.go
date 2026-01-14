@@ -10,6 +10,7 @@ import (
 	"slices"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 )
 
@@ -138,5 +139,29 @@ func TestSecp256Verify(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func BenchmarkSecp256Verify(b *testing.B) {
+	x, err := hex.DecodeString("2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838")
+	require.NoError(b, err)
+	y, err := hex.DecodeString("c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e")
+	require.NoError(b, err)
+	r, err := hex.DecodeString("5291deaf24659ffbbce6e3c26f6021097a74abdbb69be4fb10419c0c496c9466")
+	require.NoError(b, err)
+	s, err := hex.DecodeString("65d6fcf336d27cc7cdb982bb4e4ecef5827f84742f29f10abf83469270a03dc3")
+	require.NoError(b, err)
+	hash, err := hex.DecodeString("0eaae8641084fa979803efbfb8140732f4cdcf66c3f78a000000003c278a6b21")
+	require.NoError(b, err)
+	pk := make([]byte, 64)
+	copy(pk, x)
+	copy(pk[32:], y)
+	sig := make([]byte, 64)
+	copy(sig, r)
+	copy(sig[32:], s)
+	for b.Loop() {
+		ok, vErr := Secp256Verify(hash, pk, sig)
+		require.NoError(b, vErr)
+		assert.True(b, ok)
 	}
 }
