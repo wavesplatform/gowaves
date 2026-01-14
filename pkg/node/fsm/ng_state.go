@@ -416,7 +416,7 @@ func (a *NGState) MinedBlock(
 	}
 
 	if a.baseInfo.embeddedWallet != nil && finalityActivated {
-		endorseErr := a.Endorse(block.BlockID(), height)
+		endorseErr := a.Endorse(block.Parent, height)
 		if endorseErr != nil {
 			return a, nil, a.Errorf(endorseErr)
 		}
