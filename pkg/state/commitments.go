@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/ccoveille/go-safecast/v2"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -251,9 +252,9 @@ func (c *commitments) newestSize(periodStart uint32) (int, error) {
 	return len(rec.Commitments), nil
 }
 
-// FindEndorserPKByIndex returns BLS endorser public keys using
+// EndorserPKByIndex returns BLS endorser public keys using
 // commitment indexes stored in FinalizationVoting.EndorserIndexes.
-func (c *commitments) FindEndorserPKByIndex(
+func (c *commitments) EndorserPKByIndex(
 	periodStart uint32, index int,
 ) (bls.PublicKey, error) {
 	var empty bls.PublicKey
@@ -278,7 +279,35 @@ func (c *commitments) FindEndorserPKByIndex(
 	return rec.Commitments[index].EndorserPK, nil
 }
 
-func (c *commitments) FindGeneratorPKByEndorserPK(periodStart uint32,
+func (c *commitments) IndexByEndorserPK(
+	periodStart uint32, pk bls.PublicKey,
+) (uint32, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return 0, fmt.Errorf("no commitments found for period %d", periodStart)
+		}
+		return 0, fmt.Errorf("failed to retrieve commitments record: %w", err)
+	}
+
+	var rec commitmentsRecord
+	if unmarshalErr := rec.unmarshalBinary(data); unmarshalErr != nil {
+		return 0, fmt.Errorf("failed to unmarshal commitments: %w", unmarshalErr)
+	}
+	for i, c := range rec.Commitments {
+		if bytes.Equal(c.EndorserPK.Bytes(), pk.Bytes()) {
+			index32, errConvert := safecast.Convert[uint32](i)
+			if errConvert != nil {
+				return 0, fmt.Errorf("failed to convert index to uint32: %w", errConvert)
+			}
+			return index32, nil
+		}
+	}
+	return 0, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
+}
+
+func (c *commitments) GeneratorPKByEndorserPK(periodStart uint32,
 	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.newestTopEntryData(key.bytes())
@@ -303,7 +332,8 @@ func (c *commitments) FindGeneratorPKByEndorserPK(periodStart uint32,
 	return crypto.PublicKey{}, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
 }
 
-func (c *commitments) CommittedGenerators(periodStart uint32, scheme proto.Scheme) ([]proto.WavesAddress, error) {
+func (c *commitments) CommittedGeneratorsAddresses(periodStart uint32,
+	scheme proto.Scheme) ([]proto.WavesAddress, error) {
 	pks, err := c.newestGenerators(periodStart)
 	if err != nil {
 		return nil, err

@@ -81,6 +81,8 @@ type BaseInfo struct {
 
 	endorsements types.EndorsementPool
 
+	embeddedWallet types.EmbeddedWallet
+
 	minPeersMining int
 
 	skipMessageList *messages.SkipMessageList
@@ -251,8 +253,9 @@ func NewFSM(
 
 		actions: &ActionsImpl{services: services, logger: logger},
 
-		utx:          services.UtxPool,
-		endorsements: services.EndorsementPool,
+		utx:            services.UtxPool,
+		endorsements:   services.EndorsementPool,
+		embeddedWallet: services.Wallet,
 
 		minPeersMining: services.MinPeersMining,
 

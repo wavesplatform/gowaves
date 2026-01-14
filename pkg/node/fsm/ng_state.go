@@ -8,6 +8,8 @@ import (
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
+	"github.com/ccoveille/go-safecast/v2"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
 	"github.com/wavesplatform/gowaves/pkg/miner"
@@ -407,7 +409,91 @@ func (a *NGState) MinedBlock(
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
+	finalityActivated, err := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
+	if err != nil {
+		return a, nil, a.Errorf(err)
+	}
+
+	if a.baseInfo.embeddedWallet != nil && finalityActivated {
+		endorseErr := a.Endorse(block.BlockID(), height)
+		if endorseErr != nil {
+			return a, nil, a.Errorf(endorseErr)
+		}
+	}
+
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
+}
+
+func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height) error {
+	endorserPK, endorserSK, err := a.baseInfo.embeddedWallet.TopPkSkPairBLS()
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to get top pk-sk pair from embedded wallet"))
+	}
+	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	if actErr != nil {
+		return proto.NewInfoMsg(errors.Errorf("failed to get DeterministicFinality activation height, %v", actErr))
+	}
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	if err != nil {
+		return err
+	}
+	endorserIndex, err := a.baseInfo.storage.IndexByEndorserPK(periodStart, endorserPK)
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to get endorser index by generator pk"))
+	}
+	lastFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to get last finalized block height"))
+	}
+	lastFinalizedBlock, err := a.baseInfo.storage.BlockByHeight(lastFinalizedHeight)
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to get last finalized block"))
+	}
+	message := bls.BuildPoPMessage(endorserPK, periodStart)
+	signature, err := bls.Sign(endorserSK, message)
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to sign block endorsement"))
+	}
+	endorserIndex32, cErr := safecast.Convert[int32](endorserIndex)
+	if cErr != nil {
+		return a.Errorf(errors.Wrapf(cErr, "endorserIndex overflows int32: %v", endorserIndex))
+	}
+
+	finalizedHeight32, cErr := safecast.Convert[uint32](lastFinalizedHeight)
+	if cErr != nil {
+		return a.Errorf(errors.Wrapf(cErr, "lastFinalizedHeight overflows uint32: %v", lastFinalizedHeight))
+	}
+	endorseParentBlock := &proto.EndorseBlock{
+		EndorserIndex:        endorserIndex32,
+		FinalizedBlockID:     lastFinalizedBlock.BlockID(),
+		FinalizedBlockHeight: finalizedHeight32,
+		EndorsedBlockID:      parentBlockID,
+		Signature:            signature,
+	}
+	endorserWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
+	if findErr != nil {
+		return findErr
+	}
+	endorserAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, endorserWavesPK)
+	endorserRec := proto.NewRecipientFromAddress(endorserAddress)
+	balance, err := a.baseInfo.storage.GeneratingBalance(endorserRec, height)
+	if err != nil {
+		return err
+	}
+	addErr := a.baseInfo.endorsements.Add(endorseParentBlock, endorserPK,
+		lastFinalizedHeight, lastFinalizedBlock.BlockID(), balance)
+	if addErr != nil {
+		return errors.Errorf("failed to add an endorsement, %v", addErr)
+	}
+
+	a.baseInfo.actions.SendEndorseBlock(endorseParentBlock)
+	slog.Debug("Sent a block endorsement:",
+		"EndorserIndex", endorseParentBlock.EndorserIndex,
+		"FinalizedBlockID", endorseParentBlock.FinalizedBlockID,
+		"FinalizedBlockHeight", endorseParentBlock.FinalizedBlockHeight,
+		"EndorsedBlockID", endorseParentBlock.EndorsedBlockID,
+		"Signature", endorseParentBlock.Signature.String())
+	return nil
 }
 
 func (a *NGState) MicroBlock(p peer.Peer, micro *proto.MicroBlock) (State, Async, error) {

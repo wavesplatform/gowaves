@@ -3,6 +3,7 @@ package wallet
 import (
 	"sync"
 
+	"github.com/pkg/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -72,6 +73,22 @@ func (a *EmbeddedWalletImpl) BLSPairByWavesPK(publicKey crypto.PublicKey) (bls.S
 		}
 	}
 	return bls.SecretKey{}, bls.PublicKey{}, ErrPublicKeyNotFound
+}
+func (a *EmbeddedWalletImpl) TopPkSkPairBLS() (bls.PublicKey,
+	bls.SecretKey, error) {
+	seeds := a.seeder.AccountSeeds()
+	for _, s := range seeds {
+		secret, err := bls.GenerateSecretKey(s)
+		if err != nil {
+			continue
+		}
+		public, err := secret.PublicKey()
+		if err != nil {
+			return bls.PublicKey{}, bls.SecretKey{}, err
+		}
+		return public, secret, nil
+	}
+	return bls.PublicKey{}, bls.SecretKey{}, errors.New("failed to find bls key pair")
 }
 
 func (a *EmbeddedWalletImpl) Load(password []byte) error {
