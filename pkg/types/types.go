@@ -226,6 +226,7 @@ type EmbeddedWallet interface {
 	BLSPairByWavesPK(publicKey crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error)
 	Load(password []byte) error
 	AccountSeeds() [][]byte
+	TopPkSkPairBLS() (bls.PublicKey, bls.SecretKey, error)
 }
 
 // EndorsementPool storage interface.
