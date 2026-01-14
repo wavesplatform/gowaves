@@ -461,7 +461,11 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height) erro
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to get last finalized block"))
 	}
-	message := bls.BuildPoPMessage(endorserPK, periodStart)
+	message, err := proto.EndorsementMessage(
+		lastFinalizedBlock.BlockID(),
+		parentBlockID,
+		lastFinalizedHeight,
+	)
 	signature, err := bls.Sign(endorserSK, message)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to sign block endorsement"))
