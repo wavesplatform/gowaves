@@ -137,7 +137,7 @@ func (p *EndorsementPool) GetAll() []proto.EndorseBlock {
 	return out
 }
 
-func (p *EndorsementPool) FormFinalization(finalizationHeight proto.Height) (proto.FinalizationVoting, error) {
+func (p *EndorsementPool) FormFinalization(lastFinalizedHeight proto.Height) (proto.FinalizationVoting, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
@@ -163,7 +163,7 @@ func (p *EndorsementPool) FormFinalization(finalizationHeight proto.Height) (pro
 
 	return proto.FinalizationVoting{
 		AggregatedEndorsementSignature: aggregatedSignature,
-		FinalizedBlockHeight:           finalizationHeight,
+		FinalizedBlockHeight:           lastFinalizedHeight,
 		EndorserIndexes:                endorsersIndexes,
 		ConflictEndorsements:           p.conflicts,
 	}, nil
@@ -217,7 +217,7 @@ func (p *EndorsementPool) Verify() (bool, error) {
 		if msgErr != nil {
 			return false, msgErr
 		}
-		if bytes.Equal(nextMsg, msg) {
+		if !bytes.Equal(nextMsg, msg) {
 			return false, errors.New("failed to verify endorsements: inconsistent endorsement messages")
 		}
 	}
