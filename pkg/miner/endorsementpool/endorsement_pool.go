@@ -217,7 +217,7 @@ func (p *EndorsementPool) Verify() (bool, error) {
 		if msgErr != nil {
 			return false, msgErr
 		}
-		if bytes.Equal(nextMsg, msg) {
+		if !bytes.Equal(nextMsg, msg) {
 			return false, errors.New("failed to verify endorsements: inconsistent endorsement messages")
 		}
 	}
