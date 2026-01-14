@@ -165,6 +165,15 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	}
 	metrics.BlockReceived(block, peer.Handshake().NodeName)
 
+	finalityActivated, errFin := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
+	if errFin != nil {
+		return a, nil, a.Errorf(errFin)
+	}
+	if finalityActivated {
+		slog.Debug("New finalization voting started (received new key block)",
+			"for blockID", block.Parent.String())
+	}
+
 	top := a.baseInfo.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
 		a.baseInfo.logger.Debug("Key-block has parent which is not the top block", "state", a.String(),
@@ -207,6 +216,13 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 
 	a.baseInfo.CleanUtx()
+
+	if a.baseInfo.embeddedWallet != nil && finalityActivated {
+		endorseErr := a.Endorse(block.Parent, height)
+		if endorseErr != nil {
+			return a, nil, a.Errorf(endorseErr)
+		}
+	}
 
 	return newNGState(a.baseInfo), nil, nil
 }
@@ -376,11 +392,18 @@ func (a *NGState) MinedBlock(
 	// and the next block would not be generated without an external trigger.
 	defer a.baseInfo.scheduler.Reschedule()
 
-	slog.Debug("New finalization voting period started (new key block)")
-
 	height, heightErr := a.baseInfo.storage.Height()
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
+	}
+
+	finalityActivated, errFin := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
+	if errFin != nil {
+		return a, nil, a.Errorf(errFin)
+	}
+	if finalityActivated {
+		slog.Debug("New finalization voting started (mined new key block)",
+			"for blockID", block.Parent.String())
 	}
 
 	metrics.BlockMined(block)
@@ -409,18 +432,6 @@ func (a *NGState) MinedBlock(
 	a.baseInfo.actions.SendBlock(block)
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
-
-	finalityActivated, err := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
-	if err != nil {
-		return a, nil, a.Errorf(err)
-	}
-
-	if a.baseInfo.embeddedWallet != nil && finalityActivated {
-		endorseErr := a.Endorse(block.Parent, height)
-		if endorseErr != nil {
-			return a, nil, a.Errorf(endorseErr)
-		}
-	}
 
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
