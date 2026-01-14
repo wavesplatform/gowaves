@@ -301,19 +301,20 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGState) getPartialFinalization(height proto.Height) (*proto.FinalizationVoting, error) {
+func (a *NGState) getPartialFinalization(lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	if a.baseInfo.endorsements.Len() == 0 {
 		return nil, errNoFinalization
 	}
-	fin, err := a.baseInfo.endorsements.FormFinalization(height)
+	fin, err := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
 	if err != nil {
 		return nil, fmt.Errorf("failed to finalize endorsements for microblock: %w", err)
 	}
 	return &fin, nil
 }
 
-func (a *NGState) getBlockFinalization(height proto.Height) (*proto.FinalizationVoting, error) {
-	blockFinalization, err := a.tryFinalize(height)
+func (a *NGState) getBlockFinalization(height proto.Height,
+	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
+	blockFinalization, err := a.tryFinalize(height, lastFinalizedHeight)
 	if err != nil {
 		if !errors.Is(err, errNoFinalization) {
 			return nil, a.Errorf(errors.Wrap(err, "failed to try finalize last block"))
@@ -323,7 +324,8 @@ func (a *NGState) getBlockFinalization(height proto.Height) (*proto.Finalization
 	return blockFinalization, nil
 }
 
-func (a *NGState) tryFinalize(height proto.Height) (*proto.FinalizationVoting, error) {
+func (a *NGState) tryFinalize(height proto.Height,
+	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	// No finalization since nobody endorsed the last block.
 	if a.baseInfo.endorsements.Len() == 0 {
 		return nil, errNoFinalization
@@ -371,7 +373,7 @@ func (a *NGState) tryFinalize(height proto.Height) (*proto.FinalizationVoting, e
 	}
 
 	if canFinalize {
-		finalization, finErr := a.baseInfo.endorsements.FormFinalization(height)
+		finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
 		if finErr != nil {
 			return nil, finErr
 		}
@@ -460,7 +462,14 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height) erro
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to get last finalized block"))
 	}
-	message := bls.BuildPoPMessage(endorserPK, periodStart)
+	message, err := proto.EndorsementMessage(
+		lastFinalizedBlock.BlockID(),
+		parentBlockID,
+		lastFinalizedHeight,
+	)
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to create endorsement message"))
+	}
 	signature, err := bls.Sign(endorserSK, message)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to sign block endorsement"))
@@ -553,11 +562,15 @@ func (a *NGState) mineMicro(
 	var partialFinalization *proto.FinalizationVoting
 	var blockFinalization *proto.FinalizationVoting
 	if finalityActivated {
-		partialFinalization, err = a.getPartialFinalization(height)
+		lastFinalizedHeight, lastHeightErr := a.baseInfo.storage.LastFinalizedHeight()
+		if lastHeightErr != nil {
+			return a, nil, a.Errorf(lastHeightErr)
+		}
+		partialFinalization, err = a.getPartialFinalization(lastFinalizedHeight)
 		if err != nil && !errors.Is(err, errNoFinalization) {
 			return a, nil, a.Errorf(err)
 		}
-		blockFinalization, err = a.getBlockFinalization(height)
+		blockFinalization, err = a.getBlockFinalization(height, lastFinalizedHeight)
 		if err != nil && !errors.Is(err, errNoFinalization) {
 			return a, nil, a.Errorf(err)
 		}
