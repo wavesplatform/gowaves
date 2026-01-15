@@ -49,6 +49,15 @@ func runIncomingPeer(ctx context.Context, cancel context.CancelFunc, params Peer
 	default:
 	}
 
+	if readHandshake.NodeNonce == params.NodeNonce {
+		logger.Debug("Invalid incoming connection with the same nonce (likely connected to self), closing connection",
+			slog.String("remoteAddr", c.RemoteAddr().String()),
+			slog.Uint64("remoteNodeNonce", readHandshake.NodeNonce),
+			slog.Uint64("localNodeNonce", params.NodeNonce))
+		_ = c.Close()
+		return errors.New("connected to self")
+	}
+
 	writeHandshake := proto.Handshake{
 		AppName:      params.WavesNetwork,
 		Version:      params.Version,
