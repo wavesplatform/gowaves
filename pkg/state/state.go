@@ -3420,6 +3420,15 @@ func (s *stateManager) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (
 	return s.stor.commitments.IndexByEndorserPK(periodStart, pk)
 }
 
+func (s *stateManager) NewestCommitmentExistsByEndorserPK(periodStart uint32,
+	endorserPK bls.PublicKey) (bool, error) {
+	return s.stor.commitments.newestExistsByEndorserPK(periodStart, endorserPK)
+}
+
+func (s *stateManager) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
+	return s.stor.commitments.newestEndorsers(periodStart)
+}
+
 // CommittedGenerators returns the list of Waves addresses of committed generators.
 func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
 	return s.stor.commitments.CommittedGeneratorsAddresses(periodStart, s.settings.AddressSchemeCharacter)

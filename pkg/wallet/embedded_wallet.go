@@ -1,9 +1,9 @@
 package wallet
 
 import (
-	"github.com/pkg/errors"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"sync"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -34,9 +34,10 @@ func (a *EmbeddedWalletImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.T
 	return ErrPublicKeyNotFound
 }
 
-func (a *EmbeddedWalletImpl) TopPkSkPairBLS() (bls.PublicKey,
-	bls.SecretKey, error) {
+func (a *EmbeddedWalletImpl) KeyPairsBLS() ([]bls.PublicKey, []bls.SecretKey, error) {
 	seeds := a.seeder.AccountSeeds()
+	var publicKeys []bls.PublicKey
+	var secretKeys []bls.SecretKey
 	for _, s := range seeds {
 		secret, err := bls.GenerateSecretKey(s)
 		if err != nil {
@@ -44,11 +45,12 @@ func (a *EmbeddedWalletImpl) TopPkSkPairBLS() (bls.PublicKey,
 		}
 		public, err := secret.PublicKey()
 		if err != nil {
-			return bls.PublicKey{}, bls.SecretKey{}, err
+			return nil, nil, err
 		}
-		return public, secret, nil
+		secretKeys = append(secretKeys, secret)
+		publicKeys = append(publicKeys, public)
 	}
-	return bls.PublicKey{}, bls.SecretKey{}, errors.New("failed to find bls key pair")
+	return publicKeys, secretKeys, nil
 }
 
 func (a *EmbeddedWalletImpl) Load(password []byte) error {

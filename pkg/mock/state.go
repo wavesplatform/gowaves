@@ -794,6 +794,36 @@ func (mr *MockStateInfoMockRecorder) NewestBlockInfoByHeight(height interface{})
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestBlockInfoByHeight", reflect.TypeOf((*MockStateInfo)(nil).NewestBlockInfoByHeight), height)
 }
 
+// NewestCommitedEndorsers mocks base method.
+func (m *MockStateInfo) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestCommitedEndorsers", periodStart)
+	ret0, _ := ret[0].([]bls.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestCommitedEndorsers indicates an expected call of NewestCommitedEndorsers.
+func (mr *MockStateInfoMockRecorder) NewestCommitedEndorsers(periodStart interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestCommitedEndorsers", reflect.TypeOf((*MockStateInfo)(nil).NewestCommitedEndorsers), periodStart)
+}
+
+// NewestCommitmentExistsByEndorserPK mocks base method.
+func (m *MockStateInfo) NewestCommitmentExistsByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestCommitmentExistsByEndorserPK", periodStart, endorserPK)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestCommitmentExistsByEndorserPK indicates an expected call of NewestCommitmentExistsByEndorserPK.
+func (mr *MockStateInfoMockRecorder) NewestCommitmentExistsByEndorserPK(periodStart, endorserPK interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestCommitmentExistsByEndorserPK", reflect.TypeOf((*MockStateInfo)(nil).NewestCommitmentExistsByEndorserPK), periodStart, endorserPK)
+}
+
 // NewestHeaderByHeight mocks base method.
 func (m *MockStateInfo) NewestHeaderByHeight(height uint64) (*proto.BlockHeader, error) {
 	m.ctrl.T.Helper()
@@ -2373,6 +2403,36 @@ func (m *MockState) NewestBlockInfoByHeight(height proto.Height) (*proto.BlockIn
 func (mr *MockStateMockRecorder) NewestBlockInfoByHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestBlockInfoByHeight", reflect.TypeOf((*MockState)(nil).NewestBlockInfoByHeight), height)
+}
+
+// NewestCommitedEndorsers mocks base method.
+func (m *MockState) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestCommitedEndorsers", periodStart)
+	ret0, _ := ret[0].([]bls.PublicKey)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestCommitedEndorsers indicates an expected call of NewestCommitedEndorsers.
+func (mr *MockStateMockRecorder) NewestCommitedEndorsers(periodStart interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestCommitedEndorsers", reflect.TypeOf((*MockState)(nil).NewestCommitedEndorsers), periodStart)
+}
+
+// NewestCommitmentExistsByEndorserPK mocks base method.
+func (m *MockState) NewestCommitmentExistsByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (bool, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "NewestCommitmentExistsByEndorserPK", periodStart, endorserPK)
+	ret0, _ := ret[0].(bool)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// NewestCommitmentExistsByEndorserPK indicates an expected call of NewestCommitmentExistsByEndorserPK.
+func (mr *MockStateMockRecorder) NewestCommitmentExistsByEndorserPK(periodStart, endorserPK interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestCommitmentExistsByEndorserPK", reflect.TypeOf((*MockState)(nil).NewestCommitmentExistsByEndorserPK), periodStart, endorserPK)
 }
 
 // NewestHeaderByHeight mocks base method.
