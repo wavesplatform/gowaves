@@ -218,13 +218,49 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.baseInfo.CleanUtx()
 
 	if a.baseInfo.embeddedWallet != nil && finalityActivated {
-		endorseErr := a.Endorse(block.Parent, height)
+		pks, sks, walErr := a.baseInfo.embeddedWallet.KeyPairsBLS()
+		if walErr != nil {
+			return a, nil, a.Errorf(errors.Wrapf(walErr, "failed to generate key pairs for %s", block.BlockID()))
+		}
+		activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+		if actErr != nil {
+			return a, nil, a.Errorf(errors.Wrapf(err, "failed to get activation height for finality %s",
+				block.BlockID()))
+		}
+		periodStart, genErr := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+		if genErr != nil {
+			return a, nil, a.Errorf(errors.Wrapf(genErr, "failed to get current generation period, block %s",
+				block.BlockID()))
+		}
+		endorseErr := a.EndorseParentWithEachKey(pks, sks, periodStart, block, height)
 		if endorseErr != nil {
-			return a, nil, a.Errorf(endorseErr)
+			return a, nil, endorseErr
 		}
 	}
-
 	return newNGState(a.baseInfo), nil, nil
+}
+
+func (a *NGState) EndorseParentWithEachKey(pks []bls.PublicKey, sks []bls.SecretKey,
+	periodStart uint32, block *proto.Block, height proto.Height) error {
+	for i, pk := range pks {
+		committed, commErr := a.baseInfo.storage.NewestCommitmentExistsByEndorserPK(periodStart, pk)
+		if commErr != nil {
+			endorsers, _ := a.baseInfo.storage.NewestCommitedEndorsers(periodStart)
+			slog.Debug("Committed endorsers for period", "periodStart", periodStart)
+			for _, endorser := range endorsers {
+				slog.Debug("", "endorser", endorser.String())
+			}
+			return a.Errorf(errors.Wrapf(commErr, "failed to find commitments at block %s "+
+				"for endorsers PK %s", block.BlockID(), pk.String()))
+		}
+		if committed {
+			endorseErr := a.Endorse(block.Parent, height, pk, sks[i])
+			if endorseErr != nil {
+				return a.Errorf(endorseErr)
+			}
+		}
+	}
+	return nil
 }
 
 func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State, Async, error) {
@@ -260,30 +296,30 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	}
 	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
 	if err != nil {
-		return nil, nil, err
+		return a, nil, err
 	}
 
 	endorserPK, err := a.baseInfo.storage.FindEndorserPKByIndex(periodStart, int(blockEndorsement.EndorserIndex))
 	if err != nil {
-		return nil, nil, err
+		return a, nil, err
 	}
 	endorserWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
 	if findErr != nil {
-		return nil, nil, findErr
+		return a, nil, findErr
 	}
 	endorserAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, endorserWavesPK)
 	endorserRec := proto.NewRecipientFromAddress(endorserAddress)
 	balance, err := a.baseInfo.storage.GeneratingBalance(endorserRec, height)
 	if err != nil {
-		return nil, nil, err
+		return a, nil, err
 	}
 	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
-		return nil, nil, err
+		return a, nil, err
 	}
 	localFinalizedBlockHeader, err := a.baseInfo.storage.LastFinalizedBlock()
 	if err != nil {
-		return nil, nil, err
+		return a, nil, err
 	}
 	addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
 		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance)
@@ -437,11 +473,8 @@ func (a *NGState) MinedBlock(
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
 
-func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height) error {
-	endorserPK, endorserSK, err := a.baseInfo.embeddedWallet.TopPkSkPairBLS()
-	if err != nil {
-		return a.Errorf(errors.Wrap(err, "failed to get top pk-sk pair from embedded wallet"))
-	}
+func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
+	endorserPK bls.PublicKey, endorserSK bls.SecretKey) error {
 	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
 	if actErr != nil {
 		return proto.NewInfoMsg(errors.Errorf("failed to get DeterministicFinality activation height, %v", actErr))

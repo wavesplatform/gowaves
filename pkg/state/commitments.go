@@ -147,6 +147,32 @@ func (c *commitments) newestExists(
 	return checkCommitments(data, generatorPK, endorserPK)
 }
 
+// newestExists checks if a commitment exists for the given period start and generator public key.
+// The function also checks that the endorser PK is not already used by another generator.
+func (c *commitments) newestExistsByEndorserPK(
+	periodStart uint32, endorserPK bls.PublicKey,
+) (bool, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to retrieve commitment record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return false, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	epkb := endorserPK.Bytes()
+	for _, cm := range rec.Commitments {
+		if bytes.Equal(cm.EndorserPK.Bytes(), epkb) {
+			return true, nil
+		}
+	}
+	return false, nil
+}
+
 func (c *commitments) generators(periodStart uint32) ([]crypto.PublicKey, error) {
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.topEntryData(key.bytes())
@@ -199,6 +225,27 @@ func (c *commitments) newestGenerators(periodStart uint32) ([]crypto.PublicKey, 
 		generators[i] = cm.GeneratorPK
 	}
 	return generators, nil
+}
+
+// newestEndorsers returns public keys of endorsers commited to the given period.
+func (c *commitments) newestEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve newest commitment record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	endorsers := make([]bls.PublicKey, len(rec.Commitments))
+	for i, cm := range rec.Commitments {
+		endorsers[i] = cm.EndorserPK
+	}
+	return endorsers, nil
 }
 
 func checkCommitments(data []byte, generatorPK crypto.PublicKey, endorserPK bls.PublicKey) (bool, error) {
