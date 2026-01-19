@@ -8,6 +8,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	"github.com/pkg/errors"
 	"github.com/umbracle/fastrlp"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -34,7 +35,7 @@ func (esk *EthereumPrivateKey) EthereumPublicKey() *EthereumPublicKey {
 type EthereumPublicKey btcec.PublicKey
 
 // MarshalJSON marshal EthereumPublicKey in hex encoding.
-func (epk *EthereumPublicKey) MarshalJSON() ([]byte, error) {
+func (epk EthereumPublicKey) MarshalJSON() ([]byte, error) {
 	data := epk.SerializeXYCoordinates()
 	return HexBytes(data).MarshalJSON()
 }
