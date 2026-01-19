@@ -288,6 +288,9 @@ func (c *NodesClients) SynchronizedWavesBalances(
 	if err != nil {
 		t.Logf("Errors while requesting balances: %v", err)
 	}
+	const retryInterval = 1 * time.Second
+	timer := time.NewTimer(retryInterval)
+	defer timer.Stop()
 	for {
 		commonHeight := mostCommonHeight(sbs)
 		toRetry := make([]proto.WavesAddress, 0, len(addresses))
@@ -302,9 +305,13 @@ func (c *NodesClients) SynchronizedWavesBalances(
 		}
 
 		t.Logf("Heights differ, retrying for %d addresses", len(toRetry))
+
+		timer.Reset(retryInterval)
 		select {
 		case <-ctx.Done():
-		case <-time.After(1 * time.Second): // Wait for a second before retrying
+			t.Logf("No results because of context error: %v", ctx.Err())
+			return NewSynchronisedBalances()
+		case <-timer.C: // Wait for a second (retryInterval) before retrying
 		}
 		rr, rrErr := c.requestAvailableBalancesForAddresses(ctx, toRetry)
 		if rrErr != nil {
@@ -312,12 +319,8 @@ func (c *NodesClients) SynchronizedWavesBalances(
 		}
 		// Update the map with retry results.
 		maps.Copy(sbs, rr)
-		if errors.Is(ctx.Err(), context.Canceled) { // handle context cancellation
-			t.Logf("Context cancelled, returning empty result")
-			return NewSynchronisedBalances()
-		}
-		if errors.Is(ctx.Err(), context.DeadlineExceeded) { // handle context deadline exceeded
-			t.Logf("Deadline exceeded, returning empty result")
+		if errors.Is(ctx.Err(), context.Canceled) || errors.Is(ctx.Err(), context.DeadlineExceeded) {
+			t.Logf("No results because of context error: %v", ctx.Err())
 			return NewSynchronisedBalances()
 		}
 	}
