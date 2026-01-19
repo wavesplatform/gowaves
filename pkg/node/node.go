@@ -124,8 +124,8 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 	for {
 		conn, acErr := l.Accept()
 		if acErr != nil {
-			if ctx.Err() != nil { // context has been canceled
-				return nil
+			if errors.Is(err, net.ErrClosed) && errors.Is(ctx.Err(), context.Canceled) {
+				return nil // Listener closed due to context cancellation this is fine.
 			}
 			slog.Error("Failed to accept new peer", logging.Error(acErr))
 			continue
