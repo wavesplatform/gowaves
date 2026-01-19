@@ -22,6 +22,17 @@ const (
 	clearRestrictedPeersInterval = 1 * time.Minute
 )
 
+var (
+	ErrPeerAlreadyConnected             = errors.New("peer already connected")
+	ErrPeerSuspended                    = errors.New("peer is suspended")
+	ErrPeerBlackListed                  = errors.New("peer is black listed")
+	ErrInvalidVersion                   = errors.New("versions are too different")
+	ErrInvalidNetworkName               = errors.New("invalid network name")
+	ErrIncomingConnectionsLimitExceeded = errors.New("incoming connections limit exceeded")
+	ErrOutgoingConnectionsLimitExceeded = errors.New("outgoing connections limit exceeded")
+	ErrInvalidConnectionDirection       = errors.New("invalid connection direction")
+)
+
 type peerInfo struct {
 	score *big.Int
 	peer  peer.Peer
@@ -95,37 +106,33 @@ func NewPeerManager(spawner PeerSpawner, storage PeerStorage, limitConnections i
 	}
 }
 
-func (a *PeerManagerImpl) NewConnection(p peer.Peer) (err error) {
+func (a *PeerManagerImpl) NewConnection(p peer.Peer) error {
 	_, connected := a.connected(p)
 	if connected {
-		_ = p.Close()
-		return errors.Errorf("already connected peer '%s'", p.ID())
+		_ = p.Close() // Here we close the new connection, the existing one remains open.
+		return errors.Wrapf(ErrPeerAlreadyConnected, "%s", p.ID())
 	}
 
 	now := time.Now()
 	if p.Direction() == peer.Outgoing && a.suspended(p, now) {
 		_ = p.Close()
-		return errors.Errorf("peer '%s' is suspended", p.ID())
+		return errors.Wrapf(ErrPeerSuspended, "%s", p.ID())
 	}
 	if p.Direction() == peer.Incoming && a.blackListed(p, now) {
 		_ = p.Close()
-		return errors.Errorf("peer '%s' is in black list", p.ID())
+		return errors.Wrapf(ErrPeerBlackListed, "%s", p.ID())
 	}
 
 	if p.Handshake().Version.CmpMinor(a.version) >= 2 {
-		err := errors.Errorf(
-			"versions are too different, current %s, connected %s (peer '%s')",
-			a.version.String(),
-			p.Handshake().Version.String(),
-			p.ID(),
-		)
+		err := errors.Wrapf(ErrInvalidVersion, "local %s, remote %s at %s",
+			a.version.String(), p.Handshake().Version.String(), p.ID())
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
 	}
 	if p.Handshake().AppName != a.networkName {
-		err := errors.Errorf("peer '%s' has the invalid network name '%s', required '%s'",
-			p.ID(), p.Handshake().AppName, a.networkName)
+		err := errors.Wrapf(ErrInvalidNetworkName, "local '%s', remote '%s' at %s",
+			a.networkName, p.Handshake().AppName, p.ID())
 		a.restrict(p, now, err.Error())
 		_ = p.Close()
 		return proto.NewInfoMsg(err)
@@ -135,21 +142,23 @@ func (a *PeerManagerImpl) NewConnection(p peer.Peer) (err error) {
 	case peer.Incoming:
 		if in >= a.limitConnections {
 			_ = p.Close()
-			return proto.NewInfoMsg(errors.Errorf("exceed incoming connections limit, incoming peer '%s'", p.ID()))
+			return proto.NewInfoMsg(errors.Wrapf(ErrIncomingConnectionsLimitExceeded, "%s", p.ID()))
 		}
 	case peer.Outgoing:
 		if !p.Handshake().DeclaredAddr.Empty() {
 			known := storage.KnownPeer(proto.TCPAddr(p.Handshake().DeclaredAddr).ToIpPort())
-			// TODO(nickeskov): maybe log error?
-			_ = a.peerStorage.AddOrUpdateKnown([]storage.KnownPeer{known}, now)
+			if err := a.peerStorage.AddOrUpdateKnown([]storage.KnownPeer{known}, now); err != nil {
+				slog.Error("Failed to add declared address into peers storage",
+					slog.String("address", known.String()), logging.Error(err))
+			}
 		}
 		if out >= a.limitConnections {
 			_ = p.Close()
-			return proto.NewInfoMsg(errors.Errorf("exceed outgoing connections limit, outgoing peer '%s'", p.ID()))
+			return proto.NewInfoMsg(errors.Wrapf(ErrOutgoingConnectionsLimitExceeded, "%s", p.ID()))
 		}
 	default:
 		_ = p.Close()
-		return errors.Errorf("unknown connection direction for peer '%s'", p.ID())
+		return errors.Wrapf(ErrInvalidConnectionDirection, "%s", p.ID())
 	}
 	a.addConnected(p)
 	return nil
@@ -315,14 +324,13 @@ func (a *PeerManagerImpl) SpawnOutgoingConnections(ctx context.Context) {
 			addr := proto.NewTCPAddr(ipPort.Addr(), ipPort.Port())
 			defer a.removeSpawned(addr)
 			if err := a.spawner.SpawnOutgoing(ctx, addr); err != nil {
-				a.logger.Debug("Failed to establish outbound connection",
+				a.logger.Debug("Failed to establish outgoing connection",
 					slog.String("address", ipPort.String()), logging.Error(err))
 			}
 			if err := a.UpdateKnownPeers([]storage.KnownPeer{storage.KnownPeer(ipPort)}); err != nil {
 				slog.Error("Failed to update peer info in peer storage",
 					slog.String("address", ipPort.String()), logging.Error(err))
 			}
-
 		}(ipPort)
 	}
 }

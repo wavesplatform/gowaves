@@ -39,8 +39,7 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 
 	connection, handshake, err := p.connect(ctx, addr, outgoingPeerDialTimeout, v, logger)
 	if err != nil {
-		logger.Debug("Failed to establish outgoing connection", slog.String("address", addr), logging.Error(err))
-		return errors.Wrapf(err, "%q", addr)
+		return err
 	}
 
 	peerImpl, err := peer.NewPeerImpl(handshake, connection, peer.Outgoing, remote, cancel, dl)
@@ -50,9 +49,9 @@ func EstablishConnection(ctx context.Context, params EstablishParams, v proto.Ve
 		}
 		logger.Debug("Failed to create peer for outgoing connection", slog.String("address", addr),
 			logging.Error(err))
-		return errors.Wrapf(err, "failed to establish connection to %s", addr)
+		return err
 	}
-	logger.Debug("Connected outgoing peer", "address", addr, "peer", peerImpl.ID())
+	logger.Debug("Successfully established outgoing connection", "address", addr, "peer", peerImpl.ID())
 	return peer.Handle(ctx, peerImpl, params.Parent, remote, logger, dl)
 }
 
@@ -68,7 +67,7 @@ func (a *connector) connect(
 	dialer := net.Dialer{Timeout: dialTimeout}
 	c, err := dialer.DialContext(ctx, "tcp", addr)
 	if err != nil {
-		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to dial with addr %q", addr)
+		return nil, proto.Handshake{}, errors.Wrapf(err, "failed to dial with address %s", addr)
 	}
 	defer func() {
 		if err != nil { // close connection on error
@@ -89,8 +88,7 @@ func (a *connector) connect(
 
 	if _, wErr := handshake.WriteTo(c); wErr != nil {
 		pa := a.params.Address.String()
-		logger.Debug("Failed to send handshake", slog.String("address", pa), logging.Error(wErr))
-		return nil, proto.Handshake{}, errors.Wrapf(wErr, "failed to send handshake with addr %q", pa)
+		return nil, proto.Handshake{}, errors.Wrapf(wErr, "failed to send handshake to address %s", pa)
 	}
 	select {
 	case <-ctx.Done():
@@ -100,8 +98,7 @@ func (a *connector) connect(
 
 	if _, rErr := handshake.ReadFrom(c); rErr != nil {
 		pa := a.params.Address.String()
-		logger.Debug("Failed to read handshake", slog.String("address", pa), logging.Error(rErr))
-		return nil, proto.Handshake{}, errors.Wrapf(rErr, "failed to read handshake with addr %q", pa)
+		return nil, proto.Handshake{}, errors.Wrapf(rErr, "failed to read handshake from address %s", pa)
 	}
 	select {
 	case <-ctx.Done():
