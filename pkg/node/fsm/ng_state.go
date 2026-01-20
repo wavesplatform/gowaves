@@ -234,7 +234,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		}
 		endorseErr := a.EndorseParentWithEachKey(pks, sks, periodStart, block, height)
 		if endorseErr != nil {
-			return a, nil, endorseErr
+			return a, nil, a.Errorf(errors.Wrapf(endorseErr, "failed to endorse parent block with available keys"))
 		}
 	}
 	return newNGState(a.baseInfo), nil, nil
@@ -292,34 +292,34 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	}
 	height, heightErr := a.baseInfo.storage.Height()
 	if heightErr != nil {
-		return a, nil, a.Errorf(heightErr)
+		return a, nil, a.Errorf(errors.Wrapf(heightErr, "failed to find height in storage"))
 	}
 	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
 	if err != nil {
-		return a, nil, err
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get current generation period"))
 	}
 
 	endorserPK, err := a.baseInfo.storage.FindEndorserPKByIndex(periodStart, int(blockEndorsement.EndorserIndex))
 	if err != nil {
-		return a, nil, err
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to find endorser PK by index"))
 	}
-	endorserWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
+	generatorWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
 	if findErr != nil {
-		return a, nil, findErr
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to find waves generator PK by BLS endorser PK"))
 	}
-	endorserAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, endorserWavesPK)
-	endorserRec := proto.NewRecipientFromAddress(endorserAddress)
-	balance, err := a.baseInfo.storage.GeneratingBalance(endorserRec, height)
+	generatorAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, generatorWavesPK)
+	generatorRec := proto.NewRecipientFromAddress(generatorAddress)
+	balance, err := a.baseInfo.storage.GeneratingBalance(generatorRec, height)
 	if err != nil {
-		return a, nil, err
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to generate balance for generator address %s", generatorAddress))
 	}
 	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
-		return a, nil, err
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized height for endorser address"))
 	}
 	localFinalizedBlockHeader, err := a.baseInfo.storage.LastFinalizedBlock()
 	if err != nil {
-		return a, nil, err
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
 	}
 	addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
 		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance)
