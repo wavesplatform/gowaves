@@ -152,6 +152,7 @@ func CalculateLastFinalizedHeight(currentHeight Height) Height {
 		slog.Debug("The last finalized height was calculated", "finalizedHeight", genesisHeight)
 		return genesisHeight
 	}
-	slog.Debug("The last finalized height was calculated", "finalizedHeight", currentHeight - maxRollbackDeltaHeight)
+	slog.Debug("The last finalized height was calculated", "finalizedHeight",
+		currentHeight-maxRollbackDeltaHeight)
 	return currentHeight - maxRollbackDeltaHeight
 }
