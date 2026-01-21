@@ -697,7 +697,7 @@ func (s TransactionStatusSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSt
 }
 
 type GenerationCommitmentSnapshot struct {
-	SenderPublicKey   crypto.PublicKey `json:"senderPublicKey"`
+	SenderPublicKey   crypto.PublicKey `json:"publicKey"` // JSON repr. in scala node uses 'publicKey' field name
 	EndorserPublicKey bls.PublicKey    `json:"blsPublicKey"`
 }
 

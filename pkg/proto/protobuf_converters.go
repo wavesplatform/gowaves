@@ -304,7 +304,22 @@ func appendSponsorshipFromProto(
 	return res, nil
 }
 
+func appendGenerationCommitmentFromProto(
+	res []AtomicSnapshot,
+	generationCommitment *g.TransactionStateSnapshot_GenerationCommitment,
+) ([]AtomicSnapshot, error) {
+	if generationCommitment == nil {
+		return res, nil
+	}
+	var sn GenerationCommitmentSnapshot
+	if err := sn.FromProtobuf(generationCommitment); err != nil {
+		return nil, err
+	}
+	return append(res, &sn), nil
+}
+
 // TxSnapshotsFromProtobufWithoutTxStatus Unmarshalling order
+// Reference: `PBSnapshots.fromProtobuf` in scala node code.
 // (don't change it if it is not necessary, order is important):
 // NewAsset
 // AssetVolume
@@ -319,6 +334,7 @@ func appendSponsorshipFromProto(
 // AccountScript
 // DataEntries
 // Sponsorships
+// GenerationCommitment.
 func TxSnapshotsFromProtobufWithoutTxStatus(
 	scheme Scheme,
 	txSnapshotProto *g.TransactionStateSnapshot,
@@ -379,7 +395,7 @@ func TxSnapshotsFromProtobufWithoutTxStatus(
 	if err != nil {
 		return nil, err
 	}
-	return txSnapshots, nil
+	return appendGenerationCommitmentFromProto(txSnapshots, txSnapshotProto.GenerationCommitment)
 }
 
 // TxSnapshotsFromProtobuf deserializes protobuf message into AtomicSnapshot slice.

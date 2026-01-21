@@ -128,11 +128,11 @@ func makeTransactionAndKeyPairs(settings *GenesisSettings, timestamp uint64) ([]
 		}
 		bsk, err := bls.GenerateSecretKey(seed)
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to generate BLS secret key from seed '%s'", string(seed))
+			return nil, nil, fmt.Errorf("failed to generate BLS secret key from seed '%s': %w", string(seed), err)
 		}
 		bpk, err := bsk.PublicKey()
 		if err != nil {
-			return nil, nil, fmt.Errorf("failed to generate BLS public key from seed '%s'", string(seed))
+			return nil, nil, fmt.Errorf("failed to generate BLS public key from seed '%s': %w", string(seed), err)
 		}
 		r = append(r, genesis_generator.GenesisTransactionInfo{Address: addr, Amount: dist.Amount, Timestamp: timestamp})
 		acc := AccountInfo{
