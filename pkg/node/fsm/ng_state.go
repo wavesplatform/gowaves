@@ -270,18 +270,10 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
 		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 		"Signature", blockEndorsement.Signature.String())
-	endorsedBlockID := blockEndorsement.EndorsedBlockID
-	endorsedMicroBlock, found := a.baseInfo.MicroBlockCache.GetBlock(endorsedBlockID)
-	if !found || endorsedMicroBlock == nil {
-		return a, nil, a.Errorf(fmt.Errorf(
-			"failed to find the microblock that was endorsed (block ID: %s)",
-			endorsedBlockID.String(),
-		))
-	}
 	top := a.baseInfo.storage.TopBlock()
-	if top.Parent != endorsedMicroBlock.Reference {
-		err := errors.Errorf("endorsed Block ID '%s' must match the parent's block ID '%s'",
-			endorsedMicroBlock.Reference.String(), top.BlockID().String())
+	if top.Parent != blockEndorsement.EndorsedBlockID {
+		err := errors.Errorf("endorsed Block ID '%s' must match the current parent's block ID '%s'",
+			blockEndorsement.EndorsedBlockID.String(), top.BlockID().String())
 		return a, nil, proto.NewInfoMsg(err)
 	}
 
