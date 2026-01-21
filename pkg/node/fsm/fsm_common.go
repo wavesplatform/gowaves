@@ -46,7 +46,7 @@ func eventArgsTypes(event stateless.Trigger) []reflect.Type {
 		}
 	case BlockEndorsementEvent:
 		return []reflect.Type{
-			reflect.TypeFor[*Async](), reflect.TypeFor[*proto.EndorseBlock]()
+			reflect.TypeFor[*Async](), reflect.TypeFor[*proto.EndorseBlock](),
 		}
 	case MinedBlockEvent:
 		return []reflect.Type{
