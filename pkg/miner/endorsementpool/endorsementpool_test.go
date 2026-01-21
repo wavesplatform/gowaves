@@ -38,8 +38,8 @@ const sigFour = "2F4sw8YzXpSf93ACAngoTnNxCaYWoGL4vY88RYgEs3BeSsnAmMGmVSfe8h6hybk
 const finalizedHeightEndorsement = 0
 
 func TestEndorsementPool_PriorityByBalance(t *testing.T) {
-	pool := endorsementpool.NewEndorsementPool(5)
-
+	pool, err := endorsementpool.NewEndorsementPool(5)
+	require.NoError(t, err)
 	e1 := newDummyEndorsement(t, 1, sigOne)
 	e2 := newDummyEndorsement(t, 2, sigTwo)
 	e3 := newDummyEndorsement(t, 3, sigThree)
@@ -64,8 +64,8 @@ func TestEndorsementPool_PriorityByBalance(t *testing.T) {
 }
 
 func TestEndorsementPool_PriorityBySeqWhenEqualBalance(t *testing.T) {
-	pool := endorsementpool.NewEndorsementPool(3)
-
+	pool, err := endorsementpool.NewEndorsementPool(3)
+	require.NoError(t, err)
 	e1 := newDummyEndorsement(t, 1, sigOne)
 	e2 := newDummyEndorsement(t, 2, sigTwo)
 
@@ -86,8 +86,8 @@ func TestEndorsementPool_PriorityBySeqWhenEqualBalance(t *testing.T) {
 }
 
 func TestEndorsementPool_RemoveLowPriorityWhenFull(t *testing.T) {
-	pool := endorsementpool.NewEndorsementPool(3)
-
+	pool, err := endorsementpool.NewEndorsementPool(3)
+	require.NoError(t, err)
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 1, sigOne), bls.PublicKey{},
 		finalizedHeightEndorsement, proto.BlockID{}, 10))
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 2, sigTwo), bls.PublicKey{},
@@ -114,8 +114,8 @@ func TestEndorsementPool_RemoveLowPriorityWhenFull(t *testing.T) {
 }
 
 func TestEndorsementPool_RejectLowBalanceWhenFull(t *testing.T) {
-	pool := endorsementpool.NewEndorsementPool(2)
-
+	pool, err := endorsementpool.NewEndorsementPool(2)
+	require.NoError(t, err)
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 1, sigOne), bls.PublicKey{},
 		finalizedHeightEndorsement, proto.BlockID{}, 50))
 	require.NoError(t, pool.Add(newDummyEndorsement(t, 2, sigTwo), bls.PublicKey{},

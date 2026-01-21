@@ -66,11 +66,14 @@ type EndorsementPool struct {
 	maxEndorsements int
 }
 
-func NewEndorsementPool(maxGenerators int) *EndorsementPool {
+func NewEndorsementPool(maxGenerators int) (*EndorsementPool, error) {
+	if maxGenerators <= 0 {
+		return nil, errors.New("the max number of endorsements must be more than 0")
+	}
 	return &EndorsementPool{
 		byKey:           make(map[key]*heapItemEndorsement),
 		maxEndorsements: maxGenerators,
-	}
+	}, nil
 }
 
 // Add inserts an endorsement into the heap with priority based on balance desc, seq asc.

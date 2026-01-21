@@ -810,13 +810,17 @@ func createServices(
 	if err != nil {
 		return services.Services{}, errors.Wrap(err, "failed to initialize UTX")
 	}
+	endorsementsPool, err := endorsementpool.NewEndorsementPool(cfg.MaxEndorsements)
+	if err != nil {
+		return services.Services{}, errors.Wrap(err, "failed to initialize endorsement pool")
+	}
 	return services.Services{
 		State:           st,
 		Peers:           peerManager,
 		Scheduler:       scheduler,
 		BlocksApplier:   blocks_applier.NewBlocksApplier(),
 		UtxPool:         utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
-		EndorsementPool: endorsementpool.NewEndorsementPool(cfg.MaxEndorsements),
+		EndorsementPool: endorsementsPool,
 		Scheme:          cfg.AddressSchemeCharacter,
 		Time:            ntpTime,
 		Wallet:          wal,
