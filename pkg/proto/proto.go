@@ -199,8 +199,8 @@ func writeEmptyMessage(w io.Writer, contentID PeerMessageID, name string) (int64
 // WriteMessage writes a message with the given content ID, name, and payload to the writer.
 func WriteMessage(w io.Writer, contentID PeerMessageID, name string, payload io.WriterTo) (int64, error) {
 	// TODO: Think about implementing a MessageWriter that does sequential payload write and
-	//  header calculation (sizes and checksum). Looks like it has to update some of header fields after payload write.
-	//  Don't know if it's possible.
+	// header calculation (sizes and checksum). Looks like it has to update some of header fields after payload write.
+	// Don't know if it's possible.
 	if payload == nil {
 		return writeEmptyMessage(w, contentID, name)
 	}

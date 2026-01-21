@@ -8,48 +8,49 @@ import (
 )
 
 const (
-	assetTypeName                       = "Asset"
-	assetPairTypeName                   = "AssetPair"
-	attachedPaymentTypeName             = "AttachedPayment"
-	balanceDetailsTypeName              = "BalanceDetails"
-	binaryEntryTypeName                 = "BinaryEntry"
-	blockInfoTypeName                   = "BlockInfo"
-	booleanEntryTypeName                = "BooleanEntry"
-	burnTypeName                        = "Burn"
-	burnTransactionTypeName             = "BurnTransaction"
-	createAliasTransactionTypeName      = "CreateAliasTransaction"
-	dataEntryTypeName                   = "DataEntry"
-	dataTransactionTypeName             = "DataTransaction"
-	deleteEntryTypeName                 = "DeleteEntry"
-	exchangeTransactionTypeName         = "ExchangeTransaction"
-	genesisTransactionTypeName          = "GenesisTransaction"
-	integerEntryTypeName                = "IntegerEntry"
-	invocationTypeName                  = "Invocation"
-	invokeExpressionTransactionTypeName = "InvokeExpressionTransaction"
-	invokeScriptTransactionTypeName     = "InvokeScriptTransaction"
-	issueTypeName                       = "Issue"
-	issueTransactionTypeName            = "IssueTransaction"
-	leaseTypeName                       = "Lease"
-	leaseCancelTypeName                 = "LeaseCancel"
-	leaseCancelTransactionTypeName      = "LeaseCancelTransaction"
-	leaseTransactionTypeName            = "LeaseTransaction"
-	massTransferTransactionTypeName     = "MassTransferTransaction"
-	orderTypeName                       = "Order"
-	paymentTransactionTypeName          = "PaymentTransaction"
-	reissueTypeName                     = "Reissue"
-	reissueTransactionTypeName          = "ReissueTransaction"
-	scriptResultTypeName                = "ScriptResult"
-	scriptTransferTypeName              = "ScriptTransfer"
-	setAssetScriptTransactionTypeName   = "SetAssetScriptTransaction"
-	setScriptTransactionTypeName        = "SetScriptTransaction"
-	sponsorFeeTypeName                  = "SponsorFee"
-	sponsorFeeTransactionTypeName       = "SponsorFeeTransaction"
-	stringEntryTypeName                 = "StringEntry"
-	transferTypeName                    = "Transfer"
-	transferSetTypeName                 = "TransferSet"
-	transferTransactionTypeName         = "TransferTransaction"
-	updateAssetInfoTransactionTypeName  = "UpdateAssetInfoTransaction"
-	writeSetTypeName                    = "WriteSet"
+	assetTypeName                         = "Asset"
+	assetPairTypeName                     = "AssetPair"
+	attachedPaymentTypeName               = "AttachedPayment"
+	balanceDetailsTypeName                = "BalanceDetails"
+	binaryEntryTypeName                   = "BinaryEntry"
+	blockInfoTypeName                     = "BlockInfo"
+	booleanEntryTypeName                  = "BooleanEntry"
+	burnTypeName                          = "Burn"
+	burnTransactionTypeName               = "BurnTransaction"
+	commitToGenerationTransactionTypeName = "CommitToGenerationTransaction"
+	createAliasTransactionTypeName        = "CreateAliasTransaction"
+	dataEntryTypeName                     = "DataEntry"
+	dataTransactionTypeName               = "DataTransaction"
+	deleteEntryTypeName                   = "DeleteEntry"
+	exchangeTransactionTypeName           = "ExchangeTransaction"
+	genesisTransactionTypeName            = "GenesisTransaction"
+	integerEntryTypeName                  = "IntegerEntry"
+	invocationTypeName                    = "Invocation"
+	invokeExpressionTransactionTypeName   = "InvokeExpressionTransaction"
+	invokeScriptTransactionTypeName       = "InvokeScriptTransaction"
+	issueTypeName                         = "Issue"
+	issueTransactionTypeName              = "IssueTransaction"
+	leaseTypeName                         = "Lease"
+	leaseCancelTypeName                   = "LeaseCancel"
+	leaseCancelTransactionTypeName        = "LeaseCancelTransaction"
+	leaseTransactionTypeName              = "LeaseTransaction"
+	massTransferTransactionTypeName       = "MassTransferTransaction"
+	orderTypeName                         = "Order"
+	paymentTransactionTypeName            = "PaymentTransaction"
+	reissueTypeName                       = "Reissue"
+	reissueTransactionTypeName            = "ReissueTransaction"
+	scriptResultTypeName                  = "ScriptResult"
+	scriptTransferTypeName                = "ScriptTransfer"
+	setAssetScriptTransactionTypeName     = "SetAssetScriptTransaction"
+	setScriptTransactionTypeName          = "SetScriptTransaction"
+	sponsorFeeTypeName                    = "SponsorFee"
+	sponsorFeeTransactionTypeName         = "SponsorFeeTransaction"
+	stringEntryTypeName                   = "StringEntry"
+	transferTypeName                      = "Transfer"
+	transferSetTypeName                   = "TransferSet"
+	transferTransactionTypeName           = "TransferTransaction"
+	updateAssetInfoTransactionTypeName    = "UpdateAssetInfoTransaction"
+	writeSetTypeName                      = "WriteSet"
 )
 
 const (
@@ -68,18 +69,21 @@ const (
 	buyOrderField              = "buyOrder"
 	callerField                = "caller"
 	callerPublicKeyField       = "callerPublicKey"
+	commitmentSignatureField   = "commitmentSignature"
 	compiledScriptField        = "compiledScript"
 	dAppField                  = "dApp"
 	dataField                  = "data"
 	decimalsField              = "decimals"
 	descriptionField           = "description"
 	effectiveField             = "effective"
+	endorserPublicKeyField     = "endorserPublicKey"
 	expirationField            = "expiration"
 	expressionField            = "expression"
 	feeField                   = "fee"
 	feeAssetIDField            = "feeAssetId"
 	functionField              = "function"
 	generatingField            = "generating"
+	generationPeriodStartField = "generationPeriodStart"
 	generationSignatureField   = "generationSignature"
 	generatorField             = "generator"
 	generatorPublicKeyField    = "generatorPublicKey"
@@ -129,6 +133,7 @@ const (
 	writeSetField              = "writeSet"
 )
 
+//betteralign:check
 type rideAssetV3 struct {
 	issuerPublicKey rideByteVector
 	id              rideByteVector
@@ -236,12 +241,13 @@ func (o rideAssetV3) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideAssetV4 struct {
+	minSponsoredFee rideType
 	description     rideString
 	name            rideString
 	issuerPublicKey rideByteVector
 	id              rideByteVector
-	minSponsoredFee rideType
 	decimals        rideInt
 	quantity        rideInt
 	issuer          rideAddress
@@ -359,6 +365,7 @@ func (o rideAssetV4) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideAssetPair struct {
 	amountAsset rideType
 	priceAsset  rideType
@@ -418,6 +425,7 @@ func (o rideAssetPair) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideAttachedPayment struct {
 	assetId rideType
 	amount  rideInt
@@ -477,6 +485,7 @@ func (o rideAttachedPayment) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideBalanceDetails struct {
 	available  rideInt
 	regular    rideInt
@@ -552,6 +561,7 @@ func (o rideBalanceDetails) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideBinaryEntry struct {
 	key   rideString
 	value rideByteVector
@@ -611,6 +621,7 @@ func (o rideBinaryEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideBlockInfoV3 struct {
 	generationSignature rideByteVector
 	generatorPublicKey  rideByteVector
@@ -702,6 +713,7 @@ func (o rideBlockInfoV3) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideBlockInfoV4 struct {
 	vrf                 rideType
 	generationSignature rideByteVector
@@ -801,15 +813,16 @@ func (o rideBlockInfoV4) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideBlockInfoV7 struct {
 	vrf                 rideType
 	generationSignature rideByteVector
 	generatorPublicKey  rideByteVector
+	rewards             rideList
 	baseTarget          rideInt
 	timestamp           rideInt
 	height              rideInt
 	generator           rideAddress
-	rewards             rideList
 }
 
 func newRideBlockInfoV7(vrf rideType, generationSignature rideByteVector, generatorPublicKey rideByteVector, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress, rewards rideList) rideBlockInfoV7 {
@@ -908,6 +921,7 @@ func (o rideBlockInfoV7) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideBooleanEntry struct {
 	key   rideString
 	value rideBoolean
@@ -967,6 +981,7 @@ func (o rideBooleanEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideBurn struct {
 	assetId  rideByteVector
 	quantity rideInt
@@ -1026,6 +1041,7 @@ func (o rideBurn) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideDataEntry struct {
 	value rideType
 	key   rideString
@@ -1085,6 +1101,7 @@ func (o rideDataEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideDeleteEntry struct {
 	key rideString
 }
@@ -1136,6 +1153,7 @@ func (o rideDeleteEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideIntegerEntry struct {
 	key   rideString
 	value rideInt
@@ -1195,6 +1213,7 @@ func (o rideIntegerEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideInvocationV3 struct {
 	payment         rideType
 	callerPublicKey rideByteVector
@@ -1286,6 +1305,7 @@ func (o rideInvocationV3) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideInvocationV4 struct {
 	payments        rideList
 	callerPublicKey rideByteVector
@@ -1377,15 +1397,16 @@ func (o rideInvocationV4) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideInvocationV5 struct {
-	originCaller          rideAddress
-	payments              rideList
-	callerPublicKey       rideByteVector
 	feeAssetId            rideType
 	originCallerPublicKey rideType
+	payments              rideList
+	callerPublicKey       rideByteVector
 	transactionId         rideByteVector
-	caller                rideAddress
 	fee                   rideInt
+	originCaller          rideAddress
+	caller                rideAddress
 }
 
 func newRideInvocationV5(originCaller rideAddress, payments rideList, callerPublicKey rideByteVector, feeAssetId rideType, originCallerPublicKey rideType, transactionId rideByteVector, caller rideAddress, fee rideInt) rideInvocationV5 {
@@ -1484,6 +1505,7 @@ func (o rideInvocationV5) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideIssue struct {
 	compiledScript rideType
 	name           rideString
@@ -1583,6 +1605,7 @@ func (o rideIssue) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideLeaseCancel struct {
 	leaseId rideByteVector
 }
@@ -1634,6 +1657,7 @@ func (o rideLeaseCancel) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideLease struct {
 	recipient rideType
 	amount    rideInt
@@ -1701,6 +1725,7 @@ func (o rideLease) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideOrderV1 struct {
 	assetPair         rideType
 	orderType         rideType
@@ -1865,16 +1890,17 @@ func (o rideOrderV1) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideOrderV8 struct {
 	assetPair         rideType
 	orderType         rideType
 	matcherFeeAssetId rideType
+	attachment        rideType
 	proofs            rideList
 	bodyBytes         rideByteVector
 	id                rideByteVector
 	senderPublicKey   rideByteVector
 	matcherPublicKey  rideByteVector
-	attachment        rideType
 	amount            rideInt
 	timestamp         rideInt
 	expiration        rideInt
@@ -2037,6 +2063,7 @@ func (o rideOrderV8) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideReissue struct {
 	assetId      rideByteVector
 	quantity     rideInt
@@ -2104,6 +2131,7 @@ func (o rideReissue) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideScriptResult struct {
 	writeSet    rideWriteSet
 	transferSet rideTransferSet
@@ -2163,6 +2191,7 @@ func (o rideScriptResult) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideScriptTransfer struct {
 	asset     rideType
 	recipient rideType
@@ -2230,6 +2259,7 @@ func (o rideScriptTransfer) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideSponsorFee struct {
 	assetId              rideByteVector
 	minSponsoredAssetFee rideInt
@@ -2289,6 +2319,7 @@ func (o rideSponsorFee) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideStringEntry struct {
 	key   rideString
 	value rideString
@@ -2348,6 +2379,7 @@ func (o rideStringEntry) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideTransfer struct {
 	recipient rideType
 	amount    rideInt
@@ -2407,6 +2439,7 @@ func (o rideTransfer) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideTransferSet struct {
 	transfers rideList
 }
@@ -2458,6 +2491,7 @@ func (o rideTransferSet) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideWriteSet struct {
 	data rideList
 }
@@ -2509,6 +2543,7 @@ func (o rideWriteSet) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideBurnTransaction struct {
 	bodyBytes       rideByteVector
 	proofs          rideList
@@ -2641,6 +2676,7 @@ func (o rideBurnTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideCreateAliasTransaction struct {
 	proofs          rideList
 	alias           rideString
@@ -2765,6 +2801,7 @@ func (o rideCreateAliasTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideDataTransaction struct {
 	proofs          rideList
 	bodyBytes       rideByteVector
@@ -2889,6 +2926,7 @@ func (o rideDataTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideExchangeTransaction struct {
 	proofs          rideList
 	buyOrder        rideType
@@ -3053,6 +3091,7 @@ func (o rideExchangeTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideGenesisTransaction struct {
 	recipient rideType
 	id        rideByteVector
@@ -3144,6 +3183,7 @@ func (o rideGenesisTransaction) String() string {
 	return strings.Join(o.lines(), "\n")
 }
 
+//betteralign:check
 type rideInvokeExpressionTransaction struct {
 	proofs          rideList
 	feeAssetId      rideType
@@ -3276,6 +3316,7 @@ func (o rideInvokeExpressionTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideInvokeScriptTransactionV3 struct {
 	proofs          rideList
 	feeAssetId      rideType
@@ -3432,6 +3473,7 @@ func (o rideInvokeScriptTransactionV3) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideInvokeScriptTransactionV4 struct {
 	proofs          rideList
 	feeAssetId      rideType
@@ -3588,6 +3630,7 @@ func (o rideInvokeScriptTransactionV4) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideIssueTransaction struct {
 	proofs          rideList
 	script          rideType
@@ -3752,6 +3795,7 @@ func (o rideIssueTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideLeaseCancelTransaction struct {
 	proofs          rideList
 	bodyBytes       rideByteVector
@@ -3876,6 +3920,7 @@ func (o rideLeaseCancelTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideLeaseTransaction struct {
 	proofs          rideList
 	recipient       rideType
@@ -4008,6 +4053,7 @@ func (o rideLeaseTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideMassTransferTransaction struct {
 	proofs          rideList
 	assetId         rideType
@@ -4164,6 +4210,7 @@ func (o rideMassTransferTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type ridePaymentTransaction struct {
 	proofs          rideList
 	recipient       rideType
@@ -4296,6 +4343,7 @@ func (o ridePaymentTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideReissueTransaction struct {
 	bodyBytes       rideByteVector
 	proofs          rideList
@@ -4436,6 +4484,7 @@ func (o rideReissueTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideSetAssetScriptTransaction struct {
 	proofs          rideList
 	script          rideType
@@ -4568,6 +4617,7 @@ func (o rideSetAssetScriptTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideSetScriptTransaction struct {
 	proofs          rideList
 	script          rideType
@@ -4692,6 +4742,7 @@ func (o rideSetScriptTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideSponsorFeeTransaction struct {
 	proofs               rideList
 	minSponsoredAssetFee rideType
@@ -4824,6 +4875,7 @@ func (o rideSponsorFeeTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideTransferTransaction struct {
 	assetId         rideType
 	bodyBytes       rideByteVector
@@ -4980,6 +5032,7 @@ func (o rideTransferTransaction) getProofs() rideList {
 	return o.proofs
 }
 
+//betteralign:check
 type rideUpdateAssetInfoTransaction struct {
 	proofs          rideList
 	assetId         rideType
@@ -5117,6 +5170,147 @@ func (o rideUpdateAssetInfoTransaction) setProofs(proofs rideList) rideProven {
 }
 
 func (o rideUpdateAssetInfoTransaction) getProofs() rideList {
+	return o.proofs
+}
+
+//betteralign:check
+type rideCommitToGenerationTransaction struct {
+	endorserPublicKey     rideByteVector
+	commitmentSignature   rideByteVector
+	id                    rideByteVector
+	senderPublicKey       rideByteVector
+	bodyBytes             rideByteVector
+	proofs                rideList
+	generationPeriodStart rideInt
+	fee                   rideInt
+	timestamp             rideInt
+	version               rideInt
+	sender                rideAddress
+}
+
+func newRideCommitToGenerationTransaction(endorserPublicKey rideByteVector, generationPeriodStart rideInt, commitmentSignature rideByteVector, id rideByteVector, fee rideInt, timestamp rideInt, version rideInt, sender rideAddress, senderPublicKey rideByteVector, bodyBytes rideByteVector, proofs rideList) rideCommitToGenerationTransaction {
+	return rideCommitToGenerationTransaction{
+		endorserPublicKey:     endorserPublicKey,
+		generationPeriodStart: generationPeriodStart,
+		commitmentSignature:   commitmentSignature,
+		id:                    id,
+		fee:                   fee,
+		timestamp:             timestamp,
+		version:               version,
+		sender:                sender,
+		senderPublicKey:       senderPublicKey,
+		bodyBytes:             bodyBytes,
+		proofs:                proofs,
+	}
+}
+
+func (o rideCommitToGenerationTransaction) instanceOf() string {
+	return "CommitToGenerationTransaction"
+}
+
+func (o rideCommitToGenerationTransaction) eq(other rideType) bool {
+	if oo, ok := other.(rideCommitToGenerationTransaction); ok {
+		if !o.endorserPublicKey.eq(oo.endorserPublicKey) {
+			return false
+		}
+		if !o.generationPeriodStart.eq(oo.generationPeriodStart) {
+			return false
+		}
+		if !o.commitmentSignature.eq(oo.commitmentSignature) {
+			return false
+		}
+		if !o.id.eq(oo.id) {
+			return false
+		}
+		if !o.fee.eq(oo.fee) {
+			return false
+		}
+		if !o.timestamp.eq(oo.timestamp) {
+			return false
+		}
+		if !o.version.eq(oo.version) {
+			return false
+		}
+		if !o.sender.eq(oo.sender) {
+			return false
+		}
+		if !o.senderPublicKey.eq(oo.senderPublicKey) {
+			return false
+		}
+		if !o.bodyBytes.eq(oo.bodyBytes) {
+			return false
+		}
+		if !o.proofs.eq(oo.proofs) {
+			return false
+		}
+		return true
+	}
+	return false
+}
+
+func (o rideCommitToGenerationTransaction) get(prop string) (rideType, error) {
+	switch prop {
+	case "$instance":
+		return rideString("CommitToGenerationTransaction"), nil
+	case "endorserPublicKey":
+		return o.endorserPublicKey, nil
+	case "generationPeriodStart":
+		return o.generationPeriodStart, nil
+	case "commitmentSignature":
+		return o.commitmentSignature, nil
+	case "id":
+		return o.id, nil
+	case "fee":
+		return o.fee, nil
+	case "timestamp":
+		return o.timestamp, nil
+	case "version":
+		return o.version, nil
+	case "sender":
+		return o.sender, nil
+	case "senderPublicKey":
+		return o.senderPublicKey, nil
+	case "bodyBytes":
+		return o.bodyBytes, nil
+	case "proofs":
+		return o.proofs, nil
+	default:
+		return nil, errors.Errorf("type '%s' has no property '%s'", o.instanceOf(), prop)
+	}
+}
+
+func (o rideCommitToGenerationTransaction) copy() rideType {
+	return newRideCommitToGenerationTransaction(o.endorserPublicKey, o.generationPeriodStart, o.commitmentSignature, o.id, o.fee, o.timestamp, o.version, o.sender, o.senderPublicKey, o.bodyBytes, o.proofs)
+}
+
+func (o rideCommitToGenerationTransaction) lines() []string {
+	r := make([]string, 0, 13)
+	r = append(r, "CommitToGenerationTransaction(")
+	r = append(r, fieldLines("endorserPublicKey", o.endorserPublicKey.lines())...)
+	r = append(r, fieldLines("generationPeriodStart", o.generationPeriodStart.lines())...)
+	r = append(r, fieldLines("commitmentSignature", o.commitmentSignature.lines())...)
+	r = append(r, fieldLines("id", o.id.lines())...)
+	r = append(r, fieldLines("fee", o.fee.lines())...)
+	r = append(r, fieldLines("timestamp", o.timestamp.lines())...)
+	r = append(r, fieldLines("version", o.version.lines())...)
+	r = append(r, fieldLines("sender", o.sender.lines())...)
+	r = append(r, fieldLines("senderPublicKey", o.senderPublicKey.lines())...)
+	r = append(r, fieldLines("bodyBytes", o.bodyBytes.lines())...)
+	r = append(r, fieldLines("proofs", o.proofs.lines())...)
+	r = append(r, ")")
+	return r
+}
+
+func (o rideCommitToGenerationTransaction) String() string {
+	return strings.Join(o.lines(), "\n")
+}
+
+func (o rideCommitToGenerationTransaction) setProofs(proofs rideList) rideProven {
+	o.proofs = proofs
+	return o
+}
+
+func (o rideCommitToGenerationTransaction) getProofs() rideList {
 	return o.proofs
 }
 

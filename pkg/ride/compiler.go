@@ -1,13 +1,14 @@
 package ride
 
 //go:generate go run ./generate
-
+//go:generate betteralign -apply -opt_in -generated_files ./...
 import (
 	"bytes"
 	"encoding/binary"
 	"math"
 
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 

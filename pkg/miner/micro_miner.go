@@ -37,12 +37,15 @@ func NewMicroMiner(services services.Services) *MicroMiner {
 		logger: slog.Default().With(logging.NamespaceKey, "MICRO MINER"),
 	}
 }
+
 func (a *MicroMiner) Micro(
 	minedBlock *proto.Block,
 	rest proto.MiningLimits,
 	keyPair proto.KeyPair,
 	partialFinalization *proto.FinalizationVoting,
 ) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
+	const minTransactionSize = 40
+
 	if minedBlock == nil {
 		return nil, nil, rest, errors.New("no block provided")
 	}
@@ -73,7 +76,9 @@ func (a *MicroMiner) Micro(
 	)
 
 	if txCount == 0 {
-		if len(inapplicable) > 0 || rest.MaxTxsSizeInBytes-binSize < 40 {
+		// TODO: we should distinguish between block is full because of size or because of complexity
+		//  limit reached. For now we return the same error.
+		if len(inapplicable) > 0 || rest.MaxTxsSizeInBytes-binSize < minTransactionSize {
 			return nil, nil, rest, ErrBlockIsFull
 		}
 		return nil, nil, rest, ErrNoTransactions

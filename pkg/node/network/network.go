@@ -2,6 +2,7 @@ package network
 
 import (
 	"context"
+	"errors"
 	"log/slog"
 	"sync"
 	"time"
@@ -104,7 +105,7 @@ func (n *Network) Run(ctx context.Context) {
 			case *peer.Connected:
 				n.handleConnected(t)
 			case *peer.InternalErr:
-				n.handleInternalErr(m)
+				n.handleInternalErr(m, t)
 			default:
 				n.logger.Warn("Unknown peer info message", logging.Type(m))
 			}
@@ -131,7 +132,12 @@ func (n *Network) handleConnected(msg *peer.Connected) {
 	n.switchToNewPeerIfRequired()
 }
 
-func (n *Network) handleInternalErr(msg peer.InfoMessage) {
+func (n *Network) handleInternalErr(msg peer.InfoMessage, intErr *peer.InternalErr) {
+	if errors.Is(intErr.Err, peers.ErrPeerAlreadyConnected) {
+		n.logger.Debug("Peer is already connected", slog.Any("direction", msg.Peer.Direction()),
+			slog.Any("peer", msg.Peer.ID()))
+		return
+	}
 	n.peers.Disconnect(msg.Peer)
 	n.logger.Debug("Disconnected from peer", "direction", msg.Peer.Direction(), "peer", msg.Peer.ID(),
 		"count", n.peers.ConnectedCount())

@@ -166,29 +166,6 @@ func newEvaluationScope(v ast.LibraryVersion, env environment, enableInvocation 
 	}, nil
 }
 
-func selectConstantNames(v ast.LibraryVersion) ([]string, error) {
-	switch v {
-	case ast.LibV1:
-		return ConstantsV1, nil
-	case ast.LibV2:
-		return ConstantsV2, nil
-	case ast.LibV3:
-		return ConstantsV3, nil
-	case ast.LibV4:
-		return ConstantsV4, nil
-	case ast.LibV5:
-		return ConstantsV5, nil
-	case ast.LibV6:
-		return ConstantsV6, nil
-	case ast.LibV7:
-		return ConstantsV7, nil
-	case ast.LibV8:
-		return ConstantsV8, nil
-	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version %d", v)
-	}
-}
-
 type treeEvaluator struct {
 	dapp  bool
 	f     ast.Node
