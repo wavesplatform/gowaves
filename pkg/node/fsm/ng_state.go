@@ -247,7 +247,7 @@ func (a *NGState) logNewFinalizationVoting(currentBlock *proto.Block, height pro
 		return a.Errorf(errors.Wrapf(comgenErr, "failed to get committed generators for %s", currentBlock.BlockID()))
 	}
 	if len(commitedGenerators) > 0 {
-		slog.Debug("New finalization voting started (received new key block)",
+		slog.Debug("New finalization voting started",
 			"blockID", currentBlock.Parent.String(), "CommitedGeneratorsNumber", len(commitedGenerators))
 	}
 	return nil
