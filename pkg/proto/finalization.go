@@ -146,8 +146,12 @@ func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
 }
 
 func CalculateLastFinalizedHeight(currentHeight Height) Height {
-	slog.Debug("The last finalized height was calculated")
-	const genesisHeight = 1
-	const maxRollbackDeltaHeight = 100
-	return max(genesisHeight, currentHeight-maxRollbackDeltaHeight)
+	var genesisHeight uint64 = 1
+	var maxRollbackDeltaHeight uint64 = 100
+	if currentHeight <= maxRollbackDeltaHeight {
+		slog.Debug("The last finalized height was calculated", "finalizedHeight", genesisHeight)
+		return genesisHeight
+	}
+	slog.Debug("The last finalized height was calculated", "finalizedHeight", currentHeight - maxRollbackDeltaHeight)
+	return currentHeight - maxRollbackDeltaHeight
 }
