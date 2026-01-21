@@ -169,10 +169,6 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	if errFin != nil {
 		return a, nil, a.Errorf(errFin)
 	}
-	if finalityActivated {
-		slog.Debug("New finalization voting started (received new key block)",
-			"for blockID", block.Parent.String())
-	}
 
 	top := a.baseInfo.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
@@ -222,17 +218,12 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		if walErr != nil {
 			return a, nil, a.Errorf(errors.Wrapf(walErr, "failed to generate key pairs for %s", block.BlockID()))
 		}
-		activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-		if actErr != nil {
-			return a, nil, a.Errorf(errors.Wrapf(err, "failed to get activation height for finality %s",
+		logErr := a.logNewFinalizationVoting(block, height)
+		if logErr != nil {
+			return a, nil, a.Errorf(errors.Wrapf(logErr, "failed to log new finalization voting for block %s",
 				block.BlockID()))
 		}
-		periodStart, genErr := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
-		if genErr != nil {
-			return a, nil, a.Errorf(errors.Wrapf(genErr, "failed to get current generation period, block %s",
-				block.BlockID()))
-		}
-		endorseErr := a.EndorseParentWithEachKey(pks, sks, periodStart, block, height)
+		endorseErr := a.EndorseParentWithEachKey(pks, sks, block, height)
 		if endorseErr != nil {
 			return a, nil, a.Errorf(errors.Wrapf(endorseErr, "failed to endorse parent block with available keys"))
 		}
@@ -240,8 +231,40 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	return newNGState(a.baseInfo), nil, nil
 }
 
+func (a *NGState) logNewFinalizationVoting(currentBlock *proto.Block, height proto.Height) error {
+	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	if actErr != nil {
+		return a.Errorf(errors.Wrapf(actErr, "failed to get activation height for finality %s",
+			currentBlock.BlockID()))
+	}
+	periodStart, genErr := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	if genErr != nil {
+		return a.Errorf(errors.Wrapf(genErr, "failed to get current generation period, block %s",
+			currentBlock.BlockID()))
+	}
+	commitedGenerators, comgenErr := a.baseInfo.storage.CommittedGenerators(periodStart)
+	if comgenErr != nil {
+		return a.Errorf(errors.Wrapf(comgenErr, "failed to get committed generators for %s", currentBlock.BlockID()))
+	}
+	if len(commitedGenerators) > 0 {
+		slog.Debug("New finalization voting started",
+			"blockID", currentBlock.Parent.String(), "CommitedGeneratorsNumber", len(commitedGenerators))
+	}
+	return nil
+}
+
 func (a *NGState) EndorseParentWithEachKey(pks []bls.PublicKey, sks []bls.SecretKey,
-	periodStart uint32, block *proto.Block, height proto.Height) error {
+	block *proto.Block, height proto.Height) error {
+	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	if actErr != nil {
+		return a.Errorf(errors.Wrapf(actErr, "failed to get activation height for finality %s",
+			block.BlockID()))
+	}
+	periodStart, genErr := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	if genErr != nil {
+		return a.Errorf(errors.Wrapf(genErr, "failed to get current generation period, block %s",
+			block.BlockID()))
+	}
 	for i, pk := range pks {
 		committed, commErr := a.baseInfo.storage.NewestCommitmentExistsByEndorserPK(periodStart, pk)
 		if commErr != nil {
@@ -431,8 +454,11 @@ func (a *NGState) MinedBlock(
 		return a, nil, a.Errorf(errFin)
 	}
 	if finalityActivated {
-		slog.Debug("New finalization voting started (mined new key block)",
-			"for blockID", block.Parent.String())
+		logErr := a.logNewFinalizationVoting(block, height)
+		if logErr != nil {
+			return a, nil, a.Errorf(errors.Wrapf(logErr, "failed to log new finalization voting for block %s",
+				block.BlockID()))
+		}
 	}
 
 	metrics.BlockMined(block)
