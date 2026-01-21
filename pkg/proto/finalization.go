@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/binary"
+	"log/slog"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
@@ -145,6 +146,7 @@ func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
 }
 
 func CalculateLastFinalizedHeight(currentHeight Height) Height {
+	slog.Debug("The last finalized height was calculated")
 	const genesisHeight = 1
 	const maxRollbackDeltaHeight = 100
 	return max(genesisHeight, currentHeight-maxRollbackDeltaHeight)
