@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
 
@@ -22,6 +23,15 @@ import (
 )
 
 var errNoFinalization = errors.New("no finalization available")
+
+// endorsementID hashes the endorsement payload to generate a stable identifier.
+func endorsementID(e *proto.EndorseBlock) (crypto.Digest, error) {
+	data, err := e.Marshal()
+	if err != nil {
+		return crypto.Digest{}, err
+	}
+	return crypto.FastHash(data)
+}
 
 type NGState struct {
 	baseInfo    BaseInfo
@@ -305,6 +315,16 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
 		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 		"Signature", blockEndorsement.Signature.String())
+	id, idErr := endorsementID(blockEndorsement)
+	if idErr != nil {
+		return a, nil, a.Errorf(errors.Wrap(idErr, "failed to compute endorsement id"))
+	}
+	if a.baseInfo.seenEndorsement(id) {
+		slog.Debug("Duplicate block endorsement received, skipping",
+			"EndorserIndex", blockEndorsement.EndorserIndex,
+			"EndorsedBlockID", blockEndorsement.EndorsedBlockID)
+		return a, nil, nil
+	}
 
 	//hash, err := crypto.FastHash(headerBytes)
 	//if err != nil {
@@ -361,6 +381,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
+	a.baseInfo.rememberEndorsement(id)
 	a.baseInfo.actions.SendEndorseBlock(blockEndorsement) // TODO should we send it out if conflicting?
 	slog.Debug("Forwarded a block endorsement:",
 		"EndorserIndex", blockEndorsement.EndorserIndex,
@@ -561,6 +582,10 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 		EndorsedBlockID:      parentBlockID,
 		Signature:            signature,
 	}
+	id, idErr := endorsementID(endorseParentBlock)
+	if idErr != nil {
+		return a.Errorf(errors.Wrap(idErr, "failed to compute endorsement id"))
+	}
 	endorserWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
 	if findErr != nil {
 		return findErr
@@ -577,6 +602,7 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 		return errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
+	a.baseInfo.rememberEndorsement(id)
 	a.baseInfo.actions.SendEndorseBlock(endorseParentBlock)
 	slog.Debug("Sent a block endorsement:",
 		"EndorserIndex", endorseParentBlock.EndorserIndex,
