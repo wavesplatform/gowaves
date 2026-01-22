@@ -172,7 +172,11 @@ func (a TransactionTypeInfo) String() string {
 	switch a.Type {
 	case TransferTransaction:
 		sb.WriteString("TransferTransaction")
-	default:
+	case GenesisTransaction, PaymentTransaction, IssueTransaction, ReissueTransaction, BurnTransaction,
+		ExchangeTransaction, LeaseTransaction, LeaseCancelTransaction, CreateAliasTransaction,
+		MassTransferTransaction, DataTransaction, SetScriptTransaction, SponsorshipTransaction,
+		SetAssetScriptTransaction, InvokeScriptTransaction, UpdateAssetInfoTransaction, EthereumMetamaskTransaction,
+		CommitToGenerationTransaction, InvokeExpressionTransaction:
 		sb.WriteString(strconv.Itoa(int(a.Type)))
 	}
 	sb.WriteString(" ")
@@ -407,6 +411,8 @@ func GuessTransactionType(t *TransactionTypeVersion) (Transaction, error) {
 		out = &EthereumTransaction{}
 	case CommitToGenerationTransaction: // 19
 		out = &CommitToGenerationWithProofs{}
+	case InvokeExpressionTransaction: // 20, Not used yet.
+		out = nil
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)

@@ -911,7 +911,7 @@ func blockInfoByHeight(env environment, args ...rideType) (rideType, error) {
 	if err != nil {
 		return nil, errors.Wrap(err, "blockInfoByHeight")
 	}
-	return blockInfoToObject(blockInfo, v), nil
+	return blockInfoToObject(blockInfo, v)
 }
 
 func transferByID(env environment, args ...rideType) (rideType, error) {
@@ -951,7 +951,7 @@ func transferByID(env environment, args ...rideType) (rideType, error) {
 		proto.LeaseTransaction, proto.LeaseCancelTransaction, proto.CreateAliasTransaction,
 		proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
 		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.InvokeScriptTransaction,
-		proto.UpdateAssetInfoTransaction, proto.InvokeExpressionTransaction:
+		proto.UpdateAssetInfoTransaction, proto.InvokeExpressionTransaction, proto.CommitToGenerationTransaction:
 		// it's not a transfer transaction
 		return rideUnit{}, nil
 	default:

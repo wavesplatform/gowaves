@@ -1,3 +1,4 @@
+//nolint:exhaustive // Complicated usage of generated pegRules.
 package compiler
 
 import (

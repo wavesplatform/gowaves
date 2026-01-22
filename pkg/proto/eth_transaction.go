@@ -37,6 +37,8 @@ func (e EthereumTxType) String() string {
 		return "EthereumAccessListTxType"
 	case EthereumDynamicFeeTxType:
 		return "EthereumDynamicFeeTxType"
+	case UndefinedTxType:
+		return "UndefinedTxType"
 	default:
 		return ""
 	}
@@ -684,6 +686,10 @@ func (tx *EthereumTransaction) decodeTypedCanonical(canonicalData []byte) (Ether
 			)
 		}
 		return &inner, nil
+	case EthereumLegacyTxType:
+		return nil, ErrTxTypeNotSupported
+	case UndefinedTxType:
+		return nil, ErrTxTypeNotSupported
 	default:
 		return nil, ErrTxTypeNotSupported
 	}

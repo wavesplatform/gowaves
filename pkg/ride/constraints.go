@@ -21,6 +21,8 @@ const (
 func MaxChainInvokeComplexityByVersion(version ast.LibraryVersion) (uint32, error) {
 	// libV1 and libV2 don't have callables
 	switch version {
+	case ast.LibV1, ast.LibV2:
+		return 0, errors.New("invokes are not available before version 3")
 	case ast.LibV3, ast.LibV4:
 		return maxChainInvokeComplexityV3V4, nil
 	case ast.LibV5:

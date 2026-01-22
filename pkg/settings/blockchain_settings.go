@@ -265,21 +265,20 @@ func mustLoadEmbeddedSettings(blockchain BlockchainType) *BlockchainSettings {
 			panic(err)
 		}
 		return s
-
 	case TestNet:
 		s, err := loadEmbeddedSettings(testnetFile)
 		if err != nil {
 			panic(err)
 		}
 		return s
-
 	case StageNet:
 		s, err := loadEmbeddedSettings(stagenetFile)
 		if err != nil {
 			panic(err)
 		}
 		return s
-
+	case Custom:
+		panic("custom settings should be loaded from parameters")
 	default:
 		panic("no embedded settings")
 	}

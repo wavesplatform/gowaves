@@ -221,14 +221,20 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		if err != nil {
 			return err
 		}
-		// TODO handle ethereum invoke expression tx
+		// TODO handle Ethereum invoke expression tx
 	case proto.EthereumMetamaskTransaction:
 		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, di)
 		if err != nil {
 			return err
 		}
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
+		return fmt.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
 	default:
-		return errors.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
+		return errors.Errorf("unexpected transaction type %d (%T)", tx.GetTypeInfo().Type, tx)
 	}
 
 	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor)
@@ -1210,8 +1216,14 @@ func (a *txAppender) handleFallible(
 	case proto.ExchangeTransaction:
 		applicationRes, err := a.handleExchange(tx, info)
 		return nil, applicationRes, err
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
+		return nil, nil, errors.Errorf("transaction of type %T is not fallible", tx)
 	default:
-		return nil, nil, errors.Errorf("transaction (%T) is not fallible", tx)
+		return nil, nil, errors.Errorf("unexpected transaction type %T", tx)
 	}
 }
 

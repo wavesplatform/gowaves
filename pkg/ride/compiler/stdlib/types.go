@@ -121,6 +121,8 @@ func handleTypes(node *node32, s string, dropRuntimeTypes bool) Type {
 		default:
 			t = SimpleType{stringType}
 		}
+	case ruleUnknown, ruleMainRule, ruleTypes, ruleEOF, rule_:
+		// Do nothing.
 	}
 	curNode = curNode.next
 	if curNode == nil {

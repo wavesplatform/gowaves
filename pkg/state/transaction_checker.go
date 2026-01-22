@@ -46,6 +46,8 @@ func (i *checkerInfo) estimatorVersion() int {
 		return 3
 	case proto.RewardBlockVersion:
 		return 2
+	case proto.GenesisBlockVersion, proto.PlainBlockVersion, proto.NgBlockVersion:
+		return 1
 	default:
 		return 1
 	}
