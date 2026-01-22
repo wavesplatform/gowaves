@@ -266,7 +266,9 @@ func (a *NGState) EndorseParentWithEachKey(pks []bls.PublicKey, sks []bls.Secret
 			block.BlockID()))
 	}
 	for i, pk := range pks {
+		slog.Debug("trying to find my BLS public key in the commitment records", "myPublicKeyBLS", pk.String())
 		committed, commErr := a.baseInfo.storage.NewestCommitmentExistsByEndorserPK(periodStart, pk)
+		var endorsers []bls.PublicKey
 		if commErr != nil {
 			endorsers, _ := a.baseInfo.storage.NewestCommitedEndorsers(periodStart)
 			slog.Debug("Committed endorsers for period", "periodStart", periodStart)
@@ -281,6 +283,16 @@ func (a *NGState) EndorseParentWithEachKey(pks []bls.PublicKey, sks []bls.Secret
 			if endorseErr != nil {
 				return a.Errorf(endorseErr)
 			}
+		} else {
+			slog.Debug("did not find my BLS public key in the commitment records")
+			if len(endorsers) == 0 {
+				slog.Debug("no BLS public keys in the commitment records")
+			} else {
+				for _, endorser := range endorsers {
+					slog.Debug("commitment records:", "endorser BLS Public Key", endorser.String())
+				}
+			}
+
 		}
 	}
 	return nil
@@ -293,6 +305,13 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
 		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 		"Signature", blockEndorsement.Signature.String())
+
+	//hash, err := crypto.FastHash(headerBytes)
+	//if err != nil {
+	//	return err
+	//}
+	//b.ID = NewBlockIDFromDigest(hash)
+
 	top := a.baseInfo.storage.TopBlock()
 	if top.Parent != blockEndorsement.EndorsedBlockID {
 		err := errors.Errorf("endorsed Block ID '%s' must match the current parent's block ID '%s'",
