@@ -9,8 +9,8 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
+	"github.com/wavesplatform/gowaves/pkg/miner/endorsementpool"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/metrics"
@@ -81,7 +81,7 @@ type BaseInfo struct {
 	utx types.UtxPool
 
 	endorsements        types.EndorsementPool
-	endorsementIDsCache endorsementIDsCache
+	endorsementIDsCache *endorsementpool.EndorsementIDsCache
 
 	embeddedWallet types.EmbeddedWallet
 
@@ -100,44 +100,12 @@ type BaseInfo struct {
 	generationPeriod uint64
 }
 
-type endorsementIDsCache struct {
-	ids   map[crypto.Digest]struct{}
-	order []crypto.Digest
-	limit int
-}
-
 func (a *BaseInfo) BroadcastTransaction(t proto.Transaction, receivedFrom peer.Peer) {
 	a.peers.EachConnected(func(p peer.Peer, score *proto.Score) {
 		if p != receivedFrom {
 			_ = extension.NewPeerExtension(p, a.scheme, a.netLogger).SendTransaction(t)
 		}
 	})
-}
-
-func (a *BaseInfo) seenEndorsement(id crypto.Digest) bool {
-	_, ok := a.endorsementIDsCache.ids[id]
-	return ok
-}
-
-func (a *BaseInfo) rememberEndorsement(id crypto.Digest) {
-	cache := &a.endorsementIDsCache
-	if cache.ids == nil {
-		cache.ids = make(map[crypto.Digest]struct{})
-	}
-	if cache.limit <= 0 {
-		return
-	}
-	if _, exists := cache.ids[id]; exists {
-		return
-	}
-	if len(cache.ids) >= cache.limit && len(cache.order) > 0 {
-		// Evict oldest.
-		oldest := cache.order[0]
-		cache.order = cache.order[1:]
-		delete(cache.ids, oldest)
-	}
-	cache.ids[id] = struct{}{}
-	cache.order = append(cache.order, id)
 }
 
 // CleanUtx starts a goroutine to clean the UTX pool.
@@ -281,21 +249,15 @@ func NewFSM(
 
 		microMiner: miner.NewMicroMiner(services),
 
-		MicroBlockCache:    services.MicroBlockCache,
-		MicroBlockInvCache: microblock_cache.NewMicroblockInvCache(),
-		microblockInterval: microblockInterval,
-
-		actions: &ActionsImpl{services: services, logger: logger},
-
-		utx:          services.UtxPool,
-		endorsements: services.EndorsementPool,
-		endorsementIDsCache: endorsementIDsCache{
-			ids:   make(map[crypto.Digest]struct{}),
-			limit: 1000,
-		},
-		embeddedWallet: services.Wallet,
-
-		minPeersMining: services.MinPeersMining,
+		MicroBlockCache:     services.MicroBlockCache,
+		MicroBlockInvCache:  microblock_cache.NewMicroblockInvCache(),
+		microblockInterval:  microblockInterval,
+		actions:             &ActionsImpl{services: services, logger: logger},
+		utx:                 services.UtxPool,
+		endorsements:        services.EndorsementPool,
+		endorsementIDsCache: endorsementpool.NewEndorsementIDsCache(endorsementpool.EndorsementIDCacheSizeDefault),
+		embeddedWallet:      services.Wallet,
+		minPeersMining:      services.MinPeersMining,
 
 		skipMessageList:  services.SkipMessageList,
 		syncPeer:         syncPeer,
