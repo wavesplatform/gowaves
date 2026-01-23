@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
@@ -22,6 +23,15 @@ import (
 )
 
 var errNoFinalization = errors.New("no finalization available")
+
+// endorsementID hashes the endorsement payload to generate a stable identifier.
+func endorsementID(e *proto.EndorseBlock) (crypto.Digest, error) {
+	data, err := e.Marshal()
+	if err != nil {
+		return crypto.Digest{}, err
+	}
+	return crypto.FastHash(data)
+}
 
 type NGState struct {
 	baseInfo    BaseInfo
@@ -252,38 +262,76 @@ func (a *NGState) logNewFinalizationVoting(currentBlock *proto.Block, height pro
 	}
 	return nil
 }
+func (a *NGState) EndorseParentWithEachKey(
+	pks []bls.PublicKey,
+	sks []bls.SecretKey,
+	block *proto.Block,
+	height proto.Height,
+) error {
+	if len(pks) != len(sks) {
+		return a.Errorf(errors.Errorf("pks/sks length mismatch: %d != %d", len(pks), len(sks)))
+	}
 
-func (a *NGState) EndorseParentWithEachKey(pks []bls.PublicKey, sks []bls.SecretKey,
-	block *proto.Block, height proto.Height) error {
-	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-	if actErr != nil {
-		return a.Errorf(errors.Wrapf(actErr, "failed to get activation height for finality %s",
-			block.BlockID()))
+	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return a.Errorf(errors.Wrapf(err, "failed to get activation height for finality %s", block.BlockID()))
 	}
-	periodStart, genErr := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
-	if genErr != nil {
-		return a.Errorf(errors.Wrapf(genErr, "failed to get current generation period, block %s",
-			block.BlockID()))
+
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	if err != nil {
+		return a.Errorf(errors.Wrapf(err, "failed to get current generation period, block %s", block.BlockID()))
 	}
-	for i, pk := range pks {
-		committed, commErr := a.baseInfo.storage.NewestCommitmentExistsByEndorserPK(periodStart, pk)
-		if commErr != nil {
-			endorsers, _ := a.baseInfo.storage.NewestCommitedEndorsers(periodStart)
-			slog.Debug("Committed endorsers for period", "periodStart", periodStart)
-			for _, endorser := range endorsers {
-				slog.Debug("", "endorser", endorser.String())
-			}
-			return a.Errorf(errors.Wrapf(commErr, "failed to find commitments at block %s "+
-				"for endorsers PK %s", block.BlockID(), pk.String()))
+
+	endorsers, err := a.baseInfo.storage.NewestCommitedEndorsers(periodStart)
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to find committed generators"))
+	}
+
+	for i := range pks {
+		pk := pks[i]
+		sk := sks[i]
+
+		slog.Debug("checking commitment record for my BLS public key", "myPublicKeyBLS",
+			pk.String(), "periodStart", periodStart)
+
+		committed, storErr := a.baseInfo.storage.NewestCommitmentExistsByEndorserPK(periodStart, pk)
+		if storErr != nil {
+			a.logCommittedEndorsers(periodStart, endorsers)
+			return a.Errorf(errors.Wrapf(
+				storErr,
+				"failed to find commitments at block %s for endorsers PK %s",
+				block.BlockID(),
+				pk.String(),
+			))
 		}
-		if committed {
-			endorseErr := a.Endorse(block.Parent, height, pk, sks[i])
-			if endorseErr != nil {
-				return a.Errorf(endorseErr)
-			}
+
+		if !committed {
+			a.logCommitmentMiss(periodStart, endorsers)
+			continue
+		}
+		if endorseErr := a.Endorse(block.Parent, height, pk, sk); endorseErr != nil {
+			return a.Errorf(errors.Wrapf(err, "failed to endorse parent block"))
 		}
 	}
 	return nil
+}
+
+func (a *NGState) logCommittedEndorsers(periodStart uint32, endorsers []bls.PublicKey) {
+	slog.Debug("Committed endorsers for period", "periodStart", periodStart)
+	for _, e := range endorsers {
+		slog.Debug("committed endorser", "endorser", e.String())
+	}
+}
+
+func (a *NGState) logCommitmentMiss(periodStart uint32, endorsers []bls.PublicKey) {
+	slog.Debug("did not find my BLS public key in the commitment records", "periodStart", periodStart)
+	if len(endorsers) == 0 {
+		slog.Debug("no BLS public keys in the commitment records", "periodStart", periodStart)
+		return
+	}
+	for _, e := range endorsers {
+		slog.Debug("commitment record", "endorserBlsPublicKey", e.String())
+	}
 }
 
 func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State, Async, error) {
@@ -293,6 +341,17 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
 		"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
 		"Signature", blockEndorsement.Signature.String())
+	id, idErr := endorsementID(blockEndorsement)
+	if idErr != nil {
+		return a, nil, a.Errorf(errors.Wrap(idErr, "failed to compute endorsement id"))
+	}
+	if a.baseInfo.endorsementIDsCache.SeenEndorsement(id) {
+		slog.Debug("Duplicate block endorsement received, skipping",
+			"EndorserIndex", blockEndorsement.EndorserIndex,
+			"EndorsedBlockID", blockEndorsement.EndorsedBlockID)
+		return a, nil, nil
+	}
+
 	top := a.baseInfo.storage.TopBlock()
 	if top.Parent != blockEndorsement.EndorsedBlockID {
 		err := errors.Errorf("endorsed Block ID '%s' must match the current parent's block ID '%s'",
@@ -342,6 +401,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
+	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
 	a.baseInfo.actions.SendEndorseBlock(blockEndorsement) // TODO should we send it out if conflicting?
 	slog.Debug("Forwarded a block endorsement:",
 		"EndorserIndex", blockEndorsement.EndorserIndex,
@@ -541,6 +601,10 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 		EndorsedBlockID:      parentBlockID,
 		Signature:            signature,
 	}
+	id, idErr := endorsementID(endorseParentBlock)
+	if idErr != nil {
+		return a.Errorf(errors.Wrap(idErr, "failed to compute endorsement id"))
+	}
 	endorserWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
 	if findErr != nil {
 		return findErr
@@ -557,6 +621,7 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 		return errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
+	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
 	a.baseInfo.actions.SendEndorseBlock(endorseParentBlock)
 	slog.Debug("Sent a block endorsement:",
 		"EndorserIndex", endorseParentBlock.EndorserIndex,

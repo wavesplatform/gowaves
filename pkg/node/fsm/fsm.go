@@ -9,6 +9,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
+	"github.com/wavesplatform/gowaves/pkg/miner/endorsementpool"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -79,7 +80,8 @@ type BaseInfo struct {
 
 	utx types.UtxPool
 
-	endorsements types.EndorsementPool
+	endorsements        types.EndorsementPool
+	endorsementIDsCache *endorsementpool.EndorsementIDsCache
 
 	embeddedWallet types.EmbeddedWallet
 
@@ -247,17 +249,15 @@ func NewFSM(
 
 		microMiner: miner.NewMicroMiner(services),
 
-		MicroBlockCache:    services.MicroBlockCache,
-		MicroBlockInvCache: microblock_cache.NewMicroblockInvCache(),
-		microblockInterval: microblockInterval,
-
-		actions: &ActionsImpl{services: services, logger: logger},
-
-		utx:            services.UtxPool,
-		endorsements:   services.EndorsementPool,
-		embeddedWallet: services.Wallet,
-
-		minPeersMining: services.MinPeersMining,
+		MicroBlockCache:     services.MicroBlockCache,
+		MicroBlockInvCache:  microblock_cache.NewMicroblockInvCache(),
+		microblockInterval:  microblockInterval,
+		actions:             &ActionsImpl{services: services, logger: logger},
+		utx:                 services.UtxPool,
+		endorsements:        services.EndorsementPool,
+		endorsementIDsCache: endorsementpool.NewEndorsementIDsCache(endorsementpool.EndorsementIDCacheSizeDefault),
+		embeddedWallet:      services.Wallet,
+		minPeersMining:      services.MinPeersMining,
 
 		skipMessageList:  services.SkipMessageList,
 		syncPeer:         syncPeer,
