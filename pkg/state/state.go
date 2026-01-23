@@ -3435,15 +3435,19 @@ func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAdd
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
-	height, err := s.stor.finalizations.newest()
+	storedFinalizedHeight, err := s.stor.finalizations.newest()
 	if err == nil {
-		return height, nil
+		return storedFinalizedHeight, nil
 	}
 	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
 		return 0, errors.Wrapf(err, "failed to retrieve last finalized height from finalization storage")
 	}
+	currentHeight, err := s.Height()
+	if err != nil {
+		return 0, errors.Wrap(err, "failed to retrieve current height for calculation")
+	}
 	// No finalization found, calculate it.
-	return proto.CalculateLastFinalizedHeight(height), nil
+	return proto.CalculateLastFinalizedHeight(currentHeight), nil
 }
 
 func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {

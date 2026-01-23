@@ -3,9 +3,10 @@ package state
 import (
 	stderrs "errors"
 	"fmt"
+	"log/slog"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
-	"log/slog"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/mr-tron/base58/base58"
@@ -810,20 +811,6 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		checkerInfo.parentTimestamp = params.parent.Timestamp
 	}
-	// Process parent's block finalization.
-	if hasParent {
-		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, params.blockchainHeight)
-		if err != nil {
-			return err
-		}
-	}
-	// Process current block finalization.
-	err = a.finalizer.validateCurrentGenerators(params.blockchainHeight,
-		params.block.FinalizationVoting, params.block.ID)
-	if err != nil {
-		return err
-	}
-
 	snapshotApplierInfo := newBlockSnapshotsApplierInfo(checkerInfo, a.settings.AddressSchemeCharacter)
 	cleanup := a.txHandler.sa.SetApplierInfo(snapshotApplierInfo)
 	defer cleanup()
@@ -838,6 +825,20 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		return errors.Wrapf(err, "failed to create tx snapshot default hasher, block height is %d", currentBlockHeight)
 	}
 	defer hasher.Release()
+
+	// Process parent's block finalization.
+	if hasParent {
+		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, currentBlockHeight)
+		if err != nil {
+			return err
+		}
+	}
+	// Process current block finalization.
+	err = a.finalizer.validateCurrentGenerators(params.blockchainHeight,
+		params.block.FinalizationVoting, params.block.ID)
+	if err != nil {
+		return err
+	}
 
 	createInitHashParams := initialDiffAndStateHashParams{
 		blockHeader:               params.block,
@@ -1420,9 +1421,9 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 	block *proto.BlockHeader,
 	finalityActivated bool,
 ) (proto.Height, error) {
-	h, err := f.stor.finalizations.newest()
+	storedFinalizedHeight, err := f.stor.finalizations.newest()
 	if err == nil {
-		return h, nil
+		return storedFinalizedHeight, nil
 	}
 	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
 		return 0, err
