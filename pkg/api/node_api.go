@@ -978,24 +978,27 @@ type signTxEnvelope struct {
 }
 
 func (a *NodeApi) transactionSign(w http.ResponseWriter, r *http.Request) error {
-	var signTx signTxEnvelope
-	if err := json.NewDecoder(r.Body).Decode(&signTx); err != nil {
-		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to decode tx envelope"))
-	}
-
-	tx, err := proto.GuessTransactionType(&proto.TransactionTypeVersion{
-		Type:    signTx.Type,
-		Version: signTx.Version,
-	})
+	body, err := io.ReadAll(io.LimitReader(r.Body, postMessageSizeLimit))
 	if err != nil {
-		return apiErrs.NewBadRequestError(err)
+		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to read tx envelope"))
 	}
 
-	switch tx.GetType() {
+	var signTx signTxEnvelope
+	if unmarshalErr := json.Unmarshal(body, &signTx); unmarshalErr != nil {
+		return apiErrs.NewBadRequestError(errors.Wrap(unmarshalErr, "failed to decode tx envelope"))
+	}
+	if signTx.Version == 0 {
+		signTx.Version = 1
+	}
+
+	switch signTx.Type {
 	case proto.CommitToGenerationTransaction:
 		var req signCommit
-		if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr != nil {
+		if decodeErr := json.Unmarshal(body, &req); decodeErr != nil {
 			return apiErrs.NewBadRequestError(errors.Wrap(decodeErr, "failed to decode JSON"))
+		}
+		if req.Version == 0 {
+			req.Version = 1
 		}
 		signedTx, signErr := a.transactionsSignCommitToGeneration(req)
 		if signErr != nil {
@@ -1008,9 +1011,9 @@ func (a *NodeApi) transactionSign(w http.ResponseWriter, r *http.Request) error 
 		proto.SetScriptTransaction, proto.SponsorshipTransaction, proto.SetAssetScriptTransaction,
 		proto.InvokeScriptTransaction, proto.UpdateAssetInfoTransaction, proto.EthereumMetamaskTransaction,
 		proto.InvokeExpressionTransaction:
-		return apiErrs.NewNotImplementedError(errors.Errorf("transaction signing not implemented for type %d", tx.GetType()))
+		return apiErrs.NewNotImplementedError(errors.Errorf("transaction signing not implemented for type %d", signTx.Type))
 	default:
-		return apiErrs.NewBadRequestError(errors.Errorf("unknown transaction type %d", tx.GetType()))
+		return apiErrs.NewBadRequestError(errors.Errorf("unknown transaction type %d", signTx.Type))
 	}
 }
 
