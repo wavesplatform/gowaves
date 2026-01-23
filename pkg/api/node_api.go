@@ -983,15 +983,7 @@ func (a *NodeApi) transactionSign(w http.ResponseWriter, r *http.Request) error 
 		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to decode tx envelope"))
 	}
 
-	tx, err := proto.GuessTransactionType(&proto.TransactionTypeVersion{
-		Type:    signTx.Type,
-		Version: signTx.Version,
-	})
-	if err != nil {
-		return apiErrs.NewBadRequestError(err)
-	}
-
-	switch tx.GetType() {
+	switch signTx.Type {
 	case proto.CommitToGenerationTransaction:
 		var req signCommit
 		if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr != nil {
@@ -1008,9 +1000,9 @@ func (a *NodeApi) transactionSign(w http.ResponseWriter, r *http.Request) error 
 		proto.SetScriptTransaction, proto.SponsorshipTransaction, proto.SetAssetScriptTransaction,
 		proto.InvokeScriptTransaction, proto.UpdateAssetInfoTransaction, proto.EthereumMetamaskTransaction,
 		proto.InvokeExpressionTransaction:
-		return apiErrs.NewNotImplementedError(errors.Errorf("transaction signing not implemented for type %d", tx.GetType()))
+		return apiErrs.NewNotImplementedError(errors.Errorf("transaction signing not implemented for type %d", signTx.Type))
 	default:
-		return apiErrs.NewBadRequestError(errors.Errorf("unknown transaction type %d", tx.GetType()))
+		return apiErrs.NewBadRequestError(errors.Errorf("unknown transaction type %d", signTx.Type))
 	}
 }
 
