@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 )
@@ -60,7 +61,7 @@ func TestCompilation(t *testing.T) {
 		template   string
 	}{
 		"script compilation": {ast.LibV1, script},
-		"dApp compilation":   {ast.LibV4, dapp},
+		"dApp compilation":   {ast.LibV3, dapp},
 	} {
 		t.Run(name, func(t *testing.T) {
 			for v := test.minVersion; v <= ast.CurrentMaxLibraryVersion(); v++ {
@@ -108,7 +109,7 @@ func TestEvaluation(t *testing.T) {
 		template   string
 	}{
 		"script evaluation": {ast.LibV1, script},
-		"dApp evaluation":   {ast.LibV4, dapp},
+		"dApp evaluation":   {ast.LibV3, dapp},
 	} {
 		t.Run(name, func(t *testing.T) {
 			for v := test.minVersion; v <= ast.CurrentMaxLibraryVersion(); v++ {
