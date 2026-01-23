@@ -6,9 +6,12 @@ import (
 	"errors"
 	"sync"
 
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
+
+const EndorsementIDCacheSizeDefault = 1000
 
 type key struct {
 	blockID       proto.BlockID
@@ -66,11 +69,14 @@ type EndorsementPool struct {
 	maxEndorsements int
 }
 
-func NewEndorsementPool(maxGenerators int) *EndorsementPool {
+func NewEndorsementPool(maxGenerators int) (*EndorsementPool, error) {
+	if maxGenerators <= 0 {
+		return nil, errors.New("the max number of endorsements must be more than 0")
+	}
 	return &EndorsementPool{
 		byKey:           make(map[key]*heapItemEndorsement),
 		maxEndorsements: maxGenerators,
-	}
+	}, nil
 }
 
 // Add inserts an endorsement into the heap with priority based on balance desc, seq asc.
@@ -235,4 +241,42 @@ func (p *EndorsementPool) ConflictEndorsements() []proto.EndorseBlock {
 	out := make([]proto.EndorseBlock, len(p.conflicts))
 	copy(out, p.conflicts)
 	return out
+}
+
+type EndorsementIDsCache struct {
+	ids   map[crypto.Digest]struct{}
+	order []crypto.Digest
+	limit int
+}
+
+func NewEndorsementIDsCache(cacheLimit int) *EndorsementIDsCache {
+	return &EndorsementIDsCache{
+		ids:   make(map[crypto.Digest]struct{}),
+		limit: cacheLimit,
+	}
+}
+
+func (cache *EndorsementIDsCache) SeenEndorsement(id crypto.Digest) bool {
+	_, ok := cache.ids[id]
+	return ok
+}
+
+func (cache *EndorsementIDsCache) RememberEndorsement(id crypto.Digest) {
+	if cache.ids == nil {
+		cache.ids = make(map[crypto.Digest]struct{})
+	}
+	if cache.limit <= 0 {
+		return
+	}
+	if _, exists := cache.ids[id]; exists {
+		return
+	}
+	if len(cache.ids) >= cache.limit && len(cache.order) > 0 {
+		// Evict oldest.
+		oldest := cache.order[0]
+		cache.order = cache.order[1:]
+		delete(cache.ids, oldest)
+	}
+	cache.ids[id] = struct{}{}
+	cache.order = append(cache.order, id)
 }

@@ -154,7 +154,7 @@ func (c *config) String() string {
 		"wallet-path: %s, hashed wallet-password: %s, limit-connections: %d, profiler: %t, "+
 		"disable-bloom: %t, drop-peers: %t, db-file-descriptors: %d, new-connections-limit: %d, "+
 		"enable-metamask: %t, disable-ntp: %t, microblock-interval: %s, enable-light-mode: %t, generate-in-past: %t, "+
-		"enable-blockchain-updates-plugin: %t, l2-contract-address: %s, db-compression-algo: %s}",
+		"enable-blockchain-updates-plugin: %t, l2-contract-address: %s, db-compression-algo: %s, min-peers-mining: %d}",
 		c.lp.String(), c.logNetwork, c.logFSM, c.statePath, c.blockchainType,
 		c.peerAddresses, c.declAddr, c.apiAddr, crypto.MustKeccak256([]byte(c.apiKey)).Hex(), c.grpcAddr,
 		c.enableGrpcAPI, c.blackListResidenceTime, c.buildExtendedAPI, c.serveExtendedAPI,
@@ -162,7 +162,7 @@ func (c *config) String() string {
 		c.walletPath, crypto.MustKeccak256([]byte(c.walletPassword)).Hex(), c.limitAllConnections, c.profiler,
 		c.disableBloomFilter, c.dropPeers, c.dbFileDescriptors, c.newConnectionsLimit,
 		c.enableMetaMaskAPI, c.disableNTP, c.microblockInterval, c.enableLightMode, c.generateInPast,
-		c.enableBlockchainUpdatesPlugin, c.blockchainUpdatesL2Address, c.DBCompressionAlgo)
+		c.enableBlockchainUpdatesPlugin, c.blockchainUpdatesL2Address, c.DBCompressionAlgo, c.minPeersMining)
 }
 
 func (c *config) parse() {
@@ -761,6 +761,7 @@ func createPeerManager(
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to get node's nonce")
 	}
+	logger.Info("Node nonce generated", "nonce", nodeNonce.Uint64())
 
 	peerSpawnerImpl := peers.NewPeerSpawner(
 		parent,
@@ -809,13 +810,17 @@ func createServices(
 	if err != nil {
 		return services.Services{}, errors.Wrap(err, "failed to initialize UTX")
 	}
+	endorsementsPool, err := endorsementpool.NewEndorsementPool(cfg.MaxEndorsements)
+	if err != nil {
+		return services.Services{}, errors.Wrap(err, "failed to initialize endorsement pool")
+	}
 	return services.Services{
 		State:           st,
 		Peers:           peerManager,
 		Scheduler:       scheduler,
 		BlocksApplier:   blocks_applier.NewBlocksApplier(),
 		UtxPool:         utxpool.New(utxPoolMaxSizeBytes, utxValidator, cfg),
-		EndorsementPool: endorsementpool.NewEndorsementPool(cfg.MaxEndorsements),
+		EndorsementPool: endorsementsPool,
 		Scheme:          cfg.AddressSchemeCharacter,
 		Time:            ntpTime,
 		Wallet:          wal,
