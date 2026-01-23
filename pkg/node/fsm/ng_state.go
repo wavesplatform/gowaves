@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"log/slog"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
@@ -278,9 +278,11 @@ func (a *NGState) EndorseParentWithEachKey(pks []bls.PublicKey, sks []bls.Secret
 	for i, pk := range pks {
 		slog.Debug("trying to find my BLS public key in the commitment records", "myPublicKeyBLS", pk.String())
 		committed, commErr := a.baseInfo.storage.NewestCommitmentExistsByEndorserPK(periodStart, pk)
-		var endorsers []bls.PublicKey
+		endorsers, err := a.baseInfo.storage.NewestCommitedEndorsers(periodStart)
+		if err != nil {
+			return a.Errorf(errors.Wrapf(err, "failed to find committed generators"))
+		}
 		if commErr != nil {
-			endorsers, _ := a.baseInfo.storage.NewestCommitedEndorsers(periodStart)
 			slog.Debug("Committed endorsers for period", "periodStart", periodStart)
 			for _, endorser := range endorsers {
 				slog.Debug("", "endorser", endorser.String())
