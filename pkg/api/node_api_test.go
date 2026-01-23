@@ -161,7 +161,7 @@ func TestNodeApi_TransactionSignCommitToGeneration(t *testing.T) {
 	w := newTestWallet(t)
 
 	cfg := &settings.BlockchainSettings{
-		FunctionalitySettings: settings.FunctionalitySettings{GenerationPeriod: 100,},
+		FunctionalitySettings: settings.FunctionalitySettings{GenerationPeriod: 100},
 	}
 
 	app, err := NewApp("", nil, services.Services{
@@ -174,7 +174,7 @@ func TestNodeApi_TransactionSignCommitToGeneration(t *testing.T) {
 	api := NewNodeAPI(app, st)
 
 	body := `{"periodHeight":252,"type":19,"sender":"3JbGqxNqwBfwnCbzLbo4HwjA9NR1wDjrRTr","version":1}`
-	req := httptest.NewRequest("POST", "/transactions/sign", strings.NewReader(body))
+	req := httptest.NewRequest(http.MethodPost, "/transactions/sign", strings.NewReader(body))
 	resp := httptest.NewRecorder()
 
 	aErr := api.transactionSign(resp, req)

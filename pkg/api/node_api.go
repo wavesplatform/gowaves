@@ -978,16 +978,27 @@ type signTxEnvelope struct {
 }
 
 func (a *NodeApi) transactionSign(w http.ResponseWriter, r *http.Request) error {
+	body, err := io.ReadAll(io.LimitReader(r.Body, postMessageSizeLimit))
+	if err != nil {
+		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to read tx envelope"))
+	}
+
 	var signTx signTxEnvelope
-	if err := json.NewDecoder(r.Body).Decode(&signTx); err != nil {
-		return apiErrs.NewBadRequestError(errors.Wrap(err, "failed to decode tx envelope"))
+	if unmarshalErr := json.Unmarshal(body, &signTx); unmarshalErr != nil {
+		return apiErrs.NewBadRequestError(errors.Wrap(unmarshalErr, "failed to decode tx envelope"))
+	}
+	if signTx.Version == 0 {
+		signTx.Version = 1
 	}
 
 	switch signTx.Type {
 	case proto.CommitToGenerationTransaction:
 		var req signCommit
-		if decodeErr := json.NewDecoder(r.Body).Decode(&req); decodeErr != nil {
+		if decodeErr := json.Unmarshal(body, &req); decodeErr != nil {
 			return apiErrs.NewBadRequestError(errors.Wrap(decodeErr, "failed to decode JSON"))
+		}
+		if req.Version == 0 {
+			req.Version = 1
 		}
 		signedTx, signErr := a.transactionsSignCommitToGeneration(req)
 		if signErr != nil {
