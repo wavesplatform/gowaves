@@ -1021,6 +1021,7 @@ func CreateBlock(
 	rewardVote int64,
 	scheme Scheme,
 	stateHash *crypto.Digest,
+	blockFinalizationVoting *FinalizationVoting,
 ) (*Block, error) {
 	consensusLength := nxtConsensus.BinarySize()
 	b := &Block{
@@ -1036,6 +1037,7 @@ func CreateBlock(
 			TransactionCount:     transactions.Count(),
 			GeneratorPublicKey:   publicKey,
 			StateHash:            stateHash,
+			FinalizationVoting:   blockFinalizationVoting,
 		},
 		Transactions: transactions,
 	}

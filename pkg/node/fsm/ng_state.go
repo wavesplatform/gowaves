@@ -691,11 +691,8 @@ func (a *NGState) mineMicro(
 			return a, nil, a.Errorf(err)
 		}
 	}
-	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization)
-	if block != nil {
-		block.FinalizationVoting = blockFinalization
-	}
-
+	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization,
+		blockFinalization)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro
 		a.baseInfo.logger.Debug(
@@ -781,7 +778,7 @@ func (a *NGState) checkAndAppendMicroBlock(
 	}
 	newTrs := top.Transactions.Join(micro.Transactions)
 	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus,
-		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash)
+		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash, nil)
 	if err != nil {
 		return nil, err
 	}
