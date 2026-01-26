@@ -552,6 +552,12 @@ func (a *NGState) MinedBlock(
 		"blockID", block.ID.String())
 
 	a.baseInfo.endorsements.CleanAll()
+	parentBlock, err := a.baseInfo.storage.Block(block.Parent)
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to retrieve parent block %s", block.Parent))
+	}
+	a.baseInfo.endorsements.SaveBlockGenerator(&parentBlock.GeneratorPublicKey)
+
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
