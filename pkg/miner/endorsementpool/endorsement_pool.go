@@ -66,6 +66,7 @@ type EndorsementPool struct {
 	byKey           map[key]*heapItemEndorsement
 	h               endorsementMinHeap
 	conflicts       []proto.EndorseBlock
+	blockGenerator  *crypto.PublicKey
 	maxEndorsements int
 }
 
@@ -279,4 +280,19 @@ func (cache *EndorsementIDsCache) RememberEndorsement(id crypto.Digest) {
 	}
 	cache.ids[id] = struct{}{}
 	cache.order = append(cache.order, id)
+}
+
+func (p *EndorsementPool) SaveBlockGenerator(blockGenerator *crypto.PublicKey) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	p.blockGenerator = blockGenerator
+}
+
+func (p *EndorsementPool) BlockGenerator() (crypto.PublicKey, error) {
+	p.mu.Lock()
+	defer p.mu.Unlock()
+	if p.blockGenerator == nil {
+		return crypto.PublicKey{}, errors.New("endorsed block generator is empty")
+	}
+	return *p.blockGenerator, nil
 }

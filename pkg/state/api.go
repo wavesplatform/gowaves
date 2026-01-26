@@ -159,7 +159,8 @@ type StateInfo interface {
 
 	// CalculateVotingFinalization calculates whether the generating balance of endorsers at the block with the
 	// Given height exceeds the total generating balance of all committed generators for that block.
-	CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height,
+	CalculateVotingFinalization(endorsers []proto.WavesAddress,
+		blockGeneratorAddress proto.WavesAddress, height proto.Height,
 		allGenerators []proto.WavesAddress) (bool, error)
 
 	FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error)
