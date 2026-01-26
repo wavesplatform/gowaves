@@ -330,18 +330,18 @@ func (mr *MockStateInfoMockRecorder) BlockchainSettings() *gomock.Call {
 }
 
 // CalculateVotingFinalization mocks base method.
-func (m *MockStateInfo) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+func (m *MockStateInfo) CalculateVotingFinalization(endorsers []proto.WavesAddress, blockGeneratorAddress proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CalculateVotingFinalization", endorsers, height, allGenerators)
+	ret := m.ctrl.Call(m, "CalculateVotingFinalization", endorsers, blockGeneratorAddress, height, allGenerators)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CalculateVotingFinalization indicates an expected call of CalculateVotingFinalization.
-func (mr *MockStateInfoMockRecorder) CalculateVotingFinalization(endorsers, height, allGenerators interface{}) *gomock.Call {
+func (mr *MockStateInfoMockRecorder) CalculateVotingFinalization(endorsers, blockGeneratorAddress, height, allGenerators interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockStateInfo)(nil).CalculateVotingFinalization), endorsers, height, allGenerators)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockStateInfo)(nil).CalculateVotingFinalization), endorsers, blockGeneratorAddress, height, allGenerators)
 }
 
 // CommittedGenerators mocks base method.
@@ -1884,18 +1884,18 @@ func (mr *MockStateMockRecorder) BlockchainSettings() *gomock.Call {
 }
 
 // CalculateVotingFinalization mocks base method.
-func (m *MockState) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+func (m *MockState) CalculateVotingFinalization(endorsers []proto.WavesAddress, blockGeneratorAddress proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "CalculateVotingFinalization", endorsers, height, allGenerators)
+	ret := m.ctrl.Call(m, "CalculateVotingFinalization", endorsers, blockGeneratorAddress, height, allGenerators)
 	ret0, _ := ret[0].(bool)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // CalculateVotingFinalization indicates an expected call of CalculateVotingFinalization.
-func (mr *MockStateMockRecorder) CalculateVotingFinalization(endorsers, height, allGenerators interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) CalculateVotingFinalization(endorsers, blockGeneratorAddress, height, allGenerators interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockState)(nil).CalculateVotingFinalization), endorsers, height, allGenerators)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockState)(nil).CalculateVotingFinalization), endorsers, blockGeneratorAddress, height, allGenerators)
 }
 
 // Close mocks base method.

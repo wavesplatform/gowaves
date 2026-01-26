@@ -471,14 +471,23 @@ func (a *NGState) tryFinalize(height proto.Height,
 		endorsersAddresses = append(endorsersAddresses, addr)
 	}
 
-	generators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
+	commitedGenerators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
 	if err != nil {
 		return nil, err
 	}
-	if len(generators) == 0 {
+	if len(commitedGenerators) == 0 {
 		slog.Debug("No committed generators found for finalization calculation")
 	}
-	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, height, generators)
+	blockGenerator, err := a.baseInfo.endorsements.BlockGenerator()
+	if err != nil {
+		return nil, errors.Errorf("failed to get block generator: %v", err)
+	}
+	blockGeneratorAddress, err := proto.NewAddressFromPublicKey(a.baseInfo.scheme, blockGenerator)
+	if err != nil {
+		return nil, errors.Errorf("failed to get block generator address: %v", err)
+	}
+	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, blockGeneratorAddress,
+		height, commitedGenerators)
 	if err != nil {
 		return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
 	}

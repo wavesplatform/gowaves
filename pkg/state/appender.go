@@ -1374,6 +1374,7 @@ func newFinalizationProcessor(
 
 func (f *finalizationProcessor) votingFinalization(
 	endorsers []proto.WavesAddress,
+	blockGeneratorAddress proto.WavesAddress,
 	height proto.Height,
 	allGenerators []proto.WavesAddress,
 ) (bool, error) {
@@ -1401,7 +1402,14 @@ func (f *finalizationProcessor) votingFinalization(
 			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
 		}
 	}
-
+	blockGeneratorBalance, err := f.stor.balances.generatingBalance(blockGeneratorAddress.ID(), height)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to get blockGeneratorBalance")
+	}
+	endorsersGeneratingBalance, err = common.AddInt(endorsersGeneratingBalance, blockGeneratorBalance)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to add endorsersGeneratingBalance to total generating balance")
+	}
 	if totalGeneratingBalance == 0 {
 		return false, nil
 	}
@@ -1618,12 +1626,18 @@ func (f *finalizationProcessor) updateFinalization(
 		return err
 	}
 
-	generators, err := f.stor.commitments.CommittedGeneratorsAddresses(periodStart, f.settings.AddressSchemeCharacter)
+	committedGenerators, err := f.stor.commitments.CommittedGeneratorsAddresses(periodStart,
+		f.settings.AddressSchemeCharacter)
 	if err != nil {
 		return fmt.Errorf("failed to load committed generators: %w", err)
 	}
 
-	canFinalize, err := f.votingFinalization(endorserAddresses, height, generators)
+	blockGeneratorAddress, err := proto.NewAddressFromPublicKey(f.settings.AddressSchemeCharacter,
+		parent.GeneratorPublicKey)
+	if err != nil {
+		return errors.Wrapf(err, "failed to convert block generator public key to address")
+	}
+	canFinalize, err := f.votingFinalization(endorserAddresses, blockGeneratorAddress, height, committedGenerators)
 	if err != nil {
 		return fmt.Errorf("failed to calculate 2/3 voting: %w", err)
 	}
