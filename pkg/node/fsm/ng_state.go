@@ -801,7 +801,8 @@ func (a *NGState) checkAndAppendMicroBlock(
 	}
 	newTrs := top.Transactions.Join(micro.Transactions)
 	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus,
-		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash, nil)
+		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash,
+		micro.PartialFinalization)
 	if err != nil {
 		return nil, err
 	}
