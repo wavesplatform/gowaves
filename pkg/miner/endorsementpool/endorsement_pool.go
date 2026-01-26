@@ -200,6 +200,7 @@ func (p *EndorsementPool) CleanAll() {
 	p.byKey = make(map[key]*heapItemEndorsement)
 	p.h = nil
 	p.conflicts = nil
+	p.blockGenerator = nil
 }
 
 func (p *EndorsementPool) Verify() (bool, error) {

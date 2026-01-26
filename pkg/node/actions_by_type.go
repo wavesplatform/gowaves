@@ -69,7 +69,14 @@ func BlockAction(services services.Services, mess peer.ProtoMessage, fsm *fsm.FS
 
 func GetBlockAction(services services.Services, mess peer.ProtoMessage, _ *fsm.FSM, _ *slog.Logger) (fsm.Async, error) {
 	metricGetBlockMessage.Inc()
-	blockID := mess.Message.(*proto.GetBlockMessage).BlockID
+	gbm, ok := mess.Message.(*proto.GetBlockMessage)
+	if !ok {
+		return nil, errors.Errorf(
+			"unexpected message type %T, expected *proto.GetBlockMessage",
+			mess.Message,
+		)
+	}
+	blockID := gbm.BlockID
 	block, err := services.State.Block(blockID)
 	if err != nil {
 		return nil, errors.Wrapf(err, "failed to retrieve block from state with block ID, %s", blockID)
