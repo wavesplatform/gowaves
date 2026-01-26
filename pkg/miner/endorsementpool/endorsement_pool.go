@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"container/heap"
 	"errors"
+	"log/slog"
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -93,11 +94,14 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
 	defer p.mu.Unlock()
 	if _, exists := p.byKey[k]; exists {
 		p.conflicts = append(p.conflicts, *e)
+		slog.Debug("endorsement is conflicting because it already exists in the endorsement pool", "index", e.EndorserIndex)
 		return nil
 	}
 	if proto.Height(e.FinalizedBlockHeight) <= lastFinalizedHeight &&
 		e.FinalizedBlockID != lastFinalizedBlockID {
 		p.conflicts = append(p.conflicts, *e)
+		slog.Debug("endorsement is conflicting because the block finalized IDs don't match", "index",
+			e.EndorserIndex)
 		return nil
 	}
 

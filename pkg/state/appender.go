@@ -1532,7 +1532,9 @@ func (f *finalizationProcessor) removeGeneratorDeposit(periodStart uint32, badEn
 	}
 	value := newWavesValue(profile, newProfile)
 	if err = f.stor.balances.setWavesBalance(badEndorserAddress.ID(), value, blockID); err != nil {
-		return errors.Wrapf(err, "failed to get set balance profile for address %q", badEndorserAddress.String())
+		return errors.Wrapf(err,
+			"failed to get set balance profile for address %q while punishing bad endorser, PK %s",
+			badEndorserAddress.String(), badEndorserPK.String())
 	}
 	return nil
 }
@@ -1590,9 +1592,11 @@ func (f *finalizationProcessor) updateFinalization(
 		return err
 	}
 	for _, conflictingEndorsement := range finalizationVoting.ConflictEndorsements {
+		slog.Debug("conflicting endorsement")
 		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex, parent.BlockID())
 		if conflictErr != nil {
-			return conflictErr
+			return errors.Wrapf(err, "failed to remove generator deposit for endorser index %d",
+				conflictingEndorsement.EndorserIndex)
 		}
 	}
 	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height, parent, finalityActivated)
