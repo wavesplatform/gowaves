@@ -1002,7 +1002,7 @@ func (a *NodeApi) transactionSign(w http.ResponseWriter, r *http.Request) error 
 		}
 		signedTx, signErr := a.transactionsSignCommitToGeneration(req)
 		if signErr != nil {
-			return signErr
+			return apiErrs.NewUnknownError(signErr)
 		}
 		return trySendJSON(w, signedTx)
 	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
