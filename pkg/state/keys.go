@@ -202,6 +202,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{patchKeyPrefix}, nil
 	case challengedAddress:
 		return []byte{challengedAddressKeyPrefix}, nil
+	case commitment:
+		return []byte{commitmentKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}

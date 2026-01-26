@@ -780,7 +780,8 @@ func TestBlockInfoByHeight(t *testing.T) {
 	rewards := proto.Rewards{proto.NewReward(gen.address(), 12345)}
 	bi := protobufBlockBuilder().withHeight(2).withGenerator(gen).withRewards(rewards)
 	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlock(bi.toBlockInfo())
-	obj := blockInfoToObject(bi.toBlockInfo(), ast.LibV6)
+	obj, err := blockInfoToObject(bi.toBlockInfo(), ast.LibV6)
+	require.NoError(t, err)
 	for _, test := range []struct {
 		te   *testEnv
 		args []rideType

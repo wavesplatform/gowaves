@@ -5371,6 +5371,8 @@ func TestDataWithProofsProtobufRoundTrip(t *testing.T) {
 				e = &BinaryDataEntry{k, v}
 			case DataString:
 				e = &StringDataEntry{k, tc.values[i]}
+			case DataDelete:
+				// Do nothing for Delete entry.
 			}
 			err := tx.AppendEntry(e)
 			assert.NoError(t, err)
@@ -5429,6 +5431,8 @@ func TestDataWithProofsBinarySize(t *testing.T) {
 				e = &BinaryDataEntry{k, v}
 			case DataString:
 				e = &StringDataEntry{k, tc.values[i]}
+			case DataDelete:
+				// Do nothing for Delete entry.
 			}
 			err := tx.AppendEntry(e)
 			assert.NoError(t, err)
@@ -5471,6 +5475,8 @@ func TestDataWithProofsBinaryRoundTrip(t *testing.T) {
 				e = &BinaryDataEntry{k, v}
 			case DataString:
 				e = &StringDataEntry{k, tc.values[i]}
+			case DataDelete:
+				// Do nothing.
 			}
 			err := tx.AppendEntry(e)
 			assert.NoError(t, err)
@@ -5570,6 +5576,8 @@ func TestDataWithProofsToJSON(t *testing.T) {
 				sb.WriteRune('"')
 				sb.WriteString(tc.values[i])
 				sb.WriteRune('"')
+			case DataDelete:
+				// Do nothing.
 			}
 			sb.WriteRune('}')
 			err := tx.AppendEntry(e)

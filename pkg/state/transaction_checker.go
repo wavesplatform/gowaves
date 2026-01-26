@@ -46,6 +46,8 @@ func (i *checkerInfo) estimatorVersion() int {
 		return 3
 	case proto.RewardBlockVersion:
 		return 2
+	case proto.GenesisBlockVersion, proto.PlainBlockVersion, proto.NgBlockVersion:
+		return 1
 	default:
 		return 1
 	}
@@ -186,7 +188,7 @@ func (tc *transactionChecker) checkScriptComplexity(
 	case ast.LibV5:
 		maxCallableComplexity = MaxCallableScriptComplexityV5
 		maxVerifierComplexity = MaxVerifierScriptComplexity
-	case ast.LibV6, ast.LibV7, ast.LibV8:
+	case ast.LibV6, ast.LibV7, ast.LibV8, ast.LibV9:
 		maxCallableComplexity = MaxCallableScriptComplexityV6
 		maxVerifierComplexity = MaxVerifierScriptComplexity
 	default:
