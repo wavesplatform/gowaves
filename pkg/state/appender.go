@@ -1410,6 +1410,12 @@ func (f *finalizationProcessor) votingFinalization(
 	if err != nil {
 		return false, errors.Wrap(err, "failed to add endorsersGeneratingBalance to total generating balance")
 	}
+	slog.Debug("Calculating final voting finalization to finalize parent's block",
+		"number of committed generators", len(allGenerators),
+		"number of endorsers", len(endorsers),
+		"total generating balance of committed generators", totalGeneratingBalance,
+		"total generating balance of endorsers", endorsersGeneratingBalance)
+
 	if totalGeneratingBalance == 0 {
 		return false, nil
 	}
@@ -1580,9 +1586,12 @@ func (f *finalizationProcessor) updateFinalization(
 	parent *proto.BlockHeader,
 	height proto.Height,
 ) error {
+	slog.Debug("trying to finalize parent's block")
 	if finalizationVoting == nil {
+		slog.Debug("did not finalize parent't block, finalizationVoting is nil")
 		return nil
 	}
+
 	finalityActivated, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
 	if err != nil {
 		return err
@@ -1655,6 +1664,8 @@ func (f *finalizationProcessor) updateFinalization(
 			"FinalizedBlockHeight", finalizationVoting.FinalizedBlockHeight,
 			"AggregatedEndorsementSignature", finalizationVoting.AggregatedEndorsementSignature.String(),
 			"Number of Conflict Endorsements", len(finalizationVoting.ConflictEndorsements))
+	} else {
+		slog.Debug("couldn't finalize the parent's block")
 	}
 	return nil
 }

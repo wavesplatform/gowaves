@@ -93,6 +93,7 @@ func (a *MicroMiner) Micro(
 		transactions[i] = appliedTx.T
 	}
 
+	// TODO probably it should partial finalization.
 	newBlock, sh, err := a.createNewBlock(minedBlock, keyPair, transactions, blockFinalization, txSnapshots, height)
 	if err != nil {
 		return nil, nil, rest, err
