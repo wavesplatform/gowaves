@@ -419,24 +419,21 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGState) getPartialFinalization(lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
-	if a.baseInfo.endorsements.Len() == 0 {
-		return nil, errNoFinalization
-	}
-	fin, err := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
-	if err != nil {
-		return nil, fmt.Errorf("failed to finalize endorsements for microblock: %w", err)
-	}
-	return &fin, nil
-}
+//func (a *NGState) getPartialFinalization(lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
+//	if a.baseInfo.endorsements.Len() == 0 {
+//		return nil, errNoFinalization
+//	}
+//	fin, err := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to finalize endorsements for microblock: %w", err)
+//	}
+//	return &fin, nil
+//}
 
 func (a *NGState) getBlockFinalization(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	blockFinalization, err := a.tryFinalize(height, lastFinalizedHeight)
 	if err != nil {
-		if !errors.Is(err, errNoFinalization) {
-			return nil, a.Errorf(errors.Wrap(err, "failed to try finalize last block"))
-		}
 		return nil, errNoFinalization
 	}
 	return blockFinalization, nil
@@ -446,7 +443,7 @@ func (a *NGState) tryFinalize(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	// No finalization since nobody endorsed the last block.
 	if a.baseInfo.endorsements.Len() == 0 {
-		return nil, errNoFinalization
+		return nil, nil
 	}
 
 	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
@@ -485,28 +482,26 @@ func (a *NGState) tryFinalize(height proto.Height,
 	if len(commitedGenerators) == 0 {
 		slog.Debug("No committed generators found for finalization calculation")
 	}
-	blockGenerator, err := a.baseInfo.endorsements.BlockGenerator()
-	if err != nil {
-		return nil, errors.Errorf("failed to get block generator: %v", err)
+	//blockGenerator, err := a.baseInfo.endorsements.BlockGenerator()
+	//if err != nil {
+	//	return nil, errors.Errorf("failed to get block generator: %v", err)
+	//}
+	//blockGeneratorAddress, err := proto.NewAddressFromPublicKey(a.baseInfo.scheme, blockGenerator)
+	//if err != nil {
+	//	return nil, errors.Errorf("failed to get block generator address: %v", err)
+	//}
+	//canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, blockGeneratorAddress,
+	//	height, commitedGenerators)
+	//if err != nil {
+	//	return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
+	//}
+	//
+	//if canFinalize {
+	finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
+	if finErr != nil {
+		return nil, finErr
 	}
-	blockGeneratorAddress, err := proto.NewAddressFromPublicKey(a.baseInfo.scheme, blockGenerator)
-	if err != nil {
-		return nil, errors.Errorf("failed to get block generator address: %v", err)
-	}
-	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, blockGeneratorAddress,
-		height, commitedGenerators)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
-	}
-
-	if canFinalize {
-		finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
-		if finErr != nil {
-			return nil, finErr
-		}
-		return &finalization, nil
-	}
-	return nil, errNoFinalization
+	return &finalization, nil
 }
 
 func (a *NGState) MinedBlock(
@@ -697,26 +692,22 @@ func (a *NGState) mineMicro(
 	if err != nil {
 		return a, nil, a.Errorf(err)
 	}
-	var partialFinalization *proto.FinalizationVoting
 	var blockFinalization *proto.FinalizationVoting
 	if finalityActivated {
 		lastFinalizedHeight, lastHeightErr := a.baseInfo.storage.LastFinalizedHeight()
 		if lastHeightErr != nil {
 			return a, nil, a.Errorf(lastHeightErr)
 		}
-		partialFinalization, err = a.getPartialFinalization(lastFinalizedHeight)
-		if err != nil && !errors.Is(err, errNoFinalization) {
-			return a, nil, a.Errorf(err)
-		}
+		//partialFinalization, err = a.getPartialFinalization(lastFinalizedHeight)
+		//if err != nil && !errors.Is(err, errNoFinalization) {
+		//	return a, nil, a.Errorf(err)
+		//}
 		blockFinalization, err = a.getBlockFinalization(height, lastFinalizedHeight)
 		if err != nil && !errors.Is(err, errNoFinalization) {
 			return a, nil, a.Errorf(err)
 		}
-		if blockFinalization == nil {
-			partialFinalization = nil
-		}
 	}
-	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization,
+	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair,
 		blockFinalization)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro

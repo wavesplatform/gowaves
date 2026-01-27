@@ -42,7 +42,6 @@ func (a *MicroMiner) Micro(
 	minedBlock *proto.Block,
 	rest proto.MiningLimits,
 	keyPair proto.KeyPair,
-	partialFinalization *proto.FinalizationVoting,
 	blockFinalization *proto.FinalizationVoting,
 ) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
 	const minTransactionSize = 40
@@ -93,13 +92,12 @@ func (a *MicroMiner) Micro(
 		transactions[i] = appliedTx.T
 	}
 
-	// TODO probably it should partial finalization.
 	newBlock, sh, err := a.createNewBlock(minedBlock, keyPair, transactions, blockFinalization, txSnapshots, height)
 	if err != nil {
 		return nil, nil, rest, err
 	}
 
-	micro, err := a.createMicroBlock(newBlock, keyPair, transactions, partialFinalization, sh, txCount)
+	micro, err := a.createMicroBlock(newBlock, keyPair, transactions, blockFinalization, sh, txCount)
 	if err != nil {
 		return nil, nil, rest, err
 	}
