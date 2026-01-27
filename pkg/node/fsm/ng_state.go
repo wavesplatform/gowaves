@@ -600,6 +600,11 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to create endorsement message"))
 	}
+	slog.Debug("formed endorsement message",
+		"lastFinalizedBlockID", lastFinalizedBlock.BlockID(),
+		"lastFinalizedHeight", lastFinalizedHeight,
+		"EndorsedBlockID", parentBlockID,
+		"EndorserIndex", endorserIndex)
 	signature, err := bls.Sign(endorserSK, message)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to sign block endorsement"))

@@ -830,8 +830,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, currentBlockHeight)
 		if err != nil {
-			slog.Debug("failed to update finalization", "err", err)
-			return err
+			slog.Error("did not update finalization","err", err.Error())
 		}
 	}
 	// Process current block finalization.
@@ -1593,6 +1592,8 @@ func (f *finalizationProcessor) updateFinalization(
 		return nil
 	}
 
+	// TODO here we somehow have to check that if endorsedBlock was N, we are at N+2.
+
 	finalityActivated, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
 	if err != nil {
 		return err
@@ -1603,7 +1604,8 @@ func (f *finalizationProcessor) updateFinalization(
 	}
 	for _, conflictingEndorsement := range finalizationVoting.ConflictEndorsements {
 		slog.Debug("conflicting endorsement")
-		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex, parent.BlockID())
+		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex,
+			parent.BlockID()) // TODO is it parent BlockID?
 		if conflictErr != nil {
 			return errors.Wrapf(conflictErr, "failed to remove generator deposit for endorser index %d",
 				conflictingEndorsement.EndorserIndex)
@@ -1621,7 +1623,7 @@ func (f *finalizationProcessor) updateFinalization(
 	}
 	msg, err := proto.EndorsementMessage(
 		lastFinalizedBlockID,
-		parent.ID,
+		parent.Parent, // If we are at key block N+2, the endorsed block was N.
 		lastFinalizedHeight,
 	)
 	if err != nil {
@@ -1629,7 +1631,11 @@ func (f *finalizationProcessor) updateFinalization(
 			"err", err.Error())
 		return fmt.Errorf("failed to build endorsement message: %w", err)
 	}
-
+	slog.Debug("checking, endorsement message",
+		"lastFinalizedBlockID", lastFinalizedBlockID,
+		"lastFinalizedHeight", lastFinalizedHeight,
+		"EndorsedBlockID", parent.Parent,
+		"EndorserIndexes", finalizationVoting.EndorserIndexes)
 	endorsersPK, err := f.loadEndorsersPK(finalizationVoting, periodStart)
 	if err != nil {
 		slog.Debug("failed to load endorsers")
