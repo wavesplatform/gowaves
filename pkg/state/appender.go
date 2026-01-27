@@ -830,6 +830,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, currentBlockHeight)
 		if err != nil {
+			slog.Debug("failed to update finalization", "err", err)
 			return err
 		}
 	}
@@ -1631,7 +1632,7 @@ func (f *finalizationProcessor) updateFinalization(
 	}
 
 	if verifyErr := f.verifyFinalizationSignature(finalizationVoting, msg, endorsersPK); verifyErr != nil {
-		return verifyErr
+		return errors.Wrapf(err, "failed to verify finalization signature")
 	}
 
 	endorserAddresses, err := f.mapEndorsersToAddresses(endorsersPK, periodStart)
