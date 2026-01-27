@@ -1364,6 +1364,10 @@ func (s *stateManager) addNewBlock(
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
 	lastSnapshotStateHash crypto.Digest,
 ) error {
+	finNonNil := block.FinalizationVoting != nil
+	if finNonNil {
+		slog.Debug("add new block, finalization voting not nil")
+	}
 	blockHeight := blockchainHeight + 1
 	if err := s.beforeAppendBlock(block, blockHeight); err != nil {
 		return err

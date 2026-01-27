@@ -708,6 +708,9 @@ func (a *NGState) mineMicro(
 		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
 		}
+		if blockFinalization != nil {
+			slog.Debug("formed non-nil block finalization field")
+		}
 	}
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair,
 		blockFinalization)
@@ -727,6 +730,10 @@ func (a *NGState) mineMicro(
 	}
 	metrics.MicroBlockMined(micro, block.TransactionCount)
 
+	finNonNil := block.FinalizationVoting != nil
+	if finNonNil {
+		slog.Debug("mining micro, finalization voting not nil")
+	}
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er

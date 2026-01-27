@@ -1906,6 +1906,16 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 	if conversionErr != nil {
 		return BlockHeader{}, errors.Wrap(conversionErr, "consensus block length overflow")
 	}
+
+	var finalizationVoting *FinalizationVoting
+	if pbHeader.FinalizationVoting != nil {
+		fv, fvErr := c.FinalizationVoting(pbHeader.FinalizationVoting)
+		if fvErr != nil {
+			return BlockHeader{}, errors.Wrap(fvErr,
+				"failed to unmarshal finalization voting in partial block header function")
+		}
+		finalizationVoting = &fv
+	}
 	header := BlockHeader{
 		Version:              v,
 		Timestamp:            c.uint64(pbHeader.Timestamp),
@@ -1921,6 +1931,7 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 		TransactionsRoot:     pbHeader.TransactionsRoot,
 		StateHash:            c.stateHash(pbHeader.StateHash),
 		ChallengedHeader:     c.challengedHeader(pbHeader.ChallengedHeader),
+		FinalizationVoting:   finalizationVoting,
 		ID:                   BlockID{}, // not set, can't be calculated without the scheme and the block signature
 	}
 	if c.err != nil {
