@@ -23,6 +23,7 @@ import (
 )
 
 var errNoFinalization = errors.New("no finalization available")
+var errNoEndorsements = errors.New("no endorsements")
 
 // endorsementID hashes the endorsement payload to generate a stable identifier.
 func endorsementID(e *proto.EndorseBlock) (crypto.Digest, error) {
@@ -419,7 +420,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	return newNGState(a.baseInfo), nil, nil
 }
 
-//func (a *NGState) getPartialFinalization(lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
+// func (a *NGState) getPartialFinalization(lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 //	if a.baseInfo.endorsements.Len() == 0 {
 //		return nil, errNoFinalization
 //	}
@@ -434,7 +435,8 @@ func (a *NGState) getBlockFinalization(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	blockFinalization, err := a.tryFinalize(height, lastFinalizedHeight)
 	if err != nil {
-		return nil, errNoFinalization
+		slog.Debug("did not form finalization", "err", err)
+		return nil, err
 	}
 	return blockFinalization, nil
 }
@@ -443,7 +445,7 @@ func (a *NGState) tryFinalize(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	// No finalization since nobody endorsed the last block.
 	if a.baseInfo.endorsements.Len() == 0 {
-		return nil, nil
+		return nil, errNoEndorsements
 	}
 
 	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
@@ -451,29 +453,29 @@ func (a *NGState) tryFinalize(height proto.Height,
 		return nil, fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
 	}
 
-	ok, err := a.baseInfo.endorsements.Verify()
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, fmt.Errorf("endorsement verification failed at height %d", height)
-	}
+	// ok, err := a.baseInfo.endorsements.Verify()
+	// if err != nil {
+	//	return nil, err
+	// }
+	// if !ok {
+	//	return nil, fmt.Errorf("endorsement verification failed at height %d", height)
+	// }
 
 	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
 	if err != nil {
 		return nil, err
 	}
 
-	allEndorsers := a.baseInfo.endorsements.GetEndorsers()
-	endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
-	for _, endorser := range allEndorsers {
-		pk, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorser)
-		if findErr != nil {
-			return nil, findErr
-		}
-		addr := proto.MustAddressFromPublicKey(a.baseInfo.scheme, pk)
-		endorsersAddresses = append(endorsersAddresses, addr)
-	}
+	// allEndorsers := a.baseInfo.endorsements.GetEndorsers()
+	// endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
+	// for _, endorser := range allEndorsers {
+	//	pk, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorser)
+	//	if findErr != nil {
+	//		return nil, findErr
+	//	}
+	//	addr := proto.MustAddressFromPublicKey(a.baseInfo.scheme, pk)
+	//	endorsersAddresses = append(endorsersAddresses, addr)
+	// }
 
 	commitedGenerators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
 	if err != nil {
@@ -482,21 +484,21 @@ func (a *NGState) tryFinalize(height proto.Height,
 	if len(commitedGenerators) == 0 {
 		slog.Debug("No committed generators found for finalization calculation")
 	}
-	//blockGenerator, err := a.baseInfo.endorsements.BlockGenerator()
-	//if err != nil {
+	// blockGenerator, err := a.baseInfo.endorsements.BlockGenerator()
+	// if err != nil {
 	//	return nil, errors.Errorf("failed to get block generator: %v", err)
-	//}
-	//blockGeneratorAddress, err := proto.NewAddressFromPublicKey(a.baseInfo.scheme, blockGenerator)
-	//if err != nil {
+	// }
+	// blockGeneratorAddress, err := proto.NewAddressFromPublicKey(a.baseInfo.scheme, blockGenerator)
+	// if err != nil {
 	//	return nil, errors.Errorf("failed to get block generator address: %v", err)
-	//}
-	//canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, blockGeneratorAddress,
+	// }
+	// canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, blockGeneratorAddress,
 	//	height, commitedGenerators)
-	//if err != nil {
+	// if err != nil {
 	//	return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
-	//}
+	// }
 	//
-	//if canFinalize {
+	// if canFinalize {
 	finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
 	if finErr != nil {
 		return nil, finErr
@@ -698,12 +700,12 @@ func (a *NGState) mineMicro(
 		if lastHeightErr != nil {
 			return a, nil, a.Errorf(lastHeightErr)
 		}
-		//partialFinalization, err = a.getPartialFinalization(lastFinalizedHeight)
-		//if err != nil && !errors.Is(err, errNoFinalization) {
+		// partialFinalization, err = a.getPartialFinalization(lastFinalizedHeight)
+		// if err != nil && !errors.Is(err, errNoFinalization) {
 		//	return a, nil, a.Errorf(err)
-		//}
+		// }
 		blockFinalization, err = a.getBlockFinalization(height, lastFinalizedHeight)
-		if err != nil && !errors.Is(err, errNoFinalization) {
+		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
 		}
 	}
