@@ -1605,7 +1605,7 @@ func (f *finalizationProcessor) updateFinalization(
 		slog.Debug("conflicting endorsement")
 		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex, parent.BlockID())
 		if conflictErr != nil {
-			return errors.Wrapf(err, "failed to remove generator deposit for endorser index %d",
+			return errors.Wrapf(conflictErr, "failed to remove generator deposit for endorser index %d",
 				conflictingEndorsement.EndorserIndex)
 		}
 	}
@@ -1615,6 +1615,8 @@ func (f *finalizationProcessor) updateFinalization(
 	}
 	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
 	if err != nil {
+		slog.Debug("failed to find finalized block",
+			"err", err.Error())
 		return fmt.Errorf("failed to load last finalized block ID: %w", err)
 	}
 	msg, err := proto.EndorsementMessage(
@@ -1623,39 +1625,37 @@ func (f *finalizationProcessor) updateFinalization(
 		lastFinalizedHeight,
 	)
 	if err != nil {
+		slog.Debug("failed to form endorsement message",
+			"err", err.Error())
 		return fmt.Errorf("failed to build endorsement message: %w", err)
 	}
 
 	endorsersPK, err := f.loadEndorsersPK(finalizationVoting, periodStart)
 	if err != nil {
+		slog.Debug("failed to load endorsers")
 		return err
 	}
 
 	if verifyErr := f.verifyFinalizationSignature(finalizationVoting, msg, endorsersPK); verifyErr != nil {
+		var endorsersPKstr string
+		for _, epk := range endorsersPK {
+			endorsersPKstr += epk.String() + ","
+		}
+		slog.Debug("failed to verify finalization signature",
+			"signature", finalizationVoting.AggregatedEndorsementSignature.String(),
+			"msg", msg,
+			"endorsersPKs", endorsersPKstr,
+			"err", verifyErr.Error(),
+		)
 		return errors.Wrapf(err, "failed to verify finalization signature")
 	}
 
-	endorserAddresses, err := f.mapEndorsersToAddresses(endorsersPK, periodStart)
+	canFinalize, err := f.canFinalizeParent(endorsersPK, periodStart, parent, height)
 	if err != nil {
-		return err
+		slog.Debug("failed to check if parent is finalized",
+			"err", err.Error())
+		return errors.Wrap(err, "failed to check if parent is finalized")
 	}
-
-	committedGenerators, err := f.stor.commitments.CommittedGeneratorsAddresses(periodStart,
-		f.settings.AddressSchemeCharacter)
-	if err != nil {
-		return fmt.Errorf("failed to load committed generators: %w", err)
-	}
-
-	blockGeneratorAddress, err := proto.NewAddressFromPublicKey(f.settings.AddressSchemeCharacter,
-		parent.GeneratorPublicKey)
-	if err != nil {
-		return errors.Wrapf(err, "failed to convert block generator public key to address")
-	}
-	canFinalize, err := f.votingFinalization(endorserAddresses, blockGeneratorAddress, height, committedGenerators)
-	if err != nil {
-		return fmt.Errorf("failed to calculate 2/3 voting: %w", err)
-	}
-
 	if canFinalize {
 		if storErr := f.stor.finalizations.store(height, parent.BlockID()); storErr != nil {
 			return storErr
@@ -1669,4 +1669,41 @@ func (f *finalizationProcessor) updateFinalization(
 		slog.Debug("couldn't finalize the parent's block")
 	}
 	return nil
+}
+
+func (f *finalizationProcessor) canFinalizeParent(
+	endorsersPK []bls.PublicKey, // adjust
+	periodStart uint32, // adjust
+	parent *proto.BlockHeader,
+	height proto.Height,
+) (bool, error) {
+	endorserAddresses, err := f.mapEndorsersToAddresses(endorsersPK, periodStart)
+	if err != nil {
+		slog.Debug("failed to map endorsers")
+		return false, err
+	}
+
+	committedGenerators, err := f.stor.commitments.CommittedGeneratorsAddresses(
+		periodStart,
+		f.settings.AddressSchemeCharacter,
+	)
+	if err != nil {
+		slog.Debug("failed to load committed generators", "err", err.Error())
+		return false, fmt.Errorf("failed to load committed generators: %w", err)
+	}
+
+	blockGeneratorAddress, err := proto.NewAddressFromPublicKey(
+		f.settings.AddressSchemeCharacter,
+		parent.GeneratorPublicKey,
+	)
+	if err != nil {
+		return false, errors.Wrap(err, "failed to convert block generator public key to address")
+	}
+
+	canFinalize, err := f.votingFinalization(endorserAddresses, blockGeneratorAddress, height, committedGenerators)
+	if err != nil {
+		slog.Debug("failed to finalize voting finalization", "err", err.Error())
+		return false, fmt.Errorf("failed to calculate 2/3 voting: %w", err)
+	}
+	return canFinalize, nil
 }
