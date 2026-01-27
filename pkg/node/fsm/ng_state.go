@@ -501,14 +501,8 @@ func (a *NGState) tryFinalize(height proto.Height,
 	if finErr != nil {
 		return nil, finErr
 	}
-<<<<<<< Updated upstream
-
-	return nil, errNoFinalization
-=======
 	return &finalization, nil
-	//}
-	//return nil, errNoFinalization
->>>>>>> Stashed changes
+
 }
 
 func (a *NGState) MinedBlock(
