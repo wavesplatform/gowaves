@@ -713,6 +713,9 @@ func (a *NGState) mineMicro(
 		if err != nil && !errors.Is(err, errNoFinalization) {
 			return a, nil, a.Errorf(err)
 		}
+		if blockFinalization == nil {
+			partialFinalization = nil
+		}
 	}
 	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization,
 		blockFinalization)
