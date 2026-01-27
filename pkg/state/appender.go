@@ -830,7 +830,7 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 	if hasParent {
 		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, currentBlockHeight)
 		if err != nil {
-			slog.Error("did not update finalization","err", err.Error())
+			slog.Error("did not update finalization", "err", err.Error())
 		}
 	}
 	// Process current block finalization.
@@ -1679,7 +1679,7 @@ func (f *finalizationProcessor) updateFinalization(
 
 func (f *finalizationProcessor) canFinalizeParent(
 	endorsersPK []bls.PublicKey, // adjust
-	periodStart uint32,          // adjust
+	periodStart uint32, // adjust
 	parent *proto.BlockHeader,
 	height proto.Height,
 ) (bool, error) {
