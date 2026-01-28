@@ -129,7 +129,15 @@ func (s *blockchainEntitiesStorage) putStateHash(
 		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
 		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
 	}
-	sh := proto.NewLegacyStateHash(finalityActivated, blockID, fhV1, s.commitments.hasher.stateHashAt(blockID))
+	sh, shErr := proto.NewLegacyStateHash(blockID, fhV1,
+		proto.LegacyStateHashFeatureActivated{
+			FinalityActivated: finalityActivated,
+		},
+		proto.LegacyStateHashV2Opt(s.commitments.hasher.stateHashAt(blockID)),
+	)
+	if shErr != nil {
+		return nil, shErr
+	}
 	if gErr := sh.GenerateSumHash(prevHash); gErr != nil {
 		return nil, gErr
 	}

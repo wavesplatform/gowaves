@@ -38,29 +38,58 @@ func EmptyLegacyStateHash(finalityActivated bool) StateHash {
 	return &StateHashV1{}
 }
 
+type LegacyStateHashParams struct {
+	v2Params struct {
+		areSet         bool
+		generatorsHash crypto.Digest
+	}
+}
+
+type LegacyStateHashOption func(*LegacyStateHashParams)
+
+func LegacyStateHashV2Opt(generatorsHash crypto.Digest) LegacyStateHashOption {
+	return func(params *LegacyStateHashParams) {
+		params.v2Params = struct {
+			areSet         bool
+			generatorsHash crypto.Digest
+		}{
+			areSet:         true,
+			generatorsHash: generatorsHash,
+		}
+	}
+}
+
+type LegacyStateHashFeatureActivated struct {
+	_                 struct{}
+	FinalityActivated bool
+}
+
 // NewLegacyStateHash creates a new legacy StateHash depending on whether
 // the Deterministic Finality feature is activated.
 // If generatorsHash in not provided but finalityActivated is true, it will be set to zero value.
 func NewLegacyStateHash(
-	finalityActivated bool, blockID BlockID, fh FieldsHashesV1, generatorsHash ...crypto.Digest,
-) StateHash {
-	if finalityActivated {
-		var gh crypto.Digest
-		if len(generatorsHash) > 0 {
-			gh = generatorsHash[0]
+	blockID BlockID, fh FieldsHashesV1, f LegacyStateHashFeatureActivated, option ...LegacyStateHashOption,
+) (StateHash, error) {
+	var p LegacyStateHashParams
+	for _, opt := range option {
+		opt(&p)
+	}
+	if f.FinalityActivated {
+		if !p.v2Params.areSet {
+			return nil, fmt.Errorf("params for StateHashV2 are not set, but finality feature is activated")
 		}
 		return &StateHashV2{
 			BlockID: blockID,
 			FieldsHashesV2: FieldsHashesV2{
 				FieldsHashesV1: fh,
-				GeneratorsHash: gh,
+				GeneratorsHash: p.v2Params.generatorsHash,
 			},
-		}
+		}, nil
 	}
 	return &StateHashV1{
 		BlockID:        blockID,
 		FieldsHashesV1: fh,
-	}
+	}, nil
 }
 
 // FieldsHashesV1 is set of hashes fields for the legacy StateHashV1.

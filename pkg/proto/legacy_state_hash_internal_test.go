@@ -169,7 +169,13 @@ func TestStateHashBinaryRoundTrip(t *testing.T) {
 	for i := range 10 {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			activated := randomBool()
-			sh := NewLegacyStateHash(activated, randomBlockID(), randomFieldsHashesV1(), randomDigest())
+			sh, err := NewLegacyStateHash(randomBlockID(), randomFieldsHashesV1(),
+				LegacyStateHashFeatureActivated{
+					FinalityActivated: activated,
+				},
+				LegacyStateHashV2Opt(randomDigest()),
+			)
+			require.NoError(t, err)
 			data, err := sh.MarshalBinary()
 			require.NoError(t, err)
 			sh2 := EmptyLegacyStateHash(activated)
@@ -184,7 +190,13 @@ func TestStateHashJSONRoundTrip(t *testing.T) {
 	for i := range 10 {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			activated := randomBool()
-			sh := NewLegacyStateHash(activated, randomBlockID(), randomFieldsHashesV1(), randomDigest())
+			sh, err := NewLegacyStateHash(randomBlockID(), randomFieldsHashesV1(),
+				LegacyStateHashFeatureActivated{
+					FinalityActivated: activated,
+				},
+				LegacyStateHashV2Opt(randomDigest()),
+			)
+			require.NoError(t, err)
 			js, err := sh.MarshalJSON()
 			require.NoError(t, err)
 			sh2 := EmptyLegacyStateHash(activated)
@@ -250,7 +262,13 @@ func TestStateHashDebug(t *testing.T) {
 	for i := range 10 {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			activated := randomBool()
-			sh := NewLegacyStateHash(activated, randomBlockID(), randomFieldsHashesV1(), randomDigest())
+			sh, err := NewLegacyStateHash(randomBlockID(), randomFieldsHashesV1(),
+				LegacyStateHashFeatureActivated{
+					FinalityActivated: activated,
+				},
+				LegacyStateHashV2Opt(randomDigest()),
+			)
+			require.NoError(t, err)
 			h := randomHeight()
 			v := randomVersion()
 			ss := randomDigest()
