@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	stderrs "errors"
 	"fmt"
 	"log/slog"
@@ -1621,9 +1622,10 @@ func (f *finalizationProcessor) updateFinalization(
 			"err", err.Error())
 		return fmt.Errorf("failed to load last finalized block ID: %w", err)
 	}
+	endorsedBlockID := parent.Parent
 	msg, err := proto.EndorsementMessage(
 		lastFinalizedBlockID,
-		parent.Parent, // If we are at key block N+2, the endorsed block was N.
+		endorsedBlockID, // If we are at key block N+2, the endorsed block was N.
 		lastFinalizedHeight,
 	)
 	if err != nil {
@@ -1663,7 +1665,21 @@ func (f *finalizationProcessor) updateFinalization(
 		return errors.Wrap(err, "failed to check if parent is finalized")
 	}
 	if canFinalize {
-		if storErr := f.stor.finalizations.store(height, parent.BlockID()); storErr != nil {
+		// Endorsements target the block two heights below the current one (N-2).
+		if height < 2 {
+			return fmt.Errorf("not enough history to finalize: height=%d", height)
+		}
+		finalizedHeight := height - 2
+		grandParentID, idErr := f.rw.newestBlockIDByHeight(finalizedHeight)
+		if idErr != nil {
+			return fmt.Errorf("failed to load block ID at finalized height %d: %w", finalizedHeight, idErr)
+		}
+		if !bytes.Equal(endorsedBlockID.Bytes(), grandParentID.Bytes()) {
+			return fmt.Errorf("endorsed blockID is " +
+				"not equal to grand parent's blockID while trying to finalize," +
+				"endorsedBlockID: %s, grandParentBlockID %s", endorsedBlockID.String(), grandParentID.String())
+		}
+		if storErr := f.stor.finalizations.store(finalizedHeight, grandParentID); storErr != nil {
 			return storErr
 		}
 		slog.Debug("finalized block and saved finalization in state:",
