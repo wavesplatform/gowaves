@@ -1382,7 +1382,7 @@ func (f *finalizationProcessor) votingFinalization(
 	var endorsersGeneratingBalance uint64
 
 	for _, gen := range allGenerators {
-		balance, err := f.stor.balances.generatingBalance(gen.ID(), height)
+		balance, err := f.stor.balances.newestGeneratingBalance(gen.ID(), height)
 		if err != nil {
 			return false, err
 		}
@@ -1393,7 +1393,7 @@ func (f *finalizationProcessor) votingFinalization(
 	}
 
 	for _, endorser := range endorsers {
-		balance, err := f.stor.balances.generatingBalance(endorser.ID(), height)
+		balance, err := f.stor.balances.newestGeneratingBalance(endorser.ID(), height)
 		if err != nil {
 			return false, err
 		}
@@ -1402,7 +1402,7 @@ func (f *finalizationProcessor) votingFinalization(
 			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
 		}
 	}
-	blockGeneratorBalance, err := f.stor.balances.generatingBalance(blockGeneratorAddress.ID(), height)
+	blockGeneratorBalance, err := f.stor.balances.newestGeneratingBalance(blockGeneratorAddress.ID(), height)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to get blockGeneratorBalance")
 	}
@@ -1706,7 +1706,7 @@ func (f *finalizationProcessor) canFinalizeParent(
 		return false, errors.Wrap(err, "failed to convert block generator public key to address")
 	}
 
-	canFinalize, err := f.votingFinalization(endorserAddresses, blockGeneratorAddress, height, committedGenerators)
+	canFinalize, err := f.votingFinalization(endorserAddresses, blockGeneratorAddress, height-1, committedGenerators)
 	if err != nil {
 		slog.Debug("failed to finalize voting finalization", "err", err.Error())
 		return false, fmt.Errorf("failed to calculate 2/3 voting: %w", err)
