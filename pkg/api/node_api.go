@@ -1088,7 +1088,7 @@ func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.Com
 		periodStart,
 		blsPublicKey,
 		commitmentSignature,
-		state.FeeUnit,
+		proto.CommitTransactionFee,
 		timestampUint)
 	err = a.app.services.Wallet.SignTransactionWith(senderPK, tx)
 	if err != nil {

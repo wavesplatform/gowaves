@@ -55,6 +55,8 @@ const (
 	maxFunctionNameBytes                                 = 255
 	maxInvokeScriptWithProofsBinaryTransactionsBytes     = 5 * 1024
 	maxInvokeScriptWithProofsProtobufPayloadBytes        = 5 * 1024
+
+	CommitTransactionFee = 10000000
 )
 
 // IssueWithProofs is a transaction to issue new asset, second version.
