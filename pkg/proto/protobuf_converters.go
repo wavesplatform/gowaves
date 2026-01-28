@@ -1699,6 +1699,14 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		return MicroBlock{}, err
 	}
 	v := c.byte(mb.MicroBlock.Version)
+	var finalizationVoting *FinalizationVoting
+	if mb.MicroBlock.FinalizationVoting != nil {
+		fv, fvErr := c.FinalizationVoting(mb.MicroBlock.FinalizationVoting)
+		if fvErr != nil {
+			return MicroBlock{}, errors.Wrap(fvErr, "failed to unmarshal finalization voting")
+		}
+		finalizationVoting = &fv
+	}
 	res := MicroBlock{
 		VersionField:          v,
 		Reference:             c.blockID(mb.MicroBlock.Reference),
@@ -1709,6 +1717,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
 		Signature:             c.signature(mb.Signature),
 		StateHash:             c.stateHash(mb.MicroBlock.StateHash),
+		PartialFinalization:   finalizationVoting,
 	}
 	if c.err != nil {
 		err := c.err
@@ -1799,10 +1808,15 @@ func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.Finalizatio
 	if err != nil {
 		return FinalizationVoting{}, errors.Errorf("failed to parse aggregated bls signature: %v", err)
 	}
+	finalizedBlockHeight, err := safecast.Convert[uint64](finalizationVoting.FinalizedBlockHeight)
+	if err != nil {
+		return FinalizationVoting{}, errors.Wrap(err, "invalid finalized_block_height")
+	}
 	return FinalizationVoting{
 		EndorserIndexes:                finalizationVoting.EndorserIndexes,
 		AggregatedEndorsementSignature: aggregatedSignature,
 		ConflictEndorsements:           conflictEndorsements,
+		FinalizedBlockHeight:           finalizedBlockHeight,
 	}, nil
 }
 
@@ -1892,6 +1906,16 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 	if conversionErr != nil {
 		return BlockHeader{}, errors.Wrap(conversionErr, "consensus block length overflow")
 	}
+
+	var finalizationVoting *FinalizationVoting
+	if pbHeader.FinalizationVoting != nil {
+		fv, fvErr := c.FinalizationVoting(pbHeader.FinalizationVoting)
+		if fvErr != nil {
+			return BlockHeader{}, errors.Wrap(fvErr,
+				"failed to unmarshal finalization voting in partial block header function")
+		}
+		finalizationVoting = &fv
+	}
 	header := BlockHeader{
 		Version:              v,
 		Timestamp:            c.uint64(pbHeader.Timestamp),
@@ -1907,6 +1931,7 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 		TransactionsRoot:     pbHeader.TransactionsRoot,
 		StateHash:            c.stateHash(pbHeader.StateHash),
 		ChallengedHeader:     c.challengedHeader(pbHeader.ChallengedHeader),
+		FinalizationVoting:   finalizationVoting,
 		ID:                   BlockID{}, // not set, can't be calculated without the scheme and the block signature
 	}
 	if c.err != nil {

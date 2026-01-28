@@ -1364,6 +1364,10 @@ func (s *stateManager) addNewBlock(
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
 	lastSnapshotStateHash crypto.Digest,
 ) error {
+	finNonNil := block.FinalizationVoting != nil
+	if finNonNil {
+		slog.Debug("add new block, finalization voting not nil")
+	}
 	blockHeight := blockchainHeight + 1
 	if err := s.beforeAppendBlock(block, blockHeight); err != nil {
 		return err
@@ -3356,7 +3360,8 @@ func (s *stateManager) Close() error {
 	return nil
 }
 
-func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddress, height proto.Height,
+func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddress,
+	blockGeneratorAddress proto.WavesAddress, height proto.Height,
 	allGenerators []proto.WavesAddress) (bool, error) {
 	var totalGeneratingBalance uint64
 	var endorsersGeneratingBalance uint64
@@ -3382,6 +3387,15 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 		if err != nil {
 			return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
 		}
+	}
+	blockGeneratorRecipient := proto.NewRecipientFromAddress(blockGeneratorAddress)
+	blockGeneratorBalance, err := s.GeneratingBalance(blockGeneratorRecipient, height)
+	if err != nil {
+		return false, err
+	}
+	endorsersGeneratingBalance, err = common.AddInt(endorsersGeneratingBalance, blockGeneratorBalance)
+	if err != nil {
+		return false, errors.Wrap(err, "endorsersGeneratingBalance overflow")
 	}
 
 	slog.Debug("Calculating voting finalization", "number of committed generators", len(allGenerators),

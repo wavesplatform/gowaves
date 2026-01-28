@@ -42,7 +42,7 @@ func (a *MicroMiner) Micro(
 	minedBlock *proto.Block,
 	rest proto.MiningLimits,
 	keyPair proto.KeyPair,
-	partialFinalization *proto.FinalizationVoting,
+	blockFinalization *proto.FinalizationVoting,
 ) (*proto.Block, *proto.MicroBlock, proto.MiningLimits, error) {
 	const minTransactionSize = 40
 
@@ -92,12 +92,12 @@ func (a *MicroMiner) Micro(
 		transactions[i] = appliedTx.T
 	}
 
-	newBlock, sh, err := a.createNewBlock(minedBlock, keyPair, transactions, txSnapshots, height)
+	newBlock, sh, err := a.createNewBlock(minedBlock, keyPair, transactions, blockFinalization, txSnapshots, height)
 	if err != nil {
 		return nil, nil, rest, err
 	}
 
-	micro, err := a.createMicroBlock(newBlock, keyPair, transactions, partialFinalization, sh, txCount)
+	micro, err := a.createMicroBlock(newBlock, keyPair, transactions, blockFinalization, sh, txCount)
 	if err != nil {
 		return nil, nil, rest, err
 	}
@@ -245,6 +245,7 @@ func (a *MicroMiner) createNewBlock(
 	minedBlock *proto.Block,
 	keyPair proto.KeyPair,
 	transactions []proto.Transaction,
+	blockFinalizationVoting *proto.FinalizationVoting,
 	txSnapshots [][]proto.AtomicSnapshot,
 	height uint64,
 ) (*proto.Block, *crypto.Digest, error) {
@@ -271,12 +272,11 @@ func (a *MicroMiner) createNewBlock(
 		newTransactions, minedBlock.Timestamp, minedBlock.Parent,
 		minedBlock.GeneratorPublicKey, minedBlock.NxtConsensus,
 		minedBlock.Version, minedBlock.Features, minedBlock.RewardVote,
-		a.scheme, sh,
+		a.scheme, sh, blockFinalizationVoting,
 	)
 	if err != nil {
 		return nil, nil, err
 	}
-
 	if err = newBlock.SetTransactionsRootIfPossible(a.scheme); err != nil {
 		return nil, nil, err
 	}

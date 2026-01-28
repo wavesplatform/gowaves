@@ -220,7 +220,7 @@ var properties = map[blockchainEntity]blockchainEntityProperties{
 	finalization: {
 		needToFilter: true,
 		needToCut:    true,
-		fixedSize:    true, // TODO double check this.
+		fixedSize:    false,
 	},
 }
 

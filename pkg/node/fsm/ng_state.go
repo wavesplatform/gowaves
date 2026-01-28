@@ -23,6 +23,7 @@ import (
 )
 
 var errNoFinalization = errors.New("no finalization available")
+var errNoEndorsements = errors.New("no endorsements")
 
 // endorsementID hashes the endorsement payload to generate a stable identifier.
 func endorsementID(e *proto.EndorseBlock) (crypto.Digest, error) {
@@ -216,6 +217,13 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	}
 	metrics.BlockApplied(block, height+1)
 	a.baseInfo.endorsements.CleanAll()
+
+	parentBlock, err := a.baseInfo.storage.Block(block.Parent)
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to retrieve parent block %s", block.Parent))
+	}
+	a.baseInfo.endorsements.SaveBlockGenerator(&parentBlock.GeneratorPublicKey)
+
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.scheduler.Reschedule()
@@ -412,25 +420,23 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGState) getPartialFinalization(lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
-	if a.baseInfo.endorsements.Len() == 0 {
-		return nil, errNoFinalization
-	}
-	fin, err := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
-	if err != nil {
-		return nil, fmt.Errorf("failed to finalize endorsements for microblock: %w", err)
-	}
-	return &fin, nil
-}
+// func (a *NGState) getPartialFinalization(lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
+//	if a.baseInfo.endorsements.Len() == 0 {
+//		return nil, errNoFinalization
+//	}
+//	fin, err := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
+//	if err != nil {
+//		return nil, fmt.Errorf("failed to finalize endorsements for microblock: %w", err)
+//	}
+//	return &fin, nil
+//}
 
 func (a *NGState) getBlockFinalization(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	blockFinalization, err := a.tryFinalize(height, lastFinalizedHeight)
 	if err != nil {
-		if !errors.Is(err, errNoFinalization) {
-			return nil, a.Errorf(errors.Wrap(err, "failed to try finalize last block"))
-		}
-		return nil, errNoFinalization
+		slog.Debug("did not form finalization", "err", err)
+		return nil, err
 	}
 	return blockFinalization, nil
 }
@@ -439,7 +445,7 @@ func (a *NGState) tryFinalize(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	// No finalization since nobody endorsed the last block.
 	if a.baseInfo.endorsements.Len() == 0 {
-		return nil, errNoFinalization
+		return nil, errNoEndorsements
 	}
 
 	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
@@ -447,50 +453,57 @@ func (a *NGState) tryFinalize(height proto.Height,
 		return nil, fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
 	}
 
-	ok, err := a.baseInfo.endorsements.Verify()
-	if err != nil {
-		return nil, err
-	}
-	if !ok {
-		return nil, fmt.Errorf("endorsement verification failed at height %d", height)
-	}
+	// ok, err := a.baseInfo.endorsements.Verify()
+	// if err != nil {
+	//	return nil, err
+	// }
+	// if !ok {
+	//	return nil, fmt.Errorf("endorsement verification failed at height %d", height)
+	// }
 
 	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
 	if err != nil {
 		return nil, err
 	}
 
-	allEndorsers := a.baseInfo.endorsements.GetEndorsers()
-	endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
-	for _, endorser := range allEndorsers {
-		pk, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorser)
-		if findErr != nil {
-			return nil, findErr
-		}
-		addr := proto.MustAddressFromPublicKey(a.baseInfo.scheme, pk)
-		endorsersAddresses = append(endorsersAddresses, addr)
-	}
+	// allEndorsers := a.baseInfo.endorsements.GetEndorsers()
+	// endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
+	// for _, endorser := range allEndorsers {
+	//	pk, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorser)
+	//	if findErr != nil {
+	//		return nil, findErr
+	//	}
+	//	addr := proto.MustAddressFromPublicKey(a.baseInfo.scheme, pk)
+	//	endorsersAddresses = append(endorsersAddresses, addr)
+	// }
 
-	generators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
+	commitedGenerators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
 	if err != nil {
 		return nil, err
 	}
-	if len(generators) == 0 {
+	if len(commitedGenerators) == 0 {
 		slog.Debug("No committed generators found for finalization calculation")
 	}
-	canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, height, generators)
-	if err != nil {
-		return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
+	// blockGenerator, err := a.baseInfo.endorsements.BlockGenerator()
+	// if err != nil {
+	//	return nil, errors.Errorf("failed to get block generator: %v", err)
+	// }
+	// blockGeneratorAddress, err := proto.NewAddressFromPublicKey(a.baseInfo.scheme, blockGenerator)
+	// if err != nil {
+	//	return nil, errors.Errorf("failed to get block generator address: %v", err)
+	// }
+	// canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, blockGeneratorAddress,
+	//	height, commitedGenerators)
+	// if err != nil {
+	//	return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
+	// }
+	//
+	// if canFinalize {
+	finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
+	if finErr != nil {
+		return nil, finErr
 	}
-
-	if canFinalize {
-		finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
-		if finErr != nil {
-			return nil, finErr
-		}
-		return &finalization, nil
-	}
-	return nil, errNoFinalization
+	return &finalization, nil
 }
 
 func (a *NGState) MinedBlock(
@@ -542,6 +555,12 @@ func (a *NGState) MinedBlock(
 		"blockID", block.ID.String())
 
 	a.baseInfo.endorsements.CleanAll()
+	parentBlock, err := a.baseInfo.storage.Block(block.Parent)
+	if err != nil {
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to retrieve parent block %s", block.Parent))
+	}
+	a.baseInfo.endorsements.SaveBlockGenerator(&parentBlock.GeneratorPublicKey)
+
 	a.blocksCache.Clear()
 	a.blocksCache.AddBlockState(block)
 	a.baseInfo.actions.SendBlock(block)
@@ -581,6 +600,11 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to create endorsement message"))
 	}
+	slog.Debug("formed endorsement message",
+		"lastFinalizedBlockID", lastFinalizedBlock.BlockID(),
+		"lastFinalizedHeight", lastFinalizedHeight,
+		"EndorsedBlockID", parentBlockID,
+		"EndorserIndex", endorserIndex)
 	signature, err := bls.Sign(endorserSK, message)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to sign block endorsement"))
@@ -675,27 +699,26 @@ func (a *NGState) mineMicro(
 	if err != nil {
 		return a, nil, a.Errorf(err)
 	}
-	var partialFinalization *proto.FinalizationVoting
 	var blockFinalization *proto.FinalizationVoting
 	if finalityActivated {
 		lastFinalizedHeight, lastHeightErr := a.baseInfo.storage.LastFinalizedHeight()
 		if lastHeightErr != nil {
 			return a, nil, a.Errorf(lastHeightErr)
 		}
-		partialFinalization, err = a.getPartialFinalization(lastFinalizedHeight)
-		if err != nil && !errors.Is(err, errNoFinalization) {
-			return a, nil, a.Errorf(err)
-		}
+		// partialFinalization, err = a.getPartialFinalization(lastFinalizedHeight)
+		// if err != nil && !errors.Is(err, errNoFinalization) {
+		//	return a, nil, a.Errorf(err)
+		// }
 		blockFinalization, err = a.getBlockFinalization(height, lastFinalizedHeight)
-		if err != nil && !errors.Is(err, errNoFinalization) {
+		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
 		}
+		if blockFinalization != nil {
+			slog.Debug("formed non-nil block finalization field")
+		}
 	}
-	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair, partialFinalization)
-	if block != nil {
-		block.FinalizationVoting = blockFinalization
-	}
-
+	block, micro, rest, err := a.baseInfo.microMiner.Micro(minedBlock, rest, keyPair,
+		blockFinalization)
 	switch {
 	case errors.Is(err, miner.ErrNoTransactions) || errors.Is(err, miner.ErrBlockIsFull): // no txs to include in micro
 		a.baseInfo.logger.Debug(
@@ -712,6 +735,10 @@ func (a *NGState) mineMicro(
 	}
 	metrics.MicroBlockMined(micro, block.TransactionCount)
 
+	finNonNil := block.FinalizationVoting != nil
+	if finNonNil {
+		slog.Debug("mining micro, finalization voting not nil")
+	}
 	err = a.baseInfo.storage.Map(func(s state.NonThreadSafeState) error {
 		_, er := a.baseInfo.blocksApplier.ApplyMicro(s, block)
 		return er
@@ -781,7 +808,8 @@ func (a *NGState) checkAndAppendMicroBlock(
 	}
 	newTrs := top.Transactions.Join(micro.Transactions)
 	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus,
-		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash)
+		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash,
+		micro.PartialFinalization)
 	if err != nil {
 		return nil, err
 	}

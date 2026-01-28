@@ -1024,6 +1024,7 @@ type signCommit struct {
 	ChainID               *byte   `json:"chainId,omitempty"`
 	Type                  byte    `json:"type,omitempty"`
 	Version               byte    `json:"version,omitempty"`
+	Fee                   uint64  `json:"fee,omitempty"`
 }
 
 func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.CommitToGenerationWithProofs, error) {
@@ -1037,6 +1038,11 @@ func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.Com
 	addr, err := proto.NewAddressFromString(req.Sender)
 	if err != nil {
 		return nil, apiErrs.NewBadRequestError(errors.Wrap(err, "invalid sender address"))
+	}
+	var minTransactionFee uint64 = state.CommitmentFeeInFeeUnits * state.FeeUnit
+	transactionFee := minTransactionFee
+	if req.Fee > minTransactionFee {
+		transactionFee = req.Fee
 	}
 	scheme := a.app.services.Scheme
 	if req.ChainID != nil {
@@ -1088,7 +1094,7 @@ func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.Com
 		periodStart,
 		blsPublicKey,
 		commitmentSignature,
-		state.FeeUnit,
+		transactionFee,
 		timestampUint)
 	err = a.app.services.Wallet.SignTransactionWith(senderPK, tx)
 	if err != nil {
