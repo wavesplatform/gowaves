@@ -1658,42 +1658,51 @@ func (f *finalizationProcessor) updateFinalization(
 		return errors.Wrapf(err, "failed to verify finalization signature")
 	}
 
-	canFinalize, err := f.canFinalizeParent(endorsersPK, periodStart, parent, height)
+	canFinalize, err := f.canFinalizeGrandParent(endorsersPK, periodStart, parent, height)
 	if err != nil {
 		slog.Debug("failed to check if parent is finalized",
 			"err", err.Error())
 		return errors.Wrap(err, "failed to check if parent is finalized")
 	}
 	if canFinalize {
-		// Endorsements target the block two heights below the current one (N-2).
-		if height < 2 {
-			return fmt.Errorf("not enough history to finalize: height=%d", height)
+		finalizeErr := f.finalizeGrandParent(height, endorsedBlockID, finalizationVoting)
+		if finalizeErr != nil {
+			return finalizeErr
 		}
-		finalizedHeight := height - 2
-		grandParentID, idErr := f.rw.newestBlockIDByHeight(finalizedHeight)
-		if idErr != nil {
-			return fmt.Errorf("failed to load block ID at finalized height %d: %w", finalizedHeight, idErr)
-		}
-		if !bytes.Equal(endorsedBlockID.Bytes(), grandParentID.Bytes()) {
-			return fmt.Errorf("endorsed blockID is " +
-				"not equal to grand parent's blockID while trying to finalize," +
-				"endorsedBlockID: %s, grandParentBlockID %s", endorsedBlockID.String(), grandParentID.String())
-		}
-		if storErr := f.stor.finalizations.store(finalizedHeight, grandParentID); storErr != nil {
-			return storErr
-		}
-		slog.Debug("finalized block and saved finalization in state:",
-			"EndorserIndexes", finalizationVoting.EndorserIndexes,
-			"FinalizedBlockHeight", finalizationVoting.FinalizedBlockHeight,
-			"AggregatedEndorsementSignature", finalizationVoting.AggregatedEndorsementSignature.String(),
-			"Number of Conflict Endorsements", len(finalizationVoting.ConflictEndorsements))
 	} else {
 		slog.Debug("couldn't finalize the parent's block")
 	}
 	return nil
 }
 
-func (f *finalizationProcessor) canFinalizeParent(
+func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorsedBlockID proto.BlockID,
+	finalizationVoting *proto.FinalizationVoting) error {
+	// Endorsements target the block two heights below the current one (N-2).
+	if height < 2 {
+		return fmt.Errorf("not enough history to finalize: height=%d", height)
+	}
+	finalizedHeight := height - 2
+	grandParentID, idErr := f.rw.newestBlockIDByHeight(finalizedHeight)
+	if idErr != nil {
+		return fmt.Errorf("failed to load block ID at finalized height %d: %w", finalizedHeight, idErr)
+	}
+	if !bytes.Equal(endorsedBlockID.Bytes(), grandParentID.Bytes()) {
+		return fmt.Errorf("endorsed blockID is "+
+			"not equal to grand parent's blockID while trying to finalize,"+
+			"endorsedBlockID: %s, grandParentBlockID %s", endorsedBlockID.String(), grandParentID.String())
+	}
+	if storErr := f.stor.finalizations.store(finalizedHeight, grandParentID); storErr != nil {
+		return storErr
+	}
+	slog.Debug("finalized block and saved finalization in state:",
+		"EndorserIndexes", finalizationVoting.EndorserIndexes,
+		"FinalizedBlockHeight", finalizationVoting.FinalizedBlockHeight,
+		"AggregatedEndorsementSignature", finalizationVoting.AggregatedEndorsementSignature.String(),
+		"Number of Conflict Endorsements", len(finalizationVoting.ConflictEndorsements))
+	return nil
+}
+
+func (f *finalizationProcessor) canFinalizeGrandParent(
 	endorsersPK []bls.PublicKey, // adjust
 	periodStart uint32, // adjust
 	parent *proto.BlockHeader,
