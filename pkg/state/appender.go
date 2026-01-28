@@ -1679,7 +1679,7 @@ func (f *finalizationProcessor) updateFinalization(
 
 func (f *finalizationProcessor) canFinalizeParent(
 	endorsersPK []bls.PublicKey, // adjust
-	periodStart uint32,          // adjust
+	periodStart uint32, // adjust
 	parent *proto.BlockHeader,
 	height proto.Height,
 ) (bool, error) {
