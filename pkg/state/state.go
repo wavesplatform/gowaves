@@ -158,7 +158,7 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	if err := s.aliases.prepareHashes(); err != nil {
 		return err
 	}
-	return nil
+	return s.commitments.prepareHashes()
 }
 
 func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
@@ -224,6 +224,7 @@ func (s *blockchainEntitiesStorage) reset() {
 	s.leases.reset()
 	s.sponsoredAssets.reset()
 	s.aliases.reset()
+	s.commitments.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush() error {
