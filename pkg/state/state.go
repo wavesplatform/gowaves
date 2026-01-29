@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	stderrs "errors"
 	"fmt"
 	"io"
@@ -74,6 +75,7 @@ type blockchainEntitiesStorage struct {
 	patches           *patchesStorage
 	commitments       *commitments
 	finalizations     *finalizations
+	settings          *settings.BlockchainSettings
 	calculateHashes   bool
 }
 
@@ -110,14 +112,48 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		newCommitments(hs, calcHashes),
 		newFinalizations(hs),
+		sets,
 		calcHashes,
 	}, nil
+}
+
+func calculateCommittedGeneratorsBalancesStateHash( // TODO: add tests
+	s *blockchainEntitiesStorage, finalityActivated bool, blockHeight proto.Height,
+) (crypto.Digest, error) {
+	generatorsBalancesSH := s.commitments.hasher.emptyHash // take empty hash from commitments record
+	if !finalityActivated {
+		return generatorsBalancesSH, nil // not activated, return empty hash
+	}
+	finalityActivationHeight, err := s.features.newestActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return crypto.Digest{}, fmt.Errorf("failed to get finality activation height: %w", err)
+	}
+	period, err := CurrentGenerationPeriodStart(finalityActivationHeight, blockHeight, s.settings.GenerationPeriod)
+	if err != nil {
+		return crypto.Digest{}, fmt.Errorf("failed to get current generation period start: %w", err)
+	}
+	// generators are sorted by their commitment index, so the balances will be in the same order.
+	generators, err := s.commitments.CommittedGeneratorsAddresses(period, s.settings.AddressSchemeCharacter)
+	if err != nil {
+		return crypto.Digest{}, fmt.Errorf("failed to get committed generators addresses: %w", err)
+	}
+	generatorsBalancesRecord := make([]byte, 0, len(generators)*uint64Size)
+	for _, addr := range generators {
+		bal, bErr := s.balances.newestGeneratingBalance(addr.ID(), blockHeight)
+		if bErr != nil {
+			return crypto.Digest{}, fmt.Errorf("failed to get generating balance for address %s: %w",
+				addr.String(), bErr,
+			)
+		}
+		generatorsBalancesRecord = binary.BigEndian.AppendUint64(generatorsBalancesRecord, bal)
+	}
+	return crypto.FastHash(generatorsBalancesRecord)
 }
 
 func (s *blockchainEntitiesStorage) putStateHash(
 	prevHash []byte, height uint64, blockID proto.BlockID,
 ) (proto.StateHash, error) {
-	finalityActivated := s.features.isActivatedAtHeight(int16(settings.DeterministicFinality), height)
+	finalityActivated := s.features.newestIsActivatedAtHeight(int16(settings.DeterministicFinality), height)
 	fhV1 := proto.FieldsHashesV1{
 		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
 		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
@@ -129,11 +165,15 @@ func (s *blockchainEntitiesStorage) putStateHash(
 		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
 		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
 	}
+	generatorsBalancesSH, err := calculateCommittedGeneratorsBalancesStateHash(s, finalityActivated, height)
+	if err != nil {
+		return nil, err
+	}
 	sh, shErr := proto.NewLegacyStateHash(blockID, fhV1,
 		proto.LegacyStateHashFeatureActivated{
 			FinalityActivated: finalityActivated,
 		},
-		proto.LegacyStateHashV2Opt(s.commitments.hasher.stateHashAt(blockID)),
+		proto.LegacyStateHashV2Opt(s.commitments.hasher.stateHashAt(blockID), generatorsBalancesSH),
 	)
 	if shErr != nil {
 		return nil, shErr

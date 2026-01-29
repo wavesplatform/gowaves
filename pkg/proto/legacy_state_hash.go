@@ -40,21 +40,24 @@ func EmptyLegacyStateHash(finalityActivated bool) StateHash {
 
 type LegacyStateHashParams struct {
 	v2Params struct {
-		areSet         bool
-		generatorsHash crypto.Digest
+		areSet                 bool
+		generatorsHash         crypto.Digest
+		generatorsBalancesHash crypto.Digest
 	}
 }
 
 type LegacyStateHashOption func(*LegacyStateHashParams)
 
-func LegacyStateHashV2Opt(generatorsHash crypto.Digest) LegacyStateHashOption {
+func LegacyStateHashV2Opt(generatorsHash, generatorsBalancesHash crypto.Digest) LegacyStateHashOption {
 	return func(params *LegacyStateHashParams) {
 		params.v2Params = struct {
-			areSet         bool
-			generatorsHash crypto.Digest
+			areSet                 bool
+			generatorsHash         crypto.Digest
+			generatorsBalancesHash crypto.Digest
 		}{
-			areSet:         true,
-			generatorsHash: generatorsHash,
+			areSet:                 true,
+			generatorsHash:         generatorsHash,
+			generatorsBalancesHash: generatorsBalancesHash,
 		}
 	}
 }
@@ -81,8 +84,9 @@ func NewLegacyStateHash(
 		return &StateHashV2{
 			BlockID: blockID,
 			FieldsHashesV2: FieldsHashesV2{
-				FieldsHashesV1: fh,
-				GeneratorsHash: p.v2Params.generatorsHash,
+				FieldsHashesV1:         fh,
+				GeneratorsHash:         p.v2Params.generatorsHash,
+				GeneratorsBalancesHash: p.v2Params.generatorsBalancesHash,
 			},
 		}, nil
 	}

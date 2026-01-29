@@ -173,7 +173,7 @@ func TestStateHashBinaryRoundTrip(t *testing.T) {
 				LegacyStateHashFeatureActivated{
 					FinalityActivated: activated,
 				},
-				LegacyStateHashV2Opt(randomDigest()),
+				LegacyStateHashV2Opt(randomDigest(), randomDigest()),
 			)
 			require.NoError(t, err)
 			data, err := sh.MarshalBinary()
@@ -194,7 +194,7 @@ func TestStateHashJSONRoundTrip(t *testing.T) {
 				LegacyStateHashFeatureActivated{
 					FinalityActivated: activated,
 				},
-				LegacyStateHashV2Opt(randomDigest()),
+				LegacyStateHashV2Opt(randomDigest(), randomDigest()),
 			)
 			require.NoError(t, err)
 			js, err := sh.MarshalJSON()
@@ -266,7 +266,7 @@ func TestStateHashDebug(t *testing.T) {
 				LegacyStateHashFeatureActivated{
 					FinalityActivated: activated,
 				},
-				LegacyStateHashV2Opt(randomDigest()),
+				LegacyStateHashV2Opt(randomDigest(), randomDigest()),
 			)
 			require.NoError(t, err)
 			h := randomHeight()
