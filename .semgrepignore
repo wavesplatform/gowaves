@@ -24,3 +24,4 @@ itests/config/template.conf
 
 # Ignore generated protobuf files
 **/*.pb.go
+**/*.gen.go
