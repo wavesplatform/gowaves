@@ -117,7 +117,7 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 	}, nil
 }
 
-func calculateCommittedGeneratorsBalancesStateHash( // TODO: add tests
+func calculateCommittedGeneratorsBalancesStateHash(
 	s *blockchainEntitiesStorage, finalityActivated bool, blockHeight proto.Height,
 ) (crypto.Digest, error) {
 	generatorsBalancesSH := s.commitments.hasher.emptyHash // take empty hash from commitments record

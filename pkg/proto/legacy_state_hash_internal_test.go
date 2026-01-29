@@ -219,7 +219,7 @@ func TestStateHash_GenerateSumHash(t *testing.T) {
 func TestStateHashV2_GenerateSumHashScalaCompatibility(t *testing.T) {
 	/* Output from Scala test com/wavesplatform/state/StateHashSpec.scala:138
 	PrevHash: 46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi
-	StateHash: StateHash(3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8,
+	StateHash: StateHash(KdA4trKip6EpfUSzca42sLVqqjuHishcHDQZeYDC1Mo,
 		HashMap(
 			WavesBalance -> 3PhZ3CqdvDR58QGE62gVJFm5pZ6Q5CMpSLWV3KxVkAT7,
 			LeaseBalance -> 59QG6ZmcCkLmNuuPLxp2ifNZcr4BzMCahtKQ5iqyM1kJ,
@@ -231,9 +231,10 @@ func TestStateHashV2_GenerateSumHashScalaCompatibility(t *testing.T) {
 			AccountScript -> AMrxWar34wJdGWjDj2peT2c1itiPaPwY81hU32hyrB88,
 			Alias -> 46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi,
 			AssetScript -> H8V5TrNNmwCU1erqVXmQbLoi9b4kd5iJSpMmvJ7CXeyf
+			CommittedGeneratorBalances -> EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr
 		)
 	)
-	TotalHash: 3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8
+	TotalHash: KdA4trKip6EpfUSzca42sLVqqjuHishcHDQZeYDC1Mo
 	*/
 	sh := StateHashV2{
 		FieldsHashesV2: FieldsHashesV2{
@@ -249,10 +250,12 @@ func TestStateHashV2_GenerateSumHashScalaCompatibility(t *testing.T) {
 				AliasesHash:       crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi"),
 			},
 			GeneratorsHash: crypto.MustDigestFromBase58("Gni1oXsHrtK8wSEuRDeZ9qpF8UpKj41HGEWaYSj9bCyC"),
+			// EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr
+			GeneratorsBalancesHash: crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, 3000)),
 		},
 	}
 	prevHash := crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi")
-	correctSumHash := crypto.MustDigestFromBase58("3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8")
+	correctSumHash := crypto.MustDigestFromBase58("KdA4trKip6EpfUSzca42sLVqqjuHishcHDQZeYDC1Mo")
 	err := sh.GenerateSumHash(prevHash.Bytes())
 	require.NoError(t, err)
 	assert.Equal(t, correctSumHash, sh.GetSumHash())
