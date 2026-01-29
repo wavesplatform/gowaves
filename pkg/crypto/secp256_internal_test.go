@@ -59,8 +59,8 @@ type testVector struct {
 }
 
 func appendRawPubKey(t *testing.T, out []byte, x, y string) []byte {
-	const coordSize = secp256r1RawPubKeySize / 2
-	out = slices.Grow(out, len(out)+secp256r1RawPubKeySize)
+	const coordSize = secP256r1RawPubKeySize / 2
+	out = slices.Grow(out, len(out)+secP256r1RawPubKeySize)
 	xBytes, err := hex.DecodeString(x)
 	require.NoError(t, err)
 	require.Len(t, xBytes, coordSize)
@@ -73,8 +73,8 @@ func appendRawPubKey(t *testing.T, out []byte, x, y string) []byte {
 }
 
 func appendUncompressedPubKey(t *testing.T, out []byte, x, y string) []byte {
-	out = slices.Grow(out, len(out)+secp256r1UncompressedPubKeySize)
-	out = append(out, secp256r1UncompressedPubKeyPrefix)
+	out = slices.Grow(out, len(out)+secP256r1UncompressedPubKeySize)
+	out = append(out, secP256r1UncompressedPubKeyPrefix)
 	return appendRawPubKey(t, out, x, y)
 }
 
@@ -126,7 +126,7 @@ func TestSecp256Verify(t *testing.T) {
 	vectors := transformViewsToVectors(t, vectorsView)
 	for i, tv := range vectors {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
-			ok, err := Secp256Verify(tv.Digest, tv.PublicKey, tv.Signature)
+			ok, err := SecP256Verify(tv.Digest, tv.PublicKey, tv.Signature)
 			if tv.Valid {
 				require.NoError(t, err, "valid vector should not return error")
 				require.True(t, ok, "valid vector should verify")
@@ -160,7 +160,7 @@ func BenchmarkSecp256Verify(b *testing.B) {
 	copy(sig, r)
 	copy(sig[32:], s)
 	for b.Loop() {
-		ok, vErr := Secp256Verify(hash, pk, sig)
+		ok, vErr := SecP256Verify(hash, pk, sig)
 		require.NoError(b, vErr)
 		assert.True(b, ok)
 	}

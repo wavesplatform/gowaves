@@ -1071,7 +1071,7 @@ func secp256verify(_ environment, args ...rideType) (rideType, error) {
 	copy(sig[:len(r)], r.Bytes())
 	copy(sig[len(r):], s.Bytes())
 
-	ok, vErr := crypto.Secp256Verify(hash.Bytes(), pubKey[:], sig[:])
+	ok, vErr := crypto.SecP256Verify(hash.Bytes(), pubKey[:], sig[:])
 	if vErr != nil { // vErr is not nil when data is invalid or point is not on the curve
 		ok = false
 	}
