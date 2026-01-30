@@ -69,7 +69,8 @@ type LegacyStateHashFeatureActivated struct {
 
 // NewLegacyStateHash creates a new legacy StateHash depending on whether
 // the Deterministic Finality feature is activated.
-// If generatorsHash in not provided but finalityActivated is true, it will be set to zero value.
+// When finality is activated, both generatorsHash and generatorsBalancesHash must be provided
+// via LegacyStateHashV2Opt, otherwise NewLegacyStateHash returns an error.
 func NewLegacyStateHash(
 	blockID BlockID, fh FieldsHashesV1, f LegacyStateHashFeatureActivated, option ...LegacyStateHashOption,
 ) (StateHash, error) {
@@ -233,7 +234,7 @@ func (s *FieldsHashesV1) ReadFrom(r io.Reader) (int64, error) {
 }
 
 // FieldsHashesV2 is set of hashes fields for the legacy StateHashV2.
-// It's a FieldsHashesV1 with an additional GeneratorsHash field.
+// It's a FieldsHashesV1 with additional GeneratorsHash and GeneratorsBalancesHash fields.
 type FieldsHashesV2 struct {
 	FieldsHashesV1
 	GeneratorsHash         crypto.Digest
