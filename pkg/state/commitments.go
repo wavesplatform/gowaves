@@ -8,6 +8,7 @@ import (
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -448,4 +449,18 @@ func (c *commitments) removeGenerator(
 	}
 
 	return nil
+}
+
+func (c *commitments) prepareHashes() error {
+	if !c.calculateHashes {
+		return nil // No-op if hash calculation is disabled.
+	}
+	return c.hasher.stop()
+}
+
+func (c *commitments) reset() {
+	if !c.calculateHashes {
+		return // No-op if hash calculation is disabled.
+	}
+	c.hasher.reset()
 }
