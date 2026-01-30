@@ -1,7 +1,10 @@
 package testdata
 
 import (
-	"math/rand"
+	"crypto/rand"
+	"math/big"
+
+	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/itests/config"
 	f "github.com/wavesplatform/gowaves/itests/fixtures"
@@ -306,11 +309,13 @@ func GetSameAliasDiffAddressNegativeDataMatrix(suite *f.BaseSuite) []AliasTestDa
 	accCount := 2
 	var t []AliasTestData[SameAliasExpectedValuesNegative]
 	for i := 0; i < accCount; i++ {
+		rnd, err := rand.Int(rand.Reader, big.NewInt(10))
+		require.NoError(suite.T(), err)
 		t = append(t, NewAliasTestData(
 			utl.GetAccount(suite, i+2),
 			alias,
 			utl.MinTxFeeWaves,
-			utl.GetCurrentTimestampInMs()+uint64(rand.Intn(10)),
+			utl.GetCurrentTimestampInMs()+rnd.Uint64(),
 			utl.TestChainID,
 			SameAliasExpectedValuesNegative{
 				ErrGoMsg:                     errMsg,
