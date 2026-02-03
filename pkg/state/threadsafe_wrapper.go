@@ -477,6 +477,13 @@ func (a *ThreadSafeReadWrapper) LastFinalizedBlock() (*proto.BlockHeader, error)
 	return a.s.LastFinalizedBlock()
 }
 
+// CheckRollbackHeightAuto validates automatic rollback height constraints.
+func (a *ThreadSafeReadWrapper) CheckRollbackHeightAuto(height proto.Height) error {
+	a.mu.RLock()
+	defer a.mu.RUnlock()
+	return a.s.CheckRollbackHeightAuto(height)
+}
+
 func NewThreadSafeReadWrapper(mu *sync.RWMutex, s StateInfo) StateInfo {
 	return &ThreadSafeReadWrapper{
 		mu: mu,

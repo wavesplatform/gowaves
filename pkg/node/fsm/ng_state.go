@@ -2,7 +2,6 @@ package fsm
 
 import (
 	"context"
-	"fmt"
 	"log/slog"
 
 	"github.com/pkg/errors"
@@ -450,7 +449,7 @@ func (a *NGState) tryFinalize(height proto.Height,
 
 	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
-		return nil, fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
+		return nil, errors.Wrapf(err, "failed to get DeterministicFinality activation height")
 	}
 
 	// ok, err := a.baseInfo.endorsements.Verify()

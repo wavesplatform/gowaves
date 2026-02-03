@@ -3,6 +3,7 @@ package state
 import (
 	"bytes"
 	"context"
+	"encoding/binary"
 	stderrs "errors"
 	"fmt"
 	"io"
@@ -74,6 +75,7 @@ type blockchainEntitiesStorage struct {
 	patches           *patchesStorage
 	commitments       *commitments
 	finalizations     *finalizations
+	settings          *settings.BlockchainSettings
 	calculateHashes   bool
 }
 
@@ -110,14 +112,48 @@ func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainS
 		newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		newCommitments(hs, calcHashes),
 		newFinalizations(hs),
+		sets,
 		calcHashes,
 	}, nil
+}
+
+func calculateCommittedGeneratorsBalancesStateHash(
+	s *blockchainEntitiesStorage, finalityActivated bool, blockHeight proto.Height,
+) (crypto.Digest, error) {
+	generatorsBalancesSH := s.commitments.hasher.emptyHash // take empty hash from commitments record
+	if !finalityActivated {
+		return generatorsBalancesSH, nil // not activated, return empty hash
+	}
+	finalityActivationHeight, err := s.features.newestActivationHeight(int16(settings.DeterministicFinality))
+	if err != nil {
+		return crypto.Digest{}, fmt.Errorf("failed to get finality activation height: %w", err)
+	}
+	period, err := CurrentGenerationPeriodStart(finalityActivationHeight, blockHeight, s.settings.GenerationPeriod)
+	if err != nil {
+		return crypto.Digest{}, fmt.Errorf("failed to get current generation period start: %w", err)
+	}
+	// generators are sorted by their commitment index, so the balances will be in the same order.
+	generators, err := s.commitments.CommittedGeneratorsAddresses(period, s.settings.AddressSchemeCharacter)
+	if err != nil {
+		return crypto.Digest{}, fmt.Errorf("failed to get committed generators addresses: %w", err)
+	}
+	generatorsBalancesRecord := make([]byte, 0, len(generators)*uint64Size)
+	for _, addr := range generators {
+		bal, bErr := s.balances.newestGeneratingBalance(addr.ID(), blockHeight)
+		if bErr != nil {
+			return crypto.Digest{}, fmt.Errorf("failed to get generating balance for address %s: %w",
+				addr.String(), bErr,
+			)
+		}
+		generatorsBalancesRecord = binary.BigEndian.AppendUint64(generatorsBalancesRecord, bal)
+	}
+	return crypto.FastHash(generatorsBalancesRecord)
 }
 
 func (s *blockchainEntitiesStorage) putStateHash(
 	prevHash []byte, height uint64, blockID proto.BlockID,
 ) (proto.StateHash, error) {
-	finalityActivated := s.features.isActivatedAtHeight(int16(settings.DeterministicFinality), height)
+	finalityActivated := s.features.newestIsActivatedAtHeight(int16(settings.DeterministicFinality), height)
 	fhV1 := proto.FieldsHashesV1{
 		WavesBalanceHash:  s.balances.wavesHashAt(blockID),
 		AssetBalanceHash:  s.balances.assetsHashAt(blockID),
@@ -129,7 +165,19 @@ func (s *blockchainEntitiesStorage) putStateHash(
 		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
 		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
 	}
-	sh := proto.NewLegacyStateHash(finalityActivated, blockID, fhV1, s.commitments.hasher.stateHashAt(blockID))
+	generatorsBalancesSH, err := calculateCommittedGeneratorsBalancesStateHash(s, finalityActivated, height)
+	if err != nil {
+		return nil, err
+	}
+	sh, shErr := proto.NewLegacyStateHash(blockID, fhV1,
+		proto.LegacyStateHashFeatureActivated{
+			FinalityActivated: finalityActivated,
+		},
+		proto.LegacyStateHashV2Opt(s.commitments.hasher.stateHashAt(blockID), generatorsBalancesSH),
+	)
+	if shErr != nil {
+		return nil, shErr
+	}
 	if gErr := sh.GenerateSumHash(prevHash); gErr != nil {
 		return nil, gErr
 	}
@@ -158,7 +206,7 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	if err := s.aliases.prepareHashes(); err != nil {
 		return err
 	}
-	return nil
+	return s.commitments.prepareHashes()
 }
 
 func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
@@ -224,6 +272,7 @@ func (s *blockchainEntitiesStorage) reset() {
 	s.leases.reset()
 	s.sponsoredAssets.reset()
 	s.aliases.reset()
+	s.commitments.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush() error {
@@ -2235,7 +2284,7 @@ func (s *stateManager) blockVerifyTaskWithHeaderValidation(
 }
 
 func (s *stateManager) checkRollbackHeight(height uint64) error {
-	maxHeight, err := s.Height()
+	currentHeight, err := s.Height()
 	if err != nil {
 		return err
 	}
@@ -2243,8 +2292,35 @@ func (s *stateManager) checkRollbackHeight(height uint64) error {
 	if err != nil {
 		return err
 	}
-	if height < minRollbackHeight || height > maxHeight {
-		return errors.Errorf("invalid height; valid range is: [%d, %d]", minRollbackHeight, maxHeight)
+	if height < minRollbackHeight || height > currentHeight {
+		return errors.Errorf("invalid height; valid range is: [%d, %d]", minRollbackHeight, currentHeight)
+	}
+	return nil
+}
+
+// checkRollbackHeightAuto is used by automatic rollback paths and also ensures
+// we never roll back below the last finalized height when deterministic
+// finality is active.
+func (s *stateManager) CheckRollbackHeightAuto(height proto.Height) error {
+	if err := s.checkRollbackHeight(height); err != nil {
+		return err
+	}
+	currentHeight, err := s.Height()
+	if err != nil {
+		return err
+	}
+	finalityActivated, err := s.IsActiveAtHeight(int16(settings.DeterministicFinality), currentHeight+1)
+	if err != nil {
+		return errors.Errorf("failed to check DeterministicFinality activation: %v", err)
+	}
+	if finalityActivated {
+		finalizedHeight, fhErr := s.LastFinalizedHeight()
+		if fhErr != nil {
+			return fhErr
+		}
+		if height < finalizedHeight {
+			return errors.Errorf("invalid height; cannot rollback below finalized height %d", finalizedHeight)
+		}
 	}
 	return nil
 }
