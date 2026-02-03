@@ -24,7 +24,7 @@ require (
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/jinzhu/copier v0.4.0
 	github.com/lanrat/extsort v1.4.2
-	github.com/lmittmann/tint v1.1.2
+	github.com/lmittmann/tint v1.1.3
 	github.com/mattn/go-isatty v0.0.20
 	github.com/minio/minlz v1.0.1
 	github.com/mr-tron/base58 v1.2.0
