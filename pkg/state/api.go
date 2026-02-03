@@ -171,6 +171,7 @@ type StateInfo interface {
 	CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error)
 	LastFinalizedHeight() (proto.Height, error)
 	LastFinalizedBlock() (*proto.BlockHeader, error)
+	CheckRollbackHeightAuto(height proto.Height) error
 }
 
 // StateModifier contains all the methods needed to modify node's state.

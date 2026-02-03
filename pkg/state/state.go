@@ -2284,7 +2284,7 @@ func (s *stateManager) blockVerifyTaskWithHeaderValidation(
 }
 
 func (s *stateManager) checkRollbackHeight(height uint64) error {
-	maxHeight, err := s.Height()
+	currentHeight, err := s.Height()
 	if err != nil {
 		return err
 	}
@@ -2292,8 +2292,35 @@ func (s *stateManager) checkRollbackHeight(height uint64) error {
 	if err != nil {
 		return err
 	}
-	if height < minRollbackHeight || height > maxHeight {
-		return errors.Errorf("invalid height; valid range is: [%d, %d]", minRollbackHeight, maxHeight)
+	if height < minRollbackHeight || height > currentHeight {
+		return errors.Errorf("invalid height; valid range is: [%d, %d]", minRollbackHeight, currentHeight)
+	}
+	return nil
+}
+
+// checkRollbackHeightAuto is used by automatic rollback paths and also ensures
+// we never roll back below the last finalized height when deterministic
+// finality is active.
+func (s *stateManager) CheckRollbackHeightAuto(height proto.Height) error {
+	if err := s.checkRollbackHeight(height); err != nil {
+		return err
+	}
+	currentHeight, err := s.Height()
+	if err != nil {
+		return err
+	}
+	finalityActivated, err := s.IsActiveAtHeight(int16(settings.DeterministicFinality), currentHeight+1)
+	if err != nil {
+		return errors.Errorf("failed to check DeterministicFinality activation: %v", err)
+	}
+	if finalityActivated {
+		finalizedHeight, fhErr := s.LastFinalizedHeight()
+		if fhErr != nil {
+			return fhErr
+		}
+		if height < finalizedHeight {
+			return errors.Errorf("invalid height; cannot rollback below finalized height %d", finalizedHeight)
+		}
 	}
 	return nil
 }

@@ -93,6 +93,8 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	stateMock.EXPECT().BlockIDToHeight(genesisId).Return(proto.Height(1), nil)
 	// returns score for genesis block, it will be 1
 	stateMock.EXPECT().ScoreAtHeight(proto.Height(1)).Return(big.NewInt(1), nil)
+	// check rollback constraints
+	stateMock.EXPECT().CheckRollbackHeightAuto(proto.Height(1)).Return(nil)
 	// now we save block for rollback
 	stateMock.EXPECT().BlockByHeight(proto.Height(2)).Return(block1, nil)
 	// rollback to first(genesis) block

@@ -344,6 +344,20 @@ func (mr *MockStateInfoMockRecorder) CalculateVotingFinalization(endorsers, bloc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockStateInfo)(nil).CalculateVotingFinalization), endorsers, blockGeneratorAddress, height, allGenerators)
 }
 
+// CheckRollbackHeightAuto mocks base method.
+func (m *MockStateInfo) CheckRollbackHeightAuto(height proto.Height) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckRollbackHeightAuto", height)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CheckRollbackHeightAuto indicates an expected call of CheckRollbackHeightAuto.
+func (mr *MockStateInfoMockRecorder) CheckRollbackHeightAuto(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckRollbackHeightAuto", reflect.TypeOf((*MockStateInfo)(nil).CheckRollbackHeightAuto), height)
+}
+
 // CommittedGenerators mocks base method.
 func (m *MockStateInfo) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
 	m.ctrl.T.Helper()
@@ -1896,6 +1910,20 @@ func (m *MockState) CalculateVotingFinalization(endorsers []proto.WavesAddress, 
 func (mr *MockStateMockRecorder) CalculateVotingFinalization(endorsers, blockGeneratorAddress, height, allGenerators interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CalculateVotingFinalization", reflect.TypeOf((*MockState)(nil).CalculateVotingFinalization), endorsers, blockGeneratorAddress, height, allGenerators)
+}
+
+// CheckRollbackHeightAuto mocks base method.
+func (m *MockState) CheckRollbackHeightAuto(height proto.Height) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "CheckRollbackHeightAuto", height)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// CheckRollbackHeightAuto indicates an expected call of CheckRollbackHeightAuto.
+func (mr *MockStateMockRecorder) CheckRollbackHeightAuto(height interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "CheckRollbackHeightAuto", reflect.TypeOf((*MockState)(nil).CheckRollbackHeightAuto), height)
 }
 
 // Close mocks base method.

@@ -564,6 +564,13 @@ func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height) error {
 	return a.s.RollbackToHeight(height)
 }
 
+// CheckRollbackHeightAuto validates automatic rollback height constraints.
+func (a *ThreadSafeWriteWrapper) CheckRollbackHeightAuto(height proto.Height) error {
+	a.lock()
+	defer a.unlock()
+	return a.s.CheckRollbackHeightAuto(height)
+}
+
 func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID) error {
 	a.lock()
 	defer a.unlock()
