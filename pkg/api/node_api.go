@@ -927,13 +927,13 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	}
 	activationHeight, err := a.state.ActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
-		return fmt.Errorf("failed to get DeterministicFinality activation height: %w", err)
+		return errors.Wrapf(err, "failed to get DeterministicFinality activation height")
 	}
 
 	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height,
 		a.app.settings.GenerationPeriod)
 	if err != nil {
-		return fmt.Errorf("failed to calculate generationPeriodStart: %w", err)
+		return errors.Wrapf(err, "failed to calculate generationPeriodStart")
 	}
 	generatorAddresses, err := a.state.CommittedGenerators(periodStart)
 	if err != nil {
@@ -1081,7 +1081,7 @@ func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.Com
 
 	blsSecretKey, blsPublicKey, err := a.app.services.Wallet.BLSPairByWavesPK(senderPK)
 	if err != nil {
-		return nil, errors.Wrap(err, "failed to find endorser public key by generator public key")
+		return nil, apiErrs.NewBadRequestError(errors.Wrap(err, "failed to find endorser public key by generator public key"))
 	}
 	_, commitmentSignature, popErr := bls.ProvePoP(blsSecretKey, blsPublicKey, periodStart)
 	if popErr != nil {
@@ -1096,7 +1096,7 @@ func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.Com
 		timestampUint)
 	err = a.app.services.Wallet.SignTransactionWith(senderPK, tx)
 	if err != nil {
-		return nil, err
+		return nil, errors.Wrap(err, "failed to sign transaction")
 	}
 	return tx, nil
 }
