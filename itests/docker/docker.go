@@ -110,6 +110,8 @@ type Docker struct {
 	goNode    *NodeContainer
 	scalaNode *NodeContainer
 
+	goNodes []*NodeContainer
+
 	logs string
 }
 
@@ -139,6 +141,12 @@ func NewDocker(suiteName string) (*Docker, error) {
 
 func (d *Docker) GoNode() *NodeContainer {
 	return d.goNode
+}
+
+func (d *Docker) GoNodes() []*NodeContainer {
+	nodes := make([]*NodeContainer, len(d.goNodes))
+	copy(nodes, d.goNodes)
+	return nodes
 }
 
 func (d *Docker) ScalaNode() *NodeContainer {
@@ -182,6 +190,40 @@ func (d *Docker) StartScalaNode(ctx context.Context, cfg config.DockerConfigurat
 	return nil
 }
 
+func (d *Docker) StartMultipleGoNodes(ctx context.Context, cfgs ...config.DockerConfigurator) error {
+	d.goNodes = make([]*NodeContainer, len(cfgs))
+	for i, cfg := range cfgs {
+		node, err := d.startNode(ctx, cfg, getGoNodeLogFileName(i), getGoNodeErrFileName(i))
+		if err != nil {
+			stopErr := d.stopStartedNodes(i)
+			return stderrs.Join(stopErr, errors.Wrapf(err, "failed to start Go node %d", i))
+		}
+		d.goNodes[i] = node
+	}
+	return nil
+}
+
+func (d *Docker) stopStartedNodes(upToIndex int) error {
+	var errs []error
+	for i := 0; i < upToIndex; i++ {
+		stErr := d.stopContainer(d.goNodes[i].container.Container.ID)
+		clErr := d.goNodes[i].Close()
+		return stderrs.Join(stErr, clErr)
+	}
+	if len(errs) > 0 {
+		return stderrs.Join(errs...)
+	}
+	return nil
+}
+
+func getGoNodeLogFileName(i int) string {
+	return fmt.Sprintf("go-node-%d.log", i)
+}
+
+func getGoNodeErrFileName(i int) string {
+	return fmt.Sprintf("go-node-%d.err", i)
+}
+
 func (d *Docker) Finish(cancel context.CancelFunc) {
 	eg := errgroup.Group{}
 	if d.scalaNode != nil {
@@ -197,6 +239,20 @@ func (d *Docker) Finish(cancel context.CancelFunc) {
 			clErr := d.goNode.Close()
 			return stderrs.Join(stErr, clErr)
 		})
+	}
+	if err := eg.Wait(); err != nil {
+		log.Printf("[ERR] Failed to shutdown docker containers: %v", err)
+	}
+	if err := d.pool.RemoveNetwork(d.network); err != nil {
+		log.Printf("[ERR] Failed to remove docker network: %s", err)
+	}
+	cancel()
+}
+
+func (d *Docker) FinishAllGoNodes(cancel context.CancelFunc, nodesCount int) {
+	eg := errgroup.Group{}
+	if err := d.stopStartedNodes(nodesCount); err != nil {
+		log.Printf("[ERR] Failed to stop started nodes: %v", err)
 	}
 	if err := eg.Wait(); err != nil {
 		log.Printf("[ERR] Failed to shutdown docker containers: %v", err)
