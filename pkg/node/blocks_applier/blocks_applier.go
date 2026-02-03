@@ -70,8 +70,8 @@ func (a *innerBlocksApplier) apply(
 	}
 
 	// Ensure we don't rollback below finalized height when deterministic finality is active.
-	if err := storage.CheckRollbackHeightAuto(parentHeight); err != nil {
-		return 0, errors.Errorf("can't apply new blocks, rollback %d more than finalized height %d", deltaHeight, final)
+	if checkErr := storage.CheckRollbackHeightAuto(parentHeight); checkErr != nil {
+		return 0, errors.Wrapf(checkErr, "can't apply new blocks, rollback %d more than finalized height", deltaHeight)
 	}
 	// save previously added blocks. If new firstBlock failed to add, then return them back
 	rollbackBlocks, err := a.getRollbackBlocks(storage, deltaHeight, parentHeight)
