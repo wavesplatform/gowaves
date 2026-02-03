@@ -222,6 +222,8 @@ type MinerConsensus interface {
 
 type EmbeddedWallet interface {
 	SignTransactionWith(pk crypto.PublicKey, tx proto.Transaction) error
+	FindPublicKeyByAddress(address proto.WavesAddress, scheme proto.Scheme) (crypto.PublicKey, error)
+	BLSPairByWavesPK(publicKey crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error)
 	Load(password []byte) error
 	AccountSeeds() [][]byte
 	KeyPairsBLS() ([]bls.PublicKey, []bls.SecretKey, error)
