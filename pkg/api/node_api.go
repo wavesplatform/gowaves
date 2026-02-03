@@ -17,6 +17,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/ccoveille/go-safecast/v2"
+
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
@@ -1039,11 +1040,8 @@ func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.Com
 	if err != nil {
 		return nil, apiErrs.NewBadRequestError(errors.Wrap(err, "invalid sender address"))
 	}
-	var minTransactionFee uint64 = state.CommitmentFeeInFeeUnits * state.FeeUnit
-	transactionFee := minTransactionFee
-	if req.Fee > minTransactionFee {
-		transactionFee = req.Fee
-	}
+	const minTransactionFee = state.CommitmentFeeInFeeUnits * state.FeeUnit
+	transactionFee := max(minTransactionFee, req.Fee)
 	scheme := a.app.services.Scheme
 	if req.ChainID != nil {
 		scheme = *req.ChainID
