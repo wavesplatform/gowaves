@@ -45,10 +45,10 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Set up Go 1.24
+      - name: Set up Go 1.25
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
           check-latest: true
           cache: true
         id: go
