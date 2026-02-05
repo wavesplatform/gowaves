@@ -2,6 +2,7 @@ package crypto
 
 import (
 	"bytes"
+	"crypto/ecdsa"
 	"crypto/x509"
 	"errors"
 	"fmt"
@@ -121,5 +122,32 @@ func LoadCertificate(
 	if _, err := leaf.Verify(opts); err != nil {
 		return nil, fmt.Errorf("failed to verify certificate chain: %w", err)
 	}
+	if !hasExtension(leaf) {
+		return nil, errors.New("certificate is missing SGX Extensions")
+	}
 	return leaf, nil
+}
+
+func hasExtension(cert *x509.Certificate) bool {
+	const extensionOID = "1.2.840.113741.1.13.1" // SGX extension OID
+	for _, ext := range cert.Extensions {
+		if ext.Id.String() == extensionOID {
+			return true
+		}
+	}
+	return false
+}
+
+// CertificatePublicKeyToBytes extracts the public key from the provided X.509 certificate.
+// Certificate must contain an ECDSA public key on the NIST P-256 curve.
+func CertificatePublicKeyToBytes(cert *x509.Certificate) ([]byte, error) {
+	switch pk := cert.PublicKey.(type) {
+	case *ecdsa.PublicKey:
+		res := make([]byte, P256RawPubKeySize)
+		pk.X.FillBytes(res[:32])
+		pk.Y.FillBytes(res[32:])
+		return res, nil
+	default:
+		return nil, fmt.Errorf("unsupported public key type %T", pk)
+	}
 }

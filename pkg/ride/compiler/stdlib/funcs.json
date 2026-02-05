@@ -2708,17 +2708,26 @@
             "id": "609"
           }
         ],
+        "validateTDXCertificateChain": [
+          {
+            "arguments": [
+              "List[ByteVector]",
+              "List[ByteVector]",
+              "Int"
+            ],
+            "return_type": "ByteVector",
+            "id": "902"
+          }
+        ],
         "p256Verify": [
           {
             "arguments": [
               "ByteVector",
               "ByteVector",
-              "ByteVector",
-              "ByteVector",
               "ByteVector"
             ],
             "return_type": "Boolean",
-            "id": "902"
+            "id": "903"
           }
         ]
       },
