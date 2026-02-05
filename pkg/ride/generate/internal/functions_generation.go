@@ -911,6 +911,7 @@ func functionsV9() map[string]string {
 	m["607"] = "fromBase641C"
 	m["608"] = "toBase161C"
 	m["609"] = "fromBase161C"
+	m["902"] = "secp256r1verify"
 	m["1107"] = "fillList"
 	m["1214"] = "replaceFirst"
 	m["1215"] = "replaceAll"
@@ -924,6 +925,7 @@ func catalogueV9() map[string]int {
 	m["607"] = 1
 	m["608"] = 1
 	m["609"] = 1
+	m["902"] = 550
 	m["1107"] = 2
 	m["1214"] = 2
 	m["1215"] = 2

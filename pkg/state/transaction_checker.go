@@ -9,6 +9,7 @@ import (
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
+	"github.com/wavesplatform/gowaves/pkg/util/common"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/errs"
@@ -19,7 +20,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/util/common"
 )
 
 const (
@@ -71,93 +71,108 @@ type scriptFeaturesActivations struct {
 	rideForDAppsActivated, blockV5Activated, rideV5Activated, rideV6Activated bool
 }
 
-// rideFeaturesActivations holds information about activated features relevant to Ride scripts.
-type rideFeaturesActivations struct {
-	scriptFeaturesActivations
+type featuresActivationStatusesValidator struct {
+	rideForDAppsActivated            bool
+	blockV5Activated                 bool
+	rideV5Activated                  bool
+	rideV6Activated                  bool
 	blockRewardDistributionActivated bool
 	lightNodeActivated               bool
 	deterministicFinalityActivated   bool
 }
 
-func (tc *transactionChecker) scriptFeaturesActivations() (rideFeaturesActivations, error) {
-	var (
-		res rideFeaturesActivations
-		err error
-	)
-	res.rideForDAppsActivated, err = tc.stor.features.newestIsActivated(int16(settings.Ride4DApps))
-	if err != nil {
-		return res, err
+func (v featuresActivationStatusesValidator) Validate(libVersion ast.LibraryVersion, hasBlockV2 bool) error {
+	if libVersion < ast.LibV1 || libVersion > ast.CurrentMaxLibraryVersion() {
+		return errors.Errorf("unknown script LibVersion=%d", libVersion)
 	}
-	res.blockV5Activated, err = tc.stor.features.newestIsActivated(int16(settings.BlockV5))
-	if err != nil {
-		return res, err
+	if libVersion < ast.LibV4 && v.lightNodeActivated {
+		return errors.Errorf("scripts with versions below %d are disabled after activation of Light Node feature",
+			ast.LibV4)
 	}
-	res.rideV5Activated, err = tc.stor.features.newestIsActivated(int16(settings.RideV5))
-	if err != nil {
-		return res, err
+	if libVersion == ast.LibV3 && !v.rideForDAppsActivated {
+		return errors.New("Ride4DApps feature must be activated for scripts version 3")
 	}
-	res.rideV6Activated, err = tc.stor.features.newestIsActivated(int16(settings.RideV6))
-	if err != nil {
-		return res, err
+	if hasBlockV2 && !v.rideForDAppsActivated {
+		return errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
 	}
-	res.blockRewardDistributionActivated, err = tc.stor.features.newestIsActivated(int16(settings.BlockRewardDistribution))
-	if err != nil {
-		return res, err
+	if libVersion == ast.LibV4 && !v.blockV5Activated {
+		return errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
 	}
-	res.lightNodeActivated, err = tc.stor.features.newestIsActivated(int16(settings.LightNode))
-	if err != nil {
-		return res, err
+	if libVersion == ast.LibV5 && !v.rideV5Activated {
+		return errors.New("RideV5 feature must be activated for scripts version 5")
 	}
-	res.deterministicFinalityActivated, err = tc.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
-	return res, err
+	if libVersion == ast.LibV6 && !v.rideV6Activated {
+		return errors.New("RideV6 feature must be activated for scripts version 6")
+	}
+	if libVersion == ast.LibV7 && !v.blockRewardDistributionActivated {
+		return errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
+	}
+	if libVersion == ast.LibV8 && !v.lightNodeActivated {
+		return errors.New("LightNode feature must be activated for scripts version 8")
+	}
+	if libVersion == ast.LibV9 && !v.deterministicFinalityActivated {
+		return errors.New("DeterministicFinality feature must be activated for scripts version 9")
+	}
+	return nil
+}
+
+func newFeaturesActivationStatusesValidator(f featuresState) (featuresActivationStatusesValidator, error) {
+	rideForDAppsActivated, err := f.newestIsActivated(int16(settings.Ride4DApps))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, errs.Extend(err, "transactionChecker scriptActivation isActivated")
+	}
+	blockV5Activated, err := f.newestIsActivated(int16(settings.BlockV5))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	rideV5Activated, err := f.newestIsActivated(int16(settings.RideV5))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	rideV6Activated, err := f.newestIsActivated(int16(settings.RideV6))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	blockRewardDistributionActivated, err := f.newestIsActivated(int16(settings.BlockRewardDistribution))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	lightNodeActivated, err := f.newestIsActivated(int16(settings.LightNode))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	deterministicFinalityActivated, err := f.newestIsActivated(int16(settings.DeterministicFinality))
+	if err != nil {
+		return featuresActivationStatusesValidator{}, err
+	}
+	return featuresActivationStatusesValidator{
+		rideForDAppsActivated:            rideForDAppsActivated,
+		blockV5Activated:                 blockV5Activated,
+		rideV5Activated:                  rideV5Activated,
+		rideV6Activated:                  rideV6Activated,
+		blockRewardDistributionActivated: blockRewardDistributionActivated,
+		lightNodeActivated:               lightNodeActivated,
+		deterministicFinalityActivated:   deterministicFinalityActivated,
+	}, nil
 }
 
 func (tc *transactionChecker) scriptActivation(
 	libVersion ast.LibraryVersion,
 	hasBlockV2 bool,
 ) (scriptFeaturesActivations, error) {
-	rf, err := tc.scriptFeaturesActivations()
+	v, err := newFeaturesActivationStatusesValidator(tc.stor.features)
 	if err != nil {
-		return scriptFeaturesActivations{}, errs.Extend(err, "transactionChecker scriptActivation isActivated")
+		return scriptFeaturesActivations{}, err
 	}
-	if libVersion < ast.LibV4 && rf.lightNodeActivated {
-		return scriptFeaturesActivations{},
-			errors.Errorf("scripts with versions below %d are disabled after activation of Light Node feature",
-				ast.LibV4)
+	if vErr := v.Validate(libVersion, hasBlockV2); vErr != nil {
+		return scriptFeaturesActivations{}, vErr
 	}
-	if libVersion == ast.LibV3 && !rf.rideForDAppsActivated {
-		return scriptFeaturesActivations{},
-			errors.New("Ride4DApps feature must be activated for scripts version 3")
-	}
-	if hasBlockV2 && !rf.rideForDAppsActivated {
-		return scriptFeaturesActivations{},
-			errors.New("Ride4DApps feature must be activated for scripts that have block version 2")
-	}
-	if libVersion == ast.LibV4 && !rf.blockV5Activated {
-		return scriptFeaturesActivations{},
-			errors.New("MultiPaymentInvokeScript feature must be activated for scripts version 4")
-	}
-	if libVersion == ast.LibV5 && !rf.rideV5Activated {
-		return scriptFeaturesActivations{},
-			errors.New("RideV5 feature must be activated for scripts version 5")
-	}
-	if libVersion == ast.LibV6 && !rf.rideV6Activated {
-		return scriptFeaturesActivations{},
-			errors.New("RideV6 feature must be activated for scripts version 6")
-	}
-	if libVersion == ast.LibV7 && !rf.blockRewardDistributionActivated {
-		return scriptFeaturesActivations{},
-			errors.New("BlockRewardDistribution feature must be activated for scripts version 7")
-	}
-	if libVersion == ast.LibV8 && !rf.lightNodeActivated {
-		return scriptFeaturesActivations{},
-			errors.New("LightNode feature must be activated for scripts version 8")
-	}
-	if libVersion == ast.LibV9 && !rf.deterministicFinalityActivated {
-		return scriptFeaturesActivations{},
-			errors.New("DeterministicFinality feature must be activated for scripts version 9")
-	}
-	return rf.scriptFeaturesActivations, nil
+	return scriptFeaturesActivations{
+		rideForDAppsActivated: v.rideForDAppsActivated,
+		blockV5Activated:      v.blockV5Activated,
+		rideV5Activated:       v.rideV5Activated,
+		rideV6Activated:       v.rideV6Activated,
+	}, nil
 }
 
 func (tc *transactionChecker) checkScriptComplexity(
