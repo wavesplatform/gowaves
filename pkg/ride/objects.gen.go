@@ -243,11 +243,11 @@ func (o rideAssetV3) String() string {
 
 //betteralign:check
 type rideAssetV4 struct {
+	minSponsoredFee rideType
 	description     rideString
 	name            rideString
 	issuerPublicKey rideByteVector
 	id              rideByteVector
-	minSponsoredFee rideType
 	decimals        rideInt
 	quantity        rideInt
 	issuer          rideAddress
@@ -818,11 +818,11 @@ type rideBlockInfoV7 struct {
 	vrf                 rideType
 	generationSignature rideByteVector
 	generatorPublicKey  rideByteVector
+	rewards             rideList
 	baseTarget          rideInt
 	timestamp           rideInt
 	height              rideInt
 	generator           rideAddress
-	rewards             rideList
 }
 
 func newRideBlockInfoV7(vrf rideType, generationSignature rideByteVector, generatorPublicKey rideByteVector, baseTarget rideInt, timestamp rideInt, height rideInt, generator rideAddress, rewards rideList) rideBlockInfoV7 {
@@ -1399,14 +1399,14 @@ func (o rideInvocationV4) String() string {
 
 //betteralign:check
 type rideInvocationV5 struct {
-	originCaller          rideAddress
-	payments              rideList
-	callerPublicKey       rideByteVector
 	feeAssetId            rideType
 	originCallerPublicKey rideType
+	payments              rideList
+	callerPublicKey       rideByteVector
 	transactionId         rideByteVector
-	caller                rideAddress
 	fee                   rideInt
+	originCaller          rideAddress
+	caller                rideAddress
 }
 
 func newRideInvocationV5(originCaller rideAddress, payments rideList, callerPublicKey rideByteVector, feeAssetId rideType, originCallerPublicKey rideType, transactionId rideByteVector, caller rideAddress, fee rideInt) rideInvocationV5 {
@@ -1895,12 +1895,12 @@ type rideOrderV8 struct {
 	assetPair         rideType
 	orderType         rideType
 	matcherFeeAssetId rideType
+	attachment        rideType
 	proofs            rideList
 	bodyBytes         rideByteVector
 	id                rideByteVector
 	senderPublicKey   rideByteVector
 	matcherPublicKey  rideByteVector
-	attachment        rideType
 	amount            rideInt
 	timestamp         rideInt
 	expiration        rideInt
@@ -5176,16 +5176,16 @@ func (o rideUpdateAssetInfoTransaction) getProofs() rideList {
 //betteralign:check
 type rideCommitToGenerationTransaction struct {
 	endorserPublicKey     rideByteVector
-	generationPeriodStart rideInt
 	commitmentSignature   rideByteVector
 	id                    rideByteVector
+	senderPublicKey       rideByteVector
+	bodyBytes             rideByteVector
+	proofs                rideList
+	generationPeriodStart rideInt
 	fee                   rideInt
 	timestamp             rideInt
 	version               rideInt
 	sender                rideAddress
-	senderPublicKey       rideByteVector
-	bodyBytes             rideByteVector
-	proofs                rideList
 }
 
 func newRideCommitToGenerationTransaction(endorserPublicKey rideByteVector, generationPeriodStart rideInt, commitmentSignature rideByteVector, id rideByteVector, fee rideInt, timestamp rideInt, version rideInt, sender rideAddress, senderPublicKey rideByteVector, bodyBytes rideByteVector, proofs rideList) rideCommitToGenerationTransaction {

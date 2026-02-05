@@ -911,7 +911,7 @@ func functionsV9() map[string]string {
 	m["607"] = "fromBase641C"
 	m["608"] = "toBase161C"
 	m["609"] = "fromBase161C"
-	m["902"] = "secp256r1verify"
+	m["902"] = "secp256verify"
 	m["1107"] = "fillList"
 	m["1214"] = "replaceFirst"
 	m["1215"] = "replaceAll"

@@ -2707,6 +2707,19 @@
             "return_type": "ByteVector",
             "id": "609"
           }
+        ],
+        "p256Verify": [
+          {
+            "arguments": [
+              "ByteVector",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector",
+              "ByteVector"
+            ],
+            "return_type": "Boolean",
+            "id": "902"
+          }
         ]
       },
       "remove": []
