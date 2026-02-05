@@ -71,7 +71,7 @@ jobs:
 
     steps:
       - name: Check out code into the Go module directory
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # v5
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v5
         with:
           fetch-depth: 0
           fetch-tags: true
@@ -107,7 +107,7 @@ jobs:
           target: /tmp/
 
       - name: Backup deb package on the deployment server
-        uses: appleboy/ssh-action@823bd89e131d8d508129f9443cad5855e9ba96f0 # v1.2.4
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         id: backup-deb
         env:
           SERVICE_NAME: ${{ env.SERVICE_NAME }}
@@ -129,7 +129,7 @@ jobs:
             rmdir $TMPDIR
 
       - name: Install deb package on the deployment server
-        uses: appleboy/ssh-action@823bd89e131d8d508129f9443cad5855e9ba96f0 # v1.2.4
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         id: install-deb
         env:
           PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
@@ -152,7 +152,7 @@ jobs:
             done
 
       - name: Rollback deb package on the deployment server
-        uses: appleboy/ssh-action@823bd89e131d8d508129f9443cad5855e9ba96f0 # v1.2.4
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         if: ${{ failure() }}
         env:
           BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
@@ -175,7 +175,7 @@ jobs:
             done
 
       - name: Clean up deb package on the deployment server
-        uses: appleboy/ssh-action@823bd89e131d8d508129f9443cad5855e9ba96f0 # v1.2.4
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         if: ${{ always() }}
         env:
           PACKAGE_NAME: ${{ env.PACKAGE_NAME }}
@@ -190,7 +190,7 @@ jobs:
             rm -f /tmp/$PACKAGE_NAME
 
       - name: Clean up backup deb package on the deployment server
-        uses: appleboy/ssh-action@823bd89e131d8d508129f9443cad5855e9ba96f0 # v1.2.4
+        uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         if: ${{ always() }}
         env:
           BACKUP_PACKAGE_PATH: ${{ env.BACKUP_PACKAGE_PATH }}
