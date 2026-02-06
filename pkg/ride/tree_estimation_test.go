@@ -513,7 +513,7 @@ func TestScope(t *testing.T) {
 	}
 }
 
-func TestSecp256EstimationVerifier(t *testing.T) {
+func TestSecP256EstimationVerifier(t *testing.T) {
 	estimationTest := func(t *testing.T, tree *ast.Tree, estimatorVersion, expectedComplexity int) {
 		e, err := EstimateTree(tree, estimatorVersion)
 		require.NoError(t, err)
@@ -521,23 +521,23 @@ func TestSecp256EstimationVerifier(t *testing.T) {
 		assert.Equal(t, expectedComplexity, e.Estimation)
 		assert.Equal(t, expectedComplexity, e.Verifier)
 	}
-	a := struct{ x, y, r, s, hash string }{
-		x:    "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838",
-		y:    "c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
-		r:    "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18",
-		s:    "4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
-		hash: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
+	a := struct{ pk, sig, msg string }{
+		pk: "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" +
+			"c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
+		sig: "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18" +
+			"4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
+		msg: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
 	}
 	const (
-		expectedComplexityAfterV4  = 550
-		expectedComplexityBeforeV4 = expectedComplexityAfterV4 + 5 // because of 5 arguments
+		expectedComplexityAfterV4  = 43
+		expectedComplexityBeforeV4 = expectedComplexityAfterV4 + 3 // because of 3 arguments
 		scriptTmpl                 = `
 			{-# STDLIB_VERSION 9 #-}
 			{-# CONTENT_TYPE EXPRESSION #-}
 			{-# SCRIPT_TYPE ACCOUNT #-}
-			p256Verify(base16'%s', base16'%s', base16'%s', base16'%s', base16'%s')`
+			p256Verify(base16'%s', base16'%s', base16'%s')`
 	)
-	tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, a.x, a.y, a.r, a.s, a.hash))
+	tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, a.msg, a.sig, a.pk))
 	require.NoError(t, stderrs.Join(errs...))
 	require.Equal(t, ast.LibV9, tree.LibVersion)
 	estimationTest(t, tree, 1, expectedComplexityBeforeV4)
@@ -546,7 +546,7 @@ func TestSecp256EstimationVerifier(t *testing.T) {
 	estimationTest(t, tree, 4, expectedComplexityAfterV4)
 }
 
-func TestSecp256EstimationDApp(t *testing.T) {
+func TestSecP256EstimationDApp(t *testing.T) {
 	estimationTest := func(t *testing.T, tree *ast.Tree, estimatorVersion, expectedComplexity int) {
 		e, err := EstimateTree(tree, estimatorVersion)
 		require.NoError(t, err)
@@ -555,12 +555,12 @@ func TestSecp256EstimationDApp(t *testing.T) {
 		assert.Equal(t, expectedComplexity, e.Estimation)
 		assert.Equal(t, expectedComplexity, e.Functions["call"])
 	}
-	a := struct{ x, y, r, s, hash string }{
-		x:    "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838",
-		y:    "c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
-		r:    "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18",
-		s:    "4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
-		hash: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
+	a := struct{ pk, sig, msg string }{
+		pk: "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" +
+			"c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
+		sig: "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18" +
+			"4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
+		msg: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
 	}
 	const (
 		scriptTmpl = `
@@ -569,16 +569,95 @@ func TestSecp256EstimationDApp(t *testing.T) {
 			{-# SCRIPT_TYPE ACCOUNT #-}
 			@Callable(i)
 			func call() = {
-				let res = p256Verify(base16'%s', base16'%s', base16'%s', base16'%s', base16'%s')
+				let res = p256Verify(base16'%s', base16'%s', base16'%s')
 				[BooleanEntry("res", res)]
 			}`
 	)
 	// TODO: compare with scala node results
-	tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, a.x, a.y, a.r, a.s, a.hash))
+	tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, a.msg, a.sig, a.pk))
 	require.NoError(t, stderrs.Join(errs...))
 	require.Equal(t, ast.LibV9, tree.LibVersion)
-	estimationTest(t, tree, 1, 578)
-	estimationTest(t, tree, 2, 578)
-	estimationTest(t, tree, 3, 561)
-	estimationTest(t, tree, 4, 553)
+	estimationTest(t, tree, 1, 69)
+	estimationTest(t, tree, 2, 69)
+	estimationTest(t, tree, 3, 52)
+	estimationTest(t, tree, 4, 46)
+}
+
+func TestValidateTDXCertificateChainEstimationVerifier(t *testing.T) {
+	const template = `
+			{-# STDLIB_VERSION 9 #-}
+			{-# CONTENT_TYPE EXPRESSION #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			let cert = validateTDXCertificateChain([base64'%s', base64'%s', base64'%s'], [base64'%s', base64'%s'], %d)
+			cert == base64'%s'`
+
+	certificates := loadCertificates(t, "../crypto/testdata/tdx-cert-chain.pem")
+	require.Len(t, certificates, 3)
+	revocations := loadRevocations(t)
+	require.Len(t, revocations, 2)
+	const ts = 1770106534615
+	for i, test := range []struct {
+		estimatorVersion   int
+		expectedComplexity int
+	}{ // TODO: compare with scala node results
+		{estimatorVersion: 1, expectedComplexity: 67},
+		{estimatorVersion: 2, expectedComplexity: 67},
+		{estimatorVersion: 3, expectedComplexity: 59},
+		{estimatorVersion: 4, expectedComplexity: 49}, // func (43) + array (3) + array (2) + comparison (1)
+	} {
+		t.Run(fmt.Sprintf("#%d: estimator V%d", i+1, test.estimatorVersion), func(t *testing.T) {
+			src := fmt.Sprintf(template, certificates[0], certificates[1], certificates[2],
+				revocations[0], revocations[1], ts, certificates[0])
+			tree, errs := ridec.CompileToTree(src)
+			require.NoError(t, stderrs.Join(errs...))
+			require.Equal(t, ast.LibV9, tree.LibVersion)
+			e, err := EstimateTree(tree, test.estimatorVersion)
+			require.NoError(t, err)
+			assert.Empty(t, e.Functions)
+			assert.Equal(t, test.expectedComplexity, e.Estimation)
+			assert.Equal(t, test.expectedComplexity, e.Verifier)
+		})
+	}
+}
+
+func TestValidateTDXCertificatesChainEstimationDApp(t *testing.T) {
+	const template = `
+			{-# STDLIB_VERSION 9 #-}
+			{-# CONTENT_TYPE DAPP #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			@Callable(i)
+			func call() = {
+				let c = validateTDXCertificateChain([base64'%s', base64'%s', base64'%s'], [base64'%s', base64'%s'], %d)
+				[BinaryEntry("cert", c)]
+			}`
+
+	certificates := loadCertificates(t, "../crypto/testdata/tdx-cert-chain.pem")
+	require.Len(t, certificates, 3)
+	revocations := loadRevocations(t)
+	require.Len(t, revocations, 2)
+	const ts = 1770106534615
+	for i, test := range []struct {
+		estimatorVersion   int
+		expectedComplexity int
+	}{ // TODO: compare with scala node results
+		{estimatorVersion: 1, expectedComplexity: 81},
+		{estimatorVersion: 2, expectedComplexity: 81},
+		{estimatorVersion: 3, expectedComplexity: 62},
+		{estimatorVersion: 4, expectedComplexity: 51}, // func (43) + array (3) + array (2) + comparison (1) + ??? (2)
+	} {
+		t.Run(fmt.Sprintf("#%d: estimator V%d", i+1, test.estimatorVersion), func(t *testing.T) {
+			src := fmt.Sprintf(template, certificates[0], certificates[1], certificates[2],
+				revocations[0], revocations[1], ts)
+			tree, errs := ridec.CompileToTree(src)
+			require.NoError(t, stderrs.Join(errs...))
+			require.Equal(t, ast.LibV9, tree.LibVersion)
+
+			e, err := EstimateTree(tree, test.estimatorVersion)
+			require.NoError(t, err)
+			assert.Zero(t, e.Verifier)
+			assert.Len(t, e.Functions, 1)
+			assert.Equal(t, test.expectedComplexity, e.Estimation)
+			assert.Equal(t, test.expectedComplexity, e.Functions["call"])
+		})
+	}
 }

@@ -6,8 +6,10 @@ import (
 	"crypto/rsa"
 	sh256 "crypto/sha256"
 	"crypto/x509"
+	"fmt"
 	"math/big"
 	"slices"
+	"time"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/mr-tron/base58"
@@ -1028,52 +1030,107 @@ func rsaVerify(env environment, args ...rideType) (rideType, error) {
 	return rideBoolean(ok), nil
 }
 
-func rideTypeToDigest(d rideType) (crypto.Digest, error) {
-	b, ok := d.(rideByteVector)
-	if !ok {
-		return crypto.Digest{}, errors.Errorf("expected ByteVector for digest, got '%s'", d.instanceOf())
+// validateCertChain function validates certificates chain checking their signatures and revocation status at
+// the given timestamp. The function accepts the following arguments:
+//
+//	certificates: List[ByteVector],
+//	revocations: List[ByteVector],
+//	timestamp: Int.
+//
+// And returns the public key of leaf certificate of the chain in form of ByteVector.
+func validateCertChain(_ environment, args ...rideType) (rideType, error) {
+	const numberOfArgs = 3
+	if err := checkArgs(args, numberOfArgs); err != nil {
+		return nil, fmt.Errorf("validateCertChain: %w", err)
 	}
-	return crypto.NewDigestFromBytes(b)
+	cl, ok := args[0].(rideList)
+	if !ok {
+		return nil, fmt.Errorf("validateCertChain: unexpected type '%s' of first argument", args[0].instanceOf())
+	}
+	rl, ok := args[1].(rideList)
+	if !ok {
+		return nil, fmt.Errorf("validateCertChain: unexpected type '%s' of second argument", args[1].instanceOf())
+	}
+	if len(cl) == 0 {
+		return nil, fmt.Errorf("validateCertChain: certificates chain must contain at least one certificate")
+	}
+	const maxCertsInChain = 5
+	if len(cl) > maxCertsInChain {
+		return nil, fmt.Errorf("validateCertChain: certificates chain must not contain more than %d certificates",
+			maxCertsInChain)
+	}
+	if len(rl) != len(cl)-1 {
+		return nil, fmt.Errorf("validateCertChain: CRL size must be one less than certificates chain size")
+	}
+	ts, ok := args[2].(rideInt)
+	if !ok {
+		return nil, fmt.Errorf("validateCertChain: unexpected type '%s' of third argument", args[2].instanceOf())
+	}
+
+	cd := make([][]byte, 0, len(cl))
+	for _, c := range cl {
+		cb, cOK := c.(rideByteVector)
+		if !cOK {
+			return nil, fmt.Errorf("validateCertChain: unexpected type '%s' in certificates list", c.instanceOf())
+		}
+		cd = append(cd, cb)
+	}
+	certificates, err := crypto.ParseCertificates(cd)
+	if err != nil {
+		return nil, fmt.Errorf("validateCertChain: %w", err)
+	}
+
+	rd := make([][]byte, 0, len(rl))
+	for _, r := range rl {
+		rb, rOK := r.(rideByteVector)
+		if !rOK {
+			return nil, fmt.Errorf("validateCertChain: unexpected type '%s' in revocations list", r.instanceOf())
+		}
+		rd = append(rd, rb)
+	}
+	revocations, err := crypto.ParseRevocationLists(rd)
+	if err != nil {
+		return nil, fmt.Errorf("validateCertChain: %w", err)
+	}
+	tm := time.UnixMilli(int64(ts))
+	cert, err := crypto.LoadCertificate(certificates, revocations, tm)
+	if err != nil {
+		return nil, fmt.Errorf("validateCertChain: %w", err)
+	}
+	pkb, err := crypto.CertificatePublicKeyToBytes(cert)
+	if err != nil {
+		return nil, fmt.Errorf("validateCertChain: %w", err)
+	}
+	return rideByteVector(pkb), nil
 }
 
-func secp256verify(_ environment, args ...rideType) (rideType, error) {
-	const argsCount = 5
-	if err := checkArgs(args, argsCount); err != nil {
-		return nil, errors.Wrap(err, "secp256verify")
+// secP256Verify function validates secp256k1 signature. It accepts the following arguments:
+//
+//	message: ByteVector,
+//	signature: ByteVector,
+//	publicKey: ByteVector.
+//
+// And return Boolean value - true if the signature is valid, false otherwise.
+func secP256Verify(_ environment, args ...rideType) (rideType, error) {
+	const numberOfArgs = 3
+	if err := checkArgs(args, numberOfArgs); err != nil {
+		return nil, fmt.Errorf("secP256Verify: %w", err)
 	}
-	// args: x, y, r, s, hash
-	x, err := rideTypeToDigest(args[0])
+	msg, ok := args[0].(rideByteVector)
+	if !ok {
+		return nil, fmt.Errorf("secP256Verify: unexpected type '%s' of first argument", args[0].instanceOf())
+	}
+	sig, ok := args[1].(rideByteVector)
+	if !ok {
+		return nil, fmt.Errorf("secP256Verify: unexpected type '%s' of second argument", args[1].instanceOf())
+	}
+	pk, ok := args[2].(rideByteVector)
+	if !ok {
+		return nil, fmt.Errorf("secP256Verify: unexpected type '%s' of third argument", args[2].instanceOf())
+	}
+	ok, err := crypto.SecP256Verify(msg, pk, sig)
 	if err != nil {
-		return nil, errors.Wrap(err, "secp256verify: invalid x coordinate")
-	}
-	y, err := rideTypeToDigest(args[1])
-	if err != nil {
-		return nil, errors.Wrap(err, "secp256verify: invalid y coordinate")
-	}
-	r, err := rideTypeToDigest(args[2])
-	if err != nil {
-		return nil, errors.Wrap(err, "secp256verify: invalid r value")
-	}
-	s, err := rideTypeToDigest(args[3])
-	if err != nil {
-		return nil, errors.Wrap(err, "secp256verify: invalid s value")
-	}
-	hash, err := rideTypeToDigest(args[4])
-	if err != nil {
-		return nil, errors.Wrap(err, "secp256verify: invalid hash value")
-	}
-	// construct public key and signature
-	var pubKey [len(x) + len(y)]byte // raw uncompressed public key, without 0x04 prefix
-	copy(pubKey[:len(x)], x.Bytes())
-	copy(pubKey[len(x):], y.Bytes())
-
-	var sig [len(r) + len(s)]byte // raw signature, r || s
-	copy(sig[:len(r)], r.Bytes())
-	copy(sig[len(r):], s.Bytes())
-
-	ok, vErr := crypto.Secp256Verify(hash.Bytes(), pubKey[:], sig[:])
-	if vErr != nil { // vErr is not nil when data is invalid or point is not on the curve
-		ok = false
+		return nil, fmt.Errorf("secP256Verify: %w", err)
 	}
 	return rideBoolean(ok), nil
 }
