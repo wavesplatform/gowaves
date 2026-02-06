@@ -47,16 +47,14 @@ func TestHandleReceive(t *testing.T) {
 	remote := NewRemote()
 	parent := NewParent(false)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		peer := &mockPeer{
 			CloseFunc: func() error { return nil },
 			IDFunc:    func() ID { return &mockID{id: "test-peer-id"} },
 		}
 		_ = Handle(ctx, peer, parent, remote, slog.New(slog.DiscardHandler), slog.New(slog.DiscardHandler))
 		assert.Len(t, peer.CloseCalls(), 1)
-		wg.Done()
-	}()
+	})
 	_ = (<-parent.InfoCh).Value.(*Connected).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
 	bb := bytebufferpool.Get()
 	_, err := bb.Write(byte_helpers.TransferWithSig.MessageBytes)
@@ -72,13 +70,11 @@ func TestHandleError(t *testing.T) {
 	remote := NewRemote()
 	parent := NewParent(false)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		peer := &mockPeer{CloseFunc: func() error { return nil }}
 		_ = Handle(ctx, peer, parent, remote, slog.New(slog.DiscardHandler), slog.New(slog.DiscardHandler))
 		assert.Len(t, peer.CloseCalls(), 1)
-		wg.Done()
-	}()
+	})
 	_ = (<-parent.InfoCh).Value.(*Connected).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
 	err := errors.New("error")
 	remote.ErrCh <- err
