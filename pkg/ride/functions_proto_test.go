@@ -2081,7 +2081,7 @@ func loadCertificates(t testing.TB, filename string) []string {
 	f, err := os.Open(filename)
 	require.NoError(t, err)
 	defer func() {
-		_ = f.Close()
+		require.NoError(t, f.Close())
 	}()
 	d, err := io.ReadAll(f)
 	require.NoError(t, err)
@@ -2101,7 +2101,7 @@ func loadRevocations(t testing.TB) []string {
 	f, err := os.Open(filename)
 	require.NoError(t, err)
 	defer func() {
-		_ = f.Close()
+		require.NoError(t, f.Close())
 	}()
 	d, err := io.ReadAll(f)
 	require.NoError(t, err)

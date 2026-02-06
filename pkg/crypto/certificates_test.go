@@ -64,7 +64,7 @@ func loadCertificatesAndRevocations(
 	cf, err := os.Open(certificatesFilename)
 	require.NoError(t, err)
 	defer func() {
-		_ = cf.Close()
+		require.NoError(t, cf.Close())
 	}()
 	certData := readPEMCertificates(t, cf)
 	certificates, err := crypto.ParseCertificates(certData)
@@ -73,7 +73,7 @@ func loadCertificatesAndRevocations(
 	rf, err := os.Open("testdata/tdx-crl.pem")
 	require.NoError(t, err)
 	defer func() {
-		_ = rf.Close()
+		require.NoError(t, rf.Close())
 	}()
 	revocationData := readPEMRevocationLists(t, rf)
 	revocations, err := crypto.ParseRevocationLists(revocationData)
