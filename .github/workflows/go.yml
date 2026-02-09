@@ -53,6 +53,7 @@ jobs:
 
       # Check for modern Go code patterns
       - name: Run modernize
+        shell: bash
         run: |
           go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest ./... 2>&1 | \
             grep -vE '\.(pb|gen)\.go|mock|_string.go|^exit status|^go: downloading' | \
