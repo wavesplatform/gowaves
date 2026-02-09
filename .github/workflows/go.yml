@@ -55,6 +55,7 @@ jobs:
       - name: Run modernize
         shell: bash
         run: |
+          set +o pipefail
           go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest ./... 2>&1 | \
             grep -vE '\.(pb|gen)\.go|mock|_string.go|^exit status|^go: downloading' | \
             { output=$(cat); [ -n "$output" ] && { echo "$output"; exit 1; } || exit 0; }
