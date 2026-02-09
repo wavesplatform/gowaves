@@ -46,12 +46,18 @@ jobs:
         with:
           version: latest
           args: -c .golangci.yml
+
       # Strict linter configuration, only checking new code from pull requests.
       - name: golangci-lint-strict
         run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master
+
       # Check for modern Go code patterns
-      - name: modernize check
-        run: go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@latest ./...
+      - name: Run modernize
+        run: |
+          set -o pipefail
+          go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest ./... 2>&1 | \
+            grep -vE '\.(pb|gen)\.go|mock|_string.go|^exit status' | \
+            { output=$(cat); [ -n "$output" ] && { echo "$output"; exit 1; } || exit 0; }
 
   build:
     name: ubuntu
