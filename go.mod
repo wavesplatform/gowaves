@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.24.0
+go 1.25.0
 
 require (
 	filippo.io/edwards25519 v1.1.0
@@ -52,7 +52,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.47.0
-	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
+	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.40.0
 	google.golang.org/grpc v1.78.0

@@ -270,9 +270,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	errCounter := 0
 	readTasks := make(chan *readTask, tasksChanBufferSize)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, true)
 		if err1 != nil {
 			mtx.Lock()
@@ -281,11 +279,9 @@ func TestSimultaneousReadWrite(t *testing.T) {
 			fmt.Printf("Writer error: %v\n", err1)
 			cancel()
 		}
-	}()
+	})
 	for range readersNumber {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err1 := testReader(to.rw, readTasks)
 			if err1 != nil {
 				mtx.Lock()
@@ -294,7 +290,7 @@ func TestSimultaneousReadWrite(t *testing.T) {
 				fmt.Printf("Reader error: %v\n", err1)
 				cancel()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if errCounter != 0 {
@@ -314,9 +310,7 @@ func TestReadNewest(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	errCounter := 0
 	readTasks := make(chan *readTask, tasksChanBufferSize)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err1 := writeBlocks(ctx, to.rw, blocks, readTasks, false)
 		if err1 != nil {
 			mtx.Lock()
@@ -325,11 +319,9 @@ func TestReadNewest(t *testing.T) {
 			fmt.Printf("Writer error: %v\n", err1)
 			cancel()
 		}
-	}()
+	})
 	for range readersNumber {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err1 := testNewestReader(to.rw, readTasks)
 			if err1 != nil {
 				mtx.Lock()
@@ -338,7 +330,7 @@ func TestReadNewest(t *testing.T) {
 				fmt.Printf("Reader error: %v\n", err1)
 				cancel()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if errCounter != 0 {
@@ -369,13 +361,11 @@ func TestSimultaneousReadDelete(t *testing.T) {
 
 	var wg sync.WaitGroup
 	var removeErr error
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		// Give some time to start reading before deleting.
 		time.Sleep(time.Second)
 		removeErr = to.rw.rollback(uint64(rollbackHeight))
-	}()
+	})
 	for {
 		_, err = to.rw.readBlockHeader(idToTest)
 		if err != nil {
@@ -436,9 +426,7 @@ func TestProtobufReadWrite(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	errCounter := 0
 	readTasks := make(chan *readTask, tasksChanBufferSize)
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		err1 := writeBlocks(ctx, to.rw, protobufBlocks, readTasks, true)
 		if err1 != nil {
 			mtx.Lock()
@@ -447,11 +435,9 @@ func TestProtobufReadWrite(t *testing.T) {
 			fmt.Printf("Writer error: %v\n", err1)
 			cancel()
 		}
-	}()
+	})
 	for range readersNumber {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			err1 := testReader(to.rw, readTasks)
 			if err1 != nil {
 				mtx.Lock()
@@ -460,7 +446,7 @@ func TestProtobufReadWrite(t *testing.T) {
 				fmt.Printf("Reader error: %v\n", err1)
 				cancel()
 			}
-		}()
+		})
 	}
 	wg.Wait()
 	if errCounter != 0 {

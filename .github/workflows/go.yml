@@ -32,10 +32,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Go 1.24
+      - name: Set up Go 1.25
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
           check-latest: true
           cache: false # don't save & restore build caches because golangci-lint action does it internally
 
@@ -46,12 +46,19 @@ jobs:
         with:
           version: latest
           args: -c .golangci.yml
+
       # Strict linter configuration, only checking new code from pull requests.
       - name: golangci-lint-strict
         run: golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master
+
       # Check for modern Go code patterns
-      - name: modernize check
-        run: go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@v0.20.0 ./...
+      - name: Run modernize
+        shell: bash
+        run: |
+          set +o pipefail
+          go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest ./... 2>&1 | \
+            grep -vE '\.(pb|gen)\.go|mock|_string.go|^exit status|^go: downloading' | \
+            { output=$(cat); [ -n "$output" ] && { echo "$output"; exit 1; } || exit 0; }
 
   build:
     name: ubuntu
@@ -65,10 +72,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Go 1.24
+      - name: Set up Go 1.25
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
           check-latest: true
           cache: true
 

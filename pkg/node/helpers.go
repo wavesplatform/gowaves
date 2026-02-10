@@ -188,11 +188,9 @@ func deduplicateProtoMessages(
 	noFilteredChan := make(chan protoMessageWrapper, noFilteredChanSize)
 	filteredChan := make(chan protoMessageWrapper, max(cap(origMessageCh)-noFilteredChanSize, noFilteredChanSize))
 
-	wg.Add(1)
-	go func() { // run messages splitter with filtering
-		defer wg.Done()
+	wg.Go(func() { // run messages splitter with filtering
 		messagesSplitter(ctx, origMessageCh, noFilteredChan, filteredChan, sm, messageIDFilter)
-	}()
+	})
 
 	out := runMessagesMerger(ctx, wg, noFilteredChan, filteredChan, sm)
 
