@@ -697,7 +697,7 @@ func (a *NodeApi) RollbackToHeight(w http.ResponseWriter, r *http.Request) error
 	if err := tryParseJSON(r.Body, rollbackReq); err != nil {
 		return errors.Wrap(err, "failed to parse RollbackToHeight body as JSON")
 	}
-	err := a.state.RollbackToHeight(rollbackReq.Height)
+	err := a.state.RollbackToHeight(rollbackReq.Height, false)
 	if err != nil {
 		origErr := errors.Cause(err)
 		if stateerr.IsNotFound(origErr) {
@@ -727,7 +727,7 @@ func (a *NodeApi) RollbackTo(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	if err = a.state.RollbackTo(id); err != nil {
+	if err = a.state.RollbackTo(id, false); err != nil {
 		return errors.Wrapf(err, "failed to rollback to block %s", id)
 	}
 	if err = trySendJSON(w, rollbackResponse{id}); err != nil {

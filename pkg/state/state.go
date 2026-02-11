@@ -279,6 +279,7 @@ func (s *blockchainEntitiesStorage) flush() error {
 	s.aliases.flush()
 	if err := s.hs.flush(); err != nil {
 		return err
+
 	}
 	if err := s.accountsDataStor.flush(); err != nil {
 		return err
@@ -2333,7 +2334,7 @@ func (s *stateManager) checkRollbackInput(blockID proto.BlockID) error {
 	return s.checkRollbackHeight(height)
 }
 
-func (s *stateManager) RollbackToHeight(height uint64) error {
+func (s *stateManager) RollbackToHeight(height uint64, isAutoRollback bool) error {
 	if err := s.checkRollbackHeight(height); err != nil {
 		return wrapErr(stateerr.InvalidInputError, err)
 	}
@@ -2341,7 +2342,49 @@ func (s *stateManager) RollbackToHeight(height uint64) error {
 	if err != nil {
 		return wrapErr(stateerr.RetrievalError, err)
 	}
+
+	finalityActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DeterministicFinality), height)
+	if isAutoRollback && finalityActivated {
+		return s.softRollback(blockID)
+	}
 	return s.rollbackToImpl(blockID)
+}
+
+// softRollback is a regular rollback except it can't roll back further than minRollbackHeight or lastFinalizedHeight.
+// In addition, this rollback keeps the last finalized block number.
+func (s *stateManager) softRollback(blockID proto.BlockID) error {
+	var (
+		finalizationHeight proto.Height
+		finalizationBlock  proto.BlockID
+	)
+	height, err := s.BlockIDToHeight(blockID)
+	if err != nil {
+		return wrapErr(stateerr.RetrievalError, err)
+	}
+	if checkErr := s.CheckRollbackHeightAuto(height); checkErr != nil {
+		return wrapErr(stateerr.InvalidInputError, checkErr)
+	}
+	if h, finErr := s.stor.finalizations.newest(); finErr == nil {
+		finalizationHeight = h
+		bID, bErr := s.rw.blockIDByHeight(h)
+		if bErr != nil {
+			return wrapErr(stateerr.RollbackError, bErr)
+		}
+		finalizationBlock = bID
+		// TODO should we return for these errors too?
+	} else if !errors.Is(finErr, ErrNoFinalization) && !errors.Is(finErr, ErrNoFinalizationHistory) {
+		return wrapErr(stateerr.RollbackError, finErr)
+	}
+	if rollbackErr := s.rollbackToImpl(blockID); rollbackErr != nil {
+		return rollbackErr
+	}
+	if storeErr := s.stor.finalizations.store(finalizationHeight, finalizationBlock); storeErr != nil {
+		return wrapErr(stateerr.RollbackError, storeErr)
+	}
+	if flushErr := s.stor.flush(); flushErr != nil {
+		return wrapErr(stateerr.RollbackError, flushErr)
+	}
+	return nil
 }
 
 func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
@@ -2378,9 +2421,17 @@ func (s *stateManager) rollbackToImpl(removalEdge proto.BlockID) error {
 	return nil
 }
 
-func (s *stateManager) RollbackTo(removalEdge proto.BlockID) error {
+func (s *stateManager) RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error {
 	if err := s.checkRollbackInput(removalEdge); err != nil {
 		return wrapErr(stateerr.InvalidInputError, err)
+	}
+	height, err := s.BlockIDToHeight(removalEdge)
+	if err != nil {
+		return wrapErr(stateerr.RetrievalError, err)
+	}
+	finalityActivated := s.stor.features.newestIsActivatedAtHeight(int16(settings.DeterministicFinality), height)
+	if isAutoRollback && finalityActivated {
+		return s.softRollback(removalEdge)
 	}
 	return s.rollbackToImpl(removalEdge)
 }

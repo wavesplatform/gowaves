@@ -98,7 +98,7 @@ func TestApply_InvalidBlockWithRollback(t *testing.T) {
 	// now we save block for rollback
 	stateMock.EXPECT().BlockByHeight(proto.Height(2)).Return(block1, nil)
 	// rollback to first(genesis) block
-	stateMock.EXPECT().RollbackToHeight(proto.Height(1)).Return(nil)
+	stateMock.EXPECT().RollbackToHeight(proto.Height(1), true).Return(nil)
 	// adding new blocks, and have error on applying
 	stateMock.EXPECT().AddDeserializedBlocks([]*proto.Block{block2}).Return(nil, errors.New("error message"))
 	// return blocks
