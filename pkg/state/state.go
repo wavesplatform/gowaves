@@ -2384,6 +2384,10 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	if flushErr := s.stor.flush(); flushErr != nil {
 		return wrapErr(stateerr.RollbackError, flushErr)
 	}
+	// Commit restored finalization to DB after rollback.
+	if flushBatchErr := s.stateDB.flushBatch(); flushBatchErr != nil {
+		return wrapErr(stateerr.RollbackError, flushBatchErr)
+	}
 	return nil
 }
 
