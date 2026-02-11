@@ -181,7 +181,7 @@ func TestEthereumTransferAssets(t *testing.T) {
 	assetsUncertain := map[proto.AssetID]wrappedUncertainInfo{
 		proto.AssetID(recipientEth): {},
 	}
-	txAppend := defaultTxAppender(t, storage, &AnotherMockSmartState{},
+	txAppend := defaultTxAppender(t, storage, types.NewMockEnrichedSmartState(t),
 		assetsUncertain, appendTxParams)
 	/*
 		from https://etherscan.io/tx/0x363f979b58c82614db71229c2a57ed760e7bc454ee29c2f8fd1df99028667ea5
@@ -286,14 +286,13 @@ func TestEthereumInvoke(t *testing.T) {
 			return false, nil
 		},
 	}
-	state := &AnotherMockSmartState{
-		AddingBlockHeightFunc: func() (uint64, error) {
-			return 1000, nil
-		},
-		EstimatorVersionFunc: func() (int, error) {
-			return 3, nil
-		},
-	}
+	state := types.NewMockEnrichedSmartState(t)
+	state.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
+		return 1000, nil
+	}).Maybe()
+	state.EXPECT().EstimatorVersion().RunAndReturn(func() (int, error) {
+		return 3, nil
+	}).Maybe()
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
 	sender, err := senderPK.EthereumAddress().ToWavesAddress(0)
@@ -421,14 +420,13 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 			return false, nil
 		},
 	}
-	state := &AnotherMockSmartState{
-		AddingBlockHeightFunc: func() (uint64, error) {
-			return 1000, nil
-		},
-		EstimatorVersionFunc: func() (int, error) {
-			return 3, nil
-		},
-	}
+	state := types.NewMockEnrichedSmartState(t)
+	state.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
+		return 1000, nil
+	}).Maybe()
+	state.EXPECT().EstimatorVersion().RunAndReturn(func() (int, error) {
+		return 3, nil
+	}).Maybe()
 	txAppend := defaultTxAppender(t, storage, state, nil, appendTxParams)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)
@@ -492,14 +490,13 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 			return false, nil
 		},
 	}
-	state := &AnotherMockSmartState{
-		AddingBlockHeightFunc: func() (uint64, error) {
-			return 1000, nil
-		},
-		EstimatorVersionFunc: func() (int, error) {
-			return 3, nil
-		},
-	}
+	state := types.NewMockEnrichedSmartState(t)
+	state.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
+		return 1000, nil
+	}).Maybe()
+	state.EXPECT().EstimatorVersion().RunAndReturn(func() (int, error) {
+		return 3, nil
+	}).Maybe()
 	txAppend := defaultTxAppender(t, storage, state, nil, appendTxParams)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
 	assert.NoError(t, err)

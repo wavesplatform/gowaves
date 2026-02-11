@@ -4,8 +4,11 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const (
@@ -32,15 +35,16 @@ func TestDataDiffTestSuite(t *testing.T) {
 }
 
 func (s *DataDiffTestSuite) SetupTest() {
-	mock := &MockSmartState{
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (proto.WavesAddress, error) {
+	m := types.NewMockEnrichedSmartState(s.T())
+	m.EXPECT().NewestRecipientToAddress(mock.Anything).RunAndReturn(
+		func(recipient proto.Recipient) (proto.WavesAddress, error) {
 			if recipient.Eq(validRecipient) {
 				return validAddress, nil
 			}
 			return proto.WavesAddress{}, errors.New("not found")
 		},
-	}
-	s.diff = newDiffState(mock)
+	).Maybe()
+	s.diff = newDiffState(m)
 }
 
 func (s *DataDiffTestSuite) TestPutGetBinaryEntry() {

@@ -16,13 +16,13 @@ type BulkValidator interface {
 }
 
 type bulkValidator struct {
-	state  stateWrapper
+	state  cleanerState
 	utx    types.UtxPool
 	tm     types.Time
 	scheme proto.Scheme
 }
 
-func newBulkValidator(state stateWrapper, utx types.UtxPool, tm types.Time, scheme proto.Scheme) *bulkValidator {
+func newBulkValidator(state cleanerState, utx types.UtxPool, tm types.Time, scheme proto.Scheme) *bulkValidator {
 	return &bulkValidator{
 		state:  state,
 		utx:    utx,

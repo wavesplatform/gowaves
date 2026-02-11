@@ -10,3 +10,34 @@ packages:
   github.com/wavesplatform/gowaves/pkg/blockchaininfo:
     interfaces:
       UpdatesPublisherInterface: {}
+  github.com/wavesplatform/gowaves/pkg/state:
+    interfaces:
+      State:
+        config:
+          filename: mock_state.go
+  github.com/wavesplatform/gowaves/pkg/grpc/server:
+    interfaces:
+      GrpcHandlers:
+        config:
+          filename: mock_grpc_handlers_test.go
+  github.com/wavesplatform/gowaves/pkg/node/peers:
+    interfaces:
+      PeerManager:
+        config:
+          filename: mock_peer_manager.go
+      PeerStorage:
+        config:
+          filename: mock_peer_storage_test.go
+  github.com/wavesplatform/gowaves/pkg/p2p/peer:
+    interfaces:
+      Peer:
+        config:
+          filename: mock_peer_exported.go
+  github.com/wavesplatform/gowaves/pkg/types:
+    interfaces:
+      SmartState:
+        config:
+          filename: mock_smart_state.go
+      EnrichedSmartState:
+        config:
+          filename: mock_enriched_smart_state.go

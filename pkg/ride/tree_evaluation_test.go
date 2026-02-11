@@ -9,6 +9,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -4485,9 +4486,16 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	_, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{&proto.IntegerArgument{Value: 10}}))
 	require.Error(t, err)
 	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
-	calls := env.ms.NewestAddrByAliasCalls()
-	require.Len(t, calls, 1)
-	require.Equal(t, alias, calls[0].Alias)
+	var aliasCalls []mock.Call
+	for _, c := range env.ms.Calls {
+		if c.Method == "NewestAddrByAlias" {
+			aliasCalls = append(aliasCalls, c)
+		}
+	}
+	require.Len(t, aliasCalls, 1)
+	aa, ok := aliasCalls[0].Arguments.Get(0).(proto.Alias)
+	require.True(t, ok)
+	require.Equal(t, alias, aa)
 
 	_, err = CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{&proto.IntegerArgument{Value: 1}}))
 	require.Error(t, err)

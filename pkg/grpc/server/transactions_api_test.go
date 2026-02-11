@@ -8,8 +8,8 @@ import (
 	"testing"
 	"time"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"google.golang.org/grpc"
 	"google.golang.org/grpc/codes"
@@ -21,7 +21,6 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves/node/grpc"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/miner/utxpool"
-	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -284,11 +283,8 @@ func TestSign(t *testing.T) {
 }
 
 func TestBroadcast(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	h := mock.NewMockGrpcHandlers(ctrl)
-	h.EXPECT().Broadcast(gomock.Any(), gomock.Any()).Return(&pb.SignedTransaction{}, nil)
+	h := NewMockGrpcHandlers(t)
+	h.EXPECT().Broadcast(mock.Anything, mock.Anything).Return(&pb.SignedTransaction{}, nil)
 
 	gRPCServer := createGRPCServerWithHandlers(h)
 	ctx := t.Context()
@@ -305,7 +301,10 @@ func TestBroadcast(t *testing.T) {
 
 	conn, err := grpc.NewClient(lis.Addr().String(), grpc.WithTransportCredentials(insecure.NewCredentials()))
 	require.NoError(t, err)
-	defer conn.Close()
+	defer func() {
+		clErr := conn.Close()
+		require.NoError(t, clErr)
+	}()
 
 	cl := g.NewTransactionsApiClient(conn)
 	_, err = cl.Broadcast(ctx, &pb.SignedTransaction{})

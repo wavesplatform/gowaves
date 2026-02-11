@@ -256,12 +256,6 @@ dist: clean dist-chaincmp dist-importer dist-node dist-wallet dist-compiler
 build: vendor ver build-chaincmp-native build-blockcmp-native build-node-native build-importer-native build-wallet-native build-rollback-native build-compiler-native build-statehash-native build-convert-native
 
 mock:
-	mockgen -source pkg/miner/utxpool/cleaner.go -destination pkg/miner/utxpool/mock.go -package utxpool stateWrapper
-	mockgen -source pkg/node/peers/peer_manager.go -destination pkg/mock/peer_manager.go -package mock PeerManager
-	mockgen -source pkg/node/peers/peer_storage.go -destination pkg/mock/peer_storage.go -package mock PeerStorage
-	mockgen -source pkg/p2p/peer/peer.go -destination pkg/mock/peer.go -package mock Peer
-	mockgen -source pkg/state/api.go -destination pkg/mock/state.go -package mock State
-	mockgen -source pkg/grpc/server/api.go -destination pkg/mock/grpc.go -package mock GrpcHandlers
 	mockery
 
 proto:

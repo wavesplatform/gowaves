@@ -7,6 +7,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -15,8 +16,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
-
-//go:generate moq -pkg ride -out smart_state_moq_test.go ../types SmartState:MockSmartState
 
 func TestExecution(t *testing.T) {
 	te := newTestEnv(t).withTransaction(testTransferWithProofs(t))
@@ -126,6 +125,55 @@ func TestFunctions(t *testing.T) {
 	exchange := newExchangeTransaction()
 	// data := newDataTransaction()
 	require.NoError(t, err)
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestIntegerEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			if key == "integer" {
+				return &proto.IntegerDataEntry{Key: "integer", Value: 100500}, nil
+			}
+			return nil, errors.New("not found")
+		}).Maybe()
+	ss.EXPECT().RetrieveNewestBooleanEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+			if key == "boolean" {
+				return &proto.BooleanDataEntry{Key: "boolean", Value: true}, nil
+			}
+			return nil, errors.New("not found")
+		}).Maybe()
+	ss.EXPECT().RetrieveNewestBinaryEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			if key == "binary" {
+				return &proto.BinaryDataEntry{Key: "binary", Value: []byte("hello")}, nil
+			}
+			return nil, errors.New("not found")
+		}).Maybe()
+	ss.EXPECT().RetrieveNewestStringEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ proto.Recipient, key string) (*proto.StringDataEntry, error) {
+			if key == "string" {
+				return &proto.StringDataEntry{Key: "string", Value: "world"}, nil
+			}
+			return nil, errors.New("not found")
+		}).Maybe()
+	ss.EXPECT().NewestWavesBalance(mock.Anything).RunAndReturn(func(_ proto.Recipient) (uint64, error) {
+		return 5, nil
+	}).Maybe()
+	ss.EXPECT().NewestAssetBalance(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			if assetID == d {
+				return 5, nil
+			}
+			return 0, nil
+		}).Maybe()
+	ss.EXPECT().NewestTransactionByID(mock.Anything).RunAndReturn(func(_ []byte) (proto.Transaction, error) {
+		return transfer, nil
+	}).Maybe()
+	ss.EXPECT().NewestTransactionHeightByID(mock.Anything).RunAndReturn(func(_ []byte) (uint64, error) {
+		return 0, proto.ErrNotFound
+	}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(_ error) bool {
+		return true
+	}).Maybe()
+
 	env := &mockRideEnvironment{
 		checkMessageLengthFunc: bytesSizeCheckV3V6,
 		schemeFunc: func() byte {
@@ -142,50 +190,7 @@ func TestFunctions(t *testing.T) {
 			return obj
 		},
 		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if key == "integer" {
-						return &proto.IntegerDataEntry{Key: "integer", Value: 100500}, nil
-					}
-					return nil, errors.New("not found")
-				},
-				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if key == "boolean" {
-						return &proto.BooleanDataEntry{Key: "boolean", Value: true}, nil
-					}
-					return nil, errors.New("not found")
-				},
-				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if key == "binary" {
-						return &proto.BinaryDataEntry{Key: "binary", Value: []byte("hello")}, nil
-					}
-					return nil, errors.New("not found")
-				},
-				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if key == "string" {
-						return &proto.StringDataEntry{Key: "string", Value: "world"}, nil
-					}
-					return nil, errors.New("not found")
-				},
-				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-					return 5, nil
-				},
-				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-					if assetID == d {
-						return 5, nil
-					}
-					return 0, nil
-				},
-				NewestTransactionByIDFunc: func(id []byte) (proto.Transaction, error) {
-					return transfer, nil
-				},
-				NewestTransactionHeightByIDFunc: func(_ []byte) (uint64, error) {
-					return 0, proto.ErrNotFound
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return true
-				},
-			}
+			return ss
 		},
 	}
 	// envWithDataTX := &mockRideEnvironment{

@@ -3,22 +3,19 @@ package scheduler
 import (
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
-	"github.com/wavesplatform/gowaves/pkg/mock"
+
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
 )
 
 func TestMinerConsensus(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
+	m := peers.NewMockPeerManager(t)
 
-	m := mock.NewMockPeerManager(ctrl)
-
-	m.EXPECT().ConnectedCount().Return(1)
+	m.EXPECT().ConnectedCount().Return(1).Once()
 	a := NewMinerConsensus(m, 1)
 	assert.True(t, a.IsMiningAllowed())
 
-	m.EXPECT().ConnectedCount().Return(0)
+	m.EXPECT().ConnectedCount().Return(0).Once()
 	a = NewMinerConsensus(m, 1)
 	assert.False(t, a.IsMiningAllowed())
 }
