@@ -36,7 +36,7 @@ require (
 	github.com/pkg/errors v0.9.1
 	github.com/planetscale/vtprotobuf v0.6.1-0.20250313105119-ba97887b0a25
 	github.com/prometheus/client_golang v1.23.2
-	github.com/qmuntal/stateless v1.7.2
+	github.com/qmuntal/stateless v1.8.0
 	github.com/semrush/zenrpc/v2 v2.1.1
 	github.com/spf13/pflag v1.0.10
 	github.com/steakknife/bloomfilter v0.0.0-20180922174646-6819c0d2a570
