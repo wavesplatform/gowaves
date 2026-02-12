@@ -82,7 +82,7 @@ func rideMetaTypeToTextMarshaler(metaT meta.Type) (encoding.TextMarshaler, error
 	case meta.SimpleType:
 		switch t {
 		case meta.Int:
-			//  it's RideInt type
+			// it's RideInt type
 			marshaler := intTextBuilder{
 				size:     64,
 				unsigned: false,

@@ -5389,9 +5389,9 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		assert.Nil(t, res)
 		assert.EqualError(t, err, "gotcha")
 		assert.Equal(t, UserError, GetEvaluationErrorType(err))
-		// the calls happen in `WrappedState.validatePaymentAction` during payment application  and before invoke
-		//  in `performInvoke` function
-		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
+		// the calls happen in `WrappedState.validatePaymentAction` during payment application and before invoke
+		// in `performInvoke` function
+		// in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
 		// payments check after application are not second time because of throw
 		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
 	})
@@ -5403,8 +5403,8 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		assert.EqualError(t, err, "invoke: failed to apply attached payments: not enough money in the DApp, balance of asset WAVES on address 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz after payments application is -4900000000: negative balance after payments application") //nolint:lll
 		assert.Equal(t, EvaluationFailure, GetEvaluationErrorType(err))
 		// the calls happen in `WrappedState.validatePaymentAction` during payment application and before invoke
-		//  in `performInvoke` function
-		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
+		// in `performInvoke` function
+		// in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
 		// successfully fails before invoke because of negative balance
 		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
 	})
