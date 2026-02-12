@@ -15,6 +15,11 @@ packages:
       State:
         config:
           filename: mock_state.go
+  github.com/wavesplatform/gowaves/pkg/consensus:
+    interfaces:
+      stateInfoProvider:
+        config:
+          filename: mock_state_info_provider_test.go
   github.com/wavesplatform/gowaves/pkg/grpc/server:
     interfaces:
       GrpcHandlers:
