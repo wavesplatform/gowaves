@@ -10,7 +10,6 @@ import (
 	"github.com/wavesplatform/gowaves/itests/clients"
 	"github.com/wavesplatform/gowaves/itests/config"
 	"github.com/wavesplatform/gowaves/itests/docker"
-	d "github.com/wavesplatform/gowaves/itests/docker"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -33,37 +32,37 @@ func (suite *MultiGoNodesSuite) BaseSetup(nodeCount int, options ...config.Block
 
 	goConfigurators := make([]*config.GoConfigurator, 0, nodeCount)
 	for i := 0; i < nodeCount; i++ {
-		goCfg, err := config.NewGoConfigurator(fmt.Sprintf("%s-go-%d", suiteName, i), cfg)
-		suite.Require().NoError(err, "couldn't create Go configurator for node %d", i)
+		goCfg, goErr := config.NewGoConfigurator(fmt.Sprintf("%s-go-%d", suiteName, i), cfg)
+		suite.Require().NoError(goErr, "couldn't create Go configurator for node %d", i)
 		goConfigurators = append(goConfigurators, goCfg)
 	}
 
-	docker, err := d.NewDocker(suiteName)
+	d, err := docker.NewDocker(suiteName)
 	suite.Require().NoError(err, "couldn't create Docker pool")
-	suite.Docker = docker
+	suite.Docker = d
 
 	dockerConfigurators := make([]config.DockerConfigurator, len(goConfigurators))
 	for i, gc := range goConfigurators {
 		dockerConfigurators[i] = gc
 	}
 
-	if sErr := docker.StartMultipleGoNodes(suite.MainCtx, dockerConfigurators...); sErr != nil {
-		docker.Finish(suite.Cancel)
+	if sErr := d.StartMultipleGoNodes(suite.MainCtx, dockerConfigurators...); sErr != nil {
+		d.Finish(suite.Cancel)
 		suite.Require().NoError(sErr, "couldn't start Go nodes containers")
 	}
 
 	suite.Clients = make([]*clients.NodeUniversalClient, nodeCount)
 	for i := 0; i < nodeCount; i++ {
-		node := docker.GoNodes()[i]
+		node := d.GoNodes()[i]
 
 		peers := make([]proto.PeerInfo, 0, nodeCount-1)
 		for j := 0; j < nodeCount; j++ {
 			if j == i {
 				continue
 			}
-			peerNode := docker.GoNodes()[j]
-			peer, err := proto.NewPeerInfoFromString(peerNode.IP() + ":" + config.BindPort)
-			suite.Require().NoError(err)
+			peerNode := d.GoNodes()[j]
+			peer, piErr := proto.NewPeerInfoFromString(peerNode.IP() + ":" + config.BindPort)
+			suite.Require().NoError(piErr)
 			peers = append(peers, peer)
 		}
 
@@ -85,7 +84,8 @@ func (suite *MultiGoNodesSuite) BaseSetup(nodeCount int, options ...config.Block
 }
 
 func (suite *MultiGoNodesSuite) SetupSuite() {
-	suite.BaseSetup(3)
+	const nodeCount = 3
+	suite.BaseSetup(nodeCount)
 }
 
 func (suite *MultiGoNodesSuite) TearDownSuite() {

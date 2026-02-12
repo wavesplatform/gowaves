@@ -205,7 +205,7 @@ func (d *Docker) StartMultipleGoNodes(ctx context.Context, cfgs ...config.Docker
 
 func (d *Docker) stopStartedNodes(upToIndex int) error {
 	var errs []error
-	for i := 0; i < upToIndex; i++ {
+	for i := range upToIndex {
 		stErr := d.stopContainer(d.goNodes[i].container.Container.ID)
 		clErr := d.goNodes[i].Close()
 		return stderrs.Join(stErr, clErr)
