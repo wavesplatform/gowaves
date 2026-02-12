@@ -2356,6 +2356,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	var (
 		finalizationHeight proto.Height
 		finalizationBlock  proto.BlockID
+		finalizationExists bool
 	)
 	height, err := s.BlockIDToHeight(blockID)
 	if err != nil {
@@ -2371,6 +2372,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 			return wrapErr(stateerr.RollbackError, bErr)
 		}
 		finalizationBlock = bID
+		finalizationExists = true
 		// TODO should we return for these errors too?
 	} else if !errors.Is(finErr, ErrNoFinalization) && !errors.Is(finErr, ErrNoFinalizationHistory) {
 		return wrapErr(stateerr.RollbackError, finErr)
@@ -2378,15 +2380,17 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	if rollbackErr := s.rollbackToImpl(blockID); rollbackErr != nil {
 		return rollbackErr
 	}
-	if storeErr := s.stor.finalizations.store(finalizationHeight, finalizationBlock); storeErr != nil {
-		return wrapErr(stateerr.RollbackError, storeErr)
-	}
-	if flushErr := s.stor.flush(); flushErr != nil {
-		return wrapErr(stateerr.RollbackError, flushErr)
-	}
-	// Commit restored finalization to DB after rollback.
-	if flushBatchErr := s.stateDB.flushBatch(); flushBatchErr != nil {
-		return wrapErr(stateerr.RollbackError, flushBatchErr)
+	if finalizationExists {
+		if storeErr := s.stor.finalizations.store(finalizationHeight, finalizationBlock); storeErr != nil {
+			return wrapErr(stateerr.RollbackError, storeErr)
+		}
+		if flushErr := s.stor.flush(); flushErr != nil {
+			return wrapErr(stateerr.RollbackError, flushErr)
+		}
+		// Commit restored finalization to DB after rollback.
+		if flushBatchErr := s.stateDB.flushBatch(); flushBatchErr != nil {
+			return wrapErr(stateerr.RollbackError, flushBatchErr)
+		}
 	}
 	return nil
 }
