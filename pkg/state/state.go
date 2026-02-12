@@ -2367,7 +2367,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	}
 	if h, finErr := s.stor.finalizations.newest(); finErr == nil {
 		finalizationHeight = h
-		bID, bErr := s.rw.blockIDByHeight(h)
+		bID, bErr := s.rw.newestBlockIDByHeight(h)
 		if bErr != nil {
 			return wrapErr(stateerr.RollbackError, bErr)
 		}
