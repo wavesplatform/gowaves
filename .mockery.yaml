@@ -47,6 +47,12 @@ packages:
       PeerStorage:
         config:
           filename: mock_peer_storage_test.go
+  github.com/wavesplatform/gowaves/pkg/p2p/conn:
+    interfaces:
+      deadlineReader:
+        config:
+          structname: MockDeadlineReader
+          filename: mock_deadline_reader_test.go
   github.com/wavesplatform/gowaves/pkg/p2p/peer:
     interfaces:
       Peer:
