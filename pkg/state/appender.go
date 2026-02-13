@@ -1591,7 +1591,7 @@ func (f *finalizationProcessor) updateFinalization(
 ) error {
 	slog.Debug("trying to finalize parent's block")
 	if finalizationVoting == nil {
-		slog.Debug("did not finalize parent't block, finalizationVoting is nil")
+		slog.Debug("did not finalize parent's block, finalizationVoting is nil")
 		return nil
 	}
 
