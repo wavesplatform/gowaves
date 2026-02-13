@@ -2355,7 +2355,6 @@ func (s *stateManager) RollbackToHeight(height uint64, isAutoRollback bool) erro
 func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	var (
 		finalizationHeight proto.Height
-		finalizationBlock  proto.BlockID
 		finalizationExists bool
 	)
 	height, err := s.BlockIDToHeight(blockID)
@@ -2367,11 +2366,6 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	}
 	if h, finErr := s.stor.finalizations.newest(); finErr == nil {
 		finalizationHeight = h
-		bID, bErr := s.rw.newestBlockIDByHeight(h)
-		if bErr != nil {
-			return wrapErr(stateerr.RollbackError, bErr)
-		}
-		finalizationBlock = bID
 		finalizationExists = true
 		// TODO should we return for these errors too?
 	} else if !errors.Is(finErr, ErrNoFinalization) && !errors.Is(finErr, ErrNoFinalizationHistory) {

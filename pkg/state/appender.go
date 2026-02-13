@@ -1680,10 +1680,6 @@ func (f *finalizationProcessor) updateFinalization(
 func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorsedBlockID proto.BlockID,
 	finalizationVoting *proto.FinalizationVoting,
 	currentBlockID proto.BlockID) error {
-	// Endorsements target the block two heights below the current one (N-2).
-	if height < 2 {
-		return fmt.Errorf("not enough history to finalize: height=%d", height)
-	}
 	finalizedHeight := height - 2
 	grandParentID, idErr := f.rw.newestBlockIDByHeight(finalizedHeight)
 	if idErr != nil {
@@ -1706,11 +1702,15 @@ func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorse
 }
 
 func (f *finalizationProcessor) canFinalizeGrandParent(
-	endorsersPK []bls.PublicKey, // adjust
-	periodStart uint32,          // adjust
+	endorsersPK []bls.PublicKey,
+	periodStart uint32,
 	parent *proto.BlockHeader,
 	height proto.Height,
 ) (bool, error) {
+	// Endorsements target the block two heights below the current one (N-2).
+	if height < 2 {
+		return false, nil
+	}
 	endorserAddresses, err := f.mapEndorsersToAddresses(endorsersPK, periodStart)
 	if err != nil {
 		slog.Debug("failed to map endorsers")

@@ -24,6 +24,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state/stateerr"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
@@ -239,9 +240,9 @@ func TestRollbackToHeight_AutoRollbackKeepsFinalizationCounter(t *testing.T) {
 	manager := newTestStateManager(t, true, DefaultTestingStateParams(), sets)
 
 	const (
-		importHeight       = 60
-		rollbackToHeight   = 40
-		finalizedHeightSet = 10
+		importHeight     = 60
+		rollbackToHeight = 40
+		finalizedHeight  = 10
 	)
 	err = importer.ApplyFromFile(
 		t.Context(),
@@ -254,21 +255,21 @@ func TestRollbackToHeight_AutoRollbackKeepsFinalizationCounter(t *testing.T) {
 	// This guarantees the record is normally removed by rollback and must be restored in auto mode.
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeightSet, topBlockID)
+	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
 
 	beforeRollback, err := manager.LastFinalizedHeight()
 	require.NoError(t, err)
-	require.Equal(t, proto.Height(finalizedHeightSet), beforeRollback)
+	require.Equal(t, proto.Height(finalizedHeight), beforeRollback)
 
 	err = manager.RollbackToHeight(rollbackToHeight, true)
 	require.NoError(t, err)
 
 	afterRollback, err := manager.LastFinalizedHeight()
 	require.NoError(t, err)
-	require.Equal(t, proto.Height(finalizedHeightSet), afterRollback)
+	require.Equal(t, proto.Height(finalizedHeight), afterRollback)
 }
 
 func TestRollbackToHeight_ManualRollbackChangesFinalizationCounter(t *testing.T) {
@@ -280,9 +281,9 @@ func TestRollbackToHeight_ManualRollbackChangesFinalizationCounter(t *testing.T)
 	manager := newTestStateManager(t, true, DefaultTestingStateParams(), sets)
 
 	const (
-		importHeight       = 60
-		rollbackToHeight   = 40
-		finalizedHeightSet = 10
+		importHeight     = 60
+		rollbackToHeight = 40
+		finalizedHeight  = 10
 	)
 	err = importer.ApplyFromFile(
 		t.Context(),
@@ -294,21 +295,87 @@ func TestRollbackToHeight_ManualRollbackChangesFinalizationCounter(t *testing.T)
 	// Same setup as auto rollback test: finalization record will be removed by rollback.
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeightSet, topBlockID)
+	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
 
 	beforeRollback, err := manager.LastFinalizedHeight()
 	require.NoError(t, err)
-	require.Equal(t, proto.Height(finalizedHeightSet), beforeRollback)
+	require.Equal(t, proto.Height(finalizedHeight), beforeRollback)
 
 	err = manager.RollbackToHeight(rollbackToHeight, false)
 	require.NoError(t, err)
 
 	afterRollback, err := manager.LastFinalizedHeight()
 	require.NoError(t, err)
-	require.Equal(t, proto.CalculateLastFinalizedHeight(rollbackToHeight), afterRollback)
+	require.Equal(t, proto.Height(1), afterRollback)
+}
+
+func TestRollbackToHeight_AutoRollbackBelowFinalizedHeightFails(t *testing.T) {
+	blocksPath, err := blocksPath()
+	require.NoError(t, err)
+
+	sets := settings.MustMainNetSettings()
+	sets.PreactivatedFeatures = append(sets.PreactivatedFeatures, int16(settings.DeterministicFinality))
+	manager := newTestStateManager(t, true, DefaultTestingStateParams(), sets)
+
+	const (
+		importHeight    = 60
+		finalizedHeight = 10
+	)
+	err = importer.ApplyFromFile(
+		t.Context(),
+		importer.ImportParams{Schema: sets.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
+		manager, importHeight-1, 1,
+	)
+	require.NoError(t, err)
+
+	topBlockID, err := manager.HeightToBlockID(importHeight)
+	require.NoError(t, err)
+	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
+	require.NoError(t, err)
+	err = manager.flush()
+	require.NoError(t, err)
+
+	err = manager.RollbackToHeight(finalizedHeight-1, true)
+	require.Error(t, err)
+	require.True(t, stateerr.IsInvalidInput(err))
+	require.Contains(t, err.Error(), "cannot rollback below finalized height")
+}
+
+func TestRollbackToHeight_ManualRollbackBelowFinalizedHeightSucceeds(t *testing.T) {
+	blocksPath, err := blocksPath()
+	require.NoError(t, err)
+
+	sets := settings.MustMainNetSettings()
+	sets.PreactivatedFeatures = append(sets.PreactivatedFeatures, int16(settings.DeterministicFinality))
+	manager := newTestStateManager(t, true, DefaultTestingStateParams(), sets)
+
+	const (
+		importHeight    = 60
+		finalizedHeight = 10
+	)
+	err = importer.ApplyFromFile(
+		t.Context(),
+		importer.ImportParams{Schema: sets.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
+		manager, importHeight-1, 1,
+	)
+	require.NoError(t, err)
+
+	topBlockID, err := manager.HeightToBlockID(importHeight)
+	require.NoError(t, err)
+	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
+	require.NoError(t, err)
+	err = manager.flush()
+	require.NoError(t, err)
+
+	err = manager.RollbackToHeight(finalizedHeight-1, false)
+	require.NoError(t, err)
+
+	h, err := manager.Height()
+	require.NoError(t, err)
+	require.Equal(t, proto.Height(finalizedHeight-1), h)
 }
 
 func TestStateIntegrated(t *testing.T) {
