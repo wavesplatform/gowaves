@@ -30,12 +30,13 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Enr
 		settings.Ride4DApps:     {},
 		settings.RideV6:         {},
 	}
-	feat := &mockFeaturesState{
-		newestIsActivatedFunc: func(featureID int16) (bool, error) {
-			_, ok := activatedFeatures[settings.Feature(featureID)]
-			return ok, nil
-		},
-		newestIsActivatedForNBlocksFunc: func(featureID int16, n int) (bool, error) {
+	feat := NewMockFeaturesState(t)
+	feat.EXPECT().newestIsActivated(mock.Anything).RunAndReturn(func(featureID int16) (bool, error) {
+		_, ok := activatedFeatures[settings.Feature(featureID)]
+		return ok, nil
+	}).Maybe()
+	feat.EXPECT().newestIsActivatedForNBlocks(mock.Anything, mock.Anything).RunAndReturn(
+		func(featureID int16, n int) (bool, error) {
 			const (
 				expectedFeature = int16(settings.NG)
 				expectedN       = 1
@@ -46,8 +47,7 @@ func defaultTxAppender(t *testing.T, storage scriptStorageState, state types.Enr
 			return false, errors.Errorf("unexpected values: got (featureID=%d,n=%d), want (featureID=%d,n=%d)",
 				featureID, n, expectedFeature, expectedN,
 			)
-		},
-	}
+		}).Maybe()
 	sett := settings.MustMainNetSettings()
 	sett.AddressSchemeCharacter = scheme
 	sett.SponsorshipSingleActivationPeriod = true
