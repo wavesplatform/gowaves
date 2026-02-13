@@ -4,12 +4,12 @@ template: testify
 packages:
   github.com/wavesplatform/gowaves/pkg/networking:
     interfaces:
-      Handler: {}
-      Header: {}
-      Protocol: {}
+      Handler: { }
+      Header: { }
+      Protocol: { }
   github.com/wavesplatform/gowaves/pkg/blockchaininfo:
     interfaces:
-      UpdatesPublisherInterface: {}
+      UpdatesPublisherInterface: { }
   github.com/wavesplatform/gowaves/pkg/state:
     interfaces:
       State:
@@ -20,6 +20,12 @@ packages:
       stateInfoProvider:
         config:
           filename: mock_state_info_provider_test.go
+  github.com/wavesplatform/gowaves/pkg/ride:
+    interfaces:
+      environment:
+        config:
+          structname: MockEnvironment
+          filename: mock_environment_test.go
   github.com/wavesplatform/gowaves/pkg/grpc/server:
     interfaces:
       GrpcHandlers:

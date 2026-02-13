@@ -10,6 +10,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -99,7 +100,8 @@ func TestDropBytes(t *testing.T) {
 }
 
 func TestConcatBytes(t *testing.T) {
-	te := &mockRideEnvironment{checkMessageLengthFunc: bytesSizeCheckV1V2}
+	te := NewMockEnvironment(t)
+	te.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(bytesSizeCheckV1V2).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool

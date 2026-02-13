@@ -174,25 +174,18 @@ func TestFunctions(t *testing.T) {
 		return true
 	}).Maybe()
 
-	env := &mockRideEnvironment{
-		checkMessageLengthFunc: bytesSizeCheckV3V6,
-		schemeFunc: func() byte {
-			return 'W'
-		},
-		heightFunc: func() rideInt {
-			return 5
-		},
-		transactionFunc: func() rideType {
-			obj, err := transferWithProofsToObject('W', transfer)
-			if err != nil {
-				panic(err)
-			}
-			return obj
-		},
-		stateFunc: func() types.SmartState {
-			return ss
-		},
-	}
+	env := NewMockEnvironment(t)
+	env.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(bytesSizeCheckV3V6).Maybe()
+	env.EXPECT().scheme().Return(byte('W')).Maybe()
+	env.EXPECT().height().Return(rideInt(5)).Maybe()
+	env.EXPECT().transaction().RunAndReturn(func() rideType {
+		obj, trErr := transferWithProofsToObject('W', transfer)
+		if trErr != nil {
+			panic(trErr)
+		}
+		return obj
+	}).Maybe()
+	env.EXPECT().state().Return(ss).Maybe()
 	// envWithDataTX := &mockRideEnvironment{
 	//	transactionFunc: func() rideType {
 	//		obj, err := dataWithProofsToObject('W', data)
@@ -202,16 +195,15 @@ func TestFunctions(t *testing.T) {
 	//		return obj
 	//	},
 	// }
-	envWithExchangeTX := &mockRideEnvironment{
-		transactionFunc: func() rideType {
-			var obj rideExchangeTransaction
-			obj, err = exchangeWithProofsToObject(ast.LibV6, 'W', exchange)
-			if err != nil {
-				panic(err)
-			}
-			return obj
-		},
-	}
+	envWithExchangeTX := NewMockEnvironment(t)
+	envWithExchangeTX.EXPECT().transaction().RunAndReturn(func() rideType {
+		var obj rideExchangeTransaction
+		obj, err = exchangeWithProofsToObject(ast.LibV6, 'W', exchange)
+		if err != nil {
+			panic(err)
+		}
+		return obj
+	}).Maybe()
 	for _, test := range []struct {
 		name   string
 		text   string

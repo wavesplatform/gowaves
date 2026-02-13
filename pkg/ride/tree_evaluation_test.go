@@ -2671,7 +2671,7 @@ func TestFailSript2(t *testing.T) {
 	tx := new(proto.ExchangeWithProofs)
 	err := json.Unmarshal([]byte(transaction), tx)
 	require.NoError(t, err)
-	adminAcc := newTestAccountFromAddresString(t, "3PEyLyxu4yGJAEmuVRy3G4FvEBUYV6ykQWF")
+	adminAcc := newTestAccountFromAddressString(t, "3PEyLyxu4yGJAEmuVRy3G4FvEBUYV6ykQWF")
 
 	te := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(2000).
 		withScheme(proto.TestNetScheme).withHeight(368430).withTransaction(tx).
@@ -5388,7 +5388,7 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		assert.Equal(t, UserError, GetEvaluationErrorType(err))
 		// the call happens only once in `WrappedState.validatePaymentAction` during payment application
 		// payments check after application are not performed because of throw
-		assert.Len(t, rideEnv.calls.validateInternalPayments, 1)
+		assert.Equal(t, 1, countMockCalls(&rideEnv.Mock, "validateInternalPayments"))
 	})
 	t.Run("AfterLightNodeActivationWithoutPaymentsFix", func(t *testing.T) {
 		env := prepareEnv().withLightNodeActivated()
@@ -5401,7 +5401,7 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		//  in `performInvoke` function
 		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
 		// payments check after application are not second time because of throw
-		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
+		assert.Equal(t, 2, countMockCalls(&rideEnv.Mock, "validateInternalPayments"))
 	})
 	t.Run("AfterLightNodeActivationAndPaymentsFix", func(t *testing.T) {
 		env := prepareEnv().withLightNodeActivated().withPaymentsFix()
@@ -5414,7 +5414,7 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		//  in `performInvoke` function
 		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
 		// successfully fails before invoke because of negative balance
-		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
+		assert.Equal(t, 2, countMockCalls(&rideEnv.Mock, "validateInternalPayments"))
 	})
 }
 
@@ -6184,7 +6184,8 @@ func TestZeroComplexitySanityCheckInComplexityCalculator(t *testing.T) {
 			withThis(dApp1).withDApp(dApp1).withSender(sender).
 			withInvocation("call", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
 			withWrappedState().toEnv()
-		env.complexityCalculatorFunc = func() complexityCalculator { return cc }
+		unsetMockCalls(&env.Mock, "complexityCalculator")
+		env.EXPECT().complexityCalculator().Return(cc).Maybe()
 		return env
 	}
 	t.Run("complexity_calculator_v1", func(t *testing.T) {

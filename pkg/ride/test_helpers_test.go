@@ -21,6 +21,37 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
+func unsetMockCalls(m *mock.Mock, methodName string) {
+	var toUnset []*mock.Call
+	for _, c := range m.ExpectedCalls {
+		if c.Method == methodName {
+			toUnset = append(toUnset, c)
+		}
+	}
+	for _, c := range toUnset {
+		c.Unset()
+	}
+}
+
+func countMockCalls(m *mock.Mock, methodName string) int {
+	count := 0
+	for _, c := range m.Calls {
+		if c.Method == methodName {
+			count++
+		}
+	}
+	return count
+}
+
+func hasMockExpectation(m *mock.Mock, methodName string) bool {
+	for _, c := range m.ExpectedCalls {
+		if c.Method == methodName {
+			return true
+		}
+	}
+	return false
+}
+
 type testAccount struct {
 	sk  crypto.SecretKey
 	pk  crypto.PublicKey
@@ -72,7 +103,7 @@ func newTestAccountFromAddress(addr proto.WavesAddress) *testAccount {
 }
 
 // Can be used only when secret and public keys aren't required by test
-func newTestAccountFromAddresString(t *testing.T, addr string) *testAccount {
+func newTestAccountFromAddressString(t *testing.T, addr string) *testAccount {
 	ad, err := proto.NewAddressFromString(addr)
 	require.NoError(t, err, "failed to create test account")
 	return newTestAccountFromAddress(ad)
@@ -101,7 +132,7 @@ type testEnv struct {
 	this        proto.WavesAddress
 	dAppAddr    proto.WavesAddress
 	inv         rideType
-	me          *mockRideEnvironment
+	me          *MockEnvironment
 	ms          *types.MockEnrichedSmartState
 	ws          *WrappedState
 	recipients  map[string]proto.WavesAddress
@@ -119,39 +150,18 @@ type testEnv struct {
 }
 
 func newTestEnv(t *testing.T) *testEnv {
-	me := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		blockV5ActivatedFunc: func() bool {
-			return false
-		},
-		isProtobufTxFunc: func() bool {
-			return false
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV1 // V1 by default
-		},
-		checkMessageLengthFunc: bytesSizeCheckV1V2,
-		validateInternalPaymentsFunc: func() bool {
-			return false
-		},
-		rideV6ActivatedFunc: func() bool {
-			return false
-		},
-		consensusImprovementsActivatedFunc: func() bool {
-			return false
-		},
-		blockRewardDistributionActivatedFunc: func() bool {
-			return false
-		},
-		lightNodeActivatedFunc: func() bool {
-			return false
-		},
-		paymentsFixActivatedFunc: func() bool {
-			return false
-		},
-	}
+	me := NewMockEnvironment(t)
+	me.EXPECT().scheme().Return(proto.TestNetScheme).Maybe()
+	me.EXPECT().blockV5Activated().Return(false).Maybe()
+	me.EXPECT().isProtobufTx().Return(false).Maybe()
+	me.EXPECT().maxDataEntriesSize().Return(proto.MaxDataEntriesScriptActionsSizeInBytesV1).Maybe()
+	me.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(bytesSizeCheckV1V2).Maybe()
+	me.EXPECT().validateInternalPayments().Return(false).Maybe()
+	me.EXPECT().rideV6Activated().Return(false).Maybe()
+	me.EXPECT().consensusImprovementsActivated().Return(false).Maybe()
+	me.EXPECT().blockRewardDistributionActivated().Return(false).Maybe()
+	me.EXPECT().lightNodeActivated().Return(false).Maybe()
+	me.EXPECT().paymentsFixActivated().Return(false).Maybe()
 	r := &testEnv{
 		t:           t,
 		me:          me,
@@ -169,9 +179,9 @@ func newTestEnv(t *testing.T) *testEnv {
 		scripts:     map[proto.WavesAddress]proto.Script{},
 		notFoundErr: errors.New("not found"),
 	}
-	r.me.stateFunc = func() types.SmartState {
+	me.EXPECT().state().RunAndReturn(func() types.SmartState {
 		return r.ms
-	}
+	}).Maybe()
 	r.ms.EXPECT().NewestRecipientToAddress(mock.Anything).RunAndReturn(
 		func(recipient proto.Recipient) (proto.WavesAddress, error) {
 			if a, ok := r.recipients[recipient.String()]; ok {
@@ -232,7 +242,7 @@ func newTestEnv(t *testing.T) *testEnv {
 			if be, ok := e.(*proto.IntegerDataEntry); ok {
 				return be, nil
 			}
-			return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a integer data entry
+			return nil, errors.Wrapf(r.notFoundErr, // Consider as not found, because it is not an integer data entry.
 				"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
 			)
 		}).Maybe()
@@ -383,26 +393,29 @@ func newTestEnv(t *testing.T) *testEnv {
 }
 
 func (e *testEnv) withScheme(scheme byte) *testEnv {
-	e.me.schemeFunc = func() byte {
-		return scheme
-	}
+	unsetMockCalls(&e.me.Mock, "scheme")
+	e.me.EXPECT().scheme().Return(scheme).Maybe()
 	return e
 }
 
 func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
-	e.me.libVersionFunc = func() (ast.LibraryVersion, error) {
+	unsetMockCalls(&e.me.Mock, "libVersion")
+	unsetMockCalls(&e.me.Mock, "setLibVersion")
+	e.me.EXPECT().libVersion().RunAndReturn(func() (ast.LibraryVersion, error) {
 		return v, nil
-	}
-	e.me.setLibVersionFunc = func(newV ast.LibraryVersion) {
+	}).Maybe()
+	e.me.EXPECT().setLibVersion(mock.Anything).Run(func(newV ast.LibraryVersion) {
 		v = newV
-	}
+	}).Return().Maybe()
 	return e
 }
 
 func (e *testEnv) withComplexityLimit(limit int) *testEnv {
 	require.True(e.t, limit >= 0)
 	var cc complexityCalculator
-	e.me.complexityCalculatorFunc = func() complexityCalculator {
+	unsetMockCalls(&e.me.Mock, "complexityCalculator")
+	unsetMockCalls(&e.me.Mock, "setComplexityCalculator")
+	e.me.EXPECT().complexityCalculator().RunAndReturn(func() complexityCalculator {
 		if cc != nil { // already initialized
 			return cc
 		}
@@ -411,28 +424,28 @@ func (e *testEnv) withComplexityLimit(limit int) *testEnv {
 		cc = newComplexityCalculatorByRideV6Activation(isRideV6Activated)
 		cc.setLimit(uint32(limit))
 		return cc
-	}
-	e.me.setComplexityCalculatorFunc = func(newCC complexityCalculator) {
+	}).Maybe()
+	e.me.EXPECT().setComplexityCalculator(mock.Anything).Run(func(newCC complexityCalculator) {
 		cc = newCC
-	}
+	}).Return().Maybe()
 	return e
 }
 
 func (e *testEnv) withBlockV5Activated() *testEnv {
-	e.me.blockV5ActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "blockV5Activated")
+	e.me.EXPECT().blockV5Activated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withBlock(blockInfo *proto.BlockInfo) *testEnv {
-	e.me.blockFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "block")
+	e.me.EXPECT().block().RunAndReturn(func() rideType {
 		v, err := e.me.libVersion()
 		if err != nil {
 			panic(err)
 		}
 		return blockInfoToObject(blockInfo, v)
-	}
+	}).Maybe()
 	e.ms.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
 		return blockInfo.Height, nil
 	}).Maybe()
@@ -446,71 +459,65 @@ func (e *testEnv) withBlock(blockInfo *proto.BlockInfo) *testEnv {
 }
 
 func (e *testEnv) withProtobufTx() *testEnv {
-	e.me.isProtobufTxFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "isProtobufTx")
+	e.me.EXPECT().isProtobufTx().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withDataEntriesSizeV2() *testEnv {
-	e.me.maxDataEntriesSizeFunc = func() int {
-		return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-	}
+	unsetMockCalls(&e.me.Mock, "maxDataEntriesSize")
+	e.me.EXPECT().maxDataEntriesSize().Return(proto.MaxDataEntriesScriptActionsSizeInBytesV2).Maybe()
 	return e
 }
 
 func (e *testEnv) withMessageLengthV3() *testEnv {
-	e.me.checkMessageLengthFunc = bytesSizeCheckV3V6
+	unsetMockCalls(&e.me.Mock, "checkMessageLength")
+	e.me.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(bytesSizeCheckV3V6).Maybe()
 	return e
 }
 
 func (e *testEnv) withRideV6Activated() *testEnv {
-	e.me.rideV6ActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "rideV6Activated")
+	e.me.EXPECT().rideV6Activated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withConsensusImprovementsActivatedFunc() *testEnv {
-	e.me.consensusImprovementsActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "consensusImprovementsActivated")
+	e.me.EXPECT().consensusImprovementsActivated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withBlockRewardDistribution() *testEnv {
-	e.me.blockRewardDistributionActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "blockRewardDistributionActivated")
+	e.me.EXPECT().blockRewardDistributionActivated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withLightNodeActivated() *testEnv {
-	e.me.lightNodeActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "lightNodeActivated")
+	e.me.EXPECT().lightNodeActivated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withValidateInternalPayments() *testEnv {
-	e.me.validateInternalPaymentsFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "validateInternalPayments")
+	e.me.EXPECT().validateInternalPayments().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withPaymentsFix() *testEnv {
-	e.me.paymentsFixActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "paymentsFixActivated")
+	e.me.EXPECT().paymentsFixActivated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withThis(acc *testAccount) *testEnv {
 	e.this = acc.address()
-	e.me.thisFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "this")
+	e.me.EXPECT().this().RunAndReturn(func() rideType {
 		return rideAddress(e.this)
-	}
+	}).Maybe()
 	return e
 }
 
@@ -525,13 +532,14 @@ func (e *testEnv) withSender(acc *testAccount) *testEnv {
 func (e *testEnv) withDApp(acc *testAccount) *testEnv {
 	e.dApp = acc
 	e.dAppAddr = e.dApp.address()
-	e.me.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+	unsetMockCalls(&e.me.Mock, "setNewDAppAddress")
+	e.me.EXPECT().setNewDAppAddress(mock.Anything).Run(func(address proto.WavesAddress) {
 		e.dAppAddr = address
 		e.this = address
 		if e.ws != nil {
 			e.ws.cle = rideAddress(address) // We have to update wrapped state's `cle` if any
 		}
-	}
+	}).Return().Maybe()
 	rcp := acc.recipient()
 	e.recipients[rcp.String()] = acc.address()
 	e.accounts[acc.address()] = acc
@@ -587,40 +595,43 @@ func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testE
 }
 
 func (e *testEnv) withFullScriptTransfer(transfer *proto.FullScriptTransfer) *testEnv {
-	e.me.transactionFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "transaction")
+	e.me.EXPECT().transaction().RunAndReturn(func() rideType {
 		return scriptTransferToTransferTransactionObject(transfer)
-	}
+	}).Maybe()
 	return e
 }
 
 func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
-	e.me.transactionFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "transaction")
+	e.me.EXPECT().transaction().RunAndReturn(func() rideType {
 		txo, err := transactionToObject(e.me, tx)
 		require.NoError(e.t, err, "failed to set transaction")
 		return txo
-	}
+	}).Maybe()
 	e.ms.EXPECT().NewestTransactionByID(mock.Anything).RunAndReturn(func(_ []byte) (proto.Transaction, error) {
 		return tx, nil
 	}).Maybe()
 	id, err := tx.GetID(e.me.scheme())
 	require.NoError(e.t, err)
-	e.me.txIDFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "txID")
+	e.me.EXPECT().txID().RunAndReturn(func() rideType {
 		return rideByteVector(id)
-	}
+	}).Maybe()
 	return e
 }
 
 func (e *testEnv) withTransactionID(id crypto.Digest) *testEnv {
-	e.me.txIDFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "txID")
+	e.me.EXPECT().txID().RunAndReturn(func() rideType {
 		return rideByteVector(id.Bytes())
-	}
+	}).Maybe()
 	return e
 }
 
 func (e *testEnv) withHeight(h int) *testEnv {
-	e.me.heightFunc = func() rideInt {
-		return rideInt(h)
-	}
+	unsetMockCalls(&e.me.Mock, "height")
+	e.me.EXPECT().height().Return(rideInt(h)).Maybe()
 	e.ms.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
 		return uint64(h), nil
 	}).Maybe()
@@ -668,14 +679,15 @@ func (e *testEnv) withDataFromJSON(s string) *testEnv {
 func (e *testEnv) withWrappedState() *testEnv {
 	v, err := e.me.libVersion()
 	require.NoError(e.t, err)
-	if e.me.heightFunc == nil { // create stub height function`
-		e.me.heightFunc = func() rideInt { return 0 }
-		defer func() { e.me.heightFunc = nil }()
+	if !hasMockExpectation(&e.me.Mock, "height") { // create stub height expectation
+		e.me.EXPECT().height().Return(rideInt(0)).Maybe()
+		defer func() { unsetMockCalls(&e.me.Mock, "height") }()
 	}
 	e.ws = newWrappedState(e.me, e.ms, v)
-	e.me.stateFunc = func() types.SmartState {
+	unsetMockCalls(&e.me.Mock, "state")
+	e.me.EXPECT().state().RunAndReturn(func() types.SmartState {
 		return e.ws
-	}
+	}).Maybe()
 	return e
 }
 func (e *testEnv) withDataEntries(acc *testAccount, entries ...proto.DataEntry) *testEnv {
@@ -754,11 +766,12 @@ func (e *testEnv) withAssetBalance(acc *testAccount, asset crypto.Digest, balanc
 }
 
 func (e *testEnv) withTakeStringV5() *testEnv {
-	e.me.takeStringFunc = takeRideString
+	unsetMockCalls(&e.me.Mock, "takeString")
+	e.me.EXPECT().takeString(mock.Anything, mock.Anything).RunAndReturn(takeRideString).Maybe()
 	return e
 }
 
-func (e *testEnv) toEnv() *mockRideEnvironment {
+func (e *testEnv) toEnv() *MockEnvironment {
 	return e.me
 }
 
@@ -815,20 +828,24 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 	}
 	e.inv, err = invocationToObject(v, e.me.scheme(), tx)
 	require.NoError(e.t, err)
-	e.me.invocationFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "invocation")
+	e.me.EXPECT().invocation().RunAndReturn(func() rideType {
 		return e.inv
-	}
+	}).Maybe()
 	txo, err := transactionToObject(e.me, tx)
 	require.NoError(e.t, err)
-	e.me.transactionFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "transaction")
+	e.me.EXPECT().transaction().RunAndReturn(func() rideType {
 		return txo
-	}
-	e.me.setInvocationFunc = func(inv rideType) {
+	}).Maybe()
+	unsetMockCalls(&e.me.Mock, "setInvocation")
+	e.me.EXPECT().setInvocation(mock.Anything).Run(func(inv rideType) {
 		e.inv = inv
-	}
-	e.me.txIDFunc = func() rideType {
+	}).Return().Maybe()
+	unsetMockCalls(&e.me.Mock, "txID")
+	e.me.EXPECT().txID().RunAndReturn(func() rideType {
 		return rideByteVector(tx.ID.Bytes())
-	}
+	}).Maybe()
 	return e
 }
 
