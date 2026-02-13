@@ -37,6 +37,9 @@ jobs:
       name: "${{ inputs.environment }}" # use the environment name from the input
     if: (github.repository == 'wavesplatform/gowaves')
     env:
+      DOCKER_MACHINE_NAME: local
+      DOCKER_HOST: unix:///var/run/docker.sock
+      DOCKER_API_VERSION: "1.45"
       MAKEFILE_TARGET: "${{ inputs.itest-type }}" # type of integration test equal to the makefile target
 
     steps:
