@@ -565,16 +565,16 @@ func (a *ThreadSafeWriteWrapper) AddDeserializedBlocksWithSnapshots(
 	return a.s.AddDeserializedBlocksWithSnapshots(blocks, snapshots)
 }
 
-func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height) error {
+func (a *ThreadSafeWriteWrapper) RollbackToHeight(height proto.Height, isAutoRollback bool) error {
 	a.lock()
 	defer a.unlock()
-	return a.s.RollbackToHeight(height)
+	return a.s.RollbackToHeight(height, isAutoRollback)
 }
 
-func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID) error {
+func (a *ThreadSafeWriteWrapper) RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error {
 	a.lock()
 	defer a.unlock()
-	return a.s.RollbackTo(removalEdge)
+	return a.s.RollbackTo(removalEdge, isAutoRollback)
 }
 
 func (a *ThreadSafeWriteWrapper) TxValidation(f func(validation TxValidation) error) error {
