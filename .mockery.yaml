@@ -15,6 +15,10 @@ packages:
       State:
         config:
           filename: mock_state.go
+      scriptStorageState:
+        config:
+          structname: MockScriptStorageState
+          filename: mock_script_storage_state_test.go
   github.com/wavesplatform/gowaves/pkg/consensus:
     interfaces:
       stateInfoProvider:

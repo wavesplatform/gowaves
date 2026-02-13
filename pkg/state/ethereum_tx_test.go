@@ -8,6 +8,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -121,11 +122,8 @@ func defaultEthereumLegacyTxData(value int64, to *proto.EthereumAddress, data []
 }
 func TestEthereumTransferWaves(t *testing.T) {
 	appendTxParams := defaultAppendTxParams()
-	storage := &mockScriptStorageState{
-		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
-			return false, nil
-		},
-	}
+	storage := NewMockScriptStorageState(t)
+	storage.EXPECT().newestAccountHasVerifier(mock.Anything).Return(false, nil).Maybe()
 	//assetsUncertain := newAssets
 	txAppend := defaultTxAppender(t, storage, nil, nil, appendTxParams)
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
@@ -159,17 +157,13 @@ func TestEthereumTransferWaves(t *testing.T) {
 }
 
 func TestEthereumTransferAssets(t *testing.T) {
-	storage := &mockScriptStorageState{
-		newestScriptBasicInfoByAddressIDFunc: func(id proto.AddressID) (scriptBasicInfoRecord, error) {
-			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
-		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
-			return false, nil
-		},
-		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
-			return false, nil
-		},
-	}
+	storage := NewMockScriptStorageState(t)
+	storage.EXPECT().newestScriptBasicInfoByAddressID(mock.Anything).Return(
+		scriptBasicInfoRecord{
+			PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5"),
+		}, nil).Maybe()
+	storage.EXPECT().newestIsSmartAsset(mock.Anything).Return(false, nil).Maybe()
+	storage.EXPECT().newestAccountHasVerifier(mock.Anything).Return(false, nil).Maybe()
 
 	appendTxParams := defaultAppendTxParams()
 	senderPK, err := proto.NewEthereumPublicKeyFromHexString("c4f926702fee2456ac5f3d91c9b7aa578ff191d0792fa80b6e65200f2485d9810a89c1bb5830e6618119fb3f2036db47fac027f7883108cbc7b2953539b9cb53")
@@ -273,19 +267,15 @@ func TestEthereumInvoke(t *testing.T) {
 		assert.NotNil(t, tree)
 		return tree, nil
 	}
-	storage := &mockScriptStorageState{
-		newestScriptByAddrFunc: newestScriptByAddrFunc,
-		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptBasicInfoByAddressIDFunc: func(id proto.AddressID) (scriptBasicInfoRecord, error) {
-			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
-		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
-			return false, nil
-		},
-		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
-			return false, nil
-		},
-	}
+	storage := NewMockScriptStorageState(t)
+	storage.EXPECT().newestScriptByAddr(mock.Anything).RunAndReturn(newestScriptByAddrFunc).Maybe()
+	storage.EXPECT().scriptByAddr(mock.Anything).RunAndReturn(newestScriptByAddrFunc).Maybe()
+	storage.EXPECT().newestScriptBasicInfoByAddressID(mock.Anything).Return(
+		scriptBasicInfoRecord{
+			PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5"),
+		}, nil).Maybe()
+	storage.EXPECT().newestIsSmartAsset(mock.Anything).Return(false, nil).Maybe()
+	storage.EXPECT().newestAccountHasVerifier(mock.Anything).Return(false, nil).Maybe()
 	state := types.NewMockEnrichedSmartState(t)
 	state.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
 		return 1000, nil
@@ -407,19 +397,15 @@ func TestEthereumInvokeWithoutPaymentsAndArguments(t *testing.T) {
 		assert.NotNil(t, tree)
 		return tree, nil
 	}
-	storage := &mockScriptStorageState{
-		newestScriptByAddrFunc: newestScriptByAddrFunc,
-		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptBasicInfoByAddressIDFunc: func(id proto.AddressID) (scriptBasicInfoRecord, error) {
-			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
-		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
-			return false, nil
-		},
-		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
-			return false, nil
-		},
-	}
+	storage := NewMockScriptStorageState(t)
+	storage.EXPECT().newestScriptByAddr(mock.Anything).RunAndReturn(newestScriptByAddrFunc).Maybe()
+	storage.EXPECT().scriptByAddr(mock.Anything).RunAndReturn(newestScriptByAddrFunc).Maybe()
+	storage.EXPECT().newestScriptBasicInfoByAddressID(mock.Anything).Return(
+		scriptBasicInfoRecord{
+			PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5"),
+		}, nil).Maybe()
+	storage.EXPECT().newestIsSmartAsset(mock.Anything).Return(false, nil).Maybe()
+	storage.EXPECT().newestAccountHasVerifier(mock.Anything).Return(false, nil).Maybe()
 	state := types.NewMockEnrichedSmartState(t)
 	state.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
 		return 1000, nil
@@ -477,19 +463,15 @@ func TestEthereumInvokeAllArguments(t *testing.T) {
 		assert.NotNil(t, tree)
 		return tree, nil
 	}
-	storage := &mockScriptStorageState{
-		newestScriptByAddrFunc: newestScriptByAddrFunc,
-		scriptByAddrFunc:       newestScriptByAddrFunc,
-		newestScriptBasicInfoByAddressIDFunc: func(id proto.AddressID) (scriptBasicInfoRecord, error) {
-			return scriptBasicInfoRecord{PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5")}, nil
-		},
-		newestIsSmartAssetFunc: func(assetID proto.AssetID) (bool, error) {
-			return false, nil
-		},
-		newestAccountHasVerifierFunc: func(addr proto.WavesAddress) (bool, error) {
-			return false, nil
-		},
-	}
+	storage := NewMockScriptStorageState(t)
+	storage.EXPECT().newestScriptByAddr(mock.Anything).RunAndReturn(newestScriptByAddrFunc).Maybe()
+	storage.EXPECT().scriptByAddr(mock.Anything).RunAndReturn(newestScriptByAddrFunc).Maybe()
+	storage.EXPECT().newestScriptBasicInfoByAddressID(mock.Anything).Return(
+		scriptBasicInfoRecord{
+			PK: crypto.MustPublicKeyFromBase58("pmDSxpnULiroUAerTDFBajffTpqgwVJjtMipQq6DQM5"),
+		}, nil).Maybe()
+	storage.EXPECT().newestIsSmartAsset(mock.Anything).Return(false, nil).Maybe()
+	storage.EXPECT().newestAccountHasVerifier(mock.Anything).Return(false, nil).Maybe()
 	state := types.NewMockEnrichedSmartState(t)
 	state.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
 		return 1000, nil
