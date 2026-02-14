@@ -18,3 +18,10 @@ cmd/wmd/internal/swagger/
 
 # Ignore testdata folders
 pkg/state/testdata/
+
+# Ignore integration tests config files
+itests/config/template.conf
+
+# Ignore generated protobuf files
+**/*.pb.go
+**/*.gen.go

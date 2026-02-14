@@ -2,16 +2,17 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
 	"os/signal"
+	"slices"
 	"strings"
 	"time"
 
-	"github.com/pkg/errors"
 	flag "github.com/spf13/pflag"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
@@ -20,13 +21,13 @@ import (
 )
 
 const (
-	defaultURL    = "https://nodes.wavesnodes.com"
-	defaultScheme = "http"
+	defaultURL     = "https://nodes.wavesnodes.com"
+	defaultScheme  = "http"
+	defaultTimeout = 30 * time.Second
 )
 
 var (
 	version              = "v0.0.0"
-	interruptSignals     = []os.Signal{os.Interrupt}
 	errInvalidParameters = errors.New("invalid parameters")
 	errUserTermination   = errors.New("user termination")
 	errFailure           = errors.New("operation failure")
@@ -37,17 +38,17 @@ var (
 func main() {
 	err := run()
 	if err != nil {
-		switch err {
-		case errInvalidParameters:
+		switch {
+		case errors.Is(err, errInvalidParameters):
 			showUsageAndExit()
 			os.Exit(2)
-		case errUserTermination:
+		case errors.Is(err, errUserTermination):
 			os.Exit(130)
-		case errFork:
+		case errors.Is(err, errFork):
 			os.Exit(1)
-		case errUnavailable:
+		case errors.Is(err, errUnavailable):
 			os.Exit(69)
-		case errFailure:
+		case errors.Is(err, errFailure):
 			os.Exit(70)
 		}
 	}
@@ -90,14 +91,14 @@ func run() error {
 	node, err := checkAndUpdateURL(node)
 	if err != nil {
 		slog.Error("Incorrect node's URL", logging.Error(err))
-		return errInvalidParameters
+		return errors.Join(errInvalidParameters, err)
 	}
 	other := strings.Fields(reference)
 	for i, u := range other {
 		u, err = checkAndUpdateURL(u)
 		if err != nil {
 			slog.Error("Incorrect reference's URL", logging.Error(err))
-			return errInvalidParameters
+			return errors.Join(errInvalidParameters, err)
 		}
 		other[i] = u
 	}
@@ -108,45 +109,46 @@ func run() error {
 	urls := append([]string{node}, other...)
 	slog.Debug("Requesting height from nodes", "count", len(urls))
 
-	interrupt := interruptListener()
+	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
+	defer done()
 
 	clients := make([]*client.Client, len(urls))
 	for i, u := range urls {
-		c, err := client.NewClient(client.Options{BaseUrl: u, Client: &http.Client{}})
-		if err != nil {
-			slog.Error("Failed to create client", slog.String("URL", u), logging.Error(err))
-			return errFailure
+		c, cErr := client.NewClient(client.Options{BaseUrl: u, Client: &http.Client{}})
+		if cErr != nil {
+			slog.Error("Failed to create client", slog.String("URL", u), logging.Error(cErr))
+			return errors.Join(errFailure, cErr)
 		}
 		clients[i] = c
 	}
 
-	hs, err := heights(interrupt, clients)
+	hs, err := heights(ctx, clients)
 	if err != nil {
 		slog.Error("Failed to retrieve heights from all nodes", logging.Error(err))
-		if interrupted(interrupt) {
-			return errUserTermination
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return errors.Join(errUserTermination, err)
 		}
-		return errUnavailable
+		return errors.Join(errUnavailable, err)
 	}
 	for i, h := range hs {
 		slog.Debug("Height at node", "node", i, "height", h)
 	}
 
-	stop := min(hs)
+	stop := slices.Min(hs)
 	slog.Info("Lowest height", "height", stop)
 
-	ch, err := findLastCommonHeight(interrupt, clients, 1, stop)
+	ch, err := findLastCommonHeight(ctx, clients, 1, stop)
 	if err != nil {
 		slog.Error("Failed to find last common height", logging.Error(err))
-		if interrupted(interrupt) {
-			return errUserTermination
+		if errors.Is(ctx.Err(), context.Canceled) {
+			return errors.Join(errUserTermination, err)
 		}
 		return err
 	}
 
 	h := hs[0]
 	slog.Debug("Node height", "height", h)
-	refLowest := min(hs[1:])
+	refLowest := slices.Min(hs[1:])
 	slog.Debug("The lowest height of reference nodes", "height", refLowest)
 
 	switch {
@@ -198,34 +200,36 @@ func checkAndUpdateURL(s string) (string, error) {
 		u, err = url.Parse("//" + s)
 	}
 	if err != nil {
-		return "", errors.Wrapf(err, "failed to parse URL '%s'", s)
+		return "", fmt.Errorf("failed to parse URL '%s': %w", s, err)
 	}
 	if u.Scheme == "" {
 		u.Scheme = defaultScheme
 	}
 	if u.Scheme != "http" && u.Scheme != "https" {
-		return "", errors.Errorf("unsupported URL scheme '%s'", u.Scheme)
+		return "", fmt.Errorf("unsupported URL scheme '%s'", u.Scheme)
 	}
 	return u.String(), nil
 }
 
-func findLastCommonHeight(interrupt <-chan struct{}, clients []*client.Client, start, stop int) (int, error) {
-	var r int
+func findLastCommonHeight(ctx context.Context, clients []*client.Client, start, stop uint64) (uint64, error) {
+	var r uint64
 	for start <= stop {
-		if interrupted(interrupt) {
-			return 0, errUserTermination
-		}
-		middle := (start + stop) / 2
-		c, err := differentIdsCount(clients, middle)
-		if err != nil {
-			return 0, errors.Wrapf(err, "failed to get blocks signatures at height %d", middle)
-		}
-		if c >= 2 {
-			stop = middle - 1
-			r = stop
-		} else {
-			start = middle + 1
-			r = middle
+		select {
+		case <-ctx.Done():
+			return 0, errors.Join(errUserTermination, ctx.Err())
+		default:
+			middle := (start + stop) / 2
+			c, err := differentIDsCount(ctx, clients, middle)
+			if err != nil {
+				return 0, fmt.Errorf("failed to get blocks signatures at height %d: %w", middle, err)
+			}
+			if c >= 2 {
+				stop = middle - 1
+				r = stop
+			} else {
+				start = middle + 1
+				r = middle
+			}
 		}
 	}
 	return r, nil
@@ -240,28 +244,28 @@ type nodeBlockInfo struct {
 	err       error
 }
 
-func differentIdsCount(clients []*client.Client, height int) (int, error) {
+func differentIDsCount(ctx context.Context, clients []*client.Client, height uint64) (int, error) {
 	ch := make(chan nodeBlockInfo, len(clients))
 	info := make(map[int]nodeBlockInfo)
 	m := make(map[proto.BlockID]bool)
 	for i, c := range clients {
 		go func(id int, cl *client.Client) {
-			ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-			defer cancel()
-			header, resp, err := cl.Blocks.HeadersAt(ctx, uint64(height))
-			if err != nil {
+			ctx1, cancel1 := context.WithTimeout(ctx, defaultTimeout)
+			defer cancel1()
+			header, resp, hErr := cl.Blocks.HeadersAt(ctx1, height)
+			if hErr != nil {
 				if resp != nil && resp.StatusCode == http.StatusNotFound {
-					ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
-					defer cancel()
-					block, _, err := cl.Blocks.At(ctx, uint64(height))
-					if err != nil {
-						ch <- nodeBlockInfo{id: id, err: err}
+					ctx2, cancel2 := context.WithTimeout(ctx, defaultTimeout)
+					defer cancel2()
+					block, _, bErr := cl.Blocks.At(ctx2, height)
+					if bErr != nil {
+						ch <- nodeBlockInfo{id: id, err: bErr}
 						return
 					}
 					ch <- nodeBlockInfo{id: id, height: block.Height, blockID: block.ID, generator: block.Generator, blockTime: block.Timestamp}
 					return
 				}
-				ch <- nodeBlockInfo{id: id, err: err}
+				ch <- nodeBlockInfo{id: id, err: hErr}
 				return
 			}
 			ch <- nodeBlockInfo{id: id, height: header.Height, blockID: header.ID, generator: header.Generator, blockTime: header.Timestamp}
@@ -270,7 +274,7 @@ func differentIdsCount(clients []*client.Client, height int) (int, error) {
 	for range clients {
 		bi := <-ch
 		if bi.err != nil {
-			return 0, errors.Wrapf(bi.err, "failed to get block header from %dth client", bi.id)
+			return 0, fmt.Errorf("failed to get block header from %dth client: %w", bi.id, bi.err)
 		}
 		info[bi.id] = bi
 		m[bi.blockID] = true
@@ -284,16 +288,6 @@ func differentIdsCount(clients []*client.Client, height int) (int, error) {
 	return len(m), nil
 }
 
-func min(values []int) int {
-	r := values[0]
-	for _, v := range values {
-		if v < r {
-			r = v
-		}
-	}
-	return r
-}
-
 func showUsageAndExit() {
 	_, _ = fmt.Fprintf(os.Stderr, "\nUsage of chaincmp %s\n", version)
 	flag.PrintDefaults()
@@ -301,44 +295,39 @@ func showUsageAndExit() {
 
 type nodeHeight struct {
 	id     int
-	height int
+	height uint64
 	err    error
 }
 
-func height(interrupt <-chan struct{}, c *client.Client, id int, ch chan nodeHeight) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*30)
+func height(ctx context.Context, c *client.Client, id int, ch chan nodeHeight) {
+	ctx, cancel := context.WithTimeout(ctx, defaultTimeout)
 	defer cancel()
-
-	go func() {
-		<-interrupt
-		cancel()
-	}()
 
 	bh, _, err := c.Blocks.Height(ctx)
 	if err != nil {
-		ch <- nodeHeight{id, 0, err}
+		ch <- nodeHeight{id: id, err: err}
 		return
 	}
-	ch <- nodeHeight{id, int(bh.Height), nil}
+	ch <- nodeHeight{id: id, height: bh.Height}
 }
 
-func heights(interrupt <-chan struct{}, clients []*client.Client) ([]int, error) {
+func heights(ctx context.Context, clients []*client.Client) ([]uint64, error) {
 	ch := make(chan nodeHeight, len(clients))
-	heights := make(map[int]int)
+	heights := make(map[int]uint64)
 
 	for i, c := range clients {
-		go height(interrupt, c, i, ch)
+		go height(ctx, c, i, ch)
 	}
 
 	for range clients {
 		nh := <-ch
 		if nh.err != nil {
-			return nil, errors.Wrapf(nh.err, "failed to retrieve height from %dth client", nh.id)
+			return nil, fmt.Errorf("failed to retrieve height from %dth client: %w", nh.id, nh.err)
 		}
 		heights[nh.id] = nh.height
 	}
 
-	r := make([]int, len(heights))
+	r := make([]uint64, len(heights))
 	for i, height := range heights {
 		r[i] = height
 	}
@@ -354,29 +343,4 @@ func setupLogger(silent, verbose bool) {
 		level = slog.LevelDebug
 	}
 	slog.SetDefault(slog.New(logging.NewHandler(logging.LoggerPrettyNoColor, level)))
-}
-
-func interruptListener() <-chan struct{} {
-	r := make(chan struct{})
-
-	go func() {
-		signals := make(chan os.Signal, 1)
-		signal.Notify(signals, interruptSignals...)
-		sig := <-signals
-		slog.Info("Caught signal, shutting down...", "signal", sig)
-		close(r)
-		for sig := range signals {
-			slog.Info("Caught signal again, already shutting down", "signal", sig)
-		}
-	}()
-	return r
-}
-
-func interrupted(interrupt <-chan struct{}) bool {
-	select {
-	case <-interrupt:
-		return true
-	default:
-	}
-	return false
 }

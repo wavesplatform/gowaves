@@ -2247,12 +2247,12 @@ func (tx *CreateAliasWithSig) UnmarshalJSONWithScheme(data []byte, scheme Scheme
 	return nil
 }
 
-func (tx *CreateAliasWithSig) MarshalJSON() ([]byte, error) {
+func (tx CreateAliasWithSig) MarshalJSON() ([]byte, error) {
 	type shadowed CreateAliasWithSig
 	tmp := struct {
 		Alias string `json:"alias"`
-		*shadowed
-	}{tx.Alias.Alias, (*shadowed)(tx)}
+		shadowed
+	}{tx.Alias.Alias, (shadowed)(tx)}
 	return json.Marshal(tmp)
 }
 

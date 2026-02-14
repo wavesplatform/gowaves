@@ -6,6 +6,7 @@ import (
 	"github.com/btcsuite/btcd/btcec/v2"
 	btcECDSA "github.com/btcsuite/btcd/btcec/v2/ecdsa"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -128,7 +129,7 @@ func (es *EthereumSignature) UnmarshalBinary(data []byte) error {
 	return nil
 }
 
-func (es *EthereumSignature) MarshalJSON() ([]byte, error) {
+func (es EthereumSignature) MarshalJSON() ([]byte, error) {
 	sig := es.Bytes()
 	return HexBytes(sig).MarshalJSON()
 }

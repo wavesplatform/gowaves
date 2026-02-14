@@ -3,6 +3,7 @@ package utilities
 import (
 	"bytes"
 	"context"
+	"crypto/rand"
 	"encoding/base64"
 	"encoding/binary"
 	"encoding/hex"
@@ -10,7 +11,7 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"math/rand"
+	"math/big"
 	"os"
 	"path/filepath"
 	"regexp"
@@ -23,6 +24,7 @@ import (
 	"github.com/mr-tron/base58/base58"
 	pkgerr "github.com/pkg/errors"
 	"github.com/stretchr/testify/require"
+
 	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
 
 	"github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
@@ -247,7 +249,11 @@ func GetAvailableVersions(t *testing.T, txType proto.TransactionType, minVersion
 func RandStringBytes(n int, symbolSet string) string {
 	b := make([]byte, n)
 	for j := range b {
-		b[j] = symbolSet[rand.Intn(len(symbolSet))]
+		rnd, err := rand.Int(rand.Reader, big.NewInt(int64(len(symbolSet))))
+		if err != nil {
+			panic(err)
+		}
+		b[j] = symbolSet[rnd.Uint64()]
 	}
 	return string(b)
 }
@@ -787,9 +793,8 @@ func MarshalTxAndGetTxMsg(t *testing.T, scheme proto.Scheme, tx proto.Transactio
 	t.Logf("Transaction bytes: %s, Byte size: %d", base64.StdEncoding.EncodeToString(bts), len(bts))
 	if proto.IsProtobufTx(tx) {
 		return &proto.PBTransactionMessage{Transaction: bts}
-	} else {
-		return &proto.TransactionMessage{Transaction: bts}
 	}
+	return &proto.TransactionMessage{Transaction: bts}
 }
 
 func GetTransactionInfoAfterWaitingGo(suite *f.BaseSuite, id crypto.Digest, errWtGo error) {
@@ -903,7 +908,7 @@ func ReadAndCompileRideScript(scriptDir, fileName string) ([]byte, error) {
 	}
 	script := string(scriptFileContent)
 	compiledScript, errs := ridec.Compile(script, false, true)
-	if errs != nil {
+	if len(errs) != 0 {
 		return nil, errors.Join(errs...)
 	}
 	return compiledScript, nil
