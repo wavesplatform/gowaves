@@ -15,6 +15,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -27,20 +28,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
-var (
-	v5takeString = takeRideString
-	noRideV6     = func() bool {
-		return false
-	}
-)
-
 func TestAddressFromString(t *testing.T) {
-	te := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return 'W'
-		},
-		rideV6ActivatedFunc: noRideV6,
-	}
+	te := NewMockEnvironment(t)
+	te.EXPECT().scheme().Return(byte('W')).Maybe()
+	te.EXPECT().rideV6Activated().Return(false).Maybe()
 	ma, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
 	require.NoError(t, err)
 	for _, test := range []struct {
@@ -67,9 +58,8 @@ func TestAddressFromString(t *testing.T) {
 }
 
 func TestAddressValueFromString(t *testing.T) {
-	te := &mockRideEnvironment{schemeFunc: func() byte {
-		return 'W'
-	}}
+	te := NewMockEnvironment(t)
+	te.EXPECT().scheme().Return(byte('W')).Maybe()
 	ma, err := proto.NewAddressFromString("3PJaDyprvekvPXPuAtxrapacuDJopgJRaU3")
 	require.NoError(t, err)
 	for _, test := range []struct {
@@ -104,18 +94,16 @@ func TestTransactionHeightByID(t *testing.T) {
 }
 
 func TestAssetBalanceV3(t *testing.T) {
-	te := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-					return 42, nil
-				},
-				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-					return 21, nil
-				},
-			}
-		},
-	}
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().NewestAssetBalance(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ proto.Recipient, _ crypto.Digest) (uint64, error) {
+			return 42, nil
+		}).Maybe()
+	ss.EXPECT().NewestWavesBalance(mock.Anything).RunAndReturn(func(_ proto.Recipient) (uint64, error) {
+		return 21, nil
+	}).Maybe()
+	te := NewMockEnvironment(t)
+	te.EXPECT().state().Return(ss).Maybe()
 	testCases := []struct {
 		expectedBalance rideType
 		assetID         rideType
@@ -141,18 +129,16 @@ func TestAssetBalanceV3(t *testing.T) {
 }
 
 func TestAssetBalanceV4(t *testing.T) {
-	te := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				NewestAssetBalanceFunc: func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-					return 42, nil
-				},
-				NewestWavesBalanceFunc: func(account proto.Recipient) (uint64, error) {
-					return 21, nil
-				},
-			}
-		},
-	}
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().NewestAssetBalance(mock.Anything, mock.Anything).RunAndReturn(
+		func(_ proto.Recipient, _ crypto.Digest) (uint64, error) {
+			return 42, nil
+		}).Maybe()
+	ss.EXPECT().NewestWavesBalance(mock.Anything).RunAndReturn(func(_ proto.Recipient) (uint64, error) {
+		return 21, nil
+	}).Maybe()
+	te := NewMockEnvironment(t)
+	te.EXPECT().state().Return(ss).Maybe()
 	testCases := []struct {
 		expectedBalance rideType
 		assetID         rideType
@@ -186,21 +172,19 @@ func TestIntFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
-						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestIntegerEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
+				return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 			}
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -240,21 +224,19 @@ func TestBytesFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
-						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestBinaryEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
+				return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 			}
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -294,21 +276,19 @@ func TestStringFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
-						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestStringEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+			if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
+				return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 			}
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -348,21 +328,19 @@ func TestBooleanFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
-						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestBooleanEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+			if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
+				return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 			}
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -395,24 +373,20 @@ func TestBooleanFromState(t *testing.T) {
 func TestIntFromSelfState(t *testing.T) {
 	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if *account.Address() == correctAddress && key == "key" {
-						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestIntegerEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			if *account.Address() == correctAddress && key == "key" {
+				return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 			}
-		},
-		thisFunc: func() rideType {
-			return rideAddress(correctAddress)
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
+	env.EXPECT().this().Return(rideAddress(correctAddress)).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -437,24 +411,20 @@ func TestIntFromSelfState(t *testing.T) {
 func TestBytesFromSelfState(t *testing.T) {
 	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if *account.Address() == correctAddress && key == "key" {
-						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestBinaryEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			if *account.Address() == correctAddress && key == "key" {
+				return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 			}
-		},
-		thisFunc: func() rideType {
-			return rideAddress(correctAddress)
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
+	env.EXPECT().this().Return(rideAddress(correctAddress)).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -479,24 +449,20 @@ func TestBytesFromSelfState(t *testing.T) {
 func TestStringFromSelfState(t *testing.T) {
 	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if *account.Address() == correctAddress && key == "key" {
-						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestStringEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+			if *account.Address() == correctAddress && key == "key" {
+				return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 			}
-		},
-		thisFunc: func() rideType {
-			return rideAddress(correctAddress)
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
+	env.EXPECT().this().Return(rideAddress(correctAddress)).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -521,24 +487,20 @@ func TestStringFromSelfState(t *testing.T) {
 func TestBooleanFromSelfState(t *testing.T) {
 	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if *account.Address() == correctAddress && key == "key" {
-						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestBooleanEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+			if *account.Address() == correctAddress && key == "key" {
+				return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 			}
-		},
-		thisFunc: func() rideType {
-			return rideAddress(correctAddress)
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
+	env.EXPECT().this().Return(rideAddress(correctAddress)).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -563,26 +525,18 @@ func TestBooleanFromSelfState(t *testing.T) {
 func TestAddressFromRecipient(t *testing.T) {
 	addr, err := proto.NewAddressFromString("3N9WtaPoD1tMrDZRG26wA142Byd35tLhnLU")
 	require.NoError(t, err)
-	s := &MockSmartState{
-		NewestAddrByAliasFunc: func(alias proto.Alias) (proto.WavesAddress, error) {
-			if alias.Alias == "correct" {
-				return addr, nil
-			}
-			return proto.WavesAddress{}, errors.New("unexpected test address")
-		},
-	}
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().NewestAddrByAlias(mock.Anything).RunAndReturn(func(alias proto.Alias) (proto.WavesAddress, error) {
+		if alias.Alias == "correct" {
+			return addr, nil
+		}
+		return proto.WavesAddress{}, errors.New("unexpected test address")
+	}).Maybe()
 	alias := proto.NewAlias('T', "correct")
-	e := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return 'T'
-		},
-		stateFunc: func() types.SmartState {
-			return s
-		},
-		validateInternalPaymentsFunc: func() bool {
-			return false
-		},
-	}
+	e := NewMockEnvironment(t)
+	e.EXPECT().scheme().Return(byte('T')).Maybe()
+	e.EXPECT().state().Return(ss).Maybe()
+	e.EXPECT().validateInternalPayments().Return(false).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -615,32 +569,37 @@ func TestSigVerify(t *testing.T) {
 	require.NoError(t, err)
 	pk, err := hex.DecodeString("ba9e7203ca62efbaa49098ec408bdf8a3dfed5a7fa7c200ece40aade905e535f")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
+	large := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
 		fail  bool
 		r     rideType
 	}{
-		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2, false, rideBoolean(true)},
-		{[]rideType{rideByteVector(msg), rideByteVector(bad), rideByteVector(pk)}, bytesSizeCheckV1V2, false, rideBoolean(false)},
-		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideByteVector(pk[:10])}, bytesSizeCheckV1V2, false, rideBoolean(false)},
-		{[]rideType{rideString("MESSAGE"), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2, true, nil},
-		{[]rideType{rideByteVector(big), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2, false, rideBoolean(false)},
-		{[]rideType{rideByteVector(big), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV3V6, true, nil},
-		{[]rideType{rideByteVector(msg), rideString("SIGNATURE"), rideByteVector(pk)}, bytesSizeCheckV1V2, true, nil},
-		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideString("PUBLIC KEY")}, bytesSizeCheckV1V2, true, nil},
+		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2,
+			false, rideBoolean(true)},
+		{[]rideType{rideByteVector(msg), rideByteVector(bad), rideByteVector(pk)}, bytesSizeCheckV1V2,
+			false, rideBoolean(false)},
+		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideByteVector(pk[:10])}, bytesSizeCheckV1V2,
+			false, rideBoolean(false)},
+		{[]rideType{rideString("MESSAGE"), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2,
+			true, nil},
+		{[]rideType{rideByteVector(large), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV1V2,
+			false, rideBoolean(false)},
+		{[]rideType{rideByteVector(large), rideByteVector(sig), rideByteVector(pk)}, bytesSizeCheckV3V6,
+			true, nil},
+		{[]rideType{rideByteVector(msg), rideString("SIGNATURE"), rideByteVector(pk)}, bytesSizeCheckV1V2,
+			true, nil},
+		{[]rideType{rideByteVector(msg), rideByteVector(sig), rideString("PUBLIC KEY")}, bytesSizeCheckV1V2,
+			true, nil},
 		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 	} {
-		te := &mockRideEnvironment{
-			checkMessageLengthFunc: test.check,
-			libVersionFunc: func() (ast.LibraryVersion, error) {
-				return ast.LibV3, nil
-			},
-		}
+		te := NewMockEnvironment(t)
+		te.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(test.check).Maybe()
+		te.EXPECT().libVersion().Return(ast.LibV3, nil).Maybe()
 		r, err := sigVerify(te, test.args...)
 		if test.fail {
 			assert.Error(t, err)
@@ -660,7 +619,7 @@ func TestKeccak256(t *testing.T) {
 	require.NoError(t, err)
 	digest3, err := hex.DecodeString("fe0a57a797d6cb60a92548f2b43bd5e425212f55e0b7adb772ddabd85d21943e")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
+	large := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
@@ -669,18 +628,20 @@ func TestKeccak256(t *testing.T) {
 	}{
 		{[]rideType{rideByteVector(data)}, bytesSizeCheckV1V2, false, rideByteVector(digest1)},
 		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideByteVector(digest2)},
-		{[]rideType{rideByteVector(big)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
-		{[]rideType{rideByteVector(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideByteVector(large)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
+		{[]rideType{rideByteVector(large)}, bytesSizeCheckV3V6, true, nil},
 		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 	} {
-		r, err := keccak256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		me := NewMockEnvironment(t)
+		me.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(test.check).Maybe()
+		r, kErr := keccak256(me, test.args...)
 		if test.fail {
-			assert.Error(t, err)
+			assert.Error(t, kErr)
 		} else {
-			require.NoError(t, err)
+			require.NoError(t, kErr)
 			assert.Equal(t, test.r, r)
 		}
 	}
@@ -695,7 +656,7 @@ func TestBlake2b256(t *testing.T) {
 	require.NoError(t, err)
 	digest3, err := hex.DecodeString("336bccfd826a5bf6a5c2c07a289e39b05cb68447c379fb1acdaf9afd3b3d8c67")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
+	large := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
@@ -704,18 +665,20 @@ func TestBlake2b256(t *testing.T) {
 	}{
 		{[]rideType{rideByteVector(data)}, bytesSizeCheckV1V2, false, rideByteVector(digest1)},
 		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideByteVector(digest2)},
-		{[]rideType{rideByteVector(big)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
-		{[]rideType{rideByteVector(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideByteVector(large)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
+		{[]rideType{rideByteVector(large)}, bytesSizeCheckV3V6, true, nil},
 		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 	} {
-		r, err := blake2b256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		me := NewMockEnvironment(t)
+		me.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(test.check).Maybe()
+		r, bErr := blake2b256(me, test.args...)
 		if test.fail {
-			assert.Error(t, err)
+			assert.Error(t, bErr)
 		} else {
-			require.NoError(t, err)
+			require.NoError(t, bErr)
 			assert.Equal(t, test.r, r)
 		}
 	}
@@ -730,7 +693,7 @@ func TestSha256(t *testing.T) {
 	require.NoError(t, err)
 	digest3, err := hex.DecodeString("956731b38f852244d2d20f8ae618f1f916a6d0694062f90f7a2d9eec9c2ece4e")
 	require.NoError(t, err)
-	big := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
+	large := bytes.Repeat([]byte{0xCA, 0xFE, 0xBA, 0xBE, 0xDE, 0xAD, 0xBE, 0xEF}, 19201)
 	for _, test := range []struct {
 		args  []rideType
 		check func(int) bool
@@ -739,18 +702,20 @@ func TestSha256(t *testing.T) {
 	}{
 		{[]rideType{rideByteVector(data1)}, bytesSizeCheckV1V2, false, rideByteVector(digest1)},
 		{[]rideType{rideString("123")}, bytesSizeCheckV1V2, false, rideByteVector(digest2)},
-		{[]rideType{rideByteVector(big)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
-		{[]rideType{rideByteVector(big)}, bytesSizeCheckV3V6, true, nil},
+		{[]rideType{rideByteVector(large)}, bytesSizeCheckV1V2, false, rideByteVector(digest3)},
+		{[]rideType{rideByteVector(large)}, bytesSizeCheckV3V6, true, nil},
 		{[]rideType{rideUnit{}}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 		{[]rideType{rideString("dsfjsadfl"), rideInt(12345)}, bytesSizeCheckV1V2, true, nil},
 	} {
-		r, err := sha256(&mockRideEnvironment{checkMessageLengthFunc: test.check}, test.args...)
+		me := NewMockEnvironment(t)
+		me.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(test.check).Maybe()
+		r, sErr := sha256(me, test.args...)
 		if test.fail {
-			assert.Error(t, err)
+			assert.Error(t, sErr)
 		} else {
-			require.NoError(t, err)
+			require.NoError(t, sErr)
 			assert.Equal(t, test.r, r)
 		}
 	}
@@ -1046,21 +1011,19 @@ func TestIntValueFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
-						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestIntegerEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
+				return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 			}
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1100,21 +1063,19 @@ func TestBytesValueFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
-						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestBinaryEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
+				return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 			}
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1154,21 +1115,19 @@ func TestStringValueFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
-						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestStringEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+			if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
+				return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 			}
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1208,21 +1167,19 @@ func TestBooleanValueFromState(t *testing.T) {
 	correctAliasRecipient := proto.NewRecipientFromAlias(*correctAlias)
 	incorrectAddressRecipient := proto.NewRecipientFromAddress(incorrectAddress)
 	incorrectAliasRecipient := proto.NewRecipientFromAlias(*incorrectAlias)
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
-						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestBooleanEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+			if (account.Eq(correctAddressRecipient) || account.Eq(correctAliasRecipient)) && key == "key" {
+				return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 			}
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1254,24 +1211,20 @@ func TestBooleanValueFromState(t *testing.T) {
 func TestIntValueFromSelfState(t *testing.T) {
 	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestIntegerEntryFunc: func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-					if *account.Address() == correctAddress && key == "key" {
-						return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestIntegerEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			if *account.Address() == correctAddress && key == "key" {
+				return &proto.IntegerDataEntry{Key: "key", Value: 100500}, nil
 			}
-		},
-		thisFunc: func() rideType {
-			return rideAddress(correctAddress)
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
+	env.EXPECT().this().Return(rideAddress(correctAddress)).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1296,24 +1249,20 @@ func TestIntValueFromSelfState(t *testing.T) {
 func TestBytesValueFromSelfState(t *testing.T) {
 	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestBinaryEntryFunc: func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-					if *account.Address() == correctAddress && key == "key" {
-						return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestBinaryEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			if *account.Address() == correctAddress && key == "key" {
+				return &proto.BinaryDataEntry{Key: "key", Value: []byte("value")}, nil
 			}
-		},
-		thisFunc: func() rideType {
-			return rideAddress(correctAddress)
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
+	env.EXPECT().this().Return(rideAddress(correctAddress)).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1338,24 +1287,20 @@ func TestBytesValueFromSelfState(t *testing.T) {
 func TestStringValueFromSelfState(t *testing.T) {
 	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestStringEntryFunc: func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-					if *account.Address() == correctAddress && key == "key" {
-						return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestStringEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+			if *account.Address() == correctAddress && key == "key" {
+				return &proto.StringDataEntry{Key: "key", Value: "value"}, nil
 			}
-		},
-		thisFunc: func() rideType {
-			return rideAddress(correctAddress)
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
+	env.EXPECT().this().Return(rideAddress(correctAddress)).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1380,24 +1325,20 @@ func TestStringValueFromSelfState(t *testing.T) {
 func TestBooleanValueFromSelfState(t *testing.T) {
 	notFoundErr := errors.New("not found")
 	correctAddress := proto.MustAddressFromString("3Myqjf1D44wR8Vko4Tr5CwSzRNo2Vg9S7u7")
-	env := &mockRideEnvironment{
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				RetrieveNewestBooleanEntryFunc: func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-					if *account.Address() == correctAddress && key == "key" {
-						return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
-					}
-					return nil, notFoundErr
-				},
-				IsNotFoundFunc: func(err error) bool {
-					return errors.Is(err, notFoundErr)
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().RetrieveNewestBooleanEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+			if *account.Address() == correctAddress && key == "key" {
+				return &proto.BooleanDataEntry{Key: "key", Value: true}, nil
 			}
-		},
-		thisFunc: func() rideType {
-			return rideAddress(correctAddress)
-		},
-	}
+			return nil, notFoundErr
+		}).Maybe()
+	ss.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
+		return errors.Is(err, notFoundErr)
+	}).Maybe()
+	env := NewMockEnvironment(t)
+	env.EXPECT().state().Return(ss).Maybe()
+	env.EXPECT().this().Return(rideAddress(correctAddress)).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1421,9 +1362,8 @@ func TestBooleanValueFromSelfState(t *testing.T) {
 
 func TestTransferFromProtobuf(t *testing.T) {
 	var scheme byte = 'T'
-	te := &mockRideEnvironment{schemeFunc: func() byte {
-		return 'T'
-	}}
+	te := NewMockEnvironment(t)
+	te.EXPECT().scheme().Return(byte('T')).Maybe()
 	seed, err := base58.Decode("3TUPTbbpiM5UmZDhMmzdsKKNgMvyHwZQncKWfJrxk3bc")
 	require.NoError(t, err)
 	sk, pk, err := crypto.GenerateKeyPair(seed)
@@ -1533,7 +1473,7 @@ func TestBN256Groth16Verify(t *testing.T) {
 }
 
 func TestECRecover(t *testing.T) {
-	te := &mockRideEnvironment{}
+	te := NewMockEnvironment(t)
 	t.Run("Positive", func(t *testing.T) {
 		const (
 			msg = "da74793f1299abeb213430596f281261355e29af0fdf5d359fe23cd9aca824c8"
@@ -1623,9 +1563,8 @@ func TestECRecover(t *testing.T) {
 }
 
 func TestAddressFromPublicKeyStrict(t *testing.T) {
-	te := &mockRideEnvironment{schemeFunc: func() byte {
-		return 'T'
-	}}
+	te := NewMockEnvironment(t)
+	te.EXPECT().scheme().Return(byte('T')).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1663,27 +1602,23 @@ func TestHashScriptAtAddress(t *testing.T) {
 	s2 := []byte("fake script bytes 2")
 	d2, err := crypto.FastHash(s2)
 	require.NoError(t, err)
-	te := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return 'T'
-		},
-		stateFunc: func() types.SmartState {
-			return &MockSmartState{
-				NewestScriptBytesByAccountFunc: func(recipient proto.Recipient) (proto.Script, error) {
-					switch {
-					case recipient.Eq(r1):
-						return s1, nil
-					case recipient.Eq(r2):
-						return s2, nil
-					case recipient.Eq(r3), recipient.Eq(r4):
-						return nil, errors.Wrap(keyvalue.ErrNotFound, "blah-blah")
-					default:
-						return nil, errors.New("other error")
-					}
-				},
+	ss := types.NewMockSmartState(t)
+	ss.EXPECT().NewestScriptBytesByAccount(mock.Anything).RunAndReturn(
+		func(recipient proto.Recipient) (proto.Script, error) {
+			switch {
+			case recipient.Eq(r1):
+				return s1, nil
+			case recipient.Eq(r2):
+				return s2, nil
+			case recipient.Eq(r3), recipient.Eq(r4):
+				return nil, errors.Wrap(keyvalue.ErrNotFound, "blah-blah")
+			default:
+				return nil, errors.New("other error")
 			}
-		},
-	}
+		}).Maybe()
+	te := NewMockEnvironment(t)
+	te.EXPECT().scheme().Return(byte('T')).Maybe()
+	te.EXPECT().state().Return(ss).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -1718,11 +1653,8 @@ func TestHashScriptAtAddress(t *testing.T) {
 func TestCalculateDelay(t *testing.T) {
 	addr := proto.WavesAddress(bytes.Repeat([]byte{0x01}, 26))
 	vrf := crypto.MustDigestFromBase58("5AFgQTfL1GhVUZr64N6tkmF8usX9QZsPcJbZmsX32VgK")
-	te := &mockRideEnvironment{
-		blockFunc: func() rideType {
-			return rideBlockInfoV7{baseTarget: 142244892, vrf: rideByteVector(vrf.Bytes())}
-		},
-	}
+	te := NewMockEnvironment(t)
+	te.EXPECT().block().Return(rideBlockInfoV7{baseTarget: 142244892, vrf: rideByteVector(vrf.Bytes())}).Maybe()
 
 	for _, test := range []struct {
 		args []rideType
@@ -1748,7 +1680,7 @@ func TestCalculateDelay(t *testing.T) {
 }
 
 func TestGroth16VerifyInvalidArguments(t *testing.T) {
-	te := &mockRideEnvironment{}
+	te := NewMockEnvironment(t)
 	large := rideByteVector(make([]byte, 1000))
 	for i, tc := range []struct {
 		args []rideType

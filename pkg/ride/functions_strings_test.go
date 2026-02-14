@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )
 
@@ -38,9 +39,8 @@ func TestConcatStrings(t *testing.T) {
 }
 
 func TestTakeString(t *testing.T) {
-	env := &mockRideEnvironment{
-		takeStringFunc: v5takeString,
-	}
+	env := NewMockEnvironment(t)
+	env.EXPECT().takeString(mock.Anything, mock.Anything).RunAndReturn(takeRideString).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -72,9 +72,8 @@ func TestTakeString(t *testing.T) {
 }
 
 func TestIncorrectTakeString(t *testing.T) {
-	env := &mockRideEnvironment{
-		takeStringFunc: takeRideStringWrong,
-	}
+	env := NewMockEnvironment(t)
+	env.EXPECT().takeString(mock.Anything, mock.Anything).RunAndReturn(takeRideStringWrong).Maybe()
 	for _, test := range []struct {
 		args []rideType
 		fail bool
@@ -208,10 +207,13 @@ func TestIndexOfSubstringWithOffset(t *testing.T) {
 		{[]rideType{rideInt(1), rideString("x")}, true, nil},
 		{[]rideType{rideInt(1)}, true, nil},
 		{[]rideType{}, true, nil},
-		// scala tests from https://github.com/wavesplatform/Waves/pull/3367
-		{[]rideType{rideString("x冬xqweqwe"), rideString("x冬xqw"), rideInt(0)}, false, rideInt(0)}, // unicode indexOf with zero offset
-		{[]rideType{rideString("冬weqwe"), rideString("we"), rideInt(2)}, false, rideInt(4)},       // unicode indexOf with start offset
-		{[]rideType{rideString(""), rideString("x冬x"), rideInt(1)}, false, rideUnit{}},            // unicode indexOf from empty string with offset
+		// Scala tests from https://github.com/wavesplatform/Waves/pull/3367.
+		// Unicode indexOf with zero offset.
+		{[]rideType{rideString("x冬xqweqwe"), rideString("x冬xqw"), rideInt(0)}, false, rideInt(0)},
+		// Unicode indexOf with start offset.
+		{[]rideType{rideString("冬weqwe"), rideString("we"), rideInt(2)}, false, rideInt(4)},
+		// Unicode indexOf from empty string with offset.
+		{[]rideType{rideString(""), rideString("x冬x"), rideInt(1)}, false, rideUnit{}},
 	} {
 		r, err := indexOfSubstringWithOffset(nil, test.args...)
 		if test.fail {

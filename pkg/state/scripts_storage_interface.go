@@ -6,7 +6,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
-//go:generate moq -out scripts_storage_moq_test.go . scriptStorageState:mockScriptStorageState
 type scriptStorageState interface {
 	commitUncertain(blockID proto.BlockID) error
 	dropUncertain()

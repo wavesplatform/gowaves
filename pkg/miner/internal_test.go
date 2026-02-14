@@ -3,11 +3,10 @@ package miner
 import (
 	"testing"
 
-	"github.com/golang/mock/gomock"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 	"github.com/wavesplatform/gowaves/pkg/state"
@@ -37,7 +36,7 @@ func TestMineBlock(t *testing.T) {
 		require.EqualValues(t, 600000000, b.RewardVote)
 	}
 	t.Run("BeforeLightNode", func(t *testing.T) {
-		m := mock.NewMockState(gomock.NewController(t))
+		m := state.NewMockState(t)
 
 		m.EXPECT().Height().Return(proto.Height(42), nil).Times(1)
 		m.EXPECT().IsActiveLightNodeNewBlocksFields(proto.Height(43)).Return(false, nil).Times(1)
@@ -45,11 +44,11 @@ func TestMineBlock(t *testing.T) {
 		doTest(t, m)
 	})
 	t.Run("AfterLightNode", func(t *testing.T) {
-		m := mock.NewMockState(gomock.NewController(t))
+		m := state.NewMockState(t)
 
 		m.EXPECT().Height().Return(proto.Height(42), nil).Times(1)
 		m.EXPECT().IsActiveLightNodeNewBlocksFields(proto.Height(43)).Return(true, nil).Times(1)
-		m.EXPECT().CreateNextSnapshotHash(gomock.AssignableToTypeOf(&proto.Block{})).
+		m.EXPECT().CreateNextSnapshotHash(mock.AnythingOfType("*proto.Block")).
 			Return(crypto.MustDigestFromBase58("EijBTmUp8j1VRm8542zBii1BdYHvZ26iDk1hLup8kZTP"), nil).Times(1)
 
 		doTest(t, m)

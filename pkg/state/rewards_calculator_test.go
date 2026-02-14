@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
@@ -25,13 +26,14 @@ func makeTestNetRewards(t *testing.T, gen proto.WavesAddress, amounts ...uint64)
 	return r
 }
 
-func makeMockFeaturesStateForRewardsCalc(features ...settings.Feature) featuresStateForRewardsCalculator {
+func makeMockFeaturesStateForRewardsCalc(t *testing.T, features ...settings.Feature) featuresStateForRewardsCalculator {
 	enabledFeatures := make(map[int16]struct{}, len(features))
 	for _, f := range features {
 		enabledFeatures[int16(f)] = struct{}{}
 	}
-	mf := &mockFeaturesState{
-		newestIsActivatedAtHeightFunc: func(featureID int16, height uint64) bool {
+	mf := NewMockFeaturesState(t)
+	mf.EXPECT().newestIsActivatedAtHeight(mock.Anything, mock.Anything).RunAndReturn(
+		func(featureID int16, height uint64) bool {
 			_, isEnabled := enabledFeatures[featureID]
 			switch settings.Feature(featureID) {
 			case settings.BlockRewardDistribution:
@@ -43,31 +45,30 @@ func makeMockFeaturesStateForRewardsCalc(features ...settings.Feature) featuresS
 			default:
 				return false
 			}
-		},
-		newestActivationHeightFunc: func(featureID int16) (uint64, error) {
-			_, enabled := enabledFeatures[featureID]
-			if !enabled {
-				return 0, keyvalue.ErrNotFound
-			}
-			switch settings.Feature(featureID) { //nolint:exhaustive // only relevant features
-			case settings.BlockRewardDistribution:
-				return 1000, nil
-			case settings.CappedRewards:
-				return 2000, nil
-			case settings.XTNBuyBackCessation:
-				return 3000, nil
-			case settings.BoostBlockReward:
-				return 4000, nil
-			default:
-				return 0, keyvalue.ErrNotFound
-			}
-		},
-	}
+		}).Maybe()
+	mf.EXPECT().newestActivationHeight(mock.Anything).RunAndReturn(func(featureID int16) (uint64, error) {
+		_, enabled := enabledFeatures[featureID]
+		if !enabled {
+			return 0, keyvalue.ErrNotFound
+		}
+		switch settings.Feature(featureID) { //nolint:exhaustive // only relevant features
+		case settings.BlockRewardDistribution:
+			return 1000, nil
+		case settings.CappedRewards:
+			return 2000, nil
+		case settings.XTNBuyBackCessation:
+			return 3000, nil
+		case settings.BoostBlockReward:
+			return 4000, nil
+		default:
+			return 0, keyvalue.ErrNotFound
+		}
+	}).Maybe()
 	return mf
 }
 
-func newTestRewardsCalculator(features ...settings.Feature) *rewardCalculator {
-	mf := makeMockFeaturesStateForRewardsCalc(features...)
+func newTestRewardsCalculator(t *testing.T, features ...settings.Feature) *rewardCalculator {
+	mf := makeMockFeaturesStateForRewardsCalc(t, features...)
 	sets := settings.MustTestNetSettings()
 	sets.MinXTNBuyBackPeriod = 3000
 	sets.BlockRewardBoostPeriod = 1000
@@ -79,7 +80,7 @@ func TestFeature19RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BlockRewardDistribution,
 	)
 	for i, test := range []struct {
@@ -108,7 +109,7 @@ func TestFeatures19And21RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BlockRewardDistribution,
 		settings.XTNBuyBackCessation,
 	)
@@ -137,7 +138,7 @@ func TestFeatures19And20RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BlockRewardDistribution,
 		settings.CappedRewards,
 	)
@@ -180,7 +181,7 @@ func TestFeatures19And20And21RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BlockRewardDistribution,
 		settings.CappedRewards,
 		settings.XTNBuyBackCessation,
@@ -230,7 +231,7 @@ func TestFeatures23RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BoostBlockReward,
 	)
 	for i, test := range []struct {
@@ -261,7 +262,7 @@ func TestFeature19And23RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BlockRewardDistribution,
 		settings.BoostBlockReward,
 	)
@@ -299,7 +300,7 @@ func TestFeatures19And21And23RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BlockRewardDistribution,
 		settings.XTNBuyBackCessation,
 		settings.BoostBlockReward,
@@ -329,7 +330,7 @@ func TestFeatures19And20And23RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BlockRewardDistribution,
 		settings.CappedRewards,
 		settings.BoostBlockReward,
@@ -387,7 +388,7 @@ func TestFeatures19And20And21And23RewardCalculation(t *testing.T) {
 	gen, err := proto.NewAddressFromString(testAddr)
 	require.NoError(t, err)
 
-	c := newTestRewardsCalculator(
+	c := newTestRewardsCalculator(t,
 		settings.BlockRewardDistribution,
 		settings.CappedRewards,
 		settings.XTNBuyBackCessation,

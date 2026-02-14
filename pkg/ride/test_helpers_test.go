@@ -11,6 +11,7 @@ import (
 
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -19,6 +20,37 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 	"github.com/wavesplatform/gowaves/pkg/types"
 )
+
+func unsetMockCalls(m *mock.Mock, methodName string) {
+	var toUnset []*mock.Call
+	for _, c := range m.ExpectedCalls {
+		if c.Method == methodName {
+			toUnset = append(toUnset, c)
+		}
+	}
+	for _, c := range toUnset {
+		c.Unset()
+	}
+}
+
+func countMockCalls(m *mock.Mock, methodName string) int {
+	count := 0
+	for _, c := range m.Calls {
+		if c.Method == methodName {
+			count++
+		}
+	}
+	return count
+}
+
+func hasMockExpectation(m *mock.Mock, methodName string) bool {
+	for _, c := range m.ExpectedCalls {
+		if c.Method == methodName {
+			return true
+		}
+	}
+	return false
+}
 
 type testAccount struct {
 	sk  crypto.SecretKey
@@ -71,7 +103,7 @@ func newTestAccountFromAddress(addr proto.WavesAddress) *testAccount {
 }
 
 // Can be used only when secret and public keys aren't required by test
-func newTestAccountFromAddresString(t *testing.T, addr string) *testAccount {
+func newTestAccountFromAddressString(t *testing.T, addr string) *testAccount {
 	ad, err := proto.NewAddressFromString(addr)
 	require.NoError(t, err, "failed to create test account")
 	return newTestAccountFromAddress(ad)
@@ -100,8 +132,8 @@ type testEnv struct {
 	this        proto.WavesAddress
 	dAppAddr    proto.WavesAddress
 	inv         rideType
-	me          *mockRideEnvironment
-	ms          *MockSmartState
+	me          *MockEnvironment
+	ms          *types.MockEnrichedSmartState
 	ws          *WrappedState
 	recipients  map[string]proto.WavesAddress
 	accounts    map[proto.WavesAddress]*testAccount
@@ -118,43 +150,22 @@ type testEnv struct {
 }
 
 func newTestEnv(t *testing.T) *testEnv {
-	me := &mockRideEnvironment{
-		schemeFunc: func() byte {
-			return proto.TestNetScheme
-		},
-		blockV5ActivatedFunc: func() bool {
-			return false
-		},
-		isProtobufTxFunc: func() bool {
-			return false
-		},
-		maxDataEntriesSizeFunc: func() int {
-			return proto.MaxDataEntriesScriptActionsSizeInBytesV1 // V1 by default
-		},
-		checkMessageLengthFunc: bytesSizeCheckV1V2,
-		validateInternalPaymentsFunc: func() bool {
-			return false
-		},
-		rideV6ActivatedFunc: func() bool {
-			return false
-		},
-		consensusImprovementsActivatedFunc: func() bool {
-			return false
-		},
-		blockRewardDistributionActivatedFunc: func() bool {
-			return false
-		},
-		lightNodeActivatedFunc: func() bool {
-			return false
-		},
-		paymentsFixActivatedFunc: func() bool {
-			return false
-		},
-	}
+	me := NewMockEnvironment(t)
+	me.EXPECT().scheme().Return(proto.TestNetScheme).Maybe()
+	me.EXPECT().blockV5Activated().Return(false).Maybe()
+	me.EXPECT().isProtobufTx().Return(false).Maybe()
+	me.EXPECT().maxDataEntriesSize().Return(proto.MaxDataEntriesScriptActionsSizeInBytesV1).Maybe()
+	me.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(bytesSizeCheckV1V2).Maybe()
+	me.EXPECT().validateInternalPayments().Return(false).Maybe()
+	me.EXPECT().rideV6Activated().Return(false).Maybe()
+	me.EXPECT().consensusImprovementsActivated().Return(false).Maybe()
+	me.EXPECT().blockRewardDistributionActivated().Return(false).Maybe()
+	me.EXPECT().lightNodeActivated().Return(false).Maybe()
+	me.EXPECT().paymentsFixActivated().Return(false).Maybe()
 	r := &testEnv{
 		t:           t,
 		me:          me,
-		ms:          &MockSmartState{},
+		ms:          types.NewMockEnrichedSmartState(t),
 		recipients:  map[string]proto.WavesAddress{},
 		accounts:    map[proto.WavesAddress]*testAccount{},
 		entries:     map[proto.WavesAddress]map[string]proto.DataEntry{},
@@ -168,80 +179,87 @@ func newTestEnv(t *testing.T) *testEnv {
 		scripts:     map[proto.WavesAddress]proto.Script{},
 		notFoundErr: errors.New("not found"),
 	}
-	r.me.stateFunc = func() types.SmartState {
+	me.EXPECT().state().RunAndReturn(func() types.SmartState {
 		return r.ms
-	}
-	r.ms.NewestRecipientToAddressFunc = func(recipient proto.Recipient) (proto.WavesAddress, error) {
-		if a, ok := r.recipients[recipient.String()]; ok {
-			return a, nil
-		}
-		return proto.WavesAddress{}, errors.Errorf("unknown recipient '%s'", recipient.String())
-	}
-	r.ms.NewestScriptPKByAddrFunc = func(addr proto.WavesAddress) (crypto.PublicKey, error) {
-		if acc, ok := r.accounts[addr]; ok {
-			return acc.publicKey(), nil
-		}
-		return crypto.PublicKey{}, errors.Errorf("unknown address '%s'", addr.String())
-	}
-	r.ms.NewestScriptByAccountFunc = func(account proto.Recipient) (*ast.Tree, error) {
-		addr, err := r.resolveRecipient(account)
-		if err != nil {
-			return nil, err
-		}
-		if t, ok := r.trees[addr]; ok {
-			return t, nil
-		}
-		return nil, errors.Errorf("unknown address '%s'", addr.String())
-	}
-	r.ms.RetrieveNewestBinaryEntryFunc = func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
-		e, err := r.retrieveEntry(account, key)
-		if err != nil {
-			return nil, err
-		}
-		if be, ok := e.(*proto.BinaryDataEntry); ok {
-			return be, nil
-		}
-		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a binary data entry
-			"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
-		)
-	}
-	r.ms.RetrieveNewestBooleanEntryFunc = func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
-		e, err := r.retrieveEntry(account, key)
-		if err != nil {
-			return nil, err
-		}
-		if be, ok := e.(*proto.BooleanDataEntry); ok {
-			return be, nil
-		}
-		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a boolean data entry
-			"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
-		)
-	}
-	r.ms.RetrieveNewestIntegerEntryFunc = func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
-		e, err := r.retrieveEntry(account, key)
-		if err != nil {
-			return nil, err
-		}
-		if be, ok := e.(*proto.IntegerDataEntry); ok {
-			return be, nil
-		}
-		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a integer data entry
-			"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
-		)
-	}
-	r.ms.RetrieveNewestStringEntryFunc = func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
-		e, err := r.retrieveEntry(account, key)
-		if err != nil {
-			return nil, err
-		}
-		if be, ok := e.(*proto.StringDataEntry); ok {
-			return be, nil
-		}
-		return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a string data entry
-			"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
-		)
-	}
-	r.ms.NewestWavesBalanceFunc = func(account proto.Recipient) (uint64, error) {
+	}).Maybe()
+	r.ms.EXPECT().NewestRecipientToAddress(mock.Anything).RunAndReturn(
+		func(recipient proto.Recipient) (proto.WavesAddress, error) {
+			if a, ok := r.recipients[recipient.String()]; ok {
+				return a, nil
+			}
+			return proto.WavesAddress{}, errors.Errorf("unknown recipient '%s'", recipient.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestScriptPKByAddr(mock.Anything).RunAndReturn(
+		func(addr proto.WavesAddress) (crypto.PublicKey, error) {
+			if acc, ok := r.accounts[addr]; ok {
+				return acc.publicKey(), nil
+			}
+			return crypto.PublicKey{}, errors.Errorf("unknown address '%s'", addr.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestScriptByAccount(mock.Anything).RunAndReturn(
+		func(account proto.Recipient) (*ast.Tree, error) {
+			addr, err := r.resolveRecipient(account)
+			if err != nil {
+				return nil, err
+			}
+			if t, ok := r.trees[addr]; ok {
+				return t, nil
+			}
+			return nil, errors.Errorf("unknown address '%s'", addr.String())
+		}).Maybe()
+	r.ms.EXPECT().RetrieveNewestBinaryEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BinaryDataEntry, error) {
+			e, err := r.retrieveEntry(account, key)
+			if err != nil {
+				return nil, err
+			}
+			if be, ok := e.(*proto.BinaryDataEntry); ok {
+				return be, nil
+			}
+			return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a binary data entry
+				"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+			)
+		}).Maybe()
+	r.ms.EXPECT().RetrieveNewestBooleanEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.BooleanDataEntry, error) {
+			e, err := r.retrieveEntry(account, key)
+			if err != nil {
+				return nil, err
+			}
+			if be, ok := e.(*proto.BooleanDataEntry); ok {
+				return be, nil
+			}
+			return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a boolean data entry
+				"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+			)
+		}).Maybe()
+	r.ms.EXPECT().RetrieveNewestIntegerEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.IntegerDataEntry, error) {
+			e, err := r.retrieveEntry(account, key)
+			if err != nil {
+				return nil, err
+			}
+			if be, ok := e.(*proto.IntegerDataEntry); ok {
+				return be, nil
+			}
+			return nil, errors.Wrapf(r.notFoundErr, // Consider as not found, because it is not an integer data entry.
+				"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+			)
+		}).Maybe()
+	r.ms.EXPECT().RetrieveNewestStringEntry(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, key string) (*proto.StringDataEntry, error) {
+			e, err := r.retrieveEntry(account, key)
+			if err != nil {
+				return nil, err
+			}
+			if be, ok := e.(*proto.StringDataEntry); ok {
+				return be, nil
+			}
+			return nil, errors.Wrapf(r.notFoundErr, // consider as not found, because it is not a string data entry
+				"unexpected type '%T' of entry at '%s' by key '%s'", e, account.String(), key,
+			)
+		}).Maybe()
+	r.ms.EXPECT().NewestWavesBalance(mock.Anything).RunAndReturn(func(account proto.Recipient) (uint64, error) {
 		addr, err := r.resolveRecipient(account)
 		if err != nil {
 			return 0, err
@@ -250,140 +268,154 @@ func newTestEnv(t *testing.T) *testEnv {
 			return profile.Balance, nil
 		}
 		return 0, errors.Errorf("no balance profile for address '%s'", addr.String())
-	}
-	r.ms.WavesBalanceProfileFunc = func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
-		addr, err := id.ToWavesAddress(r.me.scheme())
-		require.NoError(r.t, err)
-		if profile, ok := r.waves[addr]; ok {
-			return profile, nil
-		}
-		return nil, errors.Errorf("no balance profile for address '%s'", addr.String())
-	}
-	r.ms.NewestFullWavesBalanceFunc = func(account proto.Recipient) (*proto.FullWavesBalance, error) {
-		addr, err := r.resolveRecipient(account)
-		if err != nil {
-			return nil, err
-		}
-		if profile, ok := r.waves[addr]; ok {
-			eff := int64(profile.Balance) + profile.LeaseIn - profile.LeaseOut
-			if eff < 0 {
-				return nil, errors.New("negative effective balance")
+	}).Maybe()
+	r.ms.EXPECT().WavesBalanceProfile(mock.Anything).RunAndReturn(
+		func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
+			addr, err := id.ToWavesAddress(r.me.scheme())
+			require.NoError(r.t, err)
+			if profile, ok := r.waves[addr]; ok {
+				return profile, nil
 			}
-			spb := int64(profile.Balance) - profile.LeaseOut
-			if spb < 0 {
-				return nil, errors.New("negative spendable balance")
+			return nil, errors.Errorf("no balance profile for address '%s'", addr.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestFullWavesBalance(mock.Anything).RunAndReturn(
+		func(account proto.Recipient) (*proto.FullWavesBalance, error) {
+			addr, err := r.resolveRecipient(account)
+			if err != nil {
+				return nil, err
 			}
-			return &proto.FullWavesBalance{
-				Regular:    profile.Balance,
-				Generating: profile.Generating,
-				Available:  uint64(spb),
-				Effective:  uint64(eff),
-				LeaseIn:    uint64(profile.LeaseIn),
-				LeaseOut:   uint64(profile.LeaseOut),
-			}, nil
-		}
-		return nil, errors.Errorf("no balance profile for address '%s'", addr.String())
-	}
-	r.ms.NewestAddrByAliasFunc = func(alias proto.Alias) (proto.WavesAddress, error) {
-		if a, ok := r.aliases[alias]; ok {
-			return a, nil
-		}
-		return proto.WavesAddress{}, errors.Errorf("unknown alias '%s'", alias.String())
-	}
-	r.ms.NewestAssetIsSponsoredFunc = func(assetID crypto.Digest) (bool, error) {
-		aID := proto.AssetIDFromDigest(assetID)
-		if s, ok := r.sponsorship[aID]; ok {
-			return s, nil
-		}
-		return false, errors.Errorf("unknown asset '%s'", assetID.String())
-	}
-	r.ms.NewestAssetConstInfoFunc = func(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
-		if ai, ok := r.assets[assetID]; ok {
-			return &ai.AssetConstInfo, nil
-		}
-		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
-	}
-	r.ms.NewestAssetInfoFunc = func(assetID crypto.Digest) (*proto.AssetInfo, error) {
-		aID := proto.AssetIDFromDigest(assetID)
-		if ai, ok := r.assets[aID]; ok {
-			return &ai.AssetInfo, nil
-		}
-		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
-	}
-	r.ms.NewestFullAssetInfoFunc = func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
-		aID := proto.AssetIDFromDigest(assetID)
-		if ai, ok := r.assets[aID]; ok {
-			return ai, nil
-		}
-		return nil, errors.Errorf("unknown asset '%s'", assetID.String())
-	}
-	r.ms.NewestAssetBalanceFunc = func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
-		addr, err := r.resolveRecipient(account)
-		if err != nil {
-			return 0, err
-		}
-		if balances, ok := r.tokens[addr]; ok {
-			if b, ok := balances[assetID]; ok {
-				return b, nil
+			if profile, ok := r.waves[addr]; ok {
+				eff := int64(profile.Balance) + profile.LeaseIn - profile.LeaseOut
+				if eff < 0 {
+					return nil, errors.New("negative effective balance")
+				}
+				spb := int64(profile.Balance) - profile.LeaseOut
+				if spb < 0 {
+					return nil, errors.New("negative spendable balance")
+				}
+				return &proto.FullWavesBalance{
+					Regular:    profile.Balance,
+					Generating: profile.Generating,
+					Available:  uint64(spb),
+					Effective:  uint64(eff),
+					LeaseIn:    uint64(profile.LeaseIn),
+					LeaseOut:   uint64(profile.LeaseOut),
+				}, nil
 			}
-			return 0, errors.Errorf("unknown asset '%s' for address '%s'", assetID.String(), addr.String())
-		}
-		return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
-	}
-	r.ms.NewestAssetBalanceByAddressIDFunc = func(id proto.AddressID, a crypto.Digest) (uint64, error) {
-		addr, err := id.ToWavesAddress(r.me.scheme())
-		require.NoError(r.t, err)
-		if t, ok := r.tokens[addr]; ok {
-			if b, ok := t[a]; ok {
-				return b, nil
+			return nil, errors.Errorf("no balance profile for address '%s'", addr.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestAddrByAlias(mock.Anything).RunAndReturn(
+		func(alias proto.Alias) (proto.WavesAddress, error) {
+			if a, ok := r.aliases[alias]; ok {
+				return a, nil
 			}
-			return 0, errors.Errorf("unknown asset '%s' for address '%s'", a.String(), addr.String())
-		}
-		return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
-	}
-	r.ms.NewestLeasingInfoFunc = func(id crypto.Digest) (*proto.LeaseInfo, error) {
-		if l, ok := r.leasings[id]; ok {
-			return l, nil
-		}
-		return nil, errors.Errorf("no leasing '%s'", id.String())
-	}
-	r.ms.NewestScriptBytesByAccountFunc = func(recipient proto.Recipient) (proto.Script, error) {
-		addr, err := r.resolveRecipient(recipient)
-		if err != nil {
-			return nil, err
-		}
-		if s, ok := r.scripts[addr]; ok {
-			return s, nil
-		}
-		return nil, nil
-	}
-	r.ms.IsNotFoundFunc = func(err error) bool {
+			return proto.WavesAddress{}, errors.Errorf("unknown alias '%s'", alias.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestAssetIsSponsored(mock.Anything).RunAndReturn(
+		func(assetID crypto.Digest) (bool, error) {
+			aID := proto.AssetIDFromDigest(assetID)
+			if s, ok := r.sponsorship[aID]; ok {
+				return s, nil
+			}
+			return false, errors.Errorf("unknown asset '%s'", assetID.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestAssetConstInfo(mock.Anything).RunAndReturn(
+		func(assetID proto.AssetID) (*proto.AssetConstInfo, error) {
+			if ai, ok := r.assets[assetID]; ok {
+				return &ai.AssetConstInfo, nil
+			}
+			return nil, errors.Errorf("unknown asset '%s'", assetID.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestAssetInfo(mock.Anything).RunAndReturn(
+		func(assetID crypto.Digest) (*proto.AssetInfo, error) {
+			aID := proto.AssetIDFromDigest(assetID)
+			if ai, ok := r.assets[aID]; ok {
+				return &ai.AssetInfo, nil
+			}
+			return nil, errors.Errorf("unknown asset '%s'", assetID.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestFullAssetInfo(mock.Anything).RunAndReturn(
+		func(assetID crypto.Digest) (*proto.FullAssetInfo, error) {
+			aID := proto.AssetIDFromDigest(assetID)
+			if ai, ok := r.assets[aID]; ok {
+				return ai, nil
+			}
+			return nil, errors.Errorf("unknown asset '%s'", assetID.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestAssetBalance(mock.Anything, mock.Anything).RunAndReturn(
+		func(account proto.Recipient, assetID crypto.Digest) (uint64, error) {
+			addr, err := r.resolveRecipient(account)
+			if err != nil {
+				return 0, err
+			}
+			if balances, ok := r.tokens[addr]; ok {
+				if b, bOK := balances[assetID]; bOK {
+					return b, nil
+				}
+				return 0, errors.Errorf("unknown asset '%s' for address '%s'", assetID.String(), addr.String())
+			}
+			return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestAssetBalanceByAddressID(mock.Anything, mock.Anything).RunAndReturn(
+		func(id proto.AddressID, a crypto.Digest) (uint64, error) {
+			addr, err := id.ToWavesAddress(r.me.scheme())
+			require.NoError(r.t, err)
+			if t, ok := r.tokens[addr]; ok {
+				if b, tOK := t[a]; tOK {
+					return b, nil
+				}
+				return 0, errors.Errorf("unknown asset '%s' for address '%s'", a.String(), addr.String())
+			}
+			return 0, errors.Errorf("no asset balances for address '%s'", addr.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestLeasingInfo(mock.Anything).RunAndReturn(
+		func(id crypto.Digest) (*proto.LeaseInfo, error) {
+			if l, ok := r.leasings[id]; ok {
+				return l, nil
+			}
+			return nil, errors.Errorf("no leasing '%s'", id.String())
+		}).Maybe()
+	r.ms.EXPECT().NewestScriptBytesByAccount(mock.Anything).RunAndReturn(
+		func(recipient proto.Recipient) (proto.Script, error) {
+			addr, err := r.resolveRecipient(recipient)
+			if err != nil {
+				return nil, err
+			}
+			if s, ok := r.scripts[addr]; ok {
+				return s, nil
+			}
+			return nil, nil
+		}).Maybe()
+	r.ms.EXPECT().IsNotFound(mock.Anything).RunAndReturn(func(err error) bool {
 		return errors.Is(err, r.notFoundErr)
-	}
+	}).Maybe()
 	return r
 }
 
 func (e *testEnv) withScheme(scheme byte) *testEnv {
-	e.me.schemeFunc = func() byte {
-		return scheme
-	}
+	unsetMockCalls(&e.me.Mock, "scheme")
+	e.me.EXPECT().scheme().Return(scheme).Maybe()
 	return e
 }
 
 func (e *testEnv) withLibVersion(v ast.LibraryVersion) *testEnv {
-	e.me.libVersionFunc = func() (ast.LibraryVersion, error) {
+	unsetMockCalls(&e.me.Mock, "libVersion")
+	unsetMockCalls(&e.me.Mock, "setLibVersion")
+	e.me.EXPECT().libVersion().RunAndReturn(func() (ast.LibraryVersion, error) {
 		return v, nil
-	}
-	e.me.setLibVersionFunc = func(newV ast.LibraryVersion) {
+	}).Maybe()
+	e.me.EXPECT().setLibVersion(mock.Anything).Run(func(newV ast.LibraryVersion) {
 		v = newV
-	}
+	}).Return().Maybe()
 	return e
 }
 
 func (e *testEnv) withComplexityLimit(limit int) *testEnv {
 	require.True(e.t, limit >= 0)
 	var cc complexityCalculator
-	e.me.complexityCalculatorFunc = func() complexityCalculator {
+	unsetMockCalls(&e.me.Mock, "complexityCalculator")
+	unsetMockCalls(&e.me.Mock, "setComplexityCalculator")
+	e.me.EXPECT().complexityCalculator().RunAndReturn(func() complexityCalculator {
 		if cc != nil { // already initialized
 			return cc
 		}
@@ -392,106 +424,100 @@ func (e *testEnv) withComplexityLimit(limit int) *testEnv {
 		cc = newComplexityCalculatorByRideV6Activation(isRideV6Activated)
 		cc.setLimit(uint32(limit))
 		return cc
-	}
-	e.me.setComplexityCalculatorFunc = func(newCC complexityCalculator) {
+	}).Maybe()
+	e.me.EXPECT().setComplexityCalculator(mock.Anything).Run(func(newCC complexityCalculator) {
 		cc = newCC
-	}
+	}).Return().Maybe()
 	return e
 }
 
 func (e *testEnv) withBlockV5Activated() *testEnv {
-	e.me.blockV5ActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "blockV5Activated")
+	e.me.EXPECT().blockV5Activated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withBlock(blockInfo *proto.BlockInfo) *testEnv {
-	e.me.blockFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "block")
+	e.me.EXPECT().block().RunAndReturn(func() rideType {
 		v, err := e.me.libVersion()
 		if err != nil {
 			panic(err)
 		}
 		return blockInfoToObject(blockInfo, v)
-	}
-	e.ms.AddingBlockHeightFunc = func() (uint64, error) {
+	}).Maybe()
+	e.ms.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
 		return blockInfo.Height, nil
-	}
-	e.ms.NewestBlockInfoByHeightFunc = func(height uint64) (*proto.BlockInfo, error) {
+	}).Maybe()
+	e.ms.EXPECT().NewestBlockInfoByHeight(mock.Anything).RunAndReturn(func(height uint64) (*proto.BlockInfo, error) {
 		if height == blockInfo.Height {
 			return blockInfo, nil
 		}
 		return nil, errors.Errorf("unexpected test height %d", height)
-	}
+	}).Maybe()
 	return e
 }
 
 func (e *testEnv) withProtobufTx() *testEnv {
-	e.me.isProtobufTxFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "isProtobufTx")
+	e.me.EXPECT().isProtobufTx().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withDataEntriesSizeV2() *testEnv {
-	e.me.maxDataEntriesSizeFunc = func() int {
-		return proto.MaxDataEntriesScriptActionsSizeInBytesV2
-	}
+	unsetMockCalls(&e.me.Mock, "maxDataEntriesSize")
+	e.me.EXPECT().maxDataEntriesSize().Return(proto.MaxDataEntriesScriptActionsSizeInBytesV2).Maybe()
 	return e
 }
 
 func (e *testEnv) withMessageLengthV3() *testEnv {
-	e.me.checkMessageLengthFunc = bytesSizeCheckV3V6
+	unsetMockCalls(&e.me.Mock, "checkMessageLength")
+	e.me.EXPECT().checkMessageLength(mock.Anything).RunAndReturn(bytesSizeCheckV3V6).Maybe()
 	return e
 }
 
 func (e *testEnv) withRideV6Activated() *testEnv {
-	e.me.rideV6ActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "rideV6Activated")
+	e.me.EXPECT().rideV6Activated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withConsensusImprovementsActivatedFunc() *testEnv {
-	e.me.consensusImprovementsActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "consensusImprovementsActivated")
+	e.me.EXPECT().consensusImprovementsActivated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withBlockRewardDistribution() *testEnv {
-	e.me.blockRewardDistributionActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "blockRewardDistributionActivated")
+	e.me.EXPECT().blockRewardDistributionActivated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withLightNodeActivated() *testEnv {
-	e.me.lightNodeActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "lightNodeActivated")
+	e.me.EXPECT().lightNodeActivated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withValidateInternalPayments() *testEnv {
-	e.me.validateInternalPaymentsFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "validateInternalPayments")
+	e.me.EXPECT().validateInternalPayments().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withPaymentsFix() *testEnv {
-	e.me.paymentsFixActivatedFunc = func() bool {
-		return true
-	}
+	unsetMockCalls(&e.me.Mock, "paymentsFixActivated")
+	e.me.EXPECT().paymentsFixActivated().Return(true).Maybe()
 	return e
 }
 
 func (e *testEnv) withThis(acc *testAccount) *testEnv {
 	e.this = acc.address()
-	e.me.thisFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "this")
+	e.me.EXPECT().this().RunAndReturn(func() rideType {
 		return rideAddress(e.this)
-	}
+	}).Maybe()
 	return e
 }
 
@@ -506,13 +532,14 @@ func (e *testEnv) withSender(acc *testAccount) *testEnv {
 func (e *testEnv) withDApp(acc *testAccount) *testEnv {
 	e.dApp = acc
 	e.dAppAddr = e.dApp.address()
-	e.me.setNewDAppAddressFunc = func(address proto.WavesAddress) {
+	unsetMockCalls(&e.me.Mock, "setNewDAppAddress")
+	e.me.EXPECT().setNewDAppAddress(mock.Anything).Run(func(address proto.WavesAddress) {
 		e.dAppAddr = address
 		e.this = address
 		if e.ws != nil {
 			e.ws.cle = rideAddress(address) // We have to update wrapped state's `cle` if any
 		}
-	}
+	}).Return().Maybe()
 	rcp := acc.recipient()
 	e.recipients[rcp.String()] = acc.address()
 	e.accounts[acc.address()] = acc
@@ -568,43 +595,46 @@ func (e *testEnv) withInvocation(fn string, opts ...testInvocationOption) *testE
 }
 
 func (e *testEnv) withFullScriptTransfer(transfer *proto.FullScriptTransfer) *testEnv {
-	e.me.transactionFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "transaction")
+	e.me.EXPECT().transaction().RunAndReturn(func() rideType {
 		return scriptTransferToTransferTransactionObject(transfer)
-	}
+	}).Maybe()
 	return e
 }
 
 func (e *testEnv) withTransaction(tx proto.Transaction) *testEnv {
-	e.me.transactionFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "transaction")
+	e.me.EXPECT().transaction().RunAndReturn(func() rideType {
 		txo, err := transactionToObject(e.me, tx)
 		require.NoError(e.t, err, "failed to set transaction")
 		return txo
-	}
-	e.ms.NewestTransactionByIDFunc = func(id []byte) (proto.Transaction, error) {
+	}).Maybe()
+	e.ms.EXPECT().NewestTransactionByID(mock.Anything).RunAndReturn(func(_ []byte) (proto.Transaction, error) {
 		return tx, nil
-	}
+	}).Maybe()
 	id, err := tx.GetID(e.me.scheme())
 	require.NoError(e.t, err)
-	e.me.txIDFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "txID")
+	e.me.EXPECT().txID().RunAndReturn(func() rideType {
 		return rideByteVector(id)
-	}
+	}).Maybe()
 	return e
 }
 
 func (e *testEnv) withTransactionID(id crypto.Digest) *testEnv {
-	e.me.txIDFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "txID")
+	e.me.EXPECT().txID().RunAndReturn(func() rideType {
 		return rideByteVector(id.Bytes())
-	}
+	}).Maybe()
 	return e
 }
 
 func (e *testEnv) withHeight(h int) *testEnv {
-	e.me.heightFunc = func() rideInt {
-		return rideInt(h)
-	}
-	e.ms.AddingBlockHeightFunc = func() (uint64, error) {
+	unsetMockCalls(&e.me.Mock, "height")
+	e.me.EXPECT().height().Return(rideInt(h)).Maybe()
+	e.ms.EXPECT().AddingBlockHeight().RunAndReturn(func() (uint64, error) {
 		return uint64(h), nil
-	}
+	}).Maybe()
 	return e
 }
 
@@ -649,14 +679,15 @@ func (e *testEnv) withDataFromJSON(s string) *testEnv {
 func (e *testEnv) withWrappedState() *testEnv {
 	v, err := e.me.libVersion()
 	require.NoError(e.t, err)
-	if e.me.heightFunc == nil { // create stub height function`
-		e.me.heightFunc = func() rideInt { return 0 }
-		defer func() { e.me.heightFunc = nil }()
+	if !hasMockExpectation(&e.me.Mock, "height") { // create stub height expectation
+		e.me.EXPECT().height().Return(rideInt(0)).Maybe()
+		defer func() { unsetMockCalls(&e.me.Mock, "height") }()
 	}
 	e.ws = newWrappedState(e.me, e.ms, v)
-	e.me.stateFunc = func() types.SmartState {
+	unsetMockCalls(&e.me.Mock, "state")
+	e.me.EXPECT().state().RunAndReturn(func() types.SmartState {
 		return e.ws
-	}
+	}).Maybe()
 	return e
 }
 func (e *testEnv) withDataEntries(acc *testAccount, entries ...proto.DataEntry) *testEnv {
@@ -735,11 +766,12 @@ func (e *testEnv) withAssetBalance(acc *testAccount, asset crypto.Digest, balanc
 }
 
 func (e *testEnv) withTakeStringV5() *testEnv {
-	e.me.takeStringFunc = takeRideString
+	unsetMockCalls(&e.me.Mock, "takeString")
+	e.me.EXPECT().takeString(mock.Anything, mock.Anything).RunAndReturn(takeRideString).Maybe()
 	return e
 }
 
-func (e *testEnv) toEnv() *mockRideEnvironment {
+func (e *testEnv) toEnv() *MockEnvironment {
 	return e.me
 }
 
@@ -758,12 +790,9 @@ func (e *testEnv) retrieveEntry(account proto.Recipient, key string) (proto.Data
 }
 
 func (e *testEnv) withNoTransactionAtHeight() *testEnv {
-	e.ms.NewestTransactionHeightByIDFunc = func(_ []byte) (uint64, error) {
-		return 0, proto.ErrNotFound
-	}
-	e.ms.IsNotFoundFunc = func(err error) bool {
-		return true
-	}
+	e.ms.EXPECT().NewestTransactionHeightByID(mock.Anything).RunAndReturn(func(_ []byte) (uint64, error) {
+		return 0, e.notFoundErr
+	}).Maybe()
 	return e
 }
 
@@ -778,7 +807,7 @@ func (e *testEnv) resolveRecipient(rcp proto.Recipient) (proto.WavesAddress, err
 }
 
 func (e *testEnv) withUntouchedState(acc *testAccount) *testEnv {
-	e.ms.IsStateUntouchedFunc = func(recipient proto.Recipient) (bool, error) {
+	e.ms.EXPECT().IsStateUntouched(mock.Anything).RunAndReturn(func(recipient proto.Recipient) (bool, error) {
 		addr, err := e.resolveRecipient(recipient)
 		if err != nil {
 			return false, err
@@ -787,7 +816,7 @@ func (e *testEnv) withUntouchedState(acc *testAccount) *testEnv {
 			return true, nil
 		}
 		return false, errors.Errorf("unexpected recipient '%s'", recipient.String())
-	}
+	}).Maybe()
 	return e
 }
 
@@ -799,20 +828,24 @@ func (e *testEnv) withInvokeTransaction(tx *proto.InvokeScriptWithProofs) *testE
 	}
 	e.inv, err = invocationToObject(v, e.me.scheme(), tx)
 	require.NoError(e.t, err)
-	e.me.invocationFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "invocation")
+	e.me.EXPECT().invocation().RunAndReturn(func() rideType {
 		return e.inv
-	}
+	}).Maybe()
 	txo, err := transactionToObject(e.me, tx)
 	require.NoError(e.t, err)
-	e.me.transactionFunc = func() rideType {
+	unsetMockCalls(&e.me.Mock, "transaction")
+	e.me.EXPECT().transaction().RunAndReturn(func() rideType {
 		return txo
-	}
-	e.me.setInvocationFunc = func(inv rideType) {
+	}).Maybe()
+	unsetMockCalls(&e.me.Mock, "setInvocation")
+	e.me.EXPECT().setInvocation(mock.Anything).Run(func(inv rideType) {
 		e.inv = inv
-	}
-	e.me.txIDFunc = func() rideType {
+	}).Return().Maybe()
+	unsetMockCalls(&e.me.Mock, "txID")
+	e.me.EXPECT().txID().RunAndReturn(func() rideType {
 		return rideByteVector(tx.ID.Bytes())
-	}
+	}).Maybe()
 	return e
 }
 
