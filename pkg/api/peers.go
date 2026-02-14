@@ -8,6 +8,7 @@ import (
 
 	"github.com/pkg/errors"
 
+	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/p2p/peer"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -81,12 +82,12 @@ func (a *App) PeersConnect(ctx context.Context, apiKey string, addr string) (*Pe
 	d := proto.NewTCPAddrFromString(addr)
 	if d.Empty() {
 		slog.Error("Invalid peer's address to connect", "address", addr)
-		return nil, wrapToBadRequestError(errors.New("invalid address"))
+		return nil, apiErrs.NewBadRequestError(errors.New("invalid address"))
 	}
 
 	err = a.peers.Connect(ctx, d)
 	if err != nil {
-		return nil, wrapToBadRequestError(err)
+		return nil, apiErrs.NewBadRequestError(err)
 	}
 
 	return &PeersConnectResponse{

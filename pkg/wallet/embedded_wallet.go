@@ -4,6 +4,7 @@ import (
 	"sync"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -30,6 +31,66 @@ func (a *EmbeddedWalletImpl) SignTransactionWith(pk crypto.PublicKey, tx proto.T
 		}
 	}
 	return ErrPublicKeyNotFound
+}
+
+func (a *EmbeddedWalletImpl) FindPublicKeyByAddress(address proto.WavesAddress,
+	scheme proto.Scheme) (crypto.PublicKey, error) {
+	seeds := a.seeder.AccountSeeds()
+	for _, s := range seeds {
+		_, public, err := crypto.GenerateKeyPair(s)
+		if err != nil {
+			return crypto.PublicKey{}, err
+		}
+		retrievedAddress, err := proto.NewAddressFromPublicKey(scheme, public)
+		if err != nil {
+			return crypto.PublicKey{}, err
+		}
+		if retrievedAddress == address {
+			return public, nil
+		}
+	}
+	return crypto.PublicKey{}, ErrPublicKeyNotFound
+}
+
+func (a *EmbeddedWalletImpl) BLSPairByWavesPK(publicKey crypto.PublicKey) (bls.SecretKey, bls.PublicKey, error) {
+	seeds := a.seeder.AccountSeeds()
+	for _, s := range seeds {
+		_, publicKeyRetrieved, err := crypto.GenerateKeyPair(s)
+		if err != nil {
+			return bls.SecretKey{}, bls.PublicKey{}, err
+		}
+		if publicKeyRetrieved == publicKey {
+			secretKeyBls, genErr := bls.GenerateSecretKey(s)
+			if genErr != nil {
+				return bls.SecretKey{}, bls.PublicKey{}, genErr
+			}
+			publicKeyBls, retrieveErr := secretKeyBls.PublicKey()
+			if retrieveErr != nil {
+				return bls.SecretKey{}, bls.PublicKey{}, retrieveErr
+			}
+			return secretKeyBls, publicKeyBls, nil
+		}
+	}
+	return bls.SecretKey{}, bls.PublicKey{}, ErrPublicKeyNotFound
+}
+
+func (a *EmbeddedWalletImpl) KeyPairsBLS() ([]bls.PublicKey, []bls.SecretKey, error) {
+	seeds := a.seeder.AccountSeeds()
+	var publicKeys []bls.PublicKey
+	var secretKeys []bls.SecretKey
+	for _, s := range seeds {
+		secret, err := bls.GenerateSecretKey(s)
+		if err != nil {
+			continue
+		}
+		public, err := secret.PublicKey()
+		if err != nil {
+			return nil, nil, err
+		}
+		secretKeys = append(secretKeys, secret)
+		publicKeys = append(publicKeys, public)
+	}
+	return publicKeys, secretKeys, nil
 }
 
 func (a *EmbeddedWalletImpl) Load(password []byte) error {

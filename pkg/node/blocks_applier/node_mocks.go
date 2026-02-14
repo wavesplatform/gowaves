@@ -82,6 +82,14 @@ func (a *MockStateManager) RollbackToHeight(height uint64) error {
 	return nil
 }
 
+func (a *MockStateManager) CheckRollbackHeightAuto(height proto.Height) error {
+	currentHeight, _ := a.Height()
+	if height == 0 || height > currentHeight {
+		return stateerr.NewStateError(stateerr.NotFoundError, proto.ErrNotFound)
+	}
+	return nil
+}
+
 func (a *MockStateManager) ScoreAtHeight(height uint64) (*big.Int, error) {
 	if height > uint64(len(a.state)) {
 		return nil, notFound()

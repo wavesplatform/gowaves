@@ -11,6 +11,7 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 func TestApp_BlocksFirst(t *testing.T) {
@@ -26,7 +27,12 @@ func TestApp_BlocksFirst(t *testing.T) {
 	s := mock.NewMockState(ctrl)
 	s.EXPECT().BlockByHeight(proto.Height(1)).Return(g, nil)
 
-	app, err := NewApp("api-key", nil, services.Services{State: s})
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+	app, err := NewApp("api-key", nil, services.Services{State: s}, cfg)
 	require.NoError(t, err)
 	first, err := app.BlocksFirst()
 	require.NoError(t, err)
@@ -42,7 +48,12 @@ func TestApp_BlocksLast(t *testing.T) {
 	s.EXPECT().Height().Return(proto.Height(1), nil)
 	s.EXPECT().BlockByHeight(proto.Height(1)).Return(g, nil)
 
-	app, err := NewApp("api-key", nil, services.Services{State: s})
+	cfg := &settings.BlockchainSettings{
+		FunctionalitySettings: settings.FunctionalitySettings{
+			GenerationPeriod: 0,
+		},
+	}
+	app, err := NewApp("api-key", nil, services.Services{State: s}, cfg)
 	require.NoError(t, err)
 	first, err := app.BlocksLast()
 	require.NoError(t, err)
