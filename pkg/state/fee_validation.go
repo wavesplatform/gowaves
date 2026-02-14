@@ -13,32 +13,41 @@ import (
 )
 
 const (
-	scriptExtraFee = 400000
-	FeeUnit        = 100000
+	FeeUnit = 100000
 
-	SetScriptTransactionV6Fee = 1
+	basicFeeInFeeUnits                  = 1
+	exchangeFeeInFeeUnits               = 3
+	invokeFeeInFeeUnits                 = 5
+	scriptFeeInFeeUnits                 = 10
+	commitmentFeeInFeeUnits             = 100  // 0.1 Waves.
+	oneWavesInFeeUnits                  = 1000 // 1 Waves.
+	scriptExtraFeeInFeeUnits            = 4
+	setScriptTransactionV6FeeInFeeUnits = 1
+
+	scriptExtraFee = scriptExtraFeeInFeeUnits * FeeUnit
 )
 
 var feeConstants = map[proto.TransactionType]uint64{
-	proto.GenesisTransaction:          0,
-	proto.PaymentTransaction:          1,
-	proto.TransferTransaction:         1,
-	proto.IssueTransaction:            1000,
-	proto.ReissueTransaction:          1000,
-	proto.BurnTransaction:             1,
-	proto.ExchangeTransaction:         3,
-	proto.MassTransferTransaction:     1,
-	proto.LeaseTransaction:            1,
-	proto.LeaseCancelTransaction:      1,
-	proto.CreateAliasTransaction:      1,
-	proto.DataTransaction:             1,
-	proto.SetScriptTransaction:        10,
-	proto.SponsorshipTransaction:      1000,
-	proto.SetAssetScriptTransaction:   1000 - 4,
-	proto.InvokeScriptTransaction:     5,
-	proto.UpdateAssetInfoTransaction:  1,
-	proto.EthereumMetamaskTransaction: 0, // special case, should be handled with corresponding EthTxKind
-	proto.InvokeExpressionTransaction: 5,
+	proto.GenesisTransaction:            0, // Genesis transaction is free.
+	proto.PaymentTransaction:            basicFeeInFeeUnits,
+	proto.TransferTransaction:           basicFeeInFeeUnits,
+	proto.IssueTransaction:              oneWavesInFeeUnits,
+	proto.ReissueTransaction:            oneWavesInFeeUnits,
+	proto.BurnTransaction:               basicFeeInFeeUnits,
+	proto.ExchangeTransaction:           exchangeFeeInFeeUnits,
+	proto.MassTransferTransaction:       basicFeeInFeeUnits,
+	proto.LeaseTransaction:              basicFeeInFeeUnits,
+	proto.LeaseCancelTransaction:        basicFeeInFeeUnits,
+	proto.CreateAliasTransaction:        basicFeeInFeeUnits,
+	proto.DataTransaction:               basicFeeInFeeUnits,
+	proto.SetScriptTransaction:          scriptFeeInFeeUnits,
+	proto.SponsorshipTransaction:        oneWavesInFeeUnits,
+	proto.SetAssetScriptTransaction:     oneWavesInFeeUnits - scriptExtraFeeInFeeUnits,
+	proto.InvokeScriptTransaction:       invokeFeeInFeeUnits,
+	proto.UpdateAssetInfoTransaction:    basicFeeInFeeUnits,
+	proto.EthereumMetamaskTransaction:   0, // Special case, should be handled with corresponding EthTxKind.
+	proto.InvokeExpressionTransaction:   invokeFeeInFeeUnits,
+	proto.CommitToGenerationTransaction: commitmentFeeInFeeUnits,
 }
 
 type feeValidationParams struct {
@@ -71,7 +80,6 @@ func isSmartAssetsFree(tx proto.Transaction, rideV5Activated bool) (bool, error)
 		return false, nil
 	}
 	switch tx.GetTypeInfo().Type {
-	// TODO: add case with proto.InvokeExpressionTransaction after this tx type support
 	case proto.InvokeScriptTransaction:
 		return true, nil
 	case proto.EthereumMetamaskTransaction:
@@ -79,11 +87,22 @@ func isSmartAssetsFree(tx proto.Transaction, rideV5Activated bool) (bool, error)
 		if !ok {
 			return false, errors.New("failed to convert interface to EthereumTransaction")
 		}
-		if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
+		if _, okKind := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); okKind {
 			return true, nil
 		}
+		return false, nil
+	case proto.InvokeExpressionTransaction:
+		// TODO: Implement the case after this tx type supported.
+		return false, nil
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.ExchangeTransaction, proto.LeaseTransaction,
+		proto.LeaseCancelTransaction, proto.CreateAliasTransaction, proto.MassTransferTransaction,
+		proto.DataTransaction, proto.SetScriptTransaction, proto.SponsorshipTransaction,
+		proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction, proto.CommitToGenerationTransaction:
+		return false, nil
+	default:
+		return false, fmt.Errorf("unexpected transaction type %T", tx)
 	}
-	return false, nil
 }
 
 // minFeeInUnits returns minimal fee in units and error
@@ -180,7 +199,7 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		if !isRideV6Activated {
 			break
 		}
-		fee = SetScriptTransactionV6Fee
+		fee = setScriptTransactionV6FeeInFeeUnits
 		stx, ok := tx.(*proto.SetScriptWithProofs)
 		if !ok {
 			return 0, errors.New("failed to convert interface to SetScriptTransaction")
@@ -202,6 +221,13 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		default:
 			return 0, errors.Errorf("unknown ethereum tx kind (%T)", kind)
 		}
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.TransferTransaction, proto.BurnTransaction,
+		proto.ExchangeTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction, proto.CreateAliasTransaction,
+		proto.SetAssetScriptTransaction, proto.InvokeScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction, proto.InvokeExpressionTransaction:
+		// Do nothing, for other tx types fee is baseFee.
+	default:
+		return 0, fmt.Errorf("unexpected transaction type %T", tx)
 	}
 	if fee == 0 && txType != proto.GenesisTransaction {
 		return 0, errors.Errorf("zero fee allowed only for genesis transaction, but not for tx with type (%d)", txType)

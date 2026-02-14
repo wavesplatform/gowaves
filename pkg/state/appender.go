@@ -221,14 +221,20 @@ func (a *txAppender) checkTxFees(tx proto.Transaction, info *fallibleValidationP
 		if err != nil {
 			return err
 		}
-		// TODO handle ethereum invoke expression tx
+		// TODO handle Ethereum invoke expression tx
 	case proto.EthereumMetamaskTransaction:
 		feeChanges, err = a.txHandler.td.createFeeDiffEthereumInvokeScriptWithProofs(tx, di)
 		if err != nil {
 			return err
 		}
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
+		return fmt.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
 	default:
-		return errors.Errorf("failed to check tx fees: wrong tx type=%d (%T)", tx.GetTypeInfo().Type, tx)
+		return errors.Errorf("unexpected transaction type %d (%T)", tx.GetTypeInfo().Type, tx)
 	}
 
 	return a.diffApplier.validateTxDiff(feeChanges.diff, a.diffStor)
@@ -538,7 +544,8 @@ func (a *txAppender) handleTxAndScripts(
 	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
 		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
 		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
-		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction:
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
 		applicationRes, err := a.handleDefaultTransaction(tx, params, accountHasVerifierScript)
 		if err != nil {
 			id, idErr := tx.GetID(a.settings.AddressSchemeCharacter)
@@ -551,7 +558,8 @@ func (a *txAppender) handleTxAndScripts(
 		// In UTX balances are always validated.
 		return applicationRes, nil, params.validatingUtx, nil
 	default:
-		return nil, nil, false, errors.Errorf("Undefined transaction type %d", tx.GetTypeInfo())
+		return nil, nil, false, errors.Errorf("undefined transaction type %d with proofs version %d",
+			tx.GetTypeInfo().Type, tx.GetTypeInfo().ProofVersion)
 	}
 }
 
@@ -1208,8 +1216,14 @@ func (a *txAppender) handleFallible(
 	case proto.ExchangeTransaction:
 		applicationRes, err := a.handleExchange(tx, info)
 		return nil, applicationRes, err
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
+		return nil, nil, errors.Errorf("transaction of type %T is not fallible", tx)
 	default:
-		return nil, nil, errors.Errorf("transaction (%T) is not fallible", tx)
+		return nil, nil, errors.Errorf("unexpected transaction type %T", tx)
 	}
 }
 

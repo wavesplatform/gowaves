@@ -1,7 +1,7 @@
 package state
 
 import (
-	"strconv"
+	"fmt"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -40,8 +40,15 @@ func makeMockFeaturesStateForRewardsCalc(features ...settings.Feature) featuresS
 				return height >= 2000 && isEnabled
 			case settings.XTNBuyBackCessation:
 				return height >= 3000 && isEnabled
-			default:
+			case settings.SmallerMinimalGeneratingBalance, settings.NG, settings.MassTransfer, settings.SmartAccounts,
+				settings.DataTransaction, settings.BurnAnyTokens, settings.FeeSponsorship, settings.FairPoS,
+				settings.SmartAssets, settings.SmartAccountTrading, settings.Ride4DApps, settings.OrderV3,
+				settings.ReducedNFTFee, settings.BlockReward, settings.BlockV5, settings.RideV5, settings.RideV6,
+				settings.ConsensusImprovements, settings.LightNode, settings.BoostBlockReward,
+				settings.DeterministicFinality, settings.InvokeExpression:
 				return false
+			default:
+				panic(fmt.Sprintf("unknown feature ID %d", featureID))
 			}
 		},
 		newestActivationHeightFunc: func(featureID int16) (uint64, error) {
@@ -96,7 +103,7 @@ func TestFeature19RewardCalculation(t *testing.T) {
 		{900, 0, makeTestNetRewards(t, gen, 0)},
 		{1000, 0, makeTestNetRewards(t, gen, 0, 0, 0)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, err := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, test.rewards, actual)
@@ -125,7 +132,7 @@ func TestFeatures19And21RewardCalculation(t *testing.T) {
 		{4000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
 		{5000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, err := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, test.rewards, actual)
@@ -168,7 +175,7 @@ func TestFeatures19And20RewardCalculation(t *testing.T) {
 		{3000, 6_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
 		{3000, 10_1234_5678, makeTestNetRewards(t, gen, 6_1234_5678, 2_0000_0000, 2_0000_0000)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, err := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, test.rewards, actual)
@@ -218,7 +225,7 @@ func TestFeatures19And20And21RewardCalculation(t *testing.T) {
 		{5000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
 		{5000, 10_1234_5678, makeTestNetRewards(t, gen, 8_1234_5678, 2_0000_0000)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, err := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, err)
 			assert.ElementsMatch(t, test.rewards, actual)
@@ -249,7 +256,7 @@ func TestFeatures23RewardCalculation(t *testing.T) {
 		{5000, 6_0000_0000, makeTestNetRewards(t, gen, 6_0000_0000)},
 		{5099, 6_0000_0000, makeTestNetRewards(t, gen, 6_0000_0000)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, cErr := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, cErr)
 			assert.ElementsMatch(t, test.rewards, actual)
@@ -287,7 +294,7 @@ func TestFeature19And23RewardCalculation(t *testing.T) {
 		{4000, 0, makeTestNetRewards(t, gen, 0, 0, 0)},
 		{5000, 0, makeTestNetRewards(t, gen, 0, 0, 0)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, cErr := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, cErr)
 			assert.ElementsMatch(t, test.rewards, actual)
@@ -317,7 +324,7 @@ func TestFeatures19And21And23RewardCalculation(t *testing.T) {
 		{4000, 6_0000_0000, makeTestNetRewards(t, gen, 40_0000_0000, 20_0000_0000)},
 		{5000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, cErr := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, cErr)
 			assert.ElementsMatch(t, test.rewards, actual)
@@ -375,7 +382,7 @@ func TestFeatures19And20And23RewardCalculation(t *testing.T) {
 		{5000, 6_0000_0000, makeTestNetRewards(t, gen, 2_0000_0000, 2_0000_0000, 2_0000_0000)},
 		{5000, 10_1234_5678, makeTestNetRewards(t, gen, 6_1234_5678, 2_0000_0000, 2_0000_0000)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, cErr := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, cErr)
 			assert.ElementsMatch(t, test.rewards, actual)
@@ -426,7 +433,7 @@ func TestFeatures19And20And21And23RewardCalculation(t *testing.T) {
 		{5000, 6_0000_0000, makeTestNetRewards(t, gen, 4_0000_0000, 2_0000_0000)},
 		{5000, 10_1234_5678, makeTestNetRewards(t, gen, 8_1234_5678, 2_0000_0000)},
 	} {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			actual, cErr := c.calculateRewards(gen, test.height, test.reward)
 			require.NoError(t, cErr)
 			assert.ElementsMatch(t, test.rewards, actual)

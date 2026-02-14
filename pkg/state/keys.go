@@ -133,8 +133,10 @@ const (
 	snapshotsKeyPrefix
 	// Blockchain patches storage.
 	patchKeyPrefix
-
+	// Key to store and retrieve challenged addresses.
 	challengedAddressKeyPrefix
+	// Key to store and retrieve generator's commitments for a specific generation period.
+	commitmentKeyPrefix
 )
 
 var (
@@ -200,6 +202,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{patchKeyPrefix}, nil
 	case challengedAddress:
 		return []byte{challengedAddressKeyPrefix}, nil
+	case commitment:
+		return []byte{commitmentKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -759,5 +763,16 @@ func (k *challengedAddressKey) bytes() []byte {
 	buf := make([]byte, challengedAddressKeySize)
 	buf[0] = challengedAddressKeyPrefix
 	copy(buf[1:], k.address[:])
+	return buf
+}
+
+type commitmentKey struct {
+	periodStart uint32
+}
+
+func (k *commitmentKey) bytes() []byte {
+	buf := make([]byte, 1+uint32Size)
+	buf[0] = commitmentKeyPrefix
+	binary.BigEndian.PutUint32(buf[1:], k.periodStart)
 	return buf
 }

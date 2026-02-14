@@ -1,6 +1,7 @@
 package state
 
 import (
+	"fmt"
 	"math"
 
 	"github.com/pkg/errors"
@@ -145,8 +146,14 @@ func (d *blockDiffer) createFailedTransactionDiff(tx proto.Transaction, block *p
 		if err != nil {
 			return txBalanceChanges{}, err
 		}
-	default:
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction,
+		proto.CreateAliasTransaction, proto.MassTransferTransaction, proto.DataTransaction, proto.SetScriptTransaction,
+		proto.SponsorshipTransaction, proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction:
 		return txBalanceChanges{}, errors.New("only Exchange and Invoke transactions may fail")
+	default:
+		return txBalanceChanges{}, fmt.Errorf("unexpected transaction type %T", tx)
 	}
 	d.appendBlockInfoToTxDiff(txChanges.diff, block)
 	return txChanges, nil

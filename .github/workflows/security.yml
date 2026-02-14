@@ -35,7 +35,7 @@ jobs:
         uses: securego/gosec@398ad549bbf1a51dc978fd966169f660c59774de # v2.23.0
         with:
           # with '-no-fail' we let the report trigger content trigger a failure using the GitHub Security features.
-          args: "-no-fail -fmt sarif -out gosec.sarif ./..."
+          args: "-no-fail -exclude-generated -fmt sarif -out gosec.sarif ./..."
       - name: Transform gosec SARIF to meet SARIF 2.1.0 schema requirements
         # Produces SARIF file has two incompatibilities with SARIF 2.1.0 schema all of them are in `fixes` object:
         #  1. Field `description` contains only `markdown` property, but `text` property is mandatory.
@@ -43,7 +43,7 @@ jobs:
         # To fix those issues the first part of jq query copies content of `markdown` field into `text` field
         # if it's not present. In the second part if the `fixes` object has null array as `artifactChanges` the empty
         # valid `artifactChange` object inserted.
-        # After fix of mentioned gosec issues this step can be removed. 
+        # After fix of mentioned gosec issues this step can be removed.
         run: |
           set -e
           jq 'walk(if type=="object" and has("markdown") and (.text == null or .text == "") then .text = .markdown else . end) | (.runs[].results[]? .fixes[]? .artifactChanges) |= (if . == null then [{"artifactLocation": { "uri": "" }, "replacements": [{"deletedRegion": {"byteOffset": 0, "byteLength": 0 }}]}] else . end)' gosec.sarif > gosec_fixed.sarif
@@ -103,7 +103,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
           check-latest: true
           cache: true
       - name: Run go list

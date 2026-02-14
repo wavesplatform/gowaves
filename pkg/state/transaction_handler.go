@@ -166,6 +166,10 @@ func buildHandles( //nolint:funlen
 			tc.checkEthereumTransactionWithProofs, tp.performEthereumTransactionWithProofs,
 			td.createDiffEthereumTransactionWithProofs, tf.minerFeeByTransaction,
 		},
+		proto.TransactionTypeInfo{Type: proto.CommitToGenerationTransaction, ProofVersion: proto.Proof}: txHandleFuncs{
+			tc.checkCommitToGenerationWithProofs, tp.performCommitToGenerationWithProofs,
+			td.createDiffCommitToGenerationWithProofs, tf.minerFeeByTransaction,
+		},
 	}
 }
 

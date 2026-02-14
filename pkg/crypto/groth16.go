@@ -3,6 +3,7 @@ package crypto
 import (
 	"bytes"
 	"encoding/binary"
+	"fmt"
 
 	"github.com/consensys/gnark-crypto/ecc"
 	"github.com/consensys/gnark-crypto/ecc/bn254/fr"
@@ -53,6 +54,11 @@ func Groth16Verify(vkBytes []byte, proofBytes []byte, inputsBytes []byte, curve 
 			return false, err
 		}
 		proof = bn256proof
+	case ecc.UNKNOWN:
+		return false, errors.Errorf("unknown elliptic curve")
+	case ecc.BLS12_377, ecc.BLS24_315, ecc.BLS24_317, ecc.BW6_761, ecc.BW6_633, ecc.STARK_CURVE,
+		ecc.SECP256K1, ecc.GRUMPKIN:
+		return false, fmt.Errorf("unsupported curve %s", curve)
 	default:
 		return false, errors.Errorf("unknown elliptic curve")
 	}

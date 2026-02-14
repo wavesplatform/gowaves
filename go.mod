@@ -1,6 +1,6 @@
 module github.com/wavesplatform/gowaves
 
-go 1.24.0
+go 1.25.0
 
 require (
 	filippo.io/edwards25519 v1.1.0
@@ -9,6 +9,7 @@ require (
 	github.com/ccoveille/go-safecast/v2 v2.0.0
 	github.com/cenkalti/backoff/v4 v4.3.0
 	github.com/cespare/xxhash/v2 v2.3.0
+	github.com/cloudflare/circl v1.6.1
 	github.com/consensys/gnark v0.14.0
 	github.com/consensys/gnark-crypto v0.19.2
 	github.com/coocood/freecache v1.2.5
@@ -51,7 +52,7 @@ require (
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
 	golang.org/x/crypto v0.48.0
-	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546
+	golang.org/x/exp v0.0.0-20260112195511-716be5621a96
 	golang.org/x/sync v0.19.0
 	golang.org/x/sys v0.41.0
 	google.golang.org/grpc v1.79.0

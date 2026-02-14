@@ -113,6 +113,7 @@ func TestThrowComplexities(t *testing.T) {
 			{ast.LibV6, false, 2},
 			{ast.LibV7, false, 2},
 			{ast.LibV8, false, 2},
+			{ast.LibV9, false, 2},
 			{ast.LibV1, true, 3},
 			{ast.LibV2, true, 3},
 			{ast.LibV3, true, 2},
@@ -121,6 +122,7 @@ func TestThrowComplexities(t *testing.T) {
 			{ast.LibV6, true, 2},
 			{ast.LibV7, true, 2},
 			{ast.LibV8, true, 2},
+			{ast.LibV9, true, 2},
 		}
 		for _, tc := range tests {
 			tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, tc.libV))
@@ -155,6 +157,7 @@ func TestThrowComplexities(t *testing.T) {
 			{ast.LibV6, false, 2},
 			{ast.LibV7, false, 2},
 			{ast.LibV8, false, 2},
+			{ast.LibV9, false, 2},
 			{ast.LibV1, true, 1},
 			{ast.LibV2, true, 1},
 			{ast.LibV3, true, 1},
@@ -163,6 +166,7 @@ func TestThrowComplexities(t *testing.T) {
 			{ast.LibV6, true, 1},
 			{ast.LibV7, true, 1},
 			{ast.LibV8, true, 1},
+			{ast.LibV9, true, 1},
 		}
 		for _, tc := range tests {
 			tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, tc.libV))

@@ -378,3 +378,14 @@ func TestDigest_Hex(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, "9c50225b3c88651cd7ddf9268941cfa6d8737edea0f0ed49c380334953361634", d.Hex())
 }
+
+func TestDigest_IsZero(t *testing.T) {
+	var d1 Digest
+	require.True(t, d1.IsZero())
+
+	var pd *Digest
+	require.True(t, pd.IsZero())
+
+	d2 := Digest{}
+	require.True(t, d2.IsZero())
+}
