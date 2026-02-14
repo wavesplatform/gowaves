@@ -893,7 +893,7 @@ func (b *Block) WriteToWithoutSignature(w io.Writer, scheme Scheme) (int64, erro
 // UnmarshalBinary decodes Block from binary form
 func (b *Block) UnmarshalBinary(data []byte, scheme Scheme) (err error) {
 	// TODO make benchmarks to figure out why multiple length checks slow down that much
-	//  and (probably) get rid of recover().
+	// and (probably) get rid of recover().
 	defer func() {
 		if recover() != nil {
 			err = errors.New("invalid data size")

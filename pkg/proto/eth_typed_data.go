@@ -142,7 +142,7 @@ func (typedData *ethereumTypedData) EncodeType(primaryType string) []byte {
 	return buffer.Bytes()
 }
 
-// TypeHash creates the keccak256 hash  of the data
+// TypeHash creates the keccak256 hash of the data
 func (typedData *ethereumTypedData) TypeHash(primaryType string) []byte {
 	return crypto.MustKeccak256(typedData.EncodeType(primaryType)).Bytes()
 }
