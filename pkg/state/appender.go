@@ -5,6 +5,7 @@ import (
 	stderrs "errors"
 	"fmt"
 	"log/slog"
+	"strings"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/util/common"
@@ -1659,14 +1660,15 @@ func (f *finalizationProcessor) updateFinalization(
 	}
 
 	if verifyErr := f.verifyFinalizationSignature(finalizationVoting, msg, endorsersPK); verifyErr != nil {
-		var endorsersPKstr string
+		sb := new(strings.Builder)
 		for _, epk := range endorsersPK {
-			endorsersPKstr += epk.String() + ","
+			sb.WriteString(epk.String())
+			sb.WriteString(",")
 		}
 		slog.Debug("failed to verify finalization signature",
 			"signature", finalizationVoting.AggregatedEndorsementSignature.String(),
 			"msg", msg,
-			"endorsersPKs", endorsersPKstr,
+			"endorsersPKs", sb.String(),
 			"err", verifyErr.Error(),
 		)
 		return errors.Wrapf(err, "failed to verify finalization signature")
