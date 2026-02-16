@@ -66,7 +66,7 @@ func (a *MockStateManager) BlockIDToHeight(blockID proto.BlockID) (uint64, error
 	return 0, notFound()
 }
 
-func (a *MockStateManager) RollbackToHeight(height uint64) error {
+func (a *MockStateManager) RollbackToHeight(height uint64, _ bool) error {
 	if height > proto.Height(len(a.state)) {
 		return notFound()
 	}

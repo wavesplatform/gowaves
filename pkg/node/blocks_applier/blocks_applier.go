@@ -24,7 +24,7 @@ type innerState interface {
 	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 	BlockByHeight(height proto.Height) (*proto.Block, error)
-	RollbackToHeight(height proto.Height) error
+	RollbackToHeight(height proto.Height, isAutoRollback bool) error
 	CheckRollbackHeightAuto(height proto.Height) error
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
 }
@@ -79,7 +79,7 @@ func (a *innerBlocksApplier) apply(
 		return 0, err
 	}
 
-	err = storage.RollbackToHeight(parentHeight)
+	err = storage.RollbackToHeight(parentHeight, true)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to rollback to height %d", parentHeight)
 	}
@@ -181,7 +181,7 @@ func (a *innerBlocksApplier) applyWithSnapshots(
 		return 0, err
 	}
 
-	err = storage.RollbackToHeight(parentHeight)
+	err = storage.RollbackToHeight(parentHeight, true)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to rollback to height %d", parentHeight)
 	}
@@ -268,7 +268,7 @@ func (a *innerBlocksApplier) applyMicro(
 		return 0, errors.Wrapf(err, "failed to get current block by height %d", currentHeight)
 	}
 
-	err = storage.RollbackToHeight(parentHeight)
+	err = storage.RollbackToHeight(parentHeight, true)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to rollback to height %d", parentHeight)
 	}
@@ -323,7 +323,7 @@ func (a *innerBlocksApplier) applyMicroWithSnapshot(
 	}
 	currentSnapshotsToApply := []*proto.BlockSnapshot{&curSnapshot}
 
-	err = storage.RollbackToHeight(parentHeight)
+	err = storage.RollbackToHeight(parentHeight, true)
 	if err != nil {
 		return 0, errors.Wrapf(err, "failed to rollback to height %d", parentHeight)
 	}

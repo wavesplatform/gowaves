@@ -835,7 +835,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 	// Process parent's block finalization.
 	if hasParent {
-		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, currentBlockHeight)
+		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, currentBlockHeight,
+			params.block.BlockID())
 		if err != nil {
 			slog.Error("did not update finalization", "err", err.Error())
 		}
@@ -1445,7 +1446,7 @@ func (f *finalizationProcessor) votingFinalization(
 
 func (f *finalizationProcessor) loadLastFinalizedHeight(
 	height proto.Height,
-	block *proto.BlockHeader,
+	currentBlockID proto.BlockID,
 	finalityActivated bool,
 ) (proto.Height, error) {
 	storedFinalizedHeight, err := f.stor.finalizations.newest()
@@ -1459,7 +1460,7 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 	// No finalization found, calculate it, and, if finality activated - initialize it.
 	initH := proto.CalculateLastFinalizedHeight(height)
 	if finalityActivated {
-		if storErr := f.stor.finalizations.store(initH, block.BlockID()); storErr != nil {
+		if storErr := f.stor.finalizations.store(initH, currentBlockID); storErr != nil {
 			return 0, storErr
 		}
 	}
@@ -1598,10 +1599,11 @@ func (f *finalizationProcessor) updateFinalization(
 	finalizationVoting *proto.FinalizationVoting,
 	parent *proto.BlockHeader,
 	height proto.Height,
+	currentBlockID proto.BlockID,
 ) error {
 	slog.Debug("trying to finalize parent's block")
 	if finalizationVoting == nil {
-		slog.Debug("did not finalize parent't block, finalizationVoting is nil")
+		slog.Debug("did not finalize parent's block, finalizationVoting is nil")
 		return nil
 	}
 
@@ -1624,7 +1626,7 @@ func (f *finalizationProcessor) updateFinalization(
 				conflictingEndorsement.EndorserIndex)
 		}
 	}
-	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height, parent, finalityActivated)
+	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height, currentBlockID, finalityActivated)
 	if err != nil {
 		return err
 	}
@@ -1677,7 +1679,7 @@ func (f *finalizationProcessor) updateFinalization(
 		return errors.Wrap(err, "failed to check if parent is finalized")
 	}
 	if canFinalize {
-		finalizeErr := f.finalizeGrandParent(height, endorsedBlockID, finalizationVoting)
+		finalizeErr := f.finalizeGrandParent(height, endorsedBlockID, finalizationVoting, currentBlockID)
 		if finalizeErr != nil {
 			return finalizeErr
 		}
@@ -1688,11 +1690,8 @@ func (f *finalizationProcessor) updateFinalization(
 }
 
 func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorsedBlockID proto.BlockID,
-	finalizationVoting *proto.FinalizationVoting) error {
-	// Endorsements target the block two heights below the current one (N-2).
-	if height < 2 {
-		return fmt.Errorf("not enough history to finalize: height=%d", height)
-	}
+	finalizationVoting *proto.FinalizationVoting,
+	currentBlockID proto.BlockID) error {
 	finalizedHeight := height - 2
 	grandParentID, idErr := f.rw.newestBlockIDByHeight(finalizedHeight)
 	if idErr != nil {
@@ -1703,7 +1702,7 @@ func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorse
 			"not equal to grand parent's blockID while trying to finalize,"+
 			"endorsedBlockID: %s, grandParentBlockID %s", endorsedBlockID.String(), grandParentID.String())
 	}
-	if storErr := f.stor.finalizations.store(finalizedHeight, grandParentID); storErr != nil {
+	if storErr := f.stor.finalizations.store(finalizedHeight, currentBlockID); storErr != nil {
 		return storErr
 	}
 	slog.Debug("finalized block and saved finalization in state:",
@@ -1715,11 +1714,15 @@ func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorse
 }
 
 func (f *finalizationProcessor) canFinalizeGrandParent(
-	endorsersPK []bls.PublicKey, // adjust
-	periodStart uint32, // adjust
+	endorsersPK []bls.PublicKey,
+	periodStart uint32,
 	parent *proto.BlockHeader,
 	height proto.Height,
 ) (bool, error) {
+	// Endorsements target the block two heights below the current one (N-2).
+	if height < 2 {
+		return false, nil
+	}
 	endorserAddresses, err := f.mapEndorsersToAddresses(endorsersPK, periodStart)
 	if err != nil {
 		slog.Debug("failed to map endorsers")
