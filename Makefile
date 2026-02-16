@@ -72,7 +72,10 @@ vetcheck:
 	golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master
 
 modernize-check:
-	go run golang.org/x/tools/gopls/internal/analysis/modernize/cmd/modernize@v0.20.0 ./...
+	@bash -lc 'set -o pipefail; \
+	output=$$(go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest ./... 2>&1 | \
+		grep -vE "\.(pb|gen)\.go|mock|_string.go|^exit status|^go: downloading"); \
+	[ -n "$$output" ] && { echo "$$output"; exit 1; } || exit 0;'
 
 strict-vet-check:
 	golangci-lint run -c .golangci-strict.yml
