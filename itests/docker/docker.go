@@ -207,8 +207,13 @@ func (d *Docker) stopStartedNodes(upToIndex int) error {
 	var errs []error
 	for i := range upToIndex {
 		stErr := d.stopContainer(d.goNodes[i].container.Container.ID)
+		if stErr != nil {
+			errs = append(errs, stErr)
+		}
 		clErr := d.goNodes[i].Close()
-		return stderrs.Join(stErr, clErr)
+		if clErr != nil {
+			errs = append(errs, clErr)
+		}
 	}
 	if len(errs) > 0 {
 		return stderrs.Join(errs...)
