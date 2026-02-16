@@ -32,10 +32,10 @@ jobs:
           fetch-depth: 0
           persist-credentials: false
 
-      - name: Set up Go 1.24
+      - name: Set up Go 1.25
         uses: actions/setup-go@7a3fe6cf4cb3a834922a1244abfce67bcef6a0c5 # v6.2.0
         with:
-          go-version: 1.24.x
+          go-version: 1.25.x
           check-latest: true
           cache: false
 
@@ -70,7 +70,7 @@ jobs:
             org.opencontainers.image.description="Waves Node"
 
       - name: Build and Push Docker Image
-        uses: docker/build-push-action@263435318d21b8e681c14492fe198d362a7d2c83 # v5
+        uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v5
         id: push
         with:
           context: .

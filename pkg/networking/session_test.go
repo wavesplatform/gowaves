@@ -473,12 +473,10 @@ func concurrentClose(t *testing.T, cs io.Closer) {
 	runSim := &sync.WaitGroup{}
 	runSim.Add(1)
 	wg := &sync.WaitGroup{}
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		runSim.Wait()
 		assert.NoError(t, cs.Close())
-	}()
+	})
 	runSim.Done() // Start all goroutines, but don't wait for them to finish yet.
 	assert.NoError(t, cs.Close())
 	wg.Wait() // Wait for all goroutines to finish.
