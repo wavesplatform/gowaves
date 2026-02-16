@@ -31,7 +31,7 @@ func (suite *MultiGoNodesSuite) BaseSetup(nodeCount int, options ...config.Block
 	suite.Cfg = cfg.TestConfig()
 
 	goConfigurators := make([]*config.GoConfigurator, 0, nodeCount)
-	for i := 0; i < nodeCount; i++ {
+	for i := range nodeCount {
 		goCfg, goErr := config.NewGoConfigurator(fmt.Sprintf("%s-go-%d", suiteName, i), cfg)
 		suite.Require().NoError(goErr, "couldn't create Go configurator for node %d", i)
 		goConfigurators = append(goConfigurators, goCfg)
@@ -52,11 +52,11 @@ func (suite *MultiGoNodesSuite) BaseSetup(nodeCount int, options ...config.Block
 	}
 
 	suite.Clients = make([]*clients.NodeUniversalClient, nodeCount)
-	for i := 0; i < nodeCount; i++ {
+	for i := range nodeCount {
 		node := d.GoNodes()[i]
 
 		peers := make([]proto.PeerInfo, 0, nodeCount-1)
-		for j := 0; j < nodeCount; j++ {
+		for j := range nodeCount {
 			if j == i {
 				continue
 			}
@@ -90,7 +90,7 @@ func (suite *MultiGoNodesSuite) SetupSuite() {
 
 func (suite *MultiGoNodesSuite) TearDownSuite() {
 	clientsCount := len(suite.Clients)
-	for i := 0; i < clientsCount; i++ {
+	for i := range clientsCount {
 		suite.Clients[i].Close(suite.T())
 	}
 	suite.Docker.FinishAllGoNodes(suite.Cancel, clientsCount)
