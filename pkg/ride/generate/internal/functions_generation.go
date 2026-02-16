@@ -9,6 +9,10 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 )
 
+const (
+	sha256BaseID = 2900
+)
+
 func functionsV2() map[string]string {
 	m := make(map[string]string)
 	m["0"] = "eq"
@@ -427,7 +431,7 @@ func functionsV4() map[string]string {
 		m[strconv.Itoa(2600+i)] = fmt.Sprintf("rsaVerify_%d", l)
 		m[strconv.Itoa(2700+i)] = fmt.Sprintf("keccak256_%d", l)
 		m[strconv.Itoa(2800+i)] = fmt.Sprintf("blake2b256_%d", l)
-		m[strconv.Itoa(2900+i)] = fmt.Sprintf("sha256_%d", l)
+		m[strconv.Itoa(sha256BaseID+i)] = fmt.Sprintf("sha256_%d", l)
 	}
 	m["@extrNative(1062)"] = "addressValueFromString"
 	for i := 2; i <= 22; i++ {
@@ -516,7 +520,7 @@ func catalogueV4() map[string]int {
 	for i, c := range []int{10, 25, 50, 100} {
 		m[strconv.Itoa(2700+i)] = c
 		m[strconv.Itoa(2800+i)] = c
-		m[strconv.Itoa(2900+i)] = c
+		m[strconv.Itoa(sha256BaseID+i)] = c
 	}
 
 	m["@extrNative(1050)"] = 10
@@ -850,7 +854,7 @@ func catalogueV6() map[string]int {
 		m[strconv.Itoa(2800+i)] = c
 	}
 	for i, c := range []int{12, 23, 47, 93} {
-		m[strconv.Itoa(2900+i)] = c
+		m[strconv.Itoa(sha256BaseID+i)] = c
 	}
 	m["fraction"] = 4
 	m["sqrt"] = 2
@@ -922,6 +926,10 @@ func functionsV9() map[string]string {
 
 func catalogueV9() map[string]int {
 	m := catalogueV8()
+	m["503"] = 36
+	for i, c := range []int{5, 9, 17, 32} {
+		m[strconv.Itoa(sha256BaseID+i)] = c
+	}
 	m["606"] = 1
 	m["607"] = 1
 	m["608"] = 1
