@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand/v2"
 	"slices"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -126,15 +127,15 @@ func provenPart(
 		)
 	}
 	rnd := rand.Uint32()
-	var proofsChecks string
+	var proofsChecks strings.Builder
 	if ops.checkProofs {
 		for i := range proofsArr {
 			bv, okP := proofsArr[i].(rideByteVector)
 			require.Truef(t, okP, "proofs[%d] is not rideByteVector, but %T", i, proofsArr[i])
 			num := int(rnd) + i
-			proofsChecks += fmt.Sprintf("strict proof%d = %s.proofs[%d] == %s || throw(\"proof[%d] mismatch\")\n",
+			proofsChecks.WriteString(fmt.Sprintf("strict proof%d = %s.proofs[%d] == %s || throw(\"proof[%d] mismatch\")\n",
 				num, ops.txVarName, i, bv.String(), i,
-			)
+			))
 		}
 	}
 	return fmt.Sprintf(`
@@ -154,7 +155,7 @@ func provenPart(
 		rnd, ops.txVarName, proto.WavesAddress(mustField[rideAddress](t, obj, senderField)).String(),
 		rnd, ops.txVarName, mustField[rideByteVector](t, obj, senderPublicKeyField).String(),
 		rnd, ops.txVarName, mustField[rideInt](t, obj, versionField),
-		proofsChecks,
+		proofsChecks.String(),
 	)
 }
 

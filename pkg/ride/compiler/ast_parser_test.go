@@ -18,6 +18,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/client"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	"github.com/wavesplatform/gowaves/pkg/ride/compiler/stdlib"
 	"github.com/wavesplatform/gowaves/pkg/ride/serialization"
 )
 
@@ -1137,4 +1138,12 @@ let a = Order("".toBytes(), "".toBytes(), AssetPair("".toBytes(), "".toBytes()),
 			compareScriptsOrError(t, test.code, test.fail, test.expected, false, false)
 		})
 	}
+}
+
+func TestVarsAndFuncsWithLastRideVersion(t *testing.T) {
+	vars := stdlib.Vars()
+	funcs := stdlib.FuncsByVersion()
+	expectedLen := int(ast.CurrentMaxLibraryVersion())
+	assert.Len(t, vars.Vars, expectedLen)
+	assert.Len(t, funcs, expectedLen)
 }

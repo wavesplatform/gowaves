@@ -215,7 +215,7 @@ func Test_txSnapshotJSON_MarshalJSON_UnmarshalJSON(t *testing.T) {
 	"generationCommitments": [
       {
         "publicKey" : "9KFDEPnavEUzmiYbQw81VC4Niu526mjECQUnn8wrVW4Q",
-        "blsPublicKey" : "5n3wxWMfoZ39yj5y5CtWzt4BaDrpp2VBEC2KyUkhkSGbHxPD2UcPZGLPwAVTNqtqxv"
+        "blsPublicKey" : "7YEJvfZfxc9GS1d2TJ2ZGdQciCyMfRsM4ihB4p7FdF5tjvtdUbC6oeNgWWixWCn3pi"
       }
     ],
     "aliases": [],

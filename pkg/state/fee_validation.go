@@ -80,7 +80,6 @@ func isSmartAssetsFree(tx proto.Transaction, rideV5Activated bool) (bool, error)
 		return false, nil
 	}
 	switch tx.GetTypeInfo().Type {
-	// TODO: add case with proto.InvokeExpressionTransaction after this tx type support
 	case proto.InvokeScriptTransaction:
 		return true, nil
 	case proto.EthereumMetamaskTransaction:
@@ -88,11 +87,22 @@ func isSmartAssetsFree(tx proto.Transaction, rideV5Activated bool) (bool, error)
 		if !ok {
 			return false, errors.New("failed to convert interface to EthereumTransaction")
 		}
-		if _, ok := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); ok {
+		if _, okKind := ethTx.TxKind.(*proto.EthereumInvokeScriptTxKind); okKind {
 			return true, nil
 		}
+		return false, nil
+	case proto.InvokeExpressionTransaction:
+		// TODO: Implement the case after this tx type supported.
+		return false, nil
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.IssueTransaction, proto.TransferTransaction,
+		proto.ReissueTransaction, proto.BurnTransaction, proto.ExchangeTransaction, proto.LeaseTransaction,
+		proto.LeaseCancelTransaction, proto.CreateAliasTransaction, proto.MassTransferTransaction,
+		proto.DataTransaction, proto.SetScriptTransaction, proto.SponsorshipTransaction,
+		proto.SetAssetScriptTransaction, proto.UpdateAssetInfoTransaction, proto.CommitToGenerationTransaction:
+		return false, nil
+	default:
+		return false, fmt.Errorf("unexpected transaction type %T", tx)
 	}
-	return false, nil
 }
 
 // minFeeInUnits returns minimal fee in units and error
@@ -211,7 +221,13 @@ func minFeeInUnits(params *feeValidationParams, tx proto.Transaction) (uint64, e
 		default:
 			return 0, errors.Errorf("unknown ethereum tx kind (%T)", kind)
 		}
-	default: // Do nothing, for other tx types fee is baseFee.
+	case proto.GenesisTransaction, proto.PaymentTransaction, proto.TransferTransaction, proto.BurnTransaction,
+		proto.ExchangeTransaction, proto.LeaseTransaction, proto.LeaseCancelTransaction, proto.CreateAliasTransaction,
+		proto.SetAssetScriptTransaction, proto.InvokeScriptTransaction, proto.UpdateAssetInfoTransaction,
+		proto.CommitToGenerationTransaction, proto.InvokeExpressionTransaction:
+		// Do nothing, for other tx types fee is baseFee.
+	default:
+		return 0, fmt.Errorf("unexpected transaction type %T", tx)
 	}
 	if fee == 0 && txType != proto.GenesisTransaction {
 		return 0, errors.Errorf("zero fee allowed only for genesis transaction, but not for tx with type (%d)", txType)

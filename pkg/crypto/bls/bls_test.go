@@ -3,6 +3,7 @@ package bls_test
 import (
 	"bytes"
 	"crypto/rand"
+	"encoding/base64"
 	"fmt"
 	"io"
 	"slices"
@@ -353,6 +354,41 @@ func TestScalaCompatibilityAggregatedSignatures(t *testing.T) {
 			slices.Reverse(pks)
 			ok = bls.VerifyAggregate(pks, msg, aggSig)
 			require.True(t, ok, "aggregate must verify")
+		})
+	}
+}
+
+func TestScalaCompatibilityKeyGeneration(t *testing.T) {
+	for i, test := range []struct {
+		seed string
+		pk   string
+	}{
+		{
+			seed: "7UR2CZi6Gv6v1yqmgcPDD98ZtosvtHnNZRxvrHA2Tuyn",
+			pk:   "jrugi0W0es2WxuHoptQtchqwactZsldOGucYObZrEIOpxbWmhL8dodvpnzA+2qUf",
+		},
+		{
+			seed: "-EXACTLY-32-BYTES-LENGTH-STRING-",
+			pk:   "qSUdS6J92V1nNOdx4TafRu4U17qhqwVXKNyy2IVV9GWnUzUYlk/uH4l8fOoupSJj",
+		},
+		{
+			seed: "a string longer than 32 bytes is used as the seed here",
+			pk:   "o2DzLHA7PG7BvHXTqnz4c8arX/tjiU11YuHsQnfUH0Lo/+ksy1toSYXFFy5auEJT",
+		},
+	} {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			seed, err := base58.Decode(test.seed)
+			if err != nil {
+				seed = []byte(test.seed)
+			}
+			// To generate compatible keys, no pre-hash must be used.
+			sk, err := bls.GenerateSecretKey(seed, bls.WithNoPreHash())
+			require.NoError(t, err)
+			pk, err := sk.PublicKey()
+			require.NoError(t, err)
+			epk, err := base64.StdEncoding.DecodeString(test.pk)
+			require.NoError(t, err)
+			assert.Equal(t, epk, pk.Bytes())
 		})
 	}
 }

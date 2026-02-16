@@ -690,6 +690,8 @@ func (s TransactionStatusSnapshot) AppendToProtobuf(txSnapshots *g.TransactionSt
 		txSnapshots.TransactionStatus = g.TransactionStatus_ELIDED
 	case TransactionFailed:
 		txSnapshots.TransactionStatus = g.TransactionStatus_FAILED
+	case unknownTransactionStatus:
+		return errors.New("unknown transaction status")
 	default:
 		return errors.Errorf("undefined tx status %d", s.Status)
 	}

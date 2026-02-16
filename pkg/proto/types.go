@@ -608,14 +608,13 @@ func (m *OrderPriceMode) UnmarshalJSON(val []byte) error {
 }
 
 func (m OrderPriceMode) MarshalJSON() ([]byte, error) {
-	if !m.isValidOrderPriceValue() {
-		return nil, errors.Errorf("invalid OrderPriceMode=%d", byte(m))
-	}
 	switch m {
 	case OrderPriceModeDefault:
 		return []byte(jsonNull), nil
-	default:
+	case OrderPriceModeFixedDecimals, OrderPriceModeAssetDecimals:
 		return fmt.Appendf(nil, "\"%s\"", m.String()), nil
+	default:
+		return nil, errors.Errorf("invalid OrderPriceMode=%d", byte(m))
 	}
 }
 
@@ -683,13 +682,13 @@ func (m OrderPriceMode) isValidOrderPriceValue() bool {
 
 func (m OrderPriceMode) Valid(orderVersion OrderVersion) (bool, error) {
 	switch orderVersion {
-	case 1, 2, 3:
+	case OrderVersionV1, OrderVersionV2, OrderVersionV3:
 		if m != OrderPriceModeDefault {
 			return false, errors.Errorf("OrderV%d.PriceMode must be %q",
 				orderVersion, OrderPriceModeDefault.String(),
 			)
 		}
-	default:
+	case OrderVersionV4:
 		if !m.isValidOrderPriceValue() {
 			return false, errors.Errorf("invalid OrderPriceMode = %d", byte(m))
 		}
@@ -733,25 +732,25 @@ type Order interface {
 
 func MarshalOrderBody(scheme Scheme, o Order) (data []byte, err error) {
 	switch version := o.GetVersion(); version {
-	case 1:
+	case OrderVersionV1:
 		o, ok := o.(*OrderV1)
 		if !ok {
 			return nil, errors.New("failed to cast an order version 1 to *OrderV1")
 		}
 		return o.BodyMarshalBinary()
-	case 2:
+	case OrderVersionV2:
 		o, ok := o.(*OrderV2)
 		if !ok {
 			return nil, errors.New("failed to cast an order version 2 to *OrderV2")
 		}
 		return o.BodyMarshalBinary()
-	case 3:
+	case OrderVersionV3:
 		o, ok := o.(*OrderV3)
 		if !ok {
 			return nil, errors.New("failed to cast an order version 3 to *OrderV3")
 		}
 		return o.BodyMarshalBinary()
-	case 4:
+	case OrderVersionV4:
 		switch o := o.(type) {
 		case *OrderV4:
 			data, err = o.BodyMarshalBinary(scheme)
@@ -3346,7 +3345,7 @@ func (s *Script) UnmarshalJSON(value []byte) error {
 // ArgumentValueType is an alias for byte that encodes the value type.
 type ArgumentValueType byte
 
-// String translates ValueType value to human readable name.
+// String translates ValueType value to human-readable name.
 func (vt ArgumentValueType) String() string {
 	switch vt {
 	case ArgumentInteger:
@@ -3359,6 +3358,10 @@ func (vt ArgumentValueType) String() string {
 		return "string"
 	case ArgumentList:
 		return "list"
+	case ArgumentValueFalse:
+		return "false"
+	case ArgumentValueTrue:
+		return "true"
 	default:
 		return ""
 	}
@@ -3500,8 +3503,10 @@ func (a *Arguments) UnmarshalBinary(data []byte) error {
 			var aa ListArgument
 			err = aa.UnmarshalBinary(data)
 			arg = &aa
-		default:
-			return errors.Errorf("unsupported argument type %d", data[0])
+		case ArgumentBoolean:
+			var ba BooleanArgument
+			err = ba.UnmarshalBinary(data)
+			arg = &ba
 		}
 		if err != nil {
 			return errors.Wrap(err, "failed unmarshal Arguments from bytes")

@@ -151,9 +151,7 @@ func download(
 	p := &printer{}
 	var wg sync.WaitGroup
 	for range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for height := range heightChan {
 				if err := manageHeight(ctx, height, nodes, clients, p, tries); err != nil {
 					cancel()
@@ -162,7 +160,7 @@ func download(
 					break
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -221,11 +219,9 @@ func main() {
 	heightChan := make(chan uint64)
 	errChan := make(chan error, *goroutinesNum)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		download(heightChan, errChan, nodes, clients, *goroutinesNum, *tries)
-		wg.Done()
-	}()
+	})
 	for h := uint64(*startHeight); h < uint64(*endHeight); h++ {
 		gotErr := false
 		select {

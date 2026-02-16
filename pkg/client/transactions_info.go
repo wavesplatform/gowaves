@@ -115,6 +115,8 @@ func guessTransactionInfoType(t *proto.TransactionTypeVersion) (TransactionInfo,
 		out = &EthereumTransactionInfo{}
 	case proto.CommitToGenerationTransaction: // 19
 		out = &CommitToGenerationTransactionInfo{}
+	case proto.InvokeExpressionTransaction: // 20 Not used yet.
+		out = nil // Do nothing.
 	}
 	if out == nil {
 		return nil, errors.Errorf("unknown transaction type %d version %d", t.Type, t.Version)

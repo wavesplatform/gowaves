@@ -18,6 +18,8 @@ const (
 	SecretKeySize = 32
 	PublicKeySize = 48
 	SignatureSize = 96
+
+	defaultSalt = "BLS-SIG-KEYGEN-SALT-"
 )
 
 var (
@@ -65,18 +67,20 @@ func (k *SecretKey) PublicKey() (PublicKey, error) {
 // To use custom salt or info, use WithSalt() and WithInfo() options respectively.
 func GenerateSecretKey(seed []byte, opts ...KeyGenerationOption) (SecretKey, error) {
 	cfg := defaultKeyGenConfig()
-	for _, opt := range opts {
+	for _, opt := range opts { // Apply options.
 		if optErr := opt(&cfg); optErr != nil {
 			return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", optErr)
 		}
 	}
-	h := sha256.New()
-	_, err := h.Write(seed)
-	if err != nil {
-		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+	if cfg.preHash { // Perform additional pre-hashing of the seed.
+		h := sha256.New()
+		_, err := h.Write(seed)
+		if err != nil {
+			return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
+		}
+		seed = h.Sum(nil)
 	}
-	sh := h.Sum(nil)
-	csk, err := cbls.KeyGen[cbls.G1](sh, cfg.salt, cfg.info)
+	csk, err := cbls.KeyGen[cbls.G1](seed, cfg.salt, cfg.info)
 	if err != nil {
 		return SecretKey{}, fmt.Errorf("failed to generate BLS secret key: %w", err)
 	}
@@ -291,14 +295,16 @@ func isUnique[T comparable](in []T) bool {
 }
 
 type keyGenConfig struct {
-	salt []byte
-	info []byte
+	salt    []byte
+	info    []byte
+	preHash bool // Perform additional pre-hashing of the seed before key generation.
 }
 
 func defaultKeyGenConfig() keyGenConfig {
 	return keyGenConfig{
-		salt: make([]byte, sha256.Size), // By default, salt is empty byte slice of sha256.Size length.
-		info: nil,
+		salt:    []byte(defaultSalt),
+		info:    nil,
+		preHash: true, // By default, pre-hash is performed.
 	}
 }
 
@@ -333,6 +339,13 @@ func WithSalt(salt []byte) KeyGenerationOption {
 func WithInfo(data []byte) KeyGenerationOption {
 	return func(config *keyGenConfig) error {
 		config.info = data
+		return nil
+	}
+}
+
+func WithNoPreHash() KeyGenerationOption {
+	return func(config *keyGenConfig) error {
+		config.preHash = false
 		return nil
 	}
 }

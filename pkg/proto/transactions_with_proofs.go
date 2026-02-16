@@ -1611,28 +1611,28 @@ func (tx *ExchangeWithProofs) BodyMarshalBinary(Scheme) ([]byte, error) {
 	var o2b []byte
 	var err error
 	switch tx.Order1.GetVersion() {
-	case 1:
+	case OrderVersionV1:
 		o1b, err = tx.marshalAsOrderV1(tx.Order1)
-	case 2:
+	case OrderVersionV2:
 		o1b, err = tx.marshalAsOrderV2(tx.Order1)
-	case 3:
+	case OrderVersionV3:
 		o1b, err = tx.marshalAsOrderV3(tx.Order1)
-	default:
-		err = errors.Errorf("invalid Order1 version %d", tx.Order1.GetVersion())
+	case OrderVersionV4:
+		err = fmt.Errorf("first order of version 4 is not supported")
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal buy order to bytes")
 	}
 	o1l := uint32(len(o1b))
 	switch tx.Order2.GetVersion() {
-	case 1:
+	case OrderVersionV1:
 		o2b, err = tx.marshalAsOrderV1(tx.Order2)
-	case 2:
+	case OrderVersionV2:
 		o2b, err = tx.marshalAsOrderV2(tx.Order2)
-	case 3:
+	case OrderVersionV3:
 		o2b, err = tx.marshalAsOrderV3(tx.Order2)
-	default:
-		err = errors.Errorf("invalid Order2 version %d", tx.Order2.GetVersion())
+	case OrderVersionV4:
+		err = fmt.Errorf("second order of version 4 is not supported")
 	}
 	if err != nil {
 		return nil, errors.Wrap(err, "failed to marshal sell order to bytes")
@@ -3384,8 +3384,8 @@ func (tx *DataWithProofs) bodyUnmarshalBinary(data []byte) error {
 			var se StringDataEntry
 			err = se.UnmarshalBinary(data)
 			e = &se
-		default:
-			return errors.Errorf("unsupported ValueType %d", t)
+		case DataDelete:
+			return errors.New("value of type DataDelete is not supported")
 		}
 		if err != nil {
 			return errors.Wrap(err, "failed to unmarshal DataWithProofs transaction body from bytes")

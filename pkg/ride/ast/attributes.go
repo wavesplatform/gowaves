@@ -50,11 +50,12 @@ const (
 	LibV7
 	LibV8
 	LibV9
+	maxVersion // Keep this constant last, used to determine maximum Ride version.
 )
 
 // CurrentMaxLibraryVersion reports the max lib version. Update it when a new version was added.
 func CurrentMaxLibraryVersion() LibraryVersion {
-	return LibV9
+	return maxVersion - 1
 }
 
 func NewLibraryVersion(b byte) (LibraryVersion, error) {

@@ -40,8 +40,15 @@ func makeMockFeaturesStateForRewardsCalc(features ...settings.Feature) featuresS
 				return height >= 2000 && isEnabled
 			case settings.XTNBuyBackCessation:
 				return height >= 3000 && isEnabled
-			default:
+			case settings.SmallerMinimalGeneratingBalance, settings.NG, settings.MassTransfer, settings.SmartAccounts,
+				settings.DataTransaction, settings.BurnAnyTokens, settings.FeeSponsorship, settings.FairPoS,
+				settings.SmartAssets, settings.SmartAccountTrading, settings.Ride4DApps, settings.OrderV3,
+				settings.ReducedNFTFee, settings.BlockReward, settings.BlockV5, settings.RideV5, settings.RideV6,
+				settings.ConsensusImprovements, settings.LightNode, settings.BoostBlockReward,
+				settings.DeterministicFinality, settings.InvokeExpression:
 				return false
+			default:
+				panic(fmt.Sprintf("unknown feature ID %d", featureID))
 			}
 		},
 		newestActivationHeightFunc: func(featureID int16) (uint64, error) {

@@ -38,7 +38,7 @@ const (
 /*
 Notes on InfluxDB schema design.
 
-Both tags and fields are key-value pairs but with one significant difference is that tags are automatically indexed.
+Both tags and fields are key-value pairs, but one significant difference is that tags are automatically indexed.
 Because fields are not being indexed, every query where InfluxDB is asked to find a specified field, it needs to
 sequentially scan every value of the field column. On the other hand, to index tags InfluxDB would try to construct an
 inverted index in memory, which would always be growing with the cardinality.
@@ -60,7 +60,7 @@ Tags containing highly variable information like unique IDs, hashes, and random 
 series, also known as high series cardinality.
 
 High series cardinality is a primary driver of high memory usage for many database workloads. InfluxDB uses
-measurements and tags to create indexes and speed up reads. However, when too many indexes created, both writes and
+measurements and tags to create indexes and speed up reads. However, when too many indexes are created, both writes and
 reads may start to slow down. Therefore, if a system has memory constraints, consider storing high-cardinality data as
 a field rather than a tag.
 

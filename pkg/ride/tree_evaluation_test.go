@@ -6438,11 +6438,11 @@ func TestCallVerifierWithThrow(t *testing.T) {
 		sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 
 		const src1 = `
-			{-# STDLIB_VERSION 7 #-}
-			{-# CONTENT_TYPE DAPP #-}
-			{-# SCRIPT_TYPE ACCOUNT #-}
-			@Verifier(tx)
-			func verify() = if (true) then throw("foo-bar-baz") else true`
+					{-# STDLIB_VERSION 7 #-}
+					{-# CONTENT_TYPE DAPP #-}
+					{-# SCRIPT_TYPE ACCOUNT #-}
+					@Verifier(tx)
+					func verify() = if (true) then throw("foo-bar-baz") else true`
 		tree1, errs := ridec.CompileToTree(src1)
 		require.Empty(t, errs)
 
