@@ -153,3 +153,48 @@ func (c *HTTPClient) RollbackToHeight(t testing.TB, height uint64, returnTxToUtx
 	require.NoErrorf(t, err, "failed to rollback to height on %s node", c.impl.String())
 	return blockID
 }
+
+func (c *HTTPClient) HeightFinalized(t testing.TB) proto.Height {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	h, _, err := c.cli.Blocks.HeightFinalized(ctx)
+	require.NoErrorf(t, err, "failed to get finalized height from %s node", c.impl.String())
+
+	return h
+}
+
+func (c *HTTPClient) BlockFinalized(t testing.TB) *proto.BlockHeader {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	header, _, err := c.cli.Blocks.BlockFinalized(ctx)
+	require.NoErrorf(t, err, "failed to get finalized header from %s node", c.impl.String())
+	require.NotNil(t, header, "finalized header is nil from %s node", c.impl.String())
+
+	return header
+}
+
+func (c *HTTPClient) CommitmentGeneratorsAt(t testing.TB, height proto.Height) []client.GeneratorInfoResponse {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	gens, _, err := c.cli.Generators.CommitmentGeneratorsAt(ctx, height)
+	require.NoErrorf(t, err, "failed to get generators at height %d from %s node", height, c.impl.String())
+
+	return gens
+}
+
+func (c *HTTPClient) SignCommit(
+	t testing.TB,
+	req *client.SignCommitRequest,
+) *proto.CommitToGenerationWithProofs {
+	ctx, cancel := context.WithTimeout(context.Background(), c.timeout)
+	defer cancel()
+
+	out, _, err := c.cli.Transactions.SignCommit(ctx, req)
+	require.NoErrorf(t, err, "failed to sign commit transaction on %s node", c.impl.String())
+
+	require.NotNil(t, out, "empty response from /transactions/sign on %s node", c.impl.String())
+	return out
+}

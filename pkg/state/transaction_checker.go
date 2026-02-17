@@ -1830,7 +1830,7 @@ func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint6
 	return safecast.Convert[uint32](s)
 }
 
-func currentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+func CurrentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
 	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 0)
 	if err != nil {
 		return 0, err

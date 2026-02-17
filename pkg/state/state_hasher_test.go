@@ -2,16 +2,17 @@ package state
 
 import (
 	"encoding/base64"
+	"encoding/binary"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
+	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
 func TestPushOneBlock(t *testing.T) {
@@ -206,6 +207,7 @@ func TestLegacyStateHashSupport(t *testing.T) {
 }
 
 func TestScalaCompatibility(t *testing.T) {
+	// Output from Scala test com/wavesplatform/state/StateHashSpec.scala:16
 	address := proto.MustAddressFromString("3My3KZgFQ3CrVHgz6vGRt8687sH4oAA1qp8")
 	address1 := proto.MustAddressFromString("3N5GRqzDBhjVXnCn44baHcz2GoZy5qLxtTh")
 	assetID := crypto.MustDigestFromBase58("9ekQuYn92natMnMq8KqeGK3Nn7cpKd3BvPEGgD6fFyyz")
@@ -373,10 +375,45 @@ func TestScalaCompatibility(t *testing.T) {
 				AliasesHash:       aliasHasher.stateHashAt(bID),
 			},
 			GeneratorsHash: generatorsHasher.stateHashAt(bID),
+			// EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr
+			GeneratorsBalancesHash: crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, 3000)),
 		},
 	}
 	prevHash := crypto.MustDigestFromBase58("46e2hSbVy6YNqx4GH2ZwJW66jMD6FgXzirAUHDD6mVGi")
 	err = sh.GenerateSumHash(prevHash.Bytes())
 	require.NoError(t, err)
-	assert.Equal(t, "3jiGZ5Wiyhm2tubLEgWgnh5eSSjJQqRnTXtMXE2y5HL8", sh.SumHash.String())
+	assert.Equal(t, "KdA4trKip6EpfUSzca42sLVqqjuHishcHDQZeYDC1Mo", sh.SumHash.String())
+}
+
+func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
+	so := createStorageObjects(t, true)
+	so.activateFeature(t, int16(settings.DeterministicFinality)) // add first block
+	featureActivationHeight, err := so.entities.features.newestActivationHeight(int16(settings.DeterministicFinality))
+	require.NoError(t, err)
+
+	pk, err := crypto.NewPublicKeyFromBase58("9BUoYQYq7K38mkk61q8aMH9kD9fKSVL1Fib7FbH6nUkQ")
+	require.NoError(t, err)
+	addr, err := proto.NewAddressFromPublicKey(so.settings.AddressSchemeCharacter, pk)
+	require.NoError(t, err)
+
+	bID := proto.NewBlockIDFromDigest(crypto.Digest{42})
+	const initialBalance = 3000
+	so.prepareAndStartBlock(t, bID) // prepare and start second block
+
+	blockHeight := so.rw.addingBlockHeight()
+	periodStart, err := CurrentGenerationPeriodStart(
+		featureActivationHeight, blockHeight, so.settings.GenerationPeriod,
+	)
+	require.NoError(t, err)
+	so.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0, 0}, bID)
+	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, bID)
+	require.NoError(t, err)
+
+	so.finishBlock(t, bID) // finish second block
+	// no flush, should be possible to calculate SH for unflushed data
+	sh, err := calculateCommittedGeneratorsBalancesStateHash(so.entities, true, blockHeight)
+	require.NoError(t, err)
+	// "EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr" —> value below
+	expectedSH := crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, initialBalance))
+	assert.Equal(t, expectedSH, sh)
 }

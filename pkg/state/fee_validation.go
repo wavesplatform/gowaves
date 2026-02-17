@@ -19,7 +19,7 @@ const (
 	exchangeFeeInFeeUnits               = 3
 	invokeFeeInFeeUnits                 = 5
 	scriptFeeInFeeUnits                 = 10
-	commitmentFeeInFeeUnits             = 100  // 0.1 Waves.
+	CommitmentFeeInFeeUnits             = 100  // 0.1 Waves.
 	oneWavesInFeeUnits                  = 1000 // 1 Waves.
 	scriptExtraFeeInFeeUnits            = 4
 	setScriptTransactionV6FeeInFeeUnits = 1
@@ -47,7 +47,7 @@ var feeConstants = map[proto.TransactionType]uint64{
 	proto.UpdateAssetInfoTransaction:    basicFeeInFeeUnits,
 	proto.EthereumMetamaskTransaction:   0, // Special case, should be handled with corresponding EthTxKind.
 	proto.InvokeExpressionTransaction:   invokeFeeInFeeUnits,
-	proto.CommitToGenerationTransaction: commitmentFeeInFeeUnits,
+	proto.CommitToGenerationTransaction: CommitmentFeeInFeeUnits,
 }
 
 type feeValidationParams struct {

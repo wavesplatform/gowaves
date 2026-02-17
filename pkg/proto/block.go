@@ -340,15 +340,16 @@ type BlockHeader struct {
 	RewardVote             int64        `json:"desiredReward"`
 	ConsensusBlockLength   uint32       `json:"-"`
 	NxtConsensus           `json:"nxt-consensus"`
-	TransactionBlockLength uint32            `json:"transactionBlockLength,omitempty"`
-	TransactionCount       int               `json:"transactionCount"`
-	GeneratorPublicKey     crypto.PublicKey  `json:"generatorPublicKey"`
-	BlockSignature         crypto.Signature  `json:"signature"`
-	TransactionsRoot       B58Bytes          `json:"transactionsRoot,omitempty"`
-	StateHash              *crypto.Digest    `json:"stateHash,omitempty"`        // is nil before protocol version 1.5
-	ChallengedHeader       *ChallengedHeader `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
-
-	ID BlockID `json:"id"` // this field must be generated and set after Block unmarshalling
+	TransactionBlockLength uint32              `json:"transactionBlockLength,omitempty"`
+	TransactionCount       int                 `json:"transactionCount"`
+	GeneratorPublicKey     crypto.PublicKey    `json:"generatorPublicKey"`
+	BlockSignature         crypto.Signature    `json:"signature"`
+	TransactionsRoot       B58Bytes            `json:"transactionsRoot,omitempty"`
+	StateHash              *crypto.Digest      `json:"stateHash,omitempty"`        // is nil before protocol version 1.5
+	ChallengedHeader       *ChallengedHeader   `json:"challengedHeader,omitempty"` // is nil before protocol version 1.5
+	FinalizationVoting     *FinalizationVoting `json:"finalizationVoting,omitempty"`
+	// This field must be generated and set after Block unmarshalling.
+	ID BlockID `json:"id"`
 }
 
 func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
@@ -360,6 +361,17 @@ func (b *BlockHeader) GetStateHash() (crypto.Digest, bool) {
 		sh = *b.StateHash
 	}
 	return sh, present
+}
+
+func (b *BlockHeader) GetFinalizationVoting() (FinalizationVoting, bool) {
+	var (
+		fv      FinalizationVoting
+		present = b.FinalizationVoting != nil
+	)
+	if present {
+		fv = *b.FinalizationVoting
+	}
+	return fv, present
 }
 
 func (b *BlockHeader) GetChallengedHeader() (ChallengedHeader, bool) {
@@ -469,6 +481,14 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 	if sh, present := b.GetStateHash(); present {
 		stateHash = sh.Bytes()
 	}
+	var finalizationVoting *g.FinalizationVoting
+	if fv, present := b.GetFinalizationVoting(); present {
+		var err error
+		finalizationVoting, err = fv.ToProtobuf()
+		if err != nil {
+			return nil, err
+		}
+	}
 	return &g.Block_Header{
 		ChainId:             int32(scheme),
 		Reference:           b.Parent.Bytes(),
@@ -482,6 +502,7 @@ func (b *BlockHeader) HeaderToProtobufHeader(scheme Scheme) (*g.Block_Header, er
 		TransactionsRoot:    b.TransactionsRoot,
 		StateHash:           stateHash,
 		ChallengedHeader:    challengedHeader,
+		FinalizationVoting:  finalizationVoting,
 	}, nil
 }
 
@@ -564,7 +585,6 @@ func (b *BlockHeader) MarshalHeaderToBinary() ([]byte, error) {
 	}
 	res = append(res, b.GeneratorPublicKey[:]...)
 	res = append(res, b.BlockSignature[:]...)
-
 	return res, nil
 }
 
@@ -1001,6 +1021,7 @@ func CreateBlock(
 	rewardVote int64,
 	scheme Scheme,
 	stateHash *crypto.Digest,
+	blockFinalizationVoting *FinalizationVoting,
 ) (*Block, error) {
 	consensusLength := nxtConsensus.BinarySize()
 	b := &Block{
@@ -1016,6 +1037,7 @@ func CreateBlock(
 			TransactionCount:     transactions.Count(),
 			GeneratorPublicKey:   publicKey,
 			StateHash:            stateHash,
+			FinalizationVoting:   blockFinalizationVoting,
 		},
 		Transactions: transactions,
 	}

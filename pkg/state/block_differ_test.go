@@ -49,6 +49,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 		-1,
 		proto.TestNetScheme,
 		nil,
+		nil,
 	)
 	require.NoError(t, err, "CreateBlock() failed")
 	err = parent.Sign(proto.TestNetScheme, testGlobal.matcherInfo.sk)
@@ -68,6 +69,7 @@ func genBlocks(t *testing.T, to *blockDifferTestObjects) (*proto.Block, *proto.B
 		nil,
 		-1,
 		proto.TestNetScheme,
+		nil,
 		nil,
 	)
 	require.NoError(t, err, "CreateBlock() failed")
@@ -208,6 +210,7 @@ func genBlockWithSingleTransaction(t *testing.T, prevID proto.BlockID, prevGenSi
 		nil,
 		-1,
 		proto.TestNetScheme,
+		nil,
 		nil,
 	)
 	require.NoError(t, err)

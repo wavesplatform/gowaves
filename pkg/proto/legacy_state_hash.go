@@ -38,29 +38,63 @@ func EmptyLegacyStateHash(finalityActivated bool) StateHash {
 	return &StateHashV1{}
 }
 
+type LegacyStateHashParams struct {
+	v2Params struct {
+		areSet                 bool
+		generatorsHash         crypto.Digest
+		generatorsBalancesHash crypto.Digest
+	}
+}
+
+type LegacyStateHashOption func(*LegacyStateHashParams)
+
+func LegacyStateHashV2Opt(generatorsHash, generatorsBalancesHash crypto.Digest) LegacyStateHashOption {
+	return func(params *LegacyStateHashParams) {
+		params.v2Params = struct {
+			areSet                 bool
+			generatorsHash         crypto.Digest
+			generatorsBalancesHash crypto.Digest
+		}{
+			areSet:                 true,
+			generatorsHash:         generatorsHash,
+			generatorsBalancesHash: generatorsBalancesHash,
+		}
+	}
+}
+
+type LegacyStateHashFeatureActivated struct {
+	_                 struct{}
+	FinalityActivated bool
+}
+
 // NewLegacyStateHash creates a new legacy StateHash depending on whether
 // the Deterministic Finality feature is activated.
-// If generatorsHash in not provided but finalityActivated is true, it will be set to zero value.
+// When finality is activated, both generatorsHash and generatorsBalancesHash must be provided
+// via LegacyStateHashV2Opt, otherwise NewLegacyStateHash returns an error.
 func NewLegacyStateHash(
-	finalityActivated bool, blockID BlockID, fh FieldsHashesV1, generatorsHash ...crypto.Digest,
-) StateHash {
-	if finalityActivated {
-		var gh crypto.Digest
-		if len(generatorsHash) > 0 {
-			gh = generatorsHash[0]
+	blockID BlockID, fh FieldsHashesV1, f LegacyStateHashFeatureActivated, option ...LegacyStateHashOption,
+) (StateHash, error) {
+	var p LegacyStateHashParams
+	for _, opt := range option {
+		opt(&p)
+	}
+	if f.FinalityActivated {
+		if !p.v2Params.areSet {
+			return nil, fmt.Errorf("params for StateHashV2 are not set, but finality feature is activated")
 		}
 		return &StateHashV2{
 			BlockID: blockID,
 			FieldsHashesV2: FieldsHashesV2{
-				FieldsHashesV1: fh,
-				GeneratorsHash: gh,
+				FieldsHashesV1:         fh,
+				GeneratorsHash:         p.v2Params.generatorsHash,
+				GeneratorsBalancesHash: p.v2Params.generatorsBalancesHash,
 			},
-		}
+		}, nil
 	}
 	return &StateHashV1{
 		BlockID:        blockID,
 		FieldsHashesV1: fh,
-	}
+	}, nil
 }
 
 // FieldsHashesV1 is set of hashes fields for the legacy StateHashV1.
@@ -200,14 +234,16 @@ func (s *FieldsHashesV1) ReadFrom(r io.Reader) (int64, error) {
 }
 
 // FieldsHashesV2 is set of hashes fields for the legacy StateHashV2.
-// It's a FieldsHashesV1 with an additional GeneratorsHash field.
+// It's a FieldsHashesV1 with additional GeneratorsHash and GeneratorsBalancesHash fields.
 type FieldsHashesV2 struct {
 	FieldsHashesV1
-	GeneratorsHash crypto.Digest
+	GeneratorsHash         crypto.Digest
+	GeneratorsBalancesHash crypto.Digest
 }
 
 func (s *FieldsHashesV2) Equal(other FieldsHashesV2) bool {
-	return s.FieldsHashesV1.Equal(other.FieldsHashesV1) && s.GeneratorsHash == other.GeneratorsHash
+	return s.FieldsHashesV1.Equal(other.FieldsHashesV1) && s.GeneratorsHash == other.GeneratorsHash &&
+		s.GeneratorsBalancesHash == other.GeneratorsBalancesHash
 }
 
 func (s FieldsHashesV2) MarshalJSON() ([]byte, error) {
@@ -223,7 +259,8 @@ func (s FieldsHashesV2) MarshalJSON() ([]byte, error) {
 			SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
 			AliasesHash:       DigestWrapped(s.AliasesHash),
 		},
-		GeneratorsHash: DigestWrapped(s.GeneratorsHash),
+		GeneratorsHash:         DigestWrapped(s.GeneratorsHash),
+		GeneratorsBalancesHash: DigestWrapped(s.GeneratorsBalancesHash),
 	})
 }
 
@@ -242,25 +279,34 @@ func (s *FieldsHashesV2) UnmarshalJSON(value []byte) error {
 	s.SponsorshipHash = crypto.Digest(sh.SponsorshipHash)
 	s.AliasesHash = crypto.Digest(sh.AliasesHash)
 	s.GeneratorsHash = crypto.Digest(sh.GeneratorsHash)
+	s.GeneratorsBalancesHash = crypto.Digest(sh.GeneratorsBalancesHash)
 	return nil
 }
 
 func (s *FieldsHashesV2) WriteTo(w io.Writer) (int64, error) {
-	n, err := s.FieldsHashesV1.WriteTo(w)
+	fh1Size, err := s.FieldsHashesV1.WriteTo(w)
 	if err != nil {
-		return n, err
+		return fh1Size, err
 	}
-	m, err := w.Write(s.GeneratorsHash[:])
-	return n + int64(m), err
+	ghSize, err := w.Write(s.GeneratorsHash[:])
+	if err != nil {
+		return fh1Size + int64(ghSize), err
+	}
+	gbhSize, err := w.Write(s.GeneratorsBalancesHash[:])
+	return fh1Size + int64(ghSize) + int64(gbhSize), err
 }
 
 func (s *FieldsHashesV2) ReadFrom(r io.Reader) (int64, error) {
-	n, err := s.FieldsHashesV1.ReadFrom(r)
+	fh1Size, err := s.FieldsHashesV1.ReadFrom(r)
 	if err != nil {
-		return n, err
+		return fh1Size, err
 	}
-	m, err := io.ReadFull(r, s.GeneratorsHash[:])
-	return n + int64(m), err
+	ghSize, err := io.ReadFull(r, s.GeneratorsHash[:])
+	if err != nil {
+		return fh1Size + int64(ghSize), err
+	}
+	gbhSize, err := io.ReadFull(r, s.GeneratorsBalancesHash[:])
+	return fh1Size + int64(ghSize) + int64(gbhSize), err
 }
 
 // StateHashV1 is the legacy state hash structure used prior the activation of Deterministic Finality feature.
@@ -430,6 +476,7 @@ func (s *StateHashV2) UnmarshalJSON(value []byte) error {
 	s.AssetBalanceHash = crypto.Digest(sh.AssetBalanceHash)
 	s.LeaseBalanceHash = crypto.Digest(sh.LeaseBalanceHash)
 	s.GeneratorsHash = crypto.Digest(sh.GeneratorsHash)
+	s.GeneratorsBalancesHash = crypto.Digest(sh.GeneratorsBalancesHash)
 	return nil
 }
 
@@ -486,7 +533,8 @@ func (s *StateHashV2) toStateHashJS() stateHashJSV2 {
 				SponsorshipHash:   DigestWrapped(s.SponsorshipHash),
 				AliasesHash:       DigestWrapped(s.AliasesHash),
 			},
-			GeneratorsHash: DigestWrapped(s.GeneratorsHash),
+			GeneratorsHash:         DigestWrapped(s.GeneratorsHash),
+			GeneratorsBalancesHash: DigestWrapped(s.GeneratorsBalancesHash),
 		},
 	}
 }
@@ -607,7 +655,8 @@ func (s StateHashDebugV2) GetStateHash() StateHash {
 				SponsorshipHash:   crypto.Digest(s.SponsorshipHash),
 				AliasesHash:       crypto.Digest(s.AliasesHash),
 			},
-			GeneratorsHash: crypto.Digest(s.GeneratorsHash),
+			GeneratorsHash:         crypto.Digest(s.GeneratorsHash),
+			GeneratorsBalancesHash: crypto.Digest(s.GeneratorsBalancesHash),
 		},
 	}
 	return sh
@@ -659,7 +708,8 @@ type fieldsHashesJSV1 struct {
 
 type fieldsHashesJSV2 struct {
 	fieldsHashesJSV1
-	GeneratorsHash DigestWrapped `json:"nextCommittedGeneratorsHash"`
+	GeneratorsHash         DigestWrapped `json:"nextCommittedGeneratorsHash"`
+	GeneratorsBalancesHash DigestWrapped `json:"committedGeneratorBalancesHash"`
 }
 
 type stateHashJSV1 struct {

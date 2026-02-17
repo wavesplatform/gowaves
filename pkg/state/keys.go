@@ -137,6 +137,8 @@ const (
 	challengedAddressKeyPrefix
 	// Key to store and retrieve generator's commitments for a specific generation period.
 	commitmentKeyPrefix
+	// Key to store and retrieve last finalization record.
+	finalizationKeyPrefix
 )
 
 var (
@@ -204,6 +206,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{challengedAddressKeyPrefix}, nil
 	case commitment:
 		return []byte{commitmentKeyPrefix}, nil
+	case finalization:
+		return []byte{finalizationKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}
@@ -775,4 +779,10 @@ func (k *commitmentKey) bytes() []byte {
 	buf[0] = commitmentKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.periodStart)
 	return buf
+}
+
+type finalizationKey struct{}
+
+func (k finalizationKey) bytes() []byte {
+	return []byte{finalizationKeyPrefix}
 }
