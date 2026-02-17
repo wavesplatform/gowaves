@@ -10,9 +10,9 @@ DEB_HASH=$(shell git rev-parse HEAD)
 
 export GO111MODULE=on
 
-.PHONY: vendor vetcheck fmtcheck clean build gotest update-go-deps
+.PHONY: vendor vetcheck modernize-check fmtcheck clean build gotest update-go-deps
 
-all: vendor vetcheck fmtcheck gotest mod-clean build-node-native
+all: vendor vetcheck modernize-check fmtcheck gotest mod-clean build-node-native
 
 ci: vendor vetcheck fmtcheck release-node build-importer-native gotest-race-coverage mod-clean
 
@@ -70,6 +70,12 @@ vetcheck:
 	go vet ./...
 	golangci-lint run -c .golangci.yml
 	golangci-lint run -c .golangci-strict.yml --new-from-rev=origin/master
+
+modernize-check:
+	@bash -lc 'set -o pipefail; \
+	output=$$(go run golang.org/x/tools/go/analysis/passes/modernize/cmd/modernize@latest ./... 2>&1 | \
+		grep -vE "\.(pb|gen)\.go|mock|_string.go|^exit status|^go: downloading"); \
+	[ -n "$$output" ] && { echo "$$output"; exit 1; } || exit 0;'
 
 strict-vet-check:
 	golangci-lint run -c .golangci-strict.yml
