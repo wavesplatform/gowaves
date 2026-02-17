@@ -112,7 +112,7 @@ func (a *NGState) Score(p peer.Peer, score *proto.Score) (State, Async, error) {
 
 func (a *NGState) rollbackToStateFromCache(blockFromCache *proto.Block) error {
 	previousBlockID := blockFromCache.Parent
-	err := a.baseInfo.storage.RollbackTo(previousBlockID)
+	err := a.baseInfo.storage.RollbackTo(previousBlockID, true)
 	if err != nil {
 		return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
 			previousBlockID.String(), blockFromCache.ID.String())
@@ -143,7 +143,7 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 	a.baseInfo.logger.Debug("Re-applying block from cache", "state", a.String(),
 		"blockID", blockFromCache.ID.String())
 	previousBlockID := blockFromCache.Parent
-	err := a.baseInfo.storage.RollbackTo(previousBlockID)
+	err := a.baseInfo.storage.RollbackTo(previousBlockID, true)
 	if err != nil {
 		return errors.Wrapf(err, "failed to rollback to parent block '%s' of cached block '%s'",
 			previousBlockID.String(), blockFromCache.ID.String())

@@ -1468,31 +1468,31 @@ func (mr *MockStateModifierMockRecorder) ResetValidationList() *gomock.Call {
 }
 
 // RollbackTo mocks base method.
-func (m *MockStateModifier) RollbackTo(removalEdge proto.BlockID) error {
+func (m *MockStateModifier) RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackTo", removalEdge)
+	ret := m.ctrl.Call(m, "RollbackTo", removalEdge, isAutoRollback)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RollbackTo indicates an expected call of RollbackTo.
-func (mr *MockStateModifierMockRecorder) RollbackTo(removalEdge interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) RollbackTo(removalEdge, isAutoRollback interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackTo", reflect.TypeOf((*MockStateModifier)(nil).RollbackTo), removalEdge)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackTo", reflect.TypeOf((*MockStateModifier)(nil).RollbackTo), removalEdge, isAutoRollback)
 }
 
 // RollbackToHeight mocks base method.
-func (m *MockStateModifier) RollbackToHeight(height proto.Height) error {
+func (m *MockStateModifier) RollbackToHeight(height proto.Height, isAutoRollback bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackToHeight", height)
+	ret := m.ctrl.Call(m, "RollbackToHeight", height, isAutoRollback)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RollbackToHeight indicates an expected call of RollbackToHeight.
-func (mr *MockStateModifierMockRecorder) RollbackToHeight(height interface{}) *gomock.Call {
+func (mr *MockStateModifierMockRecorder) RollbackToHeight(height, isAutoRollback interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackToHeight", reflect.TypeOf((*MockStateModifier)(nil).RollbackToHeight), height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackToHeight", reflect.TypeOf((*MockStateModifier)(nil).RollbackToHeight), height, isAutoRollback)
 }
 
 // StartProvidingExtendedApi mocks base method.
@@ -2685,31 +2685,31 @@ func (mr *MockStateMockRecorder) RewardVotes(height interface{}) *gomock.Call {
 }
 
 // RollbackTo mocks base method.
-func (m *MockState) RollbackTo(removalEdge proto.BlockID) error {
+func (m *MockState) RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackTo", removalEdge)
+	ret := m.ctrl.Call(m, "RollbackTo", removalEdge, isAutoRollback)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RollbackTo indicates an expected call of RollbackTo.
-func (mr *MockStateMockRecorder) RollbackTo(removalEdge interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) RollbackTo(removalEdge, isAutoRollback interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackTo", reflect.TypeOf((*MockState)(nil).RollbackTo), removalEdge)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackTo", reflect.TypeOf((*MockState)(nil).RollbackTo), removalEdge, isAutoRollback)
 }
 
 // RollbackToHeight mocks base method.
-func (m *MockState) RollbackToHeight(height proto.Height) error {
+func (m *MockState) RollbackToHeight(height proto.Height, isAutoRollback bool) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RollbackToHeight", height)
+	ret := m.ctrl.Call(m, "RollbackToHeight", height, isAutoRollback)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // RollbackToHeight indicates an expected call of RollbackToHeight.
-func (mr *MockStateMockRecorder) RollbackToHeight(height interface{}) *gomock.Call {
+func (mr *MockStateMockRecorder) RollbackToHeight(height, isAutoRollback interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackToHeight", reflect.TypeOf((*MockState)(nil).RollbackToHeight), height)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RollbackToHeight", reflect.TypeOf((*MockState)(nil).RollbackToHeight), height, isAutoRollback)
 }
 
 // ScoreAtHeight mocks base method.

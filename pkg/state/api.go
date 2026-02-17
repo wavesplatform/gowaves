@@ -189,8 +189,8 @@ type StateModifier interface {
 	AddDeserializedBlocks(blocks []*proto.Block) (*proto.Block, error)
 	AddDeserializedBlocksWithSnapshots(blocks []*proto.Block, snapshots []*proto.BlockSnapshot) (*proto.Block, error)
 	// Rollback functionality.
-	RollbackToHeight(height proto.Height) error
-	RollbackTo(removalEdge proto.BlockID) error
+	RollbackToHeight(height proto.Height, isAutoRollback bool) error
+	RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error
 
 	// CreateNextSnapshotHash creates snapshot hash for next block in the context of current state.
 	// It also temporary modifies internal state.
