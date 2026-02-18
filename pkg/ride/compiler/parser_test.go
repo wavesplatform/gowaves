@@ -492,9 +492,10 @@ Type #comment
 }
 
 func TestHugeScript(t *testing.T) {
-	sb := strings.Builder{}
+	sb := new(strings.Builder)
 	for i := range 10000 {
-		sb.WriteString(fmt.Sprintf("let i%d = true\n", i))
+		_, err := fmt.Fprintf(sb, "let i%d = true\n", i)
+		require.Nil(t, err)
 	}
 	sb.WriteString("i9999\n")
 	ast, _, err := buildAST(t, sb.String(), false)
