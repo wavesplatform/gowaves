@@ -127,15 +127,16 @@ func provenPart(
 		)
 	}
 	rnd := rand.Uint32()
-	var proofsChecks strings.Builder
+	proofsChecks := new(strings.Builder)
 	if ops.checkProofs {
 		for i := range proofsArr {
 			bv, okP := proofsArr[i].(rideByteVector)
 			require.Truef(t, okP, "proofs[%d] is not rideByteVector, but %T", i, proofsArr[i])
 			num := int(rnd) + i
-			proofsChecks.WriteString(fmt.Sprintf("strict proof%d = %s.proofs[%d] == %s || throw(\"proof[%d] mismatch\")\n",
+			_, fErr := fmt.Fprintf(proofsChecks, "strict proof%d = %s.proofs[%d] == %s || throw(\"proof[%d] mismatch\")\n",
 				num, ops.txVarName, i, bv.String(), i,
-			))
+			)
+			require.NoError(t, fErr)
 		}
 	}
 	return fmt.Sprintf(`

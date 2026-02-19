@@ -3,7 +3,7 @@ module github.com/wavesplatform/gowaves
 go 1.25.0
 
 require (
-	filippo.io/edwards25519 v1.1.0
+	filippo.io/edwards25519 v1.2.0
 	github.com/beevik/ntp v1.5.0
 	github.com/btcsuite/btcd/btcec/v2 v2.3.6
 	github.com/ccoveille/go-safecast/v2 v2.0.0

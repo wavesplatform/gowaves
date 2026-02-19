@@ -35,17 +35,18 @@ func parseECDSAPublicKey(data []byte) (*ecdsa.PublicKey, error) {
 	if len(data) != P256RawPubKeySize {
 		return nil, errors.New("invalid public key size, expected 64-byte raw format (X||Y)")
 	}
-	x := new(big.Int).SetBytes(data[0:32])
-	y := new(big.Int).SetBytes(data[32:64])
+
+	// Convert raw public key into uncompressed format.
+	pkb := make([]byte, P256RawPubKeySize+1)
+	pkb[0] = 0x04 // Uncompressed point format identifier.
+	copy(pkb[1:], data)
 
 	curve := elliptic.P256()
-	if x.Sign() == 0 && y.Sign() == 0 {
-		return nil, errors.New("invalid public key, point at infinity / zero not allowed")
+	pk, err := ecdsa.ParseUncompressedPublicKey(curve, pkb)
+	if err != nil {
+		return nil, fmt.Errorf("invalid public key: %w", err)
 	}
-	if !curve.IsOnCurve(x, y) {
-		return nil, errors.New("invalid public key, point is not on P-256 curve")
-	}
-	return &ecdsa.PublicKey{Curve: curve, X: x, Y: y}, nil
+	return pk, nil
 }
 
 func parseECDSASignature(signature []byte) (*big.Int, *big.Int, error) {

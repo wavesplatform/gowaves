@@ -9,6 +9,8 @@ import (
 	"io"
 	"strconv"
 
+	"github.com/ccoveille/go-safecast/v2"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 )
 
@@ -732,7 +734,11 @@ func (id SizedBlockID) WriteTo(w io.Writer) (int64, error) {
 	if l == 0 {
 		return 0, errors.New("invalid BlockID")
 	}
-	n, err := w.Write([]byte{byte(l)})
+	bl, err := safecast.Convert[byte](l)
+	if err != nil {
+		return 0, fmt.Errorf("invalid BlockID length: %w", err)
+	}
+	n, err := w.Write([]byte{bl})
 	if err != nil {
 		return int64(n), err
 	}
