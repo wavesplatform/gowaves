@@ -1450,8 +1450,18 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 	currentBlockID proto.BlockID,
 	finalityActivated bool,
 ) (proto.Height, error) {
+	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(height)
+
 	storedFinalizedHeight, err := f.stor.finalizations.newest()
 	if err == nil {
+		if storedFinalizedHeight < calculatedFinalizedHeight {
+			if finalityActivated {
+				if storErr := f.stor.finalizations.store(calculatedFinalizedHeight, currentBlockID); storErr != nil {
+					return 0, storErr
+				}
+			}
+			return calculatedFinalizedHeight, nil
+		}
 		return storedFinalizedHeight, nil
 	}
 	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
@@ -1459,7 +1469,7 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 	}
 
 	// No finalization found, calculate it, and, if finality activated - initialize it.
-	initH := proto.CalculateLastFinalizedHeight(height)
+	initH := calculatedFinalizedHeight
 	if finalityActivated {
 		if storErr := f.stor.finalizations.store(initH, currentBlockID); storErr != nil {
 			return 0, storErr

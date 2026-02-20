@@ -378,6 +378,37 @@ func TestRollbackToHeight_ManualRollbackBelowFinalizedHeightSucceeds(t *testing.
 	require.Equal(t, proto.Height(finalizedHeight-1), h)
 }
 
+func TestLastFinalizedHeight_UsesProtocolLowerBoundWhenStoredValueIsStale(t *testing.T) {
+	blocksPath, err := blocksPath()
+	require.NoError(t, err)
+
+	sets := settings.MustMainNetSettings()
+	sets.PreactivatedFeatures = append(sets.PreactivatedFeatures, int16(settings.DeterministicFinality))
+	manager := newTestStateManager(t, true, DefaultTestingStateParams(), sets)
+
+	const (
+		importHeight    = 160
+		finalizedHeight = 1
+	)
+	err = importer.ApplyFromFile(
+		t.Context(),
+		importer.ImportParams{Schema: sets.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
+		manager, importHeight-1, 1,
+	)
+	require.NoError(t, err)
+
+	topBlockID, err := manager.HeightToBlockID(importHeight)
+	require.NoError(t, err)
+	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
+	require.NoError(t, err)
+	err = manager.flush()
+	require.NoError(t, err)
+
+	lastFinalizedHeight, err := manager.LastFinalizedHeight()
+	require.NoError(t, err)
+	require.Equal(t, proto.Height(importHeight-100), lastFinalizedHeight)
+}
+
 func TestStateIntegrated(t *testing.T) {
 	dir, err := getLocalDir()
 	if err != nil {
