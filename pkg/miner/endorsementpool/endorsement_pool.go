@@ -287,6 +287,11 @@ func (cache *EndorsementIDsCache) RememberEndorsement(id crypto.Digest) {
 	cache.order = append(cache.order, id)
 }
 
+func (cache *EndorsementIDsCache) Clear() {
+	cache.ids = make(map[crypto.Digest]struct{})
+	cache.order = nil
+}
+
 func (p *EndorsementPool) SaveBlockGenerator(blockGenerator *crypto.PublicKey) {
 	p.mu.Lock()
 	defer p.mu.Unlock()

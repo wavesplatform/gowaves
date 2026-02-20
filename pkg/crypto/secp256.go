@@ -1,3 +1,4 @@
+//nolint:revive // Package name is part of public API and intentionally kept as crypto.
 package crypto
 
 import (
