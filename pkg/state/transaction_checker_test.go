@@ -1696,7 +1696,7 @@ func TestGenerationPeriodStart(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			currStart, currErr := CurrentGenerationPeriodStart(test.activation, test.height, test.length)
-			nextStart, nextErr := nextGenerationPeriodStart(test.activation, test.height, test.length)
+			nextStart, nextErr := NextGenerationPeriodStart(test.activation, test.height, test.length)
 			err := errors.Join(currErr, nextErr)
 			if test.failed {
 				assert.EqualError(t, err, test.err)

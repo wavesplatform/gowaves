@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"strings"
@@ -20,7 +21,6 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
-	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const apiKey = "X-API-Key"
@@ -154,9 +154,9 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 func TestNodeApi_TransactionSignCommitToGeneration(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	st := mock.NewMockState(ctrl)
-	st.EXPECT().IsActivated(int16(settings.DeterministicFinality)).Return(true, nil)
-	st.EXPECT().Height().Return(proto.Height(252), nil)
-	st.EXPECT().ActivationHeight(int16(settings.DeterministicFinality)).Return(proto.Height(1), nil)
+	st.EXPECT().IsActivated(int16(settings.DeterministicFinality)).Return(true, nil).AnyTimes()
+	st.EXPECT().ActivationHeight(int16(settings.DeterministicFinality)).Return(proto.Height(1), nil).AnyTimes()
+	st.EXPECT().Height().Return(proto.Height(252), nil).AnyTimes()
 
 	w := newTestWallet(t)
 
@@ -173,24 +173,41 @@ func TestNodeApi_TransactionSignCommitToGeneration(t *testing.T) {
 
 	api := NewNodeAPI(app, st)
 
-	body := `{"periodHeight":252,"type":19,"sender":"3JbGqxNqwBfwnCbzLbo4HwjA9NR1wDjrRTr","version":1}`
-	req := httptest.NewRequest(http.MethodPost, "/transactions/sign", strings.NewReader(body))
-	resp := httptest.NewRecorder()
+	// Request generation of commitment transaction for the specific period start.
+	for i, test := range []struct {
+		periodStart   uint32 // Zero means no period start provided in the request.
+		expectedStart uint32
+	}{
+		{periodStart: 202, expectedStart: 202},
+		{periodStart: 200, expectedStart: 200},
+		{periodStart: 252, expectedStart: 252},
+		{periodStart: 0, expectedStart: 302},
+	} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			body := fmt.Sprintf(
+				`{"generationPeriodStart":%d,"type":19,"sender":"3JbGqxNqwBfwnCbzLbo4HwjA9NR1wDjrRTr","version":1}`,
+				test.periodStart,
+			)
+			if test.periodStart == 0 {
+				body = `{"type":19,"sender":"3JbGqxNqwBfwnCbzLbo4HwjA9NR1wDjrRTr","version":1}`
+			}
+			req := httptest.NewRequest(http.MethodPost, "/transactions/sign", strings.NewReader(body))
+			resp := httptest.NewRecorder()
 
-	aErr := api.transactionSign(resp, req)
-	require.NoError(t, aErr)
-	assert.Equal(t, http.StatusOK, resp.Code)
+			aErr := api.transactionSign(resp, req)
+			require.NoError(t, aErr)
+			assert.Equal(t, http.StatusOK, resp.Code)
 
-	var signed proto.CommitToGenerationWithProofs
-	require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &signed))
+			// NOTE: Because of the mock wallet used in the test, we don't sign the transaction and no ID is generated.
+			var signed proto.CommitToGenerationWithProofs
+			require.NoError(t, json.Unmarshal(resp.Body.Bytes(), &signed))
 
-	assert.Equal(t, proto.CommitToGenerationTransaction, signed.Type)
-	assert.EqualValues(t, 1, signed.Version)
-	assert.Equal(t, w.blsPk, signed.EndorserPublicKey)
-
-	expectedPeriodStart, err := state.CurrentGenerationPeriodStart(1, 252, cfg.GenerationPeriod)
-	require.NoError(t, err)
-	assert.Equal(t, expectedPeriodStart, signed.GenerationPeriodStart)
+			assert.Equal(t, proto.CommitToGenerationTransaction, signed.Type)
+			assert.EqualValues(t, 1, signed.Version)
+			assert.Equal(t, w.blsPk, signed.EndorserPublicKey)
+			assert.Equal(t, test.expectedStart, signed.GenerationPeriodStart)
+		})
+	}
 }
 
 type testWallet struct {
