@@ -9,6 +9,7 @@ import (
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/util/common"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1765,9 +1766,9 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to get DeterministicFinality activation height")
 	}
-	// Check that nextGenerationPeriodStart is a start of the current or next generation period.
+	// Check that NextGenerationPeriodStart is a start of the current or next generation period.
 	blockHeight := info.blockchainHeight + 1
-	nextPeriodStart, err := nextGenerationPeriodStart(activationHeight, blockHeight, tc.settings.GenerationPeriod)
+	nextPeriodStart, err := NextGenerationPeriodStart(activationHeight, blockHeight, tc.settings.GenerationPeriod)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to calculate next generation period start")
 	}
@@ -1780,7 +1781,7 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 	if adErr != nil {
 		return txCheckerData{}, fmt.Errorf("failed to get address from public key: %w", adErr)
 	}
-	// Check that the sender has no other CommitToGeneration transaction with the same nextGenerationPeriodStart.
+	// Check that the sender has no other CommitToGeneration transaction with the same NextGenerationPeriodStart.
 	exist, err := tc.stor.commitments.newestExists(tx.GenerationPeriodStart, tx.SenderPK, tx.EndorserPublicKey)
 	if err != nil {
 		return txCheckerData{}, errors.Wrap(err, "failed to check existing commitment for the sender")
@@ -1819,10 +1820,10 @@ func (tc *transactionChecker) checkCommitToGenerationWithProofs(
 	return txCheckerData{}, nil
 }
 
-// nextGenerationPeriodStart returns the start height of the next generation period given the current block height,
+// NextGenerationPeriodStart returns the start height of the next generation period given the current block height,
 // the feature activation height and the period length.
 // If the block height is less than the activation height, an error is returned.
-func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
+func NextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
 	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 1)
 	if err != nil {
 		return 0, err
@@ -1830,6 +1831,7 @@ func nextGenerationPeriodStart(activationHeight, blockHeight, periodLength uint6
 	return safecast.Convert[uint32](s)
 }
 
+// CurrentGenerationPeriodStart returns the start height of the current generation period for the given block height.
 func CurrentGenerationPeriodStart(activationHeight, blockHeight, periodLength uint64) (uint32, error) {
 	s, err := generationPeriodStart(activationHeight, blockHeight, periodLength, 0)
 	if err != nil {
