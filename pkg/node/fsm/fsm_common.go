@@ -44,6 +44,10 @@ func eventArgsTypes(event stateless.Trigger) []reflect.Type {
 		return []reflect.Type{
 			reflect.TypeFor[*Async](), reflect.TypeFor[peer.Peer](), reflect.TypeFor[*proto.Block](),
 		}
+	case BlockEndorsementEvent:
+		return []reflect.Type{
+			reflect.TypeFor[*Async](), reflect.TypeFor[*proto.EndorseBlock](),
+		}
 	case MinedBlockEvent:
 		return []reflect.Type{
 			reflect.TypeFor[*Async](), reflect.TypeFor[*proto.Block](), reflect.TypeFor[proto.MiningLimits](),

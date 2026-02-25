@@ -141,3 +141,11 @@ func (s *stateHasher) reset() {
 	s.hashes = make(map[proto.BlockID]crypto.Digest)
 	s.storage.reset()
 }
+
+func (s *stateHasher) pop(key string, blockID proto.BlockID) error {
+	if err := s.checkNewBlock(blockID); err != nil {
+		return err
+	}
+	s.storage.remove(key)
+	return nil
+}

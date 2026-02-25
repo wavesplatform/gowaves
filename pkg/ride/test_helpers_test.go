@@ -412,7 +412,11 @@ func (e *testEnv) withBlock(blockInfo *proto.BlockInfo) *testEnv {
 		if err != nil {
 			panic(err)
 		}
-		return blockInfoToObject(blockInfo, v)
+		bi, err := blockInfoToObject(blockInfo, v)
+		if err != nil {
+			panic(err)
+		}
+		return bi
 	}
 	e.ms.AddingBlockHeightFunc = func() (uint64, error) {
 		return blockInfo.Height, nil

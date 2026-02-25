@@ -15,6 +15,7 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/client"
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/logging"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
@@ -43,10 +44,10 @@ func checkAndUpdateURL(s string) (string, error) {
 	return u.String(), nil
 }
 
-func loadStateHash(ctx context.Context, cl *client.Client, height uint64, tries int) (*proto.StateHash, error) {
+func loadStateHash(ctx context.Context, cl *client.Client, height uint64, tries int) (proto.StateHash, error) {
 	ctx, cancel := context.WithTimeout(ctx, 60*time.Second)
 	defer cancel()
-	var sh *proto.StateHash
+	var sh proto.StateHash
 	var err error
 	for range tries {
 		sh, _, err = cl.Debug.StateHash(ctx, height)
@@ -61,12 +62,12 @@ type printer struct {
 	lock sync.Mutex
 }
 
-func (p *printer) printDifferentResults(height uint64, res map[proto.FieldsHashes]*nodesGroup) {
+func (p *printer) printDifferentResults(height uint64, res map[crypto.Digest]*nodesGroup) {
 	p.lock.Lock()
 	defer p.lock.Unlock()
 
-	for fh, nodes := range res {
-		hashJs, err := json.Marshal(fh)
+	for sh, nodes := range res {
+		hashJs, err := json.Marshal(sh)
 		if err != nil {
 			panic(err)
 		}
@@ -76,7 +77,7 @@ func (p *printer) printDifferentResults(height uint64, res map[proto.FieldsHashe
 }
 
 type stateHashInfo struct {
-	hash *proto.StateHash
+	sh   proto.StateHash
 	node string
 }
 
@@ -87,12 +88,13 @@ type hashResult struct {
 
 type nodesGroup struct {
 	nodes []string
+	sh    proto.StateHash
 }
 
-func newNodesGroup(first string) *nodesGroup {
+func newNodesGroup(first string, sh proto.StateHash) *nodesGroup {
 	nodes := make([]string, 1)
 	nodes[0] = first
-	return &nodesGroup{nodes: nodes}
+	return &nodesGroup{nodes: nodes, sh: sh}
 }
 
 func (ng *nodesGroup) addNode(node string) {
@@ -112,7 +114,7 @@ func manageHeight(
 			sh, err := loadStateHash(ctx, cl, height, tries)
 			res := hashResult{
 				res: stateHashInfo{
-					hash: sh,
+					sh:   sh,
 					node: node,
 				},
 				err: err,
@@ -120,19 +122,19 @@ func manageHeight(
 			results <- res
 		}(cl, node)
 	}
-	differentResults := make(map[proto.FieldsHashes]*nodesGroup)
+	differentResults := make(map[crypto.Digest]*nodesGroup)
 	for range clients {
 		hr := <-results
 		if hr.err != nil {
 			cancel()
 			return hr.err
 		}
-		fh := hr.res.hash.FieldsHashes
-		nodesGroup, ok := differentResults[fh]
+		sh := hr.res.sh
+		ng, ok := differentResults[sh.GetSumHash()]
 		if !ok {
-			differentResults[fh] = newNodesGroup(hr.res.node)
+			differentResults[sh.GetSumHash()] = newNodesGroup(hr.res.node, sh)
 		} else {
-			nodesGroup.addNode(hr.res.node)
+			ng.addNode(hr.res.node)
 		}
 	}
 	if len(differentResults) != 1 {
@@ -149,9 +151,7 @@ func download(
 	p := &printer{}
 	var wg sync.WaitGroup
 	for range goroutines {
-		wg.Add(1)
-		go func() {
-			defer wg.Done()
+		wg.Go(func() {
 			for height := range heightChan {
 				if err := manageHeight(ctx, height, nodes, clients, p, tries); err != nil {
 					cancel()
@@ -160,7 +160,7 @@ func download(
 					break
 				}
 			}
-		}()
+		})
 	}
 	wg.Wait()
 }
@@ -219,11 +219,9 @@ func main() {
 	heightChan := make(chan uint64)
 	errChan := make(chan error, *goroutinesNum)
 	var wg sync.WaitGroup
-	wg.Add(1)
-	go func() {
+	wg.Go(func() {
 		download(heightChan, errChan, nodes, clients, *goroutinesNum, *tries)
-		wg.Done()
-	}()
+	})
 	for h := uint64(*startHeight); h < uint64(*endHeight); h++ {
 		gotErr := false
 		select {

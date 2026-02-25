@@ -25,4 +25,5 @@ type featuresState interface {
 	featureVotes(featureID int16) (uint64, error)
 	featureVotesAtHeight(featureID int16, height uint64) (uint64, error)
 	clearCache()
+	minimalGeneratingBalanceAtHeight(proto.Height, uint64) uint64
 }

@@ -2,12 +2,16 @@ package ride
 
 import (
 	"bytes"
+	"crypto/x509"
 	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
+	stderrs "errors"
 	"fmt"
+	"io"
 	"math"
 	"math/big"
-	"strconv"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -22,6 +26,8 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/proto/ethabi"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
+	ridec "github.com/wavesplatform/gowaves/pkg/ride/compiler"
+
 	"github.com/wavesplatform/gowaves/pkg/ride/meta"
 	"github.com/wavesplatform/gowaves/pkg/types"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
@@ -781,7 +787,8 @@ func TestBlockInfoByHeight(t *testing.T) {
 	rewards := proto.Rewards{proto.NewReward(gen.address(), 12345)}
 	bi := protobufBlockBuilder().withHeight(2).withGenerator(gen).withRewards(rewards)
 	env := newTestEnv(t).withLibVersion(ast.LibV6).withBlock(bi.toBlockInfo())
-	obj := blockInfoToObject(bi.toBlockInfo(), ast.LibV6)
+	obj, err := blockInfoToObject(bi.toBlockInfo(), ast.LibV6)
+	require.NoError(t, err)
 	for _, test := range []struct {
 		te   *testEnv
 		args []rideType
@@ -891,7 +898,7 @@ func TestTransferByID(t *testing.T) {
 	}
 
 	for i, testCase := range testCases {
-		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			env := newTestEnv(t).withLibVersion(ast.LibV5).withComplexityLimit(26000).
 				withBlockV5Activated().withProtobufTx().
 				withDataEntriesSizeV2().withMessageLengthV3().
@@ -1778,4 +1785,353 @@ func TestGroth16VerifyInvalidArguments(t *testing.T) {
 			assert.ErrorContains(t, err, tc.err)
 		})
 	}
+}
+
+func TestSecP256VerifyNative(t *testing.T) {
+	mustHexToRideByteVector := func(t *testing.T, s string) rideByteVector {
+		b, err := hex.DecodeString(s)
+		require.NoError(t, err)
+		return b
+	}
+	validArgs := struct{ msg, sig, pk string }{
+		msg: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
+		sig: "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18" +
+			"4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
+		pk: "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" +
+			"c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
+	}
+	digest42 := rideByteVector(crypto.Digest{42}.Bytes())
+	tests := []struct {
+		args  []rideType
+		err   string
+		valid bool
+	}{
+		{args: []rideType{}, valid: false, err: "secP256Verify: 0 is invalid number of arguments, expected 3"},
+		{
+			args:  []rideType{rideByteVector{}, rideByteVector{}},
+			valid: false,
+			err:   "secP256Verify: 2 is invalid number of arguments, expected 3",
+		},
+		{
+			args:  []rideType{rideByteVector{}, rideByteVector{}, rideByteVector{}, rideByteVector{}},
+			valid: false,
+			err:   "secP256Verify: 4 is invalid number of arguments, expected 3",
+		},
+		{
+			args:  []rideType{rideByteVector{}, nil, rideByteVector{}},
+			valid: false,
+			err:   "secP256Verify: argument 2 is empty",
+		},
+		{
+			args:  []rideType{rideUnit{}, rideByteVector{}, rideByteVector{}},
+			valid: false,
+			err:   "secP256Verify: unexpected type 'Unit' of first argument",
+		},
+		{
+			args:  []rideType{rideByteVector{}, rideUnit{}, rideByteVector{}},
+			valid: false,
+			err:   "secP256Verify: unexpected type 'Unit' of second argument",
+		},
+		{
+			args:  []rideType{rideByteVector{}, rideUnit{}, rideByteVector{}},
+			valid: false,
+			err:   "secP256Verify: unexpected type 'Unit' of second argument",
+		},
+		{
+			args:  []rideType{rideUnit{}, digest42, digest42},
+			valid: false,
+			err:   "secP256Verify: unexpected type 'Unit' of first argument",
+		},
+		{
+			args:  []rideType{digest42, rideUnit{}, digest42},
+			valid: false,
+			err:   "secP256Verify: unexpected type 'Unit' of second argument",
+		},
+		{
+			args:  []rideType{digest42, digest42, rideUnit{}},
+			valid: false,
+			err:   "secP256Verify: unexpected type 'Unit' of third argument",
+		},
+		{
+			args: []rideType{
+				digest42, // Message size is not checked, but the message itself is not valid.
+				mustHexToRideByteVector(t, validArgs.sig),
+				mustHexToRideByteVector(t, validArgs.pk),
+			},
+			valid: false,
+		},
+		{
+			args: []rideType{
+				mustHexToRideByteVector(t, validArgs.msg),
+				digest42, // Invalid signature size.
+				mustHexToRideByteVector(t, validArgs.pk),
+			},
+			valid: false,
+			err: "secP256Verify: failed to parse ECDSA signature: invalid signature size, " +
+				"expected 64-byte P1363 signature (r||s)",
+		},
+		{
+			args: []rideType{
+				mustHexToRideByteVector(t, validArgs.msg),
+				mustHexToRideByteVector(t, validArgs.sig),
+				digest42, // Invalid public key size.
+			},
+			valid: false,
+			err: "secP256Verify: failed to verify P-256 signature: invalid public key size, " +
+				"expected 64-byte raw format (X||Y)",
+		},
+		{
+			args: []rideType{ // Fully valid arguments.
+				mustHexToRideByteVector(t, validArgs.msg),
+				mustHexToRideByteVector(t, validArgs.sig),
+				mustHexToRideByteVector(t, validArgs.pk),
+			},
+			valid: true,
+		},
+	}
+	for i, tc := range tests {
+		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
+			r, err := secP256Verify(nil, tc.args...)
+			if tc.err != "" {
+				assert.EqualError(t, err, tc.err)
+				assert.Nil(t, r)
+			} else {
+				res, ok := r.(rideBoolean)
+				require.True(t, ok)
+				assert.Equal(t, tc.valid, bool(res))
+			}
+		})
+	}
+}
+
+func TestSecP256VerifyRide(t *testing.T) {
+	doTest := func(t *testing.T, expRes bool, msg, sig, pk string, ee string) {
+		const (
+			complexityLimit    = 600
+			expectedComplexity = 43
+			scriptTmpl         = `
+			{-# STDLIB_VERSION 9 #-}
+			{-# CONTENT_TYPE EXPRESSION #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			p256Verify(base16'%s', base16'%s', base16'%s')`
+		)
+		tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, msg, sig, pk))
+		require.NoError(t, stderrs.Join(errs...))
+		require.Equal(t, ast.LibV9, tree.LibVersion)
+		env := newTestEnv(t).withProtobufTx().withLibVersion(tree.LibVersion).
+			withComplexityLimit(complexityLimit).withRideV6Activated().toEnv()
+		res, err := CallVerifier(env, tree)
+		if ee != "" {
+			require.ErrorContains(t, err, ee)
+			return
+		}
+		require.NoError(t, err)
+		assert.Equal(t, expectedComplexity, env.complexityCalculator().complexity())
+		assert.Equal(t, expRes, res.Result())
+	}
+	validArgs := struct{ pk, sig, msg string }{
+		pk: "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" +
+			"c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
+		sig: "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18" +
+			"4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
+		msg: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
+	}
+	digest42 := crypto.Digest{42}.Hex()
+	t.Run("valid-arguments", func(t *testing.T) {
+		doTest(t, true, validArgs.msg, validArgs.sig, validArgs.pk, "")
+	})
+	t.Run("invalid-msg", func(t *testing.T) {
+		doTest(t, false, digest42, validArgs.sig, validArgs.pk, "")
+	})
+	t.Run("invalid-sig", func(t *testing.T) {
+		doTest(t, false, validArgs.msg, digest42, validArgs.pk,
+			"invalid signature size, expected 64-byte P1363 signature (r||s)")
+	})
+	t.Run("invalid-pk", func(t *testing.T) {
+		doTest(t, false, validArgs.msg, validArgs.sig, digest42,
+			"invalid public key size, expected 64-byte raw format (X||Y)")
+	})
+}
+
+func TestValidateTDXCertificateChainNative(t *testing.T) {
+	validChain := loadCertificates(t, "../crypto/testdata/tdx-cert-chain.pem")
+	validCertificates := toRideByteVectorList(t, validChain)
+	pk := extractPublicKeyBytesFromCertificate(t, validChain[0])
+	invalidCertificates := toRideByteVectorList(t,
+		loadCertificates(t, "../crypto/testdata/tdx-cert-chain-revoked.pem"))
+	validCRLs := toRideByteVectorList(t, loadRevocations(t))
+	validTS := rideInt(1770106534615)
+	invalidTS := rideInt(1628576534615)
+	for i, test := range []struct {
+		name string
+		args []rideType
+		res  rideType
+		err  string
+	}{
+		{
+			"Valid Arguments",
+			[]rideType{validCertificates, validCRLs, validTS},
+			pk, "",
+		},
+		{
+			"Invalid Certificates",
+			[]rideType{invalidCertificates, validCRLs, validTS},
+			rideUnit{},
+			"validateCertChain: certificate 617541246249385134247112490868883435491767640079 is revoked",
+		},
+		{
+			"Invalid Timestamp",
+			[]rideType{validCertificates, validCRLs, invalidTS},
+			rideUnit{},
+			"validateCertChain: failed to verify revocation list: inactive CRL",
+		},
+	} {
+		t.Run(fmt.Sprintf("#%d: %s", i+1, test.name), func(t *testing.T) {
+			r, err := validateCertChain(nil, test.args...)
+			if test.err != "" {
+				assert.EqualError(t, err, test.err)
+			} else {
+				require.NoError(t, err)
+				res, ok := r.(rideByteVector)
+				require.True(t, ok)
+				assert.Equal(t, test.res, res)
+			}
+		})
+	}
+}
+
+func TestValidateTDXCertificateChainRide(t *testing.T) {
+	const template = `
+			{-# STDLIB_VERSION 9 #-}
+			{-# CONTENT_TYPE EXPRESSION #-}
+			{-# SCRIPT_TYPE ACCOUNT #-}
+			let cert = validateTDXCertificateChain([base64'%s', base64'%s', base64'%s'], [base64'%s', base64'%s'], %d)
+			cert == base64'%s'`
+	const complexityLimit = 600
+	const expectedComplexity = 49
+
+	validChain := loadCertificates(t, "../crypto/testdata/tdx-cert-chain.pem")
+	pk := extractPublicKeyBytesFromCertificate(t, validChain[0])
+	invalidChain := loadCertificates(t, "../crypto/testdata/tdx-cert-chain-revoked.pem")
+	validCRLs := loadRevocations(t)
+	validTS := rideInt(1770106534615)
+	invalidTS := rideInt(1628576534615)
+
+	for i, test := range []struct {
+		name         string
+		certificates []string
+		revocations  []string
+		ts           int
+		res          bool
+		err          string
+	}{
+		{
+			"Valid Arguments",
+			[]string{validChain[0], validChain[1], validChain[2]},
+			[]string{validCRLs[0], validCRLs[1]},
+			int(validTS),
+			true,
+			"",
+		},
+		{
+			"Invalid Certificates",
+			[]string{invalidChain[0], invalidChain[1], invalidChain[2]},
+			[]string{validCRLs[0], validCRLs[1]},
+			int(validTS),
+			false,
+			"validateCertChain: certificate 617541246249385134247112490868883435491767640079 is revoked",
+		},
+		{
+			"Invalid Timestamp",
+			[]string{validChain[0], validChain[1], validChain[2]},
+			[]string{validCRLs[0], validCRLs[1]},
+			int(invalidTS),
+			false,
+			"validateCertChain: failed to verify revocation list: inactive CRL",
+		},
+	} {
+		t.Run(fmt.Sprintf("#%d: %s", i+1, test.name), func(t *testing.T) {
+			script := fmt.Sprintf(template,
+				test.certificates[0],
+				test.certificates[1],
+				test.certificates[2],
+				test.revocations[0],
+				test.revocations[1],
+				int64(test.ts),
+				base64.StdEncoding.EncodeToString([]byte(pk)),
+			)
+			tree, errs := ridec.CompileToTree(script)
+			require.NoError(t, stderrs.Join(errs...))
+			require.Equal(t, ast.LibV9, tree.LibVersion)
+			env := newTestEnv(t).withProtobufTx().withLibVersion(tree.LibVersion).
+				withComplexityLimit(complexityLimit).withRideV6Activated().toEnv()
+			res, err := CallVerifier(env, tree)
+			if test.err != "" {
+				require.ErrorContains(t, err, test.err)
+				return
+			}
+			require.NoError(t, err)
+			assert.Equal(t, expectedComplexity, env.complexityCalculator().complexity())
+			assert.Equal(t, test.res, res.Result())
+		})
+	}
+}
+
+func loadCertificates(t testing.TB, filename string) []string {
+	f, err := os.Open(filename)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, f.Close())
+	}()
+	d, err := io.ReadAll(f)
+	require.NoError(t, err)
+	r := make([]string, 0)
+	for len(d) > 0 {
+		var b *pem.Block
+		b, d = pem.Decode(d)
+		require.NotEmpty(t, b)
+		require.Equal(t, "CERTIFICATE", b.Type)
+		r = append(r, base64.StdEncoding.EncodeToString(b.Bytes))
+	}
+	return r
+}
+
+func loadRevocations(t testing.TB) []string {
+	const filename = "../crypto/testdata/tdx-crl.pem"
+	f, err := os.Open(filename)
+	require.NoError(t, err)
+	defer func() {
+		require.NoError(t, f.Close())
+	}()
+	d, err := io.ReadAll(f)
+	require.NoError(t, err)
+	r := make([]string, 0)
+	for len(d) > 0 {
+		var b *pem.Block
+		b, d = pem.Decode(d)
+		require.NotEmpty(t, b)
+		require.Equal(t, "X509 CRL", b.Type)
+		r = append(r, base64.StdEncoding.EncodeToString(b.Bytes))
+	}
+	return r
+}
+
+func toRideByteVectorList(t testing.TB, strings []string) rideList {
+	res := make(rideList, len(strings))
+	for i, s := range strings {
+		b, err := base64.StdEncoding.DecodeString(s)
+		require.NoError(t, err)
+		res[i] = rideByteVector(b)
+	}
+	return res
+}
+
+func extractPublicKeyBytesFromCertificate(t testing.TB, cert string) rideByteVector {
+	b, err := base64.StdEncoding.DecodeString(cert)
+	require.NoError(t, err)
+	c, err := x509.ParseCertificate(b)
+	require.NoError(t, err)
+	pkb, err := crypto.CertificatePublicKeyToBytes(c)
+	require.NoError(t, err)
+	return pkb
 }
