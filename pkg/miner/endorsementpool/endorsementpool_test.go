@@ -26,10 +26,9 @@ func dummyBLSPK(t *testing.T) bls.PublicKey {
 }
 
 func newDummyEndorsement(t *testing.T, idx int32, _ string) *proto.EndorseBlock {
-	b := make([]byte, crypto.DigestSize)
-	b[0] = byte(idx)
-	id, err := proto.NewBlockIDFromBytes(b)
+	d, err := crypto.FastHash([]byte("dummy-endorsed-block"))
 	require.NoError(t, err)
+	id := proto.NewBlockIDFromDigest(d)
 	e := &proto.EndorseBlock{
 		EndorserIndex:        idx,
 		EndorsedBlockID:      id,
@@ -225,4 +224,62 @@ func TestEndorsementPool_ShouldIgnoreEndorsement(t *testing.T) {
 
 	conflictFinalized := newSignedEndorsement(t, 2, endorsedIDA, 5, endorsedIDA, sk1)
 	require.False(t, pool.ShouldIgnoreEndorsement(conflictFinalized, pk1, 5, endorsedIDA))
+}
+
+func TestEndorsementPool_SwitchRoundDropsStaleEndorsements(t *testing.T) {
+	pool, err := endorsementpool.NewEndorsementPool(2)
+	require.NoError(t, err)
+
+	finalizedDigest0, err := crypto.FastHash([]byte("finalized-0"))
+	require.NoError(t, err)
+	finalizedDigest1, err := crypto.FastHash([]byte("finalized-1"))
+	require.NoError(t, err)
+	endorsedDigest0, err := crypto.FastHash([]byte("endorsed-0"))
+	require.NoError(t, err)
+	endorsedDigest1, err := crypto.FastHash([]byte("endorsed-1"))
+	require.NoError(t, err)
+
+	finalizedID0 := proto.NewBlockIDFromDigest(finalizedDigest0)
+	finalizedID1 := proto.NewBlockIDFromDigest(finalizedDigest1)
+	endorsedID0 := proto.NewBlockIDFromDigest(endorsedDigest0)
+	endorsedID1 := proto.NewBlockIDFromDigest(endorsedDigest1)
+
+	sk0, err := bls.GenerateSecretKey([]byte("round-test-sk-0"))
+	require.NoError(t, err)
+	pk0, err := sk0.PublicKey()
+	require.NoError(t, err)
+	sk1, err := bls.GenerateSecretKey([]byte("round-test-sk-1"))
+	require.NoError(t, err)
+	pk1, err := sk1.PublicKey()
+	require.NoError(t, err)
+
+	// Round #1.
+	e00 := newSignedEndorsement(t, 0, finalizedID0, 10, endorsedID0, sk0)
+	e10 := newSignedEndorsement(t, 1, finalizedID0, 10, endorsedID0, sk1)
+	added, err := pool.Add(e00, pk0, 10, finalizedID0, 100, endorsedID0)
+	require.NoError(t, err)
+	require.True(t, added)
+	added, err = pool.Add(e10, pk1, 10, finalizedID0, 100, endorsedID0)
+	require.NoError(t, err)
+	require.True(t, added)
+	require.Equal(t, 2, pool.Len())
+
+	// Round #2 with same balances and same endorsers but different round key.
+	// Pool must switch rounds and replace previous endorsements.
+	e01 := newSignedEndorsement(t, 0, finalizedID1, 11, endorsedID1, sk0)
+	e11 := newSignedEndorsement(t, 1, finalizedID1, 11, endorsedID1, sk1)
+	added, err = pool.Add(e01, pk0, 11, finalizedID1, 100, endorsedID1)
+	require.NoError(t, err)
+	require.True(t, added)
+	added, err = pool.Add(e11, pk1, 11, finalizedID1, 100, endorsedID1)
+	require.NoError(t, err)
+	require.True(t, added)
+
+	all := pool.GetAll()
+	require.Len(t, all, 2)
+	for _, e := range all {
+		require.Equal(t, uint32(11), e.FinalizedBlockHeight)
+		require.Equal(t, finalizedID1, e.FinalizedBlockID)
+		require.Equal(t, endorsedID1, e.EndorsedBlockID)
+	}
 }

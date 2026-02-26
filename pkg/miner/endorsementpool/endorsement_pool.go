@@ -71,6 +71,15 @@ type EndorsementPool struct {
 	maxEndorsements int
 }
 
+func sameRound(a, b *proto.EndorseBlock) bool {
+	if a == nil || b == nil {
+		return false
+	}
+	return a.EndorsedBlockID == b.EndorsedBlockID &&
+		a.FinalizedBlockID == b.FinalizedBlockID &&
+		a.FinalizedBlockHeight == b.FinalizedBlockHeight
+}
+
 // ShouldIgnoreEndorsement checks if the endorsement must be ignored and not added to pool/conflicts.
 func (p *EndorsementPool) ShouldIgnoreEndorsement(
 	e *proto.EndorseBlock,
@@ -128,6 +137,16 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
 	if p.ShouldIgnoreEndorsement(e, pk, lastFinalizedHeight, parentBlockID) {
 		return false, nil
 	}
+
+	// Endorsements are valid only within one finalization round.
+	// If round changed, old endorsements must be dropped, otherwise stale signatures can
+	// survive (especially with equal balances) and break aggregated signature verification.
+	if len(p.h) > 0 && !sameRound(p.h[0].eb, e) {
+		p.byKey = make(map[key]*heapItemEndorsement)
+		p.h = nil
+		p.conflicts = nil
+	}
+
 	if _, exists := p.byKey[k]; exists {
 		p.conflicts = append(p.conflicts, *e)
 		slog.Debug("endorsement is conflicting because it already exists in the endorsement pool", "index", e.EndorserIndex)
