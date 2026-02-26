@@ -2,6 +2,7 @@ package fsm
 
 import (
 	"context"
+	"fmt"
 	"log/slog"
 
 	"github.com/pkg/errors"
@@ -401,6 +402,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
 	}
+	// TODO check if generator is in the generator set.
 	addErr, ignored := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
 		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance, top.Parent)
 	if addErr != nil {
@@ -427,17 +429,17 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGState) getBlockFinalization(height proto.Height,
+func (a *NGState) getCurrentFinalizationVoting(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
-	blockFinalization, err := a.tryFinalize(height, lastFinalizedHeight)
+	blockFinalization, err := a.tryGetCurrentFinalizationVoting(height, lastFinalizedHeight)
 	if err != nil {
-		slog.Debug("did not form finalization", "err", err)
+		slog.Debug("did not form finalization voting", "err", err)
 		return nil, err
 	}
 	return blockFinalization, nil
 }
 
-func (a *NGState) tryFinalize(height proto.Height,
+func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
 	// No finalization since nobody endorsed the last block.
 	if a.baseInfo.endorsements.Len() == 0 {
@@ -449,29 +451,18 @@ func (a *NGState) tryFinalize(height proto.Height,
 		return nil, errors.Wrapf(err, "failed to get DeterministicFinality activation height")
 	}
 
-	// ok, err := a.baseInfo.endorsements.Verify()
-	// if err != nil {
-	//	return nil, err
-	// }
-	// if !ok {
-	//	return nil, fmt.Errorf("endorsement verification failed at height %d", height)
-	// }
+	ok, err := a.baseInfo.endorsements.Verify()
+	if err != nil {
+		return nil, err
+	}
+	if !ok {
+		return nil, fmt.Errorf("endorsement verification failed at height %d", height)
+	}
 
 	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
 	if err != nil {
 		return nil, err
 	}
-
-	// allEndorsers := a.baseInfo.endorsements.GetEndorsers()
-	// endorsersAddresses := make([]proto.WavesAddress, 0, len(allEndorsers))
-	// for _, endorser := range allEndorsers {
-	//	pk, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorser)
-	//	if findErr != nil {
-	//		return nil, findErr
-	//	}
-	//	addr := proto.MustAddressFromPublicKey(a.baseInfo.scheme, pk)
-	//	endorsersAddresses = append(endorsersAddresses, addr)
-	// }
 
 	commitedGenerators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
 	if err != nil {
@@ -480,21 +471,7 @@ func (a *NGState) tryFinalize(height proto.Height,
 	if len(commitedGenerators) == 0 {
 		slog.Debug("No committed generators found for finalization calculation")
 	}
-	// blockGenerator, err := a.baseInfo.endorsements.BlockGenerator()
-	// if err != nil {
-	//	return nil, errors.Errorf("failed to get block generator: %v", err)
-	// }
-	// blockGeneratorAddress, err := proto.NewAddressFromPublicKey(a.baseInfo.scheme, blockGenerator)
-	// if err != nil {
-	//	return nil, errors.Errorf("failed to get block generator address: %v", err)
-	// }
-	// canFinalize, err := a.baseInfo.storage.CalculateVotingFinalization(endorsersAddresses, blockGeneratorAddress,
-	//	height, commitedGenerators)
-	// if err != nil {
-	//	return nil, fmt.Errorf("failed to calculate finalization voting: %w", err)
-	// }
-	//
-	// if canFinalize {
+
 	finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
 	if finErr != nil {
 		return nil, finErr
@@ -712,7 +689,7 @@ func (a *NGState) mineMicro(
 		if lastHeightErr != nil {
 			return a, nil, a.Errorf(lastHeightErr)
 		}
-		blockFinalization, err = a.getBlockFinalization(height, lastFinalizedHeight)
+		blockFinalization, err = a.getCurrentFinalizationVoting(height, lastFinalizedHeight)
 		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
 		}
