@@ -364,11 +364,6 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	}
 
 	top := a.baseInfo.storage.TopBlock()
-	if top.Parent != blockEndorsement.EndorsedBlockID {
-		err := errors.Errorf("endorsed Block ID '%s' must match the current parent's block ID '%s'",
-			blockEndorsement.EndorsedBlockID.String(), top.BlockID().String())
-		return a, nil, proto.NewInfoMsg(err)
-	}
 
 	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
 	if actErr != nil {
@@ -406,14 +401,23 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
 	}
-	addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
-		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance)
+	addErr, ignored := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
+		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance, top.Parent)
 	if addErr != nil {
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
 	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
-	a.baseInfo.actions.SendEndorseBlock(blockEndorsement) // TODO should we send it out if conflicting?
+	if ignored {
+		slog.Debug("Block endorsement was ignored or conflicting:",
+			"EndorserIndex", blockEndorsement.EndorserIndex,
+			"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
+			"FinalizedBlockHeight", blockEndorsement.FinalizedBlockHeight,
+			"EndorsedBlockID", blockEndorsement.EndorsedBlockID,
+			"Signature", blockEndorsement.Signature.String())
+		return newNGState(a.baseInfo), nil, nil
+	}
+	a.baseInfo.actions.SendEndorseBlock(blockEndorsement)
 	slog.Debug("Forwarded a block endorsement:",
 		"EndorserIndex", blockEndorsement.EndorserIndex,
 		"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
@@ -422,17 +426,6 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		"Signature", blockEndorsement.Signature.String())
 	return newNGState(a.baseInfo), nil, nil
 }
-
-// func (a *NGState) getPartialFinalization(lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
-//	if a.baseInfo.endorsements.Len() == 0 {
-//		return nil, errNoFinalization
-//	}
-//	fin, err := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
-//	if err != nil {
-//		return nil, fmt.Errorf("failed to finalize endorsements for microblock: %w", err)
-//	}
-//	return &fin, nil
-//}
 
 func (a *NGState) getBlockFinalization(height proto.Height,
 	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
@@ -642,13 +635,24 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 	if err != nil {
 		return err
 	}
-	addErr := a.baseInfo.endorsements.Add(endorseParentBlock, endorserPK,
-		lastFinalizedHeight, lastFinalizedBlock.BlockID(), balance)
+	top := a.baseInfo.storage.TopBlock()
+	addErr, ignored := a.baseInfo.endorsements.Add(endorseParentBlock, endorserPK,
+		lastFinalizedHeight, lastFinalizedBlock.BlockID(), balance, top.Parent)
 	if addErr != nil {
 		return errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
 	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
+	if ignored {
+		// This should probably never happen.
+		slog.Debug("I formed a bad endorsement:",
+			"EndorserIndex", endorseParentBlock.EndorserIndex,
+			"FinalizedBlockID", endorseParentBlock.FinalizedBlockID,
+			"FinalizedBlockHeight", endorseParentBlock.FinalizedBlockHeight,
+			"EndorsedBlockID", endorseParentBlock.EndorsedBlockID,
+			"Signature", endorseParentBlock.Signature.String())
+		return nil
+	}
 	a.baseInfo.actions.SendEndorseBlock(endorseParentBlock)
 	slog.Debug("Sent a block endorsement:",
 		"EndorserIndex", endorseParentBlock.EndorserIndex,
@@ -708,10 +712,6 @@ func (a *NGState) mineMicro(
 		if lastHeightErr != nil {
 			return a, nil, a.Errorf(lastHeightErr)
 		}
-		// partialFinalization, err = a.getPartialFinalization(lastFinalizedHeight)
-		// if err != nil && !errors.Is(err, errNoFinalization) {
-		//	return a, nil, a.Errorf(err)
-		// }
 		blockFinalization, err = a.getBlockFinalization(height, lastFinalizedHeight)
 		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
