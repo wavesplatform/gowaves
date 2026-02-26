@@ -1447,8 +1447,6 @@ func (f *finalizationProcessor) votingFinalization(
 
 func (f *finalizationProcessor) loadLastFinalizedHeight(
 	height proto.Height,
-	currentBlockID proto.BlockID,
-	finalityActivated bool,
 ) (proto.Height, error) {
 	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(height)
 
@@ -1460,22 +1458,10 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 		if storedFinalizedHeight >= calculatedFinalizedHeight {
 			return storedFinalizedHeight, nil
 		}
-		if finalityActivated {
-			if storErr := f.stor.finalizations.store(calculatedFinalizedHeight, currentBlockID); storErr != nil {
-				return 0, storErr
-			}
-		}
 		return calculatedFinalizedHeight, nil
 	}
-
-	// No finalization found, calculate it, and, if finality activated - initialize it.
-	initH := calculatedFinalizedHeight
-	if finalityActivated {
-		if storErr := f.stor.finalizations.store(initH, currentBlockID); storErr != nil {
-			return 0, storErr
-		}
-	}
-	return initH, nil
+	// No finalization found, calculate it.
+	return calculatedFinalizedHeight, nil
 }
 
 func (f *finalizationProcessor) loadEndorsersPK(
@@ -1617,7 +1603,7 @@ func (f *finalizationProcessor) updateFinalization(
 		return nil
 	}
 
-	finalityActivated, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	_, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
 	if err != nil {
 		return err
 	}
@@ -1634,11 +1620,17 @@ func (f *finalizationProcessor) updateFinalization(
 				conflictingEndorsement.EndorserIndex)
 		}
 	}
-	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height, currentBlock.BlockID(), finalityActivated)
+	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height)
 	if err != nil {
 		return err
 	}
 	slog.Debug("The last finalized height was ", "finalizedHeight", lastFinalizedHeight)
+	if finalizationVoting.FinalizedBlockHeight != lastFinalizedHeight {
+		slog.Debug("skipping finalization voting with incorrect finalized height",
+			"votingFinalizedHeight", finalizationVoting.FinalizedBlockHeight,
+			"nodeFinalizedHeight", lastFinalizedHeight)
+		return nil
+	}
 	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
 	if err != nil {
 		slog.Debug("failed to find finalized block",
@@ -1648,7 +1640,7 @@ func (f *finalizationProcessor) updateFinalization(
 	endorsedBlockID := currentBlock.Parent
 	msg, err := proto.EndorsementMessage(
 		lastFinalizedBlockID,
-		endorsedBlockID, // If we are at key block N+2, the endorsed block was N.
+		endorsedBlockID, // If we are at key block N+1, the endorsed block was N.
 		lastFinalizedHeight,
 	)
 	if err != nil {
