@@ -403,14 +403,14 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
 	}
 	// TODO check if generator is in the generator set.
-	ignored, addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
+	added, addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
 		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance, top.Parent)
 	if addErr != nil {
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
 	}
 
 	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
-	if ignored {
+	if !added {
 		slog.Debug("Block endorsement was ignored or conflicting:",
 			"EndorserIndex", blockEndorsement.EndorserIndex,
 			"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
@@ -633,7 +633,7 @@ func (a *NGState) addAndBroadcastOwnEndorsement(
 		return err
 	}
 	top := a.baseInfo.storage.TopBlock()
-	ignored, addErr := a.baseInfo.endorsements.Add(
+	added, addErr := a.baseInfo.endorsements.Add(
 		endorseParentBlock,
 		endorserPK,
 		lastFinalizedHeight,
@@ -646,7 +646,7 @@ func (a *NGState) addAndBroadcastOwnEndorsement(
 	}
 
 	a.baseInfo.endorsementIDsCache.RememberEndorsement(id)
-	if ignored {
+	if !added {
 		// This should probably never happen.
 		slog.Debug("I formed a bad endorsement:",
 			"EndorserIndex", endorseParentBlock.EndorserIndex,
