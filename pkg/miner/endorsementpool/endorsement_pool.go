@@ -111,8 +111,7 @@ func NewEndorsementPool(maxGenerators int) (*EndorsementPool, error) {
 // Add inserts an endorsement into the heap with priority based on balance desc, seq asc.
 func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
 	lastFinalizedHeight proto.Height, lastFinalizedBlockID proto.BlockID, balance uint64,
-	parentBlockID proto.BlockID) (error, bool) {
-
+	parentBlockID proto.BlockID) (bool, error) {
 	k := makeKey(e.EndorsedBlockID, e.EndorserIndex)
 
 	p.mu.Lock()
@@ -123,16 +122,16 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
 		p.conflicts = append(p.conflicts, *e)
 		slog.Debug("endorsement is conflicting because the block finalized IDs don't match", "index",
 			e.EndorserIndex)
-		return nil, false
+		return false, nil
 	}
 
 	if p.ShouldIgnoreEndorsement(e, pk, lastFinalizedHeight, parentBlockID) {
-		return nil, false
+		return false, nil
 	}
 	if _, exists := p.byKey[k]; exists {
 		p.conflicts = append(p.conflicts, *e)
 		slog.Debug("endorsement is conflicting because it already exists in the endorsement pool", "index", e.EndorserIndex)
-		return nil, false
+		return false, nil
 	}
 
 	p.seq++
@@ -147,14 +146,14 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
 	if len(p.h) < p.maxEndorsements {
 		heap.Push(&p.h, item)
 		p.byKey[k] = item
-		return nil, true
+		return true, nil
 	}
 
 	// If heap is full — check min (root).
 	minItem := p.h[0]
 	// If priority is lower or equal the min, throw the new one away.
 	if balance < minItem.balance || (balance == minItem.balance && item.seq > minItem.seq) {
-		return nil, false
+		return false, nil
 	}
 
 	// Otherwise remove min and insert the new one.
@@ -164,7 +163,7 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
 
 	heap.Push(&p.h, item)
 	p.byKey[k] = item
-	return nil, true
+	return true, nil
 }
 
 func (p *EndorsementPool) GetAll() []proto.EndorseBlock {

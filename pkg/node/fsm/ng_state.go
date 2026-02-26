@@ -386,7 +386,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 	}
 	generatorWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
 	if findErr != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to find waves generator PK by BLS endorser PK"))
+		return a, nil, a.Errorf(errors.Wrapf(findErr, "failed to find waves generator PK by BLS endorser PK"))
 	}
 	generatorAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, generatorWavesPK)
 	generatorRec := proto.NewRecipientFromAddress(generatorAddress)
@@ -403,7 +403,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
 	}
 	// TODO check if generator is in the generator set.
-	addErr, ignored := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
+	ignored, addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
 		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance, top.Parent)
 	if addErr != nil {
 		return a, nil, errors.Errorf("failed to add an endorsement, %v", addErr)
@@ -608,13 +608,39 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 	}
 	endorserAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, endorserWavesPK)
 	endorserRec := proto.NewRecipientFromAddress(endorserAddress)
+	return a.addAndBroadcastOwnEndorsement(
+		endorseParentBlock,
+		endorserPK,
+		endorserRec,
+		height,
+		lastFinalizedHeight,
+		lastFinalizedBlock.BlockID(),
+		id,
+	)
+}
+
+func (a *NGState) addAndBroadcastOwnEndorsement(
+	endorseParentBlock *proto.EndorseBlock,
+	endorserPK bls.PublicKey,
+	endorserRec proto.Recipient,
+	height proto.Height,
+	lastFinalizedHeight proto.Height,
+	lastFinalizedBlockID proto.BlockID,
+	id crypto.Digest,
+) error {
 	balance, err := a.baseInfo.storage.GeneratingBalance(endorserRec, height)
 	if err != nil {
 		return err
 	}
 	top := a.baseInfo.storage.TopBlock()
-	addErr, ignored := a.baseInfo.endorsements.Add(endorseParentBlock, endorserPK,
-		lastFinalizedHeight, lastFinalizedBlock.BlockID(), balance, top.Parent)
+	ignored, addErr := a.baseInfo.endorsements.Add(
+		endorseParentBlock,
+		endorserPK,
+		lastFinalizedHeight,
+		lastFinalizedBlockID,
+		balance,
+		top.Parent,
+	)
 	if addErr != nil {
 		return errors.Errorf("failed to add an endorsement, %v", addErr)
 	}

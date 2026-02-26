@@ -1641,6 +1641,7 @@ func (f *finalizationProcessor) updateFinalization(
 	if err != nil {
 		return err
 	}
+	slog.Debug("The last finalized height was ", "finalizedHeight", lastFinalizedHeight)
 	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
 	if err != nil {
 		slog.Debug("failed to find finalized block",

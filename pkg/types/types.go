@@ -233,7 +233,7 @@ type EmbeddedWallet interface {
 type EndorsementPool interface {
 	Add(e *proto.EndorseBlock, endorserPublicKey bls.PublicKey,
 		lastFinalizedHeight proto.Height, lastFinalizedBlockID proto.BlockID, balance uint64,
-		parentBlockID proto.BlockID) (error, bool)
+		parentBlockID proto.BlockID) (bool, error)
 	GetAll() []proto.EndorseBlock
 	GetEndorsers() []bls.PublicKey
 	SaveBlockGenerator(blockGenerator *crypto.PublicKey)
