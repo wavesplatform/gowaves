@@ -27,6 +27,12 @@ type commitmentsRecord struct {
 	Commitments []commitmentItem `cbor:"0,keyasint,omitempty"`
 }
 
+var ErrNoCommitmentsForPeriod = errors.New("no commitments found for period")
+
+func errNoCommitmentsForPeriod(periodStart uint32) error {
+	return fmt.Errorf("%w: %d", ErrNoCommitmentsForPeriod, periodStart)
+}
+
 func (cr *commitmentsRecord) append(generatorPK crypto.PublicKey, endorserPK bls.PublicKey) {
 	cr.Commitments = append(cr.Commitments, commitmentItem{
 		GeneratorPK: generatorPK,
@@ -310,7 +316,7 @@ func (c *commitments) EndorserPKByIndex(
 	data, err := c.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) {
-			return empty, fmt.Errorf("no commitments found for period %d", periodStart)
+			return empty, errNoCommitmentsForPeriod(periodStart)
 		}
 		return empty, fmt.Errorf("failed to retrieve commitments record: %w", err)
 	}
@@ -334,7 +340,7 @@ func (c *commitments) IndexByEndorserPK(
 	data, err := c.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) {
-			return 0, fmt.Errorf("no commitments found for period %d", periodStart)
+			return 0, errNoCommitmentsForPeriod(periodStart)
 		}
 		return 0, fmt.Errorf("failed to retrieve commitments record: %w", err)
 	}
@@ -361,7 +367,7 @@ func (c *commitments) GeneratorPKByEndorserPK(periodStart uint32,
 	data, err := c.hs.newestTopEntryData(key.bytes())
 	if err != nil {
 		if errors.Is(err, keyvalue.ErrNotFound) {
-			return crypto.PublicKey{}, errors.Errorf("no commitments found for period %d, %v", periodStart, err)
+			return crypto.PublicKey{}, errNoCommitmentsForPeriod(periodStart)
 		}
 		return crypto.PublicKey{}, errors.Errorf("failed to retrieve commitments record: %v", err)
 	}
@@ -408,7 +414,7 @@ func (c *commitments) removeGenerator(
 	data, err := c.hs.newestTopEntryData(keyBytes)
 	if err != nil {
 		if isNotFoundInHistoryOrDBErr(err) {
-			return fmt.Errorf("no commitments found for period %d", periodStart)
+			return errNoCommitmentsForPeriod(periodStart)
 		}
 		return fmt.Errorf("failed to retrieve commitments record: %w", err)
 	}

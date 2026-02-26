@@ -240,12 +240,12 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 		if walErr != nil {
 			return a, nil, a.Errorf(errors.Wrapf(walErr, "failed to generate key pairs for %s", block.BlockID()))
 		}
-		logErr := a.logNewFinalizationVoting(block, height)
+			logErr := a.logNewFinalizationVoting(block, height+1)
 		if logErr != nil {
 			return a, nil, a.Errorf(errors.Wrapf(logErr, "failed to log new finalization voting for block %s",
 				block.BlockID()))
 		}
-		endorseErr := a.EndorseParentWithEachKey(pks, sks, block, height)
+			endorseErr := a.EndorseParentWithEachKey(pks, sks, block, height+1)
 		if endorseErr != nil {
 			return a, nil, a.Errorf(errors.Wrapf(endorseErr, "failed to endorse parent block with available keys"))
 		}
@@ -500,7 +500,7 @@ func (a *NGState) MinedBlock(
 		return a, nil, a.Errorf(errFin)
 	}
 	if finalityActivated {
-		logErr := a.logNewFinalizationVoting(block, height)
+			logErr := a.logNewFinalizationVoting(block, height+1)
 		if logErr != nil {
 			return a, nil, a.Errorf(errors.Wrapf(logErr, "failed to log new finalization voting for block %s",
 				block.BlockID()))
