@@ -1450,7 +1450,7 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 ) (proto.Height, error) {
 	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(height)
 
-	storedFinalizedHeight, err := f.stor.finalizations.newest()
+	storedFinalizedHeight, err := f.stor.finalizations.newestForProcessing()
 	if err != nil && !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
 		return 0, err
 	}
@@ -1709,8 +1709,21 @@ func (f *finalizationProcessor) prepareFinalizationVerification(
 			sb.WriteString(",")
 		}
 		slog.Debug("failed to verify finalization signature",
-			"signature", finalizationVoting.AggregatedEndorsementSignature.String(),
+			"height", height,
+			"periodStart", periodStart,
+			"currentBlockID", currentBlock.BlockID().String(),
+			"currentParentBlockID", currentBlock.Parent.String(),
+			"lastFinalizedHeight", lastFinalizedHeight,
+			"lastFinalizedBlockID", lastFinalizedBlockID.String(),
+			"endorsedBlockID", endorsedBlockID.String(),
+			"votingFinalizedHeight", finalizationVoting.FinalizedBlockHeight,
+			"FinalizationEndorserIndexes", finalizationVoting.EndorserIndexes,
+			"FinalizationConflictEndorsementsCount", len(finalizationVoting.ConflictEndorsements),
+			"FinalizationConflictEndorsements", finalizationVoting.ConflictEndorsements,
+			"FinalizationSignature", finalizationVoting.AggregatedEndorsementSignature.String(),
 			"msg", msg,
+			"msgLen", len(msg),
+			"endorsersCount", len(endorsersPK),
 			"endorsersPKs", sb.String(),
 			"err", verifyErr,
 		)
@@ -1732,7 +1745,7 @@ func (f *finalizationProcessor) finalizeParent(height proto.Height, endorsedBloc
 			"not equal to parent's blockID while trying to finalize,"+
 			"endorsedBlockID: %s, parentBlockID %s", endorsedBlockID.String(), parentID.String())
 	}
-	if storErr := f.stor.finalizations.store(finalizedHeight, currentBlockID); storErr != nil {
+	if storErr := f.stor.finalizations.store(finalizedHeight, height, currentBlockID); storErr != nil {
 		return storErr
 	}
 	slog.Debug("finalized block and saved finalization in state:",

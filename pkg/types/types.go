@@ -238,7 +238,7 @@ type EndorsementPool interface {
 	GetEndorsers() []bls.PublicKey
 	SaveBlockGenerator(blockGenerator *crypto.PublicKey)
 	BlockGenerator() (crypto.PublicKey, error)
-	FormFinalization(lastFinalizationHeight proto.Height) (proto.FinalizationVoting, error)
+	FormFinalization() (proto.FinalizationVoting, error)
 	Verify() (bool, error)
 	Len() int
 	CleanAll()

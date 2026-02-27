@@ -2375,7 +2375,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 		return rollbackErr
 	}
 	if finalizationExists {
-		if storeErr := s.stor.finalizations.store(finalizationHeight, blockID); storeErr != nil {
+		if storeErr := s.stor.finalizations.store(finalizationHeight, height, blockID); storeErr != nil {
 			return wrapErr(stateerr.RollbackError, storeErr)
 		}
 		if flushErr := s.stor.flush(); flushErr != nil {
@@ -3584,7 +3584,7 @@ func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
 	}
 	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(currentHeight)
 
-	storedFinalizedHeight, err := s.stor.finalizations.newest()
+	storedFinalizedHeight, err := s.stor.finalizations.newestVisible(currentHeight)
 	if err == nil {
 		// Finalization must never lag behind the protocol lower bound (currentHeight - 100).
 		if storedFinalizedHeight < calculatedFinalizedHeight {
