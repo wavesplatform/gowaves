@@ -1788,17 +1788,24 @@ func TestGroth16VerifyInvalidArguments(t *testing.T) {
 }
 
 func TestSecP256VerifyNative(t *testing.T) {
-	mustHexToRideByteVector := func(t *testing.T, s string) rideByteVector {
-		b, err := hex.DecodeString(s)
+	mustBase64ToRideByteVector := func(t *testing.T, s string) rideByteVector {
+		b, err := base64.StdEncoding.DecodeString(s)
 		require.NoError(t, err)
 		return b
 	}
+	// Valid arguments taken from Scala implementation:
+	// msg: lang/tests/src/test/resources/com/wavesplatform/lang/qe-report.bin
+	// sig: lang/tests/src/test/resources/com/wavesplatform/lang/qe-report.sig.bin
+	// Valid Public Key taken from TDX certificate chain: ../crypto/testdata/tdx-cert-chain.pem
 	validArgs := struct{ msg, sig, pk string }{
-		msg: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
-		sig: "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18" +
-			"4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
-		pk: "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" +
-			"c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
+		msg: "AgIZGwP/AAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFQAAAAAAAADnAAAAAAAAALeumraedvd5" +
+			"Slaw2xkVKB1DXUiMkdQG7TOnk5yvhzD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADcnip8b5SPF0dONKf8Q+0DD" +
+			"3wVY/G6vd9jQMguDlSoxQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+			"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+			"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADQ0PMxCMjQs6H9Ericuy2oMAj6fPa7h5C7H86EurUIgwAAAAAAAAAAAAAAAAA" +
+			"AAAAAAAAAAAAAAAAAAAAAAAAA",
+		sig: "90ctulEo2RFhfKMLLgT9WHnx+TnmytOCWNSNwEWsVTjkEhNEMU0lyOtP2XESdwTFUAlRJwryIkWjYZR53H4FyQ==",
+		pk:  "KdU/1vG5aM0TC1WRHYmV8ByD6oabSRj7vHVvqIWYn0h60Ihc/FT/NvVgBTMG8rnVnEF+AeojruMo22LjhGDo7A==",
 	}
 	digest42 := rideByteVector(crypto.Digest{42}.Bytes())
 	tests := []struct {
@@ -1855,16 +1862,16 @@ func TestSecP256VerifyNative(t *testing.T) {
 		{
 			args: []rideType{
 				digest42, // Message size is not checked, but the message itself is not valid.
-				mustHexToRideByteVector(t, validArgs.sig),
-				mustHexToRideByteVector(t, validArgs.pk),
+				mustBase64ToRideByteVector(t, validArgs.sig),
+				mustBase64ToRideByteVector(t, validArgs.pk),
 			},
 			valid: false,
 		},
 		{
 			args: []rideType{
-				mustHexToRideByteVector(t, validArgs.msg),
+				mustBase64ToRideByteVector(t, validArgs.msg),
 				digest42, // Invalid signature size.
-				mustHexToRideByteVector(t, validArgs.pk),
+				mustBase64ToRideByteVector(t, validArgs.pk),
 			},
 			valid: false,
 			err: "secP256Verify: failed to parse ECDSA signature: invalid signature size, " +
@@ -1872,8 +1879,8 @@ func TestSecP256VerifyNative(t *testing.T) {
 		},
 		{
 			args: []rideType{
-				mustHexToRideByteVector(t, validArgs.msg),
-				mustHexToRideByteVector(t, validArgs.sig),
+				mustBase64ToRideByteVector(t, validArgs.msg),
+				mustBase64ToRideByteVector(t, validArgs.sig),
 				digest42, // Invalid public key size.
 			},
 			valid: false,
@@ -1882,9 +1889,9 @@ func TestSecP256VerifyNative(t *testing.T) {
 		},
 		{
 			args: []rideType{ // Fully valid arguments.
-				mustHexToRideByteVector(t, validArgs.msg),
-				mustHexToRideByteVector(t, validArgs.sig),
-				mustHexToRideByteVector(t, validArgs.pk),
+				mustBase64ToRideByteVector(t, validArgs.msg),
+				mustBase64ToRideByteVector(t, validArgs.sig),
+				mustBase64ToRideByteVector(t, validArgs.pk),
 			},
 			valid: true,
 		},
@@ -1913,7 +1920,7 @@ func TestSecP256VerifyRide(t *testing.T) {
 			{-# STDLIB_VERSION 9 #-}
 			{-# CONTENT_TYPE EXPRESSION #-}
 			{-# SCRIPT_TYPE ACCOUNT #-}
-			p256Verify(base16'%s', base16'%s', base16'%s')`
+			p256Verify(base64'%s', base64'%s', base64'%s')`
 		)
 		tree, errs := ridec.CompileToTree(fmt.Sprintf(scriptTmpl, msg, sig, pk))
 		require.NoError(t, stderrs.Join(errs...))
@@ -1929,12 +1936,19 @@ func TestSecP256VerifyRide(t *testing.T) {
 		assert.Equal(t, expectedComplexity, env.complexityCalculator().complexity())
 		assert.Equal(t, expRes, res.Result())
 	}
+	// Valid arguments taken from Scala implementation:
+	// msg: lang/tests/src/test/resources/com/wavesplatform/lang/qe-report.bin
+	// sig: lang/tests/src/test/resources/com/wavesplatform/lang/qe-report.sig.bin
+	// Valid Public Key taken from TDX certificate chain: ../crypto/testdata/tdx-cert-chain.pem
 	validArgs := struct{ pk, sig, msg string }{
-		pk: "2927b10512bae3eddcfe467828128bad2903269919f7086069c8c4df6c732838" +
-			"c7787964eaac00e5921fb1498a60f4606766b3d9685001558d1a974e7341513e",
-		sig: "2ba3a8be6b94d5ec80a6d9d1190a436effe50d85a1eee859b8cc6af9bd5c2e18" +
-			"4cd60b855d442f5b3c7b11eb6c4e0ae7525fe710fab9aa7c77a67f79e6fadd76",
-		msg: "bb5a52f42f9c9261ed4361f59422a1e30036e7c32b270c8807a419feca605023",
+		pk:  "KdU/1vG5aM0TC1WRHYmV8ByD6oabSRj7vHVvqIWYn0h60Ihc/FT/NvVgBTMG8rnVnEF+AeojruMo22LjhGDo7A==",
+		sig: "90ctulEo2RFhfKMLLgT9WHnx+TnmytOCWNSNwEWsVTjkEhNEMU0lyOtP2XESdwTFUAlRJwryIkWjYZR53H4FyQ==",
+		msg: "AgIZGwP/AAYAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAFQAAAAAAAADnAAAAAAAAALeumraedvd5" +
+			"Slaw2xkVKB1DXUiMkdQG7TOnk5yvhzD4AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADcnip8b5SPF0dONKf8Q+0DD" +
+			"3wVY/G6vd9jQMguDlSoxQAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+			"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAIABwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA" +
+			"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAADQ0PMxCMjQs6H9Ericuy2oMAj6fPa7h5C7H86EurUIgwAAAAAAAAAAAAAAAAA" +
+			"AAAAAAAAAAAAAAAAAAAAAAAAA",
 	}
 	digest42 := crypto.Digest{42}.Hex()
 	t.Run("valid-arguments", func(t *testing.T) {
@@ -2058,7 +2072,7 @@ func TestValidateTDXCertificateChainRide(t *testing.T) {
 				test.revocations[0],
 				test.revocations[1],
 				int64(test.ts),
-				base64.StdEncoding.EncodeToString([]byte(pk)),
+				base64.StdEncoding.EncodeToString(pk),
 			)
 			tree, errs := ridec.CompileToTree(script)
 			require.NoError(t, stderrs.Join(errs...))
