@@ -1452,7 +1452,7 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 ) (proto.Height, error) {
 	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(height)
 
-	storedFinalizedHeight, err := f.stor.finalizations.newest()
+	storedFinalizedHeight, err := f.stor.finalizations.newestForProcessing()
 	if err != nil && !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
 		return 0, err
 	}
@@ -1461,7 +1461,7 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 			return storedFinalizedHeight, nil
 		}
 		if finalityActivated {
-			if storErr := f.stor.finalizations.store(calculatedFinalizedHeight, currentBlockID); storErr != nil {
+			if storErr := f.stor.finalizations.store(calculatedFinalizedHeight, height, currentBlockID); storErr != nil {
 				return 0, storErr
 			}
 		}
@@ -1471,7 +1471,7 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 	// No finalization found, calculate it, and, if finality activated - initialize it.
 	initH := calculatedFinalizedHeight
 	if finalityActivated {
-		if storErr := f.stor.finalizations.store(initH, currentBlockID); storErr != nil {
+		if storErr := f.stor.finalizations.store(initH, height, currentBlockID); storErr != nil {
 			return 0, storErr
 		}
 	}
@@ -1714,7 +1714,7 @@ func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorse
 			"not equal to grand parent's blockID while trying to finalize,"+
 			"endorsedBlockID: %s, grandParentBlockID %s", endorsedBlockID.String(), grandParentID.String())
 	}
-	if storErr := f.stor.finalizations.store(finalizedHeight, currentBlockID); storErr != nil {
+	if storErr := f.stor.finalizations.store(finalizedHeight, height, currentBlockID); storErr != nil {
 		return storErr
 	}
 	slog.Debug("finalized block and saved finalization in state:",
