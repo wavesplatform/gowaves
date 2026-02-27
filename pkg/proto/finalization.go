@@ -2,9 +2,11 @@ package proto
 
 import (
 	"encoding/binary"
+	"slices"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
@@ -142,6 +144,21 @@ func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
 		ConflictEndorsements:           conflictEndorsements,
 	}
 	return &finalizationVoting, nil
+}
+
+func CombineFinalizationVoting(voting1, voting2 *FinalizationVoting) *FinalizationVoting {
+	switch {
+	case voting1 == nil && voting2 == nil:
+		return nil
+	case voting1 == nil:
+		return voting2
+	case voting2 == nil:
+		return voting1
+	default:
+		res := *voting2
+		res.ConflictEndorsements = slices.Concat(voting1.ConflictEndorsements, voting2.ConflictEndorsements)
+		return &res
+	}
 }
 
 func CalculateLastFinalizedHeight(currentHeight Height) Height {

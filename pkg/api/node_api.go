@@ -1069,9 +1069,9 @@ func (a *NodeApi) transactionsSignCommitToGeneration(req signCommit) (*proto.Com
 			return nil, errors.Wrap(actErr, "failed to get DF activation height")
 		}
 
-		periodStart, err = state.CurrentGenerationPeriodStart(activationH, height, a.app.settings.GenerationPeriod)
+		periodStart, err = state.NextGenerationPeriodStart(activationH, height, a.app.settings.GenerationPeriod)
 		if err != nil {
-			return nil, errors.Wrap(err, "failed to calculate generationPeriodStart")
+			return nil, errors.Wrap(err, "failed to calculate next generation period start")
 		}
 	}
 	senderPK, err := a.app.services.Wallet.FindPublicKeyByAddress(addr, scheme)
