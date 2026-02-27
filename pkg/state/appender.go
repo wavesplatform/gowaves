@@ -1611,67 +1611,17 @@ func (f *finalizationProcessor) updateFinalization(
 	if err != nil {
 		return err
 	}
-	for _, conflictingEndorsement := range finalizationVoting.ConflictEndorsements {
-		slog.Debug("conflicting endorsement")
-		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex,
-			currentBlock.BlockID()) // TODO is it parent BlockID? // TODO must be new block
-		if conflictErr != nil {
-			return errors.Wrapf(conflictErr, "failed to remove generator deposit for endorser index %d",
-				conflictingEndorsement.EndorserIndex)
-		}
+	if applyErr := f.applyConflictEndorsements(periodStart, finalizationVoting, currentBlock.BlockID()); applyErr != nil {
+		return applyErr
 	}
-	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height)
-	if err != nil {
-		return err
-	}
-	slog.Debug("The last finalized height was ", "finalizedHeight", lastFinalizedHeight)
-	if finalizationVoting.FinalizedBlockHeight != lastFinalizedHeight {
-		slog.Debug("skipping finalization voting with incorrect finalized height",
-			"votingFinalizedHeight", finalizationVoting.FinalizedBlockHeight,
-			"nodeFinalizedHeight", lastFinalizedHeight)
-		return nil
-	}
-	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
-	if err != nil {
-		slog.Debug("failed to find finalized block",
-			"err", err.Error())
-		return fmt.Errorf("failed to load last finalized block ID: %w", err)
-	}
-	endorsedBlockID := currentBlock.Parent
-	msg, err := proto.EndorsementMessage(
-		lastFinalizedBlockID,
-		endorsedBlockID, // If we are at key block N+1, the endorsed block was N.
-		lastFinalizedHeight,
+	endorsedBlockID, endorsersPK, err := f.prepareFinalizationVerification(
+		finalizationVoting, height, currentBlock, periodStart,
 	)
 	if err != nil {
-		slog.Debug("failed to form endorsement message",
-			"err", err.Error())
-		return fmt.Errorf("failed to build endorsement message: %w", err)
-	}
-	slog.Debug("checking, endorsement message",
-		"lastFinalizedBlockID", lastFinalizedBlockID,
-		"lastFinalizedHeight", lastFinalizedHeight,
-		"EndorsedBlockID", endorsedBlockID,
-		"EndorserIndexes", finalizationVoting.EndorserIndexes)
-	endorsersPK, err := f.loadEndorsersPK(finalizationVoting, periodStart)
-	if err != nil {
-		slog.Debug("failed to load endorsers")
 		return err
 	}
-
-	if verifyErr := f.verifyFinalizationSignature(finalizationVoting, msg, endorsersPK); verifyErr != nil {
-		sb := new(strings.Builder)
-		for _, epk := range endorsersPK {
-			sb.WriteString(epk.String())
-			sb.WriteString(",")
-		}
-		slog.Debug("failed to verify finalization signature",
-			"signature", finalizationVoting.AggregatedEndorsementSignature.String(),
-			"msg", msg,
-			"endorsersPKs", sb.String(),
-			"err", verifyErr,
-		)
-		return errors.Wrapf(verifyErr, "failed to verify finalization signature")
+	if endorsersPK == nil {
+		return nil
 	}
 
 	canFinalize, err := f.canFinalizeParent(endorsersPK, periodStart, currentBlock, height)
@@ -1689,6 +1639,84 @@ func (f *finalizationProcessor) updateFinalization(
 		slog.Debug("couldn't finalize the parent's block")
 	}
 	return nil
+}
+
+func (f *finalizationProcessor) applyConflictEndorsements(
+	periodStart uint32,
+	finalizationVoting *proto.FinalizationVoting,
+	currentBlockID proto.BlockID,
+) error {
+	for _, conflictingEndorsement := range finalizationVoting.ConflictEndorsements {
+		slog.Debug("conflicting endorsement")
+		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex, currentBlockID)
+		if conflictErr != nil {
+			return errors.Wrapf(conflictErr, "failed to remove generator deposit for endorser index %d",
+				conflictingEndorsement.EndorserIndex)
+		}
+	}
+	return nil
+}
+
+func (f *finalizationProcessor) prepareFinalizationVerification(
+	finalizationVoting *proto.FinalizationVoting,
+	height proto.Height,
+	currentBlock *proto.BlockHeader,
+	periodStart uint32,
+) (proto.BlockID, []bls.PublicKey, error) {
+	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height)
+	if err != nil {
+		return proto.BlockID{}, nil, err
+	}
+	slog.Debug("The last finalized height was ", "finalizedHeight", lastFinalizedHeight)
+	if finalizationVoting.FinalizedBlockHeight != lastFinalizedHeight {
+		slog.Debug("skipping finalization voting with incorrect finalized height",
+			"votingFinalizedHeight", finalizationVoting.FinalizedBlockHeight,
+			"nodeFinalizedHeight", lastFinalizedHeight)
+		return proto.BlockID{}, nil, nil
+	}
+	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
+	if err != nil {
+		slog.Debug("failed to find finalized block",
+			"err", err.Error())
+		return proto.BlockID{}, nil, fmt.Errorf("failed to load last finalized block ID: %w", err)
+	}
+	endorsedBlockID := currentBlock.Parent
+	msg, err := proto.EndorsementMessage(
+		lastFinalizedBlockID,
+		endorsedBlockID, // If we are at key block N+1, the endorsed block was N.
+		lastFinalizedHeight,
+	)
+	if err != nil {
+		slog.Debug("failed to form endorsement message",
+			"err", err.Error())
+		return proto.BlockID{}, nil, fmt.Errorf("failed to build endorsement message: %w", err)
+	}
+	slog.Debug("checking, endorsement message",
+		"lastFinalizedBlockID", lastFinalizedBlockID,
+		"lastFinalizedHeight", lastFinalizedHeight,
+		"EndorsedBlockID", endorsedBlockID,
+		"EndorserIndexes", finalizationVoting.EndorserIndexes)
+	endorsersPK, err := f.loadEndorsersPK(finalizationVoting, periodStart)
+	if err != nil {
+		slog.Debug("failed to load endorsers")
+		return proto.BlockID{}, nil, err
+	}
+
+	if verifyErr := f.verifyFinalizationSignature(finalizationVoting, msg, endorsersPK); verifyErr != nil {
+		sb := new(strings.Builder)
+		for _, epk := range endorsersPK {
+			sb.WriteString(epk.String())
+			sb.WriteString(",")
+		}
+		slog.Debug("failed to verify finalization signature",
+			"signature", finalizationVoting.AggregatedEndorsementSignature.String(),
+			"msg", msg,
+			"endorsersPKs", sb.String(),
+			"err", verifyErr,
+		)
+		return proto.BlockID{}, nil, errors.Wrapf(verifyErr, "failed to verify finalization signature")
+	}
+	return endorsedBlockID, endorsersPK, nil
 }
 
 func (f *finalizationProcessor) finalizeParent(height proto.Height, endorsedBlockID proto.BlockID,
