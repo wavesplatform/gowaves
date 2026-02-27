@@ -158,8 +158,9 @@ func (a *WaitMicroSnapshotState) checkAndAppendMicroBlock(
 		return nil, errors.Errorf("microblock '%s' has invalid signature", micro.TotalBlockID.String())
 	}
 	newTrs := top.Transactions.Join(micro.Transactions)
+	fv := proto.CombineFinalizationVoting(top.FinalizationVoting, micro.PartialFinalization)
 	newBlock, err := proto.CreateBlock(newTrs, top.Timestamp, top.Parent, top.GeneratorPublicKey, top.NxtConsensus,
-		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash, micro.PartialFinalization)
+		top.Version, top.Features, top.RewardVote, a.baseInfo.scheme, micro.StateHash, fv)
 	if err != nil {
 		return nil, err
 	}
