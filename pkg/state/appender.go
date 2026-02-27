@@ -836,8 +836,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 
 	// Process parent's block finalization.
 	if hasParent {
-		err = a.finalizer.updateFinalization(params.parent.FinalizationVoting, params.parent, currentBlockHeight,
-			params.block.BlockID())
+		err = a.finalizer.updateFinalization(params.block.FinalizationVoting, currentBlockHeight,
+			params.block)
 		if err != nil {
 			slog.Error("did not update finalization", "err", err.Error())
 		}
@@ -1447,8 +1447,6 @@ func (f *finalizationProcessor) votingFinalization(
 
 func (f *finalizationProcessor) loadLastFinalizedHeight(
 	height proto.Height,
-	currentBlockID proto.BlockID,
-	finalityActivated bool,
 ) (proto.Height, error) {
 	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(height)
 
@@ -1460,22 +1458,10 @@ func (f *finalizationProcessor) loadLastFinalizedHeight(
 		if storedFinalizedHeight >= calculatedFinalizedHeight {
 			return storedFinalizedHeight, nil
 		}
-		if finalityActivated {
-			if storErr := f.stor.finalizations.store(calculatedFinalizedHeight, height, currentBlockID); storErr != nil {
-				return 0, storErr
-			}
-		}
 		return calculatedFinalizedHeight, nil
 	}
-
-	// No finalization found, calculate it, and, if finality activated - initialize it.
-	initH := calculatedFinalizedHeight
-	if finalityActivated {
-		if storErr := f.stor.finalizations.store(initH, height, currentBlockID); storErr != nil {
-			return 0, storErr
-		}
-	}
-	return initH, nil
+	// No finalization found, calculate it.
+	return calculatedFinalizedHeight, nil
 }
 
 func (f *finalizationProcessor) loadEndorsersPK(
@@ -1608,9 +1594,8 @@ func (f *finalizationProcessor) validateCurrentGenerators(height proto.Height,
 
 func (f *finalizationProcessor) updateFinalization(
 	finalizationVoting *proto.FinalizationVoting,
-	parent *proto.BlockHeader,
 	height proto.Height,
-	currentBlockID proto.BlockID,
+	currentBlock *proto.BlockHeader,
 ) error {
 	slog.Debug("trying to finalize parent's block")
 	if finalizationVoting == nil {
@@ -1618,9 +1603,7 @@ func (f *finalizationProcessor) updateFinalization(
 		return nil
 	}
 
-	// TODO here we somehow have to check that if endorsedBlock was N, we are at N+2.
-
-	finalityActivated, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	_, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
 	if err != nil {
 		return err
 	}
@@ -1628,45 +1611,95 @@ func (f *finalizationProcessor) updateFinalization(
 	if err != nil {
 		return err
 	}
+	if applyErr := f.applyConflictEndorsements(periodStart, finalizationVoting, currentBlock.BlockID()); applyErr != nil {
+		return applyErr
+	}
+	endorsedBlockID, endorsersPK, err := f.prepareFinalizationVerification(
+		finalizationVoting, height, currentBlock, periodStart,
+	)
+	if err != nil {
+		return err
+	}
+	if endorsersPK == nil {
+		return nil
+	}
+
+	canFinalize, err := f.canFinalizeParent(endorsersPK, periodStart, currentBlock, height)
+	if err != nil {
+		slog.Debug("failed to check if parent is finalized",
+			"err", err.Error())
+		return errors.Wrap(err, "failed to check if parent is finalized")
+	}
+	if canFinalize {
+		finalizeErr := f.finalizeParent(height, endorsedBlockID, finalizationVoting, currentBlock.BlockID())
+		if finalizeErr != nil {
+			return finalizeErr
+		}
+	} else {
+		slog.Debug("couldn't finalize the parent's block")
+	}
+	return nil
+}
+
+func (f *finalizationProcessor) applyConflictEndorsements(
+	periodStart uint32,
+	finalizationVoting *proto.FinalizationVoting,
+	currentBlockID proto.BlockID,
+) error {
 	for _, conflictingEndorsement := range finalizationVoting.ConflictEndorsements {
 		slog.Debug("conflicting endorsement")
-		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex,
-			parent.BlockID()) // TODO is it parent BlockID?
+		conflictErr := f.removeGeneratorDeposit(periodStart, conflictingEndorsement.EndorserIndex, currentBlockID)
 		if conflictErr != nil {
 			return errors.Wrapf(conflictErr, "failed to remove generator deposit for endorser index %d",
 				conflictingEndorsement.EndorserIndex)
 		}
 	}
-	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height, currentBlockID, finalityActivated)
+	return nil
+}
+
+func (f *finalizationProcessor) prepareFinalizationVerification(
+	finalizationVoting *proto.FinalizationVoting,
+	height proto.Height,
+	currentBlock *proto.BlockHeader,
+	periodStart uint32,
+) (proto.BlockID, []bls.PublicKey, error) {
+	lastFinalizedHeight, err := f.loadLastFinalizedHeight(height)
 	if err != nil {
-		return err
+		return proto.BlockID{}, nil, err
+	}
+	slog.Debug("The last finalized height was ", "finalizedHeight", lastFinalizedHeight)
+	if finalizationVoting.FinalizedBlockHeight != lastFinalizedHeight {
+		slog.Debug("skipping finalization voting with incorrect finalized height",
+			"votingFinalizedHeight", finalizationVoting.FinalizedBlockHeight,
+			"nodeFinalizedHeight", lastFinalizedHeight)
+		return proto.BlockID{}, nil, nil
 	}
 	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
 	if err != nil {
 		slog.Debug("failed to find finalized block",
 			"err", err.Error())
-		return fmt.Errorf("failed to load last finalized block ID: %w", err)
+		return proto.BlockID{}, nil, fmt.Errorf("failed to load last finalized block ID: %w", err)
 	}
-	endorsedBlockID := parent.Parent
+	endorsedBlockID := currentBlock.Parent
 	msg, err := proto.EndorsementMessage(
 		lastFinalizedBlockID,
-		endorsedBlockID, // If we are at key block N+2, the endorsed block was N.
+		endorsedBlockID, // If we are at key block N+1, the endorsed block was N.
 		lastFinalizedHeight,
 	)
 	if err != nil {
 		slog.Debug("failed to form endorsement message",
 			"err", err.Error())
-		return fmt.Errorf("failed to build endorsement message: %w", err)
+		return proto.BlockID{}, nil, fmt.Errorf("failed to build endorsement message: %w", err)
 	}
 	slog.Debug("checking, endorsement message",
 		"lastFinalizedBlockID", lastFinalizedBlockID,
 		"lastFinalizedHeight", lastFinalizedHeight,
-		"EndorsedBlockID", parent.Parent,
+		"EndorsedBlockID", endorsedBlockID,
 		"EndorserIndexes", finalizationVoting.EndorserIndexes)
 	endorsersPK, err := f.loadEndorsersPK(finalizationVoting, periodStart)
 	if err != nil {
 		slog.Debug("failed to load endorsers")
-		return err
+		return proto.BlockID{}, nil, err
 	}
 
 	if verifyErr := f.verifyFinalizationSignature(finalizationVoting, msg, endorsersPK); verifyErr != nil {
@@ -1679,40 +1712,25 @@ func (f *finalizationProcessor) updateFinalization(
 			"signature", finalizationVoting.AggregatedEndorsementSignature.String(),
 			"msg", msg,
 			"endorsersPKs", sb.String(),
-			"err", verifyErr.Error(),
+			"err", verifyErr,
 		)
-		return errors.Wrapf(err, "failed to verify finalization signature")
+		return proto.BlockID{}, nil, errors.Wrapf(verifyErr, "failed to verify finalization signature")
 	}
-
-	canFinalize, err := f.canFinalizeGrandParent(endorsersPK, periodStart, parent, height)
-	if err != nil {
-		slog.Debug("failed to check if parent is finalized",
-			"err", err.Error())
-		return errors.Wrap(err, "failed to check if parent is finalized")
-	}
-	if canFinalize {
-		finalizeErr := f.finalizeGrandParent(height, endorsedBlockID, finalizationVoting, currentBlockID)
-		if finalizeErr != nil {
-			return finalizeErr
-		}
-	} else {
-		slog.Debug("couldn't finalize the parent's block")
-	}
-	return nil
+	return endorsedBlockID, endorsersPK, nil
 }
 
-func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorsedBlockID proto.BlockID,
+func (f *finalizationProcessor) finalizeParent(height proto.Height, endorsedBlockID proto.BlockID,
 	finalizationVoting *proto.FinalizationVoting,
 	currentBlockID proto.BlockID) error {
-	finalizedHeight := height - 2
-	grandParentID, idErr := f.rw.newestBlockIDByHeight(finalizedHeight)
+	finalizedHeight := height - 1
+	parentID, idErr := f.rw.newestBlockIDByHeight(finalizedHeight)
 	if idErr != nil {
 		return fmt.Errorf("failed to load block ID at finalized height %d: %w", finalizedHeight, idErr)
 	}
-	if !bytes.Equal(endorsedBlockID.Bytes(), grandParentID.Bytes()) {
+	if !bytes.Equal(endorsedBlockID.Bytes(), parentID.Bytes()) {
 		return fmt.Errorf("endorsed blockID is "+
-			"not equal to grand parent's blockID while trying to finalize,"+
-			"endorsedBlockID: %s, grandParentBlockID %s", endorsedBlockID.String(), grandParentID.String())
+			"not equal to parent's blockID while trying to finalize,"+
+			"endorsedBlockID: %s, parentBlockID %s", endorsedBlockID.String(), parentID.String())
 	}
 	if storErr := f.stor.finalizations.store(finalizedHeight, height, currentBlockID); storErr != nil {
 		return storErr
@@ -1725,14 +1743,14 @@ func (f *finalizationProcessor) finalizeGrandParent(height proto.Height, endorse
 	return nil
 }
 
-func (f *finalizationProcessor) canFinalizeGrandParent(
+func (f *finalizationProcessor) canFinalizeParent(
 	endorsersPK []bls.PublicKey,
 	periodStart uint32,
-	parent *proto.BlockHeader,
+	currentBlock *proto.BlockHeader,
 	height proto.Height,
 ) (bool, error) {
-	// Endorsements target the block two heights below the current one (N-2).
-	if height < 2 {
+	// Endorsements target the block 1 height below the current one (N-1).
+	if height < 1 {
 		return false, nil
 	}
 	endorserAddresses, err := f.mapEndorsersToAddresses(endorsersPK, periodStart)
@@ -1752,7 +1770,7 @@ func (f *finalizationProcessor) canFinalizeGrandParent(
 
 	blockGeneratorAddress, err := proto.NewAddressFromPublicKey(
 		f.settings.AddressSchemeCharacter,
-		parent.GeneratorPublicKey,
+		currentBlock.GeneratorPublicKey,
 	)
 	if err != nil {
 		return false, errors.Wrap(err, "failed to convert block generator public key to address")

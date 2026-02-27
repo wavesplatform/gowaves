@@ -2,7 +2,6 @@ package proto
 
 import (
 	"encoding/binary"
-	"log/slog"
 	"slices"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -166,10 +165,7 @@ func CalculateLastFinalizedHeight(currentHeight Height) Height {
 	var genesisHeight uint64 = 1
 	var maxRollbackDeltaHeight uint64 = 100
 	if currentHeight <= maxRollbackDeltaHeight {
-		slog.Debug("The last finalized height was calculated", "finalizedHeight", genesisHeight)
 		return genesisHeight
 	}
-	slog.Debug("The last finalized height was calculated", "finalizedHeight",
-		currentHeight-maxRollbackDeltaHeight)
 	return currentHeight - maxRollbackDeltaHeight
 }
