@@ -1709,8 +1709,21 @@ func (f *finalizationProcessor) prepareFinalizationVerification(
 			sb.WriteString(",")
 		}
 		slog.Debug("failed to verify finalization signature",
-			"signature", finalizationVoting.AggregatedEndorsementSignature.String(),
+			"height", height,
+			"periodStart", periodStart,
+			"currentBlockID", currentBlock.BlockID().String(),
+			"currentParentBlockID", currentBlock.Parent.String(),
+			"lastFinalizedHeight", lastFinalizedHeight,
+			"lastFinalizedBlockID", lastFinalizedBlockID.String(),
+			"endorsedBlockID", endorsedBlockID.String(),
+			"votingFinalizedHeight", finalizationVoting.FinalizedBlockHeight,
+			"FinalizationEndorserIndexes", finalizationVoting.EndorserIndexes,
+			"FinalizationConflictEndorsementsCount", len(finalizationVoting.ConflictEndorsements),
+			"FinalizationConflictEndorsements", finalizationVoting.ConflictEndorsements,
+			"FinalizationSignature", finalizationVoting.AggregatedEndorsementSignature.String(),
 			"msg", msg,
+			"msgLen", len(msg),
+			"endorsersCount", len(endorsersPK),
 			"endorsersPKs", sb.String(),
 			"err", verifyErr,
 		)
