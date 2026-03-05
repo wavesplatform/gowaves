@@ -210,6 +210,8 @@ func prefixByEntity(entity blockchainEntity) ([]byte, error) {
 		return []byte{commitmentKeyPrefix}, nil
 	case finalization:
 		return []byte{finalizationKeyPrefix}, nil
+	case bannedGenerators:
+		return []byte{bannedGeneratorsKeyPrefix}, nil
 	default:
 		return nil, errors.New("bad entity type")
 	}

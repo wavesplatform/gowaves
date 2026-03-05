@@ -115,7 +115,7 @@ func newBlockchainEntitiesStorage(
 		patches:           newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		commitments:       cmt,
 		finalizations:     newFinalizations(hs),
-		generators:        newGenerators(hs, fts, sets, cmt, bal, calcHashes),
+		generators:        newGenerators(hs, fts, bal, cmt, sets, calcHashes),
 		settings:          sets,
 		calculateHashes:   calcHashes,
 	}, nil
@@ -173,7 +173,10 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	if err := s.aliases.prepareHashes(); err != nil {
 		return err
 	}
-	return s.commitments.prepareHashes()
+	if err := s.commitments.prepareHashes(); err != nil {
+		return err
+	}
+	return s.generators.prepareHashes()
 }
 
 func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
@@ -240,6 +243,7 @@ func (s *blockchainEntitiesStorage) reset() {
 	s.sponsoredAssets.reset()
 	s.aliases.reset()
 	s.commitments.reset()
+	s.generators.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush() error {

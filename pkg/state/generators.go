@@ -7,12 +7,17 @@ import (
 	"slices"
 
 	"github.com/fxamacker/cbor/v2"
+	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
+
+type generationBalanceProvider interface {
+	newestGeneratingBalance(proto.AddressID, proto.Height) (uint64, error)
+}
 
 type GeneratorInfo struct {
 	address proto.WavesAddress
@@ -24,7 +29,17 @@ type GeneratorInfo struct {
 // bannedGeneratorsRecord is a structure used for CBOR serialization of banned generator indexes.
 // It has public fields to allow encoding/decoding with the specified CBOR tags.
 type bannedGeneratorsRecord struct {
-	Indexes               []uint32 `cbor:"0,keyasint,omitempty"`
+	Indexes []uint32 `cbor:"0,keyasint,omitempty"`
+}
+
+func (r *bannedGeneratorsRecord) appendIndex(index uint32) error {
+	for _, existingIndex := range r.Indexes {
+		if existingIndex == index {
+			return errors.Errorf("index %d is already present in the record", index)
+		}
+	}
+	r.Indexes = append(r.Indexes, index)
+	return nil
 }
 
 func (r *bannedGeneratorsRecord) marshalBinary() ([]byte, error) { return cbor.Marshal(r) }
@@ -38,7 +53,7 @@ type bannedGeneratorsKey struct {
 
 func (k *bannedGeneratorsKey) bytes() []byte {
 	buf := make([]byte, 1+uint32Size)
-	buf[0] = batchedStorKeyPrefix
+	buf[0] = bannedGeneratorsKeyPrefix
 	binary.BigEndian.PutUint32(buf[1:], k.periodStart)
 	return buf
 }
@@ -84,9 +99,9 @@ func (r *generatorsBalancesRecordForStateHashes) less(other stateComponent) bool
 type generators struct {
 	hs              *historyStorage
 	settings        *settings.BlockchainSettings
-	features        *features
+	fs              featuresState
 	commitments     *commitments
-	balances        *balances
+	balances        generationBalanceProvider
 	set             []GeneratorInfo
 	calculateHashes bool
 	hasher          *stateHasher
@@ -94,16 +109,16 @@ type generators struct {
 
 func newGenerators(
 	hs *historyStorage,
-	features *features,
-	sets *settings.BlockchainSettings,
+	fs featuresState,
+	balances generationBalanceProvider,
 	commitments *commitments,
-	balances *balances,
+	sets *settings.BlockchainSettings,
 	calcHashes bool,
 ) *generators {
 	return &generators{
 		hs:              hs,
 		settings:        sets,
-		features:        features,
+		fs:              fs,
 		commitments:     commitments,
 		balances:        balances,
 		set:             make([]GeneratorInfo, 0),
@@ -115,7 +130,7 @@ func newGenerators(
 // initialize populates the generator set based on the provided commitments and balances.
 // This method should be called upon block header processing.
 func (g *generators) initialize(height proto.Height, blockID proto.BlockID) error {
-	activationHeight, err := g.features.activationHeight(int16(settings.DeterministicFinality))
+	activationHeight, err := g.fs.activationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
 		return fmt.Errorf("failed to get activation height for Deterministic Finality feature: %w", err)
 	}
@@ -157,6 +172,45 @@ func (g *generators) initialize(height proto.Height, blockID proto.BlockID) erro
 		}
 	}
 	return nil
+}
+
+func (g *generators) generators() []GeneratorInfo {
+	return g.set
+}
+
+func (g *generators) banGenerator(periodStart, index uint32, blockID proto.BlockID) error {
+	if index >= uint32(len(g.set)) {
+		return fmt.Errorf("generator index %d is out of bounds for the generator set of size %d",
+			index, len(g.set))
+	}
+	key := bannedGeneratorsKey{periodStart: periodStart}
+	keyBytes := key.bytes()
+	recordBytes, err := g.hs.newestTopEntryData(keyBytes)
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) { // No record found, create new one.
+			r := bannedGeneratorsRecord{
+				Indexes: []uint32{index},
+			}
+			data, mErr := r.marshalBinary()
+			if mErr != nil {
+				return fmt.Errorf("failed to marshal record to binary data: %w", mErr)
+			}
+			return g.hs.addNewEntry(bannedGenerators, keyBytes, data, blockID)
+		}
+		return err
+	}
+	var r bannedGeneratorsRecord
+	if uErr := r.unmarshalBinary(recordBytes); uErr != nil {
+		return fmt.Errorf("failed to unmarshal record from binary data: %w", uErr)
+	}
+	if aErr := r.appendIndex(index); aErr != nil {
+		return fmt.Errorf("failed to append index to record: %w", aErr)
+	}
+	recordBytes, err = r.marshalBinary()
+	if err != nil {
+		return fmt.Errorf("failed to marshal record to binary data: %w", err)
+	}
+	return g.hs.addNewEntry(bannedGenerators, keyBytes, recordBytes, blockID)
 }
 
 func (g *generators) prepareHashes() error {

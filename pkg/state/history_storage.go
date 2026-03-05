@@ -47,6 +47,7 @@ const (
 	challengedAddress
 	commitment
 	finalization
+	bannedGenerators
 )
 
 type blockchainEntityProperties struct {
