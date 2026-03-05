@@ -386,7 +386,7 @@ func TestScalaCompatibility(t *testing.T) {
 }
 
 func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
-	so := createStorageObjects(t, true)
+	so := createStorageObjectsWithOptions(t, testStorageObjectsOptions{Amend: true, CalculateHashes: true})
 	so.activateFeature(t, int16(settings.DeterministicFinality)) // add first block
 	featureActivationHeight, err := so.entities.features.newestActivationHeight(int16(settings.DeterministicFinality))
 	require.NoError(t, err)
@@ -398,6 +398,7 @@ func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
 
 	bID := proto.NewBlockIDFromDigest(crypto.Digest{42})
 	const initialBalance = 3000
+	so.entities.calculateHashes = true
 	so.prepareAndStartBlock(t, bID) // prepare and start second block
 
 	blockHeight := so.rw.addingBlockHeight()
@@ -408,12 +409,13 @@ func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
 	so.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0, 0}, bID)
 	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, bID)
 	require.NoError(t, err)
-
+	err = so.entities.generators.initialize(blockHeight, bID)
+	require.NoError(t, err)
 	so.finishBlock(t, bID) // finish second block
 	// no flush, should be possible to calculate SH for unflushed data
-	sh, err := calculateCommittedGeneratorsBalancesStateHash(so.entities, true, blockHeight)
+	err = so.entities.generators.hasher.stop()
 	require.NoError(t, err)
 	// "EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr" —> value below
 	expectedSH := crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, initialBalance))
-	assert.Equal(t, expectedSH, sh)
+	assert.Equal(t, expectedSH, so.entities.generators.hasher.stateHashAt(bID))
 }

@@ -139,6 +139,8 @@ const (
 	commitmentKeyPrefix
 	// Key to store and retrieve last finalization record.
 	finalizationKeyPrefix
+	// Key to address the set of generators' indexes that are banned from block generation.
+	bannedGeneratorsKeyPrefix
 )
 
 var (

@@ -138,6 +138,38 @@ func (c *commitments) exists(
 	return checkCommitments(data, generatorPK, endorserPK)
 }
 
+func (c *commitments) commitments(periodStart uint32) ([]commitmentItem, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.topEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve commitment record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	return rec.Commitments, nil
+}
+
+func (c *commitments) newestCommitments(periodStart uint32) ([]commitmentItem, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.newestTopEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return nil, nil
+		}
+		return nil, fmt.Errorf("failed to retrieve commitment record: %w", err)
+	}
+	var rec commitmentsRecord
+	if umErr := rec.unmarshalBinary(data); umErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
+	}
+	return rec.Commitments, nil
+}
+
 // newestExists checks if a commitment exists for the given period start and generator public key.
 // The function also checks that the endorser PK is not already used by another generator.
 func (c *commitments) newestExists(
@@ -403,6 +435,7 @@ func (c *commitments) CommittedGeneratorsAddresses(periodStart uint32,
 	return addresses, nil
 }
 
+//TODO: The function can be removed.
 func (c *commitments) removeGenerator(
 	periodStart uint32,
 	generatorPK crypto.PublicKey,
@@ -444,7 +477,7 @@ func (c *commitments) removeGenerator(
 	if mErr != nil {
 		return fmt.Errorf("failed to marshal updated commitments record: %w", mErr)
 	}
-
+	//TODO: Do we need to update the hash here?
 	if c.calculateHashes {
 		if pErr := c.hasher.pop(string(keyBytes), blockID); pErr != nil {
 			return fmt.Errorf("failed to update commitment state hash: %w", pErr)
