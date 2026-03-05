@@ -7,6 +7,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -1577,16 +1578,15 @@ func TestScriptActivation(t *testing.T) {
 		{libVersion: ast.LibV8, active: uptoLightNode, valid: true},
 	}
 	for i, test := range tests {
-		mfs := &mockFeaturesState{
-			newestIsActivatedFunc: func(featureID int16) (bool, error) {
-				for _, f := range test.active {
-					if int16(f) == featureID {
-						return true, nil
-					}
+		mfs := NewMockFeaturesState(t)
+		mfs.EXPECT().newestIsActivated(mock.Anything).RunAndReturn(func(featureID int16) (bool, error) {
+			for _, f := range test.active {
+				if int16(f) == featureID {
+					return true, nil
 				}
-				return false, nil
-			},
-		}
+			}
+			return false, nil
+		}).Maybe()
 		stor := &blockchainEntitiesStorage{features: mfs}
 		checker, err := newTransactionChecker(proto.BlockID{}, stor, settings.MustTestNetSettings())
 		require.NoError(t, err)

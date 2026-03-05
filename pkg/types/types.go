@@ -55,8 +55,6 @@ type TransactionWithBytes struct {
 
 var _ = SmartState(EnrichedSmartState(nil)) // check for go:generate command
 
-//go:generate moq -out ../state/smart_state_moq_test.go -pkg state . EnrichedSmartState:AnotherMockSmartState
-
 // WavesBalanceProfile contains essential parts of Waves balance and
 // must be used to pass this information if SmartState only.
 type WavesBalanceProfile struct {

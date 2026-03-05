@@ -51,7 +51,6 @@ func NewParent(enableLightNode bool) Parent {
 	}
 }
 
-//go:generate moq -out peer_moq.go . Peer:mockPeer
 type Peer interface {
 	Direction() Direction
 	Close() error
