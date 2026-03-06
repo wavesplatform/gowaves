@@ -546,9 +546,8 @@ func (a ByVersion) Less(i, j int) bool {
 			return -1
 		} else if a == b {
 			return 0
-		} else {
-			return 1
 		}
+		return 1
 	}
 	x := cmp(a[i].major, a[j].major)
 	y := cmp(a[i].minor, a[j].minor)
@@ -560,12 +559,10 @@ func (a ByVersion) Less(i, j int) bool {
 			return true
 		} else if y == 0 {
 			return z < 0
-		} else {
-			return false
 		}
-	} else {
 		return false
 	}
+	return false
 }
 
 type TCPAddr net.TCPAddr
@@ -968,7 +965,7 @@ func NewPeerInfoFromString(addr string) (PeerInfo, error) {
 	if err != nil {
 		return PeerInfo{}, err
 	}
-	n := rand.IntN(len(ips)) // #nosec: it's ok to use math/rand/v2 here
+	n := rand.IntN(len(ips)) //nolint: gosec // it's ok to use math/rand/v2 here.
 	ip := ips[n]             // Select random IPv4 from the list
 	return PeerInfo{
 		Addr: ip,
@@ -1391,9 +1388,8 @@ func MessageByBlock(block *Block, scheme Scheme) (Message, error) {
 	}
 	if block.Version >= ProtobufBlockVersion {
 		return &PBBlockMessage{bts}, nil
-	} else {
-		return &BlockMessage{bts}, nil
 	}
+	return &BlockMessage{bts}, nil
 }
 
 // BlockMessage represents Block message

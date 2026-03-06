@@ -249,8 +249,8 @@ func TestSimpleReadWrite(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
-	for _, block := range blocks {
-		testSingleBlock(t, to, &block)
+	for i := range blocks {
+		testSingleBlock(t, to, &blocks[i])
 	}
 }
 
@@ -354,8 +354,8 @@ func TestSimultaneousReadDelete(t *testing.T) {
 		t.Fatalf("Can not read blocks from blockchain file: %v", err)
 	}
 
-	for _, block := range blocks {
-		to.addRealBlock(t, &block)
+	for i := range blocks {
+		to.addRealBlock(t, &blocks[i])
 	}
 	rollbackHeight := blocksNumber - 2
 	idToTest := blocks[rollbackHeight].BlockID()
