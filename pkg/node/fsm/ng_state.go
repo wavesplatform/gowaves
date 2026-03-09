@@ -238,18 +238,18 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.baseInfo.CleanUtx()
 
 	if a.baseInfo.embeddedWallet != nil && finalityActivated {
-		pks, sks, walErr := a.baseInfo.embeddedWallet.KeyPairsBLS()
-		if walErr != nil {
-			return a, nil, a.Errorf(errors.Wrapf(walErr, "failed to generate key pairs for %s", block.BlockID()))
+		pks, sks, wErr := a.baseInfo.embeddedWallet.KeyPairsBLS()
+		if wErr != nil {
+			return a, nil, a.Errorf(errors.Wrapf(wErr, "failed to generate BLS key pairs for %s", block.BlockID()))
 		}
 		logErr := a.logNewFinalizationVoting(block, height+1)
 		if logErr != nil {
 			return a, nil, a.Errorf(errors.Wrapf(logErr, "failed to log new finalization voting for block %s",
 				block.BlockID()))
 		}
-		endorseErr := a.EndorseParentWithEachKey(pks, sks, block, height+1)
-		if endorseErr != nil {
-			return a, nil, a.Errorf(errors.Wrapf(endorseErr, "failed to endorse parent block with available keys"))
+		enErr := a.endorseParentWithEachKey(pks, sks, block, height+1)
+		if enErr != nil {
+			return a, nil, a.Errorf(errors.Wrapf(enErr, "failed to endorse parent block with available keys"))
 		}
 	}
 	return newNGState(a.baseInfo), nil, nil
@@ -276,7 +276,7 @@ func (a *NGState) logNewFinalizationVoting(currentBlock *proto.Block, height pro
 	}
 	return nil
 }
-func (a *NGState) EndorseParentWithEachKey(
+func (a *NGState) endorseParentWithEachKey(
 	pks []bls.PublicKey,
 	sks []bls.SecretKey,
 	block *proto.Block,
@@ -296,35 +296,25 @@ func (a *NGState) EndorseParentWithEachKey(
 		return a.Errorf(errors.Wrapf(err, "failed to get current generation period, block %s", block.BlockID()))
 	}
 
-	endorsers, err := a.baseInfo.storage.NewestCommitedEndorsers(periodStart)
-	if err != nil {
-		return a.Errorf(errors.Wrap(err, "failed to find committed generators"))
-	}
-
 	for i := range pks {
 		pk := pks[i]
 		sk := sks[i]
+		slog.Debug("Trying to endorse block with wallet's BLS Public Key",
+			slog.Int("SeedIndex", i), slog.String("BLS PublicKey", pk.String()),
+			slog.Any("BlockID", block.BlockID()), slog.Any("GenerationPeriodStart", periodStart))
 
-		slog.Debug("checking commitment record for my BLS public key", "myPublicKeyBLS",
-			pk.String(), "periodStart", periodStart)
-
-		committed, storErr := a.baseInfo.storage.NewestCommitmentExistsByEndorserPK(periodStart, pk)
-		if storErr != nil {
-			a.logCommittedEndorsers(periodStart, endorsers)
-			return a.Errorf(errors.Wrapf(
-				storErr,
-				"failed to find commitments at block %s for endorsers PK %s",
-				block.BlockID(),
-				pk.String(),
-			))
+		g, gErr := a.baseInfo.storage.FindGenerator(state.ByBLSPublicKey(pk))
+		if gErr != nil {
+			return a.Errorf(fmt.Errorf("failed to find generator for BLS PK '%s': %w", pk.String(), gErr))
 		}
-
 		if !committed {
-			a.logCommitmentMiss(periodStart, endorsers)
+			slog.Debug("Wallet's BLS public key is not in the generators set",
+				slog.Int("SeedIndex", i), slog.String("BLS PublicKey", pk.String()),
+				slog.Any("BlockID", block.BlockID()), slog.Any("GenerationPeriodStart", periodStart))
 			continue
 		}
-		if endorseErr := a.Endorse(block.Parent, height, pk, sk); endorseErr != nil {
-			return a.Errorf(errors.Wrapf(err, "failed to endorse parent block"))
+		if enErr := a.Endorse(block.Parent, height, pk, sk); enErr != nil {
+			return a.Errorf(errors.Wrapf(enErr, "failed to endorse parent block"))
 		}
 	}
 	return nil
@@ -334,17 +324,6 @@ func (a *NGState) logCommittedEndorsers(periodStart uint32, endorsers []bls.Publ
 	slog.Debug("Committed endorsers for period", "periodStart", periodStart)
 	for _, e := range endorsers {
 		slog.Debug("committed endorser", "endorser", e.String())
-	}
-}
-
-func (a *NGState) logCommitmentMiss(periodStart uint32, endorsers []bls.PublicKey) {
-	slog.Debug("did not find my BLS public key in the commitment records", "periodStart", periodStart)
-	if len(endorsers) == 0 {
-		slog.Debug("no BLS public keys in the commitment records", "periodStart", periodStart)
-		return
-	}
-	for _, e := range endorsers {
-		slog.Debug("commitment record", "endorserBlsPublicKey", e.String())
 	}
 }
 

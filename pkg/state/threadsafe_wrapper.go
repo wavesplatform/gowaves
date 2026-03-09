@@ -446,11 +446,10 @@ func (a *ThreadSafeReadWrapper) IndexByEndorserPK(periodStart uint32, pk bls.Pub
 	return a.s.IndexByEndorserPK(periodStart, pk)
 }
 
-func (a *ThreadSafeReadWrapper) NewestCommitmentExistsByEndorserPK(periodStart uint32,
-	endorserPK bls.PublicKey) (bool, error) {
+func (a *ThreadSafeReadWrapper) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.NewestCommitmentExistsByEndorserPK(periodStart, endorserPK)
+	return a.s.FindGenerator(lookup)
 }
 
 func (a *ThreadSafeReadWrapper) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {

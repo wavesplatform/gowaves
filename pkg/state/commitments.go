@@ -123,37 +123,6 @@ func (c *commitments) store(
 	return nil
 }
 
-// exists checks if a commitment exists for the given period start and generator public key.
-func (c *commitments) exists(
-	periodStart uint32, generatorPK crypto.PublicKey, endorserPK bls.PublicKey,
-) (bool, error) {
-	key := commitmentKey{periodStart: periodStart}
-	data, err := c.hs.topEntryData(key.bytes())
-	if err != nil {
-		if isNotFoundInHistoryOrDBErr(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to retrieve commitment record: %w", err)
-	}
-	return checkCommitments(data, generatorPK, endorserPK)
-}
-
-func (c *commitments) commitments(periodStart uint32) ([]commitmentItem, error) {
-	key := commitmentKey{periodStart: periodStart}
-	data, err := c.hs.topEntryData(key.bytes())
-	if err != nil {
-		if isNotFoundInHistoryOrDBErr(err) {
-			return nil, nil
-		}
-		return nil, fmt.Errorf("failed to retrieve commitment record: %w", err)
-	}
-	var rec commitmentsRecord
-	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		return nil, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
-	}
-	return rec.Commitments, nil
-}
-
 func (c *commitments) newestCommitments(periodStart uint32) ([]commitmentItem, error) {
 	key := commitmentKey{periodStart: periodStart}
 	data, err := c.hs.newestTopEntryData(key.bytes())
@@ -170,6 +139,21 @@ func (c *commitments) newestCommitments(periodStart uint32) ([]commitmentItem, e
 	return rec.Commitments, nil
 }
 
+// exists checks if a commitment exists for the given period start and generator public key.
+func (c *commitments) exists(
+	periodStart uint32, generatorPK crypto.PublicKey, endorserPK bls.PublicKey,
+) (bool, error) {
+	key := commitmentKey{periodStart: periodStart}
+	data, err := c.hs.topEntryData(key.bytes())
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) {
+			return false, nil
+		}
+		return false, fmt.Errorf("failed to retrieve commitment record: %w", err)
+	}
+	return checkCommitments(data, generatorPK, endorserPK)
+}
+
 // newestExists checks if a commitment exists for the given period start and generator public key.
 // The function also checks that the endorser PK is not already used by another generator.
 func (c *commitments) newestExists(
@@ -184,32 +168,6 @@ func (c *commitments) newestExists(
 		return false, fmt.Errorf("failed to retrieve commitment record: %w", err)
 	}
 	return checkCommitments(data, generatorPK, endorserPK)
-}
-
-// newestExists checks if a commitment exists for the given period start and generator public key.
-// The function also checks that the endorser PK is not already used by another generator.
-func (c *commitments) newestExistsByEndorserPK(
-	periodStart uint32, endorserPK bls.PublicKey,
-) (bool, error) {
-	key := commitmentKey{periodStart: periodStart}
-	data, err := c.hs.newestTopEntryData(key.bytes())
-	if err != nil {
-		if isNotFoundInHistoryOrDBErr(err) {
-			return false, nil
-		}
-		return false, fmt.Errorf("failed to retrieve commitment record: %w", err)
-	}
-	var rec commitmentsRecord
-	if umErr := rec.unmarshalBinary(data); umErr != nil {
-		return false, fmt.Errorf("failed to unmarshal commitment record: %w", umErr)
-	}
-	epkb := endorserPK.Bytes()
-	for _, cm := range rec.Commitments {
-		if bytes.Equal(cm.EndorserPK.Bytes(), epkb) {
-			return true, nil
-		}
-	}
-	return false, nil
 }
 
 func (c *commitments) generators(periodStart uint32) ([]crypto.PublicKey, error) {
@@ -232,6 +190,7 @@ func (c *commitments) generators(periodStart uint32) ([]crypto.PublicKey, error)
 	return generators, nil
 }
 
+//TODO: Move to generators.
 func (c *commitments) generatorExists(periodStart uint32, generatorTarget crypto.PublicKey) (bool, error) {
 	generators, err := c.newestGenerators(periodStart)
 	if err != nil {

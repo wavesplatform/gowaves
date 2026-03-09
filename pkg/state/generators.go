@@ -1,6 +1,7 @@
 package state
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
 	"io"
@@ -15,8 +16,16 @@ import (
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
 
+// generationBalanceProvider is an interface that abstracts the retrieval of generating balances for addresses at
+// specific heights.
 type generationBalanceProvider interface {
 	newestGeneratingBalance(proto.AddressID, proto.Height) (uint64, error)
+}
+
+// commitmentsProvider is an interface that abstracts the retrieval of generator commitments for a given
+// generation period.
+type commitmentsProvider interface {
+	newestCommitments(periodStart uint32) ([]commitmentItem, error)
 }
 
 type GeneratorInfo struct {
@@ -24,6 +33,7 @@ type GeneratorInfo struct {
 	pk      crypto.PublicKey
 	blsPK   bls.PublicKey
 	balance uint64
+	ban     bool
 }
 
 // bannedGeneratorsRecord is a structure used for CBOR serialization of banned generator indexes.
@@ -95,14 +105,25 @@ func (r *generatorsBalancesRecordForStateHashes) less(other stateComponent) bool
 	return len(r.balances) < len(otherRecord.balances)
 }
 
-// generators manages the set of active block generators for the current block.
+// generators manages the set of generators for the current block.
+// The generators storage entity itself lifetime can be larger than a single block, but the generator set is expected
+// to be initialized and used within the context of a single block processing. The underlying history storage and
+// legacy hasher are expected to be shared across multiple blocks.
 type generators struct {
-	hs              *historyStorage
-	settings        *settings.BlockchainSettings
-	fs              featuresState
-	commitments     *commitments
-	balances        generationBalanceProvider
-	set             []GeneratorInfo
+	hs *historyStorage
+
+	fs          featuresState
+	balances    generationBalanceProvider
+	commitments commitmentsProvider
+	settings    *settings.BlockchainSettings
+
+	set                   []GeneratorInfo
+	byAddress             map[proto.AddressID]GeneratorInfo
+	activationHeight      proto.Height
+	generationPeriodStart uint32
+	blockHeight           proto.Height
+	blockID               proto.BlockID
+
 	calculateHashes bool
 	hasher          *stateHasher
 }
@@ -111,16 +132,16 @@ func newGenerators(
 	hs *historyStorage,
 	fs featuresState,
 	balances generationBalanceProvider,
-	commitments *commitments,
+	commitments commitmentsProvider,
 	sets *settings.BlockchainSettings,
 	calcHashes bool,
 ) *generators {
 	return &generators{
 		hs:              hs,
-		settings:        sets,
 		fs:              fs,
-		commitments:     commitments,
 		balances:        balances,
+		commitments:     commitments,
+		settings:        sets,
 		set:             make([]GeneratorInfo, 0),
 		calculateHashes: calcHashes,
 		hasher:          newStateHasher(),
@@ -130,20 +151,23 @@ func newGenerators(
 // initialize populates the generator set based on the provided commitments and balances.
 // This method should be called upon block header processing.
 func (g *generators) initialize(height proto.Height, blockID proto.BlockID) error {
-	activationHeight, err := g.fs.activationHeight(int16(settings.DeterministicFinality))
+	var err error
+	g.activationHeight, err = g.fs.activationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
 		return fmt.Errorf("failed to get activation height for Deterministic Finality feature: %w", err)
 	}
-	ps, err := CurrentGenerationPeriodStart(activationHeight, height, g.settings.GenerationPeriod)
+	g.generationPeriodStart, err = CurrentGenerationPeriodStart(g.activationHeight, height, g.settings.GenerationPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to calculate current generation period start: %w", err)
 	}
-	cms, err := g.commitments.newestCommitments(ps)
+	cms, err := g.commitments.newestCommitments(g.generationPeriodStart)
 	if err != nil {
 		return fmt.Errorf("failed to initialize generators set: %w", err)
 	}
+	g.blockID = blockID
 	g.set = slices.Grow(g.set, len(cms))
-	generatorsBalancesRecord := newGeneratorsBalancesRecordForStateHashes(len(cms))
+	g.byAddress = make(map[proto.AddressID]GeneratorInfo)
+	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(cms))
 	for i, cm := range cms {
 		a, aErr := proto.NewAddressFromPublicKey(g.settings.AddressSchemeCharacter, cm.GeneratorPK)
 		if aErr != nil {
@@ -162,12 +186,12 @@ func (g *generators) initialize(height proto.Height, blockID proto.BlockID) erro
 		}
 		g.set = append(g.set, gi)
 		if g.calculateHashes {
-			generatorsBalancesRecord.append(b)
+			generatorsBalancesLSHRecord.append(b)
 		}
 	}
 	if g.calculateHashes {
-		key := bannedGeneratorsKey{periodStart: ps}
-		if pErr := g.hasher.push(string(key.bytes()), generatorsBalancesRecord, blockID); pErr != nil {
+		key := bannedGeneratorsKey{periodStart: g.generationPeriodStart}
+		if pErr := g.hasher.push(string(key.bytes()), generatorsBalancesLSHRecord, blockID); pErr != nil {
 			return fmt.Errorf("failed to hash generators balances record: %w", pErr)
 		}
 	}
@@ -211,6 +235,47 @@ func (g *generators) banGenerator(periodStart, index uint32, blockID proto.Block
 		return fmt.Errorf("failed to marshal record to binary data: %w", err)
 	}
 	return g.hs.addNewEntry(bannedGenerators, keyBytes, recordBytes, blockID)
+}
+
+// newestGeneratingBalance retrieves the generating balance for a given address and height. This method checks
+// that given address is in the current generators set. If current generator set is empty, it uses the balance
+// provider to get the balance for the address.
+func (g *generators) newestGeneratingBalance(addr proto.AddressID, height proto.Height) (uint64, error) {
+	if len(g.set) == 0 {
+		return g.balances.newestGeneratingBalance(addr, height)
+	}
+	a, err := addr.ToWavesAddress(g.settings.AddressSchemeCharacter)
+	if err != nil {
+		return 0, fmt.Errorf("failed to convert address ID to Waves address: %w", err)
+	}
+	if info, ok := g.byAddress[addr]; ok {
+		if info.ban {
+			return 0, fmt.Errorf("address '%s' is banned from generation", a.String())
+		}
+		return info.balance, nil
+	}
+	return 0, fmt.Errorf("address '%s' is not in the current generator set", a.String())
+}
+
+func ByAddress(addr proto.AddressID) func(GeneratorInfo) bool {
+	return func(info GeneratorInfo) bool {
+		return info.address.ID() == addr
+	}
+}
+
+func ByBLSPublicKey(pk bls.PublicKey) func(GeneratorInfo) bool {
+	return func(info GeneratorInfo) bool {
+		return bytes.Equal(info.blsPK.Bytes(), pk.Bytes())
+	}
+}
+
+func (g *generators) findGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
+	for _, info := range g.set {
+		if lookup(info) {
+			return info, nil
+		}
+	}
+	return GeneratorInfo{}, errors.New("generator not found")
 }
 
 func (g *generators) prepareHashes() error {

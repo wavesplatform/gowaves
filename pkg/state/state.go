@@ -1143,6 +1143,8 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient, height proto.H
 
 // NewestMinerGeneratingBalance returns the generating balance of the miner at the given height.
 // This method includes the challenger bonus if the block has a challenged header.
+// After activation of Deterministic Finality feature, the method also checks presence of the block generator in
+// the generators set and returns 0 if the block generator is not in the set or was excluded from it.
 func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, height proto.Height) (uint64, error) {
 	minerAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
 	if err != nil {
@@ -1150,7 +1152,8 @@ func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, h
 			header.GeneratorPublicKey,
 		))
 	}
-	minerGB, err := s.stor.balances.newestGeneratingBalance(minerAddr.ID(), height)
+	// Get miner's balance form the generators set.
+	minerGB, err := s.stor.generators.newestGeneratingBalance(minerAddr.ID(), height)
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, errors.Wrapf(err, "failed to get generating balance for addr %s",
 			minerAddr.String(),
@@ -3534,9 +3537,10 @@ func (s *stateManager) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (
 	return s.stor.commitments.IndexByEndorserPK(periodStart, pk)
 }
 
-func (s *stateManager) NewestCommitmentExistsByEndorserPK(periodStart uint32,
-	endorserPK bls.PublicKey) (bool, error) {
-	return s.stor.commitments.newestExistsByEndorserPK(periodStart, endorserPK)
+// FindGenerator retrieves the generator's information by a lookup function that is applied to current generators set.
+// Available lookup functions: ByBLSPublicKey.
+func (s *stateManager) FindGenerator(lookup func(GeneratorInfo)bool) (GeneratorInfo, error) {
+	return s.stor.generators.findGenerator(lookup)
 }
 
 func (s *stateManager) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
@@ -3587,7 +3591,9 @@ func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
 	return header, nil
 }
 
-// MinimalGeneratingBalanceAtHeight returns minimal generating balance at given height and timestamp.
+// NewestMinimalGeneratingBalanceAtHeight returns minimal required generating balance at given height and timestamp.
+// Minimal required generating balance is depending on activated features and blockchain settings,
+// so it can be different for different heights.
 // It checks feature activation using newestIsActivatedAtHeight function.
 func (s *stateManager) NewestMinimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
 	return s.stor.features.minimalGeneratingBalanceAtHeight(height, ts)
