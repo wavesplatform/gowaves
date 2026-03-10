@@ -26,7 +26,7 @@ require (
 	github.com/lanrat/extsort v1.4.2
 	github.com/lmittmann/tint v1.1.3
 	github.com/mattn/go-isatty v0.0.20
-	github.com/minio/minlz v1.0.1
+	github.com/minio/minlz v1.1.0
 	github.com/mr-tron/base58 v1.2.0
 	github.com/nats-io/nats-server/v2 v2.12.5
 	github.com/nats-io/nats.go v1.49.0
