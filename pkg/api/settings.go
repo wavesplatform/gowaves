@@ -1,7 +1,6 @@
 package api
 
 import (
-	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -51,7 +50,6 @@ func DefaultRunOptions() *RunOptions {
 		RequestIDMiddleware:  true,
 		CollectMetrics:       true,
 		RouteNotFoundHandler: func(w http.ResponseWriter, r *http.Request) {
-			slog.Debug("NodeApi not found", "request", r, "path", r.URL.Path)
 			w.WriteHeader(http.StatusNotFound)
 		},
 		MaxConnections:       DefaultMaxConnections,
