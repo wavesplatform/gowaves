@@ -64,10 +64,8 @@ type bannedGeneratorsRecord struct {
 }
 
 func (r *bannedGeneratorsRecord) appendIndex(index uint32) error {
-	for _, existingIndex := range r.Indexes {
-		if existingIndex == index {
-			return errors.Errorf("index %d is already present in the record", index)
-		}
+	if slices.Contains(r.Indexes, index) {
+		return errors.Errorf("index %d is already present in the record", index)
 	}
 	r.Indexes = append(r.Indexes, index)
 	return nil
