@@ -163,9 +163,6 @@ type StateInfo interface {
 		blockGeneratorAddress proto.WavesAddress, height proto.Height,
 		allGenerators []proto.WavesAddress) (bool, error)
 
-	FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error)
-	FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error)
-	IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error)
 	FindGenerator(func(GeneratorInfo) bool) (GeneratorInfo, error)
 	NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error)
 	CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error)
@@ -227,6 +224,11 @@ type StateModifier interface {
 	PersistAddressTransactions() error
 
 	Close() error
+}
+
+type GeneratorBanner interface {
+	// BanGenerator bans generator with given index from block generation until the end of current generation period.
+	BanGenerator(periodStart, index uint32, blockID proto.BlockID) error
 }
 
 type NonThreadSafeState = State

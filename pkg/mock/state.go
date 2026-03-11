@@ -418,34 +418,19 @@ func (mr *MockStateInfoMockRecorder) EstimatorVersion() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockStateInfo)(nil).EstimatorVersion))
 }
 
-// FindEndorserPKByIndex mocks base method.
-func (m *MockStateInfo) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+// FindGenerator mocks base method.
+func (m *MockStateInfo) FindGenerator(arg0 func(state.GeneratorInfo) bool) (state.GeneratorInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindEndorserPKByIndex", periodStart, index)
-	ret0, _ := ret[0].(bls.PublicKey)
+	ret := m.ctrl.Call(m, "FindGenerator", arg0)
+	ret0, _ := ret[0].(state.GeneratorInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// FindEndorserPKByIndex indicates an expected call of FindEndorserPKByIndex.
-func (mr *MockStateInfoMockRecorder) FindEndorserPKByIndex(periodStart, index interface{}) *gomock.Call {
+// FindGenerator indicates an expected call of FindGenerator.
+func (mr *MockStateInfoMockRecorder) FindGenerator(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindEndorserPKByIndex", reflect.TypeOf((*MockStateInfo)(nil).FindEndorserPKByIndex), periodStart, index)
-}
-
-// FindGeneratorPKByEndorserPK mocks base method.
-func (m *MockStateInfo) FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindGeneratorPKByEndorserPK", periodStart, endorserPK)
-	ret0, _ := ret[0].(crypto.PublicKey)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindGeneratorPKByEndorserPK indicates an expected call of FindGeneratorPKByEndorserPK.
-func (mr *MockStateInfoMockRecorder) FindGeneratorPKByEndorserPK(periodStart, endorserPK interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindGeneratorPKByEndorserPK", reflect.TypeOf((*MockStateInfo)(nil).FindGeneratorPKByEndorserPK), periodStart, endorserPK)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindGenerator", reflect.TypeOf((*MockStateInfo)(nil).FindGenerator), arg0)
 }
 
 // FullAssetInfo mocks base method.
@@ -566,21 +551,6 @@ func (m *MockStateInfo) HitSourceAtHeight(height proto.Height) ([]byte, error) {
 func (mr *MockStateInfoMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockStateInfo)(nil).HitSourceAtHeight), height)
-}
-
-// IndexByEndorserPK mocks base method.
-func (m *MockStateInfo) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IndexByEndorserPK", periodStart, pk)
-	ret0, _ := ret[0].(uint32)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IndexByEndorserPK indicates an expected call of IndexByEndorserPK.
-func (mr *MockStateInfoMockRecorder) IndexByEndorserPK(periodStart, pk interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IndexByEndorserPK", reflect.TypeOf((*MockStateInfo)(nil).IndexByEndorserPK), periodStart, pk)
 }
 
 // InvokeResultByID mocks base method.
@@ -821,21 +791,6 @@ func (m *MockStateInfo) NewestCommitedEndorsers(periodStart uint32) ([]bls.Publi
 func (mr *MockStateInfoMockRecorder) NewestCommitedEndorsers(periodStart interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestCommitedEndorsers", reflect.TypeOf((*MockStateInfo)(nil).NewestCommitedEndorsers), periodStart)
-}
-
-// NewestCommitmentExistsByEndorserPK mocks base method.
-func (m *MockStateInfo) NewestCommitmentExistsByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewestCommitmentExistsByEndorserPK", periodStart, endorserPK)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewestCommitmentExistsByEndorserPK indicates an expected call of NewestCommitmentExistsByEndorserPK.
-func (mr *MockStateInfoMockRecorder) NewestCommitmentExistsByEndorserPK(periodStart, endorserPK interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestCommitmentExistsByEndorserPK", reflect.TypeOf((*MockStateInfo)(nil).NewestCommitmentExistsByEndorserPK), periodStart, endorserPK)
 }
 
 // NewestHeaderByHeight mocks base method.
@@ -1538,6 +1493,43 @@ func (mr *MockStateModifierMockRecorder) ValidateNextTx(tx, currentTimestamp, pa
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ValidateNextTx", reflect.TypeOf((*MockStateModifier)(nil).ValidateNextTx), tx, currentTimestamp, parentTimestamp, blockVersion, acceptFailed)
 }
 
+// MockGeneratorBanner is a mock of GeneratorBanner interface.
+type MockGeneratorBanner struct {
+	ctrl     *gomock.Controller
+	recorder *MockGeneratorBannerMockRecorder
+}
+
+// MockGeneratorBannerMockRecorder is the mock recorder for MockGeneratorBanner.
+type MockGeneratorBannerMockRecorder struct {
+	mock *MockGeneratorBanner
+}
+
+// NewMockGeneratorBanner creates a new mock instance.
+func NewMockGeneratorBanner(ctrl *gomock.Controller) *MockGeneratorBanner {
+	mock := &MockGeneratorBanner{ctrl: ctrl}
+	mock.recorder = &MockGeneratorBannerMockRecorder{mock}
+	return mock
+}
+
+// EXPECT returns an object that allows the caller to indicate expected use.
+func (m *MockGeneratorBanner) EXPECT() *MockGeneratorBannerMockRecorder {
+	return m.recorder
+}
+
+// BanGenerator mocks base method.
+func (m *MockGeneratorBanner) BanGenerator(periodStart, index uint32, blockID proto.BlockID) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BanGenerator", periodStart, index, blockID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// BanGenerator indicates an expected call of BanGenerator.
+func (mr *MockGeneratorBannerMockRecorder) BanGenerator(periodStart, index, blockID interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BanGenerator", reflect.TypeOf((*MockGeneratorBanner)(nil).BanGenerator), periodStart, index, blockID)
+}
+
 // MockTxValidation is a mock of TxValidation interface.
 type MockTxValidation struct {
 	ctrl     *gomock.Controller
@@ -2015,34 +2007,19 @@ func (mr *MockStateMockRecorder) EstimatorVersion() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EstimatorVersion", reflect.TypeOf((*MockState)(nil).EstimatorVersion))
 }
 
-// FindEndorserPKByIndex mocks base method.
-func (m *MockState) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+// FindGenerator mocks base method.
+func (m *MockState) FindGenerator(arg0 func(state.GeneratorInfo) bool) (state.GeneratorInfo, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindEndorserPKByIndex", periodStart, index)
-	ret0, _ := ret[0].(bls.PublicKey)
+	ret := m.ctrl.Call(m, "FindGenerator", arg0)
+	ret0, _ := ret[0].(state.GeneratorInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// FindEndorserPKByIndex indicates an expected call of FindEndorserPKByIndex.
-func (mr *MockStateMockRecorder) FindEndorserPKByIndex(periodStart, index interface{}) *gomock.Call {
+// FindGenerator indicates an expected call of FindGenerator.
+func (mr *MockStateMockRecorder) FindGenerator(arg0 interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindEndorserPKByIndex", reflect.TypeOf((*MockState)(nil).FindEndorserPKByIndex), periodStart, index)
-}
-
-// FindGeneratorPKByEndorserPK mocks base method.
-func (m *MockState) FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "FindGeneratorPKByEndorserPK", periodStart, endorserPK)
-	ret0, _ := ret[0].(crypto.PublicKey)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// FindGeneratorPKByEndorserPK indicates an expected call of FindGeneratorPKByEndorserPK.
-func (mr *MockStateMockRecorder) FindGeneratorPKByEndorserPK(periodStart, endorserPK interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindGeneratorPKByEndorserPK", reflect.TypeOf((*MockState)(nil).FindGeneratorPKByEndorserPK), periodStart, endorserPK)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "FindGenerator", reflect.TypeOf((*MockState)(nil).FindGenerator), arg0)
 }
 
 // FullAssetInfo mocks base method.
@@ -2163,21 +2140,6 @@ func (m *MockState) HitSourceAtHeight(height proto.Height) ([]byte, error) {
 func (mr *MockStateMockRecorder) HitSourceAtHeight(height interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "HitSourceAtHeight", reflect.TypeOf((*MockState)(nil).HitSourceAtHeight), height)
-}
-
-// IndexByEndorserPK mocks base method.
-func (m *MockState) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "IndexByEndorserPK", periodStart, pk)
-	ret0, _ := ret[0].(uint32)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// IndexByEndorserPK indicates an expected call of IndexByEndorserPK.
-func (mr *MockStateMockRecorder) IndexByEndorserPK(periodStart, pk interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "IndexByEndorserPK", reflect.TypeOf((*MockState)(nil).IndexByEndorserPK), periodStart, pk)
 }
 
 // InvokeResultByID mocks base method.
@@ -2446,21 +2408,6 @@ func (m *MockState) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey
 func (mr *MockStateMockRecorder) NewestCommitedEndorsers(periodStart interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestCommitedEndorsers", reflect.TypeOf((*MockState)(nil).NewestCommitedEndorsers), periodStart)
-}
-
-// NewestCommitmentExistsByEndorserPK mocks base method.
-func (m *MockState) NewestCommitmentExistsByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (bool, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "NewestCommitmentExistsByEndorserPK", periodStart, endorserPK)
-	ret0, _ := ret[0].(bool)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// NewestCommitmentExistsByEndorserPK indicates an expected call of NewestCommitmentExistsByEndorserPK.
-func (mr *MockStateMockRecorder) NewestCommitmentExistsByEndorserPK(periodStart, endorserPK interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "NewestCommitmentExistsByEndorserPK", reflect.TypeOf((*MockState)(nil).NewestCommitmentExistsByEndorserPK), periodStart, endorserPK)
 }
 
 // NewestHeaderByHeight mocks base method.

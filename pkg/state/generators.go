@@ -29,11 +29,32 @@ type commitmentsProvider interface {
 }
 
 type GeneratorInfo struct {
+	index   uint32
 	address proto.WavesAddress
 	pk      crypto.PublicKey
 	blsPK   bls.PublicKey
 	balance uint64
 	ban     bool
+}
+
+func (g *GeneratorInfo) Index() uint32 {
+	return g.index
+}
+
+func (g *GeneratorInfo) GenerationBalance() uint64 {
+	if g.ban {
+		return 0
+	}
+	//TODO: Consider checking for minimal generating balance here and returning 0 if balance is below the threshold.
+	return g.balance
+}
+
+func (g *GeneratorInfo) BLSPublicKey() bls.PublicKey {
+	return g.blsPK
+}
+
+func (g *GeneratorInfo) Address() proto.WavesAddress {
+	return g.address
 }
 
 // bannedGeneratorsRecord is a structure used for CBOR serialization of banned generator indexes.
@@ -56,7 +77,8 @@ func (r *bannedGeneratorsRecord) marshalBinary() ([]byte, error) { return cbor.M
 
 func (r *bannedGeneratorsRecord) unmarshalBinary(data []byte) error { return cbor.Unmarshal(data, r) }
 
-// bannedGeneratorsKey is a structure used to generate a unique key for storing banned generators in the history storage.
+// bannedGeneratorsKey is a structure used to generate a unique key for storing banned generators in the
+// history storage.
 type bannedGeneratorsKey struct {
 	periodStart uint32
 }
@@ -94,7 +116,10 @@ func (r *generatorsBalancesRecordForStateHashes) writeTo(w io.Writer) error {
 }
 
 func (r *generatorsBalancesRecordForStateHashes) less(other stateComponent) bool {
-	otherRecord := other.(*generatorsBalancesRecordForStateHashes)
+	otherRecord, ok := other.(*generatorsBalancesRecordForStateHashes)
+	if !ok {
+		panic("generatorsBalancesRecordForStateHashes: invalid type assertion")
+	}
 	for i := 0; i < len(r.balances) && i < len(otherRecord.balances); i++ {
 		if r.balances[i] < otherRecord.balances[i] {
 			return true
@@ -121,7 +146,6 @@ type generators struct {
 	byAddress             map[proto.AddressID]GeneratorInfo
 	activationHeight      proto.Height
 	generationPeriodStart uint32
-	blockHeight           proto.Height
 	blockID               proto.BlockID
 
 	calculateHashes bool
@@ -164,6 +188,10 @@ func (g *generators) initialize(height proto.Height, blockID proto.BlockID) erro
 	if err != nil {
 		return fmt.Errorf("failed to initialize generators set: %w", err)
 	}
+	bans, err := g.bans(g.generationPeriodStart)
+	if err != nil {
+		return fmt.Errorf("failed to retrieve banned generators for the current generation period: %w", err)
+	}
 	g.blockID = blockID
 	g.set = slices.Grow(g.set, len(cms))
 	g.byAddress = make(map[proto.AddressID]GeneratorInfo)
@@ -178,11 +206,14 @@ func (g *generators) initialize(height proto.Height, blockID proto.BlockID) erro
 			return fmt.Errorf("failed to get balance for generator at index %d by address '%s': %w",
 				i, a.String(), bErr)
 		}
+		idx := uint32(i)
 		gi := GeneratorInfo{
+			index:   idx,
 			address: a,
 			pk:      cm.GeneratorPK,
 			blsPK:   cm.EndorserPK,
 			balance: b,
+			ban:     slices.Contains(bans, idx),
 		}
 		g.set = append(g.set, gi)
 		if g.calculateHashes {
@@ -198,12 +229,8 @@ func (g *generators) initialize(height proto.Height, blockID proto.BlockID) erro
 	return nil
 }
 
-func (g *generators) generators() []GeneratorInfo {
-	return g.set
-}
-
 func (g *generators) banGenerator(periodStart, index uint32, blockID proto.BlockID) error {
-	if index >= uint32(len(g.set)) {
+	if int(index) >= len(g.set) {
 		return fmt.Errorf("generator index %d is out of bounds for the generator set of size %d",
 			index, len(g.set))
 	}
@@ -237,6 +264,23 @@ func (g *generators) banGenerator(periodStart, index uint32, blockID proto.Block
 	return g.hs.addNewEntry(bannedGenerators, keyBytes, recordBytes, blockID)
 }
 
+func (g *generators) bans(periodStart uint32) ([]uint32, error) {
+	key := bannedGeneratorsKey{periodStart: periodStart}
+	keyBytes := key.bytes()
+	recordBytes, err := g.hs.newestTopEntryData(keyBytes)
+	if err != nil {
+		if isNotFoundInHistoryOrDBErr(err) { // No record found, return empty bans list.
+			return []uint32{}, nil
+		}
+		return nil, err
+	}
+	var r bannedGeneratorsRecord
+	if uErr := r.unmarshalBinary(recordBytes); uErr != nil {
+		return nil, fmt.Errorf("failed to unmarshal record from binary data: %w", uErr)
+	}
+	return r.Indexes, nil
+}
+
 // newestGeneratingBalance retrieves the generating balance for a given address and height. This method checks
 // that given address is in the current generators set. If current generator set is empty, it uses the balance
 // provider to get the balance for the address.
@@ -263,9 +307,17 @@ func ByAddress(addr proto.AddressID) func(GeneratorInfo) bool {
 	}
 }
 
+// ByBLSPublicKey returns a lookup function that checks if a generator's BLS public key matches the provided one.
 func ByBLSPublicKey(pk bls.PublicKey) func(GeneratorInfo) bool {
 	return func(info GeneratorInfo) bool {
 		return bytes.Equal(info.blsPK.Bytes(), pk.Bytes())
+	}
+}
+
+// ByIndex returns a lookup function that checks if a generator's index matches the provided one.
+func ByIndex(index uint32) func(GeneratorInfo) bool {
+	return func(info GeneratorInfo) bool {
+		return info.index == index
 	}
 }
 
@@ -275,7 +327,7 @@ func (g *generators) findGenerator(lookup func(GeneratorInfo) bool) (GeneratorIn
 			return info, nil
 		}
 	}
-	return GeneratorInfo{}, errors.New("generator not found")
+	return GeneratorInfo{}, errors.New("generator is not found")
 }
 
 func (g *generators) prepareHashes() error {

@@ -11,7 +11,10 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
+// EndorseBlock represents an endorsement of a block by a validator.
+// TODO: Rename structure to BlockEndorsement.
 type EndorseBlock struct {
+	// TODO: Change type of EndorserIndex to uint32.
 	EndorserIndex        int32         `json:"endorserIndex"`
 	FinalizedBlockID     BlockID       `json:"finalizedBlockID"`
 	FinalizedBlockHeight uint32        `json:"finalizedBlockHeight"`

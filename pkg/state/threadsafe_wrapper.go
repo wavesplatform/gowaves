@@ -427,25 +427,6 @@ func (a *ThreadSafeReadWrapper) CalculateVotingFinalization(endorsers []proto.Wa
 	return a.s.CalculateVotingFinalization(endorsers, blockGeneratorEndorser, height, allGenerators)
 }
 
-func (a *ThreadSafeReadWrapper) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.FindEndorserPKByIndex(periodStart, index)
-}
-
-func (a *ThreadSafeReadWrapper) FindGeneratorPKByEndorserPK(periodStart uint32,
-	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
-}
-
-func (a *ThreadSafeReadWrapper) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.IndexByEndorserPK(periodStart, pk)
-}
-
 func (a *ThreadSafeReadWrapper) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()

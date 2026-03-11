@@ -3520,27 +3520,14 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 	return false, nil
 }
 
-// FindEndorserPKByIndex retrieves the BLS endorser public key by its index
-// in the commitments list for the given period.
-func (s *stateManager) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
-	return s.stor.commitments.EndorserPKByIndex(periodStart, index)
-}
-
-// FindGeneratorPKByEndorserPK finds the generator's Waves public key corresponding
-// to the given BLS endorser public key in the commitments record for the given period.
-func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
-	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	return s.stor.commitments.GeneratorPKByEndorserPK(periodStart, endorserPK)
-}
-
-func (s *stateManager) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
-	return s.stor.commitments.IndexByEndorserPK(periodStart, pk)
-}
-
 // FindGenerator retrieves the generator's information by a lookup function that is applied to current generators set.
 // Available lookup functions: ByBLSPublicKey.
-func (s *stateManager) FindGenerator(lookup func(GeneratorInfo)bool) (GeneratorInfo, error) {
+func (s *stateManager) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
 	return s.stor.generators.findGenerator(lookup)
+}
+
+func (s *stateManager) BanGenerator(periodStart, index uint32, blockID proto.BlockID) error {
+	return s.stor.generators.banGenerator(periodStart, index, blockID)
 }
 
 func (s *stateManager) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {

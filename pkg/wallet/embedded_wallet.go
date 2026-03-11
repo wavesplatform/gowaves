@@ -74,23 +74,17 @@ func (a *EmbeddedWalletImpl) BLSPairByWavesPK(publicKey crypto.PublicKey) (bls.S
 	return bls.SecretKey{}, bls.PublicKey{}, ErrPublicKeyNotFound
 }
 
-func (a *EmbeddedWalletImpl) KeyPairsBLS() ([]bls.PublicKey, []bls.SecretKey, error) {
+func (a *EmbeddedWalletImpl) KeyPairsBLS() ([]bls.SecretKey, error) {
 	seeds := a.seeder.AccountSeeds()
-	publicKeys := make([]bls.PublicKey, len(seeds))
 	secretKeys := make([]bls.SecretKey, len(seeds))
 	for i, s := range seeds {
 		sk, err := bls.GenerateSecretKey(s)
 		if err != nil {
-			return nil, nil, err
-		}
-		pk, err := sk.PublicKey()
-		if err != nil {
-			return nil, nil, err
+			return nil, err
 		}
 		secretKeys[i] = sk
-		publicKeys[i] = pk
 	}
-	return publicKeys, secretKeys, nil
+	return secretKeys, nil
 }
 
 func (a *EmbeddedWalletImpl) Load(password []byte) error {

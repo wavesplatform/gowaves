@@ -5,7 +5,6 @@ import (
 	"fmt"
 	"io"
 
-	"github.com/ccoveille/go-safecast/v2"
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
 
@@ -190,7 +189,7 @@ func (c *commitments) generators(periodStart uint32) ([]crypto.PublicKey, error)
 	return generators, nil
 }
 
-//TODO: Move to generators.
+// TODO: Move to generators.
 func (c *commitments) generatorExists(periodStart uint32, generatorTarget crypto.PublicKey) (bool, error) {
 	generators, err := c.newestGenerators(periodStart)
 	if err != nil {
@@ -324,34 +323,6 @@ func (c *commitments) EndorserPKByIndex(
 	return rec.Commitments[index].EndorserPK, nil
 }
 
-func (c *commitments) IndexByEndorserPK(
-	periodStart uint32, pk bls.PublicKey,
-) (uint32, error) {
-	key := commitmentKey{periodStart: periodStart}
-	data, err := c.hs.newestTopEntryData(key.bytes())
-	if err != nil {
-		if isNotFoundInHistoryOrDBErr(err) {
-			return 0, errNoCommitmentsForPeriod(periodStart)
-		}
-		return 0, fmt.Errorf("failed to retrieve commitments record: %w", err)
-	}
-
-	var rec commitmentsRecord
-	if unmarshalErr := rec.unmarshalBinary(data); unmarshalErr != nil {
-		return 0, fmt.Errorf("failed to unmarshal commitments: %w", unmarshalErr)
-	}
-	for i, c := range rec.Commitments {
-		if bytes.Equal(c.EndorserPK.Bytes(), pk.Bytes()) {
-			index32, errConvert := safecast.Convert[uint32](i)
-			if errConvert != nil {
-				return 0, fmt.Errorf("failed to convert index to uint32: %w", errConvert)
-			}
-			return index32, nil
-		}
-	}
-	return 0, fmt.Errorf("endorser public key not found in commitments for period %d", periodStart)
-}
-
 func (c *commitments) GeneratorPKByEndorserPK(periodStart uint32,
 	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
 	key := commitmentKey{periodStart: periodStart}
@@ -394,7 +365,7 @@ func (c *commitments) CommittedGeneratorsAddresses(periodStart uint32,
 	return addresses, nil
 }
 
-//TODO: The function can be removed.
+// TODO: The function can be removed.
 func (c *commitments) removeGenerator(
 	periodStart uint32,
 	generatorPK crypto.PublicKey,
