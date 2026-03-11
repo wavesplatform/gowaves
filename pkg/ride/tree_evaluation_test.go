@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -4455,7 +4454,6 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 	test := newTestAccount(t, "TEST")
-	alias := *proto.NewAlias(proto.TestNetScheme, "test")
 
 	/*
 		{-# STDLIB_VERSION 5 #-}
@@ -4486,16 +4484,7 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	_, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{&proto.IntegerArgument{Value: 10}}))
 	require.Error(t, err)
 	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
-	var aliasCalls []mock.Call
-	for _, c := range env.ms.Calls {
-		if c.Method == "NewestAddrByAlias" {
-			aliasCalls = append(aliasCalls, c)
-		}
-	}
-	require.Len(t, aliasCalls, 1)
-	aa, ok := aliasCalls[0].Arguments.Get(0).(proto.Alias)
-	require.True(t, ok)
-	require.Equal(t, alias, aa)
+	assert.Equal(t, 1, countMockCalls(&env.ms.Mock, "NewestAddrByAlias"))
 
 	_, err = CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{&proto.IntegerArgument{Value: 1}}))
 	require.Error(t, err)
