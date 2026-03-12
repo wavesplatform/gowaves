@@ -10,8 +10,10 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 	"github.com/valyala/bytebufferpool"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
@@ -65,22 +67,22 @@ func TestRecvFromRemote_Transaction(t *testing.T) {
 	nowFn := func() time.Time { return now }
 	filter := func(headerBytes proto.Header) bool { return false }
 
-	var rdr *mockDeadlineReader
-	rdr = &mockDeadlineReader{
-		ReadFunc: bytes.NewReader(messBytes).Read,
-		SetReadDeadlineFunc: func(tm time.Time) error {
-			if len(rdr.SetReadDeadlineCalls())%2 == 1 {
-				assert.Equal(t, now.Add(MaxConnIdleIODuration), tm)
-			} else {
-				assert.Equal(t, now.Add(maxConnIODurationPerMessage), tm)
-			}
-			return nil
-		},
-	}
+	rdr := NewMockDeadlineReader(t)
+	rdr.EXPECT().Read(mock.Anything).RunAndReturn(bytes.NewReader(messBytes).Read).Maybe()
+	setDeadlineCallCount := 0
+	rdr.EXPECT().SetReadDeadline(mock.Anything).RunAndReturn(func(tm time.Time) error {
+		setDeadlineCallCount++
+		if setDeadlineCallCount%2 == 1 {
+			assert.Equal(t, now.Add(MaxConnIdleIODuration), tm)
+		} else {
+			assert.Equal(t, now.Add(maxConnIODurationPerMessage), tm)
+		}
+		return nil
+	}).Maybe()
 
 	err := receiveFromRemote(rdr, fromRemoteCh, filter, "test", nowFn, slog.New(slog.DiscardHandler))
 	require.ErrorIs(t, err, io.EOF)
-	assert.Len(t, rdr.SetReadDeadlineCalls(), 3)
+	assert.Equal(t, 3, setDeadlineCallCount)
 
 	bb := <-fromRemoteCh
 	assert.Equal(t, messBytes, bb.Bytes())

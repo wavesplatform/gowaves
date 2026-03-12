@@ -404,11 +404,8 @@ func TestPow(t *testing.T) {
 }
 
 func BenchmarkPow(b *testing.B) {
-	e := &mockRideEnvironment{
-		validateInternalPaymentsFunc: func() bool {
-			return true
-		},
-	}
+	e := NewMockEnvironment(b)
+	e.EXPECT().validateInternalPayments().Return(true).Maybe()
 	//98765432, 8, -$max, 0, 8, DOWN -> error
 	args := []rideType{rideInt(98765432), rideInt(8), rideInt(math.MinInt64), rideInt(0), rideInt(8), newDown(nil)}
 

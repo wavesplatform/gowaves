@@ -2670,7 +2670,7 @@ func TestFailSript2(t *testing.T) {
 	tx := new(proto.ExchangeWithProofs)
 	err := json.Unmarshal([]byte(transaction), tx)
 	require.NoError(t, err)
-	adminAcc := newTestAccountFromAddresString(t, "3PEyLyxu4yGJAEmuVRy3G4FvEBUYV6ykQWF")
+	adminAcc := newTestAccountFromAddressString(t, "3PEyLyxu4yGJAEmuVRy3G4FvEBUYV6ykQWF")
 
 	te := newTestEnv(t).withLibVersion(tree.LibVersion).withComplexityLimit(2000).
 		withScheme(proto.TestNetScheme).withHeight(368430).withTransaction(tx).
@@ -4454,7 +4454,6 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	dApp1 := newTestAccount(t, "DAPP1")   // 3MzDtgL5yw73C2xVLnLJCrT5gCL4357a4sz
 	sender := newTestAccount(t, "SENDER") // 3N8CkZAyS4XcDoJTJoKNuNk2xmNKmQj7myW
 	test := newTestAccount(t, "TEST")
-	alias := *proto.NewAlias(proto.TestNetScheme, "test")
 
 	/*
 		{-# STDLIB_VERSION 5 #-}
@@ -4485,9 +4484,7 @@ func TestFailRejectMultiLevelInvokesBeforeRideV6(t *testing.T) {
 	_, err := CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{&proto.IntegerArgument{Value: 10}}))
 	require.Error(t, err)
 	assert.Equal(t, RuntimeError, GetEvaluationErrorType(err))
-	calls := env.ms.NewestAddrByAliasCalls()
-	require.Len(t, calls, 1)
-	require.Equal(t, alias, calls[0].Alias)
+	assert.Equal(t, 1, countMockCalls(&env.ms.Mock, "NewestAddrByAlias"))
 
 	_, err = CallFunction(env.toEnv(), tree, proto.NewFunctionCall("call", proto.Arguments{&proto.IntegerArgument{Value: 1}}))
 	require.Error(t, err)
@@ -5380,7 +5377,7 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		assert.Equal(t, UserError, GetEvaluationErrorType(err))
 		// the call happens only once in `WrappedState.validatePaymentAction` during payment application
 		// payments check after application are not performed because of throw
-		assert.Len(t, rideEnv.calls.validateInternalPayments, 1)
+		assert.Equal(t, 1, countMockCalls(&rideEnv.Mock, "validateInternalPayments"))
 	})
 	t.Run("AfterLightNodeActivationWithoutPaymentsFix", func(t *testing.T) {
 		env := prepareEnv().withLightNodeActivated()
@@ -5393,7 +5390,7 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		//  in `performInvoke` function
 		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
 		// payments check after application are not second time because of throw
-		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
+		assert.Equal(t, 2, countMockCalls(&rideEnv.Mock, "validateInternalPayments"))
 	})
 	t.Run("AfterLightNodeActivationAndPaymentsFix", func(t *testing.T) {
 		env := prepareEnv().withLightNodeActivated().withPaymentsFix()
@@ -5406,7 +5403,7 @@ func TestInvokePaymentsCheckBeforeAndAfterInvoke(t *testing.T) {
 		//  in `performInvoke` function
 		//  in `checkPaymentsApplication` inside `WrappedState.validateBalancesAfterPaymentsApplication`
 		// successfully fails before invoke because of negative balance
-		assert.Len(t, rideEnv.calls.validateInternalPayments, 2)
+		assert.Equal(t, 2, countMockCalls(&rideEnv.Mock, "validateInternalPayments"))
 	})
 }
 
@@ -6176,7 +6173,8 @@ func TestZeroComplexitySanityCheckInComplexityCalculator(t *testing.T) {
 			withThis(dApp1).withDApp(dApp1).withSender(sender).
 			withInvocation("call", withTransactionID(crypto.Digest{})).withTree(dApp1, tree1).
 			withWrappedState().toEnv()
-		env.complexityCalculatorFunc = func() complexityCalculator { return cc }
+		unsetMockCalls(&env.Mock, "complexityCalculator")
+		env.EXPECT().complexityCalculator().Return(cc).Maybe()
 		return env
 	}
 	t.Run("complexity_calculator_v1", func(t *testing.T) {

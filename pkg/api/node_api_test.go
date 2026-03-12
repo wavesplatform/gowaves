@@ -10,17 +10,16 @@ import (
 	"testing"
 
 	"github.com/go-chi/chi/v5"
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	apiErrs "github.com/wavesplatform/gowaves/pkg/api/errors"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
-	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
+	"github.com/wavesplatform/gowaves/pkg/state"
 )
 
 const apiKey = "X-API-Key"
@@ -93,8 +92,7 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 		addr, err := proto.NewAddressFromString(addrStr)
 		require.NoError(t, err)
 
-		ctrl := gomock.NewController(t)
-		st := mock.NewMockState(ctrl)
+		st := state.NewMockState(t)
 		st.EXPECT().WavesBalance(proto.NewRecipientFromAddress(addr)).Return(uint64(1000), nil).Times(1)
 
 		resp := httptest.NewRecorder()
@@ -122,13 +120,11 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 
 	t.Run("error", func(t *testing.T) {
 		doTest := func(t *testing.T, addrStr string) {
-			ctrl := gomock.NewController(t)
-
 			resp := httptest.NewRecorder()
 			req := createRequest(addrStr)
 
 			a, err := NewApp("", nil, services.Services{
-				State:  mock.NewMockState(ctrl),
+				State:  state.NewMockState(t),
 				Scheme: proto.TestNetScheme,
 			}, cfg)
 			require.NoError(t, err)
@@ -152,11 +148,10 @@ func TestNodeApi_WavesRegularBalanceByAddress(t *testing.T) {
 }
 
 func TestNodeApi_TransactionSignCommitToGeneration(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	st := mock.NewMockState(ctrl)
-	st.EXPECT().IsActivated(int16(settings.DeterministicFinality)).Return(true, nil).AnyTimes()
-	st.EXPECT().ActivationHeight(int16(settings.DeterministicFinality)).Return(proto.Height(1), nil).AnyTimes()
-	st.EXPECT().Height().Return(proto.Height(252), nil).AnyTimes()
+	st := state.NewMockState(t)
+	st.EXPECT().IsActivated(int16(settings.DeterministicFinality)).Return(true, nil).Maybe()
+	st.EXPECT().ActivationHeight(int16(settings.DeterministicFinality)).Return(proto.Height(1), nil).Maybe()
+	st.EXPECT().Height().Return(proto.Height(252), nil).Maybe()
 
 	w := newTestWallet(t)
 

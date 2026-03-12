@@ -32,10 +32,10 @@ func TestHandleStopContext(t *testing.T) {
 	}()
 	parent := NewParent(false)
 	remote := NewRemote()
-	peer := &mockPeer{CloseFunc: func() error { return nil }}
+	peer := NewMockPeer(t)
+	peer.EXPECT().Close().Return(nil).Times(1)
 	err := Handle(ctx, peer, parent, remote, slog.New(slog.DiscardHandler), slog.New(slog.DiscardHandler))
 	assert.NoError(t, err)
-	assert.Len(t, peer.CloseCalls(), 1)
 	require.Len(t, parent.InfoCh, 1)
 	connected := (<-parent.InfoCh).Value.(*Connected)
 	connectedPeer := connected.Peer.(*peerOnceCloser).Peer
@@ -48,12 +48,10 @@ func TestHandleReceive(t *testing.T) {
 	parent := NewParent(false)
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		peer := &mockPeer{
-			CloseFunc: func() error { return nil },
-			IDFunc:    func() ID { return &mockID{id: "test-peer-id"} },
-		}
+		peer := NewMockPeer(t)
+		peer.EXPECT().Close().Return(nil).Times(1)
+		peer.EXPECT().ID().Return(&mockID{id: "test-peer-id"}).Maybe()
 		_ = Handle(ctx, peer, parent, remote, slog.New(slog.DiscardHandler), slog.New(slog.DiscardHandler))
-		assert.Len(t, peer.CloseCalls(), 1)
 	})
 	_ = (<-parent.InfoCh).Value.(*Connected).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
 	bb := bytebufferpool.Get()
@@ -71,9 +69,9 @@ func TestHandleError(t *testing.T) {
 	parent := NewParent(false)
 	var wg sync.WaitGroup
 	wg.Go(func() {
-		peer := &mockPeer{CloseFunc: func() error { return nil }}
+		peer := NewMockPeer(t)
+		peer.EXPECT().Close().Return(nil).Times(1)
 		_ = Handle(ctx, peer, parent, remote, slog.New(slog.DiscardHandler), slog.New(slog.DiscardHandler))
-		assert.Len(t, peer.CloseCalls(), 1)
 	})
 	_ = (<-parent.InfoCh).Value.(*Connected).Peer.(*peerOnceCloser).Peer // fist message should be notification about connection
 	err := errors.New("error")

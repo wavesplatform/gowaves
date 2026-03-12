@@ -20,7 +20,6 @@ require (
 	github.com/fxamacker/cbor/v2 v2.9.0
 	github.com/go-chi/chi/v5 v5.2.5
 	github.com/go-test/deep v1.1.1
-	github.com/golang/mock v1.6.0
 	github.com/howeyc/gopass v0.0.0-20210920133722-c8aef6fb66ef
 	github.com/influxdata/influxdb1-client v0.0.0-20220302092344-a9ab5670611c
 	github.com/jinzhu/copier v0.4.0
@@ -51,7 +50,7 @@ require (
 	github.com/xenolf/lego v2.7.2+incompatible
 	go.uber.org/atomic v1.11.0
 	go.uber.org/goleak v1.3.0
-	golang.org/x/crypto v0.48.0
+	golang.org/x/crypto v0.49.0
 	golang.org/x/exp v0.0.0-20260218203240-3dfff04db8fa
 	golang.org/x/sync v0.20.0
 	golang.org/x/sys v0.42.0
@@ -129,9 +128,9 @@ require (
 	go.opentelemetry.io/otel/trace v1.39.0 // indirect
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	go.yaml.in/yaml/v3 v3.0.4 // indirect
-	golang.org/x/net v0.49.0 // indirect
-	golang.org/x/term v0.40.0 // indirect
-	golang.org/x/text v0.34.0 // indirect
+	golang.org/x/net v0.51.0 // indirect
+	golang.org/x/term v0.41.0 // indirect
+	golang.org/x/text v0.35.0 // indirect
 	golang.org/x/time v0.15.0 // indirect
 	google.golang.org/genproto/googleapis/rpc v0.0.0-20251202230838-ff82c1b0f217 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
