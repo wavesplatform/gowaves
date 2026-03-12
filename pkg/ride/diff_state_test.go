@@ -4,8 +4,12 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const (
@@ -169,4 +173,31 @@ func (s *DataDiffTestSuite) TestReplaceBooleanEntry() {
 
 	third := s.diff.findBoolFromDataEntryByKey(booleanKey, validAddress)
 	s.Require().Nil(third)
+}
+
+func TestErrorOnDuplicateLeasing(t *testing.T) {
+	mock := &MockSmartState{
+		WavesBalanceProfileFunc: func(id proto.AddressID) (*types.WavesBalanceProfile, error) {
+			if validAddress.ID() == id {
+				return &types.WavesBalanceProfile{
+					Balance:    10000_00000000,
+					LeaseIn:    0,
+					LeaseOut:   0,
+					Generating: 0,
+					Challenged: false,
+				}, nil
+			}
+			return nil, errors.New("not found")
+		},
+	}
+	diff := newDiffState(mock)
+	digest1 := crypto.MustDigestFromBase58("8N6F4oV2SmfWZ45xVNLQr2rjHyvDWNz8R3wxJzE83ZHm")
+	digest2 := crypto.MustDigestFromBase58("9N6F4oV2SmfWZ45xVNLQr2rjHyvDWNz8R3wxJzE83ZHm")
+	err1 := diff.lease(*validRecipient.Address(), *validRecipient.Address(), 1000, digest1)
+	assert.NoError(t, err1)
+	err2 := diff.lease(*validRecipient.Address(), *validRecipient.Address(), 1000, digest2)
+	assert.NoError(t, err2)
+	err3 := diff.lease(*validRecipient.Address(), *validRecipient.Address(), 1000, digest1)
+	assert.EqualError(t, err3,
+		"lease with id '8N6F4oV2SmfWZ45xVNLQr2rjHyvDWNz8R3wxJzE83ZHm' already exists in ride execution diff")
 }
