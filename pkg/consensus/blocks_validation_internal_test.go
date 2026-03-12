@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
@@ -56,20 +57,21 @@ func TestValidator_ShouldIncludeNewBlockFieldsOfLightNodeFeature(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-			sip := &stateInfoProviderMock{
-				NewestIsActiveAtHeightFunc: func(featureID int16, height uint64) (bool, error) {
+			m := NewMockstateInfoProvider(t)
+			m.EXPECT().NewestIsActiveAtHeight(mock.Anything, mock.Anything).RunAndReturn(
+				func(featureID int16, height uint64) (bool, error) {
 					require.Equal(t, int16(settings.LightNode), featureID)
 					require.Equal(t, tt.blockHeight, height)
 					return tt.lightNodeIsActiveAtHeight, nil
-				},
-				NewestActivationHeightFunc: func(featureID int16) (uint64, error) {
+				}).Maybe()
+			m.EXPECT().NewestActivationHeight(mock.Anything).RunAndReturn(
+				func(featureID int16) (uint64, error) {
 					require.Equal(t, int16(settings.LightNode), featureID)
 					return tt.lightNodeActivationHeight, nil
-				},
-			}
-			sets := settings.MustTestNetSettings() // copy of testnet settings
+				}).Maybe()
+			sets := settings.MustTestNetSettings() // copy of Testnet settings
 			sets.LightNodeBlockFieldsAbsenceInterval = tt.lightNodeBlockFieldsAbsenceInterval
-			v := NewValidator(sip, sets, timeMock{})
+			v := NewValidator(m, sets, timeMock{})
 			result, err := v.ShouldIncludeNewBlockFieldsOfLightNodeFeature(tt.blockHeight)
 			require.NoError(t, err)
 			assert.Equal(t, tt.expectedResult, result)
@@ -165,18 +167,19 @@ func TestValidator_validateLightNodeBlockFields(t *testing.T) {
 	}
 	for i, tt := range tests {
 		t.Run(strconv.Itoa(i+1), func(t *testing.T) {
-			sip := &stateInfoProviderMock{
-				NewestIsActiveAtHeightFunc: func(featureID int16, height uint64) (bool, error) {
+			sip := NewMockstateInfoProvider(t)
+			sip.EXPECT().NewestIsActiveAtHeight(mock.Anything, mock.Anything).RunAndReturn(
+				func(featureID int16, height uint64) (bool, error) {
 					require.Equal(t, int16(settings.LightNode), featureID)
 					require.Equal(t, tt.blockHeight, height)
 					return tt.lightNodeIsActiveAtHeight, nil
-				},
-				NewestActivationHeightFunc: func(featureID int16) (uint64, error) {
+				}).Maybe()
+			sip.EXPECT().NewestActivationHeight(mock.Anything).RunAndReturn(
+				func(featureID int16) (uint64, error) {
 					require.Equal(t, int16(settings.LightNode), featureID)
 					return tt.lightNodeActivationHeight, nil
-				},
-			}
-			sets := settings.MustTestNetSettings() // copy of testnet settings
+				}).Maybe()
+			sets := settings.MustTestNetSettings() // copy of Testnet settings
 			sets.LightNodeBlockFieldsAbsenceInterval = tt.lightNodeBlockFieldsAbsenceInterval
 			v := NewValidator(sip, sets, timeMock{})
 			err := v.validateLightNodeBlockFields(&tt.blockHeader, tt.blockHeight)

@@ -35,7 +35,6 @@ func isInvalidMainNetBlock(blockID proto.BlockID, height uint64) bool {
 	return false
 }
 
-//go:generate moq -out validator_moq_test.go . stateInfoProvider
 type stateInfoProvider interface {
 	HeaderByHeight(height uint64) (*proto.BlockHeader, error)
 	NewestHitSourceAtHeight(height uint64) ([]byte, error)
