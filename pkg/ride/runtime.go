@@ -420,7 +420,6 @@ func fieldLines(key string, valueLines []string) []string {
 	return r
 }
 
-//go:generate moq -out runtime_moq_test.go . environment:mockRideEnvironment
 type environment interface {
 	scheme() byte
 	height() rideInt

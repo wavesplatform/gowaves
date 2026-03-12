@@ -2,7 +2,6 @@ package state
 
 import "github.com/wavesplatform/gowaves/pkg/proto"
 
-//go:generate moq -out feautures_moq_test.go . featuresState:mockFeaturesState
 type featuresState interface {
 	isActivated(featureID int16) (bool, error)
 	newestIsActivated(featureID int16) (bool, error)

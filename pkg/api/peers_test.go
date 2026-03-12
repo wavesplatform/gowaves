@@ -6,14 +6,11 @@ import (
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
-	"github.com/wavesplatform/gowaves/pkg/proto"
-
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wavesplatform/gowaves/pkg/mock"
+	"github.com/wavesplatform/gowaves/pkg/node/peers"
+	"github.com/wavesplatform/gowaves/pkg/node/peers/storage"
+	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/services"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -24,11 +21,7 @@ func TestApp_PeersKnown(t *testing.T) {
 			GenerationPeriod: 0,
 		},
 	}
-
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	peerManager := mock.NewMockPeerManager(ctrl)
+	peerManager := peers.NewMockPeerManager(t)
 	addr := proto.NewTCPAddr(net.ParseIP("127.0.0.1"), 6868).ToIpPort()
 	peerManager.EXPECT().KnownPeers().Return([]storage.KnownPeer{storage.KnownPeer(addr)})
 
@@ -41,10 +34,7 @@ func TestApp_PeersKnown(t *testing.T) {
 }
 
 func TestApp_PeersSuspended(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	peerManager := mock.NewMockPeerManager(ctrl)
+	peerManager := peers.NewMockPeerManager(t)
 
 	now := time.Now()
 	cfg := &settings.BlockchainSettings{
@@ -88,10 +78,7 @@ func TestApp_PeersSuspended(t *testing.T) {
 }
 
 func TestApp_PeersBlackList(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
-	peerManager := mock.NewMockPeerManager(ctrl)
+	peerManager := peers.NewMockPeerManager(t)
 
 	now := time.Now()
 
