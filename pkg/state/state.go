@@ -1933,7 +1933,7 @@ func (s *stateManager) resetDeposits(nextBlockID proto.BlockID, lastBlockHeight 
 		if adrErr != nil {
 			return fmt.Errorf("failed to reset deposits: %w", adrErr)
 		}
-		balance, bErr := s.stor.balances.wavesBalance(addr.ID())
+		balance, bErr := s.stor.balances.newestWavesBalance(addr.ID())
 		if bErr != nil {
 			return fmt.Errorf("failed to reset deposits: %w", bErr)
 		}

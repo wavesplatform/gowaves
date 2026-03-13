@@ -4,8 +4,13 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/suite"
+
+	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/types"
 )
 
 const (
@@ -32,15 +37,16 @@ func TestDataDiffTestSuite(t *testing.T) {
 }
 
 func (s *DataDiffTestSuite) SetupTest() {
-	mock := &MockSmartState{
-		NewestRecipientToAddressFunc: func(recipient proto.Recipient) (proto.WavesAddress, error) {
+	m := types.NewMockEnrichedSmartState(s.T())
+	m.EXPECT().NewestRecipientToAddress(mock.Anything).RunAndReturn(
+		func(recipient proto.Recipient) (proto.WavesAddress, error) {
 			if recipient.Eq(validRecipient) {
 				return validAddress, nil
 			}
 			return proto.WavesAddress{}, errors.New("not found")
 		},
-	}
-	s.diff = newDiffState(mock)
+	).Maybe()
+	s.diff = newDiffState(m)
 }
 
 func (s *DataDiffTestSuite) TestPutGetBinaryEntry() {
@@ -169,4 +175,26 @@ func (s *DataDiffTestSuite) TestReplaceBooleanEntry() {
 
 	third := s.diff.findBoolFromDataEntryByKey(booleanKey, validAddress)
 	s.Require().Nil(third)
+}
+
+func TestErrorOnDuplicateLeasing(t *testing.T) {
+	m := types.NewMockEnrichedSmartState(t)
+	m.EXPECT().WavesBalanceProfile(validRecipient.Address().ID()).Return(
+		&types.WavesBalanceProfile{
+			Balance:    10000_00000000,
+			LeaseIn:    0,
+			LeaseOut:   0,
+			Generating: 0,
+			Challenged: false,
+		}, nil).Once()
+	diff := newDiffState(m)
+	digest1 := crypto.MustDigestFromBase58("8N6F4oV2SmfWZ45xVNLQr2rjHyvDWNz8R3wxJzE83ZHm")
+	digest2 := crypto.MustDigestFromBase58("9N6F4oV2SmfWZ45xVNLQr2rjHyvDWNz8R3wxJzE83ZHm")
+	err1 := diff.lease(*validRecipient.Address(), *validRecipient.Address(), 1000, digest1)
+	assert.NoError(t, err1)
+	err2 := diff.lease(*validRecipient.Address(), *validRecipient.Address(), 1000, digest2)
+	assert.NoError(t, err2)
+	err3 := diff.lease(*validRecipient.Address(), *validRecipient.Address(), 1000, digest1)
+	assert.EqualError(t, err3,
+		"lease with id '8N6F4oV2SmfWZ45xVNLQr2rjHyvDWNz8R3wxJzE83ZHm' already exists in ride execution diff")
 }

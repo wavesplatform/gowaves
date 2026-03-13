@@ -3,21 +3,17 @@ package iterators
 import (
 	"testing"
 
-	"github.com/golang/mock/gomock"
 	"github.com/stretchr/testify/require"
 
-	"github.com/wavesplatform/gowaves/pkg/mock"
 	"github.com/wavesplatform/gowaves/pkg/proto"
+	"github.com/wavesplatform/gowaves/pkg/state"
 	"github.com/wavesplatform/gowaves/pkg/util/byte_helpers"
 )
 
 func TestTxByIdIterator(t *testing.T) {
-	ctrl := gomock.NewController(t)
-	defer ctrl.Finish()
-
 	ids := [][]byte{{'a'}}
 
-	stateMock := mock.NewMockState(ctrl)
+	stateMock := state.NewMockState(t)
 	stateMock.EXPECT().
 		TransactionByIDWithStatus([]byte{'a'}).
 		Return(byte_helpers.BurnWithProofs.Transaction, proto.TransactionSucceeded, nil)

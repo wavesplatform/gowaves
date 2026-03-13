@@ -34,7 +34,6 @@ type readDeadlineSetter interface {
 	SetReadDeadline(t time.Time) error
 }
 
-//go:generate moq -out deadline_reader_moq.go ./ deadlineReader:mockDeadlineReader
 type deadlineReader interface {
 	io.Reader
 	readDeadlineSetter

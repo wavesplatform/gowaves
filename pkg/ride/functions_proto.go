@@ -1120,6 +1120,7 @@ func secP256Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, fmt.Errorf("secP256Verify: unexpected type '%s' of first argument", args[0].instanceOf())
 	}
+	d := sh256.Sum256(msg)
 	sig, ok := args[1].(rideByteVector)
 	if !ok {
 		return nil, fmt.Errorf("secP256Verify: unexpected type '%s' of second argument", args[1].instanceOf())
@@ -1128,7 +1129,7 @@ func secP256Verify(_ environment, args ...rideType) (rideType, error) {
 	if !ok {
 		return nil, fmt.Errorf("secP256Verify: unexpected type '%s' of third argument", args[2].instanceOf())
 	}
-	ok, err := crypto.SecP256Verify(msg, pk, sig)
+	ok, err := crypto.SecP256Verify(d[:], pk, sig)
 	if err != nil {
 		return nil, fmt.Errorf("secP256Verify: %w", err)
 	}
