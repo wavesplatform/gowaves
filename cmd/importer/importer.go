@@ -36,6 +36,10 @@ func main() {
 
 func realMain() int {
 	c := parseFlags()
+	if err := c.lp.Parse(); err != nil {
+		slog.Error("Failed to parse application parameters", logging.Error(err))
+		return 1
+	}
 	slog.SetDefault(slog.New(logging.DefaultHandler(c.lp)))
 
 	ctx, done := signal.NotifyContext(context.Background(), os.Interrupt)
@@ -124,9 +128,6 @@ func (c *cfg) validateFlags() error {
 	}
 	if c.lightNodeMode && c.snapshotsPath == "" {
 		return errors.New("option snapshots-path is not specified in light mode, please specify it")
-	}
-	if err := c.lp.Parse(); err != nil {
-		return err
 	}
 	return nil
 }
