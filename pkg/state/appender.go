@@ -1674,7 +1674,7 @@ func (f *finalizationProcessor) prepareFinalizationVerification(
 			"nodeFinalizedHeight", lastFinalizedHeight)
 		return proto.BlockID{}, nil, nil
 	}
-	lastFinalizedBlockID, err := f.rw.blockIDByHeight(lastFinalizedHeight)
+	lastFinalizedBlockID, err := f.rw.newestBlockIDByHeight(lastFinalizedHeight)
 	if err != nil {
 		slog.Debug("failed to find finalized block",
 			"err", err.Error())
