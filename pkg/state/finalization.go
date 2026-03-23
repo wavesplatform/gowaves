@@ -5,6 +5,7 @@ import (
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -59,32 +60,62 @@ func (f *finalizations) writeRecord(rec *finalizationRecord, currentBlockID prot
 	return nil
 }
 
-func (f *finalizations) newestHeightForProcessing(rec *finalizationRecord) (proto.Height, error) {
-	if rec.FinalizedBlockHeight == 0 && rec.PendingBlockHeight == 0 {
-		return 0, ErrNoFinalization
+// updateFinalization promotes pending finalization value to regular if pending value is set (i.e. not zero).
+// Must be executed without conditions before new block applying.
+// TODO: what block ID should be provided: applying one or its parent?
+func (f *finalizations) updateFinalization(applyingBlockID proto.BlockID) error {
+	rec, err := f.newestRecord()
+	if err != nil {
+		if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
+			return fmt.Errorf("failed to retrieve finalization record for update: %w", err)
+		}
+		rec = &finalizationRecord{} // no record found, create an empty one
 	}
-	if rec.PendingBlockHeight > rec.FinalizedBlockHeight {
-		return rec.PendingBlockHeight, nil
+	if rec.PendingBlockHeight == 0 {
+		return nil // nothing to do if no pending value has been stored before
 	}
-	return rec.FinalizedBlockHeight, nil
+	rec = &finalizationRecord{
+		FinalizedBlockHeight: rec.PendingBlockHeight, // promote pending value to finalized
+		PendingBlockHeight:   0,
+	}
+	return f.writeRecord(rec, applyingBlockID)
 }
 
-func (f *finalizations) newestVisibleHeight(rec *finalizationRecord, currentHeight proto.Height) (proto.Height, error) {
-	if rec.FinalizedBlockHeight == 0 && rec.PendingBlockHeight == 0 {
-		return 0, ErrNoFinalization
-	}
-	if rec.PendingBlockHeight != 0 && currentHeight >= rec.PendingBlockHeight+2 {
-		if rec.PendingBlockHeight > rec.FinalizedBlockHeight {
-			return rec.PendingBlockHeight, nil
+// updatePendingFinalization sets pending finalization value for the current block's parent height.
+// Must be executed after new block applying ONLY if current block applying has finalized its parent.
+func (f *finalizations) updatePendingFinalization(
+	parentHeight proto.Height, // i.e. finalized block height
+	applyingBlockID proto.BlockID,
+) error {
+	rec, err := f.newestRecord()
+	if err != nil {
+		if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
+			return fmt.Errorf("failed to retrieve finalization record for update pending: %w", err)
 		}
+		rec = &finalizationRecord{} // no record found, create an empty one
 	}
-	if rec.FinalizedBlockHeight == 0 {
-		return 0, ErrNoFinalization
+	if prevP := rec.PendingBlockHeight; prevP != 0 { // sanity check
+		return fmt.Errorf("pending finalization already exists with height %d", prevP)
 	}
-	return rec.FinalizedBlockHeight, nil
+	rec = &finalizationRecord{
+		FinalizedBlockHeight: rec.FinalizedBlockHeight, // finalization value still the same
+		PendingBlockHeight:   parentHeight,             // only update pending
+	}
+	return f.writeRecord(rec, applyingBlockID)
+}
+
+// forceWrite writes finalization record with provided
+// finalized block height and zero pending height, without any checks.
+func (f *finalizations) forceWrite(finalizedBlockHeight proto.Height, currentBlockID proto.BlockID) error {
+	rec := &finalizationRecord{
+		FinalizedBlockHeight: finalizedBlockHeight,
+		PendingBlockHeight:   0, // no pending
+	}
+	return f.writeRecord(rec, currentBlockID)
 }
 
 // store writes pending finalization for the current block and promotes matured pending value.
+// TODO: rewrite tests
 func (f *finalizations) store(
 	finalizedBlockHeight proto.Height,
 	currentHeight proto.Height,
@@ -110,26 +141,15 @@ func (f *finalizations) store(
 	return f.writeRecord(rec, currentBlockID)
 }
 
-// newestForProcessing returns latest known finalization immediately, including pre-finalized value.
-func (f *finalizations) newestForProcessing() (proto.Height, error) {
+// newestHeight returns last finalized height value.
+func (f *finalizations) newestHeight() (proto.Height, error) {
 	rec, err := f.newestRecord()
 	if err != nil {
 		return 0, err
 	}
-	return f.newestHeightForProcessing(rec)
-}
-
-// newestVisible returns delayed finalization height which is exposed outside finalization processing.
-func (f *finalizations) newestVisible(currentHeight proto.Height) (proto.Height, error) {
-	rec, err := f.newestRecord()
-	if err != nil {
-		return 0, err
+	finH := rec.FinalizedBlockHeight
+	if finH == 0 { // handle case when finalization record exists but no finalized block height has been stored yet
+		return 0, ErrNoFinalization
 	}
-	return f.newestVisibleHeight(rec, currentHeight)
-}
-
-// newest keeps backward-compatible semantics for internal callers:
-// return latest known finalization immediately.
-func (f *finalizations) newest() (proto.Height, error) {
-	return f.newestForProcessing()
+	return finH, nil
 }
