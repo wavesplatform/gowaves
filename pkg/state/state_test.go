@@ -255,7 +255,7 @@ func TestRollbackToHeight_AutoRollbackKeepsFinalizationCounter(t *testing.T) {
 	// This guarantees the record is normally removed by rollback and must be restored in auto mode.
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, importHeight, topBlockID)
+	err = manager.stor.finalizations.forceWrite(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -295,7 +295,7 @@ func TestRollbackToHeight_ManualRollbackChangesFinalizationCounter(t *testing.T)
 	// Same setup as auto rollback test: finalization record will be removed by rollback.
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, importHeight, topBlockID)
+	err = manager.stor.finalizations.forceWrite(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -333,7 +333,7 @@ func TestRollbackToHeight_AutoRollbackBelowFinalizedHeightFails(t *testing.T) {
 
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, importHeight, topBlockID)
+	err = manager.stor.finalizations.forceWrite(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -365,7 +365,7 @@ func TestRollbackToHeight_ManualRollbackBelowFinalizedHeightSucceeds(t *testing.
 
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, importHeight, topBlockID)
+	err = manager.stor.finalizations.forceWrite(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -399,7 +399,7 @@ func TestLastFinalizedHeight_UsesProtocolLowerBoundWhenStoredValueIsStale(t *tes
 
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, importHeight, topBlockID)
+	err = manager.stor.finalizations.updatePendingFinalization(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -430,7 +430,7 @@ func TestLastFinalizedHeight_ExposesPreFinalizationOnlyAtNPlus2(t *testing.T) {
 
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, importHeight, topBlockID)
+	err = manager.stor.finalizations.updatePendingFinalization(finalizedHeight, topBlockID) // set to pending
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)

@@ -114,33 +114,6 @@ func (f *finalizations) forceWrite(finalizedBlockHeight proto.Height, currentBlo
 	return f.writeRecord(rec, currentBlockID)
 }
 
-// store writes pending finalization for the current block and promotes matured pending value.
-// TODO: rewrite tests
-func (f *finalizations) store(
-	finalizedBlockHeight proto.Height,
-	currentHeight proto.Height,
-	currentBlockID proto.BlockID,
-) error {
-	rec, err := f.newestRecord()
-	if err != nil {
-		if errors.Is(err, ErrNoFinalization) || errors.Is(err, ErrNoFinalizationHistory) {
-			rec = &finalizationRecord{}
-		} else {
-			return err
-		}
-	}
-	if rec.PendingBlockHeight != 0 && currentHeight >= rec.PendingBlockHeight+2 {
-		if rec.PendingBlockHeight > rec.FinalizedBlockHeight {
-			rec.FinalizedBlockHeight = rec.PendingBlockHeight
-		}
-	}
-	if currentHeight >= finalizedBlockHeight+2 && finalizedBlockHeight > rec.FinalizedBlockHeight {
-		rec.FinalizedBlockHeight = finalizedBlockHeight
-	}
-	rec.PendingBlockHeight = finalizedBlockHeight
-	return f.writeRecord(rec, currentBlockID)
-}
-
 // newestHeight returns last finalized height value.
 func (f *finalizations) newestHeight() (proto.Height, error) {
 	rec, err := f.newestRecord()
