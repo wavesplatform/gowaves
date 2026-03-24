@@ -1604,10 +1604,15 @@ func (f *finalizationProcessor) updateFinalization(
 		return nil
 	}
 
-	// TODO: no activation flag check
-	_, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
+	activated, err := f.stor.features.newestIsActivated(int16(settings.DeterministicFinality))
 	if err != nil {
 		return err
+	}
+	if !activated {
+		return fmt.Errorf(
+			"DeterministicFinality is not activated but finalizationVoting of block '%s' at height %d is not empty",
+			currentBlock.BlockID(), currentBlockHeight,
+		)
 	}
 	periodStart, err := f.calcPeriodStart(currentBlockHeight)
 	if err != nil {

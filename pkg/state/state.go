@@ -2389,7 +2389,6 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	if h, finErr := s.stor.finalizations.newestHeight(); finErr == nil {
 		finalizationHeight = h
 		finalizationExists = true
-		// TODO should we return for these errors too?
 	} else if !errors.Is(finErr, ErrNoFinalization) && !errors.Is(finErr, ErrNoFinalizationHistory) {
 		return wrapErr(stateerr.RollbackError, finErr)
 	}
