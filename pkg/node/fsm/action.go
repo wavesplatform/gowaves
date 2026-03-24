@@ -18,7 +18,7 @@ type currentScorer interface {
 type Actions interface {
 	SendScore(currentScorer)
 	SendBlock(block *proto.Block)
-	SendEndorseBlock(endorse *proto.EndorseBlock)
+	SendEndorseBlock(endorse *proto.BlockEndorsement)
 }
 
 type ActionsImpl struct {
@@ -76,7 +76,7 @@ func (a *ActionsImpl) SendBlock(block *proto.Block) {
 		slog.Any("blockID", block.BlockID()))
 }
 
-func (a *ActionsImpl) SendEndorseBlock(endorse *proto.EndorseBlock) {
+func (a *ActionsImpl) SendEndorseBlock(endorse *proto.BlockEndorsement) {
 	bts, err := endorse.Marshal()
 	if err != nil {
 		a.logger.Error("Failed to marshal endorse block", logging.Error(err))

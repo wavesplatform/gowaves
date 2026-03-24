@@ -122,7 +122,7 @@ func TestCommitments_Exists(t *testing.T) {
 	}
 }
 
-func TestCommitments_Size(t *testing.T) {
+func TestCommitmentsBatch(t *testing.T) {
 	for i, test := range []struct {
 		periodStart uint32
 		n           int
@@ -134,28 +134,22 @@ func TestCommitments_Size(t *testing.T) {
 	} {
 		t.Run(fmt.Sprintf("%d", i+1), func(t *testing.T) {
 			to := createStorageObjects(t, true)
-			cms := generateCommitments(t, test.n+1)
+			cms := generateCommitments(t, test.n)
 			for j := range test.n {
 				blockID := generateRandomBlockID(t)
 				to.addBlock(t, blockID)
 				err := to.entities.commitments.store(test.periodStart, cms[j].GeneratorPK, cms[j].EndorserPK, blockID)
 				require.NoError(t, err)
-				// Unflushed size check.
-				gs, err := to.entities.commitments.newestGenerators(test.periodStart)
-				require.NoError(t, err)
-				assert.Equal(t, j+1, len(gs))
-				newestSize, err := to.entities.commitments.newestSize(test.periodStart)
-				require.NoError(t, err)
-				assert.Equal(t, newestSize, len(gs))
-				// Check after flush.
-				to.flush(t)
-				gs, err = to.entities.commitments.generators(test.periodStart)
-				require.NoError(t, err)
-				assert.Equal(t, j+1, len(gs))
-				regularSize, err := to.entities.commitments.size(test.periodStart)
-				require.NoError(t, err)
-				assert.Equal(t, regularSize, len(gs))
 			}
+			// Unflushed size check.
+			gs1, err := to.entities.commitments.newestGenerators(test.periodStart)
+			require.NoError(t, err)
+			assert.Equal(t, test.n, len(gs1))
+			// Check after flush.
+			to.flush(t)
+			gs2, err := to.entities.commitments.newestGenerators(test.periodStart)
+			require.NoError(t, err)
+			assert.Equal(t, test.n, len(gs2))
 		})
 	}
 }

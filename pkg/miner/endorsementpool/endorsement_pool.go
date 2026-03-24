@@ -16,15 +16,15 @@ const EndorsementIDCacheSizeDefault = 1000
 
 type key struct {
 	blockID       proto.BlockID
-	endorserIndex int32
+	endorserIndex uint32
 }
 
-func makeKey(blockID proto.BlockID, idx int32) key {
+func makeKey(blockID proto.BlockID, idx uint32) key {
 	return key{blockID: blockID, endorserIndex: idx}
 }
 
 type heapItemEndorsement struct {
-	eb         *proto.EndorseBlock
+	eb         *proto.BlockEndorsement
 	endorserPK bls.PublicKey
 	balance    uint64
 	seq        uint64
@@ -66,12 +66,12 @@ type EndorsementPool struct {
 	seq             uint64
 	byKey           map[key]*heapItemEndorsement
 	h               endorsementMinHeap
-	conflicts       []proto.EndorseBlock
+	conflicts       []proto.BlockEndorsement
 	blockGenerator  *crypto.PublicKey
 	maxEndorsements int
 }
 
-func sameRound(a, b *proto.EndorseBlock) bool {
+func sameRound(a, b *proto.BlockEndorsement) bool {
 	if a == nil || b == nil {
 		return false
 	}
@@ -82,7 +82,7 @@ func sameRound(a, b *proto.EndorseBlock) bool {
 
 // ShouldIgnoreEndorsement checks if the endorsement must be ignored and not added to pool/conflicts.
 func (p *EndorsementPool) ShouldIgnoreEndorsement(
-	e *proto.EndorseBlock,
+	e *proto.BlockEndorsement,
 	pk bls.PublicKey,
 	lastFinalizedHeight proto.Height,
 	parentBlockID proto.BlockID,
@@ -118,7 +118,7 @@ func NewEndorsementPool(maxGenerators int) (*EndorsementPool, error) {
 }
 
 // Add inserts an endorsement into the heap with priority based on balance desc, seq asc.
-func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
+func (p *EndorsementPool) Add(e *proto.BlockEndorsement, pk bls.PublicKey,
 	lastFinalizedHeight proto.Height, lastFinalizedBlockID proto.BlockID, balance uint64,
 	parentBlockID proto.BlockID) (bool, error) {
 	k := makeKey(e.EndorsedBlockID, e.EndorserIndex)
@@ -185,11 +185,11 @@ func (p *EndorsementPool) Add(e *proto.EndorseBlock, pk bls.PublicKey,
 	return true, nil
 }
 
-func (p *EndorsementPool) GetAll() []proto.EndorseBlock {
+func (p *EndorsementPool) GetAll() []proto.BlockEndorsement {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	out := make([]proto.EndorseBlock, len(p.h))
+	out := make([]proto.BlockEndorsement, len(p.h))
 	for i, it := range p.h {
 		out[i] = *it.eb
 	}
@@ -201,7 +201,7 @@ func (p *EndorsementPool) FormFinalization(lastFinalizedHeight proto.Height) (pr
 	defer p.mu.Unlock()
 
 	signatures := make([]bls.Signature, 0, len(p.h))
-	endorsersIndexes := make([]int32, 0, len(p.h))
+	endorsersIndexes := make([]uint32, 0, len(p.h))
 	var aggregatedSignature bls.Signature
 
 	for _, it := range p.h {
@@ -288,11 +288,11 @@ func (p *EndorsementPool) Verify() (bool, error) {
 	return bls.VerifyAggregate(pks, msg, agg), nil
 }
 
-func (p *EndorsementPool) ConflictEndorsements() []proto.EndorseBlock {
+func (p *EndorsementPool) ConflictEndorsements() []proto.BlockEndorsement {
 	p.mu.Lock()
 	defer p.mu.Unlock()
 
-	out := make([]proto.EndorseBlock, len(p.conflicts))
+	out := make([]proto.BlockEndorsement, len(p.conflicts))
 	copy(out, p.conflicts)
 	return out
 }

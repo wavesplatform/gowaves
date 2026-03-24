@@ -2,6 +2,7 @@ package proto
 
 import (
 	"encoding/binary"
+	"fmt"
 	"slices"
 
 	"github.com/ccoveille/go-safecast/v2"
@@ -11,23 +12,24 @@ import (
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
-// EndorseBlock represents an endorsement of a block by a validator.
-// TODO: Rename structure to BlockEndorsement.
-type EndorseBlock struct {
-	// TODO: Change type of EndorserIndex to uint32.
-	EndorserIndex        int32         `json:"endorserIndex"`
+// BlockEndorsement represents an endorsement of a block by a validator.
+type BlockEndorsement struct {
+	EndorserIndex        uint32        `json:"endorserIndex"`
 	FinalizedBlockID     BlockID       `json:"finalizedBlockID"`
 	FinalizedBlockHeight uint32        `json:"finalizedBlockHeight"`
 	EndorsedBlockID      BlockID       `json:"endorsedBlockId"`
 	Signature            bls.Signature `json:"signature"`
 }
 
-func (e *EndorseBlock) Marshal() ([]byte, error) {
-	endBlockProto := e.ToProtobuf()
+func (e *BlockEndorsement) Marshal() ([]byte, error) {
+	endBlockProto, err := e.ToProtobuf()
+	if err != nil {
+		return nil, err
+	}
 	return endBlockProto.MarshalVTStrict()
 }
 
-func (e *EndorseBlock) EndorsementMessage() ([]byte, error) {
+func (e *BlockEndorsement) EndorsementMessage() ([]byte, error) {
 	const heightSize = uint32Size
 
 	finalizedID := e.FinalizedBlockID.Bytes()
@@ -74,7 +76,7 @@ func EndorsementMessage(finalizedBlockID BlockID, endorsedBlockID BlockID,
 	return buf, nil
 }
 
-func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {
+func (e *BlockEndorsement) UnmarshalFromProtobuf(data []byte) error {
 	var pbEndorsement = &g.EndorseBlock{}
 	err := pbEndorsement.UnmarshalVT(data)
 	if err != nil {
@@ -89,22 +91,26 @@ func (e *EndorseBlock) UnmarshalFromProtobuf(data []byte) error {
 	return nil
 }
 
-func (e *EndorseBlock) ToProtobuf() *g.EndorseBlock {
-	endBlockProto := g.EndorseBlock{
-		EndorserIndex:        e.EndorserIndex,
+func (e *BlockEndorsement) ToProtobuf() (*g.EndorseBlock, error) {
+	idx, err := safecast.Convert[int32](e.EndorserIndex)
+	if err != nil {
+		return nil, fmt.Errorf("failed to convert block endorsement: %w", err)
+	}
+	eb := &g.EndorseBlock{
+		EndorserIndex:        idx,
 		FinalizedBlockId:     e.FinalizedBlockID.Bytes(),
 		FinalizedBlockHeight: e.FinalizedBlockHeight,
 		EndorsedBlockId:      e.EndorsedBlockID.Bytes(),
 		Signature:            e.Signature.Bytes(),
 	}
-	return &endBlockProto
+	return eb, nil
 }
 
 type FinalizationVoting struct {
-	EndorserIndexes                []int32        `json:"endorserIndexes"`
-	FinalizedBlockHeight           Height         `json:"finalizedBlockHeight"`
-	AggregatedEndorsementSignature bls.Signature  `json:"aggregatedEndorsementSignature"`
-	ConflictEndorsements           []EndorseBlock `json:"conflictEndorsements"`
+	EndorserIndexes                []uint32           `json:"endorserIndexes"`
+	FinalizedBlockHeight           Height             `json:"finalizedBlockHeight"`
+	AggregatedEndorsementSignature bls.Signature      `json:"aggregatedEndorsementSignature"`
+	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements"`
 }
 
 func (f *FinalizationVoting) Marshal() ([]byte, error) {
@@ -131,17 +137,28 @@ func (f *FinalizationVoting) UnmarshalFromProtobuf(data []byte) error {
 }
 
 func (f *FinalizationVoting) ToProtobuf() (*g.FinalizationVoting, error) {
+	indexes := make([]int32, len(f.EndorserIndexes))
+	for i, v := range f.EndorserIndexes {
+		idx, err := safecast.Convert[int32](v)
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert finalization voting to protobuf: %w", err)
+		}
+		indexes[i] = idx
+	}
 	conflictEndorsements := make([]*g.EndorseBlock, len(f.ConflictEndorsements))
 	for i, ce := range f.ConflictEndorsements {
-		conflictEndorsements[i] = ce.ToProtobuf()
+		var err error
+		conflictEndorsements[i], err = ce.ToProtobuf()
+		if err != nil {
+			return nil, fmt.Errorf("failed to convert finalization voting to protobuf: %w", err)
+		}
 	}
-
 	finalizedBlockHeight, err := safecast.Convert[int32](f.FinalizedBlockHeight)
 	if err != nil {
 		return nil, errors.Errorf("finalized block height conversion error: %v", err)
 	}
 	finalizationVoting := g.FinalizationVoting{
-		EndorserIndexes:                f.EndorserIndexes,
+		EndorserIndexes:                indexes,
 		FinalizedBlockHeight:           finalizedBlockHeight,
 		AggregatedEndorsementSignature: f.AggregatedEndorsementSignature.Bytes(),
 		ConflictEndorsements:           conflictEndorsements,

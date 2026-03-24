@@ -409,7 +409,7 @@ func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
 	so.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0, 0}, bID)
 	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, bID)
 	require.NoError(t, err)
-	err = so.entities.generators.initialize(blockHeight, bID)
+	err = so.entities.generators.initialize(blockHeight, bID, pk, 0)
 	require.NoError(t, err)
 	so.finishBlock(t, bID) // finish second block
 	// no flush, should be possible to calculate SH for unflushed data

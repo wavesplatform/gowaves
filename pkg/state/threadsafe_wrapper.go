@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -433,16 +432,10 @@ func (a *ThreadSafeReadWrapper) FindGenerator(lookup func(GeneratorInfo) bool) (
 	return a.s.FindGenerator(lookup)
 }
 
-func (a *ThreadSafeReadWrapper) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
+func (a *ThreadSafeReadWrapper) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.CommittedGenerators(periodStart)
-}
-
-func (a *ThreadSafeReadWrapper) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.NewestCommitedEndorsers(periodStart)
+	return a.s.CommittedGenerators(height)
 }
 
 func (a *ThreadSafeReadWrapper) LastFinalizedHeight() (proto.Height, error) {

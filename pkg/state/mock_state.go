@@ -9,7 +9,6 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -1440,27 +1439,27 @@ func (_c *MockState_Close_Call) RunAndReturn(run func() error) *MockState_Close_
 }
 
 // CommittedGenerators provides a mock function for the type MockState
-func (_mock *MockState) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
-	ret := _mock.Called(periodStart)
+func (_mock *MockState) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
+	ret := _mock.Called(height)
 
 	if len(ret) == 0 {
 		panic("no return value specified for CommittedGenerators")
 	}
 
-	var r0 []proto.WavesAddress
+	var r0 []GeneratorInfo
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(uint32) ([]proto.WavesAddress, error)); ok {
-		return returnFunc(periodStart)
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) ([]GeneratorInfo, error)); ok {
+		return returnFunc(height)
 	}
-	if returnFunc, ok := ret.Get(0).(func(uint32) []proto.WavesAddress); ok {
-		r0 = returnFunc(periodStart)
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) []GeneratorInfo); ok {
+		r0 = returnFunc(height)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]proto.WavesAddress)
+			r0 = ret.Get(0).([]GeneratorInfo)
 		}
 	}
-	if returnFunc, ok := ret.Get(1).(func(uint32) error); ok {
-		r1 = returnFunc(periodStart)
+	if returnFunc, ok := ret.Get(1).(func(proto.Height) error); ok {
+		r1 = returnFunc(height)
 	} else {
 		r1 = ret.Error(1)
 	}
@@ -1473,16 +1472,16 @@ type MockState_CommittedGenerators_Call struct {
 }
 
 // CommittedGenerators is a helper method to define mock.On call
-//   - periodStart uint32
-func (_e *MockState_Expecter) CommittedGenerators(periodStart interface{}) *MockState_CommittedGenerators_Call {
-	return &MockState_CommittedGenerators_Call{Call: _e.mock.On("CommittedGenerators", periodStart)}
+//   - height proto.Height
+func (_e *MockState_Expecter) CommittedGenerators(height interface{}) *MockState_CommittedGenerators_Call {
+	return &MockState_CommittedGenerators_Call{Call: _e.mock.On("CommittedGenerators", height)}
 }
 
-func (_c *MockState_CommittedGenerators_Call) Run(run func(periodStart uint32)) *MockState_CommittedGenerators_Call {
+func (_c *MockState_CommittedGenerators_Call) Run(run func(height proto.Height)) *MockState_CommittedGenerators_Call {
 	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 uint32
+		var arg0 proto.Height
 		if args[0] != nil {
-			arg0 = args[0].(uint32)
+			arg0 = args[0].(proto.Height)
 		}
 		run(
 			arg0,
@@ -1491,12 +1490,12 @@ func (_c *MockState_CommittedGenerators_Call) Run(run func(periodStart uint32)) 
 	return _c
 }
 
-func (_c *MockState_CommittedGenerators_Call) Return(wavesAddresss []proto.WavesAddress, err error) *MockState_CommittedGenerators_Call {
-	_c.Call.Return(wavesAddresss, err)
+func (_c *MockState_CommittedGenerators_Call) Return(generatorInfos []GeneratorInfo, err error) *MockState_CommittedGenerators_Call {
+	_c.Call.Return(generatorInfos, err)
 	return _c
 }
 
-func (_c *MockState_CommittedGenerators_Call) RunAndReturn(run func(periodStart uint32) ([]proto.WavesAddress, error)) *MockState_CommittedGenerators_Call {
+func (_c *MockState_CommittedGenerators_Call) RunAndReturn(run func(height proto.Height) ([]GeneratorInfo, error)) *MockState_CommittedGenerators_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3304,68 +3303,6 @@ func (_c *MockState_NewestBlockInfoByHeight_Call) Return(blockInfo *proto.BlockI
 }
 
 func (_c *MockState_NewestBlockInfoByHeight_Call) RunAndReturn(run func(height proto.Height) (*proto.BlockInfo, error)) *MockState_NewestBlockInfoByHeight_Call {
-	_c.Call.Return(run)
-	return _c
-}
-
-// NewestCommitedEndorsers provides a mock function for the type MockState
-func (_mock *MockState) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
-	ret := _mock.Called(periodStart)
-
-	if len(ret) == 0 {
-		panic("no return value specified for NewestCommitedEndorsers")
-	}
-
-	var r0 []bls.PublicKey
-	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(uint32) ([]bls.PublicKey, error)); ok {
-		return returnFunc(periodStart)
-	}
-	if returnFunc, ok := ret.Get(0).(func(uint32) []bls.PublicKey); ok {
-		r0 = returnFunc(periodStart)
-	} else {
-		if ret.Get(0) != nil {
-			r0 = ret.Get(0).([]bls.PublicKey)
-		}
-	}
-	if returnFunc, ok := ret.Get(1).(func(uint32) error); ok {
-		r1 = returnFunc(periodStart)
-	} else {
-		r1 = ret.Error(1)
-	}
-	return r0, r1
-}
-
-// MockState_NewestCommitedEndorsers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewestCommitedEndorsers'
-type MockState_NewestCommitedEndorsers_Call struct {
-	*mock.Call
-}
-
-// NewestCommitedEndorsers is a helper method to define mock.On call
-//   - periodStart uint32
-func (_e *MockState_Expecter) NewestCommitedEndorsers(periodStart interface{}) *MockState_NewestCommitedEndorsers_Call {
-	return &MockState_NewestCommitedEndorsers_Call{Call: _e.mock.On("NewestCommitedEndorsers", periodStart)}
-}
-
-func (_c *MockState_NewestCommitedEndorsers_Call) Run(run func(periodStart uint32)) *MockState_NewestCommitedEndorsers_Call {
-	_c.Call.Run(func(args mock.Arguments) {
-		var arg0 uint32
-		if args[0] != nil {
-			arg0 = args[0].(uint32)
-		}
-		run(
-			arg0,
-		)
-	})
-	return _c
-}
-
-func (_c *MockState_NewestCommitedEndorsers_Call) Return(publicKeys []bls.PublicKey, err error) *MockState_NewestCommitedEndorsers_Call {
-	_c.Call.Return(publicKeys, err)
-	return _c
-}
-
-func (_c *MockState_NewestCommitedEndorsers_Call) RunAndReturn(run func(periodStart uint32) ([]bls.PublicKey, error)) *MockState_NewestCommitedEndorsers_Call {
 	_c.Call.Return(run)
 	return _c
 }

@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -164,8 +163,7 @@ type StateInfo interface {
 		allGenerators []proto.WavesAddress) (bool, error)
 
 	FindGenerator(func(GeneratorInfo) bool) (GeneratorInfo, error)
-	NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error)
-	CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error)
+	CommittedGenerators(height proto.Height) ([]GeneratorInfo, error)
 	LastFinalizedHeight() (proto.Height, error)
 	LastFinalizedBlock() (*proto.BlockHeader, error)
 	CheckRollbackHeightAuto(height proto.Height) error
@@ -224,11 +222,6 @@ type StateModifier interface {
 	PersistAddressTransactions() error
 
 	Close() error
-}
-
-type GeneratorBanner interface {
-	// BanGenerator bans generator with given index from block generation until the end of current generation period.
-	BanGenerator(periodStart, index uint32, blockID proto.BlockID) error
 }
 
 type NonThreadSafeState = State

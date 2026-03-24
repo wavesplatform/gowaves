@@ -45,7 +45,6 @@ func (g *GeneratorInfo) GenerationBalance() uint64 {
 	if g.ban {
 		return 0
 	}
-	//TODO: Consider checking for minimal generating balance here and returning 0 if balance is below the threshold.
 	return g.balance
 }
 
@@ -128,6 +127,27 @@ func (r *generatorsBalancesRecordForStateHashes) less(other stateComponent) bool
 	return len(r.balances) < len(otherRecord.balances)
 }
 
+// ByAddress lookup functions allows to find generator by Waves AddressID.
+func ByAddress(addr proto.AddressID) func(GeneratorInfo) bool {
+	return func(info GeneratorInfo) bool {
+		return info.address.ID() == addr
+	}
+}
+
+// ByBLSPublicKey returns a lookup function that checks if a generator's BLS public key matches the provided one.
+func ByBLSPublicKey(pk bls.PublicKey) func(GeneratorInfo) bool {
+	return func(info GeneratorInfo) bool {
+		return bytes.Equal(info.blsPK.Bytes(), pk.Bytes())
+	}
+}
+
+// ByIndex returns a lookup function that checks if a generator's index matches the provided one.
+func ByIndex(index uint32) func(GeneratorInfo) bool {
+	return func(info GeneratorInfo) bool {
+		return info.index == index
+	}
+}
+
 // generators manages the set of generators for the current block.
 // The generators storage entity itself lifetime can be larger than a single block, but the generator set is expected
 // to be initialized and used within the context of a single block processing. The underlying history storage and
@@ -145,6 +165,9 @@ type generators struct {
 	activationHeight      proto.Height
 	generationPeriodStart uint32
 	blockID               proto.BlockID
+	blockHeight           proto.Height
+	blockTimestamp        uint64
+	blockGenerator        *GeneratorInfo // Current block generator info.
 
 	calculateHashes bool
 	hasher          *stateHasher
@@ -172,7 +195,13 @@ func newGenerators(
 
 // initialize populates the generator set based on the provided commitments and balances.
 // This method should be called upon block header processing.
-func (g *generators) initialize(height proto.Height, blockID proto.BlockID) error {
+// Parameters:
+//
+//	height - block application height,
+//	blockID - ID of the applied block.
+func (g *generators) initialize(
+	height proto.Height, blockID proto.BlockID, generator crypto.PublicKey, ts uint64,
+) error {
 	var err error
 	g.activationHeight, err = g.fs.activationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
@@ -186,11 +215,14 @@ func (g *generators) initialize(height proto.Height, blockID proto.BlockID) erro
 	if err != nil {
 		return fmt.Errorf("failed to initialize generators set: %w", err)
 	}
+	// Load saved bans of generators in the current generation period.
 	bans, err := g.bans(g.generationPeriodStart)
 	if err != nil {
 		return fmt.Errorf("failed to retrieve banned generators for the current generation period: %w", err)
 	}
 	g.blockID = blockID
+	g.blockHeight = height
+	g.blockTimestamp = ts
 	g.set = slices.Grow(g.set, len(cms))
 	g.byAddress = make(map[proto.AddressID]GeneratorInfo)
 	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(cms))
@@ -214,6 +246,9 @@ func (g *generators) initialize(height proto.Height, blockID proto.BlockID) erro
 			ban:     slices.Contains(bans, idx),
 		}
 		g.set = append(g.set, gi)
+		if cm.GeneratorPK == generator {
+			g.blockGenerator = &gi // Save reference to block generator info.
+		}
 		if g.calculateHashes {
 			generatorsBalancesLSHRecord.append(b)
 		}
@@ -227,12 +262,17 @@ func (g *generators) initialize(height proto.Height, blockID proto.BlockID) erro
 	return nil
 }
 
-func (g *generators) banGenerator(periodStart, index uint32, blockID proto.BlockID) error {
+func (g *generators) banGenerator(index uint32, blockID proto.BlockID) error {
 	if int(index) >= len(g.set) {
 		return fmt.Errorf("generator index %d is out of bounds for the generator set of size %d",
 			index, len(g.set))
 	}
-	key := bannedGeneratorsKey{periodStart: periodStart}
+
+	// Ban generator for the current block.
+	g.set[index].ban = true
+
+	// Save ban for processing of the future blocks.
+	key := bannedGeneratorsKey{periodStart: g.generationPeriodStart}
 	keyBytes := key.bytes()
 	recordBytes, err := g.hs.newestTopEntryData(keyBytes)
 	if err != nil {
@@ -283,7 +323,7 @@ func (g *generators) bans(periodStart uint32) ([]uint32, error) {
 // that given address is in the current generators set. If current generator set is empty, it uses the balance
 // provider to get the balance for the address.
 func (g *generators) newestGeneratingBalance(addr proto.AddressID, height proto.Height) (uint64, error) {
-	if len(g.set) == 0 {
+	if len(g.set) == 0 { // Generators set is empty just get balance from state.
 		return g.balances.newestGeneratingBalance(addr, height)
 	}
 	a, err := addr.ToWavesAddress(g.settings.AddressSchemeCharacter)
@@ -299,26 +339,6 @@ func (g *generators) newestGeneratingBalance(addr proto.AddressID, height proto.
 	return 0, fmt.Errorf("address '%s' is not in the current generator set", a.String())
 }
 
-func ByAddress(addr proto.AddressID) func(GeneratorInfo) bool {
-	return func(info GeneratorInfo) bool {
-		return info.address.ID() == addr
-	}
-}
-
-// ByBLSPublicKey returns a lookup function that checks if a generator's BLS public key matches the provided one.
-func ByBLSPublicKey(pk bls.PublicKey) func(GeneratorInfo) bool {
-	return func(info GeneratorInfo) bool {
-		return bytes.Equal(info.blsPK.Bytes(), pk.Bytes())
-	}
-}
-
-// ByIndex returns a lookup function that checks if a generator's index matches the provided one.
-func ByIndex(index uint32) func(GeneratorInfo) bool {
-	return func(info GeneratorInfo) bool {
-		return info.index == index
-	}
-}
-
 func (g *generators) findGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
 	for _, info := range g.set {
 		if lookup(info) {
@@ -326,6 +346,30 @@ func (g *generators) findGenerator(lookup func(GeneratorInfo) bool) (GeneratorIn
 		}
 	}
 	return GeneratorInfo{}, errors.New("generator is not found")
+}
+
+// TotalGenerationBalance returns generation balance of all commited generators.
+// If no generators commited (generators set is empty) function returns 0 without an error.
+// TODO: Make private.
+func (g *generators) TotalGenerationBalance() (uint64, error) {
+	if len(g.set) == 0 {
+		return 0, nil
+	}
+	total := uint64(0)
+	for _, gen := range g.set {
+		if gen.ban {
+			continue
+		}
+		if gen.GenerationBalance() < g.fs.minimalGeneratingBalanceAtHeight(g.blockHeight, g.blockTimestamp) {
+			continue
+		}
+		total += gen.GenerationBalance()
+	}
+	return total, nil
+}
+
+func (g *generators) generatorsByHeight(height proto.Height) ([]GeneratorInfo, error) {
+	return nil, errors.New("not implemented")
 }
 
 func (g *generators) prepareHashes() error {

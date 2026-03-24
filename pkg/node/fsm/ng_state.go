@@ -28,7 +28,7 @@ var errNoFinalization = errors.New("no finalization available")
 var errNoEndorsements = errors.New("no endorsements")
 
 // endorsementID hashes the endorsement payload to generate a stable identifier.
-func endorsementID(e *proto.EndorseBlock) (crypto.Digest, error) {
+func endorsementID(e *proto.BlockEndorsement) (crypto.Digest, error) {
 	data, err := e.Marshal()
 	if err != nil {
 		return crypto.Digest{}, err
@@ -295,7 +295,7 @@ func (a *NGState) endorseParentWithEachKey(
 	return nil
 }
 
-func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State, Async, error) {
+func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (State, Async, error) {
 	slog.Debug("Received a block endorsement:",
 		"EndorserIndex", blockEndorsement.EndorserIndex,
 		"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
@@ -377,11 +377,11 @@ func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height,
 		return nil, errNoEndorsements
 	}
 
-	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get DeterministicFinality activation height")
-	}
-
+	// activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
+	// if err != nil {
+	//	return nil, errors.Wrapf(err, "failed to get DeterministicFinality activation height")
+	// }
+	//
 	ok, err := a.baseInfo.endorsements.Verify()
 	if err != nil {
 		return nil, err
@@ -390,18 +390,18 @@ func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height,
 		return nil, fmt.Errorf("endorsement verification failed at height %d", height)
 	}
 
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
-	if err != nil {
-		return nil, err
-	}
+	// periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	// if err != nil {
+	//	return nil, err
+	// }
 
-	commitedGenerators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
-	if err != nil {
-		return nil, err
-	}
-	if len(commitedGenerators) == 0 {
-		slog.Debug("No committed generators found for finalization calculation")
-	}
+	// commitedGenerators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
+	// if err != nil {
+	//	return nil, err
+	// }
+	// if len(commitedGenerators) == 0 {
+	//	slog.Debug("No committed generators found for finalization calculation")
+	// }
 
 	finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
 	if finErr != nil {
@@ -495,12 +495,8 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID,
 	if cErr != nil {
 		return a.Errorf(errors.Wrapf(cErr, "lastFinalizedHeight overflows uint32: %v", lastFinalizedHeight))
 	}
-	idx, err := safecast.Convert[int32](endorserIndex)
-	if err != nil {
-		return a.Errorf(errors.Wrapf(err, "endorser index overflows int32: %v", endorserIndex))
-	}
-	endorseParentBlock := &proto.EndorseBlock{
-		EndorserIndex:        idx,
+	endorseParentBlock := &proto.BlockEndorsement{
+		EndorserIndex:        endorserIndex,
 		FinalizedBlockID:     lastFinalizedBlock.BlockID(),
 		FinalizedBlockHeight: finalizedHeight32,
 		EndorsedBlockID:      parentBlockID,
@@ -515,7 +511,7 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID,
 }
 
 func (a *NGState) addAndBroadcastOwnEndorsement(
-	parentBlockEndorsement *proto.EndorseBlock,
+	parentBlockEndorsement *proto.BlockEndorsement,
 	endorser state.GeneratorInfo,
 	lastFinalizedHeight proto.Height,
 	lastFinalizedBlockID proto.BlockID,
@@ -871,9 +867,9 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 					return a, nil, a.Errorf(errors.Errorf(
 						"unexpected type '%T' expected '*NGState'", state.State))
 				}
-				endorse, ok := args[0].(*proto.EndorseBlock)
+				endorse, ok := args[0].(*proto.BlockEndorsement)
 				if !ok {
-					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.EndorseBlock", args[0]))
+					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.BlockEndorsement", args[0]))
 				}
 				return a.BlockEndorsement(endorse)
 			})).

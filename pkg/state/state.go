@@ -20,7 +20,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -1380,6 +1379,7 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, isCappedRewardsActivated, block.BlockID())
 }
 
+// addNewBlock adds new block to the state and performs actions before and after addition of the block.
 func (s *stateManager) addNewBlock(
 	block, parent *proto.Block,
 	chans *verifierChans,
@@ -1388,10 +1388,6 @@ func (s *stateManager) addNewBlock(
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
 	lastSnapshotStateHash crypto.Digest,
 ) error {
-	finNonNil := block.FinalizationVoting != nil
-	if finNonNil {
-		slog.Debug("add new block, finalization voting not nil")
-	}
 	blockHeight := blockchainHeight + 1
 	if err := s.beforeAppendBlock(block, blockHeight); err != nil {
 		return err
@@ -2056,6 +2052,8 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	return nil
 }
 
+// addBlocks function appends all blocks prepared for addition to state.
+// This function is called from all public functions related to blocks addition to the state.
 func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:nonamedreturns // needs in defer
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -2227,6 +2225,13 @@ func (s *stateManager) initBlockAdditionWithHeightActions(
 	// At some blockchain heights specific logic is performed.
 	// This includes voting for features, block rewards and so on.
 	if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
+		return wrapErr(stateerr.ModificationError, err)
+	}
+	// Initialize generators set.
+	blockHeight := blockchainCurHeight + 1
+	if err := s.stor.generators.initialize(
+		blockHeight, block.BlockID(), block.GeneratorPublicKey, block.Timestamp,
+	); err != nil {
 		return wrapErr(stateerr.ModificationError, err)
 	}
 	return nil
@@ -3526,17 +3531,9 @@ func (s *stateManager) FindGenerator(lookup func(GeneratorInfo) bool) (Generator
 	return s.stor.generators.findGenerator(lookup)
 }
 
-func (s *stateManager) BanGenerator(periodStart, index uint32, blockID proto.BlockID) error {
-	return s.stor.generators.banGenerator(periodStart, index, blockID)
-}
-
-func (s *stateManager) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
-	return s.stor.commitments.newestEndorsers(periodStart)
-}
-
 // CommittedGenerators returns the list of Waves addresses of committed generators.
-func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
-	return s.stor.commitments.CommittedGeneratorsAddresses(periodStart, s.settings.AddressSchemeCharacter)
+func (s *stateManager) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
+	return s.stor.generators.generatorsByHeight(height)
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {

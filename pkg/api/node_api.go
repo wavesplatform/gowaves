@@ -906,6 +906,7 @@ func (a *NodeApi) snapshotStateHash(w http.ResponseWriter, r *http.Request) erro
 	return nil
 }
 
+// TODO: Move JSON tags to GeneratorInfo structure.
 type generatorInfo struct {
 	Address       string `json:"address"`
 	Balance       uint64 `json:"balance"`
@@ -925,36 +926,25 @@ func (a *NodeApi) GeneratorsAt(w http.ResponseWriter, r *http.Request) error {
 	if !isActivated {
 		return apiErrs.NewUnavailableError(errors.New("deterministic finality is not activated"))
 	}
-	activationHeight, err := a.state.ActivationHeight(int16(settings.DeterministicFinality))
-	if err != nil {
-		return errors.Wrapf(err, "failed to get DeterministicFinality activation height")
-	}
 
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height,
-		a.app.settings.GenerationPeriod)
-	if err != nil {
-		return errors.Wrapf(err, "failed to calculate generationPeriodStart")
-	}
-	generatorAddresses, err := a.state.CommittedGenerators(periodStart)
+	// TODO: This would work only for height still present in history, once the height fell out of history, no
+	//  result will be returned.
+	//  Consider to create a separate storage for this date that will persist data for any block.
+	//  Consider moving this API under the `-build-exteded-api` and `-serve-extended-api` keys.
+	gs, err := a.state.CommittedGenerators(height)
 	if err != nil {
 		return err
 	}
 
-	generatorsInfo := make([]generatorInfo, 0, len(generatorAddresses))
-	for _, generatorAddress := range generatorAddresses {
-		endorserRecipient := proto.NewRecipientFromAddress(generatorAddress)
-		balance, pullErr := a.state.GeneratingBalance(endorserRecipient, height)
-		if pullErr != nil {
-			return fmt.Errorf("failed to get generating balance for address %s at height %d: %w",
-				endorserRecipient.String(), height, pullErr)
-		}
-		generatorsInfo = append(generatorsInfo, generatorInfo{
-			Address:       generatorAddress.String(),
-			Balance:       balance,
+	infos := make([]generatorInfo, len(gs))
+	for i, g := range gs {
+		infos[i] = generatorInfo{
+			Address:       g.Address().String(),
+			Balance:       g.GenerationBalance(),
 			TransactionID: "", // It was decided to leave it empty.
-		})
+		}
 	}
-	return trySendJSON(w, generatorsInfo)
+	return trySendJSON(w, infos)
 }
 
 func (a *NodeApi) FinalizedHeight(w http.ResponseWriter, _ *http.Request) error {
