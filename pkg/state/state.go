@@ -1457,7 +1457,8 @@ func (s *stateManager) beforeAppendBlock(block *proto.Block, blockHeight proto.H
 	if chErr := s.handleChallengedHeaderIfExists(block, blockHeight); chErr != nil {
 		return chErr
 	}
-	// Handle finalization: promote pending finalization value to regular if features is active at block height.
+	// Handle finalization: promote pending finalization value to regular
+	// if the DeterministicFinality feature is active at the applying block height.
 	if finErr := s.handleFinalizationUpdate(block.BlockID(), blockHeight); finErr != nil {
 		return finErr
 	}
