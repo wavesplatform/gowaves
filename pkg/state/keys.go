@@ -780,9 +780,3 @@ func (k *commitmentKey) bytes() []byte {
 	binary.BigEndian.PutUint32(buf[1:], k.periodStart)
 	return buf
 }
-
-type finalizationKey struct{}
-
-func (k finalizationKey) bytes() []byte {
-	return []byte{finalizationKeyPrefix}
-}

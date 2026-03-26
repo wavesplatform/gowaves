@@ -255,7 +255,7 @@ func TestRollbackToHeight_AutoRollbackKeepsFinalizationCounter(t *testing.T) {
 	// This guarantees the record is normally removed by rollback and must be restored in auto mode.
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
+	err = manager.stor.finalizations.forceWrite(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -295,7 +295,7 @@ func TestRollbackToHeight_ManualRollbackChangesFinalizationCounter(t *testing.T)
 	// Same setup as auto rollback test: finalization record will be removed by rollback.
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
+	err = manager.stor.finalizations.forceWrite(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -333,7 +333,7 @@ func TestRollbackToHeight_AutoRollbackBelowFinalizedHeightFails(t *testing.T) {
 
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
+	err = manager.stor.finalizations.forceWrite(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -365,7 +365,7 @@ func TestRollbackToHeight_ManualRollbackBelowFinalizedHeightSucceeds(t *testing.
 
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
+	err = manager.stor.finalizations.forceWrite(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -399,7 +399,7 @@ func TestLastFinalizedHeight_UsesProtocolLowerBoundWhenStoredValueIsStale(t *tes
 
 	topBlockID, err := manager.HeightToBlockID(importHeight)
 	require.NoError(t, err)
-	err = manager.stor.finalizations.store(finalizedHeight, topBlockID)
+	err = manager.stor.finalizations.updatePendingFinalization(finalizedHeight, topBlockID)
 	require.NoError(t, err)
 	err = manager.flush()
 	require.NoError(t, err)
@@ -407,6 +407,50 @@ func TestLastFinalizedHeight_UsesProtocolLowerBoundWhenStoredValueIsStale(t *tes
 	lastFinalizedHeight, err := manager.LastFinalizedHeight()
 	require.NoError(t, err)
 	require.Equal(t, proto.Height(importHeight-100), lastFinalizedHeight)
+}
+
+func TestLastFinalizedHeight_ExposesPreFinalizationOnlyAtNPlus2(t *testing.T) {
+	blocksPath, err := blocksPath()
+	require.NoError(t, err)
+
+	sets := settings.MustMainNetSettings()
+	sets.PreactivatedFeatures = append(sets.PreactivatedFeatures, int16(settings.DeterministicFinality))
+	manager := newTestStateManager(t, true, DefaultTestingStateParams(), sets)
+
+	const (
+		importHeight    = 15
+		finalizedHeight = 14
+	)
+	err = importer.ApplyFromFile(
+		t.Context(),
+		importer.ImportParams{Schema: sets.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
+		manager, importHeight-1, 1,
+	)
+	require.NoError(t, err)
+
+	topBlockID, err := manager.HeightToBlockID(importHeight)
+	require.NoError(t, err)
+	err = manager.stor.finalizations.updatePendingFinalization(finalizedHeight, topBlockID) // set to pending
+	require.NoError(t, err)
+	err = manager.flush()
+	require.NoError(t, err)
+
+	// At height N+1, only finalized (not pre-finalized) value is visible.
+	atNPlus1, err := manager.LastFinalizedHeight()
+	require.NoError(t, err)
+	require.Equal(t, proto.Height(1), atNPlus1)
+
+	// After one more block (N+2), pre-finalization is promoted and becomes visible.
+	err = importer.ApplyFromFile(
+		t.Context(),
+		importer.ImportParams{Schema: sets.AddressSchemeCharacter, BlockchainPath: blocksPath, LightNodeMode: false},
+		manager, importHeight, importHeight,
+	)
+	require.NoError(t, err)
+
+	atNPlus2, err := manager.LastFinalizedHeight()
+	require.NoError(t, err)
+	require.Equal(t, proto.Height(finalizedHeight), atNPlus2)
 }
 
 func TestStateIntegrated(t *testing.T) {
