@@ -3,8 +3,8 @@ package proto
 import (
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
 
@@ -304,7 +304,22 @@ func appendSponsorshipFromProto(
 	return res, nil
 }
 
+func appendGenerationCommitmentFromProto(
+	res []AtomicSnapshot,
+	generationCommitment *g.TransactionStateSnapshot_GenerationCommitment,
+) ([]AtomicSnapshot, error) {
+	if generationCommitment == nil {
+		return res, nil
+	}
+	var sn GenerationCommitmentSnapshot
+	if err := sn.FromProtobuf(generationCommitment); err != nil {
+		return nil, err
+	}
+	return append(res, &sn), nil
+}
+
 // TxSnapshotsFromProtobufWithoutTxStatus Unmarshalling order
+// Reference: `PBSnapshots.fromProtobuf` in scala node code.
 // (don't change it if it is not necessary, order is important):
 // NewAsset
 // AssetVolume
@@ -319,6 +334,7 @@ func appendSponsorshipFromProto(
 // AccountScript
 // DataEntries
 // Sponsorships
+// GenerationCommitment.
 func TxSnapshotsFromProtobufWithoutTxStatus(
 	scheme Scheme,
 	txSnapshotProto *g.TransactionStateSnapshot,
@@ -379,7 +395,7 @@ func TxSnapshotsFromProtobufWithoutTxStatus(
 	if err != nil {
 		return nil, err
 	}
-	return txSnapshots, nil
+	return appendGenerationCommitmentFromProto(txSnapshots, txSnapshotProto.GenerationCommitment)
 }
 
 // TxSnapshotsFromProtobuf deserializes protobuf message into AtomicSnapshot slice.
@@ -567,6 +583,18 @@ func (c *ProtobufConverter) publicKey(pk []byte) crypto.PublicKey {
 	if err != nil {
 		c.err = err
 		return crypto.PublicKey{}
+	}
+	return r
+}
+
+func (c *ProtobufConverter) blsPublicKey(pk []byte) bls.PublicKey {
+	if c.err != nil {
+		return bls.PublicKey{}
+	}
+	r, err := bls.NewPublicKeyFromBytes(pk)
+	if err != nil {
+		c.err = err
+		return bls.PublicKey{}
 	}
 	return r
 }
@@ -1454,6 +1482,29 @@ func (c *ProtobufConverter) Transaction(tx *g.Transaction) (Transaction, error) 
 			Fee:         feeAmount,
 			Timestamp:   ts,
 		}
+	case *g.Transaction_CommitToGeneration:
+		_, feeAmount := c.convertAmount(tx.Fee)
+		epk, err := bls.NewPublicKeyFromBytes(d.CommitToGeneration.EndorserPublicKey)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
+		cs, err := bls.NewSignatureFromBytes(d.CommitToGeneration.CommitmentSignature)
+		if err != nil {
+			c.reset()
+			return nil, err
+		}
+		rtx = &CommitToGenerationWithProofs{
+			Type:                  CommitToGenerationTransaction,
+			Version:               v,
+			SenderPK:              c.publicKey(tx.SenderPublicKey),
+			Fee:                   feeAmount,
+			Timestamp:             ts,
+			Proofs:                nil,
+			GenerationPeriodStart: d.CommitToGeneration.GenerationPeriodStart,
+			EndorserPublicKey:     epk,
+			CommitmentSignature:   cs,
+		}
 	default:
 		c.reset()
 		return nil, errors.New("unsupported transaction")
@@ -1608,6 +1659,9 @@ func (c *ProtobufConverter) signedTransaction(stx *g.SignedTransaction) (Transac
 		case *UpdateAssetInfoWithProofs:
 			t.Proofs = proofs
 			return t, nil
+		case *CommitToGenerationWithProofs:
+			t.Proofs = proofs
+			return t, nil
 		default:
 			panic("unsupported transaction")
 		}
@@ -1645,6 +1699,14 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		return MicroBlock{}, err
 	}
 	v := c.byte(mb.MicroBlock.Version)
+	var finalizationVoting *FinalizationVoting
+	if mb.MicroBlock.FinalizationVoting != nil {
+		fv, fvErr := c.FinalizationVoting(mb.MicroBlock.FinalizationVoting)
+		if fvErr != nil {
+			return MicroBlock{}, errors.Wrap(fvErr, "failed to unmarshal finalization voting")
+		}
+		finalizationVoting = &fv
+	}
 	res := MicroBlock{
 		VersionField:          v,
 		Reference:             c.blockID(mb.MicroBlock.Reference),
@@ -1655,6 +1717,7 @@ func (c *ProtobufConverter) MicroBlock(mb *g.SignedMicroBlock) (MicroBlock, erro
 		SenderPK:              c.publicKey(mb.MicroBlock.SenderPublicKey),
 		Signature:             c.signature(mb.Signature),
 		StateHash:             c.stateHash(mb.MicroBlock.StateHash),
+		PartialFinalization:   finalizationVoting,
 	}
 	if c.err != nil {
 		err := c.err
@@ -1684,6 +1747,76 @@ func (c *ProtobufConverter) Block(block *g.Block) (Block, error) {
 	return Block{
 		BlockHeader:  header,
 		Transactions: txs,
+	}, nil
+}
+
+func (c *ProtobufConverter) EndorseBlock(endorsement *g.EndorseBlock) (EndorseBlock, error) {
+	if endorsement == nil {
+		return EndorseBlock{}, errors.New("empty endorsement")
+	}
+	finalizedBlockID, err := NewBlockIDFromBytes(endorsement.FinalizedBlockId)
+	if err != nil {
+		return EndorseBlock{}, errors.Errorf("failed to parse finalized block ID: %v", err)
+	}
+	endorsedBlockID, err := NewBlockIDFromBytes(endorsement.EndorsedBlockId)
+	if err != nil {
+		return EndorseBlock{}, errors.Errorf("failed to parse endorsed block ID: %v", err)
+	}
+	sig, err := bls.NewSignatureFromBytes(endorsement.Signature)
+	if err != nil {
+		return EndorseBlock{}, errors.Errorf("failed to parse bls signature: %v", err)
+	}
+	return EndorseBlock{
+		EndorserIndex:        endorsement.EndorserIndex,
+		FinalizedBlockID:     finalizedBlockID,
+		FinalizedBlockHeight: endorsement.FinalizedBlockHeight,
+		EndorsedBlockID:      endorsedBlockID,
+		Signature:            sig,
+	}, nil
+}
+
+func (c *ProtobufConverter) FinalizationVoting(finalizationVoting *g.FinalizationVoting) (FinalizationVoting, error) {
+	if finalizationVoting == nil {
+		return FinalizationVoting{}, errors.New("empty finalization voting")
+	}
+	conflictEndorsements := make([]EndorseBlock, 0, len(finalizationVoting.ConflictEndorsements))
+	for i, ce := range finalizationVoting.ConflictEndorsements {
+		if ce == nil {
+			continue
+		}
+		finalizedBlockID, err := NewBlockIDFromBytes(ce.FinalizedBlockId)
+		if err != nil {
+			return FinalizationVoting{}, errors.Errorf("failed to parse finalized block ID at index %d: %v", i, err)
+		}
+		endorsedBlockID, err := NewBlockIDFromBytes(ce.EndorsedBlockId)
+		if err != nil {
+			return FinalizationVoting{}, errors.Errorf("failed to parse endorsed block ID at index %d: %v", i, err)
+		}
+		sig, err := bls.NewSignatureFromBytes(ce.Signature)
+		if err != nil {
+			return FinalizationVoting{}, errors.Errorf("failed to parse bls signature: %v", err)
+		}
+		conflictEndorsements = append(conflictEndorsements, EndorseBlock{
+			EndorserIndex:        ce.EndorserIndex,
+			FinalizedBlockID:     finalizedBlockID,
+			FinalizedBlockHeight: ce.FinalizedBlockHeight,
+			EndorsedBlockID:      endorsedBlockID,
+			Signature:            sig,
+		})
+	}
+	aggregatedSignature, err := bls.NewSignatureFromBytes(finalizationVoting.AggregatedEndorsementSignature)
+	if err != nil {
+		return FinalizationVoting{}, errors.Errorf("failed to parse aggregated bls signature: %v", err)
+	}
+	finalizedBlockHeight, err := safecast.Convert[uint64](finalizationVoting.FinalizedBlockHeight)
+	if err != nil {
+		return FinalizationVoting{}, errors.Wrap(err, "invalid finalized_block_height")
+	}
+	return FinalizationVoting{
+		EndorserIndexes:                finalizationVoting.EndorserIndexes,
+		AggregatedEndorsementSignature: aggregatedSignature,
+		ConflictEndorsements:           conflictEndorsements,
+		FinalizedBlockHeight:           finalizedBlockHeight,
 	}, nil
 }
 
@@ -1773,6 +1906,16 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 	if conversionErr != nil {
 		return BlockHeader{}, errors.Wrap(conversionErr, "consensus block length overflow")
 	}
+
+	var finalizationVoting *FinalizationVoting
+	if pbHeader.FinalizationVoting != nil {
+		fv, fvErr := c.FinalizationVoting(pbHeader.FinalizationVoting)
+		if fvErr != nil {
+			return BlockHeader{}, errors.Wrap(fvErr,
+				"failed to unmarshal finalization voting in partial block header function")
+		}
+		finalizationVoting = &fv
+	}
 	header := BlockHeader{
 		Version:              v,
 		Timestamp:            c.uint64(pbHeader.Timestamp),
@@ -1788,6 +1931,7 @@ func (c *ProtobufConverter) PartialBlockHeader(pbHeader *g.Block_Header) (BlockH
 		TransactionsRoot:     pbHeader.TransactionsRoot,
 		StateHash:            c.stateHash(pbHeader.StateHash),
 		ChallengedHeader:     c.challengedHeader(pbHeader.ChallengedHeader),
+		FinalizationVoting:   finalizationVoting,
 		ID:                   BlockID{}, // not set, can't be calculated without the scheme and the block signature
 	}
 	if c.err != nil {

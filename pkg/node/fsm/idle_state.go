@@ -121,6 +121,7 @@ func initIdleStateInFSM(state *StateData, fsm *stateless.StateMachine, b BaseInf
 		Ignore(MicroBlockInvEvent).
 		Ignore(BlockIDsEvent).
 		Ignore(BlockEvent).
+		Ignore(BlockEndorsementEvent).
 		Ignore(StopSyncEvent).
 		Ignore(ChangeSyncPeerEvent).
 		Ignore(StopMiningEvent).
