@@ -257,7 +257,27 @@ dist-convert: release-convert
 	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/convert_$(VERSION)_macOS-amd64.tar.gz ./convert*
 	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/convert_$(VERSION)_macOS-arm64.tar.gz ./convert*
 
-dist: clean dist-chaincmp dist-importer dist-node dist-wallet dist-compiler
+build-commit-native:
+	@go build -o build/bin/native/commit ./cmd/commit
+build-commit-linux:
+	@CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o build/bin/linux-amd64/commit ./cmd/commit
+build-commit-darwin-amd64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=amd64 go build -o build/bin/darwin-amd64/commit ./cmd/commit
+build-commit-darwin-arm64:
+	@CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o build/bin/darwin-arm64/commit ./cmd/commit
+build-commit-windows:
+	@CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o build/bin/windows-amd64/commit.exe ./cmd/commit
+
+release-commit: ver build-commit-linux build-commit-darwin-amd64 build-commit-darwin-arm64 build-commit-windows
+
+dist-commit: release-commit
+	@mkdir -p build/dist
+	@cd ./build/; zip -j ./dist/commit_$(VERSION)_Windows-amd64.zip ./bin/windows-amd64/commit*
+	@cd ./build/bin/linux-amd64/; tar pzcvf ../../dist/commit_$(VERSION)_Linux-amd64.tar.gz ./commit*
+	@cd ./build/bin/darwin-amd64/; tar pzcvf ../../dist/commit_$(VERSION)_macOS-amd64.tar.gz ./commit*
+	@cd ./build/bin/darwin-arm64/; tar pzcvf ../../dist/commit_$(VERSION)_macOS-arm64.tar.gz ./commit*
+
+dist: clean dist-chaincmp dist-importer dist-node dist-wallet dist-compiler dist-convert dist-commit
 
 build: vendor ver build-chaincmp-native build-blockcmp-native build-node-native build-importer-native build-wallet-native build-rollback-native build-compiler-native build-statehash-native build-convert-native
 
