@@ -360,9 +360,8 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGState) getCurrentFinalizationVoting(height proto.Height,
-	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
-	blockFinalization, err := a.tryGetCurrentFinalizationVoting(height, lastFinalizedHeight)
+func (a *NGState) getCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {
+	blockFinalization, err := a.tryGetCurrentFinalizationVoting(height)
 	if err != nil {
 		slog.Debug("did not form finalization voting", "err", err)
 		return nil, err
@@ -370,8 +369,7 @@ func (a *NGState) getCurrentFinalizationVoting(height proto.Height,
 	return blockFinalization, nil
 }
 
-func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height,
-	lastFinalizedHeight proto.Height) (*proto.FinalizationVoting, error) {
+func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {
 	// No finalization since nobody endorsed the last block.
 	if a.baseInfo.endorsements.Len() == 0 {
 		return nil, errNoEndorsements
@@ -403,7 +401,7 @@ func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height,
 	//	slog.Debug("No committed generators found for finalization calculation")
 	// }
 
-	finalization, finErr := a.baseInfo.endorsements.FormFinalization(lastFinalizedHeight)
+	finalization, finErr := a.baseInfo.endorsements.FormFinalization()
 	if finErr != nil {
 		return nil, finErr
 	}
@@ -596,11 +594,7 @@ func (a *NGState) mineMicro(
 	}
 	var blockFinalization *proto.FinalizationVoting
 	if finalityActivated {
-		lastFinalizedHeight, lastHeightErr := a.baseInfo.storage.LastFinalizedHeight()
-		if lastHeightErr != nil {
-			return a, nil, a.Errorf(lastHeightErr)
-		}
-		blockFinalization, err = a.getCurrentFinalizationVoting(height, lastFinalizedHeight)
+		blockFinalization, err = a.getCurrentFinalizationVoting(height)
 		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
 		}

@@ -196,9 +196,13 @@ func (p *EndorsementPool) GetAll() []proto.BlockEndorsement {
 	return out
 }
 
-func (p *EndorsementPool) FormFinalization(lastFinalizedHeight proto.Height) (proto.FinalizationVoting, error) {
+func (p *EndorsementPool) FormFinalization() (proto.FinalizationVoting, error) {
 	p.mu.Lock()
 	defer p.mu.Unlock()
+
+	if len(p.h) == 0 {
+		return proto.FinalizationVoting{}, errors.New("failed to form finalization: pool is empty")
+	}
 
 	signatures := make([]bls.Signature, 0, len(p.h))
 	endorsersIndexes := make([]uint32, 0, len(p.h))
@@ -222,7 +226,7 @@ func (p *EndorsementPool) FormFinalization(lastFinalizedHeight proto.Height) (pr
 
 	return proto.FinalizationVoting{
 		AggregatedEndorsementSignature: aggregatedSignature,
-		FinalizedBlockHeight:           lastFinalizedHeight,
+		FinalizedBlockHeight:           proto.Height(p.h[0].eb.FinalizedBlockHeight),
 		EndorserIndexes:                endorsersIndexes,
 		ConflictEndorsements:           p.conflicts,
 	}, nil

@@ -1427,12 +1427,35 @@ func (s *stateManager) beforeAppendBlock(block *proto.Block, blockHeight proto.H
 	if chErr := s.handleChallengedHeaderIfExists(block, blockHeight); chErr != nil {
 		return chErr
 	}
+	// Handle finalization: promote pending finalization value to regular
+	// if the DeterministicFinality feature is active at the applying block height.
+	if finErr := s.handleFinalizationUpdate(block.BlockID(), blockHeight); finErr != nil {
+		return finErr
+	}
 	// Indicate new block for storage.
 	if err := s.rw.startBlock(block.BlockID()); err != nil {
 		return err
 	}
 	// Save block header to block storage.
 	return s.rw.writeBlockHeader(&block.BlockHeader)
+}
+
+// handleFinalizationUpdate promotes pending finalization value to regular
+// if the settings.DeterministicFinality feature is active at applying block height.
+func (s *stateManager) handleFinalizationUpdate(
+	blockID proto.BlockID,
+	blockHeight proto.Height,
+) error {
+	activeAtHeight := s.stor.features.newestIsActivatedAtHeight(int16(settings.DeterministicFinality), blockHeight)
+	if !activeAtHeight {
+		return nil // nothing to do
+	}
+	if err := s.stor.finalizations.updateFinalization(blockID); err != nil {
+		return fmt.Errorf("failed to update finalization for block '%s' at height %d: %w",
+			blockID.String(), blockHeight, err,
+		)
+	}
+	return nil
 }
 
 func (s *stateManager) handleChallengedHeaderIfExists(block *proto.Block, blockHeight proto.Height) error {
@@ -2343,10 +2366,9 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	if checkErr := s.CheckRollbackHeightAuto(height); checkErr != nil {
 		return wrapErr(stateerr.InvalidInputError, checkErr)
 	}
-	if h, finErr := s.stor.finalizations.newest(); finErr == nil {
+	if h, finErr := s.stor.finalizations.newestHeight(); finErr == nil {
 		finalizationHeight = h
 		finalizationExists = true
-		// TODO should we return for these errors too?
 	} else if !errors.Is(finErr, ErrNoFinalization) && !errors.Is(finErr, ErrNoFinalizationHistory) {
 		return wrapErr(stateerr.RollbackError, finErr)
 	}
@@ -2354,7 +2376,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 		return rollbackErr
 	}
 	if finalizationExists {
-		if storeErr := s.stor.finalizations.store(finalizationHeight, blockID); storeErr != nil {
+		if storeErr := s.stor.finalizations.forceWrite(finalizationHeight, blockID); storeErr != nil {
 			return wrapErr(stateerr.RollbackError, storeErr)
 		}
 		if flushErr := s.stor.flush(); flushErr != nil {
@@ -3543,7 +3565,7 @@ func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
 	}
 	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(currentHeight)
 
-	storedFinalizedHeight, err := s.stor.finalizations.newest()
+	storedFinalizedHeight, err := s.stor.finalizations.newestHeight()
 	if err == nil {
 		// Finalization must never lag behind the protocol lower bound (currentHeight - 100).
 		if storedFinalizedHeight < calculatedFinalizedHeight {
