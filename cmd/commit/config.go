@@ -26,6 +26,9 @@ type config struct {
 }
 
 func (c *config) parse(args []string) error {
+	if len(args) < 1 {
+		return errors.New("invalid number of arguments")
+	}
 	fs := flag.NewFlagSet(args[0], flag.ContinueOnError)
 	fs.SetOutput(io.Discard) // suppress automatic output; we print usage ourselves below
 	var (
@@ -37,7 +40,9 @@ func (c *config) parse(args []string) error {
 	fs.Uint64Var(&height, "height", 0, "Height of generation period start")
 	fs.StringVar(&privateKey, "private-key", "", "Waves private key in Base58")
 	fs.Uint64Var(&fee, "fee", baseFee, "Transaction fee (default: 0.1 Waves)")
-	fs.StringVar(&ts, "timestamp", "", "Transaction timestamp (default: current time in UNIX milliseconds)")
+	fs.StringVar(&ts, "timestamp", "",
+		"Transaction timestamp (default: current time), can be absolute (e.g. '15:04') or relative "+
+			"(e.g. '+1h30m' or '-45s')")
 	if err := fs.Parse(args[1:]); err != nil {
 		fs.SetOutput(os.Stderr)
 		fs.Usage()
@@ -92,11 +97,9 @@ func parseTimestamp(ts string) (uint64, error) {
 }
 
 func parseTimestampShift(ts string, now time.Time) (uint64, error) {
-	// Strip leading '+' because time.ParseDuration does not accept it.
-	// A leading '-' is left as-is; time.ParseDuration handles negative durations natively.
-	d, err := time.ParseDuration(strings.TrimPrefix(ts, "+"))
+	d, err := time.ParseDuration(ts)
 	if err != nil {
-		return 0, fmt.Errorf("invalid time shift %q: %w", ts, err)
+		return 0, fmt.Errorf("invalid time shift: %w", err)
 	}
 	ms, convErr := safecast.Convert[uint64](now.Add(d).UnixMilli())
 	if convErr != nil {

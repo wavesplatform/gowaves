@@ -3,6 +3,7 @@ package main
 import (
 	"flag"
 	"testing"
+	"testing/synctest"
 	"time"
 
 	"github.com/stretchr/testify/assert"
@@ -16,24 +17,31 @@ func TestParse_ValidArgs(t *testing.T) {
 	assert.Equal(t, uint32(100), cfg.height)
 	assert.Equal(t, uint64(baseFee), cfg.fee)
 	assert.Greater(t, cfg.timestamp, uint64(0))
+	assert.Equal(t, "25Um7fKYkySZnweUEVAn9RLtxN5xHRd7iqpqYSMNQEeT", cfg.sk.String())
 }
 
 func TestParse_MissingHeight(t *testing.T) {
 	cfg := config{}
 	err := cfg.parse([]string{"commit", "-private-key", "25Um7fKYkySZnweUEVAn9RLtxN5xHRd7iqpqYSMNQEeT"})
-	require.Error(t, err)
+	assert.EqualError(t, err, "option -height is required and must be positive")
+}
+
+func TestParse_InvalidPrivateKey(t *testing.T) {
+	cfg := config{}
+	err := cfg.parse([]string{"commit", "-height", "100", "-private-key", "25Um7fKYkySZnweUEVAn9RLtxN5xHRd7iqpqYSM"})
+	assert.EqualError(t, err, "failed to parse private key: incorrect SecretKey length 28, expected 32")
 }
 
 func TestParse_MissingPrivateKey(t *testing.T) {
 	cfg := config{}
 	err := cfg.parse([]string{"commit", "-height", "100"})
-	require.Error(t, err)
+	assert.EqualError(t, err, "option -private-key is required")
 }
 
 func TestParse_HelpFlag(t *testing.T) {
 	cfg := config{}
 	err := cfg.parse([]string{"commit", "-h"})
-	require.ErrorIs(t, err, flag.ErrHelp)
+	assert.EqualError(t, err, flag.ErrHelp.Error())
 }
 
 func TestParse_CalledTwiceNoPanic(t *testing.T) {
@@ -45,30 +53,30 @@ func TestParse_CalledTwiceNoPanic(t *testing.T) {
 }
 
 func TestParseTimestamp_EmptyReturnsCurrentTime(t *testing.T) {
-	before := time.Now().UnixMilli()
-	ts, err := parseTimestamp("")
-	after := time.Now().UnixMilli()
-	require.NoError(t, err)
-	assert.GreaterOrEqual(t, int64(ts), before)
-	assert.LessOrEqual(t, int64(ts), after)
+	synctest.Test(t, func(t *testing.T) {
+		tm := time.Now().UnixMilli()
+		ts, err := parseTimestamp("")
+		require.NoError(t, err)
+		assert.Equal(t, tm, int64(ts))
+	})
 }
 
 func TestParseTimestamp_PositiveShift(t *testing.T) {
-	before := time.Now().Add(time.Hour).UnixMilli()
-	ts, err := parseTimestamp("+1h")
-	after := time.Now().Add(time.Hour).UnixMilli()
-	require.NoError(t, err)
-	assert.GreaterOrEqual(t, int64(ts), before)
-	assert.LessOrEqual(t, int64(ts), after)
+	synctest.Test(t, func(t *testing.T) {
+		tm := time.Now().Add(time.Hour).UnixMilli()
+		ts, err := parseTimestamp("+1h")
+		require.NoError(t, err)
+		assert.Equal(t, tm, int64(ts))
+	})
 }
 
 func TestParseTimestamp_NegativeShift(t *testing.T) {
-	before := time.Now().Add(-30 * time.Minute).UnixMilli()
-	ts, err := parseTimestamp("-30m")
-	after := time.Now().Add(-30 * time.Minute).UnixMilli()
-	require.NoError(t, err)
-	assert.GreaterOrEqual(t, int64(ts), before)
-	assert.LessOrEqual(t, int64(ts), after)
+	synctest.Test(t, func(t *testing.T) {
+		tm := time.Now().Add(-30 * time.Minute).UnixMilli()
+		ts, err := parseTimestamp("-30m")
+		require.NoError(t, err)
+		assert.Equal(t, tm, int64(ts))
+	})
 }
 
 func TestParseTimestamp_TimeStringHours(t *testing.T) {
@@ -91,17 +99,28 @@ func TestParseTimestamp_TimeStringSeconds(t *testing.T) {
 
 func TestParseTimestamp_InvalidShift(t *testing.T) {
 	_, err := parseTimestamp("+notaduration")
-	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid time shift: time: invalid duration \"+notaduration\"")
+}
+
+func TestParseTimestamp_InvalidNegativeShift(t *testing.T) {
+	_, err := parseTimestamp("--1h")
+	assert.EqualError(t, err, "invalid time shift: time: invalid duration \"--1h\"")
+}
+
+func TestParseTimestamp_InvalidPositiveShift(t *testing.T) {
+	_, err := parseTimestamp("++5m")
+	assert.EqualError(t, err, "invalid time shift: time: invalid duration \"++5m\"")
 }
 
 func TestParseTimestamp_InvalidTimeString(t *testing.T) {
 	_, err := parseTimestamp("not-a-time")
-	assert.Error(t, err)
+	assert.EqualError(t, err,
+		"invalid timestamp \"not-a-time\": parsing time \"not-a-time\" as \"15\": cannot parse \"not-a-time\" as \"15\"")
 }
 
 func TestParseTimestamp_TooManyColons(t *testing.T) {
 	_, err := parseTimestamp("14:30:45:00")
-	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid timestamp format \"14:30:45:00\"")
 }
 
 func TestParseTimestampShift_Positive(t *testing.T) {
@@ -128,7 +147,7 @@ func TestParseTimestampShift_CompoundDuration(t *testing.T) {
 func TestParseTimestampShift_Invalid(t *testing.T) {
 	now := time.Now()
 	_, err := parseTimestampShift("+invalid", now)
-	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid time shift: time: invalid duration \"+invalid\"")
 }
 
 func TestParseTimeString_HoursOnly(t *testing.T) {
@@ -158,13 +177,13 @@ func TestParseTimeString_HoursMinutesSeconds(t *testing.T) {
 func TestParseTimeString_TooManyColons(t *testing.T) {
 	now := time.Now()
 	_, err := parseTimeString("14:30:45:00", now)
-	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid timestamp format \"14:30:45:00\"")
 }
 
 func TestParseTimeString_InvalidHour(t *testing.T) {
 	now := time.Now()
 	_, err := parseTimeString("99", now)
-	assert.Error(t, err)
+	assert.EqualError(t, err, "invalid timestamp \"99\": parsing time \"99\": hour out of range")
 }
 
 func TestParseTimeString_PreservesDate(t *testing.T) {
