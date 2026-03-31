@@ -12,6 +12,7 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
+	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/settings"
 )
@@ -203,8 +204,11 @@ func (g *generators) initialize(
 	height proto.Height, blockID proto.BlockID, generator crypto.PublicKey, ts uint64,
 ) error {
 	var err error
-	g.activationHeight, err = g.fs.activationHeight(int16(settings.DeterministicFinality))
+	g.activationHeight, err = g.fs.newestActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
+		if errors.Is(err, keyvalue.ErrNotFound) { // DeterministicFinality feature is not approved or activated.
+			return nil
+		}
 		return fmt.Errorf("failed to get activation height for Deterministic Finality feature: %w", err)
 	}
 	g.generationPeriodStart, err = CurrentGenerationPeriodStart(g.activationHeight, height, g.settings.GenerationPeriod)
