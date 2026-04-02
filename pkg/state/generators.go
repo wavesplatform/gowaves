@@ -266,6 +266,12 @@ func (g *generators) initialize(
 	return nil
 }
 
+func (g *generators) generator(index uint32) (GeneratorInfo, error) {
+	if int(index) >= len(g.set) {
+
+	}
+}
+
 func (g *generators) banGenerator(index uint32, blockID proto.BlockID) error {
 	if int(index) >= len(g.set) {
 		return fmt.Errorf("generator index %d is out of bounds for the generator set of size %d",
