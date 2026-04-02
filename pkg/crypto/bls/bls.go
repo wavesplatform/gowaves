@@ -247,23 +247,27 @@ func Verify(pk PublicKey, msg []byte, sig Signature) (bool, error) {
 	return cbls.Verify[cbls.G1](cpk, msg, sig.Bytes()), nil
 }
 
-func AggregateSignatures(sigs []Signature) (cbls.Signature, error) {
-	if len(sigs) == 0 {
-		return nil, ErrNoSignatures
+func AggregateSignatures(signatures []Signature) (Signature, error) {
+	if len(signatures) == 0 {
+		return Signature{}, ErrNoSignatures
 	}
-	if !isUnique(sigs) {
-		return nil, ErrDuplicateSignature
+	if !isUnique(signatures) {
+		return Signature{}, ErrDuplicateSignature
 	}
 	// min-pk => keys in G1, so aggregate in G2 with tag G1{}
-	ss := make([]cbls.Signature, len(sigs))
-	for i := range sigs {
-		ss[i] = sigs[i].Bytes()
+	ss := make([]cbls.Signature, len(signatures))
+	for i := range signatures {
+		ss[i] = signatures[i].Bytes()
 	}
-	return cbls.Aggregate(cbls.G1{}, ss)
+	aggregate, err := cbls.Aggregate(cbls.G1{}, ss)
+	if err != nil {
+		return Signature{}, fmt.Errorf("failed to aggregate signatures: %w", err)
+	}
+	return NewSignatureFromBytes(aggregate)
 }
 
 // VerifyAggregate verifies aggregated signature over the same message.
-func VerifyAggregate(pks []PublicKey, msg []byte, sig cbls.Signature) bool {
+func VerifyAggregate(pks []PublicKey, msg []byte, sig Signature) bool {
 	if len(pks) == 0 {
 		return false
 	}
@@ -280,7 +284,7 @@ func VerifyAggregate(pks []PublicKey, msg []byte, sig cbls.Signature) bool {
 		ks[i] = k
 		ms[i] = msg
 	}
-	return cbls.VerifyAggregate[cbls.G1](ks, ms, sig)
+	return cbls.VerifyAggregate[cbls.G1](ks, ms, sig.Bytes())
 }
 
 func isUnique[T comparable](in []T) bool {

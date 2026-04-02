@@ -1,16 +1,62 @@
 package proto
 
 import (
+	"bytes"
 	"encoding/binary"
 	"fmt"
+	"io"
 	"slices"
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
-
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
+
+// EndorsementCryptoMessage is used to calculate and validate signatures of block endorsements.
+// Only one-way serialization is implemented. The structure is never intended for deserialization from bytes.
+type EndorsementCryptoMessage struct {
+	FinalizedBlockID     BlockID
+	FinalizedBlockHeight uint32
+	EndorsedBlockID      BlockID
+}
+
+func NewEndorsementCryptoMessage(
+	finalizedBlockID, EndorsedBlockID BlockID, finalizedBlockHeight uint32,
+) *EndorsementCryptoMessage {
+	return &EndorsementCryptoMessage{
+		FinalizedBlockID:     finalizedBlockID,
+		FinalizedBlockHeight: finalizedBlockHeight,
+		EndorsedBlockID:      EndorsedBlockID,
+	}
+}
+
+func (msg *EndorsementCryptoMessage) WriteTo(w io.Writer) (int64, error) {
+	n, err := msg.FinalizedBlockID.WriteTo(w)
+	if err != nil {
+		return n, err
+	}
+	n1, err := U32(msg.FinalizedBlockHeight).WriteTo(w)
+	n += n1
+	if err != nil {
+		return n, err
+	}
+	n2, err := msg.EndorsedBlockID.WriteTo(w)
+	n += n2
+	if err != nil {
+		return n, err
+	}
+	return n, nil
+}
+
+func (msg *EndorsementCryptoMessage) Bytes() ([]byte, error) {
+	buf := new(bytes.Buffer)
+	_, err := msg.WriteTo(buf)
+	if err != nil {
+		return nil, err
+	}
+	return buf.Bytes(), nil
+}
 
 // BlockEndorsement represents an endorsement of a block by a validator.
 type BlockEndorsement struct {
@@ -50,30 +96,21 @@ func (e *BlockEndorsement) EndorsementMessage() ([]byte, error) {
 	return buf, nil
 }
 
-func EndorsementMessage(finalizedBlockID BlockID, endorsedBlockID BlockID,
-	finalizedBlockHeight Height) ([]byte, error) {
-	const heightSize = uint32Size
-
-	finalizedID := finalizedBlockID.Bytes()
-	endorsedID := endorsedBlockID.Bytes()
-
-	size := len(finalizedID) + heightSize + len(endorsedID)
-	buf := make([]byte, size)
-
-	// finalizedBlockId
-	copy(buf[0:len(finalizedID)], finalizedID)
-
-	finalizedBlockHeightUint, err := safecast.Convert[uint32](finalizedBlockHeight)
+func EndorsementMessage(finalizedBlockID, endorsedBlockID BlockID, finalizedBlockHeight uint32) ([]byte, error) {
+	buf := bytes.NewBuffer(nil)
+	_, err := finalizedBlockID.WriteTo(buf)
 	if err != nil {
-		return nil, errors.Errorf("finalized block height conversion error: %v", err)
+		return nil, fmt.Errorf("failed to build endorsement cryptographic message: %w", err)
 	}
-	// finalizedBlockHeight (4 bytes big-endian, same as Scala Ints.toByteArray)
-	binary.BigEndian.PutUint32(buf[len(finalizedID):len(finalizedID)+heightSize], finalizedBlockHeightUint)
-
-	// endorsedBlockId
-	copy(buf[len(finalizedID)+heightSize:], endorsedID)
-
-	return buf, nil
+	_, err = U32(finalizedBlockHeight).WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build endorsement cryptographic message: %w", err)
+	}
+	_, err = endorsedBlockID.WriteTo(buf)
+	if err != nil {
+		return nil, fmt.Errorf("failed to build endorsement cryptographic message: %w", err)
+	}
+	return buf.Bytes(), nil
 }
 
 func (e *BlockEndorsement) UnmarshalFromProtobuf(data []byte) error {

@@ -467,6 +467,10 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID,
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to get last finalized block height"))
 	}
+	lfh, err := safecast.Convert[uint32](lastFinalizedHeight)
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to convert last finalized block height"))
+	}
 	lastFinalizedBlock, err := a.baseInfo.storage.BlockByHeight(lastFinalizedHeight)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to get last finalized block"))
@@ -474,7 +478,7 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID,
 	message, err := proto.EndorsementMessage(
 		lastFinalizedBlock.BlockID(),
 		parentBlockID,
-		lastFinalizedHeight,
+		lfh,
 	)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to create endorsement message"))

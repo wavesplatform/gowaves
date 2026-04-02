@@ -206,22 +206,14 @@ func (p *EndorsementPool) FormFinalization() (proto.FinalizationVoting, error) {
 
 	signatures := make([]bls.Signature, 0, len(p.h))
 	endorsersIndexes := make([]uint32, 0, len(p.h))
-	var aggregatedSignature bls.Signature
 
 	for _, it := range p.h {
 		signatures = append(signatures, it.eb.Signature)
 		endorsersIndexes = append(endorsersIndexes, it.eb.EndorserIndex)
 	}
-	if len(signatures) != 0 {
-		aggregatedSignatureBytes, err := bls.AggregateSignatures(signatures)
-		if err != nil {
-			return proto.FinalizationVoting{}, err
-		}
-		var errCnvrt error
-		aggregatedSignature, errCnvrt = bls.NewSignatureFromBytes(aggregatedSignatureBytes)
-		if errCnvrt != nil {
-			return proto.FinalizationVoting{}, errCnvrt
-		}
+	aggregatedSignature, err := bls.AggregateSignatures(signatures)
+	if err != nil {
+		return proto.FinalizationVoting{}, err
 	}
 
 	return proto.FinalizationVoting{
