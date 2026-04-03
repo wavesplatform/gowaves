@@ -18,7 +18,7 @@ type (
 var (
 	ApiKeyNotValid = &ApiKeyNotValidError{
 		genericError: genericError{
-			ID:       ApiKeyNotValidErrorID,
+			ID:       APIKeyNotValidErrorID,
 			HttpCode: http.StatusBadRequest,
 			Message:  "Provided API key is not correct",
 		},

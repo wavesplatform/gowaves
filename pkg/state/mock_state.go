@@ -9,6 +9,7 @@ import (
 
 	mock "github.com/stretchr/testify/mock"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
+	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -1265,6 +1266,135 @@ func (_c *MockState_BlockchainSettings_Call) RunAndReturn(run func() (*settings.
 	return _c
 }
 
+// CalculateVotingFinalization provides a mock function for the type MockState
+func (_mock *MockState) CalculateVotingFinalization(endorsers []proto.WavesAddress, blockGeneratorAddress proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error) {
+	ret := _mock.Called(endorsers, blockGeneratorAddress, height, allGenerators)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CalculateVotingFinalization")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func([]proto.WavesAddress, proto.WavesAddress, proto.Height, []proto.WavesAddress) (bool, error)); ok {
+		return returnFunc(endorsers, blockGeneratorAddress, height, allGenerators)
+	}
+	if returnFunc, ok := ret.Get(0).(func([]proto.WavesAddress, proto.WavesAddress, proto.Height, []proto.WavesAddress) bool); ok {
+		r0 = returnFunc(endorsers, blockGeneratorAddress, height, allGenerators)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func([]proto.WavesAddress, proto.WavesAddress, proto.Height, []proto.WavesAddress) error); ok {
+		r1 = returnFunc(endorsers, blockGeneratorAddress, height, allGenerators)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_CalculateVotingFinalization_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CalculateVotingFinalization'
+type MockState_CalculateVotingFinalization_Call struct {
+	*mock.Call
+}
+
+// CalculateVotingFinalization is a helper method to define mock.On call
+//   - endorsers []proto.WavesAddress
+//   - blockGeneratorAddress proto.WavesAddress
+//   - height proto.Height
+//   - allGenerators []proto.WavesAddress
+func (_e *MockState_Expecter) CalculateVotingFinalization(endorsers interface{}, blockGeneratorAddress interface{}, height interface{}, allGenerators interface{}) *MockState_CalculateVotingFinalization_Call {
+	return &MockState_CalculateVotingFinalization_Call{Call: _e.mock.On("CalculateVotingFinalization", endorsers, blockGeneratorAddress, height, allGenerators)}
+}
+
+func (_c *MockState_CalculateVotingFinalization_Call) Run(run func(endorsers []proto.WavesAddress, blockGeneratorAddress proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress)) *MockState_CalculateVotingFinalization_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 []proto.WavesAddress
+		if args[0] != nil {
+			arg0 = args[0].([]proto.WavesAddress)
+		}
+		var arg1 proto.WavesAddress
+		if args[1] != nil {
+			arg1 = args[1].(proto.WavesAddress)
+		}
+		var arg2 proto.Height
+		if args[2] != nil {
+			arg2 = args[2].(proto.Height)
+		}
+		var arg3 []proto.WavesAddress
+		if args[3] != nil {
+			arg3 = args[3].([]proto.WavesAddress)
+		}
+		run(
+			arg0,
+			arg1,
+			arg2,
+			arg3,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_CalculateVotingFinalization_Call) Return(b bool, err error) *MockState_CalculateVotingFinalization_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockState_CalculateVotingFinalization_Call) RunAndReturn(run func(endorsers []proto.WavesAddress, blockGeneratorAddress proto.WavesAddress, height proto.Height, allGenerators []proto.WavesAddress) (bool, error)) *MockState_CalculateVotingFinalization_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CheckRollbackHeightAuto provides a mock function for the type MockState
+func (_mock *MockState) CheckRollbackHeightAuto(height proto.Height) error {
+	ret := _mock.Called(height)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CheckRollbackHeightAuto")
+	}
+
+	var r0 error
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) error); ok {
+		r0 = returnFunc(height)
+	} else {
+		r0 = ret.Error(0)
+	}
+	return r0
+}
+
+// MockState_CheckRollbackHeightAuto_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CheckRollbackHeightAuto'
+type MockState_CheckRollbackHeightAuto_Call struct {
+	*mock.Call
+}
+
+// CheckRollbackHeightAuto is a helper method to define mock.On call
+//   - height proto.Height
+func (_e *MockState_Expecter) CheckRollbackHeightAuto(height interface{}) *MockState_CheckRollbackHeightAuto_Call {
+	return &MockState_CheckRollbackHeightAuto_Call{Call: _e.mock.On("CheckRollbackHeightAuto", height)}
+}
+
+func (_c *MockState_CheckRollbackHeightAuto_Call) Run(run func(height proto.Height)) *MockState_CheckRollbackHeightAuto_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 proto.Height
+		if args[0] != nil {
+			arg0 = args[0].(proto.Height)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_CheckRollbackHeightAuto_Call) Return(err error) *MockState_CheckRollbackHeightAuto_Call {
+	_c.Call.Return(err)
+	return _c
+}
+
+func (_c *MockState_CheckRollbackHeightAuto_Call) RunAndReturn(run func(height proto.Height) error) *MockState_CheckRollbackHeightAuto_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // Close provides a mock function for the type MockState
 func (_mock *MockState) Close() error {
 	ret := _mock.Called()
@@ -1305,6 +1435,68 @@ func (_c *MockState_Close_Call) Return(err error) *MockState_Close_Call {
 }
 
 func (_c *MockState_Close_Call) RunAndReturn(run func() error) *MockState_Close_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// CommittedGenerators provides a mock function for the type MockState
+func (_mock *MockState) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
+	ret := _mock.Called(periodStart)
+
+	if len(ret) == 0 {
+		panic("no return value specified for CommittedGenerators")
+	}
+
+	var r0 []proto.WavesAddress
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(uint32) ([]proto.WavesAddress, error)); ok {
+		return returnFunc(periodStart)
+	}
+	if returnFunc, ok := ret.Get(0).(func(uint32) []proto.WavesAddress); ok {
+		r0 = returnFunc(periodStart)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]proto.WavesAddress)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(uint32) error); ok {
+		r1 = returnFunc(periodStart)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_CommittedGenerators_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'CommittedGenerators'
+type MockState_CommittedGenerators_Call struct {
+	*mock.Call
+}
+
+// CommittedGenerators is a helper method to define mock.On call
+//   - periodStart uint32
+func (_e *MockState_Expecter) CommittedGenerators(periodStart interface{}) *MockState_CommittedGenerators_Call {
+	return &MockState_CommittedGenerators_Call{Call: _e.mock.On("CommittedGenerators", periodStart)}
+}
+
+func (_c *MockState_CommittedGenerators_Call) Run(run func(periodStart uint32)) *MockState_CommittedGenerators_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uint32
+		if args[0] != nil {
+			arg0 = args[0].(uint32)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_CommittedGenerators_Call) Return(wavesAddresss []proto.WavesAddress, err error) *MockState_CommittedGenerators_Call {
+	_c.Call.Return(wavesAddresss, err)
+	return _c
+}
+
+func (_c *MockState_CommittedGenerators_Call) RunAndReturn(run func(periodStart uint32) ([]proto.WavesAddress, error)) *MockState_CommittedGenerators_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -1537,6 +1729,142 @@ func (_c *MockState_EstimatorVersion_Call) Return(n int, err error) *MockState_E
 }
 
 func (_c *MockState_EstimatorVersion_Call) RunAndReturn(run func() (int, error)) *MockState_EstimatorVersion_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindEndorserPKByIndex provides a mock function for the type MockState
+func (_mock *MockState) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+	ret := _mock.Called(periodStart, index)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindEndorserPKByIndex")
+	}
+
+	var r0 bls.PublicKey
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(uint32, int) (bls.PublicKey, error)); ok {
+		return returnFunc(periodStart, index)
+	}
+	if returnFunc, ok := ret.Get(0).(func(uint32, int) bls.PublicKey); ok {
+		r0 = returnFunc(periodStart, index)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(bls.PublicKey)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(uint32, int) error); ok {
+		r1 = returnFunc(periodStart, index)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_FindEndorserPKByIndex_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindEndorserPKByIndex'
+type MockState_FindEndorserPKByIndex_Call struct {
+	*mock.Call
+}
+
+// FindEndorserPKByIndex is a helper method to define mock.On call
+//   - periodStart uint32
+//   - index int
+func (_e *MockState_Expecter) FindEndorserPKByIndex(periodStart interface{}, index interface{}) *MockState_FindEndorserPKByIndex_Call {
+	return &MockState_FindEndorserPKByIndex_Call{Call: _e.mock.On("FindEndorserPKByIndex", periodStart, index)}
+}
+
+func (_c *MockState_FindEndorserPKByIndex_Call) Run(run func(periodStart uint32, index int)) *MockState_FindEndorserPKByIndex_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uint32
+		if args[0] != nil {
+			arg0 = args[0].(uint32)
+		}
+		var arg1 int
+		if args[1] != nil {
+			arg1 = args[1].(int)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_FindEndorserPKByIndex_Call) Return(publicKey bls.PublicKey, err error) *MockState_FindEndorserPKByIndex_Call {
+	_c.Call.Return(publicKey, err)
+	return _c
+}
+
+func (_c *MockState_FindEndorserPKByIndex_Call) RunAndReturn(run func(periodStart uint32, index int) (bls.PublicKey, error)) *MockState_FindEndorserPKByIndex_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// FindGeneratorPKByEndorserPK provides a mock function for the type MockState
+func (_mock *MockState) FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error) {
+	ret := _mock.Called(periodStart, endorserPK)
+
+	if len(ret) == 0 {
+		panic("no return value specified for FindGeneratorPKByEndorserPK")
+	}
+
+	var r0 crypto.PublicKey
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(uint32, bls.PublicKey) (crypto.PublicKey, error)); ok {
+		return returnFunc(periodStart, endorserPK)
+	}
+	if returnFunc, ok := ret.Get(0).(func(uint32, bls.PublicKey) crypto.PublicKey); ok {
+		r0 = returnFunc(periodStart, endorserPK)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(crypto.PublicKey)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(uint32, bls.PublicKey) error); ok {
+		r1 = returnFunc(periodStart, endorserPK)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_FindGeneratorPKByEndorserPK_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'FindGeneratorPKByEndorserPK'
+type MockState_FindGeneratorPKByEndorserPK_Call struct {
+	*mock.Call
+}
+
+// FindGeneratorPKByEndorserPK is a helper method to define mock.On call
+//   - periodStart uint32
+//   - endorserPK bls.PublicKey
+func (_e *MockState_Expecter) FindGeneratorPKByEndorserPK(periodStart interface{}, endorserPK interface{}) *MockState_FindGeneratorPKByEndorserPK_Call {
+	return &MockState_FindGeneratorPKByEndorserPK_Call{Call: _e.mock.On("FindGeneratorPKByEndorserPK", periodStart, endorserPK)}
+}
+
+func (_c *MockState_FindGeneratorPKByEndorserPK_Call) Run(run func(periodStart uint32, endorserPK bls.PublicKey)) *MockState_FindGeneratorPKByEndorserPK_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uint32
+		if args[0] != nil {
+			arg0 = args[0].(uint32)
+		}
+		var arg1 bls.PublicKey
+		if args[1] != nil {
+			arg1 = args[1].(bls.PublicKey)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_FindGeneratorPKByEndorserPK_Call) Return(publicKey crypto.PublicKey, err error) *MockState_FindGeneratorPKByEndorserPK_Call {
+	_c.Call.Return(publicKey, err)
+	return _c
+}
+
+func (_c *MockState_FindGeneratorPKByEndorserPK_Call) RunAndReturn(run func(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error)) *MockState_FindGeneratorPKByEndorserPK_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2026,6 +2354,72 @@ func (_c *MockState_HitSourceAtHeight_Call) Return(bytes []byte, err error) *Moc
 }
 
 func (_c *MockState_HitSourceAtHeight_Call) RunAndReturn(run func(height proto.Height) ([]byte, error)) *MockState_HitSourceAtHeight_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// IndexByEndorserPK provides a mock function for the type MockState
+func (_mock *MockState) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
+	ret := _mock.Called(periodStart, pk)
+
+	if len(ret) == 0 {
+		panic("no return value specified for IndexByEndorserPK")
+	}
+
+	var r0 uint32
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(uint32, bls.PublicKey) (uint32, error)); ok {
+		return returnFunc(periodStart, pk)
+	}
+	if returnFunc, ok := ret.Get(0).(func(uint32, bls.PublicKey) uint32); ok {
+		r0 = returnFunc(periodStart, pk)
+	} else {
+		r0 = ret.Get(0).(uint32)
+	}
+	if returnFunc, ok := ret.Get(1).(func(uint32, bls.PublicKey) error); ok {
+		r1 = returnFunc(periodStart, pk)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_IndexByEndorserPK_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'IndexByEndorserPK'
+type MockState_IndexByEndorserPK_Call struct {
+	*mock.Call
+}
+
+// IndexByEndorserPK is a helper method to define mock.On call
+//   - periodStart uint32
+//   - pk bls.PublicKey
+func (_e *MockState_Expecter) IndexByEndorserPK(periodStart interface{}, pk interface{}) *MockState_IndexByEndorserPK_Call {
+	return &MockState_IndexByEndorserPK_Call{Call: _e.mock.On("IndexByEndorserPK", periodStart, pk)}
+}
+
+func (_c *MockState_IndexByEndorserPK_Call) Run(run func(periodStart uint32, pk bls.PublicKey)) *MockState_IndexByEndorserPK_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uint32
+		if args[0] != nil {
+			arg0 = args[0].(uint32)
+		}
+		var arg1 bls.PublicKey
+		if args[1] != nil {
+			arg1 = args[1].(bls.PublicKey)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_IndexByEndorserPK_Call) Return(v uint32, err error) *MockState_IndexByEndorserPK_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *MockState_IndexByEndorserPK_Call) RunAndReturn(run func(periodStart uint32, pk bls.PublicKey) (uint32, error)) *MockState_IndexByEndorserPK_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2524,24 +2918,132 @@ func (_c *MockState_IsAssetExist_Call) RunAndReturn(run func(assetID proto.Asset
 	return _c
 }
 
+// LastFinalizedBlock provides a mock function for the type MockState
+func (_mock *MockState) LastFinalizedBlock() (*proto.BlockHeader, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for LastFinalizedBlock")
+	}
+
+	var r0 *proto.BlockHeader
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (*proto.BlockHeader, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() *proto.BlockHeader); ok {
+		r0 = returnFunc()
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).(*proto.BlockHeader)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_LastFinalizedBlock_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LastFinalizedBlock'
+type MockState_LastFinalizedBlock_Call struct {
+	*mock.Call
+}
+
+// LastFinalizedBlock is a helper method to define mock.On call
+func (_e *MockState_Expecter) LastFinalizedBlock() *MockState_LastFinalizedBlock_Call {
+	return &MockState_LastFinalizedBlock_Call{Call: _e.mock.On("LastFinalizedBlock")}
+}
+
+func (_c *MockState_LastFinalizedBlock_Call) Run(run func()) *MockState_LastFinalizedBlock_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockState_LastFinalizedBlock_Call) Return(blockHeader *proto.BlockHeader, err error) *MockState_LastFinalizedBlock_Call {
+	_c.Call.Return(blockHeader, err)
+	return _c
+}
+
+func (_c *MockState_LastFinalizedBlock_Call) RunAndReturn(run func() (*proto.BlockHeader, error)) *MockState_LastFinalizedBlock_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// LastFinalizedHeight provides a mock function for the type MockState
+func (_mock *MockState) LastFinalizedHeight() (proto.Height, error) {
+	ret := _mock.Called()
+
+	if len(ret) == 0 {
+		panic("no return value specified for LastFinalizedHeight")
+	}
+
+	var r0 proto.Height
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func() (proto.Height, error)); ok {
+		return returnFunc()
+	}
+	if returnFunc, ok := ret.Get(0).(func() proto.Height); ok {
+		r0 = returnFunc()
+	} else {
+		r0 = ret.Get(0).(proto.Height)
+	}
+	if returnFunc, ok := ret.Get(1).(func() error); ok {
+		r1 = returnFunc()
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_LastFinalizedHeight_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'LastFinalizedHeight'
+type MockState_LastFinalizedHeight_Call struct {
+	*mock.Call
+}
+
+// LastFinalizedHeight is a helper method to define mock.On call
+func (_e *MockState_Expecter) LastFinalizedHeight() *MockState_LastFinalizedHeight_Call {
+	return &MockState_LastFinalizedHeight_Call{Call: _e.mock.On("LastFinalizedHeight")}
+}
+
+func (_c *MockState_LastFinalizedHeight_Call) Run(run func()) *MockState_LastFinalizedHeight_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		run()
+	})
+	return _c
+}
+
+func (_c *MockState_LastFinalizedHeight_Call) Return(v proto.Height, err error) *MockState_LastFinalizedHeight_Call {
+	_c.Call.Return(v, err)
+	return _c
+}
+
+func (_c *MockState_LastFinalizedHeight_Call) RunAndReturn(run func() (proto.Height, error)) *MockState_LastFinalizedHeight_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
 // LegacyStateHashAtHeight provides a mock function for the type MockState
-func (_mock *MockState) LegacyStateHashAtHeight(height proto.Height) (*proto.StateHash, error) {
+func (_mock *MockState) LegacyStateHashAtHeight(height proto.Height) (proto.StateHash, error) {
 	ret := _mock.Called(height)
 
 	if len(ret) == 0 {
 		panic("no return value specified for LegacyStateHashAtHeight")
 	}
 
-	var r0 *proto.StateHash
+	var r0 proto.StateHash
 	var r1 error
-	if returnFunc, ok := ret.Get(0).(func(proto.Height) (*proto.StateHash, error)); ok {
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) (proto.StateHash, error)); ok {
 		return returnFunc(height)
 	}
-	if returnFunc, ok := ret.Get(0).(func(proto.Height) *proto.StateHash); ok {
+	if returnFunc, ok := ret.Get(0).(func(proto.Height) proto.StateHash); ok {
 		r0 = returnFunc(height)
 	} else {
 		if ret.Get(0) != nil {
-			r0 = ret.Get(0).(*proto.StateHash)
+			r0 = ret.Get(0).(proto.StateHash)
 		}
 	}
 	if returnFunc, ok := ret.Get(1).(func(proto.Height) error); ok {
@@ -2576,12 +3078,12 @@ func (_c *MockState_LegacyStateHashAtHeight_Call) Run(run func(height proto.Heig
 	return _c
 }
 
-func (_c *MockState_LegacyStateHashAtHeight_Call) Return(stateHash *proto.StateHash, err error) *MockState_LegacyStateHashAtHeight_Call {
+func (_c *MockState_LegacyStateHashAtHeight_Call) Return(stateHash proto.StateHash, err error) *MockState_LegacyStateHashAtHeight_Call {
 	_c.Call.Return(stateHash, err)
 	return _c
 }
 
-func (_c *MockState_LegacyStateHashAtHeight_Call) RunAndReturn(run func(height proto.Height) (*proto.StateHash, error)) *MockState_LegacyStateHashAtHeight_Call {
+func (_c *MockState_LegacyStateHashAtHeight_Call) RunAndReturn(run func(height proto.Height) (proto.StateHash, error)) *MockState_LegacyStateHashAtHeight_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -2944,6 +3446,134 @@ func (_c *MockState_NewestBlockInfoByHeight_Call) Return(blockInfo *proto.BlockI
 }
 
 func (_c *MockState_NewestBlockInfoByHeight_Call) RunAndReturn(run func(height proto.Height) (*proto.BlockInfo, error)) *MockState_NewestBlockInfoByHeight_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NewestCommitedEndorsers provides a mock function for the type MockState
+func (_mock *MockState) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
+	ret := _mock.Called(periodStart)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewestCommitedEndorsers")
+	}
+
+	var r0 []bls.PublicKey
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(uint32) ([]bls.PublicKey, error)); ok {
+		return returnFunc(periodStart)
+	}
+	if returnFunc, ok := ret.Get(0).(func(uint32) []bls.PublicKey); ok {
+		r0 = returnFunc(periodStart)
+	} else {
+		if ret.Get(0) != nil {
+			r0 = ret.Get(0).([]bls.PublicKey)
+		}
+	}
+	if returnFunc, ok := ret.Get(1).(func(uint32) error); ok {
+		r1 = returnFunc(periodStart)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_NewestCommitedEndorsers_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewestCommitedEndorsers'
+type MockState_NewestCommitedEndorsers_Call struct {
+	*mock.Call
+}
+
+// NewestCommitedEndorsers is a helper method to define mock.On call
+//   - periodStart uint32
+func (_e *MockState_Expecter) NewestCommitedEndorsers(periodStart interface{}) *MockState_NewestCommitedEndorsers_Call {
+	return &MockState_NewestCommitedEndorsers_Call{Call: _e.mock.On("NewestCommitedEndorsers", periodStart)}
+}
+
+func (_c *MockState_NewestCommitedEndorsers_Call) Run(run func(periodStart uint32)) *MockState_NewestCommitedEndorsers_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uint32
+		if args[0] != nil {
+			arg0 = args[0].(uint32)
+		}
+		run(
+			arg0,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_NewestCommitedEndorsers_Call) Return(publicKeys []bls.PublicKey, err error) *MockState_NewestCommitedEndorsers_Call {
+	_c.Call.Return(publicKeys, err)
+	return _c
+}
+
+func (_c *MockState_NewestCommitedEndorsers_Call) RunAndReturn(run func(periodStart uint32) ([]bls.PublicKey, error)) *MockState_NewestCommitedEndorsers_Call {
+	_c.Call.Return(run)
+	return _c
+}
+
+// NewestCommitmentExistsByEndorserPK provides a mock function for the type MockState
+func (_mock *MockState) NewestCommitmentExistsByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (bool, error) {
+	ret := _mock.Called(periodStart, endorserPK)
+
+	if len(ret) == 0 {
+		panic("no return value specified for NewestCommitmentExistsByEndorserPK")
+	}
+
+	var r0 bool
+	var r1 error
+	if returnFunc, ok := ret.Get(0).(func(uint32, bls.PublicKey) (bool, error)); ok {
+		return returnFunc(periodStart, endorserPK)
+	}
+	if returnFunc, ok := ret.Get(0).(func(uint32, bls.PublicKey) bool); ok {
+		r0 = returnFunc(periodStart, endorserPK)
+	} else {
+		r0 = ret.Get(0).(bool)
+	}
+	if returnFunc, ok := ret.Get(1).(func(uint32, bls.PublicKey) error); ok {
+		r1 = returnFunc(periodStart, endorserPK)
+	} else {
+		r1 = ret.Error(1)
+	}
+	return r0, r1
+}
+
+// MockState_NewestCommitmentExistsByEndorserPK_Call is a *mock.Call that shadows Run/Return methods with type explicit version for method 'NewestCommitmentExistsByEndorserPK'
+type MockState_NewestCommitmentExistsByEndorserPK_Call struct {
+	*mock.Call
+}
+
+// NewestCommitmentExistsByEndorserPK is a helper method to define mock.On call
+//   - periodStart uint32
+//   - endorserPK bls.PublicKey
+func (_e *MockState_Expecter) NewestCommitmentExistsByEndorserPK(periodStart interface{}, endorserPK interface{}) *MockState_NewestCommitmentExistsByEndorserPK_Call {
+	return &MockState_NewestCommitmentExistsByEndorserPK_Call{Call: _e.mock.On("NewestCommitmentExistsByEndorserPK", periodStart, endorserPK)}
+}
+
+func (_c *MockState_NewestCommitmentExistsByEndorserPK_Call) Run(run func(periodStart uint32, endorserPK bls.PublicKey)) *MockState_NewestCommitmentExistsByEndorserPK_Call {
+	_c.Call.Run(func(args mock.Arguments) {
+		var arg0 uint32
+		if args[0] != nil {
+			arg0 = args[0].(uint32)
+		}
+		var arg1 bls.PublicKey
+		if args[1] != nil {
+			arg1 = args[1].(bls.PublicKey)
+		}
+		run(
+			arg0,
+			arg1,
+		)
+	})
+	return _c
+}
+
+func (_c *MockState_NewestCommitmentExistsByEndorserPK_Call) Return(b bool, err error) *MockState_NewestCommitmentExistsByEndorserPK_Call {
+	_c.Call.Return(b, err)
+	return _c
+}
+
+func (_c *MockState_NewestCommitmentExistsByEndorserPK_Call) RunAndReturn(run func(periodStart uint32, endorserPK bls.PublicKey) (bool, error)) *MockState_NewestCommitmentExistsByEndorserPK_Call {
 	_c.Call.Return(run)
 	return _c
 }
@@ -3840,16 +4470,16 @@ func (_c *MockState_RewardVotes_Call) RunAndReturn(run func(height proto.Height)
 }
 
 // RollbackTo provides a mock function for the type MockState
-func (_mock *MockState) RollbackTo(removalEdge proto.BlockID) error {
-	ret := _mock.Called(removalEdge)
+func (_mock *MockState) RollbackTo(removalEdge proto.BlockID, isAutoRollback bool) error {
+	ret := _mock.Called(removalEdge, isAutoRollback)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RollbackTo")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(proto.BlockID) error); ok {
-		r0 = returnFunc(removalEdge)
+	if returnFunc, ok := ret.Get(0).(func(proto.BlockID, bool) error); ok {
+		r0 = returnFunc(removalEdge, isAutoRollback)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3863,18 +4493,24 @@ type MockState_RollbackTo_Call struct {
 
 // RollbackTo is a helper method to define mock.On call
 //   - removalEdge proto.BlockID
-func (_e *MockState_Expecter) RollbackTo(removalEdge interface{}) *MockState_RollbackTo_Call {
-	return &MockState_RollbackTo_Call{Call: _e.mock.On("RollbackTo", removalEdge)}
+//   - isAutoRollback bool
+func (_e *MockState_Expecter) RollbackTo(removalEdge interface{}, isAutoRollback interface{}) *MockState_RollbackTo_Call {
+	return &MockState_RollbackTo_Call{Call: _e.mock.On("RollbackTo", removalEdge, isAutoRollback)}
 }
 
-func (_c *MockState_RollbackTo_Call) Run(run func(removalEdge proto.BlockID)) *MockState_RollbackTo_Call {
+func (_c *MockState_RollbackTo_Call) Run(run func(removalEdge proto.BlockID, isAutoRollback bool)) *MockState_RollbackTo_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 proto.BlockID
 		if args[0] != nil {
 			arg0 = args[0].(proto.BlockID)
 		}
+		var arg1 bool
+		if args[1] != nil {
+			arg1 = args[1].(bool)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -3885,22 +4521,22 @@ func (_c *MockState_RollbackTo_Call) Return(err error) *MockState_RollbackTo_Cal
 	return _c
 }
 
-func (_c *MockState_RollbackTo_Call) RunAndReturn(run func(removalEdge proto.BlockID) error) *MockState_RollbackTo_Call {
+func (_c *MockState_RollbackTo_Call) RunAndReturn(run func(removalEdge proto.BlockID, isAutoRollback bool) error) *MockState_RollbackTo_Call {
 	_c.Call.Return(run)
 	return _c
 }
 
 // RollbackToHeight provides a mock function for the type MockState
-func (_mock *MockState) RollbackToHeight(height proto.Height) error {
-	ret := _mock.Called(height)
+func (_mock *MockState) RollbackToHeight(height proto.Height, isAutoRollback bool) error {
+	ret := _mock.Called(height, isAutoRollback)
 
 	if len(ret) == 0 {
 		panic("no return value specified for RollbackToHeight")
 	}
 
 	var r0 error
-	if returnFunc, ok := ret.Get(0).(func(proto.Height) error); ok {
-		r0 = returnFunc(height)
+	if returnFunc, ok := ret.Get(0).(func(proto.Height, bool) error); ok {
+		r0 = returnFunc(height, isAutoRollback)
 	} else {
 		r0 = ret.Error(0)
 	}
@@ -3914,18 +4550,24 @@ type MockState_RollbackToHeight_Call struct {
 
 // RollbackToHeight is a helper method to define mock.On call
 //   - height proto.Height
-func (_e *MockState_Expecter) RollbackToHeight(height interface{}) *MockState_RollbackToHeight_Call {
-	return &MockState_RollbackToHeight_Call{Call: _e.mock.On("RollbackToHeight", height)}
+//   - isAutoRollback bool
+func (_e *MockState_Expecter) RollbackToHeight(height interface{}, isAutoRollback interface{}) *MockState_RollbackToHeight_Call {
+	return &MockState_RollbackToHeight_Call{Call: _e.mock.On("RollbackToHeight", height, isAutoRollback)}
 }
 
-func (_c *MockState_RollbackToHeight_Call) Run(run func(height proto.Height)) *MockState_RollbackToHeight_Call {
+func (_c *MockState_RollbackToHeight_Call) Run(run func(height proto.Height, isAutoRollback bool)) *MockState_RollbackToHeight_Call {
 	_c.Call.Run(func(args mock.Arguments) {
 		var arg0 proto.Height
 		if args[0] != nil {
 			arg0 = args[0].(proto.Height)
 		}
+		var arg1 bool
+		if args[1] != nil {
+			arg1 = args[1].(bool)
+		}
 		run(
 			arg0,
+			arg1,
 		)
 	})
 	return _c
@@ -3936,7 +4578,7 @@ func (_c *MockState_RollbackToHeight_Call) Return(err error) *MockState_Rollback
 	return _c
 }
 
-func (_c *MockState_RollbackToHeight_Call) RunAndReturn(run func(height proto.Height) error) *MockState_RollbackToHeight_Call {
+func (_c *MockState_RollbackToHeight_Call) RunAndReturn(run func(height proto.Height, isAutoRollback bool) error) *MockState_RollbackToHeight_Call {
 	_c.Call.Return(run)
 	return _c
 }

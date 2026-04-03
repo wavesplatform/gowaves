@@ -2,6 +2,10 @@ package ride
 
 import "github.com/wavesplatform/gowaves/pkg/ride/ast"
 
+func unsupportedLibraryVersionEvaluationError(v ast.LibraryVersion) error {
+	return EvaluationFailure.Errorf("unsupported library version '%d'", v)
+}
+
 func selectFunctionsByName(v ast.LibraryVersion, enableInvocation bool) (func(string) (rideFunction, bool), error) {
 	switch v {
 	case ast.LibV1, ast.LibV2:
@@ -30,8 +34,13 @@ func selectFunctionsByName(v ast.LibraryVersion, enableInvocation bool) (func(st
 			return functionsV8, nil
 		}
 		return expressionFunctionsV8, nil
+	case ast.LibV9:
+		if enableInvocation {
+			return functionsV9, nil
+		}
+		return expressionFunctionsV9, nil
 	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+		return nil, unsupportedLibraryVersionEvaluationError(v)
 	}
 }
 
@@ -51,8 +60,10 @@ func selectFunctions(v ast.LibraryVersion) (func(id int) rideFunction, error) {
 		return functionV7, nil
 	case ast.LibV8:
 		return functionV8, nil
+	case ast.LibV9:
+		return functionV9, nil
 	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+		return nil, unsupportedLibraryVersionEvaluationError(v)
 	}
 }
 
@@ -72,8 +83,10 @@ func selectFunctionChecker(v ast.LibraryVersion) (func(name string) (uint16, boo
 		return checkFunctionV7, nil
 	case ast.LibV8:
 		return checkFunctionV8, nil
+	case ast.LibV9:
+		return checkFunctionV9, nil
 	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+		return nil, unsupportedLibraryVersionEvaluationError(v)
 	}
 }
 
@@ -111,8 +124,10 @@ func selectEvaluationCostsProvider(v ast.LibraryVersion, ev evaluatorVersion) (m
 		return selectByEvaluatorVersion(ev, EvaluationCatalogueV7EvaluatorV1, EvaluationCatalogueV7EvaluatorV2)
 	case ast.LibV8:
 		return selectByEvaluatorVersion(ev, EvaluationCatalogueV8EvaluatorV1, EvaluationCatalogueV8EvaluatorV2)
+	case ast.LibV9:
+		return selectByEvaluatorVersion(ev, EvaluationCatalogueV9EvaluatorV1, EvaluationCatalogueV9EvaluatorV2)
 	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+		return nil, unsupportedLibraryVersionEvaluationError(v)
 	}
 }
 
@@ -132,8 +147,10 @@ func selectFunctionNameProvider(v ast.LibraryVersion) (func(int) string, error) 
 		return functionNameV7, nil
 	case ast.LibV8:
 		return functionNameV8, nil
+	case ast.LibV9:
+		return functionNameV9, nil
 	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+		return nil, unsupportedLibraryVersionEvaluationError(v)
 	}
 }
 
@@ -155,8 +172,10 @@ func selectConstants(v ast.LibraryVersion) (func(int) rideConstructor, error) {
 		return constantV7, nil
 	case ast.LibV8:
 		return constantV8, nil
+	case ast.LibV9:
+		return constantV9, nil
 	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+		return nil, unsupportedLibraryVersionEvaluationError(v)
 	}
 }
 
@@ -178,7 +197,34 @@ func selectConstantsChecker(v ast.LibraryVersion) (func(name string) (uint16, bo
 		return checkConstantV7, nil
 	case ast.LibV8:
 		return checkConstantV8, nil
+	case ast.LibV9:
+		return checkConstantV9, nil
 	default:
-		return nil, EvaluationFailure.Errorf("unsupported library version '%d'", v)
+		return nil, unsupportedLibraryVersionEvaluationError(v)
+	}
+}
+
+func selectConstantNames(v ast.LibraryVersion) ([]string, error) {
+	switch v {
+	case ast.LibV1:
+		return ConstantsV1, nil
+	case ast.LibV2:
+		return ConstantsV2, nil
+	case ast.LibV3:
+		return ConstantsV3, nil
+	case ast.LibV4:
+		return ConstantsV4, nil
+	case ast.LibV5:
+		return ConstantsV5, nil
+	case ast.LibV6:
+		return ConstantsV6, nil
+	case ast.LibV7:
+		return ConstantsV7, nil
+	case ast.LibV8:
+		return ConstantsV8, nil
+	case ast.LibV9:
+		return ConstantsV9, nil
+	default:
+		return nil, unsupportedLibraryVersionEvaluationError(v)
 	}
 }
