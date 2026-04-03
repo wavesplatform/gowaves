@@ -155,7 +155,7 @@ func appendRemainingStructs(s *rideObjects) {
 	s.Objects = append(s.Objects, remainingObjects...)
 }
 
-// This is need because in ride_object in some cases exist rideType(interface) in types
+// This is needed because in ride_object in some cases exist rideType(interface) in types
 func changeRideTypeFields(name string, fields []actionField) []actionField {
 	switch name {
 	case "Order":
