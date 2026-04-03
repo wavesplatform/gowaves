@@ -1898,7 +1898,7 @@ type ethereumPublicKeyBase58Wrapper struct {
 	inner *EthereumPublicKey
 }
 
-func (w *ethereumPublicKeyBase58Wrapper) MarshalJSON() ([]byte, error) {
+func (w ethereumPublicKeyBase58Wrapper) MarshalJSON() ([]byte, error) {
 	data := w.inner.SerializeXYCoordinates()
 	return B58Bytes(data).MarshalJSON()
 }
@@ -3570,7 +3570,7 @@ func (a *IntegerArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes a JSON representation of integer argument.
-func (a *IntegerArgument) MarshalJSON() ([]byte, error) {
+func (a IntegerArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
 		V int    `json:"value"`
@@ -3643,7 +3643,7 @@ func (a *BooleanArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes the argument to a JSON representation.
-func (a *BooleanArgument) MarshalJSON() ([]byte, error) {
+func (a BooleanArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
 		V bool   `json:"value"`
@@ -3715,7 +3715,7 @@ func (a *BinaryArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON converts an argument to its JSON representation. Note that BASE64 is used to represent the binary value.
-func (a *BinaryArgument) MarshalJSON() ([]byte, error) {
+func (a BinaryArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
 		V string `json:"value"`
@@ -3789,7 +3789,7 @@ func (a *StringArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes the entry to its JSON representation.
-func (a *StringArgument) MarshalJSON() ([]byte, error) {
+func (a StringArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string `json:"type"`
 		V string `json:"value"`
@@ -3864,7 +3864,7 @@ func (a *ListArgument) UnmarshalBinary(data []byte) error {
 }
 
 // MarshalJSON writes the entry to its JSON representation.
-func (a *ListArgument) MarshalJSON() ([]byte, error) {
+func (a ListArgument) MarshalJSON() ([]byte, error) {
 	return json.Marshal(&struct {
 		T string     `json:"type"`
 		V []Argument `json:"value"`
