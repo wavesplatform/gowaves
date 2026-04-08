@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"io"
 	"slices"
+	"strings"
 
 	"github.com/fxamacker/cbor/v2"
 	"github.com/pkg/errors"
@@ -18,7 +19,7 @@ import (
 )
 
 // generationBalanceProvider is an interface that abstracts the retrieval of generating balances for addresses at
-// specific heights.
+// specific heights. Usually, for generating balance retrieval the blockchain height is used.
 type generationBalanceProvider interface {
 	newestGeneratingBalance(proto.AddressID, proto.Height) (uint64, error)
 }
@@ -162,7 +163,6 @@ type generators struct {
 	settings    *settings.BlockchainSettings
 
 	set                   []GeneratorInfo
-	byAddress             map[proto.AddressID]GeneratorInfo
 	activationHeight      proto.Height
 	generationPeriodStart uint32
 	blockID               proto.BlockID
@@ -198,10 +198,10 @@ func newGenerators(
 // This method should be called upon block header processing.
 // Parameters:
 //
-//	height - block application height,
+//	blockchainHeight - height of the state (height of the last applied block),
 //	blockID - ID of the applied block.
 func (g *generators) initialize(
-	height proto.Height, blockID proto.BlockID, generator crypto.PublicKey, ts uint64,
+	blockchainHeight proto.Height, blockID proto.BlockID, generator crypto.PublicKey, ts uint64,
 ) error {
 	var err error
 	g.activationHeight, err = g.fs.newestActivationHeight(int16(settings.DeterministicFinality))
@@ -211,7 +211,9 @@ func (g *generators) initialize(
 		}
 		return fmt.Errorf("failed to get activation height for Deterministic Finality feature: %w", err)
 	}
-	g.generationPeriodStart, err = CurrentGenerationPeriodStart(g.activationHeight, height, g.settings.GenerationPeriod)
+	blockHeight := blockchainHeight + 1
+	g.generationPeriodStart, err = CurrentGenerationPeriodStart(g.activationHeight, blockHeight,
+		g.settings.GenerationPeriod)
 	if err != nil {
 		return fmt.Errorf("failed to calculate current generation period start: %w", err)
 	}
@@ -225,17 +227,18 @@ func (g *generators) initialize(
 		return fmt.Errorf("failed to retrieve banned generators for the current generation period: %w", err)
 	}
 	g.blockID = blockID
-	g.blockHeight = height
+	g.blockHeight = blockHeight
 	g.blockTimestamp = ts
-	g.set = slices.Grow(g.set, len(cms))
-	g.byAddress = make(map[proto.AddressID]GeneratorInfo)
+	g.set = make([]GeneratorInfo, 0, len(cms))
 	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(cms))
 	for i, cm := range cms {
 		a, aErr := proto.NewAddressFromPublicKey(g.settings.AddressSchemeCharacter, cm.GeneratorPK)
 		if aErr != nil {
 			return fmt.Errorf("failed to derive address from generator public key at index %d: %w", i, err)
 		}
-		b, bErr := g.balances.newestGeneratingBalance(a.ID(), height)
+		// The initialization happens at the very beginning of the block, so the generation balance is queried at
+		// the height of the last applied block (blockchainHeight).
+		b, bErr := g.balances.newestGeneratingBalance(a.ID(), blockchainHeight)
 		if bErr != nil {
 			return fmt.Errorf("failed to get balance for generator at index %d by address '%s': %w",
 				i, a.String(), bErr)
@@ -265,8 +268,22 @@ func (g *generators) initialize(
 	}
 	return nil
 }
+
 func (g *generators) size() int {
 	return len(g.set)
+}
+
+func (g *generators) string() string {
+	sb := strings.Builder{}
+	sb.WriteRune('[')
+	for i, gen := range g.set {
+		if i > 0 {
+			sb.WriteString(", ")
+		}
+		sb.WriteString(gen.Address().String())
+	}
+	sb.WriteRune(']')
+	return sb.String()
 }
 
 func (g *generators) generator(index uint32) (GeneratorInfo, error) {
@@ -344,17 +361,19 @@ func (g *generators) newestGeneratingBalance(addr proto.AddressID, height proto.
 	if len(g.set) == 0 { // Generators set is empty just get balance from state.
 		return g.balances.newestGeneratingBalance(addr, height)
 	}
+	for _, gen := range g.set {
+		if gen.Address().ID() == addr {
+			if gen.ban {
+				return 0, fmt.Errorf("address '%s' is banned from generation", gen.Address().String())
+			}
+			return gen.balance, nil
+		}
+	}
 	a, err := addr.ToWavesAddress(g.settings.AddressSchemeCharacter)
 	if err != nil {
 		return 0, fmt.Errorf("failed to convert address ID to Waves address: %w", err)
 	}
-	if info, ok := g.byAddress[addr]; ok {
-		if info.ban {
-			return 0, fmt.Errorf("address '%s' is banned from generation", a.String())
-		}
-		return info.balance, nil
-	}
-	return 0, fmt.Errorf("address '%s' is not in the current generator set", a.String())
+	return 0, fmt.Errorf("address '%s' is not in the current generator set %s", a.String(), g.string())
 }
 
 func (g *generators) findGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {

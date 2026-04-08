@@ -69,6 +69,10 @@ func (cv *Validator) rideV6Activated(height uint64) (bool, error) {
 	return cv.state.NewestIsActiveAtHeight(int16(settings.RideV6), height)
 }
 
+func (cv *Validator) finalityActivated(height uint64) (bool, error) {
+	return cv.state.NewestIsActiveAtHeight(int16(settings.DeterministicFinality), height)
+}
+
 func (cv *Validator) posAlgo(height uint64) (PosCalculator, error) {
 	fair, err := cv.fairPosActivated(height)
 	if err != nil {
@@ -142,6 +146,9 @@ func (cv *Validator) ValidateHeaderBeforeBlockApplying(
 	if err := cv.validateLightNodeBlockFields(newestHeader, blockHeight); err != nil {
 		return errors.Wrap(err, "light node block fields validation failed")
 	}
+	if err := cv.validateFinalizationVoting(newestHeader, blockHeight); err != nil {
+		return errors.Wrap(err, "finalization voting validation failed")
+	}
 	return nil
 }
 
@@ -190,6 +197,8 @@ func (cv *Validator) validateGeneratingBalance(header *proto.BlockHeader, balanc
 	return nil
 }
 
+// minerGenerationBalance returns generation balance of the generator of the block.
+// The height passed here is a height of the state.
 func (cv *Validator) minerGeneratingBalance(height uint64, header *proto.BlockHeader) (uint64, error) {
 	return cv.state.NewestMinerGeneratingBalance(header, height)
 }
@@ -440,4 +449,19 @@ func (cv *Validator) validateBlockTimestamp(header *proto.BlockHeader) error {
 			header.Timestamp-currentTimestamp)
 	}
 	return nil
+}
+
+// validateFinalizationVoting checks that a block has finalization voting field only after activation of Deterministic
+// Finality feature. Also, it checks that finalization voting doesn't have any duplications.
+func (cv *Validator) validateFinalizationVoting(header *proto.BlockHeader, height uint64) error {
+	finalityActive, err := cv.finalityActivated(height)
+	if err != nil {
+		return fmt.Errorf("failed to validate finalization voting header at height %d: %w", height, err)
+	}
+	voting, hasVoting := header.GetFinalizationVoting()
+	if !finalityActive && hasVoting {
+		return fmt.Errorf("block '%s' at height %d has non-empty finalization voting but Deterministic Finality "+
+			"feature is not activated", header.BlockID().String(), height)
+	}
+	return voting.Validate()
 }

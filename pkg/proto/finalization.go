@@ -9,6 +9,7 @@ import (
 
 	"github.com/ccoveille/go-safecast/v2"
 	"github.com/pkg/errors"
+
 	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	g "github.com/wavesplatform/gowaves/pkg/grpc/generated/waves"
 )
@@ -22,12 +23,12 @@ type EndorsementCryptoMessage struct {
 }
 
 func NewEndorsementCryptoMessage(
-	finalizedBlockID, EndorsedBlockID BlockID, finalizedBlockHeight uint32,
+	finalizedBlockID, endorsedBlockID BlockID, finalizedBlockHeight uint32,
 ) *EndorsementCryptoMessage {
 	return &EndorsementCryptoMessage{
 		FinalizedBlockID:     finalizedBlockID,
 		FinalizedBlockHeight: finalizedBlockHeight,
-		EndorsedBlockID:      EndorsedBlockID,
+		EndorsedBlockID:      endorsedBlockID,
 	}
 }
 
@@ -150,6 +151,27 @@ type FinalizationVoting struct {
 	ConflictEndorsements           []BlockEndorsement `json:"conflictEndorsements"`
 }
 
+// Validate checks that FinalizationVotin doesn't have any duplicate endorsers indexes.
+func (f *FinalizationVoting) Validate() error {
+	indexes := make(map[uint32]struct{})
+	for _, ce := range f.ConflictEndorsements {
+		if _, seen := indexes[ce.EndorserIndex]; seen {
+			return fmt.Errorf(
+				"invalid finalization voting: duplicate conflicting endorsement with endorser index %d",
+				ce.EndorserIndex,
+			)
+		}
+		indexes[ce.EndorserIndex] = struct{}{}
+	}
+	for _, idx := range f.EndorserIndexes {
+		if _, seen := indexes[idx]; seen {
+			return fmt.Errorf("invalid finalization voting: duplicate endorser index %d", idx)
+		}
+		indexes[idx] = struct{}{}
+	}
+	return nil
+}
+
 func (f *FinalizationVoting) Marshal() ([]byte, error) {
 	endBlockProto, err := f.ToProtobuf()
 	if err != nil {
@@ -216,13 +238,4 @@ func CombineFinalizationVoting(voting1, voting2 *FinalizationVoting) *Finalizati
 		res.ConflictEndorsements = slices.Concat(voting1.ConflictEndorsements, voting2.ConflictEndorsements)
 		return &res
 	}
-}
-
-func CalculateLastFinalizedHeight(currentHeight Height) Height {
-	var genesisHeight uint64 = 1
-	var maxRollbackDeltaHeight uint64 = 100
-	if currentHeight <= maxRollbackDeltaHeight {
-		return genesisHeight
-	}
-	return currentHeight - maxRollbackDeltaHeight
 }

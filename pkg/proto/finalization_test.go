@@ -92,3 +92,63 @@ func TestFinalizationVotingCombination(t *testing.T) {
 		})
 	}
 }
+
+func TestFinalizationVotingValidation(t *testing.T) {
+	buildConflicts := func(indexes []uint32) []proto.BlockEndorsement {
+		if len(indexes) == 0 {
+			return nil
+		}
+		res := make([]proto.BlockEndorsement, len(indexes))
+		for i, idx := range indexes {
+			be := proto.BlockEndorsement{
+				EndorserIndex:        idx,
+				FinalizedBlockID:     proto.MustBlockIDFromBase58("4L1nScCRDdRkvVHwrhubtQtn5n7EWh68WFn6oZMt8KHW"),
+				FinalizedBlockHeight: 123,
+				EndorsedBlockID:      proto.MustBlockIDFromBase58("7rm2AyHHb2iud2hqid2jVD8z4cJ8iAuWQoAQ441VvfVc"),
+				Signature:            bls.Signature{},
+			}
+			res[i] = be
+		}
+		return res
+	}
+	for i, test := range []struct {
+		indexes   []uint32
+		conflicts []uint32
+		fail      bool
+		err       string
+	}{
+		{indexes: nil, conflicts: nil, fail: false},
+		{indexes: nil, conflicts: []uint32{2, 0, 1}, fail: false},
+		{indexes: nil, conflicts: []uint32{2, 1, 2}, fail: true,
+			err: "invalid finalization voting: duplicate conflicting endorsement with endorser index 2"},
+		{indexes: []uint32{1, 2, 1}, conflicts: nil, fail: true,
+			err: "invalid finalization voting: duplicate endorser index 1"},
+		{indexes: []uint32{0, 2, 1}, conflicts: []uint32{2}, fail: true,
+			err: "invalid finalization voting: duplicate endorser index 2"},
+		{indexes: []uint32{0, 1, 2}, conflicts: []uint32{3, 4, 5}, fail: false},
+		{indexes: []uint32{0, 1, 2}, conflicts: []uint32{4, 3, 2}, fail: true,
+			err: "invalid finalization voting: duplicate endorser index 2",
+		},
+		{indexes: []uint32{0, 1, 2}, conflicts: []uint32{0, 3, 4}, fail: true,
+			err: "invalid finalization voting: duplicate endorser index 0",
+		},
+		{indexes: []uint32{0, 1, 2}, conflicts: []uint32{1, 3, 4}, fail: true,
+			err: "invalid finalization voting: duplicate endorser index 1",
+		},
+	} {
+		t.Run(fmt.Sprintf("%d", i), func(t *testing.T) {
+			fv := proto.FinalizationVoting{
+				EndorserIndexes:                test.indexes,
+				FinalizedBlockHeight:           123,
+				AggregatedEndorsementSignature: bls.Signature{},
+				ConflictEndorsements:           buildConflicts(test.conflicts),
+			}
+			err := fv.Validate()
+			if test.fail {
+				assert.EqualError(t, err, test.err)
+			} else {
+				assert.NoError(t, err)
+			}
+		})
+	}
+}

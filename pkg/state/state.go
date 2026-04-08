@@ -72,7 +72,7 @@ type blockchainEntitiesStorage struct {
 	snapshots         *snapshotsAtHeight
 	patches           *patchesStorage
 	commitments       *commitments
-	finalizations     *finalizations
+	finality          *finality
 	generators        *generators
 	settings          *settings.BlockchainSettings
 	calculateHashes   bool
@@ -113,7 +113,7 @@ func newBlockchainEntitiesStorage(
 		snapshots:         newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
 		patches:           newPatchesStorage(hs, sets.AddressSchemeCharacter),
 		commitments:       cmt,
-		finalizations:     newFinalizations(hs),
+		finality:          newFinality(hs, rw),
 		generators:        newGenerators(hs, fts, bal, cmt, sets, calcHashes),
 		settings:          sets,
 		calculateHashes:   calcHashes,
@@ -1450,7 +1450,7 @@ func (s *stateManager) handleFinalizationUpdate(
 	if !activeAtHeight {
 		return nil // nothing to do
 	}
-	if err := s.stor.finalizations.updateFinalization(blockID); err != nil {
+	if err := s.stor.finality.updateFinalization(blockID); err != nil {
 		return fmt.Errorf("failed to update finalization for block '%s' at height %d: %w",
 			blockID.String(), blockHeight, err,
 		)
@@ -2229,6 +2229,12 @@ func (s *stateManager) beforeAddingBlock(
 			block.BlockID().String(),
 		)
 	}
+	// Initialize generators set.
+	if err := s.stor.generators.initialize(
+		blockchainCurHeight, block.BlockID(), block.GeneratorPublicKey, block.Timestamp,
+	); err != nil {
+		return wrapErr(stateerr.ModificationError, err)
+	}
 	if err := s.blockVerifyTaskWithHeaderValidation(block, lastAppliedBlock, blockchainCurHeight, chans); err != nil {
 		return wrapErr(stateerr.ValidationError, errors.Wrapf(err,
 			"failed to validate block %s before adding it", block.BlockID().String(),
@@ -2248,13 +2254,6 @@ func (s *stateManager) initBlockAdditionWithHeightActions(
 	// At some blockchain heights specific logic is performed.
 	// This includes voting for features, block rewards and so on.
 	if err := s.blockchainHeightAction(blockchainCurHeight, lastAppliedBlock.BlockID(), block.BlockID()); err != nil {
-		return wrapErr(stateerr.ModificationError, err)
-	}
-	// Initialize generators set.
-	blockHeight := blockchainCurHeight + 1
-	if err := s.stor.generators.initialize(
-		blockHeight, block.BlockID(), block.GeneratorPublicKey, block.Timestamp,
-	); err != nil {
 		return wrapErr(stateerr.ModificationError, err)
 	}
 	return nil
@@ -2366,7 +2365,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	if checkErr := s.CheckRollbackHeightAuto(height); checkErr != nil {
 		return wrapErr(stateerr.InvalidInputError, checkErr)
 	}
-	if h, finErr := s.stor.finalizations.newestHeight(); finErr == nil {
+	if h, finErr := s.stor.finality.newestHeight(); finErr == nil {
 		finalizationHeight = h
 		finalizationExists = true
 	} else if !errors.Is(finErr, ErrNoFinalization) && !errors.Is(finErr, ErrNoFinalizationHistory) {
@@ -2376,7 +2375,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 		return rollbackErr
 	}
 	if finalizationExists {
-		if storeErr := s.stor.finalizations.forceWrite(finalizationHeight, blockID); storeErr != nil {
+		if storeErr := s.stor.finality.forceWrite(finalizationHeight, blockID); storeErr != nil {
 			return wrapErr(stateerr.RollbackError, storeErr)
 		}
 		if flushErr := s.stor.flush(); flushErr != nil {
@@ -3559,25 +3558,11 @@ func (s *stateManager) CommittedGenerators(height proto.Height) ([]GeneratorInfo
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
-	currentHeight, err := s.Height()
+	height, err := s.Height()
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to retrieve current height for calculation")
+		return 0, fmt.Errorf("failed to retrieve current height for calculation: %w", err)
 	}
-	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(currentHeight)
-
-	storedFinalizedHeight, err := s.stor.finalizations.newestHeight()
-	if err == nil {
-		// Finalization must never lag behind the protocol lower bound (currentHeight - 100).
-		if storedFinalizedHeight < calculatedFinalizedHeight {
-			return calculatedFinalizedHeight, nil
-		}
-		return storedFinalizedHeight, nil
-	}
-	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
-		return 0, errors.Wrapf(err, "failed to retrieve last finalized height from finalization storage")
-	}
-	// No finalization found, calculate it.
-	return calculatedFinalizedHeight, nil
+	return s.stor.finality.lastFinalizedHeight(height)
 }
 
 func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {

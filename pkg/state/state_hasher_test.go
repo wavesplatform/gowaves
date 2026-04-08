@@ -396,26 +396,30 @@ func TestCalculateCommittedGeneratorsBalancesStateHash(t *testing.T) {
 	addr, err := proto.NewAddressFromPublicKey(so.settings.AddressSchemeCharacter, pk)
 	require.NoError(t, err)
 
-	bID := proto.NewBlockIDFromDigest(crypto.Digest{42})
+	bID1 := proto.NewBlockIDFromDigest(crypto.Digest{41})
+	bID2 := proto.NewBlockIDFromDigest(crypto.Digest{42})
 	const initialBalance = 3000
 	so.entities.calculateHashes = true
-	so.prepareAndStartBlock(t, bID) // prepare and start second block
+	so.prepareAndStartBlock(t, bID1) // Prepare and start block with the balance update.
+	so.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0, 0}, bID1)
+	so.finishBlock(t, bID1)
 
+	so.prepareAndStartBlock(t, bID2) // Prepare and start block with state hash calculation.
+	blockchainHeight := so.rw.recentHeight()
 	blockHeight := so.rw.addingBlockHeight()
 	periodStart, err := CurrentGenerationPeriodStart(
 		featureActivationHeight, blockHeight, so.settings.GenerationPeriod,
 	)
 	require.NoError(t, err)
-	so.setWavesBalance(t, addr, balanceProfile{initialBalance, 0, 0, 0}, bID)
-	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, bID)
+	err = so.entities.commitments.store(periodStart, pk, bls.PublicKey{1, 2, 3, 4, 5}, bID2)
 	require.NoError(t, err)
-	err = so.entities.generators.initialize(blockHeight, bID, pk, 0)
+	err = so.entities.generators.initialize(blockchainHeight, bID2, pk, 0)
 	require.NoError(t, err)
-	so.finishBlock(t, bID) // finish second block
+	so.finishBlock(t, bID2) // finish second block
 	// no flush, should be possible to calculate SH for unflushed data
 	err = so.entities.generators.hasher.stop()
 	require.NoError(t, err)
 	// "EUKq8xDt8hyATpY6mmPev2bVjVmJAFQzXdTVyky34CEr" —> value below
 	expectedSH := crypto.MustFastHash(binary.BigEndian.AppendUint64(nil, initialBalance))
-	assert.Equal(t, expectedSH, so.entities.generators.hasher.stateHashAt(bID))
+	assert.Equal(t, expectedSH, so.entities.generators.hasher.stateHashAt(bID2))
 }

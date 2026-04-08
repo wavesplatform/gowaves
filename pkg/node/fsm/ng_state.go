@@ -363,7 +363,7 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 func (a *NGState) getCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {
 	blockFinalization, err := a.tryGetCurrentFinalizationVoting(height)
 	if err != nil {
-		slog.Debug("did not form finalization voting", "err", err)
+		slog.Debug("Did not form finalization voting", logging.Error(err))
 		return nil, err
 	}
 	return blockFinalization, nil
@@ -374,12 +374,6 @@ func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height) (*proto.F
 	if a.baseInfo.endorsements.Len() == 0 {
 		return nil, errNoEndorsements
 	}
-
-	// activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-	// if err != nil {
-	//	return nil, errors.Wrapf(err, "failed to get DeterministicFinality activation height")
-	// }
-	//
 	ok, err := a.baseInfo.endorsements.Verify()
 	if err != nil {
 		return nil, err
@@ -388,22 +382,17 @@ func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height) (*proto.F
 		return nil, fmt.Errorf("endorsement verification failed at height %d", height)
 	}
 
-	// periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
-	// if err != nil {
-	//	return nil, err
-	// }
+	generators, err := a.baseInfo.storage.CommittedGenerators(height)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get commited generators at height %d: %w", height, err)
+	}
+	if len(generators) == 0 {
+		slog.Debug("No committed generators found, skipping finalization voting")
+	}
 
-	// commitedGenerators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
-	// if err != nil {
-	//	return nil, err
-	// }
-	// if len(commitedGenerators) == 0 {
-	//	slog.Debug("No committed generators found for finalization calculation")
-	// }
-
-	finalization, finErr := a.baseInfo.endorsements.FormFinalization()
-	if finErr != nil {
-		return nil, finErr
+	finalization, err := a.baseInfo.endorsements.FormFinalization()
+	if err != nil {
+		return nil, err
 	}
 	return &finalization, nil
 }
