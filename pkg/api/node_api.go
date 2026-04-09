@@ -245,7 +245,7 @@ func (a *NodeApi) BlockAt(w http.ResponseWriter, r *http.Request) error {
 	height, err := strconv.ParseUint(s, 10, 64)
 	if err != nil {
 		// nickeskov: message taken from scala node
-		// 	try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
+		// try execute `curl -X GET "https://nodes-testnet.wavesnodes.com/blocks/at/fdsfasdff" -H  "accept: application/json"`
 		return blockIDAtInvalidLenErr("at", err)
 	}
 
@@ -581,7 +581,7 @@ func (a *NodeApi) NodeStatus(w http.ResponseWriter, _ *http.Request) error {
 	blockHeader := a.state.TopBlock()
 	updatedTimestampMillis := int64(blockHeader.Timestamp)
 
-	// TODO: meaning of 'UpdatedDate' in scala node  differs from ours
+	// TODO: meaning of 'UpdatedDate' in scala node differs from ours
 	out := resp{
 		BlockchainHeight: stateHeight,
 		StateHeight:      stateHeight,
