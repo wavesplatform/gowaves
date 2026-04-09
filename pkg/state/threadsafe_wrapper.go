@@ -6,7 +6,6 @@ import (
 	"sync/atomic"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/proto"
 	"github.com/wavesplatform/gowaves/pkg/ride/ast"
 	"github.com/wavesplatform/gowaves/pkg/settings"
@@ -419,50 +418,16 @@ func (a *ThreadSafeReadWrapper) IsActiveLightNodeNewBlocksFields(blockHeight pro
 	return a.s.IsActiveLightNodeNewBlocksFields(blockHeight)
 }
 
-func (a *ThreadSafeReadWrapper) CalculateVotingFinalization(endorsers []proto.WavesAddress,
-	blockGeneratorEndorser proto.WavesAddress, height proto.Height,
-	allGenerators []proto.WavesAddress) (bool, error) {
+func (a *ThreadSafeReadWrapper) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.CalculateVotingFinalization(endorsers, blockGeneratorEndorser, height, allGenerators)
+	return a.s.FindGenerator(lookup)
 }
 
-func (a *ThreadSafeReadWrapper) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
+func (a *ThreadSafeReadWrapper) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
 	a.mu.RLock()
 	defer a.mu.RUnlock()
-	return a.s.FindEndorserPKByIndex(periodStart, index)
-}
-
-func (a *ThreadSafeReadWrapper) FindGeneratorPKByEndorserPK(periodStart uint32,
-	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
-}
-
-func (a *ThreadSafeReadWrapper) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.IndexByEndorserPK(periodStart, pk)
-}
-
-func (a *ThreadSafeReadWrapper) NewestCommitmentExistsByEndorserPK(periodStart uint32,
-	endorserPK bls.PublicKey) (bool, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.NewestCommitmentExistsByEndorserPK(periodStart, endorserPK)
-}
-
-func (a *ThreadSafeReadWrapper) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.CommittedGenerators(periodStart)
-}
-
-func (a *ThreadSafeReadWrapper) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
-	a.mu.RLock()
-	defer a.mu.RUnlock()
-	return a.s.NewestCommitedEndorsers(periodStart)
+	return a.s.CommittedGenerators(height)
 }
 
 func (a *ThreadSafeReadWrapper) LastFinalizedHeight() (proto.Height, error) {

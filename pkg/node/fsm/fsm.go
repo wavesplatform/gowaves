@@ -9,6 +9,7 @@ import (
 	"github.com/mr-tron/base58"
 	"github.com/pkg/errors"
 	"github.com/qmuntal/stateless"
+
 	"github.com/wavesplatform/gowaves/pkg/miner/endorsementpool"
 
 	"github.com/wavesplatform/gowaves/pkg/libs/microblock_cache"
@@ -203,7 +204,7 @@ const (
 	StartMiningEvent        = "StartMining"
 	ChangeSyncPeerEvent     = "ChangeSyncPeer"
 	BlockSnapshotEvent      = "BlockSnapshotEvent"
-	BlockEndorsementEvent   = "EndorseBlock"
+	BlockEndorsementEvent   = "BlockEndorsement"
 	MicroBlockSnapshotEvent = "MicroBlockSnapshotEvent"
 )
 
@@ -407,7 +408,7 @@ func (f *FSM) BlockSnapshot(p peer.Peer, blockID proto.BlockID, snapshots proto.
 	return *asyncRes, err
 }
 
-func (f *FSM) BlockEndorsement(endorseBlock *proto.EndorseBlock) (Async, error) {
+func (f *FSM) BlockEndorsement(endorseBlock *proto.BlockEndorsement) (Async, error) {
 	asyncRes := &Async{}
 	err := f.fsm.Fire(BlockEndorsementEvent, asyncRes, endorseBlock)
 	return *asyncRes, err

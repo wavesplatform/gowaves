@@ -3,7 +3,6 @@ package state
 import (
 	"bytes"
 	"context"
-	"encoding/binary"
 	stderrs "errors"
 	"fmt"
 	"io"
@@ -21,7 +20,6 @@ import (
 
 	"github.com/wavesplatform/gowaves/pkg/consensus"
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/errs"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/logging"
@@ -74,80 +72,52 @@ type blockchainEntitiesStorage struct {
 	snapshots         *snapshotsAtHeight
 	patches           *patchesStorage
 	commitments       *commitments
-	finalizations     *finalizations
+	finality          *finality
+	generators        *generators
 	settings          *settings.BlockchainSettings
 	calculateHashes   bool
 }
 
-func newBlockchainEntitiesStorage(hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool) (*blockchainEntitiesStorage, error) {
-	assets := newAssets(hs.db, hs.dbBatch, hs)
-	balances, err := newBalances(hs.db, hs, assets, sets, calcHashes)
+func newBlockchainEntitiesStorage(
+	hs *historyStorage, sets *settings.BlockchainSettings, rw *blockReadWriter, calcHashes bool,
+) (*blockchainEntitiesStorage, error) {
+	asts := newAssets(hs.db, hs.dbBatch, hs)
+	bal, err := newBalances(hs.db, hs, asts, sets, calcHashes)
 	if err != nil {
 		return nil, err
 	}
-	scriptsStorage, err := newScriptsStorage(hs, sets.AddressSchemeCharacter, calcHashes)
+	ss, err := newScriptsStorage(hs, sets.AddressSchemeCharacter, calcHashes)
 	if err != nil {
 		return nil, err
 	}
-	features := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
+	fts := newFeatures(rw, hs.db, hs, sets, settings.FeaturesInfo)
+	cmt := newCommitments(hs, calcHashes)
 	return &blockchainEntitiesStorage{
-		hs,
-		newAliases(hs, sets.AddressSchemeCharacter, calcHashes),
-		assets,
-		newLeases(hs, calcHashes),
-		newScores(hs),
-		newBlocksInfo(hs),
-		balances,
-		features,
-		newMonetaryPolicy(hs, sets),
-		newOrdersVolumes(hs),
-		newAccountsDataStorage(hs.db, hs.dbBatch, hs, calcHashes),
-		newSponsoredAssets(rw, features, hs, sets, calcHashes),
-		scriptsStorage,
-		newScriptsComplexity(hs),
-		newInvokeResults(hs),
-		newStateHashes(hs, features),
-		newHitSources(hs),
-		newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
-		newPatchesStorage(hs, sets.AddressSchemeCharacter),
-		newCommitments(hs, calcHashes),
-		newFinalizations(hs),
-		sets,
-		calcHashes,
+		hs:                hs,
+		aliases:           newAliases(hs, sets.AddressSchemeCharacter, calcHashes),
+		assets:            asts,
+		leases:            newLeases(hs, calcHashes),
+		scores:            newScores(hs),
+		blocksInfo:        newBlocksInfo(hs),
+		balances:          bal,
+		features:          fts,
+		monetaryPolicy:    newMonetaryPolicy(hs, sets),
+		ordersVolumes:     newOrdersVolumes(hs),
+		accountsDataStor:  newAccountsDataStorage(hs.db, hs.dbBatch, hs, calcHashes),
+		sponsoredAssets:   newSponsoredAssets(rw, fts, hs, sets, calcHashes),
+		scriptsStorage:    ss,
+		scriptsComplexity: newScriptsComplexity(hs),
+		invokeResults:     newInvokeResults(hs),
+		stateHashes:       newStateHashes(hs, fts),
+		hitSources:        newHitSources(hs),
+		snapshots:         newSnapshotsAtHeight(hs, sets.AddressSchemeCharacter),
+		patches:           newPatchesStorage(hs, sets.AddressSchemeCharacter),
+		commitments:       cmt,
+		finality:          newFinality(hs, rw),
+		generators:        newGenerators(hs, fts, bal, cmt, sets, calcHashes),
+		settings:          sets,
+		calculateHashes:   calcHashes,
 	}, nil
-}
-
-func calculateCommittedGeneratorsBalancesStateHash(
-	s *blockchainEntitiesStorage, finalityActivated bool, blockHeight proto.Height,
-) (crypto.Digest, error) {
-	generatorsBalancesSH := s.commitments.hasher.emptyHash // take empty hash from commitments record
-	if !finalityActivated {
-		return generatorsBalancesSH, nil // not activated, return empty hash
-	}
-	finalityActivationHeight, err := s.features.newestActivationHeight(int16(settings.DeterministicFinality))
-	if err != nil {
-		return crypto.Digest{}, fmt.Errorf("failed to get finality activation height: %w", err)
-	}
-	period, err := CurrentGenerationPeriodStart(finalityActivationHeight, blockHeight, s.settings.GenerationPeriod)
-	if err != nil {
-		return crypto.Digest{}, fmt.Errorf("failed to get current generation period start: %w", err)
-	}
-	// generators are sorted by their commitment index, so the balances will be in the same order.
-	generators, err := s.commitments.CommittedGeneratorsAddresses(period, s.settings.AddressSchemeCharacter)
-	if err != nil {
-		return crypto.Digest{}, fmt.Errorf("failed to get committed generators addresses: %w", err)
-	}
-	generatorsBalancesRecord := make([]byte, 0, len(generators)*uint64Size)
-	for _, addr := range generators {
-		bal, bErr := s.balances.newestGeneratingBalance(addr.ID(), blockHeight)
-		if bErr != nil {
-			return crypto.Digest{}, fmt.Errorf("failed to get generating balance for address %s: %w",
-				addr.String(), bErr,
-			)
-		}
-		generatorsBalancesRecord = binary.BigEndian.AppendUint64(generatorsBalancesRecord, bal)
-	}
-	return crypto.FastHash(generatorsBalancesRecord)
 }
 
 func (s *blockchainEntitiesStorage) putStateHash(
@@ -165,15 +135,11 @@ func (s *blockchainEntitiesStorage) putStateHash(
 		SponsorshipHash:   s.sponsoredAssets.hasher.stateHashAt(blockID),
 		AliasesHash:       s.aliases.hasher.stateHashAt(blockID),
 	}
-	generatorsBalancesSH, err := calculateCommittedGeneratorsBalancesStateHash(s, finalityActivated, height)
-	if err != nil {
-		return nil, err
-	}
 	sh, shErr := proto.NewLegacyStateHash(blockID, fhV1,
 		proto.LegacyStateHashFeatureActivated{
 			FinalityActivated: finalityActivated,
 		},
-		proto.LegacyStateHashV2Opt(s.commitments.hasher.stateHashAt(blockID), generatorsBalancesSH),
+		proto.LegacyStateHashV2Opt(s.commitments.hasher.stateHashAt(blockID), s.generators.hasher.stateHashAt(blockID)),
 	)
 	if shErr != nil {
 		return nil, shErr
@@ -206,7 +172,10 @@ func (s *blockchainEntitiesStorage) prepareHashes() error {
 	if err := s.aliases.prepareHashes(); err != nil {
 		return err
 	}
-	return s.commitments.prepareHashes()
+	if err := s.commitments.prepareHashes(); err != nil {
+		return err
+	}
+	return s.generators.prepareHashes()
 }
 
 func (s *blockchainEntitiesStorage) handleLegacyStateHashes(blockchainHeight uint64, blockIds []proto.BlockID) error {
@@ -273,6 +242,7 @@ func (s *blockchainEntitiesStorage) reset() {
 	s.sponsoredAssets.reset()
 	s.aliases.reset()
 	s.commitments.reset()
+	s.generators.reset()
 }
 
 func (s *blockchainEntitiesStorage) flush() error {
@@ -1172,6 +1142,8 @@ func (s *stateManager) GeneratingBalance(account proto.Recipient, height proto.H
 
 // NewestMinerGeneratingBalance returns the generating balance of the miner at the given height.
 // This method includes the challenger bonus if the block has a challenged header.
+// After activation of Deterministic Finality feature, the method also checks presence of the block generator in
+// the generators set and returns 0 if the block generator is not in the set or was excluded from it.
 func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, height proto.Height) (uint64, error) {
 	minerAddr, err := proto.NewAddressFromPublicKey(s.settings.AddressSchemeCharacter, header.GeneratorPublicKey)
 	if err != nil {
@@ -1179,7 +1151,8 @@ func (s *stateManager) NewestMinerGeneratingBalance(header *proto.BlockHeader, h
 			header.GeneratorPublicKey,
 		))
 	}
-	minerGB, err := s.stor.balances.newestGeneratingBalance(minerAddr.ID(), height)
+	// Get miner's balance form the generators set.
+	minerGB, err := s.stor.generators.newestGeneratingBalance(minerAddr.ID(), height)
 	if err != nil {
 		return 0, wrapErr(stateerr.RetrievalError, errors.Wrapf(err, "failed to get generating balance for addr %s",
 			minerAddr.String(),
@@ -1406,6 +1379,7 @@ func (s *stateManager) addRewardVote(block *proto.Block, height uint64) error {
 	return s.stor.monetaryPolicy.vote(block.RewardVote, height, activation, isCappedRewardsActivated, block.BlockID())
 }
 
+// addNewBlock adds new block to the state and performs actions before and after addition of the block.
 func (s *stateManager) addNewBlock(
 	block, parent *proto.Block,
 	chans *verifierChans,
@@ -1414,10 +1388,6 @@ func (s *stateManager) addNewBlock(
 	fixSnapshotsToInitialHash []proto.AtomicSnapshot,
 	lastSnapshotStateHash crypto.Digest,
 ) error {
-	finNonNil := block.FinalizationVoting != nil
-	if finNonNil {
-		slog.Debug("add new block, finalization voting not nil")
-	}
 	blockHeight := blockchainHeight + 1
 	if err := s.beforeAppendBlock(block, blockHeight); err != nil {
 		return err
@@ -1480,7 +1450,7 @@ func (s *stateManager) handleFinalizationUpdate(
 	if !activeAtHeight {
 		return nil // nothing to do
 	}
-	if err := s.stor.finalizations.updateFinalization(blockID); err != nil {
+	if err := s.stor.finality.updateFinalization(blockID); err != nil {
 		return fmt.Errorf("failed to update finalization for block '%s' at height %d: %w",
 			blockID.String(), blockHeight, err,
 		)
@@ -2105,6 +2075,8 @@ func (s *stateManager) recalculateVotesAfterCappedRewardActivationInVotingPeriod
 	return nil
 }
 
+// addBlocks function appends all blocks prepared for addition to state.
+// This function is called from all public functions related to blocks addition to the state.
 func (s *stateManager) addBlocks() (_ *proto.Block, retErr error) { //nolint:nonamedreturns // needs in defer
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
@@ -2257,6 +2229,12 @@ func (s *stateManager) beforeAddingBlock(
 			block.BlockID().String(),
 		)
 	}
+	// Initialize generators set.
+	if err := s.stor.generators.initialize(
+		blockchainCurHeight, block.BlockID(), block.GeneratorPublicKey, block.Timestamp,
+	); err != nil {
+		return wrapErr(stateerr.ModificationError, err)
+	}
 	if err := s.blockVerifyTaskWithHeaderValidation(block, lastAppliedBlock, blockchainCurHeight, chans); err != nil {
 		return wrapErr(stateerr.ValidationError, errors.Wrapf(err,
 			"failed to validate block %s before adding it", block.BlockID().String(),
@@ -2387,7 +2365,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 	if checkErr := s.CheckRollbackHeightAuto(height); checkErr != nil {
 		return wrapErr(stateerr.InvalidInputError, checkErr)
 	}
-	if h, finErr := s.stor.finalizations.newestHeight(); finErr == nil {
+	if h, finErr := s.stor.finality.newestHeight(); finErr == nil {
 		finalizationHeight = h
 		finalizationExists = true
 	} else if !errors.Is(finErr, ErrNoFinalization) && !errors.Is(finErr, ErrNoFinalizationHistory) {
@@ -2397,7 +2375,7 @@ func (s *stateManager) softRollback(blockID proto.BlockID) error {
 		return rollbackErr
 	}
 	if finalizationExists {
-		if storeErr := s.stor.finalizations.forceWrite(finalizationHeight, blockID); storeErr != nil {
+		if storeErr := s.stor.finality.forceWrite(finalizationHeight, blockID); storeErr != nil {
 			return wrapErr(stateerr.RollbackError, storeErr)
 		}
 		if flushErr := s.stor.flush(); flushErr != nil {
@@ -3568,57 +3546,23 @@ func (s *stateManager) CalculateVotingFinalization(endorsers []proto.WavesAddres
 	return false, nil
 }
 
-// FindEndorserPKByIndex retrieves the BLS endorser public key by its index
-// in the commitments list for the given period.
-func (s *stateManager) FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error) {
-	return s.stor.commitments.EndorserPKByIndex(periodStart, index)
-}
-
-// FindGeneratorPKByEndorserPK finds the generator's Waves public key corresponding
-// to the given BLS endorser public key in the commitments record for the given period.
-func (s *stateManager) FindGeneratorPKByEndorserPK(periodStart uint32,
-	endorserPK bls.PublicKey) (crypto.PublicKey, error) {
-	return s.stor.commitments.GeneratorPKByEndorserPK(periodStart, endorserPK)
-}
-
-func (s *stateManager) IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error) {
-	return s.stor.commitments.IndexByEndorserPK(periodStart, pk)
-}
-
-func (s *stateManager) NewestCommitmentExistsByEndorserPK(periodStart uint32,
-	endorserPK bls.PublicKey) (bool, error) {
-	return s.stor.commitments.newestExistsByEndorserPK(periodStart, endorserPK)
-}
-
-func (s *stateManager) NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error) {
-	return s.stor.commitments.newestEndorsers(periodStart)
+// FindGenerator retrieves the generator's information by a lookup function that is applied to current generators set.
+// Available lookup functions: ByBLSPublicKey.
+func (s *stateManager) FindGenerator(lookup func(GeneratorInfo) bool) (GeneratorInfo, error) {
+	return s.stor.generators.findGenerator(lookup)
 }
 
 // CommittedGenerators returns the list of Waves addresses of committed generators.
-func (s *stateManager) CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error) {
-	return s.stor.commitments.CommittedGeneratorsAddresses(periodStart, s.settings.AddressSchemeCharacter)
+func (s *stateManager) CommittedGenerators(height proto.Height) ([]GeneratorInfo, error) {
+	return s.stor.generators.generatorsByHeight(height)
 }
 
 func (s *stateManager) LastFinalizedHeight() (proto.Height, error) {
-	currentHeight, err := s.Height()
+	height, err := s.Height()
 	if err != nil {
-		return 0, errors.Wrap(err, "failed to retrieve current height for calculation")
+		return 0, fmt.Errorf("failed to retrieve current height for calculation: %w", err)
 	}
-	calculatedFinalizedHeight := proto.CalculateLastFinalizedHeight(currentHeight)
-
-	storedFinalizedHeight, err := s.stor.finalizations.newestHeight()
-	if err == nil {
-		// Finalization must never lag behind the protocol lower bound (currentHeight - 100).
-		if storedFinalizedHeight < calculatedFinalizedHeight {
-			return calculatedFinalizedHeight, nil
-		}
-		return storedFinalizedHeight, nil
-	}
-	if !errors.Is(err, ErrNoFinalization) && !errors.Is(err, ErrNoFinalizationHistory) {
-		return 0, errors.Wrapf(err, "failed to retrieve last finalized height from finalization storage")
-	}
-	// No finalization found, calculate it.
-	return calculatedFinalizedHeight, nil
+	return s.stor.finality.lastFinalizedHeight(height)
 }
 
 func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
@@ -3638,7 +3582,9 @@ func (s *stateManager) LastFinalizedBlock() (*proto.BlockHeader, error) {
 	return header, nil
 }
 
-// MinimalGeneratingBalanceAtHeight returns minimal generating balance at given height and timestamp.
+// NewestMinimalGeneratingBalanceAtHeight returns minimal required generating balance at given height and timestamp.
+// Minimal required generating balance is depending on activated features and blockchain settings,
+// so it can be different for different heights.
 // It checks feature activation using newestIsActivatedAtHeight function.
 func (s *stateManager) NewestMinimalGeneratingBalanceAtHeight(height proto.Height, ts uint64) uint64 {
 	return s.stor.features.minimalGeneratingBalanceAtHeight(height, ts)

@@ -28,7 +28,7 @@ var errNoFinalization = errors.New("no finalization available")
 var errNoEndorsements = errors.New("no endorsements")
 
 // endorsementID hashes the endorsement payload to generate a stable identifier.
-func endorsementID(e *proto.EndorseBlock) (crypto.Digest, error) {
+func endorsementID(e *proto.BlockEndorsement) (crypto.Digest, error) {
 	data, err := e.Marshal()
 	if err != nil {
 		return crypto.Digest{}, err
@@ -166,6 +166,7 @@ func (a *NGState) rollbackToStateFromCacheInLightNode(parentID proto.BlockID) er
 	return nil
 }
 
+// Block handles the key-block reception in NG state. This event occurs only on key-blocks.
 func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error) {
 	a.baseInfo.CancelCleanUTX() // cancel UTX cleaning task if it was scheduled
 	ok, err := a.baseInfo.blocksApplier.BlockExists(a.baseInfo.storage, block)
@@ -182,11 +183,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	}
 	metrics.BlockReceived(block, peer.Handshake().NodeName)
 
-	finalityActivated, errFin := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
-	if errFin != nil {
-		return a, nil, a.Errorf(errFin)
-	}
-
+	blockHeight := height + 1
 	top := a.baseInfo.storage.TopBlock()
 	if top.BlockID() != block.Parent { // does block refer to last block
 		a.baseInfo.logger.Debug("Key-block has parent which is not the top block", "state", a.String(),
@@ -221,7 +218,7 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to apply block %s", block.BlockID()))
 	}
-	metrics.BlockApplied(block, height+1)
+	metrics.BlockApplied(block, blockHeight)
 	a.baseInfo.endorsements.CleanAll()
 
 	parentBlock, err := a.baseInfo.storage.Block(block.Parent)
@@ -237,118 +234,68 @@ func (a *NGState) Block(peer peer.Peer, block *proto.Block) (State, Async, error
 	a.baseInfo.actions.SendScore(a.baseInfo.storage)
 	a.baseInfo.CleanUtx()
 
+	// Form endorsements for every wallet's key.
+	finalityActivated, errFin := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), blockHeight)
+	if errFin != nil {
+		return a, nil, a.Errorf(errFin)
+	}
+
 	if a.baseInfo.embeddedWallet != nil && finalityActivated {
-		pks, sks, walErr := a.baseInfo.embeddedWallet.KeyPairsBLS()
-		if walErr != nil {
-			return a, nil, a.Errorf(errors.Wrapf(walErr, "failed to generate key pairs for %s", block.BlockID()))
+		sks, wErr := a.baseInfo.embeddedWallet.KeyPairsBLS()
+		if wErr != nil {
+			return a, nil, a.Errorf(fmt.Errorf("failed to retrieve BLS keys from wallet: %w", wErr))
 		}
-		logErr := a.logNewFinalizationVoting(block, height+1)
-		if logErr != nil {
-			return a, nil, a.Errorf(errors.Wrapf(logErr, "failed to log new finalization voting for block %s",
-				block.BlockID()))
-		}
-		endorseErr := a.EndorseParentWithEachKey(pks, sks, block, height+1)
-		if endorseErr != nil {
-			return a, nil, a.Errorf(errors.Wrapf(endorseErr, "failed to endorse parent block with available keys"))
+		enErr := a.endorseParentWithEachKey(sks, block, blockHeight)
+		if enErr != nil {
+			return a, nil, a.Errorf(errors.Wrapf(enErr, "failed to endorse parent block with available keys"))
 		}
 	}
 	return newNGState(a.baseInfo), nil, nil
 }
 
-func (a *NGState) logNewFinalizationVoting(currentBlock *proto.Block, height proto.Height) error {
-	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-	if actErr != nil {
-		return a.Errorf(errors.Wrapf(actErr, "failed to get activation height for finality %s",
-			currentBlock.BlockID()))
-	}
-	periodStart, genErr := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
-	if genErr != nil {
-		return a.Errorf(errors.Wrapf(genErr, "failed to get current generation period, block %s",
-			currentBlock.BlockID()))
-	}
-	commitedGenerators, comgenErr := a.baseInfo.storage.CommittedGenerators(periodStart)
-	if comgenErr != nil {
-		return a.Errorf(errors.Wrapf(comgenErr, "failed to get committed generators for %s", currentBlock.BlockID()))
-	}
-	if len(commitedGenerators) > 0 {
-		slog.Debug("New finalization voting started",
-			"blockID", currentBlock.Parent.String(), "CommitedGeneratorsNumber", len(commitedGenerators))
-	}
-	return nil
-}
-func (a *NGState) EndorseParentWithEachKey(
-	pks []bls.PublicKey,
+func (a *NGState) endorseParentWithEachKey(
 	sks []bls.SecretKey,
 	block *proto.Block,
-	height proto.Height,
+	blockHeight proto.Height,
 ) error {
-	if len(pks) != len(sks) {
-		return a.Errorf(errors.Errorf("pks/sks length mismatch: %d != %d", len(pks), len(sks)))
-	}
-
 	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
 	if err != nil {
 		return a.Errorf(errors.Wrapf(err, "failed to get activation height for finality %s", block.BlockID()))
 	}
 
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, blockHeight, a.baseInfo.generationPeriod)
 	if err != nil {
 		return a.Errorf(errors.Wrapf(err, "failed to get current generation period, block %s", block.BlockID()))
 	}
 
-	endorsers, err := a.baseInfo.storage.NewestCommitedEndorsers(periodStart)
-	if err != nil {
-		return a.Errorf(errors.Wrap(err, "failed to find committed generators"))
-	}
-
-	for i := range pks {
-		pk := pks[i]
+	for i := range sks {
 		sk := sks[i]
-
-		slog.Debug("checking commitment record for my BLS public key", "myPublicKeyBLS",
-			pk.String(), "periodStart", periodStart)
-
-		committed, storErr := a.baseInfo.storage.NewestCommitmentExistsByEndorserPK(periodStart, pk)
-		if storErr != nil {
-			a.logCommittedEndorsers(periodStart, endorsers)
-			return a.Errorf(errors.Wrapf(
-				storErr,
-				"failed to find commitments at block %s for endorsers PK %s",
-				block.BlockID(),
-				pk.String(),
-			))
+		pk, pkErr := sk.PublicKey()
+		if pkErr != nil {
+			return a.Errorf(fmt.Errorf("failed to get BLS public key for seed at index %d: %w", i, pkErr))
 		}
+		slog.Debug("Trying to endorse block with wallet's BLS Public Key",
+			slog.Int("SeedIndex", i), slog.String("BLS PublicKey", pk.String()),
+			slog.Any("BlockID", block.BlockID()), slog.Any("GenerationPeriodStart", periodStart))
 
-		if !committed {
-			a.logCommitmentMiss(periodStart, endorsers)
+		g, gErr := a.baseInfo.storage.FindGenerator(state.ByBLSPublicKey(pk))
+		if gErr != nil {
+			return a.Errorf(fmt.Errorf("failed to find generator for BLS PK '%s': %w", pk.String(), gErr))
+		}
+		if g.GenerationBalance() > 0 {
+			slog.Debug("Wallet's BLS public key is not in the generators set",
+				slog.Int("SeedIndex", i), slog.String("BLS PublicKey", pk.String()),
+				slog.Any("BlockID", block.BlockID()), slog.Any("GenerationPeriodStart", periodStart))
 			continue
 		}
-		if endorseErr := a.Endorse(block.Parent, height, pk, sk); endorseErr != nil {
-			return a.Errorf(errors.Wrapf(err, "failed to endorse parent block"))
+		if enErr := a.Endorse(block.Parent, g, sk); enErr != nil {
+			return a.Errorf(errors.Wrapf(enErr, "failed to endorse parent block"))
 		}
 	}
 	return nil
 }
 
-func (a *NGState) logCommittedEndorsers(periodStart uint32, endorsers []bls.PublicKey) {
-	slog.Debug("Committed endorsers for period", "periodStart", periodStart)
-	for _, e := range endorsers {
-		slog.Debug("committed endorser", "endorser", e.String())
-	}
-}
-
-func (a *NGState) logCommitmentMiss(periodStart uint32, endorsers []bls.PublicKey) {
-	slog.Debug("did not find my BLS public key in the commitment records", "periodStart", periodStart)
-	if len(endorsers) == 0 {
-		slog.Debug("no BLS public keys in the commitment records", "periodStart", periodStart)
-		return
-	}
-	for _, e := range endorsers {
-		slog.Debug("commitment record", "endorserBlsPublicKey", e.String())
-	}
-}
-
-func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State, Async, error) {
+func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (State, Async, error) {
 	slog.Debug("Received a block endorsement:",
 		"EndorserIndex", blockEndorsement.EndorserIndex,
 		"FinalizedBlockID", blockEndorsement.FinalizedBlockID,
@@ -368,33 +315,13 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 
 	top := a.baseInfo.storage.TopBlock()
 
-	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-	if actErr != nil {
-		return a, nil,
-			proto.NewInfoMsg(errors.Errorf("failed to get DeterministicFinality activation height, %v", actErr))
-	}
-	height, heightErr := a.baseInfo.storage.Height()
-	if heightErr != nil {
-		return a, nil, a.Errorf(errors.Wrapf(heightErr, "failed to find height in storage"))
-	}
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	generatorIndex, err := safecast.Convert[uint32](blockEndorsement.EndorserIndex)
 	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get current generation period"))
+		return a, nil, a.Errorf(errors.Wrapf(err, "failed to convert endorser index to uint32"))
 	}
-
-	endorserPK, err := a.baseInfo.storage.FindEndorserPKByIndex(periodStart, int(blockEndorsement.EndorserIndex))
+	gi, err := a.baseInfo.storage.FindGenerator(state.ByIndex(generatorIndex))
 	if err != nil {
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to find endorser PK by index"))
-	}
-	generatorWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
-	if findErr != nil {
-		return a, nil, a.Errorf(errors.Wrapf(findErr, "failed to find waves generator PK by BLS endorser PK"))
-	}
-	generatorAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, generatorWavesPK)
-	generatorRec := proto.NewRecipientFromAddress(generatorAddress)
-	balance, err := a.baseInfo.storage.GeneratingBalance(generatorRec, height)
-	if err != nil {
-		return a, nil, a.Errorf(errors.Wrapf(err, "failed to generate balance for generator address %s", generatorAddress))
 	}
 	localFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
@@ -405,6 +332,8 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 		return a, nil, a.Errorf(errors.Wrapf(err, "failed to get last finalized block header for endorser address"))
 	}
 	// TODO check if generator is in the generator set.
+	endorserPK := gi.BLSPublicKey()
+	balance := gi.GenerationBalance()
 	added, addErr := a.baseInfo.endorsements.Add(blockEndorsement, endorserPK,
 		localFinalizedHeight, localFinalizedBlockHeader.BlockID(), balance, top.Parent)
 	if addErr != nil {
@@ -434,7 +363,11 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.EndorseBlock) (State,
 func (a *NGState) getCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {
 	blockFinalization, err := a.tryGetCurrentFinalizationVoting(height)
 	if err != nil {
-		slog.Debug("did not form finalization voting", "err", err)
+		if errors.Is(err, errNoEndorsements) {
+			slog.Debug("Skipping finalization voting: no endorsements available", slog.Uint64("height", height))
+			return nil, err
+		}
+		slog.Error("Failed to build finalization voting", slog.Uint64("height", height), logging.Error(err))
 		return nil, err
 	}
 	return blockFinalization, nil
@@ -445,12 +378,6 @@ func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height) (*proto.F
 	if a.baseInfo.endorsements.Len() == 0 {
 		return nil, errNoEndorsements
 	}
-
-	activationHeight, err := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-	if err != nil {
-		return nil, errors.Wrapf(err, "failed to get DeterministicFinality activation height")
-	}
-
 	ok, err := a.baseInfo.endorsements.Verify()
 	if err != nil {
 		return nil, err
@@ -459,22 +386,17 @@ func (a *NGState) tryGetCurrentFinalizationVoting(height proto.Height) (*proto.F
 		return nil, fmt.Errorf("endorsement verification failed at height %d", height)
 	}
 
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
+	generators, err := a.baseInfo.storage.CommittedGenerators(height)
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("failed to get commited generators at height %d: %w", height, err)
+	}
+	if len(generators) == 0 {
+		slog.Debug("No committed generators found, skipping finalization voting")
 	}
 
-	commitedGenerators, err := a.baseInfo.storage.CommittedGenerators(periodStart)
+	finalization, err := a.baseInfo.endorsements.FormFinalization()
 	if err != nil {
 		return nil, err
-	}
-	if len(commitedGenerators) == 0 {
-		slog.Debug("No committed generators found for finalization calculation")
-	}
-
-	finalization, finErr := a.baseInfo.endorsements.FormFinalization()
-	if finErr != nil {
-		return nil, finErr
 	}
 	return &finalization, nil
 }
@@ -493,18 +415,6 @@ func (a *NGState) MinedBlock(
 	height, heightErr := a.baseInfo.storage.Height()
 	if heightErr != nil {
 		return a, nil, a.Errorf(heightErr)
-	}
-
-	finalityActivated, errFin := a.baseInfo.storage.IsActiveAtHeight(int16(settings.DeterministicFinality), height+1)
-	if errFin != nil {
-		return a, nil, a.Errorf(errFin)
-	}
-	if finalityActivated {
-		logErr := a.logNewFinalizationVoting(block, height+1)
-		if logErr != nil {
-			return a, nil, a.Errorf(errors.Wrapf(logErr, "failed to log new finalization voting for block %s",
-				block.BlockID()))
-		}
 	}
 
 	metrics.BlockMined(block)
@@ -543,33 +453,23 @@ func (a *NGState) MinedBlock(
 	return a, tasks.Tasks(tasks.NewMineMicroTask(0, block, limits, keyPair, vrf)), nil
 }
 
-func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
-	endorserPK bls.PublicKey, endorserSK bls.SecretKey) error {
-	activationHeight, actErr := a.baseInfo.storage.ActivationHeight(int16(settings.DeterministicFinality))
-	if actErr != nil {
-		return proto.NewInfoMsg(errors.Errorf("failed to get DeterministicFinality activation height, %v", actErr))
-	}
-	periodStart, err := state.CurrentGenerationPeriodStart(activationHeight, height, a.baseInfo.generationPeriod)
-	if err != nil {
-		return err
-	}
-	endorserIndex, err := a.baseInfo.storage.IndexByEndorserPK(periodStart, endorserPK)
-	if err != nil {
-		return a.Errorf(errors.Wrap(err, "failed to get endorser index by generator pk"))
-	}
+func (a *NGState) Endorse(parentBlockID proto.BlockID,
+	endorser state.GeneratorInfo, endorserSK bls.SecretKey) error {
+	endorserIndex := endorser.Index()
 	lastFinalizedHeight, err := a.baseInfo.storage.LastFinalizedHeight()
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to get last finalized block height"))
+	}
+	lfh, err := safecast.Convert[uint32](lastFinalizedHeight)
+	if err != nil {
+		return a.Errorf(errors.Wrap(err, "failed to convert last finalized block height"))
 	}
 	lastFinalizedBlock, err := a.baseInfo.storage.BlockByHeight(lastFinalizedHeight)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to get last finalized block"))
 	}
-	message, err := proto.EndorsementMessage(
-		lastFinalizedBlock.BlockID(),
-		parentBlockID,
-		lastFinalizedHeight,
-	)
+	msg := proto.NewEndorsementCryptoMessage(lastFinalizedBlock.BlockID(), parentBlockID, lfh)
+	cmb, err := msg.Bytes()
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to create endorsement message"))
 	}
@@ -578,21 +478,17 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 		"lastFinalizedHeight", lastFinalizedHeight,
 		"EndorsedBlockID", parentBlockID,
 		"EndorserIndex", endorserIndex)
-	signature, err := bls.Sign(endorserSK, message)
+	signature, err := bls.Sign(endorserSK, cmb)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to sign block endorsement"))
-	}
-	endorserIndex32, cErr := safecast.Convert[int32](endorserIndex)
-	if cErr != nil {
-		return a.Errorf(errors.Wrapf(cErr, "endorserIndex overflows int32: %v", endorserIndex))
 	}
 
 	finalizedHeight32, cErr := safecast.Convert[uint32](lastFinalizedHeight)
 	if cErr != nil {
 		return a.Errorf(errors.Wrapf(cErr, "lastFinalizedHeight overflows uint32: %v", lastFinalizedHeight))
 	}
-	endorseParentBlock := &proto.EndorseBlock{
-		EndorserIndex:        endorserIndex32,
+	endorseParentBlock := &proto.BlockEndorsement{
+		EndorserIndex:        endorserIndex,
 		FinalizedBlockID:     lastFinalizedBlock.BlockID(),
 		FinalizedBlockHeight: finalizedHeight32,
 		EndorsedBlockID:      parentBlockID,
@@ -602,43 +498,24 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID, height proto.Height,
 	if idErr != nil {
 		return a.Errorf(errors.Wrap(idErr, "failed to compute endorsement id"))
 	}
-	endorserWavesPK, findErr := a.baseInfo.storage.FindGeneratorPKByEndorserPK(periodStart, endorserPK)
-	if findErr != nil {
-		return findErr
-	}
-	endorserAddress := proto.MustAddressFromPublicKey(a.baseInfo.scheme, endorserWavesPK)
-	endorserRec := proto.NewRecipientFromAddress(endorserAddress)
-	return a.addAndBroadcastOwnEndorsement(
-		endorseParentBlock,
-		endorserPK,
-		endorserRec,
-		height,
-		lastFinalizedHeight,
-		lastFinalizedBlock.BlockID(),
-		id,
-	)
+	return a.addAndBroadcastOwnEndorsement(endorseParentBlock, endorser, lastFinalizedHeight,
+		lastFinalizedBlock.BlockID(), id)
 }
 
 func (a *NGState) addAndBroadcastOwnEndorsement(
-	endorseParentBlock *proto.EndorseBlock,
-	endorserPK bls.PublicKey,
-	endorserRec proto.Recipient,
-	height proto.Height,
+	parentBlockEndorsement *proto.BlockEndorsement,
+	endorser state.GeneratorInfo,
 	lastFinalizedHeight proto.Height,
 	lastFinalizedBlockID proto.BlockID,
 	id crypto.Digest,
 ) error {
-	balance, err := a.baseInfo.storage.GeneratingBalance(endorserRec, height)
-	if err != nil {
-		return err
-	}
 	top := a.baseInfo.storage.TopBlock()
 	added, addErr := a.baseInfo.endorsements.Add(
-		endorseParentBlock,
-		endorserPK,
+		parentBlockEndorsement,
+		endorser.BLSPublicKey(),
 		lastFinalizedHeight,
 		lastFinalizedBlockID,
-		balance,
+		endorser.GenerationBalance(),
 		top.Parent,
 	)
 	if addErr != nil {
@@ -649,20 +526,20 @@ func (a *NGState) addAndBroadcastOwnEndorsement(
 	if !added {
 		// This should probably never happen.
 		slog.Debug("I formed a bad endorsement:",
-			"EndorserIndex", endorseParentBlock.EndorserIndex,
-			"FinalizedBlockID", endorseParentBlock.FinalizedBlockID,
-			"FinalizedBlockHeight", endorseParentBlock.FinalizedBlockHeight,
-			"EndorsedBlockID", endorseParentBlock.EndorsedBlockID,
-			"Signature", endorseParentBlock.Signature.String())
+			"EndorserIndex", parentBlockEndorsement.EndorserIndex,
+			"FinalizedBlockID", parentBlockEndorsement.FinalizedBlockID,
+			"FinalizedBlockHeight", parentBlockEndorsement.FinalizedBlockHeight,
+			"EndorsedBlockID", parentBlockEndorsement.EndorsedBlockID,
+			"Signature", parentBlockEndorsement.Signature.String())
 		return nil
 	}
-	a.baseInfo.actions.SendEndorseBlock(endorseParentBlock)
+	a.baseInfo.actions.SendEndorseBlock(parentBlockEndorsement)
 	slog.Debug("Sent a block endorsement:",
-		"EndorserIndex", endorseParentBlock.EndorserIndex,
-		"FinalizedBlockID", endorseParentBlock.FinalizedBlockID,
-		"FinalizedBlockHeight", endorseParentBlock.FinalizedBlockHeight,
-		"EndorsedBlockID", endorseParentBlock.EndorsedBlockID,
-		"Signature", endorseParentBlock.Signature.String())
+		"EndorserIndex", parentBlockEndorsement.EndorserIndex,
+		"FinalizedBlockID", parentBlockEndorsement.FinalizedBlockID,
+		"FinalizedBlockHeight", parentBlockEndorsement.FinalizedBlockHeight,
+		"EndorsedBlockID", parentBlockEndorsement.EndorsedBlockID,
+		"Signature", parentBlockEndorsement.Signature.String())
 	return nil
 }
 
@@ -711,6 +588,8 @@ func (a *NGState) mineMicro(
 	}
 	var blockFinalization *proto.FinalizationVoting
 	if finalityActivated {
+		// TODO: remove height parameter from the following function. Micro-block mining is operates only current
+		//  generator set.
 		blockFinalization, err = a.getCurrentFinalizationVoting(height)
 		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)
@@ -978,9 +857,9 @@ func initNGStateInFSM(state *StateData, fsm *stateless.StateMachine, info BaseIn
 					return a, nil, a.Errorf(errors.Errorf(
 						"unexpected type '%T' expected '*NGState'", state.State))
 				}
-				endorse, ok := args[0].(*proto.EndorseBlock)
+				endorse, ok := args[0].(*proto.BlockEndorsement)
 				if !ok {
-					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.EndorseBlock", args[0]))
+					return a, nil, a.Errorf(errors.Errorf("unexpected type %T, expected *proto.BlockEndorsement", args[0]))
 				}
 				return a.BlockEndorsement(endorse)
 			})).

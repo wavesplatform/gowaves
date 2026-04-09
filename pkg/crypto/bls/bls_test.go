@@ -338,7 +338,7 @@ func TestScalaCompatibilityAggregatedSignatures(t *testing.T) {
 			}
 			msg, err := base58.Decode(test.msg)
 			require.NoError(t, err)
-			aggSig, err := base58.Decode(test.aggSig)
+			aggSig, err := bls.NewSignatureFromBase58(test.aggSig)
 			require.NoError(t, err)
 
 			// Check that local aggregated signature matches the test aggSig.

@@ -6,6 +6,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
 	"github.com/wavesplatform/gowaves/pkg/proto"
 )
 
@@ -26,13 +27,13 @@ func TestEndorsementMessage(t *testing.T) {
 	endorsedID, err := proto.NewBlockIDFromBytes(endorsedIDBytes)
 	require.NoError(t, err)
 
-	e := &proto.EndorseBlock{
+	e := &proto.BlockEndorsement{
 		FinalizedBlockID:     finalizedID,
 		FinalizedBlockHeight: finalizedHeight,
 		EndorsedBlockID:      endorsedID,
 	}
 
-	got, err := e.EndorsementMessage()
+	got, err := e.CryptoMessage().Bytes()
 	require.NoError(t, err)
 
 	// Rebuild using the same concatenation as Scala

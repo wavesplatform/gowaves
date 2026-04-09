@@ -8,7 +8,6 @@ import (
 	"github.com/pkg/errors"
 
 	"github.com/wavesplatform/gowaves/pkg/crypto"
-	"github.com/wavesplatform/gowaves/pkg/crypto/bls"
 	"github.com/wavesplatform/gowaves/pkg/keyvalue"
 	"github.com/wavesplatform/gowaves/pkg/libs/ntptime"
 	"github.com/wavesplatform/gowaves/pkg/proto"
@@ -157,18 +156,8 @@ type StateInfo interface {
 	// SnapshotsAtHeight returns block snapshots at the given height.
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
 
-	// CalculateVotingFinalization calculates whether the generating balance of endorsers at the block with the
-	// Given height exceeds the total generating balance of all committed generators for that block.
-	CalculateVotingFinalization(endorsers []proto.WavesAddress,
-		blockGeneratorAddress proto.WavesAddress, height proto.Height,
-		allGenerators []proto.WavesAddress) (bool, error)
-
-	FindEndorserPKByIndex(periodStart uint32, index int) (bls.PublicKey, error)
-	FindGeneratorPKByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (crypto.PublicKey, error)
-	IndexByEndorserPK(periodStart uint32, pk bls.PublicKey) (uint32, error)
-	NewestCommitmentExistsByEndorserPK(periodStart uint32, endorserPK bls.PublicKey) (bool, error)
-	NewestCommitedEndorsers(periodStart uint32) ([]bls.PublicKey, error)
-	CommittedGenerators(periodStart uint32) ([]proto.WavesAddress, error)
+	FindGenerator(func(GeneratorInfo) bool) (GeneratorInfo, error)
+	CommittedGenerators(height proto.Height) ([]GeneratorInfo, error)
 	LastFinalizedHeight() (proto.Height, error)
 	LastFinalizedBlock() (*proto.BlockHeader, error)
 	CheckRollbackHeightAuto(height proto.Height) error
