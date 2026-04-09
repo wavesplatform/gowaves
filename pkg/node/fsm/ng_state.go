@@ -363,7 +363,11 @@ func (a *NGState) BlockEndorsement(blockEndorsement *proto.BlockEndorsement) (St
 func (a *NGState) getCurrentFinalizationVoting(height proto.Height) (*proto.FinalizationVoting, error) {
 	blockFinalization, err := a.tryGetCurrentFinalizationVoting(height)
 	if err != nil {
-		slog.Debug("Did not form finalization voting", logging.Error(err))
+		if errors.Is(err, errNoEndorsements) {
+			slog.Debug("Skipping finalization voting: no endorsements available", slog.Uint64("height", height))
+			return nil, err
+		}
+		slog.Error("Failed to build finalization voting", slog.Uint64("height", height), logging.Error(err))
 		return nil, err
 	}
 	return blockFinalization, nil
