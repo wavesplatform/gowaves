@@ -111,15 +111,13 @@ func (a *Node) serveIncomingPeers(ctx context.Context) error {
 	}
 
 	// Close the listener when the context is done
-	wg.Add(1)
-	go func() {
-		defer wg.Done()
+	wg.Go(func() {
 		<-ctx.Done()
 		if clErr := l.Close(); clErr != nil {
 			slog.Error("Failed to close listener", slog.String("address", l.Addr().String()),
 				logging.Error(clErr))
 		}
-	}()
+	})
 
 	for {
 		conn, acErr := l.Accept()

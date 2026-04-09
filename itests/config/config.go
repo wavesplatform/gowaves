@@ -138,9 +138,11 @@ func (c *ScalaConfigurator) DockerRunOptions() *dockertest.RunOptions {
 		c.imageTag = DefaultImageTag
 	}
 
-	var kps strings.Builder
+	kps := new(strings.Builder)
 	for i, kp := range c.knownPeers {
-		kps.WriteString(fmt.Sprintf("-Dwaves.network.known-peers.%d=%s:%s ", i, kp, BindPort))
+		if _, err := fmt.Fprintf(kps, "-Dwaves.network.known-peers.%d=%s:%s ", i, kp, BindPort); err != nil {
+			panic(err)
+		}
 	}
 	opt := &dockertest.RunOptions{
 		Repository: c.imageRepository,

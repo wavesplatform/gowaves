@@ -362,6 +362,12 @@ func (ds *diffState) changeLeaseBalances(sender, receiver proto.AddressID, amoun
 
 // lease increases sender's leaseOut and receiver's leaseIn by leasing amount
 func (ds *diffState) lease(sender, receiver proto.WavesAddress, amount int64, leaseID crypto.Digest) error {
+	if _, exists := ds.leases[leaseID]; exists {
+		// no need to check this leaseID in state because same lease ID can be created during the same script execution
+		// lease ID calculation uses: parentTxID, recipient(addr/alias), amount and nonce, so only possible way to
+		// create same leaseID is to create same lease with identical parameters during the same tx (script execution)
+		return fmt.Errorf("lease with id '%s' already exists in ride execution diff", leaseID.String())
+	}
 	if err := ds.changeLeaseBalances(sender.ID(), receiver.ID(), amount); err != nil {
 		return errors.Wrapf(err, "failed to change lease balances for lease '%s'", leaseID.String())
 	}

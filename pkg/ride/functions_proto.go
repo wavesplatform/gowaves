@@ -271,7 +271,7 @@ func performInvoke(invocation invocation, env environment, args ...rideType) (ri
 			return err
 		}
 		lightNodeActivated   = env.lightNodeActivated()
-		paymentsFixActivated = env.paymentsFixActivated() // payments fix cant be activated without light node activation
+		paymentsFixActivated = env.paymentsFixActivated() // payments fix can't be activated without light node activation
 	)
 	if lightNodeActivated && paymentsFixActivated { // Check payments result balances here AFTER Payments Fix activation
 		if pErr := checkPaymentsApplication(EvaluationFailure); pErr != nil {
