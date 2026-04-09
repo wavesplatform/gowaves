@@ -53,7 +53,7 @@ const finalizedHeightEndorsement = 1
 
 func signEndorsement(t *testing.T, e *proto.BlockEndorsement, sk bls.SecretKey) {
 	t.Helper()
-	msg, err := e.EndorsementMessage()
+	msg, err := e.CryptoMessage().Bytes()
 	require.NoError(t, err)
 	sig, err := bls.Sign(sk, msg)
 	require.NoError(t, err)

@@ -31,12 +31,13 @@ type commitmentsProvider interface {
 }
 
 type GeneratorInfo struct {
-	index   uint32
-	address proto.WavesAddress
-	pk      crypto.PublicKey
-	blsPK   bls.PublicKey
-	balance uint64
-	ban     bool
+	index     uint32
+	address   proto.WavesAddress
+	pk        crypto.PublicKey
+	blsPK     bls.PublicKey
+	balance   uint64
+	ban       bool
+	threshold uint64
 }
 
 func (g *GeneratorInfo) Index() uint32 {
@@ -45,6 +46,9 @@ func (g *GeneratorInfo) Index() uint32 {
 
 func (g *GeneratorInfo) GenerationBalance() uint64 {
 	if g.ban {
+		return 0
+	}
+	if g.balance < g.threshold { // If the balance of generator is less than minimal generation balance, return 0.
 		return 0
 	}
 	return g.balance
@@ -165,9 +169,6 @@ type generators struct {
 	set                   []GeneratorInfo
 	activationHeight      proto.Height
 	generationPeriodStart uint32
-	blockID               proto.BlockID
-	blockHeight           proto.Height
-	blockTimestamp        uint64
 	blockGenerator        *GeneratorInfo // Current block generator info.
 
 	calculateHashes bool
@@ -226,9 +227,8 @@ func (g *generators) initialize(
 	if err != nil {
 		return fmt.Errorf("failed to retrieve banned generators for the current generation period: %w", err)
 	}
-	g.blockID = blockID
-	g.blockHeight = blockHeight
-	g.blockTimestamp = ts
+	// Calculate minimal generation balance fot the current height and timestamp.
+	threshold := g.fs.minimalGeneratingBalanceAtHeight(blockHeight, ts)
 	g.set = make([]GeneratorInfo, 0, len(cms))
 	generatorsBalancesLSHRecord := newGeneratorsBalancesRecordForStateHashes(len(cms))
 	for i, cm := range cms {
@@ -245,12 +245,13 @@ func (g *generators) initialize(
 		}
 		idx := uint32(i)
 		gi := GeneratorInfo{
-			index:   idx,
-			address: a,
-			pk:      cm.GeneratorPK,
-			blsPK:   cm.EndorserPK,
-			balance: b,
-			ban:     slices.Contains(bans, idx),
+			index:     idx,
+			address:   a,
+			pk:        cm.GeneratorPK,
+			blsPK:     cm.EndorserPK,
+			balance:   b,
+			ban:       slices.Contains(bans, idx),
+			threshold: threshold,
 		}
 		g.set = append(g.set, gi)
 		if cm.GeneratorPK == generator {
@@ -259,6 +260,13 @@ func (g *generators) initialize(
 		if g.calculateHashes {
 			generatorsBalancesLSHRecord.append(b)
 		}
+	}
+	if len(cms) > 0 && g.blockGenerator == nil {
+		// The block generator was not initialized, which means it is not part of the committed generators.
+		// This serves as an additional safety check, since the generator has already been validated by its
+		// generation balance.
+		return fmt.Errorf("block generator with public key '%s' is not in the committed generators set",
+			generator.String())
 	}
 	if g.calculateHashes {
 		key := bannedGeneratorsKey{periodStart: g.generationPeriodStart}
@@ -385,27 +393,28 @@ func (g *generators) findGenerator(lookup func(GeneratorInfo) bool) (GeneratorIn
 	return GeneratorInfo{}, errors.New("generator is not found")
 }
 
-// TotalGenerationBalance returns generation balance of all commited generators.
+// totalGenerationBalance returns generation balance of all commited generators.
 // If no generators commited (generators set is empty) function returns 0 without an error.
-// TODO: Make private.
-func (g *generators) TotalGenerationBalance() (uint64, error) {
+// Block generator included in the set.
+func (g *generators) totalGenerationBalance() uint64 {
 	if len(g.set) == 0 {
-		return 0, nil
+		return 0
 	}
 	total := uint64(0)
 	for _, gen := range g.set {
+		// Only exclude banned generators, generators with insufficient balance return 0 balance,
+		// so they will be not included in total generation balance value.
 		if gen.ban {
-			continue
-		}
-		if gen.GenerationBalance() < g.fs.minimalGeneratingBalanceAtHeight(g.blockHeight, g.blockTimestamp) {
 			continue
 		}
 		total += gen.GenerationBalance()
 	}
-	return total, nil
+	return total
 }
 
-func (g *generators) generatorsByHeight(height proto.Height) ([]GeneratorInfo, error) {
+func (g *generators) generatorsByHeight(_ proto.Height) ([]GeneratorInfo, error) {
+	//TODO: Implement. The implementation is possible for extended API only, when the generators are stored for
+	// every height.
 	return nil, errors.New("not implemented")
 }
 

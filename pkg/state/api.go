@@ -156,12 +156,6 @@ type StateInfo interface {
 	// SnapshotsAtHeight returns block snapshots at the given height.
 	SnapshotsAtHeight(height proto.Height) (proto.BlockSnapshot, error)
 
-	// CalculateVotingFinalization calculates whether the generating balance of endorsers at the block with the
-	// Given height exceeds the total generating balance of all committed generators for that block.
-	CalculateVotingFinalization(endorsers []proto.WavesAddress,
-		blockGeneratorAddress proto.WavesAddress, height proto.Height,
-		allGenerators []proto.WavesAddress) (bool, error)
-
 	FindGenerator(func(GeneratorInfo) bool) (GeneratorInfo, error)
 	CommittedGenerators(height proto.Height) ([]GeneratorInfo, error)
 	LastFinalizedHeight() (proto.Height, error)

@@ -837,8 +837,8 @@ func (a *txAppender) appendBlock(params *appendBlockParams) error {
 		f := newFinalizer(a.stor.generators, a.stor.finality)
 		if voting, ok := params.block.GetFinalizationVoting(); ok {
 			if fErr := f.processBlockFinalization(voting, params.block, currentBlockHeight); fErr != nil {
-				return fmt.Errorf("failed to process block finalization for block '%d' at %d: %w",
-					params.block.BlockID(), currentBlockHeight, fErr)
+				return fmt.Errorf("failed to process finalization for block '%s' at %d: %w",
+					params.block.BlockID().String(), currentBlockHeight, fErr)
 			}
 		}
 	}

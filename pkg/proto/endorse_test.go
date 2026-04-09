@@ -33,7 +33,7 @@ func TestEndorsementMessage(t *testing.T) {
 		EndorsedBlockID:      endorsedID,
 	}
 
-	got, err := e.EndorsementMessage()
+	got, err := e.CryptoMessage().Bytes()
 	require.NoError(t, err)
 
 	// Rebuild using the same concatenation as Scala

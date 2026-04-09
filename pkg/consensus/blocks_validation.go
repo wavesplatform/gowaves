@@ -463,5 +463,13 @@ func (cv *Validator) validateFinalizationVoting(header *proto.BlockHeader, heigh
 		return fmt.Errorf("block '%s' at height %d has non-empty finalization voting but Deterministic Finality "+
 			"feature is not activated", header.BlockID().String(), height)
 	}
+	if len(voting.ConflictEndorsements) > cv.settings.MaxEndorsements {
+		return fmt.Errorf("block '%s' at height %d has more than %d conflicting endorsements",
+			header.BlockID().String(), height, cv.settings.MaxEndorsements)
+	}
+	if len(voting.EndorserIndexes) > cv.settings.MaxEndorsements {
+		return fmt.Errorf("block '%s' at height %d has more than %d endorsements",
+			header.BlockID().String(), height, cv.settings.MaxEndorsements)
+	}
 	return voting.Validate()
 }

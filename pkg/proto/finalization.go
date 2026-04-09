@@ -2,7 +2,6 @@ package proto
 
 import (
 	"bytes"
-	"encoding/binary"
 	"fmt"
 	"io"
 	"slices"
@@ -76,44 +75,13 @@ func (e *BlockEndorsement) Marshal() ([]byte, error) {
 	return endBlockProto.MarshalVTStrict()
 }
 
-func (e *BlockEndorsement) EndorsementMessage() ([]byte, error) {
-	const heightSize = uint32Size
-
-	finalizedID := e.FinalizedBlockID.Bytes()
-	endorsedID := e.EndorsedBlockID.Bytes()
-
-	size := len(finalizedID) + heightSize + len(endorsedID)
-	buf := make([]byte, size)
-
-	// finalizedBlockId
-	copy(buf[0:len(finalizedID)], finalizedID)
-
-	// finalizedBlockHeight (4 bytes big-endian, same as Scala Ints.toByteArray)
-	binary.BigEndian.PutUint32(buf[len(finalizedID):len(finalizedID)+heightSize], e.FinalizedBlockHeight)
-
-	// endorsedBlockId
-	copy(buf[len(finalizedID)+heightSize:], endorsedID)
-
-	return buf, nil
+func (e *BlockEndorsement) CryptoMessage() *EndorsementCryptoMessage {
+	return &EndorsementCryptoMessage{
+		FinalizedBlockID:     e.FinalizedBlockID,
+		FinalizedBlockHeight: e.FinalizedBlockHeight,
+		EndorsedBlockID:      e.EndorsedBlockID,
+	}
 }
-
-func EndorsementMessage(finalizedBlockID, endorsedBlockID BlockID, finalizedBlockHeight uint32) ([]byte, error) {
-	buf := bytes.NewBuffer(nil)
-	_, err := finalizedBlockID.WriteTo(buf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build endorsement cryptographic message: %w", err)
-	}
-	_, err = U32(finalizedBlockHeight).WriteTo(buf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build endorsement cryptographic message: %w", err)
-	}
-	_, err = endorsedBlockID.WriteTo(buf)
-	if err != nil {
-		return nil, fmt.Errorf("failed to build endorsement cryptographic message: %w", err)
-	}
-	return buf.Bytes(), nil
-}
-
 func (e *BlockEndorsement) UnmarshalFromProtobuf(data []byte) error {
 	var pbEndorsement = &g.EndorseBlock{}
 	err := pbEndorsement.UnmarshalVT(data)

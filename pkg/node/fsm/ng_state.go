@@ -464,11 +464,8 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID,
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to get last finalized block"))
 	}
-	message, err := proto.EndorsementMessage(
-		lastFinalizedBlock.BlockID(),
-		parentBlockID,
-		lfh,
-	)
+	msg := proto.NewEndorsementCryptoMessage(lastFinalizedBlock.BlockID(), parentBlockID, lfh)
+	cmb, err := msg.Bytes()
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to create endorsement message"))
 	}
@@ -477,7 +474,7 @@ func (a *NGState) Endorse(parentBlockID proto.BlockID,
 		"lastFinalizedHeight", lastFinalizedHeight,
 		"EndorsedBlockID", parentBlockID,
 		"EndorserIndex", endorserIndex)
-	signature, err := bls.Sign(endorserSK, message)
+	signature, err := bls.Sign(endorserSK, cmb)
 	if err != nil {
 		return a.Errorf(errors.Wrap(err, "failed to sign block endorsement"))
 	}
@@ -587,6 +584,8 @@ func (a *NGState) mineMicro(
 	}
 	var blockFinalization *proto.FinalizationVoting
 	if finalityActivated {
+		// TODO: remove height parameter from the following function. Micro-block mining is operates only current
+		//  generator set.
 		blockFinalization, err = a.getCurrentFinalizationVoting(height)
 		if err != nil && !errors.Is(err, errNoFinalization) && !errors.Is(err, errNoEndorsements) {
 			return a, nil, a.Errorf(err)

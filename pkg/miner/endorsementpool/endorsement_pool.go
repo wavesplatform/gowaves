@@ -93,7 +93,7 @@ func (p *EndorsementPool) ShouldIgnoreEndorsement(
 	if proto.Height(e.FinalizedBlockHeight) > lastFinalizedHeight {
 		return true
 	}
-	msg, err := e.EndorsementMessage()
+	msg, err := e.CryptoMessage().Bytes()
 	if err != nil {
 		return true
 	}
@@ -262,14 +262,14 @@ func (p *EndorsementPool) Verify() (bool, error) {
 
 	sigs := make([]bls.Signature, 0, n)
 	pks := make([]bls.PublicKey, 0, n)
-	msg, err := p.h[0].eb.EndorsementMessage()
+	msg, err := p.h[0].eb.CryptoMessage().Bytes()
 	if err != nil {
 		return false, err
 	}
 	for _, it := range p.h {
 		sigs = append(sigs, it.eb.Signature)
 		pks = append(pks, it.endorserPK)
-		nextMsg, msgErr := it.eb.EndorsementMessage()
+		nextMsg, msgErr := it.eb.CryptoMessage().Bytes()
 		if msgErr != nil {
 			return false, msgErr
 		}
